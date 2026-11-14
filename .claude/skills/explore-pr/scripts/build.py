@@ -1547,7 +1547,29 @@ def with_views(page: str, views: list[str]) -> str:
     return page.replace(VIEWS_MARKER, "".join(map(inline_script, views)))
 
 
-def with_page_models(page: str) -> str:
+ASKS_FOR_A_DIAGRAM = re.compile(r"\bapi\.(diagram|drawInto)\(")
+
+
+def draws_diagrams(views: list[str]) -> bool:
+    """Say whether any view lays a diagram out in the page."""
+    return any(ASKS_FOR_A_DIAGRAM.search(view) for view in views)
+
+
+def layout_engine() -> str:
+    """Return the kit and its layout engine as one script, or nothing."""
+    node = shutil.which("node")
+    if not node:
+        return ""
+    run = subprocess.run(
+        [node, str(KIT / "bin/diagram.js"), "bundle"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return run.stdout if run.returncode == 0 else ""
+
+
+def with_page_models(page: str, views: list[str]) -> str:
     models = (
         *(KIT / module for module in KIT_MODULES),
         COVERAGE_MODEL,
@@ -1555,6 +1577,8 @@ def with_page_models(page: str) -> str:
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)
+    if draws_diagrams(views):
+        scripts += inline_script(layout_engine())
     return page.replace(MODELS_MARKER, styles + scripts)
 
 
@@ -1595,7 +1619,7 @@ def standalone(
         data += inline_json("__EXPLORE_COMMITS", commits)
     page = with_views(page.replace(DATA_MARKER, data), views)
     page = with_page_models(
-        page.replace(MODELS_MARKER, embedded_fonts() + MODELS_MARKER)
+        page.replace(MODELS_MARKER, embedded_fonts() + MODELS_MARKER), views
     )
     head, separator, body = page.partition("</style>")
     if not separator:
@@ -1617,7 +1641,7 @@ def hosted(
     out_dir.mkdir(parents=True, exist_ok=True)
     page = page.replace(TITLE_PLACEHOLDER, html.escape(title))
     page = with_views(page.replace(DATA_MARKER, ""), views)
-    page = with_page_models(page)
+    page = with_page_models(page, views)
     (out_dir / "index.html").write_text(page)
     (out_dir / "content.json").write_text(
         json.dumps(content, separators=(",", ":"))

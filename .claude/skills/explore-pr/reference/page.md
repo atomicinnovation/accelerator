@@ -38,7 +38,7 @@ rebuilding them. Paths are relative to the skill directory.
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked and every stop and ledger row compared with the code it quotes; `--reanchor` moves those whose code shifted |
-| `scripts/smoke.js` | Headless-Chrome check of every route: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, every kit diagram put through the kit's own checks (text inside its box, nothing overlapping, tracing, a box's ↗ control following its link), a stop named in prose linking to its chapter at that stop, a verdict from an earlier head leaving rewritten lines unread, screenshots |
+| `scripts/smoke.js` | Headless-Chrome check of every route, custom views included: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, every kit diagram put through the kit's own checks (text inside its box, nothing overlapping, tracing, a box's ↗ control following its link), a stop named in prose linking to its chapter at that stop, a verdict from an earlier head leaving rewritten lines unread, screenshots |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions, and the PR 170 prune simulator with its specification |
 

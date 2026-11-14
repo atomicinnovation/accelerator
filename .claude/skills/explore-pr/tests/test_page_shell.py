@@ -138,3 +138,32 @@ def test_a_figure_whose_notation_draws_itself_is_drawn_from_its_spec():
 
     assert "DiagramKit.NOTATIONS" in body
     assert "htmlOf(f, { resolveLink: diagramLink })" in renderer("figSelfDrawn")
+
+
+def test_a_view_can_have_any_diagram_laid_out_and_drawn_in_the_page():
+    shell = SHELL.read_text()
+    drawn = renderer("liveDiagram")
+
+    assert "diagram: liveDiagram, drawInto" in shell
+    assert "DiagramKit.live" in drawn
+    assert "live.problemsIn(spec)" in drawn
+    assert "await live.laidOut(spec)" in drawn
+    assert "figureHtml(" in drawn
+
+
+def test_a_diagram_that_cannot_be_drawn_says_why_where_it_would_be():
+    drawn = renderer("liveDiagram")
+
+    assert "built without the layout engine" in drawn
+    assert "fig-error" in drawn
+
+
+def test_an_element_being_drawn_into_says_so_until_it_is_done():
+    into = renderer("drawInto")
+
+    assert "data-drawing" in into
+    assert "removeAttribute('data-drawing')" in into
+
+
+def test_the_page_names_its_custom_views():
+    assert "customViews: () =>" in SHELL.read_text()

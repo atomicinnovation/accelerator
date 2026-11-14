@@ -217,8 +217,10 @@ const DIAGRAMS_PROBE = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 300));
   const seen = {};
   let tracing = { skipped: 'no diagram with an arrow' };
-  for (const route of window.ExplorePR.figureViews()) {
+  for (const route of [...window.ExplorePR.figureViews(), ...window.ExplorePR.customViews()]) {
     location.hash = route; await settle();
+    for (let waited = 0; waited < 40 && document.querySelector('[data-drawing]'); waited++) await settle();
+    if (document.querySelector('[data-drawing]')) { seen[route] = ['a diagram was still being drawn after 12 seconds']; continue; }
     if (!document.querySelector('svg.dk, .dk-drawn')) continue;
     const checked = await ${DRAWING_CHECKS};
     [...checked.diagrams, ...${SELF_DRAWN_CHECKS}].forEach(each => { seen[each.id] = each.problems; });

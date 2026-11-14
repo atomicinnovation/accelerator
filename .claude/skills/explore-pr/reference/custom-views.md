@@ -16,8 +16,8 @@ that is mostly wiring; static figures serve it better.
 | The PR changes… | A view that helps |
 |---|---|
 | A decision procedure (what to keep, retry, allow, route) | A simulator: inputs on one side, every item's fate and the rule that decided it on the other |
-| A protocol or lifecycle across processes | A sequence stepper: actors as columns, events in order, with the lock or state held at each step |
-| A state machine | An interactive state diagram: click a transition, see the guard and the code |
+| A protocol or lifecycle across processes | A sequence stepper: a `sequence-diagram` redrawn with one more message per step, with the lock or state held at each |
+| A state machine | An interactive `state-machine`: press an event, see the state it leads to marked, with the guard and the code |
 | A data format, schema or migration | A before/after explorer: a sample record, transformed step by step |
 | Configuration, flags or a permission matrix | A matrix: every combination, the resulting behaviour, the code that decides it |
 | Performance-sensitive paths | A chart of the measurements the PR records, with the budget marked |
@@ -50,7 +50,8 @@ view looks and behaves like the rest of the page:
 | Member | Use |
 |---|---|
 | `content`, `diff` | The assembled content model and the diff (`diff` may be null while it loads) |
-| `figure(spec)` | A `matrix`, `tree` or `timeline`, written as its notation's reference says, rendered as HTML, so a view can draw one from the state it computes. A diagram with boxes and arrows (a dependency graph, a sequence diagram) is laid out when the page is built, so a view cannot yet draw one from state it computes in the browser |
+| `figure(spec)` | A `matrix`, `tree` or `timeline`, written as its notation's reference says, rendered as HTML at once, so a view can draw one from the state it computes |
+| `diagram(spec)`, `drawInto(element, spec)` | Any diagram the kit draws, laid out in the page from a spec the view computes (see "Drawing a diagram from state") |
 | `md(text, inline)`, `esc(text)` | Markdown and HTML escaping |
 | `codeSlice(path, start, end, side)` | A highlighted diff slice with links to the file view |
 | `locBtn(path, line)`, `whereBtn('path:line')`, `testRef('path::name')` | Links that open the file view at a line |
@@ -70,6 +71,37 @@ Use the page's CSS classes: `view-head`, `eyebrow`, `lede`, `panel`,
 The shell is a starting point, not a cage. When a view needs more, copy
 `assets/page.html` to `<workspace>/page.html` and change it; the build uses the
 workspace copy.
+
+## Drawing a diagram from state
+
+A view can draw any kit diagram from a spec it builds as the reviewer
+steps or changes inputs: the current state of a state machine marked
+`new`, the path a simulated request took toned `ok`, a sequence that
+grows by one message per step. Write the spec as that kind's notation
+reference says.
+
+```js
+mount(root, api) {
+  const show = () => api.drawInto(root.querySelector('#machine'), specFor(state));
+  root.querySelector('#next').addEventListener('click', () => { state = next(state); show(); });
+  show();
+}
+```
+
+- `api.drawInto(element, spec)` lays the diagram out and puts the finished
+  figure in the element. Layout takes a moment, so it returns a promise;
+  `render` gives the element its place and `mount` fills it.
+- `api.diagram(spec)` returns a promise of the figure's HTML, for a view
+  that places it itself.
+- A spec with a problem is not drawn: its place says what is wrong, in the
+  words the build would use.
+- Keep the same `id` from one drawing to the next, and mark what changed
+  with `status` and `tone` so the reviewer's eye is led to it.
+- A page whose views call either one carries the layout engine, which adds
+  about 1.9 MB. The build includes it only then. A view that needs only a
+  `matrix`, `tree` or `timeline` should use `figure(spec)` and stay small.
+- The smoke check waits for every such diagram and puts it through the
+  kit's checks, as it does the page's own.
 
 ## Making a model trustworthy
 

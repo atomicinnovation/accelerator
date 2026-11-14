@@ -506,3 +506,40 @@ def test_both_layouts_carry_the_notations_that_draw_themselves(
             assert f"kind: '{kind}'" in html, kind
         assert html.index("inlineOf") < html.index("kind: 'matrix'")
         assert html.index("kind: 'timeline'") < html.index("window.APP")
+
+
+DRAWING_VIEW = (
+    "ExplorePR.registerView({ mount(root, api) { api.drawInto(root, {}); } });"
+)
+PLAIN_VIEW = "ExplorePR.registerView({ render: api => api.figure({}) });"
+
+
+def test_a_page_with_a_view_that_draws_diagrams_carries_the_layout_engine(
+    tmp_path, script
+):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [DRAWING_VIEW], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [DRAWING_VIEW], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert "org.eclipse.elk" in html
+        assert html.index("live: live") < html.index("window.APP")
+        assert html.index("window.APP") < html.index("api.drawInto")
+
+
+def test_a_page_whose_views_draw_no_diagram_stays_small(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [PLAIN_VIEW], {}, "t")
+
+    assert "org.eclipse.elk" not in page
+    assert len(page) < 400_000
+
+
+def test_a_view_may_ask_for_a_diagram_by_either_call(script):
+    build = script("build")
+
+    assert build.draws_diagrams(["api.diagram(spec).then(show)"])
+    assert build.draws_diagrams(["x", "api.drawInto(el, spec)"])
+    assert not build.draws_diagrams(["api.figure(spec)", "diagramOf(spec)"])

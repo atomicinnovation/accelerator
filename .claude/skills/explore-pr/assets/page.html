@@ -1100,6 +1100,19 @@ function figSelfDrawn(f) {
   const remarks = (f.remarks || []).length ? `<ul class="dk-remarks">${f.remarks.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '';
   return `<div class="dk-drawn">${DiagramKit.NOTATIONS[f.kind].htmlOf(f, { resolveLink: diagramLink })}</div>${remarks}`;
 }
+async function liveDiagram(spec) {
+  const live = DiagramKit.live;
+  if (!live) return '<div class="fig-error">This page was built without the layout engine, so it cannot draw this diagram. A view that draws one calls <code>api.diagram</code> or <code>api.drawInto</code>.</div>';
+  const problems = live.problemsIn(spec);
+  if (problems.length) return `<div class="fig-error">This diagram could not be drawn:<ul>${problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>`;
+  const scene = await live.laidOut(spec);
+  return figureHtml({ ...spec, ...(scene ? { scene, legend: DiagramKit.legendOf(scene) } : {}), remarks: live.remarksOn(spec) });
+}
+async function drawInto(element, spec) {
+  element.setAttribute('data-drawing', '');
+  try { element.innerHTML = await liveDiagram(spec); } catch (e) { element.innerHTML = `<div class="fig-error">This diagram could not be drawn: ${esc(e.message)}</div>`; }
+  element.removeAttribute('data-drawing');
+}
 function figureBody(f) {
   const drawsItself = f && (DiagramKit.NOTATIONS || {})[f.kind];
   const draw = drawsItself ? figSelfDrawn : f && 'scene' in f ? figDiagram : FIGURES[f && f.kind];
@@ -1802,7 +1815,7 @@ after.notes = () => {
 
 /* ---------- Extension API ---------- */
 const source = () => (C.findingsMeta || {}).source || 'the earlier review';
-const api = () => ({ content: C, diff: D, commits: COMMIT, md, esc, fmt, plural, figure: figureHtml, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
+const api = () => ({ content: C, diff: D, commits: COMMIT, md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
 window.ExplorePR = {
   registerView(view) {
     if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);
@@ -1811,6 +1824,7 @@ window.ExplorePR = {
   },
   registerKind(name, spec) { KINDS[name] = spec; },
   routes: () => (C ? routes().map(r => r[0]) : []),
+  customViews: () => customViews.map(view => view.id),
   figureViews: () => (C ? figureViews() : []),
   get api() { return api(); },
 };
