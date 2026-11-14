@@ -159,6 +159,10 @@
       const cx = node.x + node.width / 2, cy = node.y + node.height / 2;
       return `<path class="body" d="M${tidy(cx)} ${tidy(node.y)} L${tidy(node.x + node.width)} ${tidy(cy)} L${tidy(cx)} ${tidy(node.y + node.height)} L${tidy(node.x)} ${tidy(cy)} Z"/>` + wordsIn(node, target);
     },
+    bubble: (node, target) => `<circle class="body" cx="${tidy(node.x + node.width / 2)}" cy="${tidy(node.y + node.height / 2)}" r="${tidy(node.width / 2)}"/>` + wordsIn(node, target),
+    store: (node, target) => `<rect class="back" ${rectOf(node)}/>`
+      + `<path class="body" d="M${tidy(node.x)} ${tidy(node.y)} H${tidy(node.x + node.width)} M${tidy(node.x)} ${tidy(node.y + node.height)} H${tidy(node.x + node.width)}"/>` + wordsIn(node, target),
+    external: (node, target) => bodyOf(node, 0) + wordsIn(node, target),
     bar: node => `<rect class="body" ${rectOf(node)} rx="2"/>`,
     flowfinal(node) {
       const cx = node.x + node.width / 2, cy = node.y + node.height / 2, radius = node.width / 2, arm = radius * 0.7;

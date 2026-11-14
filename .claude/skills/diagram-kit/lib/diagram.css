@@ -21,6 +21,7 @@
 .dk .node.group .heading { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 55%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
 .dk .node .body { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
 .dk .node.group .body { fill: color-mix(in srgb, var(--panel-2) 55%, transparent); }
+.dk .store > .body { stroke: var(--ink-3); stroke-width: 1.6; }
 .dk .s-new > .body { stroke: var(--accent); stroke-width: 1.9; }
 .dk .s-changed > .body { stroke: var(--warn); stroke-width: 1.9; }
 .dk .s-existing > .body { stroke: var(--ink-3); stroke-width: 1.6; }
@@ -54,7 +55,7 @@
 .dk .node.composite.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.subprocess .rule { stroke: var(--rule); stroke-width: 1.3; fill: none; }
 .dk .node.subprocess.s-new .rule { stroke: var(--accent); }
-.dk .node.process .message, .dk .node.terminator .message, .dk .node.io .message, .dk .node.subprocess .message, .dk .node.decision .message { fill: var(--ink); }
+.dk .node.process .message, .dk .node.terminator .message, .dk .node.io .message, .dk .node.subprocess .message, .dk .node.decision .message, .dk .node.bubble .message, .dk .node.store .message, .dk .node.external .message { fill: var(--ink); }
 .dk .node.t-risk > path.body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.process.t-risk > .body, .dk .node.terminator.t-risk > .body, .dk .node.subprocess.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.frame > .body, .dk .node.package > .body { fill: color-mix(in srgb, var(--panel-2) 45%, transparent); }
@@ -86,6 +87,9 @@
 .dk .node.entity text.s-changed { fill: var(--warn); }
 .dk .node.entity text.s-removed { fill: var(--bad); text-decoration: line-through; }
 .dk .edge .crow { stroke: currentColor; stroke-width: 1.4; fill: var(--panel); stroke-linecap: round; }
+.dk .node.store .back { fill: var(--panel); stroke: none; }
+.dk .node.store.t-risk .back, .dk .node.bubble.t-risk > .body, .dk .node.external.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.dk .node.store.t-risk > .body, .dk .node.bubble.t-risk > .body, .dk .node.external.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
 .dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
 .dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
 .dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }

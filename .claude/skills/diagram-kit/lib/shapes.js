@@ -175,12 +175,22 @@
     },
   };
 
+  const BUBBLE_TEXT_LIMIT = 96;
+  const bubble = {
+    holdsOthers: false, outline: 'disc',
+    textOf: node => blockOf(node.label ?? node.id, 'message', BUBBLE_TEXT_LIMIT),
+    sizeOf(node) {
+      const text = bubble.textOf(node), across = Math.max(64, Math.ceil(Math.hypot(text.width, text.height)) + 14);
+      return { width: across, height: across };
+    },
+  };
+
   const bar = { holdsOthers: false, sizeOf: node => (node.upright ? { width: 6, height: 84 } : { width: 84, height: 6 }) };
 
   const supporting = { holdsOthers: false };
   const SHAPES = {
     box, group, actor, note, fragment, lane: supporting, lifeline: supporting, activation: supporting, destroy: supporting,
-    classifier, entity, boundary, frame, cuboid, cuboidbox, element, person, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
+    classifier, entity, boundary, frame, cuboid, cuboidbox, element, person, package: packageShape, folder, ball, process: worded(28), terminator: worded(40), io: worded(52), subprocess: worded(44), decision, bubble, store: worded(28), external: worded(28), bar, flowfinal: fixed(20, 'disc'), state, composite, initial: fixed(14, 'disc'), final: fixed(20, 'disc'), choice: fixed(28, 'diamond'),
   };
   const api = { SHAPES, LINK_CONTROL_WIDTH, ACTIVITY_LINE, MEMBER_LINE, TAB_HEIGHT, DEPTH, HEAD_ROOM, ROW_LINE };
   if (typeof module === 'object' && module.exports) module.exports = api;

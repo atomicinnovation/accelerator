@@ -1,0 +1,34 @@
+{
+  "id": "launcher-bootstrap",
+  "kind": "data-flow-diagram",
+  "title": "Nothing fetched from the release host runs until its signature is checked",
+  "caption": "The launcher and its signature are the only data that come in from outside the machine. Both go to the cache, and the launcher is run only after the verify shim, which ships inside the plugin with the public key, has checked the one against the other.",
+  "externals": [
+    { "id": "claude", "name": "Claude Code" },
+    { "id": "releases", "name": "GitHub release host" }
+  ],
+  "processes": [
+    { "id": "bootstrap", "name": "Bootstrap the launcher", "link": "bin/accelerator:435" },
+    { "id": "fetch", "name": "Fetch the launcher", "link": "bin/accelerator:415" },
+    { "id": "verify", "name": "Verify the signature", "tone": "ok", "link": "bin/accelerator:409" },
+    { "id": "run", "name": "Run the launcher" }
+  ],
+  "stores": [
+    { "id": "plugin", "name": "Plugin directory" },
+    { "id": "cache", "name": "Launcher cache" }
+  ],
+  "boundaries": [
+    { "id": "machine", "name": "The user's machine", "holds": ["claude", "bootstrap", "fetch", "verify", "run", "plugin", "cache"] }
+  ],
+  "flows": [
+    { "from": "claude", "to": "bootstrap", "data": "command" },
+    { "from": "bootstrap", "to": "fetch", "data": "version and platform" },
+    { "from": "fetch", "to": "releases", "data": "request", "link": "bin/accelerator:406" },
+    { "from": "releases", "to": "fetch", "data": "launcher and signature", "tone": "risk" },
+    { "from": "fetch", "to": "cache", "data": "unverified launcher" },
+    { "from": "cache", "to": "verify", "data": "launcher and signature" },
+    { "from": "plugin", "to": "verify", "data": "verify shim and public key" },
+    { "from": "verify", "to": "run", "data": "verified launcher", "tone": "ok" },
+    { "from": "run", "to": "claude", "data": "output" }
+  ]
+}
