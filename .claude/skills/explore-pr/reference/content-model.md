@@ -68,11 +68,11 @@ reviewer takes in a sequence diagram of five steps at a glance, and needs
 three readings of the paragraph that says the same. So the content is drawn
 first and written second:
 
-- **Every chapter opens with at least one figure**, and usually two or three:
-  what the change introduces (a flow), the order things happen in (a
-  sequence), the state it leaves behind (a tree), the decision it makes (a
-  matrix), the windows or ages it reasons about (a timeline), or what is
-  different (a comparison). The build warns about a chapter without one.
+- **Every chapter opens with at least one figure**, and usually two or three,
+  each chosen by the question it answers ("Choosing a figure"): how what
+  the change introduces is put together, the order things happen in, the
+  state it leaves behind, the decision it makes, or what is different. The
+  build warns about a chapter without one.
 - **The overview opens with the change at a glance**: usually a before/after
   comparison of the part of the system the PR changes. The build warns if it
   is missing.
@@ -319,9 +319,34 @@ of a changed file when the change cannot be understood without them.
 
 ## Figures
 
-The page draws seven kinds of figure from data, laid out and coloured for
-light and dark themes, each shown where it explains something: in the
-overview, the Design view, its chapter or its stop.
+The page draws every figure from data, laid out and coloured for light and
+dark themes, each shown where it explains something: in the overview, the
+Design view, its chapter or its stop.
+
+### Choosing a figure
+
+Choose by the question a reviewer has, not by the subject. The guide the
+diagram skills keep, at `{skill dir}/../draw-diagram/reference/choosing.md`,
+gives the question each kit diagram answers, how to tell neighbouring
+kinds apart, and which views go together for a new abstraction, a
+lifecycle, a schema change, anything that handles a secret, a parser or a
+change in how code is organised. Read it before sketching a chapter's
+figures.
+
+Four kinds are this page's own, and the guide does not cover them:
+
+- `compare`: the same part of the system before and after. The overview
+  usually opens with one.
+- `matrix`: which case gets which outcome, across two dimensions.
+- `tree`: what is on disk, in a config or in a module tree, and what the
+  change adds, removes or leaves behind.
+- `timeline`: windows, ages and thresholds on one scale.
+
+`flow` remains for boxes and arrows that no kit diagram fits. Prefer a kit
+diagram wherever one does.
+
+### How the page draws them
+
 Pressing boxes in a flow (or the module map) traces their arrows, those they
 send in one colour and those they receive in another, and dims the rest;
 pressing a box again drops it from the trace, and Esc clears it. A box with a

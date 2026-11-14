@@ -93,28 +93,10 @@ precise question for each}.
 
 **Figures**: follow the contract's Figures section, including what makes a
 figure worth its space, and put `where` on every box, step or path that has
-a home in the code. Choose the figure by the question it answers:
-
-| The question | Write a |
-|---|---|
-| How do these types relate? | `class-diagram` |
-| What does this look like in one case? | `object-diagram` |
-| What is the domain made of, and where are its boundaries? | `domain-model` |
-| Whose model sets the terms between contexts? | `context-map` |
-| What are the replaceable parts, and through what do they plug together? | `component-diagram` |
-| How is the source organised, and which part may use which? | `package-diagram` |
-| What runs or lives where? | `deployment-diagram` |
-| What is the system, who uses it, and what is it made of? | `c4-diagram` |
-| What is stored, and what does this change do to the schema? | `entity-relationship-diagram` |
-| What depends on what? | `dependency-graph` |
-| Where does this data go, and what trust boundary does it cross? | `data-flow-diagram` |
-| What happens, in what order, between whom? | `sequence-diagram` |
-| What states can this be in, and what moves it? | `state-machine` |
-| What is done, in what order, by whom, and what in parallel? | `activity-diagram` |
-| What are the steps, with their loops and rejoining paths? | `flowchart` |
-| Which conditions lead to which outcome? | `decision-tree` |
-| How are the bits or bytes of this format laid out? | `byte-field-diagram` |
-| What does this grammar, command line or pattern accept? | `railroad-diagram` |
+a home in the code. Choose each figure by the question it answers, from
+the guide at `{skill dir}/../draw-diagram/reference/choosing.md`: it sets
+each kind against its neighbours and says which views go together. The
+contract's "Choosing a figure" adds the four kinds only this page draws.
 
 Each is described in the contract's "Diagrams the kit draws" and in its
 notation's reference at `{skill dir}/../draw-<kind>/reference/notation.md`

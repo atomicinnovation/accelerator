@@ -40,7 +40,7 @@
           "text": "does not spawn reading passes before the shape is agreed"
         },
         {
-          "text": "names concrete figures (flow, sequence, tree, matrix, timeline or comparison) for the change's concepts before any prose is written"
+          "text": "names, for each of the change's concepts, the question a reviewer has and the kind of diagram that answers it, before any prose is written"
         },
         {
           "text": "opens its summary with the change's design (abstractions, responsibilities, dependency direction) before scale and line counts"
@@ -103,7 +103,7 @@
       "files": [],
       "assertions": [
         {
-          "text": "adds figures of the content model's kinds to the chapters rather than rewording the prose"
+          "text": "adds figures to the chapters, each of a kind chosen by the question it answers, rather than rewording the prose"
         },
         {
           "text": "removes or shortens prose that a new figure makes redundant"
@@ -147,6 +147,43 @@
         },
         {
           "text": "spawns no more reading passes and builds no more custom views than the chosen depth allows"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "/explore-pr 233 — it adds API-token sign-in to the sync command",
+      "expected_output": "Recognises from the request and the reconnaissance that the change handles a credential, and plans its figures accordingly: a data flow diagram of where the token goes, what stores it and which trust boundaries it crosses, alongside a sequence diagram of the check itself. Says which crossing has nothing guarding it, if any, as a design finding.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "plans a data flow diagram for the token, naming its trust boundaries"
+        },
+        {
+          "text": "pairs it with a sequence diagram of the check rather than drawing the same thing twice"
+        },
+        {
+          "text": "chooses the kinds by the question each answers, citing the diagram guide rather than habit"
+        },
+        {
+          "text": "treats a flow across a trust boundary with nothing guarding it as a finding to raise"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "/explore-pr 310 (the one with the migration that splits the work_items table)",
+      "expected_output": "Plans an entity-relationship diagram of the tables the migration touches, with what it adds, changes and removes marked, as the chapter's opening figure, and a flowchart or activity diagram of the migration's steps. Does not fall back to a generic boxes-and-arrows flow for the schema.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "plans an entity-relationship diagram of the affected tables with the change's additions and removals marked"
+        },
+        {
+          "text": "plans a second figure for the order of the migration's steps"
+        },
+        {
+          "text": "does not draw the schema as a generic flow of boxes and arrows"
         }
       ]
     }

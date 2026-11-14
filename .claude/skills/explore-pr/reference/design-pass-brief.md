@@ -57,10 +57,11 @@ they relate as a `class-diagram`, a `component-diagram` when the parts
 meet through interfaces, or a `domain-model` when the change is about the
 domain's aggregates and their boundaries; a `c4-diagram` or a
 `deployment-diagram` when the change adds or moves something that runs or
-is stored on its own; the architecture as a layered `flow` (entry
-points at the top, ports at the bottom, new parts toned `new`, each box
-linked to its chapter), and a `compare` of before and after when the change
-reshapes something that existed. Write the `summary` last, in 3–5 sentences,
+is stored on its own; a `data-flow-diagram` when the change handles a
+secret, a credential or untrusted input; and a `compare` of before and
+after when the change reshapes something that existed. Choose among them
+by the guide at `{skill dir}/../draw-diagram/reference/choosing.md`, link
+each element to its chapter, and mark what the change adds `new`. Write the `summary` last, in 3–5 sentences,
 naming the key abstractions in bold.
 
 **Before you finish**, validate the JSON with `python3 -m json.tool`, and check

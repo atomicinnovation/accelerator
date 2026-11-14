@@ -139,9 +139,10 @@ Do this yourself; it is cheap and shapes everything after it.
   (deletions, migrations, writes to shared state, authorisation decisions,
   external side effects). These become the chapters, the design pass's
   agenda, the custom-view candidates and the ledger's subject.
-- **The pictures**: for each concept, sketch the figure that explains it
-  fastest: before and after, the order of events, what is left behind, the
-  decision made. These become the overview's figure and each brief's.
+- **The pictures**: for each concept, name the question a reviewer has and
+  the kind of figure that answers it, by the guide at
+  `{skill dir}/../draw-diagram/reference/choosing.md`. These become the
+  overview's figure and each brief's.
 
 Tell the user what you found, briefly: the design of the change in two
 sentences, scale by layer, CI state, whether a prior review exists,
