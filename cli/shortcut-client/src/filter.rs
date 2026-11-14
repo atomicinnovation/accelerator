@@ -22,6 +22,7 @@ enum Field {
     State,
     Owner,
     Type,
+    Text,
 }
 
 impl Field {
@@ -31,6 +32,7 @@ impl Field {
             "state" => Some(Self::State),
             "owner" => Some(Self::Owner),
             "type" => Some(Self::Type),
+            "text" => Some(Self::Text),
             _ => None,
         }
     }
@@ -41,6 +43,7 @@ impl Field {
             Self::State => format!("state:\"{value}\""),
             Self::Owner => format!("owner:{value}"),
             Self::Type => format!("type:{value}"),
+            Self::Text => format!("\"{value}\""),
         }
     }
 }
@@ -181,7 +184,7 @@ fn lowered_value(field: Field, value: &str) -> Result<String, FilterRefusal> {
         )));
     }
     match field {
-        Field::Label | Field::State => Ok(value.to_owned()),
+        Field::Label | Field::State | Field::Text => Ok(value.to_owned()),
         Field::Owner => {
             let mention = !value.is_empty()
                 && value.chars().all(|c| {

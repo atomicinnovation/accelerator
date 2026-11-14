@@ -158,3 +158,10 @@ fn the_filtered_states_are_listed_for_validation() {
 
     assert_eq!(filters.states(), vec!["Ready", "Done"]);
 }
+
+#[test]
+fn free_text_lowers_to_a_quoted_phrase() {
+    let lowered = queries(&[("text", "login fails")], "T");
+
+    assert_eq!(lowered, vec!["team:\"T\" \"login fails\""]);
+}
