@@ -26,6 +26,8 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::announced_scheme_with_key;
 use crate::config::resolve_work_dir;
+use crate::convergence::refuse_diverged_corpus;
+use crate::convergence::Diverged;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityCandidate {
@@ -75,16 +77,35 @@ fn resolve_path_class(root: &Path, start: &Path, input: &str) -> RunOutcome {
     }
 }
 
+/// Why `work resolve` could not resolve at all.
+#[derive(Debug)]
+pub enum RunFailure {
+    Config(kernel::Error),
+    Diverged(Diverged),
+}
+
+impl From<kernel::Error> for RunFailure {
+    fn from(error: kernel::Error) -> Self {
+        Self::Config(error)
+    }
+}
+
 /// # Errors
 ///
-/// A [`kernel::Error`] when the configuration cannot be read.
+/// [`RunFailure::Config`] when the configuration cannot be read, and
+/// [`RunFailure::Diverged`] when the corpus holds an item re-key would
+/// move.
 pub fn run(
     start: &Path,
     config: &dyn ConfigAccess,
     input: &str,
-) -> Result<RunOutcome, kernel::Error> {
-    let scheme = announced_scheme_with_key(config)?;
+) -> Result<RunOutcome, RunFailure> {
+    let scheme =
+        announced_scheme_with_key(config).map_err(kernel::Error::from)?;
     let work_dir = canonical_work_dir(start, config)?;
+    let root = FileConfigStore::discover_root(start);
+    refuse_diverged_corpus(&scheme, &root, &work_dir)
+        .map_err(RunFailure::Diverged)?;
     Ok(resolve_with(&scheme, &work_dir, start, input))
 }
 

@@ -179,7 +179,18 @@ fn list_refuses_a_malformed_pattern_without_a_work_directory(
 #[test]
 #[allow(clippy::literal_string_with_formatting_args)]
 fn list_reads_a_key_pattern_without_a_key() -> Result<(), TestError> {
-    let output = listed_under("  id_pattern: \"{key}-{number:04d}\"\n")?;
+    let output = listed_in_repository(
+        "  id_pattern: \"{key}-{number:04d}\"\n",
+        |root| {
+            fs::create_dir_all(root.join("meta/work"))?;
+            fs::write(
+                root.join("meta/work/PP-0001-existing.md"),
+                "---\nid: \"PP-0001\"\ntitle: \"Existing\"\n\
+                 status: \"draft\"\n---\n",
+            )?;
+            Ok(())
+        },
+    )?;
 
     assert!(output.status.success(), "{output:?}");
     assert!(String::from_utf8(output.stdout)?.contains("Existing"));

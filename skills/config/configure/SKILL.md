@@ -725,8 +725,10 @@ or Linear key as `id`; any other new item is a **draft** in
 sync` or `work promote` promotes it onto its key, keeping the draft ID in
 its `aliases`. Two rules apply: `{tracker}` must be the only token in
 `work.id_pattern`, and `work.integration` must be `jira` or `linear`.
-`work.key` and `--project` are unused under it, and items created earlier
-keep their IDs. It needs Accelerator 1.24.0 or later; upgrade every
+`work.key` and `--project` are unused under it. Items created earlier
+must be re-keyed with `/rekey-work-items` before any `work` command that
+reads or writes IDs runs: until then each refuses with
+`E_REKEY_REQUIRED`. It needs Accelerator 1.24.0 or later; upgrade every
 teammate before switching a shared config, since an older version cannot
 read the pattern.
 
@@ -797,12 +799,17 @@ internally and does not link out to an external tracker. Pick
 
 #### Width changes vs structural changes
 
-Changing the width spec (`{number:04d}` → `{number:05d}`) is
-**absorbed transparently**: legacy files remain visible because IDs
-are read at any width. New files are generated at the new width.
+Any change to the pattern, a width change (`{number:04d}` →
+`{number:05d}`) included, needs a re-key: until every item's `id` is in
+the new pattern's exact shape, each `work` command that reads or writes
+IDs (`create`, `create-batch`, `id next`, `id check`, `list`, `resolve`
+and `promote`) refuses with `E_REKEY_REQUIRED`, naming an item to
+converge. Run `/rekey-work-items` after changing the pattern. `work
+sync`, `work rekey` and `work id canonicalise` still run. A reference
+written under the earlier pattern joins nothing until re-keyed.
 
 Changing the structural shape (default → `{project}-{number:04d}`,
-or vice versa) leaves legacy files coexisting with their original IDs.
+or vice versa) is converged the same way.
 Use `/accelerator:migrate` to apply migration `0002-rename-work-items-with-project-prefix`,
 which renames legacy `NNNN-*.md` files to the configured pattern with
 your `default_project_code`. The migration stays pending until both

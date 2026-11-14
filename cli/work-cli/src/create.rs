@@ -70,6 +70,8 @@ use crate::config::effective_nonempty;
 use crate::config::locate_work_items;
 use crate::config::templates_dir;
 use crate::config::WorkItemLocation;
+use crate::convergence::refuse_diverged_corpus;
+use crate::convergence::Diverged;
 use crate::exit_codes;
 use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
@@ -675,6 +677,13 @@ fn preview_requested_id(
         Ok(location) => location,
         Err(message) => return RunOutcome::Failed(message),
     };
+    if let Err(Diverged { message, code }) = refuse_diverged_corpus(
+        &location.scheme,
+        &location.root,
+        &location.work_dir,
+    ) {
+        return RunOutcome::Refused { message, code };
+    }
     let integration = integration_state(config, &location.root);
     if let Err(refusal) = refuse_requested_id_before_preview(
         &location,
@@ -715,6 +724,17 @@ pub fn run_with(
             return RunOutcome::Refused { message, code };
         }
     };
+    let location = match locate_work_items(start, config) {
+        Ok(location) => location,
+        Err(message) => return RunOutcome::Failed(message),
+    };
+    if let Err(Diverged { message, code }) = refuse_diverged_corpus(
+        &location.scheme,
+        &location.root,
+        &location.work_dir,
+    ) {
+        return RunOutcome::Refused { message, code };
+    }
     match create_item(
         start,
         config,
@@ -1501,8 +1521,9 @@ mod tests {
         let repo = PushingRepo::tracker_owned();
         std::fs::create_dir_all(repo.path("meta/work")).expect("work dir");
         std::fs::write(
-            repo.path("meta/work/0002-holder.md"),
-            "---\nid: \"0002\"\naliases: [\"REC-1\"]\n---\n\n# 0002: Holder\n",
+            repo.path("meta/work/ENG-5-holder.md"),
+            "---\nid: \"ENG-5\"\nexternal_id: \"ENG-5\"\n\
+             aliases: [\"REC-1\"]\n---\n\n# ENG-5: Holder\n",
         )
         .expect("holder");
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
@@ -1514,12 +1535,12 @@ mod tests {
         assert_eq!(report.external_id.as_deref(), Some(KEY));
         assert_eq!(path, repo.drafts().first().cloned());
         let cause = report.cause.expect("a remedy");
-        assert!(cause.contains("0002-holder.md"), "{cause}");
+        assert!(cause.contains("ENG-5-holder.md"), "{cause}");
         assert!(cause.contains("work promote draft-"), "{cause}");
     }
 
     #[test]
-    fn a_tracker_create_leaves_legacy_items_byte_identical() {
+    fn a_tracker_create_over_legacy_items_requires_a_re_key() {
         let repo = PushingRepo::tracker_owned();
         std::fs::create_dir_all(repo.path("meta/work")).expect("work dir");
         let legacy = [
@@ -1538,8 +1559,18 @@ mod tests {
         }
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
 
-        created(repo.push_through(&tracker, None));
+        let RunOutcome::Refused { message, code } =
+            repo.push_through(&tracker, None)
+        else {
+            panic!("a create over legacy items was not refused");
+        };
 
+        assert_eq!(code, exit_codes::UNRESOLVED);
+        assert!(
+            message.starts_with("Error: E_REKEY_REQUIRED: 3 work items"),
+            "{message}"
+        );
+        assert_eq!(creates(&tracker), 0);
         for (path, content) in legacy {
             assert_eq!(
                 std::fs::read_to_string(repo.path(path)).expect("read"),

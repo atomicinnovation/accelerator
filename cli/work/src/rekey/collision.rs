@@ -9,6 +9,13 @@ use crate::rekey::entry::RekeyEntry;
 use crate::rekey::outcome::LinkedClash;
 use crate::rekey::outcome::NotRekeyed;
 
+/// Refuses entries whose targets something else already names.
+///
+/// The taken rule reads a held value only in the current pattern's shape,
+/// while the fresh-number floor reads every `id` and alias widely, so an
+/// alias an earlier pattern left raises the floor but never blocks a kept
+/// target.
+///
 /// # Errors
 ///
 /// [`NotRekeyed::Collision`] for the first entry, by old `id`, whose old

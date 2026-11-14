@@ -10,6 +10,8 @@ use work::requested_id::Proposal;
 use work::requested_id::RequestedId;
 
 use crate::config::locate_work_items;
+use crate::convergence::refuse_diverged_corpus;
+use crate::convergence::Diverged;
 use crate::identity_run::IdentityRunStart;
 use crate::requested_id::refuse_if_requested_id_taken;
 
@@ -45,6 +47,13 @@ pub fn run(
             return RunOutcome::Refused { message, code };
         }
     };
+    if let Err(Diverged { message, code }) = refuse_diverged_corpus(
+        &location.scheme,
+        &location.root,
+        &location.work_dir,
+    ) {
+        return RunOutcome::Refused { message, code };
+    }
     let proposal = match RequestedId::propose(requested, &location.scheme) {
         Ok(proposal) => proposal,
         Err(refusal) => return RunOutcome::Failed(refusal.to_string()),

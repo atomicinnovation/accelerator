@@ -31,6 +31,9 @@ use work::sync::SyncState;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+
+use crate::convergence::refuse_diverged_corpus;
+use crate::convergence::Diverged;
 use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
@@ -579,6 +582,11 @@ pub fn run(
             message: missing_directory_message(&work_dir),
         };
     }
+    if let Err(Diverged { message, code }) =
+        refuse_diverged_corpus(&scheme, &root, &work_dir)
+    {
+        return RunOutcome::Refused { message, code };
+    }
 
     let scan_result = match scan(&work_dir) {
         Ok(scan_result) => scan_result,
@@ -680,6 +688,10 @@ pub enum RunOutcome {
         message: String,
     },
     Failed(String),
+    Refused {
+        message: String,
+        code: u8,
+    },
 }
 
 #[cfg(test)]
@@ -980,12 +992,20 @@ mod tests {
     }
 
     fn integrated_repo(items: &[(&str, &str)]) -> tempfile::TempDir {
+        repo_under("  integration: jira\n", items)
+    }
+
+    fn tracker_owned_repo(items: &[(&str, &str)]) -> tempfile::TempDir {
+        repo_under("  integration: jira\n  id_pattern: \"{tracker}\"\n", items)
+    }
+
+    fn repo_under(work: &str, items: &[(&str, &str)]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
         std::fs::create_dir(dir.path().join(".git")).unwrap();
         std::fs::create_dir_all(dir.path().join(".accelerator")).unwrap();
         std::fs::write(
             dir.path().join(".accelerator/config.md"),
-            "---\nwork:\n  integration: jira\n---\n",
+            format!("---\nwork:\n{work}---\n"),
         )
         .unwrap();
         for (relative, id) in items {
@@ -1053,22 +1073,21 @@ mod tests {
 
     #[test]
     fn with_a_draft_and_no_baseline_the_sync_column_is_present() {
-        let repo = integrated_repo(&[
-            ("0001-a.md", "0001"),
+        let repo = tracker_owned_repo(&[
             ("drafts/draft-k7mq3x-b.md", "draft-k7mq3x"),
+            ("drafts/draft-m4np8q-c.md", "draft-m4np8q"),
         ]);
 
         let listing = listed(repo.path());
 
         assert!(header(&listing).contains("Sync"), "{listing}");
         assert!(listing.contains("🟠 draft"), "{listing}");
-        assert!(listing.contains("⚪ unsynced"), "{listing}");
     }
 
     #[test]
     fn a_draft_in_the_canonical_directory_is_listed_as_a_draft() {
-        let repo = integrated_repo(&[
-            ("0001-a.md", "0001"),
+        let repo = tracker_owned_repo(&[
+            ("drafts/draft-m4np8q-a.md", "draft-m4np8q"),
             ("draft-k7mq3x-b.md", "draft-k7mq3x"),
         ]);
 

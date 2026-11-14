@@ -35,6 +35,9 @@ use crate::batch_manifest::Authorship;
 use crate::batch_manifest::ManifestEntry;
 use crate::batch_manifest::ParentLink;
 use crate::cli::CreateBatchArgs;
+use crate::config::locate_work_items;
+use crate::convergence::refuse_diverged_corpus;
+use crate::convergence::Diverged;
 use crate::create::create_item;
 use crate::create::CreateFailure;
 use crate::create::CreationOutcome;
@@ -198,6 +201,22 @@ pub fn run_with(
             return BatchOutcome::Refused { message, code };
         }
     };
+    let location = match locate_work_items(start, config) {
+        Ok(location) => location,
+        Err(message) => {
+            return BatchOutcome::Failed {
+                report: report(&[]),
+                message,
+            }
+        }
+    };
+    if let Err(Diverged { message, code }) = refuse_diverged_corpus(
+        &location.scheme,
+        &location.root,
+        &location.work_dir,
+    ) {
+        return BatchOutcome::Refused { message, code };
+    }
     let entries = match crate::batch_manifest::read(&args.manifest) {
         Ok(entries) => entries,
         Err(problems) => return BatchOutcome::Invalid(problems),
@@ -1375,8 +1394,9 @@ mod tests {
     fn blocked_and_incomplete_items_carry_trailing_detail_lines() {
         let repo = BatchRepo::tracker_owned();
         repo.write(
-            "meta/work/0002-holder.md",
-            "---\nid: \"0002\"\naliases: [\"REC-1\"]\n---\n\n# 0002: Holder\n",
+            "meta/work/ENG-5-holder.md",
+            "---\nid: \"ENG-5\"\nexternal_id: \"ENG-5\"\n\
+             aliases: [\"REC-1\"]\n---\n\n# ENG-5: Holder\n",
         );
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
 
@@ -1394,7 +1414,7 @@ mod tests {
             Some(
                 format!(
                     "#\tdetail\tepic\tholder\t{}",
-                    repo.path("meta/work/0002-holder.md").display()
+                    repo.path("meta/work/ENG-5-holder.md").display()
                 )
                 .as_str()
             )
@@ -1439,51 +1459,42 @@ mod tests {
     fn a_parent_given_as_a_typed_reference_to_an_existing_item_is_kept() {
         let repo = BatchRepo::tracker_owned();
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
-        let legacy = [
-            ("meta/work/0042-a.md", "---\nid: \"0042\"\n---\n\n# 0042: A\n"),
+        let existing = [
             (
-                "meta/work/ACC-0042-b.md",
-                "---\nid: \"ACC-0042\"\n---\n\n# ACC-0042: B\n",
+                "meta/work/ENG-5-a.md",
+                "---\nid: \"ENG-5\"\nexternal_id: \"ENG-5\"\n---\n\n# ENG-5: A\n",
             ),
             (
-                "meta/work/0230-c.md",
-                "---\nid: \"0230\"\nexternal_id: \"PP-760\"\n---\n\n# 0230: C\n",
+                "meta/work/drafts/draft-k7mq3x-b.md",
+                "---\nid: \"draft-k7mq3x\"\n---\n\n# draft-k7mq3x: B\n",
             ),
         ];
-        for (path, content) in legacy {
+        for (path, content) in existing {
             repo.write(path, content);
         }
 
         let report = reported(repo.run(
             r#"[
-                {"ref": "a", "title": "Under 0042", "kind": "story",
-                 "priority": "low", "parent": "work-item:0042"},
-                {"ref": "b", "title": "Under ACC-0042", "kind": "story",
-                 "priority": "low", "parent": "work-item:ACC-0042"},
-                {"ref": "c", "title": "Under PP-760", "kind": "story",
-                 "priority": "low", "parent": "work-item:PP-760"}
+                {"ref": "a", "title": "Under ENG-5", "kind": "story",
+                 "priority": "low", "parent": "work-item:ENG-5"},
+                {"ref": "b", "title": "Under the draft", "kind": "story",
+                 "priority": "low", "parent": "work-item:draft-k7mq3x"}
             ]"#,
             true,
             &tracker,
         ));
 
         let lines = items(&report);
-        for (reference, parent) in [
-            ("a", "work-item:0042"),
-            ("b", "work-item:ACC-0042"),
-            ("c", "work-item:PP-760"),
-        ] {
+        for (reference, parent) in
+            [("a", "work-item:ENG-5"), ("b", "work-item:draft-k7mq3x")]
+        {
             assert_eq!(
                 parent_of(&read(Path::new(&lines[reference].0))),
                 Some(parent.to_owned())
             );
         }
-        for (path, content) in legacy {
-            assert_eq!(
-                read(&repo.path(path)),
-                content,
-                "legacy_items_named_as_parents_keep_their_ids"
-            );
+        for (path, content) in existing {
+            assert_eq!(read(&repo.path(path)), content, "{path}");
         }
     }
 

@@ -269,7 +269,9 @@ impl IdScheme {
 
     /// The key every spelling of one item joins on: the number padded, and
     /// the key in `work.key`'s spelling when it names `work.key`, otherwise
-    /// in upper case. A bare number reads under `work.key`.
+    /// in upper case. A bare number reads under `work.key`; a reference in
+    /// no shape the pattern reads, such as one an earlier pattern wrote,
+    /// joins nothing until a re-key converges it.
     #[must_use]
     pub fn identity_key(&self, reference: &str) -> Option<String> {
         if self.pattern.is_tracker_owned() {
@@ -283,12 +285,8 @@ impl IdScheme {
                     .unwrap_or_else(|_| self.padded(number)),
             );
         }
-        if let Some(parts) = IdParts::parse(&self.pattern, reference) {
-            return self.joined(&parts);
-        }
-        let (key, digits) = keyed_digits(reference)?;
-        let number: u64 = digits.parse().ok()?;
-        Some(format!("{}-{}", self.folded(key), self.padded(number)))
+        IdParts::parse(&self.pattern, reference)
+            .and_then(|parts| self.joined(&parts))
     }
 
     fn tracker_identity_key(reference: &str) -> Option<String> {
@@ -685,8 +683,8 @@ mod tests {
         assert_eq!(identity(&numeric, "40").as_deref(), Some("0040"));
         assert_eq!(identity(&numeric, "00040").as_deref(), Some("0040"));
         assert_eq!(identity(&numeric, "12345").as_deref(), Some("12345"));
-        assert_eq!(identity(&numeric, "ENG-0042").as_deref(), Some("ENG-0042"));
-        assert_eq!(identity(&numeric, "PR1-7").as_deref(), Some("PR1-0007"));
+        assert_eq!(identity(&numeric, "ENG-0042"), None);
+        assert_eq!(identity(&numeric, "PR1-7"), None);
         assert_eq!(identity(&numeric, ""), None);
         assert_eq!(identity(&numeric, "AB-12-34"), None);
         assert_eq!(identity(&numeric, "1A-2"), None);
@@ -716,10 +714,15 @@ mod tests {
             identity(&tracker(), "PROJ-123").as_deref(),
             Some("PROJ-123")
         );
-        assert_eq!(
-            identity(&IdScheme::numeric(), "ENG-42").as_deref(),
-            Some("ENG-0042")
-        );
+        assert_eq!(identity(&IdScheme::numeric(), "ENG-42"), None);
+    }
+
+    #[test]
+    fn a_reference_off_the_pattern_has_no_identity_key() {
+        let underscored = scheme("{key}_{number:04d}", Some("PP"));
+        assert_eq!(identity(&underscored, "PP-42"), None);
+        assert_eq!(identity(&underscored, "PP-0042"), None);
+        assert_eq!(identity(&underscored, "pp_42").as_deref(), Some("PP_0042"));
     }
 
     #[test]
@@ -839,11 +842,11 @@ mod tests {
         let references: &[(&str, bool, Option<&str>)] = &[
             ("0042", true, Some("0042")),
             ("42", false, Some("0042")),
-            ("PP-0042", false, Some("PP-0042")),
-            ("pp-42", false, Some("PP-0042")),
-            ("XY-7", false, Some("XY-0007")),
-            ("ENG-0042", false, Some("ENG-0042")),
-            ("PROJ-123", false, Some("PROJ-0123")),
+            ("PP-0042", false, None),
+            ("pp-42", false, None),
+            ("XY-7", false, None),
+            ("ENG-0042", false, None),
+            ("PROJ-123", false, None),
             ("TBD", false, None),
             ("", false, None),
         ];

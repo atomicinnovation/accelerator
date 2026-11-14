@@ -186,6 +186,19 @@
   the JSON with Markdown (`jira show <key> --render-adf` prints a starting
   point) and sync, or resolve with `=remote` to discard local changes.
   Scripts that parse `work sync` exit codes need updating.
+- **A corpus off the configured pattern must be re-keyed before `work`
+  reads or writes IDs.** `work create`, `create-batch`, `id next`,
+  `id check`, `list`, `resolve` and `promote` refuse with the new
+  `E_REKEY_REQUIRED` (exit 4), writing nothing, while any item's `id` is not
+  in `work.id_pattern`'s exact shape (under any key), or, under `{tracker}`,
+  is neither a draft nor its issue's key. This includes a width-only change
+  such as `{number:04d}` → `{number:05d}`, which was absorbed before, and a
+  switch to `{tracker}`, after which earlier items kept their IDs. Run
+  `/rekey-work-items` after changing the pattern. `work sync`, `work rekey`
+  and `work id canonicalise` still run. A reference written under an
+  earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
+  under the default `{number:04d}`, no longer joins its item in
+  `work list --parent` or the visualiser until re-keyed.
 - **`work.id_pattern` no longer accepts brace escapes, a wider literal
   alphabet or a digit beside a token.** Support for `{{` and `}}` as escaped
   braces is removed, literal text is limited to ASCII letters, digits, `.`,

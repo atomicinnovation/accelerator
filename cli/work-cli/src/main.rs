@@ -6,6 +6,7 @@ mod batch_manifest;
 mod bounded_roots;
 mod cli;
 mod config;
+mod convergence;
 mod create;
 mod create_batch;
 mod diff;
@@ -140,9 +141,13 @@ fn run_resolve(input: &str) -> ExitCode {
             eprintln!("E_RESOLVE_UNLISTABLE: {message}");
             ExitCode::FAILURE
         }
-        Err(error) => {
+        Err(resolve::RunFailure::Config(error)) => {
             eprintln!("{error}");
             ExitCode::FAILURE
+        }
+        Err(resolve::RunFailure::Diverged(diverged)) => {
+            eprintln!("{}", diverged.message);
+            ExitCode::from(diverged.code)
         }
     }
 }
@@ -454,6 +459,10 @@ fn run_list(args: &cli::ListArgs) -> ExitCode {
         list::RunOutcome::Failed(message) => {
             eprintln!("{message}");
             ExitCode::FAILURE
+        }
+        list::RunOutcome::Refused { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
         }
     }
 }

@@ -353,6 +353,9 @@ every case nothing was written:
   run `/rekey-work-items` to finish or undo it. Stop.
 - `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
   suggesting the re-key be finished. Stop.
+- `E_REKEY_REQUIRED` (exit 4) — some items are not yet under the IDs
+  `work.id_pattern` gives them, such as after the pattern changed: tell the
+  user to run `/rekey-work-items` to converge them, then retry. Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
   retry once it ends.
 

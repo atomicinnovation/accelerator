@@ -316,6 +316,7 @@ mod tests {
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
     use crate::id_scheme::IdScheme;
+    use crate::rekey::convergence::is_converged;
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
@@ -1004,6 +1005,32 @@ mod tests {
                 ),
                 Err(NotRekeyed::DraftIdExhausted(_))
             ));
+        }
+    }
+
+    #[test]
+    fn an_item_under_work_key_is_converged_exactly_when_re_key_leaves_it() {
+        let under = keyed("PP");
+        let candidates = [
+            local("PP-0001"),
+            local("pp-0002"),
+            local("0003"),
+            local("PP-4"),
+            local("draft-k7mq3x"),
+            candidate("id: \"ENG-7\"\nexternal_id: \"ENG-7\""),
+        ];
+        let entries = numeric_mapping(&under, &candidates)
+            .unwrap_or_else(|refusal| unreachable!("{refusal}"));
+
+        for candidate in &candidates {
+            let identity = &candidate.identity;
+            let moved = entries.iter().any(|entry| entry.old == identity.id);
+            assert_eq!(
+                is_converged(identity, &under),
+                !moved,
+                "{}",
+                identity.id
+            );
         }
     }
 }

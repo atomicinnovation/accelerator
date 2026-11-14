@@ -1430,10 +1430,10 @@ mod identity_key_tests {
     }
 
     #[test]
-    fn identity_keys_of_passes_prefixed_input_through_under_default_pattern() {
+    fn identity_keys_of_drops_prefixed_input_under_default_pattern() {
         let cfg = cfg_numeric();
         let raw = vec!["PROJ-0042".to_string()];
-        assert_eq!(identity_keys_of(raw, &cfg), vec!["PROJ-0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), Vec::<String>::new());
     }
 
     #[test]
@@ -1457,12 +1457,12 @@ mod identity_key_tests {
     }
 
     #[test]
-    fn identity_keys_of_pad_and_fold_a_foreign_key() {
+    fn identity_keys_of_drop_a_foreign_key_under_a_keyless_pattern() {
         let cfg = cfg_numeric();
         let cases: &[(&str, Option<&str>)] = &[
-            ("PROJ-0042", Some("PROJ-0042")),
-            ("FOO-1", Some("FOO-0001")),
-            ("Web2-7", Some("WEB2-0007")),
+            ("PROJ-0042", None),
+            ("FOO-1", None),
+            ("Web2-7", None),
             ("42-foo", None),
             ("PROJ-", None),
             ("-0042", None),
@@ -1820,7 +1820,7 @@ mod identity_join_tests {
     }
 
     #[tokio::test]
-    async fn a_foreign_key_reference_joins_under_a_keyless_pattern() {
+    async fn a_foreign_key_reference_does_not_join_under_a_keyless_pattern() {
         let tmp = tempfile::tempdir().unwrap();
         let item = ("meta/work/ENG-0042-x.md", "---\nid: ENG-0042\n---\n");
         let plan = (
@@ -1832,7 +1832,7 @@ mod identity_join_tests {
 
         let keys = cluster_keys(&idx, tmp.path(), &[item.0, plan.0]).await;
 
-        assert_eq!(keys, vec![Some("ENG-0042".to_owned()); 2]);
+        assert_eq!(keys, vec![None; 2]);
     }
 
     #[tokio::test]

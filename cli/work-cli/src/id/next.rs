@@ -20,6 +20,8 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::locate_work_items;
 use crate::config::WorkItemLocation;
+use crate::convergence::refuse_diverged_corpus;
+use crate::convergence::Diverged;
 use crate::identity_run::IdentityRunStart;
 
 pub enum RunOutcome {
@@ -80,6 +82,11 @@ pub fn run(
             return RunOutcome::Refused { message, code };
         }
     };
+    if let Err(Diverged { message, code }) =
+        refuse_diverged_corpus(&scheme, &root, &work_dir)
+    {
+        return RunOutcome::Refused { message, code };
+    }
     let shown_dir = work_dir.strip_prefix(&root).unwrap_or(&work_dir);
     let key = match allocation_key(pattern, project, scheme.key()) {
         Ok(key) => key,

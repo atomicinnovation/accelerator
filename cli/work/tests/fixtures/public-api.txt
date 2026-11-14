@@ -841,6 +841,37 @@ impl core::marker::StructuralPartialEq for work::rekey::sequence::Unclassified
 pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity, scheme: &work::id_scheme::IdScheme) -> work::rekey::classify::Classification
 pub mod work::rekey::collision
 pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity], scheme: &work::id_scheme::IdScheme) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
+pub mod work::rekey::convergence
+pub struct work::rekey::convergence::OffPatternItem
+pub work::rekey::convergence::OffPatternItem::id: alloc::string::String
+pub work::rekey::convergence::OffPatternItem::path: std::path::PathBuf
+impl core::clone::Clone for work::rekey::convergence::OffPatternItem
+pub fn work::rekey::convergence::OffPatternItem::clone(&self) -> work::rekey::convergence::OffPatternItem
+impl core::cmp::Eq for work::rekey::convergence::OffPatternItem
+impl core::cmp::PartialEq for work::rekey::convergence::OffPatternItem
+pub fn work::rekey::convergence::OffPatternItem::eq(&self, other: &work::rekey::convergence::OffPatternItem) -> bool
+impl core::fmt::Debug for work::rekey::convergence::OffPatternItem
+pub fn work::rekey::convergence::OffPatternItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::convergence::OffPatternItem
+pub struct work::rekey::convergence::RekeyRequired
+impl work::rekey::convergence::RekeyRequired
+pub const work::rekey::convergence::RekeyRequired::CODE: &'static str
+pub const fn work::rekey::convergence::RekeyRequired::code(&self) -> &'static str
+pub fn work::rekey::convergence::RekeyRequired::off_pattern(&self) -> &[work::rekey::convergence::OffPatternItem]
+pub fn work::rekey::convergence::RekeyRequired::relative_to(self, root: &std::path::Path) -> Self
+impl core::clone::Clone for work::rekey::convergence::RekeyRequired
+pub fn work::rekey::convergence::RekeyRequired::clone(&self) -> work::rekey::convergence::RekeyRequired
+impl core::cmp::Eq for work::rekey::convergence::RekeyRequired
+impl core::cmp::PartialEq for work::rekey::convergence::RekeyRequired
+pub fn work::rekey::convergence::RekeyRequired::eq(&self, other: &work::rekey::convergence::RekeyRequired) -> bool
+impl core::error::Error for work::rekey::convergence::RekeyRequired
+impl core::fmt::Debug for work::rekey::convergence::RekeyRequired
+pub fn work::rekey::convergence::RekeyRequired::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::rekey::convergence::RekeyRequired
+pub fn work::rekey::convergence::RekeyRequired::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::convergence::RekeyRequired
+pub fn work::rekey::convergence::is_converged(identity: &work::identity::ItemIdentity, scheme: &work::id_scheme::IdScheme) -> bool
+pub fn work::rekey::convergence::refuse_divergence(scheme: &work::id_scheme::IdScheme, items: &[work::identity::ItemIdentity]) -> core::result::Result<(), work::rekey::convergence::RekeyRequired>
 pub mod work::rekey::creation_date
 pub struct work::rekey::creation_date::CreationDate(_)
 impl work::rekey::creation_date::CreationDate
@@ -1280,7 +1311,7 @@ pub work::requested_id::Proposal::Corrected::key_differs: bool
 pub work::requested_id::Proposal::Exact(work::requested_id::RequestedId)
 pub work::requested_id::Proposal::OtherKey(work::requested_id::RequestedId)
 impl work::requested_id::Proposal
-pub fn work::requested_id::Proposal::id(&self) -> &work::requested_id::RequestedId
+pub const fn work::requested_id::Proposal::id(&self) -> &work::requested_id::RequestedId
 impl core::clone::Clone for work::requested_id::Proposal
 pub fn work::requested_id::Proposal::clone(&self) -> work::requested_id::Proposal
 impl core::cmp::Eq for work::requested_id::Proposal

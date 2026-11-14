@@ -185,6 +185,13 @@ fn try_run(
             let (message, code) = crate::identity_run::refused(refusal, &root);
             PromoteOutcome::Failed { message, code }
         })?;
+    let scheme = crate::config::announced_scheme_with_key(config)
+        .map_err(|error| internal(error.to_string()))?;
+    crate::convergence::refuse_diverged_corpus(&scheme, &root, &work_dir)
+        .map_err(|diverged| PromoteOutcome::Failed {
+            message: diverged.message,
+            code: diverged.code,
+        })?;
     let (draft, draft_path) =
         tracker_owned_draft(config, &work_dir, &args.draft_id)?;
     let integration =
@@ -654,20 +661,17 @@ mod tests {
     fn adopt_a_key_held_by_a_local_item_names_both_and_suggests_removal() {
         let repo = Repo::new();
         repo.write(
-            "meta/work/0042-legacy.md",
-            "---\nid: \"0042\"\nexternal_id: \"PP-900\"\n---\n\n# 0042: Legacy\n",
+            "meta/work/PP-900-linked.md",
+            "---\nid: \"PP-900\"\nexternal_id: \"PP-900\"\n---\n\n# PP-900: Linked\n",
         );
 
         let (lines, remedy, code) =
             reported(repo.promote(&held("PP-900"), Some("PP-900"), false));
 
         assert_eq!(code, exit_codes::UNRESOLVED);
-        assert_eq!(
-            lines[0],
-            "draft-aaaaaa\tnot-promoted\tunsynced\tkey-linked"
-        );
+        assert_eq!(lines[0], "draft-aaaaaa\tnot-promoted\tunsynced\tid-taken");
         let remedy = remedy.expect("a remedy on stderr");
-        assert!(remedy.contains("0042-legacy.md"), "{remedy}");
+        assert!(remedy.contains("PP-900-linked.md"), "{remedy}");
         assert!(remedy.contains(DRAFT), "{remedy}");
         assert!(remedy.contains("delete the draft"), "{remedy}");
     }
@@ -706,11 +710,11 @@ mod tests {
     fn promoting_a_non_draft_is_e_promote_not_a_draft() {
         let repo = Repo::new();
         repo.write(
-            "meta/work/0042-legacy.md",
-            "---\nid: \"0042\"\n---\n\n# 0042: Legacy\n",
+            "meta/work/ENG-7-synced.md",
+            "---\nid: \"ENG-7\"\nexternal_id: \"ENG-7\"\n---\n\n# ENG-7: Synced\n",
         );
 
-        for input in ["0042", "draft-zzzzzz"] {
+        for input in ["ENG-7", "draft-zzzzzz"] {
             let outcome = repo.promote_named(input, &fresh(), None, false);
 
             let PromoteOutcome::NotADraft(message) = outcome else {
@@ -727,6 +731,7 @@ mod tests {
             ".accelerator/config.md",
             "---\nwork:\n  integration: jira\n---\n",
         );
+        std::fs::remove_file(repo.path(DRAFT_FILE)).unwrap();
         let tracker = fresh();
 
         let outcome = repo.promote_named(DRAFT, &tracker, None, false);
@@ -747,8 +752,8 @@ mod tests {
         let repo = Repo::new();
         repo.write(
             "meta/work/PP-900-title.md",
-            "---\nid: \"PP-900\"\naliases: [\"draft-aaaaaa\"]\n---\n\n\
-             # PP-900: Title\n",
+            "---\nid: \"PP-900\"\nexternal_id: \"PP-900\"\n\
+             aliases: [\"draft-aaaaaa\"]\n---\n\n# PP-900: Title\n",
         );
         let tracker = fresh();
 

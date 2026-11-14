@@ -3,6 +3,7 @@
 
 pub mod classify;
 pub mod collision;
+pub mod convergence;
 pub mod creation_date;
 pub mod entry;
 pub mod fingerprint;
