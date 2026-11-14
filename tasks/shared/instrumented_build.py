@@ -5,12 +5,14 @@ import filecmp
 import json
 import re
 import shlex
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
 _UNIT_HASH = re.compile(r"-([0-9a-f]{16})(?=\.|$)")
 _SWEPT = ("deps", "build", ".fingerprint")
+_INCREMENTAL = "incremental"
 _SIZE_UNITS = ("kB", "MB", "GB", "TB")
 
 
@@ -21,16 +23,19 @@ class UnmatchedUpliftError(Exception): ...
 class UnitListing:
     live_hashes: frozenset[str]
     uplifted: frozenset[Path]
+    crates: Mapping[str, int]
     rebuilt: int
 
     @classmethod
     def parse(cls, messages: str) -> UnitListing:
         hashes: set[str] = set()
         uplifted: set[Path] = set()
+        crates: Counter[str] = Counter()
         rebuilt = 0
         for message in _json_messages(messages):
             if message.get("reason") == "compiler-artifact":
                 rebuilt += not message["fresh"]
+                crates[_crate_name(message["target"]["name"])] += 1
                 for path in _artefact_paths(message):
                     if path_hashes := _hashes([path]):
                         hashes.update(path_hashes)
@@ -38,7 +43,7 @@ class UnitListing:
                         uplifted.add(Path(path))
             elif message.get("reason") == "build-script-executed":
                 hashes.update(_hashes([message["out_dir"]]))
-        return cls(frozenset(hashes), frozenset(uplifted), rebuilt)
+        return cls(frozenset(hashes), frozenset(uplifted), crates, rebuilt)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -80,6 +85,31 @@ def superseded_entries(build_dir: Path, live: frozenset[str]) -> list[Path]:
     ]
 
 
+def superseded_incremental(
+    build_dir: Path, crates: Mapping[str, int]
+) -> list[Path]:
+    """Keep, for each crate, as many of its newest sessions as it has units.
+
+    An incremental directory is named for rustc's crate id, which cargo never
+    reports, so it cannot be matched to its unit by hash.
+    """
+    if not crates:
+        raise ValueError("no live units, so nothing can be judged superseded")
+    incremental = build_dir / _INCREMENTAL
+    if not incremental.is_dir():
+        return []
+    by_crate: dict[str, list[Path]] = {}
+    for session in incremental.iterdir():
+        by_crate.setdefault(session.name.rpartition("-")[0], []).append(session)
+    return sorted(
+        stale
+        for crate, sessions in by_crate.items()
+        for stale in sorted(sessions, key=_modified, reverse=True)[
+            crates.get(crate, 0) :
+        ]
+    )
+
+
 def parse_build_environment(text: str) -> Mapping[str, str]:
     return {
         key: "".join(shlex.split(value))
@@ -113,8 +143,16 @@ def _hashes(paths: Iterable[str]) -> set[str]:
     }
 
 
+def _crate_name(target: str) -> str:
+    return target.replace("-", "_")
+
+
+def _modified(path: Path) -> float:
+    return path.stat().st_mtime
+
+
 def _twin_hash(uplifted: Path) -> str | None:
-    crate = uplifted.name.replace("-", "_")
+    crate = _crate_name(uplifted.name)
     twin = re.compile(rf"{re.escape(crate)}-([0-9a-f]{{16}})")
     for candidate in sorted((uplifted.parent / "deps").glob(f"{crate}-*")):
         match = twin.fullmatch(candidate.name)

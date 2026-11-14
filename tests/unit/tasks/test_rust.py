@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -121,6 +122,8 @@ CAPTURED_BUILD_DIR = "/workspace/cli/target/llvm-cov-target/debug"
 LIVE_ARTEFACT = "deps/libsmallvec-0e524c8a43f44c11.rlib"
 UPLIFTED_BINARY = "accelerator-verify"
 BINARY_TWIN = "deps/accelerator_verify-bccc7b6827f71b41"
+LIVE_SESSION = "incremental/kernel-1newer"
+SUPERSEDED_SESSION = "incremental/kernel-0older"
 SUPERSEDED_ARTEFACT = "deps/libsmallvec-3d4b3aa50bf88d80.rlib"
 
 REPORT = "cargo llvm-cov report"
@@ -167,6 +170,9 @@ class TestTestUnitCli:
         ):
             (build_dir / artefact).parent.mkdir(parents=True, exist_ok=True)
             (build_dir / artefact).write_bytes(b"x" * 1_500)
+        for modified, session in enumerate((SUPERSEDED_SESSION, LIVE_SESSION)):
+            (build_dir / session).mkdir(parents=True)
+            os.utime(build_dir / session, (modified, modified))
         monkeypatch.setattr(test_cli, "_INSTRUMENTED_BUILD", build_dir)
         monkeypatch.setitem(
             _OUTPUTS,
@@ -188,7 +194,10 @@ class TestTestUnitCli:
         return [call.args[0] for call in lane.run.call_args_list]
 
     def _swept_nothing(self, build_dir: Path) -> bool:
-        return (build_dir / SUPERSEDED_ARTEFACT).exists()
+        return all(
+            (build_dir / superseded).exists()
+            for superseded in (SUPERSEDED_ARTEFACT, SUPERSEDED_SESSION)
+        )
 
     def test_clears_profile_data_then_tests_reports_and_sweeps(
         self, lane: MagicMock
@@ -266,8 +275,10 @@ class TestTestUnitCli:
 
         assert (build_dir / LIVE_ARTEFACT).exists()
         assert (build_dir / BINARY_TWIN).exists()
+        assert (build_dir / LIVE_SESSION).exists()
         assert not (build_dir / SUPERSEDED_ARTEFACT).exists()
-        assert "swept 1 superseded artefacts (1.50 kB)" in (
+        assert not (build_dir / SUPERSEDED_SESSION).exists()
+        assert "swept 2 superseded artefacts (1.50 kB)" in (
             capsys.readouterr().out
         )
 
