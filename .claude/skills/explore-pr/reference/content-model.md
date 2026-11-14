@@ -185,7 +185,9 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "kind": "type|trait|enum|module|port|adapter|function|file format|protocol",
     "status": "new|changed|removed|existing",
     "responsibility": "≤ 25 words: what it is for, in domain terms",
-    "collaborators": ["Clock"],               // names of what it uses; drawn as arrows
+    "collaborators": ["Clock", { "name": "Disk", "kind": "port" }],
+                                              // what it uses, drawn as arrows: an abstraction's
+                                              // name, or a name and kind for one that is not
     "where": "path:line"
   }],
   "decisions": [{                             // design choices this chapter embodies
@@ -238,6 +240,16 @@ of a changed file when the change cannot be understood without them.
 
 The page draws seven kinds of figure from data, laid out and coloured for
 light and dark themes, and gathers every one into the **In pictures** view.
+Pressing boxes in a flow (or the module map) traces their arrows, those they
+send in one colour and those they receive in another, and dims the rest;
+pressing a box again drops it from the trace, and Esc clears it. A box with a
+`where` or `chapter` opens it from its own ↗ control, not from the box. Arrows
+are routed as horizontal and vertical runs with rounded corners, around boxes
+rather than behind them; a flow keeps the left-to-right order its nodes are
+given in, so order each row's nodes to keep arrows from crossing. Tracing keeps
+a busy flow legible; a flow that cannot be read without it should still be
+split.
+
 Every figure has:
 
 ```jsonc

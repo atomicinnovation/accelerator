@@ -150,6 +150,140 @@ const COMMITS_PROBE = `(async () => {
   return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne, linkAboveEachUnreadRun, nextUnreadKey };
 })()`;
 
+const ARROWS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 150));
+  const crooked = [];
+  let checked = 0;
+  for (const route of ['overview', 'design', 'pictures']) {
+    location.hash = route; await settle();
+    for (const path of document.querySelectorAll('svg path[marker-end]')) {
+      if (!path.getTotalLength) continue;
+      const length = path.getTotalLength();
+      if (length < 12) continue;
+      const bends = ([a, b, c]) => Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) > 0.5;
+      const at = d => path.getPointAtLength(d);
+      checked++;
+      if (bends([at(0), at(4), at(8)])) crooked.push(route + ' start: ' + path.getAttribute('d'));
+      if (bends([at(length), at(length - 4), at(length - 8)])) crooked.push(route + ' end: ' + path.getAttribute('d'));
+    }
+  }
+  const slanted = [], throughBoxes = [], shared = [];
+  let measured = 0, crossings = 0;
+  for (const route of ['overview', 'design']) {
+    location.hash = route; await settle();
+    for (const svg of document.querySelectorAll('svg[data-graph]')) {
+      const boxes = [...svg.querySelectorAll('[data-node] > rect')].map(el => ['x', 'y', 'width', 'height'].map(k => +el.getAttribute(k)));
+      const runs = [];
+      for (const path of svg.querySelectorAll('path[data-to]')) {
+        measured++;
+        const d = path.getAttribute('d');
+        const tokens = d.match(/[MLQ]|-?[0-9.]+/g);
+        let at = null;
+        for (let i = 0; i < tokens.length;) {
+          const command = tokens[i++];
+          const take = n => tokens.slice(i, (i += n)).map(Number);
+          if (command === 'M') at = take(2);
+          else if (command === 'L') {
+            const to = take(2);
+            if (Math.abs(to[0] - at[0]) > 0.5 && Math.abs(to[1] - at[1]) > 0.5) slanted.push(route + ': ' + d);
+            runs.push({ edge: path, from: at, to });
+            at = to;
+          } else if (command === 'Q') at = take(4).slice(2);
+        }
+        const length = path.getTotalLength();
+        for (let s = 0; s <= length; s += 2) {
+          const p = path.getPointAtLength(s);
+          if (boxes.some(([x, y, w, h]) => p.x > x + 2 && p.x < x + w - 2 && p.y > y + 2 && p.y < y + h - 2)) { throughBoxes.push(route + ': ' + d); break; }
+        }
+      }
+      runs.forEach((r, i) => runs.slice(i + 1).forEach(q => {
+        if (r.edge === q.edge) return;
+        const flat = u => Math.abs(u.from[1] - u.to[1]) < 0.5, upright = u => Math.abs(u.from[0] - u.to[0]) < 0.5;
+        const overlap = (a0, a1, b0, b1) => Math.min(Math.max(a0, a1), Math.max(b0, b1)) - Math.max(Math.min(a0, a1), Math.min(b0, b1));
+        if (flat(r) && flat(q) && Math.abs(r.from[1] - q.from[1]) < 0.5 && overlap(r.from[0], r.to[0], q.from[0], q.to[0]) > 2) shared.push(route);
+        if (upright(r) && upright(q) && Math.abs(r.from[0] - q.from[0]) < 0.5 && overlap(r.from[1], r.to[1], q.from[1], q.to[1]) > 2) shared.push(route);
+        const [h, v] = flat(r) && upright(q) ? [r, q] : flat(q) && upright(r) ? [q, r] : [null, null];
+        if (h && v.from[0] > Math.min(h.from[0], h.to[0]) + 0.5 && v.from[0] < Math.max(h.from[0], h.to[0]) - 0.5 && h.from[1] > Math.min(v.from[1], v.to[1]) + 0.5 && h.from[1] < Math.max(v.from[1], v.to[1]) - 0.5) crossings++;
+      }));
+    }
+  }
+  return { checked, crooked: crooked.slice(0, 5), straightAtBothEnds: checked > 0 && !crooked.length, measured, crossings, slanted: slanted.slice(0, 3), rightAngled: measured > 0 && !slanted.length, throughBoxes: throughBoxes.slice(0, 3), clearOfBoxes: !throughBoxes.length, sharedRuns: shared.length, noSharedRuns: !shared.length };
+})()`;
+
+const PRESS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 150));
+  location.hash = 'design'; await settle();
+  const svg = [...document.querySelectorAll('svg[data-graph]')].find(each => each.querySelector('[data-from]') && each.querySelector('.node-link'));
+  if (!svg) return { skipped: 'no linked graph with edges on the design view' };
+  const link = svg.querySelector('.node-link');
+  const node = link.closest('[data-node]');
+  const id = node.getAttribute('data-node');
+  if (!svg.querySelector('[data-from="' + CSS.escape(id) + '"], [data-to="' + CSS.escape(id) + '"]')) return { skipped: 'linked box has no edges' };
+  const press = (target, pointerType) => {
+    target.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType }));
+    target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType }));
+    target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType }));
+    if (pointerType === 'touch') target.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType, relatedTarget: document.body }));
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  };
+  const result = {};
+  for (const pointerType of ['touch', 'mouse']) {
+    const body = node.querySelector('rect');
+    press(body, pointerType);
+    const pinned = svg.classList.contains('tracing') && location.hash === '#design';
+    body.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType, relatedTarget: document.body }));
+    const stays = svg.classList.contains('tracing');
+    press(body, pointerType);
+    result[pointerType] = pinned && stays && !svg.classList.contains('tracing');
+  }
+  const others = [...svg.querySelectorAll('[data-node]')].filter(n => n !== node && svg.querySelector('[data-from="' + CSS.escape(n.getAttribute('data-node')) + '"], [data-to="' + CSS.escape(n.getAttribute('data-node')) + '"]'));
+  if (others.length) {
+    const other = others[0];
+    press(node.querySelector('rect'), 'touch');
+    press(other.querySelector('rect'), 'mouse');
+    result.additive = node.classList.contains('traced') && other.classList.contains('traced');
+    press(svg.closest('figure') || document.body, 'mouse');
+    result.pressAwayKeeps = node.classList.contains('traced') && other.classList.contains('traced');
+    press(node.querySelector('rect'), 'touch');
+    result.untoggleOne = !node.classList.contains('traced') && other.classList.contains('traced');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    result.escapeClears = !svg.classList.contains('tracing');
+  }
+  press(link.querySelector('path') || link, 'touch');
+  await settle();
+  result.linkNavigates = location.hash !== '#design';
+  result.linkLeavesTraceAlone = !svg.classList.contains('tracing');
+  return result;
+})()`;
+
+const GRAPH_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 150));
+  location.hash = 'design'; await settle();
+  const svg = [...document.querySelectorAll('svg[data-graph]')].find(each => each.querySelector('[data-from]'));
+  if (!svg) return { skipped: 'no graph with edges on the design view' };
+  const edge = svg.querySelector('path[data-from]');
+  const node = svg.querySelector('[data-node="' + CSS.escape(edge.getAttribute('data-from')) + '"]');
+  const target = node.querySelector('rect');
+  target.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }));
+  target.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+  const hoverLeavesAlone = !svg.classList.contains('tracing');
+  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  const traced = svg.classList.contains('tracing') && edge.classList.contains('traced-out');
+  const outward = getComputedStyle(edge).stroke;
+  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  const released = !svg.classList.contains('tracing') && !edge.classList.contains('traced-out');
+  const graphs = [...document.querySelectorAll('svg[data-graph]')];
+  const labelsOnTop = graphs.every(g => {
+    const order = [...g.querySelectorAll('path.edge, .elabel')];
+    const lastPath = order.map(el => el.matches('path.edge')).lastIndexOf(true);
+    const firstLabel = order.findIndex(el => el.matches('.elabel'));
+    return firstLabel === -1 || firstLabel > lastPath;
+  });
+  const linked = graphs.flatMap(g => [...g.querySelectorAll('[data-node]')]).filter(n => n.querySelector('.node-link'));
+  const bordersOverLinks = linked.length > 0 && linked.every(n => n.lastElementChild.matches('rect.frame'));
+  return { node: node.getAttribute('data-node'), hoverLeavesAlone, traced, highlighted: outward !== getComputedStyle(edge).stroke, released, labelsOnTop, bordersOverLinks };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -198,6 +332,9 @@ async function main() {
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
+    report.graph = await cdp.evaluate(GRAPH_PROBE);
+    report.arrows = await cdp.evaluate(ARROWS_PROBE);
+    report.press = await cdp.evaluate(PRESS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -221,7 +358,13 @@ async function main() {
   const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
   const unfold = report.unfold || {};
   const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
-  report.ok = commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const graph = report.graph || {};
+  const graphHolds = !!graph.skipped || !!(graph.hoverLeavesAlone && graph.traced && graph.highlighted && graph.released && graph.labelsOnTop && graph.bordersOverLinks);
+  const arrows = report.arrows || {};
+  const arrowsHold = !!(arrows.straightAtBothEnds && arrows.rightAngled && arrows.clearOfBoxes && arrows.noSharedRuns);
+  const press = report.press || {};
+  const pressHolds = !!press.skipped || !!(press.touch && press.mouse && press.additive && press.pressAwayKeeps && press.untoggleOne && press.escapeClears && press.linkNavigates && press.linkLeavesTraceAlone);
+  report.ok = pressHolds && arrowsHold && graphHolds && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

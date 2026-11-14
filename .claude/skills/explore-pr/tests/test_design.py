@@ -221,6 +221,45 @@ def test_a_key_abstraction_works_with_every_declarations_collaborators(
     assert entry["item"]["collaborators"] == ["Clock", "Disk", "Log"]
 
 
+def test_a_collaborator_given_with_its_kind_is_drawn_with_that_kind(
+    tmp_path, script
+):
+    collaborator = {"name": "Clock", "kind": "trait"}
+    chapters = [
+        chapter(
+            "c", abstractions=[dict(ABSTRACTION, collaborators=[collaborator])]
+        )
+    ]
+
+    content, _ = assemble(tmp_path, script, chapters)
+
+    [entry] = content["keyAbstractions"]
+    assert entry["item"]["collaborators"] == ["Clock"]
+    assert content["collaboratorKinds"] == {"Clock": "trait"}
+
+
+def test_a_collaborator_that_is_not_an_abstraction_needs_a_kind(
+    tmp_path, script
+):
+    chapters = [
+        chapter("c", abstractions=[dict(ABSTRACTION, collaborators=["Clock"])])
+    ]
+
+    _, warnings = assemble(tmp_path, script, chapters)
+
+    assert any("Clock" in w and "kind" in w for w in warnings)
+
+
+def test_a_collaborator_that_is_an_abstraction_needs_no_kind(tmp_path, script):
+    clock = dict(ABSTRACTION, id="a-clock", name="Clock")
+    store = dict(ABSTRACTION, collaborators=["Clock"])
+    chapters = [chapter("c", abstractions=[store, clock])]
+
+    _, warnings = assemble(tmp_path, script, chapters)
+
+    assert not any("Clock" in w for w in warnings)
+
+
 def test_a_design_abstraction_owned_by_a_chapter_lists_that_chapter_first(
     tmp_path, script
 ):
