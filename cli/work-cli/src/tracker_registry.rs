@@ -18,6 +18,7 @@ use linear_client::healing::CatalogueHealing;
 use linear_client::healing::NoBackfill;
 use linear_client::transport::Url;
 use linear_client::LinearClient;
+use shortcut_client::ShortcutClient;
 use tracker::RemoteTracker;
 use tracker_support::TransportConfig;
 
@@ -76,8 +77,8 @@ pub trait TrackerRegistry {
     ) -> Result<Box<dyn RemoteTracker>, SelectionError>;
 }
 
-/// The production registry. `jira` and `linear` resolve real clients from
-/// configuration; `shortcut`, `trello` and `github-issues` report
+/// The production registry. `jira`, `linear` and `shortcut` resolve real
+/// clients from configuration; `trello` and `github-issues` report
 /// not-available; everything else falls to `Unrecognised`.
 pub struct ConfiguredTrackers<'a> {
     config: &'a dyn ConfigAccess,
@@ -85,6 +86,7 @@ pub struct ConfiguredTrackers<'a> {
     healing: Option<Arc<CatalogueHealing>>,
     environment: Option<&'a dyn Environment>,
     linear_endpoint: Option<Url>,
+    shortcut_endpoint: Option<Url>,
 }
 
 impl<'a> ConfiguredTrackers<'a> {
@@ -96,6 +98,7 @@ impl<'a> ConfiguredTrackers<'a> {
             healing: None,
             environment: None,
             linear_endpoint: None,
+            shortcut_endpoint: None,
         }
     }
 
@@ -125,6 +128,44 @@ impl<'a> ConfiguredTrackers<'a> {
     pub(crate) fn with_linear_endpoint(mut self, endpoint: Url) -> Self {
         self.linear_endpoint = Some(endpoint);
         self
+    }
+
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn with_shortcut_endpoint(mut self, endpoint: Url) -> Self {
+        self.shortcut_endpoint = Some(endpoint);
+        self
+    }
+
+    fn shortcut_client(&self) -> Result<ShortcutClient, SelectionError> {
+        let name = "shortcut";
+        let integrations_root =
+            crate::sync::integrations_dir(self.config, &self.root)
+                .map_err(|error| Self::unconfigured(name, error))?;
+        let transport_config = self.transport_config(name)?;
+        self.with_credential_context(|context| {
+            self.shortcut_endpoint.as_ref().map_or_else(
+                || {
+                    ShortcutClient::from_config(
+                        context,
+                        &integrations_root,
+                        transport_config,
+                    )
+                },
+                |endpoint| {
+                    ShortcutClient::from_config_at(
+                        endpoint.clone(),
+                        context,
+                        &integrations_root,
+                        transport_config,
+                    )
+                },
+            )
+        })
+        .map_err(|error| {
+            report_consent([], error.warnings());
+            Self::unconfigured(name, error)
+        })
     }
 
     /// A Linear client for fetching team sections, built from the same
@@ -282,11 +323,13 @@ impl TrackerRegistry for ConfiguredTrackers<'_> {
                 report_consent(client.notice(), client.refusals());
                 Box::new(client) as Box<dyn RemoteTracker>
             }),
-            "shortcut" | "trello" | "github-issues" => {
-                Err(SelectionError::NotAvailable {
-                    name: name.to_owned(),
-                })
-            }
+            "shortcut" => self.shortcut_client().map(|client| {
+                report_consent(client.notice(), client.refusals());
+                Box::new(client) as Box<dyn RemoteTracker>
+            }),
+            "trello" | "github-issues" => Err(SelectionError::NotAvailable {
+                name: name.to_owned(),
+            }),
             other => Err(SelectionError::Unrecognised {
                 name: other.to_owned(),
             }),
@@ -506,5 +549,103 @@ mod tests {
 
         assert!(matches!(error, SelectionError::Unconfigured { .. }));
         assert!(error.message().contains("linear"), "{}", error.message());
+    }
+
+    fn shortcut_config() -> FakeConfig {
+        FakeConfig(
+            [
+                ("work.integration", "shortcut"),
+                ("paths.integrations", "integrations"),
+                ("shortcut.team_key", "team-1"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+            .collect(),
+        )
+    }
+
+    fn with_shortcut_token() -> FakeEnvironment {
+        FakeEnvironment(HashMap::from([(
+            "ACCELERATOR_SHORTCUT_TOKEN".to_owned(),
+            "sct_rw_test".to_owned(),
+        )]))
+    }
+
+    fn shortcut_root() -> tempfile::TempDir {
+        let root = tempfile::tempdir().expect("tempdir");
+        let state = root.path().join("integrations/shortcut");
+        std::fs::create_dir_all(&state).expect("state dir");
+        std::fs::write(
+            state.join("catalogue.json"),
+            json!({
+                "schema_version": 1,
+                "workspace": {"slug": "acme", "name": "Acme"},
+                "teams": [{"id": "00000000-0000-4000-8000-000000000002",
+                           "name": "Team 1",
+                           "mention_name": "team-1",
+                           "default_workflow_id": 500,
+                           "workflow_ids": [500]}],
+                "workflows": [{"id": 500, "name": "Standard", "states": [
+                    {"id": 501, "name": "To Do", "type": "unstarted",
+                     "position": 1}]}]
+            })
+            .to_string(),
+        )
+        .expect("seed the catalogue");
+        root
+    }
+
+    #[test]
+    fn a_shortcut_client_from_resolve_reaches_the_endpoint() {
+        let server = http_test_support::MockHTTPServer::start();
+        server.route(
+            RequestKey::get("/api/v4/acme/stories/14"),
+            Route::Json {
+                status: 200,
+                body: json!({"entity": {"id": 14, "name": "A story",
+                    "description": "", "updated_at": "2026-11-14T08:21:34.384Z"}})
+                .to_string(),
+            },
+        );
+        let root = shortcut_root();
+        let config = shortcut_config();
+        let environment = with_shortcut_token();
+        let registry =
+            ConfiguredTrackers::new(&config, root.path().to_path_buf())
+                .with_environment(&environment)
+                .with_shortcut_endpoint(
+                    Url::parse(&server.base_url()).expect("an endpoint"),
+                );
+
+        let tracker = match registry.resolve("shortcut") {
+            Ok(tracker) => tracker,
+            Err(error) => panic!("{}", error.message()),
+        };
+        tracker
+            .show(&tracker::ExternalId::new("sc-14".to_owned()))
+            .expect("the story is shown");
+
+        assert_eq!(server.hits(&RequestKey::get("/api/v4/acme/stories/14")), 1);
+    }
+
+    #[test]
+    fn without_a_catalogue_shortcut_is_unconfigured_naming_init() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let config = shortcut_config();
+        let environment = with_shortcut_token();
+        let registry =
+            ConfiguredTrackers::new(&config, root.path().to_path_buf())
+                .with_environment(&environment);
+
+        let Err(error) = registry.resolve("shortcut") else {
+            panic!("no catalogue, no client");
+        };
+
+        assert!(matches!(error, SelectionError::Unconfigured { .. }));
+        assert!(
+            error.message().contains("init-shortcut"),
+            "{}",
+            error.message()
+        );
     }
 }

@@ -59,9 +59,9 @@ configured.
         `trello`, or `github-issues` via /accelerator:configure, then re-run.
 ```
 
-`shortcut`, `trello` and `github-issues` are not built yet; `work sync` exits
+`trello` and `github-issues` are not built yet; `work sync` exits
 **72** ("not available") for them, which you surface as a clear message. A wired
-tracker (`jira`, `linear`) exits **74** ("unconfigured") when a run cannot
+tracker (`jira`, `linear`, `shortcut`) exits **74** ("unconfigured") when a run cannot
 proceed on its configuration — its credentials are missing or refused, or a
 non-push-only run's discovery scope names no valid target (an unset or
 unresolvable key, e.g. Linear with no `linear.team_key`). Surface it

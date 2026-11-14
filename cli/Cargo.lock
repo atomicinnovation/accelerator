@@ -231,6 +231,7 @@ dependencies = [
  "remote-projection",
  "serde_json",
  "sha2",
+ "shortcut-client",
  "store",
  "tempfile",
  "time",
