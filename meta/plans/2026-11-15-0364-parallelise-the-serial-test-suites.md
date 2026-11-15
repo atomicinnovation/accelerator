@@ -9,11 +9,11 @@ status: "ready"
 work_item_id: "work-item:0364"
 parent: "work-item:0364"
 derived_from: ["codebase-research:2026-11-15-0364-parallelise-the-serial-test-suites"]
-relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:0369", "work-item:0370"]
+relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:0369", "work-item:0370", "work-item:0371"]
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-15T20:23:46+00:00"
+last_updated: "2026-11-15T23:32:44+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -182,7 +182,7 @@ worker change goes last, so that phase is "the suite's change" for the
   test-side evidence works are in scope.
 - **Orphaned children after an out-of-band kill.** `reap_descendants` can't
   reach the children of a fake that was SIGKILLed out of band. This is a
-  production gap, raised as a follow-up work item.
+  production gap, raised as 0371.
 - **Other pytest lanes.** No parallelism for any other pytest lane, and no
   `pytest-timeout`.
 - **Not upfront.** No `fullyParallel` and no explicit `-n`. Each is a tuning
@@ -248,14 +248,14 @@ The record also notes:
 - **A known gap, not a timeout branch.** After an out-of-band SIGKILL of a
   fake, its children are orphaned. `reap_descendants` enumerates the children
   of recorded PIDs, so it cannot reach them. This is production behaviour,
-  so it is out of scope here. It is raised as a follow-up work item that does
-  not block 0364. Tests that kill fakes out of band kill the whole subtree.
+  so it is out of scope here. It is raised as 0371 (Linear PP-942), which
+  does not block 0364. Tests that kill fakes out of band kill the whole subtree.
 - **The same gap when `dev.json` is lost.** Circus's `stop_children` lists a
   watcher's children only after signalling the watcher, so a watcher that
   exits promptly leaves its children unsignalled. Normally
   `reap_descendants` reaches them through the recorded PIDs. Without
   `dev.json` there are none, so the children survive. Test 10 therefore runs
-  childless watchers, and the follow-up work item covers this case too.
+  childless watchers, and 0371 covers this case too.
 
 Before Phase 2, the implementer confirms each string against
 `lifecycle.py`. If the record turns up another branch, it joins the list and
@@ -292,7 +292,8 @@ gets the same treatment.
   and psutil, and it ends with `if __name__ == "__main__":
   main(sys.argv[1:])`. Test 6 and the survivor self-test run it directly,
   without the repo root on `sys.path`, so it can't import from `tasks` or
-  `tests`. The parsing of recorded fakes lives in the driver and the tests.
+  `tests`. The parsing of recorded fakes lives in the driver, and the tests
+  import it from there.
 - **Shared names.** The module defines the file names the harness shares:
   `EVENTS_LOG = "fakes.log"`, `ESCALATIONS_LOG = "escalations.log"` and
   `KILLED_BY_TEST_LOG = "killed-by-test.log"`. The driver, the launchers and
@@ -608,9 +609,13 @@ def assert_stopped_cleanly(workspace: Path) -> None:
     log with `started frontend <pid> …` and no `sigterm` for that PID.
   - A happy-path test leaves an escalation log with no `kill` line.
 - [ ] The negative-path record is in the PR description and each string
-      matches `lifecycle.py`.
+      matches `lifecycle.py`. The strings match, as
+      `test_every_timeout_branch_evidence_line_is_still_logged` shows. The
+      record, with the red-step note, still has to go into the PR
+      description.
 - [ ] The follow-up work item for orphaned children after an out-of-band
-      kill exists and is linked from the PR.
+      kill exists and is linked from the PR. It exists as 0371 (PP-942) and
+      also covers the lost-`dev.json` case. The PR link is still to come.
 - [x] Suite wall time is unchanged or lower. No timing change is intended,
       and the teardown no longer runs a second driver stop.
 
