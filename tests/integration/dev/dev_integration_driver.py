@@ -279,24 +279,19 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         free_port=(lambda: opts["free_port"])
         if "free_port" in opts
         else free_port,
-        # Happy-path defaults are deliberately generous: these are real
-        # processes (circusd + Python fakes) started on shared CI runners that
-        # may have only a few cores under heavy parallel load. The suite
-        # asserts direction (it happened), not precise deadlines — the exact
-        # poll-count/timeout maths is pinned by the unit tests in test_dev.py.
-        # Negative-path tests override these with small values to exercise the
-        # timeout branches.
+        # The start-up budgets are generous because real processes start on
+        # loaded runners. The probe and grace budgets are tight because a stop
+        # that escalates is recorded, and the clean-stop check fails on it.
         #
-        # These are NOT what the long-running "frontend watcher did not become
-        # active" flake needed: circus was refusing the start outright while
-        # the arbiter finished start_watchers, so no budget could have helped.
-        # See _request_frontend_start.
-        probe_timeout=opts.get("probe_timeout", 5.0),
+        # No budget would have cured the "frontend watcher did not become
+        # active" flake: circus refused the start outright while the arbiter
+        # finished start_watchers. See _request_frontend_start.
+        probe_timeout=opts.get("probe_timeout", 2.0),
         pidfile_timeout=opts.get("pidfile_timeout", 20.0),
         readiness_timeout=opts.get("readiness_timeout", 20.0),
         frontend_active_timeout=opts.get("frontend_active_timeout", 20.0),
         grace_quit=opts.get("grace_quit", 6.0),
-        grace_kill=opts.get("grace_kill", 3.0),
+        grace_kill=opts.get("grace_kill", 0.5),
     )
 
 
