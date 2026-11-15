@@ -24,7 +24,7 @@ use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::config::announced_scheme_with_key;
+use crate::config::announced_scheme_for_writing;
 use crate::config::resolve_work_dir;
 use crate::convergence::refuse_diverged_corpus;
 use crate::convergence::Diverged;
@@ -101,7 +101,7 @@ pub fn run(
     input: &str,
 ) -> Result<RunOutcome, RunFailure> {
     let scheme =
-        announced_scheme_with_key(config).map_err(kernel::Error::from)?;
+        announced_scheme_for_writing(config).map_err(kernel::Error::from)?;
     let work_dir = canonical_work_dir(start, config)?;
     let root = FileConfigStore::discover_root(start);
     refuse_diverged_corpus(&scheme, &root, &work_dir)

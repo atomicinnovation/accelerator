@@ -22,6 +22,8 @@ pub const REMOVAL_RELEASE: &str = "1.25.0";
 pub struct AliasedScalar {
     pub value: Option<String>,
     pub deprecation: Option<String>,
+    /// Whether `value` came from the deprecated key.
+    pub from_deprecated: bool,
 }
 
 fn deprecation_warning(deprecated: &str) -> String {
@@ -77,6 +79,7 @@ pub fn resolve_with_deprecated_fallback(
         return Ok(AliasedScalar {
             value: Some(canonical_value),
             deprecation,
+            from_deprecated: false,
         });
     }
 
@@ -84,12 +87,14 @@ pub fn resolve_with_deprecated_fallback(
         return Ok(AliasedScalar {
             value: Some(deprecated_value),
             deprecation: Some(deprecation_warning(deprecated)),
+            from_deprecated: true,
         });
     }
 
     Ok(AliasedScalar {
         value: None,
         deprecation: None,
+        from_deprecated: false,
     })
 }
 
@@ -192,6 +197,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(resolved.value.as_deref(), Some("PP"));
+        assert!(!resolved.from_deprecated);
         let warning = resolved.deprecation.expect("a warning is expected");
         assert!(warning.contains(REMOVAL_RELEASE), "{warning}");
         assert!(warning.contains("work.default_project_code"), "{warning}");
@@ -208,6 +214,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(resolved.value.as_deref(), Some("PP"));
+        assert!(resolved.from_deprecated);
         assert!(resolved
             .deprecation
             .expect("a warning is expected")

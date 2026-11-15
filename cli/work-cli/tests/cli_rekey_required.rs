@@ -180,3 +180,25 @@ fn every_id_command_refuses_a_malformed_item() -> Result<(), TestError> {
     }
     Ok(())
 }
+
+#[test]
+fn a_malformed_key_the_pattern_ignores_is_warned_about_once(
+) -> Result<(), TestError> {
+    let repo = diverged_repo()?;
+    fs::write(
+        repo.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{number:04d}\"\n  key: 1PP\n---\n",
+    )?;
+    fs::remove_file(repo.path().join(OFF_PATTERN_ITEM))?;
+
+    let output = run(repo.path(), &["create", "Fresh item", "task", "medium"])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(output.status.success(), "{stderr}");
+    assert_eq!(
+        stderr.matches("warning: work.key '1PP' is unused").count(),
+        1,
+        "{stderr}"
+    );
+    Ok(())
+}

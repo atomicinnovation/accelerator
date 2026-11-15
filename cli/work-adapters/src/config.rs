@@ -20,9 +20,29 @@ const KEY_SETTING: &str = "work.key";
 
 pub const LEGACY_KEY_SETTING: &str = "work.default_project_code";
 
+/// Which setting supplied the key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeySource {
+    WorkKey,
+    LegacyDefaultProjectCode,
+}
+
+impl KeySource {
+    #[must_use]
+    pub const fn setting(self) -> &'static str {
+        match self {
+            Self::WorkKey => KEY_SETTING,
+            Self::LegacyDefaultProjectCode => LEGACY_KEY_SETTING,
+        }
+    }
+}
+
 pub struct SchemeReading {
     pub scheme: IdScheme,
     pub deprecation: Option<String>,
+    /// A warning for a malformed key the pattern does not use, which a
+    /// later switch to a `{key}` pattern would refuse.
+    pub unused_key_warning: Option<String>,
 }
 
 #[derive(Debug)]
@@ -33,7 +53,7 @@ pub enum SchemeError {
         error: PatternError,
     },
     Key {
-        setting: String,
+        source: KeySource,
         value: String,
         error: KeyError,
     },
@@ -53,12 +73,13 @@ impl std::fmt::Display for SchemeError {
                 escaped(value)
             ),
             Self::Key {
-                setting,
+                source,
                 value,
                 error,
             } => write!(
                 formatter,
-                "E_WORK_KEY_INVALID: {setting} '{}': {error}",
+                "E_WORK_KEY_INVALID: {} '{}': {error}",
+                source.setting(),
                 escaped(value)
             ),
             Self::KeyRequired { pattern } => write!(
@@ -104,12 +125,62 @@ fn configured(
         .configured_value())
 }
 
+/// The scheme `pattern` and `key` give, with a key read only when the
+/// pattern has a key token and named by `source` when it is malformed.
+///
+/// # Errors
+///
+/// [`SchemeError::Pattern`] when the pattern is malformed, and
+/// [`SchemeError::Key`] when the key it needs is.
+pub fn scheme_from_settings(
+    pattern: &str,
+    key: Option<&str>,
+    source: KeySource,
+) -> Result<IdScheme, SchemeError> {
+    let parsed =
+        IdPattern::parse(pattern).map_err(|error| SchemeError::Pattern {
+            value: pattern.to_owned(),
+            error,
+        })?;
+    let key = key
+        .filter(|_| parsed.references_key())
+        .map(|value| {
+            IdKey::parse(value).map_err(|error| SchemeError::Key {
+                source,
+                value: value.to_owned(),
+                error,
+            })
+        })
+        .transpose()?;
+    Ok(IdScheme::new(parsed, key))
+}
+
+fn unused_key_warning(
+    scheme: &IdScheme,
+    key: Option<&str>,
+    source: KeySource,
+) -> Option<String> {
+    if scheme.pattern().references_key() {
+        return None;
+    }
+    let value = key?;
+    let error = IdKey::parse(value).err()?;
+    Some(format!(
+        "warning: {} '{}' is unused by {} '{}', but would be refused under \
+         a pattern with a key token: {error}",
+        source.setting(),
+        escaped(value),
+        PATTERN_SETTING,
+        escaped(scheme.pattern().as_str())
+    ))
+}
+
 /// The configured ID scheme.
 ///
 /// That is the pattern, the tracker keys `work.integration` answers issues
 /// under, and, only when the pattern has a key token, the configured key,
-/// read from `work.key` or its deprecated alias. The alias's
-/// deprecation notice is returned, never printed.
+/// read from `work.key` or its deprecated alias. The alias's deprecation
+/// notice is returned, never printed.
 ///
 /// # Errors
 ///
@@ -119,50 +190,36 @@ fn configured(
 pub fn read_scheme(
     config: &dyn ConfigAccess,
 ) -> Result<SchemeReading, SchemeError> {
-    let text = config
+    let pattern = config
         .effective_nonempty(&Key::parse(PATTERN_SETTING)?, None)?
         .rendered();
-    let pattern =
-        IdPattern::parse(&text).map_err(|error| SchemeError::Pattern {
-            value: text.clone(),
-            error,
-        })?;
-    let tracker_keys = TrackerKeys::of_integration(
-        configured(config, "work.integration")?
-            .as_deref()
-            .unwrap_or_default(),
-    );
-    if !pattern.references_key() {
-        return Ok(SchemeReading {
-            scheme: IdScheme::new(pattern, None)
-                .with_tracker_keys(tracker_keys),
-            deprecation: None,
-        });
-    }
     let aliased = resolve_with_deprecated_fallback(
         config,
         KEY_SETTING,
         LEGACY_KEY_SETTING,
         None,
     )?;
-    let key = match aliased.value {
-        Some(value) => {
-            let setting = if configured(config, KEY_SETTING)?.is_some() {
-                KEY_SETTING
-            } else {
-                LEGACY_KEY_SETTING
-            };
-            Some(IdKey::parse(&value).map_err(|error| SchemeError::Key {
-                setting: setting.to_owned(),
-                value,
-                error,
-            })?)
-        }
-        None => None,
+    let source = if aliased.from_deprecated {
+        KeySource::LegacyDefaultProjectCode
+    } else {
+        KeySource::WorkKey
     };
+    let scheme =
+        scheme_from_settings(&pattern, aliased.value.as_deref(), source)?;
+    let unused_key_warning =
+        unused_key_warning(&scheme, aliased.value.as_deref(), source);
+    let deprecation = aliased
+        .deprecation
+        .filter(|_| scheme.pattern().references_key());
+    let tracker_keys = TrackerKeys::of_integration(
+        configured(config, "work.integration")?
+            .as_deref()
+            .unwrap_or_default(),
+    );
     Ok(SchemeReading {
-        scheme: IdScheme::new(pattern, key).with_tracker_keys(tracker_keys),
-        deprecation: aliased.deprecation,
+        scheme: scheme.with_tracker_keys(tracker_keys),
+        deprecation,
+        unused_key_warning,
     })
 }
 
@@ -232,6 +289,8 @@ mod tests {
     use super::read_scheme;
     use super::require_key;
     use super::resolve_scheme;
+    use super::scheme_from_settings;
+    use super::KeySource;
     use super::SchemeError;
 
     struct FakeConfig(HashMap<String, String>);
@@ -277,6 +336,77 @@ mod tests {
 
     fn key_of(scheme: &IdScheme) -> Option<&str> {
         scheme.key().map(IdKey::as_str)
+    }
+
+    #[test]
+    fn settings_build_the_scheme_naming_the_setting_a_bad_key_came_from() {
+        let scheme = scheme_from_settings(
+            "{key}-{number:04d}",
+            Some("PP"),
+            KeySource::WorkKey,
+        )
+        .unwrap();
+        assert_eq!(key_of(&scheme), Some("PP"));
+        for (source, setting) in [
+            (KeySource::WorkKey, "work.key"),
+            (
+                KeySource::LegacyDefaultProjectCode,
+                "work.default_project_code",
+            ),
+        ] {
+            let refusal =
+                scheme_from_settings("{key}-{number:04d}", Some("1PP"), source)
+                    .err()
+                    .map(|error| error.to_string());
+            assert!(
+                refusal.as_deref().is_some_and(|text| text.starts_with(
+                    &format!("E_WORK_KEY_INVALID: {setting} '1PP':")
+                )),
+                "{refusal:?}"
+            );
+        }
+        let pattern =
+            scheme_from_settings("{number:4d}", None, KeySource::WorkKey)
+                .err()
+                .map(|error| error.to_string());
+        assert!(
+            pattern.is_some_and(
+                |text| text.starts_with("E_WORK_ID_PATTERN_INVALID:")
+            )
+        );
+        assert_eq!(
+            key_of(
+                &scheme_from_settings(
+                    "{number:04d}",
+                    Some("1PP"),
+                    KeySource::WorkKey
+                )
+                .unwrap()
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn a_malformed_key_a_keyless_pattern_ignores_is_warned_about() {
+        let config = FakeConfig::with(&[
+            ("work.id_pattern", "{number:04d}"),
+            ("work.key", "1PP"),
+        ]);
+        let warning = read_scheme(&config).unwrap().unused_key_warning;
+        assert!(
+            warning.as_deref().is_some_and(|text| text.starts_with(
+                "warning: work.key '1PP' is unused by work.id_pattern \
+                 '{number:04d}', but would be refused under a pattern with a key \
+                 token:"
+            )),
+            "{warning:?}"
+        );
+        let well_formed = FakeConfig::with(&[
+            ("work.id_pattern", "{number:04d}"),
+            ("work.key", "PP"),
+        ]);
+        assert_eq!(read_scheme(&well_formed).unwrap().unused_key_warning, None);
     }
 
     #[test]
@@ -437,8 +567,8 @@ mod tests {
             assert!(
                 matches!(
                     read_scheme(&config),
-                    Err(SchemeError::Key { setting: ref named, .. })
-                        if named == setting
+                    Err(SchemeError::Key { source, .. })
+                        if source.setting() == setting
                 ),
                 "{value:?}"
             );
@@ -449,8 +579,10 @@ mod tests {
         ]);
         assert!(matches!(
             read_scheme(&legacy),
-            Err(SchemeError::Key { ref setting, .. })
-                if setting == "work.default_project_code"
+            Err(SchemeError::Key {
+                source: KeySource::LegacyDefaultProjectCode,
+                ..
+            })
         ));
     }
 
@@ -469,7 +601,7 @@ mod tests {
             )
         );
         let key = SchemeError::Key {
-            setting: "work.key".to_owned(),
+            source: KeySource::WorkKey,
             value: "../x".to_owned(),
             error: KeyError::BadKeyValue("../x".to_owned()),
         };

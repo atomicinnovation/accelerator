@@ -151,7 +151,7 @@ fn tracker_owned_draft(
 ) -> Result<(DraftId, PathBuf), PromoteOutcome> {
     let internal = failed(exit_codes::ERROR);
     let draft = DraftId::parse(input).ok_or_else(|| not_a_draft(input))?;
-    let ownership = crate::config::announced_scheme_with_key(config)
+    let ownership = crate::config::announced_scheme_for_writing(config)
         .map_err(|error| internal(error.to_string()))?
         .ownership();
     if ownership != work::id_scheme::IdOwnership::Tracker {
@@ -185,7 +185,7 @@ fn try_run(
             let (message, code) = crate::identity_run::refused(refusal, &root);
             PromoteOutcome::Failed { message, code }
         })?;
-    let scheme = crate::config::announced_scheme_with_key(config)
+    let scheme = crate::config::announced_scheme_for_writing(config)
         .map_err(|error| internal(error.to_string()))?;
     crate::convergence::refuse_diverged_corpus(&scheme, &root, &work_dir)
         .map_err(|diverged| PromoteOutcome::Failed {

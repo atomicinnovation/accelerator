@@ -2,10 +2,8 @@
 
 use migrate::ports::MigrationError;
 use migrate::ports::WorkItemIdentity;
-use work::id_pattern::IdKey;
-use work::id_pattern::IdPattern;
-use work::id_scheme::IdScheme;
-use work_adapters::config::SchemeError;
+use work_adapters::config::scheme_from_settings;
+use work_adapters::config::KeySource;
 
 pub struct WorkIdentity;
 
@@ -20,18 +18,8 @@ impl WorkItemIdentity for WorkIdentity {
         pattern: &str,
         key: Option<&str>,
     ) -> Result<String, MigrationError> {
-        let pattern = IdPattern::parse(pattern).map_err(|error| {
-            failure(&SchemeError::Pattern {
-                value: pattern.to_owned(),
-                error,
-            })
-        })?;
-        let key = key
-            .filter(|_| pattern.references_key())
-            .map(IdKey::parse)
-            .transpose()
-            .map_err(|error| failure(&error))?;
-        IdScheme::new(pattern, key)
+        scheme_from_settings(pattern, key, KeySource::LegacyDefaultProjectCode)
+            .map_err(|error| failure(&error))?
             .canonicalise(raw)
             .map_err(|error| failure(&error))
     }
@@ -67,6 +55,21 @@ mod tests {
             "0007"
         );
         Ok(())
+    }
+
+    #[test]
+    fn a_malformed_key_names_the_setting_it_came_from() {
+        let refusal = WorkIdentity
+            .canonicalise("7", "{project}-{number:04d}", Some("1X"))
+            .err()
+            .map(|error| error.to_string());
+
+        assert!(
+            refusal.as_deref().is_some_and(|text| text.starts_with(
+                "E_WORK_KEY_INVALID: work.default_project_code '1X':"
+            )),
+            "{refusal:?}"
+        );
     }
 
     #[test]

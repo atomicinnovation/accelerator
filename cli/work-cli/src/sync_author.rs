@@ -49,7 +49,7 @@ use work_adapters::sync::create::LocalAuthor;
 use work_adapters::sync::pending_push::Marker;
 
 use crate::bounded_roots::BoundedRoot;
-use crate::config::announced_scheme_with_key;
+use crate::config::announced_scheme_for_writing;
 
 /// The default kind, status, and priority an imported remote issue is authored
 /// with. A tracker issue carries no work-item taxonomy, so the import picks
@@ -298,7 +298,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         &self,
         issue: &DiscoveredIssue,
     ) -> Result<AuthoredLocal, AuthorError> {
-        let scheme = announced_scheme_with_key(self.config)
+        let scheme = announced_scheme_for_writing(self.config)
             .map_err(kernel::Error::from)?;
         let title = issue.title.as_str();
         let description = issue.body.as_str();

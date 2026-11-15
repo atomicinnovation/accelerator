@@ -12,7 +12,7 @@ use work_adapters::config::read_scheme;
 use work_adapters::config::resolve_scheme;
 use work_adapters::config::SchemeError;
 use work_adapters::config::SchemeReading;
-use work_adapters::config::LEGACY_KEY_SETTING as LEGACY_PREFIX_KEY;
+use work_adapters::config::LEGACY_KEY_SETTING;
 
 pub fn effective_nonempty(
     config: &dyn ConfigAccess,
@@ -28,20 +28,25 @@ pub fn effective_nonempty(
 
 fn announced(reading: SchemeReading) -> IdScheme {
     ::config::emit_deprecation_once(
-        LEGACY_PREFIX_KEY,
+        LEGACY_KEY_SETTING,
         reading.deprecation.as_deref(),
     );
+    if let Some(warning) = &reading.unused_key_warning {
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| eprintln!("{warning}"));
+    }
     reading.scheme
 }
 
-/// The scheme a command that writes or allocates IDs needs, with the
-/// deprecated key alias's notice printed once.
+/// The scheme a command that writes or allocates IDs needs: read, with the
+/// key a key pattern names required and the `{tracker}` integration rule
+/// checked, and the deprecated key alias's notice printed once.
 ///
 /// # Errors
 ///
 /// A [`SchemeError`] from
 /// [`work_adapters::config::resolve_scheme`].
-pub fn announced_scheme_with_key(
+pub fn announced_scheme_for_writing(
     config: &dyn ConfigAccess,
 ) -> Result<IdScheme, SchemeError> {
     resolve_scheme(config).map(announced)
@@ -76,8 +81,8 @@ pub fn locate_work_items(
     start: &Path,
     config: &dyn ConfigAccess,
 ) -> Result<WorkItemLocation, String> {
-    let scheme =
-        announced_scheme_with_key(config).map_err(|error| error.to_string())?;
+    let scheme = announced_scheme_for_writing(config)
+        .map_err(|error| error.to_string())?;
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir =
         resolve_work_dir(config, &root).map_err(|error| error.to_string())?;

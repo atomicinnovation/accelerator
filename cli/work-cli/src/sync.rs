@@ -2113,7 +2113,7 @@ fn prepare_sync(
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let repo_root = config_adapters::FileConfigStore::discover_root(start);
-    let scheme = crate::config::announced_scheme_with_key(config)
+    let scheme = crate::config::announced_scheme_for_writing(config)
         .map_err(Refusal::error)?;
     let discarding = ids_to_discard(&scheme, &args.discard_kept_edits)
         .map_err(Refusal::usage)?;

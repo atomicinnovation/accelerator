@@ -199,6 +199,12 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **A malformed `work.key` the pattern does not use is warned about.**
+  Under a pattern with no `{key}` token, a `work.key` or
+  `work.default_project_code` that a `{key}` pattern would refuse prints
+  one `warning:` line on stderr, so switching patterns later is not the
+  first sign of it. Migration 0002 names `work.default_project_code` when
+  it refuses a malformed value.
 - **`work rekey` refuses an `id` outside the ID alphabet.** An item whose
   `id` holds a character other than an ASCII letter, digit, `.`, `_` or
   `-`, such as a space or an accented letter, is refused as

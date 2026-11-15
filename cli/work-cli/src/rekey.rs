@@ -188,7 +188,7 @@ fn locate(
     let root = config_adapters::FileConfigStore::discover_root(start);
     Ok(Located {
         work_dir: crate::config::resolve_work_dir(config, &root)?,
-        scheme: crate::config::announced_scheme_with_key(config)?,
+        scheme: crate::config::announced_scheme_for_writing(config)?,
         integration: crate::config::configured_override(
             config,
             "work.integration",

@@ -11,9 +11,8 @@ use migrate::ports::MigrationError;
 use migrate::ports::SyncBaselines;
 use migrate::ports::WorkItemIdentity;
 use migrate_adapters::context::Capabilities;
-use work::id_pattern::IdKey;
-use work::id_pattern::IdPattern;
-use work::id_scheme::IdScheme;
+use work_adapters::config::scheme_from_settings;
+use work_adapters::config::KeySource;
 
 pub struct NoBaselines;
 
@@ -40,14 +39,8 @@ impl WorkItemIdentity for WorkIdentity {
         pattern: &str,
         key: Option<&str>,
     ) -> Result<String, MigrationError> {
-        let pattern =
-            IdPattern::parse(pattern).map_err(|error| failure(&error))?;
-        let key = key
-            .filter(|_| pattern.references_key())
-            .map(IdKey::parse)
-            .transpose()
-            .map_err(|error| failure(&error))?;
-        IdScheme::new(pattern, key)
+        scheme_from_settings(pattern, key, KeySource::LegacyDefaultProjectCode)
+            .map_err(|error| failure(&error))?
             .canonicalise(raw)
             .map_err(|error| failure(&error))
     }
