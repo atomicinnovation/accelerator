@@ -146,6 +146,13 @@ fn a_hostile_project_is_refused_with_the_key_shape_reason(
         ),
         "{stderr}"
     );
+    let empty = run(repo.path(), &["--project", ""])?;
+    assert_eq!(empty.status.code(), Some(1), "{empty:?}");
+    let stderr = String::from_utf8(empty.stderr)?;
+    assert!(
+        stderr.starts_with("Error: E_WORK_KEY_INVALID: --project '':"),
+        "{stderr}"
+    );
     Ok(())
 }
 

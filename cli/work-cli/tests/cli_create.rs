@@ -416,6 +416,11 @@ fn a_hostile_project_or_pattern_is_refused_before_anything_is_written(
              must match [A-Za-z][A-Za-z0-9]* (rule 5)",
         ),
         (
+            KEYED,
+            vec!["--project", ""],
+            "Error: E_WORK_KEY_INVALID: --project '':",
+        ),
+        (
             "  id_pattern: \"../{number:04d}\"\n",
             vec![],
             "Error: E_WORK_ID_PATTERN_INVALID: work.id_pattern \
