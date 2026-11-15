@@ -33,7 +33,8 @@ pub fn is_converged(identity: &ItemIdentity, scheme: &IdScheme) -> bool {
         IdOwnership::Tracker => {
             DraftId::parse(&identity.id).is_some()
                 || identity.external_id.as_deref().is_some_and(|key| {
-                    TrackerKey::parse(key).is_some()
+                    TrackerKey::parse_under(key, scheme.tracker_keys())
+                        .is_some()
                         && key.eq_ignore_ascii_case(&identity.id)
                 })
         }
@@ -211,6 +212,11 @@ mod tests {
         assert!(!is_converged(&item("0042", None), &tracker));
         assert!(!is_converged(&item("0042", Some("ENG-7")), &tracker));
         assert!(!is_converged(&item("ENG-7", Some("not a key")), &tracker));
+        let linear = tracker.with_tracker_keys(tracker::TrackerKeys::Linear);
+        assert!(!is_converged(
+            &item("MY_PROJ-7", Some("MY_PROJ-7")),
+            &linear
+        ));
     }
 
     #[test]

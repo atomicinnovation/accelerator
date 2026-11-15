@@ -484,9 +484,11 @@ impl LinearClient {
                 if let Some(identifier) =
                     node.get("identifier").and_then(Value::as_str)
                 {
-                    tracker_support::issue_key_is_safe(identifier).map_err(
-                        |refusal| format!("{identifier:?}: {refusal}"),
-                    )?;
+                    tracker_support::issue_key_is_safe(
+                        identifier,
+                        tracker::TrackerKeys::Linear,
+                    )
+                    .map_err(|refusal| format!("{identifier:?}: {refusal}"))?;
                     found.push((
                         identifier.to_owned(),
                         stamp(node.get("updatedAt")),
@@ -701,11 +703,13 @@ impl LinearClient {
                 )
             })?;
         // The issue exists remotely, so an unusable identifier is Terminal.
-        tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
-            LinearFailure::UnwritableIdentifier {
-                identifier: identifier.to_owned(),
-                reason: refusal.to_string(),
-            }
+        tracker_support::issue_key_is_safe(
+            identifier,
+            tracker::TrackerKeys::Linear,
+        )
+        .map_err(|refusal| LinearFailure::UnwritableIdentifier {
+            identifier: identifier.to_owned(),
+            reason: refusal.to_string(),
         })?;
         Ok(ExternalId::new(identifier.to_owned()))
     }
@@ -798,7 +802,11 @@ fn current_identifier(
     else {
         return Ok(requested.clone());
     };
-    tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
+    tracker_support::issue_key_is_safe(
+        identifier,
+        tracker::TrackerKeys::Linear,
+    )
+    .map_err(|refusal| {
         LinearFailure::wire(
             Outcome::RequestInvalid,
             Operation::Read,

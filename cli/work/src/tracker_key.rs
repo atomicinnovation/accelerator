@@ -4,14 +4,22 @@
 use std::fmt;
 
 use tracker::ExternalId;
+use tracker::TrackerKeys;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrackerKey(String);
 
 impl TrackerKey {
+    /// `token` when any supported tracker answers issues under its shape.
     #[must_use]
     pub fn parse(token: &str) -> Option<Self> {
-        tracker::is_tracker_key(token).then(|| Self(token.to_owned()))
+        Self::parse_under(token, TrackerKeys::AnySupported)
+    }
+
+    /// `token` when `keys` answer issues under its shape.
+    #[must_use]
+    pub fn parse_under(token: &str, keys: TrackerKeys) -> Option<Self> {
+        keys.is_key(token).then(|| Self(token.to_owned()))
     }
 
     #[must_use]

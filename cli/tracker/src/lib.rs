@@ -906,16 +906,58 @@ pub fn supports_tracker_owned_ids(integration: &str) -> bool {
     matches!(integration, "jira" | "linear")
 }
 
-/// True iff `token` is shaped like a Jira key or Linear identifier:
-/// `[A-Za-z][A-Za-z0-9_]*-[0-9]+`.
-#[must_use]
-pub fn is_tracker_key(token: &str) -> bool {
+/// Whose rules decide what an issue key looks like: one tracker's, or any
+/// supported tracker's when no integration names one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrackerKeys {
+    Jira,
+    Linear,
+    AnySupported,
+}
+
+impl TrackerKeys {
+    /// The keys `integration` answers issues under.
+    #[must_use]
+    pub fn of_integration(integration: &str) -> Self {
+        match integration {
+            "jira" => Self::Jira,
+            "linear" => Self::Linear,
+            _ => Self::AnySupported,
+        }
+    }
+
+    /// Whether `token` is an issue key under these rules.
+    #[must_use]
+    pub fn is_key(self, token: &str) -> bool {
+        match self {
+            Self::Jira => is_jira_key(token),
+            Self::Linear => is_linear_identifier(token),
+            Self::AnySupported => {
+                is_jira_key(token) || is_linear_identifier(token)
+            }
+        }
+    }
+}
+
+/// A Jira key: a project key of a letter then letters, digits and `_`,
+/// a hyphen, and the issue number.
+fn is_jira_key(token: &str) -> bool {
+    is_keyed_number(token, |c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// A Linear identifier: a team key of a letter then letters and digits, a
+/// hyphen, and the issue number.
+fn is_linear_identifier(token: &str) -> bool {
+    is_keyed_number(token, |c| c.is_ascii_alphanumeric())
+}
+
+fn is_keyed_number(token: &str, is_key_character: fn(char) -> bool) -> bool {
     let Some((prefix, number)) = token.rsplit_once('-') else {
         return false;
     };
     let mut prefix_chars = prefix.chars();
     prefix_chars.next().is_some_and(|c| c.is_ascii_alphabetic())
-        && prefix_chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && prefix_chars.all(is_key_character)
         && !number.is_empty()
         && number.chars().all(|c| c.is_ascii_digit())
 }

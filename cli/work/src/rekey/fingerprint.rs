@@ -41,12 +41,15 @@ impl IdentityFingerprint {
         self.items.values()
     }
 
-    /// How the inputs differ from `earlier`'s: a changed scheme outranks any
-    /// changed item, and a changed item is named by every path it was or is
+    /// How the inputs differ from `earlier`'s: a changed `work.id_pattern` or
+    /// `work.key` outranks any changed item, and a changed item is named by every path it was or is
     /// found at.
     #[must_use]
     pub fn staleness_since(&self, earlier: &Self) -> Option<Staleness> {
-        if self.scheme != earlier.scheme {
+        let settings = |scheme: &IdScheme| {
+            (scheme.pattern().clone(), scheme.key().cloned())
+        };
+        if settings(&self.scheme) != settings(&earlier.scheme) {
             return Some(Staleness::SchemeChanged);
         }
         let changed: Vec<PathBuf> = self
@@ -191,5 +194,15 @@ mod tests {
                 .staleness_since(&earlier),
             None
         );
+    }
+
+    #[test]
+    fn a_scheme_differing_only_in_tracker_keys_is_the_same_setting() {
+        let recorded = IdentityFingerprint::of(&scheme(), &corpus());
+        let current = IdentityFingerprint::of(
+            &scheme().with_tracker_keys(tracker::TrackerKeys::Jira),
+            &corpus(),
+        );
+        assert_eq!(current.staleness_since(&recorded), None);
     }
 }

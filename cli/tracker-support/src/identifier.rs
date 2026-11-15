@@ -65,15 +65,18 @@ pub fn identifier_is_safe(candidate: &str) -> Result<(), IdentifierRefusal> {
 }
 
 /// Accepts a key a tracker answered under: safe to write into frontmatter,
-/// and shaped like an issue key, because it goes on to name files and
+/// and shaped like one of `keys`, because it goes on to name files and
 /// directories.
 ///
 /// # Errors
 ///
 /// [`IdentifierRefusal`] naming the property that failed.
-pub fn issue_key_is_safe(candidate: &str) -> Result<(), IdentifierRefusal> {
+pub fn issue_key_is_safe(
+    candidate: &str,
+    keys: tracker::TrackerKeys,
+) -> Result<(), IdentifierRefusal> {
     identifier_is_safe(candidate)?;
-    if !tracker::is_tracker_key(candidate) {
+    if !keys.is_key(candidate) {
         return Err(IdentifierRefusal::NotAnIssueKey);
     }
     Ok(())

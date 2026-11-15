@@ -12,6 +12,7 @@ use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::MissingKey;
 pub use crate::id_pattern::TRACKER_TOKEN;
+use tracker::TrackerKeys;
 
 /// Who sets a work item's `id`: the repository, from its pattern, or the
 /// tracker, whose key the `id` then equals.
@@ -86,11 +87,11 @@ pub fn check_tracker_integration(
     }
 }
 
-/// Whether `token` is an ID only a tracker can own: a draft ID or a tracker
-/// key.
+/// Whether `token` is an ID only a tracker can own: a draft ID or one of
+/// `keys`.
 #[must_use]
-pub fn is_tracker_owned_token(token: &str) -> bool {
-    DraftId::parse(token).is_some() || tracker::is_tracker_key(token)
+pub fn is_tracker_owned_token(token: &str, keys: TrackerKeys) -> bool {
+    DraftId::parse(token).is_some() || keys.is_key(token)
 }
 
 mod pattern_ids;
@@ -141,6 +142,7 @@ enum Owner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdScheme {
     owner: Owner,
+    tracker_keys: TrackerKeys,
 }
 
 impl IdScheme {
@@ -148,12 +150,35 @@ impl IdScheme {
     /// key token.
     #[must_use]
     pub fn new(pattern: IdPattern, key: Option<IdKey>) -> Self {
+        let tracker_keys = TrackerKeys::AnySupported;
         let owner = if pattern.is_tracker_owned() {
-            Owner::Tracker(TrackerIds::new(pattern))
+            Owner::Tracker(TrackerIds::new(pattern, tracker_keys))
         } else {
             Owner::Pattern(PatternIds::new(pattern, key))
         };
-        Self { owner }
+        Self {
+            owner,
+            tracker_keys,
+        }
+    }
+
+    /// The scheme reading tracker keys by `keys`' rules.
+    #[must_use]
+    pub fn with_tracker_keys(self, keys: TrackerKeys) -> Self {
+        let owner = match self.owner {
+            Owner::Tracker(ids) => Owner::Tracker(ids.with_keys(keys)),
+            pattern @ Owner::Pattern(_) => pattern,
+        };
+        Self {
+            owner,
+            tracker_keys: keys,
+        }
+    }
+
+    /// The rules a tracker key is read by.
+    #[must_use]
+    pub const fn tracker_keys(&self) -> TrackerKeys {
+        self.tracker_keys
     }
 
     #[must_use]
@@ -344,7 +369,9 @@ impl corpus::LinkageIds for IdScheme {
 
     fn bare_ids_in(&self, line: &str) -> Vec<String> {
         let is_bare_id = |token: &str| match self.ownership() {
-            IdOwnership::Tracker => is_tracker_owned_token(token),
+            IdOwnership::Tracker => {
+                is_tracker_owned_token(token, self.tracker_keys)
+            }
             IdOwnership::Local => self.is_any_key_id_token(token),
         };
         line.split(|c: char| !is_id_character(c))
@@ -372,6 +399,7 @@ mod tests {
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdParts;
     use crate::id_pattern::IdPattern;
+    use tracker::TrackerKeys;
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
         IdScheme::new(
@@ -429,6 +457,22 @@ mod tests {
     }
 
     #[test]
+    fn a_tracker_scheme_reads_keys_by_its_trackers_rules() {
+        let jira = tracker().with_tracker_keys(TrackerKeys::Jira);
+        let linear = tracker().with_tracker_keys(TrackerKeys::Linear);
+        assert_eq!(
+            jira.displayed_id("MY_PROJ-7").as_deref(),
+            Some("MY_PROJ-7")
+        );
+        assert_eq!(linear.displayed_id("MY_PROJ-7"), None);
+        assert!(jira.read_held("MY_PROJ-7").is_some());
+        assert!(linear.read_held("MY_PROJ-7").is_none());
+        assert_eq!(linear.identity_key("eng-7").as_deref(), Some("ENG-7"));
+        assert_eq!(linear.tracker_keys(), TrackerKeys::Linear);
+        assert_eq!(tracker().tracker_keys(), TrackerKeys::AnySupported);
+    }
+
+    #[test]
     fn a_tracker_scheme_reports_tracker_ownership() {
         assert_eq!(tracker().ownership(), IdOwnership::Tracker);
         assert_eq!(IdScheme::numeric().ownership(), IdOwnership::Local);
@@ -463,10 +507,11 @@ mod tests {
 
     #[test]
     fn a_tracker_owned_token_is_a_draft_id_or_a_tracker_key() {
-        assert!(is_tracker_owned_token("draft-k7mq3x"));
-        assert!(is_tracker_owned_token("PROJ-123"));
-        assert!(!is_tracker_owned_token("0400"));
-        assert!(!is_tracker_owned_token("PP_0400"));
+        let any = TrackerKeys::AnySupported;
+        assert!(is_tracker_owned_token("draft-k7mq3x", any));
+        assert!(is_tracker_owned_token("PROJ-123", any));
+        assert!(!is_tracker_owned_token("0400", any));
+        assert!(!is_tracker_owned_token("PP_0400", any));
     }
 
     #[test]

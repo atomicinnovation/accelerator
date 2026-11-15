@@ -76,7 +76,7 @@ pub fn classify_input(input: &str, scheme: &IdScheme) -> InputClass {
         return InputClass::FullId;
     }
     let pattern = scheme.pattern();
-    if pattern.is_tracker_owned() && tracker::is_tracker_key(input) {
+    if pattern.is_tracker_owned() && scheme.tracker_keys().is_key(input) {
         return InputClass::FullId;
     }
 

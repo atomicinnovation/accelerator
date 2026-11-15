@@ -43,7 +43,8 @@ impl DraftId {
 pub fn is_token_safe(scheme: &IdScheme, id: &str) -> bool {
     scheme.is_any_key_id_token(id)
         || (scheme.ownership() == IdOwnership::Tracker
-            && (is_tracker_owned_token(id) || IdScheme::is_legacy_id(id)))
+            && (is_tracker_owned_token(id, scheme.tracker_keys())
+                || IdScheme::is_legacy_id(id)))
 }
 
 /// A source of random draft suffixes.

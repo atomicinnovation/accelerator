@@ -4,6 +4,7 @@
 use ::config::resolve_with_deprecated_fallback;
 use ::config::ConfigAccess;
 use ::config::Key;
+use tracker::TrackerKeys;
 use work::id_pattern::escaped;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
@@ -103,8 +104,11 @@ fn configured(
         .configured_value())
 }
 
-/// The configured pattern and, only when the pattern has a key token, the
-/// configured key, read from `work.key` or its deprecated alias. The alias's
+/// The configured ID scheme.
+///
+/// That is the pattern, the tracker keys `work.integration` answers issues
+/// under, and, only when the pattern has a key token, the configured key,
+/// read from `work.key` or its deprecated alias. The alias's
 /// deprecation notice is returned, never printed.
 ///
 /// # Errors
@@ -123,9 +127,15 @@ pub fn read_scheme(
             value: text.clone(),
             error,
         })?;
+    let tracker_keys = TrackerKeys::of_integration(
+        configured(config, "work.integration")?
+            .as_deref()
+            .unwrap_or_default(),
+    );
     if !pattern.references_key() {
         return Ok(SchemeReading {
-            scheme: IdScheme::new(pattern, None),
+            scheme: IdScheme::new(pattern, None)
+                .with_tracker_keys(tracker_keys),
             deprecation: None,
         });
     }
@@ -151,7 +161,7 @@ pub fn read_scheme(
         None => None,
     };
     Ok(SchemeReading {
-        scheme: IdScheme::new(pattern, key),
+        scheme: IdScheme::new(pattern, key).with_tracker_keys(tracker_keys),
         deprecation: aliased.deprecation,
     })
 }
@@ -210,6 +220,7 @@ mod tests {
     use ::config::Resolved;
     use ::config::Scalar;
     use ::config::Value;
+    use tracker::TrackerKeys;
     use work::id_pattern::IdKey;
     use work::id_pattern::IdPattern;
     use work::id_pattern::KeyError;
@@ -266,6 +277,29 @@ mod tests {
 
     fn key_of(scheme: &IdScheme) -> Option<&str> {
         scheme.key().map(IdKey::as_str)
+    }
+
+    #[test]
+    fn the_scheme_reads_tracker_keys_by_the_configured_integration() {
+        let read = |integration: &str| {
+            let config = FakeConfig::with(&[
+                ("work.id_pattern", "{tracker}"),
+                ("work.integration", integration),
+            ]);
+            read_scheme(&config)
+                .map(|reading| reading.scheme.tracker_keys())
+                .ok()
+        };
+        assert_eq!(read("linear"), Some(TrackerKeys::Linear));
+        assert_eq!(read("jira"), Some(TrackerKeys::Jira));
+        let unintegrated =
+            FakeConfig::with(&[("work.id_pattern", "{number:04d}")]);
+        assert_eq!(
+            read_scheme(&unintegrated)
+                .map(|reading| reading.scheme.tracker_keys())
+                .ok(),
+            Some(TrackerKeys::AnySupported)
+        );
     }
 
     #[test]

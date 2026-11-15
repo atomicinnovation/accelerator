@@ -6,6 +6,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use tracker::TrackerKeys;
 use tracker_support::identifier::IdentifierRefusal;
 use tracker_support::{
     identifier_is_safe, issue_key_is_safe, port_body, Jitter, RetryPolicy,
@@ -71,17 +72,27 @@ fn identifier_safety_matches_the_committed_fixture_exactly() {
 
 #[test]
 fn an_issue_key_must_be_safe_and_shaped_like_a_key() {
+    let jira = TrackerKeys::Jira;
     for accepted in ["ENG-1", "MY_PROJ-12", "ABC2-15"] {
-        assert_eq!(issue_key_is_safe(accepted), Ok(()), "{accepted}");
+        assert_eq!(issue_key_is_safe(accepted, jira), Ok(()), "{accepted}");
     }
     for refused in ["PP-1/../../..", "../../etc", "/abs-1", "ENG", "ENG-1a"] {
         assert_eq!(
-            issue_key_is_safe(refused),
+            issue_key_is_safe(refused, jira),
             Err(IdentifierRefusal::NotAnIssueKey),
             "{refused}"
         );
     }
-    assert_eq!(issue_key_is_safe(""), Err(IdentifierRefusal::Empty));
+    assert_eq!(issue_key_is_safe("", jira), Err(IdentifierRefusal::Empty));
+}
+
+#[test]
+fn an_issue_key_is_shaped_by_the_tracker_answering_it() {
+    assert_eq!(issue_key_is_safe("MY_PROJ-12", TrackerKeys::Jira), Ok(()));
+    assert_eq!(
+        issue_key_is_safe("MY_PROJ-12", TrackerKeys::Linear),
+        Err(IdentifierRefusal::NotAnIssueKey)
+    );
 }
 
 #[test]

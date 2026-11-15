@@ -417,7 +417,11 @@ impl JiraClient {
         if let Some(array) = page_body.get("issues").and_then(Value::as_array) {
             for issue in array {
                 if let Some(key) = issue.get("key").and_then(Value::as_str) {
-                    tracker_support::issue_key_is_safe(key).ok()?;
+                    tracker_support::issue_key_is_safe(
+                        key,
+                        tracker::TrackerKeys::Jira,
+                    )
+                    .ok()?;
                     issues.push((
                         ExternalId::new(key.to_owned()),
                         timestamp(issue),
@@ -509,12 +513,13 @@ fn current_key(
     let Some(key) = payload.get("key").and_then(Value::as_str) else {
         return Ok(requested.clone());
     };
-    tracker_support::issue_key_is_safe(key).map_err(|refusal| {
-        read_failure(&format!(
-            "{requested} answered under {key:?}, which cannot be written \
+    tracker_support::issue_key_is_safe(key, tracker::TrackerKeys::Jira)
+        .map_err(|refusal| {
+            read_failure(&format!(
+                "{requested} answered under {key:?}, which cannot be written \
              back — {refusal}"
-        ))
-    })?;
+            ))
+        })?;
     Ok(ExternalId::new(key.to_owned()))
 }
 

@@ -353,6 +353,8 @@ pub fn work::id_scheme::IdScheme::pad_legacy_number(input: &str) -> core::option
 pub const fn work::id_scheme::IdScheme::pattern(&self) -> &work::id_pattern::IdPattern
 pub fn work::id_scheme::IdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
 pub fn work::id_scheme::IdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<work::id_pattern::HeldPrefix>
+pub const fn work::id_scheme::IdScheme::tracker_keys(&self) -> tracker::TrackerKeys
+pub fn work::id_scheme::IdScheme::with_tracker_keys(self, keys: tracker::TrackerKeys) -> Self
 impl core::clone::Clone for work::id_scheme::IdScheme
 pub fn work::id_scheme::IdScheme::clone(&self) -> work::id_scheme::IdScheme
 impl core::cmp::Eq for work::id_scheme::IdScheme
@@ -373,7 +375,7 @@ pub fn work::id_scheme::IdScheme::bare_ids_in(&self, line: &str) -> alloc::vec::
 pub fn work::id_scheme::IdScheme::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
 pub const work::id_scheme::TRACKER_TOKEN: &str
 pub fn work::id_scheme::check_tracker_integration(pattern: &work::id_pattern::IdPattern, supports_tracker_ids: bool) -> core::result::Result<(), work::id_scheme::TrackerIntegrationError>
-pub fn work::id_scheme::is_tracker_owned_token(token: &str) -> bool
+pub fn work::id_scheme::is_tracker_owned_token(token: &str, keys: tracker::TrackerKeys) -> bool
 pub mod work::identity
 pub enum work::identity::IdentityField
 pub work::identity::IdentityField::Alias
@@ -2941,6 +2943,7 @@ pub struct work::tracker_key::TrackerKey(_)
 impl work::tracker_key::TrackerKey
 pub fn work::tracker_key::TrackerKey::as_str(&self) -> &str
 pub fn work::tracker_key::TrackerKey::parse(token: &str) -> core::option::Option<Self>
+pub fn work::tracker_key::TrackerKey::parse_under(token: &str, keys: tracker::TrackerKeys) -> core::option::Option<Self>
 impl core::clone::Clone for work::tracker_key::TrackerKey
 pub fn work::tracker_key::TrackerKey::clone(&self) -> work::tracker_key::TrackerKey
 impl core::cmp::Eq for work::tracker_key::TrackerKey

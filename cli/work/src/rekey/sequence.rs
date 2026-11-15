@@ -49,7 +49,7 @@ pub fn read_existing_id(
     if is_digits(id) {
         return number(id).map(|number| ExistingId { key: None, number });
     }
-    if tracker::is_tracker_key(id) {
+    if scheme.tracker_keys().is_key(id) {
         let (key, digits) =
             id.rsplit_once('-').ok_or(Unclassified::NoNumber)?;
         return number(digits).map(|number| ExistingId {

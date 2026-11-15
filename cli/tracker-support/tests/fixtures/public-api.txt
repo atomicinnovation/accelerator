@@ -21,7 +21,7 @@ pub fn tracker_support::identifier::IdentifierRefusal::fmt(&self, formatter: &mu
 impl core::marker::Copy for tracker_support::identifier::IdentifierRefusal
 impl core::marker::StructuralPartialEq for tracker_support::identifier::IdentifierRefusal
 pub fn tracker_support::identifier::identifier_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
-pub fn tracker_support::identifier::issue_key_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
+pub fn tracker_support::identifier::issue_key_is_safe(candidate: &str, keys: tracker::TrackerKeys) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
 pub mod tracker_support::mime
 pub const tracker_support::mime::OCTET_STREAM: &str
 pub fn tracker_support::mime::sniff(sample: &[u8]) -> &'static str
@@ -244,6 +244,6 @@ pub fn tracker_support::Sleeper::sleep(&mut self, duration: core::time::Duration
 impl tracker_support::retry::Sleeper for tracker_support::retry::SystemSleeper
 pub fn tracker_support::retry::SystemSleeper::sleep(&mut self, duration: core::time::Duration)
 pub fn tracker_support::identifier_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
-pub fn tracker_support::issue_key_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
+pub fn tracker_support::issue_key_is_safe(candidate: &str, keys: tracker::TrackerKeys) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
 pub fn tracker_support::port_body(projection: &str) -> alloc::string::String
 pub fn tracker_support::sniff(sample: &[u8]) -> &'static str

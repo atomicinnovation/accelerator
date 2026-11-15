@@ -199,6 +199,12 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **Each tracker decides what its issue keys look like.** Jira keys keep
+  their shape, a project key of letters, digits and `_`; a Linear
+  identifier's team key may not hold `_`, so `MY_PROJ-7` is no longer read
+  as a Linear identifier. Under `{tracker}`, `work.integration` picks whose
+  rules apply; with no Jira or Linear integration, a key either tracker
+  accepts counts.
 - **`corpus linkage extract` reads work-item IDs through the configured
   pattern.** A path target reads to the item's ID under `work.id_pattern`
   and `work.key`, and a bare ID in a `## Dependencies` line counts when it
