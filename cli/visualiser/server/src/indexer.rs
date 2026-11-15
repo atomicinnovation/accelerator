@@ -301,8 +301,6 @@ impl Indexer {
         let mut work_item_by_identity_key: HashMap<String, PathBuf> =
             HashMap::new();
         let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
-        let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> =
-            HashMap::new();
         let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> =
             HashMap::new();
 
@@ -389,20 +387,13 @@ impl Indexer {
         // Phase 3 Pass B: resolve reviews_by_target with the fully-
         // populated `plans_by_id` so typed-linkage `target: "plan:<id>"`
         // references resolve regardless of file-driver iteration order.
-        for entry in entries.values() {
-            if let Some(target_key) = target_path_from_entry(
-                entry,
-                &plans_by_id,
-                &work_item_by_identity_key,
-                &self.work_item_cfg,
-                &self.project_root,
-            ) {
-                reviews_by_target
-                    .entry(target_key)
-                    .or_default()
-                    .insert(entry.path.clone());
-            }
-        }
+        let reviews_by_target = reviews_by_target_of(
+            &entries,
+            &plans_by_id,
+            &work_item_by_identity_key,
+            &self.work_item_cfg,
+            &self.project_root,
+        );
 
         // Hold all six write locks simultaneously and replace contents
         // so readers never observe a partial (entries, secondary)
@@ -456,6 +447,8 @@ impl Indexer {
                     // Hold entries.write() and clean each secondary index for
                     // any previous entry under this path before dropping.
                     let mut entries = self.entries.write().await;
+                    let holders_before =
+                        self.work_item_by_identity_key.read().await.clone();
                     if let Some(previous) = entries.get(&canonical).cloned() {
                         remove_from_adr_by_id(&self.adr_by_id, &previous).await;
                         remove_from_work_item_by_identity_key(
@@ -489,6 +482,11 @@ impl Indexer {
                         )
                         .await;
                         entries.remove(&canonical);
+                        self.rehome_reviews_if_holders_moved(
+                            &holders_before,
+                            &entries,
+                        )
+                        .await;
                     }
                     return Ok(None);
                 };
@@ -506,6 +504,8 @@ impl Indexer {
                 // (entries, secondary) snapshot.
                 let mut entries = self.entries.write().await;
                 let previous = entries.get(&canonical).cloned();
+                let holders_before =
+                    self.work_item_by_identity_key.read().await.clone();
 
                 update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref())
                     .await;
@@ -550,6 +550,8 @@ impl Indexer {
                 .await;
 
                 entries.insert(canonical.clone(), entry.clone());
+                self.rehome_reviews_if_holders_moved(&holders_before, &entries)
+                    .await;
 
                 #[cfg(test)]
                 if let Some(hook) =
@@ -569,6 +571,8 @@ impl Indexer {
                 // invariant.
                 let mut entries = self.entries.write().await;
                 let previous = find_entry_for_deleted(&entries, path);
+                let holders_before =
+                    self.work_item_by_identity_key.read().await.clone();
 
                 if let Some(previous) = previous {
                     remove_from_adr_by_id(&self.adr_by_id, &previous).await;
@@ -598,6 +602,11 @@ impl Indexer {
                     )
                     .await;
                     entries.remove(&previous.path);
+                    self.rehome_reviews_if_holders_moved(
+                        &holders_before,
+                        &entries,
+                    )
+                    .await;
                 }
 
                 #[cfg(test)]
@@ -613,6 +622,27 @@ impl Indexer {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Re-resolves every review once an identity key changed holder, so a
+    /// review targeting the key moves with it.
+    async fn rehome_reviews_if_holders_moved(
+        &self,
+        holders_before: &HashMap<String, PathBuf>,
+        entries: &HashMap<PathBuf, IndexEntry>,
+    ) {
+        let holders = self.work_item_by_identity_key.read().await.clone();
+        if holders == *holders_before {
+            return;
+        }
+        let plans = self.plans_by_id.read().await.clone();
+        *self.reviews_by_target.write().await = reviews_by_target_of(
+            entries,
+            &plans,
+            &holders,
+            &self.work_item_cfg,
+            &self.project_root,
+        );
     }
 
     #[cfg(test)]
@@ -1173,6 +1203,32 @@ async fn remove_from_plans_by_id(
     }
 }
 
+/// Every review, by the path of the document it targets.
+fn reviews_by_target_of(
+    entries: &HashMap<PathBuf, IndexEntry>,
+    plans_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
+    work_item_cfg: &crate::config::WorkItemConfig,
+    project_root: &Path,
+) -> HashMap<PathBuf, BTreeSet<PathBuf>> {
+    let mut reviews: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
+    for entry in entries.values() {
+        if let Some(target) = target_path_from_entry(
+            entry,
+            plans_by_id,
+            work_item_by_identity_key,
+            work_item_cfg,
+            project_root,
+        ) {
+            reviews
+                .entry(target)
+                .or_default()
+                .insert(entry.path.clone());
+        }
+    }
+    reviews
+}
+
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
@@ -1603,6 +1659,61 @@ mod identity_join_tests {
 
         let snapshot = idx.work_item_by_identity_key_snapshot().await;
         assert_eq!(snapshot.get("PP-0500"), Some(&root.join(higher)));
+    }
+
+    #[tokio::test]
+    async fn a_review_by_identity_key_follows_the_key_to_its_next_holder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let lower = "meta/work/PP-0500-y.md";
+        let higher = "meta/work/pp-0500-x.md";
+        let idx = index_under(
+            &root,
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[
+                (higher, "---\nid: pp-0500\n---\n"),
+                (lower, "---\nid: PP-0500\n---\n"),
+                (
+                    "meta/reviews/work/PP-0500-review-1.md",
+                    "---\ntarget: \"work-item:PP-0500\"\n---\n",
+                ),
+            ],
+        )
+        .await;
+
+        std::fs::remove_file(root.join(lower)).unwrap();
+        idx.refresh_one(&root.join(lower)).await.unwrap();
+
+        assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 0);
+        assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_review_by_identity_key_moves_to_a_new_lower_holder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let lower = "meta/work/PP-0500-y.md";
+        let higher = "meta/work/pp-0500-x.md";
+        let idx = index_under(
+            &root,
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[
+                (higher, "---\nid: pp-0500\n---\n"),
+                (
+                    "meta/reviews/work/PP-0500-review-1.md",
+                    "---\ntarget: \"work-item:PP-0500\"\n---\n",
+                ),
+            ],
+        )
+        .await;
+
+        std::fs::write(root.join(lower), "---\nid: PP-0500\n---\n").unwrap();
+        idx.refresh_one(&root.join(lower)).await.unwrap();
+
+        assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 0);
+        assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 1);
     }
 
     async fn cluster_keys(
