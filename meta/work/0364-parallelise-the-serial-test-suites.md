@@ -12,7 +12,7 @@ parent: "work-item:0361"
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 relates_to: ["work-item:0362", "work-item:0368", "work-item:0369", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "flakiness"]
-last_updated: "2026-11-15T15:06:58+00:00"
+last_updated: "2026-11-15T20:23:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -81,11 +81,11 @@ second attempt and goes unnoticed.
 
 Once `resolved-styles` has workers of its own, its tests run alongside each
 other and alongside the `chromium` drag tests. The drag tests mutate shared
-fixture files and then restore them. That overlap is only safe if no file
-that one spec writes is read or written by another spec running at the same
-time. Today the
-only guard is a config comment asking that no `resolved-styles` spec read live
-work-item status, not anything in the structure of the fixtures.
+fixture files and then restore them. That overlap is only safe if no
+`resolved-styles` probe measures an element that comes from a file another
+spec running at the same time writes. Today the only guard is a config
+comment asking that no `resolved-styles` spec read live work-item status,
+not anything in the structure of the fixtures.
 
 **Dev-task suite (research recommendation A6).** `tests/integration/dev`
 drives a real circusd, the process manager behind the dev task, through its
@@ -151,24 +151,29 @@ Both changes also run on CI, because in `.github/workflows/main.yml` the
 
    For example, 16 CPUs gives 8 and 9; 4 vCPUs gives 2 and 3; 3 vCPUs gives
    1 and 2; 1 CPU gives 1 and 2. Express the derivation as a pure function
-   of N, so it can be tested without the host having that many CPUs. Its two
-   tunable parameters are the *share*, the fraction of N given to
-   `resolved-styles` (one half), and the *margin*, the number of workers the
-   cap adds on top of that count (one).
+   of N, so it can be tested without the host having that many CPUs. Its
+   one tunable parameter is the *share*, the fraction of N given to
+   `resolved-styles` (one half). The *margin*, the number of workers the cap
+   adds on top of that count, is the `chromium` project's single worker, so
+   it stays at one.
 2. Audit the Playwright fixtures. For each project, list the fixture files
    its specs write and the files they read. Find the files from the specs'
    own file access and from the files the visualiser server opens while that
    project runs alone, traced with `fs_usage` or an equivalent. A *conflict*
    is either of these:
-   - a file a `chromium` spec writes that a `resolved-styles` spec reads or
-     writes;
-   - a file one `resolved-styles` spec writes that another `resolved-styles`
-     spec reads or writes, since `resolved-styles` specs run concurrently
-     with each other.
+   - a `resolved-styles` probe whose measured element, or that element's
+     computed style, comes from a file a `chromium` spec writes, or a
+     `resolved-styles` spec that writes such a file;
+   - a `resolved-styles` probe whose measured element comes from a file
+     another `resolved-styles` spec writes, since `resolved-styles` specs
+     run concurrently with each other.
 
-   A file only one spec touches is not a conflict. Resolve each conflict on
-   the `resolved-styles` side, by changing the spec or giving it its own
-   fixture. Leave the drag tests as they are.
+   A file only one spec touches is not a conflict. A page that aggregates
+   every work item still reads the written files. That read is not a
+   conflict when no probe on the page measures an element that comes from a
+   written file. The audit lists such reads as accepted. Resolve each
+   conflict on the `resolved-styles` side, by changing the spec or giving it
+   its own fixture. Leave the drag tests as they are.
 3. Set Playwright `retries` to 0 in every environment `playwright.config.ts`
    runs in, CI included, and keep traces on failure instead of on first
    retry. This is a deliberate policy change that goes beyond parallelism:
@@ -221,13 +226,14 @@ Both changes also run on CI, because in `.github/workflows/main.yml` the
 Landing criteria for Playwright:
 
 - [ ] Given `mise run measure:build --isolate test:e2e:visualiser
-      --cache-state warm-no-op --runs 5` on the reference workstation, when
-      it finishes, then the median duration of `test:e2e:visualiser` is under
-      75 s (131 s today). The record is kept with `--keep`.
+      --cache-state warm-no-op --runs 5 --host-settings devtools` on the
+      reference workstation, when it finishes, then the median duration of
+      `test:e2e:visualiser` is under 75 s (131 s today). The record is kept
+      with `--keep`.
 - [ ] Given a `test:e2e:visualiser` run with the JSON reporter, when its
-      output is inspected, then every `chromium` result has the same
-      `parallelIndex`, and at least one `chromium` result's run overlaps in
-      time with a `resolved-styles` result's.
+      output is inspected, then no two `chromium` results' runs overlap in
+      time, and at least one `chromium` result's run overlaps in time with a
+      `resolved-styles` result's.
 - [ ] Given the worker-count function, when a unit test calls it with 1, 3,
       4 and 16 CPUs, then the `resolved-styles` count and the global cap are
       1 and 2, 1 and 2, 2 and 3, and 8 and 9 respectively.
@@ -246,9 +252,10 @@ Landing criteria for Playwright:
 Landing criteria for the dev-task suite:
 
 - [ ] Given `mise run measure:build --isolate test:integration:dev
-      --cache-state warm-no-op --runs 5` on the reference workstation, when
-      it finishes, then the median duration of `test:integration:dev` is
-      under 60 s (163 s today). The record is kept with `--keep`.
+      --cache-state warm-no-op --runs 5 --host-settings devtools` on the
+      reference workstation, when it finishes, then the median duration of
+      `test:integration:dev` is under 60 s (163 s today). The record is kept
+      with `--keep`.
 - [ ] Given the project's dev dependencies, when they are inspected, then
       `pytest-xdist` is declared and `test:integration:dev` passes `-n auto`.
 - [ ] Given the negative-path record from Requirement 6, when each
@@ -295,7 +302,7 @@ Closing criterion for each suite, checked after it lands:
 
       If the check fails, the implementer decides whether to retune or
       revert. Retuning means changing the derived worker counts: the
-      Playwright share or margin, or an explicit CPU-derived `-n` in place of
+      Playwright share, or an explicit CPU-derived `-n` in place of
       `-n auto` for the dev suite. A revert undoes the suite's worker changes
       only, keeping `retries: 0` and the shortened waits, and resets that
       suite's Landing Status to "not landed". A re-landing carries the
@@ -394,9 +401,16 @@ Closing criterion for each suite, checked after it lands:
   settings; changing it is out of scope.
 - Took "make independent" to mean no spec reads or writes a file that a
   concurrently running spec writes, resolved on the `resolved-styles` side.
-  Giving the drag tests per-test fixture copies is a larger change and is not
-  required here. Neither is an automated guard that keeps the audit true for
-  future specs; the existing config comment remains the reminder.
+  Plan review narrowed this to a per-probe definition (Requirement 2).
+  Pages that list every work item necessarily read the drag tests' files,
+  and a computed-style probe pinned to an unwritten fixture measures the
+  same thing whatever those files say. Giving the drag tests per-test
+  fixture copies is a larger change and is not required here. Neither is an
+  automated guard that keeps the audit true for future specs; the revised
+  config comment is the reminder.
+- Took the margin to be the `chromium` project's single worker rather than a
+  second tuning lever. Raising it would only lift the global cap, since
+  `chromium` stays at one worker.
 - Kept the retries policy change here rather than landing it first on its
   own. It is the reason flakes surface during this item's validation.
 - Took "no slower than today, ideally faster" to mean the CI criterion
