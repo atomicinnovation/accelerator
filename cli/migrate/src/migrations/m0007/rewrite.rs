@@ -777,7 +777,7 @@ mod tests {
 
     use super::rewrite;
     use super::RewriteInput;
-    use crate::migrations::m0007::test_ids::LegacyDigits;
+    use crate::legacy_ids::LegacyNumericIds;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         vec![(DocTypeKey::WorkItems, PathBuf::from("meta/work"))]
@@ -792,7 +792,7 @@ mod tests {
             relpath,
             repo_name: "repo",
             table,
-            ids: &LegacyDigits,
+            ids: &LegacyNumericIds,
         }
     }
 

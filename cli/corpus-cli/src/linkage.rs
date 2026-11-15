@@ -60,7 +60,7 @@ mod tests {
 
     use corpus::scan::FileReader;
     use corpus::DocTypeKey;
-    use work::legacy_ids::LegacyNumericIds;
+    use work::id_scheme::IdScheme;
 
     use super::run_extract;
 
@@ -86,7 +86,7 @@ mod tests {
             Path::new("meta/work/0001.md"),
             None,
             &table(),
-            &LegacyNumericIds,
+            &IdScheme::numeric(),
             &reader
         )
         .is_err());
@@ -102,7 +102,7 @@ mod tests {
             Path::new("meta/work/0050-deps.md"),
             None,
             &table(),
-            &LegacyNumericIds,
+            &IdScheme::numeric(),
             &reader,
         )?;
         assert_eq!(
@@ -122,7 +122,7 @@ mod tests {
             Path::new("meta/work/0050-deps.md"),
             Some("plan"),
             &table(),
-            &LegacyNumericIds,
+            &IdScheme::numeric(),
             &reader,
         )?;
         assert!(outcome.stdout.starts_with("plan\t"));
@@ -139,7 +139,7 @@ mod tests {
             Path::new("elsewhere/x.md"),
             None,
             &table(),
-            &LegacyNumericIds,
+            &IdScheme::numeric(),
             &reader,
         )?;
         assert!(outcome.stdout.starts_with("unknown\t"));
@@ -156,7 +156,7 @@ mod tests {
             Path::new("meta/work/0001.md"),
             None,
             &table(),
-            &LegacyNumericIds,
+            &IdScheme::numeric(),
             &reader,
         )?;
         assert_eq!(outcome.stdout, String::new());

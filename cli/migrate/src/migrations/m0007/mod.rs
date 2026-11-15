@@ -25,8 +25,6 @@ mod quote;
 mod rewrite;
 mod schema;
 mod status_map;
-#[cfg(test)]
-mod test_ids;
 
 use std::path::PathBuf;
 
@@ -126,7 +124,7 @@ fn run_mechanical(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<Transformation>, String> {
     let table = linkage_table(&ctx.doc_type_dirs(), ctx.root());
-    let ids = ctx.legacy_linkage().map_err(|error| error.to_string())?;
+    let ids = &crate::legacy_ids::LegacyNumericIds;
     let files = corpus_files(ctx, &table)?;
 
     let refusals = prepass::precondition_prepass(&files, &table);

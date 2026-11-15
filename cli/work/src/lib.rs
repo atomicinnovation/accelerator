@@ -14,7 +14,6 @@ pub mod id_scheme;
 pub mod identity;
 pub mod identity_run;
 pub mod inventory;
-pub mod legacy_ids;
 pub mod next_number;
 pub mod normalise;
 pub mod own_identity;

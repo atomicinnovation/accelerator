@@ -59,6 +59,12 @@ pub fn migrate::ledger::skip(store: &dyn migrate::ports::LedgerStore, id: &str) 
 pub fn migrate::ledger::unapply(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ledger::unskip(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ledger::warnings(entries: &[migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String]) -> migrate::ledger::Warnings
+pub mod migrate::legacy_ids
+pub struct migrate::legacy_ids::LegacyNumericIds
+impl corpus::linkage_ids::LinkageIds for migrate::legacy_ids::LegacyNumericIds
+pub fn migrate::legacy_ids::LegacyNumericIds::bare_ids_in(&self, line: &str) -> alloc::vec::Vec<alloc::string::String>
+pub fn migrate::legacy_ids::LegacyNumericIds::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn migrate::legacy_ids::references_key(pattern: &str) -> bool
 pub mod migrate::lifecycle
 pub fn migrate::lifecycle::run_pending(entries: &[migrate::registry::MigrationEntry], ctx: &dyn migrate::ports::MigrationContext, ledger_store: &dyn migrate::ports::LedgerStore, reporter: &dyn migrate::ports::Reporter, decisions: &dyn migrate::ports::DecisionSource, session_logs: &dyn migrate::ports::SessionLogFactory, timeout: core::time::Duration, decisions_file_content: core::option::Option<&str>) -> core::result::Result<(), migrate::ports::MigrationError>
 pub mod migrate::list
@@ -288,12 +294,10 @@ pub fn migrate::ports::MigrationContext::corpus_index(&self) -> &dyn migrate::po
 pub fn migrate::ports::MigrationContext::dir_exists(&self, _path: &std::path::Path) -> bool
 pub fn migrate::ports::MigrationContext::doc_type_dirs(&self) -> alloc::vec::Vec<migrate::ports::DocTypeDir>
 pub fn migrate::ports::MigrationContext::frontmatter_text(&self, _content: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
-pub fn migrate::ports::MigrationContext::legacy_linkage(&self) -> core::result::Result<&dyn corpus::linkage_ids::LinkageIds, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::list_all_under(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::merge_move(&self, _src: &std::path::Path, _dst: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::parse_frontmatter(&self, _content: &str) -> core::result::Result<corpus::value::FrontmatterValue, migrate::ports::MigrationError>
-pub fn migrate::ports::MigrationContext::pattern_references_key(&self, _pattern: &str) -> core::result::Result<bool, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::realign_sync_baseline(&self, _pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
@@ -331,8 +335,6 @@ pub trait migrate::ports::SyncBaselines
 pub fn migrate::ports::SyncBaselines::realign(&self, integrations_root: &std::path::Path, pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub trait migrate::ports::WorkItemIdentity
 pub fn migrate::ports::WorkItemIdentity::canonicalise(&self, raw: &str, pattern: &str, key: core::option::Option<&str>) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
-pub fn migrate::ports::WorkItemIdentity::legacy_linkage(&self) -> &dyn corpus::linkage_ids::LinkageIds
-pub fn migrate::ports::WorkItemIdentity::references_key(&self, pattern: &str) -> bool
 pub trait migrate::ports::WorkingCopy
 pub fn migrate::ports::WorkingCopy::observe(&self, roots: &[&str]) -> core::result::Result<migrate::ports::WorkingCopyObservation, migrate::ports::MigrationError>
 pub mod migrate::preflight

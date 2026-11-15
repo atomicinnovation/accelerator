@@ -498,22 +498,6 @@ fn extract_pr_refs(line: &str) -> Vec<String> {
     tokens
 }
 
-fn extract_bare_ids(line: &str, ids: &dyn LinkageIds) -> Vec<String> {
-    let characters: Vec<char> = line.chars().collect();
-    let mut tokens = Vec::new();
-    let mut index = 0;
-    while index + 4 <= characters.len() {
-        let candidate: String = characters[index..index + 4].iter().collect();
-        if ids.is_bare_id(&candidate) {
-            tokens.push(candidate);
-            index += 4;
-        } else {
-            index += 1;
-        }
-    }
-    tokens
-}
-
 fn extract_tokens(
     section: &str,
     line: &str,
@@ -524,7 +508,7 @@ fn extract_tokens(
     tokens.extend(extract_adr_ids(line));
     tokens.extend(extract_pr_refs(line));
     if section == "## Dependencies" && has_dependency_label(line) {
-        tokens.extend(extract_bare_ids(line, ids));
+        tokens.extend(ids.bare_ids_in(line));
     }
     tokens
 }
@@ -677,14 +661,6 @@ mod tests {
                 &LegacyDigits
             ),
             Some(("work-item", "0042".to_owned()))
-        );
-    }
-
-    #[test]
-    fn a_bare_id_is_a_four_character_window_the_ids_admit() {
-        assert_eq!(
-            super::extract_bare_ids("12345 0042a PR0042", &LegacyDigits),
-            vec!["1234", "0042", "0042"]
         );
     }
 

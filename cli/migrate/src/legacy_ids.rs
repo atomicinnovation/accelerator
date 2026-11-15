@@ -1,6 +1,6 @@
-//! The legacy four-digit work-item ID rules that typed linkage and migration
-//! 0009 were written against, frozen so their output never moves with the
-//! live ID grammar.
+//! The legacy four-digit work-item ID rules that migrations 0007 and 0009
+//! were written against, frozen so their output never moves with the live
+//! ID grammar. Only migrations read them.
 
 use corpus::LinkageIds;
 
@@ -15,9 +15,21 @@ impl LinkageIds for LegacyNumericIds {
         (!digits.is_empty()).then_some(digits)
     }
 
-    fn is_bare_id(&self, token: &str) -> bool {
-        token.len() == BARE_ID_WIDTH
-            && token.bytes().all(|byte| byte.is_ascii_digit())
+    fn bare_ids_in(&self, line: &str) -> Vec<String> {
+        let characters: Vec<char> = line.chars().collect();
+        let mut tokens = Vec::new();
+        let mut index = 0;
+        while index + BARE_ID_WIDTH <= characters.len() {
+            let candidate: String =
+                characters[index..index + BARE_ID_WIDTH].iter().collect();
+            if candidate.bytes().all(|byte| byte.is_ascii_digit()) {
+                tokens.push(candidate);
+                index += BARE_ID_WIDTH;
+            } else {
+                index += 1;
+            }
+        }
+        tokens
     }
 }
 
@@ -89,11 +101,17 @@ mod tests {
     }
 
     #[test]
-    fn a_legacy_body_id_is_exactly_four_digits() {
-        assert!(LegacyNumericIds.is_bare_id("0042"));
-        for refused in ["", "042", "12345", "004a", "PR0042"] {
-            assert!(!LegacyNumericIds.is_bare_id(refused), "{refused}");
-        }
+    fn a_legacy_body_id_is_any_run_of_four_digits() {
+        assert_eq!(
+            LegacyNumericIds.bare_ids_in("- Blocks: 0042, 0061 and 042"),
+            ["0042", "0061"]
+        );
+        assert_eq!(LegacyNumericIds.bare_ids_in("- Blocks: 12345"), ["1234"]);
+        assert!(LegacyNumericIds.bare_ids_in("- Blocks: 004a").is_empty());
+        assert_eq!(
+            LegacyNumericIds.bare_ids_in("12345 0042a PR0042"),
+            ["1234", "0042", "0042"]
+        );
     }
 
     #[test]

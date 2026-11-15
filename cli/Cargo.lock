@@ -73,6 +73,7 @@ dependencies = [
  "vcs-adapters",
  "vcs-test-support",
  "work",
+ "work-adapters",
 ]
 
 [[package]]

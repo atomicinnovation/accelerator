@@ -199,6 +199,12 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **`corpus linkage extract` reads work-item IDs through the configured
+  pattern.** A path target reads to the item's ID under `work.id_pattern`
+  and `work.key`, and a bare ID in a `## Dependencies` line counts when it
+  is in the pattern's exact shape, under any key, where it counted only as
+  four digits. Under `{tracker}` a tracker key or draft ID counts.
+  Migration 0007 keeps the four-digit rules.
 - **The visualiser shows an ID through the configured pattern.** An `id`
   the pattern reads is shown as written, so `PP_0042` under
   `{key}_{number:04d}` and `v001` under `v{number:03d}` now show; a bare

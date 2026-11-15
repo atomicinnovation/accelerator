@@ -333,6 +333,28 @@ impl corpus::IdConvention for IdScheme {
     }
 }
 
+const fn is_id_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
+}
+
+impl corpus::LinkageIds for IdScheme {
+    fn id_in_filename(&self, filename: &str) -> Option<String> {
+        corpus::IdConvention::id_in_filename(self, filename)
+    }
+
+    fn bare_ids_in(&self, line: &str) -> Vec<String> {
+        let is_bare_id = |token: &str| match self.ownership() {
+            IdOwnership::Tracker => is_tracker_owned_token(token),
+            IdOwnership::Local => self.is_any_key_id_token(token),
+        };
+        line.split(|c: char| !is_id_character(c))
+            .map(|run| run.trim_end_matches(['.', '_', '-']))
+            .filter(|run| is_bare_id(run))
+            .map(str::to_owned)
+            .collect()
+    }
+}
+
 #[cfg(test)]
 // DSL pattern strings such as "{key}" are literal token markers, not format
 // args.
@@ -654,6 +676,38 @@ mod tests {
         );
         let v001 = versioned.read_held("v001").unwrap();
         assert!(versioned.holds("1", &v001));
+    }
+
+    #[test]
+    fn linkage_reads_ids_through_the_configured_scheme() {
+        use corpus::LinkageIds;
+
+        let underscored = scheme("{key}_{number:04d}", Some("PP"));
+        assert_eq!(
+            LinkageIds::id_in_filename(&underscored, "pp_42-x.md").as_deref(),
+            Some("PP_0042")
+        );
+        assert_eq!(
+            LinkageIds::id_in_filename(&underscored, "0042-x.md").as_deref(),
+            Some("PP_0042")
+        );
+        assert_eq!(
+            LinkageIds::id_in_filename(&underscored, "PP-0042-x.md"),
+            None
+        );
+        assert_eq!(
+            underscored.bare_ids_in("- Blocks: PP_0042, XY_0042 and PP_0043."),
+            ["PP_0042", "XY_0042", "PP_0043"]
+        );
+        assert!(underscored
+            .bare_ids_in("- Blocks: 0042 and PP-0042")
+            .is_empty());
+
+        let tracker = tracker();
+        assert_eq!(
+            tracker.bare_ids_in("- Blocked by: ENG-7, draft-k7mq3x, 0042"),
+            ["ENG-7", "draft-k7mq3x"]
+        );
     }
 
     #[test]

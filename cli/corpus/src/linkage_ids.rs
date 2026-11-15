@@ -4,7 +4,8 @@
 pub trait LinkageIds {
     fn id_in_filename(&self, filename: &str) -> Option<String>;
 
-    fn is_bare_id(&self, token: &str) -> bool;
+    /// The bare work-item IDs a `## Dependencies` line names, in order.
+    fn bare_ids_in(&self, line: &str) -> Vec<String>;
 }
 
 #[cfg(test)]
@@ -22,8 +23,21 @@ pub(crate) mod test_ids {
             (!digits.is_empty()).then_some(digits)
         }
 
-        fn is_bare_id(&self, token: &str) -> bool {
-            token.len() == 4 && token.bytes().all(|byte| byte.is_ascii_digit())
+        fn bare_ids_in(&self, line: &str) -> Vec<String> {
+            let characters: Vec<char> = line.chars().collect();
+            let mut tokens = Vec::new();
+            let mut index = 0;
+            while index + 4 <= characters.len() {
+                let candidate: String =
+                    characters[index..index + 4].iter().collect();
+                if candidate.bytes().all(|byte| byte.is_ascii_digit()) {
+                    tokens.push(candidate);
+                    index += 4;
+                } else {
+                    index += 1;
+                }
+            }
+            tokens
         }
     }
 }

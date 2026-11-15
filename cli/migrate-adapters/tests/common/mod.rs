@@ -5,7 +5,6 @@ use config::ConfigError;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
-use corpus::LinkageIds;
 use corpus_adapters::RealFs;
 use corpus_adapters::YamlFrontmatter;
 use migrate::ports::MigrationError;
@@ -15,7 +14,6 @@ use migrate_adapters::context::Capabilities;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
 use work::id_scheme::IdScheme;
-use work::legacy_ids::LegacyNumericIds;
 
 pub struct NoBaselines;
 
@@ -52,14 +50,6 @@ impl WorkItemIdentity for WorkIdentity {
         IdScheme::new(pattern, key)
             .canonicalise(raw)
             .map_err(|error| failure(&error))
-    }
-
-    fn references_key(&self, pattern: &str) -> bool {
-        work::legacy_ids::references_key(pattern)
-    }
-
-    fn legacy_linkage(&self) -> &dyn LinkageIds {
-        &LegacyNumericIds
     }
 }
 

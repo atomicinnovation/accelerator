@@ -171,7 +171,7 @@ fn bare_target_type(source_type: &str, key: &str) -> Option<&'static str> {
 mod tests {
     use super::normalise as normalise_under;
     use super::Outcome;
-    use crate::migrations::m0007::test_ids::LegacyDigits;
+    use crate::legacy_ids::LegacyNumericIds;
     use corpus::doc_type::DocTypeKey;
     use std::path::PathBuf;
 
@@ -181,7 +181,7 @@ mod tests {
         key: &str,
         table: &[(DocTypeKey, PathBuf)],
     ) -> Outcome {
-        normalise_under(value, source_type, key, table, &LegacyDigits)
+        normalise_under(value, source_type, key, table, &LegacyNumericIds)
     }
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {

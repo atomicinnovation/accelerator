@@ -62,9 +62,9 @@ mod tests {
     use super::FileCorpusIndex;
     use corpus::doc_type::DocTypeKey;
     use corpus_adapters::RealFs;
+    use migrate::legacy_ids::LegacyNumericIds;
     use migrate::ports::CorpusIndex as _;
     use tempfile::TempDir;
-    use work::legacy_ids::LegacyNumericIds;
 
     #[test]
     fn a_work_item_resolves_by_its_filename_derived_id(

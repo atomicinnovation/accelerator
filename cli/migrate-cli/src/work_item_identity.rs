@@ -1,12 +1,10 @@
 //! The work-item identity migrations read, answered by the work context.
 
-use corpus::LinkageIds;
 use migrate::ports::MigrationError;
 use migrate::ports::WorkItemIdentity;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
 use work::id_scheme::IdScheme;
-use work::legacy_ids::LegacyNumericIds;
 use work_adapters::config::SchemeError;
 
 pub struct WorkIdentity;
@@ -36,14 +34,6 @@ impl WorkItemIdentity for WorkIdentity {
         IdScheme::new(pattern, key)
             .canonicalise(raw)
             .map_err(|error| failure(&error))
-    }
-
-    fn references_key(&self, pattern: &str) -> bool {
-        work::legacy_ids::references_key(pattern)
-    }
-
-    fn legacy_linkage(&self) -> &dyn LinkageIds {
-        &LegacyNumericIds
     }
 }
 
@@ -90,11 +80,5 @@ mod tests {
             "E_WORK_ID_PATTERN_INVALID: work.id_pattern \
              '{project}-{number:4d}':"
         )));
-    }
-
-    #[test]
-    fn references_key_tolerates_a_malformed_pattern() {
-        assert!(WorkIdentity.references_key("{project}-{number:4d}"));
-        assert!(!WorkIdentity.references_key("{{project}}"));
     }
 }

@@ -20,7 +20,6 @@ use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::RealFs;
-use work::legacy_ids::LegacyNumericIds;
 
 use crate::cli::AdrAction;
 use crate::cli::CheckKind;
@@ -99,11 +98,14 @@ fn run_linkage(action: LinkageAction) -> Result<Outcome, kernel::Error> {
         LinkageAction::Extract { file, source_type } => {
             let composed = config::compose(&current_dir()?)?;
             let table = config::table_from_config(&composed.service)?;
+            let scheme = work_adapters::config::read_scheme(&composed.service)
+                .map_err(kernel::Error::from)?
+                .scheme;
             linkage::run_extract(
                 &file,
                 source_type.as_deref(),
                 &table,
-                &LegacyNumericIds,
+                &scheme,
                 &RealFs,
             )
         }
