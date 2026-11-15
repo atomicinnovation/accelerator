@@ -200,7 +200,11 @@ mod tests {
     fn a_scheme_differing_only_in_tracker_keys_is_the_same_setting() {
         let recorded = IdentityFingerprint::of(&scheme(), &corpus());
         let current = IdentityFingerprint::of(
-            &scheme().with_tracker_keys(tracker::TrackerKeys::Jira),
+            &IdScheme::under_tracker(
+                scheme().pattern().clone(),
+                scheme().key().cloned(),
+                tracker::TrackerKeys::Jira,
+            ),
             &corpus(),
         );
         assert_eq!(current.staleness_since(&recorded), None);

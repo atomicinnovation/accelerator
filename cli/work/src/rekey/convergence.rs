@@ -278,7 +278,11 @@ mod tests {
         assert!(!is_converged(&item("0042", None), &tracker));
         assert!(!is_converged(&item("0042", Some("ENG-7")), &tracker));
         assert!(!is_converged(&item("ENG-7", Some("not a key")), &tracker));
-        let linear = tracker.with_tracker_keys(tracker::TrackerKeys::Linear);
+        let linear = IdScheme::under_tracker(
+            tracker.pattern().clone(),
+            None,
+            tracker::TrackerKeys::Linear,
+        );
         assert!(!is_converged(
             &item("MY_PROJ-7", Some("MY_PROJ-7")),
             &linear

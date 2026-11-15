@@ -2,8 +2,10 @@
 
 use crate::draft_id::DraftId;
 use crate::id_pattern::HeldPrefix;
+use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
+use crate::id_scheme::is_tracker_owned_token;
 use crate::id_scheme::legacy_prefix;
 use crate::id_scheme::CanonicaliseError;
 use crate::id_scheme::FilenameIdentity;
@@ -20,10 +22,6 @@ pub(super) struct TrackerIds {
 impl TrackerIds {
     pub(super) const fn new(pattern: IdPattern, keys: TrackerKeys) -> Self {
         Self { pattern, keys }
-    }
-
-    pub(super) fn with_keys(self, keys: TrackerKeys) -> Self {
-        Self { keys, ..self }
     }
 
     pub(super) const fn pattern(&self) -> &IdPattern {
@@ -122,5 +120,17 @@ impl IdReadings for TrackerIds {
 
     fn canonicalise(&self, input: &str) -> Result<String, CanonicaliseError> {
         Ok(input.to_owned())
+    }
+
+    fn key(&self) -> Option<&IdKey> {
+        None
+    }
+
+    fn is_bare_id(&self, token: &str) -> bool {
+        is_tracker_owned_token(token, self.keys)
+    }
+
+    fn tracker_keys(&self) -> TrackerKeys {
+        self.keys
     }
 }

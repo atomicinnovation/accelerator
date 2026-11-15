@@ -141,6 +141,15 @@ pub fn scheme_from_settings(
     key: Option<&str>,
     source: KeySource,
 ) -> Result<IdScheme, SchemeError> {
+    scheme_under_tracker(pattern, key, source, TrackerKeys::AnySupported)
+}
+
+fn scheme_under_tracker(
+    pattern: &str,
+    key: Option<&str>,
+    source: KeySource,
+    tracker_keys: TrackerKeys,
+) -> Result<IdScheme, SchemeError> {
     let parsed =
         IdPattern::parse(pattern).map_err(|error| SchemeError::Pattern {
             value: pattern.to_owned(),
@@ -156,7 +165,7 @@ pub fn scheme_from_settings(
             })
         })
         .transpose()?;
-    Ok(IdScheme::new(parsed, key))
+    Ok(IdScheme::under_tracker(parsed, key, tracker_keys))
 }
 
 fn unused_key_warning(
@@ -208,20 +217,24 @@ pub fn read_scheme(
     } else {
         KeySource::WorkKey
     };
-    let scheme =
-        scheme_from_settings(&pattern, aliased.value.as_deref(), source)?;
-    let unused_key_warning =
-        unused_key_warning(&scheme, aliased.value.as_deref(), source);
-    let deprecation = aliased
-        .deprecation
-        .filter(|_| scheme.pattern().references_key());
     let tracker_keys = TrackerKeys::of_integration(
         configured(config, "work.integration")?
             .as_deref()
             .unwrap_or_default(),
     );
+    let scheme = scheme_under_tracker(
+        &pattern,
+        aliased.value.as_deref(),
+        source,
+        tracker_keys,
+    )?;
+    let unused_key_warning =
+        unused_key_warning(&scheme, aliased.value.as_deref(), source);
+    let deprecation = aliased
+        .deprecation
+        .filter(|_| scheme.pattern().references_key());
     Ok(SchemeReading {
-        scheme: scheme.with_tracker_keys(tracker_keys),
+        scheme,
         deprecation,
         unused_key_warning,
     })

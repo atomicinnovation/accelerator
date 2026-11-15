@@ -150,6 +150,15 @@ trait IdReadings {
 
     /// Rendering: `input` in the shape the owner writes.
     fn canonicalise(&self, input: &str) -> Result<String, CanonicaliseError>;
+
+    /// Rendering: the key the owner renders IDs under.
+    fn key(&self) -> Option<&IdKey>;
+
+    /// Linkage: whether `token`, standing alone in prose, is an ID.
+    fn is_bare_id(&self, token: &str) -> bool;
+
+    /// The rules a tracker key is read by.
+    fn tracker_keys(&self) -> TrackerKeys;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,43 +171,36 @@ enum Owner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdScheme {
     owner: Owner,
-    tracker_keys: TrackerKeys,
 }
 
 impl IdScheme {
     /// The scheme of `pattern`, holding `key` only when the pattern has a
-    /// key token.
+    /// key token, and reading any supported tracker's keys.
     #[must_use]
     pub fn new(pattern: IdPattern, key: Option<IdKey>) -> Self {
-        let tracker_keys = TrackerKeys::AnySupported;
+        Self::under_tracker(pattern, key, TrackerKeys::AnySupported)
+    }
+
+    /// The scheme of `pattern`, holding `key` only when the pattern has a
+    /// key token, and reading tracker keys by `tracker_keys`' rules.
+    #[must_use]
+    pub fn under_tracker(
+        pattern: IdPattern,
+        key: Option<IdKey>,
+        tracker_keys: TrackerKeys,
+    ) -> Self {
         let owner = if pattern.is_tracker_owned() {
             Owner::Tracker(TrackerIds::new(pattern, tracker_keys))
         } else {
-            Owner::Pattern(PatternIds::new(pattern, key))
+            Owner::Pattern(PatternIds::new(pattern, key, tracker_keys))
         };
-        Self {
-            owner,
-            tracker_keys,
-        }
-    }
-
-    /// The scheme reading tracker keys by `keys`' rules.
-    #[must_use]
-    pub fn with_tracker_keys(self, keys: TrackerKeys) -> Self {
-        let owner = match self.owner {
-            Owner::Tracker(ids) => Owner::Tracker(ids.with_keys(keys)),
-            pattern @ Owner::Pattern(_) => pattern,
-        };
-        Self {
-            owner,
-            tracker_keys: keys,
-        }
+        Self { owner }
     }
 
     /// The rules a tracker key is read by.
     #[must_use]
-    pub const fn tracker_keys(&self) -> TrackerKeys {
-        self.tracker_keys
+    pub fn tracker_keys(&self) -> TrackerKeys {
+        self.readings().tracker_keys()
     }
 
     #[must_use]
@@ -217,11 +219,8 @@ impl IdScheme {
     }
 
     #[must_use]
-    pub const fn key(&self) -> Option<&IdKey> {
-        match &self.owner {
-            Owner::Tracker(_) => None,
-            Owner::Pattern(ids) => ids.key(),
-        }
+    pub fn key(&self) -> Option<&IdKey> {
+        self.readings().key()
     }
 
     #[must_use]
@@ -391,15 +390,9 @@ impl corpus::LinkageIds for IdScheme {
     }
 
     fn bare_ids_in(&self, line: &str) -> Vec<String> {
-        let is_bare_id = |token: &str| match self.ownership() {
-            IdOwnership::Tracker => {
-                is_tracker_owned_token(token, self.tracker_keys)
-            }
-            IdOwnership::Local => self.is_any_key_id_token(token),
-        };
         line.split(|c: char| !is_id_character(c))
             .map(|run| run.trim_end_matches(['.', '_', '-']))
-            .filter(|run| is_bare_id(run))
+            .filter(|run| self.readings().is_bare_id(run))
             .map(str::to_owned)
             .collect()
     }
@@ -443,6 +436,14 @@ mod tests {
         scheme(TRACKER_TOKEN, None)
     }
 
+    fn tracker_under(keys: TrackerKeys) -> IdScheme {
+        IdScheme::under_tracker(
+            IdPattern::parse(TRACKER_TOKEN).unwrap(),
+            None,
+            keys,
+        )
+    }
+
     fn identity(scheme: &IdScheme, reference: &str) -> Option<String> {
         scheme.identity_key(reference)
     }
@@ -481,8 +482,8 @@ mod tests {
 
     #[test]
     fn a_tracker_scheme_reads_keys_by_its_trackers_rules() {
-        let jira = tracker().with_tracker_keys(TrackerKeys::Jira);
-        let linear = tracker().with_tracker_keys(TrackerKeys::Linear);
+        let jira = tracker_under(TrackerKeys::Jira);
+        let linear = tracker_under(TrackerKeys::Linear);
         assert_eq!(
             jira.displayed_id("MY_PROJ-7").as_deref(),
             Some("MY_PROJ-7")

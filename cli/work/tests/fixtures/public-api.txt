@@ -365,7 +365,7 @@ pub fn work::id_scheme::IdScheme::identity_key(&self, reference: &str) -> core::
 pub fn work::id_scheme::IdScheme::is_any_key_id_token(&self, token: &str) -> bool
 pub fn work::id_scheme::IdScheme::is_canonical_id_token(&self, token: &str) -> bool
 pub fn work::id_scheme::IdScheme::is_legacy_id(id: &str) -> bool
-pub const fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
+pub fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
 pub fn work::id_scheme::IdScheme::new(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
 pub fn work::id_scheme::IdScheme::numeric() -> Self
 pub const fn work::id_scheme::IdScheme::ownership(&self) -> work::id_scheme::IdOwnership
@@ -373,8 +373,8 @@ pub fn work::id_scheme::IdScheme::pad_legacy_number(input: &str) -> core::option
 pub const fn work::id_scheme::IdScheme::pattern(&self) -> &work::id_pattern::IdPattern
 pub fn work::id_scheme::IdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
 pub fn work::id_scheme::IdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<work::id_pattern::HeldPrefix>
-pub const fn work::id_scheme::IdScheme::tracker_keys(&self) -> tracker::TrackerKeys
-pub fn work::id_scheme::IdScheme::with_tracker_keys(self, keys: tracker::TrackerKeys) -> Self
+pub fn work::id_scheme::IdScheme::tracker_keys(&self) -> tracker::TrackerKeys
+pub fn work::id_scheme::IdScheme::under_tracker(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>, tracker_keys: tracker::TrackerKeys) -> Self
 impl core::clone::Clone for work::id_scheme::IdScheme
 pub fn work::id_scheme::IdScheme::clone(&self) -> work::id_scheme::IdScheme
 impl core::cmp::Eq for work::id_scheme::IdScheme

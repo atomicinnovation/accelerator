@@ -11,27 +11,33 @@ use crate::id_scheme::CanonicaliseError;
 use crate::id_scheme::FilenameIdentity;
 use crate::id_scheme::IdReadings;
 use crate::id_scheme::LEGACY_WIDTH;
+use tracker::TrackerKeys;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PatternIds {
     pattern: IdPattern,
     key: Option<IdKey>,
+    tracker_keys: TrackerKeys,
 }
 
 impl PatternIds {
     /// The IDs of `pattern`, holding `key` only when the pattern has a key
-    /// token.
-    pub(super) fn new(pattern: IdPattern, key: Option<IdKey>) -> Self {
+    /// token, beside `external_id`s read as tracker keys by `tracker_keys`.
+    pub(super) fn new(
+        pattern: IdPattern,
+        key: Option<IdKey>,
+        tracker_keys: TrackerKeys,
+    ) -> Self {
         let key = key.filter(|_| pattern.references_key());
-        Self { pattern, key }
+        Self {
+            pattern,
+            key,
+            tracker_keys,
+        }
     }
 
     pub(super) const fn pattern(&self) -> &IdPattern {
         &self.pattern
-    }
-
-    pub(super) const fn key(&self) -> Option<&IdKey> {
-        self.key.as_ref()
     }
 
     fn padded(&self, number: u64) -> String {
@@ -137,5 +143,17 @@ impl IdReadings for PatternIds {
             return Ok(self.pattern.render(self.key.as_ref(), number)?);
         }
         Err(CanonicaliseError::UnrecognisedIdShape(input.to_owned()))
+    }
+
+    fn key(&self) -> Option<&IdKey> {
+        self.key.as_ref()
+    }
+
+    fn is_bare_id(&self, token: &str) -> bool {
+        self.pattern.read_exact(token).is_some()
+    }
+
+    fn tracker_keys(&self) -> TrackerKeys {
+        self.tracker_keys
     }
 }
