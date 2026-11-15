@@ -126,7 +126,8 @@
 //!   carries it.
 //! - `rejected` — `75`.
 //! - `possible-duplicate`, `id-taken`, `key-linked`, `target-exists`,
-//!   `id-not-one-path-component`, `adopted-issue-missing`,
+//!   `id-not-one-path-component`, `id-outside-alphabet`,
+//!   `adopted-issue-missing`,
 //!   `adopt-conflicts-with-recorded-key` — `4`.
 //! - `item-not-found` — `4`, or `71` once an issue exists for the vanished
 //!   draft.

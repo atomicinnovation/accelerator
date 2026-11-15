@@ -206,7 +206,8 @@ fn refused_before_writing(
         RetirementRefusal::ItemNotFound(_) => {
             NotRekeyed::PreviewStale(Staleness::ItemsChanged(vec![mover]))
         }
-        RetirementRefusal::IdNotOnePathComponent { id } => {
+        RetirementRefusal::IdNotOnePathComponent { id }
+        | RetirementRefusal::IdOutsideAlphabet { id } => {
             NotRekeyed::Unclassifiable {
                 item: mover,
                 cause: UnclassifiableCause::ForbiddenCharacter { id },

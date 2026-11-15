@@ -16,6 +16,7 @@ use corpus::StoreError;
 use crate::dirtiness::Dirtiness;
 use crate::draft_id::DraftId;
 use crate::id_pattern::escaped;
+use crate::id_pattern::is_in_id_alphabet;
 use crate::id_scheme::IdScheme;
 use crate::identity::holder_of_under;
 use crate::identity::linker_of_under;
@@ -199,6 +200,9 @@ pub enum RetirementRefusal {
     IdNotOnePathComponent {
         id: String,
     },
+    IdOutsideAlphabet {
+        id: String,
+    },
 }
 
 /// `path` relative to `root` when it lies under it, else as it is.
@@ -227,6 +231,7 @@ impl RetirementRefusal {
             Self::IdNotOnePathComponent { id } => {
                 Self::IdNotOnePathComponent { id }
             }
+            Self::IdOutsideAlphabet { id } => Self::IdOutsideAlphabet { id },
         }
     }
 
@@ -238,6 +243,7 @@ impl RetirementRefusal {
             Self::TargetExists(_) => "target-exists",
             Self::ItemNotFound(_) => "item-not-found",
             Self::IdNotOnePathComponent { .. } => "id-not-one-path-component",
+            Self::IdOutsideAlphabet { .. } => "id-outside-alphabet",
         }
     }
 
@@ -267,6 +273,13 @@ impl RetirementRefusal {
             Self::IdNotOnePathComponent { id } => format!(
                 "cannot retire {old_id} for {new_id}: '{}' is not one path \
                  component",
+                escaped(id)
+            ),
+            Self::IdOutsideAlphabet { id } => format!(
+                "cannot retire {} for {}: '{}' holds a character other than \
+                 an ASCII letter, digit, `.`, `_` or `-`",
+                escaped(old_id),
+                escaped(new_id),
                 escaped(id)
             ),
         }
@@ -479,7 +492,8 @@ fn directory_of(path: &Path) -> &Path {
 
 /// # Errors
 ///
-/// A [`RetirementRefusal`] when either ID is not one path component, no item
+/// A [`RetirementRefusal`] when either ID is not one path component or
+/// holds a character outside the ID alphabet, no item
 /// holds `old_id`, another item already holds `new_id` or is linked to
 /// `new_external_id`, or a file other than an interrupted retirement's
 /// already occupies the target path.
@@ -493,6 +507,11 @@ pub fn plan_retirement(
     for id in [retirement.old_id, retirement.new_id] {
         if !is_one_path_component(id) {
             return Err(RetirementRefusal::IdNotOnePathComponent {
+                id: id.to_owned(),
+            });
+        }
+        if !is_in_id_alphabet(id) {
+            return Err(RetirementRefusal::IdOutsideAlphabet {
                 id: id.to_owned(),
             });
         }
@@ -1663,6 +1682,33 @@ mod tests {
             assert_eq!(
                 refusal.err().map(|refusal| refusal.keyword()),
                 Some("id-not-one-path-component")
+            );
+        }
+    }
+
+    #[test]
+    fn retirement_refuses_an_id_outside_the_id_alphabet() {
+        for (old_id, new_id, refused) in [
+            ("PP-1\", \"ENG-99", "PP-900", "PP-1\", \"ENG-99"),
+            ("draft-k7mq3x", "PP 900", "PP 900"),
+            ("draft-k7mq3x", "PP-9'0", "PP-9'0"),
+        ] {
+            let retirement = Retirement {
+                old_id,
+                new_id,
+                new_external_id: None,
+            };
+            let refusal = plan(&retirement, &[draft()]);
+            assert_eq!(
+                refusal,
+                Err(RetirementRefusal::IdOutsideAlphabet {
+                    id: refused.to_owned()
+                }),
+                "{old_id} {new_id}"
+            );
+            assert_eq!(
+                refusal.err().map(|refusal| refusal.keyword()),
+                Some("id-outside-alphabet")
             );
         }
     }
