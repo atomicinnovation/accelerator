@@ -127,12 +127,9 @@ def wait_for_text(path: Path, text: str, timeout: float = 5.0) -> bool:
     """Wait for ``text`` to appear in ``path`` (circus's FileStream capture
     lags the watcher's write, so the log can be momentarily empty after up
     returns)."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if path.exists() and text in path.read_text():
-            return True
-        time.sleep(0.1)
-    return path.exists() and text in path.read_text()
+    return wait_until(
+        lambda: path.exists() and text in path.read_text(), timeout
+    )
 
 
 def descendants(pid: int | None) -> list[int]:
@@ -367,7 +364,7 @@ def test_orphan_reach_when_arbiter_already_dead(workspace):
     state = read_state(workspace)
     server_pid, frontend_pid = state["server_pid"], state["frontend_pid"]
     os.kill(state["arbiter_pid"], signal.SIGKILL)  # children reparent to init
-    time.sleep(0.5)
+    assert wait_until(lambda: not alive(state["arbiter_pid"]))
     assert alive(
         server_pid
     )  # still alive, no longer a child of the dead arbiter
@@ -491,7 +488,9 @@ def test_stale_cleanup_after_out_of_band_kill(workspace):
     state = read_state(workspace)
     for key in ("arbiter_pid", "server_pid", "frontend_pid"):
         kill_out_of_band(workspace, state[key])
-    time.sleep(0.5)
+    assert wait_until(
+        lambda: not any(fake.is_running() for fake in recorded_fakes(workspace))
+    )
     assert (
         run_driver(workspace, "status").returncode == 4
     )  # treated as not-running
@@ -559,12 +558,9 @@ def test_status_exit_codes(workspace):
     # parent) reaps it, and under parallel-suite load that reap can outlast any
     # fixed wait, so status momentarily still reports both up. respawn=false
     # means once it reads "one" it stays there, so this converges without flap.
-    deadline = time.time() + 5.0
-    rc = run_driver(workspace, "status").returncode
-    while rc != 3 and time.time() < deadline:
-        time.sleep(0.1)
-        rc = run_driver(workspace, "status").returncode
-    assert rc == 3  # one
+    assert wait_until(
+        lambda: run_driver(workspace, "status").returncode == 3  # one
+    )
 
 
 def test_sigterm_ignoring_frontend_is_sigkilled(unverified_stop_workspace):
