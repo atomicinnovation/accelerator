@@ -775,7 +775,7 @@ the env var.
 | Variable               | Default | Effect                                                                                                                                    |
 |------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | `ACCELERATOR_PUP_MODE` | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`.                         |
-| `ACCELERATOR_COVERAGE` | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented `cargo llvm-cov nextest` to plain `cargo nextest run` (faster inner loop). |
+| `ACCELERATOR_COVERAGE` | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented (profraw-only clean, then `cargo llvm-cov nextest --no-report`, then a totals line, then a sweep of superseded artefacts) to plain `cargo nextest run` (faster inner loop). |
 
 ### Permission tests under root
 
@@ -786,6 +786,42 @@ In a container that can only run as root, set
 `ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1` to skip them instead;
 `test:unit:cli` prints a one-line warning whenever it is set. CI must never set
 it: GitHub-hosted runners run as a non-root user.
+
+### Coverage floor
+
+`COVERAGE_FLOOR` in `tasks/test/cli.py` gates `test:unit:cli` whenever coverage
+is on: the lane fails when its line, function or region total falls below that
+metric's floor, after printing the totals line.
+
+To set the floors, collect each metric's total from four runs: both CI
+`test-unit` legs, a local run, and a run as root that skips the permission
+tests. Take the minimum of the four, subtract one percentage point, and round
+down to a whole percent. Record each run's OS, architecture and
+`cargo llvm-cov --version` beside its totals line. Make the root run in a
+disposable x86_64 Linux container, so that root-owned artefacts never land in
+the working `cli/target`. Run `mise install` and
+`mise run deps:install:rust-components`, then the lane's steps by hand with
+`--no-fail-fast`:
+
+```sh
+cargo llvm-cov clean --profraw-only --manifest-path cli/Cargo.toml
+ACCELERATOR_TEST_SKIP_PERMISSION_TESTS=1 cargo llvm-cov nextest \
+  --manifest-path cli/Cargo.toml --workspace \
+  --exclude accelerator-visualiser --all-features --no-report --no-fail-fast
+cargo llvm-cov report --manifest-path cli/Cargo.toml --json --summary-only
+```
+
+The skip variable guards only `store::test_support`'s sealed directories and
+files. Other tests seal paths by hand and fail as root, so the lane itself
+stops before its report. Take the root run's totals from the report's
+`data[0].totals` whatever those failures, and list them beside its totals.
+
+Floors only go up. Raise one as coverage improves; never lower one to get a
+change through. The one exception is resetting every floor by the rule above
+after a Rust toolchain, llvm-tools or cargo-llvm-cov bump.
+
+If the floor trips and nothing that affects coverage changed, first run
+`cargo llvm-cov clean --workspace` and rerun the lane.
 
 ## Registering a dispatched sub-binary
 

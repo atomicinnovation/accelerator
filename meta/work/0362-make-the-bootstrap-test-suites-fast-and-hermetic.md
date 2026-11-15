@@ -5,7 +5,7 @@ title: "Make the bootstrap test suites fast and hermetic"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "task"
 priority: "high"
 parent: "work-item:0361"
@@ -21,7 +21,7 @@ schema_version: 1
 # 0362: Make the bootstrap test suites fast and hermetic
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

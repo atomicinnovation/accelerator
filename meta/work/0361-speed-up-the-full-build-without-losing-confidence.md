@@ -72,7 +72,8 @@ Goals:
 
 Decomposition:
 - 0362: Make the bootstrap test suites fast and hermetic (A1, A7)
-- 0363: Remove repeated work from the Rust test lanes (A2, A3, A4)
+- 0363: Remove repeated work from the Rust test lanes (A2, A3; A4 shipped
+  separately)
 - 0364: Parallelise the serial test suites (A5, A6)
 - 0365: Build the VCS fixture matrix once per test run (B1)
 - 0366: Cut Rust compile cost (B2, B5)
