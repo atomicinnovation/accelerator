@@ -12,9 +12,9 @@ relates_to: ["plan:2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/216"
 pr_number: 216
 tags: ["build-system", "testing", "rust", "coverage"]
-revision: "5b2801353f6867af5e907a76c436ad1efc76d160"
+revision: "3a45948dfb04846382b5fc6952bf12107febebda"
 repository: "accelerator"
-last_updated: "2026-11-14T22:51:48+00:00"
+last_updated: "2026-11-15T00:52:12+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -135,6 +135,24 @@ plan.
   after a toolchain, llvm-tools or cargo-llvm-cov bump), and the first
   step when it trips for no reason.
 
+### Bootstrap lock on Ubuntu 26.04
+
+- `bin/accelerator`: the launcher-cache lock now belongs to whoever creates
+  its pid file, which `claim_lock` does under `noclobber` so that bash opens
+  it `O_EXCL`. Ubuntu 26.04 ships uutils coreutils, whose `mkdir` reports
+  success to more than one concurrent caller (55 to 66 of 300 trials with
+  six callers, against 0 of 300 for GNU `mkdir`), so several cold-cache
+  bootstraps fetched at once. That is what made
+  `test_concurrent_cold_cache_slow_downloader_all_succeed` fail on this
+  PR's Ubuntu integration leg with 8 downloads where it allows 2. With the
+  claim, the same 300 trials never give more than one owner. This is
+  outside 0363's scope; it is here at the user's request, to make this
+  PR's checks pass.
+- `tests/integration/entrypoint/test_accelerator_entrypoint.py`: a new test
+  plants a `mkdir` that reports the lock as made even when it exists, while
+  a live owner holds it, and checks that the bootstrap waits for the owner
+  instead of fetching. It fails without the claim.
+
 ### Descriptions and planning documents
 
 - The `mise.toml` description, `tasks/README.md`, the `test:unit:cli`
@@ -164,6 +182,9 @@ timings on a quieter host (8.8 to 12.8).
       tests/unit/tasks/test_nextest_filter.py` (129 passed)
 - [x] `mise run build-system:check`, `mise run server:check` and
       `mise run cli:check` pass
+- [x] `mise run check` passes, and the entrypoint integration suite passes
+      (73 tests) with the bootstrap on macOS's bash 3.2. The new lock test
+      fails against the bootstrap without the claim.
 - [x] The full `mise run` passes with the floor in force, printing
       `coverage: lines 94.19%, functions 93.57%, regions 92.89%`. Its first
       attempt failed on a race outside this PR (see Notes for Reviewers).
@@ -251,13 +272,15 @@ timings on a quieter host (8.8 to 12.8).
   a full `mise run`. It reads the bootstrap log as soon as it is non-empty,
   before the child's stderr line has always arrived. It passed five times
   alone and in the rerun.
-- **Two CI flakes outside this PR.** macOS's `test:unit:frontend` can pass
+- **A CI flake outside this PR.** macOS's `test:unit:frontend` can pass
   every test and still fail on `[vitest-worker]: Timeout calling
   "onTaskUpdate"`; its duration here (185 to 347 s) matches `main`'s (240
-  to 321 s). The Ubuntu integration lane's bootstrap test
-  `test_concurrent_cold_cache_slow_downloader_all_succeed` once saw 8
-  downloads where the lock should allow 2. Both passed on this PR's
-  earlier runs, and neither touches its code.
+  to 321 s).
+- **The bootstrap lock has a narrower race left.** A waiter that reads the
+  pid of an owner who then releases and exits can treat it as dead and
+  remove the next owner's lock. That can only happen after the launcher is
+  cached, so the re-check under the lock stops a second fetch; the claim
+  does not close it.
 - **The coverage fixtures' paths are neutralised.** Both fixtures under
   `tests/unit/tasks/fixtures/coverage/` use `/workspace` in place of the
   checkout path, so no machine path is committed.
