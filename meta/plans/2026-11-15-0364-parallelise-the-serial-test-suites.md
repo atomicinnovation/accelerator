@@ -250,6 +250,12 @@ The record also notes:
   of recorded PIDs, so it cannot reach them. This is production behaviour,
   so it is out of scope here. It is raised as a follow-up work item that does
   not block 0364. Tests that kill fakes out of band kill the whole subtree.
+- **The same gap when `dev.json` is lost.** Circus's `stop_children` lists a
+  watcher's children only after signalling the watcher, so a watcher that
+  exits promptly leaves its children unsignalled. Normally
+  `reap_descendants` reaches them through the recorded PIDs. Without
+  `dev.json` there are none, so the children survive. Test 10 therefore runs
+  childless watchers, and the follow-up work item covers this case too.
 
 Before Phase 2, the implementer confirms each string against
 `lifecycle.py`. If the record turns up another branch, it joins the list and
@@ -585,19 +591,19 @@ def assert_stopped_cleanly(workspace: Path) -> None:
 
 #### Automated Verification:
 
-- [ ] The dev suite passes serially: `mise run test:integration:dev`
-- [ ] Build-system checks pass, including ruff on `fake_process.py`, which
+- [x] The dev suite passes serially: `mise run test:integration:dev`
+- [x] Build-system checks pass, including ruff on `fake_process.py`, which
       pyrefly doesn't cover because it only checks `tasks/**`:
       `mise run build-system:check`
-- [ ] `mise run check` passes
-- [ ] Red step observed and noted in the PR: the new assertions and
+- [x] `mise run check` passes
+- [x] Red step observed and noted in the PR: the new assertions and
       self-tests fail before the recorders exist.
-- [ ] The suite writes nothing outside its `tmp_path`: the repo's
+- [x] The suite writes nothing outside its `tmp_path`: the repo's
       `.accelerator/tmp/visualiser/server.log` is unchanged by a run.
 
 #### Manual Verification:
 
-- [ ] Each test's evidence holds:
+- [x] Each test's evidence holds:
   - A run of `test_sigterm_ignoring_frontend_is_sigkilled` leaves the events
     log with `started frontend <pid> …` and no `sigterm` for that PID.
   - A happy-path test leaves an escalation log with no `kill` line.
@@ -605,7 +611,7 @@ def assert_stopped_cleanly(workspace: Path) -> None:
       matches `lifecycle.py`.
 - [ ] The follow-up work item for orphaned children after an out-of-band
       kill exists and is linked from the PR.
-- [ ] Suite wall time is unchanged or lower. No timing change is intended,
+- [x] Suite wall time is unchanged or lower. No timing change is intended,
       and the teardown no longer runs a second driver stop.
 
 ---
