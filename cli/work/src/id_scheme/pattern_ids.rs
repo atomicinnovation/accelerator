@@ -8,6 +8,7 @@ use crate::id_pattern::MissingKey;
 use crate::id_scheme::is_digits;
 use crate::id_scheme::legacy_prefix;
 use crate::id_scheme::CanonicaliseError;
+use crate::id_scheme::FilenameIdentity;
 use crate::id_scheme::IdReadings;
 use crate::id_scheme::LEGACY_WIDTH;
 
@@ -102,9 +103,12 @@ impl IdReadings for PatternIds {
             .and_then(|parts| self.joined(&parts))
     }
 
-    fn filename_identity(&self, filename: &str) -> Option<(String, usize)> {
+    fn filename_identity(&self, filename: &str) -> Option<FilenameIdentity> {
         let held = self.read_held_prefix(filename)?;
-        Some((self.joined(held.parts())?, held.slug_start()))
+        Some(FilenameIdentity {
+            identity_key: self.joined(held.parts())?,
+            id_end: held.id_end(),
+        })
     }
 
     fn read_held(&self, value: &str) -> Option<IdParts> {

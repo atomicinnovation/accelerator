@@ -113,6 +113,19 @@ fn legacy_prefix(filename: &str) -> Option<&str> {
 
 const LEGACY_WIDTH: usize = 4;
 
+/// The identity key a filename starts with, and where its ID ends.
+struct FilenameIdentity {
+    identity_key: String,
+    id_end: usize,
+}
+
+impl FilenameIdentity {
+    /// The byte offset just past the `-` after the ID.
+    const fn slug_start(&self) -> usize {
+        self.id_end + 1
+    }
+}
+
 /// How one owner of a workspace's IDs reads them, grouped by what each
 /// reading is for.
 trait IdReadings {
@@ -122,9 +135,9 @@ trait IdReadings {
     /// Join: the key every spelling of one item reads to.
     fn identity_key(&self, reference: &str) -> Option<String>;
 
-    /// Join: the identity key a filename starts with, and where its slug
-    /// starts.
-    fn filename_identity(&self, filename: &str) -> Option<(String, usize)>;
+    /// Join: the identity key a filename starts with, and where its ID
+    /// ends.
+    fn filename_identity(&self, filename: &str) -> Option<FilenameIdentity>;
 
     /// Occupancy: a held `id`, alias or `external_id` read as an ID.
     fn read_held(&self, value: &str) -> Option<IdParts>;
@@ -354,7 +367,7 @@ impl corpus::IdConvention for IdScheme {
     fn slug_start(&self, stem: &str) -> Option<usize> {
         self.readings()
             .filename_identity(stem)
-            .map(|(_, slug_start)| slug_start)
+            .map(|identity| identity.slug_start())
     }
 
     fn is_id(&self, token: &str) -> bool {
@@ -368,7 +381,7 @@ impl corpus::IdConvention for IdScheme {
     fn id_in_filename(&self, filename: &str) -> Option<String> {
         self.readings()
             .filename_identity(filename)
-            .map(|(identity, _)| identity)
+            .map(|identity| identity.identity_key)
     }
 }
 

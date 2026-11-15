@@ -6,6 +6,7 @@ use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_scheme::legacy_prefix;
 use crate::id_scheme::CanonicaliseError;
+use crate::id_scheme::FilenameIdentity;
 use crate::id_scheme::IdReadings;
 use crate::id_scheme::IdScheme;
 use tracker::TrackerKeys;
@@ -78,12 +79,18 @@ impl IdReadings for TrackerIds {
         IdScheme::pad_legacy_number(reference)
     }
 
-    fn filename_identity(&self, filename: &str) -> Option<(String, usize)> {
+    fn filename_identity(&self, filename: &str) -> Option<FilenameIdentity> {
         if let Some(draft) = draft_prefix(filename) {
-            return Some((draft.as_str().to_owned(), DraftId::LENGTH + 1));
+            return Some(FilenameIdentity {
+                identity_key: draft.as_str().to_owned(),
+                id_end: DraftId::LENGTH,
+            });
         }
         let held = self.read_held_prefix(filename)?;
-        Some((joined(held.parts())?, held.slug_start()))
+        Some(FilenameIdentity {
+            identity_key: joined(held.parts())?,
+            id_end: held.id_end(),
+        })
     }
 
     fn read_held(&self, value: &str) -> Option<IdParts> {
