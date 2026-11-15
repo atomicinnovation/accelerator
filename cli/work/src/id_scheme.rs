@@ -6,6 +6,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 use crate::draft_id::DraftId;
+use crate::id_pattern::is_id_character;
 use crate::id_pattern::HeldPrefix;
 use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
@@ -102,6 +103,12 @@ use crate::id_scheme::tracker_ids::TrackerIds;
 
 fn is_digits(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// The digits a legacy `NNNN-slug` filename starts with.
+fn legacy_prefix(filename: &str) -> Option<&str> {
+    let (digits, _) = filename.split_once('-')?;
+    is_digits(digits).then_some(digits)
 }
 
 const LEGACY_WIDTH: usize = 4;
@@ -363,10 +370,6 @@ impl corpus::IdConvention for IdScheme {
             .filename_identity(filename)
             .map(|(identity, _)| identity)
     }
-}
-
-const fn is_id_character(character: char) -> bool {
-    character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
 }
 
 impl corpus::LinkageIds for IdScheme {

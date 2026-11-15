@@ -192,7 +192,7 @@ impl IdKey {
     }
 }
 
-const fn is_literal_character(character: char) -> bool {
+pub(crate) const fn is_id_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
 }
 
@@ -200,7 +200,7 @@ const fn is_literal_character(character: char) -> bool {
 /// digits, `.`, `_` and `-`.
 #[must_use]
 pub fn is_in_id_alphabet(text: &str) -> bool {
-    !text.is_empty() && text.chars().all(is_literal_character)
+    !text.is_empty() && text.chars().all(is_id_character)
 }
 
 fn is_key_token(token: &str) -> bool {
@@ -615,7 +615,7 @@ fn segments_of(characters: &[char]) -> Result<Vec<Segment>, PatternError> {
             i = after;
             continue;
         }
-        if !is_literal_character(character) {
+        if !is_id_character(character) {
             return Err(PatternError::HostileChar(character));
         }
         literal.push(character);

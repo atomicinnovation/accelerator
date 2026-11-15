@@ -903,7 +903,7 @@ pub trait RemoteTracker: BodyDialect {
 /// identifiers a work item can take as its `id`.
 #[must_use]
 pub fn supports_tracker_owned_ids(integration: &str) -> bool {
-    matches!(integration, "jira" | "linear")
+    TrackerKeys::of_integration(integration) != TrackerKeys::AnySupported
 }
 
 /// Whose rules decide what an issue key looks like: one tracker's, or any

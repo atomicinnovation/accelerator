@@ -6,6 +6,7 @@ use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::MissingKey;
 use crate::id_scheme::is_digits;
+use crate::id_scheme::legacy_prefix;
 use crate::id_scheme::CanonicaliseError;
 use crate::id_scheme::IdReadings;
 use crate::id_scheme::LEGACY_WIDTH;
@@ -77,11 +78,6 @@ impl PatternIds {
             IdParts::of(None, digits)
         }
     }
-}
-
-fn legacy_prefix(filename: &str) -> Option<&str> {
-    let (digits, _) = filename.split_once('-')?;
-    is_digits(digits).then_some(digits)
 }
 
 impl IdReadings for PatternIds {

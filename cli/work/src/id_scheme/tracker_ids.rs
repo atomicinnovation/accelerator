@@ -4,7 +4,7 @@ use crate::draft_id::DraftId;
 use crate::id_pattern::HeldPrefix;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
-use crate::id_scheme::is_digits;
+use crate::id_scheme::legacy_prefix;
 use crate::id_scheme::CanonicaliseError;
 use crate::id_scheme::IdReadings;
 use crate::id_scheme::IdScheme;
@@ -45,11 +45,6 @@ fn tracker_key_prefix(
         digits,
         token.len(),
     ))
-}
-
-fn legacy_prefix(filename: &str) -> Option<&str> {
-    let (digits, _) = filename.split_once('-')?;
-    is_digits(digits).then_some(digits)
 }
 
 fn draft_prefix(filename: &str) -> Option<DraftId> {
