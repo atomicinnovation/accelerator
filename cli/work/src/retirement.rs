@@ -25,6 +25,7 @@ use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
 use crate::path_component::is_one_path_component;
 use crate::show::read_field_raw;
+use crate::shown_path::relative_to;
 use crate::tracker_key::TrackerKey;
 use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::DRAFTS_DIRECTORY;
@@ -204,13 +205,6 @@ pub enum RetirementRefusal {
     IdOutsideAlphabet {
         id: String,
     },
-}
-
-/// `path` relative to `root` when it lies under it, else as it is.
-pub(crate) fn relative_to(path: PathBuf, root: &Path) -> PathBuf {
-    path.strip_prefix(root)
-        .map(Path::to_path_buf)
-        .unwrap_or(path)
 }
 
 impl RetirementRefusal {

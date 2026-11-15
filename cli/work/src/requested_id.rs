@@ -12,7 +12,7 @@ use crate::id_pattern::IdParts;
 use crate::id_pattern::PatternKeying;
 use crate::id_scheme::IdScheme;
 use crate::identity::IdentityField;
-use crate::retirement::relative_to;
+use crate::shown_path::relative_to;
 use crate::work_item_files::identity_of;
 use crate::work_item_files::WorkItemFile;
 use crate::work_item_files::WorkItemListing;

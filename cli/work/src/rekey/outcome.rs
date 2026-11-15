@@ -13,9 +13,9 @@ use crate::rekey::run_plan::Unreadability;
 use crate::rekey::run_plan::UnreadablePlan;
 use crate::rekey::write_set::Base;
 use crate::rekey::write_set::Unreverted;
-use crate::retirement::relative_to;
 use crate::retirement::RetirementCause;
 use crate::retirement::RetirementRefusal;
+use crate::shown_path::relative_to;
 
 /// The `external_id` a re-key target would read as, and `work.key` when it
 /// is the tracker's own key.

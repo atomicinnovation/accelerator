@@ -26,6 +26,7 @@ pub mod resolve;
 pub mod retirement;
 pub mod section_diff;
 pub mod show;
+mod shown_path;
 pub mod sync;
 pub mod tags;
 pub mod template_hints;

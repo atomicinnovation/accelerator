@@ -16,7 +16,7 @@ use crate::rekey::mapping::why_unclassifiable;
 use crate::rekey::outcome::unclassifiable;
 use crate::rekey::outcome::unclassifiable_remedy;
 use crate::rekey::outcome::UnclassifiableCause;
-use crate::retirement::relative_to;
+use crate::shown_path::relative_to;
 use crate::tracker_key::TrackerKey;
 
 /// Whether `identity` already holds an ID the scheme gives.

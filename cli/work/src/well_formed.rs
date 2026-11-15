@@ -7,7 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::id_pattern::escaped;
-use crate::retirement::relative_to;
+use crate::shown_path::relative_to;
 use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::identity_of;
 use crate::work_item_files::list_field;
