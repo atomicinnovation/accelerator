@@ -1202,11 +1202,14 @@ mod tests {
         let repo = legacy_pair();
         let store = FileCorpusStore::new(repo.root());
         FileRetirementRecords::new(&repo.path(".accelerator/state"), &store)
-            .save(&RetirementRecord::of(&Retirement {
-                old_id: "draft-k7mq3x",
-                new_id: "ENG-42",
-                new_external_id: Some("ENG-42"),
-            }))
+            .save(
+                &RetirementRecord::of(&Retirement {
+                    old_id: "draft-k7mq3x",
+                    new_id: "ENG-42",
+                    new_external_id: Some("ENG-42"),
+                })
+                .unwrap(),
+            )
             .unwrap();
 
         let ran = repo.rekey();
@@ -1649,11 +1652,14 @@ mod tests {
             &unfinished.path(".accelerator/state"),
             &store,
         )
-        .save(&RetirementRecord::of(&Retirement {
-            old_id: "draft-k7mq3x",
-            new_id: "ENG-42",
-            new_external_id: Some("ENG-42"),
-        }))
+        .save(
+            &RetirementRecord::of(&Retirement {
+                old_id: "draft-k7mq3x",
+                new_id: "ENG-42",
+                new_external_id: Some("ENG-42"),
+            })
+            .unwrap(),
+        )
         .unwrap();
 
         for (repo, code) in [

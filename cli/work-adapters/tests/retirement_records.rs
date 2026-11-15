@@ -28,6 +28,7 @@ fn record() -> RetirementRecord {
         new_id: "ENG-42",
         new_external_id: Some("ENG-42"),
     })
+    .unwrap()
 }
 
 #[test]
@@ -40,27 +41,6 @@ fn a_saved_record_is_outstanding_until_removed() {
 
     records.remove(&record()).unwrap();
     assert!(records.outstanding().unwrap().is_empty());
-}
-
-#[test]
-fn a_record_whose_ids_would_name_a_path_is_refused() {
-    let state = tempfile::tempdir().unwrap();
-    let records = FileRetirementRecords::new(state.path(), &PlainWrite);
-    let escaping = RetirementRecord::of(&Retirement {
-        old_id: "PP-760",
-        new_id: "../../escaped",
-        new_external_id: Some("../../escaped"),
-    });
-
-    assert!(matches!(
-        records.save(&escaping),
-        Err(StoreError::Validation { .. })
-    ));
-    assert!(matches!(
-        records.remove(&escaping),
-        Err(StoreError::Validation { .. })
-    ));
-    assert!(!state.path().join("escaped.json").exists());
 }
 
 #[test]

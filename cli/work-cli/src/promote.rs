@@ -793,11 +793,14 @@ mod tests {
         );
         let store = FileCorpusStore::new(repo.root());
         FileRetirementRecords::new(&repo.path(".accelerator/state"), &store)
-            .save(&RetirementRecord::of(&Retirement {
-                old_id: "PP-760",
-                new_id: "ENG-42",
-                new_external_id: Some("ENG-42"),
-            }))
+            .save(
+                &RetirementRecord::of(&Retirement {
+                    old_id: "PP-760",
+                    new_id: "ENG-42",
+                    new_external_id: Some("ENG-42"),
+                })
+                .unwrap(),
+            )
             .unwrap();
 
         let (lines, _, code) = reported(repo.promote(&fresh(), None, false));

@@ -69,8 +69,8 @@ pub fn unfinished_sync_work(sync: &SyncState<'_>) -> Vec<SyncBlocker> {
                 records
                     .into_iter()
                     .map(|record| SyncBlocker::Retirement {
-                        old: record.old,
-                        new: record.new,
+                        old: record.old.as_str().to_owned(),
+                        new: record.new.as_str().to_owned(),
                     })
                     .collect()
             },

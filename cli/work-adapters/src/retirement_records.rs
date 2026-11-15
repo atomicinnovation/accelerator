@@ -8,9 +8,8 @@ use corpus::store::AtomicWrite;
 use corpus::StoreError;
 use serde_json::json;
 use serde_json::Value;
-use work::id_pattern::is_in_id_alphabet;
-use work::path_component::is_one_path_component;
-use work::retirement::is_recovery_dir;
+use work::retirement::RecordedId;
+use work::retirement::RecoveryDir;
 use work::retirement::RetirementRecord;
 
 use crate::ignored_dir::prepare_ignored_dir;
@@ -50,28 +49,23 @@ impl<'a> FileRetirementRecords<'a> {
         }
     }
 
-    fn path_of(
-        &self,
-        record: &RetirementRecord,
-    ) -> Result<PathBuf, StoreError> {
-        let name = format!("{}--{}.json", record.old, record.new);
-        if is_one_path_component(&name) {
-            Ok(self.dir.join(name))
-        } else {
-            Err(StoreError::Validation {
-                detail: format!("'{name}' is not a record file name"),
-            })
-        }
+    fn path_of(&self, record: &RetirementRecord) -> PathBuf {
+        self.dir.join(format!(
+            "{}--{}.json",
+            record.old.as_str(),
+            record.new.as_str()
+        ))
     }
 }
 
 fn encode(record: &RetirementRecord) -> String {
     json!({
         "schema": SCHEMA,
-        "old": record.old,
-        "new": record.new,
-        "new_external_id": record.new_external_id,
-        "recovery_dir": record.recovery_dir.display().to_string(),
+        "old": record.old.as_str(),
+        "new": record.new.as_str(),
+        "new_external_id":
+            record.new_external_id.as_ref().map(RecordedId::as_str),
+        "recovery_dir": record.recovery_dir.as_path().display().to_string(),
     })
     .to_string()
         + "\n"
@@ -90,25 +84,21 @@ fn decode(path: &Path, raw: &str) -> Result<RetirementRecord, StoreError> {
         value
             .get(field)
             .and_then(Value::as_str)
-            .map(str::to_owned)
             .ok_or_else(|| malformed(&format!("missing '{field}'")))
     };
-    let as_id = |field: &str, id: String| {
-        if is_in_id_alphabet(&id) && is_one_path_component(&id) {
-            Ok(id)
-        } else {
-            Err(malformed(&format!("'{field}' is not an ID")))
-        }
+    let as_id = |field: &str, id: &str| {
+        RecordedId::parse(id)
+            .ok_or_else(|| malformed(&format!("'{field}' is not an ID")))
     };
     let new_external_id = value
         .get("new_external_id")
         .and_then(Value::as_str)
-        .map(|id| as_id("new_external_id", id.to_owned()))
+        .map(|id| as_id("new_external_id", id))
         .transpose()?;
-    let recovery_dir = PathBuf::from(text("recovery_dir")?);
-    if !is_recovery_dir(&recovery_dir) {
-        return Err(malformed("'recovery_dir' is not a recovery directory"));
-    }
+    let recovery_dir = RecoveryDir::parse(Path::new(text("recovery_dir")?))
+        .ok_or_else(|| {
+            malformed("'recovery_dir' is not a recovery directory")
+        })?;
     Ok(RetirementRecord {
         old: as_id("old", text("old")?)?,
         new: as_id("new", text("new")?)?,
@@ -121,7 +111,7 @@ impl RetirementRecords for FileRetirementRecords<'_> {
     fn save(&self, record: &RetirementRecord) -> Result<(), StoreError> {
         prepare_ignored_dir(&self.dir, self.writer)?;
         self.writer
-            .write(&self.path_of(record)?, encode(record).as_bytes())
+            .write(&self.path_of(record), encode(record).as_bytes())
     }
 
     fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError> {
@@ -158,7 +148,7 @@ impl RetirementRecords for FileRetirementRecords<'_> {
     }
 
     fn remove(&self, record: &RetirementRecord) -> Result<(), StoreError> {
-        let path = self.path_of(record)?;
+        let path = self.path_of(record);
         match std::fs::remove_file(&path) {
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
                 Err(StoreError::Io {

@@ -194,7 +194,7 @@ fn an_outstanding_retirement_record_blocks_naming_its_old_id(
         old_id: "PP-760",
         new_id: "ENG-42",
         new_external_id: Some("ENG-42"),
-    }))?;
+    })?)?;
 
     let blockers = with_sync_state(&repo, true, unfinished_sync_work);
 

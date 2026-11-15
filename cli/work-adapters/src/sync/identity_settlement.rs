@@ -201,11 +201,11 @@ fn incomplete(
 /// or a row explaining why not. A restore that could not complete stops the
 /// pass instead, and leaves the record for the next run.
 fn finish_locked(
-    retirement: &Retirement<'_>,
+    record: &RetirementRecord,
     settlement: &SettlementPorts<'_>,
     lock: &crate::retirement::RetirementLockGuard,
 ) -> Result<IdentityOutcome, RunError> {
-    let record = RetirementRecord::of(retirement);
+    let retirement = &record.retirement();
     let outcome =
         match finish_retirement(retirement, settlement.retirement, lock) {
             Ok(()) => IdentityOutcome::Applied,
@@ -222,7 +222,7 @@ fn finish_locked(
                 ))
             }
         };
-    settlement.records.remove(&record).map_err(internal)?;
+    settlement.records.remove(record).map_err(internal)?;
     Ok(outcome)
 }
 
@@ -237,10 +237,10 @@ fn reconcile(
     for record in settlement.records.outstanding().map_err(internal)? {
         let retirement = record.retirement();
         let row = |outcome| IdentityRow {
-            id: record.old.clone(),
-            settled_id: record.new.clone(),
+            id: record.old.as_str().to_owned(),
+            settled_id: record.new.as_str().to_owned(),
             action: IdentityAction::Resumed,
-            detail: arrow(&record.old, &record.new),
+            detail: arrow(record.old.as_str(), record.new.as_str()),
             outcome,
         };
         if mode == RunMode::Preview {
@@ -270,7 +270,7 @@ fn reconcile(
             settlement.records.remove(&record).map_err(internal)?;
             continue;
         }
-        rows.push(row(finish_locked(&retirement, settlement, &lock)?));
+        rows.push(row(finish_locked(&record, settlement, &lock)?));
     }
     Ok(rows)
 }
@@ -574,11 +574,9 @@ fn retire_key(
         settlement.identity_run,
     )
     .map_err(internal)?;
-    settlement
-        .records
-        .save(&RetirementRecord::of(&retirement))
-        .map_err(internal)?;
-    finish_locked(&retirement, settlement, &lock)
+    let record = RetirementRecord::of(&retirement).map_err(internal)?;
+    settlement.records.save(&record).map_err(internal)?;
+    finish_locked(&record, settlement, &lock)
 }
 
 fn apply_key_change(

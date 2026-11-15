@@ -233,7 +233,7 @@ impl Repo {
     fn save_record(&self, retirement: &Retirement<'_>) {
         let store = FileCorpusStore::new(self.root());
         FileRetirementRecords::new(&self.path(STATE), &store)
-            .save(&RetirementRecord::of(retirement))
+            .save(&RetirementRecord::of(retirement).unwrap())
             .unwrap();
     }
 

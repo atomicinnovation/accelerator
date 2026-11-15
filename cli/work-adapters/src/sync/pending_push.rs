@@ -423,7 +423,7 @@ fn stage_from(
                     || MarkerError::Malformed("missing 'before'".to_owned()),
                 )?;
             let recovery_dir = PathBuf::from(text(object, "recovery_dir")?);
-            if !work::retirement::is_recovery_dir(&recovery_dir) {
+            if work::retirement::RecoveryDir::parse(&recovery_dir).is_none() {
                 return Err(MarkerError::Malformed(
                     "'recovery_dir' is not a recovery directory".to_owned(),
                 ));

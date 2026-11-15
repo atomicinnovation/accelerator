@@ -30,28 +30,19 @@ use crate::tracker_key::TrackerKey;
 use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::DRAFTS_DIRECTORY;
 
+mod record;
+
+pub use crate::retirement::record::RecordedId;
+pub use crate::retirement::record::RecoveryDir;
+pub use crate::retirement::record::RetirementRecord;
+pub use crate::retirement::record::UnrecordableRetirement;
+
 const WORK_ITEM: &str = "work-item";
 
 /// Where every retirement keeps its recovery copies, relative to the state
 /// directory.
 pub const RECOVERY_PARENT: &str = "retirement-recovery";
 
-/// Whether `path` names a retirement's recovery directory: one directory
-/// directly under [`RECOVERY_PARENT`], relative to the state directory.
-#[must_use]
-pub fn is_recovery_dir(path: &Path) -> bool {
-    let mut components = path.components();
-    let parent = components.next();
-    let name = components.next();
-    matches!(
-        parent,
-        Some(std::path::Component::Normal(parent)) if parent == RECOVERY_PARENT
-    ) && matches!(
-        name,
-        Some(std::path::Component::Normal(name))
-            if is_one_path_component(&name.to_string_lossy())
-    ) && components.next().is_none()
-}
 const WORK_ITEM_REVIEW: &str = "work-item-review";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -102,40 +93,6 @@ impl<'a> Retirement<'a> {
     pub fn recovery_dir(&self) -> PathBuf {
         PathBuf::from(RECOVERY_PARENT)
             .join(format!("{}--{}", self.old_id, self.new_id))
-    }
-}
-
-/// The durable note that a retirement has started.
-///
-/// Written before it applies and removed once it has finished, rolled back
-/// or been refused, so a leftover record always names a retirement still in
-/// progress.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RetirementRecord {
-    pub old: String,
-    pub new: String,
-    pub new_external_id: Option<String>,
-    pub recovery_dir: PathBuf,
-}
-
-impl RetirementRecord {
-    #[must_use]
-    pub fn of(retirement: &Retirement<'_>) -> Self {
-        Self {
-            old: retirement.old_id.to_owned(),
-            new: retirement.new_id.to_owned(),
-            new_external_id: retirement.new_external_id.map(str::to_owned),
-            recovery_dir: retirement.recovery_dir(),
-        }
-    }
-
-    #[must_use]
-    pub fn retirement(&self) -> Retirement<'_> {
-        Retirement {
-            old_id: &self.old,
-            new_id: &self.new,
-            new_external_id: self.new_external_id.as_deref(),
-        }
     }
 }
 
@@ -1952,10 +1909,29 @@ mod tests {
 
     #[test]
     fn a_record_carries_its_retirement_back() {
-        let record = super::RetirementRecord::of(&promotion());
+        let record = super::RetirementRecord::of(&promotion())
+            .unwrap_or_else(|_| unreachable!());
 
         assert_eq!(record.retirement(), promotion());
-        assert_eq!(record.recovery_dir, promotion().recovery_dir());
+        assert_eq!(
+            record.recovery_dir.as_path(),
+            promotion().recovery_dir().as_path()
+        );
+    }
+
+    #[test]
+    fn a_retirement_whose_ids_would_name_a_path_cannot_be_recorded() {
+        let escaping = Retirement {
+            old_id: "PP-760",
+            new_id: "../../escaped",
+            new_external_id: Some("../../escaped"),
+        };
+
+        assert_eq!(
+            super::RetirementRecord::of(&escaping)
+                .map_err(|refusal| refusal.to_string()),
+            Err("'../../escaped' cannot name a retirement record".to_owned())
+        );
     }
 
     #[test]
