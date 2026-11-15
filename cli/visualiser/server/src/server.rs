@@ -52,6 +52,9 @@ pub struct AppState {
     pub activity_feed: Arc<crate::activity_feed::ActivityRingBuffer>,
     pub sse_hub: Arc<crate::sse_hub::SseHub>,
     pub write_coordinator: Arc<crate::write_coordinator::WriteCoordinator>,
+    /// Why work-item IDs cannot be trusted, read once at boot: a scheme that
+    /// could not be read, or a corpus holding items a re-key would move.
+    pub work_item_problem: Option<String>,
 }
 
 impl AppState {
@@ -76,10 +79,19 @@ impl AppState {
             work_root,
         ));
         let work_item_cfg =
-            Arc::new(cfg.work_item.clone().map_or_else(
-                WorkItemConfig::default_numeric,
-                WorkItemConfig::new,
-            ));
+            Arc::new(match (&cfg.work_item, &cfg.work_item_problem) {
+                (_, Some(_)) => WorkItemConfig::unreadable(),
+                (Some(scheme), None) => WorkItemConfig::new(scheme.clone()),
+                (None, None) => WorkItemConfig::default_numeric(),
+            });
+        let work_item_problem = cfg.work_item_problem.clone().or_else(|| {
+            let scheme = work_item_cfg.scheme()?;
+            let work_dir = cfg.doc_paths.get("work")?;
+            unconverged(scheme, &cfg.project_root, work_dir)
+        });
+        if let Some(problem) = &work_item_problem {
+            tracing::warn!("{problem}");
+        }
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),
@@ -159,8 +171,32 @@ impl AppState {
             activity_feed,
             sse_hub,
             write_coordinator,
+            work_item_problem,
         }))
     }
+}
+
+/// Why the corpus under `work_dir` needs a re-key or a fix before its IDs
+/// can be trusted, if it does.
+fn unconverged(
+    scheme: &work::id_scheme::IdScheme,
+    root: &Path,
+    work_dir: &Path,
+) -> Option<String> {
+    use work::work_item_files::WorkItemFiles as _;
+
+    let files =
+        work_adapters::filesystem::FilesystemWorkItemFiles::new(work_dir)
+            .files()
+            .ok()?;
+    let identities = work::work_item_files::identities(&files);
+    work::rekey::convergence::refuse_divergence(scheme, &identities)
+        .map_err(|refusal| refusal.relative_to(root).to_string())
+        .and_then(|()| {
+            work::well_formed::refuse_malformed(&files)
+                .map_err(|refusal| refusal.relative_to(root).to_string())
+        })
+        .err()
 }
 
 async fn canonical_or_self(p: PathBuf) -> PathBuf {
@@ -670,6 +706,7 @@ mod tests {
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
             work_item: None,
+            work_item_problem: None,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

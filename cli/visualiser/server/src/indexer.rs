@@ -364,7 +364,7 @@ impl Indexer {
                 adr_by_id.insert(id, path.clone());
             }
             if let Some(id) = identity_key_of_entry(&entry) {
-                work_item_by_identity_key.insert(id, path.clone());
+                hold_if_lower(&mut work_item_by_identity_key, id, &path);
             }
             if let Some(id) = plan_id_from_entry(&entry) {
                 plans_by_id.insert(id, path.clone());
@@ -461,6 +461,7 @@ impl Indexer {
                         remove_from_work_item_by_identity_key(
                             &self.work_item_by_identity_key,
                             &previous,
+                            &entries,
                         )
                         .await;
                         remove_from_plans_by_id(&self.plans_by_id, &previous)
@@ -512,6 +513,7 @@ impl Indexer {
                     &self.work_item_by_identity_key,
                     &entry,
                     previous.as_ref(),
+                    &entries,
                 )
                 .await;
                 update_plans_by_id(
@@ -573,6 +575,7 @@ impl Indexer {
                     remove_from_work_item_by_identity_key(
                         &self.work_item_by_identity_key,
                         &previous,
+                        &entries,
                     )
                     .await;
                     remove_from_plans_by_id(&self.plans_by_id, &previous).await;
@@ -967,7 +970,7 @@ pub(crate) fn target_path_from_entry(
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
         plans_by_id,
         work_item_by_identity_key,
-        work_item_cfg.scheme(),
+        work_item_cfg.convention(),
         project_root,
     )
 }
@@ -1018,21 +1021,62 @@ async fn update_adr_by_id(
     }
 }
 
+/// Gives `key` to `path` when nothing holds it or `path` sorts lower than
+/// its holder, so two files sharing an identity key resolve to the same
+/// one whatever order they are read in.
+fn hold_if_lower(map: &mut HashMap<String, PathBuf>, key: String, path: &Path) {
+    map.entry(key)
+        .and_modify(|holder| {
+            if path < holder.as_path() {
+                *holder = path.to_path_buf();
+            }
+        })
+        .or_insert_with(|| path.to_path_buf());
+}
+
+/// Takes `key` from `leaving` when it holds it, handing it to the lowest
+/// other path in `entries` sharing it.
+fn release(
+    map: &mut HashMap<String, PathBuf>,
+    key: &str,
+    leaving: &Path,
+    entries: &HashMap<PathBuf, IndexEntry>,
+) {
+    if map.get(key).map(PathBuf::as_path) != Some(leaving) {
+        return;
+    }
+    let next = entries
+        .values()
+        .filter(|entry| entry.path != leaving)
+        .filter(|entry| identity_key_of_entry(entry).as_deref() == Some(key))
+        .map(|entry| entry.path.clone())
+        .min();
+    match next {
+        Some(path) => {
+            map.insert(key.to_owned(), path);
+        }
+        None => {
+            map.remove(key);
+        }
+    }
+}
+
 async fn update_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
+    entries: &HashMap<PathBuf, IndexEntry>,
 ) {
     let prev_id = previous.and_then(identity_key_of_entry);
     let next_id = identity_key_of_entry(new_entry);
     let mut m = map.write().await;
     if let Some(ref prev_id) = prev_id {
         if Some(prev_id.as_str()) != next_id.as_deref() {
-            m.remove(prev_id);
+            release(&mut m, prev_id, &new_entry.path, entries);
         }
     }
     if let Some(id) = next_id {
-        m.insert(id, new_entry.path.clone());
+        hold_if_lower(&mut m, id, &new_entry.path);
     }
 }
 
@@ -1113,9 +1157,10 @@ async fn remove_from_adr_by_id(
 async fn remove_from_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     previous: &IndexEntry,
+    entries: &HashMap<PathBuf, IndexEntry>,
 ) {
     if let Some(id) = identity_key_of_entry(previous) {
-        map.write().await.remove(&id);
+        release(&mut *map.write().await, &id, &previous.path, entries);
     }
 }
 
@@ -1151,6 +1196,27 @@ async fn remove_from_reviews_by_target(
             }
         }
     }
+}
+
+/// A work item's frontmatter `id` as shown and as joined, warning when a
+/// non-blank one reads as neither.
+fn work_item_identity(
+    raw: &str,
+    work_item_cfg: &crate::config::WorkItemConfig,
+    path: &Path,
+) -> (Option<String>, Option<String>) {
+    let trimmed = raw.trim();
+    let shown = work_item_cfg.displayed_id(trimmed);
+    let identity = work_item_cfg.identity_key(trimmed);
+    if !trimmed.is_empty() && shown.is_none() && identity.is_none() {
+        tracing::warn!(
+            file = %path.display(),
+            key = "id",
+            value = raw,
+            "work-item identity frontmatter value failed shape validation",
+        );
+    }
+    (shown, identity)
 }
 
 /// The identity key a raw cross-reference, bare or a typed `work-item:`
@@ -1267,43 +1333,38 @@ fn build_entry(
         filename.to_string()
     };
 
-    let (slug_val, work_item_id, identity_key) = if kind
-        == DocTypeKey::WorkItems
-    {
-        let id_slug =
-            corpus::slug::derive_work_item(filename, work_item_cfg.scheme());
-        let slug = id_slug.or_else(|| {
-            corpus::slug::derive(kind, filename, work_item_cfg.scheme())
-        });
-        // A synced work item may carry its id in frontmatter even when the
-        // filename does not encode it, so `id:` alone is its identity.
-        let raw_id = match &parsed.state {
-            FrontmatterState::Parsed(map) => {
-                map.get("id").and_then(|v| v.as_str())
-            }
-            _ => None,
+    let (slug_val, work_item_id, identity_key) =
+        if kind == DocTypeKey::WorkItems {
+            let id_slug = corpus::slug::derive_work_item(
+                filename,
+                work_item_cfg.convention(),
+            );
+            let slug = id_slug.or_else(|| {
+                corpus::slug::derive(kind, filename, work_item_cfg.convention())
+            });
+            // A synced work item may carry its id in frontmatter even when the
+            // filename does not encode it, so `id:` alone is its identity.
+            let raw_id = match &parsed.state {
+                FrontmatterState::Parsed(map) => {
+                    map.get("id").and_then(|v| v.as_str())
+                }
+                _ => None,
+            };
+            let (shown, identity) = raw_id.map_or((None, None), |raw| {
+                work_item_identity(raw, work_item_cfg, &path)
+            });
+            (slug, shown, identity)
+        } else {
+            (
+                corpus::slug::derive(
+                    kind,
+                    &slug_filename,
+                    work_item_cfg.convention(),
+                ),
+                None,
+                None,
+            )
         };
-        let shown = raw_id.and_then(|raw| work_item_cfg.displayed_id(raw));
-        let identity =
-            raw_id.and_then(|raw| work_item_cfg.identity_key(raw.trim()));
-        if let Some(raw) = raw_id.filter(|raw| !raw.trim().is_empty()) {
-            if shown.is_none() && identity.is_none() {
-                tracing::warn!(
-                    file = %path.display(),
-                    key = "id",
-                    value = raw,
-                    "work-item identity frontmatter value failed shape validation",
-                );
-            }
-        }
-        (slug, shown, identity)
-    } else {
-        (
-            corpus::slug::derive(kind, &slug_filename, work_item_cfg.scheme()),
-            None,
-            None,
-        )
-    };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.
     let title_fallback_stem = markdown_stem(&slug_filename);
@@ -1518,6 +1579,32 @@ mod identity_join_tests {
         idx.get(&root.join(path)).await.expect("indexed")
     }
 
+    #[tokio::test]
+    async fn a_shared_identity_key_goes_to_the_lower_path_and_passes_on() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let lower = "meta/work/PP-0500-y.md";
+        let higher = "meta/work/pp-0500-x.md";
+        let idx = index_under(
+            &root,
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[
+                (higher, "---\nid: pp-0500\n---\n"),
+                (lower, "---\nid: PP-0500\n---\n"),
+            ],
+        )
+        .await;
+        let snapshot = idx.work_item_by_identity_key_snapshot().await;
+        assert_eq!(snapshot.get("PP-0500"), Some(&root.join(lower)));
+
+        std::fs::remove_file(root.join(lower)).unwrap();
+        idx.refresh_one(&root.join(lower)).await.unwrap();
+
+        let snapshot = idx.work_item_by_identity_key_snapshot().await;
+        assert_eq!(snapshot.get("PP-0500"), Some(&root.join(higher)));
+    }
+
     async fn cluster_keys(
         idx: &Indexer,
         root: &Path,
@@ -1555,6 +1642,7 @@ mod identity_join_tests {
             doc_paths: HashMap::new(),
             templates: HashMap::default(),
             work_item: Some(scheme_for_test("{key}-{number:04d}", Some(key))),
+            work_item_problem: None,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -2133,6 +2221,7 @@ mod tests {
             doc_paths,
             templates: HashMap::default(),
             work_item: None,
+            work_item_problem: None,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -2312,6 +2401,7 @@ mod tests {
                 "{key}-{number:04d}",
                 Some(code),
             )),
+            work_item_problem: None,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

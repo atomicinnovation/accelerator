@@ -67,6 +67,7 @@ fn cfg_with_only(
         doc_paths,
         templates,
         work_item: None,
+        work_item_problem: None,
         kanban_columns: None,
         idle_timeout: None,
         editor: None,

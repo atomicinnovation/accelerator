@@ -365,7 +365,8 @@ fn payload_for_entry(
 }
 
 fn is_markdown(path: &Path) -> bool {
-    path.extension().is_some_and(|e| e == "md")
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("md"))
 }
 
 /// Canonicalise a path that may not exist yet by walking up to the
@@ -561,6 +562,14 @@ const EVENT_BUDGET: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_markdown_file_is_watched_whatever_its_extensions_case() {
+        for name in ["a.md", "a.MD", "a.Md"] {
+            assert!(super::is_markdown(std::path::Path::new(name)), "{name}");
+        }
+        assert!(!super::is_markdown(std::path::Path::new("a.mdx")));
+    }
     use super::*;
     use crate::file_driver::LocalFileDriver;
     use crate::indexer::Indexer;

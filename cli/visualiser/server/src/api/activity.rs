@@ -70,6 +70,7 @@ mod tests {
             doc_paths: std::collections::HashMap::default(),
             templates: std::collections::HashMap::default(),
             work_item: None,
+            work_item_problem: None,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

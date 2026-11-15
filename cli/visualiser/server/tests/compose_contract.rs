@@ -215,18 +215,6 @@ fn project_with_work_config(work: &str) -> tempfile::TempDir {
     tmp
 }
 
-fn compose_error(dir: &Path) -> String {
-    load(Params {
-        cwd: dir.to_path_buf(),
-        plugin_root: repo_root(),
-        owner_pid: 0,
-        owner_start_time: None,
-        host: "127.0.0.1".to_string(),
-    })
-    .expect_err("the project composed")
-    .to_string()
-}
-
 #[test]
 fn the_visualiser_composes_under_tracker_without_an_integration() {
     let tmp = project_with_work_config("  id_pattern: \"{tracker}\"\n");
@@ -238,28 +226,32 @@ fn the_visualiser_composes_under_tracker_without_an_integration() {
 }
 
 #[test]
-fn a_pattern_needing_a_key_without_one_is_e_work_key_required() {
+fn a_pattern_needing_a_key_without_one_boots_reporting_e_work_key_required() {
     let tmp =
         project_with_work_config("  id_pattern: \"{key}-{number:04d}\"\n");
 
-    let error = compose_error(tmp.path());
+    let cfg = compose(tmp.path());
 
-    assert!(error.starts_with("E_WORK_KEY_REQUIRED:"), "{error}");
+    assert!(cfg.work_item.is_none());
+    let problem = cfg.work_item_problem.expect("the problem is reported");
+    assert!(problem.starts_with("E_WORK_KEY_REQUIRED:"), "{problem}");
 }
 
 #[test]
-fn a_malformed_pattern_fails_compose_naming_the_setting() {
+fn a_malformed_pattern_boots_reporting_the_setting() {
     let tmp = project_with_work_config("  id_pattern: \"{number:4d}\"\n");
 
-    let error = compose_error(tmp.path());
+    let cfg = compose(tmp.path());
 
+    assert!(cfg.work_item.is_none());
+    let problem = cfg.work_item_problem.expect("the problem is reported");
     assert!(
-        error.starts_with(
+        problem.starts_with(
             "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
         ),
-        "{error}"
+        "{problem}"
     );
-    assert!(error.contains("(rule 4)"), "{error}");
+    assert!(problem.contains("(rule 4)"), "{problem}");
 }
 
 /// The emptiness rule lives in `with_plugin_root`, so the server inherits it:

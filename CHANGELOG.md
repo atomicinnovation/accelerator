@@ -903,9 +903,20 @@
 - **Under a bare `{number}` pattern, the visualiser counts only a
   four-digit token as an ID inside a dated filename**, as the pattern's
   width says.
-- **The visualiser's boot refusal of a malformed `work.id_pattern` or
-  `work.key` names the setting and value**, and it refuses the newly refused
-  pattern forms the `### Migrations` entry lists.
+- **The visualiser boots when it cannot read the ID scheme.** Under a
+  malformed `work.id_pattern` or `work.key`, including the newly refused
+  pattern forms the `### Migrations` entry lists, it serves plans, research
+  and every other document, reads no work-item IDs, so nothing clusters or
+  links as a work item, and reports the refusal, naming the setting and
+  value, in its log and as `problem` from `/api/work-item/config`. A corpus
+  that needs a re-key, or holds a malformed work item, is reported there
+  too, read once at boot.
+- **The visualiser picks up a `.MD` work item's changes live**, as it does a
+  `.md` one's, rather than at the next rescan.
+- **Two work items sharing an identity key resolve to one of them
+  consistently.** The one at the lower path is the item a reference or
+  cluster joins, whatever order the files are read in, and removing it
+  hands the key to the other.
 
 - **A relocated `ACCELERATOR_CACHE_DIR` is pruned automatically on cold
   paths**, keeping what a version or tree claim from the last 14 days
@@ -1129,7 +1140,7 @@
   `-` (such as a space, `'`, `$`, or a `{` or `}` written as `{{` or `}}`),
   a digit beside `{key}` or `{number}` (such as `v2{number:03d}`), a width
   over 19 digits or a repeated token is refused by every `work` command that
-  reads the ID scheme and by the visualiser at boot, with
+  reads the ID scheme, and reported by the visualiser at boot, with
   `E_WORK_ID_PATTERN_INVALID: work.id_pattern '<value>': <reason>`.
   Migration 0002 reports the same for such a `{project}` pattern when legacy
   items remain to rename. Edit the pattern as the reason directs, then run

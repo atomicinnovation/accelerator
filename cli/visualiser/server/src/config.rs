@@ -29,6 +29,10 @@ pub struct Config {
     /// `None` is the numeric default.
     #[serde(skip)]
     pub work_item: Option<IdScheme>,
+    /// Why the configured scheme could not be read, when it could not: the
+    /// server then reads no work-item IDs rather than refusing to serve.
+    #[serde(skip)]
+    pub work_item_problem: Option<String>,
     /// Kanban column keys. Absent → seven template-status defaults.
     /// An empty list is rejected at boot.
     #[serde(default)]
@@ -60,16 +64,46 @@ pub struct KanbanColumn {
 }
 
 /// The work-item ID scheme the server reads IDs through, resolved once at
-/// boot.
-#[derive(Debug, Clone, Default)]
+/// boot, or none when the configured one could not be read.
+#[derive(Debug, Clone)]
 pub struct WorkItemConfig {
-    scheme: IdScheme,
+    scheme: Option<IdScheme>,
+}
+
+/// The convention of a server whose scheme could not be read: it names no
+/// work item, so nothing clusters or links as one.
+struct NoWorkItemIds;
+
+impl corpus::IdConvention for NoWorkItemIds {
+    fn slug_start(&self, _stem: &str) -> Option<usize> {
+        None
+    }
+
+    fn is_id(&self, _token: &str) -> bool {
+        false
+    }
+
+    fn identity_key(&self, _reference: &str) -> Option<String> {
+        None
+    }
+
+    fn id_in_filename(&self, _filename: &str) -> Option<String> {
+        None
+    }
+}
+
+impl Default for WorkItemConfig {
+    fn default() -> Self {
+        Self::default_numeric()
+    }
 }
 
 impl WorkItemConfig {
     #[must_use]
     pub const fn new(scheme: IdScheme) -> Self {
-        Self { scheme }
+        Self {
+            scheme: Some(scheme),
+        }
     }
 
     /// Used when `work_item` is absent from config: the `{number:04d}`
@@ -79,25 +113,42 @@ impl WorkItemConfig {
         Self::new(IdScheme::numeric())
     }
 
+    /// Used when the configured scheme could not be read.
     #[must_use]
-    pub const fn scheme(&self) -> &IdScheme {
-        &self.scheme
+    pub const fn unreadable() -> Self {
+        Self { scheme: None }
+    }
+
+    #[must_use]
+    pub const fn scheme(&self) -> Option<&IdScheme> {
+        self.scheme.as_ref()
+    }
+
+    /// The convention files and references are read through.
+    #[must_use]
+    pub fn convention(&self) -> &dyn corpus::IdConvention {
+        match &self.scheme {
+            Some(scheme) => scheme,
+            None => &NoWorkItemIds,
+        }
     }
 
     #[must_use]
     pub fn is_canonical_id_token(&self, token: &str) -> bool {
-        self.scheme.is_canonical_id_token(token)
+        self.scheme
+            .as_ref()
+            .is_some_and(|scheme| scheme.is_canonical_id_token(token))
     }
 
     #[must_use]
     pub fn displayed_id(&self, raw: &str) -> Option<String> {
-        self.scheme.displayed_id(raw)
+        self.scheme.as_ref()?.displayed_id(raw)
     }
 
     /// The key every spelling of one work item joins on.
     #[must_use]
     pub fn identity_key(&self, reference: &str) -> Option<String> {
-        self.scheme.identity_key(reference)
+        self.scheme.as_ref()?.identity_key(reference)
     }
 }
 
@@ -365,6 +416,16 @@ mod tests {
         assert!(!cfg.is_canonical_id_token("0040"));
         assert!(!cfg.is_canonical_id_token("PROJ-40"));
         assert!(!cfg.is_canonical_id_token("OTHER-0040"));
+    }
+
+    #[test]
+    fn an_unreadable_scheme_reads_no_work_item_ids() {
+        let cfg = WorkItemConfig::unreadable();
+        assert_eq!(cfg.displayed_id("0042"), None);
+        assert_eq!(cfg.identity_key("0042"), None);
+        assert!(!cfg.is_canonical_id_token("0042"));
+        assert_eq!(cfg.convention().id_in_filename("0042-x.md"), None);
+        assert_eq!(cfg.convention().slug_start("0042-x"), None);
     }
 
     #[test]

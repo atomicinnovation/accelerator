@@ -180,7 +180,7 @@ pub fn compute_clusters_with_backfill(
     HashMap<PathBuf, Completeness>,
     HashMap<PathBuf, Option<String>>,
 ) {
-    let identity = ctx.work_item_cfg.scheme();
+    let identity = ctx.work_item_cfg.convention();
     let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
         entries,
         ctx.work_item_by_identity_key,

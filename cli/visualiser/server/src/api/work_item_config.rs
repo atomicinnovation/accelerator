@@ -10,6 +10,8 @@ use crate::server::AppState;
 pub(crate) struct WorkItemConfigBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<String>,
 }
 
 pub(crate) async fn get_work_item_config(
@@ -21,7 +23,8 @@ pub(crate) async fn get_work_item_config(
         .as_ref()
         .and_then(|scheme| scheme.key())
         .map(|key| key.as_str().to_owned());
-    Json(WorkItemConfigBody { key })
+    let problem = state.work_item_problem.clone();
+    Json(WorkItemConfigBody { key, problem })
 }
 
 #[cfg(test)]
@@ -48,6 +51,7 @@ mod tests {
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
             work_item: None,
+            work_item_problem: None,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -110,5 +114,71 @@ mod tests {
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(v["key"], "PROJ");
+    }
+
+    async fn config_body(cfg: Config) -> serde_json::Value {
+        let activity = Arc::new(Activity::new());
+        let state =
+            crate::server::AppState::build(cfg, activity).await.unwrap();
+        let resp = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/work-item/config")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_scheme_is_reported_as_the_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.work_item_problem =
+            Some("E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad".into());
+
+        let body = config_body(cfg).await;
+
+        assert_eq!(
+            body["problem"],
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_corpus_off_the_pattern_is_reported_as_the_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(
+            work.join("PP-0001-a.md"),
+            "---\nid: \"PP-0001\"\n---\n",
+        )
+        .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+        cfg.work_item = Some(crate::config::scheme_for_test(
+            "{key}_{number:04d}",
+            Some("PP"),
+        ));
+
+        let body = config_body(cfg).await;
+
+        let problem = body["problem"].as_str().unwrap_or_default();
+        assert!(
+            problem.starts_with("E_REKEY_REQUIRED: 1 work item"),
+            "{body}"
+        );
+        assert!(problem.contains("meta/work/PP-0001-a.md"), "{body}");
+    }
+
+    #[tokio::test]
+    async fn a_converged_corpus_reports_no_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let body = config_body(minimal_config(tmp.path())).await;
+        assert!(body.get("problem").is_none(), "{body}");
     }
 }

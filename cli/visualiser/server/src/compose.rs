@@ -74,7 +74,11 @@ pub fn load(params: Params) -> Result<Config, ComposeError> {
         &templates_rel,
         &params.plugin_root,
     )?;
-    let work_item = Some(resolve_work_item(service)?);
+    let (work_item, work_item_problem) = match resolve_work_item(service) {
+        Ok(scheme) => (Some(scheme), None),
+        Err(ComposeError::Scheme(error)) => (None, Some(error.to_string())),
+        Err(other) => return Err(other),
+    };
     let kanban_columns = resolve_kanban(service)?;
     let idle_timeout = resolve_idle(service)?;
     let editor = resolve_optional(
@@ -100,6 +104,7 @@ pub fn load(params: Params) -> Result<Config, ComposeError> {
         doc_paths,
         templates,
         work_item,
+        work_item_problem,
         kanban_columns,
         idle_timeout,
         editor,
