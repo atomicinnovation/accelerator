@@ -199,6 +199,17 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **`work create --id` and `work id check` exit 4 for a taken ID.**
+  `E_ID_TAKEN` exits 4, as every other collision refusal does, where it
+  exited 1; the other `E_ID_*` refusals still exit 1. Scripts that branch
+  on these exit codes need updating.
+- **The `work id` verbs speak one error vocabulary.** Every refusal of
+  `work id canonicalise`, `work id next` and `work id check` starts with
+  `Error: `; `work id canonicalise` refuses a malformed `work.key` as
+  `E_WORK_KEY_INVALID`, as its siblings do; the retired `work next-number`
+  and `work canonicalise-id` print `Error: E_VERB_RETIRED:`; and `work id
+  check` and `work id next` report an unfinished re-key before a malformed
+  pattern, as `work create` does.
 - **A malformed `work.key` the pattern does not use is warned about.**
   Under a pattern with no `{key}` token, a `work.key` or
   `work.default_project_code` that a `{key}` pattern would refuse prints

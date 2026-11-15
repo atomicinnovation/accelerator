@@ -298,7 +298,7 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
         }
         create::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");
-            ExitCode::FAILURE
+            ExitCode::from(exit_codes::of_failure(&message))
         }
         create::RunOutcome::Refused { message, code } => {
             eprintln!("{message}");

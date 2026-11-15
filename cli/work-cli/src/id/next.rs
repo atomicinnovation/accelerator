@@ -64,6 +64,15 @@ pub fn run(
     count: u32,
     identity_run: &IdentityRunStart<'_>,
 ) -> RunOutcome {
+    let start_root = config_adapters::FileConfigStore::discover_root(start);
+    let _identity_run = match identity_run(&start_root, "id next") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            let (message, code) =
+                crate::identity_run::refused(refusal, &start_root);
+            return RunOutcome::Refused { message, code };
+        }
+    };
     let WorkItemLocation {
         scheme,
         root,
@@ -73,13 +82,6 @@ pub fn run(
         Err(message) => return RunOutcome::Failed(message),
     };
     let pattern = scheme.pattern();
-    let _identity_run = match identity_run(&root, "id next") {
-        Ok(guard) => guard,
-        Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal, &root);
-            return RunOutcome::Refused { message, code };
-        }
-    };
     if let Err(Diverged { message, code }) =
         refuse_diverged_corpus(&scheme, &root, &work_dir)
     {

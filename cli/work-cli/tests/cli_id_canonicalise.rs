@@ -104,7 +104,7 @@ fn bare_number_under_a_project_pattern_with_no_project_configured(
     let stderr = String::from_utf8(output.stderr)?;
     assert_eq!(
         stderr.trim(),
-        "E_PATTERN_MISSING_KEY: bare number '42' under pattern \
+        "Error: E_PATTERN_MISSING_KEY: bare number '42' under pattern \
          '{project}-{number:04d}' requires a key value"
     );
     Ok(())
@@ -134,7 +134,10 @@ fn empty_input_is_rejected() -> Result<(), TestError> {
     let output = run(repo.path(), "")?;
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8(output.stderr)?;
-    assert_eq!(stderr.trim(), "E_PATTERN_BAD_FORMAT_SPEC: empty input");
+    assert_eq!(
+        stderr.trim(),
+        "Error: E_PATTERN_BAD_FORMAT_SPEC: empty input"
+    );
     Ok(())
 }
 
@@ -146,7 +149,7 @@ fn unrecognised_id_shape_is_rejected() -> Result<(), TestError> {
     let stderr = String::from_utf8(output.stderr)?;
     assert_eq!(
         stderr.trim(),
-        "E_PATTERN_BAD_FORMAT_SPEC: input 'not-an-id' is not a recognised \
+        "Error: E_PATTERN_BAD_FORMAT_SPEC: input 'not-an-id' is not a recognised \
          ID shape"
     );
     Ok(())
@@ -160,7 +163,7 @@ fn canonicalise_keeps_its_error_codes_for_a_malformed_pattern(
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8(output.stderr)?.trim(),
-        "E_PATTERN_BAD_FORMAT_SPEC: {number} format spec '4d' must match 0Nd \
+        "Error: E_PATTERN_BAD_FORMAT_SPEC: {number} format spec '4d' must match 0Nd \
          (rule 4)"
     );
     Ok(())
@@ -173,7 +176,7 @@ fn a_number_too_long_for_the_pattern_does_not_match() -> Result<(), TestError> {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8(output.stderr)?.trim(),
-        "E_PATTERN: input does not match the pattern"
+        "Error: E_PATTERN: input does not match the pattern"
     );
     Ok(())
 }
@@ -185,7 +188,25 @@ fn a_pattern_with_a_forbidden_literal_is_refused() -> Result<(), TestError> {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8(output.stderr)?.trim(),
-        "E_PATTERN: literal '/' is forbidden in patterns (rule 2)"
+        "Error: E_PATTERN: literal '/' is forbidden in patterns (rule 2)"
     );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_key_is_refused_as_its_siblings_refuse_it(
+) -> Result<(), TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-id-canonicalise-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  key: 1PP\n---\n",
+    )?;
+    let output = run(dir.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8(output.stderr)?
+        .starts_with("Error: E_WORK_KEY_INVALID: work.key '1PP':"),);
     Ok(())
 }

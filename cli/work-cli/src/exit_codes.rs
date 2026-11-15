@@ -203,11 +203,13 @@
 //! order. Under `--push`, the pending-push refusals (`E_PUSH_PENDING`,
 //! `E_PUSH_MARKER_UNREADABLE`, `E_PUSH_FINGERPRINT_MISMATCH`,
 //! `E_PUSH_ALREADY_WRITTEN`) come between `E_ID_PATTERN_MISMATCH` and
-//! `E_ID_TAKEN`. Each exits `1`, deliberately: `work create`'s other argument
-//! refusals (`E_PATTERN_*`, `E_WORK_*`) already do, although the `1` band
-//! reads "an internal error" and other collision refusals exit `4`.
-//! `work id check` gives the same refusals, exiting `1`, except
-//! `E_ID_WITH_PROJECT`, since it takes no `--project`.
+//! `E_ID_TAKEN`. `E_ID_TAKEN` exits `4`, as every other collision does; the
+//! others exit `1`, as `work create`'s other argument refusals
+//! (`E_PATTERN_*`, `E_WORK_*`) do, so a caller tells a bad ID from a taken
+//! one by its exit code. `work id check` gives the same refusals with the
+//! same exit codes, except `E_ID_WITH_PROJECT`, since it takes no
+//! `--project`, and like `work create` takes the identity-run lock before
+//! reading the scheme.
 
 use tracker::TrackerError;
 
@@ -238,9 +240,36 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
     }
 }
 
+/// The exit code a refusal reported by its message exits with: a taken ID
+/// is a collision, exiting [`UNRESOLVED`] like every other, and anything
+/// else is [`ERROR`].
+#[must_use]
+pub fn of_failure(message: &str) -> u8 {
+    if message.starts_with("E_ID_TAKEN:") {
+        UNRESOLVED
+    } else {
+        ERROR
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_taken_id_exits_as_a_collision_and_other_refusals_as_errors() {
+        assert_eq!(
+            of_failure("E_ID_TAKEN: '0400' is already held"),
+            UNRESOLVED
+        );
+        for message in [
+            "E_ID_PATTERN_MISMATCH: '400' is not",
+            "E_PATTERN_OVERFLOW: number space exhausted",
+            "could not create the work-item directory",
+        ] {
+            assert_eq!(of_failure(message), ERROR, "{message}");
+        }
+    }
 
     #[test]
     fn the_keyed_read_abort_has_its_own_code_distinct_from_the_rest() {

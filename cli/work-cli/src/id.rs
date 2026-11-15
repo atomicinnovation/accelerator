@@ -26,7 +26,7 @@ pub fn run(action: IdAction) -> ExitCode {
 }
 
 pub fn retired(pointer: &str) -> ExitCode {
-    eprintln!("{pointer}");
+    eprintln!("Error: E_VERB_RETIRED: {pointer}");
     ExitCode::from(exit_codes::USAGE)
 }
 
@@ -42,7 +42,7 @@ fn run_canonicalise(input: &str) -> ExitCode {
             ExitCode::SUCCESS
         }
         canonicalise::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
+            eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
     }
@@ -71,11 +71,11 @@ fn run_next(project: Option<&str>, count: u32) -> ExitCode {
             for id in partial {
                 println!("{id}");
             }
-            eprintln!("{message}");
+            eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
         next::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
+            eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
         next::RunOutcome::Refused { message, code } => {
@@ -98,7 +98,7 @@ fn run_check(requested: &str) -> ExitCode {
         }
         check::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");
-            ExitCode::FAILURE
+            ExitCode::from(exit_codes::of_failure(&message))
         }
         check::RunOutcome::Refused { message, code } => {
             eprintln!("{message}");

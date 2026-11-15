@@ -19,7 +19,6 @@ fn scheme_failure(error: SchemeError) -> String {
             ..
         } => format!("E_PATTERN_BAD_FORMAT_SPEC: {error}"),
         SchemeError::Pattern { error, .. } => format!("E_PATTERN: {error}"),
-        SchemeError::Key { error, .. } => format!("E_PATTERN: {error}"),
         other => other.to_string(),
     }
 }

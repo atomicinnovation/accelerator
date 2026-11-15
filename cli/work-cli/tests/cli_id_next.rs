@@ -125,7 +125,7 @@ fn overflow_prints_the_partial_ids_that_fit_then_exits_one(
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(String::from_utf8(output.stdout)?, "9999\n");
     let stderr = String::from_utf8(output.stderr)?;
-    assert!(stderr.contains("E_PATTERN_OVERFLOW"));
+    assert!(stderr.starts_with("Error: E_PATTERN_OVERFLOW:"), "{stderr}");
     assert!(stderr.contains("number space exhausted"));
     Ok(())
 }
@@ -141,7 +141,7 @@ fn a_hostile_project_is_refused_with_the_key_shape_reason(
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
         stderr.starts_with(
-            "E_WORK_KEY_INVALID: --project 'a/b': key value 'a/b' must \
+            "Error: E_WORK_KEY_INVALID: --project 'a/b': key value 'a/b' must \
              match [A-Za-z][A-Za-z0-9]* (rule 5)"
         ),
         "{stderr}"
@@ -206,7 +206,11 @@ fn the_flat_id_verbs_name_their_replacements() -> Result<(), TestError> {
         let stderr = String::from_utf8(output.stderr)?;
         assert_eq!(output.status.code(), Some(2), "{args:?}: {stderr}");
         assert!(output.stdout.is_empty(), "{args:?}");
-        assert!(stderr.contains(pointer), "{args:?}: {stderr}");
+        assert_eq!(
+            stderr.trim_end(),
+            format!("Error: E_VERB_RETIRED: {pointer}"),
+            "{args:?}"
+        );
     }
     let help = Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
         .args(["next-number", "--help"])

@@ -68,3 +68,19 @@ fn an_id_starting_with_a_hyphen_is_read_after_the_separator(
     );
     Ok(())
 }
+
+#[test]
+fn a_taken_id_exits_4_naming_the_holder() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(
+        repo.path().join("meta/work/0400-other.md"),
+        "---\nid: \"0400\"\n---\n",
+    )?;
+
+    let output = run(repo.path(), &["0400"])?;
+
+    assert_eq!(output.status.code(), Some(4), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.starts_with("Error: E_ID_TAKEN:"), "{stderr}");
+    Ok(())
+}

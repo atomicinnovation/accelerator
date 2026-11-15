@@ -548,7 +548,7 @@ fn a_refused_id_exits_1_with_its_code_on_stderr_and_writes_nothing(
 }
 
 #[test]
-fn a_taken_id_exits_1_naming_the_holder() -> Result<(), TestError> {
+fn a_taken_id_exits_4_naming_the_holder() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     fs::write(repo.path().join("meta/work/0400-other.md"), "")?;
 
@@ -557,7 +557,7 @@ fn a_taken_id_exits_1_naming_the_holder() -> Result<(), TestError> {
         &["create", "Probe", "task", "low", "--id", "0400"],
     )?;
 
-    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert_eq!(output.status.code(), Some(4), "{output:?}");
     let stderr = String::from_utf8(output.stderr)?;
     assert!(stderr.contains("E_ID_TAKEN"), "{stderr}");
     assert!(stderr.contains("0400-other.md"), "{stderr}");

@@ -141,8 +141,8 @@ When this command is invoked:
    - **Exit 1, `E_ID_TRACKER_OWNED`** — relay stderr verbatim, then offer only
      automatic allocation, through the normal `{tracker}` flow, or
      cancelling, and wait.
-   - **Exit 1, `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` or
-     `E_ID_TAKEN`** — relay stderr verbatim and go to *Requested ID
+   - **Exit 1, `E_ID_DRAFT_RESERVED` or `E_ID_PATTERN_MISMATCH`, or exit
+     4, `E_ID_TAKEN`** — relay stderr verbatim and go to *Requested ID
      recovery*.
    - **Any other non-zero exit** — relay stderr verbatim and abort.
 
@@ -543,7 +543,8 @@ itself, so its first stdout line is the only path to report.
 - Every create in steps 6, 7.1 and 7.3 carries `--id='<id>'`, single-quoted,
   and never `--project`.
 - In 6.3, 7.1 and 7.3, exit 1 with `E_ID_TRACKER_OWNED`,
-  `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` or `E_ID_TAKEN` means: relay
+  `E_ID_DRAFT_RESERVED` or `E_ID_PATTERN_MISMATCH`, or exit 4 with
+  `E_ID_TAKEN`, means: relay
   stderr verbatim, write nothing, and go to *Requested ID recovery*. Never
   save locally instead.
 - In 7.1 and 7.3, exit 1 with `E_PUSH_PENDING` or

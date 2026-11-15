@@ -35,17 +35,17 @@ pub fn run(
     requested: &str,
     identity_run: &IdentityRunStart<'_>,
 ) -> RunOutcome {
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let _identity_run = match identity_run(&root, "id check") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            let (message, code) = crate::identity_run::refused(refusal, &root);
+            return RunOutcome::Refused { message, code };
+        }
+    };
     let location = match locate_work_items(start, config) {
         Ok(location) => location,
         Err(message) => return RunOutcome::Failed(message),
-    };
-    let _identity_run = match identity_run(&location.root, "id check") {
-        Ok(guard) => guard,
-        Err(refusal) => {
-            let (message, code) =
-                crate::identity_run::refused(refusal, &location.root);
-            return RunOutcome::Refused { message, code };
-        }
     };
     if let Err(Diverged { message, code }) = refuse_diverged_corpus(
         &location.scheme,
@@ -323,6 +323,23 @@ mod tests {
             failed(&malformed, "0400").starts_with("E_WORK_ID_PATTERN_INVALID"),
             "{}",
             failed(&malformed, "0400")
+        );
+    }
+
+    #[test]
+    fn a_rekey_in_progress_outranks_a_malformed_pattern_as_in_create() {
+        let malformed =
+            PushingRepo::configured(&[("work.id_pattern", "{number:4d}")]);
+        crate::test_support::rekey_in_progress(malformed.root.path());
+
+        let RunOutcome::Refused { message, .. } = check(&malformed, "0400")
+        else {
+            panic!("the check read the scheme before the identity run");
+        };
+
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
         );
     }
 }
