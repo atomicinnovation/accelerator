@@ -5,8 +5,8 @@
 //! pattern that wrote an `id`, so a reading never assumes it.
 
 use crate::draft_id::DraftId;
+use crate::id_pattern::is_in_id_alphabet;
 use crate::id_scheme::IdScheme;
-use crate::path_component::is_one_path_component;
 
 /// The key an existing `id` counts under, when it names one, and its number.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub struct ExistingId {
 pub enum Unclassified {
     AmbiguousDigitRuns,
     NoNumber,
-    NotOnePathComponent,
+    ForbiddenCharacter,
 }
 
 /// `id` read through the configured pattern, then as all digits or
@@ -37,8 +37,8 @@ pub fn read_existing_id(
     if DraftId::parse(id).is_some() {
         return Err(Unclassified::NoNumber);
     }
-    if !is_one_path_component(id) || id.chars().any(char::is_control) {
-        return Err(Unclassified::NotOnePathComponent);
+    if !is_in_id_alphabet(id) {
+        return Err(Unclassified::ForbiddenCharacter);
     }
     if let Some(parts) = scheme.read_held(id) {
         return Ok(ExistingId {
@@ -128,6 +128,23 @@ mod tests {
 
     fn number_of(id: &str) -> Option<u64> {
         existing_id(id, &keyed("ACC")).map(|existing| existing.number)
+    }
+
+    #[test]
+    fn an_id_outside_the_id_alphabet_is_unclassifiable() {
+        for id in [
+            "ACC 0042",
+            "ACC-00\u{e9}2",
+            "ACC\u{2011}0042",
+            "a/0042",
+            "x\u{1b}0042",
+        ] {
+            assert_eq!(
+                super::read_existing_id(id, &keyed("ACC")),
+                Err(super::Unclassified::ForbiddenCharacter),
+                "{id:?}"
+            );
+        }
     }
 
     #[test]

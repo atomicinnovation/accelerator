@@ -199,6 +199,11 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
+- **`work rekey` refuses an `id` outside the ID alphabet.** An item whose
+  `id` holds a character other than an ASCII letter, digit, `.`, `_` or
+  `-`, such as a space or an accented letter, is refused as
+  `E_REKEY_UNCLASSIFIABLE_ID` naming that rule, where only a path
+  separator or control character was refused.
 - **Each tracker decides what its issue keys look like.** Jira keys keep
   their shape, a project key of letters, digits and `_`; a Linear
   identifier's team key may not hold `_`, so `MY_PROJ-7` is no longer read

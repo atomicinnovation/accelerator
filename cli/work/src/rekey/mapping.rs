@@ -6,9 +6,9 @@ use std::collections::BTreeMap;
 use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
+use crate::id_pattern::is_in_id_alphabet;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
-use crate::path_component::is_one_path_component;
 use crate::rekey::classify::classify;
 use crate::rekey::classify::Classification;
 use crate::rekey::classify::Unclassified;
@@ -112,8 +112,8 @@ fn cause_of(
             }
         }
         Unclassified::NoNumber => UnclassifiableCause::NoNumber { id },
-        Unclassified::NotOnePathComponent => {
-            UnclassifiableCause::NotOnePathComponent { id }
+        Unclassified::ForbiddenCharacter => {
+            UnclassifiableCause::ForbiddenCharacter { id }
         }
     }
 }
@@ -267,12 +267,10 @@ pub fn tracker_mapping(
         .filter(|identity| DraftId::parse(&identity.id).is_none())
     {
         let Some(stored) = identity.external_id.as_deref() else {
-            if !is_one_path_component(&identity.id)
-                || identity.id.chars().any(char::is_control)
-            {
+            if !is_in_id_alphabet(&identity.id) {
                 return Err(NotRekeyed::Unclassifiable {
                     item: identity.path.clone(),
-                    cause: UnclassifiableCause::NotOnePathComponent {
+                    cause: UnclassifiableCause::ForbiddenCharacter {
                         id: identity.id.clone(),
                     },
                 });
@@ -966,7 +964,7 @@ mod tests {
                 mapped(&[escaping], &RefreshedKeys::default()),
                 Err(NotRekeyed::Unclassifiable {
                     item: path_of("0042"),
-                    cause: UnclassifiableCause::NotOnePathComponent {
+                    cause: UnclassifiableCause::ForbiddenCharacter {
                         id: "../0042".to_owned()
                     },
                 })

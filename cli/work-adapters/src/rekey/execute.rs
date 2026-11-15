@@ -209,7 +209,7 @@ fn refused_before_writing(
         RetirementRefusal::IdNotOnePathComponent { id } => {
             NotRekeyed::Unclassifiable {
                 item: mover,
-                cause: UnclassifiableCause::NotOnePathComponent { id },
+                cause: UnclassifiableCause::ForbiddenCharacter { id },
             }
         }
     }

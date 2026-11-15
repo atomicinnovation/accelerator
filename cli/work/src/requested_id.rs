@@ -831,6 +831,16 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_number_takes_the_key_after_it_under_a_key_last_pattern() {
+        let key_last = scheme("{number:04d}-{key}", Some("PP"));
+        assert_eq!(corrected("400", &key_last), ("0400-PP".to_owned(), false));
+        assert_eq!(
+            proposal_refused_as("400-", &key_last).code(),
+            "E_ID_PATTERN_MISMATCH"
+        );
+    }
+
+    #[test]
     fn literal_text_is_never_added_or_recased() {
         let under = scheme("v{number:03d}", None);
         assert_eq!(corrected("v1", &under), ("v001".to_owned(), false));

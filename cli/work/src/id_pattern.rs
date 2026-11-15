@@ -196,41 +196,19 @@ const fn is_literal_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
 }
 
+/// Whether `text` is written in the alphabet IDs are: ASCII letters,
+/// digits, `.`, `_` and `-`.
+#[must_use]
+pub fn is_in_id_alphabet(text: &str) -> bool {
+    !text.is_empty() && text.chars().all(is_literal_character)
+}
+
 fn is_key_token(token: &str) -> bool {
     matches!(token, "key" | "project")
 }
 
 /// The inner text of each well-formed `{...}` token, skipping escaped braces
 /// and malformed tokens.
-fn tokens_of(characters: &[char]) -> Vec<String> {
-    let mut tokens = Vec::new();
-    let mut i = 0;
-    while i < characters.len() {
-        let next = characters.get(i + 1).copied();
-        if (characters[i] == '{' && next == Some('{'))
-            || (characters[i] == '}' && next == Some('}'))
-        {
-            i += 2;
-            continue;
-        }
-        if characters[i] == '{' {
-            if let Some(offset) = characters[i + 1..]
-                .iter()
-                .position(|&c| c == '}' || c == '{')
-            {
-                let close = i + 1 + offset;
-                if characters[close] == '}' {
-                    tokens.push(characters[i + 1..close].iter().collect());
-                    i = close + 1;
-                    continue;
-                }
-            }
-        }
-        i += 1;
-    }
-    tokens
-}
-
 fn token_at(
     characters: &[char],
     open: usize,
@@ -274,6 +252,9 @@ fn number_width(token: &str) -> Result<Option<usize>, PatternError> {
 fn segment_of(token: &str) -> Result<Segment, PatternError> {
     if is_key_token(token) {
         return Ok(Segment::Key);
+    }
+    if token == TRACKER_INNER {
+        return Ok(Segment::Tracker);
     }
     number_width(token)?.map_or_else(
         || Err(PatternError::UnknownToken(token.to_owned())),
@@ -416,18 +397,6 @@ impl IdPattern {
             return Err(PatternError::Empty);
         }
         let characters: Vec<char> = text.chars().collect();
-        if tokens_of(&characters)
-            .iter()
-            .any(|token| token == TRACKER_INNER)
-        {
-            if text != TRACKER_TOKEN {
-                return Err(PatternError::TrackerNotSoleToken);
-            }
-            return Ok(Self {
-                text: text.to_owned(),
-                segments: vec![Segment::Tracker],
-            });
-        }
         let segments = segments_of(&characters)?;
         refuse_a_digit_beside_a_token(&segments)?;
         Ok(Self {
@@ -529,18 +498,27 @@ impl IdPattern {
         })
     }
 
+    /// The segments without `{key}` and the literal joining it to the
+    /// number: the one after the key, or before it when the key comes last.
     fn segments_without_key(&self) -> Vec<Segment> {
-        let mut segments = Vec::new();
-        let mut after_key = false;
-        for segment in &self.segments {
-            let skipped = *segment == Segment::Key
-                || (after_key && matches!(segment, Segment::Literal(_)));
-            after_key = *segment == Segment::Key;
-            if !skipped {
-                segments.push(segment.clone());
-            }
-        }
-        segments
+        let Some(key) = self.segments.iter().position(|s| *s == Segment::Key)
+        else {
+            return self.segments.clone();
+        };
+        let is_literal = |index: usize| {
+            matches!(self.segments.get(index), Some(Segment::Literal(_)))
+        };
+        let joining = if is_literal(key + 1) {
+            Some(key + 1)
+        } else {
+            key.checked_sub(1).filter(|before| is_literal(*before))
+        };
+        self.segments
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| *index != key && Some(*index) != joining)
+            .map(|(_, segment)| segment.clone())
+            .collect()
     }
 
     pub(crate) fn keying(&self) -> PatternKeying {
@@ -628,6 +606,13 @@ fn segments_of(characters: &[char]) -> Result<Vec<Segment>, PatternError> {
     }
     if !literal.is_empty() {
         segments.push(Segment::Literal(literal));
+    }
+    if segments.contains(&Segment::Tracker) {
+        return if segments.len() == 1 {
+            Ok(segments)
+        } else {
+            Err(PatternError::TrackerNotSoleToken)
+        };
     }
     if !segments
         .iter()
@@ -796,6 +781,7 @@ mod tests {
     use super::KeyError;
     use super::MissingKey;
     use super::PatternError;
+    use super::Segment;
 
     const PROMPTLY: Duration = Duration::from_secs(2);
 
@@ -1404,5 +1390,80 @@ mod tests {
                 "{text} {id}"
             );
         }
+    }
+
+    fn every_split(segments: &[Segment], rest: &str) -> usize {
+        let Some((segment, later)) = segments.split_first() else {
+            return usize::from(rest.is_empty());
+        };
+        let ends = (1..=rest.len()).filter(|end| rest.is_char_boundary(*end));
+        match segment {
+            Segment::Literal(literal) => rest
+                .get(..literal.len())
+                .filter(|head| head.eq_ignore_ascii_case(literal))
+                .map_or(0, |_| every_split(later, &rest[literal.len()..])),
+            Segment::Key => ends
+                .filter(|end| IdKey::parse(&rest[..*end]).is_ok())
+                .map(|end| every_split(later, &rest[end..]))
+                .sum(),
+            Segment::Number { .. } => ends
+                .filter(|end| rest[..*end].bytes().all(|b| b.is_ascii_digit()))
+                .map(|end| every_split(later, &rest[end..]))
+                .sum(),
+            Segment::Tracker => 0,
+        }
+    }
+
+    fn values(alphabet: &[char], longest: usize) -> Vec<String> {
+        let mut values = vec![String::new()];
+        let mut frontier = vec![String::new()];
+        for _ in 0..longest {
+            frontier = frontier
+                .iter()
+                .flat_map(|value| {
+                    alphabet.iter().map(move |c| format!("{value}{c}"))
+                })
+                .collect();
+            values.extend(frontier.iter().cloned());
+        }
+        values
+    }
+
+    #[test]
+    fn every_accepted_pattern_splits_a_value_at_most_one_way() {
+        let literals = ["", "-", "_", "v", "a-", "-v", "1", "v1", "1v"];
+        let templates = [
+            "{key}A{number:02d}",
+            "A{number:02d}",
+            "{number:02d}A",
+            "{number:02d}A{key}",
+            "A{key}B{number:02d}C",
+            "A{number:02d}B{key}C",
+        ];
+        let candidates = values(&['a', '1', '-', 'v'], 6);
+        let mut checked = 0;
+        for template in templates {
+            for first in literals {
+                for second in literals {
+                    for third in literals {
+                        let text = template
+                            .replace('A', first)
+                            .replace('B', second)
+                            .replace('C', third);
+                        let Ok(pattern) = IdPattern::parse(&text) else {
+                            continue;
+                        };
+                        checked += 1;
+                        for value in &candidates {
+                            assert!(
+                                every_split(&pattern.segments, value) <= 1,
+                                "{text} splits {value:?} more than one way"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        assert!(checked > 100, "only {checked} patterns were checked");
     }
 }

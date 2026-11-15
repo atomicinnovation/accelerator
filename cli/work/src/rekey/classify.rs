@@ -131,7 +131,7 @@ mod tests {
             assert_eq!(
                 classified(id, None),
                 Classification::Unclassifiable(
-                    Unclassified::NotOnePathComponent
+                    Unclassified::ForbiddenCharacter
                 ),
                 "{id:?}"
             );

@@ -30,7 +30,7 @@ pub struct LinkedClash {
 pub enum UnclassifiableCause {
     AmbiguousDigitRuns { id: String, example: Option<String> },
     NoNumber { id: String },
-    NotOnePathComponent { id: String },
+    ForbiddenCharacter { id: String },
     ExternalIdNotATrackerKey { external_id: String },
 }
 
@@ -592,7 +592,7 @@ fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
         | UnclassifiableCause::NoNumber { .. } => {
             "Give the item an `id` in the shape of `work.id_pattern`".to_owned()
         }
-        UnclassifiableCause::NotOnePathComponent { .. } => "Give the item an \
+        UnclassifiableCause::ForbiddenCharacter { .. } => "Give the item an \
              `id` of ASCII letters, digits, `.`, `_` and `-`"
             .to_owned(),
         UnclassifiableCause::ExternalIdNotATrackerKey { .. } => {
@@ -612,8 +612,9 @@ fn unclassifiable(item: &Path, cause: &UnclassifiableCause) -> String {
         UnclassifiableCause::NoNumber { id } => {
             format!("{item} has `id` '{}', which holds no number", escaped(id))
         }
-        UnclassifiableCause::NotOnePathComponent { id } => format!(
-            "{item} has `id` '{}', which is not one path component",
+        UnclassifiableCause::ForbiddenCharacter { id } => format!(
+            "{item} has `id` '{}', which holds a character other than an \
+             ASCII letter, digit, `.`, `_` or `-`",
             escaped(id)
         ),
         UnclassifiableCause::ExternalIdNotATrackerKey { external_id } => {
@@ -1128,13 +1129,13 @@ mod tests {
         let no_number = refused(UnclassifiableCause::NoNumber {
             id: "notes".to_owned(),
         });
-        let escaping = refused(UnclassifiableCause::NotOnePathComponent {
+        let escaping = refused(UnclassifiableCause::ForbiddenCharacter {
             id: "a/b/0001".to_owned(),
         });
         let unkeyed = refused(UnclassifiableCause::ExternalIdNotATrackerKey {
             external_id: "not a key".to_owned(),
         });
-        let control = refused(UnclassifiableCause::NotOnePathComponent {
+        let control = refused(UnclassifiableCause::ForbiddenCharacter {
             id: "x\u{1b}[H0001".to_owned(),
         });
 
@@ -1146,7 +1147,10 @@ mod tests {
             "{no_number}"
         );
         assert!(
-            escaping.contains("'a/b/0001', which is not one path component"),
+            escaping.contains(
+                "'a/b/0001', which holds a character other than an ASCII \
+                 letter, digit, `.`, `_` or `-`"
+            ),
             "{escaping}"
         );
         assert!(unkeyed.contains("`external_id` 'not a key'"), "{unkeyed}");

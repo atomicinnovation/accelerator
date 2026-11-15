@@ -291,6 +291,7 @@ impl core::marker::Copy for work::id_pattern::MissingKey
 impl core::marker::StructuralPartialEq for work::id_pattern::MissingKey
 pub const work::id_pattern::TRACKER_TOKEN: &str
 pub fn work::id_pattern::escaped(text: &str) -> alloc::string::String
+pub fn work::id_pattern::is_in_id_alphabet(text: &str) -> bool
 pub mod work::id_scheme
 pub enum work::id_scheme::CanonicaliseError
 pub work::id_scheme::CanonicaliseError::EmptyInput
@@ -841,8 +842,8 @@ impl core::marker::Copy for work::rekey::classify::Classification
 impl core::marker::StructuralPartialEq for work::rekey::classify::Classification
 pub enum work::rekey::classify::Unclassified
 pub work::rekey::classify::Unclassified::AmbiguousDigitRuns
+pub work::rekey::classify::Unclassified::ForbiddenCharacter
 pub work::rekey::classify::Unclassified::NoNumber
-pub work::rekey::classify::Unclassified::NotOnePathComponent
 impl core::clone::Clone for work::rekey::sequence::Unclassified
 pub fn work::rekey::sequence::Unclassified::clone(&self) -> work::rekey::sequence::Unclassified
 impl core::cmp::Eq for work::rekey::sequence::Unclassified
@@ -1072,10 +1073,10 @@ pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns::example: core
 pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns::id: alloc::string::String
 pub work::rekey::outcome::UnclassifiableCause::ExternalIdNotATrackerKey
 pub work::rekey::outcome::UnclassifiableCause::ExternalIdNotATrackerKey::external_id: alloc::string::String
+pub work::rekey::outcome::UnclassifiableCause::ForbiddenCharacter
+pub work::rekey::outcome::UnclassifiableCause::ForbiddenCharacter::id: alloc::string::String
 pub work::rekey::outcome::UnclassifiableCause::NoNumber
 pub work::rekey::outcome::UnclassifiableCause::NoNumber::id: alloc::string::String
-pub work::rekey::outcome::UnclassifiableCause::NotOnePathComponent
-pub work::rekey::outcome::UnclassifiableCause::NotOnePathComponent::id: alloc::string::String
 impl core::clone::Clone for work::rekey::outcome::UnclassifiableCause
 pub fn work::rekey::outcome::UnclassifiableCause::clone(&self) -> work::rekey::outcome::UnclassifiableCause
 impl core::cmp::Eq for work::rekey::outcome::UnclassifiableCause
@@ -1181,8 +1182,8 @@ pub const fn work::rekey::run_plan::readable_schema(schema: u32) -> core::result
 pub mod work::rekey::sequence
 pub enum work::rekey::sequence::Unclassified
 pub work::rekey::sequence::Unclassified::AmbiguousDigitRuns
+pub work::rekey::sequence::Unclassified::ForbiddenCharacter
 pub work::rekey::sequence::Unclassified::NoNumber
-pub work::rekey::sequence::Unclassified::NotOnePathComponent
 impl core::clone::Clone for work::rekey::sequence::Unclassified
 pub fn work::rekey::sequence::Unclassified::clone(&self) -> work::rekey::sequence::Unclassified
 impl core::cmp::Eq for work::rekey::sequence::Unclassified
