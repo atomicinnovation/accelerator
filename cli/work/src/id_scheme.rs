@@ -239,6 +239,13 @@ impl IdScheme {
         self.pattern().read_exact(token).is_some()
     }
 
+    /// Whether `id` is in the pattern's shape under any key, whatever its
+    /// case.
+    #[must_use]
+    pub(crate) fn is_in_shape(&self, id: &str) -> bool {
+        self.pattern().read_in_shape(id).is_some()
+    }
+
     /// A work-item ID as it is shown: as written when the pattern reads it,
     /// and a bare number as the pattern renders it under `work.key`; under
     /// `{tracker}`, a tracker key as written or a draft ID in lower case.

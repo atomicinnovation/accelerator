@@ -479,6 +479,18 @@ impl IdPattern {
         IdParts::from_reading(&self.walk(text, walk)?)
     }
 
+    /// `text` in the shape the pattern renders whatever its case: literals
+    /// in any ASCII case, a key run, and exactly the pattern's width of
+    /// digits.
+    #[must_use]
+    pub(crate) fn read_in_shape(&self, text: &str) -> Option<IdParts> {
+        let walk = Walk {
+            literals: LiteralCase::IgnoreAscii,
+            digits: DigitWidth::Exact,
+        };
+        IdParts::from_reading(&self.walk(text, walk)?)
+    }
+
     /// `text` read as a correction may complete it: literals as written, a
     /// key run or, where the pattern has a key, none together with the
     /// literal after it, and at most the pattern's width of digits.

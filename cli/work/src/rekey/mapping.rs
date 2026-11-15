@@ -7,6 +7,7 @@ use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
 use crate::id_pattern::is_in_id_alphabet;
+use crate::id_scheme::IdOwnership;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
 use crate::rekey::classify::classify;
@@ -30,10 +31,11 @@ pub struct RekeyCandidate {
 
 /// Every item off the pattern, by old `id`, with what it becomes.
 ///
-/// A kept number is re-rendered under `work.key`, whatever project key it
-/// had. A tracker key or draft takes a fresh number
-/// under `work.key`, in creation-date order, above every number that key
-/// already holds.
+/// An item already in shape under `work.key` is left, even one named by
+/// its tracker key. A kept number is re-rendered under `work.key`, whatever
+/// project key it had. Any other tracker key, and a draft, takes a fresh
+/// number under `work.key`, in creation-date order, above every number that
+/// key already holds.
 ///
 /// # Errors
 ///
@@ -48,12 +50,13 @@ pub fn numeric_mapping(
     let mut needing_fresh = Vec::new();
     for candidate in candidates {
         let identity = &candidate.identity;
+        if is_in_target_shape(&identity.id, scheme) {
+            continue;
+        }
         match classify(identity, scheme) {
             Classification::TrackerKey | Classification::Draft => {
                 needing_fresh.push(candidate);
             }
-            Classification::Sequenced(_)
-                if is_in_target_shape(&identity.id, scheme) => {}
             Classification::Sequenced(number) if number > cap => {
                 return Err(NotRekeyed::KeptNumberAboveCap {
                     item: identity.path.clone(),
@@ -96,6 +99,40 @@ fn rendered(scheme: &IdScheme, number: u64) -> String {
         .pattern()
         .render(scheme.key(), number)
         .unwrap_or_else(|_| number.to_string())
+}
+
+/// Why re-key cannot read `identity`'s IDs and so refuses it, under the
+/// scheme's ownership.
+#[must_use]
+pub(crate) fn why_unclassifiable(
+    identity: &ItemIdentity,
+    scheme: &IdScheme,
+) -> Option<UnclassifiableCause> {
+    match scheme.ownership() {
+        IdOwnership::Local => match classify(identity, scheme) {
+            Classification::Unclassifiable(unclassified) => {
+                Some(cause_of(unclassified, &identity.id, scheme))
+            }
+            _ => None,
+        },
+        IdOwnership::Tracker if DraftId::parse(&identity.id).is_some() => None,
+        IdOwnership::Tracker => identity.external_id.as_deref().map_or_else(
+            || {
+                (!is_in_id_alphabet(&identity.id)).then(|| {
+                    UnclassifiableCause::ForbiddenCharacter {
+                        id: identity.id.clone(),
+                    }
+                })
+            },
+            |stored| {
+                TrackerKey::parse(stored).is_none().then(|| {
+                    UnclassifiableCause::ExternalIdNotATrackerKey {
+                        external_id: stored.to_owned(),
+                    }
+                })
+            },
+        ),
+    }
 }
 
 fn cause_of(
@@ -266,20 +303,18 @@ pub fn tracker_mapping(
         .iter()
         .filter(|identity| DraftId::parse(&identity.id).is_none())
     {
-        let Some(stored) = identity.external_id.as_deref() else {
-            if !is_in_id_alphabet(&identity.id) {
-                return Err(NotRekeyed::Unclassifiable {
-                    item: identity.path.clone(),
-                    cause: UnclassifiableCause::ForbiddenCharacter {
-                        id: identity.id.clone(),
-                    },
-                });
-            }
+        if let Some(cause) = why_unclassifiable(identity, scheme) {
+            return Err(NotRekeyed::Unclassifiable {
+                item: identity.path.clone(),
+                cause,
+            });
+        }
+        let Some(stored) =
+            identity.external_id.as_deref().and_then(TrackerKey::parse)
+        else {
             unsynced.push(identity.id.clone());
             continue;
         };
-        let stored = TrackerKey::parse(stored)
-            .ok_or_else(|| not_a_tracker_key(identity, stored))?;
         let current = refreshed.current_key_for(&stored);
         if !current.as_str().eq_ignore_ascii_case(&identity.id) {
             entries.push(RekeyEntry {
@@ -1008,27 +1043,62 @@ mod tests {
 
     #[test]
     fn an_item_under_work_key_is_converged_exactly_when_re_key_leaves_it() {
-        let under = keyed("PP");
-        let candidates = [
-            local("PP-0001"),
-            local("pp-0002"),
-            local("0003"),
-            local("PP-4"),
-            local("draft-k7mq3x"),
-            candidate("id: \"ENG-7\"\nexternal_id: \"ENG-7\""),
+        let cases = [
+            (
+                keyed("PP"),
+                vec![
+                    local("PP-0001"),
+                    local("pp-0002"),
+                    local("0003"),
+                    local("PP-4"),
+                    local("draft-k7mq3x"),
+                    synced("ENG-7", "2024-01-01"),
+                    synced("PP-0005", "2024-01-01"),
+                    synced("pp-0006", "2024-01-01"),
+                ],
+            ),
+            (
+                scheme("v{number:03d}", None),
+                vec![local("v001"), local("V002"), local("v3"), local("0004")],
+            ),
+            (
+                scheme("PP-{number:04d}", None),
+                vec![local("PP-0001"), local("pp-0002"), local("PP-3")],
+            ),
+            (
+                scheme("{key}v{number:03d}", Some("PP")),
+                vec![local("PPv001"), local("PPV002"), local("ppv003")],
+            ),
         ];
-        let entries = numeric_mapping(&under, &candidates)
-            .unwrap_or_else(|refusal| unreachable!("{refusal}"));
+        for (under, candidates) in cases {
+            let entries = numeric_mapping(&under, &candidates)
+                .unwrap_or_else(|refusal| unreachable!("{refusal}"));
 
-        for candidate in &candidates {
-            let identity = &candidate.identity;
-            let moved = entries.iter().any(|entry| entry.old == identity.id);
-            assert_eq!(
-                is_converged(identity, &under),
-                !moved,
-                "{}",
-                identity.id
-            );
+            for candidate in &candidates {
+                let identity = &candidate.identity;
+                let moved =
+                    entries.iter().any(|entry| entry.old == identity.id);
+                assert_eq!(
+                    is_converged(identity, &under),
+                    !moved,
+                    "{} under {}",
+                    identity.id,
+                    under.pattern().as_str()
+                );
+            }
         }
+    }
+
+    #[test]
+    fn re_key_keeps_a_tracker_key_already_in_shape_under_work_key() {
+        let under = keyed("ENG");
+
+        let entries = numeric_mapping(
+            &under,
+            &[synced("ENG-1234", "2024-01-01"), local("ENG-7")],
+        )
+        .unwrap_or_else(|refusal| unreachable!("{refusal}"));
+
+        assert_eq!(entries, vec![renumbered("ENG-7", "ENG-0007")]);
     }
 }

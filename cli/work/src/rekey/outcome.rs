@@ -579,7 +579,7 @@ fn collision_remedy(linked: Option<&LinkedClash>) -> String {
     }
 }
 
-fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
+pub(crate) fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
     match cause {
         UnclassifiableCause::AmbiguousDigitRuns {
             example: Some(example),
@@ -602,7 +602,10 @@ fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
     }
 }
 
-fn unclassifiable(item: &Path, cause: &UnclassifiableCause) -> String {
+pub(crate) fn unclassifiable(
+    item: &Path,
+    cause: &UnclassifiableCause,
+) -> String {
     let item = shown(item);
     match cause {
         UnclassifiableCause::AmbiguousDigitRuns { id, .. } => format!(
