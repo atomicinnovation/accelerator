@@ -10,7 +10,9 @@ the precise poll-count/deadline maths is pinned by the deterministic unit tests
 in ``test_dev.py``; the readiness timeout is parametrised small.
 """
 
+import ast
 import contextlib
+import dataclasses
 import json
 import os
 import shutil
@@ -18,15 +20,36 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import psutil
 import pytest
 
 from tasks.shared.dev.endpoints import ipc_socket_paths
+from tasks.shared.processes import PsutilProcessOps
+from tests.integration.dev.dev_integration_driver import recorded_fakes
+from tests.integration.dev.fake_process import (
+    ESCALATIONS_LOG,
+    EVENTS_LOG,
+    KILLED_BY_TEST_LOG,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIVER = Path(__file__).parent / "dev_integration_driver.py"
+FAKE_PROCESS = Path(__file__).parent / "fake_process.py"
+LIFECYCLE = REPO_ROOT / "tasks/shared/dev/lifecycle.py"
+
+TIMEOUT_BRANCH_EVIDENCE = (
+    "server-info.json did not appear before the readiness timeout",
+    "circusd did not write a valid pidfile at",
+    "still alive after SIGKILL",
+    "endpoint still reachable after quit",
+    "did not become active",
+)
+READINESS_TIMEOUT_EVIDENCE, PIDFILE_TIMEOUT_EVIDENCE = TIMEOUT_BRANCH_EVIDENCE[
+    :2
+]
 
 
 def run_driver(
@@ -91,6 +114,15 @@ def alive(pid: int | None) -> bool:
         return False
 
 
+def wait_until(condition: Callable[[], bool], timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.05)
+    return condition()
+
+
 def wait_for_text(path: Path, text: str, timeout: float = 5.0) -> bool:
     """Wait for ``text`` to appear in ``path`` (circus's FileStream capture
     lags the watcher's write, so the log can be momentarily empty after up
@@ -112,26 +144,154 @@ def descendants(pid: int | None) -> list[int]:
         return []
 
 
-def _hard_cleanup(workspace: Path) -> None:
-    """Best-effort: stop the stack, kill any survivors, remove ipc sockets."""
-    with contextlib.suppress(Exception):
-        run_driver(workspace, "stop", timeout=30)
+@dataclasses.dataclass(frozen=True)
+class Escalation:
+    signal: str
+    pid: int
+
+
+def escalations(workspace: Path) -> list[Escalation]:
+    record = workspace / ESCALATIONS_LOG
+    assert record.exists(), f"no escalation record at {record}"
+    return [
+        Escalation(signal_name, int(pid))
+        for signal_name, pid in (
+            line.split() for line in record.read_text().splitlines()
+        )
+    ]
+
+
+def kill_out_of_band(workspace: Path, pid: int) -> None:
+    """SIGKILL ``pid`` and its whole subtree, recording who the test killed.
+
+    The subtree is listed before anything is signalled: once the parent is
+    dead its children are reparented and can no longer be found from it.
+    """
+    try:
+        root = psutil.Process(pid)
+        victims = [root, *root.children(recursive=True)]
+    except psutil.NoSuchProcess:
+        return
+    identities = []
+    for victim in victims:
+        with contextlib.suppress(psutil.NoSuchProcess):
+            identities.append((victim.pid, victim.create_time()))
+    with (workspace / KILLED_BY_TEST_LOG).open("a") as log:
+        log.writelines(f"{pid} {start}\n" for pid, start in identities)
+    for victim in victims:
+        with contextlib.suppress(psutil.NoSuchProcess):
+            victim.kill()
+
+
+def killed_by_test(workspace: Path) -> list[tuple[int, float]]:
+    log = workspace / KILLED_BY_TEST_LOG
+    if not log.exists():
+        return []
+    lines = log.read_text().splitlines()
+    return [
+        (int(pid), float(start))
+        for pid, start in (line.split() for line in lines)
+    ]
+
+
+def dev_log(workspace: Path) -> str:
+    log = workspace / ".accelerator/tmp/dev/dev.log"
+    return log.read_text() if log.exists() else ""
+
+
+def assert_no_timeout_branch_output(workspace: Path) -> None:
+    logged = dev_log(workspace)
+    found = [line for line in TIMEOUT_BRANCH_EVIDENCE if line in logged]
+    assert not found, f"timeout-branch output in dev.log: {found}"
+
+
+def stop_cleanly(workspace: Path) -> None:
+    assert_ok(run_driver(workspace, "stop"))
+    assert_stopped_cleanly(workspace)
+
+
+def assert_stopped_cleanly(workspace: Path) -> None:
+    fakes = recorded_fakes(workspace)
+    ours = escalations(workspace)
+    sigkilled = [e for e in ours if e.signal == "kill"]
+    assert not sigkilled, f"our code SIGKILLed: {sigkilled}"
+    fake_pids = {fake.pid for fake in fakes}
+    non_fakes = [
+        e for e in ours if e.signal == "terminate" and e.pid not in fake_pids
+    ]
+    assert not non_fakes, f"our code SIGTERMed a non-fake: {non_fakes}"
+    survivors = [fake for fake in fakes if fake.is_running()]
+    assert not survivors, f"survived the stop: {survivors}"
+    killed = killed_by_test(workspace)
+    unsignalled = [
+        fake
+        for fake in fakes
+        if not fake.is_one_of(killed) and "sigterm" not in fake.events
+    ]
+    assert not unsignalled, f"stopped without SIGTERM: {unsignalled}"
+    assert_no_timeout_branch_output(workspace)
+
+
+def _surviving_arbiter(workspace: Path) -> int | None:
+    processes = PsutilProcessOps()
     state = read_state(workspace)
-    if state:
-        for key in ("server_pid", "frontend_pid", "arbiter_pid"):
-            pid = state.get(key)
-            for child in descendants(pid):
-                with contextlib.suppress(Exception):
-                    psutil.Process(child).kill()
-            if pid:
-                with contextlib.suppress(Exception):
-                    psutil.Process(pid).kill()
-    with contextlib.suppress(Exception):
-        shutil.rmtree(ipc_socket_paths(workspace)[0].parent, ignore_errors=True)
+    if state and state.get("arbiter_pid") and state.get("arbiter_start_time"):
+        pid = state["arbiter_pid"]
+        if processes.identity_matches(pid, state["arbiter_start_time"]):
+            return pid
+    pidfile = workspace / ".accelerator/tmp/dev/circusd.pid"
+    text = pidfile.read_text().strip() if pidfile.exists() else ""
+    if not text.isdigit():
+        return None
+    try:
+        command = psutil.Process(int(text)).cmdline()
+    except psutil.Error:
+        return None
+    return int(text) if any("circusd" in part for part in command) else None
+
+
+def _reap_survivors(workspace: Path) -> None:
+    """SIGKILL every surviving fake and arbiter, then remove the ipc sockets.
+
+    Never stops through the driver: this runs after the test has made its own
+    claims about the stop, and only has to make sure nothing leaks.
+    """
+    for fake in recorded_fakes(workspace):
+        if fake.is_running():
+            with contextlib.suppress(psutil.Error):
+                psutil.Process(fake.pid).kill()
+    arbiter = _surviving_arbiter(workspace)
+    if arbiter is not None:
+        with contextlib.suppress(psutil.Error):
+            psutil.Process(arbiter).kill()
+    shutil.rmtree(ipc_socket_paths(workspace)[0].parent, ignore_errors=True)
+
+
+def _hard_cleanup(workspace: Path) -> None:
+    stack_discoverable = (
+        read_state(workspace) is not None
+        or ipc_socket_paths(workspace)[0].exists()
+    )
+    if stack_discoverable:
+        with contextlib.suppress(Exception):
+            run_driver(workspace, "stop", timeout=30)
+    _reap_survivors(workspace)
 
 
 @pytest.fixture
 def workspace(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    try:
+        yield ws
+        if read_state(ws) is not None:
+            stop_cleanly(ws)
+    finally:
+        _reap_survivors(ws)
+
+
+@pytest.fixture
+def unverified_stop_workspace(tmp_path):
     ws = tmp_path / "ws"
     ws.mkdir()
     yield ws
@@ -196,7 +356,7 @@ def test_clean_teardown_leaves_no_orphans(workspace):
         *descendants(state["server_pid"]),
         *descendants(state["frontend_pid"]),
     ]
-    assert_ok(run_driver(workspace, "stop"))
+    stop_cleanly(workspace)
     for pid in tracked:
         assert not alive(pid)
     assert read_state(workspace) is None
@@ -211,7 +371,7 @@ def test_orphan_reach_when_arbiter_already_dead(workspace):
     assert alive(
         server_pid
     )  # still alive, no longer a child of the dead arbiter
-    assert_ok(run_driver(workspace, "stop"))
+    stop_cleanly(workspace)
     assert not alive(server_pid)  # reaped via recorded server_pid
     assert not alive(frontend_pid)  # reaped via recorded frontend_pid
 
@@ -224,17 +384,22 @@ def test_orphan_reach_with_only_server_recorded(workspace):
     server = subprocess.Popen(
         [
             sys.executable,
-            "-c",
-            "import subprocess, sys, time; "
-            "subprocess.Popen([sys.executable, '-c', "
-            "'import time; time.sleep(60)']); "
-            "time.sleep(60)",
-        ]
+            str(FAKE_PROCESS),
+            "server",
+            "--spawn-child",
+            "--events-log",
+            str(workspace / EVENTS_LOG),
+        ],
+        cwd=workspace,
     )
     try:
-        time.sleep(0.5)
+        assert wait_until(
+            lambda: (
+                {"server", "server-child"}
+                <= {fake.role for fake in recorded_fakes(workspace)}
+            )
+        )
         child_pids = descendants(server.pid)
-        assert child_pids  # the server spawned a worker
         dev = workspace / ".accelerator/tmp/dev"
         dev.mkdir(parents=True)
         endpoint, pubsub = ipc_socket_paths(workspace)
@@ -253,7 +418,7 @@ def test_orphan_reach_with_only_server_recorded(workspace):
             "frontend_start_time": None,
         }
         (dev / "dev.json").write_text(json.dumps(state))
-        assert_ok(run_driver(workspace, "stop"))
+        stop_cleanly(workspace)
         assert not alive(
             server.pid
         )  # server subtree reaped via recorded server_pid
@@ -262,6 +427,7 @@ def test_orphan_reach_with_only_server_recorded(workspace):
     finally:
         with contextlib.suppress(Exception):
             server.kill()
+        server.wait()
 
 
 def test_restart_round_trip(workspace):
@@ -275,28 +441,48 @@ def test_restart_round_trip(workspace):
     assert state["frontend_port"]
 
 
-def test_readiness_timeout_fails_and_tears_down(workspace):
+def test_readiness_timeout_fails_and_tears_down(unverified_stop_workspace):
+    workspace = unverified_stop_workspace
     proc = run_driver(
         workspace, "up", {"server_write_info": False, "readiness_timeout": 2.0}
     )
     assert proc.returncode == 1
-    assert "server.log" in (driver_payload(proc)["message"] or "")
+    server_info = workspace / ".accelerator/tmp/visualiser/server-info.json"
+    assert f"server did not write {server_info} in time" in (
+        driver_payload(proc)["message"] or ""
+    )
+    assert READINESS_TIMEOUT_EVIDENCE in dev_log(workspace)
+    assert PIDFILE_TIMEOUT_EVIDENCE not in dev_log(workspace)
+    with pytest.raises(AssertionError, match="timeout-branch output"):
+        assert_no_timeout_branch_output(workspace)
     assert read_state(workspace) is None  # torn down
 
 
-def test_daemon_startup_failure_reaps_handle_no_retry(workspace):
+def test_daemon_startup_failure_reaps_handle_no_retry(
+    unverified_stop_workspace,
+):
+    workspace = unverified_stop_workspace
     proc = run_driver(
         workspace, "up", {"fake_circusd_fail": True, "pidfile_timeout": 2.0}
     )
     assert proc.returncode == 1
-    assert "circusd.log" in (driver_payload(proc)["message"] or "")
+    assert "the circus daemon did not start (no pidfile at" in (
+        driver_payload(proc)["message"] or ""
+    )
+    assert PIDFILE_TIMEOUT_EVIDENCE in dev_log(workspace)
+    assert READINESS_TIMEOUT_EVIDENCE not in dev_log(workspace)
+    with pytest.raises(AssertionError, match="timeout-branch output"):
+        assert_no_timeout_branch_output(workspace)
 
 
 def test_discovery_survives_lost_state_file(workspace):
-    assert_ok(run_driver(workspace, "up"))
+    # Without recorded watcher PIDs nothing reaches a watcher's children:
+    # circus lists them only after the watcher has already exited.
+    childless_watchers = {"server_spawn_child": False, "fe_spawn_child": False}
+    assert_ok(run_driver(workspace, "up", childless_watchers))
     arbiter = read_state(workspace)["arbiter_pid"]
     (workspace / ".accelerator/tmp/dev/dev.json").unlink()  # lose the cache
-    assert_ok(run_driver(workspace, "stop"))
+    stop_cleanly(workspace)
     assert not alive(arbiter)  # found via recomputed deterministic ipc paths
 
 
@@ -304,18 +490,18 @@ def test_stale_cleanup_after_out_of_band_kill(workspace):
     assert_ok(run_driver(workspace, "up"))
     state = read_state(workspace)
     for key in ("arbiter_pid", "server_pid", "frontend_pid"):
-        with contextlib.suppress(Exception):
-            os.kill(state[key], signal.SIGKILL)
+        kill_out_of_band(workspace, state[key])
     time.sleep(0.5)
     assert (
         run_driver(workspace, "status").returncode == 4
     )  # treated as not-running
-    assert_ok(run_driver(workspace, "stop"))
+    stop_cleanly(workspace)
     endpoint_sock = ipc_socket_paths(workspace)[0]
     assert not endpoint_sock.exists()  # stale socket cleaned up
 
 
-def test_recycled_pid_is_refused_real_psutil(workspace):
+def test_recycled_pid_is_refused_real_psutil(unverified_stop_workspace):
+    workspace = unverified_stop_workspace
     victim = subprocess.Popen(["sleep", "30"])
     try:
         dev = workspace / ".accelerator/tmp/dev"
@@ -366,8 +552,8 @@ def test_status_exit_codes(workspace):
     assert_ok(run_driver(workspace, "up"))
     assert_ok(run_driver(workspace, "status"))  # both
     state = read_state(workspace)
-    os.kill(
-        state["frontend_pid"], signal.SIGKILL
+    kill_out_of_band(
+        workspace, state["frontend_pid"]
     )  # respawn=false -> stays stopped
     # Poll rather than a fixed sleep: SIGKILL leaves a zombie until circus (the
     # parent) reaps it, and under parallel-suite load that reap can outlast any
@@ -381,13 +567,21 @@ def test_status_exit_codes(workspace):
     assert rc == 3  # one
 
 
-def test_sigterm_ignoring_frontend_is_sigkilled(workspace):
+def test_sigterm_ignoring_frontend_is_sigkilled(unverified_stop_workspace):
+    workspace = unverified_stop_workspace
     assert_ok(run_driver(workspace, "up", {"fe_ignore_sigterm": True}))
     frontend_pid = read_state(workspace)["frontend_pid"]
     assert alive(frontend_pid)
     assert_ok(run_driver(workspace, "stop", {"grace_quit": 8.0}))
     # circus escalated to SIGKILL past its 2 s graceful_timeout
     assert not alive(frontend_pid)
+    (frontend,) = [
+        fake for fake in recorded_fakes(workspace) if fake.pid == frontend_pid
+    ]
+    assert frontend.events == ("started",)
+    assert frontend_pid not in {e.pid for e in escalations(workspace)}
+    with pytest.raises(AssertionError, match="stopped without SIGTERM"):
+        assert_stopped_cleanly(workspace)
 
 
 def test_cross_workspace_concurrency(tmp_path):
@@ -404,9 +598,96 @@ def test_cross_workspace_concurrency(tmp_path):
         )  # distinct per-workspace ipc sockets
         assert alive(a["arbiter_pid"]) and alive(b["arbiter_pid"])
         # stopping A leaves B untouched (structural isolation)
-        assert_ok(run_driver(ws_a, "stop"))
+        stop_cleanly(ws_a)
         assert not alive(a["arbiter_pid"])
         assert alive(b["arbiter_pid"])
+        stop_cleanly(ws_b)
     finally:
-        _hard_cleanup(ws_a)
-        _hard_cleanup(ws_b)
+        _reap_survivors(ws_a)
+        _reap_survivors(ws_b)
+
+
+# ─── harness self-tests ──────────────────────────────────────
+
+
+def test_the_clean_stop_check_sees_our_forced_kill(unverified_stop_workspace):
+    workspace = unverified_stop_workspace
+    assert_ok(run_driver(workspace, "up", {"server_ignore_sigterm": True}))
+    state = read_state(workspace)
+    server_pid, arbiter_pid = state["server_pid"], state["arbiter_pid"]
+    os.kill(arbiter_pid, signal.SIGKILL)
+    assert wait_until(lambda: not alive(arbiter_pid))
+
+    assert_ok(run_driver(workspace, "stop", {"grace_kill": 0.5}))
+
+    ours = escalations(workspace)
+    assert Escalation("terminate", server_pid) in ours
+    assert Escalation("kill", server_pid) in ours
+    with pytest.raises(AssertionError, match="our code SIGKILLed"):
+        assert_stopped_cleanly(workspace)
+
+
+def test_the_clean_stop_check_sees_a_sigterm_of_a_non_fake(tmp_path):
+    unrecorded_pid = 4242
+    dead_fake = f"server {2**31 - 1} 1.0"
+    (tmp_path / EVENTS_LOG).write_text(
+        f"started {dead_fake}\nsigterm {dead_fake}\n"
+    )
+    (tmp_path / ESCALATIONS_LOG).write_text(f"terminate {unrecorded_pid}\n")
+
+    with pytest.raises(AssertionError, match="our code SIGTERMed a non-fake"):
+        assert_stopped_cleanly(tmp_path)
+
+
+def test_the_clean_stop_check_sees_a_survivor(tmp_path):
+    (tmp_path / ESCALATIONS_LOG).touch()
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            str(FAKE_PROCESS),
+            "child",
+            "--events-log",
+            str(tmp_path / EVENTS_LOG),
+        ]
+    )
+    try:
+        assert wait_until(
+            lambda: (
+                [fake.pid for fake in recorded_fakes(tmp_path)] == [child.pid]
+            )
+        )
+        with pytest.raises(AssertionError, match="survived the stop"):
+            assert_stopped_cleanly(tmp_path)
+    finally:
+        child.kill()
+        child.wait()
+
+
+def _logged_strings(source: str) -> list[str]:
+    tree = ast.parse(source)
+    docstrings = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(
+            node,
+            ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+        )
+        and ast.get_docstring(node, clean=False) is not None
+    }
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstrings
+    ]
+
+
+def test_every_timeout_branch_evidence_line_is_still_logged():
+    logged = _logged_strings(LIFECYCLE.read_text())
+    missing = [
+        evidence
+        for evidence in TIMEOUT_BRANCH_EVIDENCE
+        if not any(evidence in string for string in logged)
+    ]
+    assert not missing, f"no longer in {LIFECYCLE.name}: {missing}"
