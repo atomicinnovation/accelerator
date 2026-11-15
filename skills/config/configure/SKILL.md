@@ -708,8 +708,9 @@ The `id_pattern` value is a small DSL with two tokens:
 - `{number[:format]}` — required, exactly one occurrence. The `format`
   is a printf width spec of the form `0Nd` (e.g. `04d`, `05d`), at most
   19 digits wide. If omitted, defaults to `04d`. The width is enforced
-  when generating new IDs; scanning is width-agnostic, so legacy 4-digit
-  files remain visible after a width change.
+  when generating new IDs, and existing items must be re-keyed to it:
+  until then the `work` commands that read or write IDs refuse with
+  `E_REKEY_REQUIRED` (see *Width changes vs structural changes*).
 - `{key}` — optional, at most one occurrence. The local ID prefix,
   substituted at use time from `work.key` (or a `--project` flag). When a
   pattern references `{key}`, `work.key` is required — it never silently falls
@@ -818,9 +819,10 @@ your `default_project_code`. The migration stays pending until both
 the pattern includes `{project}` and `default_project_code` is set; if
 neither applies, you can opt out via `accelerator migrate --skip
 0002-rename-work-items-with-project-prefix`. A skipped repository keeps
-its legacy `NNNN-*.md` files, and allocation counts each one in
-`work.key`'s sequence, so beside `PP-0005` and `0400-x.md` the next ID
-is `PP-0401`, not `PP-0006`.
+its legacy `NNNN-*.md` files, which are off a `{key}` pattern's shape, so
+the `work` commands that read or write IDs refuse with `E_REKEY_REQUIRED`
+until `/rekey-work-items` renames each under `work.key`, keeping its
+number: `0400-x.md` becomes `PP-0400-x.md`.
 
 #### Recognised keys
 

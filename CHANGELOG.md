@@ -1167,7 +1167,9 @@
   `E_WORK_ID_PATTERN_INVALID: work.id_pattern '<value>': <reason>`.
   Migration 0002 reports the same for such a `{project}` pattern when legacy
   items remain to rename. Edit the pattern as the reason directs, then run
-  `/rekey-work-items` if existing items should follow it. Finish or
+  `/rekey-work-items`: until every item's `id` is in the edited pattern's
+  shape, `work` commands that read or write IDs refuse with
+  `E_REKEY_REQUIRED`. Finish or
   discard an interrupted re-key before upgrading: a run plan recorded under
   such a pattern cannot be read (`E_REKEY_PLAN_UNREADABLE`), and the new
   binary can only set it aside with `accelerator work rekey --discard`.
