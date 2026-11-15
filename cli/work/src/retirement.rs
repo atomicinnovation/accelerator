@@ -3,6 +3,7 @@
 //!
 //! Planning is pure; applying the plan all-or-nothing is the adapter's job.
 
+use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -249,7 +250,8 @@ impl RetirementRefusal {
 
     #[must_use]
     pub fn message(&self, retirement: &Retirement<'_>) -> String {
-        let Retirement { old_id, new_id, .. } = retirement;
+        let old_id = escaped(retirement.old_id);
+        let new_id = escaped(retirement.new_id);
         match self {
             Self::IdTaken { holder, field } => format!(
                 "cannot retire {old_id} for {new_id}: {} already holds \
@@ -261,14 +263,19 @@ impl RetirementRefusal {
                 "cannot retire {old_id} for {new_id}: {} is already linked \
                  to {}",
                 holder.display(),
-                retirement.new_external_id.unwrap_or(new_id)
+                retirement
+                    .new_external_id
+                    .map_or_else(|| new_id.clone(), escaped)
             ),
             Self::TargetExists(path) => format!(
                 "cannot retire {old_id} for {new_id}: {} already exists",
                 path.display()
             ),
             Self::ItemNotFound(id) => {
-                format!("cannot retire {id}: no work item has that id")
+                format!(
+                    "cannot retire {}: no work item has that id",
+                    escaped(id)
+                )
             }
             Self::IdNotOnePathComponent { id } => format!(
                 "cannot retire {old_id} for {new_id}: '{}' is not one path \
@@ -276,10 +283,8 @@ impl RetirementRefusal {
                 escaped(id)
             ),
             Self::IdOutsideAlphabet { id } => format!(
-                "cannot retire {} for {}: '{}' holds a character other than \
-                 an ASCII letter, digit, `.`, `_` or `-`",
-                escaped(old_id),
-                escaped(new_id),
+                "cannot retire {old_id} for {new_id}: '{}' holds a character \
+                 other than an ASCII letter, digit, `.`, `_` or `-`",
                 escaped(id)
             ),
         }
@@ -731,7 +736,8 @@ fn rewrite_review_link(content: &str, retirement: &Retirement<'_>) -> String {
                 same_id(unquoted(value), retirement.old_id)
             });
         if names_old_id {
-            *line = format!("work_item_id: \"{}\"", retirement.new_id);
+            *line =
+                format!("work_item_id: {}", double_quoted(retirement.new_id));
         }
     }
     rejoin(&lines, content)
@@ -760,7 +766,7 @@ fn set_scalar(
     value: &str,
     after: &[&str],
 ) {
-    let line = format!("{key}: \"{value}\"");
+    let line = format!("{key}: {}", double_quoted(value));
     if let Some(index) = position_of(lines, *range, key) {
         lines[index] = line;
         return;
@@ -775,8 +781,28 @@ fn set_scalar(
 
 fn quoted_list(items: &[String]) -> String {
     let quoted: Vec<String> =
-        items.iter().map(|item| format!("\"{item}\"")).collect();
+        items.iter().map(|item| double_quoted(item)).collect();
     format!("[{}]", quoted.join(", "))
+}
+
+/// `value` as a YAML double-quoted scalar that cannot close its quotes or
+/// break its line, whatever it holds.
+fn double_quoted(value: &str) -> String {
+    let mut quoted = String::with_capacity(value.len() + 2);
+    quoted.push('"');
+    for character in value.chars() {
+        match character {
+            '"' => quoted.push_str("\\\""),
+            '\\' => quoted.push_str("\\\\"),
+            '\n' => quoted.push_str("\\n"),
+            control if control.is_control() => {
+                let _ = write!(quoted, "\\u{:04X}", u32::from(control));
+            }
+            other => quoted.push(other),
+        }
+    }
+    quoted.push('"');
+    quoted
 }
 
 fn alias_value(entry: &str) -> &str {
@@ -897,7 +923,9 @@ mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
+    use super::double_quoted;
     use super::plan_retirement;
+    use super::quoted_list;
     use super::CorpusFile;
     use super::Retirement;
     use super::RetirementPlan;
@@ -1684,6 +1712,30 @@ mod tests {
                 Some("id-not-one-path-component")
             );
         }
+    }
+
+    #[test]
+    fn a_refusal_escapes_the_ids_it_names() {
+        let retirement = Retirement {
+            old_id: "x\u{1b}[H",
+            new_id: "PP-900",
+            new_external_id: None,
+        };
+        let message = RetirementRefusal::IdNotOnePathComponent {
+            id: "x\u{1b}[H".to_owned(),
+        }
+        .message(&retirement);
+
+        assert!(!message.contains('\u{1b}'), "{message:?}");
+    }
+
+    #[test]
+    fn a_value_written_double_quoted_cannot_close_its_quotes() {
+        assert_eq!(
+            quoted_list(&["a\"b".to_owned(), "c\\d".to_owned()]),
+            r#"["a\"b", "c\\d"]"#
+        );
+        assert_eq!(double_quoted("x\ny"), r#""x\ny""#);
     }
 
     #[test]
