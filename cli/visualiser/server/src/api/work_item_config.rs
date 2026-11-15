@@ -177,6 +177,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_malformed_work_item_is_reported_as_the_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(work.join("0001.md"), "---\nid: \"0001\"\n---\n")
+            .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+
+        let body = config_body(cfg).await;
+
+        let problem = body["problem"].as_str().unwrap_or_default();
+        assert!(
+            problem.starts_with(
+                "E_WORK_ITEM_MALFORMED: meta/work/0001.md has `id` '0001'"
+            ),
+            "{body}"
+        );
+    }
+
+    #[tokio::test]
     async fn a_converged_corpus_reports_no_problem() {
         let tmp = tempfile::tempdir().unwrap();
         let body = config_body(minimal_config(tmp.path())).await;

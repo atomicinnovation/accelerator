@@ -382,3 +382,35 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
         .expect("0042-ship-it.md must be indexed with id '0042'");
     assert_eq!(entry["slug"], "ship-it");
 }
+
+#[tokio::test]
+async fn an_unreadable_scheme_still_serves_work_items_without_ids() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut cfg = config_for(
+        tmp.path(),
+        &[("0001-a.md", "---\nid: \"0001\"\ntitle: A\n---\n")],
+        scheme("{number:04d}", None),
+    );
+    cfg.work_item = accelerator_visualiser::config::WorkItemScheme::Unreadable(
+        "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad".into(),
+    );
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=work-items")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body = json_body(res).await;
+    let docs = body["docs"].as_array().expect("docs array");
+    assert_eq!(docs.len(), 1, "{body}");
+    assert!(docs[0]["workItemId"].is_null(), "{body}");
+}
