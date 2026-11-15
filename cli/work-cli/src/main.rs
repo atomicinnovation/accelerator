@@ -10,6 +10,8 @@ mod convergence;
 mod create;
 mod create_batch;
 mod diff;
+#[cfg(test)]
+mod eval_contract;
 mod exit_codes;
 mod finaliser;
 mod finished_run;

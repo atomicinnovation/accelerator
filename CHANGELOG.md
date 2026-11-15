@@ -335,7 +335,9 @@
 
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
-  welcome text, the ID is settled with `work id check` before drafting: an
+  welcome text, the ID is settled with `work id check` before drafting; an
+  `--id` elsewhere in the argument is asked about rather than read as
+  topic text: an
   exact ID is used as given, a short or differently-keyed one is proposed in
   full, and a refusal is relayed with a choice of another ID, automatic
   allocation or cancelling. Both the push-gate preview and the create carry
@@ -356,7 +358,8 @@
   It prints `exact`, `other-key` or `corrected` with the ID to pass to
   `work create --id`, the last two naming the configured key when the ID's
   key differs from it, and refuses with the `E_ID_*` code `work create --id`
-  would give. A pass reserves nothing. An ID an interrupted `--push` create
+  would give. The configured key in another letter case, such as `pp-0400`
+  under `work.key: PP`, is `corrected` to `PP-0400`. A pass reserves nothing. An ID an interrupted `--push` create
   wrote reports `E_ID_TAKEN`, where `work create` reports `E_PUSH_PENDING`.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers

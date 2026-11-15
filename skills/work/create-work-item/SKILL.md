@@ -101,11 +101,13 @@ nothing was written:
 
 When this command is invoked:
 
-1. **Requested ID**. Recognise `--id <ID>` or `--id=<ID>` only as the
+1. **Requested ID**. Recognise `--id <ID>` or `--id=<ID>` as the
    argument's leading or trailing tokens (`--id 0400 dark mode` or
-   `dark mode --id 0400`), and take them out before anything else. Anywhere
-   else, the whole argument is the topic: `add --id <ID> to accelerator work
-   create` requests no ID.
+   `dark mode --id 0400`), and take them out before anything else. When
+   `--id` appears anywhere else (`add --id <ID> to accelerator work
+   create`), run nothing yet: ask once whether `--id <token>` names the new
+   item's ID or is part of the topic. Lift it as a requested ID only if the
+   user says it names the ID; otherwise the whole argument is the topic.
 
    When an ID was requested, the remainder is the topic. Never pass it to
    `accelerator work resolve`; enrich-existing mode is unavailable. With no
@@ -127,9 +129,11 @@ When this command is invoked:
 
    - **Exit 0, `exact\t<id>`** — use `<id>` with no question, saying which ID
      will be used ("Using 0400").
-   - **Exit 0, `other-key\t<id>\t<key>`** — use `<id>` with no question,
-     saying which ID will be used and that its key differs from the
-     configured `<key>`.
+   - **Exit 0, `other-key\t<id>\t<key>`** — propose `<id>` exactly as
+     printed, saying that its key differs from the configured `<key>` ("Use
+     PO-0400? Its key PO differs from the configured PP."). A key typo would
+     start a new sequence, so continue only on confirmation; a declined
+     proposal goes to *Requested ID recovery*.
    - **Exit 0, `corrected\t<id>` or `corrected\t<id>\t<key>`** — propose
      `<id>` exactly as printed, saying that its key differs from the
      configured `<key>` when the line names one ("Use PO-0400? Its key PO

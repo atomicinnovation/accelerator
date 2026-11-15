@@ -161,7 +161,15 @@ mod tests {
     #[test]
     fn an_exact_id_prints_exact() {
         assert_eq!(checked(&numeric(), "0400"), "exact\t0400");
-        assert_eq!(checked(&PushingRepo::keyed(), "pp-0400"), "exact\tpp-0400");
+        assert_eq!(checked(&PushingRepo::keyed(), "PP-0400"), "exact\tPP-0400");
+    }
+
+    #[test]
+    fn the_configured_key_in_another_case_prints_its_correction() {
+        assert_eq!(
+            checked(&PushingRepo::keyed(), "pp-0400"),
+            "corrected\tPP-0400"
+        );
     }
 
     #[test]

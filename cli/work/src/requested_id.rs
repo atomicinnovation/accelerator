@@ -145,16 +145,40 @@ impl RequestedId {
     ) -> Result<Proposal, RequestedIdRefusal> {
         match Self::admit(requested, None, scheme) {
             Ok(id) if id.key_differs() => Ok(Proposal::OtherKey(id)),
-            Ok(id) => Ok(Proposal::Exact(id)),
+            Ok(id) => Ok(id.in_configured_spelling().map_or(
+                Proposal::Exact(id),
+                |id| Proposal::Corrected {
+                    id,
+                    key_differs: false,
+                },
+            )),
             Err(refusal @ RequestedIdRefusal::PatternMismatch { .. }) => {
                 let (corrected, parts) =
                     correction_for(requested, scheme).ok_or(refusal)?;
                 let id = Self::of(corrected, parts, scheme);
+                let id = id.in_configured_spelling().unwrap_or(id);
                 let key_differs = id.key_differs();
                 Ok(Proposal::Corrected { id, key_differs })
             }
             Err(refusal) => Err(refusal),
         }
+    }
+
+    /// This ID under `work.key` as configured, when its key names
+    /// `work.key` in another letter case.
+    fn in_configured_spelling(&self) -> Option<Self> {
+        let own = self.scheme.key()?;
+        let key = self.parts.key()?;
+        if key == own.as_str() || !self.scheme.is_own_key(key) {
+            return None;
+        }
+        let text = self
+            .scheme
+            .pattern()
+            .render(Some(own), self.parts.number())
+            .ok()?;
+        let parts = in_exact_shape(&text, &self.scheme)?;
+        Some(Self::of(text, parts, &self.scheme))
     }
 
     fn of(text: String, parts: IdParts, scheme: &IdScheme) -> Self {
@@ -769,11 +793,7 @@ mod tests {
 
     #[test]
     fn an_exact_request_is_proposed_as_given() {
-        for (requested, under) in [
-            ("0400", numeric()),
-            ("PP-0400", keyed()),
-            ("pp-0400", keyed()),
-        ] {
+        for (requested, under) in [("0400", numeric()), ("PP-0400", keyed())] {
             assert!(
                 matches!(
                     proposed(requested, &under),
@@ -782,6 +802,18 @@ mod tests {
                 "{requested}"
             );
         }
+    }
+
+    #[test]
+    fn the_configured_key_in_another_case_is_corrected_to_its_spelling() {
+        assert_eq!(
+            corrected("pp-0400", &keyed()),
+            ("PP-0400".to_owned(), false)
+        );
+        assert_eq!(
+            corrected("pp-400", &keyed()),
+            ("PP-0400".to_owned(), false)
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # Skill Benchmark: create-work-item
 
 **Model**: claude-sonnet-4-6 (evals 1 to 38 first); claude-opus-5-5 (every with_skill run, 2026-11-02)  
-**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02  
+**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02 and, for 13 evals, 2026-11-15  
 **Evals**: 75 evals, 1 run each
 
 ## Summary
@@ -38,7 +38,7 @@ versions.
 - ✓ **enrich-existing-self-not-duplicate** (23): 2/2 (100%)
 - ✓ **enrich-existing-augmentation-proposal** (24): 3/3 (100%)
 - ✓ **enrich-existing-preserves-identity** (25): 4/4 (100%)
-- ~ **enrich-existing-no-id-next-call** (26): 2/3 (67%)
+- ✓ **enrich-existing-no-id-next-call** (26): 3/3 (100%)
 - ✓ **enrich-existing-h1-real-number** (27): 2/2 (100%)
 - ✓ **enrich-existing-overwrites-path** (28): 2/2 (100%)
 - ✓ **enrich-existing-status-preserved** (29): 2/2 (100%)
@@ -150,7 +150,7 @@ versions.
 
 ## Analyst Notes
 
-- with_skill passes 74 of 75 evals in full; eval 26 fails one of three expectations (see below).
+- with_skill passes all 75 evals in full; eval 26, which failed one of three expectations on 2026-11-02, passed its re-run on 2026-11-15.
 - old_skill runs were limited to 18 representative evals; the remaining 17 enrich-existing evals were omitted since they all test a mode that does not exist in the old skill — including them would trivially inflate the delta without adding insight.
 - old_skill failures are all on enrich-existing mode evals: eval 15 (path-like discriminator), eval 21 (gap analysis), eval 24 (augmentation proposal) all score 0% because the old skill treats path-like input as a topic string.
 - eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values — showing identity is not preserved.
@@ -166,3 +166,4 @@ versions.
 - Evals 39 to 72 (`/create-work-item --id`) were run old_skill on 2026-11-02, by claude-opus-5-5, against a snapshot of the skill taken before the change; executors simulated every accelerator call. Each fails at least one expectation except 49, 50, 52, 67, 69 and 71, which characterise behaviour the old skill already had.
 - Evals 58, 59, 60 and 66 first passed in full on the old skill. Each gained one expectation the old run misses (no `work resolve` on a requested ID, no `work id next` and `--id` on the dry-run, all three recovery choices, `--id` on the first dry-run and `--push` create), and their old_skill runs were re-graded.
 - The whole suite (ids 1 to 72) was re-run with_skill on 2026-11-02, by claude-opus-5-5, after Step 0 and Step 5 changed; executors simulated every accelerator call. Every run passes in full except eval 26, which failed 'The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt': its behavior.md placed the check directly before the write without showing its order against the confirmation prompt.
+- Evals 26, 39, 42, 45, 48, 49, 51, 52, 59, 60, 61, 62 and 66 were re-run with_skill only on 2026-11-15, by claude-opus-5-5, after `E_ID_TAKEN` moved to exit 4, `other-key` IDs came to need confirmation and an `--id` mid-argument came to be asked about (evals 45 and 52 gained new expectations). Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full, eval 26 included.

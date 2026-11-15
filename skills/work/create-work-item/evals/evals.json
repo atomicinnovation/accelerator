@@ -603,12 +603,12 @@
       "id": 45,
       "name": "key_pattern_requests_are_proposed_with_their_key",
       "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{key}-{number:04d}` and **Active integration** is empty.\n\nRun four separate sessions, each stopping after the skill's first message to the user. In each, simulate `accelerator work id check` exiting 0 with the line given:\n\n1. `/create-work-item --id 400 dark mode toggle` prints `corrected\tPP-0400`\n2. `/create-work-item --id XY-400 dark mode toggle` prints `corrected\tXY-0400\tPP`\n3. `/create-work-item --id xy-400 dark mode toggle` prints `corrected\txy-0400\tPP`\n4. `/create-work-item --id PO-0400 dark mode toggle` prints `other-key\tPO-0400\tPP`\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, per session, in order, in full.\n- response.md: everything you tell the user, under a heading per session.\n",
-      "expected_output": "Each corrected ID is proposed exactly as printed, the last two naming the configured key PP as differing; PO-0400 is used with no question and the key difference is noted.",
+      "expected_output": "Each corrected or other-key ID is proposed exactly as printed and used only on confirmation, the last three naming the configured key PP as differing.",
       "files": [],
       "expectations": [
         "Session 1 proposes PP-0400 exactly and asks the user to confirm it",
         "Sessions 2 and 3 propose XY-0400 and xy-0400 exactly as printed, each saying its key differs from the configured PP",
-        "Session 4 asks no confirmation, says it is using PO-0400, and notes its key differs from the configured PP",
+        "Session 4 proposes PO-0400 exactly, says its key differs from the configured PP, and asks the user to confirm it before using it",
         "commands.md shows `accelerator work id check -- '<request>'`, single-quoted, for each request"
       ]
     },
@@ -689,11 +689,11 @@
       "id": 52,
       "name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
       "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item add --id <ID> to accelerator work create`\n\nSimulate `accelerator work resolve` exiting 1 with stderr `E_RESOLVE_INVALID: input '<argument>' is not a recognised path, full ID, or bare number`, with the argument it was given in place of `<argument>`. Stop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
-      "expected_output": "No work id check runs; the whole argument is the topic.",
+      "expected_output": "No command runs; the skill asks whether `--id <ID>` names the new item's ID or is part of the topic.",
       "files": [],
       "expectations": [
-        "commands.md shows no `accelerator work id check`",
-        "response.md treats the whole argument, adding --id <ID> to accelerator work create, as the topic"
+        "commands.md shows no `accelerator work id check` and no `accelerator work resolve`",
+        "response.md asks once whether `--id <ID>` names the new item's ID or is part of the topic, and drafts nothing"
       ]
     },
     {
