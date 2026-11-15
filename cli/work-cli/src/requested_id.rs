@@ -11,16 +11,15 @@ use crate::create::CreateArgs;
 
 /// # Errors
 ///
-/// The admission refusal's message, which never names a holder.
+/// The admission refusal, which never names a holder.
 pub fn admit_requested_id(
     args: &CreateArgs,
     scheme: &IdScheme,
-) -> Result<Option<RequestedId>, String> {
+) -> Result<Option<RequestedId>, RequestedIdRefusal> {
     args.id
         .as_deref()
         .map(|id| RequestedId::admit(id, args.project.as_deref(), scheme))
         .transpose()
-        .map_err(|refusal| refusal.to_string())
 }
 
 /// Why the taken check did not pass.

@@ -352,7 +352,7 @@ fn attempted_at_epoch() -> u64 {
 struct CreationContext<'a> {
     args: &'a CreateArgs,
     config: &'a dyn ConfigAccess,
-    location: WorkItemLocation,
+    location: &'a WorkItemLocation,
     template: ::config::ResolvedTemplate,
     author: String,
     date: String,
@@ -439,16 +439,51 @@ impl CreationContext<'_> {
     }
 }
 
-/// The context, beside the ID `args` requests once admitted. Nothing is
-/// created before the request is admitted.
-fn creation_context<'a>(
+/// The work items a create writes among, located and trusted for their
+/// IDs, and the ID it requests, admitted.
+pub struct AdmittedRequest {
+    pub location: WorkItemLocation,
+    pub requested: Option<RequestedId>,
+}
+
+/// Why a create stopped before its request was admitted.
+enum Unadmitted {
+    Unlocated(String),
+    Untrusted(Untrusted),
+    Refused(RequestedIdRefusal),
+}
+
+/// The opening a create and its `--id` dry run share, so both refuse in
+/// one order: the work items located, then trusted, then the requested ID
+/// admitted. Nothing is created.
+fn admit_request(
     start: &Path,
+    config: &dyn ConfigAccess,
+    args: &CreateArgs,
+) -> Result<AdmittedRequest, Unadmitted> {
+    let location =
+        locate_work_items(start, config).map_err(Unadmitted::Unlocated)?;
+    refuse_untrusted_corpus(
+        &location.scheme,
+        &location.root,
+        &location.work_dir,
+    )
+    .map_err(Unadmitted::Untrusted)?;
+    let requested = admit_requested_id(args, &location.scheme)
+        .map_err(Unadmitted::Refused)?;
+    Ok(AdmittedRequest {
+        location,
+        requested,
+    })
+}
+
+/// The context for creating among `location`'s work items.
+fn creation_context<'a>(
+    location: &'a WorkItemLocation,
     config: &'a dyn ConfigAccess,
     templates: &dyn ReadTemplate,
     args: &'a CreateArgs,
-) -> Result<(CreationContext<'a>, Option<RequestedId>), String> {
-    let location = locate_work_items(start, config)?;
-    let requested = admit_requested_id(args, &location.scheme)?;
+) -> Result<CreationContext<'a>, String> {
     std::fs::create_dir_all(&location.work_dir).map_err(|error| {
         format!("could not create the work-item directory: {error}")
     })?;
@@ -478,18 +513,19 @@ fn creation_context<'a>(
         author,
         date: metadata.datetime_utc,
     };
-    Ok((context, requested))
+    Ok(context)
 }
 
-/// Creates one item through the strategy its ID ownership and `--push`
-/// select, calling `drafted` as soon as a draft is on disk.
+/// Creates one item for the admitted request through the strategy its ID
+/// ownership and `--push` select, calling `drafted` as soon as a draft is
+/// on disk.
 ///
 /// # Errors
 ///
 /// [`CreateFailure::Pending`] when an earlier create of the same content
 /// is still pending, otherwise [`CreateFailure::Failed`].
 pub fn create_item(
-    start: &Path,
+    admitted: &AdmittedRequest,
     config: &dyn ConfigAccess,
     templates: &dyn ReadTemplate,
     args: &CreateArgs,
@@ -497,9 +533,8 @@ pub fn create_item(
     drafted: &mut Drafted<'_>,
     identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, CreateFailure> {
-    let (context, requested) =
-        creation_context(start, config, templates, args)?;
-    let location = &context.location;
+    let location = &admitted.location;
+    let context = creation_context(location, config, templates, args)?;
     let state_dir = location.root.join(crate::sync::STATE_DIR);
     let lock = (seams.lock_at)(&location.work_dir);
     let creation = Creation {
@@ -515,7 +550,8 @@ pub fn create_item(
     };
     let registry = seams.registry;
     let allocate = |create: &CreateLockGuard| context.allocate_local_id(create);
-    let local_id = requested
+    let local_id = admitted
+        .requested
         .as_ref()
         .map_or(LocalId::Allocate(&allocate), LocalId::Requested);
     match (location.scheme.ownership(), args.push) {
@@ -671,40 +707,18 @@ fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
     RunOutcome::Refused { message, code }
 }
 
-/// The real create's `--id` refusals, in its order, without its locks: a
-/// pass reserves nothing. An integration that cannot be read fails where
-/// the real create's does, before the taken check only under `--push`.
-fn preview_requested_id(
-    start: &Path,
-    config: &dyn ConfigAccess,
+/// The outcome the real create's taken check would stop `requested` with,
+/// if any.
+fn preview_taken_check(
+    requested: &RequestedId,
+    location: &WorkItemLocation,
+    integration: &Result<IntegrationState, String>,
     args: &CreateArgs,
-    requested: &str,
-    registry: &dyn TrackerRegistry,
-) -> RunOutcome {
-    let location = match locate_work_items(start, config) {
-        Ok(location) => location,
-        Err(message) => return RunOutcome::Failed(message),
-    };
-    if let Err(Untrusted { message, code }) = refuse_untrusted_corpus(
-        &location.scheme,
-        &location.root,
-        &location.work_dir,
-    ) {
-        return RunOutcome::Refused { message, code };
-    }
-    let requested = match RequestedId::admit(
-        requested,
-        args.project.as_deref(),
-        &location.scheme,
-    ) {
-        Ok(requested) => requested,
-        Err(refusal) => return refused(&refusal),
-    };
-    let integration = integration_state(config, &location.root);
+) -> Option<RunOutcome> {
     let listing =
         match FilesystemWorkItemFiles::new(&location.work_dir).listing() {
             Ok(listing) => listing,
-            Err(error) => return RunOutcome::Failed(error.to_string()),
+            Err(error) => return Some(RunOutcome::Failed(error.to_string())),
         };
     let pending = |_: &WorkItemListing| {
         if !args.push {
@@ -713,12 +727,44 @@ fn preview_requested_id(
         let state = integration.as_ref().map_err(String::clone)?;
         refuse_unfinished_push(state, &slugify(&args.title), &RealFs)
     };
-    match refuse_requested_id(&requested, &listing, &pending, &location.root) {
-        Ok(()) => {}
+    match refuse_requested_id(requested, &listing, &pending, &location.root) {
+        Ok(()) => None,
         Err(RequestedIdBlock::Pending(message)) => {
+            Some(RunOutcome::Failed(message))
+        }
+        Err(RequestedIdBlock::Refused(refusal)) => Some(refused(&refusal)),
+    }
+}
+
+/// The real create's `--id` refusals, in its order, without its locks: a
+/// pass reserves nothing. An integration that cannot be read fails where
+/// the real create's does, before the taken check only under `--push`.
+fn preview_requested_id(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    args: &CreateArgs,
+    registry: &dyn TrackerRegistry,
+) -> RunOutcome {
+    let AdmittedRequest {
+        location,
+        requested,
+    } = match admit_request(start, config, args) {
+        Ok(admitted) => admitted,
+        Err(Unadmitted::Unlocated(message)) => {
             return RunOutcome::Failed(message)
         }
-        Err(RequestedIdBlock::Refused(refusal)) => return refused(&refusal),
+        Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
+            return RunOutcome::Refused { message, code }
+        }
+        Err(Unadmitted::Refused(refusal)) => return refused(&refusal),
+    };
+    let integration = integration_state(config, &location.root);
+    if let Some(requested) = &requested {
+        if let Some(blocked) =
+            preview_taken_check(requested, &location, &integration, args)
+        {
+            return blocked;
+        }
     }
     match integration {
         Ok(state) => preview_push(&state.name, &args.kind, registry),
@@ -734,14 +780,8 @@ pub fn run_with(
     args: &CreateArgs,
     seams: &mut Seams<'_>,
 ) -> RunOutcome {
-    if let (true, Some(requested)) = (args.dry_run, args.id.as_deref()) {
-        return preview_requested_id(
-            start,
-            config,
-            args,
-            requested,
-            seams.registry,
-        );
+    if args.dry_run && args.id.is_some() {
+        return preview_requested_id(start, config, args, seams.registry);
     }
     if args.dry_run {
         let integration = match effective_nonempty(config, "work.integration") {
@@ -758,19 +798,20 @@ pub fn run_with(
             return RunOutcome::Refused { message, code };
         }
     };
-    let location = match locate_work_items(start, config) {
-        Ok(location) => location,
-        Err(message) => return RunOutcome::Failed(message),
+    let admitted = match admit_request(start, config, args) {
+        Ok(admitted) => admitted,
+        Err(Unadmitted::Unlocated(message)) => {
+            return RunOutcome::Failed(message)
+        }
+        Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
+            return RunOutcome::Refused { message, code }
+        }
+        Err(Unadmitted::Refused(refusal)) => {
+            return RunOutcome::Failed(refusal.to_string())
+        }
     };
-    if let Err(Untrusted { message, code }) = refuse_untrusted_corpus(
-        &location.scheme,
-        &location.root,
-        &location.work_dir,
-    ) {
-        return RunOutcome::Refused { message, code };
-    }
     match create_item(
-        start,
+        &admitted,
         config,
         templates,
         args,

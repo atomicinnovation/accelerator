@@ -39,6 +39,7 @@ use crate::config::locate_work_items;
 use crate::corpus_trust::refuse_untrusted_corpus;
 use crate::corpus_trust::Untrusted;
 use crate::create::create_item;
+use crate::create::AdmittedRequest;
 use crate::create::CreateFailure;
 use crate::create::CreationOutcome;
 use crate::create::CreationStore;
@@ -242,7 +243,10 @@ pub fn run_with(
         }
     };
     let mut batch = Batch {
-        start,
+        admitted: AdmittedRequest {
+            location,
+            requested: None,
+        },
         config,
         templates,
         authorship: Authorship {
@@ -337,7 +341,7 @@ impl BatchWorkspace {
 }
 
 struct Batch<'a> {
-    start: &'a Path,
+    admitted: AdmittedRequest,
     config: &'a dyn ConfigAccess,
     templates: &'a dyn ReadTemplate,
     authorship: Authorship<'a>,
@@ -367,7 +371,7 @@ impl Batch<'_> {
         let args = entry.create_args(parent.clone(), &self.authorship);
         let mut journal = self.workspace.journal.as_mut();
         let result = create_item(
-            self.start,
+            &self.admitted,
             self.config,
             self.templates,
             &args,
