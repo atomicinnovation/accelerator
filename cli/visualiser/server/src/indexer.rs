@@ -228,8 +228,8 @@ pub struct Indexer {
     work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Secondary index mapping plan `id:` (filename stem) to plan path.
     /// Used to resolve `target: "plan:<id>"` typed-linkage references per
-    /// ADR-0034. Lock-ordering invariant: acquire after `work_item_by_identity_key`
-    /// and before `reviews_by_target`.
+    /// ADR-0034. Lock-ordering invariant: acquire after
+    /// `work_item_by_identity_key` and before `reviews_by_target`.
     plans_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
     /// paths of target plans (or any future target type); values are
@@ -461,9 +461,10 @@ impl Indexer {
                             .await;
                         let plans_snapshot =
                             self.plans_by_id.read().await.clone();
-                        // Snapshot work_item_by_identity_key AFTER the work-item-by-identity-key
+                        // Snapshot work_item_by_identity_key AFTER its
                         // removal, mirroring plans_snapshot, so the typed
-                        // `work-item:` target resolves against a consistent view.
+                        // `work-item:` target resolves against a
+                        // consistent view.
                         let work_item_snapshot =
                             self.work_item_by_identity_key.read().await.clone();
                         remove_from_reviews_by_target(
@@ -526,9 +527,10 @@ impl Indexer {
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
                 let plans_snapshot = self.plans_by_id.read().await.clone();
-                // Snapshot work_item_by_identity_key AFTER update_work_item_by_identity_key has
-                // folded the new entry in, mirroring plans_snapshot, so a typed
-                // `work-item:` target resolves against a consistent view.
+                // Snapshot work_item_by_identity_key AFTER
+                // update_work_item_by_identity_key has folded the new entry
+                // in, mirroring plans_snapshot, so a typed `work-item:`
+                // target resolves against a consistent view.
                 let work_item_snapshot =
                     self.work_item_by_identity_key.read().await.clone();
                 update_reviews_by_target(
@@ -981,10 +983,11 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 ///   - Typed `plan:` form: `target: "plan:<plan-id>"` — resolved via
 ///     the `plans_by_id` index (the plan's `id:` field; usually the
 ///     filename stem).
-///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via the
-///     `work_item_by_identity_key` index under the raw id's identity key, so any
-///     spelling of the item resolves, as clustering does. Resolving it here
-///     keeps the path-keyed `reviews_by_target` reverse index populated.
+///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via
+///     the `work_item_by_identity_key` index under the raw id's identity key,
+///     so any spelling of the item resolves, as clustering does. Resolving
+///     it here keeps the path-keyed `reviews_by_target` reverse index
+///     populated.
 ///
 /// Returns `None` for entries that carry no `target:`, or for `adr:`/`pr:`
 /// targets (no corpus path).
@@ -1276,8 +1279,8 @@ fn work_item_identity(
 }
 
 /// The identity key a raw cross-reference, bare or a typed `work-item:`
-/// reference, joins `work_item_by_identity_key` on, or `None` for a value that names
-/// no work item.
+/// reference, joins `work_item_by_identity_key` on, or `None` for a value
+/// that names no work item.
 pub fn identity_key_of(
     raw: &str,
     cfg: &crate::config::WorkItemConfig,
@@ -3537,9 +3540,9 @@ mod reverse_index_tests {
     ) {
         // Story 0070: a migrated work-item-review carries `target:
         // "work-item:NNNN"`. target_path_from_entry now resolves it via
-        // work_item_by_identity_key, so the path-keyed reviews_by_target reverse index
-        // is populated on BOTH the full rescan (Indexer::build Pass B) and the
-        // incremental refresh_one path.
+        // work_item_by_identity_key, so the path-keyed reviews_by_target
+        // reverse index is populated on BOTH the full rescan (Indexer::build
+        // Pass B) and the incremental refresh_one path.
         let tmp = tempfile::tempdir().unwrap();
         let work = tmp.path().join("meta/work");
         let wi_reviews = tmp.path().join("meta/reviews/work");
@@ -4492,8 +4495,9 @@ mod target_path_resolution_tests {
     #[test]
     fn typed_work_item_target_resolves_via_work_item_by_identity_key() {
         // Story 0070 types work-item-review targets to `work-item:NNNN`;
-        // target_path_from_entry now resolves them through work_item_by_identity_key
-        // (canonicalising the raw id first), so the path-keyed
+        // target_path_from_entry now resolves them through
+        // work_item_by_identity_key (canonicalising the raw id first), so the
+        // path-keyed
         // reviews_by_target reverse index stays populated. (Was previously
         // pinned to return None and resolved only by the cluster-key resolver.)
         let mut entry =
