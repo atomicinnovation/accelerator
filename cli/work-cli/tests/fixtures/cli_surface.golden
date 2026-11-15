@@ -335,6 +335,9 @@ Options:
       --per-item-reads
           Read each synced item's issue with its own request instead of one bulk retrieval, as for `work sync`; applies only when a `{tracker}` mapping is computed
 
+      --from-key <KEY>
+          Re-key the items under `KEY` onto `work.key` instead of letting them keep it, as for the key in use before `work.key` changed; repeatable. Only with `--preview`, whose plan the next `work rekey` applies
+
   -h, --help
           Print help (see a summary with '-h')
 

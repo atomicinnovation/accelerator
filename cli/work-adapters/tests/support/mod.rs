@@ -55,6 +55,7 @@ use work::identity_run::IdentityRunGuard;
 use work::identity_run::IdentityRunLockError;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
+use work::rekey::folding::FoldedKeys;
 use work::rekey::mapping::RefreshedKeys;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
@@ -703,6 +704,7 @@ pub fn request(action: RekeyAction, forcing: Forcing) -> RekeyRequest {
         action,
         forcing,
         scheme: scheme(),
+        folded: FoldedKeys::none(),
     }
 }
 

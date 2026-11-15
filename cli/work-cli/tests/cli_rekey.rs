@@ -335,3 +335,88 @@ fn rekey_adds_literal_text_then_leaves_it() -> Result<(), TestError> {
     assert_eq!(repo.work_items()?, vec!["v001-x.md"]);
     Ok(())
 }
+
+const KEY_CHANGED: &str =
+    "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+                           key: QQ\n---\n";
+
+fn key_changed_repo() -> Result<Repo, TestError> {
+    Repo::committed_as(&[
+        (".accelerator/config.md", KEY_CHANGED),
+        (
+            "meta/work/PP-0001-old.md",
+            "---\nid: \"PP-0001\"\ntitle: \"Old\"\n---\n",
+        ),
+        (
+            "meta/work/XY-0002-project.md",
+            "---\nid: \"XY-0002\"\ntitle: \"Project\"\n---\n",
+        ),
+    ])
+}
+
+#[test]
+fn a_preview_keeps_other_keys_and_names_them() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let output = repo.run(&["rekey", "--preview"], &[])?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8(output.stdout)?, "");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "note: 2 work items keep keys other than `work.key` 'QQ': PP \
+             (1), XY (1). To re-key a key's items onto 'QQ', preview again \
+             with `--from-key <KEY>`"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_preview_from_a_key_folds_only_that_keys_items() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let previewed =
+        repo.run(&["rekey", "--preview", "--from-key", "PP"], &[])?;
+    let applied = repo.run(&["rekey"], &[])?;
+
+    assert!(previewed.status.success(), "{previewed:?}");
+    assert_eq!(String::from_utf8(previewed.stdout)?, "PP-0001 → QQ-0001\n");
+    let stderr = String::from_utf8(previewed.stderr)?;
+    assert!(stderr.contains("1 work item keeps"), "{stderr}");
+    assert!(stderr.contains("XY (1)"), "{stderr}");
+    assert!(applied.status.success(), "{applied:?}");
+    assert_eq!(
+        repo.work_items()?,
+        vec!["QQ-0001-old.md".to_owned(), "XY-0002-project.md".to_owned()]
+    );
+    Ok(())
+}
+
+#[test]
+fn from_key_needs_a_preview() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let output = repo.run(&["rekey", "--from-key", "PP"], &[])?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert_eq!(
+        repo.work_items()?,
+        vec!["PP-0001-old.md".to_owned(), "XY-0002-project.md".to_owned()]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_from_key_that_is_not_a_key_is_refused() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let output = repo.run(&["rekey", "--preview", "--from-key", "P-P"], &[])?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("--from-key"), "{stderr}");
+    Ok(())
+}

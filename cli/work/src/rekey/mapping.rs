@@ -7,6 +7,7 @@ use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
 use crate::id_pattern::is_in_id_alphabet;
+use crate::id_pattern::IdKey;
 use crate::id_scheme::IdOwnership;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
@@ -17,6 +18,7 @@ use crate::rekey::collision::refuse_collisions;
 use crate::rekey::creation_date::CreationDate;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::entry::RekeyTarget;
+use crate::rekey::folding::FoldedKeys;
 use crate::rekey::outcome::NotRekeyed;
 use crate::rekey::outcome::UnclassifiableCause;
 use crate::rekey::sequence::existing_id;
@@ -31,11 +33,11 @@ pub struct RekeyCandidate {
 
 /// Every item off the pattern, by old `id`, with what it becomes.
 ///
-/// An item already in shape under `work.key` is left, even one named by
-/// its tracker key. A kept number is re-rendered under `work.key`, whatever
-/// project key it had. Any other tracker key, and a draft, takes a fresh
-/// number under `work.key`, in creation-date order, above every number that
-/// key already holds.
+/// An item already in shape is left, even one named by its tracker key,
+/// unless its key is folded. A kept number is re-rendered under the item's
+/// own key, or under `work.key` when its key is folded or it has none. Any
+/// other tracker key, and a draft, takes a fresh number under `work.key`, in
+/// creation-date order, above every number that key already holds.
 ///
 /// # Errors
 ///
@@ -44,13 +46,16 @@ pub struct RekeyCandidate {
 pub fn numeric_mapping(
     scheme: &IdScheme,
     candidates: &[RekeyCandidate],
+    folded: &FoldedKeys,
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
     let cap = cap_of(scheme);
     let mut entries = Vec::new();
     let mut needing_fresh = Vec::new();
     for candidate in candidates {
         let identity = &candidate.identity;
-        if is_in_target_shape(&identity.id, scheme) {
+        if is_in_target_shape(&identity.id, scheme)
+            || folded.keeps(identity, scheme)
+        {
             continue;
         }
         match classify(identity, scheme) {
@@ -65,8 +70,11 @@ pub fn numeric_mapping(
                 });
             }
             Classification::Sequenced(number) => {
-                entries
-                    .push(renumbered(&identity.id, rendered(scheme, number)));
+                let key = own_key(&identity.id, scheme, folded);
+                entries.push(renumbered(
+                    &identity.id,
+                    rendered_under(scheme, key.as_ref(), number),
+                ));
             }
             Classification::Unclassifiable(unclassified) => {
                 return Err(NotRekeyed::Unclassifiable {
@@ -95,10 +103,34 @@ fn cap_of(scheme: &IdScheme) -> u64 {
 /// `number` as the pattern renders it under `work.key`, which a scheme a
 /// re-key runs under always holds when its pattern needs one.
 fn rendered(scheme: &IdScheme, number: u64) -> String {
+    rendered_under(scheme, None, number)
+}
+
+/// `number` as the pattern renders it under `key`, or `work.key` without
+/// one.
+fn rendered_under(
+    scheme: &IdScheme,
+    key: Option<&IdKey>,
+    number: u64,
+) -> String {
     scheme
         .pattern()
-        .render(scheme.key(), number)
+        .render(key.or_else(|| scheme.key()), number)
         .unwrap_or_else(|_| number.to_string())
+}
+
+/// The key `id` keeps through a re-key: its own, unless that is folded,
+/// is `work.key` in another case, or cannot be a local key.
+fn own_key(id: &str, scheme: &IdScheme, folded: &FoldedKeys) -> Option<IdKey> {
+    let is_work_key = |key: &str| {
+        scheme
+            .key()
+            .is_some_and(|own| own.as_str().eq_ignore_ascii_case(key))
+    };
+    existing_id(id, scheme)
+        .and_then(|existing| existing.key)
+        .filter(|key| !folded.folds(key) && !is_work_key(key))
+        .and_then(|key| IdKey::parse(&key).ok())
 }
 
 /// Why re-key cannot read `identity`'s IDs and so refuses it, under the
@@ -353,6 +385,7 @@ mod tests {
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
+    use crate::rekey::folding::FoldedKeys;
     use crate::rekey::outcome::NotRekeyed;
     use crate::rekey::outcome::UnclassifiableCause;
     use crate::work_item_files::identity_of;
@@ -427,7 +460,26 @@ mod tests {
         scheme: &IdScheme,
         candidates: &[RekeyCandidate],
     ) -> Vec<(String, String)> {
-        numeric_mapping(scheme, candidates)
+        folding(scheme, candidates, &FoldedKeys::none())
+    }
+
+    fn folded(keys: &[&str]) -> FoldedKeys {
+        FoldedKeys::of(
+            keys.iter()
+                .map(|key| {
+                    IdKey::parse(key)
+                        .unwrap_or_else(|error| unreachable!("{error}"))
+                })
+                .collect(),
+        )
+    }
+
+    fn folding(
+        scheme: &IdScheme,
+        candidates: &[RekeyCandidate],
+        folded: &FoldedKeys,
+    ) -> Vec<(String, String)> {
+        numeric_mapping(scheme, candidates, folded)
             .unwrap_or_else(|refusal| unreachable!("{refusal}"))
             .into_iter()
             .map(|entry| (entry.old.clone(), entry.target.id().to_owned()))
@@ -564,7 +616,7 @@ mod tests {
             draft("draft-a1b2cd", "2026-01-02"),
         ];
         assert_eq!(
-            numeric_mapping(&acc(), &corpus),
+            numeric_mapping(&acc(), &corpus, &FoldedKeys::none()),
             Err(NotRekeyed::FreshNumbersExhausted {
                 needed: 2,
                 remaining: 1,
@@ -576,7 +628,11 @@ mod tests {
     #[test]
     fn a_kept_number_past_the_cap_is_refused_naming_the_item() {
         assert_eq!(
-            numeric_mapping(&IdScheme::numeric(), &[local("PP-12345")]),
+            numeric_mapping(
+                &IdScheme::numeric(),
+                &[local("PP-12345")],
+                &FoldedKeys::none()
+            ),
             Err(NotRekeyed::KeptNumberAboveCap {
                 item: path_of("PP-12345"),
                 number: 12_345,
@@ -588,25 +644,32 @@ mod tests {
     #[test]
     fn a_renumbering_entry_carries_a_renumbered_target() {
         assert_eq!(
-            numeric_mapping(&acc(), &[local("0042")]),
+            numeric_mapping(&acc(), &[local("0042")], &FoldedKeys::none()),
             Ok(vec![renumbered("0042", "ACC-0042")])
         );
     }
 
     #[test]
-    fn an_item_under_another_key_moves_to_the_default_key_keeping_its_number() {
+    fn an_item_under_another_key_keeps_it() {
         let corpus = [local("ACC-0001"), local("XYZ-0002"), local("AB1-0003")];
+        assert_eq!(mapped(&acc(), &corpus), pairs(&[]));
+    }
+
+    #[test]
+    fn an_item_under_a_folded_key_moves_to_the_default_key_keeping_its_number()
+    {
+        let corpus = [local("ACC-0001"), local("XYZ-0002"), local("ab1-0003")];
         assert_eq!(
-            mapped(&acc(), &corpus),
-            pairs(&[("AB1-0003", "ACC-0003"), ("XYZ-0002", "ACC-0002")])
+            folding(&acc(), &corpus, &folded(&["XYZ", "AB1"])),
+            pairs(&[("XYZ-0002", "ACC-0002"), ("ab1-0003", "ACC-0003")])
         );
     }
 
     #[test]
-    fn renaming_the_key_re_keys_every_item_under_the_old_one() {
-        let corpus = [local("ACC-0001"), local("ACC-0002")];
+    fn renaming_the_key_re_keys_every_item_under_the_folded_old_one() {
+        let corpus = [local("ACC-0001"), local("ACC-0002"), local("XYZ-0003")];
         assert_eq!(
-            mapped(&keyed("PRJ"), &corpus),
+            folding(&keyed("PRJ"), &corpus, &folded(&["ACC"])),
             pairs(&[("ACC-0001", "PRJ-0001"), ("ACC-0002", "PRJ-0002")])
         );
     }
@@ -614,17 +677,29 @@ mod tests {
     #[test]
     fn items_under_two_keys_holding_one_number_collide() {
         assert!(matches!(
-            numeric_mapping(&acc(), &[local("OLD-0001"), local("XYZ-0001")]),
+            numeric_mapping(
+                &acc(),
+                &[local("OLD-0001"), local("XYZ-0001")],
+                &folded(&["OLD", "XYZ"])
+            ),
             Err(NotRekeyed::Collision { .. })
         ));
     }
 
     #[test]
-    fn a_width_change_moves_every_item_to_the_default_key() {
+    fn a_width_change_re_renders_each_item_under_its_own_key() {
         let corpus = [local("ACC-001"), local("XYZ-002")];
         assert_eq!(
             mapped(&acc(), &corpus),
-            pairs(&[("ACC-001", "ACC-0001"), ("XYZ-002", "ACC-0002")])
+            pairs(&[("ACC-001", "ACC-0001"), ("XYZ-002", "XYZ-0002")])
+        );
+    }
+
+    #[test]
+    fn a_width_change_re_renders_an_item_under_a_folded_key_under_work_key() {
+        assert_eq!(
+            folding(&acc(), &[local("XYZ-002")], &folded(&["XYZ"])),
+            pairs(&[("XYZ-002", "ACC-0002")])
         );
     }
 
@@ -645,15 +720,15 @@ mod tests {
         ];
         assert_eq!(
             mapped(&acc(), &corpus),
-            pairs(&[("XYZ-0009", "ACC-0009"), ("draft-k3x9mq", "ACC-0010")])
+            pairs(&[("draft-k3x9mq", "ACC-0004")])
         );
     }
 
     #[test]
-    fn an_unsynced_tracker_shaped_id_moves_to_the_default_key() {
+    fn an_unsynced_tracker_shaped_id_is_re_rendered_under_its_own_key() {
         assert_eq!(
             mapped(&acc(), &[local("PP-760")]),
-            pairs(&[("PP-760", "ACC-0760")])
+            pairs(&[("PP-760", "PP-0760")])
         );
     }
 
@@ -676,9 +751,21 @@ mod tests {
     }
 
     #[test]
-    fn a_tracker_key_in_target_shape_still_takes_a_fresh_number() {
+    fn a_tracker_key_in_shape_under_another_key_keeps_it() {
         assert_eq!(
             mapped(&acc(), &[synced("PP-7600", "2026-01-01")]),
+            pairs(&[])
+        );
+    }
+
+    #[test]
+    fn a_tracker_key_under_a_folded_key_takes_a_fresh_number() {
+        assert_eq!(
+            folding(
+                &acc(),
+                &[synced("PP-7600", "2026-01-01")],
+                &folded(&["PP"])
+            ),
             pairs(&[("PP-7600", "ACC-0001")])
         );
     }
@@ -686,7 +773,7 @@ mod tests {
     #[test]
     fn an_unclassifiable_id_is_refused_naming_the_item() {
         assert_eq!(
-            numeric_mapping(&acc(), &[local("notes")]),
+            numeric_mapping(&acc(), &[local("notes")], &FoldedKeys::none()),
             Err(NotRekeyed::Unclassifiable {
                 item: path_of("notes"),
                 cause: UnclassifiableCause::NoNumber {
@@ -699,7 +786,7 @@ mod tests {
     #[test]
     fn an_ambiguous_id_is_refused_with_an_example_of_the_pattern() {
         assert_eq!(
-            numeric_mapping(&acc(), &[local("PP2_0001")]),
+            numeric_mapping(&acc(), &[local("PP2_0001")], &FoldedKeys::none()),
             Err(NotRekeyed::Unclassifiable {
                 item: path_of("PP2_0001"),
                 cause: UnclassifiableCause::AmbiguousDigitRuns {
@@ -741,7 +828,11 @@ mod tests {
     #[test]
     fn a_colliding_target_is_refused() {
         assert!(matches!(
-            numeric_mapping(&acc(), &[local("0042"), local("ACC-0042")]),
+            numeric_mapping(
+                &acc(),
+                &[local("0042"), local("ACC-0042")],
+                &FoldedKeys::none()
+            ),
             Err(NotRekeyed::Collision { .. })
         ));
     }
@@ -1042,7 +1133,7 @@ mod tests {
     }
 
     #[test]
-    fn an_item_under_work_key_is_converged_exactly_when_re_key_leaves_it() {
+    fn an_item_is_converged_exactly_when_re_key_leaves_it() {
         let cases = [
             (
                 keyed("PP"),
@@ -1055,6 +1146,9 @@ mod tests {
                     synced("ENG-7", "2024-01-01"),
                     synced("PP-0005", "2024-01-01"),
                     synced("pp-0006", "2024-01-01"),
+                    local("XY-0042"),
+                    local("xy-0043"),
+                    synced("ENG-0044", "2024-01-01"),
                 ],
             ),
             (
@@ -1071,8 +1165,9 @@ mod tests {
             ),
         ];
         for (under, candidates) in cases {
-            let entries = numeric_mapping(&under, &candidates)
-                .unwrap_or_else(|refusal| unreachable!("{refusal}"));
+            let entries =
+                numeric_mapping(&under, &candidates, &FoldedKeys::none())
+                    .unwrap_or_else(|refusal| unreachable!("{refusal}"));
 
             for candidate in &candidates {
                 let identity = &candidate.identity;
@@ -1096,6 +1191,7 @@ mod tests {
         let entries = numeric_mapping(
             &under,
             &[synced("ENG-1234", "2024-01-01"), local("ENG-7")],
+            &FoldedKeys::none(),
         )
         .unwrap_or_else(|refusal| unreachable!("{refusal}"));
 

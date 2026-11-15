@@ -959,6 +959,46 @@ pub fn work::rekey::fingerprint::IdentityFingerprint::eq(&self, other: &work::re
 impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
+pub mod work::rekey::folding
+pub struct work::rekey::folding::FoldedKeys(_)
+impl work::rekey::folding::FoldedKeys
+pub fn work::rekey::folding::FoldedKeys::none() -> Self
+pub const fn work::rekey::folding::FoldedKeys::of(keys: alloc::vec::Vec<work::id_pattern::IdKey>) -> Self
+impl core::clone::Clone for work::rekey::folding::FoldedKeys
+pub fn work::rekey::folding::FoldedKeys::clone(&self) -> work::rekey::folding::FoldedKeys
+impl core::cmp::Eq for work::rekey::folding::FoldedKeys
+impl core::cmp::PartialEq for work::rekey::folding::FoldedKeys
+pub fn work::rekey::folding::FoldedKeys::eq(&self, other: &work::rekey::folding::FoldedKeys) -> bool
+impl core::default::Default for work::rekey::folding::FoldedKeys
+pub fn work::rekey::folding::FoldedKeys::default() -> work::rekey::folding::FoldedKeys
+impl core::fmt::Debug for work::rekey::folding::FoldedKeys
+pub fn work::rekey::folding::FoldedKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::folding::FoldedKeys
+pub struct work::rekey::folding::KeptKey
+pub work::rekey::folding::KeptKey::items: usize
+pub work::rekey::folding::KeptKey::key: alloc::string::String
+impl core::clone::Clone for work::rekey::folding::KeptKey
+pub fn work::rekey::folding::KeptKey::clone(&self) -> work::rekey::folding::KeptKey
+impl core::cmp::Eq for work::rekey::folding::KeptKey
+impl core::cmp::PartialEq for work::rekey::folding::KeptKey
+pub fn work::rekey::folding::KeptKey::eq(&self, other: &work::rekey::folding::KeptKey) -> bool
+impl core::fmt::Debug for work::rekey::folding::KeptKey
+pub fn work::rekey::folding::KeptKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::folding::KeptKey
+pub struct work::rekey::folding::KeptOtherKeys
+impl work::rekey::folding::KeptOtherKeys
+pub fn work::rekey::folding::KeptOtherKeys::keys(&self) -> &[work::rekey::folding::KeptKey]
+pub fn work::rekey::folding::KeptOtherKeys::of(scheme: &work::id_scheme::IdScheme, items: &[work::identity::ItemIdentity], folded: &work::rekey::folding::FoldedKeys) -> core::option::Option<Self>
+impl core::clone::Clone for work::rekey::folding::KeptOtherKeys
+pub fn work::rekey::folding::KeptOtherKeys::clone(&self) -> work::rekey::folding::KeptOtherKeys
+impl core::cmp::Eq for work::rekey::folding::KeptOtherKeys
+impl core::cmp::PartialEq for work::rekey::folding::KeptOtherKeys
+pub fn work::rekey::folding::KeptOtherKeys::eq(&self, other: &work::rekey::folding::KeptOtherKeys) -> bool
+impl core::fmt::Debug for work::rekey::folding::KeptOtherKeys
+pub fn work::rekey::folding::KeptOtherKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::rekey::folding::KeptOtherKeys
+pub fn work::rekey::folding::KeptOtherKeys::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::folding::KeptOtherKeys
 pub mod work::rekey::mapping
 pub struct work::rekey::mapping::RefreshedKeys(_)
 impl work::rekey::mapping::RefreshedKeys
@@ -987,7 +1027,7 @@ impl core::fmt::Debug for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::RekeyCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::mapping::RekeyCandidate
 pub fn work::rekey::mapping::keys_to_refresh(candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::tracker_key::TrackerKey>, work::rekey::outcome::NotRekeyed>
-pub fn work::rekey::mapping::numeric_mapping(scheme: &work::id_scheme::IdScheme, candidates: &[work::rekey::mapping::RekeyCandidate]) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
+pub fn work::rekey::mapping::numeric_mapping(scheme: &work::id_scheme::IdScheme, candidates: &[work::rekey::mapping::RekeyCandidate], folded: &work::rekey::folding::FoldedKeys) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub fn work::rekey::mapping::tracker_mapping(scheme: &work::id_scheme::IdScheme, candidates: &[work::rekey::mapping::RekeyCandidate], refreshed: &work::rekey::mapping::RefreshedKeys, draws: &mut dyn work::draft_id::SuffixDraws) -> core::result::Result<alloc::vec::Vec<work::rekey::entry::RekeyEntry>, work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::outcome
 pub enum work::rekey::outcome::NotRekeyed

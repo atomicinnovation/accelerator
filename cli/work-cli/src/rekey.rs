@@ -15,10 +15,14 @@ use vcs::RepositoryProbe;
 use work::id_scheme::IdScheme;
 use work::identity_run::waiting_line;
 use work::rekey::entry::RekeyEntry;
+use work::rekey::folding::FoldedKeys;
+use work::rekey::folding::KeptOtherKeys;
 use work::rekey::mapping::RefreshedKeys;
 use work::rekey::outcome::unreverted_listing;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
+use work::work_item_files::identities;
+use work::work_item_files::WorkItemFiles as _;
 use work_adapters::creation::CreationStore;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
@@ -289,6 +293,7 @@ pub fn run(
         action,
         forcing: environment.forcing,
         scheme: located.scheme.clone(),
+        folded: FoldedKeys::of(args.from_key.clone()),
     };
     let refresh = ConfiguredRefresh {
         registry: environment.registry,
@@ -315,6 +320,9 @@ pub fn run(
     match outcome {
         Ok(report) => {
             render(&report, environment.forcing, console);
+            if action == RekeyAction::Preview {
+                name_kept_other_keys(&located, &request.folded, console);
+            }
             exit_codes::CLEAN
         }
         Err(refusal) => {
@@ -393,6 +401,22 @@ fn rekey(
     )
 }
 
+fn name_kept_other_keys(
+    located: &Located,
+    folded: &FoldedKeys,
+    console: &dyn Console,
+) {
+    let Ok(files) = FilesystemWorkItemFiles::new(&located.work_dir).files()
+    else {
+        return;
+    };
+    if let Some(kept) =
+        KeptOtherKeys::of(&located.scheme, &identities(&files), folded)
+    {
+        console.err(&format!("note: {kept}"));
+    }
+}
+
 fn render(report: &RekeyReport, forcing: Forcing, console: &dyn Console) {
     match report {
         RekeyReport::AlreadyConverged => {
@@ -462,6 +486,7 @@ mod tests {
     use std::path::Path;
     use std::path::PathBuf;
     use std::rc::Rc;
+    use work::id_pattern::IdKey;
 
     use corpus::store::AtomicWrite;
     use corpus::store::ExclusiveCreate;
@@ -628,6 +653,7 @@ mod tests {
         store_at: &'a dyn Fn(&Path) -> Box<dyn CreationStore>,
         registry: &'a dyn TrackerRegistry,
         per_item_reads: bool,
+        from_key: &'a [&'a str],
     }
 
     fn issue(key: &str) -> (ExternalId, RemoteIssue) {
@@ -759,6 +785,7 @@ mod tests {
                 store_at,
                 registry: &holding(&[]).0,
                 per_item_reads: false,
+                from_key: &[],
             })
         }
 
@@ -776,6 +803,11 @@ mod tests {
                     preview: invocation.action == Action::Preview,
                     discard: invocation.action == Action::Discard,
                     per_item_reads: invocation.per_item_reads,
+                    from_key: invocation
+                        .from_key
+                        .iter()
+                        .map(|key| IdKey::parse(key).unwrap())
+                        .collect(),
                 },
                 &RekeyEnvironment {
                     forcing: invocation.forcing,
@@ -810,6 +842,18 @@ mod tests {
             )
         }
 
+        fn preview_from(&self, keys: &[&str]) -> Ran {
+            self.invoked(&Invocation {
+                action: Action::Preview,
+                forcing: Forcing::Unforced,
+                repository: &InProcessProbe,
+                store_at: &plain,
+                registry: &holding(&[]).0,
+                per_item_reads: false,
+                from_key: keys,
+            })
+        }
+
         fn rekey_forced(&self, repository: &dyn RepositoryProbe) -> Ran {
             self.ran_with(Action::Apply, Forcing::Forced, repository, &plain)
         }
@@ -835,6 +879,7 @@ mod tests {
                 store_at: &plain,
                 registry,
                 per_item_reads: false,
+                from_key: &[],
             })
         }
 
@@ -863,6 +908,7 @@ mod tests {
                         store_at: &store_at,
                         registry,
                         per_item_reads: false,
+                        from_key: &[],
                     })
                 }));
             assert!(halted.is_err(), "the run finished before write {at}");
@@ -1460,7 +1506,7 @@ mod tests {
     }
 
     #[test]
-    fn a_renamed_key_rekeys_every_item_under_the_old_one() {
+    fn a_renamed_key_rekeys_every_item_under_the_folded_old_one() {
         let repo = Repo::with(
             KEYED,
             &[
@@ -1469,7 +1515,10 @@ mod tests {
             ],
         );
 
+        let previewed = repo.preview_from(&["OLD"]);
         let ran = repo.rekey();
+
+        assert_eq!(previewed.code, 0, "{previewed:?}");
 
         assert_eq!(ran.code, 0, "{ran:?}");
         assert!(repo.read("meta/work/ACC-0001-a.md").is_some());
@@ -1488,7 +1537,7 @@ mod tests {
         );
         let before = repo.tree();
 
-        let ran = repo.rekey();
+        let ran = repo.preview_from(&["XYZ"]);
 
         assert_eq!(ran.code, 4, "{ran:?}");
         assert!(ran.err.contains("E_REKEY_ID_COLLISION"), "{ran:?}");
@@ -2357,6 +2406,7 @@ mod tests {
             store_at: &plain,
             registry: &holding(&[]).0,
             per_item_reads: true,
+            from_key: &[],
         });
 
         assert_eq!(ran.code, 0, "{ran:?}");
@@ -2376,6 +2426,7 @@ mod tests {
             store_at: &plain,
             registry: &registry,
             per_item_reads: true,
+            from_key: &[],
         });
 
         assert_eq!(ran.code, 0, "{ran:?}");

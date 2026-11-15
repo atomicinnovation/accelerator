@@ -597,16 +597,19 @@
   items, with a "Draft" badge on the kanban card and in the library list.
   `work list` shows them as `draft`.
 - **Re-key work items onto a changed ID pattern.** `accelerator work rekey
-  [--preview | --discard] [--per-item-reads]` gives every work item an `id`
-  in the shape `work.id_pattern` describes, renaming its file, adding the old
-  `id` to `aliases` and rewriting references across every corpus root. Under
-  a `{key}` pattern every item keeps its number under `work.key`, so renaming
-  the key re-keys items under the old one.
+  [--preview [--from-key <KEY>]... | --discard] [--per-item-reads]` gives
+  every work item an `id` in the shape `work.id_pattern` describes, renaming
+  its file, adding the old `id` to `aliases` and rewriting references across
+  every corpus root. Under a `{key}` pattern every item keeps its number and
+  its key, so items written with `--project` are left as they are; the
+  preview names each other key, and `--from-key` re-keys that key's items
+  onto `work.key`, as after renaming the key.
   `--preview` records the mapping, which the next apply re-keys exactly; an
   interrupted run finishes when run again, and `--discard` drops a previewed
   run or one a revert has undone. It refuses over uncommitted corpus changes
   unless `ACCELERATOR_FORCE=1` is set. `/accelerator:rekey-work-items`
-  previews, asks, then applies or discards.
+  previews, asks which other keys to re-key onto `work.key`, then applies or
+  discards.
 
 ### Changed
 

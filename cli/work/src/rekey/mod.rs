@@ -7,6 +7,7 @@ pub mod convergence;
 pub mod creation_date;
 pub mod entry;
 pub mod fingerprint;
+pub mod folding;
 pub mod mapping;
 pub mod outcome;
 pub mod partly_applied;

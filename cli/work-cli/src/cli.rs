@@ -1,6 +1,7 @@
 //! The clap inbound adapter: the `accelerator-work` command-line surface.
 
 use std::path::PathBuf;
+use work::id_pattern::IdKey;
 use work::tracker_key::TrackerKey;
 
 use clap::Args;
@@ -559,6 +560,20 @@ pub struct RekeyArgs {
     /// `{tracker}` mapping is computed.
     #[arg(long)]
     pub per_item_reads: bool,
+    /// Re-key the items under `KEY` onto `work.key` instead of letting them
+    /// keep it, as for the key in use before `work.key` changed; repeatable.
+    /// Only with `--preview`, whose plan the next `work rekey` applies.
+    #[arg(
+        long = "from-key",
+        value_name = "KEY",
+        requires = "preview",
+        value_parser = parse_folded_key
+    )]
+    pub from_key: Vec<IdKey>,
+}
+
+fn parse_folded_key(raw: &str) -> Result<IdKey, String> {
+    IdKey::parse(raw).map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
