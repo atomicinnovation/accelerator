@@ -8,7 +8,9 @@ use corpus::store::AtomicWrite;
 use corpus::StoreError;
 use serde_json::json;
 use serde_json::Value;
+use work::id_pattern::is_in_id_alphabet;
 use work::path_component::is_one_path_component;
+use work::retirement::is_recovery_dir;
 use work::retirement::RetirementRecord;
 
 use crate::ignored_dir::prepare_ignored_dir;
@@ -91,23 +93,27 @@ fn decode(path: &Path, raw: &str) -> Result<RetirementRecord, StoreError> {
             .map(str::to_owned)
             .ok_or_else(|| malformed(&format!("missing '{field}'")))
     };
-    let id = |field: &str| {
-        text(field).and_then(|id| {
-            if is_one_path_component(&id) {
-                Ok(id)
-            } else {
-                Err(malformed(&format!("'{field}' is not one path component")))
-            }
-        })
+    let as_id = |field: &str, id: String| {
+        if is_in_id_alphabet(&id) && is_one_path_component(&id) {
+            Ok(id)
+        } else {
+            Err(malformed(&format!("'{field}' is not an ID")))
+        }
     };
+    let new_external_id = value
+        .get("new_external_id")
+        .and_then(Value::as_str)
+        .map(|id| as_id("new_external_id", id.to_owned()))
+        .transpose()?;
+    let recovery_dir = PathBuf::from(text("recovery_dir")?);
+    if !is_recovery_dir(&recovery_dir) {
+        return Err(malformed("'recovery_dir' is not a recovery directory"));
+    }
     Ok(RetirementRecord {
-        old: id("old")?,
-        new: id("new")?,
-        new_external_id: value
-            .get("new_external_id")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
-        recovery_dir: PathBuf::from(text("recovery_dir")?),
+        old: as_id("old", text("old")?)?,
+        new: as_id("new", text("new")?)?,
+        new_external_id,
+        recovery_dir,
     })
 }
 

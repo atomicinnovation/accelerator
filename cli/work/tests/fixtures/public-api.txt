@@ -1605,6 +1605,7 @@ pub fn work::retirement::RetirementRecord::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::StructuralPartialEq for work::retirement::RetirementRecord
 pub const work::retirement::RECOVERY_PARENT: &str
 pub const work::retirement::RETIREMENT_INCOMPLETE: &str
+pub fn work::retirement::is_recovery_dir(path: &std::path::Path) -> bool
 pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, scheme: &work::id_scheme::IdScheme, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
 pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff

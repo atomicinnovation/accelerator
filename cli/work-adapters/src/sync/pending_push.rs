@@ -422,10 +422,16 @@ fn stage_from(
                 object.get("before").and_then(Value::as_object).ok_or_else(
                     || MarkerError::Malformed("missing 'before'".to_owned()),
                 )?;
+            let recovery_dir = PathBuf::from(text(object, "recovery_dir")?);
+            if !work::retirement::is_recovery_dir(&recovery_dir) {
+                return Err(MarkerError::Malformed(
+                    "'recovery_dir' is not a recovery directory".to_owned(),
+                ));
+            }
             Ok(PromotionStage::Retiring {
                 key: key_of(object)?,
                 baseline: Box::new(baseline_from(object.get("baseline"))?),
-                recovery_dir: PathBuf::from(text(object, "recovery_dir")?),
+                recovery_dir,
                 before: Box::new(stage_from(before)?),
             })
         }
@@ -873,7 +879,9 @@ mod tests {
                     remote_hash: RemoteHash::Unknown,
                     local: local("draft"),
                 }),
-                recovery_dir: PathBuf::from("x"),
+                recovery_dir: PathBuf::from(
+                    "retirement-recovery/draft-k7mq3x--PP-900",
+                ),
                 before: Box::new(kept(RemoteKeptReason::Edited {
                     read_back: read_back_hash(),
                 })),
@@ -937,12 +945,29 @@ mod tests {
     }
 
     #[test]
+    fn a_retiring_marker_whose_recovery_dir_leaves_its_parent_is_malformed() {
+        for recovery_dir in ["../../etc", "/abs", "x"] {
+            let marker = format!(
+                "{{\"schema\":2,\"kind\":\"retiring\",\
+                 \"external_id\":\"PP-900\",\"draft_id\":\"draft-k7mq3x\",\
+                 \"content_digest\":\"c\",\"title\":\"T\",\"digest\":\"d\",\
+                 \"attempted_at\":1,\"failure\":null,\
+                 \"recovery_dir\":\"{recovery_dir}\",\
+                 \"baseline\":{{\"remote_hash\":\"after\",\
+                 \"remote_updated_at\":\"t\",\"local_hash\":\"promoted\"}},\
+                 \"before\":{{\"kind\":\"attempted\"}}}}\n"
+            );
+            assert!(read_marker(Some(&marker)).is_err(), "{recovery_dir}");
+        }
+    }
+
+    #[test]
     fn a_marker_written_before_recipe_one_still_parses_as_legacy() {
         let schema_two = "{\"schema\":2,\"kind\":\"retiring\",\
             \"external_id\":\"PP-900\",\"draft_id\":\"draft-k7mq3x\",\
             \"content_digest\":\"c\",\"title\":\"Fix flaky test\",\
             \"digest\":\"d\",\"attempted_at\":1,\"failure\":null,\
-            \"recovery_dir\":\"x\",\"baseline\":{\"remote_hash\":\"after\",\
+            \"recovery_dir\":\"retirement-recovery/draft-k7mq3x--PP-900\",\"baseline\":{\"remote_hash\":\"after\",\
             \"remote_updated_at\":\"t\",\"local_hash\":\"promoted\"},\
             \"before\":{\"kind\":\"remote-retitled\",\
             \"external_id\":\"PP-900\",\"remote_hash\":\"after\",\

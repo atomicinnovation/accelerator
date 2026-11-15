@@ -32,6 +32,23 @@ const WORK_ITEM: &str = "work-item";
 /// Where every retirement keeps its recovery copies, relative to the state
 /// directory.
 pub const RECOVERY_PARENT: &str = "retirement-recovery";
+
+/// Whether `path` names a retirement's recovery directory: one directory
+/// directly under [`RECOVERY_PARENT`], relative to the state directory.
+#[must_use]
+pub fn is_recovery_dir(path: &Path) -> bool {
+    let mut components = path.components();
+    let parent = components.next();
+    let name = components.next();
+    matches!(
+        parent,
+        Some(std::path::Component::Normal(parent)) if parent == RECOVERY_PARENT
+    ) && matches!(
+        name,
+        Some(std::path::Component::Normal(name))
+            if is_one_path_component(&name.to_string_lossy())
+    ) && components.next().is_none()
+}
 const WORK_ITEM_REVIEW: &str = "work-item-review";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

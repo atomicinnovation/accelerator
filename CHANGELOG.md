@@ -1065,6 +1065,12 @@
 
 ### Security
 
+- **A retirement record or pending-push marker is checked before it is
+  trusted.** A retirement record whose `old`, `new` or `new_external_id`
+  holds a character outside the ID alphabet, such as a quote or newline
+  that would reach frontmatter, is refused as unreadable, and so is a
+  record or marker whose `recovery_dir` is not one directory under
+  `retirement-recovery/`.
 - **`work rekey` validates every path and target in a run plan before
   touching any file**, so a run plan cannot name a path outside the
   repository or a target outside the work directory.
