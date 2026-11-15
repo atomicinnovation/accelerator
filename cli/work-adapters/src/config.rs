@@ -18,6 +18,10 @@ const PATTERN_SETTING: &str = "work.id_pattern";
 
 const KEY_SETTING: &str = "work.key";
 
+const JIRA_SCOPE_SETTING: &str = "jira.project_key";
+
+const LINEAR_SCOPE_SETTING: &str = "linear.team_key";
+
 pub const LEGACY_KEY_SETTING: &str = "work.default_project_code";
 
 /// Which setting supplied the key.
@@ -85,11 +89,11 @@ impl std::fmt::Display for SchemeError {
             Self::KeyRequired { pattern } => write!(
                 formatter,
                 "E_WORK_KEY_REQUIRED: id_pattern '{}' references the \
-                 {{key}} prefix but work.key is not set. The local ID prefix \
-                 is the work-owned work.key; it is independent of the tracker \
-                 scope key (jira.project_key / linear.team_key), never \
-                 derives from it, and must be set explicitly. Set work.key \
-                 in .accelerator/config.md.",
+                 {{key}} prefix but {KEY_SETTING} is not set. The local ID \
+                 prefix is the work-owned {KEY_SETTING}; it is independent of \
+                 the tracker scope key ({JIRA_SCOPE_SETTING} / \
+                 {LINEAR_SCOPE_SETTING}), never derives from it, and must be \
+                 set explicitly. Set {KEY_SETTING} in .accelerator/config.md.",
                 escaped(pattern)
             ),
             Self::Integration(error) => {
@@ -254,12 +258,9 @@ pub fn resolve_scheme(
 ) -> Result<SchemeReading, SchemeError> {
     let reading = read_scheme(config)?;
     require_key(&reading.scheme)?;
-    let integration = configured(config, "work.integration")?;
     check_tracker_integration(
         reading.scheme.pattern(),
-        integration
-            .as_deref()
-            .is_some_and(tracker::supports_tracker_owned_ids),
+        reading.scheme.tracker_keys().owns_ids(),
     )
     .map_err(SchemeError::Integration)?;
     Ok(reading)

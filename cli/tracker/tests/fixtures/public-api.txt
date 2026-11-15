@@ -114,6 +114,7 @@ pub tracker::TrackerKeys::Linear
 impl tracker::TrackerKeys
 pub fn tracker::TrackerKeys::is_key(self, token: &str) -> bool
 pub fn tracker::TrackerKeys::of_integration(integration: &str) -> Self
+pub const fn tracker::TrackerKeys::owns_ids(self) -> bool
 impl core::clone::Clone for tracker::TrackerKeys
 pub fn tracker::TrackerKeys::clone(&self) -> tracker::TrackerKeys
 impl core::cmp::Eq for tracker::TrackerKeys
@@ -280,4 +281,3 @@ pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> co
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
 pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: core::option::Option<&str>, body: &str) -> core::result::Result<(), tracker::TrackerError>
 pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: core::option::Option<&str>, body: core::option::Option<&str>) -> tracker::ValidationOutcome
-pub fn tracker::supports_tracker_owned_ids(integration: &str) -> bool

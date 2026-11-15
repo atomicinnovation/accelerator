@@ -899,13 +899,6 @@ pub trait RemoteTracker: BodyDialect {
     ) -> ValidationOutcome;
 }
 
-/// True iff the integration's issue keys are stable, unique, file-safe
-/// identifiers a work item can take as its `id`.
-#[must_use]
-pub fn supports_tracker_owned_ids(integration: &str) -> bool {
-    TrackerKeys::of_integration(integration) != TrackerKeys::AnySupported
-}
-
 /// Whose rules decide what an issue key looks like: one tracker's, or any
 /// supported tracker's when no integration names one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -924,6 +917,13 @@ impl TrackerKeys {
             "linear" => Self::Linear,
             _ => Self::AnySupported,
         }
+    }
+
+    /// Whether these are one tracker's keys, stable, unique and file-safe
+    /// enough for a work item to take as its `id`.
+    #[must_use]
+    pub const fn owns_ids(self) -> bool {
+        !matches!(self, Self::AnySupported)
     }
 
     /// Whether `token` is an issue key under these rules.
