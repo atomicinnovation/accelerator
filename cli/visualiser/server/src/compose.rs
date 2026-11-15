@@ -14,7 +14,7 @@ use config_adapters::{FileConfigStore, LegacyPolicy};
 use work::id_scheme::IdScheme;
 use work_adapters::config::{read_scheme, require_key, SchemeError};
 
-use crate::config::{Config, TemplateTiers};
+use crate::config::{Config, TemplateTiers, WorkItemScheme};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ComposeError {
@@ -74,11 +74,7 @@ pub fn load(params: Params) -> Result<Config, ComposeError> {
         &templates_rel,
         &params.plugin_root,
     )?;
-    let (work_item, work_item_problem) = match resolve_work_item(service) {
-        Ok(scheme) => (Some(scheme), None),
-        Err(ComposeError::Scheme(error)) => (None, Some(error.to_string())),
-        Err(other) => return Err(other),
-    };
+    let work_item = work_item_scheme(service)?;
     let kanban_columns = resolve_kanban(service)?;
     let idle_timeout = resolve_idle(service)?;
     let editor = resolve_optional(
@@ -104,7 +100,6 @@ pub fn load(params: Params) -> Result<Config, ComposeError> {
         doc_paths,
         templates,
         work_item,
-        work_item_problem,
         kanban_columns,
         idle_timeout,
         editor,
@@ -198,11 +193,31 @@ fn resolve_templates(
     Ok(map)
 }
 
+/// The configured scheme, or why it is unreadable when the settings were
+/// read but name no scheme the server can read IDs through.
+///
+/// # Errors
+///
+/// [`ComposeError::Scheme`] when a setting cannot be read at all.
+fn work_item_scheme(
+    service: &impl ConfigAccess,
+) -> Result<WorkItemScheme, ComposeError> {
+    match resolve_work_item(service) {
+        Ok(scheme) => Ok(WorkItemScheme::Configured(scheme)),
+        Err(SchemeError::Config(error)) => {
+            Err(ComposeError::Scheme(SchemeError::Config(error)))
+        }
+        Err(unreadable) => {
+            Ok(WorkItemScheme::Unreadable(unreadable.to_string()))
+        }
+    }
+}
+
 /// The serving process only reads, so it skips the tracker-integration
 /// check a writer makes, and it has no terminal to show a deprecation on.
 fn resolve_work_item(
     service: &impl ConfigAccess,
-) -> Result<IdScheme, ComposeError> {
+) -> Result<IdScheme, SchemeError> {
     let scheme = read_scheme(service)?.scheme;
     require_key(&scheme)?;
     Ok(scheme)
@@ -258,4 +273,43 @@ fn resolve_optional(
         from_env.as_deref(),
         from_config.as_deref(),
     ))
+}
+
+#[cfg(test)]
+mod work_item_scheme_tests {
+    use config::{ConfigAccess, ConfigError, Key, Level, Resolved};
+
+    use super::{work_item_scheme, ComposeError};
+
+    struct UnreadableSettings;
+
+    impl ConfigAccess for UnreadableSettings {
+        fn get(
+            &self,
+            _key: &Key,
+            _level: Option<Level>,
+        ) -> Result<Resolved, ConfigError> {
+            Err(ConfigError::Io {
+                path: ".accelerator/config.md".to_owned(),
+                detail: "permission denied".to_owned(),
+            })
+        }
+
+        fn set(
+            &self,
+            _key: &Key,
+            _value: &str,
+            _level: Level,
+        ) -> Result<(), ConfigError> {
+            unreachable!("composing never writes")
+        }
+    }
+
+    #[test]
+    fn a_work_setting_that_cannot_be_read_refuses_to_compose() {
+        assert!(matches!(
+            work_item_scheme(&UnreadableSettings),
+            Err(ComposeError::Scheme(_))
+        ));
+    }
 }

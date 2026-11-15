@@ -26,13 +26,8 @@ pub struct Config {
     pub doc_paths: HashMap<String, PathBuf>,
     pub templates: HashMap<String, TemplateTiers>,
     /// The work-item ID scheme composed in-process; never deserialised.
-    /// `None` is the numeric default.
     #[serde(skip)]
-    pub work_item: Option<IdScheme>,
-    /// Why the configured scheme could not be read, when it could not: the
-    /// server then reads no work-item IDs rather than refusing to serve.
-    #[serde(skip)]
-    pub work_item_problem: Option<String>,
+    pub work_item: WorkItemScheme,
     /// Kanban column keys. Absent → seven template-status defaults.
     /// An empty list is rejected at boot.
     #[serde(default)]
@@ -61,6 +56,36 @@ pub struct Config {
 pub struct KanbanColumn {
     pub key: String,
     pub label: String,
+}
+
+/// The work-item ID scheme a server is composed with.
+#[derive(Debug, Clone, Default)]
+pub enum WorkItemScheme {
+    /// None was composed: the `{number:04d}` default.
+    #[default]
+    Default,
+    Configured(IdScheme),
+    /// The configured scheme could not be read, and why: the server then
+    /// reads no work-item IDs rather than refusing to serve.
+    Unreadable(String),
+}
+
+impl WorkItemScheme {
+    #[must_use]
+    pub const fn configured(&self) -> Option<&IdScheme> {
+        match self {
+            Self::Configured(scheme) => Some(scheme),
+            Self::Default | Self::Unreadable(_) => None,
+        }
+    }
+
+    #[must_use]
+    pub fn problem(&self) -> Option<&str> {
+        match self {
+            Self::Unreadable(problem) => Some(problem),
+            Self::Default | Self::Configured(_) => None,
+        }
+    }
 }
 
 /// The work-item ID scheme the server reads IDs through, resolved once at
@@ -117,6 +142,16 @@ impl WorkItemConfig {
     #[must_use]
     pub const fn unreadable() -> Self {
         Self { scheme: None }
+    }
+
+    /// The scheme a server composed with `composed` reads IDs through.
+    #[must_use]
+    pub fn of(composed: &WorkItemScheme) -> Self {
+        match composed {
+            WorkItemScheme::Default => Self::default_numeric(),
+            WorkItemScheme::Configured(scheme) => Self::new(scheme.clone()),
+            WorkItemScheme::Unreadable(_) => Self::unreadable(),
+        }
     }
 
     #[must_use]

@@ -20,7 +20,7 @@ pub(crate) async fn get_work_item_config(
     let key = state
         .cfg
         .work_item
-        .as_ref()
+        .configured()
         .and_then(|scheme| scheme.key())
         .map(|key| key.as_str().to_owned());
     let problem = state.work_item_problem.clone();
@@ -50,8 +50,7 @@ mod tests {
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
-            work_item: None,
-            work_item_problem: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -91,10 +90,12 @@ mod tests {
     async fn returns_the_key_when_configured() {
         let tmp = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(tmp.path());
-        cfg.work_item = Some(crate::config::scheme_for_test(
-            "{project}-{number:04d}",
-            Some("PROJ"),
-        ));
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("PROJ"),
+            ),
+        );
         let activity = Arc::new(Activity::new());
         let state =
             crate::server::AppState::build(cfg, activity).await.unwrap();
@@ -137,8 +138,9 @@ mod tests {
     async fn an_unreadable_scheme_is_reported_as_the_problem() {
         let tmp = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(tmp.path());
-        cfg.work_item_problem =
-            Some("E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad".into());
+        cfg.work_item = crate::config::WorkItemScheme::Unreadable(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad".into(),
+        );
 
         let body = config_body(cfg).await;
 
@@ -160,10 +162,9 @@ mod tests {
         .unwrap();
         let mut cfg = minimal_config(tmp.path());
         cfg.doc_paths.insert("work".into(), work);
-        cfg.work_item = Some(crate::config::scheme_for_test(
-            "{key}_{number:04d}",
-            Some("PP"),
-        ));
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test("{key}_{number:04d}", Some("PP")),
+        );
 
         let body = config_body(cfg).await;
 

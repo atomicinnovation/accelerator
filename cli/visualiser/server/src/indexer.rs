@@ -96,7 +96,7 @@ pub fn extract_facet_value(
                 }
             } else {
                 cfg.work_item
-                    .as_ref()
+                    .configured()
                     .and_then(|scheme| scheme.key())
                     .map(|key| key.as_str().to_owned())
             }
@@ -1755,8 +1755,9 @@ mod identity_join_tests {
             log_path: "/l".into(),
             doc_paths: HashMap::new(),
             templates: HashMap::default(),
-            work_item: Some(scheme_for_test("{key}-{number:04d}", Some(key))),
-            work_item_problem: None,
+            work_item: crate::config::WorkItemScheme::Configured(
+                scheme_for_test("{key}-{number:04d}", Some(key)),
+            ),
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -2334,8 +2335,7 @@ mod tests {
             log_path: "/l".into(),
             doc_paths,
             templates: HashMap::default(),
-            work_item: None,
-            work_item_problem: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -2511,11 +2511,12 @@ mod tests {
             log_path: "/l".into(),
             doc_paths: HashMap::new(),
             templates: HashMap::default(),
-            work_item: Some(crate::config::scheme_for_test(
-                "{key}-{number:04d}",
-                Some(code),
-            )),
-            work_item_problem: None,
+            work_item: crate::config::WorkItemScheme::Configured(
+                crate::config::scheme_for_test(
+                    "{key}-{number:04d}",
+                    Some(code),
+                ),
+            ),
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

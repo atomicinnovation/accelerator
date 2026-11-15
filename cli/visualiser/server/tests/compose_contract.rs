@@ -158,7 +158,7 @@ fn resolves_kanban_idle_and_work_item_scheme() {
     );
     assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 30 * 60 * 1000);
 
-    let work_item = cfg.work_item.as_ref().expect("work_item resolved");
+    let work_item = cfg.work_item.configured().expect("work_item resolved");
     assert_eq!(work_item.pattern().as_str(), "{project}-{number:04d}");
     assert_eq!(
         work_item.key().map(work::id_pattern::IdKey::as_str),
@@ -181,7 +181,7 @@ fn unconfigured_project_uses_catalogue_defaults() {
     // Absent idle → catalogue 8h default.
     assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 8 * 60 * 60 * 1000);
     // Absent work scheme → numeric default.
-    let work_item = cfg.work_item.as_ref().unwrap();
+    let work_item = cfg.work_item.configured().unwrap();
     assert_eq!(work_item.pattern().as_str(), "{number:04d}");
     assert!(work_item.key().is_none());
 }
@@ -201,7 +201,7 @@ work:
 
     let cfg = compose(tmp.path());
 
-    let work_item = cfg.work_item.as_ref().unwrap();
+    let work_item = cfg.work_item.configured().unwrap();
     assert_eq!(work_item.pattern().as_str(), "{tracker}");
     assert!(work_item.key().is_none());
 }
@@ -221,7 +221,7 @@ fn the_visualiser_composes_under_tracker_without_an_integration() {
 
     let cfg = compose(tmp.path());
 
-    let work_item = cfg.work_item.as_ref().unwrap();
+    let work_item = cfg.work_item.configured().unwrap();
     assert_eq!(work_item.pattern().as_str(), "{tracker}");
 }
 
@@ -232,8 +232,8 @@ fn a_pattern_needing_a_key_without_one_boots_reporting_e_work_key_required() {
 
     let cfg = compose(tmp.path());
 
-    assert!(cfg.work_item.is_none());
-    let problem = cfg.work_item_problem.expect("the problem is reported");
+    assert!(cfg.work_item.configured().is_none());
+    let problem = cfg.work_item.problem().expect("the problem is reported");
     assert!(problem.starts_with("E_WORK_KEY_REQUIRED:"), "{problem}");
 }
 
@@ -243,8 +243,8 @@ fn a_malformed_pattern_boots_reporting_the_setting() {
 
     let cfg = compose(tmp.path());
 
-    assert!(cfg.work_item.is_none());
-    let problem = cfg.work_item_problem.expect("the problem is reported");
+    assert!(cfg.work_item.configured().is_none());
+    let problem = cfg.work_item.problem().expect("the problem is reported");
     assert!(
         problem.starts_with(
             "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"

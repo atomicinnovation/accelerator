@@ -66,8 +66,7 @@ fn cfg_with_only(
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
-        work_item: None,
-        work_item_problem: None,
+        work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,
         idle_timeout: None,
         editor: None,
@@ -786,7 +785,8 @@ fn pp_0500_project(tmp: &std::path::Path, item: &str) -> Config {
     paths.insert("work".into(), work);
     paths.insert("plans".into(), plans);
     let mut cfg = cfg_with_only(tmp, paths);
-    cfg.work_item = Some(pp_scheme());
+    cfg.work_item =
+        accelerator_visualiser::config::WorkItemScheme::Configured(pp_scheme());
     cfg
 }
 
@@ -835,7 +835,8 @@ async fn a_related_work_item_reference_is_an_inbound_link() {
     paths.insert("work".into(), work);
     paths.insert("plans".into(), plans);
     let mut cfg = cfg_with_only(tmp.path(), paths);
-    cfg.work_item = Some(pp_scheme());
+    cfg.work_item =
+        accelerator_visualiser::config::WorkItemScheme::Configured(pp_scheme());
 
     assert_eq!(
         inbound_rel_paths(cfg, "meta/work/PP-0500-x.md").await,

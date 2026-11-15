@@ -78,17 +78,13 @@ impl AppState {
             template_roots,
             work_root,
         ));
-        let work_item_cfg =
-            Arc::new(match (&cfg.work_item, &cfg.work_item_problem) {
-                (_, Some(_)) => WorkItemConfig::unreadable(),
-                (Some(scheme), None) => WorkItemConfig::new(scheme.clone()),
-                (None, None) => WorkItemConfig::default_numeric(),
+        let work_item_cfg = Arc::new(WorkItemConfig::of(&cfg.work_item));
+        let work_item_problem =
+            cfg.work_item.problem().map(str::to_owned).or_else(|| {
+                let scheme = work_item_cfg.scheme()?;
+                let work_dir = cfg.doc_paths.get("work")?;
+                unconverged(scheme, &cfg.project_root, work_dir)
             });
-        let work_item_problem = cfg.work_item_problem.clone().or_else(|| {
-            let scheme = work_item_cfg.scheme()?;
-            let work_dir = cfg.doc_paths.get("work")?;
-            unconverged(scheme, &cfg.project_root, work_dir)
-        });
         if let Some(problem) = &work_item_problem {
             tracing::warn!("{problem}");
         }
@@ -694,8 +690,7 @@ mod tests {
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
-            work_item: None,
-            work_item_problem: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
