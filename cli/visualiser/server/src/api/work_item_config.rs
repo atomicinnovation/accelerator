@@ -23,7 +23,7 @@ pub(crate) async fn get_work_item_config(
         .configured()
         .and_then(|scheme| scheme.key())
         .map(|key| key.as_str().to_owned());
-    let problem = state.work_item_problem.clone();
+    let problem = state.work_item_problem();
     Json(WorkItemConfigBody { key, problem })
 }
 
@@ -195,6 +195,50 @@ mod tests {
             ),
             "{body}"
         );
+    }
+
+    #[tokio::test]
+    async fn the_problem_follows_the_corpus_after_boot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work.clone());
+        let state =
+            crate::server::AppState::build(cfg, Arc::new(Activity::new()))
+                .await
+                .unwrap();
+        let app = build_router(state);
+        let problem = |app: axum::Router| async move {
+            let resp = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/work-item/config")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+            let body: serde_json::Value =
+                serde_json::from_slice(&bytes).unwrap();
+            body["problem"].as_str().map(str::to_owned)
+        };
+
+        std::fs::write(work.join("42-a.md"), "---\nid: \"42\"\n---\n").unwrap();
+        let off_pattern = problem(app.clone()).await;
+        std::fs::remove_file(work.join("42-a.md")).unwrap();
+        std::fs::write(work.join("0042-a.md"), "---\nid: \"0042\"\n---\n")
+            .unwrap();
+        let converged = problem(app).await;
+
+        assert!(
+            off_pattern
+                .as_deref()
+                .is_some_and(|p| p.starts_with("E_REKEY_REQUIRED")),
+            "{off_pattern:?}"
+        );
+        assert_eq!(converged, None);
     }
 
     #[tokio::test]

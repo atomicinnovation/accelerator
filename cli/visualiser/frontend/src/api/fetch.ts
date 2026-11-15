@@ -77,6 +77,20 @@ export async function patchWorkItemFrontmatter(
   return { etag: parsedEtag };
 }
 
+/** The work-item ID settings a page reads IDs through, and why the IDs
+ *  cannot be trusted when they cannot. */
+export interface WorkItemConfig {
+  key?: string | null;
+  problem?: string | null;
+}
+
+export async function fetchWorkItemConfig(): Promise<WorkItemConfig> {
+  const r = await fetch("/api/work-item/config");
+  if (!r.ok)
+    throw new FetchError(r.status, `GET /api/work-item/config: ${r.status}`);
+  return r.json() as Promise<WorkItemConfig>;
+}
+
 export async function fetchTypes(): Promise<DocType[]> {
   const r = await fetch("/api/types");
   if (!r.ok) throw new FetchError(r.status, `GET /api/types: ${r.status}`);

@@ -1,0 +1,8 @@
+.banner {
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg));
+  border-left: 4px solid var(--ac-warn);
+  color: var(--ac-warn);
+  font-size: var(--size-160);
+  overflow-wrap: anywhere;
+}

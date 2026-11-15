@@ -44,6 +44,7 @@ export function normaliseSelection(
 export const queryKeys = {
   serverInfo: () => ["server-info"] as const,
   workItemConfig: () => ["work-item-config"] as const,
+  workItemProblem: () => ["work-item-problem"] as const,
   types: () => ["types"] as const,
   libraryStructure: (selection?: LibrarySelection) =>
     ["library-structure", normaliseSelection(selection)] as const,

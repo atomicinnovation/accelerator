@@ -1015,6 +1015,15 @@ const EXCEPTIONS: ReadonlyArray<
   // routes/kanban-card-showcase/KanbanCardShowcase.module.css — RETIRED in 0083
   // (the showcase route was deleted; its VR coverage moved to /dev#cards), so the
   // former 16rem exception is gone.
+  // components/WorkItemProblemBanner/WorkItemProblemBanner.module.css
+  {
+    file: "components/WorkItemProblemBanner/WorkItemProblemBanner.module.css",
+    literal: "4px",
+    count: 1,
+    kind: "irreducible",
+    reason:
+      "work-item-problem banner border-left width — no border-width token",
+  },
   // routes/library/LibraryDocView.module.css
   {
     file: "routes/library/LibraryDocView.module.css",

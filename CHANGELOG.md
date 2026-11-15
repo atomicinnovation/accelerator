@@ -917,9 +917,10 @@
   pattern forms the `### Migrations` entry lists, it serves plans, research
   and every other document, reads no work-item IDs, so nothing clusters or
   links as a work item, and reports the refusal, naming the setting and
-  value, in its log and as `problem` from `/api/work-item/config`. A corpus
-  that needs a re-key, or holds a malformed work item, is reported there
-  too, read once at boot.
+  value, in its log, as `problem` from `/api/work-item/config` and in a
+  banner above every page. A corpus that needs a re-key, or holds a
+  malformed work item, is reported there too, and the banner clears once a
+  re-key or fix lands, without a restart.
 - **The visualiser picks up a `.MD` work item's changes live**, as it does a
   `.md` one's, rather than at the next rescan.
 - **Two work items sharing an identity key resolve to one of them

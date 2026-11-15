@@ -52,12 +52,17 @@ pub struct AppState {
     pub activity_feed: Arc<crate::activity_feed::ActivityRingBuffer>,
     pub sse_hub: Arc<crate::sse_hub::SseHub>,
     pub write_coordinator: Arc<crate::write_coordinator::WriteCoordinator>,
-    /// Why work-item IDs cannot be trusted, read once at boot: a scheme that
-    /// could not be read, or a corpus holding items a re-key would move.
-    pub work_item_problem: Option<String>,
 }
 
 impl AppState {
+    /// Why work-item IDs cannot be trusted now: a scheme that could not be
+    /// read, or a corpus holding an item a re-key would move or a file
+    /// whose IDs cannot be read.
+    #[must_use]
+    pub fn work_item_problem(&self) -> Option<String> {
+        work_item_problem(&self.cfg, self.indexer.work_item_cfg())
+    }
+
     pub async fn build(
         cfg: Config,
         http_activity: Arc<crate::activity::Activity>,
@@ -79,13 +84,7 @@ impl AppState {
             work_root,
         ));
         let work_item_cfg = Arc::new(WorkItemConfig::of(&cfg.work_item));
-        let work_item_problem =
-            cfg.work_item.problem().map(str::to_owned).or_else(|| {
-                let scheme = work_item_cfg.scheme()?;
-                let work_dir = cfg.doc_paths.get("work")?;
-                unconverged(scheme, &cfg.project_root, work_dir)
-            });
-        if let Some(problem) = &work_item_problem {
+        if let Some(problem) = work_item_problem(&cfg, &work_item_cfg) {
             tracing::warn!("{problem}");
         }
         let indexer = Arc::new(
@@ -167,13 +166,23 @@ impl AppState {
             activity_feed,
             sse_hub,
             write_coordinator,
-            work_item_problem,
         }))
     }
 }
 
 /// Why the corpus under `work_dir` needs a re-key or a fix before its IDs
 /// can be trusted, if it does.
+fn work_item_problem(
+    cfg: &Config,
+    work_item_cfg: &WorkItemConfig,
+) -> Option<String> {
+    cfg.work_item.problem().map(str::to_owned).or_else(|| {
+        let scheme = work_item_cfg.scheme()?;
+        let work_dir = cfg.doc_paths.get("work")?;
+        unconverged(scheme, &cfg.project_root, work_dir)
+    })
+}
+
 fn unconverged(
     scheme: &work::id_scheme::IdScheme,
     root: &Path,
