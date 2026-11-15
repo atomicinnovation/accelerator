@@ -97,8 +97,8 @@ pub fn is_tracker_owned_token(token: &str, keys: TrackerKeys) -> bool {
 mod pattern_ids;
 mod tracker_ids;
 
-use pattern_ids::PatternIds;
-use tracker_ids::TrackerIds;
+use crate::id_scheme::pattern_ids::PatternIds;
+use crate::id_scheme::tracker_ids::TrackerIds;
 
 fn is_digits(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())

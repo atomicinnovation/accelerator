@@ -1,13 +1,13 @@
 //! IDs a tracker owns: its issue keys, and drafts until it confirms them.
 
-use super::is_digits;
-use super::CanonicaliseError;
-use super::IdReadings;
-use super::IdScheme;
 use crate::draft_id::DraftId;
 use crate::id_pattern::HeldPrefix;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
+use crate::id_scheme::is_digits;
+use crate::id_scheme::CanonicaliseError;
+use crate::id_scheme::IdReadings;
+use crate::id_scheme::IdScheme;
 use tracker::TrackerKeys;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

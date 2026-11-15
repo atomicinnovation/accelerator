@@ -1,14 +1,14 @@
 //! IDs the repository owns, rendered from its pattern and key.
 
-use super::is_digits;
-use super::CanonicaliseError;
-use super::IdReadings;
-use super::LEGACY_WIDTH;
 use crate::id_pattern::HeldPrefix;
 use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::MissingKey;
+use crate::id_scheme::is_digits;
+use crate::id_scheme::CanonicaliseError;
+use crate::id_scheme::IdReadings;
+use crate::id_scheme::LEGACY_WIDTH;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PatternIds {
