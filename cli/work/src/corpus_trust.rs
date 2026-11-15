@@ -9,7 +9,7 @@ use crate::id_scheme::IdScheme;
 use crate::rekey::convergence::refuse_divergence;
 use crate::rekey::convergence::RekeyRequired;
 use crate::well_formed::refuse_malformed;
-use crate::well_formed::MalformedItem;
+use crate::well_formed::MalformedItems;
 use crate::work_item_files::identities;
 use crate::work_item_files::WorkItemFile;
 
@@ -18,7 +18,7 @@ use crate::work_item_files::WorkItemFile;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UntrustedCorpus {
     RekeyRequired(RekeyRequired),
-    Malformed(MalformedItem),
+    Malformed(MalformedItems),
 }
 
 impl UntrustedCorpus {
@@ -26,7 +26,7 @@ impl UntrustedCorpus {
     pub const fn code(&self) -> &'static str {
         match self {
             Self::RekeyRequired(_) => RekeyRequired::CODE,
-            Self::Malformed(_) => MalformedItem::CODE,
+            Self::Malformed(_) => MalformedItems::CODE,
         }
     }
 

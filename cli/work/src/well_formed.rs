@@ -14,10 +14,10 @@ use crate::work_item_files::list_field;
 use crate::work_item_files::nonempty_field;
 use crate::work_item_files::WorkItemFile;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Malformation {
     /// Its filename does not start with its `id` and a slug.
-    NoSlug,
+    NoSlug { id: String },
     /// It names an ID in `aliases` or `external_id` but has no `id`.
     NoId,
 }
@@ -26,53 +26,106 @@ pub enum Malformation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MalformedItem {
     path: PathBuf,
-    id: Option<String>,
     malformation: Malformation,
 }
 
 impl MalformedItem {
+    #[must_use]
+    pub const fn malformation(&self) -> &Malformation {
+        &self.malformation
+    }
+
+    fn what(&self, as_clause: bool) -> String {
+        let path = escaped(&self.path.to_string_lossy());
+        let which = if as_clause { ", which" } else { "" };
+        match &self.malformation {
+            Malformation::NoSlug { id } => format!(
+                "{path}{which} has `id` '{}' but {} filename does not start \
+                 with its `id` and a slug",
+                escaped(id),
+                if as_clause { "whose" } else { "its" },
+            ),
+            Malformation::NoId => format!(
+                "{path}{which} names an ID in `aliases` or `external_id` but \
+                 has no `id`"
+            ),
+        }
+    }
+
+    fn remedy(&self) -> String {
+        match &self.malformation {
+            Malformation::NoSlug { id } => {
+                format!("Rename it to `{}-<slug>.md`", escaped(id))
+            }
+            Malformation::NoId => {
+                "Give it the `id` its filename starts with".to_owned()
+            }
+        }
+    }
+}
+
+/// The work-item files whose IDs cannot be read, in path order, which
+/// commands that read or write IDs refuse to run over.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MalformedItems {
+    items: Vec<MalformedItem>,
+}
+
+impl MalformedItems {
     pub const CODE: &'static str = "E_WORK_ITEM_MALFORMED";
 
     #[must_use]
-    pub const fn malformation(&self) -> Malformation {
-        self.malformation
+    pub fn first(&self) -> &MalformedItem {
+        &self.items[0]
+    }
+
+    #[must_use]
+    pub fn items(&self) -> &[MalformedItem] {
+        &self.items
     }
 
     #[must_use]
     pub fn relative_to(self, root: &Path) -> Self {
         Self {
-            path: relative_to(self.path, root),
-            ..self
+            items: self
+                .items
+                .into_iter()
+                .map(|item| MalformedItem {
+                    path: relative_to(item.path, root),
+                    ..item
+                })
+                .collect(),
         }
     }
 }
 
-impl Display for MalformedItem {
+impl Display for MalformedItems {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        let path = escaped(&self.path.to_string_lossy());
-        match (self.malformation, &self.id) {
-            (Malformation::NoSlug, Some(id)) => write!(
+        let first = self.first();
+        match self.items.len() {
+            1 => write!(
                 formatter,
-                "{}: {path} has `id` '{id}' but its filename does not start \
-                 with its `id` and a slug. Rename it to `{id}-<slug>.md`, \
-                 then re-run this command",
+                "{}: {}. {}, then re-run this command",
                 Self::CODE,
-                id = escaped(id),
+                first.what(false),
+                first.remedy(),
             ),
-            _ => write!(
+            count => write!(
                 formatter,
-                "{}: {path} names an ID in `aliases` or `external_id` but has \
-                 no `id`. Give it the `id` its filename starts with, then \
-                 re-run this command",
+                "{}: {count} work items cannot be read for their IDs, such \
+                 as {}. {} and fix the others likewise, then re-run this \
+                 command",
                 Self::CODE,
+                first.what(true),
+                first.remedy(),
             ),
         }
     }
 }
 
-impl std::error::Error for MalformedItem {}
+impl std::error::Error for MalformedItems {}
 
-/// Refuses the first work item, in path order, whose IDs cannot be read.
+/// Refuses every work item whose IDs cannot be read.
 ///
 /// That is one with an `id` its filename does not start with before a
 /// slug, or one naming an ID with no `id`. A file with no frontmatter, or
@@ -80,28 +133,28 @@ impl std::error::Error for MalformedItem {}
 ///
 /// # Errors
 ///
-/// The [`MalformedItem`] naming that file.
-pub fn refuse_malformed(files: &[WorkItemFile]) -> Result<(), MalformedItem> {
-    let mut sorted: Vec<&WorkItemFile> = files.iter().collect();
-    sorted.sort_by(|left, right| left.path.cmp(&right.path));
-    sorted
-        .into_iter()
-        .find_map(malformation_of)
-        .map_or(Ok(()), Err)
+/// The [`MalformedItems`] naming those files in path order.
+pub fn refuse_malformed(files: &[WorkItemFile]) -> Result<(), MalformedItems> {
+    let mut items: Vec<MalformedItem> =
+        files.iter().filter_map(malformation_of).collect();
+    if items.is_empty() {
+        return Ok(());
+    }
+    items.sort_by(|left, right| left.path.cmp(&right.path));
+    Err(MalformedItems { items })
 }
 
 fn malformation_of(file: &WorkItemFile) -> Option<MalformedItem> {
-    let malformed = |id: Option<String>, malformation| MalformedItem {
+    let malformed = |malformation| MalformedItem {
         path: file.path.clone(),
-        id,
         malformation,
     };
     match identity_of(file) {
         Some(identity) if !names_with_slug(&file.path, &identity.id) => {
-            Some(malformed(Some(identity.id), Malformation::NoSlug))
+            Some(malformed(Malformation::NoSlug { id: identity.id }))
         }
         Some(_) => None,
-        None => names_an_id(file).then(|| malformed(None, Malformation::NoId)),
+        None => names_an_id(file).then(|| malformed(Malformation::NoId)),
     }
 }
 
@@ -160,7 +213,14 @@ mod tests {
             "---\nid: \"PP-0400\"\n---\n",
         )]);
         assert!(
-            matches!(&refused, Err(refusal) if refusal.malformation() == Malformation::NoSlug),
+            matches!(
+                &refused,
+                Err(refusal)
+                    if matches!(
+                        refusal.first().malformation(),
+                        Malformation::NoSlug { .. }
+                    )
+            ),
             "{refused:?}"
         );
     }
@@ -175,7 +235,12 @@ mod tests {
         .unwrap_or_else(|| unreachable!("refused"))
         .relative_to(Path::new("/repo"));
 
-        assert_eq!(refusal.malformation(), Malformation::NoSlug);
+        assert_eq!(
+            refusal.first().malformation(),
+            &Malformation::NoSlug {
+                id: "PP-0400".to_owned()
+            }
+        );
         assert_eq!(
             refusal.to_string(),
             "E_WORK_ITEM_MALFORMED: meta/work/PP-0400.md has `id` \
@@ -195,7 +260,7 @@ mod tests {
                 .unwrap_or_else(|| unreachable!("refused"))
                 .relative_to(Path::new("/repo"));
 
-            assert_eq!(refusal.malformation(), Malformation::NoId);
+            assert_eq!(refusal.first().malformation(), &Malformation::NoId);
             assert_eq!(
                 refusal.to_string(),
                 "E_WORK_ITEM_MALFORMED: meta/work/PP-0400-a.md names an ID \
@@ -203,5 +268,37 @@ mod tests {
                  `id` its filename starts with, then re-run this command"
             );
         }
+    }
+
+    #[test]
+    fn the_first_malformed_item_by_path_is_named_with_how_many_there_are() {
+        let refusal = refuse_malformed(&[
+            file("PP-0402.md", "---\nid: \"PP-0402\"\n---\n"),
+            file("PP-0401.md", "---\nid: \"PP-0401\"\n---\n"),
+            file("PP-0403-c.md", "---\naliases: [\"0403\"]\n---\n"),
+        ])
+        .err()
+        .unwrap_or_else(|| unreachable!("refused"))
+        .relative_to(Path::new("/repo"));
+
+        assert_eq!(
+            refusal.to_string(),
+            "E_WORK_ITEM_MALFORMED: 3 work items cannot be read for their \
+             IDs, such as meta/work/PP-0401.md, which has `id` 'PP-0401' but \
+             whose filename does not start with its `id` and a slug. Rename \
+             it to `PP-0401-<slug>.md` and fix the others likewise, then \
+             re-run this command"
+        );
+    }
+
+    #[test]
+    fn a_filename_naming_its_id_in_another_case_is_well_formed() {
+        assert_eq!(
+            refuse_malformed(&[file(
+                "pp-0001-a.md",
+                "---\nid: \"PP-0001\"\n---\n"
+            )]),
+            Ok(())
+        );
     }
 }

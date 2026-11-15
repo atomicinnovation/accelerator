@@ -1,7 +1,7 @@
 pub mod work
 pub mod work::corpus_trust
 pub enum work::corpus_trust::UntrustedCorpus
-pub work::corpus_trust::UntrustedCorpus::Malformed(work::well_formed::MalformedItem)
+pub work::corpus_trust::UntrustedCorpus::Malformed(work::well_formed::MalformedItems)
 pub work::corpus_trust::UntrustedCorpus::RekeyRequired(work::rekey::convergence::RekeyRequired)
 impl work::corpus_trust::UntrustedCorpus
 pub const fn work::corpus_trust::UntrustedCorpus::code(&self) -> &'static str
@@ -3063,6 +3063,7 @@ pub mod work::well_formed
 pub enum work::well_formed::Malformation
 pub work::well_formed::Malformation::NoId
 pub work::well_formed::Malformation::NoSlug
+pub work::well_formed::Malformation::NoSlug::id: alloc::string::String
 impl core::clone::Clone for work::well_formed::Malformation
 pub fn work::well_formed::Malformation::clone(&self) -> work::well_formed::Malformation
 impl core::cmp::Eq for work::well_formed::Malformation
@@ -3070,25 +3071,36 @@ impl core::cmp::PartialEq for work::well_formed::Malformation
 pub fn work::well_formed::Malformation::eq(&self, other: &work::well_formed::Malformation) -> bool
 impl core::fmt::Debug for work::well_formed::Malformation
 pub fn work::well_formed::Malformation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::well_formed::Malformation
 impl core::marker::StructuralPartialEq for work::well_formed::Malformation
 pub struct work::well_formed::MalformedItem
 impl work::well_formed::MalformedItem
-pub const work::well_formed::MalformedItem::CODE: &'static str
-pub const fn work::well_formed::MalformedItem::malformation(&self) -> work::well_formed::Malformation
-pub fn work::well_formed::MalformedItem::relative_to(self, root: &std::path::Path) -> Self
+pub const fn work::well_formed::MalformedItem::malformation(&self) -> &work::well_formed::Malformation
 impl core::clone::Clone for work::well_formed::MalformedItem
 pub fn work::well_formed::MalformedItem::clone(&self) -> work::well_formed::MalformedItem
 impl core::cmp::Eq for work::well_formed::MalformedItem
 impl core::cmp::PartialEq for work::well_formed::MalformedItem
 pub fn work::well_formed::MalformedItem::eq(&self, other: &work::well_formed::MalformedItem) -> bool
-impl core::error::Error for work::well_formed::MalformedItem
 impl core::fmt::Debug for work::well_formed::MalformedItem
 pub fn work::well_formed::MalformedItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for work::well_formed::MalformedItem
-pub fn work::well_formed::MalformedItem::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::well_formed::MalformedItem
-pub fn work::well_formed::refuse_malformed(files: &[work::work_item_files::WorkItemFile]) -> core::result::Result<(), work::well_formed::MalformedItem>
+pub struct work::well_formed::MalformedItems
+impl work::well_formed::MalformedItems
+pub const work::well_formed::MalformedItems::CODE: &'static str
+pub fn work::well_formed::MalformedItems::first(&self) -> &work::well_formed::MalformedItem
+pub fn work::well_formed::MalformedItems::items(&self) -> &[work::well_formed::MalformedItem]
+pub fn work::well_formed::MalformedItems::relative_to(self, root: &std::path::Path) -> Self
+impl core::clone::Clone for work::well_formed::MalformedItems
+pub fn work::well_formed::MalformedItems::clone(&self) -> work::well_formed::MalformedItems
+impl core::cmp::Eq for work::well_formed::MalformedItems
+impl core::cmp::PartialEq for work::well_formed::MalformedItems
+pub fn work::well_formed::MalformedItems::eq(&self, other: &work::well_formed::MalformedItems) -> bool
+impl core::error::Error for work::well_formed::MalformedItems
+impl core::fmt::Debug for work::well_formed::MalformedItems
+pub fn work::well_formed::MalformedItems::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::well_formed::MalformedItems
+pub fn work::well_formed::MalformedItems::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::well_formed::MalformedItems
+pub fn work::well_formed::refuse_malformed(files: &[work::work_item_files::WorkItemFile]) -> core::result::Result<(), work::well_formed::MalformedItems>
 pub mod work::work_item_files
 pub enum work::work_item_files::ReadFailure
 pub work::work_item_files::ReadFailure::Io(alloc::string::String)
