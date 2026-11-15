@@ -93,40 +93,54 @@ pub fn is_tracker_owned_token(token: &str) -> bool {
     DraftId::parse(token).is_some() || tracker::is_tracker_key(token)
 }
 
+mod pattern_ids;
+mod tracker_ids;
+
+use pattern_ids::PatternIds;
+use tracker_ids::TrackerIds;
+
 fn is_digits(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-/// The tracker key leading `filename`, followed by the `-` that starts the
-/// slug, with where the key ends.
-fn tracker_key_prefix(filename: &str) -> Option<(&str, &str, usize)> {
-    let (key, rest) = filename.split_once('-')?;
-    let digit_count = rest.bytes().take_while(u8::is_ascii_digit).count();
-    let (digits, after) = rest.split_at(digit_count);
-    let token = &filename[..=key.len() + digit_count];
-    (tracker::is_tracker_key(token) && after.starts_with('-')).then_some((
-        key,
-        digits,
-        token.len(),
-    ))
+const LEGACY_WIDTH: usize = 4;
+
+/// How one owner of a workspace's IDs reads them, grouped by what each
+/// reading is for.
+trait IdReadings {
+    /// Display: the ID as a page shows it.
+    fn displayed_id(&self, trimmed: &str) -> Option<String>;
+
+    /// Join: the key every spelling of one item reads to.
+    fn identity_key(&self, reference: &str) -> Option<String>;
+
+    /// Join: the identity key a filename starts with, and where its slug
+    /// starts.
+    fn filename_identity(&self, filename: &str) -> Option<(String, usize)>;
+
+    /// Occupancy: a held `id`, alias or `external_id` read as an ID.
+    fn read_held(&self, value: &str) -> Option<IdParts>;
+
+    /// Occupancy: the ID a filename holds.
+    fn read_held_prefix(&self, filename: &str) -> Option<HeldPrefix>;
+
+    /// Occupancy: whether `held` names `id`.
+    fn holds(&self, held: &str, id: &IdParts) -> bool;
+
+    /// Rendering: `input` in the shape the owner writes.
+    fn canonicalise(&self, input: &str) -> Result<String, CanonicaliseError>;
 }
 
-fn legacy_prefix(filename: &str) -> Option<&str> {
-    let (digits, _) = filename.split_once('-')?;
-    is_digits(digits).then_some(digits)
-}
-
-fn draft_prefix(filename: &str) -> Option<DraftId> {
-    let candidate = filename.get(..DraftId::LENGTH)?;
-    let followed_by_slug = filename[DraftId::LENGTH..].starts_with('-');
-    DraftId::parse(candidate).filter(|_| followed_by_slug)
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Owner {
+    Tracker(TrackerIds),
+    Pattern(PatternIds),
 }
 
 /// The identity scheme a workspace configures for its work items.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdScheme {
-    pattern: IdPattern,
-    key: Option<IdKey>,
+    owner: Owner,
 }
 
 impl IdScheme {
@@ -134,8 +148,12 @@ impl IdScheme {
     /// key token.
     #[must_use]
     pub fn new(pattern: IdPattern, key: Option<IdKey>) -> Self {
-        let key = key.filter(|_| pattern.references_key());
-        Self { pattern, key }
+        let owner = if pattern.is_tracker_owned() {
+            Owner::Tracker(TrackerIds::new(pattern))
+        } else {
+            Owner::Pattern(PatternIds::new(pattern, key))
+        };
+        Self { owner }
     }
 
     #[must_use]
@@ -147,49 +165,45 @@ impl IdScheme {
 
     #[must_use]
     pub const fn pattern(&self) -> &IdPattern {
-        &self.pattern
+        match &self.owner {
+            Owner::Tracker(ids) => ids.pattern(),
+            Owner::Pattern(ids) => ids.pattern(),
+        }
     }
 
     #[must_use]
     pub const fn key(&self) -> Option<&IdKey> {
-        self.key.as_ref()
+        match &self.owner {
+            Owner::Tracker(_) => None,
+            Owner::Pattern(ids) => ids.key(),
+        }
     }
 
     #[must_use]
-    pub fn ownership(&self) -> IdOwnership {
-        if self.pattern.is_tracker_owned() {
-            IdOwnership::Tracker
-        } else {
-            IdOwnership::Local
+    pub const fn ownership(&self) -> IdOwnership {
+        match self.owner {
+            Owner::Tracker(_) => IdOwnership::Tracker,
+            Owner::Pattern(_) => IdOwnership::Local,
         }
     }
 
-    fn width(&self) -> usize {
-        self.pattern.width().unwrap_or(LEGACY_WIDTH)
+    fn readings(&self) -> &dyn IdReadings {
+        match &self.owner {
+            Owner::Tracker(ids) => ids,
+            Owner::Pattern(ids) => ids,
+        }
     }
 
     pub(crate) fn is_own_key(&self, key: &str) -> bool {
-        self.key
-            .as_ref()
+        self.key()
             .is_some_and(|own| own.as_str().eq_ignore_ascii_case(key))
-    }
-
-    /// `key` in the spelling a join key uses: `work.key`'s when it names the
-    /// same key, otherwise upper case.
-    fn folded(&self, key: &str) -> String {
-        match &self.key {
-            Some(own) if own.as_str().eq_ignore_ascii_case(key) => {
-                own.as_str().to_owned()
-            }
-            _ => key.to_ascii_uppercase(),
-        }
     }
 
     /// Whether `token` is an ID in the pattern's exact shape under this
     /// scheme's own key, ignoring the key's letter case.
     #[must_use]
     pub fn is_canonical_id_token(&self, token: &str) -> bool {
-        self.pattern.read_exact(token).is_some_and(|parts| {
+        self.pattern().read_exact(token).is_some_and(|parts| {
             parts.key().is_none_or(|key| self.is_own_key(key))
         })
     }
@@ -197,7 +211,7 @@ impl IdScheme {
     /// Whether `token` is an ID in the pattern's exact shape under any key.
     #[must_use]
     pub fn is_any_key_id_token(&self, token: &str) -> bool {
-        self.pattern.read_exact(token).is_some()
+        self.pattern().read_exact(token).is_some()
     }
 
     /// A work-item ID as it is shown: as written when the pattern reads it,
@@ -205,19 +219,7 @@ impl IdScheme {
     /// `{tracker}`, a tracker key as written or a draft ID in lower case.
     #[must_use]
     pub fn displayed_id(&self, raw: &str) -> Option<String> {
-        let trimmed = raw.trim();
-        if self.ownership() == IdOwnership::Tracker {
-            return DraftId::parse(trimmed)
-                .map(|draft| draft.as_str().to_owned())
-                .or_else(|| {
-                    tracker::is_tracker_key(trimmed).then(|| trimmed.to_owned())
-                });
-        }
-        if IdParts::parse(&self.pattern, trimmed).is_some() {
-            return Some(trimmed.to_owned());
-        }
-        let key = self.key.as_ref().filter(|_| is_digits(trimmed))?;
-        self.pattern.render(Some(key), trimmed.parse().ok()?).ok()
+        self.readings().displayed_id(raw.trim())
     }
 
     /// `input`, a full ID or a bare number, rendered through the pattern; a
@@ -236,26 +238,7 @@ impl IdScheme {
         if input.is_empty() {
             return Err(CanonicaliseError::EmptyInput);
         }
-        if self.pattern.is_tracker_owned() {
-            return Ok(input.to_owned());
-        }
-        if let Some(parts) = IdParts::parse(&self.pattern, input) {
-            return Ok(self.render_keeping_key(&parts)?);
-        }
-        if is_digits(input) {
-            let number =
-                input.parse().map_err(|_| CanonicaliseError::NoMatch)?;
-            return Ok(self.pattern.render(self.key.as_ref(), number)?);
-        }
-        Err(CanonicaliseError::UnrecognisedIdShape(input.to_owned()))
-    }
-
-    fn render_keeping_key(
-        &self,
-        parts: &IdParts,
-    ) -> Result<String, MissingKey> {
-        let key = parts.key().and_then(|key| IdKey::parse(key).ok());
-        self.pattern.render(key.as_ref(), parts.number())
+        self.readings().canonicalise(input)
     }
 
     /// The key every spelling of one item joins on: the number padded, and
@@ -265,52 +248,7 @@ impl IdScheme {
     /// joins nothing until a re-key converges it.
     #[must_use]
     pub fn identity_key(&self, reference: &str) -> Option<String> {
-        if self.pattern.is_tracker_owned() {
-            return Self::tracker_identity_key(reference);
-        }
-        if is_digits(reference) {
-            let number: u64 = reference.parse().ok()?;
-            return Some(
-                self.pattern
-                    .render(self.key.as_ref(), number)
-                    .unwrap_or_else(|_| self.padded(number)),
-            );
-        }
-        IdParts::parse(&self.pattern, reference)
-            .and_then(|parts| self.joined(&parts))
-    }
-
-    fn tracker_identity_key(reference: &str) -> Option<String> {
-        if let Some(draft) = DraftId::parse(reference) {
-            return Some(draft.as_str().to_owned());
-        }
-        if tracker::is_tracker_key(reference) {
-            let (key, digits) = reference.rsplit_once('-')?;
-            return Some(format!("{}-{digits}", key.to_ascii_uppercase()));
-        }
-        Self::pad_legacy_number(reference)
-    }
-
-    fn padded(&self, number: u64) -> String {
-        let width = self.width();
-        format!("{number:0width$}")
-    }
-
-    fn joined(&self, parts: &IdParts) -> Option<String> {
-        if self.pattern.is_tracker_owned() {
-            return Some(match parts.key() {
-                Some(key) => {
-                    format!("{}-{}", key.to_ascii_uppercase(), parts.digits())
-                }
-                None => Self::pad_legacy_number(parts.digits())?,
-            });
-        }
-        let key = parts
-            .key()
-            .map(|key| IdKey::parse(&self.folded(key)))
-            .transpose()
-            .ok()?;
-        self.pattern.render(key.as_ref(), parts.number()).ok()
+        self.readings().identity_key(reference)
     }
 
     /// A held `id`, alias or `external_id` read as an ID under this scheme:
@@ -318,49 +256,14 @@ impl IdScheme {
     /// tracker key as written.
     #[must_use]
     pub fn read_held(&self, value: &str) -> Option<IdParts> {
-        if self.pattern.is_tracker_owned() {
-            let (key, digits) = value.rsplit_once('-')?;
-            return tracker::is_tracker_key(value)
-                .then(|| IdParts::of(Some(key), digits))
-                .flatten();
-        }
-        IdParts::parse(&self.pattern, value).or_else(|| self.bare_number(value))
-    }
-
-    /// A bare number read as the pattern's number: under `work.key` when
-    /// the pattern has a key token, which then needs one.
-    fn bare_number(&self, digits: &str) -> Option<IdParts> {
-        if !is_digits(digits) {
-            return None;
-        }
-        if self.pattern.references_key() {
-            IdParts::of(Some(self.key.as_ref()?.as_str()), digits)
-        } else {
-            IdParts::of(None, digits)
-        }
+        self.readings().read_held(value)
     }
 
     /// The ID leading `filename`, read as [`Self::read_held`] reads a value;
     /// under `{tracker}`, a bare legacy number too.
     #[must_use]
     pub fn read_held_prefix(&self, filename: &str) -> Option<HeldPrefix> {
-        if self.pattern.is_tracker_owned() {
-            if let Some((key, digits, id_end)) = tracker_key_prefix(filename) {
-                return Some(HeldPrefix::new(
-                    IdParts::of(Some(key), digits)?,
-                    id_end,
-                ));
-            }
-            let digits = legacy_prefix(filename)?;
-            return Some(HeldPrefix::new(
-                IdParts::of(None, digits)?,
-                digits.len(),
-            ));
-        }
-        IdParts::parse_prefix(&self.pattern, filename).or_else(|| {
-            let digits = legacy_prefix(filename)?;
-            Some(HeldPrefix::new(self.bare_number(digits)?, digits.len()))
-        })
+        self.readings().read_held_prefix(filename)
     }
 
     /// Whether `held` names `id`: it reads as an ID with the same key,
@@ -368,14 +271,7 @@ impl IdScheme {
     /// holds only the same key and digits as written.
     #[must_use]
     pub fn holds(&self, held: &str, id: &IdParts) -> bool {
-        let Some(reading) = self.read_held(held) else {
-            return false;
-        };
-        if self.pattern.is_tracker_owned() {
-            reading.same_id(id) && reading.digits() == id.digits()
-        } else {
-            reading.same_id(id)
-        }
+        self.readings().holds(held, id)
     }
 
     /// True iff `id` is a legacy bare-number ID: 1 to 4 ASCII digits with at
@@ -396,19 +292,7 @@ impl IdScheme {
         let number: u64 = input.parse().ok()?;
         Some(format!("{number:0LEGACY_WIDTH$}"))
     }
-
-    fn filename_reading(&self, filename: &str) -> Option<(String, usize)> {
-        if self.pattern.is_tracker_owned() {
-            if let Some(draft) = draft_prefix(filename) {
-                return Some((draft.as_str().to_owned(), DraftId::LENGTH + 1));
-            }
-        }
-        let held = self.read_held_prefix(filename)?;
-        Some((self.joined(held.parts())?, held.slug_start()))
-    }
 }
-
-const LEGACY_WIDTH: usize = 4;
 
 fn without_surrounding_quotes(input: &str) -> &str {
     ['"', '\'']
@@ -429,7 +313,8 @@ impl Default for IdScheme {
 
 impl corpus::IdConvention for IdScheme {
     fn slug_start(&self, stem: &str) -> Option<usize> {
-        self.filename_reading(stem)
+        self.readings()
+            .filename_identity(stem)
             .map(|(_, slug_start)| slug_start)
     }
 
@@ -442,7 +327,8 @@ impl corpus::IdConvention for IdScheme {
     }
 
     fn id_in_filename(&self, filename: &str) -> Option<String> {
-        self.filename_reading(filename)
+        self.readings()
+            .filename_identity(filename)
             .map(|(identity, _)| identity)
     }
 }

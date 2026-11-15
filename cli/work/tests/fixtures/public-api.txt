@@ -348,7 +348,7 @@ pub fn work::id_scheme::IdScheme::is_legacy_id(id: &str) -> bool
 pub const fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
 pub fn work::id_scheme::IdScheme::new(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
 pub fn work::id_scheme::IdScheme::numeric() -> Self
-pub fn work::id_scheme::IdScheme::ownership(&self) -> work::id_scheme::IdOwnership
+pub const fn work::id_scheme::IdScheme::ownership(&self) -> work::id_scheme::IdOwnership
 pub fn work::id_scheme::IdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
 pub const fn work::id_scheme::IdScheme::pattern(&self) -> &work::id_pattern::IdPattern
 pub fn work::id_scheme::IdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
