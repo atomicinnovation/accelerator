@@ -1723,9 +1723,7 @@ fn promotion_records_left(repo: &Repo) -> usize {
     .len()
 }
 
-#[test]
-fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
-    let repo = Repo::new();
+fn promotion_killed_while_retiring_its_draft_onto_eng_42(repo: &Repo) {
     let promoted = "---\nid: \"ENG-42\"\ntitle: \"Title\"\nexternal_id: \
                     \"ENG-42\"\naliases: [\"draft-k7mq3x\"]\n---\n\n\
                     # ENG-42: Title\n";
@@ -1736,7 +1734,7 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
     };
     save_promotion(
-        &repo,
+        repo,
         &promotion_record(PromotionStage::Retiring {
             key: tracker_key("ENG-42"),
             baseline: Box::new(IntendedBaseline {
@@ -1755,6 +1753,12 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
             }),
         }),
     );
+}
+
+#[test]
+fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
+    let repo = Repo::new();
+    promotion_killed_while_retiring_its_draft_onto_eng_42(&repo);
 
     let outcome = sync(
         &repo,
@@ -1771,6 +1775,28 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
         outcome.engine_state("ENG-42"),
         Some(SyncState::Synced),
         "a_fresh_create_then_sync_reports_synced_under_tracker"
+    );
+}
+
+#[test]
+fn a_retiring_promotion_is_settled_over_a_corpus_re_key_would_move() {
+    let repo = Repo::new();
+    promotion_killed_while_retiring_its_draft_onto_eng_42(&repo);
+    let off_pattern = "---\nid: \"PP-0001\"\ntitle: \"Earlier\"\n---\n";
+    repo.write("meta/work/PP-0001-earlier.md", off_pattern);
+
+    let outcome = sync(
+        &repo,
+        &RecordingTracker::holding(vec![held("ENG-42")]),
+        Options::default(),
+    );
+
+    let row = outcome.row(PROMOTED_DRAFT);
+    assert_eq!(row.outcome, IdentityOutcome::Applied);
+    assert_eq!(promotion_records_left(&repo), 0);
+    assert_eq!(
+        repo.read("meta/work/PP-0001-earlier.md").as_deref(),
+        Some(off_pattern)
     );
 }
 

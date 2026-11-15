@@ -254,6 +254,19 @@ nothing was written:
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
   retry once it ends.
 
+**A corpus re-key would move.** `work sync` runs over a corpus holding an
+item off `work.id_pattern`, so that it can finish what re-key waits on. But
+`accelerator work resolve` and `accelerator work promote`, which this skill
+also runs, refuse that corpus with exit 4 and write nothing. Check their
+stderr:
+
+- `E_REKEY_REQUIRED` — tell the user to run `/rekey-work-items`, then re-run
+  this skill. Should re-key refuse with `E_REKEY_SYNC_UNFINISHED` or
+  `E_REKEY_PENDING_PUSH`, `accelerator work sync` settles it first, as that
+  refusal says. Stop.
+- `E_WORK_ITEM_MALFORMED` — relay the printed remedy as is: the named file is
+  fixed by hand. Stop.
+
 ## Read the run's output
 
 **The stdout report is authoritative.** Read every record below whatever the

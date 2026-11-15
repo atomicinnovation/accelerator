@@ -127,6 +127,23 @@ fn canonicalise_reads_no_corpus_and_is_not_refused() -> Result<(), TestError> {
 }
 
 #[test]
+fn sync_is_not_refused_over_a_diverged_corpus() -> Result<(), TestError> {
+    let repo = diverged_repo()?;
+    fs::write(
+        repo.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{key}_{number:04d}\"\n  key: PP\n  \
+         integration: linear\n---\n",
+    )?;
+
+    let output = run(repo.path(), &["sync"])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(!stderr.contains("E_REKEY_REQUIRED"), "{stderr}");
+    assert_ne!(output.status.code(), Some(4), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn rekey_converges_a_diverged_corpus() -> Result<(), TestError> {
     let repo = diverged_repo()?;
     for args in [&["add", "-A"][..], &["commit", "-qm", "seed"][..]] {
