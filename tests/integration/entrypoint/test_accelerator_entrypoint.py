@@ -802,6 +802,72 @@ def test_concurrent_cold_cache_slow_downloader_all_succeed(
     assert len(_dl_lines(server)) == 2, _dl_lines(server)
 
 
+_RACING_MKDIR_SRC = """\
+#!/bin/sh
+case "$*" in
+*.accelerator-lock-*)
+\t"{real}" "$@" 2>/dev/null
+\texit 0
+\t;;
+esac
+exec "{real}" "$@"
+"""
+
+
+@pytest.fixture
+def racing_mkdir_path(tmp_path: Path) -> str:
+    """A PATH whose mkdir reports the lock as made even when it exists.
+
+    uutils coreutils' mkdir, the default on Ubuntu 26.04, does this for some
+    of a group of concurrent callers.
+    """
+    real = shutil.which("mkdir")
+    assert real, "no mkdir on PATH"
+    shims = tmp_path / "racing-mkdir"
+    shims.mkdir()
+    shim = shims / "mkdir"
+    shim.write_text(_RACING_MKDIR_SRC.format(real=real))
+    shim.chmod(0o755)
+    return f"{shims}{os.pathsep}{os.environ['PATH']}"
+
+
+def test_a_lock_mkdir_reports_as_made_is_never_shared_with_its_owner(
+    new_installation: NewInstallation,
+    downloader: Path,
+    host_platform: str,
+    racing_mkdir_path: str,
+    tmp_path: Path,
+) -> None:
+    installation = new_installation()
+    root, server = installation.root, installation.server
+    lock = root / f"bin/.accelerator-lock-{host_platform}"
+    lock.mkdir()
+    fetched_while_held = tmp_path / "fetched-while-held"
+    downloads = server / "dl.log"
+    owner = subprocess.Popen(
+        [
+            "/bin/sh",
+            "-c",
+            f'sleep 3; [ -e "{downloads}" ] && : > "{fetched_while_held}"',
+        ]
+    )
+    (lock / "pid").write_text(f"{owner.pid}\n")
+    # An unreaped owner stays a zombie, which `kill -0` still reports as live.
+    reaper = threading.Thread(target=owner.wait)
+    reaper.start()
+    try:
+        result = _run_bootstrap(
+            root, server, downloader, path=racing_mkdir_path, timeout=30
+        )
+    finally:
+        reaper.join()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not fetched_while_held.exists(), (
+        "the bootstrap fetched while another session held the lock"
+    )
+    assert len(_dl_lines(server)) == 2, _dl_lines(server)
+
+
 # ── Phase 0: the dev-launcher marker is gitignored and unshippable ───────────
 
 
