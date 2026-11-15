@@ -26,8 +26,8 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::announced_scheme_for_writing;
 use crate::config::resolve_work_dir;
-use crate::convergence::refuse_diverged_corpus;
-use crate::convergence::Diverged;
+use crate::corpus_trust::refuse_untrusted_corpus;
+use crate::corpus_trust::Untrusted;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityCandidate {
@@ -81,7 +81,7 @@ fn resolve_path_class(root: &Path, start: &Path, input: &str) -> RunOutcome {
 #[derive(Debug)]
 pub enum RunFailure {
     Config(kernel::Error),
-    Diverged(Diverged),
+    Untrusted(Untrusted),
 }
 
 impl From<kernel::Error> for RunFailure {
@@ -93,8 +93,7 @@ impl From<kernel::Error> for RunFailure {
 /// # Errors
 ///
 /// [`RunFailure::Config`] when the configuration cannot be read, and
-/// [`RunFailure::Diverged`] when the corpus holds an item re-key would
-/// move.
+/// [`RunFailure::Untrusted`] when the corpus's IDs cannot be trusted.
 pub fn run(
     start: &Path,
     config: &dyn ConfigAccess,
@@ -104,8 +103,8 @@ pub fn run(
         announced_scheme_for_writing(config).map_err(kernel::Error::from)?;
     let work_dir = canonical_work_dir(start, config)?;
     let root = FileConfigStore::discover_root(start);
-    refuse_diverged_corpus(&scheme, &root, &work_dir)
-        .map_err(RunFailure::Diverged)?;
+    refuse_untrusted_corpus(&scheme, &root, &work_dir)
+        .map_err(RunFailure::Untrusted)?;
     Ok(resolve_with(&scheme, &work_dir, start, input))
 }
 

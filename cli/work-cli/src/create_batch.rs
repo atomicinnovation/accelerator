@@ -36,8 +36,8 @@ use crate::batch_manifest::ManifestEntry;
 use crate::batch_manifest::ParentLink;
 use crate::cli::CreateBatchArgs;
 use crate::config::locate_work_items;
-use crate::convergence::refuse_diverged_corpus;
-use crate::convergence::Diverged;
+use crate::corpus_trust::refuse_untrusted_corpus;
+use crate::corpus_trust::Untrusted;
 use crate::create::create_item;
 use crate::create::CreateFailure;
 use crate::create::CreationOutcome;
@@ -211,7 +211,7 @@ pub fn run_with(
             }
         }
     };
-    if let Err(Diverged { message, code }) = refuse_diverged_corpus(
+    if let Err(Untrusted { message, code }) = refuse_untrusted_corpus(
         &location.scheme,
         &location.root,
         &location.work_dir,

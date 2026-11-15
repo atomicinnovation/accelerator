@@ -183,20 +183,9 @@ fn unconverged(
     root: &Path,
     work_dir: &Path,
 ) -> Option<String> {
-    use work::work_item_files::WorkItemFiles as _;
-
-    let files =
-        work_adapters::filesystem::FilesystemWorkItemFiles::new(work_dir)
-            .files()
-            .ok()?;
-    let identities = work::work_item_files::identities(&files);
-    work::rekey::convergence::refuse_divergence(scheme, &identities)
-        .map_err(|refusal| refusal.relative_to(root).to_string())
-        .and_then(|()| {
-            work::well_formed::refuse_malformed(&files)
-                .map_err(|refusal| refusal.relative_to(root).to_string())
-        })
+    work_adapters::corpus_trust::refuse_untrusted_under(scheme, work_dir)
         .err()
+        .map(|refusal| refusal.relative_to(root).to_string())
 }
 
 async fn canonical_or_self(p: PathBuf) -> PathBuf {

@@ -18,8 +18,8 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::locate_work_items;
 use crate::config::WorkItemLocation;
-use crate::convergence::refuse_diverged_corpus;
-use crate::convergence::Diverged;
+use crate::corpus_trust::refuse_untrusted_corpus;
+use crate::corpus_trust::Untrusted;
 use crate::identity_run::IdentityRunStart;
 
 pub enum RunOutcome {
@@ -82,8 +82,8 @@ pub fn run(
         Err(message) => return RunOutcome::Failed(message),
     };
     let pattern = scheme.pattern();
-    if let Err(Diverged { message, code }) =
-        refuse_diverged_corpus(&scheme, &root, &work_dir)
+    if let Err(Untrusted { message, code }) =
+        refuse_untrusted_corpus(&scheme, &root, &work_dir)
     {
         return RunOutcome::Refused { message, code };
     }

@@ -187,10 +187,10 @@ fn try_run(
         })?;
     let scheme = crate::config::announced_scheme_for_writing(config)
         .map_err(|error| internal(error.to_string()))?;
-    crate::convergence::refuse_diverged_corpus(&scheme, &root, &work_dir)
-        .map_err(|diverged| PromoteOutcome::Failed {
-            message: diverged.message,
-            code: diverged.code,
+    crate::corpus_trust::refuse_untrusted_corpus(&scheme, &root, &work_dir)
+        .map_err(|untrusted| PromoteOutcome::Failed {
+            message: untrusted.message,
+            code: untrusted.code,
         })?;
     let (draft, draft_path) =
         tracker_owned_draft(config, &work_dir, &args.draft_id)?;

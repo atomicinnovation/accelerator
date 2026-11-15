@@ -6,7 +6,7 @@ mod batch_manifest;
 mod bounded_roots;
 mod cli;
 mod config;
-mod convergence;
+mod corpus_trust;
 mod create;
 mod create_batch;
 mod diff;
@@ -147,9 +147,9 @@ fn run_resolve(input: &str) -> ExitCode {
             eprintln!("{error}");
             ExitCode::FAILURE
         }
-        Err(resolve::RunFailure::Diverged(diverged)) => {
-            eprintln!("{}", diverged.message);
-            ExitCode::from(diverged.code)
+        Err(resolve::RunFailure::Untrusted(untrusted)) => {
+            eprintln!("{}", untrusted.message);
+            ExitCode::from(untrusted.code)
         }
     }
 }

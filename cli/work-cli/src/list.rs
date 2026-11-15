@@ -32,8 +32,8 @@ use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::convergence::refuse_diverged_corpus;
-use crate::convergence::Diverged;
+use crate::corpus_trust::refuse_untrusted_corpus;
+use crate::corpus_trust::Untrusted;
 use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
@@ -582,8 +582,8 @@ pub fn run(
             message: missing_directory_message(&work_dir),
         };
     }
-    if let Err(Diverged { message, code }) =
-        refuse_diverged_corpus(&scheme, &root, &work_dir)
+    if let Err(Untrusted { message, code }) =
+        refuse_untrusted_corpus(&scheme, &root, &work_dir)
     {
         return RunOutcome::Refused { message, code };
     }
