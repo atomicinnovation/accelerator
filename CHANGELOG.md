@@ -231,7 +231,9 @@
   and `work.key`, and a bare ID in a `## Dependencies` line counts when it
   is in the pattern's exact shape, under any key, where it counted only as
   four digits. Under `{tracker}` a tracker key or draft ID counts.
-  Migration 0007 keeps the four-digit rules.
+  Migration 0007 keeps the four-digit rules. A `work.id_pattern` or
+  `work.key` that cannot be read refuses extraction for every doc type,
+  with the same `E_WORK_*` refusal the `work` commands give.
 - **The visualiser shows an ID through the configured pattern.** An `id`
   the pattern reads is shown as written, so `PP_0042` under
   `{key}_{number:04d}` and `v001` under `v{number:03d}` now show; a bare

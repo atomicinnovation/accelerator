@@ -242,3 +242,33 @@ fn a_bare_id_reads_through_the_configured_pattern() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn an_unreadable_work_scheme_refuses_extraction_for_every_doc_type(
+) -> Result<(), TestError> {
+    let dir = tempdir("bad-scheme")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{number:4d}\"\n---\n",
+    )?;
+    let file = root.join("meta/decisions/ADR-0001-a.md");
+    fs::create_dir_all(file.parent().ok_or("no parent")?)?;
+    fs::write(&file, "---\nadr_id: ADR-0001\n---\n")?;
+
+    let output = run(
+        &root,
+        &["linkage", "extract", file.to_str().ok_or("non-utf8 path")?],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("E_WORK_ID_PATTERN_INVALID"),
+        "{output:?}"
+    );
+    Ok(())
+}
