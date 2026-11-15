@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-15T23:32:44+00:00"
+last_updated: "2026-11-15T23:56:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -608,14 +608,14 @@ def assert_stopped_cleanly(workspace: Path) -> None:
   - A run of `test_sigterm_ignoring_frontend_is_sigkilled` leaves the events
     log with `started frontend <pid> …` and no `sigterm` for that PID.
   - A happy-path test leaves an escalation log with no `kill` line.
-- [ ] The negative-path record is in the PR description and each string
-      matches `lifecycle.py`. The strings match, as
-      `test_every_timeout_branch_evidence_line_is_still_logged` shows. The
-      record, with the red-step note, still has to go into the PR
-      description.
-- [ ] The follow-up work item for orphaned children after an out-of-band
-      kill exists and is linked from the PR. It exists as 0371 (PP-942) and
-      also covers the lost-`dev.json` case. The PR link is still to come.
+- [x] The negative-path record is in the PR description and each string
+      matches `lifecycle.py`. It is in PR #220's description, along with
+      the red-step note.
+      `test_every_timeout_branch_evidence_line_is_still_logged` pins the
+      strings.
+- [x] The follow-up work item for orphaned children after an out-of-band
+      kill exists and is linked from the PR. It is 0371 (PP-942), linked
+      from PR #220, and also covers the lost-`dev.json` case.
 - [x] Suite wall time is unchanged or lower. No timing change is intended,
       and the teardown no longer runs a second driver stop.
 
