@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0371", "work-item:0302", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
-revision: "404cca765b4e12dbaf87ebb5b5520be5bfa1c4c7"
+revision: "1d6e01c725b67222eca6d038feda0a23dbf2d3ef"
 repository: "accelerator"
-last_updated: "2026-11-15T12:16:33+00:00"
+last_updated: "2026-11-15T22:12:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -36,8 +36,12 @@ grammar and one ID scheme. That move is most of the diff. The response to
 the first review then made the scheme coherent end to end: a corpus off the
 configured pattern is now refused until re-keyed, live linkage reads through
 the scheme, each tracker owns its key shape, and the visualiser keeps
-serving when IDs cannot be trusted. Every behaviour change is listed under
-"Behaviour changes".
+serving when IDs cannot be trusted. The response to the second review made
+that gate's remedy always reachable: convergence and re-key share one
+definition of an ID in shape, re-key keeps other keys unless told to fold
+them, the trust check lives in one place, every skill handles the refusals,
+and the visualiser shows the problem live. Every behaviour change is listed
+under "Behaviour changes".
 
 ## Changes
 
@@ -59,7 +63,10 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
   | `E_ID_TAKEN` | 4 | held by any item | the holder's path |
 
   `E_ID_TAKEN` exits 4 like every other collision, so a script can tell a
-  bad ID from a taken one by its exit code.
+  bad ID from a taken one by its exit code; the corpus refusals exit 4 too,
+  so a taken ID is told from them by its code. `id check` and
+  `--dry-run --id` take the exit code from the typed `RequestedIdRefusal`
+  (`exit_codes::of_requested_id_refusal`).
 - **Taken rule**: an ID is held by any item's `id`, `aliases` entry or
   `external_id`, and by any filename's ID prefix at any width. Parseable IDs
   compare by key (ignoring case) and number, so `400-x.md` and `id: "400"`
@@ -69,11 +76,14 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
 - **Ordering**: the identity-run guard, the corpus checks (`E_REKEY_REQUIRED`,
   `E_WORK_ITEM_MALFORMED`), checks 1–4, then under `--push` the pending-push
   refusals, then the taken check under the create lock, so a racing create
-  of the same ID is caught. One `work_adapters::creation::refuse_requested_id`
-  owns the last three steps.
-- **`--dry-run --id`** goes through the same `refuse_requested_id`, without
-  the lock, before the tracker preview, so it now lists the corpus first as
-  the create does. A pass leaves the dry-run output unchanged.
+  of the same ID is caught. One `admit_request` step (locate, trust, admit)
+  is shared by the real create and the dry run, and one
+  `work_adapters::creation::refuse_requested_id`, returning a typed
+  `RequestedIdBlock`, owns the last steps. The real create locates its work
+  items once and hands the location to `create_item`.
+- **`--dry-run --id`** goes through the same steps, without the lock, before
+  the tracker preview, so it now lists the corpus first as the create does.
+  A pass leaves the dry-run output unchanged.
 - **Allocation** stays max+1 per key, ignoring gaps an `--id` leaves, and now
   counts a number held in any item's `id`, aliases or `external_id`, drafts
   included, so it never hands out an ID `--id` would refuse.
@@ -112,7 +122,7 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
   form, the skill waits for the user to name another ID, ask for automatic
   allocation or cancel. Under `{tracker}` only automatic allocation remains.
   `E_REKEY_REQUIRED` and `E_WORK_ITEM_MALFORMED` stop the skill with their
-  remedy.
+  printed remedy, including from the resolver.
 - **Evals**: 34 new cases (39–72) with a fresh benchmark, plus re-run
   benchmarks for `extract-work-items` and `refine-work-item` after their
   move onto the `work id` verbs. The 13 evals the review response touched
@@ -125,15 +135,34 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
 ### Convergence: a corpus off the pattern is refused
 
 - **`work::rekey::convergence`**: an item is converged when its `id` is in
-  the pattern's exact shape under any key or, under `{tracker}`, is a draft
-  or its issue's key. `create`, `create-batch`, `id next`, `id check`,
-  `list`, `resolve` and `promote` refuse a corpus holding any other item with
+  the pattern's shape (its exact width, under any key, in any case) or,
+  under `{tracker}`, is a draft or its issue's key. Re-key keeps exactly the
+  items convergence accepts, and both check shape before treating an `id`
+  equal to its `external_id` as a tracker key, so an aligned `ENG-1234` is
+  kept. `create`, `create-batch`, `id next`, `id check`, `list`, `resolve`
+  and `promote` refuse a corpus holding any other item with
   `E_REKEY_REQUIRED` (exit 4), naming one and pointing to
-  `/rekey-work-items`. `sync`, `rekey` and `id canonicalise` still run.
-- **`work::well_formed`**: the same commands refuse a work item whose
+  `/rekey-work-items`, after the fix by hand for an item re-key cannot read.
+  `sync`, `rekey` and `id canonicalise` still run.
+- **The remedy is always reachable**: re-key's only sync refusals name
+  `accelerator work sync`, which is not gated and settles a retiring
+  promotion itself; `/sync-work-items` stops on exit 4 from `resolve` and
+  `promote` with that route.
+- **`work::well_formed`**: the same commands refuse every work item whose
   filename does not start with its `id` and a slug, or that names an ID
-  with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4). A file with no
-  frontmatter is not a work item and is left alone.
+  with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4), naming the first by
+  path and how many there are. A file with no frontmatter is not a work
+  item and is left alone.
+- **`work::corpus_trust`** composes the two checks in order
+  (`refuse_untrusted` → `UntrustedCorpus`), and
+  `work_adapters::corpus_trust::refuse_untrusted_under` lists the work
+  directory for both work-cli and the visualiser.
+- **Re-key keeps other keys** (`work::rekey::folding`): an item in shape
+  under a key other than `work.key` keeps it, and an off-pattern one is
+  re-rendered under its own key, so `--project` items are never renamed.
+  `work rekey --preview --from-key <KEY>` folds a named key's items onto
+  `work.key`, as after renaming the key; the preview names every other key
+  items keep, and `/rekey-work-items` asks which to fold.
 - **`identity_key`** loses its `-`-joining fallback, so a reference an
   earlier pattern wrote joins nothing until re-keyed.
 
@@ -154,7 +183,9 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
 - **`work::id_scheme`** (`IdScheme`) dispatches every reading to
   `TrackerIds` or `PatternIds` through one `IdReadings` trait grouped as
   display, join, occupancy and rendering. It implements both corpus ports,
-  and carries the tracker keys `work.integration` names. `displayed_id`
+  and takes the tracker keys `work.integration` names when it is built
+  (`IdScheme::under_tracker`); `TrackerKeys::owns_ids` says whether they can
+  serve as IDs. `displayed_id`
   replaces `normalise_id` and reads through the pattern; `HeldPrefix` says
   where a filename's ID ends. `requested_id` models an `--id` and its
   settlement.
@@ -180,19 +211,28 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
 
 - **Degrades instead of refusing to boot**: under a scheme it cannot read it
   serves every other document, reads no work-item IDs, and reports the
-  refusal in its log and as `problem` from `/api/work-item/config`, as it
-  does a corpus needing a re-key or holding a malformed item (read at boot).
+  refusal in its log, as `problem` from `/api/work-item/config` and in a
+  banner above every page, as it does a corpus needing a re-key or holding
+  a malformed item. The problem is worked out on each request and the
+  banner refetches on work-item events, so it clears after a re-key without
+  a restart. A setting that cannot be read at all refuses to compose.
+- **One composed scheme**: `Config.work_item` is a `WorkItemScheme`
+  (`Default`, `Configured`, `Unreadable`) in place of two parallel options.
 - **Joins**: the identity-key index is named after what it holds; two items
   sharing an identity key resolve to the lower path whatever the read order,
-  and removing it hands the key on; `.MD` work items update live.
+  removing it hands the key on, and a review targeting the key moves with
+  it; `.MD` work items update live.
 - **Shown IDs** are read through the pattern (`PP_0042`, `v001` now show).
 
 ### Hardening
 
-- **Retirement records** refuse an `old`, `new` or `new_external_id`
-  outside the ID alphabet, so a quote or newline cannot reach frontmatter;
-  a record's or pending-push marker's `recovery_dir` must be one directory
-  under `retirement-recovery/`.
+- **Every retirement** (re-key, promotion, resume) refuses an old or new ID
+  outside the ID alphabet, as `id-outside-alphabet` (exit 4) for a
+  promotion, and every value it writes goes through one escaping
+  double-quoted YAML writer; its refusals escape the IDs they name.
+- **Retirement records** parse into `RecordedId` and `RecoveryDir`, so a
+  record holding an ID outside the alphabet, or a `recovery_dir` other than
+  one directory under `retirement-recovery/`, cannot be built.
 - **Re-key** refuses an `id` outside the ID alphabet and escapes the item
   path in that refusal.
 
@@ -205,7 +245,11 @@ serving when IDs cannot be trusted. Every behaviour change is listed under
 - **Docs**: the configure skill, `docs-site` (`work-items.md`, `corpus.md`
   and the guides), `tasks/README.md` and the skills follow every change;
   `test_retired_id_verbs.py` keeps the old verb names out of the skills,
-  the user docs and the task README.
+  the user docs and the task README, and
+  `test_untrusted_corpus_refusals.py` fails for any skill that runs a
+  refusing `work` command without handling both corpus refusals.
+- **CHANGELOG**: a Migrations entry tells an upgrader to check the corpus
+  with `accelerator work list` and what each refusal needs.
 
 ## Behaviour changes
 
@@ -220,6 +264,10 @@ notice:
 - ⚠️ **Malformed items refused**: the same commands exit 4 with
   `E_WORK_ITEM_MALFORMED` for a slugless filename such as `0400.md` or an
   item naming an ID without an `id`.
+- ⚠️ **Re-key keeps other keys**: items under a key other than `work.key`
+  keep it unless `--from-key` names it, where re-key folded every key onto
+  `work.key`; a promotion reports an ID outside the alphabet as the new
+  `not-promoted` reason `id-outside-alphabet`.
 - ⚠️ **Newly refused patterns**: literal text outside ASCII letters, digits,
   `.`, `_` and `-` (including `{{`/`}}`), a digit beside a token, a width
   over 19 or a repeated token gives `E_WORK_ID_PATTERN_INVALID` from every
@@ -235,7 +283,8 @@ notice:
 - **References from an earlier pattern** (`PP-42` under `{key}_{number:04d}`,
   `ENG-42` under `{number:04d}`) no longer join their item until re-keyed.
 - **`corpus linkage extract`** reads work-item IDs through the configured
-  pattern where it read only four digits; migration 0007 keeps the
+  pattern where it read only four digits, and a scheme it cannot read
+  refuses extraction for every doc type; migration 0007 keeps the
   four-digit rules.
 - **Linear identifiers** may not hold `_` in their team key.
 - **Re-key** refuses an `id` holding a space or other character outside the
@@ -269,30 +318,23 @@ notice:
   review in `meta/reviews/work/`.
 - Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
   (result `pass`, against the plan before the review response).
-- First review: `meta/reviews/prs/178-review-1.md`; its inline threads are
-  answered and resolved, and the rest is answered in the PR's summary
-  comment.
+- Reviews: `meta/reviews/prs/178-review-1.md` and `178-review-2.md`; each
+  review's inline threads are answered and resolved, and the rest of each
+  is answered in a PR comment.
 - Follow-up: 0371 makes `--dry-run` run every invocation check the real
   create runs; it keeps this PR's `--id` checks.
 
 ## Testing
 
-- [x] `ACCELERATOR_COVERAGE=off mise run test:unit:cli` passes 7627 of 7627
-      at the tip.
-- [ ] `mise run` (the full default task) at the tip: every stage passed
-      except `test:unit:cli`, which failed only on flakes in crates this PR
-      does not touch: `launcher` `version_reports_build_baked_metadata` (a
-      stale build timestamp) and `github::octocrab_client` timeouts under
-      parallel load. Both pass on a rerun; a clean end-to-end run is still
-      to be recorded.
-- [x] `mise run check`, `pup:check` and `public-api:check` are clean at the
-      tip.
+- [x] `mise run` (the full default task) exits 0 end to end at the tip,
+      after the second review's response, changing no file.
 - [x] `/create-work-item` evals pass in full, all 75 (with-skill mean 1.0).
       The 13 the review response touched (26, 39, 42, 45, 48, 49, 51, 52,
       59–62, 66) were re-run on 2026-11-15 by `claude-opus-5-5`, by
       executor agents barred from the evals and benchmark files and graded
       by separate agents from the outputs alone; eval 26, which had failed,
-      now passes.
+      now passes. The second review's response changed the skill's exit-4
+      wording and resolver table only; the evals were not re-run after it.
 - [x] Every test the plan and its criteria traceability table name exists
       (88 of 88, per the validation report).
 - [ ] Manual checks: `/create-work-item --id 400 <topic>` in a scratch
@@ -305,25 +347,29 @@ notice:
 
 ## Notes for Reviewers
 
-- **Review order**: the diff is about 210 files, a third of it the plan, its
+- **Review order**: the diff is about 235 files, a third of it the plan, its
   reviews and eval benchmarks. Reading `cli/work/src/id_pattern.rs`,
-  `id_scheme.rs` and `id_scheme/`, `rekey/convergence.rs`, `well_formed.rs`
-  and `requested_id.rs`, then `cli/work-cli/src/create.rs`, `convergence.rs`
-  and `id/check.rs`, gives the core before the consumer moves.
-- **Convergence is any-key**: re-key folds every key onto `work.key`, but a
-  corpus counts as converged with items under other keys, or every
-  `--project` repository would refuse after its first other-key item.
+  `id_scheme.rs` and `id_scheme/`, `rekey/convergence.rs`, `folding.rs`,
+  `well_formed.rs`, `corpus_trust.rs` and `requested_id.rs`, then
+  `cli/work-cli/src/create.rs`, `corpus_trust.rs` and `id/check.rs`, gives
+  the core before the consumer moves.
+- **Convergence is any-key, and so is re-key**: a corpus counts as
+  converged with items under other keys, or every `--project` repository
+  would refuse after its first other-key item; re-key leaves them, so a
+  `work.key` change is applied with `--from-key`.
 - **Exempt from `E_REKEY_REQUIRED`**: `sync` and `rekey`, because a re-key
   refuses while a sync or `--push` create is unfinished and only sync
   clears that, and `id canonicalise`, which reads no corpus.
-- **Visualiser `problem`** is reported in the log and the API only; the
-  frontend does not show it yet, and it is read once at boot.
 - **Eval re-runs** used this session's own executor and grader agents rather
   than skill-creator, and graded changes made in the same session; the
   benchmark notes record how.
-- **`E_ID_TAKEN` exit code** is classified from the frozen code at the start
-  of the refusal message (`exit_codes::of_failure`), since create's
-  refusals travel as strings.
+- **`E_ID_TAKEN` exit code** comes from the typed refusal for `id check` and
+  the dry run; only the real create's string path still classifies it from
+  the frozen code at the start of its message (`exit_codes::of_failure`).
+- **`WorkIdentity` stays copied** in the migrate-adapters test composition:
+  `lint:crate-dependencies` lets only the `migrate-cli` composition root
+  depend on both `migrate` and `work`, so the shipped adapter cannot move to
+  a crate the tests import.
 - **`--dry-run --id` without `--push`** fails when `paths.integrations`
   cannot be read, where a plain dry-run succeeds, because the preview reads
   the integration state; unchanged by this PR's review response.
