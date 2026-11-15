@@ -4,6 +4,7 @@
 //! pushed), a draft, or under `{tracker}` a draft promoted onto the issue the
 //! tracker creates for it.
 
+use corpus::lock::ExclusiveLock;
 use corpus_adapters::CommonMarkBody;
 use std::path::Path;
 use std::path::PathBuf;
@@ -36,14 +37,17 @@ use work::id_scheme::IdScheme;
 use work::identity_run::IdentityRunGuard;
 use work::next_number::allocate;
 use work::next_number::allocation_key;
+use work::next_number::refuse_project_without_key_token;
 use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
 use work::requested_id::RequestedId;
 use work::work_item_files::WorkItemFiles;
+use work::work_item_files::WorkItemListing;
 use work_adapters::author::VcsBackedIdentityProbe;
 pub use work_adapters::creation::blocked_remedy;
 use work_adapters::creation::create_local_item;
 use work_adapters::creation::create_tracker_keyed_item;
+use work_adapters::creation::refuse_requested_id;
 use work_adapters::creation::refuse_unfinished_push;
 use work_adapters::creation::save_draft;
 pub use work_adapters::creation::CreateFailure;
@@ -77,7 +81,6 @@ use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::identity_workspace::OpenFailure;
 use crate::requested_id::admit_requested_id;
-use crate::requested_id::refuse_if_requested_id_taken;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 use work_adapters::promotion_records::PromotionRecords;
@@ -447,10 +450,12 @@ fn creation_context<'a>(
         format!("could not create the work-item directory: {error}")
     })?;
     let pattern = location.scheme.pattern();
-    if pattern.is_tracker_owned() {
-        allocation_key(pattern, args.project.as_deref(), None)
-            .map_err(|error| error.message(pattern, &location.work_dir))?;
-    }
+    let shown_dir = location
+        .work_dir
+        .strip_prefix(&location.root)
+        .unwrap_or(&location.work_dir);
+    refuse_project_without_key_token(pattern, args.project.as_deref())
+        .map_err(|error| error.message(pattern, shown_dir))?;
     let metadata = derive_at(
         &location.root,
         FilenameTimestampFormat::DateTimeUnderscored,
@@ -493,7 +498,7 @@ pub fn create_item(
         creation_context(start, config, templates, args)?;
     let location = &context.location;
     let state_dir = location.root.join(crate::sync::STATE_DIR);
-    let lock = LockdirLock::new(&location.work_dir);
+    let lock = (seams.lock_at)(&location.work_dir);
     let creation = Creation {
         item: &context,
         parser: &CommonMarkBody,
@@ -502,7 +507,7 @@ pub fn create_item(
         state_dir: &state_dir,
         store_at: seams.store_at,
         reader: &RealFs,
-        lock: &lock,
+        lock: lock.as_ref(),
         now: attempted_at_epoch(),
     };
     let registry = seams.registry;
@@ -619,8 +624,14 @@ fn attempt_promotion(
 pub struct Seams<'a> {
     pub registry: &'a dyn TrackerRegistry,
     pub store_at: &'a dyn Fn(&Path) -> Box<dyn CreationStore>,
+    pub lock_at: &'a dyn Fn(&Path) -> Box<dyn ExclusiveLock>,
     pub draws: &'a mut dyn SuffixDraws,
     pub identity_run: &'a IdentityRunStart<'a>,
+}
+
+/// The create lock under a work directory, as the shipped command takes it.
+pub fn lockdir_lock_at(work_dir: &Path) -> Box<dyn ExclusiveLock> {
+    Box::new(LockdirLock::new(work_dir))
 }
 
 /// # Errors
@@ -645,34 +656,21 @@ pub fn run(
         &mut Seams {
             registry,
             store_at: &store_at,
+            lock_at: &crate::create::lockdir_lock_at,
             draws: &mut RandomSuffixDraws,
             identity_run: &crate::identity_run::begin,
         },
     )
 }
 
-/// The real create's `--id` checks, in its order, without its locks: a
+/// The real create's `--id` refusals, in its order, without its locks: a
 /// pass reserves nothing. An integration that cannot be read fails where
 /// the real create's does, before the taken check only under `--push`.
-fn refuse_requested_id_before_preview(
-    location: &WorkItemLocation,
-    args: &CreateArgs,
-    integration: Result<&IntegrationState, &String>,
-) -> Result<(), String> {
-    let Some(requested) = admit_requested_id(args, &location.scheme)? else {
-        return Ok(());
-    };
-    if args.push {
-        let state = integration.map_err(String::clone)?;
-        refuse_unfinished_push(state, &slugify(&args.title), &RealFs)?;
-    }
-    refuse_if_requested_id_taken(&requested, location)
-}
-
 fn preview_requested_id(
     start: &Path,
     config: &dyn ConfigAccess,
     args: &CreateArgs,
+    requested: &str,
     registry: &dyn TrackerRegistry,
 ) -> RunOutcome {
     let location = match locate_work_items(start, config) {
@@ -686,12 +684,30 @@ fn preview_requested_id(
     ) {
         return RunOutcome::Refused { message, code };
     }
-    let integration = integration_state(config, &location.root);
-    if let Err(refusal) = refuse_requested_id_before_preview(
-        &location,
-        args,
-        integration.as_ref(),
+    let requested = match RequestedId::admit(
+        requested,
+        args.project.as_deref(),
+        &location.scheme,
     ) {
+        Ok(requested) => requested,
+        Err(refusal) => return RunOutcome::Failed(refusal.to_string()),
+    };
+    let integration = integration_state(config, &location.root);
+    let listing =
+        match FilesystemWorkItemFiles::new(&location.work_dir).listing() {
+            Ok(listing) => listing,
+            Err(error) => return RunOutcome::Failed(error.to_string()),
+        };
+    let pending = |_: &WorkItemListing| {
+        if !args.push {
+            return Ok(());
+        }
+        let state = integration.as_ref().map_err(String::clone)?;
+        refuse_unfinished_push(state, &slugify(&args.title), &RealFs)
+    };
+    if let Err(refusal) =
+        refuse_requested_id(&requested, &listing, &pending, &location.root)
+    {
         return RunOutcome::Failed(refusal);
     }
     match integration {
@@ -708,8 +724,14 @@ pub fn run_with(
     args: &CreateArgs,
     seams: &mut Seams<'_>,
 ) -> RunOutcome {
-    if args.dry_run && args.id.is_some() {
-        return preview_requested_id(start, config, args, seams.registry);
+    if let (true, Some(requested)) = (args.dry_run, args.id.as_deref()) {
+        return preview_requested_id(
+            start,
+            config,
+            args,
+            requested,
+            seams.registry,
+        );
     }
     if args.dry_run {
         let integration = match effective_nonempty(config, "work.integration") {
@@ -1434,6 +1456,7 @@ mod tests {
         std::fs::remove_file(&concurrent_draft).expect("remove");
         let lock_path =
             repo.path("meta/work").join(LockdirLock::CREATE_LOCKDIR);
+        let (attempting, create_waits) = std::sync::mpsc::channel();
         let (locked, lock_held) = std::sync::mpsc::channel();
         let concurrent = std::thread::spawn(move || {
             let _guard = store::lock::acquire(
@@ -1442,12 +1465,24 @@ mod tests {
             )
             .expect("lock");
             locked.send(()).expect("signal");
-            std::thread::sleep(std::time::Duration::from_millis(300));
+            create_waits.recv().expect("the create asked for the lock");
             std::fs::write(&concurrent_draft, content).expect("write");
         });
         lock_held.recv().expect("locked");
+        let lock_at = move |dir: &Path| -> Box<dyn ExclusiveLock> {
+            Box::new(crate::test_support::AnnouncingLock {
+                inner: LockdirLock::new(dir),
+                attempting: attempting.clone(),
+            })
+        };
 
-        let message = pending(repo.push_through(&tracker, None));
+        let message = pending(repo.run_args_locking(
+            &repo.config,
+            &PushingRepo::args(true),
+            &tracker,
+            None,
+            &lock_at,
+        ));
 
         concurrent.join().expect("joined");
         assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
@@ -1903,6 +1938,7 @@ mod tests {
         let lock_path =
             repo.path("meta/work").join(LockdirLock::CREATE_LOCKDIR);
         let concurrent_item = repo.path("meta/work/0400-other-title.md");
+        let (attempting, create_waits) = std::sync::mpsc::channel();
         let (locked, lock_held) = std::sync::mpsc::channel();
         let concurrent = std::thread::spawn(move || {
             let _guard = store::lock::acquire(
@@ -1911,14 +1947,23 @@ mod tests {
             )
             .expect("lock");
             locked.send(()).expect("signal");
-            std::thread::sleep(std::time::Duration::from_millis(300));
+            create_waits.recv().expect("the create asked for the lock");
             std::fs::write(&concurrent_item, "").expect("write");
         });
         lock_held.recv().expect("locked");
+        let lock_at = move |dir: &Path| -> Box<dyn ExclusiveLock> {
+            Box::new(crate::test_support::AnnouncingLock {
+                inner: LockdirLock::new(dir),
+                attempting: attempting.clone(),
+            })
+        };
 
-        let message = failure(create_local(
-            &repo,
+        let message = failure(repo.run_args_locking(
+            &repo.config,
             &PushingRepo::args_with_id("0400", false),
+            &Rc::new(RecordingTracker::holding(Vec::new())),
+            None,
+            &lock_at,
         ));
 
         concurrent.join().expect("joined");
@@ -2402,6 +2447,35 @@ mod tests {
             &PushingRepo::args_with_id("0400", true),
             &untouched_tracker(),
         ));
+    }
+
+    #[test]
+    fn a_dry_run_lists_the_corpus_before_judging_a_pending_push() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let repo = after_an_unknown_push_outcome_at_0400();
+        let drafts = repo.path("meta/work/drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts");
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+
+        let outcome = dry_run_through(
+            &repo,
+            &PushingRepo::args_with_id("0400", true),
+            &untouched_tracker(),
+        );
+
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .expect("chmod back");
+        assert!(outcome.starts_with("failed: "), "{outcome}");
+        assert!(outcome.contains("drafts"), "{outcome}");
+        assert!(!outcome.contains("E_PUSH_PENDING"), "{outcome}");
     }
 
     #[test]

@@ -170,6 +170,7 @@ pub fn run(
         &mut Seams {
             registry,
             store_at: &store_at,
+            lock_at: &crate::create::lockdir_lock_at,
             draws: &mut RandomSuffixDraws,
             identity_run: &crate::identity_run::begin,
         },
@@ -667,6 +668,7 @@ mod tests {
                 &mut Seams {
                     registry: &StubRegistry(Rc::clone(tracker)),
                     store_at: &store_at,
+                    lock_at: &crate::create::lockdir_lock_at,
                     draws: &mut RandomSuffixDraws,
                     identity_run: &crate::identity_run::begin,
                 },
@@ -698,6 +700,7 @@ mod tests {
                         RecordingTracker::holding(Vec::new()),
                     )),
                     store_at: &store_at,
+                    lock_at: &crate::create::lockdir_lock_at,
                     draws: &mut RandomSuffixDraws,
                     identity_run,
                 },

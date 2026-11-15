@@ -262,6 +262,24 @@ impl PushingRepo {
         tracker: &Rc<RecordingTracker>,
         failing: Failing,
     ) -> RunOutcome {
+        self.run_args_locking(
+            config,
+            args,
+            tracker,
+            failing,
+            &crate::create::lockdir_lock_at,
+        )
+    }
+
+    /// [`Self::run_args_under`] with the create lock `lock_at` builds.
+    pub fn run_args_locking(
+        &self,
+        config: &dyn ConfigAccess,
+        args: &CreateArgs,
+        tracker: &Rc<RecordingTracker>,
+        failing: Failing,
+        lock_at: &dyn Fn(&Path) -> Box<dyn corpus::lock::ExclusiveLock>,
+    ) -> RunOutcome {
         let (applies, left) = failing.unwrap_or((|_| false, 0));
         let store_at = move |root: &Path| -> Box<dyn CreationStore> {
             Box::new(Faults {
@@ -279,6 +297,7 @@ impl PushingRepo {
             &mut Seams {
                 registry: &StubRegistry(Rc::clone(tracker)),
                 store_at: &store_at,
+                lock_at,
                 draws: &mut RandomSuffixDraws,
                 identity_run: &crate::identity_run::begin,
             },
@@ -507,5 +526,26 @@ pub fn run_report() -> work_adapters::sync::run::RunReport {
         discovery: work_adapters::sync::run::DiscoveryStatus::Ran { found: 0 },
         discovery_deferral: None,
         keyed_read_budget_limited: false,
+    }
+}
+
+/// The shipped create lock, announcing on `attempting` each time a create
+/// asks for it, before it waits.
+pub struct AnnouncingLock {
+    pub inner: corpus_adapters::LockdirLock,
+    pub attempting: std::sync::mpsc::Sender<()>,
+}
+
+impl corpus::lock::ExclusiveLock for AnnouncingLock {
+    fn acquire(
+        &self,
+        name: &corpus::lock::LockName,
+    ) -> Result<corpus::lock::HeldLock, corpus::StoreError> {
+        let _ = self.attempting.send(());
+        self.inner.acquire(name)
+    }
+
+    fn clear_abandoned(&self, name: &corpus::lock::LockName) {
+        self.inner.clear_abandoned(name);
     }
 }

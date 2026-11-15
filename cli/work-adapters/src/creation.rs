@@ -700,6 +700,29 @@ fn record_baseline_after_create(
     .map_err(|error| error.to_string())
 }
 
+/// Refuses `requested` in the order a create writes it under.
+///
+/// The corpus is listed, then `pending`'s pending-push check runs over that
+/// listing, then the taken rule, naming any holder relative to `root`. The
+/// real create and its dry-run pass their own pending-push checks, so both
+/// refuse alike.
+///
+/// # Errors
+///
+/// The first refusal, as the message the create reports.
+pub fn refuse_requested_id<T>(
+    requested: &RequestedId,
+    listing: &WorkItemListing,
+    pending: &dyn Fn(&WorkItemListing) -> Result<T, String>,
+    root: &Path,
+) -> Result<T, String> {
+    let checked = pending(listing)?;
+    requested
+        .refuse_if_taken(listing)
+        .map_err(|refusal| refusal.relative_to(root).to_string())?;
+    Ok(checked)
+}
+
 pub enum LocalId<'a> {
     Allocate(&'a dyn Fn(&CreateLockGuard) -> Result<String, String>),
     Requested(&'a RequestedId),
@@ -736,11 +759,12 @@ impl Creation<'_> {
                 Ok((id, check))
             }
             LocalId::Requested(requested) => {
-                let listing = self.listing()?;
-                let check = pending_push(&listing, requested.as_str())?;
-                requested.refuse_if_taken(&listing).map_err(|refusal| {
-                    refusal.relative_to(self.repo_root).to_string()
-                })?;
+                let check = refuse_requested_id(
+                    requested,
+                    &self.listing()?,
+                    &|listing| pending_push(listing, requested.as_str()),
+                    self.repo_root,
+                )?;
                 Ok((requested.as_str().to_owned(), check))
             }
         }

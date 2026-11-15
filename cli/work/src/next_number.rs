@@ -115,11 +115,9 @@ pub fn allocation_key(
     project: Option<&str>,
     configured: Option<&IdKey>,
 ) -> Result<Option<IdKey>, AllocationError> {
+    refuse_project_without_key_token(pattern, project)?;
     if !pattern.references_key() {
-        return match project {
-            Some(_) => Err(AllocationError::ProjectUnused),
-            None => Ok(None),
-        };
+        return Ok(None);
     }
     project.map_or_else(
         || Ok(configured.cloned()),
@@ -129,6 +127,23 @@ pub fn allocation_key(
                 .map_err(AllocationError::InvalidProject)
         },
     )
+}
+
+/// Refuses a `--project` the pattern has no key token to render.
+///
+/// # Errors
+///
+/// [`AllocationError::ProjectUnused`] when `project` is given to a pattern
+/// with no key token.
+pub fn refuse_project_without_key_token(
+    pattern: &IdPattern,
+    project: Option<&str>,
+) -> Result<(), AllocationError> {
+    if project.is_some() && !pattern.references_key() {
+        Err(AllocationError::ProjectUnused)
+    } else {
+        Ok(())
+    }
 }
 
 /// Allocates `count` sequential IDs above the highest number `key` holds.
@@ -293,6 +308,7 @@ mod tests {
     use crate::work_item_files::WorkItemListing;
     use std::path::Path;
 
+    use super::refuse_project_without_key_token;
     use super::{allocate, allocate_above, allocation_key, AllocationError};
     use crate::id_pattern::{IdKey, IdPattern, KeyError};
     use crate::id_scheme::IdScheme;
@@ -377,6 +393,28 @@ mod tests {
                         == Some("drafts/draft-k7mq3x-c.md")
             ),
             "{result:?}"
+        );
+    }
+
+    #[test]
+    fn a_project_is_refused_only_without_a_key_token() {
+        for keyless in ["{number:04d}", "{tracker}"] {
+            assert_eq!(
+                refuse_project_without_key_token(&pattern(keyless), Some("PP")),
+                Err(AllocationError::ProjectUnused),
+                "{keyless}"
+            );
+            assert_eq!(
+                refuse_project_without_key_token(&pattern(keyless), None),
+                Ok(())
+            );
+        }
+        assert_eq!(
+            refuse_project_without_key_token(
+                &pattern("{key}-{number:04d}"),
+                Some("PP")
+            ),
+            Ok(())
         );
     }
 
