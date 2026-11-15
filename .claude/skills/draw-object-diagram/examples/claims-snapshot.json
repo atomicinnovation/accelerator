@@ -1,0 +1,19 @@
+{
+  "id": "claims-snapshot",
+  "kind": "object-diagram",
+  "title": "A stale claim still protects its version until the next prune",
+  "caption": "Two installs share one cache root. The second install's claim is 21 days old, past the 14-day window, so the next prune will treat version 1.24.0 as unclaimed although its tree is still on disk.",
+  "objects": [
+    { "id": "claims", "name": "claims", "class": "VersionClaims", "slots": ["root = ~/.cache/accelerator", "CLAIM_WINDOW = 14 d"] },
+    { "id": "current", "class": "VersionClaim", "slots": ["version = \"1.26.0\"", "launcher_id = \"c0ffee00\"", "mtime = 2 h ago"], "status": "new" },
+    { "id": "stale", "class": "VersionClaim", "slots": ["version = \"1.24.0\"", "launcher_id = \"deadbeef\"", "mtime = 21 d ago"], "tone": "risk" },
+    { "id": "tree26", "name": "1.26.0", "class": "Tree", "slots": ["size = 41 MiB"] },
+    { "id": "tree24", "name": "1.24.0", "class": "Tree", "slots": ["size = 39 MiB"], "tone": "risk" }
+  ],
+  "links": [
+    { "from": "claims", "to": "current", "toRole": "claims" },
+    { "from": "claims", "to": "stale", "toRole": "claims" },
+    { "from": "current", "to": "tree26", "label": "protects" },
+    { "from": "stale", "to": "tree24", "label": "no longer protects", "tone": "risk" }
+  ]
+}

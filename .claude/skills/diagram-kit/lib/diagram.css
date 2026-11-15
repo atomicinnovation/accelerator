@@ -1,0 +1,236 @@
+.dk-figure { margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.dk-figure > * { min-width: 0; }
+.dk-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.3; color: var(--ink); }
+.dk-caption { margin: 0; color: var(--ink-2); font-family: var(--f-body); font-size: 13px; }
+.dk-scroll { overflow-x: auto; min-width: 0; }
+.dk-scroll svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.dk-legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--f-body); font-size: 12px; color: var(--ink-3); }
+.dk-key { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--rule); margin-right: 5px; vertical-align: -1px; background: var(--panel); }
+.dk-key.s-new { border-color: var(--accent); } .dk-key.s-changed { border-color: var(--warn); } .dk-key.s-existing { border-color: var(--ink-3); }
+.dk-key.s-removed { border-color: var(--bad); border-style: dashed; }
+.dk-key.t-risk { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); } .dk-key.t-ok { border-color: var(--ok); }
+.dk-key.trace-out { background: var(--accent); border-color: var(--accent); } .dk-key.trace-in { background: var(--warn); border-color: var(--warn); }
+.dk-remarks { margin: 0; padding: 0; list-style: none; font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); display: grid; gap: 2px; }
+.dk-remarks li::before { content: "▸ "; color: var(--ink-3); }
+
+.dk text { font-family: var(--f-mono); font-size: 12px; fill: var(--ink); }
+.dk .title { font-weight: 600; }
+.dk .detail, .dk .edge-text, .dk .heading { font-family: var(--f-body); }
+.dk .detail { font-size: 11px; fill: var(--ink-3); }
+.dk .heading { font-size: 10.5px; fill: var(--ink-3); letter-spacing: .08em; font-weight: 600; }
+.dk .node.group .heading { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 55%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
+.dk .node .body { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
+.dk .node.group .body { fill: color-mix(in srgb, var(--panel-2) 55%, transparent); }
+.dk .store > .body { stroke: var(--ink-3); stroke-width: 1.6; }
+.dk .s-new > .body { stroke: var(--accent); stroke-width: 1.9; }
+.dk .s-changed > .body { stroke: var(--warn); stroke-width: 1.9; }
+.dk .s-existing > .body { stroke: var(--ink-3); stroke-width: 1.6; }
+.dk .s-removed > .body { stroke: var(--bad); stroke-dasharray: 4 3; }
+.dk .node.s-removed text { text-decoration: line-through; fill: var(--ink-3); }
+.dk .t-ok > .body { stroke: var(--ok); stroke-width: 1.9; }
+.dk .node.box.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.group.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+
+.dk .node.boundary > .body { fill: color-mix(in srgb, var(--panel-2) 45%, transparent); stroke-dasharray: 7 4; }
+.dk .node.boundary .title, .dk .node.boundary .stereotype { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
+.dk .node.boundary.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.lane .body { fill: color-mix(in srgb, var(--panel-2) 35%, transparent); stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.lane .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.lane.s-new .body, .dk .node.lane.s-new .rule { stroke: var(--accent); }
+.dk .node.lane.s-changed .body, .dk .node.lane.s-changed .rule { stroke: var(--warn); }
+.dk .title, .dk .member { font-family: var(--f-mono); }
+.dk .stereotype, .dk .end { font-family: var(--f-body); font-size: 11px; fill: var(--ink-3); }
+.dk .end { fill: var(--ink-2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.dk .underlined, .dk .member.static { text-decoration: underline; }
+.dk .node.classifier .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.classifier.s-new .rule { stroke: var(--accent); }
+.dk .node.classifier.s-changed .rule { stroke: var(--warn); }
+.dk .node.classifier.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .edge .head.hollow, .dk .edge .tail.diamond { fill: var(--panel); }
+.dk .edge .tail { stroke: currentColor; stroke-width: 1.4; fill: none; stroke-linejoin: round; }
+.dk .edge .tail.filled-diamond { fill: currentColor; }
+.dk .node.state .rule, .dk .node.composite .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.state.s-new .rule, .dk .node.composite.s-new .rule { stroke: var(--accent); }
+.dk .node.composite .body { fill: color-mix(in srgb, var(--panel-2) 55%, transparent); }
+.dk .node.composite.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.subprocess .rule { stroke: var(--rule); stroke-width: 1.3; fill: none; }
+.dk .node.subprocess.s-new .rule { stroke: var(--accent); }
+.dk .node.process .message, .dk .node.terminator .message, .dk .node.io .message, .dk .node.subprocess .message, .dk .node.decision .message, .dk .node.bubble .message, .dk .node.store .message, .dk .node.external .message { fill: var(--ink); }
+.dk .node.t-risk > path.body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.process.t-risk > .body, .dk .node.terminator.t-risk > .body, .dk .node.subprocess.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.frame > .body, .dk .node.package > .body { fill: color-mix(in srgb, var(--panel-2) 45%, transparent); }
+.dk .node.frame .title, .dk .node.frame .stereotype { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; }
+.dk .node.package .rule, .dk .node.folder .rule { stroke: var(--rule); stroke-width: 1.3; fill: none; }
+.dk .node.package.s-new .rule, .dk .node.folder.s-new .rule { stroke: var(--accent); }
+.dk .node.package.s-changed .rule, .dk .node.folder.s-changed .rule { stroke: var(--warn); }
+.dk .node.ball .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
+.dk .node.ball.s-new .body { stroke: var(--accent); }
+.dk .outside { paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.dk .node.cuboid > .body { fill: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); }
+.dk .node .face { fill: var(--panel-2); stroke: var(--rule); stroke-width: 1.3; stroke-linejoin: round; }
+.dk .node.s-new > .face { stroke: var(--accent); }
+.dk .node.s-changed > .face { stroke: var(--warn); }
+.dk .node.person .head { fill: var(--panel); stroke: var(--rule); stroke-width: 1.3; }
+.dk .node.person.s-new .head { stroke: var(--accent); stroke-width: 1.9; }
+.dk .node.muted > .body, .dk .node.muted .head { fill: var(--panel-2); }
+.dk .node.muted .title { fill: var(--ink-2); }
+.dk .node.element.t-risk > .body, .dk .node.person.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .captions text { paint-order: stroke; stroke: color-mix(in srgb, var(--panel-2) 45%, var(--panel)); stroke-width: 5px; stroke-linejoin: round; pointer-events: none; }
+.dk .node.person .head { stroke: var(--ink-3); }
+.dk .node.entity.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.dk .node.entity .rule { stroke: var(--rule); stroke-width: 1.2; }
+.dk .node.entity.s-new .rule { stroke: var(--accent); }
+.dk .node.entity.s-changed .rule { stroke: var(--warn); }
+.dk .key { font-family: var(--f-body); font-size: 10px; font-weight: 600; fill: var(--ink-3); }
+.dk .type { fill: var(--ink-3); }
+.dk .node.entity text.s-new { fill: var(--accent); }
+.dk .node.entity text.s-changed { fill: var(--warn); }
+.dk .node.entity text.s-removed { fill: var(--bad); text-decoration: line-through; }
+.dk .edge .crow { stroke: currentColor; stroke-width: 1.4; fill: var(--panel); stroke-linecap: round; }
+.dk .node.store .back { fill: var(--panel); stroke: none; }
+.dk .node.store.t-risk .back, .dk .node.bubble.t-risk > .body, .dk .node.external.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.dk .node.store.t-risk > .body, .dk .node.bubble.t-risk > .body, .dk .node.external.t-risk > .body { stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.scale .body, .dk .node.rulename .body { fill: none; stroke: none; }
+.dk .node.rails .body { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-linecap: round; }
+.dk .node.token > .body { fill: var(--panel-2); }
+.dk .node.token text, .dk .node.ruleref text, .dk .node.field text { font-variant-ligatures: none; }
+.dk .node.token.t-risk > .body, .dk .node.ruleref.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.field .break { fill: none; stroke: var(--ink-3); stroke-width: 1.4; stroke-linejoin: round; paint-order: stroke; }
+.dk .node.field.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .node.field.muted .name { fill: var(--ink-3); }
+.dk .node.bar .body { fill: var(--ink-2); stroke: var(--ink-2); }
+.dk .node.flowfinal .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
+.dk .node.flowfinal .cross { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }
+.dk .node.initial .body { fill: var(--ink-2); stroke: var(--ink-2); }
+.dk .node.final .body { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; }
+.dk .node.final .core { fill: var(--ink-2); }
+.dk .node.choice .body { fill: var(--panel); stroke: var(--ink-3); stroke-width: 1.4; stroke-linejoin: round; }
+.dk .node.state.t-risk > .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); stroke-width: 1.6; }
+.dk .message, .dk .operator, .dk .guard { font-family: var(--f-body); }
+.dk .message { fill: var(--ink-2); }
+.dk .operator { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
+.dk .guard { font-size: 11px; fill: var(--ink-3); }
+.dk .node.lifeline .body { stroke: var(--rule); stroke-width: 1.3; stroke-dasharray: 4 4; }
+.dk .node.activation .body { fill: var(--panel-2); stroke: var(--ink-3); stroke-width: 1.2; }
+.dk .node.activation.s-new .body { stroke: var(--accent); fill: var(--accent-soft); }
+.dk .node.activation.t-risk .body { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 14%, var(--panel)); }
+.dk .node.destroy .body { fill: none; stroke: var(--ink-2); stroke-width: 1.8; stroke-linecap: round; }
+.dk .node.fragment .body { fill: none; stroke: var(--ink-3); stroke-width: 1.2; }
+.dk .node.fragment .tab { fill: var(--panel-2); stroke: var(--ink-3); stroke-width: 1.2; stroke-linejoin: round; }
+.dk .node.fragment .divider { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.dk .node.fragment .guard, .dk .node.fragment .operator { paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+.dk .node.fragment .tab + .operator { stroke: none; }
+.dk .node.actor .body { fill: transparent; stroke: none; }
+.dk .node.actor .figure { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; }
+.dk .node.actor.s-new .figure { stroke: var(--accent); }
+.dk .node.actor.s-changed .figure { stroke: var(--warn); }
+.dk .node.note .body { fill: color-mix(in srgb, var(--warn) 9%, var(--panel)); stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); stroke-width: 1.2; }
+.dk .node.note .fold { fill: none; stroke: color-mix(in srgb, var(--warn) 45%, var(--rule)); stroke-width: 1.2; }
+.dk .node.note.t-risk .body { fill: color-mix(in srgb, var(--bad) 10%, var(--panel)); stroke: var(--bad); }
+.dk .node.note.t-risk .fold { stroke: var(--bad); }
+.dk .edge .message { paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+.dk .edge a .message, .dk .edge a .edge-text, .dk .node a text { fill: var(--accent); }
+.dk .edge a:hover text, .dk .node a:hover text { text-decoration: underline; }
+.dk .edge { color: var(--ink-3); }
+.dk .edge .line { stroke: currentColor; stroke-width: 1.4; fill: none; }
+.dk .edge.dashed .line { stroke-dasharray: 5 4; }
+.dk .edge .head { stroke: currentColor; stroke-width: 1.4; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.dk .edge .head.filled { fill: currentColor; }
+.dk .edge.s-new { color: var(--accent); }
+.dk .edge.s-changed { color: var(--warn); }
+.dk .edge.s-removed, .dk .edge.t-risk { color: var(--bad); }
+.dk .edge.t-ok { color: var(--ok); }
+.dk .edge rect { fill: var(--panel); stroke: var(--rule); }
+.dk .edge-text { font-size: 11px; fill: var(--ink-2); }
+
+.dk [data-node] { cursor: pointer; outline: none; }
+.dk [data-node]:focus-visible > .body { stroke: var(--accent); stroke-width: 2.4; }
+.dk .node-link { outline: none; }
+.dk .node-link .hit { fill: transparent; stroke: none; }
+.dk .node-link .divider { stroke: var(--rule); stroke-width: 1; }
+.dk .node-link .glyph { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dk .node-link:hover .hit, .dk .node-link:focus-visible .hit { fill: var(--accent-soft); }
+.dk .node-link:hover .glyph, .dk .node-link:focus-visible .glyph { stroke: var(--accent); }
+.dk .edge, .dk [data-node] { transition: opacity .12s; }
+.dk.tracing .edge { opacity: .12; }
+.dk.tracing [data-node] { opacity: .3; }
+.dk.tracing .node.group { opacity: 1; }
+.dk.tracing .traced, .dk.tracing .traced-neighbour, .dk.tracing .traced-out, .dk.tracing .traced-in { opacity: 1; }
+.dk.tracing .edge.traced-out { color: var(--accent); }
+.dk.tracing .edge.traced-in { color: var(--warn); }
+.dk.tracing .edge.traced-out .line, .dk.tracing .edge.traced-in .line { stroke-width: 2.6; }
+.dk.tracing .edge.traced-out rect, .dk.tracing .edge.traced-in rect { stroke: currentColor; }
+.dk.tracing .traced > .body { stroke-width: 2.4; }
+@media (prefers-reduced-motion: reduce) { .dk .edge, .dk [data-node] { transition: none; } }
+
+.dk-drawn { min-width: 0; font-family: var(--f-body); color: var(--ink); }
+.dk-drawn code { font-family: var(--f-mono); font-size: .92em; }
+.dk-drawn a { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; }
+.dk-drawn a:hover { text-decoration-style: solid; }
+
+.dk-table { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+.dk-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dk-table th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--ink-2); padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+.dk-table th[scope="row"] { color: var(--ink); font-size: 13px; }
+.dk-table td { padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.dk-table tbody tr:last-child td, .dk-table tbody tr:last-child th { border-bottom: 0; }
+.dk-table .dk-by { color: var(--ink-3); }
+.dk-table td.t-ok { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+.dk-table td.t-warn { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
+.dk-table td.t-bad { background: color-mix(in srgb, var(--bad) 13%, var(--panel)); }
+.dk-table td.t-info { background: color-mix(in srgb, var(--info) 12%, var(--panel)); }
+.dk-table td.t-none { color: var(--ink-3); }
+
+.dk-tree { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65; overflow-x: auto; font-variant-ligatures: none; }
+.dk-tree .dk-row { display: flex; align-items: baseline; white-space: pre; }
+.dk-tree .dk-guide { color: var(--ink-3); }
+.dk-tree .dk-dir { font-weight: 600; }
+.dk-tree .s-added .dk-name, .dk-tree .s-added .dk-name a { color: var(--ok); }
+.dk-tree .s-removed .dk-name, .dk-tree .s-removed .dk-name a { color: var(--bad); text-decoration: line-through; }
+.dk-tree .s-changed .dk-name, .dk-tree .s-changed .dk-name a { color: var(--warn); }
+.dk-tree .dk-note { font-family: var(--f-body); color: var(--ink-2); margin-left: 14px; white-space: normal; }
+
+.dk-timeline { display: block; margin: 0 auto; max-width: 100%; min-width: 470px; height: auto; }
+.dk-timeline text { font-family: var(--f-body); font-size: 11px; fill: var(--ink); }
+.dk-timeline .axis { stroke: var(--ink-3); stroke-width: 1.2; }
+.dk-timeline .tick line { stroke: var(--ink-3); }
+.dk-timeline .tick-label { font-size: 10.5px; fill: var(--ink-3); }
+.dk-timeline .mark-label { font-weight: 600; fill: var(--ink-2); }
+.dk-timeline .mark line { stroke: var(--ink-3); stroke-width: 1; }
+.dk-timeline .mark circle { fill: var(--ink-2); }
+.dk-timeline .mark.t-ok circle, .dk-timeline .mark.t-ok .mark-label { fill: var(--ok); }
+.dk-timeline .mark.t-bad circle, .dk-timeline .mark.t-bad .mark-label { fill: var(--bad); }
+.dk-timeline .mark.t-warn circle, .dk-timeline .mark.t-warn .mark-label { fill: var(--warn); }
+.dk-timeline .mark.t-info circle, .dk-timeline .mark.t-info .mark-label { fill: var(--info); }
+.dk-timeline .span rect { fill: color-mix(in srgb, var(--info) 22%, var(--panel)); }
+.dk-timeline .span.t-ok rect { fill: color-mix(in srgb, var(--ok) 26%, var(--panel)); }
+.dk-timeline .span.t-warn rect { fill: color-mix(in srgb, var(--warn) 26%, var(--panel)); }
+.dk-timeline .span.t-bad rect { fill: color-mix(in srgb, var(--bad) 22%, var(--panel)); }
+.dk-timeline .span.t-none rect { fill: var(--panel-2); }
+.dk-timeline a text { fill: var(--accent); }
+.dk-caption code { font-family: var(--f-mono); font-size: .92em; }
+
+.dk-symbols { font-family: var(--f-body); font-size: 12.5px; color: var(--ink-2); }
+.dk-symbols > summary { cursor: pointer; width: fit-content; color: var(--ink-3); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+.dk-symbols .dk-notation { font-weight: 400; letter-spacing: 0; margin-left: 4px; }
+.dk-symbols .dk-notation::before { content: "· "; }
+.dk-symbols > summary:hover, .dk-symbols[open] > summary { color: var(--ink-2); }
+.dk-symbols ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 8px 22px; }
+.dk-symbols li { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: center; min-width: 0; }
+.dk-symbols li.dk-unused { display: none; opacity: .72; }
+.dk-symbols:has(.dk-more input:checked) li.dk-unused { display: grid; }
+.dk-symbols .dk-sample { display: flex; justify-content: center; align-items: center; min-width: 0; overflow: hidden; }
+.dk-symbols .dk-sample svg { display: block; max-width: 96px; height: auto; }
+.dk-symbols .dk-meaning b { color: var(--ink); font-weight: 600; }
+.dk-symbols .dk-meaning code { font-family: var(--f-mono); font-size: .92em; }
+.dk-symbols .dk-more { display: flex; align-items: center; gap: 6px; margin-top: 10px; width: fit-content; cursor: pointer; color: var(--ink-3); font-size: 12px; }
+.dk-symbols .dk-usage { margin: 8px 0 0; color: var(--ink-3); font-size: 12px; }
+.dk-symbols .dk-usage .dk-key { margin: 0 2px; }
+.dk-symbols .dk-cell { display: inline-block; padding: 3px 9px; border: 1px solid var(--rule); border-radius: 5px; background: var(--panel); font-size: 12px; color: var(--ink); }
+.dk-symbols .dk-cell.t-ok { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+.dk-symbols .dk-cell.t-warn { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
+.dk-symbols .dk-cell.t-bad { background: color-mix(in srgb, var(--bad) 13%, var(--panel)); }
+.dk-symbols .dk-cell.t-info { background: color-mix(in srgb, var(--info) 12%, var(--panel)); }
+.dk-symbols .dk-cell.t-none { color: var(--ink-3); }
+.dk-symbols .dk-sample .dk-tree { overflow: visible; line-height: 1.3; }
+.dk-timeline.dk-sample { min-width: 0; margin: 0; }

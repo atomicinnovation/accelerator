@@ -1,0 +1,36 @@
+{
+  "id": "launcher-packages",
+  "kind": "package-diagram",
+  "title": "Only outbound touches the system, and nothing in it knows the launcher",
+  "caption": "The new retention package sits inside launch and imports the ports it needs. Dependencies run one way, from launch through ports to outbound's adapters, so the adapters can be replaced without touching anything that decides what to keep.",
+  "packages": [
+    {
+      "id": "launch", "status": "changed",
+      "packages": [
+        { "id": "start_up", "status": "changed" },
+        { "id": "resolve" },
+        { "id": "retention", "status": "new" }
+      ]
+    },
+    { "id": "ports", "status": "changed" },
+    {
+      "id": "outbound",
+      "packages": [
+        { "id": "fs" },
+        { "id": "clock" },
+        { "id": "http" }
+      ]
+    },
+    { "id": "kernel" }
+  ],
+  "relationships": [
+    { "from": "start_up", "to": "retention", "status": "new" },
+    { "from": "start_up", "to": "resolve" },
+    { "from": "resolve", "to": "retention", "status": "new" },
+    { "from": "retention", "to": "ports", "kind": "import", "status": "new" },
+    { "from": "resolve", "to": "ports", "kind": "import" },
+    { "from": "outbound", "to": "ports", "kind": "import" },
+    { "from": "ports", "to": "kernel" },
+    { "from": "retention", "to": "kernel", "status": "new" }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "accelerator-containers",
+  "kind": "c4-diagram",
+  "title": "Only the launcher touches the cache, and only it decides what is kept",
+  "caption": "A developer reaches Accelerator through Claude Code, which loads its skills; every skill that needs a binary goes through the launcher. The cache is new as a container in its own right: before this change the launcher treated it as scratch space, and now it holds the claims that decide what survives.",
+  "people": [
+    { "id": "developer", "name": "Developer", "description": "Works in a repository with the plugin installed." }
+  ],
+  "systems": [
+    { "id": "claude_code", "name": "Claude Code", "description": "Loads the plugin's skills, agents and hooks.", "external": true },
+    {
+      "id": "accelerator", "name": "Accelerator", "status": "changed",
+      "containers": [
+        { "id": "skills", "name": "Skills and hooks", "technology": "Markdown, shell", "description": "What Claude Code loads: prompts that run commands." },
+        { "id": "launcher", "name": "Launcher", "technology": "Rust", "description": "Resolves a version, claims it, and runs its sub-binary.", "status": "changed" },
+        { "id": "sub_binaries", "name": "Sub-binaries", "technology": "Rust", "description": "One per command: vcs, config, work and the rest." },
+        { "id": "cache", "name": "Cache", "technology": "directory", "kind": "store", "description": "Extracted versions, and the claims that protect them.", "status": "new", "tone": "risk" }
+      ]
+    },
+    { "id": "releases", "name": "GitHub Releases", "description": "Hosts each version's signed archive.", "external": true }
+  ],
+  "relationships": [
+    { "from": "developer", "to": "claude_code", "label": "Invokes skills in" },
+    { "from": "claude_code", "to": "skills", "label": "Loads and runs" },
+    { "from": "skills", "to": "launcher", "label": "Runs commands through", "technology": "shell" },
+    { "from": "launcher", "to": "cache", "label": "Claims, reads and prunes", "technology": "file system", "status": "new" },
+    { "from": "launcher", "to": "sub_binaries", "label": "Runs", "technology": "exec" },
+    { "from": "launcher", "to": "releases", "label": "Fetches a version not cached from", "technology": "HTTPS" }
+  ]
+}

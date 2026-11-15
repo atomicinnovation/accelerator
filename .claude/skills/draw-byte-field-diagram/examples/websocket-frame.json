@@ -1,0 +1,18 @@
+{
+  "id": "websocket-frame",
+  "kind": "byte-field-diagram",
+  "title": "A WebSocket frame says how long it is in 7 bits, and in 16 more when 7 are not enough",
+  "caption": "A frame from a client carrying 126 to 65,535 bytes (RFC 6455, section 5.2). The 7-bit length holds 126, which means the real length follows in the next 16 bits. The mask bit is set, so a 4-byte masking key comes before the payload.",
+  "fields": [
+    { "name": "FIN", "size": 1 },
+    { "name": "RSV1", "size": 1, "reserved": true },
+    { "name": "RSV2", "size": 1, "reserved": true },
+    { "name": "RSV3", "size": 1, "reserved": true },
+    { "name": "opcode", "size": 4 },
+    { "name": "MASK", "size": 1 },
+    { "name": "length", "size": 7, "tone": "risk" },
+    { "name": "extended length", "size": 16, "tone": "risk" },
+    { "name": "masking key", "size": 32 },
+    { "name": "payload", "size": "variable" }
+  ]
+}
