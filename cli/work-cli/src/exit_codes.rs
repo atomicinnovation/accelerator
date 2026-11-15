@@ -206,9 +206,10 @@
 //! `E_PUSH_ALREADY_WRITTEN`) come between `E_ID_PATTERN_MISMATCH` and
 //! `E_ID_TAKEN`. `E_ID_TAKEN` exits `4`, as every other collision does; the
 //! others exit `1`, as `work create`'s other argument refusals
-//! (`E_PATTERN_*`, `E_WORK_*`) do, so a caller tells a bad ID from a taken
-//! one by its exit code. `work id check` gives the same refusals with the
-//! same exit codes, except `E_ID_WITH_PROJECT`, since it takes no
+//! (`E_PATTERN_*`, `E_WORK_*`) do. So a caller tells a bad ID from a taken
+//! one by its exit code, and a taken ID from the other exit-`4` refusals
+//! above by its `E_ID_TAKEN` code. `work id check` gives the same refusals
+//! with the same exit codes, except `E_ID_WITH_PROJECT`, since it takes no
 //! `--project`, and like `work create` takes the identity-run lock before
 //! reading the scheme.
 

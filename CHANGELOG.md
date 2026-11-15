@@ -200,10 +200,6 @@
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
-- **`work create --id` and `work id check` exit 4 for a taken ID.**
-  `E_ID_TAKEN` exits 4, as every other collision refusal does, where it
-  exited 1; the other `E_ID_*` refusals still exit 1. Scripts that branch
-  on these exit codes need updating.
 - **The `work id` verbs speak one error vocabulary.** Every refusal of
   `work id canonicalise`, `work id next` and `work id check` starts with
   `Error: `; `work id canonicalise` refuses a malformed `work.key` as
@@ -247,8 +243,9 @@
   refuse an off-pattern corpus also refuse, with `E_WORK_ITEM_MALFORMED`
   (exit 4), a file whose name does not start with its `id` and a slug, such
   as `0400.md`, and a file naming an ID in `aliases` or `external_id` with
-  no `id`. A file with no frontmatter, or naming no ID, is not a work item
-  and is left alone.
+  no `id`. The refusal names the first such file and how many there are;
+  rename each to `<id>-<slug>.md` or give it an `id`. A file with no
+  frontmatter, or naming no ID, is not a work item and is left alone.
 - **`work.id_pattern` no longer accepts brace escapes, a wider literal
   alphabet or a digit beside a token.** Support for `{{` and `}}` as escaped
   braces is removed, literal text is limited to ASCII letters, digits, `.`,
@@ -353,8 +350,9 @@
   nothing, with `E_ID_WITH_PROJECT` beside `--project`, `E_ID_TRACKER_OWNED`
   under `{tracker}`, `E_ID_DRAFT_RESERVED` for a `draft-` ID,
   `E_ID_PATTERN_MISMATCH` for an ID not in the exact shape
-  `work.id_pattern` renders, and `E_ID_TAKEN` naming the item that already
-  holds it. `--dry-run --id` runs the same checks in the same order,
+  `work.id_pattern` renders, each exiting 1, and `E_ID_TAKEN` naming the
+  item that already holds it, exiting 4 as every other collision does.
+  `--dry-run --id` runs the same checks in the same order,
   without taking a lock, and refuses an ID as the real create would before
   the tracker is contacted.
 - **`work id check <ID>` settles an ID for a new item, writing nothing.**

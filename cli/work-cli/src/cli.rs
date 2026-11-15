@@ -237,7 +237,8 @@ pub enum IdAction {
     ///   exact      <id>          the ID is in the pattern's exact shape
     ///   other-key  <id>  <key>   it is, but its key is not <key>, the
     ///                            configured key
-    ///   corrected  <id>          padding its number or adding `work.key`
+    ///   corrected  <id>          padding its number, adding `work.key` or
+    ///                            writing its key as `work.key` spells it
     ///                            puts it in the exact shape
     ///   corrected  <id>  <key>   as above, and its key is not <key>
     ///

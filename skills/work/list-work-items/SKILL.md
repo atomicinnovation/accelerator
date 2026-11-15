@@ -132,10 +132,10 @@ accelerator work list \
 The CLI does everything the previous scan/filter/render steps did, so there
 is nothing to reconstruct in prose:
 
-- **Scan and validity.** It reads every `*.md` file in the work directory
-  and in its `drafts/` subdirectory, treats a file as a work item only when
-  it has closed frontmatter and a non-empty `id` (or legacy `work_item_id`),
-  silently excludes non-items, and warns
+- **Scan and validity.** It reads every `.md` file (in any case) in the
+  work directory and in its `drafts/` subdirectory, treats a file as a work
+  item only when it has closed frontmatter and a non-empty `id` (or legacy
+  `work_item_id`), silently excludes non-items, and warns
   `"<filename>: skipped — no frontmatter"` / `"… unclosed frontmatter"` on
   malformed files. The frontmatter `id` is the displayed ID.
 - **Drafts.** A draft item lives in `drafts/` under a provisional
