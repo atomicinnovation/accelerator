@@ -190,12 +190,13 @@
   reads or writes IDs.** `work create`, `create-batch`, `id next`,
   `id check`, `list`, `resolve` and `promote` refuse with the new
   `E_REKEY_REQUIRED` (exit 4), writing nothing, while any item's `id` is not
-  in `work.id_pattern`'s exact shape (under any key), or, under `{tracker}`,
-  is neither a draft nor its issue's key. This includes a width-only change
-  such as `{number:04d}` → `{number:05d}`, which was absorbed before, and a
-  switch to `{tracker}`, after which earlier items kept their IDs. Run
-  `/rekey-work-items` after changing the pattern. `work sync`, `work rekey`
-  and `work id canonicalise` still run. A reference written under an
+  in `work.id_pattern`'s shape (its exact width, under any key, in any
+  case), or, under `{tracker}`, is neither a draft nor its issue's key. This
+  includes a width-only change such as `{number:04d}` → `{number:05d}`,
+  which was absorbed before, and a switch to `{tracker}`, after which
+  earlier items kept their IDs. Run `/rekey-work-items` after changing the
+  pattern; the refusal names a fix by hand first for an item re-key cannot
+  read. `work sync`, `work rekey` and `work id canonicalise` still run. A reference written under an
   earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
@@ -1141,6 +1142,16 @@
 
 ### Migrations
 
+- **After upgrading, check the work items with `accelerator work list`.**
+  A corpus an earlier release accepted is refused when an item's `id` is
+  off `work.id_pattern`, such as after a width-only change, a switch to
+  `{tracker}`, a skipped migration 0002 that left `id` fields, or an
+  unpadded legacy `id`, and when a file's IDs cannot be read. On
+  `E_REKEY_REQUIRED`, follow the printed remedy: `/rekey-work-items`, after
+  any fix by hand it names for an item re-key cannot read. Should re-key
+  refuse with `E_REKEY_SYNC_UNFINISHED` or `E_REKEY_PENDING_PUSH`, run
+  `accelerator work sync` first. On `E_WORK_ITEM_MALFORMED`, rename the
+  named file to `<id>-<slug>.md` or give it an `id`, as the message says.
 - **Run `/accelerator:migrate` (migration 0011) to ignore machine-local sync
   state.** Settle any tracked pending-push markers with
   `--resolve <id>=adopt:<KEY>` or `=create` before untracking what it names.

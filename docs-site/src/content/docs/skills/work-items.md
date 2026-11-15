@@ -90,7 +90,11 @@ previews and then gives every existing item an ID in the new shape,
 renaming files and rewriting references across `meta/`; the old ID joins
 `aliases`. Under a `{key}` pattern every item keeps its number and its
 key; the preview names items under keys other than `work.key` and asks
-which keys' items to move onto it, as after `work.key` changes.
+which keys' items to move onto it, as after `work.key` changes. Until
+every item is in the pattern's shape, the `work` commands that read or
+write IDs refuse with `E_REKEY_REQUIRED`, and a file whose IDs cannot be
+read, such as a slugless `0400.md`, with `E_WORK_ITEM_MALFORMED`; each
+names its fix.
 
 Work items share a template with YAML frontmatter (`work_item_id`,
 `title`, `type`, `status`, `priority`, `parent`, `tags`) and structured
