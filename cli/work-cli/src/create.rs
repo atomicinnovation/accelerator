@@ -41,6 +41,7 @@ use work::next_number::refuse_project_without_key_token;
 use work::next_number::AllocationError;
 use work::promotion::PromotionMode;
 use work::requested_id::RequestedId;
+use work::requested_id::RequestedIdRefusal;
 use work::work_item_files::WorkItemFiles;
 use work::work_item_files::WorkItemListing;
 use work_adapters::author::VcsBackedIdentityProbe;
@@ -62,6 +63,7 @@ use work_adapters::creation::LegacyPushing;
 use work_adapters::creation::LocalId;
 use work_adapters::creation::NewItem;
 pub use work_adapters::creation::PushReport;
+use work_adapters::creation::RequestedIdBlock;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion::promote;
@@ -125,7 +127,8 @@ pub enum RunOutcome {
     /// A create of the same content is already pending; nothing was sent.
     Pending(String),
     Failed(String),
-    /// The identity run could not begin; nothing was read or written.
+    /// Refused before anything was written, with the line and exit code the
+    /// refusal carries.
     Refused {
         message: String,
         code: u8,
@@ -663,6 +666,11 @@ pub fn run(
     )
 }
 
+fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
+    let (message, code) = crate::requested_id::refused_line(refusal);
+    RunOutcome::Refused { message, code }
+}
+
 /// The real create's `--id` refusals, in its order, without its locks: a
 /// pass reserves nothing. An integration that cannot be read fails where
 /// the real create's does, before the taken check only under `--push`.
@@ -690,7 +698,7 @@ fn preview_requested_id(
         &location.scheme,
     ) {
         Ok(requested) => requested,
-        Err(refusal) => return RunOutcome::Failed(refusal.to_string()),
+        Err(refusal) => return refused(&refusal),
     };
     let integration = integration_state(config, &location.root);
     let listing =
@@ -705,10 +713,12 @@ fn preview_requested_id(
         let state = integration.as_ref().map_err(String::clone)?;
         refuse_unfinished_push(state, &slugify(&args.title), &RealFs)
     };
-    if let Err(refusal) =
-        refuse_requested_id(&requested, &listing, &pending, &location.root)
-    {
-        return RunOutcome::Failed(refusal);
+    match refuse_requested_id(&requested, &listing, &pending, &location.root) {
+        Ok(()) => {}
+        Err(RequestedIdBlock::Pending(message)) => {
+            return RunOutcome::Failed(message)
+        }
+        Err(RequestedIdBlock::Refused(refusal)) => return refused(&refusal),
     }
     match integration {
         Ok(state) => preview_push(&state.name, &args.kind, registry),
@@ -2206,6 +2216,16 @@ mod tests {
                 format!("preview failed ({code}): {message}")
             }
             RunOutcome::Failed(message) => format!("failed: {message}"),
+            RunOutcome::Refused { message, code } => {
+                let refusal =
+                    message.strip_prefix("Error: ").unwrap_or(&message);
+                assert_eq!(
+                    code,
+                    crate::exit_codes::of_failure(refusal),
+                    "{refusal}"
+                );
+                format!("failed: {refusal}")
+            }
             _ => panic!("the dry-run wrote or pushed"),
         }
     }

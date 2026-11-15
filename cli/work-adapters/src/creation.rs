@@ -33,6 +33,7 @@ use work::promotion::ReadBack;
 use work::promotion::RemoteHash;
 use work::promotion::ID_PLACEHOLDER;
 use work::requested_id::RequestedId;
+use work::requested_id::RequestedIdRefusal;
 use work::retirement::Retirement;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
@@ -715,12 +716,29 @@ pub fn refuse_requested_id<T>(
     listing: &WorkItemListing,
     pending: &dyn Fn(&WorkItemListing) -> Result<T, String>,
     root: &Path,
-) -> Result<T, String> {
-    let checked = pending(listing)?;
-    requested
-        .refuse_if_taken(listing)
-        .map_err(|refusal| refusal.relative_to(root).to_string())?;
+) -> Result<T, RequestedIdBlock> {
+    let checked = pending(listing).map_err(RequestedIdBlock::Pending)?;
+    requested.refuse_if_taken(listing).map_err(|refusal| {
+        RequestedIdBlock::Refused(refusal.relative_to(root))
+    })?;
     Ok(checked)
+}
+
+/// What keeps a requested ID from being claimed: an earlier push still in
+/// its way, or the ID itself refused.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestedIdBlock {
+    Pending(String),
+    Refused(RequestedIdRefusal),
+}
+
+impl std::fmt::Display for RequestedIdBlock {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pending(message) => formatter.write_str(message),
+            Self::Refused(refusal) => refusal.fmt(formatter),
+        }
+    }
 }
 
 pub enum LocalId<'a> {
@@ -764,7 +782,8 @@ impl Creation<'_> {
                     &self.listing()?,
                     &|listing| pending_push(listing, requested.as_str()),
                     self.repo_root,
-                )?;
+                )
+                .map_err(|block| block.to_string())?;
                 Ok((requested.as_str().to_owned(), check))
             }
         }

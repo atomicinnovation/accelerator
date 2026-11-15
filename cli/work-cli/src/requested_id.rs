@@ -2,6 +2,7 @@
 
 use work::id_scheme::IdScheme;
 use work::requested_id::RequestedId;
+use work::requested_id::RequestedIdRefusal;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
@@ -22,20 +23,36 @@ pub fn admit_requested_id(
         .map_err(|refusal| refusal.to_string())
 }
 
+/// Why the taken check did not pass.
+pub enum TakenCheckFailure {
+    Unlisted(String),
+    Taken(RequestedIdRefusal),
+}
+
 /// The taken check without the create lock, so it reserves nothing.
 ///
 /// # Errors
 ///
-/// `E_ID_TAKEN` naming the holder relative to the repository root, or a
-/// message when the work directory cannot be listed.
+/// [`TakenCheckFailure::Taken`] naming the holder relative to the
+/// repository root, or [`TakenCheckFailure::Unlisted`] when the work
+/// directory cannot be listed.
 pub fn refuse_if_requested_id_taken(
     requested: &RequestedId,
     location: &WorkItemLocation,
-) -> Result<(), String> {
+) -> Result<(), TakenCheckFailure> {
     let listing = FilesystemWorkItemFiles::new(&location.work_dir)
         .listing()
-        .map_err(|error| error.to_string())?;
-    requested
-        .refuse_if_taken(&listing)
-        .map_err(|refusal| refusal.relative_to(&location.root).to_string())
+        .map_err(|error| TakenCheckFailure::Unlisted(error.to_string()))?;
+    requested.refuse_if_taken(&listing).map_err(|refusal| {
+        TakenCheckFailure::Taken(refusal.relative_to(&location.root))
+    })
+}
+
+/// A `--id` refusal as an outcome's stderr line and exit code.
+#[must_use]
+pub fn refused_line(refusal: &RequestedIdRefusal) -> (String, u8) {
+    (
+        format!("Error: {refusal}"),
+        crate::exit_codes::of_requested_id_refusal(refusal),
+    )
 }

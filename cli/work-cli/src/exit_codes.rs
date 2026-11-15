@@ -213,6 +213,7 @@
 //! reading the scheme.
 
 use tracker::TrackerError;
+use work::requested_id::RequestedIdRefusal;
 
 pub const CLEAN: u8 = 0;
 pub const ERROR: u8 = 1;
@@ -241,9 +242,19 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
     }
 }
 
-/// The exit code a refusal reported by its message exits with: a taken ID
-/// is a collision, exiting [`UNRESOLVED`] like every other, and anything
-/// else is [`ERROR`].
+/// The exit code a `--id` refusal exits with: a taken ID is a collision,
+/// exiting [`UNRESOLVED`] like every other, and any other refusal is
+/// [`ERROR`].
+#[must_use]
+pub const fn of_requested_id_refusal(refusal: &RequestedIdRefusal) -> u8 {
+    match refusal {
+        RequestedIdRefusal::Taken { .. } => UNRESOLVED,
+        _ => ERROR,
+    }
+}
+
+/// [`of_requested_id_refusal`] for a real create's failure, which reaches
+/// the binary as its message alone.
 #[must_use]
 pub fn of_failure(message: &str) -> u8 {
     if message.starts_with("E_ID_TAKEN:") {
@@ -255,7 +266,50 @@ pub fn of_failure(message: &str) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    use work::requested_id::ExampleShape;
+    use work::requested_id::Holding;
+    use work::requested_id::ProjectRemedy;
+    use work::requested_id::RequestedIdRefusal;
+
     use super::*;
+
+    #[test]
+    fn a_taken_requested_id_exits_as_a_collision_and_the_rest_as_errors() {
+        let shape = || ExampleShape {
+            pattern: "{number:04d}".to_owned(),
+            description: "four digits".to_owned(),
+            first: None,
+        };
+        let taken = RequestedIdRefusal::Taken {
+            requested: "0400".to_owned(),
+            holder: PathBuf::from("meta/work/0400-a.md"),
+            holding: Holding::Filename,
+            held: "0400".to_owned(),
+        };
+        assert_eq!(of_requested_id_refusal(&taken), UNRESOLVED);
+        for refusal in [
+            RequestedIdRefusal::WithProject {
+                pattern: "{number:04d}".to_owned(),
+                remedy: ProjectRemedy::DropProject,
+            },
+            RequestedIdRefusal::TrackerOwned {
+                pattern: "{tracker}".to_owned(),
+            },
+            RequestedIdRefusal::DraftReserved {
+                requested: "draft-k7mq3x".to_owned(),
+                shape: shape(),
+            },
+            RequestedIdRefusal::PatternMismatch {
+                requested: "400".to_owned(),
+                shape: shape(),
+                correction: None,
+            },
+        ] {
+            assert_eq!(of_requested_id_refusal(&refusal), ERROR, "{refusal:?}");
+        }
+    }
 
     #[test]
     fn a_taken_id_exits_as_a_collision_and_other_refusals_as_errors() {

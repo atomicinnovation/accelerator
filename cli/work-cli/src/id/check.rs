@@ -8,17 +8,21 @@ use work::id_pattern::IdKey;
 use work::id_scheme::IdScheme;
 use work::requested_id::Proposal;
 use work::requested_id::RequestedId;
+use work::requested_id::RequestedIdRefusal;
 
 use crate::config::locate_work_items;
 use crate::corpus_trust::refuse_untrusted_corpus;
 use crate::corpus_trust::Untrusted;
 use crate::identity_run::IdentityRunStart;
 use crate::requested_id::refuse_if_requested_id_taken;
+use crate::requested_id::refused_line;
+use crate::requested_id::TakenCheckFailure;
 
 pub enum RunOutcome {
     Checked(String),
     Failed(String),
-    /// The identity run could not begin; nothing was read.
+    /// Refused before the check could settle, with the line and exit code
+    /// the refusal carries; nothing was written.
     Refused {
         message: String,
         code: u8,
@@ -56,12 +60,20 @@ pub fn run(
     }
     let proposal = match RequestedId::propose(requested, &location.scheme) {
         Ok(proposal) => proposal,
-        Err(refusal) => return RunOutcome::Failed(refusal.to_string()),
+        Err(refusal) => return refused(&refusal),
     };
     match refuse_if_requested_id_taken(proposal.id(), &location) {
         Ok(()) => RunOutcome::Checked(verdict(&proposal, &location.scheme)),
-        Err(refusal) => RunOutcome::Failed(refusal),
+        Err(TakenCheckFailure::Unlisted(message)) => {
+            RunOutcome::Failed(message)
+        }
+        Err(TakenCheckFailure::Taken(refusal)) => refused(&refusal),
     }
+}
+
+fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
+    let (message, code) = refused_line(refusal);
+    RunOutcome::Refused { message, code }
 }
 
 fn verdict(proposal: &Proposal, scheme: &IdScheme) -> String {
@@ -126,10 +138,16 @@ mod tests {
             RunOutcome::Checked(verdict) => {
                 panic!("{id} was checked: {verdict}")
             }
-            RunOutcome::Refused { message, .. } => {
-                panic!("{id} was refused before checking: {message}")
+            RunOutcome::Refused { message, code } => {
+                refusal_with_create_code(&message, code)
             }
         }
+    }
+
+    fn refusal_with_create_code(message: &str, code: u8) -> String {
+        let refusal = message.strip_prefix("Error: ").unwrap_or(message);
+        assert_eq!(code, crate::exit_codes::of_failure(refusal), "{refusal}");
+        refusal.to_owned()
     }
 
     fn create_refusal(repo: &PushingRepo, id: &str) -> String {
@@ -140,6 +158,9 @@ mod tests {
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
         match repo.run_args(&args, &tracker, None) {
             crate::create::RunOutcome::Failed(message) => message,
+            crate::create::RunOutcome::Refused { message, code } => {
+                refusal_with_create_code(&message, code)
+            }
             _ => panic!("work create --id {id} was not refused"),
         }
     }
@@ -258,7 +279,7 @@ mod tests {
         use corpus_adapters::LockdirLock;
 
         let cases = [
-            (Some("meta/work/0400-other.md"), "E_ID_TAKEN: "),
+            (Some("meta/work/0400-other.md"), "Error: E_ID_TAKEN: "),
             (None, "exact\t0400"),
         ];
         for (holder, expected) in cases {
