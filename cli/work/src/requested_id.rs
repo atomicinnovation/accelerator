@@ -873,6 +873,19 @@ mod tests {
     }
 
     #[test]
+    fn a_keyless_request_drops_only_the_literal_joining_key_and_number() {
+        let key_between = scheme("{number:04d}-{key}v", Some("PP"));
+        assert_eq!(
+            corrected("400v", &key_between),
+            ("0400-PPv".to_owned(), false)
+        );
+        assert_eq!(
+            proposal_refused_as("400", &key_between).code(),
+            "E_ID_PATTERN_MISMATCH"
+        );
+    }
+
+    #[test]
     fn literal_text_is_never_added_or_recased() {
         let under = scheme("v{number:03d}", None);
         assert_eq!(corrected("v1", &under), ("v001".to_owned(), false));

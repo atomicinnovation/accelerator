@@ -511,17 +511,23 @@ impl IdPattern {
     }
 
     /// The segments without `{key}` and the literal joining it to the
-    /// number: the one after the key, or before it when the key comes last.
+    /// number: the one after the key when the number follows it, else the
+    /// one before it.
     fn segments_without_key(&self) -> Vec<Segment> {
         let Some(key) = self.segments.iter().position(|s| *s == Segment::Key)
         else {
             return self.segments.clone();
         };
+        let number_follows_key = self
+            .segments
+            .iter()
+            .position(|s| matches!(s, Segment::Number { .. }))
+            .is_some_and(|number| number > key);
         let is_literal = |index: usize| {
             matches!(self.segments.get(index), Some(Segment::Literal(_)))
         };
-        let joining = if is_literal(key + 1) {
-            Some(key + 1)
+        let joining = if number_follows_key {
+            Some(key + 1).filter(|after| is_literal(*after))
         } else {
             key.checked_sub(1).filter(|before| is_literal(*before))
         };
