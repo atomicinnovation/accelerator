@@ -175,6 +175,10 @@ NNNN — parent title (kind: <kind>, status: <status>)
   `paths.work` guidance and exits 0; an empty directory prints `No work
   items found in …`; a filter that matches nothing prints `No work items
   matched: …` rather than an empty table.
+- **An untrusted corpus.** The CLI lists nothing and exits 4 while an
+  item's `id` is off `work.id_pattern` (`E_REKEY_REQUIRED`) or a work-item
+  file's IDs cannot be read (`E_WORK_ITEM_MALFORMED`). Relay the printed
+  remedy as is.
 
 Print the CLI's stdout to the user as-is (it is markdown-native — a table or
 tree the conversation renders directly), and surface any stderr warnings it

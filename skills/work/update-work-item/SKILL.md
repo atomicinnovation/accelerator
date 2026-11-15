@@ -62,6 +62,9 @@ The resolver respects `work.id_pattern` and accepts paths, full IDs
 - **Exit 6**: the argument names a real file outside the managed work
   directory. Print the resolver's error, offer to run
   `/list-work-items`, and exit.
+- **Exit 4** with `E_REKEY_REQUIRED` or `E_WORK_ITEM_MALFORMED`: the work
+  items' IDs cannot be trusted until a re-key or a fix by hand. Relay the
+  printed remedy as is, and exit.
 - **No argument**: ask the user which work item to update. Accept the
   response and run the resolver against it.
 

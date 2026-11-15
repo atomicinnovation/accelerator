@@ -64,6 +64,9 @@ When this command is invoked:
    - **Exit 6**: the argument names a real file outside the managed work
      directory. Print the resolver's error and offer to run
      `/list-work-items`.
+   - **Exit 4** with `E_REKEY_REQUIRED` or `E_WORK_ITEM_MALFORMED`: the
+     work items' IDs cannot be trusted until a re-key or a fix by hand.
+     Relay the printed remedy as is, and stop.
    - If optional focus arguments were provided (e.g., "focus on testability"),
      note them for lens selection.
 

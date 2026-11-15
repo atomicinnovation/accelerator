@@ -76,10 +76,11 @@ different things — populate each deliberately:
 
 ## Identity-run refusals
 
-`accelerator work id check`, `accelerator work id next` and
-`accelerator work create` (with or without `--push`) refuse before reading or
-writing anything while an `accelerator work rekey` run is unfinished or
-another identity command is running. Before any other branch on a non-zero
+`accelerator work resolve`, `accelerator work id check`,
+`accelerator work id next` and `accelerator work create` (with or without
+`--push`) refuse before reading or writing anything while an
+`accelerator work rekey` run is unfinished or another identity command is
+running. Before any other branch on a non-zero
 exit from one of them, check its stderr for these codes; in every case
 nothing was written:
 
@@ -88,8 +89,9 @@ nothing was written:
 - `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
   suggesting the re-key be finished. Stop.
 - `E_REKEY_REQUIRED` (exit 4) — some items are not yet under the IDs
-  `work.id_pattern` gives them, such as after the pattern changed: tell the
-  user to run `/rekey-work-items` to converge them, then retry. Stop.
+  `work.id_pattern` gives them, such as after the pattern changed: relay
+  the printed remedy as is. It names `/rekey-work-items`, after any fix by
+  hand an item re-key cannot read needs first. Stop.
 - `E_WORK_ITEM_MALFORMED` (exit 4) — relay the named file and its remedy
   (rename it after its `id`, or give it an `id`). Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
@@ -188,6 +190,9 @@ When this command is invoked:
      real file that lies outside the managed work directory, so it is not
      a topic string. Stop, print the resolver's error, and offer to run
      `/list-work-items`.
+   - **Exit 4**: apply *Identity-run refusals* above
+     (`E_REKEY_REQUIRED`, `E_WORK_ITEM_MALFORMED`) before treating the
+     argument as anything. Stop.
 
    **Frontmatter validation** (only reached after a file was successfully
    resolved). Run:

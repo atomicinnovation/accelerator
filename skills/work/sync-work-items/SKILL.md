@@ -260,10 +260,11 @@ item off `work.id_pattern`, so that it can finish what re-key waits on. But
 also runs, refuse that corpus with exit 4 and write nothing. Check their
 stderr:
 
-- `E_REKEY_REQUIRED` — tell the user to run `/rekey-work-items`, then re-run
-  this skill. Should re-key refuse with `E_REKEY_SYNC_UNFINISHED` or
-  `E_REKEY_PENDING_PUSH`, `accelerator work sync` settles it first, as that
-  refusal says. Stop.
+- `E_REKEY_REQUIRED` — relay the printed remedy as is, then re-run this
+  skill. It names `/rekey-work-items`, after any fix by hand an item re-key
+  cannot read needs first. Should re-key refuse with
+  `E_REKEY_SYNC_UNFINISHED` or `E_REKEY_PENDING_PUSH`, `accelerator work
+  sync` settles it first, as that refusal says. Stop.
 - `E_WORK_ITEM_MALFORMED` — relay the printed remedy as is: the named file is
   fixed by hand. Stop.
 

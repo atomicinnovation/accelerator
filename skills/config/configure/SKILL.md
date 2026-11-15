@@ -804,7 +804,9 @@ Any change to the pattern, a width change (`{number:04d}` →
 the new pattern's exact shape, each `work` command that reads or writes
 IDs (`create`, `create-batch`, `id next`, `id check`, `list`, `resolve`
 and `promote`) refuses with `E_REKEY_REQUIRED`, naming an item to
-converge. Run `/rekey-work-items` after changing the pattern. `work
+converge. A work-item file whose IDs cannot be read, such as a slugless
+`0400.md`, is refused by the same commands with `E_WORK_ITEM_MALFORMED`,
+naming the fix. Run `/rekey-work-items` after changing the pattern. `work
 sync`, `work rekey` and `work id canonicalise` still run. A reference
 written under the earlier pattern joins nothing until re-keyed.
 
