@@ -29,7 +29,7 @@
               "names": [
                 "Still to research:",
                 "How do agents recover from failed steps? (openalex)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -68,7 +68,7 @@
               "names": [
                 "Still to research:",
                 "How do agents recover from failed steps? (openalex)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -108,7 +108,7 @@
               "names": [
                 "Still to research:",
                 "How do agents recover from failed steps? (openalex)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -148,7 +148,7 @@
               "names": [
                 "Still to research:",
                 "How do agents recover from failed steps? (openalex)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -183,7 +183,7 @@
               "names": [
                 "Still to research:",
                 "How do agents recover from failed steps? (openalex)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -218,7 +218,7 @@
               "names": [
                 "Still to research:",
                 "How do agents recover from failed steps? (openalex)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -253,7 +253,7 @@
               "names": [
                 "Still to research:",
                 "Which datasets suit agent training? (web)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -288,7 +288,7 @@
               "names": [
                 "Still to research:",
                 "Which datasets suit agent training? (web)",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -323,7 +323,7 @@
               "names": [
                 "Which planning preprints appeared this year?",
                 "Add the profile to the brief's `source_profiles`, or fix its name in the outline.",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",
@@ -358,7 +358,7 @@
               "names": [
                 "Which planning preprints appeared this year?",
                 "Add the profile to the brief's `source_profiles`, or fix its name in the outline.",
-                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
                 "needs synthesised or complete",

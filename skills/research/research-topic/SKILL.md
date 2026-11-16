@@ -832,7 +832,7 @@ refusal writes nothing and ends the verb.
   or reach past the synthesis:
 
   ```text
-  {verb} refused: {slug}'s synthesis is stale: {mismatches}. Run conduct {slug}, then synthesise {slug}.
+  {verb} refused: {slug}'s synthesis is stale: {mismatches}. Run conduct {slug}, then synthesise {slug}, then {verb} {slug} {question} again.
   ```
 
   with the verdict's `mismatches`, each as printed, separated by `; `.
@@ -850,7 +850,7 @@ refusal writes nothing and ends the verb.
   Add the profile to the brief's `source_profiles`, or fix its name in the outline.
   Still to research:
   - {question} ({profile})
-  Run conduct {slug}, then synthesise {slug}.
+  Run conduct {slug}, then synthesise {slug}, then {verb} {slug} {question} again.
   ```
 
   The held-back group has one line per `held_back` item, its `reasons`
@@ -858,10 +858,9 @@ refusal writes nothing and ends the verb.
   still-to-research group has one line per `unanswered` pair. The held-back
   group comes first, so a user who works down the lines fixes the brief or
   outline before the one `conduct` that then covers both. Omit either group,
-  with its lead-in, when it is empty. The closing
-  `Run conduct {slug}, then synthesise {slug}.` line ends every `conducted`
-  refusal: fixing the brief or the outline turns a held-back pair
-  `unanswered`, so it too needs that `conduct`.
+  with its lead-in, when it is empty. The closing `Run conduct {slug}` line
+  ends every `conducted` refusal: fixing the brief or the outline turns a
+  held-back pair `unanswered`, so it too needs that `conduct`.
 
 **Read.** Read the citing-once rule with the Read tool at
 `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/SKILL.md`, then
