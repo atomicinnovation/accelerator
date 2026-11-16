@@ -35,6 +35,8 @@ use research::topic::evidence::NoteRejection;
 use research::topic::layout::entry::is_finding_entry;
 use research::topic::layout::lineage::Lineage;
 use research::topic::layout::stem::Stem;
+use research::topic::layout::FINDINGS;
+use research::topic::layout::REPORTS;
 use research::topic::outline::Outline;
 use research::topic::outline::Pair;
 use research::topic::outline::DEFAULT_PROFILE;
@@ -148,8 +150,7 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
             string_list(&frontmatter(&text, parser)?, "source_profiles")
         })
         .unwrap_or_else(|| vec![DEFAULT_PROFILE.to_owned()]);
-    let listing =
-        read_findings(&set_root.join("findings"), fs, parser, unicode)?;
+    let listing = read_findings(&set_root.join(FINDINGS), fs, parser, unicode)?;
     let profiles = available_profiles(profiles_dir, fs)?;
     Ok(RoundReading {
         inputs: RoundInputs {
@@ -183,7 +184,7 @@ pub fn taken_report_names<F: DirReader>(
     set_root: &Path,
     fs: &F,
 ) -> Result<Vec<String>, kernel::Error> {
-    Ok(fs.list(&set_root.join("reports"))?.unwrap_or_default())
+    Ok(fs.list(&set_root.join(REPORTS))?.unwrap_or_default())
 }
 
 /// The counts the files in the set's `findings/` and `reports/` give, beside
@@ -203,7 +204,7 @@ pub fn read_counts<F: DirReader + FileReader + DirectoryProbe>(
     fs: &F,
     parser: &dyn FrontmatterParser,
 ) -> Result<CountsReading, kernel::Error> {
-    let findings_dir = set_root.join("findings");
+    let findings_dir = set_root.join(FINDINGS);
     let entries = files_in(&findings_dir, fs)?;
     let entries: Vec<&str> = entries.iter().map(String::as_str).collect();
     let findings = CountedFindings::of(&entries, |name| {
@@ -213,7 +214,7 @@ pub fn read_counts<F: DirReader + FileReader + DirectoryProbe>(
             StoredCount::Missing | StoredCount::Unreadable(_) => None,
         })
     })?;
-    let reports = files_in(&set_root.join("reports"), fs)?;
+    let reports = files_in(&set_root.join(REPORTS), fs)?;
     let reports: Vec<&str> = reports.iter().map(String::as_str).collect();
     let manifest = fields_of(&set_root.join("manifest.md"), fs, parser)?;
     let synthesis = fields_of(&set_root.join("synthesis.md"), fs, parser)?;

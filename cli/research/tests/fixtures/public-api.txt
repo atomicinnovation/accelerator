@@ -2205,6 +2205,8 @@ pub fn research::topic::layout::stem::Stem::fmt(&self, formatter: &mut core::fmt
 impl core::hash::Hash for research::topic::layout::stem::Stem
 pub fn research::topic::layout::stem::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::topic::layout::stem::Stem
+pub const research::topic::layout::FINDINGS: &str
+pub const research::topic::layout::REPORTS: &str
 pub mod research::topic::outline
 pub struct research::topic::outline::Outline
 pub research::topic::outline::Outline::items: alloc::vec::Vec<research::topic::outline::OutlineItem>

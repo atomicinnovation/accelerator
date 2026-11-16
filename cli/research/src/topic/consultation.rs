@@ -3,6 +3,8 @@
 
 use crate::topic::counts::CountsReading;
 use crate::topic::counts::Mismatch;
+use crate::topic::layout::FINDINGS;
+use crate::topic::layout::REPORTS;
 use crate::topic::outline::Pair;
 use crate::topic::plan::RoundPlan;
 use crate::topic::plan::Skip;
@@ -82,8 +84,8 @@ impl Documents {
                 .collect()
         };
         Self {
-            findings: under("findings", reading.findings.names()),
-            reports: under("reports", reading.reports.names()),
+            findings: under(FINDINGS, reading.findings.names()),
+            reports: under(REPORTS, reading.reports.names()),
         }
     }
 }

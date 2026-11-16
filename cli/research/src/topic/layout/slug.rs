@@ -1,10 +1,11 @@
 //! The filename-safe forms of a question: a pair's stem and a report's name.
 
+use crate::topic::layout::REPORTS;
+
 const QUESTION_SLUG_MAX_LEN: usize = 60;
 const EMPTY_QUESTION_SLUG: &str = "focus-area";
 const REPORT_SLUG_MAX_LEN: usize = 60;
 const EMPTY_REPORT_SLUG: &str = "report";
-const REPORTS: &str = "reports";
 
 fn hyphenated(question: &str) -> String {
     question
