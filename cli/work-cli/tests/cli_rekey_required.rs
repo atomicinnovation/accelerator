@@ -208,7 +208,10 @@ fn a_malformed_key_the_pattern_ignores_is_warned_about_once(
     )?;
     fs::remove_file(repo.path().join(OFF_PATTERN_ITEM))?;
 
-    let output = run(repo.path(), &["create", "Fresh item", "task", "medium"])?;
+    let output = run(
+        repo.path(),
+        &["create", "Fresh item", "task", "medium", "--author", "A"],
+    )?;
 
     let stderr = String::from_utf8(output.stderr)?;
     assert!(output.status.success(), "{stderr}");
