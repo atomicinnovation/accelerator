@@ -35,19 +35,17 @@ impl MalformedItem {
         &self.malformation
     }
 
-    fn what(&self, as_clause: bool) -> String {
+    fn what(&self) -> String {
         let path = escaped(&self.path.to_string_lossy());
-        let which = if as_clause { ", which" } else { "" };
         match &self.malformation {
             Malformation::NoSlug { id } => format!(
-                "{path}{which} has `id` '{}' but {} filename does not start \
-                 with its `id` and a slug",
+                "{path} has `id` '{}' but its filename does not start with \
+                 its `id` and a slug",
                 escaped(id),
-                if as_clause { "whose" } else { "its" },
             ),
             Malformation::NoId => format!(
-                "{path}{which} names an ID in `aliases` or `external_id` but \
-                 has no `id`"
+                "{path} names an ID in `aliases` or `external_id` but has no \
+                 `id`"
             ),
         }
     }
@@ -101,25 +99,26 @@ impl MalformedItems {
 
 impl Display for MalformedItems {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        let first = self.first();
-        match self.items.len() {
-            1 => write!(
+        if let [only] = self.items.as_slice() {
+            return write!(
                 formatter,
                 "{}: {}. {}, then re-run this command",
                 Self::CODE,
-                first.what(false),
-                first.remedy(),
-            ),
-            count => write!(
-                formatter,
-                "{}: {count} work items cannot be read for their IDs, such \
-                 as {}. {} and fix the others likewise, then re-run this \
-                 command",
-                Self::CODE,
-                first.what(true),
-                first.remedy(),
-            ),
+                only.what(),
+                only.remedy(),
+            );
         }
+        write!(
+            formatter,
+            "{}: {} work items cannot be read for their IDs. Fix each one \
+             as shown, then re-run this command:",
+            Self::CODE,
+            self.items.len(),
+        )?;
+        for item in &self.items {
+            write!(formatter, "\n    {}. {}", item.what(), item.remedy())?;
+        }
+        Ok(())
     }
 }
 
@@ -271,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn the_first_malformed_item_by_path_is_named_with_how_many_there_are() {
+    fn every_malformed_item_is_listed_in_path_order_with_its_fix() {
         let refusal = refuse_malformed(&[
             file("PP-0402.md", "---\nid: \"PP-0402\"\n---\n"),
             file("PP-0401.md", "---\nid: \"PP-0401\"\n---\n"),
@@ -284,10 +283,16 @@ mod tests {
         assert_eq!(
             refusal.to_string(),
             "E_WORK_ITEM_MALFORMED: 3 work items cannot be read for their \
-             IDs, such as meta/work/PP-0401.md, which has `id` 'PP-0401' but \
-             whose filename does not start with its `id` and a slug. Rename \
-             it to `PP-0401-<slug>.md` and fix the others likewise, then \
-             re-run this command"
+             IDs. Fix each one as shown, then re-run this command:\n    \
+             meta/work/PP-0401.md has `id` 'PP-0401' but its filename does \
+             not start with its `id` and a slug. Rename it to \
+             `PP-0401-<slug>.md`\n    \
+             meta/work/PP-0402.md has `id` 'PP-0402' but its filename does \
+             not start with its `id` and a slug. Rename it to \
+             `PP-0402-<slug>.md`\n    \
+             meta/work/PP-0403-c.md names an ID in `aliases` or \
+             `external_id` but has no `id`. Give it the `id` its filename \
+             starts with"
         );
     }
 

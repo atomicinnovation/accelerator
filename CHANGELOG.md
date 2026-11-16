@@ -1153,8 +1153,8 @@
   `E_REKEY_REQUIRED`, follow the printed remedy: `/rekey-work-items`, after
   any fix by hand it names for an item re-key cannot read. Should re-key
   refuse with `E_REKEY_SYNC_UNFINISHED` or `E_REKEY_PENDING_PUSH`, run
-  `accelerator work sync` first. On `E_WORK_ITEM_MALFORMED`, rename the
-  named file to `<id>-<slug>.md` or give it an `id`, as the message says.
+  `accelerator work sync` first. On `E_WORK_ITEM_MALFORMED`, rename each
+  file it lists to `<id>-<slug>.md` or give it an `id`, as the message says.
 - **Run `/accelerator:migrate` (migration 0011) to ignore machine-local sync
   state.** Settle any tracked pending-push markers with
   `--resolve <id>=adopt:<KEY>` or `=create` before untracking what it names.
