@@ -107,14 +107,7 @@ jobs:
         run: sudo apt-get install --yes zsh
 
       - name: Report the runner's CPU counts
-        run: |
-          uv run --all-groups --frozen python -c '
-          import os, psutil
-          print(f"physical cores (psutil): {psutil.cpu_count(logical=False)}")
-          print(f"logical CPUs (psutil): {psutil.cpu_count()}")
-          print(f"usable CPUs (os.process_cpu_count): {os.process_cpu_count()}")
-          '
-          node -p '"available parallelism (Node): " + require("node:os").availableParallelism()'
+        run: mise run host:cpu-counts
 
       - name: Run integration tests
         run: mise run test:integration

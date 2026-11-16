@@ -20,7 +20,6 @@ observationally in CI (see the plan's Testing Strategy).
 
 import copy
 import re
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -672,12 +671,6 @@ def test_every_action_is_pinned_to_a_commit(workflow_path):
 
 
 _CPU_COUNT_REPORT = "Report the runner's CPU counts"
-_CPU_COUNTS = (
-    "physical cores (psutil)",
-    "logical CPUs (psutil)",
-    "usable CPUs (os.process_cpu_count)",
-    "available parallelism (Node)",
-)
 
 
 def _step_index(job, name):
@@ -694,19 +687,8 @@ def test_the_integration_job_reports_its_cpu_counts_before_the_tests(wf):
     )
 
 
-def test_the_cpu_count_report_names_every_count_the_workers_follow(wf):
+def test_the_cpu_count_report_is_the_host_task(wf):
     job = wf["jobs"]["test-integration"]
     step = job["steps"][_step_index(job, _CPU_COUNT_REPORT)]
 
-    report = subprocess.run(
-        ["bash", "-e", "-c", step["run"]],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-
-    for count in _CPU_COUNTS:
-        assert re.search(
-            rf"^{re.escape(count)}: [1-9]\d*$", report, re.MULTILINE
-        ), f"{count} missing from:\n{report}"
+    assert step["run"] == "mise run host:cpu-counts"

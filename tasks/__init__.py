@@ -9,6 +9,7 @@ from . import (
     docs,
     git,
     github,
+    host,
     lint,
     marketplace,
     measure,
@@ -64,6 +65,7 @@ ns.add_collection(Collection.from_module(deps))
 ns.add_collection(Collection.from_module(docs))
 ns.add_collection(Collection.from_module(git))
 ns.add_collection(Collection.from_module(github))
+ns.add_collection(Collection.from_module(host))
 ns.add_collection(Collection.from_module(marketplace))
 ns.add_collection(Collection.from_module(measure))
 ns.add_collection(Collection.from_module(notices))
