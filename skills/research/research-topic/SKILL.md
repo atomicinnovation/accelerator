@@ -147,8 +147,9 @@ edges from `synthesised` or `complete` back to `researching`:
 
 If the precondition fails, refuse with a message naming every accepted prior
 state for that verb, and stop. `finalise`, `ask` and `report` are the
-exceptions: their refusals are owned by their own sections and name the set's current status, so
-the generic refusal does not apply to them.
+exceptions: their refusals are owned by their own sections (`finalise`'s
+names the set's current status), so the generic refusal does not apply to
+them.
 
 ## Derive Metadata
 
