@@ -83,10 +83,15 @@ fn cut_before_the_overflowing_word(slug: &str) -> &str {
         return slug;
     }
     let window = slug.get(..=REPORT_SLUG_MAX_LEN).unwrap_or(slug);
-    window.rfind('-').map_or_else(
-        || slug.get(..REPORT_SLUG_MAX_LEN).unwrap_or(slug),
-        |hyphen| &window[..hyphen],
-    )
+    let hard_cut = || {
+        slug.get(..REPORT_SLUG_MAX_LEN)
+            .unwrap_or(slug)
+            .trim_end_matches('-')
+    };
+    match window.rfind('-') {
+        Some(hyphen) if window[..hyphen].contains('-') => &window[..hyphen],
+        _ => hard_cut(),
+    }
 }
 
 #[cfg(test)]
@@ -170,6 +175,16 @@ mod tests {
         assert_eq!(
             ReportSlug::from(C8).as_str(),
             "supercalifragilisticexpialidociousplannersoutperformallbasel"
+        );
+    }
+
+    #[test]
+    fn a_long_report_slug_whose_second_word_overflows_is_cut_at_sixty_characters(
+    ) {
+        let question = format!("How {C8}");
+        assert_eq!(
+            ReportSlug::from(question.as_str()).as_str(),
+            "how-supercalifragilisticexpialidociousplannersoutperformallb"
         );
     }
 

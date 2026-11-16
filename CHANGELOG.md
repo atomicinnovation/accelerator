@@ -652,7 +652,7 @@
 - **`accelerator research topic report-path SLUG QUESTION`** prints the
   absolute path a new report on the question takes:
   `reports/<question-slug>.md`, cut before the word that would pass 60
-  characters. When that name is taken, it appends the first free `-2`,
+  characters, or at 60 when that would keep only the first word. When that name is taken, it appends the first free `-2`,
   `-3`, … suffix to the cut slug. It writes nothing,
   and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
   question.
