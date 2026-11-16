@@ -4,7 +4,7 @@ use std::path::Path;
 
 use corpus::scan::DirReader;
 use research::topic::layout::slug::ReportSlug;
-use research_adapters::topic::list_reports;
+use research_adapters::topic::taken_report_names;
 
 use crate::topic_command::Printed;
 
@@ -34,7 +34,7 @@ pub fn run_report_path<F: DirReader>(
     fs: &F,
 ) -> Result<Printed, String> {
     let taken =
-        list_reports(set_root, fs).map_err(|error| error.to_string())?;
+        taken_report_names(set_root, fs).map_err(|error| error.to_string())?;
     let path = ReportSlug::from(question).free_report_path(&taken);
     Ok(Printed {
         stdout: format!("{}\n", set_root.join(path).to_string_lossy()),

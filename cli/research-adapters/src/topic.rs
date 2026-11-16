@@ -173,10 +173,13 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
 /// The name of every entry under the set's `reports/`, of whatever kind, or
 /// none when it has no `reports/`.
 ///
+/// Wider than the reports `read_counts` counts: a new report cannot take a
+/// name a directory, a hidden file or any other entry already holds.
+///
 /// # Errors
 ///
 /// A [`kernel::Error`] when `reports/` exists but cannot be listed.
-pub fn list_reports<F: DirReader>(
+pub fn taken_report_names<F: DirReader>(
     set_root: &Path,
     fs: &F,
 ) -> Result<Vec<String>, kernel::Error> {
@@ -594,11 +597,11 @@ mod tests {
 
     use corpus_adapters::YamlFrontmatter;
 
-    use super::list_reports;
     use super::read_counts;
     use super::read_plan;
     use super::read_round_inputs;
     use super::read_set_status;
+    use super::taken_report_names;
     use super::ReadingWarning;
     use crate::unicode_text::UnicodeTables;
 
@@ -1282,7 +1285,7 @@ mod tests {
     fn a_set_without_reports_lists_none() -> Result<(), TestError> {
         let fs = set_with(StubFs::default());
 
-        assert!(list_reports(Path::new(SET), &fs)?.is_empty());
+        assert!(taken_report_names(Path::new(SET), &fs)?.is_empty());
         Ok(())
     }
 
@@ -1294,7 +1297,7 @@ mod tests {
             .with_dir("/set/reports/b.md");
 
         assert_eq!(
-            list_reports(Path::new(SET), &fs)?,
+            taken_report_names(Path::new(SET), &fs)?,
             [".draft.md", "a.md", "b.md"]
         );
         Ok(())
