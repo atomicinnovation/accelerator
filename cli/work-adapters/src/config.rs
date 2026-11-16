@@ -49,6 +49,23 @@ pub struct SchemeReading {
     pub unused_key_warning: Option<String>,
 }
 
+impl SchemeReading {
+    /// The scheme, with the deprecated key alias's notice and the unused
+    /// key's warning each printed once on stderr.
+    #[must_use]
+    pub fn announced(self) -> IdScheme {
+        ::config::emit_deprecation_once(
+            LEGACY_KEY_SETTING,
+            self.deprecation.as_deref(),
+        );
+        if let Some(warning) = &self.unused_key_warning {
+            static WARNED: std::sync::Once = std::sync::Once::new();
+            WARNED.call_once(|| eprintln!("{warning}"));
+        }
+        self.scheme
+    }
+}
+
 #[derive(Debug)]
 pub enum SchemeError {
     Config(kernel::Error),
@@ -230,12 +247,9 @@ pub fn read_scheme(
     )?;
     let unused_key_warning =
         unused_key_warning(&scheme, aliased.value.as_deref(), source);
-    let deprecation = aliased
-        .deprecation
-        .filter(|_| scheme.pattern().references_key());
     Ok(SchemeReading {
         scheme,
-        deprecation,
+        deprecation: aliased.deprecation,
         unused_key_warning,
     })
 }
@@ -686,7 +700,22 @@ mod tests {
         ]);
         let reading = read_scheme(&config).unwrap();
         assert_eq!(reading.scheme.key(), None);
-        assert_eq!(reading.deprecation, None);
+        assert!(reading.deprecation.is_some());
+    }
+
+    #[test]
+    fn read_scheme_returns_the_deprecation_notice_under_a_keyless_pattern() {
+        let config = FakeConfig::with(&[
+            ("work.id_pattern", "{number:04d}"),
+            ("work.default_project_code", "PP"),
+        ]);
+        let reading = read_scheme(&config).unwrap();
+        assert!(
+            reading.deprecation.as_deref().is_some_and(|notice| notice
+                .contains("'work.default_project_code' is deprecated")),
+            "{:?}",
+            reading.deprecation
+        );
     }
 
     #[test]

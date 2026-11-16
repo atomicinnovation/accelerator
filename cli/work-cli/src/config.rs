@@ -12,7 +12,6 @@ use work_adapters::config::read_scheme;
 use work_adapters::config::resolve_scheme;
 use work_adapters::config::SchemeError;
 use work_adapters::config::SchemeReading;
-use work_adapters::config::LEGACY_KEY_SETTING;
 
 pub fn effective_nonempty(
     config: &dyn ConfigAccess,
@@ -26,18 +25,6 @@ pub fn effective_nonempty(
         .rendered())
 }
 
-fn announced(reading: SchemeReading) -> IdScheme {
-    ::config::emit_deprecation_once(
-        LEGACY_KEY_SETTING,
-        reading.deprecation.as_deref(),
-    );
-    if let Some(warning) = &reading.unused_key_warning {
-        static WARNED: std::sync::Once = std::sync::Once::new();
-        WARNED.call_once(|| eprintln!("{warning}"));
-    }
-    reading.scheme
-}
-
 /// The scheme a command that writes or allocates IDs needs: read, with the
 /// key a key pattern names required and the `{tracker}` integration rule
 /// checked, and the deprecated key alias's notice printed once.
@@ -49,7 +36,7 @@ fn announced(reading: SchemeReading) -> IdScheme {
 pub fn announced_scheme_for_writing(
     config: &dyn ConfigAccess,
 ) -> Result<IdScheme, SchemeError> {
-    resolve_scheme(config).map(announced)
+    resolve_scheme(config).map(SchemeReading::announced)
 }
 
 /// The scheme as configured, whether or not a key pattern has its key, with
@@ -61,7 +48,7 @@ pub fn announced_scheme_for_writing(
 pub fn announced_scheme(
     config: &dyn ConfigAccess,
 ) -> Result<IdScheme, SchemeError> {
-    read_scheme(config).map(announced)
+    read_scheme(config).map(SchemeReading::announced)
 }
 
 pub struct WorkItemLocation {

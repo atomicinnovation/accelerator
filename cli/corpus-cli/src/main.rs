@@ -100,7 +100,7 @@ fn run_linkage(action: LinkageAction) -> Result<Outcome, kernel::Error> {
             let table = config::table_from_config(&composed.service)?;
             let scheme = work_adapters::config::read_scheme(&composed.service)
                 .map_err(kernel::Error::from)?
-                .scheme;
+                .announced();
             linkage::run_extract(
                 &file,
                 source_type.as_deref(),
