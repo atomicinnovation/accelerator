@@ -685,6 +685,13 @@ Here local IDs carry the `PP-` prefix while creation and discovery scope to
 the `PROJ` Jira project. A divergent `work.key` is a supported configuration,
 not a smell — no warning is raised.
 
+Changing `work.key` refuses nothing: items under the old key stay in
+shape, since any key is, and allocation starts a new sequence under the
+new key beside them. To move the old key's items onto the new one, run
+`/rekey-work-items` and pick the old key when it asks which keys to fold,
+or run `accelerator work rekey --preview --from-key <old key>`, then
+`accelerator work rekey`.
+
 #### Local-first storage
 
 Work items are always written to `meta/work/` as local files, regardless
