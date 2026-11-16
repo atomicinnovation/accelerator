@@ -2280,6 +2280,7 @@ pub struct research::topic::plan::ItemStatus
 pub research::topic::plan::ItemStatus::complete: bool
 pub research::topic::plan::ItemStatus::line: usize
 pub research::topic::plan::ItemStatus::question: alloc::string::String
+pub research::topic::plan::ItemStatus::repeat: bool
 impl core::clone::Clone for research::topic::plan::ItemStatus
 pub fn research::topic::plan::ItemStatus::clone(&self) -> research::topic::plan::ItemStatus
 impl core::cmp::Eq for research::topic::plan::ItemStatus
