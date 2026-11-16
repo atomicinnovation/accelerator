@@ -324,7 +324,7 @@ fn computed(
             numeric_mapping(scheme, candidates, &request.folded)
         }
         IdOwnership::Tracker => {
-            let stored: Vec<ExternalId> = keys_to_refresh(candidates)?
+            let stored: Vec<ExternalId> = keys_to_refresh(scheme, candidates)?
                 .iter()
                 .map(|key| ExternalId::new(key.as_str().to_owned()))
                 .collect();

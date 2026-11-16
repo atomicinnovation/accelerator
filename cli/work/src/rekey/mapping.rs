@@ -157,11 +157,11 @@ pub(crate) fn why_unclassifiable(
                 })
             },
             |stored| {
-                TrackerKey::parse(stored).is_none().then(|| {
-                    UnclassifiableCause::ExternalIdNotATrackerKey {
+                TrackerKey::parse_under(stored, scheme.tracker_keys())
+                    .is_none()
+                    .then(|| UnclassifiableCause::ExternalIdNotATrackerKey {
                         external_id: stored.to_owned(),
-                    }
-                })
+                    })
             },
         ),
     }
@@ -295,6 +295,7 @@ impl FromIterator<(String, TrackerKey)> for RefreshedKeys {
 /// `external_id` is not shaped like a tracker key, so it never reaches a
 /// tracker that cannot read it.
 pub fn keys_to_refresh(
+    scheme: &IdScheme,
     candidates: &[RekeyCandidate],
 ) -> Result<Vec<TrackerKey>, NotRekeyed> {
     candidates
@@ -303,7 +304,7 @@ pub fn keys_to_refresh(
         .filter(|identity| DraftId::parse(&identity.id).is_none())
         .filter_map(|identity| {
             identity.external_id.as_deref().map(|stored| {
-                TrackerKey::parse(stored)
+                TrackerKey::parse_under(stored, scheme.tracker_keys())
                     .ok_or_else(|| not_a_tracker_key(identity, stored))
             })
         })
@@ -341,9 +342,9 @@ pub fn tracker_mapping(
                 cause,
             });
         }
-        let Some(stored) =
-            identity.external_id.as_deref().and_then(TrackerKey::parse)
-        else {
+        let Some(stored) = identity.external_id.as_deref().and_then(|stored| {
+            TrackerKey::parse_under(stored, scheme.tracker_keys())
+        }) else {
             unsynced.push(identity.id.clone());
             continue;
         };
@@ -849,6 +850,7 @@ mod tests {
         use crate::id_pattern::IdPattern;
         use crate::id_scheme::IdScheme;
         use crate::id_scheme::TRACKER_TOKEN;
+        use crate::rekey::convergence::is_converged;
         use crate::rekey::entry::RekeyEntry;
         use crate::rekey::entry::RekeyTarget;
         use crate::rekey::mapping::keys_to_refresh;
@@ -1100,11 +1102,14 @@ mod tests {
         #[test]
         fn the_keys_to_refresh_are_every_synced_non_draft_items_stored_key() {
             assert_eq!(
-                keys_to_refresh(&[
-                    linked("0042", "PP-760"),
-                    unlinked("0043"),
-                    linked("draft-a1b2cd", "PP-761"),
-                ]),
+                keys_to_refresh(
+                    &tracker_scheme(),
+                    &[
+                        linked("0042", "PP-760"),
+                        unlinked("0043"),
+                        linked("draft-a1b2cd", "PP-761"),
+                    ]
+                ),
                 Ok(vec![key("PP-760")])
             );
         }
@@ -1112,8 +1117,36 @@ mod tests {
         #[test]
         fn a_key_to_refresh_of_no_tracker_shape_is_unclassifiable() {
             assert_eq!(
-                keys_to_refresh(&[linked("0042", "not a key")]),
+                keys_to_refresh(
+                    &tracker_scheme(),
+                    &[linked("0042", "not a key")]
+                ),
                 Err(not_a_tracker_key("0042", "not a key"))
+            );
+        }
+
+        #[test]
+        fn a_key_outside_the_trackers_rules_is_refused_rather_than_left() {
+            let linear = IdScheme::under_tracker(
+                tracker_scheme().pattern().clone(),
+                None,
+                tracker::TrackerKeys::Linear,
+            );
+            let underscored = || linked("MY_PROJ-7", "MY_PROJ-7");
+
+            assert!(!is_converged(&underscored().identity, &linear));
+            assert_eq!(
+                tracker_mapping(
+                    &linear,
+                    &[underscored()],
+                    &RefreshedKeys::default(),
+                    &mut drawing(&["k3x9mq"]),
+                ),
+                Err(not_a_tracker_key("MY_PROJ-7", "MY_PROJ-7"))
+            );
+            assert_eq!(
+                keys_to_refresh(&linear, &[underscored()]),
+                Err(not_a_tracker_key("MY_PROJ-7", "MY_PROJ-7"))
             );
         }
 

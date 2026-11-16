@@ -368,6 +368,30 @@ mod tests {
     }
 
     #[test]
+    fn a_key_outside_the_trackers_rules_is_named_with_its_manual_fix() {
+        let linear = IdScheme::under_tracker(
+            scheme("{tracker}", None).pattern().clone(),
+            None,
+            tracker::TrackerKeys::Linear,
+        );
+
+        let refusal =
+            refuse_divergence(&linear, &[item("MY_PROJ-7", Some("MY_PROJ-7"))])
+                .err()
+                .unwrap_or_else(|| unreachable!("the corpus diverges"))
+                .relative_to(Path::new("/repo"));
+
+        assert!(
+            refusal.to_string().contains(
+                "Re-key cannot read one of them: \
+                 meta/work/MY_PROJ-7-item.md has `external_id` 'MY_PROJ-7', \
+                 which is not shaped like a tracker key"
+            ),
+            "{refusal}"
+        );
+    }
+
+    #[test]
     fn a_hostile_id_in_the_refusal_is_escaped() {
         let refusal = refuse_divergence(
             &scheme("{number:04d}", None),
