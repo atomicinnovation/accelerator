@@ -68,7 +68,7 @@ pub fn refuse_untrusted(
 ) -> Result<(), UntrustedCorpus> {
     refuse_divergence(scheme, &identities(files))
         .map_err(UntrustedCorpus::RekeyRequired)?;
-    refuse_malformed(files).map_err(UntrustedCorpus::Malformed)
+    refuse_malformed(scheme, files).map_err(UntrustedCorpus::Malformed)
 }
 
 #[cfg(test)]

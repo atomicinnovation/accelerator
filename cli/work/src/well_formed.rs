@@ -7,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::id_pattern::escaped;
+use crate::id_scheme::IdScheme;
 use crate::shown_path::relative_to;
 use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::identity_of;
@@ -126,16 +127,21 @@ impl std::error::Error for MalformedItems {}
 
 /// Refuses every work item whose IDs cannot be read.
 ///
-/// That is one with an `id` its filename does not start with before a
-/// slug, or one naming an ID with no `id`. A file with no frontmatter, or
-/// naming no ID, is not a work item and passes.
+/// That is one whose filename does not hold its `id` before a slug, as the
+/// scheme reads both, or one naming an ID with no `id`. A file with no
+/// frontmatter, or naming no ID, is not a work item and passes.
 ///
 /// # Errors
 ///
 /// The [`MalformedItems`] naming those files in path order.
-pub fn refuse_malformed(files: &[WorkItemFile]) -> Result<(), MalformedItems> {
-    let mut items: Vec<MalformedItem> =
-        files.iter().filter_map(malformation_of).collect();
+pub fn refuse_malformed(
+    scheme: &IdScheme,
+    files: &[WorkItemFile],
+) -> Result<(), MalformedItems> {
+    let mut items: Vec<MalformedItem> = files
+        .iter()
+        .filter_map(|file| malformation_of(scheme, file))
+        .collect();
     if items.is_empty() {
         return Ok(());
     }
@@ -143,13 +149,18 @@ pub fn refuse_malformed(files: &[WorkItemFile]) -> Result<(), MalformedItems> {
     Err(MalformedItems { items })
 }
 
-fn malformation_of(file: &WorkItemFile) -> Option<MalformedItem> {
+fn malformation_of(
+    scheme: &IdScheme,
+    file: &WorkItemFile,
+) -> Option<MalformedItem> {
     let malformed = |malformation| MalformedItem {
         path: file.path.clone(),
         malformation,
     };
     match identity_of(file) {
-        Some(identity) if !names_with_slug(&file.path, &identity.id) => {
+        Some(identity)
+            if !names_with_slug(scheme, &file.path, &identity.id) =>
+        {
             Some(malformed(Malformation::NoSlug { id: identity.id }))
         }
         Some(_) => None,
@@ -157,12 +168,28 @@ fn malformation_of(file: &WorkItemFile) -> Option<MalformedItem> {
     }
 }
 
-fn names_with_slug(path: &Path, id: &str) -> bool {
+fn names_with_slug(scheme: &IdScheme, path: &Path, id: &str) -> bool {
     let stem = path
         .file_stem()
-        .map(|stem| stem.to_string_lossy().to_ascii_lowercase())
+        .map(|stem| stem.to_string_lossy().into_owned())
         .unwrap_or_default();
-    stem.strip_prefix(&id.to_ascii_lowercase())
+    holds_through_scheme(scheme, &stem, id) || holds_as_written(&stem, id)
+}
+
+fn holds_through_scheme(scheme: &IdScheme, stem: &str, id: &str) -> bool {
+    use corpus::IdConvention as _;
+    let has_slug = scheme
+        .slug_start(stem)
+        .is_some_and(|start| start < stem.len());
+    has_slug
+        && scheme
+            .id_in_filename(stem)
+            .is_some_and(|held| scheme.identity_key(id) == Some(held))
+}
+
+fn holds_as_written(stem: &str, id: &str) -> bool {
+    stem.to_ascii_lowercase()
+        .strip_prefix(&id.to_ascii_lowercase())
         .and_then(|rest| rest.strip_prefix('-'))
         .is_some_and(|slug| !slug.is_empty())
 }
@@ -182,7 +209,22 @@ mod tests {
 
     use super::refuse_malformed;
     use super::Malformation;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::IdScheme;
     use crate::work_item_files::WorkItemFile;
+
+    fn numeric() -> IdScheme {
+        IdScheme::numeric()
+    }
+
+    fn keyed() -> IdScheme {
+        IdScheme::new(
+            IdPattern::parse("{key}-{number:04d}")
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            IdKey::parse("PP").ok(),
+        )
+    }
 
     fn file(path: &str, content: &str) -> WorkItemFile {
         WorkItemFile {
@@ -202,15 +244,15 @@ mod tests {
             file("README.md", "# Work items\n"),
             file("notes.md", "---\ntitle: \"Notes\"\n---\n"),
         ];
-        assert_eq!(refuse_malformed(&files), Ok(()));
+        assert_eq!(refuse_malformed(&numeric(), &files), Ok(()));
     }
 
     #[test]
     fn an_item_whose_filename_names_another_id_is_malformed() {
-        let refused = refuse_malformed(&[file(
-            "0400-a.md",
-            "---\nid: \"PP-0400\"\n---\n",
-        )]);
+        let refused = refuse_malformed(
+            &numeric(),
+            &[file("0400-a.md", "---\nid: \"PP-0400\"\n---\n")],
+        );
         assert!(
             matches!(
                 &refused,
@@ -226,10 +268,10 @@ mod tests {
 
     #[test]
     fn an_item_without_a_slug_in_its_filename_is_malformed() {
-        let refusal = refuse_malformed(&[file(
-            "PP-0400.md",
-            "---\nid: \"PP-0400\"\n---\n",
-        )])
+        let refusal = refuse_malformed(
+            &numeric(),
+            &[file("PP-0400.md", "---\nid: \"PP-0400\"\n---\n")],
+        )
         .err()
         .unwrap_or_else(|| unreachable!("refused"))
         .relative_to(Path::new("/repo"));
@@ -254,10 +296,11 @@ mod tests {
             "---\naliases: [\"0400\"]\n---\n",
             "---\nexternal_id: \"ENG-7\"\n---\n",
         ] {
-            let refusal = refuse_malformed(&[file("PP-0400-a.md", content)])
-                .err()
-                .unwrap_or_else(|| unreachable!("refused"))
-                .relative_to(Path::new("/repo"));
+            let refusal =
+                refuse_malformed(&numeric(), &[file("PP-0400-a.md", content)])
+                    .err()
+                    .unwrap_or_else(|| unreachable!("refused"))
+                    .relative_to(Path::new("/repo"));
 
             assert_eq!(refusal.first().malformation(), &Malformation::NoId);
             assert_eq!(
@@ -271,11 +314,14 @@ mod tests {
 
     #[test]
     fn every_malformed_item_is_listed_in_path_order_with_its_fix() {
-        let refusal = refuse_malformed(&[
-            file("PP-0402.md", "---\nid: \"PP-0402\"\n---\n"),
-            file("PP-0401.md", "---\nid: \"PP-0401\"\n---\n"),
-            file("PP-0403-c.md", "---\naliases: [\"0403\"]\n---\n"),
-        ])
+        let refusal = refuse_malformed(
+            &numeric(),
+            &[
+                file("PP-0402.md", "---\nid: \"PP-0402\"\n---\n"),
+                file("PP-0401.md", "---\nid: \"PP-0401\"\n---\n"),
+                file("PP-0403-c.md", "---\naliases: [\"0403\"]\n---\n"),
+            ],
+        )
         .err()
         .unwrap_or_else(|| unreachable!("refused"))
         .relative_to(Path::new("/repo"));
@@ -297,12 +343,38 @@ mod tests {
     }
 
     #[test]
+    fn a_filename_the_scheme_reads_as_the_items_id_is_well_formed() {
+        let files = [
+            file("PP-42-short.md", "---\nid: \"PP-0042\"\n---\n"),
+            file("0043-legacy.md", "---\nid: \"PP-0043\"\n---\n"),
+        ];
+        assert_eq!(refuse_malformed(&keyed(), &files), Ok(()));
+    }
+
+    #[test]
+    fn a_filename_the_scheme_reads_as_no_id_is_malformed() {
+        let refused = refuse_malformed(
+            &keyed(),
+            &[file("notes-a.md", "---\nid: \"PP-0001\"\n---\n")],
+        );
+        assert!(
+            matches!(
+                &refused,
+                Err(refusal)
+                    if refusal.first().malformation()
+                        == &Malformation::NoSlug { id: "PP-0001".to_owned() }
+            ),
+            "{refused:?}"
+        );
+    }
+
+    #[test]
     fn a_filename_naming_its_id_in_another_case_is_well_formed() {
         assert_eq!(
-            refuse_malformed(&[file(
-                "pp-0001-a.md",
-                "---\nid: \"PP-0001\"\n---\n"
-            )]),
+            refuse_malformed(
+                &numeric(),
+                &[file("pp-0001-a.md", "---\nid: \"PP-0001\"\n---\n")]
+            ),
             Ok(())
         );
     }
