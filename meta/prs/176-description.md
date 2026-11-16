@@ -121,8 +121,9 @@ refine loop that the build verbs left open.
 - **Permission prompts after a reply:** until Claude Code keeps a skill's
   grant across a reply (0330), the commands `ask` and `report` run after the
   user answers prompt for permission and are denied headless. The eval
-  pre-grants `Bash(accelerator corpus *)` and `Bash(accelerator research
-  topic *)`; the CHANGELOG tells users to do the same.
+  passes the skill's own declared grant (less the `research fetch` rule
+  neither verb runs) as `--allowedTools`; the CHANGELOG tells users to add
+  the three rules that cover the post-reply commands.
 - The eval is deliberately outside `check`, `default` and `test`
   (`test_mise.py` pins this): it needs the `claude` CLI, network and model
   usage.

@@ -593,9 +593,21 @@ by its slug, its directory, or a path inside it.
 until your next reply. `ask` and `report` derive metadata and validate what
 they write after you confirm a research proposal or accept a report, and
 `report` also runs `research topic counts` then, so those commands prompt for
-permission, and a headless session denies them. Add
-`Bash(accelerator corpus *)` and `Bash(accelerator research topic *)` to your
-Claude Code allow rules to avoid the prompt.
+permission, and a headless session denies them. Add the three rules the skill
+itself grants for that work to your project's allow rules to avoid the
+prompt:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(accelerator corpus metadata derive)",
+      "Bash(accelerator corpus frontmatter validate *)",
+      "Bash(accelerator research topic *)"
+    ]
+  }
+}
+```
 
 ### `research topic outstanding`
 
@@ -881,8 +893,9 @@ It prints one of:
 absolute paths of the findings `counts` counts and of the reports it counts,
 as `outstanding` prints its paths. `mismatches` reads as `counts` prints it,
 and each `held_back` item's `reasons` read as `outstanding`'s
-`skipped[].reason`. The command reads `synthesis.md` and `findings/` only past
-the status gate, and the outline and profiles only past the freshness gate.
+`skipped[].reason`. The command reads `synthesis.md`, `findings/` and
+`reports/` only past the status gate, and the outline and profiles only past
+the freshness gate.
 It reads no concurrency, depth or search cap, so a bad
 `research.topic.concurrency` never refuses it.
 

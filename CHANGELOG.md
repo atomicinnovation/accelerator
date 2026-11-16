@@ -652,7 +652,8 @@
 - **`accelerator research topic report-path SLUG QUESTION`** prints the
   absolute path a new report on the question takes:
   `reports/<question-slug>.md`, cut before the word that would pass 60
-  characters, or the first free `-2`, `-3`, … suffix. It writes nothing,
+  characters. When that name is taken, it appends the first free `-2`,
+  `-3`, … suffix to the cut slug. It writes nothing,
   and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
   question.
 - **`accelerator research topic counts SLUG`** prints the round, finding and
@@ -667,9 +668,11 @@
   coverage as `answered`, `partial` or `unanswered`, naming the sources and
   tiers behind each part, and for a partial or unanswered question proposes a
   new outline round, which it appends and reopens the set for only on
-  confirmation. Until Claude Code keeps a skill's grant across a reply, the
-  commands `ask` runs after a reply prompt for permission, and are denied in
-  a headless session; adding `Bash(accelerator corpus *)` and
+  confirmation. Claude Code keeps a skill's grant only until your next
+  reply, so the commands `ask` runs after one ask for permission, and a
+  headless session denies them. Adding
+  `Bash(accelerator corpus metadata derive)`,
+  `Bash(accelerator corpus frontmatter validate *)` and
   `Bash(accelerator research topic *)` to your allow rules avoids that.
 - **research-topic grants a `Read` of the citing-once rule**, scoped to its
   directory in the plugin, so `synthesise`, `ask` and `report` read the rule
@@ -685,9 +688,9 @@
   manifest's `report_count`. It lists any existing report asking the same
   thing, so you can rewrite that one in place instead, and a reply that
   chooses an option may also name relationships for the report's
-  `relates_to`. As for `ask`, the commands it runs after a reply prompt for
-  permission until Claude Code keeps a skill's grant across a reply, and are
-  denied in a headless session; the same two allow rules avoid that.
+  `relates_to`. As with `ask`, the commands it runs after a reply ask for
+  permission, and a headless session denies them; the same three allow rules
+  avoid that.
 
 ### Changed
 
