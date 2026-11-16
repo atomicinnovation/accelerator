@@ -1854,7 +1854,7 @@ pub fn research::topic::consultation::HeldBackItem::fmt(&self, f: &mut core::fmt
 impl core::marker::StructuralPartialEq for research::topic::consultation::HeldBackItem
 pub mod research::topic::counts
 pub enum research::topic::counts::CountField
-pub research::topic::counts::CountField::Manifest(research::topic::counts::ManifestCount)
+pub research::topic::counts::CountField::Manifest(research::topic::counts::FreshnessCount)
 pub research::topic::counts::CountField::RoundsCovered
 impl research::topic::counts::CountField
 pub const fn research::topic::counts::CountField::document(self) -> &'static str
@@ -1868,25 +1868,25 @@ impl core::fmt::Debug for research::topic::counts::CountField
 pub fn research::topic::counts::CountField::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::topic::counts::CountField
 impl core::marker::StructuralPartialEq for research::topic::counts::CountField
-pub enum research::topic::counts::ManifestCount
-pub research::topic::counts::ManifestCount::FindingCount
-pub research::topic::counts::ManifestCount::RoundCount
-impl core::clone::Clone for research::topic::counts::ManifestCount
-pub fn research::topic::counts::ManifestCount::clone(&self) -> research::topic::counts::ManifestCount
-impl core::cmp::Eq for research::topic::counts::ManifestCount
-impl core::cmp::PartialEq for research::topic::counts::ManifestCount
-pub fn research::topic::counts::ManifestCount::eq(&self, other: &research::topic::counts::ManifestCount) -> bool
-impl core::fmt::Debug for research::topic::counts::ManifestCount
-pub fn research::topic::counts::ManifestCount::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::topic::counts::ManifestCount
-impl core::marker::StructuralPartialEq for research::topic::counts::ManifestCount
+pub enum research::topic::counts::FreshnessCount
+pub research::topic::counts::FreshnessCount::FindingCount
+pub research::topic::counts::FreshnessCount::RoundCount
+impl core::clone::Clone for research::topic::counts::FreshnessCount
+pub fn research::topic::counts::FreshnessCount::clone(&self) -> research::topic::counts::FreshnessCount
+impl core::cmp::Eq for research::topic::counts::FreshnessCount
+impl core::cmp::PartialEq for research::topic::counts::FreshnessCount
+pub fn research::topic::counts::FreshnessCount::eq(&self, other: &research::topic::counts::FreshnessCount) -> bool
+impl core::fmt::Debug for research::topic::counts::FreshnessCount
+pub fn research::topic::counts::FreshnessCount::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::counts::FreshnessCount
+impl core::marker::StructuralPartialEq for research::topic::counts::FreshnessCount
 pub enum research::topic::counts::Mismatch
 pub research::topic::counts::Mismatch::Disagrees
-pub research::topic::counts::Mismatch::Disagrees::count: research::topic::counts::ManifestCount
+pub research::topic::counts::Mismatch::Disagrees::count: research::topic::counts::FreshnessCount
 pub research::topic::counts::Mismatch::Disagrees::derived: u32
 pub research::topic::counts::Mismatch::Disagrees::stored: u32
 pub research::topic::counts::Mismatch::Missing
-pub research::topic::counts::Mismatch::Missing::count: research::topic::counts::ManifestCount
+pub research::topic::counts::Mismatch::Missing::count: research::topic::counts::FreshnessCount
 pub research::topic::counts::Mismatch::UncoveredRound
 pub research::topic::counts::Mismatch::UncoveredRound::covered: u32
 pub research::topic::counts::Mismatch::UncoveredRound::derived: u32

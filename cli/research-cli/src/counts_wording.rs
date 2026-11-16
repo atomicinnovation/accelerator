@@ -2,7 +2,7 @@
 //! `report`.
 
 use research::topic::counts::CountField;
-use research::topic::counts::ManifestCount;
+use research::topic::counts::FreshnessCount;
 use research::topic::counts::Mismatch;
 
 pub fn mismatch(mismatch: &Mismatch) -> String {
@@ -18,7 +18,7 @@ pub fn mismatch(mismatch: &Mismatch) -> String {
             raw.escape_debug()
         ),
         Mismatch::Disagrees {
-            count: ManifestCount::RoundCount,
+            count: FreshnessCount::RoundCount,
             stored,
             derived,
         } => format!(
@@ -26,7 +26,7 @@ pub fn mismatch(mismatch: &Mismatch) -> String {
              round {derived}"
         ),
         Mismatch::Disagrees {
-            count: ManifestCount::FindingCount,
+            count: FreshnessCount::FindingCount,
             stored,
             derived,
         } => format!(
