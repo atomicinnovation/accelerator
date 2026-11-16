@@ -5,7 +5,7 @@ from invoke import Context
 from invoke.exceptions import Exit
 
 import tasks.eval as evals
-from tasks.eval.ask_and_report import runs, startup
+from tasks.eval.ask_and_report import orchestration, runs, startup
 from tasks.eval.headless.transcript import Init, Result
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -146,11 +146,11 @@ class Gates:
         self.reached: list[str] = []
         self.refuse_at = refuse_at
         for gate, module, name in (
-            ("marker", evals, "require_dev_launcher_marker"),
-            ("version", evals, "claude_version"),
-            ("preflight", evals, "preflight_problems"),
-            ("probe", evals, "authentication_refusal"),
-            ("plan", evals.ask_and_report_runs, "plan_sessions"),
+            ("marker", orchestration, "require_dev_launcher_marker"),
+            ("version", orchestration, "claude_version"),
+            ("preflight", orchestration, "preflight_problems"),
+            ("probe", orchestration, "authentication_refusal"),
+            ("plan", orchestration.ask_and_report_runs, "plan_sessions"),
         ):
             monkeypatch.setattr(module, name, self._gate(gate))
 
