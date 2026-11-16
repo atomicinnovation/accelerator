@@ -92,14 +92,14 @@ pub struct StoredCounts {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ManifestCount {
+pub enum FreshnessCount {
     RoundCount,
     FindingCount,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CountField {
-    Manifest(ManifestCount),
+    Manifest(FreshnessCount),
     RoundsCovered,
 }
 
@@ -107,8 +107,8 @@ impl CountField {
     #[must_use]
     pub const fn key(self) -> &'static str {
         match self {
-            Self::Manifest(ManifestCount::RoundCount) => "round_count",
-            Self::Manifest(ManifestCount::FindingCount) => "finding_count",
+            Self::Manifest(FreshnessCount::RoundCount) => "round_count",
+            Self::Manifest(FreshnessCount::FindingCount) => "finding_count",
             Self::RoundsCovered => "rounds_covered",
         }
     }
@@ -125,14 +125,14 @@ impl CountField {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mismatch {
     Missing {
-        count: ManifestCount,
+        count: FreshnessCount,
     },
     Unreadable {
         field: CountField,
         raw: String,
     },
     Disagrees {
-        count: ManifestCount,
+        count: FreshnessCount,
         stored: u32,
         derived: u32,
     },
@@ -152,12 +152,12 @@ impl Freshness {
     pub fn assess(stored: &StoredCounts, findings: &CountedFindings) -> Self {
         let mismatches = [
             compare(
-                ManifestCount::RoundCount,
+                FreshnessCount::RoundCount,
                 &stored.round_count,
                 findings.round_count(),
             ),
             compare(
-                ManifestCount::FindingCount,
+                FreshnessCount::FindingCount,
                 &stored.finding_count,
                 findings.finding_count(),
             ),
@@ -176,7 +176,7 @@ impl Freshness {
 }
 
 fn compare(
-    count: ManifestCount,
+    count: FreshnessCount,
     stored: &StoredCount,
     derived: u32,
 ) -> Option<Mismatch> {
@@ -232,7 +232,7 @@ mod tests {
     use super::CountedFindings;
     use super::CountedReports;
     use super::Freshness;
-    use super::ManifestCount;
+    use super::FreshnessCount;
     use super::Mismatch;
     use super::StoredCount;
     use super::StoredCounts;
@@ -376,12 +376,12 @@ mod tests {
             freshness.mismatches,
             [
                 Mismatch::Disagrees {
-                    count: ManifestCount::RoundCount,
+                    count: FreshnessCount::RoundCount,
                     stored: 3,
                     derived: 2,
                 },
                 Mismatch::Disagrees {
-                    count: ManifestCount::FindingCount,
+                    count: FreshnessCount::FindingCount,
                     stored: 9,
                     derived: 2,
                 },
@@ -408,11 +408,11 @@ mod tests {
             freshness.mismatches,
             [
                 Mismatch::Unreadable {
-                    field: CountField::Manifest(ManifestCount::RoundCount),
+                    field: CountField::Manifest(FreshnessCount::RoundCount),
                     raw: "2".to_owned(),
                 },
                 Mismatch::Missing {
-                    count: ManifestCount::FindingCount,
+                    count: FreshnessCount::FindingCount,
                 },
             ]
         );

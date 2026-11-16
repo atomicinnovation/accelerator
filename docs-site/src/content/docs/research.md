@@ -818,8 +818,9 @@ It prints JSON beside the values the set records:
 bare or quoted, or `null` when it is missing or not a whole number. The set
 is `fresh` when the manifest's round and finding counts equal `derived` and
 `rounds_covered` reaches the derived round; a missing `rounds_covered`
-covers round 0. `report_count` never bears on freshness. Each disagreement
-is one sentence in `mismatches`:
+covers round 0. `report_count` never bears on freshness: the stored value
+is informational, so read `derived.report_count` for how many reports a set
+holds. Each disagreement is one sentence in `mismatches`:
 
 | Mismatch | Sentence |
 |---|---|

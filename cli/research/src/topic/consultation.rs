@@ -130,7 +130,7 @@ mod tests {
     use crate::topic::counts::CountedFindings;
     use crate::topic::counts::CountedReports;
     use crate::topic::counts::CountsReading;
-    use crate::topic::counts::ManifestCount;
+    use crate::topic::counts::FreshnessCount;
     use crate::topic::counts::Mismatch;
     use crate::topic::counts::StoredCount;
     use crate::topic::counts::StoredCounts;
@@ -265,7 +265,7 @@ mod tests {
             judged("synthesised", stale(), with_unanswered_pair(plan(false))),
             Ok(Consultation::Refused(Refusal::Freshness {
                 mismatches: vec![Mismatch::Disagrees {
-                    count: ManifestCount::FindingCount,
+                    count: FreshnessCount::FindingCount,
                     stored: 9,
                     derived: 2,
                 }],
