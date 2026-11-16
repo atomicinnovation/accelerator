@@ -153,33 +153,29 @@ pub fn refuse_divergence(
     scheme: &IdScheme,
     items: &[ItemIdentity],
 ) -> Result<(), RekeyRequired> {
-    let mut off_pattern: Vec<OffPatternItem> = items
+    let mut diverged: Vec<&ItemIdentity> = items
         .iter()
         .filter(|identity| !is_converged(identity, scheme))
-        .map(|identity| OffPatternItem {
-            path: identity.path.clone(),
-            id: identity.id.clone(),
-        })
         .collect();
-    if off_pattern.is_empty() {
+    if diverged.is_empty() {
         return Ok(());
     }
-    off_pattern.sort_by(|left, right| left.path.cmp(&right.path));
-    let unclassifiable = items
-        .iter()
-        .filter(|identity| !is_converged(identity, scheme))
-        .filter_map(|identity| {
-            why_unclassifiable(identity, scheme).map(|cause| {
-                UnclassifiableItem {
-                    path: identity.path.clone(),
-                    cause,
-                }
-            })
+    diverged.sort_by(|left, right| left.path.cmp(&right.path));
+    let unclassifiable = diverged.iter().find_map(|identity| {
+        why_unclassifiable(identity, scheme).map(|cause| UnclassifiableItem {
+            path: identity.path.clone(),
+            cause,
         })
-        .min_by(|left, right| left.path.cmp(&right.path));
+    });
     Err(RekeyRequired {
         pattern: scheme.pattern().as_str().to_owned(),
-        off_pattern,
+        off_pattern: diverged
+            .into_iter()
+            .map(|identity| OffPatternItem {
+                path: identity.path.clone(),
+                id: identity.id.clone(),
+            })
+            .collect(),
         unclassifiable,
     })
 }
