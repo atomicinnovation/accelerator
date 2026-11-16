@@ -5,11 +5,11 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::convergence::is_converged;
 use crate::id_pattern::escaped;
 use crate::id_pattern::IdKey;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
-use crate::rekey::convergence::is_converged;
 use crate::rekey::sequence::is_in_target_shape;
 
 /// The keys whose items a re-key moves onto `work.key`.

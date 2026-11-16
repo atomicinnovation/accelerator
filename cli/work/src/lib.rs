@@ -3,6 +3,7 @@
 //! template-hint parsing, own-identity, and raw field reads. No filesystem,
 //! no subprocess, no regex — those live in the adapter/binary layers.
 
+pub mod convergence;
 pub mod corpus_trust;
 pub mod create;
 pub mod create_batch;

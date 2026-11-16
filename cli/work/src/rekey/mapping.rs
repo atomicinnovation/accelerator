@@ -379,10 +379,10 @@ mod tests {
 
     use super::numeric_mapping;
     use super::RekeyCandidate;
+    use crate::convergence::is_converged;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
     use crate::id_scheme::IdScheme;
-    use crate::rekey::convergence::is_converged;
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
@@ -844,13 +844,13 @@ mod tests {
         use super::candidate;
         use super::path_of;
         use super::RekeyCandidate;
+        use crate::convergence::is_converged;
         use crate::draft_id::DraftId;
         use crate::draft_id::SuffixDraws;
         use crate::draft_id::ALPHABET;
         use crate::id_pattern::IdPattern;
         use crate::id_scheme::IdScheme;
         use crate::id_scheme::TRACKER_TOKEN;
-        use crate::rekey::convergence::is_converged;
         use crate::rekey::entry::RekeyEntry;
         use crate::rekey::entry::RekeyTarget;
         use crate::rekey::mapping::keys_to_refresh;

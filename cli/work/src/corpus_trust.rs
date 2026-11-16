@@ -5,9 +5,9 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::path::Path;
 
+use crate::convergence::refuse_divergence;
+use crate::convergence::RekeyRequired;
 use crate::id_scheme::IdScheme;
-use crate::rekey::convergence::refuse_divergence;
-use crate::rekey::convergence::RekeyRequired;
 use crate::well_formed::refuse_malformed;
 use crate::well_formed::MalformedItems;
 use crate::work_item_files::identities;
