@@ -188,7 +188,7 @@
   Scripts that parse `work sync` exit codes need updating.
 - **A corpus off the configured pattern must be re-keyed before `work`
   reads or writes IDs.** `work create`, `create-batch`, `id next`,
-  `id check`, `list`, `resolve` and `promote` refuse with the new
+  `id check`, `resolve` and `promote` refuse with the new
   `E_REKEY_REQUIRED` (exit 4), writing nothing, while any item's `id` is not
   in `work.id_pattern`'s shape (its exact width, under any key, in any
   case), or, under `{tracker}`, is neither a draft nor its issue's key. This
@@ -196,7 +196,8 @@
   which was absorbed before, and a switch to `{tracker}`, after which
   earlier items kept their IDs. Run `/rekey-work-items` after changing the
   pattern; the refusal names a fix by hand first for an item re-key cannot
-  read. `work sync`, `work rekey` and `work id canonicalise` still run. A
+  read. `work sync`, `work rekey` and `work id canonicalise` still run, and
+  `work list` lists the corpus with the refusal as a warning. A
   reference written under an earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
@@ -1149,7 +1150,8 @@
 ### Migrations
 
 - **After upgrading, check the work items with `accelerator work list`.**
-  A corpus an earlier release accepted is refused when an item's `id` is
+  It lists them and warns when the corpus would be refused. A corpus an
+  earlier release accepted is refused when an item's `id` is
   off `work.id_pattern`, such as after a width-only change, a switch to
   `{tracker}`, a skipped migration 0002 that left `id` fields, or an
   unpadded legacy `id`, and when a file's IDs cannot be read. On

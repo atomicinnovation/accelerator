@@ -92,10 +92,11 @@ renaming files and rewriting references across `meta/`; the old ID joins
 key; the preview names items under keys other than `work.key` and asks
 which keys' items to move onto it, as after `work.key` changes. Until
 every item is in the pattern's shape, `work create`, `create-batch`,
-`id next`, `id check`, `list`, `resolve` and `promote` refuse with
+`id next`, `id check`, `resolve` and `promote` refuse with
 `E_REKEY_REQUIRED`, and a file whose IDs cannot be read, such as a
 slugless `0400.md`, with `E_WORK_ITEM_MALFORMED`; each names its fix.
-`work sync` and `work rekey` still run, so the way out stays open.
+`work sync` and `work rekey` still run, so the way out stays open, and
+`work list` lists the items with the refusal as a warning.
 
 Work items share a template with YAML frontmatter (`work_item_id`,
 `title`, `type`, `status`, `priority`, `parent`, `tags`) and structured

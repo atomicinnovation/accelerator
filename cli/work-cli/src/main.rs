@@ -462,10 +462,6 @@ fn run_list(args: &cli::ListArgs) -> ExitCode {
             eprintln!("{message}");
             ExitCode::FAILURE
         }
-        list::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
     }
 }
 

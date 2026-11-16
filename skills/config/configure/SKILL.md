@@ -728,9 +728,9 @@ its `aliases`. Two rules apply: `{tracker}` must be the only token in
 `work.id_pattern`, and `work.integration` must be `jira` or `linear`.
 `work.key` and `--project` are unused under it. Items created earlier
 must be re-keyed with `/rekey-work-items`: until then `work create`,
-`create-batch`, `id next`, `id check`, `list`, `resolve` and `promote`
-refuse with `E_REKEY_REQUIRED`, while `work sync` and `work rekey` still
-run. It needs Accelerator 1.24.0 or later; upgrade every
+`create-batch`, `id next`, `id check`, `resolve` and `promote` refuse
+with `E_REKEY_REQUIRED`, while `work sync` and `work rekey` still run and
+`work list` warns. It needs Accelerator 1.24.0 or later; upgrade every
 teammate before switching a shared config, since an older version cannot
 read the pattern.
 
@@ -804,12 +804,13 @@ internally and does not link out to an external tracker. Pick
 Any change to the pattern, a width change (`{number:04d}` →
 `{number:05d}`) included, needs a re-key: until every item's `id` is in
 the new pattern's exact shape, each `work` command that reads or writes
-IDs (`create`, `create-batch`, `id next`, `id check`, `list`, `resolve`
-and `promote`) refuses with `E_REKEY_REQUIRED`, naming an item to
+IDs (`create`, `create-batch`, `id next`, `id check`, `resolve` and
+`promote`) refuses with `E_REKEY_REQUIRED`, naming an item to
 converge. A work-item file whose IDs cannot be read, such as a slugless
 `0400.md`, is refused by the same commands with `E_WORK_ITEM_MALFORMED`,
 naming the fix. Run `/rekey-work-items` after changing the pattern. `work
-sync`, `work rekey` and `work id canonicalise` still run. A reference
+sync`, `work rekey` and `work id canonicalise` still run, and `work
+list` lists the items with the refusal as a warning. A reference
 written under the earlier pattern joins nothing until re-keyed.
 
 Changing the structural shape (default → `{project}-{number:04d}`,

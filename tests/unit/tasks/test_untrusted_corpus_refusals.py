@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 REFUSING_COMMAND = re.compile(
-    r"\baccelerator work (?:resolve|list|create|create-batch|promote"
+    r"\baccelerator work (?:resolve|create|create-batch|promote"
     r"|id next|id check)\b"
 )
 CODES = ("E_REKEY_REQUIRED", "E_WORK_ITEM_MALFORMED")

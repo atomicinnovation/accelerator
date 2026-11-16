@@ -186,8 +186,8 @@
 //! nothing: a deliberate exception to its save-intent contract, as plain
 //! `work create` refuses.
 //!
-//! `create`, `create-batch`, `id next`, `id check`, `list`, `resolve` and
-//! `promote` refuse with `E_REKEY_REQUIRED` (`4`), writing nothing, while
+//! `create`, `create-batch`, `id next`, `id check`, `resolve` and `promote`
+//! refuse with `E_REKEY_REQUIRED` (`4`), writing nothing, while
 //! any item's `id` is not in the configured pattern's exact shape, under any
 //! key, or under `{tracker}` is neither a draft nor its issue's key; the
 //! refusal names one such item and points to `work rekey`. They refuse
@@ -195,7 +195,8 @@
 //! does not start with its `id` and a slug, or that names an ID in
 //! `aliases` or `external_id` with no `id`. `sync`, `rekey`
 //! and `id canonicalise` do not refuse, since only they clear what keeps a
-//! re-key from running or read no corpus.
+//! re-key from running or read no corpus. `list` prints either refusal as a
+//! warning and lists the corpus, so a user can see what to fix.
 //!
 //! `work create --id` refuses an ID it cannot write under, after the
 //! identity-run, config and corpus refusals above, writing nothing and

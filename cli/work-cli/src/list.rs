@@ -32,8 +32,7 @@ use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::corpus_trust::refuse_untrusted_corpus;
-use crate::corpus_trust::Untrusted;
+use work_adapters::corpus_trust::refuse_untrusted_under;
 use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
@@ -582,20 +581,20 @@ pub fn run(
             message: missing_directory_message(&work_dir),
         };
     }
-    if let Err(Untrusted { message, code }) =
-        refuse_untrusted_corpus(&scheme, &root, &work_dir)
-    {
-        return RunOutcome::Refused { message, code };
-    }
+    let untrusted = refuse_untrusted_under(&scheme, &work_dir)
+        .err()
+        .map(|refusal| format!("warning: {}", refusal.relative_to(&root)));
 
     let scan_result = match scan(&work_dir) {
         Ok(scan_result) => scan_result,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
+    let warnings: Vec<String> =
+        untrusted.into_iter().chain(scan_result.warnings).collect();
     if scan_result.items.is_empty() {
         return RunOutcome::EmptyDirectory {
             message: empty_directory_message(&work_dir),
-            warnings: scan_result.warnings,
+            warnings,
         };
     }
 
@@ -617,10 +616,7 @@ pub fn run(
         args.hierarchy,
         &scheme,
     );
-    RunOutcome::Rendered {
-        output,
-        warnings: scan_result.warnings,
-    }
+    RunOutcome::Rendered { output, warnings }
 }
 
 fn is_draft(item: &ScannedItem) -> bool {
@@ -688,10 +684,6 @@ pub enum RunOutcome {
         message: String,
     },
     Failed(String),
-    Refused {
-        message: String,
-        code: u8,
-    },
 }
 
 #[cfg(test)]

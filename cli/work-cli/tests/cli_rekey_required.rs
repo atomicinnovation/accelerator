@@ -90,7 +90,6 @@ fn every_id_command_refuses_a_diverged_corpus() -> Result<(), TestError> {
         ],
         &["id", "next"],
         &["id", "check", "PP_0400"],
-        &["list"],
         &["resolve", "PP_0001"],
         &["promote", "draft-k7mq3x"],
     ];
@@ -112,6 +111,48 @@ fn every_id_command_refuses_a_diverged_corpus() -> Result<(), TestError> {
         );
         assert_eq!(work_files(repo.path()), before, "{args:?}");
     }
+    Ok(())
+}
+
+#[test]
+fn list_warns_over_a_diverged_corpus_and_still_lists_it(
+) -> Result<(), TestError> {
+    let repo = diverged_repo()?;
+
+    let output = run(repo.path(), &["list"])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains(&format!(
+            "warning: E_REKEY_REQUIRED: 1 work item is not under the ID \
+             `work.id_pattern` '{{key}}_{{number:04d}}' gives them, such as \
+             {OFF_PATTERN_ITEM} with `id` 'PP-0001'."
+        )),
+        "{stderr}"
+    );
+    assert!(String::from_utf8(output.stdout)?.contains("PP-0001"));
+    Ok(())
+}
+
+#[test]
+fn list_warns_over_a_malformed_item_and_still_lists_the_rest(
+) -> Result<(), TestError> {
+    let repo = diverged_repo()?;
+    fs::remove_file(repo.path().join(OFF_PATTERN_ITEM))?;
+    fs::write(
+        repo.path().join("meta/work/PP_0001.md"),
+        "---\nid: \"PP_0001\"\ntitle: \"Slugless\"\n---\n",
+    )?;
+
+    let output = run(repo.path(), &["list"])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("warning: E_WORK_ITEM_MALFORMED: meta/work/PP_0001.md"),
+        "{stderr}"
+    );
     Ok(())
 }
 
@@ -169,7 +210,6 @@ fn every_id_command_refuses_a_malformed_item() -> Result<(), TestError> {
         &["create", "Fresh item", "task", "medium"],
         &["id", "next"],
         &["id", "check", "PP_0400"],
-        &["list"],
         &["resolve", "PP_0001"],
     ];
     for args in commands {
