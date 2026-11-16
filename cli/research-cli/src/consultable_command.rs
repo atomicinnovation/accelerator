@@ -59,11 +59,17 @@ fn rendered(verdict: &Consultation, set_root: &Path) -> Value {
         set_root.join(relative).to_string_lossy().into_owned()
     };
     match verdict {
-        Consultation::Open(documents) => json!({
-            "consultable": true,
-            "findings": documents.findings.iter().map(absolute).collect::<Vec<_>>(),
-            "reports": documents.reports.iter().map(absolute).collect::<Vec<_>>(),
-        }),
+        Consultation::Open(documents) => {
+            let findings: Vec<_> =
+                documents.findings.iter().map(absolute).collect();
+            let reports: Vec<_> =
+                documents.reports.iter().map(absolute).collect();
+            json!({
+                "consultable": true,
+                "findings": findings,
+                "reports": reports,
+            })
+        }
         Consultation::Refused(Refusal::Status { status }) => json!({
             "consultable": false,
             "gate": "status",
