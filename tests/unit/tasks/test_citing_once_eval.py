@@ -426,3 +426,25 @@ def test_the_citing_once_task_checks_the_marker_first(
         evals.citing_once(Context())
 
     assert planned == []
+
+
+def test_a_citing_once_re_check_needs_no_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import tasks.eval as evals
+
+    checked: list[Path] = []
+    planned: list[object] = []
+
+    monkeypatch.setattr(evals, "require_dev_launcher_marker", checked.append)
+    monkeypatch.setattr(
+        evals,
+        "plan_sessions",
+        lambda *args: planned.append(args) or [],
+    )
+    monkeypatch.setattr(evals, "run_eval", lambda *args: [])
+
+    evals.citing_once(Context(), out=str(tmp_path), check_only=True)
+
+    assert checked == []
+    assert planned
