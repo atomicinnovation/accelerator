@@ -8,9 +8,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from tasks.eval.ask_and_report.conversation import RULE, opening_turn
+from tasks.eval.ask_and_report.conversation import opening_turn
 from tasks.eval.ask_and_report.projects import build_project
 from tasks.eval.ask_and_report.scenarios import Setup
+from tasks.eval.documents.rule import RULE
 from tasks.eval.headless.claude import prepare_repository, run_session
 from tasks.eval.headless.transcript import Event, Result, events
 

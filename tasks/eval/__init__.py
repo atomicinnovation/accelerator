@@ -22,8 +22,7 @@ from tasks.eval.citing_once.runs import (
     sessions_on_disk,
     summary,
 )
-from tasks.eval.citing_once.sessions import RULE
-from tasks.eval.documents.rule import key_order
+from tasks.eval.documents.rule import RULE, key_order
 from tasks.eval.toolchain import (
     DEV_LAUNCHER_REMINDER,
     Toolchain,

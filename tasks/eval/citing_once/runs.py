@@ -14,7 +14,6 @@ from tasks.eval.citing_once.logs import (
 )
 from tasks.eval.citing_once.projects import Project, build_project
 from tasks.eval.citing_once.sessions import (
-    RULE,
     composer_prompt,
     session_command,
     synthesise_prompt,
@@ -25,7 +24,7 @@ from tasks.eval.citing_once.verdicts import (
     isolation_conflicts,
     predict,
 )
-from tasks.eval.documents.rule import key_order
+from tasks.eval.documents.rule import RULE, key_order
 from tasks.eval.documents.sources import parse_sources
 from tasks.eval.headless.claude import prepare_repository, run_session
 from tasks.eval.headless.transcript import tool_calls

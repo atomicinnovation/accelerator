@@ -17,7 +17,6 @@ from tasks.eval.headless.transcript import Event, events
 from tasks.eval.toolchain import Toolchain
 
 SKILL = "skills/research/research-topic/SKILL.md"
-RULE = "skills/research/outputters/citing-once/SKILL.md"
 UNUSED_GRANT = "Bash(accelerator research fetch *)"
 PLUGIN_ROOT = "${CLAUDE_PLUGIN_ROOT}"
 NOT_RUN = "not-run"

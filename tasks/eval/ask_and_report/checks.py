@@ -13,6 +13,7 @@ from pathlib import Path
 from tasks.eval.ask_and_report import formats
 from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.turns import TurnRecord, changed
+from tasks.eval.documents.rule import RULE
 from tasks.eval.headless.transcript import (
     Event,
     Init,
@@ -22,7 +23,6 @@ from tasks.eval.headless.transcript import (
     ToolResult,
 )
 
-RULE = "skills/research/outputters/citing-once/SKILL.md"
 RESEARCH_TOPIC = "accelerator:research-topic"
 CANARY = "Lanternfish"
 SPAWNS = frozenset({"Agent", "Task"})

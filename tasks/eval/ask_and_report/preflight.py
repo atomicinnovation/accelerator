@@ -26,7 +26,7 @@ from tasks.eval.ask_and_report.verdicts import (
     Sources,
     Writes,
 )
-from tasks.eval.documents.rule import cite_once, key_order
+from tasks.eval.documents.rule import RULE, cite_once, key_order
 from tasks.eval.documents.sources import Citation, parse_sources
 from tasks.eval.toolchain import Toolchain
 from tasks.shared.sources import repo_root
@@ -156,9 +156,6 @@ def setup_problems(setup: Setup, root: Path, toolchain: Toolchain) -> list[str]:
     if setup.skips:
         problems += _skip_problems(setup.skips, root, toolchain)
     return problems
-
-
-RULE = "skills/research/outputters/citing-once/SKILL.md"
 
 
 def _criteria(scenario: Scenario) -> list[Criterion]:
