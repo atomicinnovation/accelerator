@@ -95,7 +95,7 @@ mod tests {
     }
 
     fn keyed() -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse("{key}-{number:04d}")
                 .unwrap_or_else(|_| unreachable!()),
             IdKey::parse("PP").ok(),

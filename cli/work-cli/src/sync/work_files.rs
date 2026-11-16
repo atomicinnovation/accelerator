@@ -192,7 +192,7 @@ mod tests {
     use super::VcsConflicts;
 
     fn names(id_pattern: &str, key: Option<&str>) -> ConfiguredNames {
-        ConfiguredNames::for_scheme(&IdScheme::new(
+        ConfiguredNames::for_scheme(&IdScheme::under_any_tracker(
             IdPattern::parse(id_pattern).expect("the pattern parses"),
             key.map(|key| IdKey::parse(key).expect("the key parses")),
         ))

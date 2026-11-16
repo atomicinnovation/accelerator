@@ -273,7 +273,7 @@ mod tests {
     }
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.map(|key| {

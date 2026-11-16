@@ -503,7 +503,7 @@ mod tests {
     use crate::work_item_files::WorkItemListing;
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern).expect("a well-formed pattern"),
             key.map(|key| IdKey::parse(key).expect("a well-formed key")),
         )

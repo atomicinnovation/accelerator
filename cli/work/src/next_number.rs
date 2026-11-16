@@ -325,7 +325,7 @@ mod tests {
     }
 
     fn scheme(text: &str, configured: Option<&str>) -> IdScheme {
-        IdScheme::new(pattern(text), configured.map(key))
+        IdScheme::under_any_tracker(pattern(text), configured.map(key))
     }
 
     fn numeric() -> IdScheme {

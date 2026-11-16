@@ -90,7 +90,7 @@ use work_adapters::sync::settled_run::SettledRunFailure;
 
 static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
     std::sync::LazyLock::new(|| {
-        work::id_scheme::IdScheme::new(
+        work::id_scheme::IdScheme::under_any_tracker(
             work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             None,

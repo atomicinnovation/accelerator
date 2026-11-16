@@ -83,7 +83,7 @@ mod tests {
     use crate::work_item_files::WorkItemFile;
 
     fn scheme_of(pattern: &str, key: &str) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             IdKey::parse(key).ok(),

@@ -5267,7 +5267,7 @@ mod tests {
     }
 
     fn tracker_scheme() -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
                 .expect("the tracker pattern"),
             None,

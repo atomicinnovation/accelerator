@@ -736,7 +736,7 @@ async fn related_endpoint_validates_decoded_path_segments() {
 }
 
 fn pp_scheme() -> work::id_scheme::IdScheme {
-    work::id_scheme::IdScheme::new(
+    work::id_scheme::IdScheme::under_any_tracker(
         work::id_pattern::IdPattern::parse("{key}-{number:04d}").unwrap(),
         Some(work::id_pattern::IdKey::parse("PP").unwrap()),
     )

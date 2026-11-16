@@ -37,7 +37,7 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
 }
 
 fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-    IdScheme::new(
+    IdScheme::under_any_tracker(
         IdPattern::parse(pattern).unwrap(),
         key.map(|key| IdKey::parse(key).unwrap()),
     )

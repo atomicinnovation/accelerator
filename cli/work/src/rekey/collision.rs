@@ -118,7 +118,7 @@ mod tests {
     use crate::tracker_key::TrackerKey;
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.and_then(|key| IdKey::parse(key).ok()),

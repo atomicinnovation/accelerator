@@ -225,7 +225,7 @@ impl<'a> FileRunPlanStore<'a> {
             .map(|key| IdKey::parse(&key))
             .transpose()
             .map_err(|error| malformed(&error.to_string()))?;
-        let scheme = IdScheme::new(pattern, key);
+        let scheme = IdScheme::under_any_tracker(pattern, key);
         let items = array(value, "items")?
             .iter()
             .map(|item| {

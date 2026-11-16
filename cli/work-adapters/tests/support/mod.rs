@@ -581,7 +581,7 @@ pub fn entry_fragment(id: &str, entry: Entry) -> String {
 // "{key}" and "{number:04d}" are pattern tokens, not format args.
 #[allow(clippy::literal_string_with_formatting_args)]
 pub fn scheme() -> IdScheme {
-    IdScheme::new(
+    IdScheme::under_any_tracker(
         IdPattern::parse("{key}-{number:04d}")
             .unwrap_or_else(|error| unreachable!("{error}")),
         IdKey::parse("ACC").ok(),

@@ -2,7 +2,7 @@
 
 use migrate::ports::MigrationError;
 use migrate::ports::WorkItemIdentity;
-use work_adapters::config::scheme_from_settings;
+use work_adapters::config::scheme_from_settings_under_any_tracker;
 use work_adapters::config::KeySource;
 
 pub struct WorkIdentity;
@@ -18,10 +18,14 @@ impl WorkItemIdentity for WorkIdentity {
         pattern: &str,
         key: Option<&str>,
     ) -> Result<String, MigrationError> {
-        scheme_from_settings(pattern, key, KeySource::LegacyDefaultProjectCode)
-            .map_err(|error| failure(&error))?
-            .canonicalise(raw)
-            .map_err(|error| failure(&error))
+        scheme_from_settings_under_any_tracker(
+            pattern,
+            key,
+            KeySource::LegacyDefaultProjectCode,
+        )
+        .map_err(|error| failure(&error))?
+        .canonicalise(raw)
+        .map_err(|error| failure(&error))
     }
 }
 

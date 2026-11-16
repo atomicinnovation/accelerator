@@ -400,7 +400,7 @@ fn two_dirty_pulls_in_one_run_each_keep_their_copy() {
 #[test]
 fn a_hyphenated_id_is_recovered_from_its_directory_name() {
     let mut repo = Repo::new();
-    repo.scheme = IdScheme::new(
+    repo.scheme = IdScheme::under_any_tracker(
         work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
             .expect("the tracker pattern"),
         None,

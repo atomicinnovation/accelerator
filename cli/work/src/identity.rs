@@ -214,7 +214,7 @@ mod tests {
 
     #[allow(clippy::literal_string_with_formatting_args)]
     fn keyed() -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse("{key}-{number:04d}")
                 .unwrap_or_else(|error| unreachable!("{error}")),
             IdKey::parse("PP").ok(),

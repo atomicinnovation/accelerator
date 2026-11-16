@@ -196,7 +196,7 @@ mod tests {
     use crate::identity::ItemIdentity;
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern).unwrap_or_else(|_| unreachable!()),
             key.map(|key| IdKey::parse(key).unwrap_or_else(|_| unreachable!())),
         )

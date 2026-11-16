@@ -306,7 +306,7 @@ mod tests {
         assert!(!is_token_safe(&scheme, "1"));
         assert!(!is_token_safe(&scheme, ""));
 
-        let keyed = IdScheme::new(
+        let keyed = IdScheme::under_any_tracker(
             crate::id_pattern::IdPattern::parse("{key}-{number:04d}")
                 .expect("a well-formed pattern"),
             crate::id_pattern::IdKey::parse("PP").ok(),
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn an_id_converged_in_another_literal_case_is_token_safe() {
-        let scheme = IdScheme::new(
+        let scheme = IdScheme::under_any_tracker(
             crate::id_pattern::IdPattern::parse("v{number:03d}")
                 .expect("a well-formed pattern"),
             None,
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn a_tracker_key_and_a_draft_are_token_safe_where_the_tracker_owns_ids() {
-        let scheme = IdScheme::new(
+        let scheme = IdScheme::under_any_tracker(
             crate::id_pattern::IdPattern::parse(
                 crate::id_scheme::TRACKER_TOKEN,
             )

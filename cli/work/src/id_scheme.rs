@@ -175,9 +175,10 @@ pub struct IdScheme {
 
 impl IdScheme {
     /// The scheme of `pattern`, holding `key` only when the pattern has a
-    /// key token, and reading any supported tracker's keys.
+    /// key token, and reading any supported tracker's keys, for a caller
+    /// that reads no integration.
     #[must_use]
-    pub fn new(pattern: IdPattern, key: Option<IdKey>) -> Self {
+    pub fn under_any_tracker(pattern: IdPattern, key: Option<IdKey>) -> Self {
         Self::under_tracker(pattern, key, TrackerKeys::AnySupported)
     }
 
@@ -216,7 +217,7 @@ impl IdScheme {
     pub fn numeric() -> Self {
         let pattern = IdPattern::parse("{number:04d}")
             .unwrap_or_else(|_| unreachable!("the default pattern parses"));
-        Self::new(pattern, None)
+        Self::under_any_tracker(pattern, None)
     }
 
     #[must_use]
@@ -421,7 +422,7 @@ mod tests {
     use tracker::TrackerKeys;
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern).unwrap(),
             key.map(|key| IdKey::parse(key).unwrap()),
         )

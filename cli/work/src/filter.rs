@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn a_parent_filter_ignores_key_case_and_padding() {
-        let keyed = IdScheme::new(
+        let keyed = IdScheme::under_any_tracker(
             IdPattern::parse("{key}-{number:04d}")
                 .unwrap_or_else(|error| unreachable!("{error}")),
             IdKey::parse("PP").ok(),

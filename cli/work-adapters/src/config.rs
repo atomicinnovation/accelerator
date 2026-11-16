@@ -146,22 +146,29 @@ fn configured(
         .configured_value())
 }
 
-/// The scheme `pattern` and `key` give, with a key read only when the
-/// pattern has a key token and named by `source` when it is malformed.
+/// [`scheme_from_settings`] reading any supported tracker's keys, for a
+/// caller that reads no integration, such as a migration.
+///
+/// # Errors
+///
+/// As [`scheme_from_settings`].
+pub fn scheme_from_settings_under_any_tracker(
+    pattern: &str,
+    key: Option<&str>,
+    source: KeySource,
+) -> Result<IdScheme, SchemeError> {
+    scheme_from_settings(pattern, key, source, TrackerKeys::AnySupported)
+}
+
+/// The scheme `pattern` and `key` give, reading tracker keys by
+/// `tracker_keys`, with a key read only when the pattern has a key token and
+/// named by `source` when it is malformed.
 ///
 /// # Errors
 ///
 /// [`SchemeError::Pattern`] when the pattern is malformed, and
 /// [`SchemeError::Key`] when the key it needs is.
 pub fn scheme_from_settings(
-    pattern: &str,
-    key: Option<&str>,
-    source: KeySource,
-) -> Result<IdScheme, SchemeError> {
-    scheme_under_tracker(pattern, key, source, TrackerKeys::AnySupported)
-}
-
-fn scheme_under_tracker(
     pattern: &str,
     key: Option<&str>,
     source: KeySource,
@@ -239,7 +246,7 @@ pub fn read_scheme(
             .as_deref()
             .unwrap_or_default(),
     );
-    let scheme = scheme_under_tracker(
+    let scheme = scheme_from_settings(
         &pattern,
         aliased.value.as_deref(),
         source,
@@ -317,7 +324,7 @@ mod tests {
     use super::read_scheme;
     use super::require_key;
     use super::resolve_scheme;
-    use super::scheme_from_settings;
+    use super::scheme_from_settings_under_any_tracker;
     use super::KeySource;
     use super::SchemeError;
 
@@ -368,7 +375,7 @@ mod tests {
 
     #[test]
     fn settings_build_the_scheme_naming_the_setting_a_bad_key_came_from() {
-        let scheme = scheme_from_settings(
+        let scheme = scheme_from_settings_under_any_tracker(
             "{key}-{number:04d}",
             Some("PP"),
             KeySource::WorkKey,
@@ -382,10 +389,13 @@ mod tests {
                 "work.default_project_code",
             ),
         ] {
-            let refusal =
-                scheme_from_settings("{key}-{number:04d}", Some("1PP"), source)
-                    .err()
-                    .map(|error| error.to_string());
+            let refusal = scheme_from_settings_under_any_tracker(
+                "{key}-{number:04d}",
+                Some("1PP"),
+                source,
+            )
+            .err()
+            .map(|error| error.to_string());
             assert!(
                 refusal.as_deref().is_some_and(|text| text.starts_with(
                     &format!("E_WORK_KEY_INVALID: {setting} '1PP':")
@@ -393,10 +403,13 @@ mod tests {
                 "{refusal:?}"
             );
         }
-        let pattern =
-            scheme_from_settings("{number:4d}", None, KeySource::WorkKey)
-                .err()
-                .map(|error| error.to_string());
+        let pattern = scheme_from_settings_under_any_tracker(
+            "{number:4d}",
+            None,
+            KeySource::WorkKey,
+        )
+        .err()
+        .map(|error| error.to_string());
         assert!(
             pattern.is_some_and(
                 |text| text.starts_with("E_WORK_ID_PATTERN_INVALID:")
@@ -404,7 +417,7 @@ mod tests {
         );
         assert_eq!(
             key_of(
-                &scheme_from_settings(
+                &scheme_from_settings_under_any_tracker(
                     "{number:04d}",
                     Some("1PP"),
                     KeySource::WorkKey

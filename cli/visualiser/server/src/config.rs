@@ -200,7 +200,7 @@ impl WorkItemConfig {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 pub fn scheme_for_test(pattern: &str, key: Option<&str>) -> IdScheme {
-    IdScheme::new(
+    IdScheme::under_any_tracker(
         work::id_pattern::IdPattern::parse(pattern).unwrap(),
         key.map(|key| work::id_pattern::IdKey::parse(key).unwrap()),
     )

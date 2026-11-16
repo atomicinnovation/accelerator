@@ -400,7 +400,7 @@ mod tests {
     use crate::work_item_files::WorkItemFile;
 
     fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
-        IdScheme::new(
+        IdScheme::under_any_tracker(
             IdPattern::parse(pattern)
                 .unwrap_or_else(|error| unreachable!("{error}")),
             key.and_then(|key| IdKey::parse(key).ok()),
@@ -928,7 +928,7 @@ mod tests {
         }
 
         fn tracker_scheme() -> IdScheme {
-            IdScheme::new(
+            IdScheme::under_any_tracker(
                 IdPattern::parse(TRACKER_TOKEN)
                     .unwrap_or_else(|error| unreachable!("{error}")),
                 None,
