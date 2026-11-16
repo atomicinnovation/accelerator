@@ -574,6 +574,19 @@ fn string_list(fields: &Mapping, key: &str) -> Option<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_set_lifecycle_is_the_manifest_s_status_vocabulary() {
+        let names: Vec<&str> = research::topic::lifecycle::SetStatus::ALL
+            .into_iter()
+            .map(research::topic::lifecycle::SetStatus::name)
+            .collect();
+        let row = corpus::frontmatter_validation::schema::row_for(
+            "topic-research",
+            "manifest",
+        );
+        assert_eq!(Some(names.as_slice()), row.map(|row| row.status_vocab));
+    }
+
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
     use std::path::Path;

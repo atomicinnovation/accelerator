@@ -2207,6 +2207,27 @@ pub fn research::topic::layout::stem::Stem::hash<__H: core::hash::Hasher>(&self,
 impl core::marker::StructuralPartialEq for research::topic::layout::stem::Stem
 pub const research::topic::layout::FINDINGS: &str
 pub const research::topic::layout::REPORTS: &str
+pub mod research::topic::lifecycle
+pub enum research::topic::lifecycle::SetStatus
+pub research::topic::lifecycle::SetStatus::Briefed
+pub research::topic::lifecycle::SetStatus::Complete
+pub research::topic::lifecycle::SetStatus::Outlined
+pub research::topic::lifecycle::SetStatus::Researching
+pub research::topic::lifecycle::SetStatus::Synthesised
+impl research::topic::lifecycle::SetStatus
+pub const research::topic::lifecycle::SetStatus::ALL: [Self; 5]
+pub const fn research::topic::lifecycle::SetStatus::is_consultable(self) -> bool
+pub const fn research::topic::lifecycle::SetStatus::name(self) -> &'static str
+pub fn research::topic::lifecycle::SetStatus::named(name: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::topic::lifecycle::SetStatus
+pub fn research::topic::lifecycle::SetStatus::clone(&self) -> research::topic::lifecycle::SetStatus
+impl core::cmp::Eq for research::topic::lifecycle::SetStatus
+impl core::cmp::PartialEq for research::topic::lifecycle::SetStatus
+pub fn research::topic::lifecycle::SetStatus::eq(&self, other: &research::topic::lifecycle::SetStatus) -> bool
+impl core::fmt::Debug for research::topic::lifecycle::SetStatus
+pub fn research::topic::lifecycle::SetStatus::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::lifecycle::SetStatus
+impl core::marker::StructuralPartialEq for research::topic::lifecycle::SetStatus
 pub mod research::topic::outline
 pub struct research::topic::outline::Outline
 pub research::topic::outline::Outline::items: alloc::vec::Vec<research::topic::outline::OutlineItem>
