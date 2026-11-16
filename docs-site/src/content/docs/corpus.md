@@ -12,12 +12,12 @@ framework invokes it to validate a corpus it has just rewritten. Running it
 by hand is mainly useful for reproducing what a skill did, or for validating
 a corpus outside a skill session.
 
-| Noun group    | Verbs                        | What it does                                                                                               |
-|---------------|------------------------------|------------------------------------------------------------------------------------------------------------|
-| `adr`         | `next-number`, `read-status` | ADR sequence numbering and reading an ADR's `status:` frontmatter field                                    |
-| `metadata`    | `derive`                     | The unified artefact-metadata provenance block (UTC datetime, filename timestamp, VCS repository/revision) |
-| `linkage`     | `extract`                    | Typed-linkage records (`parent`, `blocks`, `relates_to`, …) found in a document's body sections            |
-| `frontmatter` | `validate`                   | Structural and referential conformance checking against the unified frontmatter schema                     |
+| Noun group    | Verbs                        | What it does                                                                                                      |
+|---------------|------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `adr`         | `next-number`, `read-status` | ADR sequence numbering and reading an ADR's `status:` frontmatter field                                           |
+| `metadata`    | `derive`                     | The unified artefact-metadata provenance block (UTC datetime, filename timestamp, VCS repository/revision/author) |
+| `linkage`     | `extract`                    | Typed-linkage records (`parent`, `blocks`, `relates_to`, …) found in a document's body sections                   |
+| `frontmatter` | `validate`                   | Structural and referential conformance checking against the unified frontmatter schema                            |
 
 See [Internals](internals.md#terminal-invocation) for how to reach
 `accelerator` at all from a terminal; everything below assumes that's set up.
@@ -45,11 +45,10 @@ accelerator corpus metadata derive
 ```
 
 Prints the provenance block every generated artefact's frontmatter carries: a
-UTC ISO-8601 datetime, a host-local filename timestamp, and — inside a VCS
-checkout — the repository name, the current revision and the author, the
-checkout's configured `user.name` (jj's, else git's), when it has one. Producer
-skills
-interpolate this block directly into the frontmatter they emit.
+UTC ISO-8601 datetime and a host-local filename timestamp. Inside a VCS
+checkout it adds the repository name, the current revision and, when the
+checkout has a configured `user.name` (jj's, else git's), the author. Producer
+skills interpolate this block directly into the frontmatter they emit.
 
 ## `linkage`
 
