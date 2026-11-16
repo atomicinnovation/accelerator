@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0372", "work-item:0302", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
-revision: "1d6e01c725b67222eca6d038feda0a23dbf2d3ef"
+revision: "ee46cc4d39e5e57debd1671cf3018093cf0b671a"
 repository: "accelerator"
-last_updated: "2026-11-15T22:12:19+00:00"
+last_updated: "2026-11-16T15:17:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -40,8 +40,10 @@ serving when IDs cannot be trusted. The response to the second review made
 that gate's remedy always reachable: convergence and re-key share one
 definition of an ID in shape, re-key keeps other keys unless told to fold
 them, the trust check lives in one place, every skill handles the refusals,
-and the visualiser shows the problem live. Every behaviour change is listed
-under "Behaviour changes".
+and the visualiser shows the problem live. The response to the third review
+closed the last gap between the gate and re-key, over each tracker's key
+rules, and covered the new skill branches with evals. Every behaviour change
+is listed under "Behaviour changes".
 
 ## Changes
 
@@ -64,9 +66,10 @@ under "Behaviour changes".
 
   `E_ID_TAKEN` exits 4 like every other collision, so a script can tell a
   bad ID from a taken one by its exit code; the corpus refusals exit 4 too,
-  so a taken ID is told from them by its code. `id check` and
-  `--dry-run --id` take the exit code from the typed `RequestedIdRefusal`
-  (`exit_codes::of_requested_id_refusal`).
+  so a taken ID is told from them by its code. `id check`, `--dry-run --id`
+  and the real create's admission take the exit code from the typed
+  `RequestedIdRefusal` (`exit_codes::of_requested_id_refusal`); only the
+  taken check under the create lock reaches the binary as a message.
 - **Taken rule**: an ID is held by any item's `id`, `aliases` entry or
   `external_id`, and by any filename's ID prefix at any width. Parseable IDs
   compare by key (ignoring case) and number, so `400-x.md` and `id: "400"`
@@ -123,26 +126,31 @@ under "Behaviour changes".
   allocation or cancel. Under `{tracker}` only automatic allocation remains.
   `E_REKEY_REQUIRED` and `E_WORK_ITEM_MALFORMED` stop the skill with their
   printed remedy, including from the resolver.
-- **Evals**: 34 new cases (39–72) with a fresh benchmark, plus re-run
+- **Evals**: 36 new cases (39–74) with a fresh benchmark, plus re-run
   benchmarks for `extract-work-items` and `refine-work-item` after their
-  move onto the `work id` verbs. The 13 evals the review response touched
+  move onto the `work id` verbs. The evals each review response touched
   were re-run (see Testing).
 - **Eval guards**: `test_create_work_item_id_evals.py` now covers every eval
   in `evals.json` and fails a run graded against expectations the eval no
-  longer holds; `eval_contract.rs` holds the refusals and verdicts the
-  prompts quote to the exit codes and fields the CLI prints.
+  longer holds, or a `SKILL.md` or `evals.json` changed since the
+  benchmark's recorded `skill_digest`; `eval_contract.rs` holds the refusals
+  and verdicts the prompts quote to the exit codes and fields the CLI
+  prints.
 
 ### Convergence: a corpus off the pattern is refused
 
 - **`work::rekey::convergence`**: an item is converged when its `id` is in
   the pattern's shape (its exact width, under any key, in any case) or,
   under `{tracker}`, is a draft or its issue's key. Re-key keeps exactly the
-  items convergence accepts, and both check shape before treating an `id`
+  items convergence accepts: both read a stored tracker key under the
+  configured tracker's rules, and both check shape before treating an `id`
   equal to its `external_id` as a tracker key, so an aligned `ENG-1234` is
   kept. `create`, `create-batch`, `id next`, `id check`, `list`, `resolve`
   and `promote` refuse a corpus holding any other item with
   `E_REKEY_REQUIRED` (exit 4), naming one and pointing to
-  `/rekey-work-items`, after the fix by hand for an item re-key cannot read.
+  `/rekey-work-items` (or `accelerator work rekey --preview`, then
+  `accelerator work rekey`), after the fix by hand for an item re-key cannot
+  read.
   `sync`, `rekey` and `id canonicalise` still run.
 - **The remedy is always reachable**: re-key's only sync refusals name
   `accelerator work sync`, which is not gated and settles a retiring
@@ -150,8 +158,8 @@ under "Behaviour changes".
   `promote` with that route.
 - **`work::well_formed`**: the same commands refuse every work item whose
   filename does not start with its `id` and a slug, or that names an ID
-  with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4), naming the first by
-  path and how many there are. A file with no frontmatter is not a work
+  with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4), listing every one in
+  path order, each with its fix. A file with no frontmatter is not a work
   item and is left alone.
 - **`work::corpus_trust`** composes the two checks in order
   (`refuse_untrusted` → `UntrustedCorpus`), and
@@ -171,6 +179,8 @@ under "Behaviour changes".
 - **`tracker`** owns the tracker-key shapes: `TrackerKeys::{Jira, Linear,
   AnySupported}` replaces the generic `is_tracker_key`, so each tracker
   decides its own key shape and a Linear team key may not hold `_`.
+  `TrackerKey::parse_any_supported` names the any-tracker reading where a
+  caller means it; everything else reads under the scheme's rules.
 - **`corpus`** keeps two general ports, `IdConvention` and `LinkageIds`,
   for slugs, clusters and linkage; finding bare IDs in a line is now part of
   `LinkageIds`. `corpus-adapters` loses its scanner, pattern compiler,
@@ -251,6 +261,8 @@ under "Behaviour changes".
   refusing `work` command without handling both corpus refusals.
 - **CHANGELOG**: a Migrations entry tells an upgrader to check the corpus
   with `accelerator work list` and what each refusal needs.
+- **Plan**: its Implementation Notes map each decision the review responses
+  superseded to what shipped, round by round, and list what is still open.
 
 ## Behaviour changes
 
@@ -264,7 +276,7 @@ notice:
   `{tracker}`, which were tolerated before.
 - ⚠️ **Malformed items refused**: the same commands exit 4 with
   `E_WORK_ITEM_MALFORMED` for a slugless filename such as `0400.md` or an
-  item naming an ID without an `id`.
+  item naming an ID without an `id`, listing every such item.
 - ⚠️ **Re-key keeps other keys**: items under a key other than `work.key`
   keep it unless `--from-key` names it, where re-key folded every key onto
   `work.key`; a promotion reports an ID outside the alphabet as the new
@@ -316,26 +328,34 @@ notice:
 - Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
 - Plan: `meta/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
   (11 phases), with its review in `meta/reviews/plans/` and the work item's
-  review in `meta/reviews/work/`.
+  review in `meta/reviews/work/`. Its Implementation Notes record where the
+  code departs from it after review.
 - Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
   (result `pass`, against the plan before the review response).
-- Reviews: `meta/reviews/prs/178-review-1.md` and `178-review-2.md`; each
-  review's inline threads are answered and resolved, and the rest of each
-  is answered in a PR comment.
+- Reviews: `meta/reviews/prs/178-review-1.md`, `178-review-2.md` and
+  `178-review-3.md`; every inline thread is answered and resolved. The
+  first two reviews' other findings are answered in PR comments; the third
+  review's are listed as open in the plan's Implementation Notes.
 - Follow-up: 0372 makes `--dry-run` run every invocation check the real
   create runs; it keeps this PR's `--id` checks.
 
 ## Testing
 
 - [x] `mise run` (the full default task) exits 0 end to end at the tip,
-      after the second review's response, changing no file.
-- [x] `/create-work-item` evals pass in full, all 75 (with-skill mean 1.0).
-      The 13 the review response touched (26, 39, 42, 45, 48, 49, 51, 52,
-      59–62, 66) were re-run on 2026-11-15 by `claude-opus-5-5`, by
-      executor agents barred from the evals and benchmark files and graded
-      by separate agents from the outputs alone; eval 26, which had failed,
-      now passes. The second review's response changed the skill's exit-4
-      wording and resolver table only; the evals were not re-run after it.
+      after the third review's response and the rebase onto main, changing
+      no file. A first run fell below the CLI coverage floor on stale
+      coverage data; after `cargo llvm-cov clean --workspace` the CLI unit
+      task reports lines 94.38%, functions 93.85%, regions 93.11%.
+- [x] `/create-work-item` evals pass in full, all 77 (with-skill mean 1.0).
+      The 13 the first review's response touched (26, 39, 42, 45, 48, 49,
+      51, 52, 59–62, 66) were re-run on 2026-11-15; the 7 the later
+      refusal-routing rewording touches (37, 38, 39, 56, 62, 64, 65) and the
+      new 73 and 74 on 2026-11-16. Each run used `claude-opus-5-5` executor
+      agents barred from the evals and benchmark files, graded by separate
+      agents from the outputs alone. The benchmark records the `skill_digest`
+      the latest runs were graded against.
+- [x] `/rekey-work-items` evals 13 (other keys kept by default) and 14
+      (every picked key folded in one preview) pass, beside 1–12.
 - [x] Every test the plan and its criteria traceability table name exists
       (88 of 88, per the validation report).
 - [ ] Manual checks: `/create-work-item --id 400 <topic>` in a scratch
@@ -344,11 +364,11 @@ notice:
       `E_ID_TAKEN` and offers another ID or automatic allocation; with
       `9997-x.md` held, `work id next --count 3` prints `9998`, `9999`, then
       the neutral `E_PATTERN_OVERFLOW`. Run during implementation; not
-      re-run since the review response.
+      re-run since the review responses.
 
 ## Notes for Reviewers
 
-- **Review order**: the diff is about 235 files, a third of it the plan, its
+- **Review order**: the diff is about 245 files, a third of it the plan, its
   reviews and eval benchmarks. Reading `cli/work/src/id_pattern.rs`,
   `id_scheme.rs` and `id_scheme/`, `rekey/convergence.rs`, `folding.rs`,
   `well_formed.rs`, `corpus_trust.rs` and `requested_id.rs`, then
@@ -364,9 +384,14 @@ notice:
 - **Eval re-runs** used this session's own executor and grader agents rather
   than skill-creator, and graded changes made in the same session; the
   benchmark notes record how.
-- **`E_ID_TAKEN` exit code** comes from the typed refusal for `id check` and
-  the dry run; only the real create's string path still classifies it from
-  the frozen code at the start of its message (`exit_codes::of_failure`).
+- **`E_ID_TAKEN` exit code** comes from the typed refusal for `id check`,
+  the dry run and the real create's admission; only the taken check under
+  the create lock still classifies it from the frozen code at the start of
+  its message (`exit_codes::of_failure`).
+- **`IdScheme::new` still defaults to any tracker's key rules**, and a run
+  plan's decoded scheme uses it: a run plan stores only the pattern and key,
+  and its targets are keys the tracker issued, so carrying the tracker's
+  rules would need a schema change for no change in behaviour.
 - **`WorkIdentity` stays copied** in the migrate-adapters test composition:
   `lint:crate-dependencies` lets only the `migrate-cli` composition root
   depend on both `migrate` and `work`, so the shipped adapter cannot move to
@@ -376,5 +401,6 @@ notice:
   the integration state; unchanged by this PR's review response.
 - **Ordering**: under a keyless pattern, `E_PATTERN_KEY_UNUSED` follows
   `create_dir_all`, as it did under `{tracker}` before.
-- **`last-sync.json`** changes only because 0319 and 0372 were synced to
-  Linear. Main's 0351 (PP-926) keeps its own entry.
+- **`last-sync.json`** changes only because 0372 was synced to Linear
+  (PP-935). Main's 0351 (PP-926) and 0371 (PP-942) keep their own
+  entries.
