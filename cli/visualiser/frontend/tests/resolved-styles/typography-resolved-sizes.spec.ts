@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { UNWRITTEN_WORK_ITEM_CARD } from "../lib/stable-fixtures";
 
 // Pin viewport so any rem-derived values resolve at 16px root.
 test.use({ viewport: { width: 1280, height: 720 } });
@@ -140,13 +141,13 @@ const CASES: Case[] = [
   {
     name: "Kanban card title",
     route: "/kanban",
-    selector: ".ac-kcard__title",
+    selector: `${UNWRITTEN_WORK_ITEM_CARD} .ac-kcard__title`,
     expected: "13px",
   },
   {
     name: "Kanban card id (mono meta)",
     route: "/kanban",
-    selector: ".ac-kcard__id",
+    selector: `${UNWRITTEN_WORK_ITEM_CARD} .ac-kcard__id`,
     expected: "10.5px",
   },
   {
