@@ -587,10 +587,27 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_number_is_displayed_as_the_pattern_renders_it() {
+        assert_eq!(
+            IdScheme::numeric().displayed_id("42").as_deref(),
+            Some("0042")
+        );
+        assert_eq!(
+            scheme("v{number:03d}", None).displayed_id("1").as_deref(),
+            Some("v001")
+        );
+        assert_eq!(
+            project("ENG").displayed_id("42").as_deref(),
+            Some("ENG-0042")
+        );
+        assert_eq!(scheme("{key}-{number:04d}", None).displayed_id("42"), None);
+    }
+
+    #[test]
     fn an_id_the_pattern_reads_is_displayed_as_written() {
         let numeric = IdScheme::numeric();
         assert_eq!(numeric.displayed_id("0042").as_deref(), Some("0042"));
-        assert_eq!(numeric.displayed_id("42").as_deref(), Some("42"));
+        assert_eq!(numeric.displayed_id("42").as_deref(), Some("0042"));
         assert_eq!(numeric.displayed_id("  0042  ").as_deref(), Some("0042"));
         for off_pattern in ["ENG-0042", "X1-0400", "ENG0042", "PROJ-1.2", ""] {
             assert_eq!(

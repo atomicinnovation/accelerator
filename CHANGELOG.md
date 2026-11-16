@@ -238,8 +238,10 @@
 - **The visualiser shows an ID through the configured pattern.** An `id`
   the pattern reads is shown as written, so `PP_0042` under
   `{key}_{number:04d}` and `v001` under `v{number:03d}` now show; a bare
-  number under a `{key}` pattern shows as the pattern renders it, `ENG-0042`
-  for `42` where it showed `ENG-42`; and an `id` in no shape the pattern
+  number shows as the pattern renders it under every pattern: `ENG-0042`
+  for `42` under `{key}-{number:04d}` where it showed `ENG-42`, `0042` under
+  `{number:04d}` where it showed `42`, and `v001` for `1` under
+  `v{number:03d}` where it showed nothing; and an `id` in no shape the pattern
   reads shows no ID. Consumers of the visualiser API's `workItemId` need
   updating.
 - **A work item whose IDs cannot be read is refused.** The commands that

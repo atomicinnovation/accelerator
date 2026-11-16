@@ -418,9 +418,9 @@ mod tests {
     }
 
     #[test]
-    fn a_bare_number_displays_as_written_without_a_key() {
+    fn a_bare_number_displays_as_the_pattern_renders_it_without_a_key() {
         let cfg = WorkItemConfig::default_numeric();
-        assert_eq!(cfg.displayed_id("42").as_deref(), Some("42"));
+        assert_eq!(cfg.displayed_id("42").as_deref(), Some("0042"));
         assert_eq!(cfg.displayed_id("0042").as_deref(), Some("0042"));
     }
 

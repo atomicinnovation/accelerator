@@ -1814,14 +1814,14 @@ mod identity_join_tests {
     }
 
     #[tokio::test]
-    async fn a_wiki_link_by_written_id_still_resolves() {
+    async fn a_bare_id_is_served_as_the_pattern_renders_it() {
         let tmp = tempfile::tempdir().unwrap();
         let item = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
         let idx = index_under(tmp.path(), "{number:04d}", None, &[item]).await;
 
         let entry = entry_at(&idx, tmp.path(), item.0).await;
 
-        assert_eq!(entry.work_item_id.as_deref(), Some("42"));
+        assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
     }
 
     #[tokio::test]

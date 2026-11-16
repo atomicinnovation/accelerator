@@ -89,11 +89,10 @@ impl PatternIds {
 
 impl IdReadings for PatternIds {
     fn displayed_id(&self, trimmed: &str) -> Option<String> {
-        if IdParts::parse(&self.pattern, trimmed).is_some() {
-            return Some(trimmed.to_owned());
+        if let Some(parts) = self.bare_number(trimmed) {
+            return self.render_keeping_key(&parts).ok();
         }
-        let key = self.key.as_ref().filter(|_| is_digits(trimmed))?;
-        self.pattern.render(Some(key), trimmed.parse().ok()?).ok()
+        IdParts::parse(&self.pattern, trimmed).map(|_| trimmed.to_owned())
     }
 
     fn identity_key(&self, reference: &str) -> Option<String> {
