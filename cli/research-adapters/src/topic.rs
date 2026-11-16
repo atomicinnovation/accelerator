@@ -1123,6 +1123,29 @@ mod tests {
     }
 
     #[test]
+    fn a_stored_value_of_another_shape_is_unreadable_by_its_shape(
+    ) -> Result<(), TestError> {
+        for (written, rendered) in [
+            ("true", "true"),
+            ("[1]", "a list"),
+            ("{a: 1}", "a mapping"),
+            ("\"99999999999\"", "99999999999"),
+            ("99999999999", "99999999999"),
+        ] {
+            let fs = manifest(&format!("round_count: {written}\n"));
+
+            let counts = counts_of(&fs)?;
+
+            assert_eq!(
+                counts.stored.round_count,
+                StoredCount::Unreadable(rendered.to_owned()),
+                "{written}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn a_whole_valued_float_is_unreadable_as_written() -> Result<(), TestError>
     {
         let fs = manifest("round_count: 3.0\n");
