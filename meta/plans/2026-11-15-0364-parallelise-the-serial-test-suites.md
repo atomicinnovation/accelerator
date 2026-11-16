@@ -782,13 +782,22 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
 
 #### Manual Verification:
 
-- [ ] Worker counts recorded in the PR: what `-n auto` resolves to on
+- [x] Worker counts recorded in the PR: what `-n auto` resolves to on
       engywook and on both CI runners, from the xdist banner in the job log,
-      next to psutil's physical and logical counts. The banners show 16 on
-      engywook (psutil: 16 physical, 16 logical), 2 on `ubuntu-26.04` and
-      3 on `macos-26-arm64` (#222's run 43848534569). The CI logs don't
-      print psutil's counts, so the CI logical counts are still to be
-      recorded.
+      next to psutil's physical and logical counts. #222's banners were
+      recorded in #222. The CI logs didn't print psutil's counts, so #230
+      added `mise run host:cpu-counts` before the integration tests. Its
+      run 43965178907 measured:
+
+      | Host | Image | xdist banner | Physical | Logical | `os.process_cpu_count` | Node `availableParallelism` |
+      |---|---|---|---|---|---|---|
+      | engywook | — | 16 | 16 | 16 | 16 | 16 |
+      | `ubuntu-26.04` | 20261111.196.1 | 2 | 2 | 4 | 4 | 4 |
+      | `macos-26-arm64` | 20261112.0504.1 | 3 | 3 | 3 | 3 | 3 |
+
+      On ubuntu, `-n auto` takes half the runner's vCPUs, while Playwright
+      will see all four. If Phase 7's comparison fails on ubuntu, `-n
+      logical` is the first lever. On macOS the counts agree.
 - [x] Load comparison recorded in the PR (not a gate). On engywook (16
       cores, no SMT), `-n auto` and `-n logical` both resolve to 16, so the
       comparison is between `-n auto` and `-n 8`:
