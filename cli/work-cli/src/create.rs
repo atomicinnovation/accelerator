@@ -2005,6 +2005,32 @@ mod tests {
 
     #[test]
     fn a_holder_whose_content_cannot_be_read_still_takes_its_id() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let repo = PushingRepo::new();
+        repo.holding("meta/work/0400-other.md", "---\nid: \"0400\"\n---\n");
+        let holder = repo.path("meta/work/0400-other.md");
+        std::fs::set_permissions(
+            &holder,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+
+        let outcome =
+            create_local(&repo, &PushingRepo::args_with_id("0400", false));
+
+        std::fs::set_permissions(
+            &holder,
+            std::fs::Permissions::from_mode(0o644),
+        )
+        .expect("chmod back");
+        let message = failure(outcome);
+        assert!(message.starts_with("E_ID_TAKEN: "), "{message}");
+        assert!(message.contains("meta/work/0400-other.md"), "{message}");
+    }
+
+    #[test]
+    fn a_holder_that_is_not_utf8_is_refused_as_malformed() {
         let repo = PushingRepo::new();
         repo.holding("meta/work/0400-other.md", [0xff, 0xfe, 0xfd]);
 
@@ -2013,8 +2039,8 @@ mod tests {
             &PushingRepo::args_with_id("0400", false),
         ));
 
-        assert!(message.starts_with("E_ID_TAKEN: "), "{message}");
-        assert!(message.contains("meta/work/0400-other.md"), "{message}");
+        assert!(message.contains("E_WORK_ITEM_MALFORMED: "), "{message}");
+        assert!(message.contains("0400-other.md is not UTF-8"), "{message}");
     }
 
     #[test]

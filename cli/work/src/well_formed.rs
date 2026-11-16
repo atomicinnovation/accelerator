@@ -14,7 +14,9 @@ use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::identity_of;
 use crate::work_item_files::list_field;
 use crate::work_item_files::nonempty_field;
+use crate::work_item_files::ReadFailure;
 use crate::work_item_files::WorkItemFile;
+use crate::work_item_files::WorkItemListing;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Malformation {
@@ -24,6 +26,8 @@ pub enum Malformation {
     NoId,
     /// Its whole filename is an ID, with no slug, and it has no `id`.
     NamedOnlyById { id: String },
+    /// Its bytes are not UTF-8, so none of its IDs can be read.
+    Undecodable,
 }
 
 /// A work-item file whose IDs cannot be read as the corpus needs.
@@ -55,6 +59,7 @@ impl MalformedItem {
                 "{path} is named only by the ID '{}', with no slug and no `id`",
                 escaped(id),
             ),
+            Malformation::Undecodable => format!("{path} is not UTF-8 text"),
         }
     }
 
@@ -72,6 +77,10 @@ impl MalformedItem {
                     "Give it `id: \"{id}\"` and rename it to `{id}-<slug>.md`, \
                      or move it out of the work directory"
                 )
+            }
+            Malformation::Undecodable => {
+                "Re-save it as UTF-8, or move it out of the work directory"
+                    .to_owned()
             }
         }
     }
@@ -142,19 +151,30 @@ impl std::error::Error for MalformedItems {}
 /// Refuses every work item whose IDs cannot be read.
 ///
 /// That is one whose filename does not hold its `id` before a slug, as the
-/// scheme reads both, or one naming an ID with no `id`. A file with no
-/// frontmatter, or naming no ID, is not a work item and passes.
+/// scheme reads both; one naming an ID with no `id`; one named only by an
+/// ID; and one that is not UTF-8. Any other file with no frontmatter, or
+/// naming no ID, is not a work item and passes.
 ///
 /// # Errors
 ///
 /// The [`MalformedItems`] naming those files in path order.
 pub fn refuse_malformed(
     scheme: &IdScheme,
-    files: &[WorkItemFile],
+    listing: &WorkItemListing,
 ) -> Result<(), MalformedItems> {
-    let mut items: Vec<MalformedItem> = files
+    let undecodable = listing
+        .unreadable
+        .iter()
+        .filter(|file| file.reason == ReadFailure::Undecodable)
+        .map(|file| MalformedItem {
+            path: file.path.clone(),
+            malformation: Malformation::Undecodable,
+        });
+    let mut items: Vec<MalformedItem> = listing
+        .files
         .iter()
         .filter_map(|file| malformation_of(scheme, file))
+        .chain(undecodable)
         .collect();
     if items.is_empty() {
         return Ok(());
@@ -231,10 +251,27 @@ mod tests {
 
     use super::refuse_malformed;
     use super::Malformation;
+    use super::MalformedItems;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
     use crate::id_scheme::IdScheme;
+    use crate::work_item_files::ReadFailure;
+    use crate::work_item_files::UnreadableFile;
     use crate::work_item_files::WorkItemFile;
+    use crate::work_item_files::WorkItemListing;
+
+    fn malformed_in(
+        scheme: &IdScheme,
+        files: &[WorkItemFile],
+    ) -> Result<(), MalformedItems> {
+        refuse_malformed(
+            scheme,
+            &WorkItemListing {
+                files: files.to_vec(),
+                unreadable: Vec::new(),
+            },
+        )
+    }
 
     fn numeric() -> IdScheme {
         IdScheme::numeric()
@@ -266,12 +303,12 @@ mod tests {
             file("README.md", "# Work items\n"),
             file("notes.md", "---\ntitle: \"Notes\"\n---\n"),
         ];
-        assert_eq!(refuse_malformed(&numeric(), &files), Ok(()));
+        assert_eq!(malformed_in(&numeric(), &files), Ok(()));
     }
 
     #[test]
     fn an_item_whose_filename_names_another_id_is_malformed() {
-        let refused = refuse_malformed(
+        let refused = malformed_in(
             &numeric(),
             &[file("0400-a.md", "---\nid: \"PP-0400\"\n---\n")],
         );
@@ -290,7 +327,7 @@ mod tests {
 
     #[test]
     fn an_item_without_a_slug_in_its_filename_is_malformed() {
-        let refusal = refuse_malformed(
+        let refusal = malformed_in(
             &numeric(),
             &[file("PP-0400.md", "---\nid: \"PP-0400\"\n---\n")],
         )
@@ -319,7 +356,7 @@ mod tests {
             "---\nexternal_id: \"ENG-7\"\n---\n",
         ] {
             let refusal =
-                refuse_malformed(&numeric(), &[file("PP-0400-a.md", content)])
+                malformed_in(&numeric(), &[file("PP-0400-a.md", content)])
                     .err()
                     .unwrap_or_else(|| unreachable!("refused"))
                     .relative_to(Path::new("/repo"));
@@ -336,7 +373,7 @@ mod tests {
 
     #[test]
     fn every_malformed_item_is_listed_in_path_order_with_its_fix() {
-        let refusal = refuse_malformed(
+        let refusal = malformed_in(
             &numeric(),
             &[
                 file("PP-0402.md", "---\nid: \"PP-0402\"\n---\n"),
@@ -370,12 +407,12 @@ mod tests {
             file("PP-42-short.md", "---\nid: \"PP-0042\"\n---\n"),
             file("0043-legacy.md", "---\nid: \"PP-0043\"\n---\n"),
         ];
-        assert_eq!(refuse_malformed(&keyed(), &files), Ok(()));
+        assert_eq!(malformed_in(&keyed(), &files), Ok(()));
     }
 
     #[test]
     fn a_filename_the_scheme_reads_as_no_id_is_malformed() {
-        let refused = refuse_malformed(
+        let refused = malformed_in(
             &keyed(),
             &[file("notes-a.md", "---\nid: \"PP-0001\"\n---\n")],
         );
@@ -393,7 +430,7 @@ mod tests {
     #[test]
     fn a_file_named_only_by_an_id_with_no_id_of_its_own_is_malformed() {
         for content in ["# Notes\n", "---\ntitle: \"Notes\"\n---\n"] {
-            let refusal = refuse_malformed(
+            let refusal = malformed_in(
                 &numeric(),
                 &[file("0400.md", content), file("README.md", "# Work\n")],
             )
@@ -412,9 +449,38 @@ mod tests {
     }
 
     #[test]
+    fn a_work_item_file_that_is_not_utf8_is_malformed() {
+        let listing = WorkItemListing {
+            files: Vec::new(),
+            unreadable: vec![
+                UnreadableFile {
+                    path: PathBuf::from("/repo/meta/work/0401-binary.md"),
+                    reason: ReadFailure::Undecodable,
+                },
+                UnreadableFile {
+                    path: PathBuf::from("/repo/meta/work/0402-locked.md"),
+                    reason: ReadFailure::Io("permission denied".to_owned()),
+                },
+            ],
+        };
+
+        let refusal = refuse_malformed(&numeric(), &listing)
+            .err()
+            .unwrap_or_else(|| unreachable!("refused"))
+            .relative_to(Path::new("/repo"));
+
+        assert_eq!(
+            refusal.to_string(),
+            "E_WORK_ITEM_MALFORMED: meta/work/0401-binary.md is not UTF-8 \
+             text. Re-save it as UTF-8, or move it out of the work \
+             directory, then re-run this command"
+        );
+    }
+
+    #[test]
     fn a_filename_naming_its_id_in_another_case_is_well_formed() {
         assert_eq!(
-            refuse_malformed(
+            malformed_in(
                 &numeric(),
                 &[file("pp-0001-a.md", "---\nid: \"PP-0001\"\n---\n")]
             ),

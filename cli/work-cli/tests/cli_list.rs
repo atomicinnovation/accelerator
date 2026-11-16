@@ -79,7 +79,7 @@ fn list(dir: &std::path::Path) -> Result<std::process::Output, TestError> {
 }
 
 #[test]
-fn list_output_is_unchanged_by_an_unreadable_file() -> Result<(), TestError> {
+fn list_names_a_work_item_that_is_not_utf8() -> Result<(), TestError> {
     let dir = tempfile::Builder::new()
         .prefix("work-cli-list-")
         .tempdir()?;
@@ -96,12 +96,14 @@ fn list_output_is_unchanged_by_an_unreadable_file() -> Result<(), TestError> {
     let with = list(dir.path())?;
 
     assert!(without.status.success(), "{without:?}");
-    assert_eq!(with.status.code(), without.status.code());
-    assert_eq!(
-        String::from_utf8(with.stdout)?,
-        String::from_utf8(without.stdout)?
+    assert_eq!(with.status.code(), Some(4));
+    let stderr = String::from_utf8(with.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ITEM_MALFORMED: meta/work/0400-x.md is not UTF-8 text"
+        ),
+        "{stderr}"
     );
-    assert_eq!(String::from_utf8(with.stderr)?, "");
     Ok(())
 }
 

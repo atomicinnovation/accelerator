@@ -11,7 +11,7 @@ use crate::id_scheme::IdScheme;
 use crate::well_formed::refuse_malformed;
 use crate::well_formed::MalformedItems;
 use crate::work_item_files::identities;
-use crate::work_item_files::WorkItemFile;
+use crate::work_item_files::WorkItemListing;
 
 /// Why a corpus's IDs cannot be trusted, which commands that read or write
 /// IDs refuse to run over.
@@ -64,11 +64,11 @@ impl std::error::Error for UntrustedCorpus {}
 /// trusted.
 pub fn refuse_untrusted(
     scheme: &IdScheme,
-    files: &[WorkItemFile],
+    listing: &WorkItemListing,
 ) -> Result<(), UntrustedCorpus> {
-    refuse_divergence(scheme, &identities(files))
+    refuse_divergence(scheme, &identities(&listing.files))
         .map_err(UntrustedCorpus::RekeyRequired)?;
-    refuse_malformed(scheme, files).map_err(UntrustedCorpus::Malformed)
+    refuse_malformed(scheme, listing).map_err(UntrustedCorpus::Malformed)
 }
 
 #[cfg(test)]
@@ -85,6 +85,14 @@ mod tests {
     use crate::id_pattern::IdPattern;
     use crate::id_scheme::IdScheme;
     use crate::work_item_files::WorkItemFile;
+    use crate::work_item_files::WorkItemListing;
+
+    fn listing_of(files: &[WorkItemFile]) -> WorkItemListing {
+        WorkItemListing {
+            files: files.to_vec(),
+            unreadable: Vec::new(),
+        }
+    }
 
     fn keyed() -> IdScheme {
         IdScheme::new(
@@ -105,14 +113,14 @@ mod tests {
     fn a_converged_well_formed_corpus_is_trusted() {
         let files = [file("PP-0001-a.md", "PP-0001")];
 
-        assert_eq!(refuse_untrusted(&keyed(), &files), Ok(()));
+        assert_eq!(refuse_untrusted(&keyed(), &listing_of(&files)), Ok(()));
     }
 
     #[test]
     fn a_corpus_needing_a_re_key_is_refused_before_a_malformed_item() {
         let files = [file("PP-0002.md", "PP-0002"), file("PP-1-a.md", "PP-1")];
 
-        let refusal = refuse_untrusted(&keyed(), &files)
+        let refusal = refuse_untrusted(&keyed(), &listing_of(&files))
             .err()
             .unwrap_or_else(|| unreachable!("the corpus is untrusted"));
 
@@ -124,7 +132,7 @@ mod tests {
     fn a_converged_corpus_with_a_malformed_item_is_refused_naming_it() {
         let files = [file("PP-0002.md", "PP-0002")];
 
-        let refusal = refuse_untrusted(&keyed(), &files)
+        let refusal = refuse_untrusted(&keyed(), &listing_of(&files))
             .err()
             .unwrap_or_else(|| unreachable!("the corpus is untrusted"))
             .relative_to(Path::new("/repo"));

@@ -247,7 +247,7 @@
   `work.id_pattern` reads both, such as `0400.md` holding `id: "0400"`; a
   file naming an ID in `aliases` or `external_id` with no `id`; and a file
   named only by an ID, such as `0400.md` with no frontmatter, which nothing
-  else would see. `PP-42-x.md` holding `PP-0042` passes, since both read as
+  else would see; and a file that is not UTF-8 text, which was skipped. `PP-42-x.md` holding `PP-0042` passes, since both read as
   `PP-0042`. The refusal lists every such file with its fix. Any other file
   with no frontmatter, or naming no ID, is not a work item and is left
   alone.

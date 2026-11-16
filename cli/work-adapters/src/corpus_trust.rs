@@ -21,10 +21,10 @@ pub fn refuse_untrusted_under(
     scheme: &IdScheme,
     work_dir: &Path,
 ) -> Result<(), UntrustedCorpus> {
-    let Ok(files) = FilesystemWorkItemFiles::new(work_dir).files() else {
+    let Ok(listing) = FilesystemWorkItemFiles::new(work_dir).listing() else {
         return Ok(());
     };
-    refuse_untrusted(scheme, &files)
+    refuse_untrusted(scheme, &listing)
 }
 
 #[cfg(test)]
@@ -65,6 +65,23 @@ mod tests {
         assert_eq!(
             refusal.map(|refusal| refusal.code()),
             Some("E_WORK_ITEM_MALFORMED")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_work_item_that_is_not_utf8_is_checked() -> Result<(), TestError> {
+        let dir = tempfile::tempdir()?;
+        fs::write(dir.path().join("0001-binary.md"), [0xff, 0xfe, 0x00])?;
+
+        let refusal =
+            refuse_untrusted_under(&IdScheme::numeric(), dir.path()).err();
+
+        assert!(
+            refusal.as_ref().is_some_and(|refusal| refusal
+                .to_string()
+                .contains("0001-binary.md is not UTF-8 text")),
+            "{refusal:?}"
         );
         Ok(())
     }
