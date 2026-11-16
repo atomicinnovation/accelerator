@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from tasks.eval.headless.transcript import Event, Init, Result, Text
+from tasks.eval.headless.transcript import Event, Init, Result, Text, events
 
 UNTRACKED = ".git"
 
@@ -100,6 +100,44 @@ class TurnRecord:
     @property
     def result(self) -> Result | None:
         return next((e for e in self.events if isinstance(e, Result)), None)
+
+
+def turn_file(directory: Path, number: int, suffix: str) -> Path:
+    return directory / f"turn-{number}{suffix}"
+
+
+class TurnHistory:
+    """A session's turns as each ended, read back from its directory."""
+
+    def __init__(self, directory: Path, initial: Snapshot) -> None:
+        self.directory = directory
+        self.initial = initial
+        self.records: list[TurnRecord] = []
+
+    def record(
+        self,
+        number: int,
+        reply: str | None,
+        writes: tuple[str, ...],
+        exit_status: str | None,
+    ) -> TurnRecord:
+        before = self.records[-1].after if self.records else self.initial
+        log = turn_file(self.directory, number, ".jsonl")
+        taken = turn_file(self.directory, number, ".json")
+        record = TurnRecord(
+            number=number,
+            reply=reply,
+            writes=writes,
+            events=tuple(events(log.read_text())) if log.exists() else (),
+            logged=log.exists(),
+            exit_status=exit_status,
+            before=before,
+            after=load_snapshot(taken) if taken.exists() else before,
+            initial=self.initial,
+            earlier=tuple(earlier.events for earlier in self.records),
+        )
+        self.records.append(record)
+        return record
 
 
 def errored(record: TurnRecord) -> str | None:

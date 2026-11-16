@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from tasks.eval.ask_and_report import conversation, formats, turns
+from tasks.eval.ask_and_report.runs import SessionPlan, load_records
+from tasks.eval.ask_and_report.scenarios import Scenario, Setup, Turn
 from tasks.eval.headless.claude import common_flags
 from tasks.eval.headless.transcript import (
     Init,
@@ -486,6 +488,41 @@ def test_a_record_carries_each_earlier_turn_s_events(tmp_path: Path) -> None:
 
     assert [len(record.earlier) for record in records] == [0, 1, 2]
     assert records[2].initial == turns.load_snapshot(tmp_path / "turn-0.json")
+
+
+def _session(tmp_path: Path) -> SessionPlan:
+    return SessionPlan(
+        family="G1",
+        scenario=Scenario(
+            name="replayed",
+            verb="ask",
+            question="Why?",
+            times=1,
+            setup=Setup(variant="base"),
+            gate="status",
+            turns=(
+                Turn(reply=None, expect=()),
+                Turn(reply="reject", expect=()),
+                Turn(reply="decline", expect=()),
+            ),
+        ),
+        run=1,
+        directory=tmp_path,
+    )
+
+
+def test_a_replayed_session_reads_as_it_was_recorded(tmp_path: Path) -> None:
+    recorded = _run(tmp_path, FakeClaude())
+
+    assert load_records(_session(tmp_path)) == recorded
+
+
+def test_a_replayed_session_ends_where_its_conversation_stopped(
+    tmp_path: Path,
+) -> None:
+    recorded = _run(tmp_path, FakeClaude(exits={2: 1}))
+
+    assert load_records(_session(tmp_path)) == recorded
 
 
 def test_a_record_whose_message_is_text_holds_no_blocks() -> None:
