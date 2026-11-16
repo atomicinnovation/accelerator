@@ -1,4 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
+import {
+  UNWRITTEN_LIFECYCLE_CARD,
+  UNWRITTEN_WORK_ITEM_CARD,
+} from "../lib/stable-fixtures";
 
 // Pin viewport so any box-relative (`50%`) radii resolve at a fixed element
 // size, mirroring typography-resolved-sizes.spec.ts.
@@ -71,7 +75,7 @@ const CASES: Case[] = [
   {
     name: "LifecycleIndex .card (6px)",
     route: "/lifecycle",
-    selector: '[class*="cardList"] > li',
+    selector: `[class*="cardList"] > ${UNWRITTEN_LIFECYCLE_CARD}`,
     expected: "6px",
   },
   // --- 6px: LifecycleClusterView panel + timeline tile (/lifecycle/<slug>) ---
@@ -134,7 +138,7 @@ const CASES: Case[] = [
   {
     name: "PipelineMini .dot (50%)",
     route: "/kanban",
-    selector: ".ac-stagedots__dot",
+    selector: `${UNWRITTEN_WORK_ITEM_CARD} .ac-stagedots__dot`,
     expected: "50%",
     box: { width: 8, height: 8 },
   },

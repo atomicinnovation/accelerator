@@ -355,7 +355,6 @@ fn a_push_only_preview_plans_an_unsynced_item_without_reaching_the_tracker(
     assert_eq!(
         String::from_utf8(output.stdout)?,
         "0001\tcreate-from-local\tunsynced\t-\n\
-         0001\tnoop\tunsynced\t-\n\
          #\tdiscovery\tskipped\tpush-only\n"
     );
     assert_eq!(proxy.contacts(), 0, "the preview reached the network");
