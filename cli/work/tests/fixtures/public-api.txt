@@ -393,7 +393,6 @@ pub fn work::id_scheme::IdScheme::canonicalise(&self, input: &str) -> core::resu
 pub fn work::id_scheme::IdScheme::displayed_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn work::id_scheme::IdScheme::holds(&self, held: &str, id: &work::id_pattern::IdParts) -> bool
 pub fn work::id_scheme::IdScheme::identity_key(&self, reference: &str) -> core::option::Option<alloc::string::String>
-pub fn work::id_scheme::IdScheme::is_any_key_id_token(&self, token: &str) -> bool
 pub fn work::id_scheme::IdScheme::is_canonical_id_token(&self, token: &str) -> bool
 pub fn work::id_scheme::IdScheme::is_legacy_id(id: &str) -> bool
 pub fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>

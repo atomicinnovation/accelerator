@@ -252,12 +252,6 @@ impl IdScheme {
         })
     }
 
-    /// Whether `token` is an ID in the pattern's exact shape under any key.
-    #[must_use]
-    pub fn is_any_key_id_token(&self, token: &str) -> bool {
-        self.pattern().read_exact(token).is_some()
-    }
-
     /// Whether `id` is in the pattern's shape under any key, whatever its
     /// case.
     #[must_use]
@@ -577,9 +571,9 @@ mod tests {
     #[test]
     fn any_key_tokens_take_every_well_formed_key() {
         let scheme = keyed("PP");
-        assert!(scheme.is_any_key_id_token("PP-0400"));
-        assert!(scheme.is_any_key_id_token("xy-0400"));
-        assert!(scheme.is_any_key_id_token("X1-0400"));
+        assert!(scheme.is_in_shape("PP-0400"));
+        assert!(scheme.is_in_shape("xy-0400"));
+        assert!(scheme.is_in_shape("X1-0400"));
         assert_eq!(scheme.displayed_id("X1-0400").as_deref(), Some("X1-0400"));
     }
 

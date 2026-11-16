@@ -38,10 +38,11 @@ impl DraftId {
     }
 }
 
-/// Whether `id` can name a file or directory as it stands.
+/// Whether `id` can name a file or directory as it stands: an ID in the
+/// pattern's shape under any key and in any case, as convergence reads one.
 #[must_use]
 pub fn is_token_safe(scheme: &IdScheme, id: &str) -> bool {
-    scheme.is_any_key_id_token(id)
+    scheme.is_in_shape(id)
         || (scheme.ownership() == IdOwnership::Tracker
             && (is_tracker_owned_token(id, scheme.tracker_keys())
                 || IdScheme::is_legacy_id(id)))
@@ -315,6 +316,21 @@ mod tests {
         }
         for refused in ["../PP-0001", "PP-0001/x", "PP-0001 "] {
             assert!(!is_token_safe(&keyed, refused), "{refused}");
+        }
+    }
+
+    #[test]
+    fn an_id_converged_in_another_literal_case_is_token_safe() {
+        let scheme = IdScheme::new(
+            crate::id_pattern::IdPattern::parse("v{number:03d}")
+                .expect("a well-formed pattern"),
+            None,
+        );
+        for admitted in ["v001", "V001"] {
+            assert!(is_token_safe(&scheme, admitted), "{admitted}");
+        }
+        for refused in ["V0001", "w001", "V001/x"] {
+            assert!(!is_token_safe(&scheme, refused), "{refused}");
         }
     }
 
