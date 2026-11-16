@@ -381,7 +381,7 @@ def test_a_name_used_twice_across_files_raises(tmp_path: Path) -> None:
 
 
 def test_building_the_base_lays_the_project_tree(tmp_path: Path) -> None:
-    built = build_project(Setup(variant="base"), tmp_path, EVALS)
+    built = build_project(Setup(variant="base"), tmp_path, REPO_ROOT)
 
     assert built == tmp_path / SET
     assert (tmp_path / "meta/work/0900-llm-agent-planning.md").exists()
@@ -391,7 +391,7 @@ def test_building_the_base_lays_the_project_tree(tmp_path: Path) -> None:
 
 
 def test_building_a_variant_overlays_it_on_the_base(tmp_path: Path) -> None:
-    built = build_project(Setup(variant="equivalence"), tmp_path, EVALS)
+    built = build_project(Setup(variant="equivalence"), tmp_path, REPO_ROOT)
 
     assert len(list((built / "reports").glob("*.md"))) == 3
     assert "report_count: 3\n" in (built / "manifest.md").read_text()
@@ -407,7 +407,7 @@ def test_building_applies_the_mutations_in_order(tmp_path: Path) -> None:
         ),
     )
 
-    built = build_project(setup, tmp_path, EVALS)
+    built = build_project(setup, tmp_path, REPO_ROOT)
 
     assert 'status: "outlined"\n' in (built / "manifest.md").read_text()
 
@@ -415,7 +415,7 @@ def test_building_applies_the_mutations_in_order(tmp_path: Path) -> None:
 def test_building_writes_the_breadth_into_the_project_config(
     tmp_path: Path,
 ) -> None:
-    build_project(Setup(variant="base", breadth=2), tmp_path, EVALS)
+    build_project(Setup(variant="base", breadth=2), tmp_path, REPO_ROOT)
 
     config = (tmp_path / ".accelerator/config.md").read_text()
     assert "research:\n  topic:\n    breadth: 2\n" in config
@@ -428,7 +428,9 @@ def _sections(template: str) -> list[str]:
 def test_the_user_override_adds_a_method_section_before_sources(
     tmp_path: Path,
 ) -> None:
-    build_project(Setup(variant="base", templates=("user",)), tmp_path, EVALS)
+    build_project(
+        Setup(variant="base", templates=("user",)), tmp_path, REPO_ROOT
+    )
 
     override = tmp_path / ".accelerator/templates/topic-research-report.md"
     assert _sections(override.read_text())[-2:] == ["## Method", "## Sources"]
@@ -438,7 +440,9 @@ def test_the_user_override_adds_a_method_section_before_sources(
 def test_the_config_override_adds_a_scope_section_and_is_named_in_config(
     tmp_path: Path,
 ) -> None:
-    build_project(Setup(variant="base", templates=("config",)), tmp_path, EVALS)
+    build_project(
+        Setup(variant="base", templates=("config",)), tmp_path, REPO_ROOT
+    )
 
     override = tmp_path / ".accelerator/report-template.md"
     assert _sections(override.read_text())[-2:] == ["## Scope", "## Sources"]
@@ -452,7 +456,9 @@ def test_the_config_override_adds_a_scope_section_and_is_named_in_config(
 def test_an_override_otherwise_equals_the_plugin_template(
     tmp_path: Path,
 ) -> None:
-    build_project(Setup(variant="base", templates=("user",)), tmp_path, EVALS)
+    build_project(
+        Setup(variant="base", templates=("user",)), tmp_path, REPO_ROOT
+    )
 
     override = tmp_path / ".accelerator/templates/topic-research-report.md"
     plugin = (REPO_ROOT / "templates/topic-research-report.md").read_text()

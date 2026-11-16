@@ -21,6 +21,7 @@ def _subbinary(name: str) -> str:
 
 @dataclass(frozen=True)
 class Toolchain:
+    plugin_root: Path
     bootstrap: Path
     launcher: Path
     corpus: Path
@@ -30,6 +31,7 @@ class Toolchain:
     def debug(cls, root: Path) -> Toolchain:
         debug = root / "cli/target/debug"
         return cls(
+            plugin_root=root,
             bootstrap=root / "bin" / LAUNCHER.name,
             launcher=debug / LAUNCHER.name,
             corpus=debug / _subbinary("accelerator-corpus"),

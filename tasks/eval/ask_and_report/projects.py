@@ -3,9 +3,8 @@
 import shutil
 from pathlib import Path
 
-from tasks.eval.ask_and_report.layout import SET
+from tasks.eval.ask_and_report.layout import REFERENCE_CORPUS, SET
 from tasks.eval.ask_and_report.scenarios import Setup, TemplateTier
-from tasks.shared.sources import repo_root
 
 CONFIG = Path(".accelerator/config.md")
 REPORT_TEMPLATE = "topic-research-report"
@@ -19,8 +18,8 @@ OVERRIDE_SECTIONS: dict[TemplateTier, str] = {
 }
 
 
-def _override(tier: TemplateTier) -> str:
-    plugin = (repo_root() / "templates" / f"{REPORT_TEMPLATE}.md").read_text()
+def _override(tier: TemplateTier, plugin_root: Path) -> str:
+    plugin = (plugin_root / "templates" / f"{REPORT_TEMPLATE}.md").read_text()
     section = OVERRIDE_SECTIONS[tier]
     inserted = f"## {section}\n[The {section.lower()} of this report.]\n\n"
     return plugin.replace("## Sources\n", inserted + "## Sources\n", 1)
@@ -37,8 +36,9 @@ def _config(setup: Setup) -> str:
     )
 
 
-def build_project(setup: Setup, root: Path, evals: Path) -> Path:
+def build_project(setup: Setup, root: Path, plugin_root: Path) -> Path:
     """Lay the scenario's project out under ``root`` and return its set."""
+    evals = plugin_root / REFERENCE_CORPUS
     shutil.copytree(evals / "project", root, dirs_exist_ok=True)
     if setup.variant != "base":
         shutil.copytree(
@@ -49,7 +49,7 @@ def build_project(setup: Setup, root: Path, evals: Path) -> Path:
     for tier in setup.templates:
         override = root / OVERRIDES[tier]
         override.parent.mkdir(parents=True, exist_ok=True)
-        override.write_text(_override(tier))
+        override.write_text(_override(tier, plugin_root))
     if config := _config(setup):
         (root / CONFIG).parent.mkdir(parents=True, exist_ok=True)
         (root / CONFIG).write_text(config)

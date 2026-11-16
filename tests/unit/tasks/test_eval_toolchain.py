@@ -41,6 +41,7 @@ def test_the_toolchain_is_the_workspace_s_debug_builds(tmp_path: Path) -> None:
 
     debug = tmp_path / "cli/target/debug"
     assert toolchain == Toolchain(
+        plugin_root=tmp_path,
         bootstrap=tmp_path / "bin/accelerator",
         launcher=debug / "accelerator",
         corpus=debug / "accelerator-corpus",

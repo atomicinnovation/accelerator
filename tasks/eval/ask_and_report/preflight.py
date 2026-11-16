@@ -29,7 +29,6 @@ from tasks.eval.ask_and_report.verdicts import (
 from tasks.eval.documents.rule import RULE, cite_once, key_order
 from tasks.eval.documents.sources import Citation, parse_sources
 from tasks.eval.toolchain import Toolchain
-from tasks.shared.sources import repo_root
 
 
 def gate_of(verdict: Mapping[str, object]) -> Gate:
@@ -50,11 +49,12 @@ class CommandFailedError(Exception):
     pass
 
 
-def _output(command: Sequence[object], root: Path) -> str:
+def _output(command: Sequence[object], root: Path, toolchain: Toolchain) -> str:
     ran = subprocess.run(
         [str(part) for part in command],
         cwd=root,
-        env=os.environ | {"ACCELERATOR_PLUGIN_ROOT": str(repo_root())},
+        env=os.environ
+        | {"ACCELERATOR_PLUGIN_ROOT": str(toolchain.plugin_root)},
         capture_output=True,
         text=True,
         check=False,
@@ -70,7 +70,7 @@ def _output(command: Sequence[object], root: Path) -> str:
 def _research_topic(
     toolchain: Toolchain, root: Path, verb: str
 ) -> dict[str, Any]:
-    profiles = repo_root() / "skills/research/profiles"
+    profiles = toolchain.plugin_root / "skills/research/profiles"
     return json.loads(
         _output(
             [
@@ -82,6 +82,7 @@ def _research_topic(
                 profiles,
             ],
             root,
+            toolchain,
         )
     )
 
@@ -99,7 +100,9 @@ def _breadth_problems(
     breadth: int, root: Path, toolchain: Toolchain
 ) -> list[str]:
     resolved = _output(
-        [toolchain.launcher, "config", "get", "research.topic.breadth"], root
+        [toolchain.launcher, "config", "get", "research.topic.breadth"],
+        root,
+        toolchain,
     ).strip()
     if resolved == str(breadth):
         return []
@@ -119,6 +122,7 @@ def _template_problems(
             "report",
         ],
         root,
+        toolchain,
     )
     winner = "config" if "config" in setup.templates else "user"
     problems: list[str] = []
@@ -166,14 +170,14 @@ def _criteria(scenario: Scenario) -> list[Criterion]:
     return [criterion for turn in scenario.turns for criterion in turn.expect]
 
 
-def _merged_sources(set_root: Path) -> list[Citation]:
+def _merged_sources(set_root: Path, plugin_root: Path) -> list[Citation]:
     citations = [
         citation
         for finding in sorted((set_root / "findings").glob("*.md"))
         if not finding.name.startswith(".")
         for citation in parse_sources(finding.read_text())
     ]
-    rule = (repo_root() / RULE).read_text()
+    rule = (plugin_root / RULE).read_text()
     return cite_once(citations, key_order(rule))
 
 
@@ -204,6 +208,7 @@ def _report_path(scenario: Scenario, root: Path, toolchain: Toolchain) -> str:
     printed = _output(
         [toolchain.research, "topic", "report-path", SLUG, scenario.question],
         root,
+        toolchain,
     ).strip()
     return (
         Path(printed).resolve().relative_to((root / SET).resolve()).as_posix()
@@ -253,7 +258,7 @@ def expectation_problems(
     problems: list[str] = []
     criteria = _criteria(scenario)
     if any(isinstance(c, Sources) for c in criteria):
-        merged = _merged_sources(root / SET)
+        merged = _merged_sources(root / SET, toolchain.plugin_root)
         for sources in (c for c in criteria if isinstance(c, Sources)):
             problems += _source_problems(sources, merged)
     if scenario.gate == "freshness":
@@ -276,14 +281,14 @@ def expectation_problems(
 
 
 def preflight_problems(
-    files: Sequence[ScenarioFile], evals: Path, toolchain: Toolchain
+    files: Sequence[ScenarioFile], toolchain: Toolchain
 ) -> list[str]:
     """One line per scenario whose built project misses its gate or setup."""
     problems: list[str] = []
     for scenario in (s for file in files for s in file.scenarios):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            build_project(scenario.setup, root, evals)
+            build_project(scenario.setup, root, toolchain.plugin_root)
             try:
                 found = gate_problems(scenario, root, toolchain)
                 found += setup_problems(scenario.setup, root, toolchain)

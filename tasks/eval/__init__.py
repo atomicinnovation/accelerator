@@ -192,7 +192,7 @@ def ask_and_report(
     version = "" if check_only else _claude_version_allowed(root)
     toolchain = Toolchain.debug(root)
     files = load_scenario_files(evals / "scenarios")
-    if problems := preflight_problems(files, evals, toolchain):
+    if problems := preflight_problems(files, toolchain):
         raise Exit("\n".join(problems), code=1)
     directory = Path(out) if out else Path(tempfile.mkdtemp(prefix="ask-"))
     settings = _run_settings(
@@ -207,7 +207,7 @@ def ask_and_report(
     )
     try:
         if not check_only and (
-            refusal := authentication_refusal(root, evals, flags, env)
+            refusal := authentication_refusal(root, flags, env)
         ):
             raise Exit(refusal, code=1)
         plans = ask_and_report_runs.plan_sessions(
@@ -220,7 +220,7 @@ def ask_and_report(
         )
         print(f"Sessions and results: {directory}")
         print(f"Planned sessions: {len(to_run)}")
-        ask_and_report_runs.run_eval(to_run, root, evals, flags, env, jobs)
+        ask_and_report_runs.run_eval(to_run, root, flags, env, jobs)
         results = ask_and_report_runs.judge_all(plans, root, toolchain)
         ask_and_report_runs.save_results(results, directory, settings)
         print(ask_and_report_runs.summary(plans, results, directory, settings))

@@ -92,13 +92,12 @@ def sessions_on_disk(plans: Sequence[SessionPlan]) -> list[SessionPlan]:
 def run_planned(
     plan: SessionPlan,
     plugin_root: Path,
-    evals: Path,
     flags: Sequence[str],
     env: dict[str, str],
     run: Runner = run_session,
 ) -> None:
     plan.directory.mkdir(parents=True, exist_ok=False)
-    build_project(plan.scenario.setup, plan.project, evals)
+    build_project(plan.scenario.setup, plan.project, plugin_root)
     prepare_repository(plan.project)
     bounds = Bounds(plan.project, plugin_root)
     turns = plan.scenario.turns
@@ -233,7 +232,6 @@ def judge_all(
 def run_eval(
     plans: Sequence[SessionPlan],
     plugin_root: Path,
-    evals: Path,
     flags: Sequence[str],
     env: dict[str, str],
     jobs: int,
@@ -244,7 +242,7 @@ def run_eval(
     """
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         futures = [
-            pool.submit(run_planned, plan, plugin_root, evals, flags, env)
+            pool.submit(run_planned, plan, plugin_root, flags, env)
             for plan in plans
         ]
     for future in futures:
