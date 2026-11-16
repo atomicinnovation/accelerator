@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from tasks.eval.ask_and_report.layout import SET, SLUG
+from tasks.eval.ask_and_report.layout import SET, SLUG, is_finding
 from tasks.eval.ask_and_report.projects import (
     OVERRIDE_SECTIONS,
     build_project,
@@ -173,8 +173,8 @@ def _criteria(scenario: Scenario) -> list[Criterion]:
 def _merged_sources(set_root: Path, plugin_root: Path) -> list[Citation]:
     citations = [
         citation
-        for finding in sorted((set_root / "findings").glob("*.md"))
-        if not finding.name.startswith(".")
+        for finding in sorted((set_root / "findings").iterdir())
+        if is_finding(finding.relative_to(set_root).as_posix())
         for citation in parse_sources(finding.read_text())
     ]
     rule = (plugin_root / RULE).read_text()

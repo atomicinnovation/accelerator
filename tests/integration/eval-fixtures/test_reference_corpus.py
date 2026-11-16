@@ -1,3 +1,4 @@
+import json
 import re
 import subprocess
 from dataclasses import replace
@@ -5,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from tasks.eval.ask_and_report.layout import SLUG, is_finding
 from tasks.eval.ask_and_report.preflight import (
     expectation_problems,
     gate_problems,
@@ -59,6 +61,41 @@ def test_every_variant_validates(tmp_path: Path, variant: Variant) -> None:
     )
 
     assert validated.returncode == 0, validated.stdout + validated.stderr
+
+
+@EACH_VARIANT
+def test_the_harness_takes_as_findings_what_the_cli_does(
+    tmp_path: Path, variant: Variant
+) -> None:
+    set_root = build_project(Setup(variant=variant), tmp_path, REPO_ROOT)
+    (set_root / "findings" / "notes.md").write_text("x")
+    (set_root / "findings" / ".09-hidden-web.md").write_text("x")
+
+    on_disk = sorted(
+        path.relative_to(set_root).as_posix()
+        for path in set_root.rglob("*")
+        if path.is_file()
+    )
+
+    listed = subprocess.run(
+        [
+            str(TOOLCHAIN.research),
+            "topic",
+            "consultable",
+            SLUG,
+            "--profiles-dir",
+            str(REPO_ROOT / "skills/research/profiles"),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    opened = json.loads(listed.stdout).get("findings", [])
+
+    assert [str(set_root / path) for path in on_disk if is_finding(path)] == (
+        sorted(opened)
+    )
 
 
 @EACH_SCENARIO

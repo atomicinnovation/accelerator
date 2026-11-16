@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, get_args
 
 from tasks.eval.ask_and_report import formats
-from tasks.eval.ask_and_report.layout import SET, SLUG
+from tasks.eval.ask_and_report.layout import SET, SLUG, is_finding
 from tasks.eval.ask_and_report.parsing import one_of, only
 from tasks.eval.ask_and_report.turns import (
     Snapshot,
@@ -474,7 +474,7 @@ class Sources:
         cited = {
             normalised_url(citation.url)
             for path in _set_relative(list(turn.after))
-            if path.startswith("findings/") and path.endswith(".md")
+            if is_finding(path)
             for citation in parse_sources(_text(turn.after, path) or "")
         }
         failures += [
