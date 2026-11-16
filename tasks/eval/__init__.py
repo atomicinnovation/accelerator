@@ -56,10 +56,12 @@ def citing_once(
 
     Each session is a headless ``claude -p`` run, so this needs ``claude`` on
     ``PATH``, network access and model usage. Sessions and the judge run the
-    working tree's debug CLI builds, which needs the dev-launcher marker.
+    working tree's debug CLI builds, which needs the dev-launcher marker
+    unless ``--check-only`` only judges sessions already run.
     """
     root = repo_root()
-    require_dev_launcher_marker(root)
+    if not check_only:
+        require_dev_launcher_marker(root)
     fixtures = load_fixtures(root / FIXTURES)
     problems = fixture_problems(fixtures, key_order((root / RULE).read_text()))
     if problems:
