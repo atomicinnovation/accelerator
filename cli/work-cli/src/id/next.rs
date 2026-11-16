@@ -29,7 +29,8 @@ pub enum RunOutcome {
         message: String,
     },
     Failed(String),
-    /// The identity run could not begin; nothing was read.
+    /// Nothing was allocated: the identity run could not begin, or the
+    /// corpus cannot be trusted.
     Refused {
         message: String,
         code: u8,

@@ -198,7 +198,7 @@
 //! re-key from running or read no corpus.
 //!
 //! `work create --id` refuses an ID it cannot write under, after the
-//! identity-run refusals and the config refusals above, writing nothing and
+//! identity-run, config and corpus refusals above, writing nothing and
 //! sending no tracker request: `E_ID_WITH_PROJECT`, `E_ID_TRACKER_OWNED`,
 //! `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` and `E_ID_TAKEN`, in that
 //! order. Under `--push`, the pending-push refusals (`E_PUSH_PENDING`,

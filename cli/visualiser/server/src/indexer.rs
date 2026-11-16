@@ -1369,8 +1369,6 @@ fn build_entry(
             let slug = id_slug.or_else(|| {
                 corpus::slug::derive(kind, filename, work_item_cfg.convention())
             });
-            // A synced work item may carry its id in frontmatter even when the
-            // filename does not encode it, so `id:` alone is its identity.
             let raw_id = match &parsed.state {
                 FrontmatterState::Parsed(map) => {
                     map.get("id").and_then(|v| v.as_str())

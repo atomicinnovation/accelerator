@@ -42,8 +42,8 @@ impl IdentityFingerprint {
     }
 
     /// How the inputs differ from `earlier`'s: a changed `work.id_pattern` or
-    /// `work.key` outranks any changed item, and a changed item is named by every path it was or is
-    /// found at.
+    /// `work.key` outranks any changed item, and a changed item is named by
+    /// every path it was or is found at.
     #[must_use]
     pub fn staleness_since(&self, earlier: &Self) -> Option<Staleness> {
         let settings = |scheme: &IdScheme| {

@@ -196,8 +196,8 @@
   which was absorbed before, and a switch to `{tracker}`, after which
   earlier items kept their IDs. Run `/rekey-work-items` after changing the
   pattern; the refusal names a fix by hand first for an item re-key cannot
-  read. `work sync`, `work rekey` and `work id canonicalise` still run. A reference written under an
-  earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
+  read. `work sync`, `work rekey` and `work id canonicalise` still run. A
+  reference written under an earlier pattern, such as `PP-42` under `{key}_{number:04d}` or `ENG-42`
   under the default `{number:04d}`, no longer joins its item in
   `work list --parent` or the visualiser until re-keyed.
 - **The `work id` verbs speak one error vocabulary.** Every refusal of
@@ -337,12 +337,11 @@
 
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
-  welcome text, the ID is settled with `work id check` before drafting; an
-  `--id` elsewhere in the argument is asked about rather than read as
-  topic text: an
+  welcome text, the ID is settled with `work id check` before drafting. An
   exact ID is used as given, a short or differently-keyed one is proposed in
   full, and a refusal is relayed with a choice of another ID, automatic
-  allocation or cancelling. Both the push-gate preview and the create carry
+  allocation or cancelling. An `--id` elsewhere in the argument is asked
+  about rather than read as topic text. Both the push-gate preview and the create carry
   the ID, and a refusal after drafting resumes where it stopped with the
   approved draft unchanged.
 - **`work create --id <ID>` names the new item's ID.** The item is written
@@ -362,8 +361,9 @@
   `work create --id`, the last two naming the configured key when the ID's
   key differs from it, and refuses with the `E_ID_*` code `work create --id`
   would give. The configured key in another letter case, such as `pp-0400`
-  under `work.key: PP`, is `corrected` to `PP-0400`. A pass reserves nothing. An ID an interrupted `--push` create
-  wrote reports `E_ID_TAKEN`, where `work create` reports `E_PUSH_PENDING`.
+  under `work.key: PP`, is `corrected` to `PP-0400`. A pass reserves
+  nothing. An ID an interrupted `--push` create wrote reports `E_ID_TAKEN`,
+  where `work create` reports `E_PUSH_PENDING`.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a

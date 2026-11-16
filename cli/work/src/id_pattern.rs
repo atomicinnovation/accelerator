@@ -207,8 +207,6 @@ fn is_key_token(token: &str) -> bool {
     matches!(token, "key" | "project")
 }
 
-/// The inner text of each well-formed `{...}` token, skipping escaped braces
-/// and malformed tokens.
 fn token_at(
     characters: &[char],
     open: usize,

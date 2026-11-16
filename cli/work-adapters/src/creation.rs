@@ -710,7 +710,8 @@ fn record_baseline_after_create(
 ///
 /// # Errors
 ///
-/// The first refusal, as the message the create reports.
+/// The first refusal: [`RequestedIdBlock::Pending`] with the pending-push
+/// check's message, or [`RequestedIdBlock::Refused`] with the typed refusal.
 pub fn refuse_requested_id<T>(
     requested: &RequestedId,
     listing: &WorkItemListing,
