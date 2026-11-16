@@ -313,6 +313,7 @@ run = "invoke test.unit.visualiser"
 [tasks."test:unit:frontend"]
 description = "Run visualiser frontend unit tests (Vitest)"
 depends = ["deps:install:node"]
+wait_for = ["test:unit:cli", "test:unit:visualiser"]
 run = "invoke test.unit.frontend"
 
 [tasks."test:unit:tasks"]
