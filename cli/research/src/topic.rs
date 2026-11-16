@@ -9,6 +9,7 @@ pub mod consultation;
 pub mod counts;
 pub mod evidence;
 pub mod layout;
+pub mod lifecycle;
 pub mod outline;
 pub mod plan;
 pub mod question;

@@ -5,11 +5,10 @@ use crate::topic::counts::CountsReading;
 use crate::topic::counts::Mismatch;
 use crate::topic::layout::FINDINGS;
 use crate::topic::layout::REPORTS;
+use crate::topic::lifecycle::SetStatus;
 use crate::topic::outline::Pair;
 use crate::topic::plan::RoundPlan;
 use crate::topic::plan::Skip;
-
-const CONSULTABLE_STATUSES: [&str; 2] = ["synthesised", "complete"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Consultation {
@@ -56,7 +55,7 @@ impl Consultation {
         read_counts: impl FnOnce() -> Result<CountsReading, E>,
         read_plan: impl FnOnce() -> Result<RoundPlan, E>,
     ) -> Result<Self, E> {
-        if !CONSULTABLE_STATUSES.contains(&status) {
+        if !SetStatus::named(status).is_some_and(SetStatus::is_consultable) {
             return Ok(Self::Refused(Refusal::Status {
                 status: status.to_owned(),
             }));
