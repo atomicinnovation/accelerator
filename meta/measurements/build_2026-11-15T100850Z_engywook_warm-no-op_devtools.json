@@ -1,0 +1,5243 @@
+{
+  "schema_version": 1,
+  "run_id": "build_2026-11-15T100850Z_engywook_warm-no-op_devtools",
+  "run_directory": ".accelerator-measure/build/build_2026-11-15T100850Z_engywook_warm-no-op_devtools",
+  "started_at": "2026-11-15T10:08:50+00:00",
+  "conditions": {
+    "hostname": "engywook",
+    "model": "Mac16,5",
+    "os_version": "26.3",
+    "mise_jobs": 8,
+    "cache_state": "warm-no-op",
+    "mode": "full",
+    "isolated_tasks": [],
+    "host_settings": "devtools"
+  },
+  "commit": {
+    "id": "664138fabc162bce3a914e13c924f55eb6fbdc8f",
+    "matched_at_start": false,
+    "matched_at_end": false,
+    "matched": false
+  },
+  "host": {
+    "hostname": "engywook",
+    "model": "Mac16,5",
+    "chip": "Apple M4 Max",
+    "os_version": "26.3",
+    "os_build": "25D125",
+    "cores": {
+      "total": 16,
+      "performance": 12,
+      "efficiency": 4
+    },
+    "power": {
+      "source": "AC Power",
+      "mode": "0"
+    }
+  },
+  "mise": {
+    "version": "2026.10.8 macos-arm64 (2026-10-11)",
+    "jobs": 8
+  },
+  "idle_load_percent": 50.89655172413793,
+  "task_set": [
+    "build:cli:corpus:dev",
+    "build:cli:dev",
+    "build:cli:fixture-size",
+    "build:cli:research:dev",
+    "build:cli:vcs:dev",
+    "build:frontend",
+    "build:frontend:stub",
+    "build:server:dev",
+    "deny:check",
+    "deps:install:cargo-about",
+    "deps:install:cargo-sources",
+    "deps:install:docs",
+    "deps:install:docs-playwright",
+    "deps:install:nightly",
+    "deps:install:node",
+    "deps:install:playwright",
+    "deps:install:public-api",
+    "deps:install:pup",
+    "deps:install:python",
+    "deps:install:rust-components",
+    "docs:audit:check",
+    "docs:build",
+    "docs:check",
+    "docs:generate",
+    "docs:generate:check",
+    "format:build-system:fix",
+    "format:cli:fix",
+    "format:fix",
+    "format:frontend:fix",
+    "format:scripts:fix",
+    "format:server:fix",
+    "lint:bare-invocation:check",
+    "lint:build-system:check",
+    "lint:check",
+    "lint:claude-coupling:check",
+    "lint:cli:check",
+    "lint:config-test-support:check",
+    "lint:crate-dependencies:check",
+    "lint:dispatch-coherence:check",
+    "lint:frontend:check",
+    "lint:git-tokens:check",
+    "lint:integration-skills:check",
+    "lint:scripts:bashisms:check",
+    "lint:scripts:check",
+    "lint:scripts:shellcheck:check",
+    "lint:server:check",
+    "lint:skill-cli-refs:check",
+    "lint:skill-permissions:check",
+    "lint:store-duplication:check",
+    "lint:vcs-settings:check",
+    "lint:vendor-shims:check",
+    "notices:check",
+    "public-api:check",
+    "pup:check",
+    "test",
+    "test:e2e",
+    "test:e2e:visualiser",
+    "test:integration",
+    "test:integration:conformance",
+    "test:integration:deny",
+    "test:integration:dev",
+    "test:integration:entrypoint",
+    "test:integration:fixture-size",
+    "test:integration:hooks",
+    "test:integration:release-guard",
+    "test:integration:research",
+    "test:integration:skill-invocation",
+    "test:integration:tasks",
+    "test:integration:visualiser",
+    "test:unit",
+    "test:unit:cli",
+    "test:unit:design-automation",
+    "test:unit:frontend",
+    "test:unit:frontend-licenses",
+    "test:unit:tasks",
+    "test:unit:vcs",
+    "test:unit:visualiser",
+    "types:build-system:check",
+    "types:check",
+    "types:frontend:check"
+  ],
+  "tracked_processes": {
+    "syspolicyd": [
+      "^/usr/libexec/syspolicyd(?:\\s|$)"
+    ],
+    "XprotectService": [
+      "/MacOS/XprotectService(?:\\s|$)"
+    ],
+    "ide": [
+      "/Contents/MacOS/idea(?:\\s|$)",
+      "/Contents/MacOS/rustrover(?:\\s|$)"
+    ],
+    "fsnotifier": [
+      "/fsnotifier(?:\\s|$)"
+    ]
+  },
+  "priming": {
+    "wall_clock_seconds": 326.0325550419511,
+    "discarded": true
+  },
+  "runs": [
+    {
+      "index": 1,
+      "wall_clock_seconds": 256.0281976250699,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "build:cli:corpus:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.7292427909560502,
+          "duration_seconds": 2.25,
+          "end_seconds": 2.97924279095605,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.8590920410351828,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.7218948749359697,
+          "after_failure": false
+        },
+        "build:cli:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13965195801574737,
+          "duration_seconds": 2.55,
+          "end_seconds": 2.689651958015747,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.7342671250225976,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.13230404199566692,
+          "after_failure": false
+        },
+        "build:cli:fixture-size": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.489464416052215,
+          "duration_seconds": 0.6764,
+          "end_seconds": 5.165864416052215,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.761978375063278,
+          "after_failure": false
+        },
+        "build:cli:research:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13996579102240503,
+          "duration_seconds": 2.4,
+          "end_seconds": 2.539965791022405,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.7604774589417502,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.13261787500232458,
+          "after_failure": false
+        },
+        "build:cli:vcs:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.14097170799504966,
+          "duration_seconds": 2.75,
+          "end_seconds": 2.8909717079950497,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 2.1114429999142885,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.1336237919749692,
+          "after_failure": false
+        },
+        "build:frontend": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 38.194617000059225,
+          "duration_seconds": 18.0,
+          "end_seconds": 56.194617000059225,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 33.70759483401198,
+          "after_failure": false
+        },
+        "build:frontend:stub": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.823871458065696,
+          "duration_seconds": 0.3034,
+          "end_seconds": 3.127271458065696,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.8165235420456156,
+          "after_failure": false
+        },
+        "build:server:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13707141601480544,
+          "duration_seconds": 2.68,
+          "end_seconds": 2.8170714160148056,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 2.0375911250011995,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.129723499994725,
+          "after_failure": false
+        },
+        "deny:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13665133295580745,
+          "duration_seconds": 2.47,
+          "end_seconds": 2.6066513329558076,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.129303416935727,
+          "after_failure": false
+        },
+        "deps:install:cargo-about": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.6121982500189915,
+          "duration_seconds": 0.3464,
+          "end_seconds": 2.9585982500189916,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.604850333998911,
+          "after_failure": false
+        },
+        "deps:install:cargo-sources": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.1406352500198409,
+          "duration_seconds": 1.49,
+          "end_seconds": 1.6306352500198409,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.9187263749865815,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.13328733399976045,
+          "after_failure": false
+        },
+        "deps:install:docs": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 2.610249166027643,
+          "duration_seconds": null,
+          "end_seconds": 2.610249166027643,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.6029012500075623,
+          "after_failure": false
+        },
+        "deps:install:docs-playwright": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 9.887833832995966,
+          "duration_seconds": null,
+          "end_seconds": 9.887833832995966,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 7.277584666968323,
+          "after_failure": false
+        },
+        "deps:install:nightly": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.6883077080128714,
+          "duration_seconds": 0.8335,
+          "end_seconds": 3.5218077080128714,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.680959791992791,
+          "after_failure": false
+        },
+        "deps:install:node": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13702216604724526,
+          "duration_seconds": 4.35,
+          "end_seconds": 4.487022166047245,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.12967425002716482,
+          "after_failure": false
+        },
+        "deps:install:playwright": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 53.79123824997805,
+          "duration_seconds": 2.42,
+          "end_seconds": 56.21123824997805,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 49.304216083930804,
+          "after_failure": false
+        },
+        "deps:install:public-api": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 37.26534258306492,
+          "duration_seconds": 0.5308999999999999,
+          "end_seconds": 37.796242583064924,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 33.74353487505205,
+          "after_failure": false
+        },
+        "deps:install:pup": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 37.815516208065674,
+          "duration_seconds": 0.39230000000000004,
+          "end_seconds": 38.20781620806567,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 34.2937085000528,
+          "after_failure": false
+        },
+        "deps:install:python": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13848604098893702,
+          "duration_seconds": 0.589,
+          "end_seconds": 0.727486040988937,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.13113812496885657,
+          "after_failure": false
+        },
+        "deps:install:rust-components": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.538278791005723,
+          "duration_seconds": 0.3792,
+          "end_seconds": 2.917478791005723,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.5309308749856427,
+          "after_failure": false
+        },
+        "docs:audit:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 9.18815658299718,
+          "duration_seconds": 1.82,
+          "end_seconds": 11.00815658299718,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.577907416969538,
+          "after_failure": false
+        },
+        "docs:build": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 80.03306320798583,
+          "duration_seconds": null,
+          "end_seconds": 80.03306320798583,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 70.14522937498987,
+          "after_failure": false
+        },
+        "docs:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "docs:generate": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 5.347773457993753,
+          "duration_seconds": null,
+          "end_seconds": 5.347773457993753,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.620287417004816,
+          "after_failure": false
+        },
+        "docs:generate:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 79.52395370800514,
+          "duration_seconds": 1.06,
+          "end_seconds": 80.58395370800514,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 74.17618025001138,
+          "after_failure": false
+        },
+        "format:build-system:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.779760250006802,
+          "duration_seconds": 0.31939999999999996,
+          "end_seconds": 8.099160250006802,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 7.052274209017865,
+          "after_failure": false
+        },
+        "format:cli:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 13.61179566604551,
+          "duration_seconds": 1.96,
+          "end_seconds": 15.57179566604551,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 10.694316875039785,
+          "after_failure": false
+        },
+        "format:fix": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "format:frontend:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 67.38340291602071,
+          "duration_seconds": 2.2,
+          "end_seconds": 69.58340291602072,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 62.89638074997347,
+          "after_failure": false
+        },
+        "format:scripts:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.987963916035369,
+          "duration_seconds": 0.31889999999999996,
+          "end_seconds": 3.306863916035369,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.9806160000152886,
+          "after_failure": false
+        },
+        "format:server:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.9608548750402406,
+          "duration_seconds": 2.38,
+          "end_seconds": 5.3408548750402405,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.95350695902016,
+          "after_failure": false
+        },
+        "lint:bare-invocation:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.001711499993689,
+          "duration_seconds": 0.24430000000000002,
+          "end_seconds": 7.246011499993689,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.274225459004752,
+          "after_failure": false
+        },
+        "lint:build-system:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.365494249970652,
+          "duration_seconds": 0.36260000000000003,
+          "end_seconds": 5.728094249970653,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.638008208981715,
+          "after_failure": false
+        },
+        "lint:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "lint:claude-coupling:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.272603500052355,
+          "duration_seconds": 0.7276,
+          "end_seconds": 7.000203500052355,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.545117459063418,
+          "after_failure": false
+        },
+        "lint:cli:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 25.621354041039012,
+          "duration_seconds": 28.1,
+          "end_seconds": 53.721354041039014,
+          "units": {
+            "compiling": 0,
+            "checking": 1,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 14.341677541960962,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 22.494082582973316,
+          "after_failure": false
+        },
+        "lint:config-test-support:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.501489832997322,
+          "duration_seconds": 0.2767,
+          "end_seconds": 7.778189832997322,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.774003792008385,
+          "after_failure": false
+        },
+        "lint:crate-dependencies:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.708552540978417,
+          "duration_seconds": 0.2748,
+          "end_seconds": 7.983352540978417,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.981066499989479,
+          "after_failure": false
+        },
+        "lint:dispatch-coherence:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.721686000004411,
+          "duration_seconds": 0.2432,
+          "end_seconds": 6.964886000004411,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.994199959015473,
+          "after_failure": false
+        },
+        "lint:frontend:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 76.56767662498169,
+          "duration_seconds": 2.95,
+          "end_seconds": 79.51767662498169,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 72.08065445893445,
+          "after_failure": false
+        },
+        "lint:git-tokens:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.247411665972322,
+          "duration_seconds": 0.2527,
+          "end_seconds": 7.500111665972322,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.519925624983385,
+          "after_failure": false
+        },
+        "lint:integration-skills:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.9664671659702435,
+          "duration_seconds": 0.2429,
+          "end_seconds": 7.209367165970243,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.238981124981306,
+          "after_failure": false
+        },
+        "lint:scripts:bashisms:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.9197732909815386,
+          "duration_seconds": 0.3145,
+          "end_seconds": 3.2342732909815384,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.912425374961458,
+          "after_failure": false
+        },
+        "lint:scripts:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "lint:scripts:shellcheck:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.8924447080353275,
+          "duration_seconds": 0.5426,
+          "end_seconds": 3.4350447080353277,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.885096792015247,
+          "after_failure": false
+        },
+        "lint:server:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 19.894802374998108,
+          "duration_seconds": 17.36,
+          "end_seconds": 37.25480237499811,
+          "units": {
+            "compiling": 2,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 16.76753091693241,
+          "after_failure": false
+        },
+        "lint:skill-cli-refs:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.44821404106915,
+          "duration_seconds": 0.2571,
+          "end_seconds": 7.70531404106915,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.7207280000802125,
+          "after_failure": false
+        },
+        "lint:skill-permissions:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.730562875047326,
+          "duration_seconds": 0.3692,
+          "end_seconds": 6.099762875047326,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.003076834058389,
+          "after_failure": false
+        },
+        "lint:store-duplication:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.102608332992531,
+          "duration_seconds": 3.78,
+          "end_seconds": 9.88260833299253,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.375122292003594,
+          "after_failure": false
+        },
+        "lint:vcs-settings:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.210926208063029,
+          "duration_seconds": 0.2355,
+          "end_seconds": 7.446426208063029,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.483440167074091,
+          "after_failure": false
+        },
+        "lint:vendor-shims:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.934537125052884,
+          "duration_seconds": 0.3366,
+          "end_seconds": 6.271137125052884,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.207051084063947,
+          "after_failure": false
+        },
+        "notices:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 42.829776416067034,
+          "duration_seconds": 37.09,
+          "end_seconds": 79.91977641606704,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 38.34275425001979,
+          "after_failure": false
+        },
+        "public-api:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 80.03589483303949,
+          "duration_seconds": 43.12,
+          "end_seconds": 123.1558948330395,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 17
+          },
+          "lock_wait_seconds": 4.465657374938019,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 42.23965224997457,
+          "after_failure": false
+        },
+        "pup:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 80.5896568329772,
+          "duration_seconds": 18.46,
+          "end_seconds": 99.0496568329772,
+          "units": {
+            "compiling": 2,
+            "checking": 44,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 2.9517437500180677,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 42.381840624911526,
+          "after_failure": false
+        },
+        "test": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:e2e": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:e2e:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 84.36377050005831,
+          "duration_seconds": 171.65,
+          "end_seconds": 256.0137705000583,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 28.152532250080256,
+          "after_failure": false
+        },
+        "test:integration": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:integration:conformance": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 19.678045750013553,
+          "duration_seconds": 47.69,
+          "end_seconds": 67.36804575001355,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 16.698802959057502,
+          "after_failure": false
+        },
+        "test:integration:deny": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.985109250061214,
+          "duration_seconds": 11.91,
+          "end_seconds": 19.895109250061214,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.354474000041373,
+          "after_failure": false
+        },
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.1288989579770714,
+          "duration_seconds": 209.48,
+          "end_seconds": 212.60889895797706,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.4014129169881344,
+          "after_failure": false
+        },
+        "test:integration:entrypoint": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.2374605409568176,
+          "duration_seconds": 22.38,
+          "end_seconds": 25.617460540956817,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.5099744999678806,
+          "after_failure": false
+        },
+        "test:integration:fixture-size": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:integration:hooks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 11.097260958049446,
+          "duration_seconds": 2.6,
+          "end_seconds": 13.697260958049446,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 8.206289250054397,
+          "after_failure": false
+        },
+        "test:integration:release-guard": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.5236066250363365,
+          "duration_seconds": 3.19,
+          "end_seconds": 6.713606625036336,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.7961205840473995,
+          "after_failure": false
+        },
+        "test:integration:research": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 8.100779416039586,
+          "duration_seconds": 73.47,
+          "end_seconds": 81.57077941603958,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.560813625017181,
+          "after_failure": false
+        },
+        "test:integration:skill-invocation": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.3082250830484554,
+          "duration_seconds": 16.37,
+          "end_seconds": 19.678225083048456,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.5807390420595184,
+          "after_failure": false
+        },
+        "test:integration:tasks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.4372325830627233,
+          "duration_seconds": 1.23,
+          "end_seconds": 4.667232583062724,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.7097465420737863,
+          "after_failure": false
+        },
+        "test:integration:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 9.889587208046578,
+          "duration_seconds": 32.92,
+          "end_seconds": 42.80958720804658,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.2986851669847965,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 7.072515792031773,
+          "after_failure": false
+        },
+        "test:unit": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:unit:cli": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 15.573558832984418,
+          "duration_seconds": 210.49,
+          "end_seconds": 226.06355883298443,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.8382237500045449,
+          "nextest_phase_seconds": 195.008,
+          "queueing_delay_seconds": 12.656080041978694,
+          "after_failure": false
+        },
+        "test:unit:design-automation": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 1.6290910000680014,
+          "duration_seconds": 7.56,
+          "end_seconds": 9.189091000068,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.621743084047921,
+          "after_failure": false
+        },
+        "test:unit:frontend": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 56.19460287503898,
+          "duration_seconds": 30.0,
+          "end_seconds": 86.19460287503898,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 51.707580708991735,
+          "after_failure": false
+        },
+        "test:unit:frontend-licenses": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 56.21090762503445,
+          "duration_seconds": 20.35,
+          "end_seconds": 76.56090762503445,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 51.723885458987205,
+          "after_failure": false
+        },
+        "test:unit:tasks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.668590166023932,
+          "duration_seconds": 108.24,
+          "end_seconds": 112.90859016602393,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.9411041250349954,
+          "after_failure": false
+        },
+        "test:unit:vcs": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.168321375036612,
+          "duration_seconds": 0.1955,
+          "end_seconds": 5.363821375036612,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.440835334047675,
+          "after_failure": false
+        },
+        "test:unit:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 81.57966412499081,
+          "duration_seconds": 31.85,
+          "end_seconds": 113.42966412499081,
+          "units": {
+            "compiling": 1,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 5.174391792039387,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 25.38504712493159,
+          "after_failure": false
+        },
+        "types:build-system:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.349628500058316,
+          "duration_seconds": 0.5804,
+          "end_seconds": 5.930028500058316,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.622142459069378,
+          "after_failure": false
+        },
+        "types:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "types:frontend:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 69.58166625001468,
+          "duration_seconds": 14.75,
+          "end_seconds": 84.33166625001468,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 65.09464408396744,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 5,
+        "checking": 45,
+        "documenting": 17
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 83.48275862068965,
+          "running": [
+            "format:cli:fix",
+            "test:integration:deny",
+            "test:integration:dev",
+            "test:integration:entrypoint",
+            "test:integration:research",
+            "test:integration:skill-invocation",
+            "test:integration:visualiser",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 30.0,
+          "busy_percent": 92.26666666666667,
+          "running": [
+            "build:frontend",
+            "lint:cli:check",
+            "notices:check",
+            "test:integration:conformance",
+            "test:integration:dev",
+            "test:integration:research",
+            "test:unit:cli",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 60.0,
+          "busy_percent": 94.33333333333333,
+          "running": [
+            "notices:check",
+            "test:integration:dev",
+            "test:integration:research",
+            "test:unit:cli",
+            "test:unit:frontend",
+            "test:unit:frontend-licenses",
+            "test:unit:tasks",
+            "types:frontend:check"
+          ]
+        },
+        {
+          "start_seconds": 90.0,
+          "busy_percent": 84.96666666666667,
+          "running": [
+            "public-api:check",
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli",
+            "test:unit:tasks",
+            "test:unit:visualiser"
+          ]
+        },
+        {
+          "start_seconds": 120.0,
+          "busy_percent": 85.6896551724138,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 150.0,
+          "busy_percent": 81.46666666666667,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 180.0,
+          "busy_percent": 56.43333333333333,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 210.0,
+          "busy_percent": 50.241379310344826,
+          "running": [
+            "test:e2e:visualiser",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 240.0,
+          "busy_percent": 49.0,
+          "running": [
+            "test:e2e:visualiser"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 36.12000000000262,
+        "XprotectService": null,
+        "ide": 265.97000000000116,
+        "fsnotifier": 1.379999999999967
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 2,
+      "wall_clock_seconds": 275.13534475001507,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "build:cli:corpus:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.6697902909945697,
+          "duration_seconds": 1.74,
+          "end_seconds": 2.40979029099457,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.4052535829832777,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.6602737499633804,
+          "after_failure": false
+        },
+        "build:cli:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13256362499669194,
+          "duration_seconds": 2.24,
+          "end_seconds": 2.372563624996692,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.6132048750296235,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.12304708396550268,
+          "after_failure": false
+        },
+        "build:cli:fixture-size": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.755873249960132,
+          "duration_seconds": 0.6444,
+          "end_seconds": 4.400273249960132,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.087381624983065,
+          "after_failure": false
+        },
+        "build:cli:research:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13004612503573298,
+          "duration_seconds": 2.15,
+          "end_seconds": 2.280046125035733,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.5222037499770522,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.12052958400454372,
+          "after_failure": false
+        },
+        "build:cli:vcs:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13377249997574836,
+          "duration_seconds": 2.01,
+          "end_seconds": 2.143772499975748,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.3921666670357808,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.1242559589445591,
+          "after_failure": false
+        },
+        "build:frontend": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 58.47287974995561,
+          "duration_seconds": 34.31,
+          "end_seconds": 92.78287974995561,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 54.72329733392224,
+          "after_failure": false
+        },
+        "build:frontend:stub": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.2811738330638036,
+          "duration_seconds": 0.2769,
+          "end_seconds": 2.5580738330638035,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.2716572920326144,
+          "after_failure": false
+        },
+        "build:server:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.12897970795165747,
+          "duration_seconds": 1.86,
+          "end_seconds": 1.9889797079516576,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.2369306669570506,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.11946316692046821,
+          "after_failure": false
+        },
+        "deny:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.12667808297555894,
+          "duration_seconds": 2.05,
+          "end_seconds": 2.1766780829755588,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.11716154194436967,
+          "after_failure": false
+        },
+        "deps:install:cargo-about": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.14341120806057,
+          "duration_seconds": 0.3028,
+          "end_seconds": 2.44621120806057,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.133894667029381,
+          "after_failure": false
+        },
+        "deps:install:cargo-sources": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.13455850002355874,
+          "duration_seconds": 1.04,
+          "end_seconds": 1.1745585000235588,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.4496476669656113,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.12504195899236947,
+          "after_failure": false
+        },
+        "deps:install:docs": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 2.141882666037418,
+          "duration_seconds": null,
+          "end_seconds": 2.141882666037418,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.1323661250062287,
+          "after_failure": false
+        },
+        "deps:install:docs-playwright": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 8.557179250055924,
+          "duration_seconds": null,
+          "end_seconds": 8.557179250055924,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.415296584018506,
+          "after_failure": false
+        },
+        "deps:install:nightly": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.181727332994342,
+          "duration_seconds": 0.704,
+          "end_seconds": 2.8857273329943416,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.1722107919631526,
+          "after_failure": false
+        },
+        "deps:install:node": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.12958241603337228,
+          "duration_seconds": 3.62,
+          "end_seconds": 3.7495824160333724,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.12006587500218302,
+          "after_failure": false
+        },
+        "deps:install:playwright": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 66.17606579104904,
+          "duration_seconds": 2.22,
+          "end_seconds": 68.39606579104904,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 62.42648337501567,
+          "after_failure": false
+        },
+        "deps:install:public-api": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 58.09706187504344,
+          "duration_seconds": 0.37339999999999995,
+          "end_seconds": 58.47046187504343,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 55.211334542049094,
+          "after_failure": false
+        },
+        "deps:install:pup": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 58.113639165996574,
+          "duration_seconds": 0.4005,
+          "end_seconds": 58.514139165996575,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 55.22791183300223,
+          "after_failure": false
+        },
+        "deps:install:python": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.1325916249770671,
+          "duration_seconds": 0.5358999999999999,
+          "end_seconds": 0.668491624977067,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.12307508394587785,
+          "after_failure": false
+        },
+        "deps:install:rust-components": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 1.9938811659812927,
+          "duration_seconds": 0.3397,
+          "end_seconds": 2.333581165981293,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.9843646249501035,
+          "after_failure": false
+        },
+        "docs:audit:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.501909125014208,
+          "duration_seconds": 1.05,
+          "end_seconds": 8.551909125014209,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.36002645897679,
+          "after_failure": false
+        },
+        "docs:build": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 96.94154129095841,
+          "duration_seconds": null,
+          "end_seconds": 96.94154129095841,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 88.38436204090249,
+          "after_failure": false
+        },
+        "docs:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "docs:generate": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 4.633287540986203,
+          "duration_seconds": null,
+          "end_seconds": 4.633287540986203,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.9647959160091357,
+          "after_failure": false
+        },
+        "docs:generate:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 95.53506100003142,
+          "duration_seconds": 1.28,
+          "end_seconds": 96.81506100003142,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 90.90177345904522,
+          "after_failure": false
+        },
+        "format:build-system:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.147852541063912,
+          "duration_seconds": 0.3517,
+          "end_seconds": 7.499552541063912,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.479360916086845,
+          "after_failure": false
+        },
+        "format:cli:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 8.696773083065636,
+          "duration_seconds": 5.04,
+          "end_seconds": 13.736773083065636,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.363191917084343,
+          "after_failure": false
+        },
+        "format:fix": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "format:frontend:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 91.35603312496096,
+          "duration_seconds": 1.94,
+          "end_seconds": 93.29603312496096,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 87.60645070892758,
+          "after_failure": false
+        },
+        "format:scripts:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.448360958020203,
+          "duration_seconds": 0.3328,
+          "end_seconds": 2.7811609580202026,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.4388444169890136,
+          "after_failure": false
+        },
+        "format:server:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.417183249955997,
+          "duration_seconds": 2.43,
+          "end_seconds": 4.847183249955997,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.4076667089248076,
+          "after_failure": false
+        },
+        "lint:bare-invocation:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.37630025006365,
+          "duration_seconds": 0.25930000000000003,
+          "end_seconds": 6.63560025006365,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.707808625086583,
+          "after_failure": false
+        },
+        "lint:build-system:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.849553665961139,
+          "duration_seconds": 0.37960000000000005,
+          "end_seconds": 5.229153665961139,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.181062040984072,
+          "after_failure": false
+        },
+        "lint:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "lint:claude-coupling:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.480922000017017,
+          "duration_seconds": 0.671,
+          "end_seconds": 6.151922000017017,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.81243037503995,
+          "after_failure": false
+        },
+        "lint:cli:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 49.122954666032456,
+          "duration_seconds": 17.04,
+          "end_seconds": 66.16295466603245,
+          "units": {
+            "compiling": 0,
+            "checking": 1,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 7.259298000019044,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 46.564880832968655,
+          "after_failure": false
+        },
+        "lint:config-test-support:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.875350582995452,
+          "duration_seconds": 0.2708,
+          "end_seconds": 7.146150582995452,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.206858958018385,
+          "after_failure": false
+        },
+        "lint:crate-dependencies:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.880643332959153,
+          "duration_seconds": 0.2685,
+          "end_seconds": 7.149143332959153,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.212151707982086,
+          "after_failure": false
+        },
+        "lint:dispatch-coherence:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.130600458011031,
+          "duration_seconds": 0.2442,
+          "end_seconds": 6.374800458011031,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.462108833033964,
+          "after_failure": false
+        },
+        "lint:frontend:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 93.29746887495276,
+          "duration_seconds": 2.23,
+          "end_seconds": 95.52746887495276,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 89.54788645891938,
+          "after_failure": false
+        },
+        "lint:git-tokens:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.629892208031379,
+          "duration_seconds": 0.2491,
+          "end_seconds": 6.878992208031379,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.961400583054312,
+          "after_failure": false
+        },
+        "lint:integration-skills:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.153472207952291,
+          "duration_seconds": 0.22719999999999999,
+          "end_seconds": 6.380672207952291,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.484980582975224,
+          "after_failure": false
+        },
+        "lint:scripts:bashisms:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.3746329160640016,
+          "duration_seconds": 0.2891,
+          "end_seconds": 2.6637329160640015,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.3651163750328124,
+          "after_failure": false
+        },
+        "lint:scripts:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "lint:scripts:shellcheck:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.335220415960066,
+          "duration_seconds": 0.5505,
+          "end_seconds": 2.885720415960066,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.3257038749288768,
+          "after_failure": false
+        },
+        "lint:server:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 41.85864458302967,
+          "duration_seconds": 36.87,
+          "end_seconds": 78.72864458302968,
+          "units": {
+            "compiling": 2,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 10.384941958007403,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 39.30057074996587,
+          "after_failure": false
+        },
+        "lint:skill-cli-refs:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.637015957967378,
+          "duration_seconds": 0.2366,
+          "end_seconds": 6.873615957967378,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.968524332990311,
+          "after_failure": false
+        },
+        "lint:skill-permissions:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.180196332978085,
+          "duration_seconds": 0.2571,
+          "end_seconds": 5.437296332978085,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.511704708001018,
+          "after_failure": false
+        },
+        "lint:store-duplication:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.439121374976821,
+          "duration_seconds": 3.72,
+          "end_seconds": 9.159121374976822,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.770629749999754,
+          "after_failure": false
+        },
+        "lint:vcs-settings:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.381929083028808,
+          "duration_seconds": 0.2464,
+          "end_seconds": 6.628329083028809,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.713437458051741,
+          "after_failure": false
+        },
+        "lint:vendor-shims:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.230596540961415,
+          "duration_seconds": 0.24880000000000002,
+          "end_seconds": 5.479396540961415,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.562104915984348,
+          "after_failure": false
+        },
+        "notices:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 58.51327154098544,
+          "duration_seconds": 38.62,
+          "end_seconds": 97.13327154098545,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 54.76368912495207,
+          "after_failure": false
+        },
+        "public-api:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 96.95413962495513,
+          "duration_seconds": 45.47,
+          "end_seconds": 142.42413962495513,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 17
+          },
+          "lock_wait_seconds": 6.688128165784292,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 38.4836777499117,
+          "after_failure": false
+        },
+        "pup:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 97.13688416604418,
+          "duration_seconds": 14.75,
+          "end_seconds": 111.88688416604418,
+          "units": {
+            "compiling": 2,
+            "checking": 44,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 2.722434541909024,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 38.62274500004761,
+          "after_failure": false
+        },
+        "test": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:e2e": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:e2e:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 97.84089429106098,
+          "duration_seconds": 177.29,
+          "end_seconds": 275.13089429106094,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.058014541105365,
+          "after_failure": false
+        },
+        "test:integration": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:integration:conformance": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 30.993021041038446,
+          "duration_seconds": 27.09,
+          "end_seconds": 58.08302104103845,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 28.583230750043874,
+          "after_failure": false
+        },
+        "test:integration:deny": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.1506131660426036,
+          "duration_seconds": 23.68,
+          "end_seconds": 30.830613166042603,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.976054666019045,
+          "after_failure": false
+        },
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.5596801249776036,
+          "duration_seconds": 225.33,
+          "end_seconds": 227.88968012497762,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.8911885000005366,
+          "after_failure": false
+        },
+        "test:integration:entrypoint": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.6654326249845326,
+          "duration_seconds": 39.19,
+          "end_seconds": 41.85543262498453,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.9969410000074657,
+          "after_failure": false
+        },
+        "test:integration:fixture-size": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:integration:hooks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 30.83364279102534,
+          "duration_seconds": 27.27,
+          "end_seconds": 58.10364279102534,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 28.461079166028647,
+          "after_failure": false
+        },
+        "test:integration:release-guard": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.889917458058335,
+          "duration_seconds": 3.24,
+          "end_seconds": 6.129917458058335,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.221425833081268,
+          "after_failure": false
+        },
+        "test:integration:research": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 8.558721208013594,
+          "duration_seconds": 82.77,
+          "end_seconds": 91.32872120801359,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.278675082977861,
+          "after_failure": false
+        },
+        "test:integration:skill-invocation": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.783089749980718,
+          "duration_seconds": 28.21,
+          "end_seconds": 30.99308974998072,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.114598125003651,
+          "after_failure": false
+        },
+        "test:integration:tasks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.8881449580658227,
+          "duration_seconds": 1.37,
+          "end_seconds": 4.258144958065823,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.219653333088756,
+          "after_failure": false
+        },
+        "test:integration:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 13.743682208005339,
+          "duration_seconds": 35.37,
+          "end_seconds": 49.113682208005336,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.8053899999940768,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 11.371118583008647,
+          "after_failure": false
+        },
+        "test:unit": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:unit:cli": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 9.164679041015916,
+          "duration_seconds": 229.93,
+          "end_seconds": 239.09467904101592,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 4.55476249998901,
+          "nextest_phase_seconds": 209.385,
+          "queueing_delay_seconds": 6.831097875034622,
+          "after_failure": false
+        },
+        "test:unit:design-automation": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 1.1798372500343248,
+          "duration_seconds": 7.52,
+          "end_seconds": 8.699837250034324,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.1703207090031356,
+          "after_failure": false
+        },
+        "test:unit:frontend": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 68.40474416606594,
+          "duration_seconds": 35.54,
+          "end_seconds": 103.94474416606593,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 64.65516175003256,
+          "after_failure": false
+        },
+        "test:unit:frontend-licenses": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 78.74849091598298,
+          "duration_seconds": 19.09,
+          "end_seconds": 97.83849091598299,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 74.99890849994961,
+          "after_failure": false
+        },
+        "test:unit:tasks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.261489541037008,
+          "duration_seconds": 151.41,
+          "end_seconds": 155.671489541037,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.5929979160599412,
+          "after_failure": false
+        },
+        "test:unit:vcs": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.402464290964417,
+          "duration_seconds": 0.221,
+          "end_seconds": 4.623464290964417,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.7339726659873502,
+          "after_failure": false
+        },
+        "test:unit:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 103.95811304100789,
+          "duration_seconds": 13.85,
+          "end_seconds": 117.80811304100789,
+          "units": {
+            "compiling": 1,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 2.435364624951035,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 11.17523329105228,
+          "after_failure": false
+        },
+        "types:build-system:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.635148250032216,
+          "duration_seconds": 0.543,
+          "end_seconds": 5.1781482500322165,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.9666566250551494,
+          "after_failure": false
+        },
+        "types:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "types:frontend:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 92.78984350000974,
+          "duration_seconds": 11.73,
+          "end_seconds": 104.51984350000974,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 89.04026108397636,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 5,
+        "checking": 45,
+        "documenting": 17
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 82.75862068965517,
+          "running": [
+            "test:integration:deny",
+            "test:integration:dev",
+            "test:integration:entrypoint",
+            "test:integration:research",
+            "test:integration:skill-invocation",
+            "test:integration:visualiser",
+            "test:unit:cli",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 30.0,
+          "busy_percent": 72.8,
+          "running": [
+            "lint:server:check",
+            "test:integration:conformance",
+            "test:integration:dev",
+            "test:integration:hooks",
+            "test:integration:research",
+            "test:integration:visualiser",
+            "test:unit:cli",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 60.0,
+          "busy_percent": 99.62068965517241,
+          "running": [
+            "build:frontend",
+            "lint:server:check",
+            "notices:check",
+            "test:integration:dev",
+            "test:integration:research",
+            "test:unit:cli",
+            "test:unit:frontend",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 90.0,
+          "busy_percent": 90.13333333333334,
+          "running": [
+            "public-api:check",
+            "pup:check",
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli",
+            "test:unit:tasks",
+            "test:unit:visualiser"
+          ]
+        },
+        {
+          "start_seconds": 120.0,
+          "busy_percent": 81.5,
+          "running": [
+            "public-api:check",
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 150.0,
+          "busy_percent": 89.93103448275862,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 180.0,
+          "busy_percent": 83.8,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 210.0,
+          "busy_percent": 56.36666666666667,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 240.0,
+          "busy_percent": 57.3,
+          "running": [
+            "test:e2e:visualiser"
+          ]
+        },
+        {
+          "start_seconds": 270.0,
+          "busy_percent": 35.8,
+          "running": [
+            "test:e2e:visualiser"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 31.790000000000873,
+        "XprotectService": null,
+        "ide": 278.8700000000099,
+        "fsnotifier": 1.4799999999999898
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 3,
+      "wall_clock_seconds": 256.5814319170313,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "build:cli:corpus:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.6419800840085372,
+          "duration_seconds": 1.59,
+          "end_seconds": 2.231980084008537,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.2481859580148011,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.6348343749996275,
+          "after_failure": false
+        },
+        "build:cli:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.11423462501261383,
+          "duration_seconds": 1.93,
+          "end_seconds": 2.0442346250126135,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.3099068750161678,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10708891600370407,
+          "after_failure": false
+        },
+        "build:cli:fixture-size": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 3.9817538750357926,
+          "duration_seconds": 0.7007000000000001,
+          "end_seconds": 4.682453875035793,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.301040125079453,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.341522665986046,
+          "after_failure": false
+        },
+        "build:cli:research:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.11360195907764137,
+          "duration_seconds": 1.84,
+          "end_seconds": 1.9536019590776414,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.2175174590665847,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.1064562500687316,
+          "after_failure": false
+        },
+        "build:cli:vcs:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.11470975005067885,
+          "duration_seconds": 2.08,
+          "end_seconds": 2.194709750050679,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.447819042019546,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10756404104176909,
+          "after_failure": false
+        },
+        "build:frontend": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 33.53529770905152,
+          "duration_seconds": 25.29,
+          "end_seconds": 58.82529770905152,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 29.553947792034595,
+          "after_failure": false
+        },
+        "build:frontend:stub": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.157928500091657,
+          "duration_seconds": 0.2585,
+          "end_seconds": 2.416428500091657,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.1507827910827473,
+          "after_failure": false
+        },
+        "build:server:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.1102276670280844,
+          "duration_seconds": 2.05,
+          "end_seconds": 2.160227667028084,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.4042773329420015,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10308195801917464,
+          "after_failure": false
+        },
+        "deny:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.11099420906975865,
+          "duration_seconds": 1.86,
+          "end_seconds": 1.9709942090697588,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10384850006084889,
+          "after_failure": false
+        },
+        "deps:install:cargo-about": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 1.9774863340426236,
+          "duration_seconds": 0.3256,
+          "end_seconds": 2.3030863340426238,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.9703406250337139,
+          "after_failure": false
+        },
+        "deps:install:cargo-sources": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.11523429199587554,
+          "duration_seconds": 0.9097999999999999,
+          "end_seconds": 1.0250342919958755,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.31367662500143045,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10808858298696578,
+          "after_failure": false
+        },
+        "deps:install:docs": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 1.97591491707135,
+          "duration_seconds": null,
+          "end_seconds": 1.97591491707135,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.9687692080624402,
+          "after_failure": false
+        },
+        "deps:install:docs-playwright": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 9.800512292073108,
+          "duration_seconds": null,
+          "end_seconds": 9.800512292073108,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 7.824597375001758,
+          "after_failure": false
+        },
+        "deps:install:nightly": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.0475204590475187,
+          "duration_seconds": 0.6935,
+          "end_seconds": 2.741020459047519,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.040374750038609,
+          "after_failure": false
+        },
+        "deps:install:node": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.11134991701692343,
+          "duration_seconds": 3.87,
+          "end_seconds": 3.9813499170169235,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10420420800801367,
+          "after_failure": false
+        },
+        "deps:install:playwright": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 46.47746420907788,
+          "duration_seconds": 3.04,
+          "end_seconds": 49.51746420907788,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 42.49611429206096,
+          "after_failure": false
+        },
+        "deps:install:public-api": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 32.70190333400387,
+          "duration_seconds": 0.4171,
+          "end_seconds": 33.11900333400387,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 29.960882874956354,
+          "after_failure": false
+        },
+        "deps:install:pup": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 33.12236679205671,
+          "duration_seconds": 0.4084,
+          "end_seconds": 33.53076679205671,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 30.38134633300919,
+          "after_failure": false
+        },
+        "deps:install:python": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.1120312090497464,
+          "duration_seconds": 0.5282,
+          "end_seconds": 0.6402312090497464,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.10488550004083663,
+          "after_failure": false
+        },
+        "deps:install:rust-components": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 1.9505736250430346,
+          "duration_seconds": 0.3561,
+          "end_seconds": 2.3066736250430346,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.9434279160341248,
+          "after_failure": false
+        },
+        "docs:audit:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 8.515549417003058,
+          "duration_seconds": 1.27,
+          "end_seconds": 9.785549417003057,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.539634499931708,
+          "after_failure": false
+        },
+        "docs:build": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 76.75735508406069,
+          "duration_seconds": null,
+          "end_seconds": 76.75735508406069,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 66.95684279198758,
+          "after_failure": false
+        },
+        "docs:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "docs:generate": {
+          "outcome": "skipped",
+          "exit_status": null,
+          "start_seconds": 4.890075875096954,
+          "duration_seconds": null,
+          "end_seconds": 4.890075875096954,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.249844666047208,
+          "after_failure": false
+        },
+        "docs:generate:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 75.20407495903783,
+          "duration_seconds": 1.46,
+          "end_seconds": 76.66407495903782,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 70.31399908394087,
+          "after_failure": false
+        },
+        "format:build-system:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.577702125068754,
+          "duration_seconds": 0.3315,
+          "end_seconds": 7.909202125068754,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.937470916019008,
+          "after_failure": false
+        },
+        "format:cli:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 20.332461250014603,
+          "duration_seconds": 1.98,
+          "end_seconds": 22.312461250014604,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 18.025787624971567,
+          "after_failure": false
+        },
+        "format:fix": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "format:frontend:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 58.83056845900137,
+          "duration_seconds": 2.53,
+          "end_seconds": 61.36056845900137,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 54.84921854198445,
+          "after_failure": false
+        },
+        "format:scripts:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.308843084028922,
+          "duration_seconds": 0.3185,
+          "end_seconds": 2.6273430840289222,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.3016973750200123,
+          "after_failure": false
+        },
+        "format:server:fix": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.305096250027418,
+          "duration_seconds": 2.57,
+          "end_seconds": 4.875096250027418,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.2979505410185084,
+          "after_failure": false
+        },
+        "lint:bare-invocation:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.780120917013846,
+          "duration_seconds": 0.24,
+          "end_seconds": 7.0201209170138466,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.1398897079641,
+          "after_failure": false
+        },
+        "lint:build-system:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.937977209105156,
+          "duration_seconds": 0.48210000000000003,
+          "end_seconds": 5.420077209105156,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.29774600005541,
+          "after_failure": false
+        },
+        "lint:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "lint:claude-coupling:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.914400792098604,
+          "duration_seconds": 0.7267,
+          "end_seconds": 6.641100792098604,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.274169583048858,
+          "after_failure": false
+        },
+        "lint:cli:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 22.38016433408484,
+          "duration_seconds": 10.32,
+          "end_seconds": 32.70016433408484,
+          "units": {
+            "compiling": 0,
+            "checking": 1,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 6.580203208955936,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 19.96373583399318,
+          "after_failure": false
+        },
+        "lint:config-test-support:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.290400959085673,
+          "duration_seconds": 0.2768,
+          "end_seconds": 7.567200959085673,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.650169750035927,
+          "after_failure": false
+        },
+        "lint:crate-dependencies:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.393271375098266,
+          "duration_seconds": 0.279,
+          "end_seconds": 7.672271375098266,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.753040166048519,
+          "after_failure": false
+        },
+        "lint:dispatch-coherence:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.521627250011079,
+          "duration_seconds": 0.25689999999999996,
+          "end_seconds": 6.778527250011079,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.881396040961333,
+          "after_failure": false
+        },
+        "lint:frontend:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 72.93261287501082,
+          "duration_seconds": 2.27,
+          "end_seconds": 75.20261287501081,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 68.95126295799389,
+          "after_failure": false
+        },
+        "lint:git-tokens:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.021662209066562,
+          "duration_seconds": 0.2672,
+          "end_seconds": 7.288862209066562,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.381431000016816,
+          "after_failure": false
+        },
+        "lint:integration-skills:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.6426390000851825,
+          "duration_seconds": 0.2419,
+          "end_seconds": 6.884539000085183,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.002407791035436,
+          "after_failure": false
+        },
+        "lint:scripts:bashisms:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.232881542062387,
+          "duration_seconds": 0.2737,
+          "end_seconds": 2.5065815420623867,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.225735833053477,
+          "after_failure": false
+        },
+        "lint:scripts:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "lint:scripts:shellcheck:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.1986852090340108,
+          "duration_seconds": 0.5298999999999999,
+          "end_seconds": 2.728585209034011,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.191539500025101,
+          "after_failure": false
+        },
+        "lint:server:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 22.319863209035248,
+          "duration_seconds": 24.15,
+          "end_seconds": 46.469863209035246,
+          "units": {
+            "compiling": 2,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 6.173176374984905,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 19.90343470894359,
+          "after_failure": false
+        },
+        "lint:skill-cli-refs:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.126243792008609,
+          "duration_seconds": 0.26539999999999997,
+          "end_seconds": 7.391643792008608,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.486012582958862,
+          "after_failure": false
+        },
+        "lint:skill-permissions:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.477079875068739,
+          "duration_seconds": 0.3623,
+          "end_seconds": 5.839379875068739,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.836848666018993,
+          "after_failure": false
+        },
+        "lint:store-duplication:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.8055166670819744,
+          "duration_seconds": 4.42,
+          "end_seconds": 10.225516667081974,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.165285458032228,
+          "after_failure": false
+        },
+        "lint:vcs-settings:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 6.886037625023164,
+          "duration_seconds": 0.2385,
+          "end_seconds": 7.124537625023164,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.2458064159734175,
+          "after_failure": false
+        },
+        "lint:vendor-shims:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 5.644504124997184,
+          "duration_seconds": 0.26839999999999997,
+          "end_seconds": 5.912904124997183,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.004272915947437,
+          "after_failure": false
+        },
+        "notices:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 43.54237337503582,
+          "duration_seconds": 36.0,
+          "end_seconds": 79.54237337503582,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 39.5610234580189,
+          "after_failure": false
+        },
+        "public-api:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 76.76668891706504,
+          "duration_seconds": 47.29,
+          "end_seconds": 124.05668891706503,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 17
+          },
+          "lock_wait_seconds": 5.742309166002087,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 43.64768558306117,
+          "after_failure": false
+        },
+        "pup:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 77.00014795910101,
+          "duration_seconds": 16.62,
+          "end_seconds": 93.62014795910102,
+          "units": {
+            "compiling": 2,
+            "checking": 44,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.9330939159262925,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 43.469381167044304,
+          "after_failure": false
+        },
+        "test": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:e2e": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:e2e:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 79.54281504207756,
+          "duration_seconds": 177.02,
+          "end_seconds": 256.56281504207755,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 20.717517333026045,
+          "after_failure": false
+        },
+        "test:integration": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:integration:conformance": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 13.128881167038344,
+          "duration_seconds": 41.83,
+          "end_seconds": 54.95888116703834,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 10.896901083029807,
+          "after_failure": false
+        },
+        "test:integration:deny": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.673976084101014,
+          "duration_seconds": 12.66,
+          "end_seconds": 20.333976084101014,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 6.648941792105139,
+          "after_failure": false
+        },
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.418500959058292,
+          "duration_seconds": 202.57,
+          "end_seconds": 204.98850095905829,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.7782697500085458,
+          "after_failure": false
+        },
+        "test:integration:entrypoint": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.5095340000698343,
+          "duration_seconds": 19.87,
+          "end_seconds": 22.379534000069835,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.869302791020088,
+          "after_failure": false
+        },
+        "test:integration:fixture-size": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:integration:hooks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 10.230810292065144,
+          "duration_seconds": 2.89,
+          "end_seconds": 13.120810292065144,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 8.036100542014465,
+          "after_failure": false
+        },
+        "test:integration:release-guard": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.744767584023066,
+          "duration_seconds": 3.78,
+          "end_seconds": 6.524767584023065,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.1045363749733195,
+          "after_failure": false
+        },
+        "test:integration:research": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 7.902369625051506,
+          "duration_seconds": 65.01,
+          "end_seconds": 72.91236962505151,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 5.948767665973865,
+          "after_failure": false
+        },
+        "test:integration:skill-invocation": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.6296267500147223,
+          "duration_seconds": 17.77,
+          "end_seconds": 20.399626750014722,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.989395540964976,
+          "after_failure": false
+        },
+        "test:integration:tasks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 2.7317786670755595,
+          "duration_seconds": 1.58,
+          "end_seconds": 4.31177866707556,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 2.091547458025813,
+          "after_failure": false
+        },
+        "test:integration:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 9.80216595903039,
+          "duration_seconds": 33.74,
+          "end_seconds": 43.54216595903039,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.42881979199592024,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 7.641938292002306,
+          "after_failure": false
+        },
+        "test:unit": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "test:unit:cli": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 20.402617125073448,
+          "duration_seconds": 220.65,
+          "end_seconds": 241.05261712507345,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 1.440362541936338,
+          "nextest_phase_seconds": 204.781,
+          "queueing_delay_seconds": 18.095943500030412,
+          "after_failure": false
+        },
+        "test:unit:design-automation": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 1.0272437090752646,
+          "duration_seconds": 7.49,
+          "end_seconds": 8.517243709075265,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 1.0200980000663549,
+          "after_failure": false
+        },
+        "test:unit:frontend": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 49.515830417047255,
+          "duration_seconds": 32.06,
+          "end_seconds": 81.57583041704726,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 45.534480500030334,
+          "after_failure": false
+        },
+        "test:unit:frontend-licenses": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 54.96260683401488,
+          "duration_seconds": 57.42,
+          "end_seconds": 112.38260683401488,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 50.98125691699796,
+          "after_failure": false
+        },
+        "test:unit:tasks": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.334318584064022,
+          "duration_seconds": 72.66,
+          "end_seconds": 76.99431858406402,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 3.6940873750142753,
+          "after_failure": false
+        },
+        "test:unit:vcs": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.686934375087731,
+          "duration_seconds": 0.24880000000000002,
+          "end_seconds": 4.935734375087731,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.046703166037984,
+          "after_failure": false
+        },
+        "test:unit:visualiser": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 79.8635407499969,
+          "duration_seconds": 37.23,
+          "end_seconds": 117.09354074999689,
+          "units": {
+            "compiling": 1,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 3.712856708909385,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 21.038243040945382,
+          "after_failure": false
+        },
+        "types:build-system:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 4.895935209002346,
+          "duration_seconds": 0.7467999999999999,
+          "end_seconds": 5.642735209002346,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 4.255703999952599,
+          "after_failure": false
+        },
+        "types:check": {
+          "outcome": "silent",
+          "exit_status": null,
+          "start_seconds": null,
+          "duration_seconds": null,
+          "end_seconds": null,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": null,
+          "after_failure": false
+        },
+        "types:frontend:check": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 61.36683341709431,
+          "duration_seconds": 18.49,
+          "end_seconds": 79.85683341709431,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 57.38548350007739,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 5,
+        "checking": 45,
+        "documenting": 17
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 78.65517241379311,
+          "running": [
+            "test:integration:conformance",
+            "test:integration:deny",
+            "test:integration:dev",
+            "test:integration:entrypoint",
+            "test:integration:research",
+            "test:integration:skill-invocation",
+            "test:integration:visualiser",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 30.0,
+          "busy_percent": 97.96666666666667,
+          "running": [
+            "build:frontend",
+            "lint:server:check",
+            "notices:check",
+            "test:integration:conformance",
+            "test:integration:dev",
+            "test:integration:research",
+            "test:unit:cli",
+            "test:unit:tasks"
+          ]
+        },
+        {
+          "start_seconds": 60.0,
+          "busy_percent": 89.86666666666666,
+          "running": [
+            "lint:frontend:check",
+            "notices:check",
+            "test:integration:dev",
+            "test:unit:cli",
+            "test:unit:frontend",
+            "test:unit:frontend-licenses",
+            "test:unit:tasks",
+            "types:frontend:check"
+          ]
+        },
+        {
+          "start_seconds": 90.0,
+          "busy_percent": 81.24137931034483,
+          "running": [
+            "public-api:check",
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli",
+            "test:unit:frontend-licenses",
+            "test:unit:visualiser"
+          ]
+        },
+        {
+          "start_seconds": 120.0,
+          "busy_percent": 84.3,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 150.0,
+          "busy_percent": 83.1,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 180.0,
+          "busy_percent": 59.758620689655174,
+          "running": [
+            "test:e2e:visualiser",
+            "test:integration:dev",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 210.0,
+          "busy_percent": 67.53333333333333,
+          "running": [
+            "test:e2e:visualiser",
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 240.0,
+          "busy_percent": 66.41176470588235,
+          "running": [
+            "test:e2e:visualiser"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 20.87000000000262,
+        "XprotectService": null,
+        "ide": 287.50999999999476,
+        "fsnotifier": 1.370000000000033
+      },
+      "fetch_failures": []
+    }
+  ],
+  "summary": {
+    "wall_clock_seconds": {
+      "minimum": 256.0281976250699,
+      "median": 256.5814319170313,
+      "maximum": 275.13534475001507
+    },
+    "tasks": {
+      "build:cli:corpus:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.59,
+          "median": 1.74,
+          "maximum": 2.25
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:cli:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.93,
+          "median": 2.24,
+          "maximum": 2.55
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:cli:fixture-size": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.6444,
+          "median": 0.6764,
+          "maximum": 0.7007000000000001
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:cli:research:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.84,
+          "median": 2.15,
+          "maximum": 2.4
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:cli:vcs:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 2.01,
+          "median": 2.08,
+          "maximum": 2.75
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:frontend": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 18.0,
+          "median": 25.29,
+          "maximum": 34.31
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:frontend:stub": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2585,
+          "median": 0.2769,
+          "maximum": 0.3034
+        },
+        "nextest_phase_seconds": null
+      },
+      "build:server:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.86,
+          "median": 2.05,
+          "maximum": 2.68
+        },
+        "nextest_phase_seconds": null
+      },
+      "deny:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.86,
+          "median": 2.05,
+          "maximum": 2.47
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:cargo-about": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.3028,
+          "median": 0.3256,
+          "maximum": 0.3464
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:cargo-sources": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.9097999999999999,
+          "median": 1.04,
+          "maximum": 1.49
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:docs": {
+        "presence": {
+          "standing": "absent",
+          "absence": "skipped"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "deps:install:docs-playwright": {
+        "presence": {
+          "standing": "absent",
+          "absence": "skipped"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "deps:install:nightly": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.6935,
+          "median": 0.704,
+          "maximum": 0.8335
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:node": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 3.62,
+          "median": 3.87,
+          "maximum": 4.35
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:playwright": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 2.22,
+          "median": 2.42,
+          "maximum": 3.04
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:public-api": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.37339999999999995,
+          "median": 0.4171,
+          "maximum": 0.5308999999999999
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:pup": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.39230000000000004,
+          "median": 0.4005,
+          "maximum": 0.4084
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:python": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.5282,
+          "median": 0.5358999999999999,
+          "maximum": 0.589
+        },
+        "nextest_phase_seconds": null
+      },
+      "deps:install:rust-components": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.3397,
+          "median": 0.3561,
+          "maximum": 0.3792
+        },
+        "nextest_phase_seconds": null
+      },
+      "docs:audit:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.05,
+          "median": 1.27,
+          "maximum": 1.82
+        },
+        "nextest_phase_seconds": null
+      },
+      "docs:build": {
+        "presence": {
+          "standing": "absent",
+          "absence": "skipped"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "docs:check": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "docs:generate": {
+        "presence": {
+          "standing": "absent",
+          "absence": "skipped"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "docs:generate:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.06,
+          "median": 1.28,
+          "maximum": 1.46
+        },
+        "nextest_phase_seconds": null
+      },
+      "format:build-system:fix": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.31939999999999996,
+          "median": 0.3315,
+          "maximum": 0.3517
+        },
+        "nextest_phase_seconds": null
+      },
+      "format:cli:fix": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.96,
+          "median": 1.98,
+          "maximum": 5.04
+        },
+        "nextest_phase_seconds": null
+      },
+      "format:fix": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "format:frontend:fix": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.94,
+          "median": 2.2,
+          "maximum": 2.53
+        },
+        "nextest_phase_seconds": null
+      },
+      "format:scripts:fix": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.3185,
+          "median": 0.31889999999999996,
+          "maximum": 0.3328
+        },
+        "nextest_phase_seconds": null
+      },
+      "format:server:fix": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 2.38,
+          "median": 2.43,
+          "maximum": 2.57
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:bare-invocation:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.24,
+          "median": 0.24430000000000002,
+          "maximum": 0.25930000000000003
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:build-system:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.36260000000000003,
+          "median": 0.37960000000000005,
+          "maximum": 0.48210000000000003
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:check": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "lint:claude-coupling:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.671,
+          "median": 0.7267,
+          "maximum": 0.7276
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:cli:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 10.32,
+          "median": 17.04,
+          "maximum": 28.1
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:config-test-support:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2708,
+          "median": 0.2767,
+          "maximum": 0.2768
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:crate-dependencies:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2685,
+          "median": 0.2748,
+          "maximum": 0.279
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:dispatch-coherence:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2432,
+          "median": 0.2442,
+          "maximum": 0.25689999999999996
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:frontend:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 2.23,
+          "median": 2.27,
+          "maximum": 2.95
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:git-tokens:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2491,
+          "median": 0.2527,
+          "maximum": 0.2672
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:integration-skills:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.22719999999999999,
+          "median": 0.2419,
+          "maximum": 0.2429
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:scripts:bashisms:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2737,
+          "median": 0.2891,
+          "maximum": 0.3145
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:scripts:check": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "lint:scripts:shellcheck:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.5298999999999999,
+          "median": 0.5426,
+          "maximum": 0.5505
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:server:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 17.36,
+          "median": 24.15,
+          "maximum": 36.87
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:skill-cli-refs:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2366,
+          "median": 0.2571,
+          "maximum": 0.26539999999999997
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:skill-permissions:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2571,
+          "median": 0.3623,
+          "maximum": 0.3692
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:store-duplication:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 3.72,
+          "median": 3.78,
+          "maximum": 4.42
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:vcs-settings:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.2355,
+          "median": 0.2385,
+          "maximum": 0.2464
+        },
+        "nextest_phase_seconds": null
+      },
+      "lint:vendor-shims:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.24880000000000002,
+          "median": 0.26839999999999997,
+          "maximum": 0.3366
+        },
+        "nextest_phase_seconds": null
+      },
+      "notices:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 36.0,
+          "median": 37.09,
+          "maximum": 38.62
+        },
+        "nextest_phase_seconds": null
+      },
+      "public-api:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 43.12,
+          "median": 45.47,
+          "maximum": 47.29
+        },
+        "nextest_phase_seconds": null
+      },
+      "pup:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 14.75,
+          "median": 16.62,
+          "maximum": 18.46
+        },
+        "nextest_phase_seconds": null
+      },
+      "test": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "test:e2e": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "test:e2e:visualiser": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 171.65,
+          "median": 177.02,
+          "maximum": 177.29
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "test:integration:conformance": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 27.09,
+          "median": 41.83,
+          "maximum": 47.69
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:deny": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 11.91,
+          "median": 12.66,
+          "maximum": 23.68
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 202.57,
+          "median": 209.48,
+          "maximum": 225.33
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:entrypoint": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 19.87,
+          "median": 22.38,
+          "maximum": 39.19
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:fixture-size": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "test:integration:hooks": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 2.6,
+          "median": 2.89,
+          "maximum": 27.27
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:release-guard": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 3.19,
+          "median": 3.24,
+          "maximum": 3.78
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:research": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 65.01,
+          "median": 73.47,
+          "maximum": 82.77
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:skill-invocation": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 16.37,
+          "median": 17.77,
+          "maximum": 28.21
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:tasks": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 1.23,
+          "median": 1.37,
+          "maximum": 1.58
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:integration:visualiser": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 32.92,
+          "median": 33.74,
+          "maximum": 35.37
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:unit": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "test:unit:cli": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 210.49,
+          "median": 220.65,
+          "maximum": 229.93
+        },
+        "nextest_phase_seconds": {
+          "minimum": 195.008,
+          "median": 204.781,
+          "maximum": 209.385
+        }
+      },
+      "test:unit:design-automation": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 7.49,
+          "median": 7.52,
+          "maximum": 7.56
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:unit:frontend": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 30.0,
+          "median": 32.06,
+          "maximum": 35.54
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:unit:frontend-licenses": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 19.09,
+          "median": 20.35,
+          "maximum": 57.42
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:unit:tasks": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 72.66,
+          "median": 108.24,
+          "maximum": 151.41
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:unit:vcs": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.1955,
+          "median": 0.221,
+          "maximum": 0.24880000000000002
+        },
+        "nextest_phase_seconds": null
+      },
+      "test:unit:visualiser": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 13.85,
+          "median": 31.85,
+          "maximum": 37.23
+        },
+        "nextest_phase_seconds": null
+      },
+      "types:build-system:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 0.543,
+          "median": 0.5804,
+          "maximum": 0.7467999999999999
+        },
+        "nextest_phase_seconds": null
+      },
+      "types:check": {
+        "presence": {
+          "standing": "absent",
+          "absence": "silent"
+        },
+        "duration_seconds": null,
+        "nextest_phase_seconds": null
+      },
+      "types:frontend:check": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 11.73,
+          "median": 14.75,
+          "maximum": 18.49
+        },
+        "nextest_phase_seconds": null
+      }
+    },
+    "processes": {
+      "syspolicyd": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 20.87000000000262,
+          "median": 31.790000000000873,
+          "maximum": 36.12000000000262
+        }
+      },
+      "XprotectService": {
+        "presence": {
+          "standing": "absent",
+          "absence": "not-seen"
+        },
+        "cpu_seconds": null
+      },
+      "ide": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 265.97000000000116,
+          "median": 278.8700000000099,
+          "maximum": 287.50999999999476
+        }
+      },
+      "fsnotifier": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 1.370000000000033,
+          "median": 1.379999999999967,
+          "maximum": 1.4799999999999898
+        }
+      }
+    }
+  },
+  "fetch_failures": [],
+  "failed_tasks": []
+}

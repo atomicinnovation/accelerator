@@ -5,14 +5,14 @@ title: "Remove repeated work from the Rust test lanes"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
 blocks: ["work-item:0370"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
-last_updated: "2026-11-13T13:38:47+00:00"
+last_updated: "2026-11-15T09:57:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # 0363: Remove repeated work from the Rust test lanes
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
