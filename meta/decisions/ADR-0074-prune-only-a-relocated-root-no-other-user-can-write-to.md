@@ -5,7 +5,7 @@ title: "Prune Only a Relocated Root No Other User Can Write To"
 date: "2026-11-09T13:15:48+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
-status: "proposed"
+status: "accepted"
 parent: "work-item:0218"
 relates_to: ["adr:ADR-0072", "work-item:0340", "work-item:0341", "work-item:0342"]
 tags: ["architecture", "cache", "launcher", "retention", "security"]
@@ -17,7 +17,7 @@ schema_version: 1
 # ADR-0074: Prune Only a Relocated Root No Other User Can Write To
 
 **Date**: 2026-11-09
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Toby Clemson
 
 ## Context
