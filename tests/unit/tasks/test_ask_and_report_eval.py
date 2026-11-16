@@ -108,13 +108,16 @@ def test_a_template_matches_its_filled_line_and_captures_unknowns() -> None:
 
 
 def test_a_known_placeholder_must_match_its_value() -> None:
-    line = "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+    line = (
+        "Run conduct llm-agent-planning, then synthesise llm-agent-planning, "
+        "then ask llm-agent-planning Why? again."
+    )
 
     assert formats.matches(
-        formats.CONDUCT_THEN_SYNTHESISE, line, slug="llm-agent-planning"
+        formats.CONDUCT_SYNTHESISE_AGAIN, line, slug="llm-agent-planning"
     )
     assert not formats.matches(
-        formats.CONDUCT_THEN_SYNTHESISE, line, slug="other"
+        formats.CONDUCT_SYNTHESISE_AGAIN, line, slug="other"
     )
 
 

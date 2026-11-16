@@ -2021,7 +2021,7 @@ def test_the_held_back_group_comes_first() -> None:
     template = _section(
         _consult(),
         formats.CONDUCTED_REFUSAL,
-        formats.CONDUCT_THEN_SYNTHESISE,
+        formats.CONDUCT_SYNTHESISE_AGAIN,
     )
     assert template.index("Held back by") < template.index(
         formats.STILL_TO_RESEARCH
@@ -2031,7 +2031,7 @@ def test_the_held_back_group_comes_first() -> None:
 def test_every_conducted_refusal_closes_with_conduct_then_synthesise() -> None:
     consult = _consult()
     assert "ends every `conducted`" in consult
-    assert formats.CONDUCT_THEN_SYNTHESISE in consult
+    assert formats.CONDUCT_SYNTHESISE_AGAIN in consult
     assert "names no `conduct`" not in consult
 
 
@@ -2051,7 +2051,7 @@ def test_the_freshness_refusal_carries_the_verdict_s_mismatches() -> None:
     for phrase in (
         "the verdict's `mismatches`",
         "separated by `; `",
-        formats.CONDUCT_THEN_SYNTHESISE,
+        formats.CONDUCT_SYNTHESISE_AGAIN,
     ):
         assert phrase in consult
 
@@ -2072,7 +2072,7 @@ def test_the_conducted_refusal_groups_unanswered_and_held_back_items() -> None:
         formats.CONDUCTED_REFUSAL,
         formats.HELD_BACK,
         formats.STILL_TO_RESEARCH,
-        formats.CONDUCT_THEN_SYNTHESISE,
+        formats.CONDUCT_SYNTHESISE_AGAIN,
     ):
         assert phrase in consult, f"the conducted refusal lacks {phrase!r}"
 
@@ -2157,7 +2157,7 @@ ASK_FORMATS = (
     formats.HELD_BACK_RECOVERY,
     formats.STILL_TO_RESEARCH,
     formats.UNANSWERED_ITEM,
-    formats.CONDUCT_THEN_SYNTHESISE,
+    formats.CONDUCT_SYNTHESISE_AGAIN,
     formats.COVERAGE,
     formats.COVERED,
     formats.GAPS,

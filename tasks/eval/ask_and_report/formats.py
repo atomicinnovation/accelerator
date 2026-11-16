@@ -26,7 +26,8 @@ STATUS_RECOVERIES = {
 }
 FRESHNESS_REFUSAL = (
     "{verb} refused: {slug}'s synthesis is stale: {mismatches}. "
-    "Run conduct {slug}, then synthesise {slug}."
+    "Run conduct {slug}, then synthesise {slug}, then {verb} {slug} "
+    "{question} again."
 )
 CONDUCTED_REFUSAL = "{verb} refused: {slug} is not fully conducted."
 HELD_BACK = (
@@ -39,7 +40,10 @@ HELD_BACK_RECOVERY = (
 )
 STILL_TO_RESEARCH = "Still to research:"
 UNANSWERED_ITEM = "- {question} ({profile})"
-CONDUCT_THEN_SYNTHESISE = "Run conduct {slug}, then synthesise {slug}."
+CONDUCT_SYNTHESISE_AGAIN = (
+    "Run conduct {slug}, then synthesise {slug}, then {verb} {slug} "
+    "{question} again."
+)
 REFUSALS: dict[RefusalGate, str] = {
     "status": STATUS_REFUSAL,
     "freshness": FRESHNESS_REFUSAL,
