@@ -210,7 +210,9 @@ fn consultable_fails_when_an_open_set_s_plan_cannot_be_read(
     let output =
         project.consultable_output(SET, &project.root.join("no-profiles"))?;
 
-    assert_ne!(output.status.code(), Some(0));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("no-profiles"), "{stderr}");
     assert!(output.stdout.is_empty(), "{:?}", output.stdout);
     Ok(())
 }
