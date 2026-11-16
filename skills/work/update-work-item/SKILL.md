@@ -51,9 +51,12 @@ The resolver respects `work.id_pattern` and accepts paths, full IDs
 (`PROJ-0042`), and bare numbers (legacy or pattern-shape).
 
 - **Exit 0**: stdout is the absolute path; use it.
-- **Exit 1**: input was unrecognised. Print
+- **Exit 1** with a stderr line starting `E_RESOLVE_INVALID:` (a
+  deprecation warning may precede it): input was unrecognised. Print
   `"Unrecognised input '<argument>' — pass a path, a full ID, or a
-  bare number."` and exit.
+  bare number."` and exit. Any other exit 1, such as
+  `E_WORK_ID_PATTERN_INVALID` or `E_WORK_KEY_INVALID`, is a configuration
+  error: relay stderr verbatim and exit.
 - **Exit 2**: ambiguous match. The resolver lists every candidate with
   a source-category tag. Show the list and ask the user to
   disambiguate by re-running with a full ID or path.
