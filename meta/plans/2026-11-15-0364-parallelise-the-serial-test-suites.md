@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T22:56:04+00:00"
+last_updated: "2026-11-16T23:12:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -41,7 +41,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
 | 5. Retries off | Playwright | #229 | Open |
-| 6. Host-relative workers | Playwright | — | Not started |
+| 6. Host-relative workers | Playwright | — | Implemented, stacked on #229; manual validation pending |
 | 7. CI closing comparison | Both | — | Not started |
 
 ## Current State Analysis
@@ -1231,8 +1231,12 @@ validation and the CI windows measured, so it belongs in a reviewed commit
 that restarts the count.
 
 **Test additions**:
-- Mock `node:os` so that the named `availableParallelism` export returns 4,
-  and keep the rest of the module real.
+- Make `availableParallelism` return 4 by spying on the `os` module object
+  (`vi.spyOn(os, "availableParallelism")`) in a `beforeEach`. A
+  `vi.mock("node:os")` does not reach the config: under `jsdom` Vite's web
+  transform rewrites the config's import to
+  `__vite-browser-external:node:os` and reads the export off that module's
+  `default`, which is the real `os` object the spy patches.
 - Under both `CI` values, assert the literal counts:
   - top-level `workers` is 3;
   - `resolved-styles` is 2;
@@ -1242,11 +1246,17 @@ that restarts the count.
 
 #### Automated Verification:
 
-- [ ] The worker-allocation and config tests fail before the change and pass
-      after: `npm --prefix cli/visualiser/frontend test -- scripts/`
-- [ ] `mise run frontend:check` passes
-- [ ] The suite passes: `mise run test:e2e:visualiser`
-- [ ] Projects overlap. Run `npx playwright test --reporter=json >
+- [x] The worker-allocation and config tests fail before the change and pass
+      after: `npm --prefix cli/visualiser/frontend test -- scripts/`. Before,
+      the allocation test failed on the missing module, and the config test's
+      six worker cases failed on the values (`workers` 1, project workers
+      `undefined`); after, all 26 script tests pass.
+- [x] `mise run frontend:check` passes
+- [x] The suite passes: `mise run test:e2e:visualiser`. 355 passed and 1
+      was skipped, in 45.3 s on 9 workers.
+- [x] Projects overlap. Before the config change the check printed `true`
+      then `false` (188 s wall); after, `true` then `true` (46 s wall). Both
+      runs had 355 expected, 0 unexpected, 1 skipped and 0 flaky. Run `npx playwright test --reporter=json >
       results.json` from the frontend directory, with the task's env, and
       then this `jq` check.
 
@@ -1276,9 +1286,12 @@ that restarts the count.
       ```
       Before the config change, the same check prints `true` then `false`.
       Record both outputs in the PR.
-- [ ] Timing target met: in
+- [x] Timing target met: in
       `mise run measure:build --isolate test:e2e:visualiser --cache-state warm-no-op --runs 5 --host-settings devtools --keep`,
-      the per-task outcome is success and the median is under 75 s
+      the per-task outcome is success and the median is under 75 s. It is
+      47.0 s (min 46.4, max 54.3) on `83572065`, with every run successful
+      and an idle load of 67.0%, recorded in
+      `meta/measurements/build_2026-11-16T230609Z_engywook_warm-no-op_devtools_isolated.json`.
 
 #### Manual Verification:
 
@@ -1288,9 +1301,10 @@ that restarts the count.
       `retries`. Every flake is listed with its fix or its split-out item.
 - [ ] The CI before window for `test-e2e` is recorded in the PR before merge,
       as in Phase 3, with every run after Phase 5's merge.
-- [ ] If 75 s is missed, the first lever is per-project
+- [x] If 75 s is missed, the first lever is per-project
       `fullyParallel: true` on `resolved-styles`, unless Phase 5 already
       turned it on. It is a config change, so it restarts the 10-run count.
+      Not needed: the isolated median is 47.0 s.
 - [ ] Load measurement recorded in the PR (not a gate): one non-isolated
       `mise run measure:build --cache-state warm-no-op --runs 5 --host-settings devtools --keep`
       without the worker change and one with it. Run them back to back,
