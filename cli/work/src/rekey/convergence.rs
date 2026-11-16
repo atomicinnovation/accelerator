@@ -135,8 +135,9 @@ impl Display for RekeyRequired {
         };
         write!(
             formatter,
-            "{then_run} `/rekey-work-items` (or `accelerator work rekey`) to \
-             converge them, then re-run this command"
+            "{then_run} `/rekey-work-items` (or `accelerator work rekey \
+             --preview`, then `accelerator work rekey`) to converge them, \
+             then re-run this command"
         )
     }
 }
@@ -316,8 +317,9 @@ mod tests {
             "E_REKEY_REQUIRED: 2 work items are not under the ID \
              `work.id_pattern` '{key}_{number:04d}' gives them, such as \
              meta/work/PP-0002-item.md with `id` 'PP-0002'. Run \
-             `/rekey-work-items` (or `accelerator work rekey`) to converge \
-             them, then re-run this command"
+             `/rekey-work-items` (or `accelerator work rekey --preview`, \
+             then `accelerator work rekey`) to converge them, then re-run \
+             this command"
         );
     }
 
@@ -339,8 +341,8 @@ mod tests {
              one of them: meta/work/notes-item.md has `id` 'notes', which \
              holds no number. Give the item an `id` in the shape of \
              `work.id_pattern` by hand, then run `/rekey-work-items` (or \
-             `accelerator work rekey`) to converge them, then re-run this \
-             command"
+             `accelerator work rekey --preview`, then `accelerator work \
+             rekey`) to converge them, then re-run this command"
         );
     }
 
