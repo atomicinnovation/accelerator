@@ -34,13 +34,13 @@ _ARTEFACTS = tempfile.TemporaryDirectory(prefix="accelerator-artefacts-")
 _CLAIMED: dict[str, Path] = {}
 
 
-def claim_artefact(built: Path) -> Path:
+def claim_artefact(built: Path, claimed_name: str | None = None) -> Path:
     """Copy a freshly built binary out of cargo's uplift path.
 
     Only the `open` has to land while the link is live, so a source that has
     vanished into the re-link window is retried rather than fatal.
     """
-    claimed = Path(_ARTEFACTS.name) / built.name
+    claimed = Path(_ARTEFACTS.name) / (claimed_name or built.name)
     deadline = time.monotonic() + CLAIM_TIMEOUT_SECONDS
     while True:
         try:
@@ -51,6 +51,18 @@ def claim_artefact(built: Path) -> Path:
             time.sleep(0.05)
             continue
         return claimed
+
+
+def claim_task_built(binary: str) -> Path:
+    """Claim a binary that a mise build edge produced before the suite ran.
+
+    Claimed under its own name, because `build_launcher()` memoises its claim
+    of `accelerator`: a second copy landing on that path would swap the binary
+    under every module already holding it.
+    """
+    return claim_artefact(
+        CLI_TARGET_DIR / "debug" / binary, f"task-built-{binary}"
+    )
 
 
 def _cargo_build(package: str, binary: str) -> Path:

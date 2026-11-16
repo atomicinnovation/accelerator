@@ -1,0 +1,18 @@
+{
+  "id": "claim-name",
+  "kind": "block-diagram",
+  "title": "One claim per install, not per version",
+  "caption": "A claim file's name is the version and an id derived from where the launcher is installed, so two installs of one version never share a claim.",
+  "direction": "right",
+  "blocks": [
+    { "id": "exe", "name": "current_exe()", "detail": "the launcher's own path" },
+    { "id": "sha", "name": "SHA-256", "detail": "first 8 bytes" },
+    { "id": "id", "name": "c0ffee00c0ffee00", "detail": "launcher id", "status": "new" },
+    { "id": "claim", "name": "1.26.0.c0ffee00c0ffee00", "detail": "claim file name", "status": "new" }
+  ],
+  "arrows": [
+    { "from": "exe", "to": "sha" },
+    { "from": "sha", "to": "id", "label": "hex" },
+    { "from": "id", "to": "claim" }
+  ]
+}

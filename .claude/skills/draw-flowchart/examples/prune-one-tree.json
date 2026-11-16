@@ -1,0 +1,27 @@
+{
+  "id": "prune-one-tree",
+  "kind": "flowchart",
+  "title": "A tree is removed only when it is old and no claim covers it",
+  "caption": "Two questions stand between a tree and its removal, and both must come out against it. The age backstop is asked first, so a tree that is still being written is never examined for claims at all.",
+  "steps": [
+    { "id": "start", "kind": "start", "label": "For each tree in the cache root" },
+    { "id": "stat", "kind": "input", "label": "Read its age and the claims on its version" },
+    { "id": "young", "kind": "decision", "label": "Younger than the age backstop?" },
+    { "id": "claimed", "kind": "decision", "label": "Any claim inside the claim window?", "status": "new" },
+    { "id": "keep", "label": "Keep the tree", "tone": "ok" },
+    { "id": "remove", "kind": "subprocess", "label": "Remove the tree and its lock", "status": "new", "tone": "risk" },
+    { "id": "report", "kind": "output", "label": "Add the verdict to the report" },
+    { "id": "end", "kind": "end", "label": "Next tree" }
+  ],
+  "flows": [
+    { "from": "start", "to": "stat" },
+    { "from": "stat", "to": "young" },
+    { "from": "young", "to": "keep", "label": "yes" },
+    { "from": "young", "to": "claimed", "label": "no" },
+    { "from": "claimed", "to": "keep", "label": "yes", "status": "new" },
+    { "from": "claimed", "to": "remove", "label": "no", "status": "new", "tone": "risk" },
+    { "from": "keep", "to": "report" },
+    { "from": "remove", "to": "report" },
+    { "from": "report", "to": "end" }
+  ]
+}

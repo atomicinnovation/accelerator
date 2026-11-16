@@ -2,6 +2,10 @@ from pathlib import Path
 
 import pytest
 
+pytest.register_assert_rewrite(
+    "tests.integration.support.installation_fixtures"
+)
+
 _HAZARD_SKILL = """\
 ---
 name: alpha

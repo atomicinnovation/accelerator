@@ -77,7 +77,7 @@ _CLI_DEV_BUILDS = {
 # reason. Every test:integration:* task must appear in exactly one of the two.
 _NO_LAUNCHER_NEEDED = {
     "test:integration:entrypoint": "builds it in-fixture, mirroring shim_bin",
-    "test:integration:skill-invocation": "builds it in-fixture, same harness",
+    "test:integration:skill-invocation": "builds it in-fixture, as entrypoint",
     "test:integration:tasks": "pytest over the invoke task modules",
     "test:integration:dev": "drives circusd with Python fake processes",
     "test:integration:deny": "cargo-deny over offline fixtures",

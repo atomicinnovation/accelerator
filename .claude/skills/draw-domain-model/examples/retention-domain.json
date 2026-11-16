@@ -1,0 +1,40 @@
+{
+  "id": "retention-domain",
+  "kind": "domain-model",
+  "title": "A claim is part of the cache root, and names its install only by identity",
+  "caption": "Everything about what is kept lives inside the CacheRoot aggregate, so one prune sees one consistent set of claims. The retention service reads a claim directly, past the root, which is the boundary this change strains.",
+  "aggregates": [
+    {
+      "id": "cache-root", "name": "CacheRoot", "status": "changed",
+      "members": [
+        { "id": "CacheRoot", "kind": "aggregate root", "operations": ["+ claim(version, launcher): Result<()>", "+ prune(now): Report"] },
+        { "id": "VersionClaim", "kind": "entity", "status": "new", "attributes": ["+ version: Version", "+ refreshed: Instant"] },
+        { "id": "Tree", "kind": "entity", "attributes": ["+ version: Version", "+ size: Bytes"] },
+        { "id": "ClaimWindow", "kind": "value object", "status": "new", "attributes": ["- length: Duration"], "operations": ["+ covers(age): bool"] }
+      ]
+    },
+    {
+      "id": "install", "name": "Install",
+      "members": [
+        { "id": "Install", "kind": "aggregate root", "attributes": ["+ id: LauncherId", "+ version: Version"] },
+        { "id": "LauncherId", "kind": "value object", "attributes": ["- digest: [u8; 8]"] }
+      ]
+    }
+  ],
+  "others": [
+    { "id": "Retention", "kind": "domain service", "status": "new", "operations": ["+ keep(tree, claims, now): Verdict"] },
+    { "id": "CacheRoots", "kind": "repository", "operations": ["+ open(path): CacheRoot"] },
+    { "id": "VersionOrphaned", "kind": "domain event", "status": "new", "attributes": ["+ version: Version"] }
+  ],
+  "relationships": [
+    { "from": "CacheRoot", "to": "VersionClaim", "kind": "composition", "toMultiplicity": "0..*", "toRole": "claims", "status": "new" },
+    { "from": "CacheRoot", "to": "Tree", "kind": "composition", "toMultiplicity": "0..*", "toRole": "trees" },
+    { "from": "CacheRoot", "to": "ClaimWindow", "kind": "composition", "toMultiplicity": "1", "status": "new" },
+    { "from": "Install", "to": "LauncherId", "kind": "composition", "toMultiplicity": "1" },
+    { "from": "VersionClaim", "to": "Install", "kind": "reference", "status": "new" },
+    { "from": "CacheRoots", "to": "CacheRoot", "kind": "association", "navigable": true, "label": "loads" },
+    { "from": "CacheRoot", "to": "Retention", "kind": "dependency", "label": "asks", "status": "new" },
+    { "from": "Retention", "to": "VersionClaim", "kind": "dependency", "label": "reads", "status": "new", "tone": "risk" },
+    { "from": "CacheRoot", "to": "VersionOrphaned", "kind": "dependency", "label": "publishes", "status": "new" }
+  ]
+}

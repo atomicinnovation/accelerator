@@ -115,7 +115,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-    runs-on: ${{ matrix.os }}
+    # ubuntu-latest is Ubuntu 26.04, which the pinned Playwright cannot
+    # install Chromium on. The matrix value keeps its name because the
+    # ruleset requires a check called "Run E2E tests (ubuntu-latest)".
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-24.04' || matrix.os }}
 
     steps:
       - name: Checkout code
