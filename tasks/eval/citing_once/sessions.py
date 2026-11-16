@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from tasks.eval.citing_once.projects import Project
+from tasks.eval.documents.rule import RULE
 from tasks.eval.headless.claude import common_flags
 
 ALLOWED_TOOLS = (
@@ -18,7 +19,6 @@ ALLOWED_TOOLS = (
     "Bash(accelerator:*)",
 )
 FINDING_OUTPUTTER = "skills/research/outputters/finding-outputter/SKILL.md"
-RULE = "skills/research/outputters/citing-once/SKILL.md"
 FINDING_TEMPLATE = "templates/topic-research-finding.md"
 
 
