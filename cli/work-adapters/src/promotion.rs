@@ -203,7 +203,7 @@ fn unpromoted_subjects(
             RetirementFailure::RestoreIncomplete { unrestored, .. },
         ) => {
             let recovery_dir = held_key
-                .and_then(|key| TrackerKey::parse(key.as_str()))
+                .and_then(|key| TrackerKey::parse_any_supported(key.as_str()))
                 .map(|key| {
                     Retirement::onto(draft.as_str(), &key).recovery_dir()
                 });
@@ -555,7 +555,9 @@ impl Promoting<'_> {
         };
         match created {
             RemoteCreate::Created(answered) => {
-                let Some(key) = TrackerKey::parse(answered.as_str()) else {
+                let Some(key) =
+                    TrackerKey::parse_any_supported(answered.as_str())
+                else {
                     let _ = self.save(&self.record(
                         RequestFingerprint {
                             failure: Some(format!(

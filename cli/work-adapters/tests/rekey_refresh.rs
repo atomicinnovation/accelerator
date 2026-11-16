@@ -20,7 +20,8 @@ fn id(raw: &str) -> ExternalId {
 }
 
 fn key(raw: &str) -> TrackerKey {
-    TrackerKey::parse(raw).unwrap_or_else(|| unreachable!("a tracker key"))
+    TrackerKey::parse_any_supported(raw)
+        .unwrap_or_else(|| unreachable!("a tracker key"))
 }
 
 fn issue(raw: &str) -> (ExternalId, RemoteIssue) {

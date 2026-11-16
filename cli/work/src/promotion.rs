@@ -570,7 +570,7 @@ mod tests {
     use crate::tracker_key::TrackerKey;
 
     fn key() -> TrackerKey {
-        TrackerKey::parse("PP-900")
+        TrackerKey::parse_any_supported("PP-900")
             .unwrap_or_else(|| unreachable!("a tracker key"))
     }
 
@@ -790,7 +790,7 @@ mod tests {
 
     #[test]
     fn next_step_under_adopt_and_create_modes() {
-        let other = TrackerKey::parse("PP-901")
+        let other = TrackerKey::parse_any_supported("PP-901")
             .unwrap_or_else(|| unreachable!("a tracker key"));
         let later_stages = [
             (
@@ -859,7 +859,7 @@ mod tests {
             read_back: read_back("h"),
         });
         let adopt_lowercase = PromotionMode::Adopt(
-            TrackerKey::parse("pp-900")
+            TrackerKey::parse_any_supported("pp-900")
                 .unwrap_or_else(|| unreachable!("a tracker key")),
         );
 

@@ -274,7 +274,7 @@ fn optional_text(object: &Map<String, Value>, field: &str) -> Option<String> {
 
 fn key_of(object: &Map<String, Value>) -> Result<TrackerKey, MarkerError> {
     let raw = text(object, "external_id")?;
-    TrackerKey::parse(&raw).ok_or_else(|| {
+    TrackerKey::parse_any_supported(&raw).ok_or_else(|| {
         MarkerError::Malformed(format!("'{raw}' is not a tracker key"))
     })
 }
@@ -785,7 +785,7 @@ mod tests {
     }
 
     fn key() -> TrackerKey {
-        TrackerKey::parse("PP-900").expect("a tracker key")
+        TrackerKey::parse_any_supported("PP-900").expect("a tracker key")
     }
 
     fn promotion(stage: PromotionStage) -> PromotionRecord {

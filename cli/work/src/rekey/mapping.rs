@@ -885,7 +885,7 @@ mod tests {
         }
 
         fn key(raw: &str) -> TrackerKey {
-            TrackerKey::parse(raw)
+            TrackerKey::parse_any_supported(raw)
                 .unwrap_or_else(|| unreachable!("a tracker key"))
         }
 

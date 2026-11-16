@@ -63,7 +63,7 @@ pub fn decide_key_change(
 ) -> KeyChange {
     let item = item_id.to_owned();
     let id_is_the_old_key = item_id.eq_ignore_ascii_case(old.as_str());
-    match TrackerKey::parse(new.as_str()) {
+    match TrackerKey::parse_any_supported(new.as_str()) {
         Some(key) if ownership == IdOwnership::Tracker && id_is_the_old_key => {
             KeyChange::RetireKey {
                 item,
@@ -125,7 +125,7 @@ mod tests {
                 KeyChange::RetireKey {
                     item: item.to_owned(),
                     old: key("PP-760"),
-                    new: TrackerKey::parse("ENG-42")
+                    new: TrackerKey::parse_any_supported("ENG-42")
                         .unwrap_or_else(|| unreachable!("a tracker key")),
                 }
             );

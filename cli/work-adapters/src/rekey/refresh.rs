@@ -43,7 +43,7 @@ pub fn refresh_external_ids(
         if let Located::Found(issue) =
             tracker.locate(stored).map_err(unreachable)?
         {
-            let current = TrackerKey::parse(issue.key.as_str())
+            let current = TrackerKey::parse_any_supported(issue.key.as_str())
                 .filter(|_| is_move(stored, &issue.key));
             moves.extend(
                 current.map(|current| (stored.as_str().to_owned(), current)),

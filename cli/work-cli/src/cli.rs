@@ -274,7 +274,7 @@ fn parse_key_value(raw: &str) -> Result<(String, String), String> {
 fn parse_issue_key(raw: &str) -> Result<TrackerKey, String> {
     tracker_support::issue_key_is_safe(raw, tracker::TrackerKeys::AnySupported)
         .map_err(|refusal| format!("'{raw}': {refusal}"))?;
-    TrackerKey::parse(raw)
+    TrackerKey::parse_any_supported(raw)
         .ok_or_else(|| format!("'{raw}' is not shaped like an issue key"))
 }
 

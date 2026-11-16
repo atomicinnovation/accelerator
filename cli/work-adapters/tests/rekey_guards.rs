@@ -110,7 +110,7 @@ fn request() -> RequestFingerprint {
 }
 
 fn tracker_key() -> Result<TrackerKey, TestError> {
-    Ok(TrackerKey::parse("ENG-42").ok_or("a tracker key")?)
+    Ok(TrackerKey::parse_any_supported("ENG-42").ok_or("a tracker key")?)
 }
 
 fn draft() -> Result<DraftId, TestError> {

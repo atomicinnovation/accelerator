@@ -858,7 +858,7 @@ mod tests {
 
     fn created(key: &str) -> PromotionStage {
         PromotionStage::Created {
-            key: work::tracker_key::TrackerKey::parse(key)
+            key: work::tracker_key::TrackerKey::parse_any_supported(key)
                 .expect("a tracker key"),
             created_remote_hash: None,
         }

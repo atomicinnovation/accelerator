@@ -439,7 +439,7 @@ mod tests {
                 &PromoteArgs {
                     draft_id: draft_id.to_owned(),
                     adopt: adopt.map(|key| {
-                        work::tracker_key::TrackerKey::parse(key)
+                        work::tracker_key::TrackerKey::parse_any_supported(key)
                             .expect("a tracker key")
                     }),
                     create,

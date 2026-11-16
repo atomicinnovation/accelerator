@@ -186,7 +186,8 @@ fn fixture_plan(root: &Path) -> InProgressPlan {
 }
 
 fn every_target_kind(root: &Path) -> Result<ProposedPlan, TestError> {
-    let key = TrackerKey::parse("ENG-42").ok_or("a tracker key")?;
+    let key =
+        TrackerKey::parse_any_supported("ENG-42").ok_or("a tracker key")?;
     let draft = DraftId::parse("draft-a1b2cd").ok_or("a draft ID")?;
     Ok(ProposedPlan::new(
         IdentityFingerprint::of(&scheme(), &fixture_items(root)),

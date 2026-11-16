@@ -120,7 +120,7 @@ pub fn resolve_pending_push_token(
         return None;
     }
     Some(
-        TrackerKey::parse(key)
+        TrackerKey::parse_any_supported(key)
             .map(PendingPushOrder::Adopt)
             .ok_or_else(|| NotATrackerKey(key.to_owned())),
     )
@@ -281,7 +281,8 @@ mod tests {
     use crate::tracker_key::TrackerKey;
 
     fn key(raw: &str) -> TrackerKey {
-        TrackerKey::parse(raw).unwrap_or_else(|| unreachable!("a tracker key"))
+        TrackerKey::parse_any_supported(raw)
+            .unwrap_or_else(|| unreachable!("a tracker key"))
     }
 
     fn fingerprint(digest: &str) -> RequestFingerprint {

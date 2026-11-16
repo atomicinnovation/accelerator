@@ -3042,7 +3042,7 @@ pub mod work::tracker_key
 pub struct work::tracker_key::TrackerKey(_)
 impl work::tracker_key::TrackerKey
 pub fn work::tracker_key::TrackerKey::as_str(&self) -> &str
-pub fn work::tracker_key::TrackerKey::parse(token: &str) -> core::option::Option<Self>
+pub fn work::tracker_key::TrackerKey::parse_any_supported(token: &str) -> core::option::Option<Self>
 pub fn work::tracker_key::TrackerKey::parse_under(token: &str, keys: tracker::TrackerKeys) -> core::option::Option<Self>
 impl core::clone::Clone for work::tracker_key::TrackerKey
 pub fn work::tracker_key::TrackerKey::clone(&self) -> work::tracker_key::TrackerKey

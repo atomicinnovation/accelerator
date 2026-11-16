@@ -347,7 +347,9 @@ fn is_interrupted_target(item: &ItemIdentity, r: &Retirement<'_>) -> bool {
 }
 
 fn shape_of(id: &str) -> IdShape {
-    if DraftId::parse(id).is_some() || TrackerKey::parse(id).is_some() {
+    if DraftId::parse(id).is_some()
+        || TrackerKey::parse_any_supported(id).is_some()
+    {
         IdShape::Distinctive
     } else {
         IdShape::NumericOnly
@@ -968,7 +970,7 @@ mod tests {
 
     #[test]
     fn retiring_onto_a_tracker_key_renames_and_links_the_item_to_it() {
-        let key = crate::tracker_key::TrackerKey::parse("PP-900")
+        let key = crate::tracker_key::TrackerKey::parse_any_supported("PP-900")
             .unwrap_or_else(|| unreachable!("a tracker key"));
 
         assert_eq!(

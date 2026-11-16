@@ -244,7 +244,7 @@ fn key() -> ExternalId {
 }
 
 fn tracker_key() -> TrackerKey {
-    TrackerKey::parse(KEY).expect("a tracker key")
+    TrackerKey::parse_any_supported(KEY).expect("a tracker key")
 }
 
 /// Promotes the draft once over `store`, as one process would.
@@ -1622,7 +1622,7 @@ fn creating_accepts_the_duplicate_risk_over_an_attempted_record() {
 fn an_adopt_naming_another_key_than_the_record_holds_stops() {
     let repo = Repo::new().unwrap();
     repo.save(&record_at(PromotionStage::Created {
-        key: TrackerKey::parse("REC-7").expect("a tracker key"),
+        key: TrackerKey::parse_any_supported("REC-7").expect("a tracker key"),
         created_remote_hash: None,
     }));
 

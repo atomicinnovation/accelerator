@@ -1086,15 +1086,15 @@ fn incomplete_outcome(
         .chain(target.as_deref())
         .find(|path| creation.exists(path))
         .map(Path::to_path_buf);
-    let cause =
-        key.and_then(|key| TrackerKey::parse(key.as_str()))
-            .map(|key| {
-                let retirement = Retirement::onto(draft.as_str(), &key);
-                failure.message(
-                    &retirement,
-                    &creation.state_dir.join(retirement.recovery_dir()),
-                )
-            });
+    let cause = key
+        .and_then(|key| TrackerKey::parse_any_supported(key.as_str()))
+        .map(|key| {
+            let retirement = Retirement::onto(draft.as_str(), &key);
+            failure.message(
+                &retirement,
+                &creation.state_dir.join(retirement.recovery_dir()),
+            )
+        });
     pushed(path, PushOutcome::RetirementIncomplete, key, cause)
 }
 

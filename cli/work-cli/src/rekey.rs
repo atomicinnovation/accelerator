@@ -1180,7 +1180,7 @@ mod tests {
                 },
                 content_digest: "digest".to_owned(),
                 stage: PromotionStage::Created {
-                    key: TrackerKey::parse("ENG-42").unwrap(),
+                    key: TrackerKey::parse_any_supported("ENG-42").unwrap(),
                     created_remote_hash: None,
                 },
             }),

@@ -113,7 +113,7 @@ fn key(raw: &str) -> ExternalId {
 }
 
 fn tracker_key(raw: &str) -> TrackerKey {
-    TrackerKey::parse(raw).expect("a tracker key")
+    TrackerKey::parse_any_supported(raw).expect("a tracker key")
 }
 
 fn held(raw: &str) -> (ExternalId, RemoteIssue) {

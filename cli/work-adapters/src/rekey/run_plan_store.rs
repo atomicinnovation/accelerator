@@ -346,7 +346,8 @@ fn decode_entry(
                 .ok_or_else(|| unparseable("work-item ID"))?,
         ),
         "tracker_key" => RekeyTarget::TrackerKey(
-            TrackerKey::parse(id).ok_or_else(|| unparseable("tracker key"))?,
+            TrackerKey::parse_any_supported(id)
+                .ok_or_else(|| unparseable("tracker key"))?,
         ),
         "draft" => RekeyTarget::Draft(
             DraftId::parse(id).ok_or_else(|| unparseable("draft ID"))?,

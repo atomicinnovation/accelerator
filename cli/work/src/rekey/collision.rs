@@ -141,7 +141,7 @@ mod tests {
         RekeyEntry {
             old: old.to_owned(),
             target: RekeyTarget::TrackerKey(
-                TrackerKey::parse(key)
+                TrackerKey::parse_any_supported(key)
                     .unwrap_or_else(|| unreachable!("a tracker key")),
             ),
         }

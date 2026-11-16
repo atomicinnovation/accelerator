@@ -12,7 +12,7 @@ pub struct TrackerKey(String);
 impl TrackerKey {
     /// `token` when any supported tracker answers issues under its shape.
     #[must_use]
-    pub fn parse(token: &str) -> Option<Self> {
+    pub fn parse_any_supported(token: &str) -> Option<Self> {
         Self::parse_under(token, TrackerKeys::AnySupported)
     }
 
@@ -49,17 +49,21 @@ mod tests {
     #[test]
     fn only_a_key_shaped_token_is_a_tracker_key() {
         assert_eq!(
-            TrackerKey::parse("MY_PROJ-12").map(|key| key.as_str().to_owned()),
+            TrackerKey::parse_any_supported("MY_PROJ-12")
+                .map(|key| key.as_str().to_owned()),
             Some("MY_PROJ-12".to_owned())
         );
         for token in ["PP-1/../..", "../../etc", "draft-k7mq3x", "0042", ""] {
-            assert!(TrackerKey::parse(token).is_none(), "{token}");
+            assert!(
+                TrackerKey::parse_any_supported(token).is_none(),
+                "{token}"
+            );
         }
     }
 
     #[test]
     fn a_tracker_key_is_the_issue_id_the_tracker_reads() {
-        let key = TrackerKey::parse("PP-760")
+        let key = TrackerKey::parse_any_supported("PP-760")
             .unwrap_or_else(|| unreachable!("a tracker key"));
 
         assert_eq!(
