@@ -774,8 +774,9 @@ accelerator research topic report-path SLUG 'QUESTION'
 It prints one line, the absolute path `reports/<question-slug>.md` under the
 set. The slug lowercases the question, keeps its ASCII letters and digits,
 and joins each run of them with `-`. A slug longer than 60 characters is cut
-before the last `-` within its first 61, or at 60 when there is none, and a
-question with no ASCII letter or digit slugs to `report`. When any entry in
+before the last `-` within its first 61, or at 60 when that cut would keep
+only the first word, and a question with no ASCII letter or digit slugs to
+`report`. When any entry in
 `reports/` already holds that name, compared without regard to case, the
 path takes the first free `-2`, `-3`, … suffix. The question may be one
 quoted argument or separate words, which are joined with single spaces. The
