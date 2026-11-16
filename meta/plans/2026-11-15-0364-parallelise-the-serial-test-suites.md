@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T14:54:05+00:00"
+last_updated: "2026-11-16T16:48:56+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -40,7 +40,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
 | 3. pytest-xdist workers | Dev | #222 | Open; waiting on the CI before window |
 | 4. Fixture isolation | Playwright | #225 | Open |
-| 5. Retries off | Playwright | — | Not started |
+| 5. Retries off | Playwright | — | Implemented; PR not raised |
 | 6. Host-relative workers | Playwright | — | Not started |
 | 7. CI closing comparison | Both | — | Not started |
 
@@ -1069,20 +1069,39 @@ start, so that the 10-run count isn't spent and then restarted.
 
 #### Automated Verification:
 
-- [ ] The config test fails before step 2 and passes after:
-      `npm --prefix cli/visualiser/frontend test -- scripts/playwright-config.test.ts`
-- [ ] Frontend unit tests pass: `mise run test:unit:frontend`
-- [ ] `mise run frontend:check` passes
-- [ ] The suite passes: `mise run test:e2e:visualiser`
+- [x] The config test fails before step 2 and passes after:
+      `npm --prefix cli/visualiser/frontend test -- scripts/playwright-config.test.ts`.
+      Before, all four cases failed on the values (`1` and
+      `"on-first-retry"`); after, all four pass.
+- [x] Frontend unit tests pass: `mise run test:unit:frontend`
+- [x] `mise run frontend:check` passes
+- [x] The suite passes: `mise run test:e2e:visualiser`. 355 passed and 1
+      was skipped, in 170.5 s on one worker.
 
 #### Manual Verification:
 
-- [ ] A test made to fail deliberately leaves `trace.zip` under
+- [x] A test made to fail deliberately leaves `trace.zip` under
       `test-results/<test>/`. This is done once, recorded in the PR and then
-      reverted.
-- [ ] Five serial runs under `mise run` load are green. Each flake found is
-      listed in the PR with its fix.
-- [ ] The per-file durations and the `fullyParallel` decision are in the PR.
+      reverted. `smoke.spec.ts`'s URL assertion was pointed at a wrong
+      route. The run reported `1 failed` with no retry, and left
+      `test-results/smoke-app-loads-and-redirects-to-library-chromium/trace.zip`.
+      The spec was restored with `jj restore`.
+- [x] Five serial runs under `mise run` load are green. Each flake found is
+      listed in the PR with its fix. All five exited 0 on `2d770eb2`, each
+      with 355 passed and 1 skipped. The suite took 194–291 s (median
+      250 s), and each `mise run` took 305–502 s. No flake appeared, so the
+      `net::ERR_ABORTED` candidate needed no fix.
+- [x] The per-file durations and the `fullyParallel` decision are in the PR.
+      From one serial JSON-reporter run (151.5 s wall, 147.6 s summed
+      tests), the longest `resolved-styles` files are
+      `dev-design-system-code-block-resolved-colours` at 25.5 s,
+      `aside-row-resolved-colours` at 20.8 s and
+      `non-regression-glyph-consumers` at 17.5 s. `resolved-styles` sums
+      to 123.5 s and `chromium` to 24.1 s. The longest file fits well
+      inside 75 s minus about 4 s of start-up, so Phase 6 starts without
+      `fullyParallel`. The global setup prints its `BASE_URL` line to
+      stdout, so a JSON report piped from stdout needs that line dropped,
+      or `PLAYWRIGHT_JSON_OUTPUT_NAME` set instead.
 
 ---
 
