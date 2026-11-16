@@ -935,6 +935,31 @@
         "No session offers a recovery choice such as naming another ID or allocating automatically",
         "No session suggests re-running /create-work-item or the create"
       ]
+    },
+    {
+      "id": 73,
+      "name": "an_unconverged_corpus_at_resolve_stops_before_drafting",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:05d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item dark mode toggle`\n\nSimulate `accelerator work resolve` exiting 4 with this stderr:\n\nError: E_REKEY_REQUIRED: 2 work items are not under the ID `work.id_pattern` '{number:05d}' gives them, such as meta/work/0041-search-filters.md with `id` '0041'. Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them, then re-run this command\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The E_REKEY_REQUIRED remedy is relayed verbatim and the skill stops: no drafting, no work id next, no work create.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_REKEY_REQUIRED message verbatim, including `/rekey-work-items`",
+        "response.md asks no business-context question and presents no draft",
+        "commands.md shows no `accelerator work id next` and no `accelerator work create`"
+      ]
+    },
+    {
+      "id": 74,
+      "name": "a_malformed_corpus_at_id_check_stops_rather_than_recovering",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 4 with this stderr:\n\nError: E_WORK_ITEM_MALFORMED: meta/work/0399.md has `id` '0399' but its filename does not start with its `id` and a slug. Rename it to `0399-<slug>.md`, then re-run this command\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "The malformed file and its rename are relayed and the skill stops; it offers no other ID and no recovery choices.",
+      "files": [],
+      "expectations": [
+        "response.md names meta/work/0399.md and the remedy of renaming it to `0399-<slug>.md`",
+        "questions.md is `none`: no Requested ID recovery choice and no other ID is offered",
+        "commands.md shows exactly one `accelerator work id check`, and no `accelerator work id next` and no `accelerator work create`",
+        "response.md asks no business-context question and presents no draft"
+      ]
     }
   ]
 }

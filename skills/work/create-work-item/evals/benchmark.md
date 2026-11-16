@@ -1,14 +1,14 @@
 # Skill Benchmark: create-work-item
 
 **Model**: claude-sonnet-4-6 (evals 1 to 38 first); claude-opus-5-5 (every with_skill run, 2026-11-02)  
-**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02 and, for 13 evals, 2026-11-15  
-**Evals**: 75 evals, 1 run each
+**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02, for 13 evals 2026-11-15 and, for 9 evals, 2026-11-16  
+**Evals**: 77 evals, 1 run each
 
 ## Summary
 
 | Metric | With Skill | Old Skill | Delta |
 |--------|-----------|-----------|-------|
-| Pass Rate | 100% (n=75) | 62% (n=52) | +0.37 |
+| Pass Rate | 100% (n=77) | 62% (n=52) | +0.37 |
 
 The Old Skill runs come from earlier sessions recorded under
 claude-sonnet-4-6, while every With Skill run was re-run on
@@ -91,6 +91,8 @@ versions.
 - ✓ **a_pending_push_at_the_push_gate_is_relayed_without_a_rerun** (70): 4/4 (100%)
 - ✓ **a_topic_in_a_repository_without_a_work_directory_is_drafted** (71): 2/2 (100%)
 - ✓ **a_marker_refusal_under_an_id_is_relayed_without_a_rerun** (72): 4/4 (100%)
+- ✓ **an_unconverged_corpus_at_resolve_stops_before_drafting** (73): 3/3 (100%)
+- ✓ **a_malformed_corpus_at_id_check_stops_rather_than_recovering** (74): 4/4 (100%)
 - ✓ **number-not-consumed** (8): 3/3 (100%)
 - ✓ **near-duplicate-surfaced** (9): 3/3 (100%)
 
@@ -167,3 +169,4 @@ versions.
 - Evals 58, 59, 60 and 66 first passed in full on the old skill. Each gained one expectation the old run misses (no `work resolve` on a requested ID, no `work id next` and `--id` on the dry-run, all three recovery choices, `--id` on the first dry-run and `--push` create), and their old_skill runs were re-graded.
 - The whole suite (ids 1 to 72) was re-run with_skill on 2026-11-02, by claude-opus-5-5, after Step 0 and Step 5 changed; executors simulated every accelerator call. Every run passes in full except eval 26, which failed 'The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt': its behavior.md placed the check directly before the write without showing its order against the confirmation prompt.
 - Evals 26, 39, 42, 45, 48, 49, 51, 52, 59, 60, 61, 62 and 66 were re-run with_skill only on 2026-11-15, by claude-opus-5-5, after `E_ID_TAKEN` moved to exit 4, `other-key` IDs came to need confirmation and an `--id` mid-argument came to be asked about (evals 45 and 52 gained new expectations). Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full, eval 26 included.
+- Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.
