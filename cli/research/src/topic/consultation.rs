@@ -95,7 +95,7 @@ impl Refusal {
         let held_back: Vec<HeldBackItem> = plan
             .items
             .iter()
-            .filter(|item| !item.complete)
+            .filter(|item| !item.complete && !item.repeat)
             .filter(|item| {
                 !unanswered.iter().any(|pair| pair.question == item.question)
             })
@@ -183,6 +183,7 @@ mod tests {
                 line: 3,
                 question: QUESTION.to_owned(),
                 complete,
+                repeat: false,
             }],
             pairs: Vec::new(),
             skipped: Vec::new(),
@@ -298,6 +299,39 @@ mod tests {
                 }],
             }))
         );
+    }
+
+    fn repeated(mut plan: RoundPlan, complete: bool) -> RoundPlan {
+        plan.items.push(ItemStatus {
+            line: 9,
+            question: "How do   agents plan?".to_owned(),
+            complete,
+            repeat: true,
+        });
+        plan
+    }
+
+    #[test]
+    fn a_repeat_of_an_unanswered_question_is_not_held_back_again() {
+        assert_eq!(
+            judged(
+                "synthesised",
+                fresh(),
+                repeated(with_unanswered_pair(plan(false)), false)
+            ),
+            Ok(Consultation::Refused(Refusal::Conducted {
+                unanswered: vec![pair("openalex")],
+                held_back: Vec::new(),
+            }))
+        );
+    }
+
+    #[test]
+    fn a_repeat_asking_for_more_profiles_holds_nothing_back() {
+        assert!(matches!(
+            judged("synthesised", fresh(), repeated(plan(true), false)),
+            Ok(Consultation::Open(_))
+        ));
     }
 
     #[test]
