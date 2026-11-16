@@ -12,9 +12,9 @@ relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/222"
 pr_number: 222
 tags: ["build-system", "testing", "pytest", "pytest-xdist", "dev-task", "performance"]
-revision: "7160a0811d74a4734e661b26e20aa384c23df793"
+revision: "30fc6872c9dd3afeee39c59687af0fd272ab6ea1"
 repository: "accelerator"
-last_updated: "2026-11-16T10:16:49+00:00"
+last_updated: "2026-11-16T12:18:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -73,15 +73,51 @@ parallel load fail a test instead of passing unnoticed.
       `meta/measurements/build_2026-11-16T004012Z_engywook_warm-no-op_devtools_isolated.json`.
 - [x] Load comparison of `-n auto` against `-n 8` (not a gate; details
       below).
-- [ ] Worker counts on both CI runners, from the xdist banner in each
-      `test-integration` job log, next to psutil's physical and logical
-      counts. CI is still running.
-- [ ] Ten counted `mise run` executions on one recorded commit. These
-      wait until #220 and #221 merge, so that they run on the merge base.
+- [x] Ten consecutive counted `mise run` executions on `d29d7621`, whose
+      parent is `main`'s #221 merge commit `e1f83907`. All ten exited 0, so
+      no failure needed naming. The working copy stayed clean and the
+      commit didn't move (details below).
+- [x] No dev-suite flake appeared in any parallel run: no `stop_cleanly`
+      failure, no null recorded PID and no missed `reused`. The diff adds
+      no `skip`, rerun or flaky marker.
+- [ ] Worker counts on both CI runners, next to psutil's physical and
+      logical counts. The xdist banners are recorded below. The CI logs
+      don't print psutil's counts, so the logical counts are still to be
+      recorded.
 - [ ] The CI before window for `test-integration` on each OS: the last 10
       main runs after #221 merges, with the median and IQR% of
       `test:integration:dev`'s "Finished in" line and the runner image
       version.
+
+### Counted runs
+
+| Run | `mise run` exit | Wall time | Dev suite (16 workers) |
+|---|---|---|---|
+| 1 | 0 | 361 s | 21 passed in 14.66 s |
+| 2 | 0 | 320 s | 21 passed in 14.64 s |
+| 3 | 0 | 270 s | 21 passed in 12.65 s |
+| 4 | 0 | 300 s | 21 passed in 11.58 s |
+| 5 | 0 | 293 s | 21 passed in 10.85 s |
+| 6 | 0 | 319 s | 21 passed in 13.63 s |
+| 7 | 0 | 280 s | 21 passed in 10.33 s |
+| 8 | 0 | 278 s | 21 passed in 10.84 s |
+| 9 | 0 | 315 s | 21 passed in 14.55 s |
+| 10 | 0 | 345 s | 21 passed in 16.70 s |
+
+0370 was not recording during these runs or the measurements.
+
+### Worker counts
+
+| Host | Runner image | xdist banner | psutil physical / logical | `test:integration:dev` |
+|---|---|---|---|---|
+| engywook | — | 16/16 | 16 / 16 | 7.9 s isolated |
+| ubuntu | `ubuntu-26.04` 20261111.196.1 | 2/2 | not printed | 73.9 s |
+| macOS | `macos-26-arm64` 20261102.0473.1 | 3/3 | not printed | 49.5 s |
+
+The CI figures come from #222's run 43848534569. `-n auto` takes
+psutil's physical count, so the banners give the CI physical counts. On
+ubuntu, 2 workers is probably half the runner's vCPUs. If Phase 7's
+comparison fails there, `-n logical` is the first lever to try.
 
 ### Load comparison
 
