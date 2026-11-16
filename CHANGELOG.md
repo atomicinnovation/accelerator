@@ -244,11 +244,13 @@
 - **A work item whose IDs cannot be read is refused.** The commands that
   refuse an off-pattern corpus also refuse, with `E_WORK_ITEM_MALFORMED`
   (exit 4), a file whose name does not hold its `id` before a slug, as
-  `work.id_pattern` reads both, such as `0400.md`, and a file naming an ID
-  in `aliases` or `external_id` with no `id`. `PP-42-x.md` holding
-  `PP-0042` passes, since both read as `PP-0042`. The refusal lists every
-  such file; rename each to `<id>-<slug>.md` or give it an `id`. A file with no
-  frontmatter, or naming no ID, is not a work item and is left alone.
+  `work.id_pattern` reads both, such as `0400.md` holding `id: "0400"`; a
+  file naming an ID in `aliases` or `external_id` with no `id`; and a file
+  named only by an ID, such as `0400.md` with no frontmatter, which nothing
+  else would see. `PP-42-x.md` holding `PP-0042` passes, since both read as
+  `PP-0042`. The refusal lists every such file with its fix. Any other file
+  with no frontmatter, or naming no ID, is not a work item and is left
+  alone.
 - **`work.id_pattern` no longer accepts brace escapes, a wider literal
   alphabet or a digit beside a token.** Support for `{{` and `}}` as escaped
   braces is removed, literal text is limited to ASCII letters, digits, `.`,

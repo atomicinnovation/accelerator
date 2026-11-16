@@ -6,6 +6,7 @@ use std::fmt::Formatter;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::draft_id::DraftId;
 use crate::id_pattern::escaped;
 use crate::id_scheme::IdScheme;
 use crate::shown_path::relative_to;
@@ -21,6 +22,8 @@ pub enum Malformation {
     NoSlug { id: String },
     /// It names an ID in `aliases` or `external_id` but has no `id`.
     NoId,
+    /// Its whole filename is an ID, with no slug, and it has no `id`.
+    NamedOnlyById { id: String },
 }
 
 /// A work-item file whose IDs cannot be read as the corpus needs.
@@ -48,6 +51,10 @@ impl MalformedItem {
                 "{path} names an ID in `aliases` or `external_id` but has no \
                  `id`"
             ),
+            Malformation::NamedOnlyById { id } => format!(
+                "{path} is named only by the ID '{}', with no slug and no `id`",
+                escaped(id),
+            ),
         }
     }
 
@@ -58,6 +65,13 @@ impl MalformedItem {
             }
             Malformation::NoId => {
                 "Give it the `id` its filename starts with".to_owned()
+            }
+            Malformation::NamedOnlyById { id } => {
+                let id = escaped(id);
+                format!(
+                    "Give it `id: \"{id}\"` and rename it to `{id}-<slug>.md`, \
+                     or move it out of the work directory"
+                )
             }
         }
     }
@@ -164,8 +178,16 @@ fn malformation_of(
             Some(malformed(Malformation::NoSlug { id: identity.id }))
         }
         Some(_) => None,
-        None => names_an_id(file).then(|| malformed(Malformation::NoId)),
+        None if names_an_id(file) => Some(malformed(Malformation::NoId)),
+        None => id_naming(scheme, &file.path)
+            .map(|id| malformed(Malformation::NamedOnlyById { id })),
     }
+}
+
+fn id_naming(scheme: &IdScheme, path: &Path) -> Option<String> {
+    let stem = path.file_stem()?.to_str()?;
+    (scheme.read_held(stem).is_some() || DraftId::parse(stem).is_some())
+        .then(|| stem.to_owned())
 }
 
 fn names_with_slug(scheme: &IdScheme, path: &Path, id: &str) -> bool {
@@ -366,6 +388,27 @@ mod tests {
             ),
             "{refused:?}"
         );
+    }
+
+    #[test]
+    fn a_file_named_only_by_an_id_with_no_id_of_its_own_is_malformed() {
+        for content in ["# Notes\n", "---\ntitle: \"Notes\"\n---\n"] {
+            let refusal = refuse_malformed(
+                &numeric(),
+                &[file("0400.md", content), file("README.md", "# Work\n")],
+            )
+            .err()
+            .unwrap_or_else(|| unreachable!("refused"))
+            .relative_to(Path::new("/repo"));
+
+            assert_eq!(
+                refusal.to_string(),
+                "E_WORK_ITEM_MALFORMED: meta/work/0400.md is named only by \
+                 the ID '0400', with no slug and no `id`. Give it `id: \
+                 \"0400\"` and rename it to `0400-<slug>.md`, or move it out \
+                 of the work directory, then re-run this command"
+            );
+        }
     }
 
     #[test]
