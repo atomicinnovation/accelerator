@@ -15,6 +15,7 @@ from tasks.eval.ask_and_report.turns import (
 from tasks.eval.headless.claude import common_flags, run_session
 from tasks.eval.headless.transcript import Event, events
 from tasks.eval.toolchain import Toolchain
+from tasks.shared.skill_parsing import frontmatter_allowed_tools
 
 SKILL = "skills/research/research-topic/SKILL.md"
 UNUSED_GRANT = "Bash(accelerator research fetch *)"
@@ -24,14 +25,11 @@ NOT_RUN = "not-run"
 type Runner = Callable[[list[str], Path, Path, dict[str, str]], int]
 
 
-def _declared_grant(skill: str) -> list[str]:
-    frontmatter = skill.split("\n---\n", 1)[0]
-    declared = frontmatter.split("allowed-tools:\n", 1)[1]
-    return [
-        line.removeprefix("  - ")
-        for line in declared.splitlines()
-        if line.startswith("  - ")
-    ]
+def _declared_grant(skill: Path) -> list[str]:
+    try:
+        return frontmatter_allowed_tools(skill.read_text())
+    except ValueError as error:
+        raise ValueError(f"{skill}: {error}") from error
 
 
 def research_topic_grant(plugin_root: Path) -> tuple[str, ...]:
@@ -42,7 +40,7 @@ def research_topic_grant(plugin_root: Path) -> tuple[str, ...]:
     """
     declared = [
         rule.replace(PLUGIN_ROOT, str(plugin_root))
-        for rule in _declared_grant((plugin_root / SKILL).read_text())
+        for rule in _declared_grant(plugin_root / SKILL)
         if rule != UNUSED_GRANT
     ]
     return (*declared, "Skill")

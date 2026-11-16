@@ -23,6 +23,8 @@ _PREPROCESSOR = re.compile(r"!`([^`]*)`")
 _FENCED_BLOCK = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
 _BARE_BASH_LINE = re.compile(r"^\s*-?\s*Bash\s*$")
 _NAME_LINE = re.compile(r'^name:\s*"?([^"\n]*?)"?\s*$')
+_ALLOWED_TOOLS_LINE = re.compile(r"^allowed-tools:\s*(.*)$")
+_LIST_ITEM = re.compile(r"^\s+-\s+(.*)$")
 _METACHARACTERS = ("&&", "||", ";", "|", "$(", "`", "<(", ">(")
 # Public: `is_plugin_invocation` still recognises this prefix so the surviving
 # non-accelerator `${CLAUDE_PLUGIN_ROOT}/…` script references stay covered.
@@ -63,6 +65,34 @@ def frontmatter_bash_rules(text: str) -> list[str]:
     for line in _frontmatter_lines(text):
         rules.extend(_BASH_RULE.findall(line))
     return rules
+
+
+def frontmatter_allowed_tools(text: str) -> list[str]:
+    """Every rule the frontmatter's ``allowed-tools`` list declares.
+
+    Raises ``ValueError`` when the frontmatter declares no such key.
+    """
+    lines = _frontmatter_lines(text)
+    for at, line in enumerate(lines):
+        match = _ALLOWED_TOOLS_LINE.match(line)
+        if not match:
+            continue
+        inline = match.group(1).strip()
+        if inline:
+            return [
+                rule.strip()
+                for rule in inline.removeprefix("[")
+                .removesuffix("]")
+                .split(",")
+            ]
+        rules: list[str] = []
+        for item in lines[at + 1 :]:
+            listed = _LIST_ITEM.match(item)
+            if not listed:
+                break
+            rules.append(listed.group(1).strip())
+        return rules
+    raise ValueError("the frontmatter declares no allowed-tools")
 
 
 def has_bare_bash(text: str) -> bool:

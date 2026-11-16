@@ -297,6 +297,17 @@ def test_the_grant_is_the_skill_s_at_its_plugin_root_less_fetch() -> None:
     assert grant == GRANT.replace("<plugin_root>", str(REPO_ROOT))
 
 
+def test_a_skill_declaring_no_grant_is_named_in_the_refusal(
+    tmp_path: Path,
+) -> None:
+    skill = tmp_path / conversation.SKILL
+    skill.parent.mkdir(parents=True)
+    skill.write_text("---\nname: research-topic\n---\nBody\n")
+
+    with pytest.raises(ValueError, match=f"{skill}.*allowed-tools"):
+        conversation.research_topic_grant(tmp_path)
+
+
 def test_every_turn_passes_the_common_and_session_flags() -> None:
     flags = conversation.turn_flags(REPO_ROOT, model=None)
     common = common_flags(
