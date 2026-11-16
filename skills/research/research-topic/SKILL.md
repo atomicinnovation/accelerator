@@ -577,10 +577,11 @@ allocate a finding or note path yourself.
       If it exits non-zero, report its error and stop before the manifest
       edit; the findings already on disk survive, and a rerun recovers.
       Otherwise set `round_count` and `finding_count` to its `derived`
-      values, never to the raw pair or focus-area count. Each finding carries `kind: finding`, its focus area's injected
-      `round` (not a constant `1`), the injected `depth`, its pair's
-      `question`, and its pair's profile as `source_profile`. No run ledger
-      outlives a completed run.
+      values, never to the raw pair or focus-area count. Each finding
+      carries `kind: finding`, its focus area's injected `round` (not a
+      constant `1`), the injected `depth`, its pair's `question`, and its
+      pair's profile as `source_profile`. No run ledger outlives a completed
+      run.
    4. **Summarise**, in this order, omitting any empty section:
       1. **Halt.** Printed only when the last run plan's `withheld` was
          non-empty, so it rests on what the CLI reported, not on what
@@ -786,9 +787,11 @@ anything else, such as a warning about planted instructions, before the
 judgement.
 
 If a command after a reply is denied permission, stop, say what was written,
-and name the allow rules that avoid the prompt, `Bash(accelerator corpus *)`
-and `Bash(accelerator research topic *)`. Then name the next step from what
-was written, once those rules are in the user's Claude Code allow rules.
+and name the allow rules that avoid the prompt,
+`Bash(accelerator corpus metadata derive)`,
+`Bash(accelerator corpus frontmatter validate *)` and
+`Bash(accelerator research topic *)`. Then name the next step from what was
+written, once those rules are in the user's Claude Code allow rules.
 Before the proposal's `outline.md` append, running `{verb} {slug} {question}`
 again finishes the work, and offers any report already written for
 `rewrite`. After the append, the rerun would stop at a gate, so name the
@@ -1000,7 +1003,7 @@ anything.
    after deriving metadata.
 
    - **Frontmatter.** Fill it per **Populate frontmatter**, with `id`
-     `{set-slug}-report-{file stem}`, `title` and `question` the question,
+     `{set-slug}-report-{report-stem}`, `title` and `question` the question,
      `rounds_covered` the manifest's `round_count`, which `consultable` has
      just confirmed matches disk, `coverage` the judgement and
      `status: complete`. `parent` is copied from the manifest, omitted when

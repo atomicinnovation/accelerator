@@ -1985,7 +1985,8 @@ def test_a_denied_post_reply_command_names_the_allow_rules() -> None:
     for phrase in (
         "denied permission",
         "say what was written",
-        "`Bash(accelerator corpus *)`",
+        "`Bash(accelerator corpus metadata derive)`",
+        "`Bash(accelerator corpus frontmatter validate *)`",
         "`Bash(accelerator research topic *)`",
     ):
         assert phrase in consult, f"a denied command must name {phrase!r}"
