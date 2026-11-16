@@ -121,13 +121,17 @@ def _template_problems(
         root,
     )
     winner = "config" if "config" in setup.templates else "user"
-    return [
-        f"the resolved report template {verdict} ## {section}"
-        for tier in setup.templates
-        for section in [OVERRIDE_SECTIONS[tier]]
-        for verdict in ["lacks" if tier == winner else "still carries"]
-        if (f"\n## {section}\n" in resolved) != (tier == winner)
-    ]
+    problems: list[str] = []
+    for tier in setup.templates:
+        section = OVERRIDE_SECTIONS[tier]
+        carried = f"\n## {section}\n" in resolved
+        if tier == winner and not carried:
+            problems.append(f"the resolved report template lacks ## {section}")
+        elif tier != winner and carried:
+            problems.append(
+                f"the resolved report template still carries ## {section}"
+            )
+    return problems
 
 
 def _skip_problems(
