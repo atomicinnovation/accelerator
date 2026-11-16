@@ -1,20 +1,18 @@
 //! The counts a committed set's files give, beside those its manifest and
 //! synthesis record.
 
-use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
 use std::process::Output;
 
 use serde_json::json;
 use serde_json::Value;
 
-type TestError = Box<dyn std::error::Error>;
+mod topic_project;
 
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
-const TOPICS: &str = "meta/research/topics";
+use topic_project::tree;
+use topic_project::Project;
+use topic_project::TestError;
+
 const MULTIROUND: &str = "topic-research-multiround-set";
 const SETS: [&str; 4] = [
     "topic-research-deepened-set",
@@ -23,27 +21,7 @@ const SETS: [&str; 4] = [
     "topic-research-quarantine-set",
 ];
 
-struct Project {
-    _dir: tempfile::TempDir,
-    root: PathBuf,
-}
-
 impl Project {
-    fn with_fixture_set(fixture: &str) -> Result<Self, TestError> {
-        let dir = tempfile::Builder::new()
-            .prefix("research-topic-counts-")
-            .tempdir()?;
-        let root = dir.path().canonicalize()?;
-        fs::create_dir_all(root.join(".git"))?;
-        let project = Self { _dir: dir, root };
-        copy_tree(&fixtures().join(fixture), &project.set(fixture))?;
-        Ok(project)
-    }
-
-    fn set(&self, slug: &str) -> PathBuf {
-        self.root.join(TOPICS).join(slug)
-    }
-
     fn edit(
         &self,
         document: &str,
@@ -58,10 +36,7 @@ impl Project {
     }
 
     fn counts_output(&self, slug: &str) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
-            .current_dir(&self.root)
-            .args(["topic", "counts", slug])
-            .output()?)
+        self.run("counts", &[slug])
     }
 
     fn counts(&self, slug: &str) -> Result<Value, TestError> {
@@ -73,42 +48,6 @@ impl Project {
         );
         Ok(serde_json::from_slice(&output.stdout)?)
     }
-}
-
-fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../corpus-cli/tests/fixtures")
-}
-
-fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
-
-fn tree(root: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>, TestError> {
-    let mut files = BTreeMap::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let path = entry?.path();
-            if path.is_dir() {
-                files.insert(path.clone(), Vec::new());
-                pending.push(path);
-            } else {
-                files.insert(path.clone(), fs::read(&path)?);
-            }
-        }
-    }
-    Ok(files)
 }
 
 fn stored_manifest_count(
