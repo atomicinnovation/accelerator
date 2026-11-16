@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T16:48:56+00:00"
+last_updated: "2026-11-16T21:00:17+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -38,8 +38,8 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 |---|---|---|---|
 | 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
-| 3. pytest-xdist workers | Dev | #222 | Open; waiting on the CI before window |
-| 4. Fixture isolation | Playwright | #225 | Open |
+| 3. pytest-xdist workers | Dev | #222 | Merged 2026-11-16, without a full CI before window |
+| 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
 | 5. Retries off | Playwright | — | Implemented; PR not raised |
 | 6. Host-relative workers | Playwright | — | Not started |
 | 7. CI closing comparison | Both | — | Not started |
@@ -856,9 +856,26 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
 
   Also check whether any sibling (0362 especially) merged inside the window.
 
-  This is still pending. #221 merged at 2026-11-16 10:24 UTC, and the first
-  `main` run after it is 43848526711, on `e1f83907`. #222 stays unmerged
-  until 10 such runs exist and the window is in its description.
+  This was not met. #222 merged at 2026-11-16 20:46 UTC, through #225's
+  merge commit `929fae79`, because #225 was stacked on it. Only three
+  `main` runs fall between #221's merge (10:24 UTC) and that commit. In
+  each, both `test-integration` jobs succeeded:
+
+  | Run | Commit | ubuntu dev suite | ubuntu image | macOS dev suite | macOS image |
+  |---|---|---|---|---|---|
+  | 43848526711 | `e1f83907` (#221) | 163.39 s | 20261103.629 | 198.84 s | 20261028.624 |
+  | 43913843321 | `242096a9` (#188) | 171.11 s | 20261103.629 | 166.83 s | 20261103.629 |
+  | 43924565386 | `36e3d747` (#227) | 163.22 s | 20261103.629 | 260.10 s | 20261028.624 |
+
+  - The medians are 163.39 s on ubuntu (range 163.2–171.1) and 198.84 s on
+    macOS (range 166.8–260.1). Three samples give no meaningful IQR.
+  - The whole job took 666–756 s on ubuntu and 1247–1471 s on macOS.
+  - No sibling in the window touches the job. #188 changes no build or
+    test wiring, and #227 only orders `test:unit:frontend`.
+  - The macOS runner image changes inside the window.
+
+  Phase 7 therefore treats the dev suite's before window as contaminated
+  and runs the paired comparison for it.
 - [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
