@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T09:05:00+00:00"
+last_updated: "2026-11-16T12:18:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -769,8 +769,12 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
 
 - [ ] Worker counts recorded in the PR: what `-n auto` resolves to on
       engywook and on both CI runners, from the xdist banner in the job log,
-      next to psutil's physical and logical counts.
-- [ ] Load comparison recorded in the PR (not a gate). On engywook (16
+      next to psutil's physical and logical counts. The banners show 16 on
+      engywook (psutil: 16 physical, 16 logical), 2 on `ubuntu-26.04` and
+      3 on `macos-26-arm64` (#222's run 43848534569). The CI logs don't
+      print psutil's counts, so the CI logical counts are still to be
+      recorded.
+- [x] Load comparison recorded in the PR (not a gate). On engywook (16
       cores, no SMT), `-n auto` and `-n logical` both resolve to 16, so the
       comparison is between `-n auto` and `-n 8`:
   - Run one non-isolated
@@ -792,7 +796,7 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
     commit.
   - The question of physical versus logical cores is answered by the CI
     banners, where the two counts can differ.
-  - **Result, still to be copied into the PR.** Both runs used commit
+  - **Result, recorded in PR #222.** Both runs used commit
     `8d7966fb`, which does not contain the Playwright worker phase. Every
     run succeeded, and the logs show 16/16 and 8/8 workers.
 
@@ -810,19 +814,24 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
     `meta/measurements/build_2026-11-16T081243Z_engywook_warm-no-op_devtools.json`
     and
     `meta/measurements/build_2026-11-16T083530Z_engywook_warm-no-op_devtools.json`.
-- [ ] Any `stop_cleanly` failure across the 10 runs that names an
+- [x] Any `stop_cleanly` failure across the 10 runs that names an
       arbiter's `terminate` or `kill`, or any null recorded PID or missed
       `reused`, is handled under Phase 2's `probe_timeout` and `grace_kill`
-      rule, and is listed in the PR.
-- [ ] Ten counted `mise run` executions on one recorded commit, per
-      Requirement 7:
+      rule, and is listed in the PR. None occurred: the dev suite passed
+      21/21 in every counted run.
+- [x] Ten counted `mise run` executions on one recorded commit, per
+      Requirement 7. All ten exited 0 on `d29d7621`, whose parent is the
+      #221 merge commit `e1f83907` on `main`. The working copy stayed clean.
+      Each run took 270–361 s, and the dev suite took 10.3–16.7 s on 16
+      workers. The outcomes are in PR #222:
   - The PR records each outcome. A failure in an unrelated task is named.
   - Any change to the suite restarts the count.
   - The commit is the merge base, or the validation is repeated after a
     rebase.
-- [ ] Anti-masking: the diff adds no `skip`, rerun or flaky marker. Every
+- [x] Anti-masking: the diff adds no `skip`, rerun or flaky marker. Every
       flake found is listed with its fix or its split-out work item, and a
-      split-out item is added to 0364's Dependencies as a blocker.
+      split-out item is added to 0364's Dependencies as a blocker. No flake
+      was found.
 - [ ] The CI before window for `test-integration` is recorded in the PR
       before merge. For each OS:
   - the last 10 main-branch run IDs, all after Phase 2's merge;
@@ -831,7 +840,7 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
   - the runner image version from the job's "Set up job" step.
 
   Also check whether any sibling (0362 especially) merged inside the window.
-- [ ] Validation and measurement don't overlap 0370's host-settings
+- [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
 ---
