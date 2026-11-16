@@ -22,7 +22,6 @@ from tasks.eval.ask_and_report.checks import (
     turn_check_failures,
 )
 from tasks.eval.ask_and_report.conversation import (
-    NOT_RUN,
     Conversation,
     Runner,
     opening_prompt,
@@ -31,6 +30,7 @@ from tasks.eval.ask_and_report.conversation import (
 from tasks.eval.ask_and_report.projects import build_project
 from tasks.eval.ask_and_report.scenarios import Scenario, ScenarioFile
 from tasks.eval.ask_and_report.turns import (
+    NOT_RUN,
     TurnHistory,
     TurnRecord,
     errored,

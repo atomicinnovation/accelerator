@@ -9,6 +9,8 @@ from pathlib import Path
 from tasks.eval.headless.transcript import Event, Init, Result, Text, events
 
 UNTRACKED = ".git"
+TIMEOUT = "timeout"
+NOT_RUN = "not-run"
 
 
 @dataclass(frozen=True)
@@ -146,8 +148,8 @@ def errored(record: TurnRecord) -> str | None:
         return "no log"
     if record.exit_status is None:
         return "no exit status"
-    if record.exit_status == "timeout":
-        return "timeout"
+    if record.exit_status == TIMEOUT:
+        return TIMEOUT
     if record.exit_status != "0":
         return f"exit code {record.exit_status}"
     if record.init is None:
