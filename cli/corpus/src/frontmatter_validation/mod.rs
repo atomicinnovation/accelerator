@@ -351,7 +351,6 @@ fn check_extra_vocabs(
     }
 }
 
-/// The vocab as the violation renders it, when `value` lies outside it.
 fn outside_vocab(values: &[&str], value: &str) -> Option<String> {
     (!values.contains(&value)).then(|| values.join(" | "))
 }
