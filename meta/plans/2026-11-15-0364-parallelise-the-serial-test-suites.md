@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T12:27:16+00:00"
+last_updated: "2026-11-16T14:54:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -39,7 +39,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
 | 3. pytest-xdist workers | Dev | #222 | Open; waiting on the CI before window |
-| 4. Fixture isolation | Playwright | — | Not started |
+| 4. Fixture isolation | Playwright | — | Open |
 | 5. Retries off | Playwright | — | Not started |
 | 6. Host-relative workers | Playwright | — | Not started |
 | 7. CI closing comparison | Both | — | Not started |
@@ -968,20 +968,30 @@ unchanged. Record the mutations and the result in the PR.
 
 #### Automated Verification:
 
-- [ ] The suite passes: `mise run test:e2e:visualiser`
-- [ ] `mise run frontend:check` passes
-- [ ] No `resolved-styles` spec names a written fixture:
+- [x] The suite passes: `mise run test:e2e:visualiser`. 355 passed and 1
+      was skipped (`legacy-schema`'s existing lookup), on one worker.
+- [x] `mise run frontend:check` passes
+- [x] No `resolved-styles` spec names a written fixture:
       `grep -rEn "0001-first|0003-third|0005-sse|0006-conflict" cli/visualiser/frontend/tests`
       returns nothing
 
 #### Manual Verification:
 
-- [ ] The audit record is in the PR, with the trace method for each list and
-      no conflicts under the per-probe definition.
-- [ ] The mutated-fixture run passed, and the fixtures are restored.
-- [ ] A spot-check shows that each pinned probe still selects an element. A
+- [x] The audit record is in the PR, with the trace method for each list and
+      no conflicts under the per-probe definition. The audit found one
+      conflict beyond those listed above. `/lifecycle` sorts its cluster
+      cards by most recent change, so a write moves the written item's
+      cluster to the top, where radius's `.first()` card probe measured it.
+      That probe is pinned to 0002's cluster card
+      (`UNWRITTEN_LIFECYCLE_CARD`). The `fs_usage` trace shows that
+      `resolved-styles` writes nothing, and opens 0001, 0003, 0005 and
+      0006 only in the server's start-up index.
+- [x] The mutated-fixture run passed, and the fixtures are restored.
+      `resolved-styles` passed 313/313 against the mutations.
+- [x] A spot-check shows that each pinned probe still selects an element. A
       changed slug should not have turned a probe into a no-op that passes
-      vacuously.
+      vacuously. Every pinned probe either `waitFor`s its element or
+      evaluates it through `.first()`, so a missing element times out.
 
 ---
 
