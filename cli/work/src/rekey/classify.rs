@@ -17,6 +17,10 @@ pub enum Classification {
 
 /// An `id` equal to its `external_id`, ignoring case, is a tracker key; a
 /// draft ID is a draft; any other `id` carrying a number keeps it.
+///
+/// A tracker key's number counts the tracker's issues, not the local
+/// sequence, so an item named by one takes a fresh local number rather
+/// than claiming its issue's number in the local sequence.
 #[must_use]
 pub fn classify(identity: &ItemIdentity, scheme: &IdScheme) -> Classification {
     let is_tracker_key = identity
