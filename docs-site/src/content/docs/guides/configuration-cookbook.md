@@ -184,8 +184,9 @@ under a `draft-xxxxxx` ID until `work sync` or `work promote` promotes it.
 `work.key` and `--project` are unused. Items created before the switch
 must be converged with
 [`rekey-work-items`](../reference/skills/work/rekey-work-items.md):
-until then every `work` command that reads or writes IDs refuses with
-`E_REKEY_REQUIRED`.
+until then `work create`, `create-batch`, `id next`, `id check`, `list`,
+`resolve` and `promote` refuse with `E_REKEY_REQUIRED`. `work sync` and
+`work rekey` still run, so the way out stays open.
 
 ⚠️ `{tracker}` needs Accelerator 1.24.0 or later. An older version cannot
 read the pattern at all, so upgrade every teammate before switching a

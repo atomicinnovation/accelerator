@@ -727,9 +727,10 @@ sync` or `work promote` promotes it onto its key, keeping the draft ID in
 its `aliases`. Two rules apply: `{tracker}` must be the only token in
 `work.id_pattern`, and `work.integration` must be `jira` or `linear`.
 `work.key` and `--project` are unused under it. Items created earlier
-must be re-keyed with `/rekey-work-items` before any `work` command that
-reads or writes IDs runs: until then each refuses with
-`E_REKEY_REQUIRED`. It needs Accelerator 1.24.0 or later; upgrade every
+must be re-keyed with `/rekey-work-items`: until then `work create`,
+`create-batch`, `id next`, `id check`, `list`, `resolve` and `promote`
+refuse with `E_REKEY_REQUIRED`, while `work sync` and `work rekey` still
+run. It needs Accelerator 1.24.0 or later; upgrade every
 teammate before switching a shared config, since an older version cannot
 read the pattern.
 
