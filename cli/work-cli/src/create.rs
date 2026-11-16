@@ -442,39 +442,54 @@ impl CreationContext<'_> {
 /// The work items a create writes among, located and trusted for their
 /// IDs, and the ID it requests, admitted.
 pub struct AdmittedRequest {
-    pub location: WorkItemLocation,
-    pub requested: Option<RequestedId>,
+    location: WorkItemLocation,
+    requested: Option<RequestedId>,
 }
 
 /// Why a create stopped before its request was admitted.
-enum Unadmitted {
+pub enum Unadmitted {
     Unlocated(String),
     Untrusted(Untrusted),
     Refused(RequestedIdRefusal),
 }
 
-/// The opening a create and its `--id` dry run share, so both refuse in
-/// one order: the work items located, then trusted, then the requested ID
-/// admitted. Nothing is created.
-fn admit_request(
-    start: &Path,
-    config: &dyn ConfigAccess,
-    args: &CreateArgs,
-) -> Result<AdmittedRequest, Unadmitted> {
-    let location =
-        locate_work_items(start, config).map_err(Unadmitted::Unlocated)?;
-    refuse_untrusted_corpus(
-        &location.scheme,
-        &location.root,
-        &location.work_dir,
-    )
-    .map_err(Unadmitted::Untrusted)?;
-    let requested = admit_requested_id(args, &location.scheme)
-        .map_err(Unadmitted::Refused)?;
-    Ok(AdmittedRequest {
-        location,
-        requested,
-    })
+impl AdmittedRequest {
+    /// The opening a create and its `--id` dry run share, so both refuse in
+    /// one order: the work items located, then trusted, then the requested
+    /// ID admitted. Nothing is created.
+    fn admit(
+        start: &Path,
+        config: &dyn ConfigAccess,
+        args: &CreateArgs,
+    ) -> Result<Self, Unadmitted> {
+        let located = Self::without_requested_id(start, config)?;
+        let requested = admit_requested_id(args, &located.location.scheme)
+            .map_err(Unadmitted::Refused)?;
+        Ok(Self {
+            requested,
+            ..located
+        })
+    }
+
+    /// The opening of a create that requests no ID, such as each entry of a
+    /// batch: the work items located, then trusted.
+    pub fn without_requested_id(
+        start: &Path,
+        config: &dyn ConfigAccess,
+    ) -> Result<Self, Unadmitted> {
+        let location =
+            locate_work_items(start, config).map_err(Unadmitted::Unlocated)?;
+        refuse_untrusted_corpus(
+            &location.scheme,
+            &location.root,
+            &location.work_dir,
+        )
+        .map_err(Unadmitted::Untrusted)?;
+        Ok(Self {
+            location,
+            requested: None,
+        })
+    }
 }
 
 /// The context for creating among `location`'s work items.
@@ -748,7 +763,7 @@ fn preview_requested_id(
     let AdmittedRequest {
         location,
         requested,
-    } = match admit_request(start, config, args) {
+    } = match AdmittedRequest::admit(start, config, args) {
         Ok(admitted) => admitted,
         Err(Unadmitted::Unlocated(message)) => {
             return RunOutcome::Failed(message)
@@ -798,7 +813,7 @@ pub fn run_with(
             return RunOutcome::Refused { message, code };
         }
     };
-    let admitted = match admit_request(start, config, args) {
+    let admitted = match AdmittedRequest::admit(start, config, args) {
         Ok(admitted) => admitted,
         Err(Unadmitted::Unlocated(message)) => {
             return RunOutcome::Failed(message)

@@ -35,8 +35,6 @@ use crate::batch_manifest::Authorship;
 use crate::batch_manifest::ManifestEntry;
 use crate::batch_manifest::ParentLink;
 use crate::cli::CreateBatchArgs;
-use crate::config::locate_work_items;
-use crate::corpus_trust::refuse_untrusted_corpus;
 use crate::corpus_trust::Untrusted;
 use crate::create::create_item;
 use crate::create::AdmittedRequest;
@@ -44,6 +42,7 @@ use crate::create::CreateFailure;
 use crate::create::CreationOutcome;
 use crate::create::CreationStore;
 use crate::create::Seams;
+use crate::create::Unadmitted;
 use crate::exit_codes;
 use crate::promotion_report::detail_line;
 use crate::sync::severity;
@@ -203,22 +202,24 @@ pub fn run_with(
             return BatchOutcome::Refused { message, code };
         }
     };
-    let location = match locate_work_items(start, config) {
-        Ok(location) => location,
-        Err(message) => {
+    let admitted = match AdmittedRequest::without_requested_id(start, config) {
+        Ok(admitted) => admitted,
+        Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
+            return BatchOutcome::Refused { message, code };
+        }
+        Err(Unadmitted::Unlocated(message)) => {
             return BatchOutcome::Failed {
                 report: report(&[]),
                 message,
             }
         }
+        Err(Unadmitted::Refused(refusal)) => {
+            return BatchOutcome::Failed {
+                report: report(&[]),
+                message: refusal.to_string(),
+            }
+        }
     };
-    if let Err(Untrusted { message, code }) = refuse_untrusted_corpus(
-        &location.scheme,
-        &location.root,
-        &location.work_dir,
-    ) {
-        return BatchOutcome::Refused { message, code };
-    }
     let entries = match crate::batch_manifest::read(&args.manifest) {
         Ok(entries) => entries,
         Err(problems) => return BatchOutcome::Invalid(problems),
@@ -243,10 +244,7 @@ pub fn run_with(
         }
     };
     let mut batch = Batch {
-        admitted: AdmittedRequest {
-            location,
-            requested: None,
-        },
+        admitted,
         config,
         templates,
         authorship: Authorship {
