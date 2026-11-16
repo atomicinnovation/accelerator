@@ -110,7 +110,6 @@ def _session(tmp_path: Path, name: str, runner: Scripted) -> runs.SessionPlan:
     runs.run_planned(
         plan,
         plugin_root=REPO_ROOT,
-        evals=EVALS,
         flags=[],
         env={},
         run=runner,
@@ -394,6 +393,6 @@ def test_one_session_s_harness_error_leaves_the_rest_to_run(
     monkeypatch.setattr(runs, "run_planned", run_planned)
 
     with pytest.raises(RuntimeError, match="harness bug"):
-        runs.run_eval(plans, REPO_ROOT, EVALS, [], {}, jobs=1)
+        runs.run_eval(plans, REPO_ROOT, [], {}, jobs=1)
 
     assert len(ran) == len(plans)

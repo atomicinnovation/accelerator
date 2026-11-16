@@ -111,7 +111,6 @@ def probe_refusal(outcome: ProbeOutcome) -> str | None:
 
 def authentication_refusal(
     plugin_root: Path,
-    evals: Path,
     flags: Sequence[str],
     env: dict[str, str],
 ) -> str | None:
@@ -125,7 +124,7 @@ def authentication_refusal(
     with tempfile.TemporaryDirectory(prefix="ask-report-probe-") as scratch:
         directory = Path(scratch)
         root = directory / "project"
-        build_project(Setup(variant="base"), root, evals)
+        build_project(Setup(variant="base"), root, plugin_root)
         prepare_repository(root)
         prompt = (
             f"Read {rule} with the Read tool, then write the word ok to "

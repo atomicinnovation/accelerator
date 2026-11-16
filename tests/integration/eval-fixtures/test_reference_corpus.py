@@ -48,7 +48,7 @@ def _section(document: str, heading: str) -> str:
 
 @EACH_VARIANT
 def test_every_variant_validates(tmp_path: Path, variant: Variant) -> None:
-    build_project(Setup(variant=variant), tmp_path, EVALS)
+    build_project(Setup(variant=variant), tmp_path, REPO_ROOT)
 
     validated = subprocess.run(
         [str(TOOLCHAIN.corpus), "frontmatter", "validate"],
@@ -65,7 +65,7 @@ def test_every_variant_validates(tmp_path: Path, variant: Variant) -> None:
 def test_every_scenario_reaches_its_declared_gate(
     tmp_path: Path, scenario: Scenario
 ) -> None:
-    build_project(scenario.setup, tmp_path, EVALS)
+    build_project(scenario.setup, tmp_path, REPO_ROOT)
 
     assert gate_problems(scenario, tmp_path, TOOLCHAIN) == []
 
@@ -74,7 +74,7 @@ def test_every_scenario_reaches_its_declared_gate(
 def test_every_scenario_sets_up_what_it_claims(
     tmp_path: Path, scenario: Scenario
 ) -> None:
-    build_project(scenario.setup, tmp_path, EVALS)
+    build_project(scenario.setup, tmp_path, REPO_ROOT)
 
     assert setup_problems(scenario.setup, tmp_path, TOOLCHAIN) == []
 
@@ -83,7 +83,7 @@ def test_every_scenario_sets_up_what_it_claims(
 def test_each_variant_records_its_reports_on_disk(
     tmp_path: Path, variant: Variant
 ) -> None:
-    built = build_project(Setup(variant=variant), tmp_path, EVALS)
+    built = build_project(Setup(variant=variant), tmp_path, REPO_ROOT)
     manifest = (built / "manifest.md").read_text()
     recorded = re.search(r"^report_count: (\d+)$", manifest, re.MULTILINE)
     visible = [
@@ -101,7 +101,7 @@ def test_each_variant_records_its_reports_on_disk(
 def test_the_canary_lives_only_in_level_notes(
     tmp_path: Path, variant: Variant
 ) -> None:
-    build_project(Setup(variant=variant), tmp_path, EVALS)
+    build_project(Setup(variant=variant), tmp_path, REPO_ROOT)
     carriers = [
         path.relative_to(tmp_path)
         for path in tmp_path.rglob("*")
@@ -116,7 +116,7 @@ def test_the_canary_lives_only_in_level_notes(
 
 
 def test_the_injected_instructions_are_in_place(tmp_path: Path) -> None:
-    built = build_project(Setup(variant="equivalence"), tmp_path, EVALS)
+    built = build_project(Setup(variant="equivalence"), tmp_path, REPO_ROOT)
     finding = (
         built / "findings/06-which-hardware-trains-agent-models-fastest-web.md"
     ).read_text()
@@ -142,7 +142,7 @@ def test_the_injected_instructions_are_in_place(tmp_path: Path) -> None:
 def test_every_scenario_s_expectations_agree_with_the_cli_and_rule(
     tmp_path: Path, scenario: Scenario
 ) -> None:
-    build_project(scenario.setup, tmp_path, EVALS)
+    build_project(scenario.setup, tmp_path, REPO_ROOT)
 
     assert expectation_problems(scenario, tmp_path, TOOLCHAIN) == []
 
@@ -229,7 +229,7 @@ def test_a_planted_expectation_is_a_problem(
     tmp_path: Path, name: str, at: int, expect: dict, problem: str
 ) -> None:
     scenario = _with_turn(_named(name), at, expect)
-    build_project(scenario.setup, tmp_path, EVALS)
+    build_project(scenario.setup, tmp_path, REPO_ROOT)
 
     problems = expectation_problems(scenario, tmp_path, TOOLCHAIN)
 
