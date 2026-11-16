@@ -6,3 +6,6 @@ pub mod lineage;
 pub mod note_ref;
 pub mod slug;
 pub mod stem;
+
+pub const FINDINGS: &str = "findings";
+pub const REPORTS: &str = "reports";

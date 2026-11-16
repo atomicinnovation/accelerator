@@ -3,6 +3,8 @@
 
 use std::fmt;
 use std::fmt::Display;
+
+use crate::topic::layout::FINDINGS;
 use std::fmt::Formatter;
 
 /// ASCII digits, a `-`, then a non-empty rest drawn from `[a-z0-9-]`.
@@ -76,7 +78,7 @@ impl Stem {
     /// The set-relative path of the finding this stem names.
     #[must_use]
     pub fn finding_path(&self) -> String {
-        format!("findings/{self}.md")
+        format!("{FINDINGS}/{self}.md")
     }
 }
 
