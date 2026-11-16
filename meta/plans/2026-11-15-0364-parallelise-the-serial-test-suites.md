@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T00:37:35+00:00"
+last_updated: "2026-11-16T00:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -752,15 +752,18 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
 
 #### Automated Verification:
 
-- [ ] The new unit test fails before step 2 and passes after:
+- [x] The new unit test fails before step 2 and passes after:
       `mise run test:unit:tasks`
-- [ ] The lock is consistent: `uv sync --all-groups --frozen`
-- [ ] The suite passes in parallel: `mise run test:integration:dev`, and the
-      xdist banner shows the worker count
-- [ ] `mise run build-system:check` passes
-- [ ] Timing target met: in
+- [x] The lock is consistent: `uv sync --all-groups --frozen`
+- [x] The suite passes in parallel: `mise run test:integration:dev`, and the
+      xdist banner shows the worker count. It shows 16 workers on
+      engywook, and all 21 tests pass in 7.9 s.
+- [x] `mise run build-system:check` passes
+- [x] Timing target met: in
       `mise run measure:build --isolate test:integration:dev --cache-state warm-no-op --runs 5 --host-settings devtools --keep`,
-      the record's per-task outcome is success and the median is under 60 s
+      the record's per-task outcome is success and the median is under
+      60 s. It is 7.9 s (min 7.8, max 8.8), recorded in
+      `meta/measurements/build_2026-11-16T004012Z_engywook_warm-no-op_devtools_isolated.json`.
 
 #### Manual Verification:
 

@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "run_id": "build_2026-11-16T004012Z_engywook_warm-no-op_devtools_isolated",
+  "run_directory": ".accelerator-measure/build/build_2026-11-16T004012Z_engywook_warm-no-op_devtools_isolated",
+  "started_at": "2026-11-16T00:40:12+00:00",
+  "conditions": {
+    "hostname": "engywook",
+    "model": "Mac16,5",
+    "os_version": "26.3",
+    "mise_jobs": 8,
+    "cache_state": "warm-no-op",
+    "mode": "isolated",
+    "isolated_tasks": [
+      "test:integration:dev"
+    ],
+    "host_settings": "devtools"
+  },
+  "commit": {
+    "id": "5e3653967e0f4e9d4cd4f14963e7314616c7f9dc",
+    "matched_at_start": true,
+    "matched_at_end": true,
+    "matched": true
+  },
+  "host": {
+    "hostname": "engywook",
+    "model": "Mac16,5",
+    "chip": "Apple M4 Max",
+    "os_version": "26.3",
+    "os_build": "25D125",
+    "cores": {
+      "total": 16,
+      "performance": 12,
+      "efficiency": 4
+    },
+    "power": {
+      "source": "AC Power",
+      "mode": "0"
+    }
+  },
+  "mise": {
+    "version": "2026.10.8 macos-arm64 (2026-10-11)",
+    "jobs": 8
+  },
+  "idle_load_percent": 39.275862068965516,
+  "task_set": [
+    "build:cli:corpus:dev",
+    "build:cli:dev",
+    "build:cli:fixture-size",
+    "build:cli:research:dev",
+    "build:cli:vcs:dev",
+    "build:frontend",
+    "build:frontend:stub",
+    "build:server:dev",
+    "deny:check",
+    "deps:install:cargo-about",
+    "deps:install:cargo-sources",
+    "deps:install:docs",
+    "deps:install:docs-playwright",
+    "deps:install:nightly",
+    "deps:install:node",
+    "deps:install:playwright",
+    "deps:install:public-api",
+    "deps:install:pup",
+    "deps:install:python",
+    "deps:install:rust-components",
+    "docs:audit:check",
+    "docs:build",
+    "docs:check",
+    "docs:generate",
+    "docs:generate:check",
+    "format:build-system:fix",
+    "format:cli:fix",
+    "format:fix",
+    "format:frontend:fix",
+    "format:scripts:fix",
+    "format:server:fix",
+    "lint:bare-invocation:check",
+    "lint:build-system:check",
+    "lint:check",
+    "lint:claude-coupling:check",
+    "lint:cli:check",
+    "lint:config-test-support:check",
+    "lint:crate-dependencies:check",
+    "lint:dispatch-coherence:check",
+    "lint:frontend:check",
+    "lint:git-tokens:check",
+    "lint:integration-skills:check",
+    "lint:scripts:bashisms:check",
+    "lint:scripts:check",
+    "lint:scripts:shellcheck:check",
+    "lint:server:check",
+    "lint:skill-cli-refs:check",
+    "lint:skill-permissions:check",
+    "lint:store-duplication:check",
+    "lint:vcs-settings:check",
+    "lint:vendor-shims:check",
+    "notices:check",
+    "public-api:check",
+    "pup:check",
+    "test",
+    "test:e2e",
+    "test:e2e:visualiser",
+    "test:integration",
+    "test:integration:conformance",
+    "test:integration:deny",
+    "test:integration:dev",
+    "test:integration:entrypoint",
+    "test:integration:fixture-size",
+    "test:integration:hooks",
+    "test:integration:release-guard",
+    "test:integration:research",
+    "test:integration:skill-invocation",
+    "test:integration:tasks",
+    "test:integration:visualiser",
+    "test:unit",
+    "test:unit:cli",
+    "test:unit:design-automation",
+    "test:unit:frontend",
+    "test:unit:frontend-licenses",
+    "test:unit:tasks",
+    "test:unit:vcs",
+    "test:unit:visualiser",
+    "types:build-system:check",
+    "types:check",
+    "types:frontend:check"
+  ],
+  "tracked_processes": {
+    "syspolicyd": [
+      "^/usr/libexec/syspolicyd(?:\\s|$)"
+    ],
+    "XprotectService": [
+      "/MacOS/XprotectService(?:\\s|$)"
+    ],
+    "ide": [
+      "/Contents/MacOS/idea(?:\\s|$)",
+      "/Contents/MacOS/rustrover(?:\\s|$)"
+    ],
+    "fsnotifier": [
+      "/fsnotifier(?:\\s|$)"
+    ]
+  },
+  "priming": {
+    "wall_clock_seconds": 8.322886875015683,
+    "discarded": true
+  },
+  "runs": [
+    {
+      "index": 1,
+      "wall_clock_seconds": 8.446694124955684,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.08202241593971848,
+          "duration_seconds": 8.36,
+          "end_seconds": 8.442022415939718,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.07774983299896121,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 48.375,
+          "running": [
+            "test:integration:dev"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.13999999999941792,
+        "XprotectService": null,
+        "ide": 13.240000000005239,
+        "fsnotifier": 0.009999999999990905
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 2,
+      "wall_clock_seconds": 7.877107416046783,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.0838224160252139,
+          "duration_seconds": 7.79,
+          "end_seconds": 7.873822416025214,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.08095762506127357,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 52.857142857142854,
+          "running": [
+            "test:integration:dev"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.12000000000261934,
+        "XprotectService": null,
+        "ide": 12.14999999999418,
+        "fsnotifier": 0.010000000000019327
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 3,
+      "wall_clock_seconds": 7.795004541985691,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.08168416691478342,
+          "duration_seconds": 7.71,
+          "end_seconds": 7.791684166914783,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.07796133391093463,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 41.57142857142857,
+          "running": [
+            "test:integration:dev"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.12000000000261934,
+        "XprotectService": null,
+        "ide": 3.5200000000040745,
+        "fsnotifier": 0.0
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 4,
+      "wall_clock_seconds": 8.806549375061877,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.08113800000865012,
+          "duration_seconds": 8.72,
+          "end_seconds": 8.80113800000865,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.07704804197419435,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 58.75,
+          "running": [
+            "test:integration:dev"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.13999999999941792,
+        "XprotectService": null,
+        "ide": 9.369999999995343,
+        "fsnotifier": 0.010000000000047748
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 5,
+      "wall_clock_seconds": 7.945583832915872,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:integration:dev": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.08862466691061854,
+          "duration_seconds": 7.85,
+          "end_seconds": 7.938624666910618,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": null,
+          "queueing_delay_seconds": 0.08530929195694625,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 48.714285714285715,
+          "running": [
+            "test:integration:dev"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.12999999999738066,
+        "XprotectService": null,
+        "ide": 2.1999999999970896,
+        "fsnotifier": 0.0
+      },
+      "fetch_failures": []
+    }
+  ],
+  "summary": {
+    "wall_clock_seconds": {
+      "minimum": 7.795004541985691,
+      "median": 7.945583832915872,
+      "maximum": 8.806549375061877
+    },
+    "tasks": {
+      "test:integration:dev": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 7.71,
+          "median": 7.85,
+          "maximum": 8.72
+        },
+        "nextest_phase_seconds": null
+      }
+    },
+    "processes": {
+      "syspolicyd": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 0.12000000000261934,
+          "median": 0.12999999999738066,
+          "maximum": 0.13999999999941792
+        }
+      },
+      "XprotectService": {
+        "presence": {
+          "standing": "absent",
+          "absence": "not-seen"
+        },
+        "cpu_seconds": null
+      },
+      "ide": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 2.1999999999970896,
+          "median": 9.369999999995343,
+          "maximum": 13.240000000005239
+        }
+      },
+      "fsnotifier": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 0.0,
+          "median": 0.009999999999990905,
+          "maximum": 0.010000000000047748
+        }
+      }
+    }
+  },
+  "fetch_failures": [],
+  "failed_tasks": []
+}
