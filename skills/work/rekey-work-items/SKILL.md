@@ -76,8 +76,10 @@ ask before any branch below. Explain that items under a key used with
 `--project` should keep it, and items under a key in use before `work.key`
 changed should move onto **Local ID prefix**. Use the `AskUserQuestion`
 tool with `multiSelect`, one option per named key plus **Keep them all**.
-For each key the user picks, preview again with `--from-key <KEY>`, and
-branch on that preview instead. Ask once per invocation.
+Unless the user keeps them all, preview once more, passing a
+`--from-key <KEY>` for every key picked in that one preview, since each
+preview replaces the last as the proposed plan; branch on that preview
+instead. Ask once per invocation.
 
 Branch on the outcome:
 
