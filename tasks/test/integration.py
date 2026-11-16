@@ -54,7 +54,7 @@ def visualiser_os_watcher(context: Context) -> None:
 @task
 def dev(context: Context) -> None:
     """Integration tests for the dev task (real circusd, fake processes)."""
-    context.run("uv run pytest tests/integration/dev -v")
+    context.run("uv run pytest tests/integration/dev -n auto -v")
 
 
 @task

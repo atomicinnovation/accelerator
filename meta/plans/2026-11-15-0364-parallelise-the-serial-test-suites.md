@@ -5,7 +5,7 @@ title: "Parallelise the Serial Test Suites Implementation Plan"
 date: "2026-11-15T16:47:37+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0364"
 parent: "work-item:0364"
 derived_from: ["codebase-research:2026-11-15-0364-parallelise-the-serial-test-suites"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T00:37:35+00:00"
+last_updated: "2026-11-16T14:54:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -26,9 +26,23 @@ Run the Playwright visualiser suite and the dev-task integration suite with
 host-relative worker counts, instead of serially. Turn Playwright retries off
 everywhere, and shorten the dev suite's pure-delay waits. The work runs as two
 independent tracks of three phases each, plus a closing phase per suite.
-Every phase is its own PR and can be merged on its own. In each track the
-worker change goes last, so that phase is "the suite's change" for the
-10-run validation (Requirement 7) and for the CI windows (Requirement 8).
+Phases 1–6 are each their own PR and can be merged on their own. Phase 7
+records its results in the PRs of Phases 3 and 6. It opens PRs only for a
+paired comparison, a retune or a revert. In each track the worker change
+goes last, so that phase is "the suite's change" for the 10-run validation
+(Requirement 7) and for the CI windows (Requirement 8).
+
+## Progress
+
+| Phase | Track | PR | State |
+|---|---|---|---|
+| 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
+| 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
+| 3. pytest-xdist workers | Dev | #222 | Open; waiting on the CI before window |
+| 4. Fixture isolation | Playwright | #225 | Open |
+| 5. Retries off | Playwright | — | Not started |
+| 6. Host-relative workers | Playwright | — | Not started |
+| 7. CI closing comparison | Both | — | Not started |
 
 ## Current State Analysis
 
@@ -704,8 +718,9 @@ remaining settle sleeps. Phase 1 has already replaced test 6's.
 - [x] The serial wall time falls well below 163 s. Record the figure in the
       PR. It is 61 s isolated, down from 135–139 s after Phase 1, and
       92–120 s (median 95 s) under `mise run` load. Both figures and the
-      five load runs are in PR #221's description. PR #221 is stacked on
-      PR #220.
+      five load runs are in PR #221's description. PR #221 was stacked on
+      PR #220. Both merged on 2026-11-16, and `main`'s merge commit is
+      `e1f83907`.
 
 ---
 
@@ -752,22 +767,29 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
 
 #### Automated Verification:
 
-- [ ] The new unit test fails before step 2 and passes after:
+- [x] The new unit test fails before step 2 and passes after:
       `mise run test:unit:tasks`
-- [ ] The lock is consistent: `uv sync --all-groups --frozen`
-- [ ] The suite passes in parallel: `mise run test:integration:dev`, and the
-      xdist banner shows the worker count
-- [ ] `mise run build-system:check` passes
-- [ ] Timing target met: in
+- [x] The lock is consistent: `uv sync --all-groups --frozen`
+- [x] The suite passes in parallel: `mise run test:integration:dev`, and the
+      xdist banner shows the worker count. It shows 16 workers on
+      engywook, and all 21 tests pass in 7.9 s.
+- [x] `mise run build-system:check` passes
+- [x] Timing target met: in
       `mise run measure:build --isolate test:integration:dev --cache-state warm-no-op --runs 5 --host-settings devtools --keep`,
-      the record's per-task outcome is success and the median is under 60 s
+      the record's per-task outcome is success and the median is under
+      60 s. It is 7.9 s (min 7.8, max 8.8), recorded in
+      `meta/measurements/build_2026-11-16T004012Z_engywook_warm-no-op_devtools_isolated.json`.
 
 #### Manual Verification:
 
 - [ ] Worker counts recorded in the PR: what `-n auto` resolves to on
       engywook and on both CI runners, from the xdist banner in the job log,
-      next to psutil's physical and logical counts.
-- [ ] Load comparison recorded in the PR (not a gate). On engywook (16
+      next to psutil's physical and logical counts. The banners show 16 on
+      engywook (psutil: 16 physical, 16 logical), 2 on `ubuntu-26.04` and
+      3 on `macos-26-arm64` (#222's run 43848534569). The CI logs don't
+      print psutil's counts, so the CI logical counts are still to be
+      recorded.
+- [x] Load comparison recorded in the PR (not a gate). On engywook (16
       cores, no SMT), `-n auto` and `-n logical` both resolve to 16, so the
       comparison is between `-n auto` and `-n 8`:
   - Run one non-isolated
@@ -789,19 +811,42 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
     commit.
   - The question of physical versus logical cores is answered by the CI
     banners, where the two counts can differ.
-- [ ] Any `stop_cleanly` failure across the 10 runs that names an
+  - **Result, recorded in PR #222.** Both runs used commit
+    `8d7966fb`, which does not contain the Playwright worker phase. Every
+    run succeeded, and the logs show 16/16 and 8/8 workers.
+
+    | Figure | `-n auto` | `-n 8` |
+    |---|---|---|
+    | `default` wall time | 225.3 s, IQR 2.7 | 228.1 s, IQR 4.9 |
+    | `test:integration:dev` | 10.6 s, IQR 0.9 | 11.3 s, IQR 0.0 |
+    | `test:unit:cli` | 194.4 s, IQR 8.4 | 200.3 s, IQR 11.0 |
+    | `test:e2e:visualiser` | 147.5 s, IQR 0.7 | 158.7 s, IQR 12.3 |
+    | `test:unit:tasks` | 102.0 s, IQR 3.2 | 111.6 s, IQR 39.7 |
+
+    `-n 8` loses on the `default` median, so `-n auto` stays and the count
+    is not restarted. The idle load was 20.7% before the `-n auto` run and
+    60.0% before the `-n 8` run. The records are
+    `meta/measurements/build_2026-11-16T081243Z_engywook_warm-no-op_devtools.json`
+    and
+    `meta/measurements/build_2026-11-16T083530Z_engywook_warm-no-op_devtools.json`.
+- [x] Any `stop_cleanly` failure across the 10 runs that names an
       arbiter's `terminate` or `kill`, or any null recorded PID or missed
       `reused`, is handled under Phase 2's `probe_timeout` and `grace_kill`
-      rule, and is listed in the PR.
-- [ ] Ten counted `mise run` executions on one recorded commit, per
-      Requirement 7:
+      rule, and is listed in the PR. None occurred: the dev suite passed
+      21/21 in every counted run.
+- [x] Ten counted `mise run` executions on one recorded commit, per
+      Requirement 7. All ten exited 0 on `d29d7621`, whose parent is the
+      #221 merge commit `e1f83907` on `main`. The working copy stayed clean.
+      Each run took 270–361 s, and the dev suite took 10.3–16.7 s on 16
+      workers. The outcomes are in PR #222:
   - The PR records each outcome. A failure in an unrelated task is named.
   - Any change to the suite restarts the count.
   - The commit is the merge base, or the validation is repeated after a
     rebase.
-- [ ] Anti-masking: the diff adds no `skip`, rerun or flaky marker. Every
+- [x] Anti-masking: the diff adds no `skip`, rerun or flaky marker. Every
       flake found is listed with its fix or its split-out work item, and a
-      split-out item is added to 0364's Dependencies as a blocker.
+      split-out item is added to 0364's Dependencies as a blocker. No flake
+      was found.
 - [ ] The CI before window for `test-integration` is recorded in the PR
       before merge. For each OS:
   - the last 10 main-branch run IDs, all after Phase 2's merge;
@@ -810,7 +855,11 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
   - the runner image version from the job's "Set up job" step.
 
   Also check whether any sibling (0362 especially) merged inside the window.
-- [ ] Validation and measurement don't overlap 0370's host-settings
+
+  This is still pending. #221 merged at 2026-11-16 10:24 UTC, and the first
+  `main` run after it is 43848526711, on `e1f83907`. #222 stays unmerged
+  until 10 such runs exist and the window is in its description.
+- [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
 ---
@@ -919,20 +968,30 @@ unchanged. Record the mutations and the result in the PR.
 
 #### Automated Verification:
 
-- [ ] The suite passes: `mise run test:e2e:visualiser`
-- [ ] `mise run frontend:check` passes
-- [ ] No `resolved-styles` spec names a written fixture:
+- [x] The suite passes: `mise run test:e2e:visualiser`. 355 passed and 1
+      was skipped (`legacy-schema`'s existing lookup), on one worker.
+- [x] `mise run frontend:check` passes
+- [x] No `resolved-styles` spec names a written fixture:
       `grep -rEn "0001-first|0003-third|0005-sse|0006-conflict" cli/visualiser/frontend/tests`
       returns nothing
 
 #### Manual Verification:
 
-- [ ] The audit record is in the PR, with the trace method for each list and
-      no conflicts under the per-probe definition.
-- [ ] The mutated-fixture run passed, and the fixtures are restored.
-- [ ] A spot-check shows that each pinned probe still selects an element. A
+- [x] The audit record is in the PR, with the trace method for each list and
+      no conflicts under the per-probe definition. The audit found one
+      conflict beyond those listed above. `/lifecycle` sorts its cluster
+      cards by most recent change, so a write moves the written item's
+      cluster to the top, where radius's `.first()` card probe measured it.
+      That probe is pinned to 0002's cluster card
+      (`UNWRITTEN_LIFECYCLE_CARD`). The `fs_usage` trace shows that
+      `resolved-styles` writes nothing, and opens 0001, 0003, 0005 and
+      0006 only in the server's start-up index.
+- [x] The mutated-fixture run passed, and the fixtures are restored.
+      `resolved-styles` passed 313/313 against the mutations.
+- [x] A spot-check shows that each pinned probe still selects an element. A
       changed slug should not have turned a probe into a no-op that passes
-      vacuously.
+      vacuously. Every pinned probe either `waitFor`s its element or
+      evaluates it through `.first()`, so a missing element times out.
 
 ---
 
