@@ -7,6 +7,8 @@ from pathlib import Path
 
 from tasks.eval.ask_and_report.layout import SLUG
 from tasks.eval.ask_and_report.turns import (
+    NOT_RUN,
+    TIMEOUT,
     TurnHistory,
     TurnRecord,
     errored,
@@ -21,7 +23,6 @@ from tasks.shared.skill_parsing import frontmatter_allowed_tools
 SKILL = "skills/research/research-topic/SKILL.md"
 UNUSED_GRANT = "Bash(accelerator research fetch *)"
 PLUGIN_ROOT = "${CLAUDE_PLUGIN_ROOT}"
-NOT_RUN = "not-run"
 
 type Runner = Callable[[list[str], Path, Path, dict[str, str]], int]
 
@@ -104,7 +105,7 @@ def _run_turn(
     try:
         return str(run(command, conversation.root, log, env))
     except subprocess.TimeoutExpired:
-        return "timeout"
+        return TIMEOUT
 
 
 def run_conversation(
