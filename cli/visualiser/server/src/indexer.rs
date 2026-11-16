@@ -447,47 +447,8 @@ impl Indexer {
                     // Hold entries.write() and clean each secondary index for
                     // any previous entry under this path before dropping.
                     let mut entries = self.entries.write().await;
-                    let holders_before =
-                        self.work_item_by_identity_key.read().await.clone();
                     if let Some(previous) = entries.get(&canonical).cloned() {
-                        remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                        remove_from_work_item_by_identity_key(
-                            &self.work_item_by_identity_key,
-                            &previous,
-                            &entries,
-                        )
-                        .await;
-                        remove_from_plans_by_id(&self.plans_by_id, &previous)
-                            .await;
-                        let plans_snapshot =
-                            self.plans_by_id.read().await.clone();
-                        // Snapshot work_item_by_identity_key AFTER its
-                        // removal, mirroring plans_snapshot, so the typed
-                        // `work-item:` target resolves against a
-                        // consistent view.
-                        let work_item_snapshot =
-                            self.work_item_by_identity_key.read().await.clone();
-                        remove_from_reviews_by_target(
-                            &self.reviews_by_target,
-                            &plans_snapshot,
-                            &work_item_snapshot,
-                            &self.work_item_cfg,
-                            &self.project_root,
-                            &previous,
-                        )
-                        .await;
-                        remove_from_work_item_refs_by_target(
-                            &self.work_item_refs_by_target,
-                            &self.work_item_cfg,
-                            &previous,
-                        )
-                        .await;
-                        entries.remove(&canonical);
-                        self.rehome_reviews_if_holders_moved(
-                            &holders_before,
-                            &entries,
-                        )
-                        .await;
+                        self.forget(&mut entries, &previous).await;
                     }
                     return Ok(None);
                 };
@@ -572,43 +533,8 @@ impl Indexer {
                 // and keeps deletion under the same single-writer-lock
                 // invariant.
                 let mut entries = self.entries.write().await;
-                let previous = find_entry_for_deleted(&entries, path);
-                let holders_before =
-                    self.work_item_by_identity_key.read().await.clone();
-
-                if let Some(previous) = previous {
-                    remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                    remove_from_work_item_by_identity_key(
-                        &self.work_item_by_identity_key,
-                        &previous,
-                        &entries,
-                    )
-                    .await;
-                    remove_from_plans_by_id(&self.plans_by_id, &previous).await;
-                    let plans_snapshot = self.plans_by_id.read().await.clone();
-                    let work_item_snapshot =
-                        self.work_item_by_identity_key.read().await.clone();
-                    remove_from_reviews_by_target(
-                        &self.reviews_by_target,
-                        &plans_snapshot,
-                        &work_item_snapshot,
-                        &self.work_item_cfg,
-                        &self.project_root,
-                        &previous,
-                    )
-                    .await;
-                    remove_from_work_item_refs_by_target(
-                        &self.work_item_refs_by_target,
-                        &self.work_item_cfg,
-                        &previous,
-                    )
-                    .await;
-                    entries.remove(&previous.path);
-                    self.rehome_reviews_if_holders_moved(
-                        &holders_before,
-                        &entries,
-                    )
-                    .await;
+                if let Some(previous) = find_entry_for_deleted(&entries, path) {
+                    self.forget(&mut entries, &previous).await;
                 }
 
                 #[cfg(test)]
@@ -624,6 +550,48 @@ impl Indexer {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Drops `previous` from the entries and every secondary index, then
+    /// re-homes any review whose target key it held.
+    async fn forget(
+        &self,
+        entries: &mut HashMap<PathBuf, IndexEntry>,
+        previous: &IndexEntry,
+    ) {
+        let holders_before =
+            self.work_item_by_identity_key.read().await.clone();
+        remove_from_adr_by_id(&self.adr_by_id, previous).await;
+        remove_from_work_item_by_identity_key(
+            &self.work_item_by_identity_key,
+            previous,
+            entries,
+        )
+        .await;
+        remove_from_plans_by_id(&self.plans_by_id, previous).await;
+        // Snapshot both id indexes AFTER their removals so a typed
+        // `work-item:` target resolves against a consistent view.
+        let plans_snapshot = self.plans_by_id.read().await.clone();
+        let work_item_snapshot =
+            self.work_item_by_identity_key.read().await.clone();
+        remove_from_reviews_by_target(
+            &self.reviews_by_target,
+            &plans_snapshot,
+            &work_item_snapshot,
+            &self.work_item_cfg,
+            &self.project_root,
+            previous,
+        )
+        .await;
+        remove_from_work_item_refs_by_target(
+            &self.work_item_refs_by_target,
+            &self.work_item_cfg,
+            previous,
+        )
+        .await;
+        entries.remove(&previous.path);
+        self.rehome_reviews_if_holders_moved(&holders_before, entries)
+            .await;
     }
 
     /// Re-resolves every review once an identity key changed holder, so a
