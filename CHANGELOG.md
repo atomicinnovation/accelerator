@@ -648,7 +648,8 @@
 - **`BAD-EXTRA-VALUE` flags an extra outside its closed vocabulary.** A
   report's `coverage` must be `answered` or `partial`; any other value fails
   `corpus frontmatter validate` with `BAD-EXTRA-VALUE`, as a `status` outside
-  its vocabulary fails with `BAD-STATUS`.
+  its vocabulary fails with `BAD-STATUS`. A bare `status:` with no value now
+  fails with `BAD-STATUS` too, as a bare extra does, where it passed before.
 - **`accelerator research topic report-path SLUG QUESTION`** prints the
   absolute path a new report on the question takes:
   `reports/<question-slug>.md`, cut before the word that would pass 60
