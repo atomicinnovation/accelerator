@@ -629,7 +629,7 @@ class NextSteps:
         return _expected(self.present, named)
 
 
-type Criterion = (
+type StandaloneCriterion = (
     Refusal
     | Coverage
     | Covered
@@ -639,14 +639,15 @@ type Criterion = (
     | Writes
     | Unchanged
     | Report
-    | Sources
     | Manifest
     | Proposal
     | AppendedRound
     | NextSteps
 )
 
-CRITERIA: dict[str, type[Criterion]] = {
+type Criterion = StandaloneCriterion | Sources
+
+STANDALONE_CRITERIA: dict[str, type[StandaloneCriterion]] = {
     "refusal": Refusal,
     "coverage": Coverage,
     "covered": Covered,
@@ -656,28 +657,15 @@ CRITERIA: dict[str, type[Criterion]] = {
     "writes": Writes,
     "unchanged": Unchanged,
     "report": Report,
-    "sources": Sources,
     "manifest": Manifest,
     "proposal": Proposal,
     "appended_round": AppendedRound,
     "next_steps": NextSteps,
 }
 
-
-_PARSERS: dict[str, Callable[[Any], Criterion]] = {
-    "refusal": Refusal.parse,
-    "coverage": Coverage.parse,
-    "covered": Covered.parse,
-    "gaps": Gaps.parse,
-    "equivalents": Equivalents.parse,
-    "offers": Offers.parse,
-    "writes": Writes.parse,
-    "unchanged": Unchanged.parse,
-    "report": Report.parse,
-    "manifest": Manifest.parse,
-    "proposal": Proposal.parse,
-    "appended_round": AppendedRound.parse,
-    "next_steps": NextSteps.parse,
+CRITERIA: dict[str, type[Criterion]] = {
+    **STANDALONE_CRITERIA,
+    "sources": Sources,
 }
 
 
@@ -689,10 +677,10 @@ def parse_criteria(expect: Mapping[str, Any]) -> tuple[Criterion, ...]:
     _only(expect, set(CRITERIA), "turn's expectations")
     criteria: list[Criterion] = []
     for key, value in expect.items():
-        if key == "sources":
+        if key in STANDALONE_CRITERIA:
+            criteria.append(STANDALONE_CRITERIA[key].parse(value))
+        else:
             if "report" not in expect:
                 raise ValueError("sources needs a report beside it")
             criteria.append(Sources.parse(value, expect["report"]["path"]))
-        else:
-            criteria.append(_PARSERS[key](value))
     return tuple(criteria)
