@@ -549,3 +549,14 @@ impl corpus::lock::ExclusiveLock for AnnouncingLock {
         self.inner.clear_abandoned(name);
     }
 }
+
+/// The exit code the CLI documents for the `E_ID_*` refusal `line` starts
+/// with: a taken ID exits as a collision, every other refusal as an error.
+#[must_use]
+pub fn documented_exit_code(line: &str) -> u8 {
+    if line.starts_with("E_ID_TAKEN:") {
+        4
+    } else {
+        1
+    }
+}

@@ -98,7 +98,7 @@ fn run_check(requested: &str) -> ExitCode {
         }
         check::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");
-            ExitCode::from(exit_codes::of_failure(&message))
+            ExitCode::from(exit_codes::ERROR)
         }
         check::RunOutcome::Refused { message, code } => {
             eprintln!("{message}");

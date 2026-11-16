@@ -146,7 +146,11 @@ mod tests {
 
     fn refusal_with_create_code(message: &str, code: u8) -> String {
         let refusal = message.strip_prefix("Error: ").unwrap_or(message);
-        assert_eq!(code, crate::exit_codes::of_failure(refusal), "{refusal}");
+        assert_eq!(
+            code,
+            crate::test_support::documented_exit_code(refusal),
+            "{refusal}"
+        );
         refusal.to_owned()
     }
 

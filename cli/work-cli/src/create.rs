@@ -2338,7 +2338,7 @@ mod tests {
                     message.strip_prefix("Error: ").unwrap_or(&message);
                 assert_eq!(
                     code,
-                    crate::exit_codes::of_failure(refusal),
+                    crate::test_support::documented_exit_code(refusal),
                     "{refusal}"
                 );
                 format!("failed: {refusal}")
