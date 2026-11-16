@@ -1744,9 +1744,12 @@ fn promotion_killed_while_retiring_its_draft_onto_eng_42(repo: &Repo) {
                     fingerprints: None,
                 },
             }),
-            recovery_dir: PathBuf::from(
-                "retirement-recovery/draft-k7mq3x--ENG-42",
-            ),
+            recovery_dir: work::retirement::RecoveryDir::parse(
+                std::path::Path::new(
+                    "retirement-recovery/draft-k7mq3x--ENG-42",
+                ),
+            )
+            .unwrap_or_else(|| unreachable!("a recovery directory")),
             before: Box::new(PromotionStage::RemoteRetitled {
                 key: tracker_key("ENG-42"),
                 read_back: settled_remote,

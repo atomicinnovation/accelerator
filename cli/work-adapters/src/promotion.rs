@@ -790,11 +790,20 @@ impl Promoting<'_> {
         ) else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
+        let recovery_dir =
+            work::retirement::RecoveryDir::parse(&retirement.recovery_dir())
+                .ok_or_else(|| {
+                    NotPromoted::Refused(
+                        RetirementRefusal::IdNotOnePathComponent {
+                            id: key.as_str().to_owned(),
+                        },
+                    )
+                })?;
         let retiring = PromotionRecord {
             stage: PromotionStage::Retiring {
                 key: key.clone(),
                 baseline: Box::new(baseline),
-                recovery_dir: retirement.recovery_dir(),
+                recovery_dir,
                 before: Box::new(record.stage.clone()),
             },
             ..(**record).clone()

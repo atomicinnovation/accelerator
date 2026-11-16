@@ -422,12 +422,14 @@ fn stage_from(
                 object.get("before").and_then(Value::as_object).ok_or_else(
                     || MarkerError::Malformed("missing 'before'".to_owned()),
                 )?;
-            let recovery_dir = PathBuf::from(text(object, "recovery_dir")?);
-            if work::retirement::RecoveryDir::parse(&recovery_dir).is_none() {
-                return Err(MarkerError::Malformed(
+            let recovery_dir = work::retirement::RecoveryDir::parse(
+                &PathBuf::from(text(object, "recovery_dir")?),
+            )
+            .ok_or_else(|| {
+                MarkerError::Malformed(
                     "'recovery_dir' is not a recovery directory".to_owned(),
-                ));
-            }
+                )
+            })?;
             Ok(PromotionStage::Retiring {
                 key: key_of(object)?,
                 baseline: Box::new(baseline_from(object.get("baseline"))?),
@@ -490,7 +492,10 @@ fn stage_fields(stage: &PromotionStage) -> Map<String, Value> {
             }
             put_local_digests(&mut encoded, &baseline.local);
             put("baseline", Value::Object(encoded));
-            put("recovery_dir", json!(recovery_dir.display().to_string()));
+            put(
+                "recovery_dir",
+                json!(recovery_dir.as_path().display().to_string()),
+            );
             put("before", Value::Object(stage_fields(before)));
         }
     }
@@ -868,9 +873,12 @@ mod tests {
                     }),
                     local: local("promoted"),
                 }),
-                recovery_dir: PathBuf::from(
-                    "retirement-recovery/draft-k7mq3x--PP-900",
-                ),
+                recovery_dir: work::retirement::RecoveryDir::parse(
+                    std::path::Path::new(
+                        "retirement-recovery/draft-k7mq3x--PP-900",
+                    ),
+                )
+                .unwrap_or_else(|| unreachable!("a recovery directory")),
                 before: Box::new(retitled),
             },
             PromotionStage::Retiring {
@@ -879,9 +887,12 @@ mod tests {
                     remote_hash: RemoteHash::Unknown,
                     local: local("draft"),
                 }),
-                recovery_dir: PathBuf::from(
-                    "retirement-recovery/draft-k7mq3x--PP-900",
-                ),
+                recovery_dir: work::retirement::RecoveryDir::parse(
+                    std::path::Path::new(
+                        "retirement-recovery/draft-k7mq3x--PP-900",
+                    ),
+                )
+                .unwrap_or_else(|| unreachable!("a recovery directory")),
                 before: Box::new(kept(RemoteKeptReason::Edited {
                     read_back: read_back_hash(),
                 })),

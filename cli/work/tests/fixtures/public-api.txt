@@ -739,7 +739,7 @@ pub work::promotion::PromotionStage::Retiring
 pub work::promotion::PromotionStage::Retiring::baseline: alloc::boxed::Box<work::promotion::IntendedBaseline>
 pub work::promotion::PromotionStage::Retiring::before: alloc::boxed::Box<work::promotion::PromotionStage>
 pub work::promotion::PromotionStage::Retiring::key: work::tracker_key::TrackerKey
-pub work::promotion::PromotionStage::Retiring::recovery_dir: std::path::PathBuf
+pub work::promotion::PromotionStage::Retiring::recovery_dir: work::retirement::RecoveryDir
 impl work::promotion::PromotionStage
 pub const fn work::promotion::PromotionStage::key(&self) -> core::option::Option<&work::tracker_key::TrackerKey>
 impl core::clone::Clone for work::promotion::PromotionStage

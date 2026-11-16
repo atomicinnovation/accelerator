@@ -143,7 +143,10 @@ fn retiring() -> Result<PromotionStage, TestError> {
                 fingerprints: None,
             },
         }),
-        recovery_dir: PathBuf::from("retirement-recovery/draft-k3x9mq--ENG-42"),
+        recovery_dir: work::retirement::RecoveryDir::parse(
+            std::path::Path::new("retirement-recovery/draft-k3x9mq--ENG-42"),
+        )
+        .unwrap_or_else(|| unreachable!("a recovery directory")),
         before: Box::new(created()?),
     })
 }

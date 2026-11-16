@@ -1243,7 +1243,10 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
                 fingerprints: None,
             },
         }),
-        recovery_dir: PathBuf::from("retirement-recovery/draft-k7mq3x--REC-1"),
+        recovery_dir: work::retirement::RecoveryDir::parse(
+            std::path::Path::new("retirement-recovery/draft-k7mq3x--REC-1"),
+        )
+        .unwrap_or_else(|| unreachable!("a recovery directory")),
         before: Box::new(before),
     }));
 
