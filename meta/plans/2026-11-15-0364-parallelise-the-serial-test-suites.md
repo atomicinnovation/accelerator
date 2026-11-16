@@ -39,7 +39,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
 | 3. pytest-xdist workers | Dev | #222 | Open; waiting on the CI before window |
-| 4. Fixture isolation | Playwright | — | Open |
+| 4. Fixture isolation | Playwright | #225 | Open |
 | 5. Retries off | Playwright | — | Not started |
 | 6. Host-relative workers | Playwright | — | Not started |
 | 7. CI closing comparison | Both | — | Not started |
