@@ -18,24 +18,29 @@ pub fn mismatch(mismatch: &Mismatch) -> String {
             raw.escape_debug()
         ),
         Mismatch::Disagrees {
-            count: FreshnessCount::RoundCount,
+            count,
             stored,
             derived,
-        } => format!(
-            "manifest.md records round_count {stored} but the findings reach \
-             round {derived}"
-        ),
-        Mismatch::Disagrees {
-            count: FreshnessCount::FindingCount,
-            stored,
-            derived,
-        } => format!(
-            "manifest.md records finding_count {stored} but {derived} \
-             findings are on disk"
-        ),
+        } => {
+            let field = CountField::Manifest(*count);
+            let on_disk = match count {
+                FreshnessCount::RoundCount => {
+                    format!("the findings reach round {derived}")
+                }
+                FreshnessCount::FindingCount => {
+                    format!("{derived} findings are on disk")
+                }
+            };
+            format!(
+                "{} records {} {stored} but {on_disk}",
+                field.document(),
+                field.key()
+            )
+        }
         Mismatch::UncoveredRound { derived, covered } => format!(
-            "the findings reach round {derived} but synthesis.md covers up to \
-             round {covered}"
+            "the findings reach round {derived} but {} covers up to round \
+             {covered}",
+            CountField::RoundsCovered.document()
         ),
     }
 }
