@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T21:00:17+00:00"
+last_updated: "2026-11-16T22:56:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -38,9 +38,9 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 |---|---|---|---|
 | 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
-| 3. pytest-xdist workers | Dev | #222 | Merged 2026-11-16, without a full CI before window |
+| 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
-| 5. Retries off | Playwright | — | Implemented; PR not raised |
+| 5. Retries off | Playwright | #229 | Open |
 | 6. Host-relative workers | Playwright | — | Not started |
 | 7. CI closing comparison | Both | — | Not started |
 
@@ -875,7 +875,14 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
   - The macOS runner image changes inside the window.
 
   Phase 7 therefore treats the dev suite's before window as contaminated
-  and runs the paired comparison for it.
+  and runs the paired comparison for it. Later `main` runs can't extend
+  the window, because every one of them contains #222.
+
+  The after window starts with run 43953328694, on `929fae79`. Its
+  integration and E2E jobs passed on both OSes. Only `Create prerelease`
+  failed, on a DNS error during provenance attestation
+  (`getaddrinfo ENOTFOUND run-actions-3-azure-eastus.actions.githubusercontent.com`),
+  which is unrelated to 0364.
 - [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
