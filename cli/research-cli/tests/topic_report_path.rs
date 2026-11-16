@@ -1,47 +1,25 @@
 //! The path a new report on a question takes in a committed set.
 
-use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
 use std::process::Output;
 
-type TestError = Box<dyn std::error::Error>;
+mod topic_project;
 
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
-const TOPICS: &str = "meta/research/topics";
+use topic_project::tree;
+use topic_project::Project;
+use topic_project::TestError;
+
 const SET: &str = "topic-research-multiround-set";
 const QUESTION: &str = "How do LLM agents plan multi-step tasks?";
 const QUESTION_SLUG: &str = "how-do-llm-agents-plan-multi-step-tasks";
 
-struct Project {
-    _dir: tempfile::TempDir,
-    root: PathBuf,
-}
-
 impl Project {
     fn with_the_multiround_set() -> Result<Self, TestError> {
-        let dir = tempfile::Builder::new()
-            .prefix("research-topic-report-path-")
-            .tempdir()?;
-        let root = dir.path().canonicalize()?;
-        fs::create_dir_all(root.join(".git"))?;
-        let project = Self { _dir: dir, root };
-        copy_tree(&fixtures().join(SET), &project.set())?;
-        Ok(project)
-    }
-
-    fn set(&self) -> PathBuf {
-        self.root.join(TOPICS).join(SET)
+        Self::with_fixture_set(SET)
     }
 
     fn report_path(&self, args: &[&str]) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
-            .current_dir(&self.root)
-            .args(["topic", "report-path"])
-            .args(args)
-            .output()?)
+        self.run("report-path", args)
     }
 
     fn printed_path(&self, args: &[&str]) -> Result<String, TestError> {
@@ -55,44 +33,8 @@ impl Project {
     }
 
     fn report(&self, name: &str) -> String {
-        format!("{}/reports/{name}\n", self.set().display())
+        format!("{}/reports/{name}\n", self.set(SET).display())
     }
-}
-
-fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../corpus-cli/tests/fixtures")
-}
-
-fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
-
-fn tree(root: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>, TestError> {
-    let mut files = BTreeMap::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let path = entry?.path();
-            if path.is_dir() {
-                files.insert(path.clone(), Vec::new());
-                pending.push(path);
-            } else {
-                files.insert(path.clone(), fs::read(&path)?);
-            }
-        }
-    }
-    Ok(files)
 }
 
 fn stderr_of(output: &Output) -> String {
@@ -115,9 +57,9 @@ fn a_report_path_names_the_question_slug_under_reports() -> Result<(), TestError
 #[test]
 fn a_report_path_skips_a_taken_name() -> Result<(), TestError> {
     let project = Project::with_the_multiround_set()?;
-    fs::create_dir_all(project.set().join("reports"))?;
+    fs::create_dir_all(project.set(SET).join("reports"))?;
     fs::write(
-        project.set().join(format!("reports/{QUESTION_SLUG}.md")),
+        project.set(SET).join(format!("reports/{QUESTION_SLUG}.md")),
         "",
     )?;
 
@@ -131,7 +73,7 @@ fn a_report_path_skips_a_taken_name() -> Result<(), TestError> {
 fn a_report_path_counts_any_entry_as_taken() -> Result<(), TestError> {
     let project = Project::with_the_multiround_set()?;
     fs::create_dir_all(
-        project.set().join(format!("reports/{QUESTION_SLUG}.md")),
+        project.set(SET).join(format!("reports/{QUESTION_SLUG}.md")),
     )?;
 
     let printed = project.printed_path(&[SET, QUESTION])?;
@@ -148,7 +90,7 @@ fn a_report_path_writes_nothing() -> Result<(), TestError> {
     project.printed_path(&[SET, QUESTION])?;
 
     assert_eq!(tree(&project.root)?, before);
-    assert!(!project.set().join("reports").exists());
+    assert!(!project.set(SET).join("reports").exists());
     Ok(())
 }
 

@@ -1,46 +1,27 @@
 //! Whether `ask` and `report` may consult a committed set, or the first gate
 //! it fails.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 use std::process::Output;
 
 use serde_json::json;
 use serde_json::Value;
 
-type TestError = Box<dyn std::error::Error>;
+mod topic_project;
 
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
-const TOPICS: &str = "meta/research/topics";
+use topic_project::tree;
+use topic_project::Project;
+use topic_project::TestError;
+use topic_project::TOPICS;
+
 const SET: &str = "topic-research-multiround-set";
 const ARXIV_ITEM: &str = "Which planning preprints appeared this year?";
 
-struct Project {
-    _dir: tempfile::TempDir,
-    root: PathBuf,
-}
-
 impl Project {
-    fn with_fixture_set(fixture: &str) -> Result<Self, TestError> {
-        let dir = tempfile::Builder::new()
-            .prefix("research-topic-consultable-")
-            .tempdir()?;
-        let root = dir.path().canonicalize()?;
-        fs::create_dir_all(root.join(".git"))?;
-        let project = Self { _dir: dir, root };
-        copy_tree(&fixtures().join(fixture), &project.set(fixture))?;
-        Ok(project)
-    }
-
     fn multiround() -> Result<Self, TestError> {
         Self::with_fixture_set(SET)
-    }
-
-    fn set(&self, slug: &str) -> PathBuf {
-        self.root.join(TOPICS).join(slug)
     }
 
     fn write(&self, relative: &str, content: &str) -> Result<(), TestError> {
@@ -70,14 +51,6 @@ impl Project {
         let text = fs::read_to_string(&path)?;
         fs::write(path, format!("{text}{line}\n"))?;
         Ok(())
-    }
-
-    fn run(&self, verb: &str, args: &[&str]) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
-            .current_dir(&self.root)
-            .args(["topic", verb])
-            .args(args)
-            .output()?)
     }
 
     fn consultable_output(
@@ -117,45 +90,9 @@ fn json_of(output: &Output) -> Result<Value, TestError> {
     Ok(serde_json::from_slice(&output.stdout)?)
 }
 
-fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../corpus-cli/tests/fixtures")
-}
-
 fn installed_profiles() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../skills/research/profiles")
-}
-
-fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
-
-fn tree(root: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>, TestError> {
-    let mut files = BTreeMap::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let path = entry?.path();
-            if path.is_dir() {
-                files.insert(path.clone(), Vec::new());
-                pending.push(path);
-            } else {
-                files.insert(path.clone(), fs::read(&path)?);
-            }
-        }
-    }
-    Ok(files)
 }
 
 #[test]
