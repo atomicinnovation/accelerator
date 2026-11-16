@@ -12,8 +12,8 @@ use work::requested_id::RequestedIdRefusal;
 
 use crate::config::locate_work_items;
 use crate::corpus_trust::refuse_untrusted_corpus;
-use crate::corpus_trust::Untrusted;
 use crate::identity_run::IdentityRunStart;
+use crate::refusal::Refusal;
 use crate::requested_id::refuse_if_requested_id_taken;
 use crate::requested_id::refused_line;
 use crate::requested_id::TakenCheckFailure;
@@ -23,10 +23,7 @@ pub enum RunOutcome {
     Failed(String),
     /// Refused before the check could settle, with the line and exit code
     /// the refusal carries; nothing was written.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 /// # Errors
@@ -43,20 +40,21 @@ pub fn run(
     let _identity_run = match identity_run(&root, "id check") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal, &root);
-            return RunOutcome::Refused { message, code };
+            return RunOutcome::Refused(crate::identity_run::refused(
+                refusal, &root,
+            ));
         }
     };
     let location = match locate_work_items(start, config) {
         Ok(location) => location,
         Err(message) => return RunOutcome::Failed(message),
     };
-    if let Err(Untrusted { message, code }) = refuse_untrusted_corpus(
+    if let Err(refusal) = refuse_untrusted_corpus(
         &location.scheme,
         &location.root,
         &location.work_dir,
     ) {
-        return RunOutcome::Refused { message, code };
+        return RunOutcome::Refused(refusal);
     }
     let proposal = match RequestedId::propose(requested, &location.scheme) {
         Ok(proposal) => proposal,
@@ -72,8 +70,7 @@ pub fn run(
 }
 
 fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
-    let (message, code) = refused_line(refusal);
-    RunOutcome::Refused { message, code }
+    RunOutcome::Refused(refused_line(refusal))
 }
 
 fn verdict(proposal: &Proposal, scheme: &IdScheme) -> String {
@@ -101,6 +98,7 @@ fn verdict(proposal: &Proposal, scheme: &IdScheme) -> String {
     clippy::literal_string_with_formatting_args
 )]
 mod tests {
+    use crate::refusal::Refusal;
     use std::rc::Rc;
 
     use tracker_test_support::RecordingTracker;
@@ -126,7 +124,7 @@ mod tests {
         match check(repo, id) {
             RunOutcome::Checked(verdict) => verdict,
             RunOutcome::Failed(message)
-            | RunOutcome::Refused { message, .. } => {
+            | RunOutcome::Refused(Refusal { message, .. }) => {
                 panic!("{id} was refused: {message}")
             }
         }
@@ -138,7 +136,7 @@ mod tests {
             RunOutcome::Checked(verdict) => {
                 panic!("{id} was checked: {verdict}")
             }
-            RunOutcome::Refused { message, code } => {
+            RunOutcome::Refused(Refusal { message, code }) => {
                 refusal_with_create_code(&message, code)
             }
         }
@@ -162,7 +160,7 @@ mod tests {
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
         match repo.run_args(&args, &tracker, None) {
             crate::create::RunOutcome::Failed(message) => message,
-            crate::create::RunOutcome::Refused { message, code } => {
+            crate::create::RunOutcome::Refused(Refusal { message, code }) => {
                 refusal_with_create_code(&message, code)
             }
             _ => panic!("work create --id {id} was not refused"),
@@ -304,7 +302,7 @@ mod tests {
                 let outcome = match check(&checking, "0400") {
                     RunOutcome::Checked(verdict) => verdict,
                     RunOutcome::Failed(message)
-                    | RunOutcome::Refused { message, .. } => message,
+                    | RunOutcome::Refused(Refusal { message, .. }) => message,
                 };
                 let _ = done.send(outcome);
             });
@@ -323,7 +321,9 @@ mod tests {
         let repo = numeric();
         crate::test_support::rekey_in_progress(repo.root.path());
 
-        let RunOutcome::Refused { message, code } = check(&repo, "0400") else {
+        let RunOutcome::Refused(Refusal { message, code }) =
+            check(&repo, "0400")
+        else {
             panic!("the check ran during a re-key");
         };
 
@@ -365,7 +365,8 @@ mod tests {
             PushingRepo::configured(&[("work.id_pattern", "{number:4d}")]);
         crate::test_support::rekey_in_progress(malformed.root.path());
 
-        let RunOutcome::Refused { message, .. } = check(&malformed, "0400")
+        let RunOutcome::Refused(Refusal { message, .. }) =
+            check(&malformed, "0400")
         else {
             panic!("the check read the scheme before the identity run");
         };

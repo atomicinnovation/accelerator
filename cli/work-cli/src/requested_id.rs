@@ -8,6 +8,7 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::WorkItemLocation;
 use crate::create::CreateArgs;
+use crate::refusal::Refusal;
 
 /// # Errors
 ///
@@ -47,11 +48,11 @@ pub fn refuse_if_requested_id_taken(
     })
 }
 
-/// A `--id` refusal as an outcome's stderr line and exit code.
+/// A `--id` refusal as a command reports it.
 #[must_use]
-pub fn refused_line(refusal: &RequestedIdRefusal) -> (String, u8) {
-    (
-        format!("Error: {refusal}"),
-        crate::exit_codes::of_requested_id_refusal(refusal),
-    )
+pub fn refused_line(refusal: &RequestedIdRefusal) -> Refusal {
+    Refusal {
+        message: format!("Error: {refusal}"),
+        code: crate::exit_codes::of_requested_id_refusal(refusal),
+    }
 }

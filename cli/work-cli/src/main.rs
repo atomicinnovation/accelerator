@@ -21,6 +21,7 @@ mod identity_workspace;
 mod list;
 mod promote;
 mod promotion_report;
+mod refusal;
 mod rekey;
 mod report_records;
 mod requested_id;
@@ -147,10 +148,7 @@ fn run_resolve(input: &str) -> ExitCode {
             eprintln!("{error}");
             ExitCode::FAILURE
         }
-        Err(resolve::RunFailure::Untrusted(untrusted)) => {
-            eprintln!("{}", untrusted.message);
-            ExitCode::from(untrusted.code)
-        }
+        Err(resolve::RunFailure::Untrusted(refusal)) => refusal.report(),
     }
 }
 
@@ -302,10 +300,7 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::from(exit_codes::of_failure(&message))
         }
-        create::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        create::RunOutcome::Refused(refusal) => refusal.report(),
     }
 }
 
@@ -360,10 +355,7 @@ fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
-        create_batch::BatchOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        create_batch::BatchOutcome::Refused(refusal) => refusal.report(),
     }
 }
 
@@ -409,10 +401,7 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
             eprintln!("{message}");
             ExitCode::from(exit_codes::REJECTED)
         }
-        update::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        update::RunOutcome::Refused(refusal) => refusal.report(),
     }
 }
 

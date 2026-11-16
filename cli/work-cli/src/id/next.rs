@@ -19,8 +19,8 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 use crate::config::locate_work_items;
 use crate::config::WorkItemLocation;
 use crate::corpus_trust::refuse_untrusted_corpus;
-use crate::corpus_trust::Untrusted;
 use crate::identity_run::IdentityRunStart;
+use crate::refusal::Refusal;
 
 pub enum RunOutcome {
     Allocated(Vec<String>),
@@ -31,10 +31,7 @@ pub enum RunOutcome {
     Failed(String),
     /// Nothing was allocated: the identity run could not begin, or the
     /// corpus cannot be trusted.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 fn mint_drafts(work_dir: &Path, count: u32) -> RunOutcome {
@@ -69,9 +66,10 @@ pub fn run(
     let _identity_run = match identity_run(&start_root, "id next") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) =
-                crate::identity_run::refused(refusal, &start_root);
-            return RunOutcome::Refused { message, code };
+            return RunOutcome::Refused(crate::identity_run::refused(
+                refusal,
+                &start_root,
+            ));
         }
     };
     let WorkItemLocation {
@@ -83,10 +81,8 @@ pub fn run(
         Err(message) => return RunOutcome::Failed(message),
     };
     let pattern = scheme.pattern();
-    if let Err(Untrusted { message, code }) =
-        refuse_untrusted_corpus(&scheme, &root, &work_dir)
-    {
-        return RunOutcome::Refused { message, code };
+    if let Err(refusal) = refuse_untrusted_corpus(&scheme, &root, &work_dir) {
+        return RunOutcome::Refused(refusal);
     }
     let shown_dir = work_dir.strip_prefix(&root).unwrap_or(&work_dir);
     let key = match allocation_key(pattern, project, scheme.key()) {
@@ -120,6 +116,7 @@ pub fn run(
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic)]
 mod tests {
+    use crate::refusal::Refusal;
     use std::collections::BTreeSet;
     use std::collections::HashMap;
 
@@ -194,7 +191,7 @@ mod tests {
             let root = repo();
             crate::test_support::rekey_in_progress(root.path());
 
-            let RunOutcome::Refused { message, code } =
+            let RunOutcome::Refused(Refusal { message, code }) =
                 run(root.path(), config, None, 1, &crate::identity_run::begin)
             else {
                 panic!("id next allocated during a re-key");

@@ -27,7 +27,7 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 use crate::config::announced_scheme_for_writing;
 use crate::config::resolve_work_dir;
 use crate::corpus_trust::refuse_untrusted_corpus;
-use crate::corpus_trust::Untrusted;
+use crate::refusal::Refusal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityCandidate {
@@ -81,7 +81,7 @@ fn resolve_path_class(root: &Path, start: &Path, input: &str) -> RunOutcome {
 #[derive(Debug)]
 pub enum RunFailure {
     Config(kernel::Error),
-    Untrusted(Untrusted),
+    Untrusted(Refusal),
 }
 
 impl From<kernel::Error> for RunFailure {

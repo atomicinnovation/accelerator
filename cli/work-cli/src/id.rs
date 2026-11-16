@@ -78,10 +78,7 @@ fn run_next(project: Option<&str>, count: u32) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
-        next::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        next::RunOutcome::Refused(refusal) => refusal.report(),
     }
 }
 
@@ -100,9 +97,6 @@ fn run_check(requested: &str) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::from(exit_codes::ERROR)
         }
-        check::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        check::RunOutcome::Refused(refusal) => refusal.report(),
     }
 }

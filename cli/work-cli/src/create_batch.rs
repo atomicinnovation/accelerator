@@ -35,7 +35,6 @@ use crate::batch_manifest::Authorship;
 use crate::batch_manifest::ManifestEntry;
 use crate::batch_manifest::ParentLink;
 use crate::cli::CreateBatchArgs;
-use crate::corpus_trust::Untrusted;
 use crate::create::create_item;
 use crate::create::AdmittedRequest;
 use crate::create::CreateFailure;
@@ -45,6 +44,7 @@ use crate::create::Seams;
 use crate::create::Unadmitted;
 use crate::exit_codes;
 use crate::promotion_report::detail_line;
+use crate::refusal::Refusal;
 use crate::sync::severity;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -106,10 +106,7 @@ pub enum BatchOutcome {
         message: String,
     },
     /// The identity run could not begin; nothing was read or written.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 #[must_use]
@@ -198,14 +195,15 @@ pub fn run_with(
     let identity_run = match (seams.identity_run)(&root, "create-batch") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal, &root);
-            return BatchOutcome::Refused { message, code };
+            return BatchOutcome::Refused(crate::identity_run::refused(
+                refusal, &root,
+            ));
         }
     };
     let admitted = match AdmittedRequest::without_requested_id(start, config) {
         Ok(admitted) => admitted,
-        Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
-            return BatchOutcome::Refused { message, code };
+        Err(Unadmitted::Untrusted(refusal)) => {
+            return BatchOutcome::Refused(refusal)
         }
         Err(Unadmitted::Unlocated(message)) => {
             return BatchOutcome::Failed {
@@ -789,7 +787,7 @@ mod tests {
 
         let outcome = repo.run(EPIC_AND_TWO_STORIES, true, &tracker);
 
-        let BatchOutcome::Refused { message, code } = outcome else {
+        let BatchOutcome::Refused(Refusal { message, code }) = outcome else {
             panic!("not refused: {outcome:?}");
         };
         assert_eq!(code, exit_codes::UNRESOLVED);
@@ -827,7 +825,7 @@ mod tests {
                 panic!("the manifest was refused: {problems:?}")
             }
             BatchOutcome::Failed { message, .. }
-            | BatchOutcome::Refused { message, .. } => {
+            | BatchOutcome::Refused(Refusal { message, .. }) => {
                 panic!("the batch failed: {message}")
             }
         }

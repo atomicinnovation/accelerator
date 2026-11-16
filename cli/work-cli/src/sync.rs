@@ -2126,7 +2126,7 @@ fn prepare_sync(
         .map_err(|refusal| Refusal::root(&refusal))?;
     let identity_run =
         crate::identity_run::begin(&repo_root, "sync").map_err(|refusal| {
-            let (message, code) =
+            let crate::refusal::Refusal { message, code } =
                 crate::identity_run::refused(refusal, &repo_root);
             Refusal::new(code, message)
         })?;

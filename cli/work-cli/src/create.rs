@@ -77,11 +77,11 @@ use crate::config::locate_work_items;
 use crate::config::templates_dir;
 use crate::config::WorkItemLocation;
 use crate::corpus_trust::refuse_untrusted_corpus;
-use crate::corpus_trust::Untrusted;
 use crate::exit_codes;
 use crate::identity_run::IdentityRunStart;
 use crate::identity_workspace::IdentityWorkspace;
 use crate::identity_workspace::OpenFailure;
+use crate::refusal::Refusal;
 use crate::requested_id::admit_requested_id;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
@@ -129,10 +129,7 @@ pub enum RunOutcome {
     Failed(String),
     /// Refused before anything was written, with the line and exit code the
     /// refusal carries.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 const SLUG_MAX_LEN: usize = 60;
@@ -449,7 +446,7 @@ pub struct AdmittedRequest {
 /// Why a create stopped before its request was admitted.
 pub enum Unadmitted {
     Unlocated(String),
-    Untrusted(Untrusted),
+    Untrusted(Refusal),
     Refused(RequestedIdRefusal),
 }
 
@@ -718,8 +715,7 @@ pub fn run(
 }
 
 fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
-    let (message, code) = crate::requested_id::refused_line(refusal);
-    RunOutcome::Refused { message, code }
+    RunOutcome::Refused(crate::requested_id::refused_line(refusal))
 }
 
 /// The outcome the real create's taken check would stop `requested` with,
@@ -768,8 +764,8 @@ fn preview_requested_id(
         Err(Unadmitted::Unlocated(message)) => {
             return RunOutcome::Failed(message)
         }
-        Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
-            return RunOutcome::Refused { message, code }
+        Err(Unadmitted::Untrusted(refusal)) => {
+            return RunOutcome::Refused(refusal)
         }
         Err(Unadmitted::Refused(refusal)) => return refused(&refusal),
     };
@@ -809,8 +805,9 @@ pub fn run_with(
     let identity_run = match (seams.identity_run)(&root, "create") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal, &root);
-            return RunOutcome::Refused { message, code };
+            return RunOutcome::Refused(crate::identity_run::refused(
+                refusal, &root,
+            ));
         }
     };
     let admitted = match AdmittedRequest::admit(start, config, args) {
@@ -818,8 +815,8 @@ pub fn run_with(
         Err(Unadmitted::Unlocated(message)) => {
             return RunOutcome::Failed(message)
         }
-        Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
-            return RunOutcome::Refused { message, code }
+        Err(Unadmitted::Untrusted(refusal)) => {
+            return RunOutcome::Refused(refusal)
         }
         Err(Unadmitted::Refused(refusal)) => return refused(&refusal),
     };
@@ -1102,7 +1099,7 @@ mod tests {
 
     fn refusal_of(outcome: RunOutcome) -> (String, u8) {
         match outcome {
-            RunOutcome::Refused { message, code } => (message, code),
+            RunOutcome::Refused(Refusal { message, code }) => (message, code),
             _ => panic!("the create was not refused"),
         }
     }
@@ -1660,7 +1657,7 @@ mod tests {
         }
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
 
-        let RunOutcome::Refused { message, code } =
+        let RunOutcome::Refused(Refusal { message, code }) =
             repo.push_through(&tracker, None)
         else {
             panic!("a create over legacy items was not refused");
@@ -1695,7 +1692,7 @@ mod tests {
     fn failure(outcome: RunOutcome) -> String {
         match outcome {
             RunOutcome::Failed(message) => message,
-            RunOutcome::Refused { message, .. } => message
+            RunOutcome::Refused(Refusal { message, .. }) => message
                 .strip_prefix("Error: ")
                 .unwrap_or(&message)
                 .to_owned(),
@@ -1861,7 +1858,7 @@ mod tests {
             assert!(
                 matches!(
                     &outcome,
-                    RunOutcome::Refused { message, code }
+                    RunOutcome::Refused(Refusal { message, code })
                         if message.starts_with(&format!("Error: {refusal}: "))
                             && *code == crate::exit_codes::ERROR
                 ),
@@ -2333,7 +2330,7 @@ mod tests {
                 format!("preview failed ({code}): {message}")
             }
             RunOutcome::Failed(message) => format!("failed: {message}"),
-            RunOutcome::Refused { message, code } => {
+            RunOutcome::Refused(Refusal { message, code }) => {
                 let refusal =
                     message.strip_prefix("Error: ").unwrap_or(&message);
                 assert_eq!(

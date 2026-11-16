@@ -34,6 +34,7 @@ use work_adapters::sync::baseline_store::BaselineStore;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
+use crate::refusal::Refusal;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -48,10 +49,7 @@ pub enum RunOutcome {
     PushRejected(String),
     /// The identity run an `update --push` needs could not begin; nothing
     /// was read or written.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 fn set_key_error_message(error: &UpdateError) -> String {
@@ -326,7 +324,7 @@ fn try_run(
         let root = config_adapters::FileConfigStore::discover_root(start);
         let guard =
             crate::identity_run::begin(&root, "update").map_err(|refusal| {
-                let (message, code) =
+                let crate::refusal::Refusal { message, code } =
                     crate::identity_run::refused(refusal, &root);
                 TryRunError::Refused { message, code }
             })?;
@@ -434,7 +432,7 @@ pub fn run(
             RunOutcome::PushRejected(message)
         }
         Err(TryRunError::Refused { message, code }) => {
-            RunOutcome::Refused { message, code }
+            RunOutcome::Refused(Refusal { message, code })
         }
     }
 }
@@ -542,7 +540,7 @@ mod tests {
             &untouched_registry(),
         );
 
-        let RunOutcome::Refused { message, code } = outcome else {
+        let RunOutcome::Refused(Refusal { message, code }) = outcome else {
             panic!("an update --push ran during a re-key");
         };
         assert_eq!(code, crate::exit_codes::UNRESOLVED);
@@ -572,7 +570,7 @@ mod tests {
                 &update_args(item, true),
                 &untouched_registry(),
             );
-            let _ = done.send(matches!(outcome, RunOutcome::Refused { .. }));
+            let _ = done.send(matches!(outcome, RunOutcome::Refused(_)));
         });
 
         assert_eq!(
