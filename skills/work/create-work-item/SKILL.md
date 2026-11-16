@@ -74,15 +74,16 @@ different things — populate each deliberately:
   substantive scope or meaning interpretation a reviewer should be aware
   of.
 
-## Identity-run refusals
+## Refusals before anything is read
 
 `accelerator work resolve`, `accelerator work id check`,
 `accelerator work id next` and `accelerator work create` (with or without
-`--push`) refuse before reading or writing anything while an
-`accelerator work rekey` run is unfinished or another identity command is
-running. Before any other branch on a non-zero
-exit from one of them, check its stderr for these codes; in every case
-nothing was written:
+`--push`) refuse before reading or writing anything over a corpus whose
+IDs cannot be trusted (`E_REKEY_REQUIRED`, `E_WORK_ITEM_MALFORMED`). All
+but `resolve` also refuse while an `accelerator work rekey` run is
+unfinished or another identity command is running. Before any other branch
+on a non-zero exit from one of them, check its stderr for these codes; in
+every case nothing was written:
 
 - `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
   run `/rekey-work-items` to finish or undo it. Stop.
@@ -127,7 +128,8 @@ When this command is invoked:
    accelerator work id check -- '<ID>'
    ```
 
-   Apply *Identity-run refusals* first, then branch on its result:
+   Apply *Refusals before anything is read* first, then branch on its
+   result:
 
    - **Exit 0, `exact\t<id>`** — use `<id>` with no question, saying which ID
      will be used ("Using 0400").
@@ -190,7 +192,7 @@ When this command is invoked:
      real file that lies outside the managed work directory, so it is not
      a topic string. Stop, print the resolver's error, and offer to run
      `/list-work-items`.
-   - **Exit 4**: apply *Identity-run refusals* above
+   - **Exit 4**: apply *Refusals before anything is read* above
      (`E_REKEY_REQUIRED`, `E_WORK_ITEM_MALFORMED`) before treating the
      argument as anything. Stop.
 
@@ -537,8 +539,8 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
-Apply *Identity-run refusals* to every `accelerator work id next` and
-`accelerator work create` call below.
+Apply *Refusals before anything is read* to every
+`accelerator work id next` and `accelerator work create` call below.
 
 Under `{tracker}`, skip steps 1–3: there is no projected ID. The tracker
 assigns the key on a push, and `accelerator work create` mints the draft ID
