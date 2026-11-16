@@ -2,6 +2,8 @@
 
 use crate::draft_id::DraftId;
 use crate::id_pattern::DigitWidth;
+use crate::id_pattern::HeldPrefix;
+use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::LiteralCase;
 use crate::id_pattern::Walk;
@@ -162,18 +164,26 @@ fn resolve_bare_number(
     let filenames = lister.filenames();
     let pattern_has_key = scheme.pattern().references_key();
     let mut candidates: Vec<TaggedCandidate> = Vec::new();
+    let number: Option<u64> = input.parse().ok();
+    let held_under_pattern = |filename: &str| {
+        is_md_filename(filename)
+            .then(|| IdParts::parse_prefix(scheme.pattern(), filename))
+            .flatten()
+            .map(HeldPrefix::into_parts)
+            .filter(|parts| Some(parts.number()) == number)
+    };
+    let is_own_key = |key: &str| {
+        scheme
+            .key()
+            .is_some_and(|own| own.as_str().eq_ignore_ascii_case(key))
+    };
 
     if pattern_has_key && scheme.key().is_some() {
-        if let Ok(full_id) = scheme.canonicalise(input) {
-            let prefix = format!("{full_id}-");
-            for f in &filenames {
-                if f.starts_with(&prefix) && is_md_filename(f) {
-                    add_candidate(
-                        &mut candidates,
-                        f.clone(),
-                        "project-prepended",
-                    );
-                }
+        for f in &filenames {
+            if held_under_pattern(f)
+                .is_some_and(|parts| parts.key().is_some_and(is_own_key))
+            {
+                add_candidate(&mut candidates, f.clone(), "project-prepended");
             }
         }
     }
@@ -190,36 +200,22 @@ fn resolve_bare_number(
     }
 
     if !pattern_has_key {
-        if let Ok(full_id) = scheme.canonicalise(input) {
-            let prefix = format!("{full_id}-");
-            for f in &filenames {
-                if f.starts_with(&prefix) && is_md_filename(f) {
-                    add_candidate(&mut candidates, f.clone(), "pattern-shape");
-                }
+        for f in &filenames {
+            if held_under_pattern(f).is_some() {
+                add_candidate(&mut candidates, f.clone(), "pattern-shape");
             }
         }
     }
 
     if pattern_has_key {
-        let width = scheme.pattern().width().unwrap_or(4);
-        if let Ok(number) = input.parse::<u64>() {
-            let padded = format!("{number:0width$}");
-            let marker = format!("-{padded}-");
-            for f in &filenames {
-                let Some(marker_start) = f.find(&marker) else {
-                    continue;
-                };
-                let prefix = &f[..marker_start];
-                if !prefix.is_empty()
-                    && !is_draft_prefix(prefix)
-                    && prefix
-                        .chars()
-                        .next()
-                        .is_some_and(|c| c.is_ascii_alphabetic())
-                    && prefix.chars().all(|c| c.is_ascii_alphanumeric())
-                {
-                    add_candidate(&mut candidates, f.clone(), prefix);
-                }
+        for f in &filenames {
+            let Some(key) = held_under_pattern(f)
+                .and_then(|parts| parts.key().map(str::to_owned))
+            else {
+                continue;
+            };
+            if !is_own_key(&key) && !is_draft_prefix(&key) {
+                add_candidate(&mut candidates, f.clone(), &key);
             }
         }
     }
@@ -459,6 +455,30 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn a_bare_number_finds_another_keys_item_through_the_pattern() {
+        let scheme = scheme("{key}_{number:04d}", Some("PP"));
+        let outcome = resolve(
+            "42",
+            SearchClass::BareNumber,
+            &scheme,
+            &FakeLister(vec!["XY_0042-x.md", "XY_0043-y.md"]),
+        );
+        assert_eq!(outcome, ResolveOutcome::Single("XY_0042-x.md".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_number_finds_the_configured_keys_item_in_any_case() {
+        let scheme = scheme("{key}-{number:04d}", Some("PP"));
+        let outcome = resolve(
+            "42",
+            SearchClass::BareNumber,
+            &scheme,
+            &FakeLister(vec!["pp-0042-x.md"]),
+        );
+        assert_eq!(outcome, ResolveOutcome::Single("pp-0042-x.md".to_owned()));
     }
 
     #[test]
