@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0319"
 parent: "work-item:0319"
-relates_to: ["work-item:0146", "work-item:0371", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
+relates_to: ["work-item:0146", "work-item:0372", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
@@ -238,10 +238,11 @@ under "Behaviour changes".
 
 ### Housekeeping
 
-- **Work items**: 0146 gains a work-item ID model section; 0371
+- **Work items**: 0146 gains a work-item ID model section; 0372
   (`--dry-run` invocation validation) is added, blocked by this. It was filed
   as 0351, but PR #169 filed a different 0351 and 0355 is taken on another
-  branch, so it was renumbered to 0371.
+  branch, so it was renumbered to 0371; main then raised its own 0371, so it
+  is now 0372.
 - **Docs**: the configure skill, `docs-site` (`work-items.md`, `corpus.md`
   and the guides), `tasks/README.md` and the skills follow every change;
   `test_retired_id_verbs.py` keeps the old verb names out of the skills,
@@ -321,7 +322,7 @@ notice:
 - Reviews: `meta/reviews/prs/178-review-1.md` and `178-review-2.md`; each
   review's inline threads are answered and resolved, and the rest of each
   is answered in a PR comment.
-- Follow-up: 0371 makes `--dry-run` run every invocation check the real
+- Follow-up: 0372 makes `--dry-run` run every invocation check the real
   create runs; it keeps this PR's `--id` checks.
 
 ## Testing
@@ -375,5 +376,5 @@ notice:
   the integration state; unchanged by this PR's review response.
 - **Ordering**: under a keyless pattern, `E_PATTERN_KEY_UNUSED` follows
   `create_dir_all`, as it did under `{tracker}` before.
-- **`last-sync.json`** changes only because 0319 and 0371 were synced to
+- **`last-sync.json`** changes only because 0319 and 0372 were synced to
   Linear. Main's 0351 (PP-926) keeps its own entry.
