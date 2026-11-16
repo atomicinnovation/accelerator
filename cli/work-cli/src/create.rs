@@ -806,9 +806,7 @@ pub fn run_with(
         Err(Unadmitted::Untrusted(Untrusted { message, code })) => {
             return RunOutcome::Refused { message, code }
         }
-        Err(Unadmitted::Refused(refusal)) => {
-            return RunOutcome::Failed(refusal.to_string())
-        }
+        Err(Unadmitted::Refused(refusal)) => return refused(&refusal),
     };
     match create_item(
         &admitted,
@@ -1682,6 +1680,10 @@ mod tests {
     fn failure(outcome: RunOutcome) -> String {
         match outcome {
             RunOutcome::Failed(message) => message,
+            RunOutcome::Refused { message, .. } => message
+                .strip_prefix("Error: ")
+                .unwrap_or(&message)
+                .to_owned(),
             RunOutcome::Created { path, .. } => {
                 panic!("the create was not refused: wrote {path:?}")
             }
@@ -1818,6 +1820,39 @@ mod tests {
 
                 assert!(!repo.path("meta/work").exists(), "{id} push: {push}");
             }
+        }
+    }
+
+    #[test]
+    fn an_admission_refusal_exits_with_its_typed_code() {
+        let cases: [(RepoFor, &str, Option<&str>, &str); 2] = [
+            (
+                PushingRepo::keyed,
+                "XY-0400",
+                Some("XY"),
+                "E_ID_WITH_PROJECT",
+            ),
+            (PushingRepo::new, "400", None, "E_ID_PATTERN_MISMATCH"),
+        ];
+        for (repo, id, project, refusal) in cases {
+            let args = CreateArgs {
+                project: project.map(str::to_owned),
+                ..PushingRepo::args_with_id(id, false)
+            };
+            let tracker = untouched_tracker();
+
+            let outcome = repo().run_args(&args, &tracker, None);
+
+            assert!(
+                matches!(
+                    &outcome,
+                    RunOutcome::Refused { message, code }
+                        if message.starts_with(&format!("Error: {refusal}: "))
+                            && *code == crate::exit_codes::ERROR
+                ),
+                "{refusal}: {}",
+                failure(outcome)
+            );
         }
     }
 
