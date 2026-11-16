@@ -7,13 +7,14 @@ from pathlib import Path
 
 from tasks.eval.ask_and_report.layout import SLUG
 from tasks.eval.ask_and_report.turns import (
+    TurnHistory,
     TurnRecord,
     errored,
     save_snapshot,
     snapshot,
+    turn_file,
 )
 from tasks.eval.headless.claude import common_flags, run_session
-from tasks.eval.headless.transcript import Event, events
 from tasks.eval.toolchain import Toolchain
 from tasks.shared.skill_parsing import frontmatter_allowed_tools
 
@@ -92,10 +93,6 @@ class Conversation:
     directory: Path
 
 
-def turn_file(directory: Path, number: int, suffix: str) -> Path:
-    return directory / f"turn-{number}{suffix}"
-
-
 def _run_turn(
     command: list[str],
     conversation: Conversation,
@@ -126,9 +123,7 @@ def run_conversation(
     initial = snapshot(conversation.root)
     save_snapshot(initial, turn_file(directory, 0, ".json"))
     prompts = (conversation.prompt, *conversation.replies)
-    records: list[TurnRecord] = []
-    earlier: list[tuple[Event, ...]] = []
-    before = initial
+    history = TurnHistory(directory, initial)
     stopped = False
     for number, prompt in enumerate(prompts, start=1):
         if stopped:
@@ -138,23 +133,14 @@ def run_conversation(
         command = build(prompt, conversation.session_id, flags)
         status = _run_turn(command, conversation, number, env, run)
         turn_file(directory, number, ".exit").write_text(status)
-        after = snapshot(conversation.root)
-        save_snapshot(after, turn_file(directory, number, ".json"))
-        log = turn_file(directory, number, ".jsonl")
-        record = TurnRecord(
-            number=number,
+        save_snapshot(
+            snapshot(conversation.root), turn_file(directory, number, ".json")
+        )
+        record = history.record(
+            number,
             reply=None if number == 1 else prompt,
             writes=conversation.writes[number - 1],
-            events=tuple(events(log.read_text())) if log.exists() else (),
-            logged=log.exists(),
             exit_status=status,
-            before=before,
-            after=after,
-            initial=initial,
-            earlier=tuple(earlier),
         )
-        records.append(record)
-        earlier.append(record.events)
-        before = after
         stopped = errored(record) is not None or stops_after(record)
-    return records
+    return history.records

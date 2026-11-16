@@ -27,18 +27,19 @@ from tasks.eval.ask_and_report.conversation import (
     Runner,
     opening_prompt,
     run_conversation,
-    turn_file,
 )
 from tasks.eval.ask_and_report.projects import build_project
 from tasks.eval.ask_and_report.scenarios import Scenario, ScenarioFile
 from tasks.eval.ask_and_report.turns import (
+    TurnHistory,
     TurnRecord,
     errored,
     load_snapshot,
+    turn_file,
 )
 from tasks.eval.ask_and_report.verdicts import CRITERIA, Judging
 from tasks.eval.headless.claude import prepare_repository, run_session
-from tasks.eval.headless.transcript import Event, Init, events
+from tasks.eval.headless.transcript import Init
 from tasks.eval.toolchain import Toolchain
 
 RESULTS = "results.json"
@@ -122,36 +123,14 @@ def load_records(plan: SessionPlan) -> list[TurnRecord]:
     initial_file = turn_file(plan.directory, 0, ".json")
     if not initial_file.exists():
         return []
-    initial = load_snapshot(initial_file)
-    records: list[TurnRecord] = []
-    earlier: list[tuple[Event, ...]] = []
-    before = initial
+    history = TurnHistory(plan.directory, load_snapshot(initial_file))
     for number, turn in enumerate(plan.scenario.turns, start=1):
         exit_file = turn_file(plan.directory, number, ".exit")
         status = exit_file.read_text().strip() if exit_file.exists() else None
         if status == NOT_RUN:
             break
-        log = turn_file(plan.directory, number, ".jsonl")
-        snapshot_file = turn_file(plan.directory, number, ".json")
-        after = (
-            load_snapshot(snapshot_file) if snapshot_file.exists() else before
-        )
-        record = TurnRecord(
-            number=number,
-            reply=turn.reply,
-            writes=turn.writes,
-            events=tuple(events(log.read_text())) if log.exists() else (),
-            logged=log.exists(),
-            exit_status=status,
-            before=before,
-            after=after,
-            initial=initial,
-            earlier=tuple(earlier),
-        )
-        records.append(record)
-        earlier.append(record.events)
-        before = after
-    return records
+        history.record(number, turn.reply, turn.writes, status)
+    return history.records
 
 
 @dataclass(frozen=True)
