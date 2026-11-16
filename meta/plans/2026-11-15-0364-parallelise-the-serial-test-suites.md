@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T00:45:00+00:00"
+last_updated: "2026-11-16T09:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -792,6 +792,24 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
     commit.
   - The question of physical versus logical cores is answered by the CI
     banners, where the two counts can differ.
+  - **Result, still to be copied into the PR.** Both runs used commit
+    `8d7966fb`, which does not contain the Playwright worker phase. Every
+    run succeeded, and the logs show 16/16 and 8/8 workers.
+
+    | Figure | `-n auto` | `-n 8` |
+    |---|---|---|
+    | `default` wall time | 225.3 s, IQR 2.7 | 228.1 s, IQR 4.9 |
+    | `test:integration:dev` | 10.6 s, IQR 0.9 | 11.3 s, IQR 0.0 |
+    | `test:unit:cli` | 194.4 s, IQR 8.4 | 200.3 s, IQR 11.0 |
+    | `test:e2e:visualiser` | 147.5 s, IQR 0.7 | 158.7 s, IQR 12.3 |
+    | `test:unit:tasks` | 102.0 s, IQR 3.2 | 111.6 s, IQR 39.7 |
+
+    `-n 8` loses on the `default` median, so `-n auto` stays and the count
+    is not restarted. The idle load was 20.7% before the `-n auto` run and
+    60.0% before the `-n 8` run. The records are
+    `meta/measurements/build_2026-11-16T081243Z_engywook_warm-no-op_devtools.json`
+    and
+    `meta/measurements/build_2026-11-16T083530Z_engywook_warm-no-op_devtools.json`.
 - [ ] Any `stop_cleanly` failure across the 10 runs that names an
       arbiter's `terminate` or `kill`, or any null recorded PID or missed
       `reused`, is handled under Phase 2's `probe_timeout` and `grace_kill`
