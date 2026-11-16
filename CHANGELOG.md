@@ -285,7 +285,10 @@
   `work create-batch` and `work id next` count a number held in an item's
   `id`, `aliases` or `external_id`, drafts included, not only its filename,
   so allocation never hands out an ID `work create --id` would refuse as
-  taken.
+  taken. An `external_id` that is the configured tracker's issue key, such
+  as `PP-905`, names that issue rather than a local ID, so it neither takes
+  `PP-0905` nor lifts the sequence past the tracker's numbers, even when
+  `work.key` equals the tracker's project key.
 - **A bare number reads as the pattern's number everywhere.** Under a
   keyless pattern with literal text such as `v{number:03d}`, `1` held in an
   `id`, alias or `external_id` now holds `v001` for the taken rule and

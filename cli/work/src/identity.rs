@@ -77,6 +77,26 @@ impl ItemIdentity {
         self.fields_matching(|held| scheme.holds(held, id))
     }
 
+    /// The fields that take `id` from a new item: those holding it, except
+    /// an `external_id` naming the tracker's issue rather than a local ID.
+    #[must_use]
+    pub fn fields_taking(
+        &self,
+        scheme: &IdScheme,
+        id: &IdParts,
+    ) -> Vec<IdentityField> {
+        let names_an_issue = self
+            .external_id
+            .as_deref()
+            .is_some_and(|value| scheme.names_a_tracker_issue(value));
+        self.fields_holding(scheme, id)
+            .into_iter()
+            .filter(|field| {
+                !(names_an_issue && *field == IdentityField::ExternalId)
+            })
+            .collect()
+    }
+
     fn fields_naming(&self, token: &str) -> Vec<IdentityField> {
         self.fields_matching(|value| value.eq_ignore_ascii_case(token))
     }

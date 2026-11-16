@@ -197,6 +197,15 @@ impl IdScheme {
         Self { owner }
     }
 
+    /// Whether `value`, held as an `external_id`, names the configured
+    /// tracker's issue rather than a local ID. Under `{tracker}` the issue's
+    /// key is the local ID, so none does.
+    #[must_use]
+    pub fn names_a_tracker_issue(&self, value: &str) -> bool {
+        self.ownership() == IdOwnership::Local
+            && self.tracker_keys().is_key(value)
+    }
+
     /// The rules a tracker key is read by.
     #[must_use]
     pub fn tracker_keys(&self) -> TrackerKeys {

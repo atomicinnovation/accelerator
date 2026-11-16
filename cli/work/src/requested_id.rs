@@ -239,7 +239,7 @@ impl RequestedId {
         let identity = identity_of(file)?;
         let holds = |value: &str| self.scheme.holds(value, &self.parts);
         let field = identity
-            .fields_holding(&self.scheme, &self.parts)
+            .fields_taking(&self.scheme, &self.parts)
             .into_iter()
             .next()?;
         let held = match field {
@@ -995,9 +995,6 @@ mod tests {
         for held in [
             listing(vec![named("xy-0400-x.md")]),
             listing(vec![holding("id: \"PP-0007\"\naliases: [\"xy-0400\"]\n")]),
-            listing(vec![holding(
-                "id: \"PP-0007\"\nexternal_id: \"xy-0400\"\n",
-            )]),
         ] {
             assert!(is_taken("XY-0400", &keyed(), &held), "{held:?}");
         }
@@ -1010,12 +1007,11 @@ mod tests {
     }
 
     #[test]
-    fn a_tracker_key_held_as_external_id_takes_the_local_id_with_its_key_and_number(
-    ) {
+    fn a_tracker_key_held_as_external_id_leaves_the_local_id_free() {
         let held = listing(vec![holding(
             "id: \"PP-0007\"\nexternal_id: \"PP-905\"\n",
         )]);
-        assert!(is_taken("PP-0905", &keyed(), &held));
+        assert!(!is_taken("PP-0905", &keyed(), &held));
     }
 
     #[test]
@@ -1208,11 +1204,11 @@ mod tests {
     fn a_taken_refusal_says_how_the_holder_holds_the_id() {
         let by_external_id = admitted("PP-0905", &keyed())
             .refuse_if_taken(&listing(vec![holding(
-                "id: \"PP-0007\"\nexternal_id: \"PP-905\"\n",
+                "id: \"PP-0007\"\nexternal_id: \"905\"\n",
             )]))
             .unwrap_err();
         assert!(
-            message(&by_external_id).contains("as its external_id 'PP-905'"),
+            message(&by_external_id).contains("as its external_id '905'"),
             "{by_external_id}"
         );
         let by_filename = admitted("0400", &numeric())

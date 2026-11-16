@@ -234,9 +234,12 @@ fn held_numbers(
             .and_then(|name| scheme.read_held_prefix(&name))
             .map(HeldPrefix::into_parts);
         let fields = file.and_then(identity_of).map_or_else(Vec::new, |item| {
+            let local_external_id = item
+                .external_id
+                .filter(|value| !scheme.names_a_tracker_issue(value));
             std::iter::once(item.id)
                 .chain(item.aliases)
-                .chain(item.external_id)
+                .chain(local_external_id)
                 .filter_map(|value| scheme.read_held(&value))
                 .collect()
         });
@@ -372,6 +375,22 @@ mod tests {
         assert_eq!(
             allocate(&keyed, Some(&key("PP")), 1, &listing),
             Ok(vec!["PP-0071".to_owned()])
+        );
+    }
+
+    #[test]
+    fn a_tracker_key_held_as_external_id_does_not_lift_the_sequence() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        let listing = WorkItemListing {
+            files: vec![item(
+                "PP-0001-a.md",
+                "id: \"PP-0001\"\nexternal_id: \"PP-905\"",
+            )],
+            unreadable: Vec::new(),
+        };
+        assert_eq!(
+            allocate(&keyed, Some(&key("PP")), 1, &listing),
+            Ok(vec!["PP-0002".to_owned()])
         );
     }
 

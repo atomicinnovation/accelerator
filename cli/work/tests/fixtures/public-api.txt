@@ -396,6 +396,7 @@ pub fn work::id_scheme::IdScheme::identity_key(&self, reference: &str) -> core::
 pub fn work::id_scheme::IdScheme::is_canonical_id_token(&self, token: &str) -> bool
 pub fn work::id_scheme::IdScheme::is_legacy_id(id: &str) -> bool
 pub fn work::id_scheme::IdScheme::key(&self) -> core::option::Option<&work::id_pattern::IdKey>
+pub fn work::id_scheme::IdScheme::names_a_tracker_issue(&self, value: &str) -> bool
 pub fn work::id_scheme::IdScheme::new(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
 pub fn work::id_scheme::IdScheme::numeric() -> Self
 pub const fn work::id_scheme::IdScheme::ownership(&self) -> work::id_scheme::IdOwnership
@@ -473,6 +474,7 @@ pub work::identity::ItemIdentity::path: std::path::PathBuf
 impl work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::fields_holding(&self, scheme: &work::id_scheme::IdScheme, id: &work::id_pattern::IdParts) -> alloc::vec::Vec<work::identity::IdentityField>
 pub fn work::identity::ItemIdentity::fields_matching(&self, matches: impl core::ops::function::Fn(&str) -> bool) -> alloc::vec::Vec<work::identity::IdentityField>
+pub fn work::identity::ItemIdentity::fields_taking(&self, scheme: &work::id_scheme::IdScheme, id: &work::id_pattern::IdParts) -> alloc::vec::Vec<work::identity::IdentityField>
 impl core::clone::Clone for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
 impl core::cmp::Eq for work::identity::ItemIdentity
