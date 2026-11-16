@@ -171,7 +171,9 @@ NNNN — parent title (kind: <kind>, status: <status>)
   └── NNNN — last child title (kind: <kind>, status: <status>)
 <!-- /canonical-tree-fence -->
 
-- **Empty and missing.** A directory that does not exist prints the
+- **Empty and missing.** A malformed `work.id_pattern` or `work.key` is
+  reported first, with exit 1, even when the directory does not exist;
+  relay it as is. Otherwise a directory that does not exist prints the
   `paths.work` guidance and exits 0; an empty directory prints `No work
   items found in …`; a filter that matches nothing prints `No work items
   matched: …` rather than an empty table.
