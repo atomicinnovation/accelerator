@@ -16,6 +16,7 @@ from typing import Any, ClassVar, Literal, get_args
 
 from tasks.eval.ask_and_report import formats
 from tasks.eval.ask_and_report.layout import SET, SLUG
+from tasks.eval.ask_and_report.parsing import one_of, only
 from tasks.eval.ask_and_report.turns import (
     Snapshot,
     TurnRecord,
@@ -101,13 +102,6 @@ def _proposal_items(text: str) -> list[str] | None:
     return None
 
 
-def _one_of[T: str](value: object, allowed: tuple[T, ...], what: str) -> T:
-    for option in allowed:
-        if value == option:
-            return option
-    raise ValueError(f"{value!r} is no {what}")
-
-
 def _expected(expected: object, got: object) -> list[str]:
     return [] if expected == got else [f"expected {expected!r}, got {got!r}"]
 
@@ -120,12 +114,6 @@ def _strings(value: object, what: str) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _only(data: Mapping[str, object], keys: set[str], what: str) -> None:
-    unknown = set(data) - keys
-    if unknown:
-        raise ValueError(f"a {what} cannot declare {sorted(unknown)}")
-
-
 @dataclass(frozen=True)
 class Refusal:
     is_judgement: ClassVar[bool] = False
@@ -135,9 +123,9 @@ class Refusal:
 
     @classmethod
     def parse(cls, value: Mapping[str, Any]) -> Refusal:
-        _only(value, {"gate", "names", "omits"}, "refusal")
+        only(value, {"gate", "names", "omits"}, "refusal")
         return cls(
-            gate=_one_of(value["gate"], tuple(formats.REFUSALS), "gate"),
+            gate=one_of(value["gate"], tuple(formats.REFUSALS), "gate"),
             names=_strings(value.get("names", []), "names"),
             omits=_strings(value.get("omits", []), "omits"),
         )
@@ -173,7 +161,7 @@ class Coverage:
     @classmethod
     def parse(cls, value: object) -> Coverage:
         return cls(
-            _one_of(value, get_args(CoverageValue.__value__), "coverage value")
+            one_of(value, get_args(CoverageValue.__value__), "coverage value")
         )
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
@@ -222,7 +210,7 @@ class Gaps:
     @classmethod
     def parse(cls, value: list[Mapping[str, str]]) -> Gaps:
         for gap in value:
-            _only(gap, {"keyword", "tier"}, "gap")
+            only(gap, {"keyword", "tier"}, "gap")
         return cls(tuple(Gap(g["keyword"], g.get("tier")) for g in value))
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
@@ -288,7 +276,7 @@ class Offers:
 
     @classmethod
     def parse(cls, value: object) -> Offers:
-        return cls(_one_of(value, get_args(Offered.__value__), "offer"))
+        return cls(one_of(value, get_args(Offered.__value__), "offer"))
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
         lines = formats.lines(turn.text)
@@ -365,7 +353,7 @@ class Report:
 
     @classmethod
     def parse(cls, value: Mapping[str, Any]) -> Report:
-        _only(
+        only(
             value,
             {
                 "path",
@@ -447,7 +435,7 @@ class Sources:
     @classmethod
     def parse(cls, value: list[Mapping[str, Any]], path: str) -> Sources:
         for entry in value:
-            _only(entry, {"marker", "tier", "block"}, "source")
+            only(entry, {"marker", "tier", "block"}, "source")
         return cls(
             path=path,
             entries=tuple(
@@ -505,7 +493,7 @@ class Manifest:
 
     @classmethod
     def parse(cls, value: Mapping[str, Any]) -> Manifest:
-        _only(value, {"fields", "lists_reports"}, "manifest")
+        only(value, {"fields", "lists_reports"}, "manifest")
         return cls(dict(value["fields"]), bool(value["lists_reports"]))
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
@@ -529,7 +517,7 @@ class Proposal:
 
     @classmethod
     def parse(cls, value: Mapping[str, Any]) -> Proposal:
-        _only(value, {"max_items", "profiles", "each_mentions"}, "proposal")
+        only(value, {"max_items", "profiles", "each_mentions"}, "proposal")
         profiles = value.get("profiles")
         return cls(
             max_items=value.get("max_items"),
@@ -674,7 +662,7 @@ def parse_criteria(expect: Mapping[str, Any]) -> tuple[Criterion, ...]:
 
     ``sources`` judges the report ``report`` names, so it needs one beside it.
     """
-    _only(expect, set(CRITERIA), "turn's expectations")
+    only(expect, set(CRITERIA), "turn's expectations")
     criteria: list[Criterion] = []
     for key, value in expect.items():
         if key in STANDALONE_CRITERIA:
