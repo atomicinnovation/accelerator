@@ -14,7 +14,7 @@ pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
 revision: "ee46cc4d39e5e57debd1671cf3018093cf0b671a"
 repository: "accelerator"
-last_updated: "2026-11-16T15:17:13+00:00"
+last_updated: "2026-11-16T16:24:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -358,13 +358,16 @@ notice:
       (every picked key folded in one preview) pass, beside 1–12.
 - [x] Every test the plan and its criteria traceability table name exists
       (88 of 88, per the validation report).
-- [ ] Manual checks: `/create-work-item --id 400 <topic>` in a scratch
-      repository proposes `0400` and writes it after confirmation; with an
-      integration configured and `0400` taken, the push gate relays
-      `E_ID_TAKEN` and offers another ID or automatic allocation; with
+- [x] Manual checks, run on 2026-11-16 in scratch repositories against a
+      dev build of the tip, following the branch's skill by hand:
+      `/create-work-item --id 400 <topic>` proposes `0400` and writes
+      `0400-<slug>.md` (`id` and H1 `0400`) after confirmation; with Jira
+      configured and `0400` taken after Step 0 settled it, the push-gate
+      dry-run relays `E_ID_TAKEN` (exit 4), writing nothing, and recovery
+      offers another ID or automatic allocation, which projects `0401`; with
       `9997-x.md` held, `work id next --count 3` prints `9998`, `9999`, then
-      the neutral `E_PATTERN_OVERFLOW`. Run during implementation; not
-      re-run since the review responses.
+      the neutral `E_PATTERN_OVERFLOW`, and with `9999` held it names that
+      holder.
 
 ## Notes for Reviewers
 
