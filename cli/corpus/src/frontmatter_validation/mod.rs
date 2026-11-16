@@ -311,13 +311,9 @@ fn check_status(
     row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
-    let Some(field_value) = raw_value(entries, "status") else {
+    let Some(value) = vocab_value(entries, "status") else {
         return;
     };
-    let value = strip_surrounding_quote(field_value);
-    if value.is_empty() {
-        return;
-    }
     if let Some(vocab) = outside_vocab(row.status_vocab, value) {
         violations.push(Violation::BadStatus {
             value: value.to_owned(),
@@ -326,21 +322,15 @@ fn check_status(
     }
 }
 
-/// An empty `""` is left to `EMPTY-PLACEHOLDER`, while a bare `key:` is
-/// outside every vocab.
 fn check_extra_vocabs(
     entries: &[(String, String)],
     row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
     for vocab in row.extra_vocabs {
-        let Some(field_value) = raw_value(entries, vocab.extra) else {
+        let Some(value) = vocab_value(entries, vocab.extra) else {
             continue;
         };
-        if field_value == EMPTY_STRING {
-            continue;
-        }
-        let value = strip_surrounding_quote(field_value);
         if let Some(vocab_text) = outside_vocab(vocab.values, value) {
             violations.push(Violation::BadExtraValue {
                 extra: vocab.extra,
@@ -349,6 +339,17 @@ fn check_extra_vocabs(
             });
         }
     }
+}
+
+/// An empty `""` is left to `EMPTY-PLACEHOLDER`, while a bare `key:` reads
+/// as the empty value, which lies outside every vocab.
+fn vocab_value<'a>(
+    entries: &'a [(String, String)],
+    key: &str,
+) -> Option<&'a str> {
+    raw_value(entries, key)
+        .filter(|field_value| *field_value != EMPTY_STRING)
+        .map(strip_surrounding_quote)
 }
 
 fn outside_vocab(values: &[&str], value: &str) -> Option<String> {
@@ -737,6 +738,30 @@ mod tests {
         let mut source = minimal_valid_work_item();
         source = source.replace("status: \"draft\"", "status: \"nonexistent\"");
         assert!(validate_file(&source)
+            .iter()
+            .any(|v| matches!(v, Violation::BadStatus { .. })));
+    }
+
+    #[test]
+    fn a_bare_status_is_outside_the_vocab() {
+        let source =
+            minimal_valid_work_item().replace("status: \"draft\"", "status:");
+        assert!(validate_file(&source).iter().any(|v| matches!(
+            v,
+            Violation::BadStatus { value, .. } if value.is_empty()
+        )));
+    }
+
+    #[test]
+    fn an_empty_status_is_only_a_placeholder() {
+        let source = minimal_valid_work_item()
+            .replace("status: \"draft\"", "status: \"\"");
+        let violations = validate_file(&source);
+        assert!(violations.iter().any(|v| matches!(
+            v,
+            Violation::EmptyPlaceholder { key } if key == "status"
+        )));
+        assert!(!violations
             .iter()
             .any(|v| matches!(v, Violation::BadStatus { .. })));
     }
