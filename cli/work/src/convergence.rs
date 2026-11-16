@@ -347,6 +347,31 @@ mod tests {
     }
 
     #[test]
+    fn the_first_item_re_key_cannot_read_by_path_is_the_one_named() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        let items = [
+            item("notes", None),
+            item("PP-42", None),
+            item("alpha", None),
+            item("zeta", None),
+        ];
+
+        let refusal = refuse_divergence(&keyed, &items)
+            .err()
+            .unwrap_or_else(|| unreachable!("the corpus diverges"))
+            .relative_to(Path::new("/repo"))
+            .to_string();
+
+        assert!(
+            refusal.contains(
+                "Re-key cannot read one of them: meta/work/alpha-item.md has \
+                 `id` 'alpha'"
+            ),
+            "{refusal}"
+        );
+    }
+
+    #[test]
     fn an_external_id_re_key_cannot_read_is_named_with_its_manual_fix() {
         let refusal = refuse_divergence(
             &scheme("{tracker}", None),
