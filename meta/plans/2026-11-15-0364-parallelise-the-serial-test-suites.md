@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-15T23:56:42+00:00"
+last_updated: "2026-11-16T00:37:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -689,19 +689,23 @@ remaining settle sleeps. Phase 1 has already replaced test 6's.
 
 #### Automated Verification:
 
-- [ ] The dev suite passes serially: `mise run test:integration:dev`
-- [ ] No fixed settle sleep of 0.5 s or more remains:
+- [x] The dev suite passes serially: `mise run test:integration:dev`
+- [x] No fixed settle sleep of 0.5 s or more remains:
       `grep -En '^[[:space:]]*time\.sleep\((0\.[5-9]|[1-9])' tests/integration/dev/test_dev_integration.py`
       returns nothing
-- [ ] Production defaults are untouched: `jj diff --from 'fork_point(trunk() | @)' --to @ -- tasks/shared/dev` is empty
-- [ ] `mise run build-system:check` passes
+- [x] Production defaults are untouched: `jj diff --from 'fork_point(trunk() | @)' --to @ -- tasks/shared/dev` is empty
+- [x] `mise run build-system:check` passes
 
 #### Manual Verification:
 
-- [ ] Five serial runs under `mise run` load are green, with no
-      `stop_cleanly` failure from the 0.5 s `grace_kill`.
-- [ ] The serial wall time falls well below 163 s. Record the figure in the
-      PR.
+- [x] Five serial runs under `mise run` load are green, with no
+      `stop_cleanly` failure from the 0.5 s `grace_kill`. All 21 tests
+      passed in each run, on commit `b9866538`.
+- [x] The serial wall time falls well below 163 s. Record the figure in the
+      PR. It is 61 s isolated, down from 135–139 s after Phase 1, and
+      92–120 s (median 95 s) under `mise run` load. Both figures and the
+      five load runs are in PR #221's description. PR #221 is stacked on
+      PR #220.
 
 ---
 
