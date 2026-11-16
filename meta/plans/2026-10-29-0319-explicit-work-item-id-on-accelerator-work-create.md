@@ -13,7 +13,7 @@ relates_to: ["work-item:0372", "work-item:0302", "work-item:0230"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
-last_updated: "2026-11-02T09:19:24+00:00"
+last_updated: "2026-11-16T14:31:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3997,12 +3997,244 @@ Edits to `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`:
   becomes "the first four checks run before `creation_context` creates the
   work directory". The scheme they need is read inside it.
 
+## Implementation Notes
+
+All eleven phases shipped as planned, and
+`meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
+validated them against this plan (result `pass`). Three reviews of PR #178
+followed (`meta/reviews/prs/178-review-1.md`, `-2.md` and `-3.md`). The
+phases above are left as planned; these notes record where the code departs
+from them in response to those reviews, and after the rebases onto main.
+
+### Superseded decisions
+
+| Plan section | Planned | Shipped |
+|---|---|---|
+| Decisions: scheme name and shape | `WorkItemIdScheme`, one type | `IdScheme`, dispatching every reading to `TrackerIds` or `PatternIds` through one `IdReadings` trait |
+| Decisions: tracker-key grammar | `tracker::is_tracker_key`, one rule | `tracker::TrackerKeys::{Jira, Linear, AnySupported}`, chosen from `work.integration` when the scheme is built (`IdScheme::under_tracker`) |
+| Decisions: the linkage port | Only the frozen `LegacyNumericIds` implements `LinkageIds` | `IdScheme` implements it, so live `corpus linkage extract` reads through the configured scheme; `LegacyNumericIds` and `references_key` live in `migrate` for m0007 and m0009 |
+| Decisions: `migrate`'s identity needs | `canonicalise`, `references_key` and `legacy_linkage` on the port | The port only canonicalises, through `scheme_from_settings` |
+| Decisions: the visualiser's displayed ID | `normalise_id`, today's rule | `displayed_id`, read through the pattern |
+| Decisions: malformed pattern or key | Refused by every command and the visualiser | Every command refuses; the visualiser serves with no work-item IDs and reports the problem |
+| Decisions: re-key under literal text | In shape when the ID equals its rendering under `work.key` | In shape when the pattern reads it at its exact width under any key, in any case; re-key keeps other keys unless `--from-key` names them |
+| Decisions: the `--id` preflight | `locate_work_items`, `admit_requested_id` and `refuse_if_requested_id_taken` called in turn | `admit_request` (locate, refuse an untrusted corpus, admit) is shared by the create and its dry run; `work_adapters::creation::refuse_requested_id` lists the corpus, runs the pending-push check and applies the taken rule for both |
+| Decisions: `work id check` verdicts | `corrected` when padded or `work.key` added | Also when the configured key's case is restored (`pp-0400` → `PP-0400`) |
+| Decisions: skill correction | The skill only confirms a correction | It also confirms an `other-key` ID, and asks about an `--id` in the middle of the argument |
+| Decisions: `E_PATTERN_OVERFLOW` wording | Names the file holding the highest number | Names the first item holding the cap |
+| Error Identifiers | Every refusal exits 1 through `RunOutcome::Failed` | `E_ID_TAKEN` exits 4; the other `E_ID_*` exit 1. `id check`, the dry run and the real create's admission return a typed `RunOutcome::Refused` with its code from `exit_codes::of_requested_id_refusal`; only the taken check under the create lock is classified from its message. `E_REKEY_REQUIRED` and `E_WORK_ITEM_MALFORMED` precede checks 1–5 |
+| What We're NOT Doing: aliases | Aliases count only in the taken check | Allocation counts a number held in any `id`, `aliases` entry or `external_id`, drafts included |
+| Migration Notes | No data migration | An off-pattern or malformed corpus is refused until re-keyed or fixed; the CHANGELOG has a Migrations entry |
+
+### Response to review 1
+
+- **Identity scheme renamed** `IdScheme`, since it sits in `work` beside
+  `IdPattern`; the corpus-identity guard denies both names.
+- **Convergence gate** (`work::rekey::convergence`). A corpus holding an
+  item whose `id` is off the pattern's shape, or under `{tracker}` neither a
+  draft nor its issue's key, makes `create`, `create-batch`, `id next`,
+  `id check`, `list`, `resolve` and `promote` refuse with
+  `E_REKEY_REQUIRED` (exit 4). `sync`, `rekey` and `id canonicalise` still
+  run. `identity_key` lost its `-`-joining fallback, so a reference an
+  earlier pattern wrote joins nothing until re-keyed rather than being read
+  under the wrong shape.
+- **Well-formedness gate** (`work::well_formed`). The same commands refuse
+  a work item whose filename does not start with its `id` and a slug, or
+  that names an ID with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4).
+- **One reading of held IDs.** Allocation counts every held value as the
+  taken rule does, so it never hands out an ID `--id` would refuse, and a
+  bare number reads as the pattern's number under every pattern.
+  `ItemIdentity::fields_holding` is the one reading of the fields a held ID
+  may sit in.
+- **Shown IDs** are read through the pattern (`displayed_id`); the
+  hand-written dash-separated parser is gone. A filename's held ID is a
+  `HeldPrefix` that says where the ID ends.
+- **Tracker- and pattern-owned readings** split into `TrackerIds` and
+  `PatternIds` behind `IdReadings`, grouped as display, join, occupancy and
+  rendering, so no reading branches on who owns IDs.
+- **Live linkage reads through the scheme**, and finding bare IDs in a line
+  is part of `LinkageIds`. The frozen legacy readings move into `migrate`,
+  which alone uses them.
+- **Each tracker owns its key shape** (`TrackerKeys`); a Linear team key may
+  not hold `_`. A re-key preview is stale only when the pattern or key
+  changed.
+- **Grammar tidied.** Dropping `{key}` for a correction drops the literal
+  joining it to the number, so `400` corrects to `0400-PP` under
+  `{number:04d}-{key}`. `{tracker}` is a segment of the one tokeniser. An
+  exhaustive test pins that every accepted pattern in a family of small ones
+  splits a value at most one way. Re-key refuses an `id` outside the ID
+  alphabet.
+- **One scheme builder.** `scheme_from_settings` builds every scheme, the
+  migrate compositions included, naming the setting a bad key came from
+  through a `KeySource`; m0002 reports a bad key as `E_WORK_KEY_INVALID`. A
+  malformed key the pattern does not use is warned about once.
+- **One `work id` error vocabulary.** Every refusal starts `Error:`;
+  `id canonicalise` reports a bad `work.key` as `E_WORK_KEY_INVALID`; the
+  retired verbs print `E_VERB_RETIRED`; `id check` and `id next` take the
+  identity-run lock before reading the scheme, as `create` does.
+- **The visualiser degrades** instead of refusing to boot: under a scheme it
+  cannot read it reads no work-item IDs and reports the refusal in its log
+  and as `problem` from `/api/work-item/config`. It watches `.MD` files, and
+  two items sharing an identity key resolve to the lower path whatever the
+  read order.
+- **Retirement records and markers** are checked before they are trusted:
+  their IDs must be in the ID alphabet and one path component, and
+  `recovery_dir` one directory under `retirement-recovery/`.
+- **The skill confirms key changes**: see the `id check` and skill rows
+  above. The eval guard covers every eval in `evals.json` and refuses a run
+  graded against expectations the eval no longer holds, and
+  `eval_contract.rs` holds the prompts' quoted refusals and verdicts to the
+  CLI. The 13 evals the changes touched were re-run and pass.
+- **One refusal order.** See the preflight row above. The dry run now lists
+  the corpus first, as the create does, and admits its ID once; an
+  unrenderable `--project` is refused by its own named check; the create
+  lock is a seam, and the race tests signal when the create asks for it
+  rather than sleeping.
+- **Smaller findings**: the CHANGELOG documents the grammar's removed forms
+  as breaking; `work list` reads the scheme before checking its directory;
+  `E_PATTERN_OVERFLOW` names the first holder; `id check`'s output contract
+  is documented in its help; the retired-verb guard covers the user docs.
+
+### Response to review 2
+
+- **The remedy is always reachable.** Tests pin that `work sync` runs over a
+  corpus re-key would move and settles a retiring promotion there, and
+  `/sync-work-items` stops on exit 4 from `resolve` and `promote` with the
+  re-key route.
+- **One definition of an ID in shape** for convergence and re-key: read at
+  its exact width under any key, whatever its literal case, so `V001` under
+  `v{number:03d}` is converged. Both check shape before treating an `id`
+  equal to its `external_id` as a tracker key. The refusal names an item
+  re-key cannot read with its fix by hand.
+- **Re-key keeps other keys** (`work::rekey::folding`): an item in shape
+  under another key keeps it, and an off-pattern one is re-rendered under
+  its own key, so `--project` items are never renamed onto `work.key`.
+  `work rekey --preview --from-key <KEY>` folds a named key's items; the
+  preview names every other key items keep, and `/rekey-work-items` asks
+  which to fold.
+- **One trust check**: `work::corpus_trust::refuse_untrusted` composes
+  convergence and well-formedness in order, and
+  `work_adapters::corpus_trust::refuse_untrusted_under` lists the work
+  directory for both work-cli and the visualiser.
+- **Every skill** that runs a refusing `work` command handles
+  `E_REKEY_REQUIRED` and `E_WORK_ITEM_MALFORMED`, guarded by
+  `test_untrusted_corpus_refusals.py`.
+- **Upgraders**: a CHANGELOG Migrations entry and the work-items docs say to
+  check the corpus with `work list` and what each refusal needs; the
+  pattern entry and the configure skill no longer call a re-key optional.
+- **Retirement hardening**: `plan_retirement` refuses an old or new ID
+  outside the ID alphabet (a promotion reports `id-outside-alphabet`,
+  exit 4); its refusals escape the IDs they name; every value it writes goes
+  through one escaping double-quoted YAML writer; records parse into
+  `RecordedId` and `RecoveryDir`, so a record naming a path outside its
+  place cannot be built.
+- **Typed exit codes** through `of_requested_id_refusal`, with
+  `refuse_requested_id` returning a typed `RequestedIdBlock`.
+- **Keyless corrections** drop the literal on the number's side of the key,
+  so `400v` under `{number:04d}-{key}v` is corrected rather than refused.
+- **Visualiser**: a review targeting `work-item:<key>` moves when the key
+  changes holder; `Config.work_item` is a `WorkItemScheme` (`Default`,
+  `Configured`, `Unreadable`), and a setting that cannot be read at all
+  refuses to compose; the `problem` is worked out on each request and shown
+  in a banner above every page, refetched on work-item events, so it clears
+  without a restart.
+- **One opening for a create**: the real create locates its work items once
+  and hands the admitted request to `create_item`, so a batch locates once
+  for all its entries.
+- **Refactors without behaviour change**: `relative_to` moves to
+  `shown_path`; `TrackerKeys::of_integration` and `owns_ids` replace
+  `supports_tracker_owned_ids`; `is_id_character` is the one ID-alphabet
+  test; `FilenameIdentity` replaces a bare tuple; `refuse_malformed`
+  collects every malformed item; the work domain imports by crate path.
+- **Pinned and documented**: `corpus linkage extract` refuses a bad work
+  scheme for every doc type, an ADR included; `--project ''` gives
+  `E_WORK_KEY_INVALID`; the docs drop an `E_ID_TAKEN` exit 1 that never
+  shipped.
+
+### Response to review 3
+
+- Re-key reads a stored tracker key under the configured tracker's rules,
+  as convergence does, so under Linear an item named by an underscored key
+  is named for a fix by hand rather than refused by the gate and skipped by
+  re-key. `TrackerKey::parse` is renamed `parse_any_supported`; every
+  remaining caller means any supported tracker on purpose.
+- The `E_REKEY_REQUIRED` remedy names `accelerator work rekey --preview`
+  before `accelerator work rekey`, since a bare re-key with no stored plan
+  applies at once.
+- `E_WORK_ITEM_MALFORMED` lists every malformed item on its own line with
+  its fix, since `work list` refuses with the same code.
+- The real create's admission refusal takes its exit code from the typed
+  refusal, as the dry run's does.
+- `/create-work-item`'s refusal section is *Refusals before anything is
+  read*: `work resolve` takes no identity-run lock and refuses only an
+  untrusted corpus. `/rekey-work-items` folds every picked key in one
+  preview, since each preview replaces the last as the proposed plan. The
+  config docs name the gated commands.
+- The visualiser's `Indexer::forget` holds the removal and re-home sequence
+  its two removal branches repeated.
+- Evals 73 and 74 (`/create-work-item`) and 13 and 14 (`/rekey-work-items`)
+  cover the corpus refusals and the key fold; with the seven
+  `/create-work-item` evals the rewording touched, all eleven were re-run
+  and pass. The benchmark records `skill_digest`, and
+  `test_create_work_item_id_evals.py` flags a `SKILL.md` or `evals.json`
+  changed since.
+
+### Rebases onto main
+
+- The follow-on dry-run validation item, filed as 0351 (PP-935), became
+  0371 when main filed its own 0351 (PP-926), then 0372 when main raised its
+  own 0371 (PP-942). Its references and sync baseline moved with it.
+
+### Not addressed
+
+Review 3 raised these in its body, with no inline thread, and they are
+left open:
+
+- `IdScheme::new` still defaults to `TrackerKeys::AnySupported`, and
+  `run_plan_store::decode_fingerprint` rebuilds a scheme through it. A run
+  plan stores only the pattern and key, and its targets are keys the
+  tracker issued, so carrying the tracker's rules would need a schema change
+  for no change in behaviour.
+- The general trust gate depends on the re-key subsystem
+  (`corpus_trust` → `rekey::convergence` → `rekey::mapping`).
+- The visualiser's trust check rescans the work directory on every request
+  rather than reading its indexer, and not in `spawn_blocking`.
+- The visualiser banner shows the raw CLI text and does not say a pattern
+  error needs a restart; the frontend's wiki-link grammar still assumes
+  `<key>-<digits>`.
+- `update-work-item` treats every exit 1 from `resolve` as unrecognised
+  input, hiding a scheme refusal; recovering a draft promotion in
+  `/sync-work-items` passes through three refusals before `sync`; changing
+  `work.key` in the configure skill does not mention `--from-key`.
+- `create-batch` builds an `AdmittedRequest` by hand; `work id check`'s
+  `Failed` arm goes through the string classifier; a stderr line and exit
+  code pair is a separate type in each command.
+- The skills changed for review 2 other than `/create-work-item` and
+  `/rekey-work-items` were not re-evaluated; which unclassifiable item
+  `E_REKEY_REQUIRED` names is not pinned.
+- CHANGELOG wording nits, and a visualiser indexer comment that justifies a
+  filename and `id` mismatch the gate now refuses.
+
+### Verification
+
+- After review 2's response, the full `mise run` exited 0.
+- After review 3's response, `mise run check` exited 0 once the `work`
+  public-API snapshot took the new `keys_to_refresh` signature; the `work`,
+  `work-adapters`, `accelerator-work` and `accelerator-visualiser` suites
+  and the Python unit tests passed.
+- After the latest rebase onto main, the workspace compiles and the Python
+  unit tests pass; the full `mise run` has not been repeated.
+- The Manual Testing Steps ran during implementation and have not been
+  re-run since the review responses.
+
 ## References
 
 - Work item: `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`
 - Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
 - Review: `meta/reviews/work/0319-explicit-work-item-id-on-accelerator-work-create-review-1.md`
 - Plan review: `meta/reviews/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-review-1.md`
+- Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
+- PR reviews: `meta/reviews/prs/178-review-1.md`, `178-review-2.md` and
+  `178-review-3.md`
 - Follow-on: `meta/work/0372-invocation-validation-on-accelerator-work-create-dry-run.md`
 - Precedent plans: `meta/plans/2026-10-15-0302-work-item-re-key-command.md`,
   `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
