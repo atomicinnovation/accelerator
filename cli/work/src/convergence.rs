@@ -343,6 +343,31 @@ mod tests {
     }
 
     #[test]
+    fn an_item_whose_number_is_above_the_cap_is_named_with_its_manual_fix() {
+        for (pattern, key, id) in [
+            ("{number:04d}", None, "12345"),
+            ("{key}-{number:04d}", Some("PP"), "PP-12345"),
+        ] {
+            let refusal =
+                refuse_divergence(&scheme(pattern, key), &[item(id, None)])
+                    .err()
+                    .unwrap_or_else(|| unreachable!("the corpus diverges"))
+                    .relative_to(Path::new("/repo"))
+                    .to_string();
+
+            assert!(
+                refusal.contains(&format!(
+                    "Re-key cannot read one of them: meta/work/{id}-item.md \
+                     has `id` '{id}', whose number 12345 is above 9999, the \
+                     most `work.id_pattern` holds. Give the item an `id` in \
+                     the shape of `work.id_pattern` by hand"
+                )),
+                "{refusal}"
+            );
+        }
+    }
+
+    #[test]
     fn the_first_item_re_key_cannot_read_by_path_is_the_one_named() {
         let keyed = scheme("{key}-{number:04d}", Some("PP"));
         let items = [

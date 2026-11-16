@@ -145,6 +145,13 @@ pub(crate) fn why_unclassifiable(
             Classification::Unclassifiable(unclassified) => {
                 Some(cause_of(unclassified, &identity.id, scheme))
             }
+            Classification::Sequenced(number) if number > cap_of(scheme) => {
+                Some(UnclassifiableCause::NumberAboveCap {
+                    id: identity.id.clone(),
+                    number,
+                    cap: cap_of(scheme),
+                })
+            }
             _ => None,
         },
         IdOwnership::Tracker if DraftId::parse(&identity.id).is_some() => None,
@@ -1163,6 +1170,22 @@ mod tests {
                 Err(NotRekeyed::DraftIdExhausted(_))
             ));
         }
+    }
+
+    #[test]
+    fn an_item_whose_number_is_above_the_cap_is_refused_not_kept() {
+        let under = scheme("{number:04d}", None);
+
+        let mapped =
+            numeric_mapping(&under, &[local("12345")], &FoldedKeys::none());
+
+        assert!(
+            matches!(
+                mapped,
+                Err(NotRekeyed::KeptNumberAboveCap { number: 12_345, .. })
+            ),
+            "{mapped:?}"
+        );
     }
 
     #[test]

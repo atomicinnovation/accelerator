@@ -32,6 +32,7 @@ pub enum UnclassifiableCause {
     NoNumber { id: String },
     ForbiddenCharacter { id: String },
     ExternalIdNotATrackerKey { external_id: String },
+    NumberAboveCap { id: String, number: u64, cap: u64 },
 }
 
 /// The process holding the identity-run lock.
@@ -589,7 +590,8 @@ pub(crate) fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
              as `{example}`"
         ),
         UnclassifiableCause::AmbiguousDigitRuns { .. }
-        | UnclassifiableCause::NoNumber { .. } => {
+        | UnclassifiableCause::NoNumber { .. }
+        | UnclassifiableCause::NumberAboveCap { .. } => {
             "Give the item an `id` in the shape of `work.id_pattern`".to_owned()
         }
         UnclassifiableCause::ForbiddenCharacter { .. } => "Give the item an \
@@ -615,6 +617,11 @@ pub(crate) fn unclassifiable(
         UnclassifiableCause::NoNumber { id } => {
             format!("{item} has `id` '{}', which holds no number", escaped(id))
         }
+        UnclassifiableCause::NumberAboveCap { id, number, cap } => format!(
+            "{item} has `id` '{}', whose number {number} is above {cap}, the \
+             most `work.id_pattern` holds",
+            escaped(id)
+        ),
         UnclassifiableCause::ForbiddenCharacter { id } => format!(
             "{item} has `id` '{}', which holds a character other than an \
              ASCII letter, digit, `.`, `_` or `-`",

@@ -48,7 +48,7 @@ pub fn work::corpus_trust::UntrustedCorpus::fmt(&self, f: &mut core::fmt::Format
 impl core::fmt::Display for work::corpus_trust::UntrustedCorpus
 pub fn work::corpus_trust::UntrustedCorpus::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::corpus_trust::UntrustedCorpus
-pub fn work::corpus_trust::refuse_untrusted(scheme: &work::id_scheme::IdScheme, files: &[work::work_item_files::WorkItemFile]) -> core::result::Result<(), work::corpus_trust::UntrustedCorpus>
+pub fn work::corpus_trust::refuse_untrusted(scheme: &work::id_scheme::IdScheme, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<(), work::corpus_trust::UntrustedCorpus>
 pub mod work::create
 pub enum work::create::FieldValue
 pub work::create::FieldValue::Int(i64)
@@ -1137,6 +1137,10 @@ pub work::rekey::outcome::UnclassifiableCause::ForbiddenCharacter
 pub work::rekey::outcome::UnclassifiableCause::ForbiddenCharacter::id: alloc::string::String
 pub work::rekey::outcome::UnclassifiableCause::NoNumber
 pub work::rekey::outcome::UnclassifiableCause::NoNumber::id: alloc::string::String
+pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap
+pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap::cap: u64
+pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap::id: alloc::string::String
+pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap::number: u64
 impl core::clone::Clone for work::rekey::outcome::UnclassifiableCause
 pub fn work::rekey::outcome::UnclassifiableCause::clone(&self) -> work::rekey::outcome::UnclassifiableCause
 impl core::cmp::Eq for work::rekey::outcome::UnclassifiableCause
@@ -3097,9 +3101,12 @@ pub fn work::update::mutate_list(current: &[alloc::string::String], action: work
 pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>
 pub mod work::well_formed
 pub enum work::well_formed::Malformation
+pub work::well_formed::Malformation::NamedOnlyById
+pub work::well_formed::Malformation::NamedOnlyById::id: alloc::string::String
 pub work::well_formed::Malformation::NoId
 pub work::well_formed::Malformation::NoSlug
 pub work::well_formed::Malformation::NoSlug::id: alloc::string::String
+pub work::well_formed::Malformation::Undecodable
 impl core::clone::Clone for work::well_formed::Malformation
 pub fn work::well_formed::Malformation::clone(&self) -> work::well_formed::Malformation
 impl core::cmp::Eq for work::well_formed::Malformation
@@ -3136,7 +3143,7 @@ pub fn work::well_formed::MalformedItems::fmt(&self, f: &mut core::fmt::Formatte
 impl core::fmt::Display for work::well_formed::MalformedItems
 pub fn work::well_formed::MalformedItems::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::well_formed::MalformedItems
-pub fn work::well_formed::refuse_malformed(files: &[work::work_item_files::WorkItemFile]) -> core::result::Result<(), work::well_formed::MalformedItems>
+pub fn work::well_formed::refuse_malformed(scheme: &work::id_scheme::IdScheme, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<(), work::well_formed::MalformedItems>
 pub mod work::work_item_files
 pub enum work::work_item_files::ReadFailure
 pub work::work_item_files::ReadFailure::Io(alloc::string::String)
