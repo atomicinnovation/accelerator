@@ -82,6 +82,7 @@ export async function patchWorkItemFrontmatter(
 export interface WorkItemConfig {
   key?: string | null;
   problem?: string | null;
+  restartNeeded?: boolean;
 }
 
 export async function fetchWorkItemConfig(): Promise<WorkItemConfig> {

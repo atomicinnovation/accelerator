@@ -31,6 +31,44 @@ describe("WorkItemProblemBanner", () => {
     );
   });
 
+  it("says what is switched off and that the problem clears by itself", async () => {
+    vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
+      problem: "E_REKEY_REQUIRED: 1 work item is not under the ID",
+      restartNeeded: false,
+    });
+
+    render(
+      <Wrap>
+        <WorkItemProblemBanner />
+      </Wrap>,
+    );
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(
+      "Work-item IDs are switched off: nothing clusters or links by work-item ID",
+    );
+    expect(banner).toHaveTextContent(
+      "This clears by itself once the work items are fixed.",
+    );
+  });
+
+  it("says a configuration problem needs a restart", async () => {
+    vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
+      problem: "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad",
+      restartNeeded: true,
+    });
+
+    render(
+      <Wrap>
+        <WorkItemProblemBanner />
+      </Wrap>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Restart the visualiser once the configuration is fixed.",
+    );
+  });
+
   it("shows nothing when work-item IDs can be trusted", async () => {
     const spy = vi
       .spyOn(fetchModule, "fetchWorkItemConfig")

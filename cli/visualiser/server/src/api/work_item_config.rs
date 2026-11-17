@@ -12,6 +12,9 @@ pub(crate) struct WorkItemConfigBody {
     pub key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub problem: Option<String>,
+    /// Whether clearing the problem needs a restart: the scheme is read
+    /// once, at boot, while the corpus is judged as it changes.
+    pub restart_needed: bool,
 }
 
 pub(crate) async fn get_work_item_config(
@@ -24,7 +27,12 @@ pub(crate) async fn get_work_item_config(
         .and_then(|scheme| scheme.key())
         .map(|key| key.as_str().to_owned());
     let problem = state.work_item_problem();
-    Json(WorkItemConfigBody { key, problem })
+    let restart_needed = state.cfg.work_item.problem().is_some();
+    Json(WorkItemConfigBody {
+        key,
+        problem,
+        restart_needed,
+    })
 }
 
 #[cfg(test)]
@@ -148,6 +156,7 @@ mod tests {
             body["problem"],
             "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad"
         );
+        assert_eq!(body["restartNeeded"], true, "{body}");
     }
 
     #[tokio::test]
@@ -174,6 +183,7 @@ mod tests {
             "{body}"
         );
         assert!(problem.contains("meta/work/PP-0001-a.md"), "{body}");
+        assert_eq!(body["restartNeeded"], false, "{body}");
     }
 
     #[tokio::test]

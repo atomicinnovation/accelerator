@@ -6,3 +6,16 @@
   font-size: var(--size-160);
   overflow-wrap: anywhere;
 }
+
+.banner p {
+  margin: 0;
+}
+
+.lead {
+  font-weight: 600;
+}
+
+.problem {
+  margin-block: var(--sp-2);
+  font-family: var(--ac-font-mono);
+}
