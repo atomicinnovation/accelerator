@@ -810,6 +810,11 @@ run = "invoke version.bump"
 description = "Verify the GitHub CLI is authenticated"
 run = "invoke github.check-auth"
 
+[tasks."host:cpu-counts"]
+description = "Report the CPU counts that size the parallel test workers"
+depends = ["deps:install:python"]
+run = "invoke host.cpu-counts"
+
 [tasks."keys:generate"]
 description = "Generate a -W release signing keypair (writes keys/accelerator-release.{pub,sec}; does not print the secret)"
 run = "invoke keys.generate"
