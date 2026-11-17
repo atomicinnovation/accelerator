@@ -38,8 +38,8 @@ use work::sync::SyncState;
 use crate::create_request_fields;
 use crate::sync::adoption_records::AdoptionRecords;
 use crate::sync::adoption_records::UnretiredRecord;
-use crate::sync::apply::bare_create_decision;
 use crate::sync::apply::issue_title;
+use crate::sync::apply::unordered_create_decision;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
@@ -1265,8 +1265,8 @@ impl LocalCreate<'_> {
         matches!(self.planned.order(), Some(PendingPushOrder::Adopt(_)))
     }
 
-    const fn is_bare(&self) -> bool {
-        self.planned.order().is_none()
+    const fn carries_order(&self) -> bool {
+        self.planned.order().is_some()
     }
 
     /// The create's report line, carrying the order that settled it; a
@@ -1818,7 +1818,7 @@ fn previewed_outcome(
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ItemOutcome {
-    if !create.is_bare() {
+    if create.carries_order() {
         return ItemOutcome::NotApplied;
     }
     let inputs = LocalCreateInputs::gather(create, request);
@@ -1831,7 +1831,7 @@ fn previewed_outcome(
             attempted_at,
         );
         let marker = MarkerReading::read(&local_create, ports.files.tracking);
-        bare_create_decision(&local_create, &marker)
+        unordered_create_decision(&local_create, &marker)
     });
     match decision {
         Ok(_) => ItemOutcome::NotApplied,
