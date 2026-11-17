@@ -185,3 +185,42 @@ fn linking_adds_a_missing_external_id_and_keeps_the_body() {
     assert!(linked.contains("external_id: \"sc-14\""), "{linked}");
     assert!(linked.ends_with(body), "{linked}");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_create_whose_link_cannot_be_written_reports_the_key() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let server = support::serving(&["story-create-201"]);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+    let work_dir = dir.path().join("meta/work");
+    std::fs::create_dir_all(&work_dir).expect("create the work dir");
+    let item = work_item(&work_dir, "story");
+    let before = std::fs::read_to_string(&item).expect("read");
+    let read_only = std::fs::Permissions::from_mode(0o555);
+    std::fs::set_permissions(&work_dir, read_only).expect("chmod");
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", item.to_str().expect("utf-8")],
+    );
+    std::fs::set_permissions(&work_dir, std::fs::Permissions::from_mode(0o755))
+        .expect("chmod back");
+
+    assert_eq!(
+        output.status.code(),
+        Some(107),
+        "{}",
+        support::stderr(&output)
+    );
+    let stdout = support::stdout_json(&output);
+    assert_eq!(stdout["outcome"], "writeback-failed");
+    assert_eq!(stdout["key"], "sc-14");
+    let stderr = support::stderr(&output);
+    assert!(stderr.starts_with("E_CREATE_WRITEBACK_FAILED:"), "{stderr}");
+    assert!(stderr.contains("sc-14"), "{stderr}");
+    assert_eq!(server.hits(&RequestKey::post(STORIES)), 1);
+    assert_eq!(std::fs::read_to_string(item).expect("read"), before);
+}
