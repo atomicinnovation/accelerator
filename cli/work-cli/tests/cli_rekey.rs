@@ -420,3 +420,55 @@ fn a_from_key_that_is_not_a_key_is_refused() -> Result<(), TestError> {
     assert!(stderr.contains("--from-key"), "{stderr}");
     Ok(())
 }
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn an_item_created_beside_a_linked_tracker_key_survives_a_width_change(
+) -> Result<(), TestError> {
+    let template = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../templates/work-item.md"),
+    )?;
+    let repo = Repo::committed_as(&[
+        ("templates/work-item.md", &template),
+        (
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+             key: PP\n---\n",
+        ),
+        (
+            "meta/work/PP-0001-linked.md",
+            "---\nid: \"PP-0001\"\ntitle: \"Linked\"\nexternal_id: \
+             \"PP-2\"\n---\n",
+        ),
+    ])?;
+    let created = repo.run(
+        &["create", "Fresh item", "task", "medium", "--author", "A"],
+        &[],
+    )?;
+    assert_eq!(
+        created.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&created.stderr)
+    );
+    repo.write(
+        ".accelerator/config.md",
+        "---\nwork:\n  id_pattern: \"{key}-{number:05d}\"\n  key: PP\n---\n",
+    )?;
+    repo.commit("widen")?;
+
+    let rekeyed = repo.rekey(&[])?;
+
+    assert_eq!(
+        rekeyed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&rekeyed.stderr)
+    );
+    assert_eq!(
+        repo.work_items()?,
+        vec!["PP-00001-linked.md", "PP-00003-fresh-item.md"]
+    );
+    Ok(())
+}

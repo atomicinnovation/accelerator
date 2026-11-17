@@ -150,16 +150,17 @@ pub fn refuse_project_without_key_token(
 ///
 /// A number is held in `listing`, ignoring the key's letter case, in a
 /// file's name or in its `id`, an alias or its `external_id`, so an
-/// allocated ID is never one the taken rule finds held.
+/// allocated ID is never one the taken rule finds held. An `external_id`
+/// naming a tracker issue holds its number without lifting the sequence.
 ///
 /// A bare number counts under the scheme's own key.
 ///
 /// # Errors
 ///
 /// [`AllocationError::MissingKey`] when the pattern has a key token and
-/// `key` is `None`; [`AllocationError::Overflow`] when `highest + count`
-/// would exceed the pattern's numeric cap — the error still carries every ID
-/// that fit before the boundary.
+/// `key` is `None`; [`AllocationError::Overflow`] when fewer than `count`
+/// free numbers lie above `highest` within the pattern's numeric cap — the
+/// error still carries every ID that fit before the boundary.
 pub fn allocate(
     scheme: &IdScheme,
     key: Option<&IdKey>,
@@ -190,21 +191,28 @@ pub fn allocate(
         .map(|(number, _)| *number)
         .collect::<BTreeSet<_>>()
         .len();
+    let linked: BTreeSet<u64> = linked_tracker_numbers(scheme, listing)
+        .into_iter()
+        .filter(in_sequence)
+        .map(|parts| parts.number())
+        .collect();
 
-    allocate_above(pattern, key, highest, count).map_err(|error| match error {
-        AllocationError::Overflow {
-            partial,
-            highest,
-            cap,
-            ..
-        } => AllocationError::Overflow {
-            partial,
-            highest,
-            highest_file,
-            cap,
-            numbers_held: u64::try_from(numbers_held).unwrap_or(u64::MAX),
-        },
-        other => other,
+    allocate_above(pattern, key, highest, count, &linked).map_err(|error| {
+        match error {
+            AllocationError::Overflow {
+                partial,
+                highest,
+                cap,
+                ..
+            } => AllocationError::Overflow {
+                partial,
+                highest,
+                highest_file,
+                cap,
+                numbers_held: u64::try_from(numbers_held).unwrap_or(u64::MAX),
+            },
+            other => other,
+        }
     })
 }
 
@@ -253,6 +261,22 @@ fn held_numbers(
     held
 }
 
+/// Every number an `external_id` naming a tracker issue holds: it takes
+/// that number from a new item without lifting the sequence past it.
+fn linked_tracker_numbers(
+    scheme: &IdScheme,
+    listing: &WorkItemListing,
+) -> Vec<IdParts> {
+    listing
+        .files
+        .iter()
+        .filter_map(identity_of)
+        .filter_map(|item| item.external_id)
+        .filter(|value| scheme.names_a_tracker_issue(value))
+        .filter_map(|value| scheme.read_held(&value))
+        .collect()
+}
+
 fn holder_name(path: &Path) -> String {
     let name = path
         .file_name()
@@ -274,28 +298,27 @@ fn allocate_above(
     key: Option<&IdKey>,
     floor: u64,
     count: u32,
+    linked: &BTreeSet<u64>,
 ) -> Result<Vec<String>, AllocationError> {
     let cap = pattern.cap().unwrap_or(u64::MAX);
-    let render = |number: u64| pattern.render(key, number);
-
-    if floor.saturating_add(u64::from(count)) > cap {
-        let partial = (1..=u64::from(count))
-            .map_while(|i| floor.checked_add(i))
-            .take_while(|&next| next <= cap)
-            .map(render)
+    let wanted = usize::try_from(count).unwrap_or(usize::MAX);
+    let free: Vec<String> =
+        std::iter::successors(floor.checked_add(1), |n| n.checked_add(1))
+            .take_while(|&number| number <= cap)
+            .filter(|number| !linked.contains(number))
+            .take(wanted)
+            .map(|number| pattern.render(key, number))
             .collect::<Result<_, _>>()?;
+    if free.len() < wanted {
         return Err(AllocationError::Overflow {
-            partial,
+            partial: free,
             highest: floor,
             highest_file: None,
             cap,
             numbers_held: 0,
         });
     }
-
-    Ok((1..=u64::from(count))
-        .map(|i| render(floor + i))
-        .collect::<Result<_, _>>()?)
+    Ok(free)
 }
 
 #[cfg(test)]
@@ -303,6 +326,7 @@ fn allocate_above(
 // args.
 #[allow(clippy::unwrap_used, clippy::literal_string_with_formatting_args)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::path::PathBuf;
 
     use crate::work_item_files::ReadFailure;
@@ -391,6 +415,43 @@ mod tests {
         assert_eq!(
             allocate(&keyed, Some(&key("PP")), 1, &listing),
             Ok(vec!["PP-0002".to_owned()])
+        );
+    }
+
+    #[test]
+    fn allocation_skips_a_number_a_tracker_key_holds_as_external_id() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        let listing = WorkItemListing {
+            files: vec![item(
+                "PP-0001-a.md",
+                "id: \"PP-0001\"\nexternal_id: \"PP-2\"",
+            )],
+            unreadable: Vec::new(),
+        };
+        assert_eq!(
+            allocate(&keyed, Some(&key("PP")), 2, &listing),
+            Ok(vec!["PP-0003".to_owned(), "PP-0004".to_owned()])
+        );
+    }
+
+    #[test]
+    fn skipping_a_tracker_key_past_the_cap_overflows() {
+        let keyed = scheme("{key}-{number:02d}", Some("PP"));
+        let listing = WorkItemListing {
+            files: vec![item(
+                "PP-98-a.md",
+                "id: \"PP-98\"\nexternal_id: \"PP-99\"",
+            )],
+            unreadable: Vec::new(),
+        };
+        let result = allocate(&keyed, Some(&key("PP")), 1, &listing);
+        assert!(
+            matches!(
+                &result,
+                Err(AllocationError::Overflow { partial, cap: 99, .. })
+                    if partial.is_empty()
+            ),
+            "{result:?}"
         );
     }
 
@@ -605,7 +666,8 @@ mod tests {
                 &pattern("{key}-{number:04d}"),
                 Some(&key("ACC")),
                 41,
-                2
+                2,
+                &BTreeSet::new()
             ),
             Ok(vec!["ACC-0042".to_owned(), "ACC-0043".to_owned()])
         );
@@ -614,7 +676,13 @@ mod tests {
     #[test]
     fn allocation_above_the_largest_floor_overflows_with_nothing_allocated() {
         assert_eq!(
-            allocate_above(&pattern("{number:04d}"), None, u64::MAX, 2),
+            allocate_above(
+                &pattern("{number:04d}"),
+                None,
+                u64::MAX,
+                2,
+                &BTreeSet::new()
+            ),
             Err(AllocationError::Overflow {
                 partial: Vec::new(),
                 highest: u64::MAX,

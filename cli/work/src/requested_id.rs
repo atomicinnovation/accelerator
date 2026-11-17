@@ -239,7 +239,7 @@ impl RequestedId {
         let identity = identity_of(file)?;
         let holds = |value: &str| self.scheme.holds(value, &self.parts);
         let field = identity
-            .fields_taking(&self.scheme, &self.parts)
+            .fields_holding(&self.scheme, &self.parts)
             .into_iter()
             .next()?;
         let held = match field {
@@ -995,6 +995,9 @@ mod tests {
         for held in [
             listing(vec![named("xy-0400-x.md")]),
             listing(vec![holding("id: \"PP-0007\"\naliases: [\"xy-0400\"]\n")]),
+            listing(vec![holding(
+                "id: \"PP-0007\"\nexternal_id: \"xy-0400\"\n",
+            )]),
         ] {
             assert!(is_taken("XY-0400", &keyed(), &held), "{held:?}");
         }
@@ -1007,11 +1010,12 @@ mod tests {
     }
 
     #[test]
-    fn a_tracker_key_held_as_external_id_leaves_the_local_id_free() {
+    fn a_tracker_key_held_as_external_id_takes_the_local_id_with_its_key_and_number(
+    ) {
         let held = listing(vec![holding(
             "id: \"PP-0007\"\nexternal_id: \"PP-905\"\n",
         )]);
-        assert!(!is_taken("PP-0905", &keyed(), &held));
+        assert!(is_taken("PP-0905", &keyed(), &held));
     }
 
     #[test]

@@ -200,8 +200,8 @@ is listed under "Behaviour changes".
   (`IdScheme::under_tracker`); a constructor reading any tracker's keys
   says so (`IdScheme::under_any_tracker`), and `TrackerKeys::owns_ids` says
   whether keys can serve as IDs. A tracker's issue key in `external_id`
-  takes and lifts no local number. Token safety reads an ID in shape as
-  convergence does. `displayed_id`
+  takes its local number but lifts no sequence. Token safety reads an ID
+  in shape as convergence does. `displayed_id`
   replaces `normalise_id` and reads through the pattern; `HeldPrefix` says
   where a filename's ID ends. `requested_id` models an `--id` and its
   settlement.
@@ -335,7 +335,8 @@ notice:
 - **Allocation** counts a key's sequence ignoring case, counts every held
   value, and under a `{key}` pattern counts a legacy bare-number item in
   `work.key`'s sequence, so the next number may jump; a tracker's issue key
-  in `external_id` counts for nothing.
+  in `external_id` is skipped but does not lift the sequence, so create and
+  `work rekey` refuse the same IDs.
 - **`work resolve`** reads a missing work directory as empty rather than
   exiting 1 for every input, and finds a bare number's items through the
   pattern, ignoring key case.

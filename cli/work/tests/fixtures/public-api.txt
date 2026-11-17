@@ -490,7 +490,6 @@ pub work::identity::ItemIdentity::path: std::path::PathBuf
 impl work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::fields_holding(&self, scheme: &work::id_scheme::IdScheme, id: &work::id_pattern::IdParts) -> alloc::vec::Vec<work::identity::IdentityField>
 pub fn work::identity::ItemIdentity::fields_matching(&self, matches: impl core::ops::function::Fn(&str) -> bool) -> alloc::vec::Vec<work::identity::IdentityField>
-pub fn work::identity::ItemIdentity::fields_taking(&self, scheme: &work::id_scheme::IdScheme, id: &work::id_pattern::IdParts) -> alloc::vec::Vec<work::identity::IdentityField>
 impl core::clone::Clone for work::identity::ItemIdentity
 pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
 impl core::cmp::Eq for work::identity::ItemIdentity
