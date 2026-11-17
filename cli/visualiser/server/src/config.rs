@@ -32,7 +32,7 @@ pub struct Config {
     /// An empty list is rejected at boot.
     #[serde(default)]
     pub kanban_columns: Option<Vec<String>>,
-    /// Idle auto-shutdown window as a humantime duration string
+    /// Idle auto-shutdown window as a duration string
     /// (`"8h"`, `"30m"`, `"1h30m"`), or a disable token (`"never"`, `0`,
     /// or any zero-length duration). Absent → the built-in 8h default.
     /// Resolved + validated at boot by `resolve_idle_limit_ms`.
@@ -297,37 +297,48 @@ impl Config {
     /// - `"never"` (case-insensitive), the bare `"0"`, or *any* zero-length
     ///   duration (`"0s"`, `"0ms"`, …) → `DISABLED_IDLE_LIMIT_MS`, so the
     ///   "zero idle window" case is uniform regardless of spelling.
-    /// - Any other value → parsed by `humantime`; an unparseable value is
-    ///   rejected (`ConfigError::InvalidIdleTimeout`, carrying the
-    ///   underlying parse error) so the server fails fast at boot rather
-    ///   than silently defaulting.
+    /// - Any other value → parsed as a `jiff` friendly duration, a day or
+    ///   week counting as 24 hours or 7 such days; an unparseable value, a
+    ///   month or year (whose length depends on a date), or a negative
+    ///   duration is rejected so the server fails fast at boot rather than
+    ///   silently defaulting.
     pub fn resolve_idle_limit_ms(&self) -> Result<i64, ConfigError> {
         let default = default_idle_timeout();
         let raw = self.idle_timeout.as_deref().unwrap_or(&default);
         let trimmed = raw.trim();
         // Disable tokens handled before parsing: the textual "never" and the
-        // bare "0" (which humantime cannot parse, lacking a unit).
+        // bare "0" (which jiff cannot parse, lacking a unit).
         if trimmed.eq_ignore_ascii_case("never") || trimmed == "0" {
             return Ok(DISABLED_IDLE_LIMIT_MS);
         }
-        let dur = humantime::parse_duration(trimmed).map_err(|source| {
-            ConfigError::InvalidIdleTimeout {
+        let invalid = |source| ConfigError::InvalidIdleTimeout {
+            value: raw.to_string(),
+            source,
+        };
+        let dur = trimmed
+            .parse::<jiff::Span>()
+            .and_then(|span| {
+                span.to_duration(jiff::SpanRelativeTo::days_are_24_hours())
+            })
+            .map_err(invalid)?;
+        if dur.is_negative() {
+            return Err(ConfigError::NegativeIdleTimeout {
                 value: raw.to_string(),
-                source,
-            }
-        })?;
+            });
+        }
         // A zero-length window ("0s", "0ms", …) also disables, matching the
         // bare-"0" token above.
         if dur.is_zero() {
             return Ok(DISABLED_IDLE_LIMIT_MS);
         }
-        // Saturate in u128 *before* the i64 cast (an over-large duration must
-        // clamp to MAX_IDLE_LIMIT_MS, never wrap negative), and floor at 1ms so a
-        // sub-millisecond-but-non-zero value ("1ns", "500us") — which is NOT
-        // is_zero() yet truncates to 0 ms — stays a tiny finite window (fires on
-        // the next tick) rather than collapsing to `idle_limit_ms == 0`, which
-        // the loop would treat as fire-on-first-tick.
-        Ok(dur.as_millis().min(MAX_IDLE_LIMIT_MS as u128).max(1) as i64)
+        // Floor at 1ms so a sub-millisecond-but-non-zero value ("1ns",
+        // "500us") — which is NOT is_zero() yet truncates to 0 ms — stays a
+        // tiny finite window (fires on the next tick) rather than collapsing
+        // to `idle_limit_ms == 0`, which the loop would treat as
+        // fire-on-first-tick.
+        Ok(i64::try_from(dur.as_millis())
+            .unwrap_or(MAX_IDLE_LIMIT_MS)
+            .clamp(1, MAX_IDLE_LIMIT_MS))
     }
 }
 
@@ -340,11 +351,10 @@ pub enum ConfigError {
     },
     #[error("visualiser.kanban_columns must not be empty")]
     EmptyKanbanColumns,
-    #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable: {source}")]
-    InvalidIdleTimeout {
-        value: String,
-        source: humantime::DurationError,
-    },
+    #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", \"2d\", or \"never\"/0 to disable: {source}")]
+    InvalidIdleTimeout { value: String, source: jiff::Error },
+    #[error("invalid visualiser.idle_timeout '{value}': a duration must not be negative")]
+    NegativeIdleTimeout { value: String },
 }
 
 #[cfg(test)]
@@ -666,12 +676,53 @@ mod tests {
     }
 
     #[test]
-    fn idle_timeout_over_large_saturates_below_sentinel() {
-        let cfg = config_with_idle_timeout(r#""100000000000years""#);
+    fn idle_timeout_days_and_weeks_are_24_hour_days() {
+        for (token, days) in
+            [(r#""1d""#, 1), (r#""2 days""#, 2), (r#""1w""#, 7)]
+        {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                days * 24 * 60 * 60 * 1000,
+                "{token}"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_the_longest_window_resolves_exactly() {
+        let cfg = config_with_idle_timeout(r#""1000000w""#);
         let resolved = cfg.resolve_idle_limit_ms().unwrap();
-        assert_eq!(resolved, MAX_IDLE_LIMIT_MS);
-        assert_ne!(resolved, DISABLED_IDLE_LIMIT_MS);
-        assert!(resolved > 0, "must not wrap negative or to zero");
+        assert_eq!(resolved, 1_000_000 * 7 * 24 * 60 * 60 * 1000);
+        assert!(resolved < MAX_IDLE_LIMIT_MS);
+    }
+
+    #[test]
+    fn idle_timeout_months_and_years_fail_fast() {
+        for token in [r#""1y""#, r#""2 years""#, r#""1 month""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert!(
+                matches!(
+                    cfg.resolve_idle_limit_ms(),
+                    Err(ConfigError::InvalidIdleTimeout { .. })
+                ),
+                "{token} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_negative_durations_fail_fast() {
+        for token in [r#""-1h""#, r#""1h ago""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert!(
+                matches!(
+                    cfg.resolve_idle_limit_ms(),
+                    Err(ConfigError::NegativeIdleTimeout { .. })
+                ),
+                "{token} must be rejected"
+            );
+        }
     }
 
     #[test]

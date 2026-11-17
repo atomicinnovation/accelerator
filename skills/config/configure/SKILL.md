@@ -816,7 +816,7 @@ Configure the visualiser plugin.
 | Key               | Default                                                         | Description                                                                  |
 |-------------------|-----------------------------------------------------------------|------------------------------------------------------------------------------|
 | `kanban_columns`  | `[draft, ready, in-progress, review, done, blocked, abandoned]` | Ordered list of kanban column keys                                           |
-| `idle_timeout`    | `8h`                                                            | Idle auto-shutdown window (humantime duration; `never`/`0` to disable)       |
+| `idle_timeout`    | `8h`                                                            | Idle auto-shutdown window (duration such as `30m` or `2d`; `never`/`0` to disable) |
 | `editor`          | (empty)                                                         | Editor deep-link command; absent disables the "open in editor" button        |
 | `editor_project`  | (empty)                                                         | Companion project argument passed alongside `editor`                         |
 | `binary`          | (bundled)                                                       | Override visualiser binary path (absolute or project-relative; must be executable) |
@@ -849,9 +849,9 @@ next page-load (TanStack Query re-fetches `/api/kanban/config` each time).
 #### Idle auto-shutdown
 
 The visualiser server auto-exits after a period with no incoming HTTP
-requests. `visualiser.idle_timeout` sets that window as a humantime
-duration string (`"8h"`, `"30m"`, `"1h30m"`); it defaults to `8h` when
-absent.
+requests. `visualiser.idle_timeout` sets that window as a duration string
+(`"8h"`, `"30m"`, `"1h30m"`, `"2d"`, with a day of 24 hours; months, years
+and negative durations are refused); it defaults to `8h` when absent.
 
 Setting it to `never` (case-insensitive), `0`, or any zero-length
 duration (`0s`, `0ms`) **disables** idle auto-shutdown — the idle timer

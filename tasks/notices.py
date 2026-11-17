@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from invoke import Context, Exit, task
 
@@ -227,47 +228,58 @@ def _run_cargo_about(context: Context) -> str:
     stable across cache warmth. `--fail` turns an unresolved licence into an
     error rather than a silently dropped component.
     """
-    with context.cd(str(CLI_DIR)):
+    with TemporaryDirectory() as scratch:
+        output = Path(scratch) / "cargo-about.json"
+        with context.cd(str(CLI_DIR)):
+            result = context.run(
+                "cargo about generate --workspace --frozen --fail --format "
+                f"json --output-file {output}",
+                warn=True,
+                pty=False,
+                hide=True,
+            )
+        if result.exited != 0:
+            raise Exit(
+                "cargo-about failed to render the Rust closure — see output "
+                "above",
+                code=1,
+            )
+        return _generated(output, "cargo-about")
+
+
+def _run_license_checker(context: Context) -> str:
+    """Render the frontend production closure as license-checker JSON."""
+    with TemporaryDirectory() as scratch:
+        output = Path(scratch) / "license-checker.json"
         result = context.run(
-            "cargo about generate --workspace --frozen --fail --format json",
+            f"npm --prefix {FRONTEND} run --silent licenses:generate -- "
+            f"--out {output}",
             warn=True,
             pty=False,
             hide=True,
         )
-    if result.exited != 0:
-        raise Exit(
-            "cargo-about failed to render the Rust closure — see output above",
-            code=1,
-        )
-    return result.stdout
+        if result.exited != 0:
+            raise Exit(
+                "license-checker failed to render the frontend closure — see "
+                "output above",
+                code=1,
+            )
+        return _generated(output, "license-checker")
 
 
-def _run_license_checker(context: Context) -> str:
-    """Render the frontend production closure as license-checker JSON.
+def _generated(output: Path, generator: str) -> str:
+    """Read a generator's JSON whole from the file it wrote.
 
-    npm's run banner can still reach stdout on some npm versions even under
-    `--silent`, so the payload is sliced from its first brace before return.
+    The generators write to a file rather than stdout because invoke decodes
+    a stream in 1000-byte chunks, each on its own, so a multi-byte character
+    split across a chunk would be rendered as replacement characters.
     """
-    result = context.run(
-        f"npm --prefix {FRONTEND} run --silent licenses:generate",
-        warn=True,
-        pty=False,
-        hide=True,
-    )
-    if result.exited != 0:
+    text = _read(output) if output.exists() else ""
+    if "{" not in text:
         raise Exit(
-            "license-checker failed to render the frontend closure — see "
-            "output above",
-            code=1,
+            f"{generator} produced no JSON object — see output above", code=1
         )
-    stdout = result.stdout
-    brace = stdout.find("{")
-    if brace == -1:
-        raise Exit(
-            "license-checker produced no JSON object — see output above",
-            code=1,
-        )
-    return stdout[brace:]
+    return text
 
 
 def _render(context: Context) -> str:

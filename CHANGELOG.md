@@ -488,6 +488,12 @@
 
 ### Changed
 
+- **`visualiser.idle_timeout` is parsed by `jiff`, not `humantime`.**
+  `humantime` is unmaintained (RUSTSEC-2026-0542). Hours, minutes, seconds
+  and smaller units read as before, and a day or week counts as 24 hours or
+  7 such days. A month or year, whose length depends on a date, and a
+  negative duration are now refused at boot, where `humantime` read a year
+  as 365.25 days.
 - **Sync state that belongs to one machine is ignored.** `accelerator config
   init` and migration `0011` ignore
   `.accelerator/state/{retirement,sync}-recovery/` and every integration's

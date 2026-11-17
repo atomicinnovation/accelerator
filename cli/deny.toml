@@ -33,7 +33,9 @@ yanked = "deny"
 # advisories only. A vulnerability-class advisory takes the escalation path —
 # upgrade, patch or vendor — never an ignore, because this closure reaches the
 # publicly distributed signed accelerator-visualiser binary.
-ignore = []
+ignore = [
+  { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained with no successor release; jj-lib, interim (through jj-lib) and octocrab depend on it directly, and file-rotate and the visualiser too, so no change here removes it. Re-check whether jj-lib and octocrab have moved to jiff. review-by: 2027-02-17" },
+]
 
 [licenses]
 version = 2
