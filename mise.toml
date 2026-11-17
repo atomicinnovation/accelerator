@@ -390,6 +390,11 @@ description = "Extract every bin/accelerator config !-site command from skills/*
 depends = ["deps:install:python"]
 run = "invoke test.integration.skill-invocation"
 
+[tasks."test:integration:evals"]
+description = "Hold the CLI output skill evals quote to the built accelerator-work"
+depends = ["build:cli:work:dev"]
+run = "invoke test.integration.evals"
+
 [tasks."test:integration:conformance"]
 description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
 depends = ["build:cli:dev", "build:cli:corpus:dev"]
@@ -502,6 +507,7 @@ depends = [
     "test:integration:entrypoint",
     "test:integration:skill-invocation",
     "test:integration:conformance",
+    "test:integration:evals",
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
