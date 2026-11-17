@@ -14,7 +14,7 @@ pr_number: 232
 tags: ["visualiser", "testing", "playwright", "performance"]
 revision: "270a84d6154a2a2aea8053303799eaca460bc1c9"
 repository: "accelerator"
-last_updated: "2026-11-17T08:22:16+00:00"
+last_updated: "2026-11-17T20:21:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -276,6 +276,14 @@ their E2E jobs passed, each on one worker.
     `frontend/dist`;
   - `docs:build` timing out loading its Astro config, in a discarded
     attempt.
+- **An unrelated docs-site audit ignore.** A new high advisory,
+  GHSA-fc5q-39xc-vjpf (a `picomatch` ReDoS on crafted extglob patterns),
+  started failing `docs:audit:check` on every branch. No patched
+  `picomatch` exists: the advisory covers `<=4.0.7`, which is the latest
+  release. So `docs-site/audit-ignores.toml` gains a dated ignore, to be
+  reviewed by 2026-12-01. The docs site passes `picomatch` only globs that
+  its own build config and tooling write, at build time for a static
+  site.
 - **What comes next.** The CI after window starts with this PR's merge
   commit. Phase 7 then runs paired comparisons for both suites, because
   both before windows are contaminated.
