@@ -190,10 +190,12 @@
 //! refuse with `E_REKEY_REQUIRED` (`4`), writing nothing, while
 //! any item's `id` is not in the configured pattern's exact shape, under any
 //! key, or under `{tracker}` is neither a draft nor its issue's key; the
-//! refusal names one such item and points to `work rekey`. They refuse
-//! with `E_WORK_ITEM_MALFORMED` (`4`) too, for a work item whose filename
-//! does not start with its `id` and a slug, or that names an ID in
-//! `aliases` or `external_id` with no `id`. `sync`, `rekey`
+//! refusal counts such items, names one, and points to `/rekey-work-items`
+//! after any fix by hand an item re-key cannot read needs. They refuse
+//! with `E_WORK_ITEM_MALFORMED` (`4`) too, listing with its own fix every
+//! work-item file whose filename does not start with its `id` and a slug,
+//! that names an ID in `aliases` or `external_id` with no `id`, that is
+//! named only by an ID, or that is not UTF-8. `sync`, `rekey`
 //! and `id canonicalise` do not refuse, since only they clear what keeps a
 //! re-key from running or read no corpus. `list` prints either refusal as a
 //! warning and lists the corpus, so a user can see what to fix.
