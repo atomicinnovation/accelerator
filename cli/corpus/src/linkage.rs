@@ -626,7 +626,7 @@ mod tests {
         Band, LinkageRecord,
     };
     use crate::doc_type::DocTypeKey;
-    use crate::linkage_ids::test_ids::LegacyDigits;
+    use crate::linkage_ids::test_ids::KNOWN;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         [
@@ -658,7 +658,7 @@ mod tests {
             super::resolve_path_target(
                 "meta/work/0042-foo.md",
                 &table(),
-                &LegacyDigits
+                &KNOWN
             ),
             Some(("work-item", "0042".to_owned()))
         );
@@ -670,7 +670,7 @@ mod tests {
             super::resolve_path_target(
                 "meta/plans/2026-05-13-0055-sidebar-activity-feed.md",
                 &table(),
-                &LegacyDigits
+                &KNOWN
             ),
             Some(("plan", "2026-05-13-0055-sidebar-activity-feed".to_owned()))
         );
@@ -684,12 +684,12 @@ mod tests {
         let first = super::resolve_path_target(
             "meta/research/design-inventories/auth-module/inventory.md",
             &table(),
-            &LegacyDigits,
+            &KNOWN,
         );
         let second = super::resolve_path_target(
             "meta/research/design-inventories/billing-module/inventory.md",
             &table(),
-            &LegacyDigits,
+            &KNOWN,
         );
 
         assert_eq!(first, Some(("design-inventory", "auth-module".to_owned())));
@@ -706,7 +706,7 @@ mod tests {
             super::resolve_path_target(
                 "meta/prs/2026-06-17-pr-430-add-thing.md",
                 &table(),
-                &LegacyDigits
+                &KNOWN
             ),
             Some(("pr-description", "430".to_owned()))
         );
@@ -714,7 +714,7 @@ mod tests {
             super::resolve_path_target(
                 "meta/prs/no-pr-number-here.md",
                 &table(),
-                &LegacyDigits
+                &KNOWN
             ),
             Some(("pr-description", "no-pr-number-here".to_owned()))
         );
@@ -726,7 +726,7 @@ mod tests {
             super::resolve_path_target(
                 "meta/docs/logging-guide.md",
                 &table(),
-                &LegacyDigits
+                &KNOWN
             ),
             None
         );
@@ -741,23 +741,19 @@ mod tests {
             super::resolve_path_target(
                 "custom/work-items/0042-foo.md",
                 &table,
-                &LegacyDigits
+                &KNOWN
             ),
             Some(("work-item", "0042".to_owned()))
         );
         assert_eq!(
-            super::resolve_path_target(
-                "meta/work/0042-foo.md",
-                &table,
-                &LegacyDigits
-            ),
+            super::resolve_path_target("meta/work/0042-foo.md", &table, &KNOWN),
             None,
             "the default dir must not resolve once it's unconfigured"
         );
     }
 
     fn parse_document(source: &str, content: &str) -> Vec<LinkageRecord> {
-        super::parse_document(source, content, &table(), &LegacyDigits)
+        super::parse_document(source, content, &table(), &KNOWN)
     }
 
     #[test]
@@ -772,7 +768,7 @@ mod tests {
         let content = "## References\n- A sibling `docs/tickets/0002-y.md`\n";
 
         let records =
-            super::parse_document("work-item", content, &table, &LegacyDigits);
+            super::parse_document("work-item", content, &table, &KNOWN);
 
         assert_eq!(
             records.len(),

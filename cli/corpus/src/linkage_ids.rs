@@ -12,32 +12,28 @@ pub trait LinkageIds {
 pub(crate) mod test_ids {
     use super::LinkageIds;
 
-    /// The legacy rules: a filename's leading digits, and exactly four
-    /// digits in body text.
-    pub struct LegacyDigits;
+    /// A port that knows a fixed set of IDs, so linkage is tested against
+    /// the port rather than a copy of any shipped reading: a filename names
+    /// one when it starts with it before a `-`, and a line names each that
+    /// stands as a whole word.
+    pub struct KnownIds(pub &'static [&'static str]);
 
-    impl LinkageIds for LegacyDigits {
+    pub const KNOWN: KnownIds = KnownIds(&[
+        "0002", "0003", "0026", "0030", "0034", "0042", "0055", "0061", "0063",
+        "0065",
+    ]);
+
+    impl LinkageIds for KnownIds {
         fn id_in_filename(&self, filename: &str) -> Option<String> {
-            let digits: String =
-                filename.chars().take_while(char::is_ascii_digit).collect();
-            (!digits.is_empty()).then_some(digits)
+            let (head, _) = filename.split_once('-')?;
+            self.0.contains(&head).then(|| head.to_owned())
         }
 
         fn bare_ids_in(&self, line: &str) -> Vec<String> {
-            let characters: Vec<char> = line.chars().collect();
-            let mut tokens = Vec::new();
-            let mut index = 0;
-            while index + 4 <= characters.len() {
-                let candidate: String =
-                    characters[index..index + 4].iter().collect();
-                if candidate.bytes().all(|byte| byte.is_ascii_digit()) {
-                    tokens.push(candidate);
-                    index += 4;
-                } else {
-                    index += 1;
-                }
-            }
-            tokens
+            line.split(|c: char| !c.is_ascii_alphanumeric())
+                .filter(|word| self.0.contains(word))
+                .map(str::to_owned)
+                .collect()
         }
     }
 }
