@@ -89,6 +89,8 @@ export interface WorkItemConfig {
   key?: string | null;
   problem?: WorkItemProblem | null;
   restartNeeded?: boolean;
+  /** The `work` commands that refuse while the corpus cannot be trusted. */
+  gatedCommands?: string[];
   /** A regular-expression source matching every ID the configured pattern
    *  writes; absent while the pattern cannot be read. */
   idToken?: string | null;

@@ -17,6 +17,8 @@ pub(crate) struct WorkItemConfigBody {
     pub restart_needed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id_token: Option<String>,
+    /// The `work` commands that refuse while the corpus cannot be trusted.
+    pub gated_commands: Vec<&'static str>,
 }
 
 /// Why work-item IDs are switched off, and each item it lists beneath.
@@ -54,6 +56,7 @@ pub(crate) async fn get_work_item_config(
         problem,
         restart_needed,
         id_token,
+        gated_commands: work::corpus_trust::gated_commands().collect(),
     })
 }
 
@@ -341,6 +344,19 @@ mod tests {
             "{off_pattern:?}"
         );
         assert_eq!(converged, None);
+    }
+
+    #[tokio::test]
+    async fn the_commands_an_untrusted_corpus_stops_are_served() {
+        let tmp = tempfile::tempdir().unwrap();
+        let body = config_body(minimal_config(tmp.path())).await;
+        assert_eq!(
+            body["gatedCommands"],
+            serde_json::json!(
+                work::corpus_trust::gated_commands().collect::<Vec<_>>()
+            ),
+            "{body}"
+        );
     }
 
     #[tokio::test]

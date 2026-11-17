@@ -14,9 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 GATED_COMMANDS = (
-    (REPO_ROOT / "cli/work-cli/tests/fixtures/gated-commands.txt")
-    .read_text()
-    .split("\n")
+    (REPO_ROOT / "cli/work/src/gated-commands.txt").read_text().split("\n")
 )
 REFUSING_COMMAND = re.compile(
     r"\baccelerator work (?:"

@@ -3,6 +3,15 @@ import { fetchWorkItemConfig } from "../../api/fetch";
 import { queryKeys } from "../../api/query-keys";
 import styles from "./WorkItemProblemBanner.module.css";
 
+function CommandList({ commands }: { commands: string[] }) {
+  return commands.map((command, index) => (
+    <span key={command}>
+      {index === 0 ? "" : index === commands.length - 1 ? " and " : ", "}
+      <code>work {command}</code>
+    </span>
+  ));
+}
+
 /** Why work-item IDs cannot be trusted, with the remedy the server names,
  *  while they cannot. */
 export function WorkItemProblemBanner() {
@@ -11,7 +20,11 @@ export function WorkItemProblemBanner() {
     queryFn: fetchWorkItemConfig,
     select: (config) =>
       config.problem
-        ? { ...config.problem, restartNeeded: !!config.restartNeeded }
+        ? {
+            ...config.problem,
+            restartNeeded: !!config.restartNeeded,
+            gatedCommands: config.gatedCommands ?? [],
+          }
         : null,
   });
   if (!data) return null;
@@ -27,9 +40,7 @@ export function WorkItemProblemBanner() {
           </>
         ) : (
           <>
-            <code>work create</code>, <code>create-batch</code>,{" "}
-            <code>id next</code>, <code>id check</code>, <code>resolve</code>{" "}
-            and <code>promote</code> refuse with:
+            <CommandList commands={data.gatedCommands} /> refuse with:
           </>
         )}
       </p>

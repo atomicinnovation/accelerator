@@ -63,6 +63,7 @@ pub fn work::corpus_trust::CorpusWarning::fmt(&self, f: &mut core::fmt::Formatte
 impl core::fmt::Display for work::corpus_trust::CorpusWarning
 pub fn work::corpus_trust::CorpusWarning::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::corpus_trust::CorpusWarning
+pub fn work::corpus_trust::gated_commands() -> impl core::iter::traits::iterator::Iterator<Item = &'static str>
 pub fn work::corpus_trust::refuse_untrusted(scheme: &work::id_scheme::IdScheme, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<(), work::corpus_trust::UntrustedCorpus>
 pub mod work::create
 pub enum work::create::FieldValue

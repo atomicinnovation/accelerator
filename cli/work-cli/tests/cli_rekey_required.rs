@@ -67,8 +67,6 @@ fn work_files(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
-const GATED_COMMANDS: &str = include_str!("fixtures/gated-commands.txt");
-
 fn command_name(args: &[&str]) -> String {
     match args {
         ["id", verb, ..] => format!("id {verb}"),
@@ -81,11 +79,10 @@ fn assert_every_gated_command_is_run(commands: &[&[&str]]) {
     let run: std::collections::BTreeSet<String> =
         commands.iter().map(|args| command_name(args)).collect();
     let gated: std::collections::BTreeSet<String> =
-        GATED_COMMANDS.lines().map(str::to_owned).collect();
-    assert_eq!(
-        run, gated,
-        "the gated commands are listed in {GATED_COMMANDS}"
-    );
+        work::corpus_trust::gated_commands()
+            .map(str::to_owned)
+            .collect();
+    assert_eq!(run, gated, "work::corpus_trust::gated_commands()");
 }
 
 #[test]

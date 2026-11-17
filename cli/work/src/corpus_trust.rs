@@ -97,6 +97,12 @@ impl Display for UntrustedCorpus {
 
 impl std::error::Error for UntrustedCorpus {}
 
+/// Every `accelerator work` command that refuses an untrusted corpus, named
+/// as it is typed after `accelerator work`.
+pub fn gated_commands() -> impl Iterator<Item = &'static str> {
+    include_str!("gated-commands.txt").lines()
+}
+
 /// Refuses a corpus holding an item re-key would move, then one holding a
 /// work-item file whose IDs cannot be read.
 ///

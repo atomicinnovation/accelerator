@@ -41,6 +41,7 @@ describe("WorkItemProblemBanner", () => {
         items: [],
       },
       restartNeeded: false,
+      gatedCommands: ["create", "id next", "resolve"],
     });
 
     render(
@@ -51,7 +52,7 @@ describe("WorkItemProblemBanner", () => {
 
     const banner = await screen.findByRole("alert");
     expect(banner).toHaveTextContent(
-      "Work-item IDs are switched off: nothing clusters or links by work-item ID, and work create, create-batch, id next, id check, resolve and promote refuse with:",
+      "Work-item IDs are switched off: nothing clusters or links by work-item ID, and work create, work id next and work resolve refuse with:",
     );
     expect(banner).toHaveTextContent(
       "This clears by itself once the work items are fixed.",
