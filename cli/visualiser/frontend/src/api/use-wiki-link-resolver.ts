@@ -50,13 +50,21 @@ export function useWikiLinkResolver(): UseWikiLinkResolverResult {
   const isWarming = adrs.isPending || workItems.isPending;
 
   const pattern = useMemo<RegExp>(
-    () => buildWikiLinkPattern(workItemConfig.data?.key ?? null),
-    [workItemConfig.data?.key],
+    () =>
+      buildWikiLinkPattern(
+        workItemConfig.data?.key ?? null,
+        workItemConfig.data?.idToken,
+      ),
+    [workItemConfig.data?.key, workItemConfig.data?.idToken],
   );
 
   const bareIdPattern = useMemo<RegExp>(
-    () => buildBareIdPattern(workItemConfig.data?.key ?? null),
-    [workItemConfig.data?.key],
+    () =>
+      buildBareIdPattern(
+        workItemConfig.data?.key ?? null,
+        workItemConfig.data?.idToken,
+      ),
+    [workItemConfig.data?.key, workItemConfig.data?.idToken],
   );
 
   const wikiIndex = useMemo<WikiLinkIndex>(

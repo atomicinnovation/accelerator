@@ -175,6 +175,35 @@ impl WorkItemConfig {
             .is_some_and(|scheme| scheme.is_canonical_id_token(token))
     }
 
+    /// A JavaScript regular-expression source matching every ID the
+    /// scheme writes, and a bare number, for the page's wiki-link grammar;
+    /// none when no IDs are read.
+    #[must_use]
+    pub fn id_token(&self) -> Option<String> {
+        use work::id_pattern::ShapePart;
+        let pattern = self.scheme.as_ref()?.pattern();
+        if pattern.is_tracker_owned() {
+            return Some(
+                r"[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}".to_owned(),
+            );
+        }
+        let shape: String = pattern
+            .shape()
+            .map(|part| match part {
+                ShapePart::Literal(text) => text.replace('.', r"\."),
+                ShapePart::Key => "[A-Za-z][A-Za-z0-9]*".to_owned(),
+                ShapePart::Number { .. } => r"\d+".to_owned(),
+                ShapePart::Tracker => String::new(),
+            })
+            .collect();
+        let bare_number = r"\d+";
+        Some(if shape == bare_number {
+            shape
+        } else {
+            format!("{shape}|{bare_number}")
+        })
+    }
+
     #[must_use]
     pub fn displayed_id(&self, raw: &str) -> Option<String> {
         self.scheme.as_ref()?.displayed_id(raw)
@@ -415,6 +444,28 @@ mod tests {
             Some("ENG"),
         ));
         assert_eq!(cfg.displayed_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    #[test]
+    fn the_id_token_matches_every_id_the_pattern_writes() {
+        let token = |pattern: &str, key: Option<&str>| {
+            WorkItemConfig::new(scheme_for_test(pattern, key)).id_token()
+        };
+        assert_eq!(
+            token("{key}_{number:04d}", Some("PP")).as_deref(),
+            Some(r"[A-Za-z][A-Za-z0-9]*_\d+|\d+")
+        );
+        assert_eq!(token("v{number:03d}", None).as_deref(), Some(r"v\d+|\d+"));
+        assert_eq!(token("a.{number}", None).as_deref(), Some(r"a\.\d+|\d+"));
+        assert_eq!(
+            token("{tracker}", None).as_deref(),
+            Some(r"[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}")
+        );
+        assert_eq!(
+            WorkItemConfig::default_numeric().id_token().as_deref(),
+            Some(r"\d+")
+        );
+        assert_eq!(WorkItemConfig::unreadable().id_token(), None);
     }
 
     #[test]

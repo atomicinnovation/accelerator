@@ -165,6 +165,15 @@ pub struct IdPattern {
     segments: Vec<Segment>,
 }
 
+/// One part of the shape an ID under a pattern takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShapePart<'a> {
+    Literal(&'a str),
+    Key,
+    Number { width: usize },
+    Tracker,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdKey(String);
 
@@ -547,6 +556,16 @@ impl IdPattern {
         }
     }
 
+    /// The parts of the shape an ID under this pattern takes, in order.
+    pub fn shape(&self) -> impl Iterator<Item = ShapePart<'_>> {
+        self.segments.iter().map(|segment| match segment {
+            Segment::Literal(text) => ShapePart::Literal(text),
+            Segment::Key => ShapePart::Key,
+            Segment::Number { width } => ShapePart::Number { width: *width },
+            Segment::Tracker => ShapePart::Tracker,
+        })
+    }
+
     /// The shape the pattern renders, in words, naming a key and literal
     /// text only when the pattern has them.
     #[must_use]
@@ -798,11 +817,28 @@ mod tests {
     use super::MissingKey;
     use super::PatternError;
     use super::Segment;
+    use super::ShapePart;
 
     const PROMPTLY: Duration = Duration::from_secs(2);
 
     fn pattern(text: &str) -> IdPattern {
         IdPattern::parse(text).expect("a well-formed pattern")
+    }
+
+    #[test]
+    fn a_pattern_shows_its_shape_part_by_part() {
+        assert_eq!(
+            pattern("{key}_v{number:03d}").shape().collect::<Vec<_>>(),
+            vec![
+                ShapePart::Key,
+                ShapePart::Literal("_v"),
+                ShapePart::Number { width: 3 },
+            ]
+        );
+        assert_eq!(
+            pattern("{tracker}").shape().collect::<Vec<_>>(),
+            vec![ShapePart::Tracker]
+        );
     }
 
     fn key(text: &str) -> IdKey {

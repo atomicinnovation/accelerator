@@ -933,6 +933,12 @@
   It judges the corpus from the files it already indexes, and once a
   re-key or fix lands it reads the IDs again and clears the banner,
   without a restart.
+- **Wiki links reach every ID the configured pattern writes.**
+  `[[WORK-ITEM-PP_0042]]` under `{key}_{number:04d}`, `[[WORK-ITEM-v001]]`
+  under `v{number:03d}` and `[[WORK-ITEM-MY_PROJ-7]]` under `{tracker}` now
+  link, where only `<key>-<digits>` and bare digits did:
+  `/api/work-item/config` serves the pattern's `idToken`, which the page
+  builds its link grammar from.
 - **The visualiser picks up a `.MD` work item's changes live**, as it does a
   `.md` one's, rather than at the next rescan.
 - **Two work items sharing an identity key resolve to one of them

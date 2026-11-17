@@ -262,6 +262,21 @@ pub fn work::id_pattern::PatternError::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::fmt::Display for work::id_pattern::PatternError
 pub fn work::id_pattern::PatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::id_pattern::PatternError
+pub enum work::id_pattern::ShapePart<'a>
+pub work::id_pattern::ShapePart::Key
+pub work::id_pattern::ShapePart::Literal(&'a str)
+pub work::id_pattern::ShapePart::Number
+pub work::id_pattern::ShapePart::Number::width: usize
+pub work::id_pattern::ShapePart::Tracker
+impl<'a> core::clone::Clone for work::id_pattern::ShapePart<'a>
+pub fn work::id_pattern::ShapePart<'a>::clone(&self) -> work::id_pattern::ShapePart<'a>
+impl<'a> core::cmp::Eq for work::id_pattern::ShapePart<'a>
+impl<'a> core::cmp::PartialEq for work::id_pattern::ShapePart<'a>
+pub fn work::id_pattern::ShapePart<'a>::eq(&self, other: &work::id_pattern::ShapePart<'a>) -> bool
+impl<'a> core::fmt::Debug for work::id_pattern::ShapePart<'a>
+pub fn work::id_pattern::ShapePart<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::id_pattern::ShapePart<'a>
+impl<'a> core::marker::StructuralPartialEq for work::id_pattern::ShapePart<'a>
 pub struct work::id_pattern::HeldPrefix
 impl work::id_pattern::HeldPrefix
 pub const fn work::id_pattern::HeldPrefix::id_end(&self) -> usize
@@ -314,6 +329,7 @@ pub fn work::id_pattern::IdPattern::parse(text: &str) -> core::result::Result<Se
 pub fn work::id_pattern::IdPattern::read_exact(&self, text: &str) -> core::option::Option<work::id_pattern::IdParts>
 pub fn work::id_pattern::IdPattern::references_key(&self) -> bool
 pub fn work::id_pattern::IdPattern::render(&self, key: core::option::Option<&work::id_pattern::IdKey>, number: u64) -> core::result::Result<alloc::string::String, work::id_pattern::MissingKey>
+pub fn work::id_pattern::IdPattern::shape(&self) -> impl core::iter::traits::iterator::Iterator<Item = work::id_pattern::ShapePart<'_>>
 impl core::clone::Clone for work::id_pattern::IdPattern
 pub fn work::id_pattern::IdPattern::clone(&self) -> work::id_pattern::IdPattern
 impl core::cmp::Eq for work::id_pattern::IdPattern

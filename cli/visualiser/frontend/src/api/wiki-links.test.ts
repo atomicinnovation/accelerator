@@ -376,3 +376,28 @@ describe("splitByBareIds", () => {
     ]);
   });
 });
+
+describe("the server's ID token", () => {
+  const underscored = String.raw`[A-Za-z][A-Za-z0-9]*_\d+|\d+`;
+
+  it("links an ID in the configured pattern's own shape", () => {
+    const re = buildWikiLinkPattern("PP", underscored);
+    const found = [..."see [[WORK-ITEM-PP_0042]]".matchAll(re)];
+    expect(found.map((m) => m[2])).toEqual(["PP_0042"]);
+  });
+
+  it("finds a bare ID in the configured pattern's own shape", () => {
+    const re = buildBareIdPattern("PP", underscored);
+    const found = [..."WORK-ITEM-PP_0042".matchAll(re)];
+    expect(found.map((m) => m[2])).toEqual(["PP_0042"]);
+  });
+
+  it("links a tracker key", () => {
+    const re = buildWikiLinkPattern(
+      null,
+      String.raw`[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}`,
+    );
+    const found = [..."[[WORK-ITEM-MY_PROJ-7]]".matchAll(re)];
+    expect(found.map((m) => m[2])).toEqual(["MY_PROJ-7"]);
+  });
+});

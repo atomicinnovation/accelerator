@@ -15,6 +15,8 @@ pub(crate) struct WorkItemConfigBody {
     /// Whether clearing the problem needs a restart: the scheme is read
     /// once, at boot, while the corpus is judged as it changes.
     pub restart_needed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_token: Option<String>,
 }
 
 pub(crate) async fn get_work_item_config(
@@ -28,10 +30,13 @@ pub(crate) async fn get_work_item_config(
         .map(|key| key.as_str().to_owned());
     let problem = state.work_item_problem();
     let restart_needed = state.cfg.work_item.problem().is_some();
+    let id_token =
+        crate::config::WorkItemConfig::of(&state.cfg.work_item).id_token();
     Json(WorkItemConfigBody {
         key,
         problem,
         restart_needed,
+        id_token,
     })
 }
 
@@ -184,6 +189,7 @@ mod tests {
         );
         assert!(problem.contains("meta/work/PP-0001-a.md"), "{body}");
         assert_eq!(body["restartNeeded"], false, "{body}");
+        assert_eq!(body["idToken"], r"[A-Za-z][A-Za-z0-9]*_\d+|\d+", "{body}");
     }
 
     #[tokio::test]

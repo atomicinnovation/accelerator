@@ -17,19 +17,22 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Build the wiki-link match pattern from the server-supplied project code
- *  (or `null` when no project code is configured / default pattern).
- *
- *  - Default (`null`): matches `[[ADR-NNNN]]` and `[[WORK-ITEM-NNNN]]`.
- *  - Project-prefixed: also matches `[[WORK-ITEM-<PROJECT>-NNNN]]` via the
- *    `<PROJECT>-\d+` alternative, with bare-numeric `\d+` as fallback for
- *    legacy files. Multi-segment project codes (e.g. `ACME-CORE`) are out of
- *    scope: the compiler grammar forbids hyphens in project codes. */
-export function buildWikiLinkPattern(projectCode: string | null): RegExp {
-  const innerWorkItem = projectCode
-    ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
-    : `\\d+`;
+/** Build the wiki-link match pattern from the server's `idToken`, which
+ *  matches every ID the configured pattern writes, such as `PP_0042`, `v001`
+ *  or a tracker key. A server that serves none gets the older grammar from
+ *  its project code: `[[WORK-ITEM-NNNN]]`, and `[[WORK-ITEM-<PROJECT>-NNNN]]`
+ *  when one is configured. */
+export function buildWikiLinkPattern(
+  projectCode: string | null,
+  idToken?: string | null,
+): RegExp {
+  const innerWorkItem = idToken ?? legacyIdToken(projectCode);
   return new RegExp(`\\[\\[(ADR|WORK-ITEM)-(${innerWorkItem})\\]\\]`, "g");
+}
+
+/** The ID grammar of a server that serves no `idToken`. */
+function legacyIdToken(projectCode: string | null): string {
+  return projectCode ? `${escapeRegExp(projectCode)}-\\d+|\\d+` : `\\d+`;
 }
 
 export type BareIdSegment =
@@ -51,10 +54,11 @@ export type BareIdSegment =
  *  Always returned with the `g` flag set so callers can iterate
  *  matches; `splitByBareIds` clones to avoid `lastIndex` bleed across
  *  calls. */
-export function buildBareIdPattern(projectCode: string | null): RegExp {
-  const innerWorkItem = projectCode
-    ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
-    : `\\d+`;
+export function buildBareIdPattern(
+  projectCode: string | null,
+  idToken?: string | null,
+): RegExp {
+  const innerWorkItem = idToken ?? legacyIdToken(projectCode);
   return new RegExp(`\\b(ADR|WORK-ITEM)-(${innerWorkItem})\\b`, "g");
 }
 

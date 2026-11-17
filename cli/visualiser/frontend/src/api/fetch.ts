@@ -83,6 +83,9 @@ export interface WorkItemConfig {
   key?: string | null;
   problem?: string | null;
   restartNeeded?: boolean;
+  /** A regular-expression source matching every ID the configured pattern
+   *  writes; absent from older servers. */
+  idToken?: string | null;
 }
 
 export async function fetchWorkItemConfig(): Promise<WorkItemConfig> {
