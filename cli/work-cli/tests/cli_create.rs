@@ -586,3 +586,44 @@ fn create_batch_with_an_id_is_an_unrecognised_argument() -> Result<(), TestError
     assert_eq!(work_dir_listing(repo.path())?, before);
     Ok(())
 }
+
+#[test]
+fn a_requested_id_is_refused_with_one_exit_code_whether_dry_run_or_not(
+) -> Result<(), TestError> {
+    let cases: [(&str, &[&str], &str); 5] = [
+        (
+            KEYED,
+            &["--id", "XY-0400", "--project", "XY"],
+            "E_ID_WITH_PROJECT",
+        ),
+        (
+            "  id_pattern: \"{tracker}\"\n  integration: jira\n",
+            &["--id", "0400"],
+            "E_ID_TRACKER_OWNED",
+        ),
+        ("", &["--id", "draft-k7mq3x"], "E_ID_DRAFT_RESERVED"),
+        ("", &["--id", "400"], "E_ID_PATTERN_MISMATCH"),
+        ("", &["--id", "0400"], "E_ID_TAKEN"),
+    ];
+    for (work_body, flags, code) in cases {
+        let codes: Vec<Option<i32>> = [false, true]
+            .into_iter()
+            .map(|dry_run| {
+                let repo = scratch_repo_with_work_config(work_body)?;
+                fs::write(repo.path().join("meta/work/0400-held.md"), "")?;
+                let mut args = vec!["create", "Item", "task", "medium"];
+                args.extend_from_slice(flags);
+                if dry_run {
+                    args.push("--dry-run");
+                }
+                let output = run(repo.path(), &args)?;
+                let stderr = String::from_utf8(output.stderr)?;
+                assert!(stderr.contains(code), "{args:?}: {stderr}");
+                Ok(output.status.code())
+            })
+            .collect::<Result<_, TestError>>()?;
+
+        assert_eq!(codes[0], codes[1], "{code}");
+    }
+    Ok(())
+}
