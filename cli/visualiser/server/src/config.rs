@@ -168,13 +168,6 @@ impl WorkItemConfig {
         }
     }
 
-    #[must_use]
-    pub fn is_canonical_id_token(&self, token: &str) -> bool {
-        self.scheme
-            .as_ref()
-            .is_some_and(|scheme| scheme.is_canonical_id_token(token))
-    }
-
     /// A JavaScript regular-expression source matching every ID the
     /// scheme writes, and a bare number, for the page's wiki-link grammar;
     /// none when no IDs are read.
@@ -485,31 +478,10 @@ mod tests {
     }
 
     #[test]
-    fn is_canonical_id_token_under_default_numeric() {
-        let cfg = WorkItemConfig::default_numeric();
-        assert!(cfg.is_canonical_id_token("0040"));
-        assert!(!cfg.is_canonical_id_token("40"));
-        assert!(!cfg.is_canonical_id_token("00040"));
-        assert!(!cfg.is_canonical_id_token("100"));
-        assert!(!cfg.is_canonical_id_token("004A"));
-        assert!(!cfg.is_canonical_id_token(""));
-    }
-
-    #[test]
-    fn is_canonical_id_token_under_project_prefixed_pattern() {
-        let cfg = WorkItemConfig::with_pattern_for_test("PROJ", 4);
-        assert!(cfg.is_canonical_id_token("PROJ-0040"));
-        assert!(!cfg.is_canonical_id_token("0040"));
-        assert!(!cfg.is_canonical_id_token("PROJ-40"));
-        assert!(!cfg.is_canonical_id_token("OTHER-0040"));
-    }
-
-    #[test]
     fn an_unreadable_scheme_reads_no_work_item_ids() {
         let cfg = WorkItemConfig::unreadable();
         assert_eq!(cfg.displayed_id("0042"), None);
         assert_eq!(cfg.identity_key("0042"), None);
-        assert!(!cfg.is_canonical_id_token("0042"));
         assert_eq!(cfg.convention().id_in_filename("0042-x.md"), None);
         assert_eq!(cfg.convention().slug_start("0042-x"), None);
     }
