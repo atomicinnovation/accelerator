@@ -225,8 +225,9 @@ both directions.
 
 A sync that created an issue but could not finish recording it leaves a
 pending-push marker, and the next sync refuses to create the issue again
-until you say whether it exists. A `--preview` reports the same refusal before
-anything is applied. The refusal names one reason:
+until you say whether it exists. A `--preview` of a create without a
+`--resolve` order reports the same refusal before anything is applied. The
+refusal names one reason:
 
 | Reason | Meaning |
 |---|---|
