@@ -10,10 +10,10 @@
 |--------|-----------|-----------|-------|
 | Pass Rate | 100% (n=77) | 62% (n=52) | +0.37 |
 
-The Old Skill runs come from earlier sessions recorded under
-claude-sonnet-4-6, while every With Skill run was re-run on
-claude-opus-5-5, so the delta compares across models as well as skill
-versions.
+The Old Skill runs mix two models: evals 1 to 38 ran under
+claude-sonnet-4-6 and evals 39 to 72 under claude-opus-5-5 on 2026-11-02,
+while every With Skill run was re-run on claude-opus-5-5, so the delta
+compares across models as well as skill versions for evals 1 to 38.
 
 ## Per-Eval Results
 
@@ -68,7 +68,7 @@ versions.
 - ✓ **challenge-untestable-ac** (5): 2/2 (100%)
 - ✓ **automatic_allocation_after_a_tracker_refusal_follows_the_tracker_flow** (50): 3/3 (100%)
 - ✓ **a_refusal_from_the_pushed_create_resumes_at_the_push** (51): 4/4 (100%)
-- ✓ **a_flag_mentioned_mid_topic_is_not_a_requested_id** (52): 2/2 (100%)
+- ✓ **a_flag_mentioned_mid_topic_is_asked_about** (52): 2/2 (100%)
 - ✓ **an_id_given_with_an_equals_sign_is_requested** (53): 3/3 (100%)
 - ✓ **an_id_with_a_single_quote_runs_no_command** (54): 3/3 (100%)
 - ✓ **a_non_id_error_from_the_push_gate_aborts** (55): 3/3 (100%)
@@ -124,7 +124,7 @@ versions.
 - ✓ **challenge-untestable-ac** (5): 2/2 (100%)
 - ✓ **automatic_allocation_after_a_tracker_refusal_follows_the_tracker_flow** (50): 3/3 (100%)
 - ~ **a_refusal_from_the_pushed_create_resumes_at_the_push** (51): 2/4 (50%)
-- ✓ **a_flag_mentioned_mid_topic_is_not_a_requested_id** (52): 2/2 (100%)
+- ✓ **a_flag_mentioned_mid_topic_is_asked_about** (52): 2/2 (100%)
 - ~ **an_id_given_with_an_equals_sign_is_requested** (53): 1/3 (33%)
 - ~ **an_id_with_a_single_quote_runs_no_command** (54): 1/3 (33%)
 - ~ **a_non_id_error_from_the_push_gate_aborts** (55): 1/3 (33%)
@@ -170,3 +170,4 @@ versions.
 - The whole suite (ids 1 to 72) was re-run with_skill on 2026-11-02, by claude-opus-5-5, after Step 0 and Step 5 changed; executors simulated every accelerator call. Every run passes in full except eval 26, which failed 'The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt': its behavior.md placed the check directly before the write without showing its order against the confirmation prompt.
 - Evals 26, 39, 42, 45, 48, 49, 51, 52, 59, 60, 61, 62 and 66 were re-run with_skill only on 2026-11-15, by claude-opus-5-5, after `E_ID_TAKEN` moved to exit 4, `other-key` IDs came to need confirmation and an `--id` mid-argument came to be asked about (evals 45 and 52 gained new expectations). Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full, eval 26 included.
 - Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.
+- Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand.

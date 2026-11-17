@@ -85,7 +85,7 @@
       "74"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:406de62387d5b9e3ffee0b050cce16a4f48dead56f0a47e94b895ab9f4b2528c"
+    "skill_digest": "sha256:389f77c1072507a137c528914720642849e27c69f2a5211d25a23cd463d737ed"
   },
   "runs": [
     {
@@ -1144,7 +1144,7 @@
     },
     {
       "eval_id": 52,
-      "eval_name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
+      "eval_name": "a_flag_mentioned_mid_topic_is_asked_about",
       "configuration": "old_skill",
       "run_number": 1,
       "result": {
@@ -3572,7 +3572,7 @@
     },
     {
       "eval_id": 52,
-      "eval_name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
+      "eval_name": "a_flag_mentioned_mid_topic_is_asked_about",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {
@@ -4513,7 +4513,7 @@
     }
   },
   "notes": [
-    "with_skill passes 74 of 75 evals in full; eval 26 fails one of three expectations (see below).",
+    "with_skill passes all 77 evals in full. Eval 26 failed one of its three expectations until its re-run on 2026-11-15.",
     "old_skill runs were limited to 18 representative evals; the remaining 17 enrich-existing evals were omitted since they all test a mode that does not exist in the old skill — including them would trivially inflate the delta without adding insight.",
     "old_skill failures are all on enrich-existing mode evals: eval 15 (path-like discriminator), eval 21 (gap analysis), eval 24 (augmentation proposal) all score 0% because the old skill treats path-like input as a topic string.",
     "eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values — showing identity is not preserved.",
@@ -4530,6 +4530,7 @@
     "Evals 58, 59, 60 and 66 first passed in full on the old skill. Each gained one expectation the old run misses (no `work resolve` on a requested ID, no `work id next` and `--id` on the dry-run, all three recovery choices, `--id` on the first dry-run and `--push` create), and their old_skill runs were re-graded.",
     "The whole suite (ids 1 to 72) was re-run with_skill on 2026-11-02, by claude-opus-5-5, after Step 0 and Step 5 changed; executors simulated every accelerator call. Every run passes in full except eval 26, which failed 'The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt': its behavior.md placed the check directly before the write without showing its order against the confirmation prompt.",
     "Evals 26, 39, 42, 45, 48, 49, 51, 52, 59, 60, 61, 62 and 66 were re-run with_skill only on 2026-11-15, by claude-opus-5-5, after `E_ID_TAKEN` moved to exit 4, `other-key` IDs came to need confirmation and an `--id` mid-argument came to be asked about (evals 45 and 52 gained new expectations). Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full, eval 26 included.",
-    "Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against."
+    "Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.",
+    "Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand."
   ]
 }

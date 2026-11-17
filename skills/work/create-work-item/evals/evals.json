@@ -687,7 +687,7 @@
     },
     {
       "id": 52,
-      "name": "a_flag_mentioned_mid_topic_is_not_a_requested_id",
+      "name": "a_flag_mentioned_mid_topic_is_asked_about",
       "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item add --id <ID> to accelerator work create`\n\nSimulate `accelerator work resolve` exiting 1 with stderr `E_RESOLVE_INVALID: input '<argument>' is not a recognised path, full ID, or bare number`, with the argument it was given in place of `<argument>`. Stop after the skill's first message to the user.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n",
       "expected_output": "No command runs; the skill asks whether `--id <ID>` names the new item's ID or is part of the topic.",
       "files": [],
