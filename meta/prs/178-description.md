@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0319"
 parent: "work-item:0319"
-relates_to: ["work-item:0146", "work-item:0372", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
+relates_to: ["work-item:0146", "work-item:0390", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
@@ -248,11 +248,11 @@ is listed under "Behaviour changes".
 
 ### Housekeeping
 
-- **Work items**: 0146 gains a work-item ID model section; 0372
+- **Work items**: 0146 gains a work-item ID model section; 0390
   (`--dry-run` invocation validation) is added, blocked by this. It was filed
   as 0351, but PR #169 filed a different 0351 and 0355 is taken on another
   branch, so it was renumbered to 0371; main then raised its own 0371, so it
-  is now 0372.
+  became 0372, and main's own 0372 made it 0390.
 - **Docs**: the configure skill, `docs-site` (`work-items.md`, `corpus.md`
   and the guides), `tasks/README.md` and the skills follow every change;
   `test_retired_id_verbs.py` keeps the old verb names out of the skills,
@@ -336,7 +336,7 @@ notice:
   `178-review-3.md`; every inline thread is answered and resolved. The
   first two reviews' other findings are answered in PR comments; the third
   review's are listed as open in the plan's Implementation Notes.
-- Follow-up: 0372 makes `--dry-run` run every invocation check the real
+- Follow-up: 0390 makes `--dry-run` run every invocation check the real
   create runs; it keeps this PR's `--id` checks.
 
 ## Testing
@@ -404,6 +404,6 @@ notice:
   the integration state; unchanged by this PR's review response.
 - **Ordering**: under a keyless pattern, `E_PATTERN_KEY_UNUSED` follows
   `create_dir_all`, as it did under `{tracker}` before.
-- **`last-sync.json`** changes only because 0372 was synced to Linear
+- **`last-sync.json`** changes only because 0390 was synced to Linear
   (PP-935). Main's 0351 (PP-926) and 0371 (PP-942) keep their own
   entries.
