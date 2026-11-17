@@ -8,6 +8,7 @@ producer: "create-work-item"
 status: "draft"
 kind: "bug"
 priority: "high"
+parent: "work-item:0146"
 relates_to: ["work-item:0332"]
 external_id: "PP-886"
 tags: []

@@ -9,7 +9,7 @@ status: "in-progress"
 kind: "epic"
 priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
-relates_to: ["work-item:0171"]
+relates_to: ["work-item:0171", "work-item:0372"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
 last_updated: "2026-10-27T13:57:08+00:00"
 last_updated_by: "Toby Clemson"
@@ -305,6 +305,9 @@ Resolved during refinement (2026-08-30):
   is unaffected).
 - 0390 — Invocation validation on `accelerator work create --dry-run`
   (parity with the real create's checks; blocked by 0319).
+- 0333 — Work item writers omit the required tags field (`work create`, its
+  batch mode and the sync importer drop `tags` when empty, failing frontmatter
+  validation).
 
 ### Future candidates (deferred from 0229 refinement)
 
@@ -350,4 +353,4 @@ follow-on work.
 ## References
 
 - Source: `meta/notes/2026-06-22-ideas-backlog.md`
-- Related: 0171, 0220
+- Related: 0171, 0220, 0372

@@ -5,7 +5,7 @@ title: "find_repo_root fails in git worktrees (-d test on .git)"
 date: "2026-06-22T13:47:05+00:00"
 author: "Phil Helm"
 producer: "create-work-item"
-status: "draft"
+status: "abandoned"
 kind: "bug"
 priority: "high"
 relates_to: ["work-item:0058", "work-item:0020", "work-item:0125"]
@@ -19,7 +19,7 @@ external_id: "PP-145"
 # 0124: find_repo_root fails in git worktrees (-d test on .git)
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Abandoned
 **Priority**: High
 **Author**: Phil Helm
 
@@ -186,3 +186,10 @@ in Conductor workspaces.
 - Test fixture: `hooks/test-vcs-detect.sh` (`make_git_linked_worktree`)
 - Related: [`meta/work/0058-workspace-worktree-boundary-detection.md`](0058-workspace-worktree-boundary-detection.md)
 - Related: [`meta/work/0020-vcs-abstraction-layer.md`](0020-vcs-abstraction-layer.md)
+
+## Notes
+
+- **2026-11-17 — abandoned, obsolete.** 0199 retired `scripts/vcs-common.sh`,
+  so the `find_repo_root` this bug describes no longer exists. Repository-root
+  detection now lives in the library-backed VCS adapter (0188). Status set to
+  abandoned.
