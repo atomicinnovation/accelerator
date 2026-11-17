@@ -84,7 +84,7 @@ export interface WorkItemConfig {
   problem?: string | null;
   restartNeeded?: boolean;
   /** A regular-expression source matching every ID the configured pattern
-   *  writes; absent from older servers. */
+   *  writes; absent while the pattern cannot be read. */
   idToken?: string | null;
 }
 

@@ -17,17 +17,38 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Build the wiki-link match pattern from the server's `idToken`, which
- *  matches every ID the configured pattern writes, such as `PP_0042`, `v001`
- *  or a tracker key. A server that serves none gets the older grammar from
- *  its project code: `[[WORK-ITEM-NNNN]]`, and `[[WORK-ITEM-<PROJECT>-NNNN]]`
- *  when one is configured. */
+/** Build the wiki-link match pattern: `[[ADR-NNNN]]`, and a work item
+ *  through the server's `idToken`, which matches every ID the configured
+ *  pattern writes, such as `PP_0042`, `v001` or a tracker key. Without one
+ *  the grammar falls back to the project code: `[[WORK-ITEM-NNNN]]`, and
+ *  `[[WORK-ITEM-<PROJECT>-NNNN]]` when one is configured. Read a match
+ *  with `wikiLinkOf`. */
 export function buildWikiLinkPattern(
   projectCode: string | null,
   idToken?: string | null,
 ): RegExp {
+  return new RegExp(`\\[\\[${linkGrammar(projectCode, idToken)}\\]\\]`, "g");
+}
+
+function linkGrammar(
+  projectCode: string | null,
+  idToken?: string | null,
+): string {
   const innerWorkItem = idToken ?? legacyIdToken(projectCode);
-  return new RegExp(`\\[\\[(ADR|WORK-ITEM)-(${innerWorkItem})\\]\\]`, "g");
+  return `(?:(ADR)-(\\d+)|(WORK-ITEM)-(${innerWorkItem}))`;
+}
+
+export interface WikiLinkMatch {
+  prefix: WikiLinkKind;
+  id: string;
+}
+
+/** The prefix and ID of a match of `buildWikiLinkPattern` or
+ *  `buildBareIdPattern`. */
+export function wikiLinkOf(match: RegExpMatchArray): WikiLinkMatch {
+  return match[1] === undefined
+    ? { prefix: "WORK-ITEM", id: match[4] }
+    : { prefix: "ADR", id: match[2] };
 }
 
 /** The ID grammar of a server that serves no `idToken`. */
@@ -58,8 +79,7 @@ export function buildBareIdPattern(
   projectCode: string | null,
   idToken?: string | null,
 ): RegExp {
-  const innerWorkItem = idToken ?? legacyIdToken(projectCode);
-  return new RegExp(`\\b(ADR|WORK-ITEM)-(${innerWorkItem})\\b`, "g");
+  return new RegExp(`\\b${linkGrammar(projectCode, idToken)}\\b`, "g");
 }
 
 /** Split a string into ordered segments alternating between plain text
@@ -81,12 +101,7 @@ export function splitByBareIds(text: string, pattern: RegExp): BareIdSegment[] {
     if (m.index > lastIndex) {
       segments.push({ kind: "text", text: text.slice(lastIndex, m.index) });
     }
-    segments.push({
-      kind: "match",
-      text: m[0],
-      prefix: m[1] as "ADR" | "WORK-ITEM",
-      id: m[2],
-    });
+    segments.push({ kind: "match", text: m[0], ...wikiLinkOf(m) });
     lastIndex = m.index + m[0].length;
     m = re.exec(text);
   }

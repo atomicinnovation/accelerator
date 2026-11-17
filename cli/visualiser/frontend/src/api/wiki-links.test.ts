@@ -6,6 +6,7 @@ import {
   buildWikiLinkPattern,
   resolveWikiLink,
   splitByBareIds,
+  wikiLinkOf,
 } from "./wiki-links";
 
 /** Reset the regex's `lastIndex` between matches so global-flag state
@@ -15,7 +16,8 @@ import {
 function matches(s: string): Array<{ prefix: string; n: string }> {
   const out: Array<{ prefix: string; n: string }> = [];
   for (const m of s.matchAll(buildWikiLinkPattern(null))) {
-    out.push({ prefix: m[1], n: m[2] });
+    const { prefix, id } = wikiLinkOf(m);
+    out.push({ prefix, n: id });
   }
   return out;
 }
@@ -72,7 +74,7 @@ describe("buildWikiLinkPattern", () => {
     const text = "See [[WORK-ITEM-PROJ-0042]] for context";
     const ms = [...text.matchAll(pattern)];
     expect(ms).toHaveLength(1);
-    expect(ms[0][2]).toBe("PROJ-0042");
+    expect(wikiLinkOf(ms[0]).id).toBe("PROJ-0042");
   });
 
   it("falls back to bare numeric under a project pattern", () => {
@@ -80,7 +82,7 @@ describe("buildWikiLinkPattern", () => {
     const text = "See [[WORK-ITEM-0007]] for legacy context";
     const ms = [...text.matchAll(pattern)];
     expect(ms).toHaveLength(1);
-    expect(ms[0][2]).toBe("0007");
+    expect(wikiLinkOf(ms[0]).id).toBe("0007");
   });
 
   it("matches default-pattern work-item ids when no project code is configured", () => {
@@ -268,8 +270,10 @@ describe("buildBareIdPattern", () => {
     const re = buildBareIdPattern(null);
     const matches = [..."[[WORK-ITEM-0042]]".matchAll(re)];
     expect(matches.length).toBe(1);
-    expect(matches[0][1]).toBe("WORK-ITEM");
-    expect(matches[0][2]).toBe("0042");
+    expect(wikiLinkOf(matches[0])).toEqual({
+      prefix: "WORK-ITEM",
+      id: "0042",
+    });
   });
 
   it("matches project-prefixed forms when projectCode is set", () => {
@@ -383,13 +387,13 @@ describe("the server's ID token", () => {
   it("links an ID in the configured pattern's own shape", () => {
     const re = buildWikiLinkPattern("PP", underscored);
     const found = [..."see [[WORK-ITEM-PP_0042]]".matchAll(re)];
-    expect(found.map((m) => m[2])).toEqual(["PP_0042"]);
+    expect(found.map((m) => wikiLinkOf(m).id)).toEqual(["PP_0042"]);
   });
 
   it("finds a bare ID in the configured pattern's own shape", () => {
     const re = buildBareIdPattern("PP", underscored);
     const found = [..."WORK-ITEM-PP_0042".matchAll(re)];
-    expect(found.map((m) => m[2])).toEqual(["PP_0042"]);
+    expect(found.map((m) => wikiLinkOf(m).id)).toEqual(["PP_0042"]);
   });
 
   it("links a tracker key", () => {
@@ -398,6 +402,24 @@ describe("the server's ID token", () => {
       String.raw`[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}`,
     );
     const found = [..."[[WORK-ITEM-MY_PROJ-7]]".matchAll(re)];
-    expect(found.map((m) => m[2])).toEqual(["MY_PROJ-7"]);
+    expect(found.map((m) => wikiLinkOf(m).id)).toEqual(["MY_PROJ-7"]);
+  });
+
+  const trackerToken = String.raw`[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}`;
+
+  it("links an ADR beside tracker keys", () => {
+    const re = buildWikiLinkPattern(null, trackerToken);
+    const found = [..."see [[ADR-0017]]".matchAll(re)];
+    expect(found.map(wikiLinkOf)).toEqual([{ prefix: "ADR", id: "0017" }]);
+  });
+
+  it("finds a bare ADR beside tracker keys", () => {
+    const segs = splitByBareIds(
+      "ADR-0017",
+      buildBareIdPattern(null, trackerToken),
+    );
+    expect(segs).toEqual([
+      { kind: "match", text: "ADR-0017", prefix: "ADR", id: "0017" },
+    ]);
   });
 });

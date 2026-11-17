@@ -169,8 +169,8 @@ impl WorkItemConfig {
     }
 
     /// A JavaScript regular-expression source matching every ID the
-    /// scheme writes, and a bare number, for the page's wiki-link grammar;
-    /// none when no IDs are read.
+    /// scheme writes, and under a local pattern a bare number, for the
+    /// page's work-item link grammar; none when no IDs are read.
     #[must_use]
     pub fn id_token(&self) -> Option<String> {
         use work::id_pattern::ShapePart;
