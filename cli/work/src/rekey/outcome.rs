@@ -599,10 +599,13 @@ pub(crate) fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
              as `{example}`"
         ),
         UnclassifiableCause::AmbiguousDigitRuns { .. }
-        | UnclassifiableCause::NoNumber { .. }
-        | UnclassifiableCause::NumberAboveCap { .. } => {
+        | UnclassifiableCause::NoNumber { .. } => {
             "Give the item an `id` in the shape of `work.id_pattern`".to_owned()
         }
+        UnclassifiableCause::NumberAboveCap { number, .. } => format!(
+            "Widen `work.id_pattern` to hold {number}, or give the item an \
+             `id` in its shape and update the references to it"
+        ),
         UnclassifiableCause::ForbiddenCharacter { .. } => "Give the item an \
              `id` of ASCII letters, digits, `.`, `_` and `-`"
             .to_owned(),
@@ -742,7 +745,13 @@ mod tests {
 
     /// Every remedy form, each with a fragment of the remedy it must print.
     fn every_remedy() -> Vec<(NotRekeyed, &'static str)> {
-        [plan_remedies(), corpus_remedies(), run_remedies()].concat()
+        [
+            plan_remedies(),
+            corpus_remedies(),
+            unclassifiable_remedies(),
+            run_remedies(),
+        ]
+        .concat()
     }
 
     fn plan_remedies() -> Vec<(NotRekeyed, &'static str)> {
@@ -796,6 +805,32 @@ mod tests {
                  `accelerator work rekey --discard`; a path edited on \
                  purpose since the run started needs `ACCELERATOR_FORCE=1 \
                  accelerator work rekey --discard`",
+            ),
+        ]
+    }
+
+    fn unclassifiable_remedies() -> Vec<(NotRekeyed, &'static str)> {
+        vec![
+            (
+                NotRekeyed::Unclassifiable {
+                    item: path("meta/work/notes.md"),
+                    cause: UnclassifiableCause::NoNumber {
+                        id: "notes".to_owned(),
+                    },
+                },
+                "Give the item an `id` in the shape of `work.id_pattern`",
+            ),
+            (
+                NotRekeyed::Unclassifiable {
+                    item: path("meta/work/12345-x.md"),
+                    cause: UnclassifiableCause::NumberAboveCap {
+                        id: "12345".to_owned(),
+                        number: 12_345,
+                        cap: 9999,
+                    },
+                },
+                "Widen `work.id_pattern` to hold 12345, or give the item an \
+                 `id` in its shape and update the references to it",
             ),
         ]
     }
@@ -857,15 +892,6 @@ mod tests {
                 "Either choose a `work.key` the tracker does not use, or set \
                  `work.id_pattern` to `{tracker}` if items should carry the \
                  tracker's keys",
-            ),
-            (
-                NotRekeyed::Unclassifiable {
-                    item: path("meta/work/notes.md"),
-                    cause: UnclassifiableCause::NoNumber {
-                        id: "notes".to_owned(),
-                    },
-                },
-                "Give the item an `id` in the shape of `work.id_pattern`",
             ),
             (
                 NotRekeyed::FreshNumbersExhausted {

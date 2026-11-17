@@ -359,8 +359,9 @@ mod tests {
                 refusal.contains(&format!(
                     "Re-key cannot read one of them: meta/work/{id}-item.md \
                      has `id` '{id}', whose number 12345 is above 9999, the \
-                     most `work.id_pattern` holds. Give the item an `id` in \
-                     the shape of `work.id_pattern` by hand"
+                     most `work.id_pattern` holds. Widen `work.id_pattern` \
+                     to hold 12345, or give the item an `id` in its shape \
+                     and update the references to it by hand, then run"
                 )),
                 "{refusal}"
             );
