@@ -14,7 +14,7 @@ pr_number: 176
 tags: ["research", "research-topic", "ask", "report", "eval"]
 revision: "34b7d2125394b8132e9a6422427b73385f2dfac5"
 repository: "accelerator"
-last_updated: "2026-11-17T00:29:23+00:00"
+last_updated: "2026-11-17T05:15:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -129,9 +129,13 @@ refine loop that the build verbs left open.
   a preamble sentence and the harness refactors), `--family G2,G3,R1,E2,P1`
   passed 40/40 on Claude Code 2.1.322
 - [x] Permission probe rows recorded on Claude Code 2.1.144 and 2.1.316
-- [ ] Manual smoke test on a scratch copy: `report` accept-then-decline,
-  `ask` confirming a proposal appends only the next round, `report` on a
-  `researching` set refuses
+- [x] Smoke test on scratch copies of the reference corpus, as headless
+  sessions on Claude Code 2.1.322: `report` accept writes the report and
+  `report_count: 1`, a second `report` on the same question lists it as
+  equivalent and `decline` writes nothing; `ask` confirming a proposal
+  appends only `## Round 4` and reopens the set to `researching`; `report`
+  on a `researching` set refuses and writes nothing. Both written projects
+  validate
 
 ## Notes for Reviewers
 
@@ -159,3 +163,5 @@ refine loop that the build verbs left open.
   repeated question adds in a later round. That behaviour predates this PR;
   `consultable` now agrees with it rather than reporting an empty hold-back.
 - 0281's frontmatter `status` is still `ready`; move it on after merge.
+
+https://claude.ai/code/session_01HEhrwSoJjp31mZmAMH7LFR
