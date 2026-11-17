@@ -585,6 +585,29 @@ fn enumeration_keys_teams_by_team_key_with_the_uuid_as_identifier() {
 }
 
 #[test]
+fn enumeration_drops_a_team_without_a_name_as_list_teams_does() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(&path("/teams")),
+        json_route(
+            200,
+            &json!({"entities": [
+                {"id": TEAM, "name": "Team 1", "mention_name": TEAM_KEY},
+                {"id": "u-ghost", "mention_name": "ghost"}
+            ]}),
+        ),
+    );
+
+    let visible = client(&server)
+        .enumerate_visible_entities()
+        .expect("enumerates");
+
+    let keys: Vec<&str> =
+        visible.iter().map(|entity| entity.key.as_str()).collect();
+    assert_eq!(keys, vec![TEAM_KEY]);
+}
+
+#[test]
 fn a_failed_enumeration_is_retryable() {
     let server = MockHTTPServer::start();
     server.route(RequestKey::get(&path("/teams")), Route::Status(500));

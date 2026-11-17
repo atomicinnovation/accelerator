@@ -926,19 +926,12 @@ impl RemoteTracker for ShortcutClient {
         let identities: Vec<TeamIdentity> = teams
             .entities
             .iter()
-            .filter_map(|team| {
-                Some(TeamIdentity {
-                    uuid: team.get("id")?.as_str()?.to_owned(),
-                    mention_name: team
-                        .get("mention_name")
-                        .and_then(Value::as_str)
-                        .map(str::to_owned),
-                    name: team
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .unwrap_or_default()
-                        .to_owned(),
-                })
+            .filter_map(|team| match TeamIdentity::from_entity(team) {
+                Ok(identity) => Some(identity),
+                Err(error) => {
+                    tracing::warn!(%error, "skipping an unusable Shortcut team");
+                    None
+                }
             })
             .collect();
         let keys = TeamKeys::over(&identities);
