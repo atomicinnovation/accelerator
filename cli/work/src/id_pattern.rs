@@ -1507,9 +1507,15 @@ mod tests {
                         };
                         checked += 1;
                         for value in &candidates {
+                            let splits = every_split(&pattern.segments, value);
                             assert!(
-                                every_split(&pattern.segments, value) <= 1,
+                                splits <= 1,
                                 "{text} splits {value:?} more than one way"
+                            );
+                            assert_eq!(
+                                IdParts::parse(&pattern, value).is_some(),
+                                splits == 1,
+                                "{text} reading {value:?}"
                             );
                         }
                     }
