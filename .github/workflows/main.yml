@@ -106,6 +106,9 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install --yes zsh
 
+      - name: Report the runner's CPU counts
+        run: mise run host:cpu-counts
+
       - name: Run integration tests
         run: mise run test:integration
 
