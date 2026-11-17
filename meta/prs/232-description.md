@@ -14,7 +14,7 @@ pr_number: 232
 tags: ["visualiser", "testing", "playwright", "performance"]
 revision: "270a84d6154a2a2aea8053303799eaca460bc1c9"
 repository: "accelerator"
-last_updated: "2026-11-17T20:21:00+00:00"
+last_updated: "2026-11-17T20:51:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -75,7 +75,9 @@ measured, so it belongs in a reviewed commit that restarts the count.
 - Work item: `meta/work/0364-parallelise-the-serial-test-suites.md`
 - Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
   (Phase 6)
-- Based on `main` at `902556ac` (#228), after #229 (Phase 5) and #230.
+- Based on `main` at `7ba3859c` (#233), after #229 (Phase 5) and #230.
+  Validated on `main` at `902556ac` (#228); see "The count stands after
+  two rebases".
 - Phase 7 judges this PR's CI effect after it merges, so the suite hasn't
   landed until then.
 
@@ -208,6 +210,26 @@ first was stamped late, which left 0.25 s. It is unrelated to the suite.
 
 The one skip is `legacy-schema`'s existing lookup, which 0364 leaves
 alone.
+
+### The count stands after two rebases
+
+After the runs, this branch was rebased twice, both times by a sync
+process outside this work:
+1. onto `f7a8bd22`, a `[skip ci]` version bump;
+2. onto `7ba3859c` (#233), which changes the visualiser server's
+   idle-timeout parsing (`config.rs`), `tasks/notices.py` and its test.
+
+The ten runs were not repeated:
+- Neither change adds or removes a task in `default`.
+- The e2e harness never sets the idle timeout, so the server runs on its
+  default. A fault in parsing it would stop the server starting on every
+  run, not cause a flake.
+- This PR's CI on `aabc3ae1`, on the new base, passed every job. The e2e
+  suite passed 355 with 1 skipped on both OSes: 149.03 s on 3 workers on
+  ubuntu, and 296.68 s on 2 workers on macOS (run 44168400921). That
+  matches the worker counts below.
+- Phase 7's paired comparison runs the suite ten times per side on CI, so
+  it would still catch a flake.
 
 ## CI before window for `test-e2e`
 
