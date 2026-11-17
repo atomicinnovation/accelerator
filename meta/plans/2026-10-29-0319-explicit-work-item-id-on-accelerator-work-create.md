@@ -4002,9 +4002,10 @@ Edits to `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`:
 All eleven phases shipped as planned, and
 `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
 validated them against this plan (result `pass`). Three reviews of PR #178
-followed (`meta/reviews/prs/178-review-1.md`, `-2.md` and `-3.md`). The
-phases above are left as planned; these notes record where the code departs
-from them in response to those reviews, and after the rebases onto main.
+followed (`meta/reviews/prs/178-review-1.md`, `-2.md` and `-3.md`), then a
+re-review of the third through its review deck. The phases above are left
+as planned; these notes record where the code departs from them in response
+to those reviews, and after the rebases onto main.
 
 ### Superseded decisions
 
@@ -4015,7 +4016,8 @@ from them in response to those reviews, and after the rebases onto main.
 | Decisions: the linkage port | Only the frozen `LegacyNumericIds` implements `LinkageIds` | `IdScheme` implements it, so live `corpus linkage extract` reads through the configured scheme; `LegacyNumericIds` and `references_key` live in `migrate` for m0007 and m0009 |
 | Decisions: `migrate`'s identity needs | `canonicalise`, `references_key` and `legacy_linkage` on the port | The port only canonicalises, through `scheme_from_settings` |
 | Decisions: the visualiser's displayed ID | `normalise_id`, today's rule | `displayed_id`, read through the pattern |
-| Decisions: malformed pattern or key | Refused by every command and the visualiser | Every command refuses; the visualiser serves with no work-item IDs and reports the problem |
+| Decisions: malformed pattern or key | Refused by every command and the visualiser | Every command refuses; the visualiser serves with no work-item IDs and reports the problem, as it does over an untrusted corpus |
+| Response to review 1: the convergence gate | `list` refuses an untrusted corpus | `list` lists it and prints the refusal as a warning; the commands that act on IDs refuse |
 | Decisions: re-key under literal text | In shape when the ID equals its rendering under `work.key` | In shape when the pattern reads it at its exact width under any key, in any case; re-key keeps other keys unless `--from-key` names them |
 | Decisions: the `--id` preflight | `locate_work_items`, `admit_requested_id` and `refuse_if_requested_id_taken` called in turn | `admit_request` (locate, refuse an untrusted corpus, admit) is shared by the create and its dry run; `work_adapters::creation::refuse_requested_id` lists the corpus, runs the pending-push check and applies the taken rule for both |
 | Decisions: `work id check` verdicts | `corrected` when padded or `work.key` added | Also when the configured key's case is restored (`pp-0400` → `PP-0400`) |
@@ -4185,35 +4187,71 @@ from them in response to those reviews, and after the rebases onto main.
   own 0371 (PP-942), then 0390 when main filed its own 0372. Its references
   and sync baseline moved with it.
 
+### Response to the review 3 deck
+
+Every finding the deck marked to fix in this PR is fixed; the design
+decisions it questioned changed as below.
+
+- **Trust gate.** Convergence is its own module, `work::convergence`, which
+  asks re-key only whether it can read an item. Well-formedness judges a
+  filename through the scheme, so `PP-42-x.md` and `0042-x.md` holding
+  `PP-0042` are well formed; the text comparison remains for IDs the scheme
+  does not read. A file named only by an ID, and one that is not UTF-8, are
+  malformed. The refusal names the first item re-key cannot read, pinned by
+  path, and an item above the pattern's cap is named for a fix by hand.
+- **`work list` warns** over an untrusted corpus rather than refusing, so the
+  items needing a fix can be seen. The commands that act on IDs still refuse,
+  and the CLI tests and the skills guard read one fixture of them.
+- **Readings.** Token safety reads an ID in shape as convergence does,
+  ignoring literal case. A tracker's issue key in `external_id` takes and
+  lifts no local number, so the local sequence no longer follows the
+  tracker's. A bare number shows as the pattern renders it under every
+  pattern, and `work resolve` finds a bare number's items through the
+  pattern. The constructors that read any tracker's keys say so
+  (`IdScheme::under_any_tracker`, `scheme_from_settings_under_any_tracker`);
+  `scheme_from_settings` takes the tracker's rules. The key alias's
+  deprecation and the unused-key warning are printed by every command that
+  reads the scheme, through `SchemeReading::announced`.
+- **Visualiser.** The indexer judges the corpus from the work-item files it
+  already reads, on each rescan and work-item refresh, and reads no IDs
+  while the corpus is untrusted. The banner says what is off and whether it
+  clears by itself, from a `restartNeeded` flag. The page builds its link
+  grammar from an `idToken` the config endpoint serves from the pattern's
+  shape; the project facet reads its key through the scheme.
+- **work-cli.** One `Refusal` carries a stderr line and exit code;
+  `AdmittedRequest` is built only by `admit` or `without_requested_id`, so a
+  batch opens as a create does; `work id check`'s `Failed` exits `ERROR`, and
+  its tests check codes against the documented contract.
+- **Tests.** The sync exemption test requires sync to reach its tracker
+  check; a create and its dry run are held to one exit code per refusal;
+  `id next` is pinned to take the identity-run lock before the scheme; the
+  grammar's walker is held to the independent split counter; corpus linkage
+  is tested on a stub port. The evals' quoted CLI output is checked by a
+  Python integration lane, `test:integration:evals`, against the built
+  binary, and `eval_contract.rs` is gone.
+- **Skills and docs.** `/list-work-items` meets a bad pattern before a
+  missing directory; the configure skill names the `--from-key` fold after
+  renaming `work.key`; `/sync-work-items` runs sync before a re-key when
+  `promote` was refused mid-recovery; `/update-work-item` relays a scheme
+  refusal from `resolve` as a configuration error. An unreadable retirement
+  record's remedy says to move it aside. Eval 52 is named for what it
+  checks.
+- **Evals.** New evals cover the corpus refusals in `/update-work-item`
+  (3, 4), `/review-work-item` (4) and `/refine-work-item` (38). Evals 0 and 2
+  of `/update-work-item` and 2 and 3 of `/review-work-item` now simulate
+  their fixtures; review eval 3 expects the five default lenses. These and
+  the other evals of the three skills the second review changed were re-run
+  and pass.
+
 ### Not addressed
 
-Review 3 raised these in its body, with no inline thread, and they are
-left open:
-
-- `IdScheme::new` still defaults to `TrackerKeys::AnySupported`, and
-  `run_plan_store::decode_fingerprint` rebuilds a scheme through it. A run
-  plan stores only the pattern and key, and its targets are keys the
-  tracker issued, so carrying the tracker's rules would need a schema change
-  for no change in behaviour.
-- The general trust gate depends on the re-key subsystem
-  (`corpus_trust` → `rekey::convergence` → `rekey::mapping`).
-- The visualiser's trust check rescans the work directory on every request
-  rather than reading its indexer, and not in `spawn_blocking`.
-- The visualiser banner shows the raw CLI text and does not say a pattern
-  error needs a restart; the frontend's wiki-link grammar still assumes
-  `<key>-<digits>`.
-- `update-work-item` treats every exit 1 from `resolve` as unrecognised
-  input, hiding a scheme refusal; recovering a draft promotion in
-  `/sync-work-items` passes through three refusals before `sync`; changing
-  `work.key` in the configure skill does not mention `--from-key`.
-- `create-batch` builds an `AdmittedRequest` by hand; `work id check`'s
-  `Failed` arm goes through the string classifier; a stderr line and exit
-  code pair is a separate type in each command.
-- The skills changed for review 2 other than `/create-work-item` and
-  `/rekey-work-items` were not re-evaluated; which unclassifiable item
-  `E_REKEY_REQUIRED` names is not pinned.
-- CHANGELOG wording nits, and a visualiser indexer comment that justifies a
-  filename and `id` mismatch the gate now refuses.
+- `work create --dry-run` without `--id` still returns before reading the
+  scheme; work item 0390 carries it.
+- A refusal enum's variant count cannot be read on stable Rust, so the test
+  that each `RequestedIdRefusal` has a distinct code relies on its
+  exhaustive `covered` match rather than a count.
+- The skills guard checks that each skill running a gated command names
+  both refusal codes; how the skill handles them is left to the evals.
 
 ### Verification
 
@@ -4223,9 +4261,12 @@ left open:
   `work-adapters`, `accelerator-work` and `accelerator-visualiser` suites
   and the Python unit tests passed.
 - After the latest rebase onto main, the workspace compiles and the Python
-  unit tests pass; the full `mise run` has not been repeated.
-- The Manual Testing Steps ran during implementation and have not been
-  re-run since the review responses.
+  unit tests pass.
+- The Manual Testing Steps were re-run in scratch repositories after the
+  rebase, and pass.
+- After the response to the review 3 deck, the full `mise run` passed every
+  task but the CLI unit task's coverage floor, which stale coverage data
+  pulled under; after `cargo llvm-cov clean --workspace` that task exits 0.
 
 ## References
 
