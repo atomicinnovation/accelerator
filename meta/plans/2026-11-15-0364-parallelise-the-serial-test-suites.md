@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T23:12:05+00:00"
+last_updated: "2026-11-17T07:36:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -41,7 +41,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
 | 5. Retries off | Playwright | #229 | Open |
-| 6. Host-relative workers | Playwright | — | Implemented, stacked on #229; manual validation pending |
+| 6. Host-relative workers | Playwright | — | Rebased onto `main` at #228; load measurement done, 10-run validation pending |
 | 7. CI closing comparison | Both | — | Not started |
 
 ## Current State Analysis
@@ -1305,13 +1305,50 @@ that restarts the count.
       `fullyParallel: true` on `resolved-styles`, unless Phase 5 already
       turned it on. It is a config change, so it restarts the 10-run count.
       Not needed: the isolated median is 47.0 s.
-- [ ] Load measurement recorded in the PR (not a gate): one non-isolated
+- [x] Load measurement recorded in the PR (not a gate): one non-isolated
       `mise run measure:build --cache-state warm-no-op --runs 5 --host-settings devtools --keep`
       without the worker change and one with it. Run them back to back,
       from one recorded base commit. Record whether the dev track's worker
       phase is in that base. Record the median and IQR of the `default` wall time and of the
       three slowest sibling tasks. These runs are separate from the 10
       counted runs.
+  - **Result.** The base is `main` at `902556ac` (#228), which contains the
+    dev track's worker phase (#222). "Without" ran on `902556ac` and "with"
+    on the Phase 6 config commit `399edd36` rebased onto it, back to back.
+    Both working copies matched at start and end. The idle load was 36.9%
+    before "without" and 60.0% before "with".
+
+    | Figure | Without | With |
+    |---|---|---|
+    | `default` wall time | 274.3 s, IQR 12.6 | 276.7 s, IQR 2.3 |
+    | `test:unit:cli` | 202.0 s, IQR 6.2 | 255.0 s, IQR 5.1 |
+    | `test:e2e:visualiser` | 199.4 s, IQR 7.8 | 87.5 s, IQR 6.6 |
+    | `test:unit:tasks` | 124.3 s, IQR 26.1 | 189.3 s, IQR 9.1 |
+    | `test:integration:research` | 79.2 s, IQR 15.0 | 84.4 s, IQR 10.9 |
+
+    The `default` median rises by 2.4 s, inside the larger IQR, so it is
+    unchanged. The e2e suite's saving moves onto `test:unit:cli` and
+    `test:unit:tasks`, which now set the critical path. That is the
+    cross-lane contention 0369 owns.
+  - **Unrelated-task failures.** "Without" run 4 failed `test:unit:cli`
+    (`research-cli`'s `arxiv_pacing`
+    `a_killed_calls_request_still_spaces_the_next`, whose 3 s spacing
+    assertion measured 2.983 s) and `lint:server:check` (the server's
+    build script found no `frontend/dist/index.html` while `build:frontend`
+    was rebuilding it). The records also flag `deps:install:public-api`
+    and `notices:check` as failed with no exit status. Both are parsing
+    artefacts: their last log line was interleaved with another task's
+    output, and their runs exited 0.
+  - **Two earlier attempts were discarded.** In the first, a fetch and
+    `jj rebase -b @ -d 'trunk()'` from outside this session moved the
+    "without" base mid-run. In the second, another Claude Code session ran
+    `pkill -f chrome-headless-shell` at 06:27:04 UTC, which SIGTERMed all
+    nine of the e2e suite's browsers at once (exit 143) and failed 9 tests.
+    Neither is a flake in the suite.
+  - The records are
+    `meta/measurements/build_2026-11-17T063700Z_engywook_warm-no-op_devtools.json`
+    and
+    `meta/measurements/build_2026-11-17T070532Z_engywook_warm-no-op_devtools.json`.
 
 ---
 
