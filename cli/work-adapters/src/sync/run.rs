@@ -1746,6 +1746,65 @@ impl CreateStatePaths {
     }
 }
 
+/// What a create-from-local is built from, read before any marker is: the
+/// draft's own title, body and kind, and where its create keeps its state.
+struct LocalCreateInputs {
+    title: String,
+    body: String,
+    kind: String,
+    paths: CreateStatePaths,
+}
+
+impl LocalCreateInputs {
+    fn gather(
+        create: &LocalCreate<'_>,
+        request: &SyncRequest<'_>,
+    ) -> Result<Self, ApplyError> {
+        let item = create.item;
+        let (title, body, kind) = create_inputs(item)?;
+        let paths =
+            CreateStatePaths::for_item(request, &item.id).ok_or_else(|| {
+                ItemAttempt::begin(&item.id).io_failure(
+                    SyncOperation::MarkerWrite,
+                    "id cannot name a pending-push marker",
+                )
+            })?;
+        Ok(Self {
+            title,
+            body,
+            kind,
+            paths,
+        })
+    }
+
+    fn create_request<'a>(
+        &'a self,
+        create: &'a LocalCreate<'_>,
+        sync: &'a SyncRequest<'_>,
+        author: &'a dyn LocalAuthor,
+        carrier_of: &'a dyn Fn(&ExternalId) -> Option<KeyCarrier>,
+        attempted_at: u64,
+    ) -> CreateFromLocalRequest<'a> {
+        let item = create.item;
+        CreateFromLocalRequest {
+            item_id: &item.id,
+            file_path: &item.path,
+            title: &self.title,
+            body: &self.body,
+            kind: &self.kind,
+            marker_path: &self.paths.marker,
+            adoption_record_path: &self.paths.adoption_record,
+            author,
+            carrier_of,
+            corpus_blocked_by: sync.inventory.blocking_fault(),
+            order: create.planned.order(),
+            linked: item.external_id.as_ref(),
+            tracker_name: sync.integration,
+            attempted_at,
+        }
+    }
+}
+
 fn apply_local_create(
     applier: &mut ItemApplier<'_, '_>,
     create: &LocalCreate<'_>,
@@ -1754,39 +1813,17 @@ fn apply_local_create(
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> (ReportedItem, Option<Adoption>) {
-    let item = create.item;
-    let (title, body, kind) = match create_inputs(item) {
+    let inputs = match LocalCreateInputs::gather(create, request) {
         Ok(inputs) => inputs,
         Err(error) => return (create.report(ItemOutcome::Failed(error)), None),
     };
-    let Some(state_paths) = CreateStatePaths::for_item(request, &item.id)
-    else {
-        return (
-            create.report(ItemOutcome::Failed(
-                ItemAttempt::begin(&item.id).io_failure(
-                    SyncOperation::MarkerWrite,
-                    "id cannot name a pending-push marker",
-                ),
-            )),
-            None,
-        );
-    };
-    let local_create = CreateFromLocalRequest {
-        item_id: &item.id,
-        file_path: &item.path,
-        title: &title,
-        body: &body,
-        kind: &kind,
-        marker_path: &state_paths.marker,
-        adoption_record_path: &state_paths.adoption_record,
+    let local_create = inputs.create_request(
+        create,
+        request,
         author,
         carrier_of,
-        corpus_blocked_by: request.inventory.blocking_fault(),
-        order: create.planned.order(),
-        linked: item.external_id.as_ref(),
-        tracker_name: request.integration,
         attempted_at,
-    };
+    );
     let attempted = match create.relink_order() {
         Some(order) => applier.relink(&local_create, order),
         None => applier.create_from_local(&local_create),

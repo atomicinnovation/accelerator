@@ -16,6 +16,7 @@ use tracker::RemoteTracker;
 use tracker::TrackerError;
 use tracker::Unrenderable;
 use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
 use work::inventory::Fault;
 use work::sync::order_precondition;
 use work::sync::push_precondition;
@@ -632,7 +633,7 @@ fn refused_marker_state(
 
 /// A pending-push marker as a create may rely on it. A distrusted marker
 /// still stops a create, but never steers an adopt.
-enum MarkerReading {
+pub(crate) enum MarkerReading {
     Absent,
     Unreadable,
     Distrusted {
@@ -644,6 +645,53 @@ enum MarkerReading {
 }
 
 impl MarkerReading {
+    /// The item's pending-push marker, distrusted when a person could have
+    /// committed it or when it records a key no tracker issues.
+    pub(crate) fn read(
+        request: &CreateFromLocalRequest<'_>,
+        tracking: &dyn RepositoryTracking,
+    ) -> Self {
+        let raw = match std::fs::read_to_string(request.marker_path) {
+            Ok(raw) => Some(raw),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => return Self::Unreadable,
+        };
+        let marker = match pending_push::read(raw.as_deref()) {
+            Err(_) => {
+                return Self::Unreadable;
+            }
+            Ok(None) => return Self::Absent,
+            Ok(Some(marker)) => marker,
+        };
+        let created = match &marker {
+            PendingPush::Created { external_id, .. } => Some(external_id),
+            PendingPush::Attempted { .. } => None,
+        };
+        let issued_key = created
+            .filter(|key| {
+                TrackerKey::parse_any_supported(key.as_str()).is_some()
+            })
+            .cloned();
+        if tracking.file_tracking(request.marker_path)
+            != FileTracking::Untracked
+        {
+            return Self::Distrusted {
+                cause: "marker is tracked by version control".to_owned(),
+                created: issued_key,
+            };
+        }
+        if created.is_some() && issued_key.is_none() {
+            return Self::Distrusted {
+                cause: format!(
+                    "marker records a key that is not a {} key",
+                    request.tracker_name
+                ),
+                created: None,
+            };
+        }
+        Self::Trusted(marker)
+    }
+
     const fn state(&self) -> MarkerState<'_> {
         match self {
             Self::Absent => MarkerState::Absent,
@@ -666,6 +714,63 @@ impl MarkerReading {
             Self::Distrusted { cause, .. } => Some(cause),
             _ => None,
         }
+    }
+}
+
+impl CreateFromLocalRequest<'_> {
+    fn digest(&self) -> String {
+        pending_push::request_digest(self.title, self.body, self.kind)
+    }
+}
+
+/// What a create without an order does once its marker is read: create
+/// the issue, or link the one an earlier attempt already created.
+pub(crate) enum BareCreateDecision {
+    Proceed,
+    ReuseId(ExternalId),
+}
+
+pub(crate) fn bare_create_decision(
+    request: &CreateFromLocalRequest<'_>,
+    marker: &MarkerReading,
+) -> Result<BareCreateDecision, ApplyError> {
+    let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
+    match push_precondition(&marker.state(), &request.digest(), &is_carried) {
+        PushPrecondition::Refuse(reason) => {
+            Err(pending_push_refused(request, marker, reason))
+        }
+        PushPrecondition::ReuseId(key) => match request.corpus_blocked_by {
+            Some(blocking) => Err(ApplyError::CorpusIncomplete {
+                subject: request.item_id.to_owned(),
+                deferred: IncompleteCorpusDeferral::ReuseId(key),
+                blocking,
+            }),
+            None => Ok(BareCreateDecision::ReuseId(key)),
+        },
+        PushPrecondition::Proceed => Ok(BareCreateDecision::Proceed),
+    }
+}
+
+fn pending_push_refused(
+    request: &CreateFromLocalRequest<'_>,
+    marker: &MarkerReading,
+    reason: RefusalReason,
+) -> ApplyError {
+    let trusted = marker.trusted();
+    let carrier = match trusted {
+        Some(PendingPush::Created { external_id, .. }) => {
+            (request.carrier_of)(external_id)
+        }
+        _ => None,
+    };
+    let state = marker.distrust().map_or_else(
+        || refused_marker_state(reason, trusted, carrier),
+        str::to_owned,
+    );
+    ApplyError::PendingPushRefused {
+        item_id: request.item_id.to_owned(),
+        reason,
+        detail: format!("{state} (marker {})", request.marker_path.display()),
     }
 }
 
@@ -1139,8 +1244,10 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     }
                     None => {}
                 }
-                let has_marker =
-                    !matches!(self.read_marker(request), MarkerReading::Absent);
+                let has_marker = !matches!(
+                    MarkerReading::read(request, self.files.tracking),
+                    MarkerReading::Absent
+                );
                 self.adopt(request, attempt, &key, has_marker, refused)
             }
             PendingPushOrder::Create => {
@@ -1159,103 +1266,18 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
     ) -> Result<CreatedLocally, ApplyError> {
-        let digest = pending_push::request_digest(
-            request.title,
-            request.body,
-            request.kind,
-        );
-
-        let marker = self.read_marker(request);
+        let marker = MarkerReading::read(request, self.files.tracking);
         if let Some(order) = request.order {
-            return self.settle_order(request, attempt, &marker, digest, order);
+            return self.settle_order(request, attempt, &marker, order);
         }
-        let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
-        match push_precondition(&marker.state(), &digest, &is_carried) {
-            PushPrecondition::Refuse(reason) => {
-                let trusted = marker.trusted();
-                let carrier = match trusted {
-                    Some(PendingPush::Created { external_id, .. }) => {
-                        (request.carrier_of)(external_id)
-                    }
-                    _ => None,
-                };
-                let state = marker.distrust().map_or_else(
-                    || refused_marker_state(reason, trusted, carrier),
-                    str::to_owned,
-                );
-                Err(ApplyError::PendingPushRefused {
-                    item_id: request.item_id.to_owned(),
-                    reason,
-                    detail: format!(
-                        "{state} (marker {})",
-                        request.marker_path.display()
-                    ),
-                })
-            }
-            PushPrecondition::ReuseId(external_id) => {
-                if let Some(blocking) = request.corpus_blocked_by {
-                    return Err(ApplyError::CorpusIncomplete {
-                        subject: request.item_id.to_owned(),
-                        deferred: IncompleteCorpusDeferral::ReuseId(
-                            external_id,
-                        ),
-                        blocking,
-                    });
-                }
-                self.link_and_baseline(request, attempt, &external_id)
-                    .map(CreatedLocally::from)
-            }
-            PushPrecondition::Proceed => self
-                .create_marking_progress(request, attempt, digest)
+        match bare_create_decision(request, &marker)? {
+            BareCreateDecision::ReuseId(key) => self
+                .link_and_baseline(request, attempt, &key)
+                .map(CreatedLocally::from),
+            BareCreateDecision::Proceed => self
+                .create_marking_progress(request, attempt)
                 .map(CreatedLocally::from),
         }
-    }
-
-    /// The item's pending-push marker, distrusted when a person could have
-    /// committed it or when it records a key no tracker issues.
-    fn read_marker(
-        &self,
-        request: &CreateFromLocalRequest<'_>,
-    ) -> MarkerReading {
-        let raw = match std::fs::read_to_string(request.marker_path) {
-            Ok(raw) => Some(raw),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-            Err(_) => return MarkerReading::Unreadable,
-        };
-        let marker = match pending_push::read(raw.as_deref()) {
-            Err(_) => {
-                return MarkerReading::Unreadable;
-            }
-            Ok(None) => return MarkerReading::Absent,
-            Ok(Some(marker)) => marker,
-        };
-        let created = match &marker {
-            PendingPush::Created { external_id, .. } => Some(external_id),
-            PendingPush::Attempted { .. } => None,
-        };
-        let issued_key = created
-            .filter(|key| {
-                TrackerKey::parse_any_supported(key.as_str()).is_some()
-            })
-            .cloned();
-        if self.files.tracking.file_tracking(request.marker_path)
-            != FileTracking::Untracked
-        {
-            return MarkerReading::Distrusted {
-                cause: "marker is tracked by version control".to_owned(),
-                created: issued_key,
-            };
-        }
-        if created.is_some() && issued_key.is_none() {
-            return MarkerReading::Distrusted {
-                cause: format!(
-                    "marker records a key that is not a {} key",
-                    request.tracker_name
-                ),
-                created: None,
-            };
-        }
-        MarkerReading::Trusted(marker)
     }
 
     /// Carries out a person's settlement of a refused pending push. Adopt
@@ -1266,7 +1288,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
         reading: &MarkerReading,
-        digest: String,
         order: &PendingPushOrder,
     ) -> Result<CreatedLocally, ApplyError> {
         let marker = &reading.state();
@@ -1281,7 +1302,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 },
                 PendingPushOrder::Create,
             ) => OrderPrecondition::CreateUnlessIssueExists(recorded.clone()),
-            _ => order_precondition(marker, &digest, order, request.carrier_of),
+            _ => order_precondition(
+                marker,
+                &request.digest(),
+                order,
+                request.carrier_of,
+            ),
         };
         match decision {
             OrderPrecondition::AlreadyWritten(carrier) => {
@@ -1306,11 +1332,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     })),
                 }
             }
-            OrderPrecondition::Create => self
-                .create_anew(request, attempt, digest)
-                .map(CreatedLocally::from),
+            OrderPrecondition::Create => {
+                self.create_anew(request, attempt).map(CreatedLocally::from)
+            }
             OrderPrecondition::CreateUnmarked => self
-                .create_anew(request, attempt, digest)
+                .create_anew(request, attempt)
                 .map(|leftover_marker| CreatedLocally {
                     notice: Some(CreateNotice::NothingToSettle),
                     ..CreatedLocally::from(leftover_marker)
@@ -1320,7 +1346,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     self.tracker.locate(&recorded)
                 })? {
                     Located::NotFound => self
-                        .create_anew(request, attempt, digest)
+                        .create_anew(request, attempt)
                         .map(CreatedLocally::from),
                     Located::Found(issue) => {
                         Err(refused(OrderRefusal::MarkerRecords {
@@ -1451,7 +1477,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
-        digest: String,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
         if request.linked.is_some() {
             attempt.land_local(SyncOperation::LinkExternalId, None, || {
@@ -1461,18 +1486,17 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     .map_err(published_by_author)
             })?;
         }
-        self.create_marking_progress(request, attempt, digest)
+        self.create_marking_progress(request, attempt)
     }
 
     fn create_marking_progress(
         &self,
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
-        digest: String,
     ) -> Result<Option<LeftoverMarker>, ApplyError> {
         let fingerprint = RequestFingerprint {
             title: request.title.to_owned(),
-            digest,
+            digest: request.digest(),
             attempted_at: request.attempted_at,
             failure: None,
         };
