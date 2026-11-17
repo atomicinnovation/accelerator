@@ -1441,33 +1441,20 @@ fn why_no_create(request: &SyncRequest<'_>, id: &str) -> OrderRefusal {
     )
 }
 
-/// The `(title, body, kind)` a create-from-local needs, read from the draft's
-/// own frontmatter and body.
-fn create_inputs(
-    item: &LocalItem,
-) -> Result<(String, String, String), ApplyError> {
-    let content = ItemAttempt::begin(&item.id).observe_local(
-        SyncOperation::ReadLocal,
-        || {
-            std::fs::read_to_string(&item.path).map_err(|error| {
-                if error.kind() == std::io::ErrorKind::InvalidData {
-                    StepError::Refused(ApplyError::LocalUnparseable {
-                        item_id: item.id.clone(),
-                        operation: SyncOperation::ReadLocal,
-                        detail: UnreadContent::Undecodable.to_string(),
-                    })
-                } else {
-                    StepError::Failed(error)
-                }
-            })
-        },
-    )?;
-    let (_, body) =
-        crate::sync::digest::split_frontmatter_and_body(&content)
-            .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
-    let fields = create_request_fields::read(&content)
-        .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
-    Ok((fields.title, body, fields.kind))
+fn read_local_content(item: &LocalItem) -> Result<String, ApplyError> {
+    ItemAttempt::begin(&item.id).observe_local(SyncOperation::ReadLocal, || {
+        std::fs::read_to_string(&item.path).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::InvalidData {
+                StepError::Refused(ApplyError::LocalUnparseable {
+                    item_id: item.id.clone(),
+                    operation: SyncOperation::ReadLocal,
+                    detail: UnreadContent::Undecodable.to_string(),
+                })
+            } else {
+                StepError::Failed(error)
+            }
+        })
+    })
 }
 
 /// A create report line, always `Unsynced`-stated so it renders as an action
@@ -1767,7 +1754,13 @@ impl LocalCreateInputs {
         request: &SyncRequest<'_>,
     ) -> Result<Self, ApplyError> {
         let item = create.item;
-        let (title, body, kind) = create_inputs(item)?;
+        let content = read_local_content(item)?;
+        let (_, body) = crate::sync::digest::split_frontmatter_and_body(
+            &content,
+        )
+        .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+        let fields = create_request_fields::read(&content)
+            .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
         let paths =
             CreateStatePaths::for_item(request, &item.id).ok_or_else(|| {
                 ItemAttempt::begin(&item.id).io_failure(
@@ -1776,9 +1769,9 @@ impl LocalCreateInputs {
                 )
             })?;
         Ok(Self {
-            title,
+            title: fields.title,
             body,
-            kind,
+            kind: fields.kind,
             paths,
         })
     }
