@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
+use corpus::store::StoreError;
 use work::identity::ItemIdentity;
 use work::promotion::PromotionStage;
 use work::rekey::entry::RekeyEntry;
@@ -60,9 +61,11 @@ impl SyncState<'_> {
 pub fn unfinished_sync_work(sync: &SyncState<'_>) -> Vec<SyncBlocker> {
     let mut blockers: Vec<SyncBlocker> =
         sync.records.outstanding().map_or_else(
-            |_| {
+            |error| {
                 vec![SyncBlocker::UnreadableRecord(
-                    sync.state_dir.join("retirement-records"),
+                    unreadable_record(&error).unwrap_or_else(|| {
+                        sync.state_dir.join("retirement-records")
+                    }),
                 )]
             },
             |records| {
@@ -166,4 +169,13 @@ pub fn unsettled_recoveries(sync: &SyncState<'_>) -> Vec<PathBuf> {
         .collect();
     unsettled.sort();
     unsettled
+}
+
+fn unreadable_record(error: &StoreError) -> Option<PathBuf> {
+    match error {
+        StoreError::Malformed { path, .. } | StoreError::Io { path, .. } => {
+            Some(PathBuf::from(path))
+        }
+        _ => None,
+    }
 }

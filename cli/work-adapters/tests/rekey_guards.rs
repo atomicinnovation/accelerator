@@ -220,9 +220,9 @@ fn a_malformed_retirement_record_blocks() -> Result<(), TestError> {
 
     let blockers = with_sync_state(&repo, false, unfinished_sync_work);
 
-    assert!(
-        matches!(blockers.as_slice(), [SyncBlocker::UnreadableRecord(_)]),
-        "{blockers:?}"
+    assert_eq!(
+        blockers,
+        vec![SyncBlocker::UnreadableRecord(dir.join("PP-1--ENG-1.json"))]
     );
     Ok(())
 }

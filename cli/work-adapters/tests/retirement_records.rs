@@ -90,9 +90,10 @@ fn a_malformed_record_is_reported_rather_than_skipped() {
     std::fs::write(dir.join("PP-1--ENG-1.json"), "{").unwrap();
     let records = FileRetirementRecords::new(state.path(), &PlainWrite);
 
+    let named = dir.join("PP-1--ENG-1.json").display().to_string();
     assert!(matches!(
         records.outstanding(),
-        Err(StoreError::Validation { .. })
+        Err(StoreError::Malformed { path, .. }) if path == named
     ));
 }
 
@@ -111,7 +112,7 @@ fn a_record_whose_ids_are_not_one_path_component_is_unreadable() {
 
     assert!(matches!(
         records.outstanding(),
-        Err(StoreError::Validation { .. })
+        Err(StoreError::Malformed { .. })
     ));
 }
 
@@ -138,7 +139,7 @@ fn a_record_whose_ids_leave_the_id_alphabet_is_unreadable() {
         assert!(
             matches!(
                 outstanding_with(&body),
-                Err(StoreError::Validation { .. })
+                Err(StoreError::Malformed { .. })
             ),
             "{body}"
         );
@@ -157,7 +158,7 @@ fn a_record_whose_recovery_dir_leaves_the_recovery_parent_is_unreadable() {
         assert!(
             matches!(
                 outstanding_with(&body),
-                Err(StoreError::Validation { .. })
+                Err(StoreError::Malformed { .. })
             ),
             "{recovery_dir}"
         );

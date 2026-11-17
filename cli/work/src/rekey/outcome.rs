@@ -373,8 +373,9 @@ impl NotRekeyed {
                     matches!(blocker, SyncBlocker::UnreadableRecord(_))
                 }) =>
             {
-                "Move each unreadable record aside, since sync cannot read it \
-                 either, then run `accelerator work sync`"
+                "Sync cannot read an unreadable record either: rename it so \
+                 its name no longer ends in `.json`, or move it out of \
+                 `retirement-records/`, then run `accelerator work sync`"
                     .to_owned()
             }
             Self::SyncUnfinished(_) => "Run `accelerator work sync`".to_owned(),
@@ -857,8 +858,9 @@ mod tests {
                     },
                     SyncBlocker::UnreadableRecord(path("records/x.json")),
                 ]),
-                "Move each unreadable record aside, since sync cannot read it \
-                 either, then run `accelerator work sync`",
+                "Sync cannot read an unreadable record either: rename it so \
+                 its name no longer ends in `.json`, or move it out of \
+                 `retirement-records/`, then run `accelerator work sync`",
             ),
             (
                 NotRekeyed::SyncUnfinished(vec![SyncBlocker::Promotion {

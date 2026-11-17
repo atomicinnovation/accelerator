@@ -72,8 +72,9 @@ fn encode(record: &RetirementRecord) -> String {
 }
 
 fn decode(path: &Path, raw: &str) -> Result<RetirementRecord, StoreError> {
-    let malformed = |why: &str| StoreError::Validation {
-        detail: format!("{}: {why}", path.display()),
+    let malformed = |why: &str| StoreError::Malformed {
+        path: path.display().to_string(),
+        detail: why.to_owned(),
     };
     let value: Value = serde_json::from_str(raw)
         .map_err(|error| malformed(&error.to_string()))?;
