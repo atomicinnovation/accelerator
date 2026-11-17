@@ -934,8 +934,8 @@
   pattern forms the `### Migrations` entry lists, it serves plans, research
   and every other document, reads no work-item IDs, so nothing clusters or
   links as a work item, and reports the refusal, naming the setting and
-  value, in its log, as `problem` from `/api/work-item/config` and in a
-  banner above every page. A corpus that needs a re-key, or holds a
+  value, in its log, as `problem` (a `summary` and the `items` it lists)
+  from `/api/work-item/config` and in a banner above every page. A corpus that needs a re-key, or holds a
   malformed work item, is treated the same way: the visualiser reads no
   work-item IDs from it, as the `work` commands refuse to, and reports why.
   It judges the corpus from the files it already indexes, and once a

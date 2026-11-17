@@ -137,9 +137,17 @@ impl MalformedItems {
         formatter: &mut impl std::fmt::Write,
         after: AfterFixing,
     ) -> std::fmt::Result {
+        write!(formatter, "{}", self.summary(after))?;
+        for line in self.listed() {
+            write!(formatter, "\n    {line}")?;
+        }
+        Ok(())
+    }
+
+    /// The refusal's opening line, which says it all for a single item.
+    pub(crate) fn summary(&self, after: AfterFixing) -> String {
         if let [only] = self.items.as_slice() {
-            return write!(
-                formatter,
+            return format!(
                 "{}: {}. {}{}",
                 Self::CODE,
                 only.what(),
@@ -147,18 +155,25 @@ impl MalformedItems {
                 after.then(),
             );
         }
-        write!(
-            formatter,
+        format!(
             "{}: {} work items cannot be read for their IDs. Fix each one \
              as shown{}:",
             Self::CODE,
             self.items.len(),
             after.then(),
-        )?;
-        for item in &self.items {
-            write!(formatter, "\n    {}. {}", item.what(), item.remedy())?;
+        )
+    }
+
+    /// Each item with its fix, listed beneath the summary when there are
+    /// several.
+    pub(crate) fn listed(&self) -> Vec<String> {
+        if self.items.len() < 2 {
+            return Vec::new();
         }
-        Ok(())
+        self.items
+            .iter()
+            .map(|item| format!("{}. {}", item.what(), item.remedy()))
+            .collect()
     }
 }
 

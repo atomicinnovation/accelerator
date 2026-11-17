@@ -204,7 +204,7 @@ pub(crate) struct PostSecondaryUpdateHook {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Trust {
     Trusted,
-    Untrusted(String),
+    Untrusted(work::corpus_trust::CorpusWarning),
 }
 
 impl Trust {
@@ -214,7 +214,7 @@ impl Trust {
     }
 
     #[must_use]
-    pub fn problem(&self) -> Option<&str> {
+    pub const fn problem(&self) -> Option<&work::corpus_trust::CorpusWarning> {
         match self {
             Self::Trusted => None,
             Self::Untrusted(problem) => Some(problem),
@@ -831,7 +831,7 @@ impl Indexer {
     /// Why the corpus cannot be trusted for its IDs, naming paths relative
     /// to the project root, while it cannot.
     pub fn untrusted_corpus_problem(&self) -> Option<String> {
-        self.trust().problem().map(str::to_owned)
+        self.trust().problem().map(ToString::to_string)
     }
 
     /// Holds `trust` as the corpus's.

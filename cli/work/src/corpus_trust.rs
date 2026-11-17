@@ -49,17 +49,40 @@ impl UntrustedCorpus {
     /// The problem as a warning to a command that went ahead, which asks
     /// for the fix but not for a re-run.
     #[must_use]
-    pub fn warning(&self) -> String {
-        let mut text = String::new();
-        let written = match self {
+    pub fn warning(&self) -> CorpusWarning {
+        match self {
             Self::RekeyRequired(problem) => {
-                problem.write_to(&mut text, AfterFixing::NothingMore)
+                let mut summary = String::new();
+                let _ =
+                    problem.write_to(&mut summary, AfterFixing::NothingMore);
+                CorpusWarning {
+                    summary,
+                    items: Vec::new(),
+                }
             }
-            Self::Malformed(problem) => {
-                problem.write_to(&mut text, AfterFixing::NothingMore)
-            }
-        };
-        written.map_or_else(|_| self.to_string(), |()| text)
+            Self::Malformed(problem) => CorpusWarning {
+                summary: problem.summary(AfterFixing::NothingMore),
+                items: problem.listed(),
+            },
+        }
+    }
+}
+
+/// A corpus problem as a warning: its summary, and each item it lists
+/// beneath, one line apiece.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CorpusWarning {
+    pub summary: String,
+    pub items: Vec<String>,
+}
+
+impl Display for CorpusWarning {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.summary)?;
+        for item in &self.items {
+            write!(formatter, "\n    {item}")?;
+        }
+        Ok(())
     }
 }
 
@@ -174,7 +197,8 @@ mod tests {
             .err()
             .unwrap_or_else(|| unreachable!("the corpus is untrusted"))
             .relative_to(Path::new("/repo"))
-            .warning();
+            .warning()
+            .to_string();
 
         assert!(
             warning.starts_with(
@@ -184,5 +208,47 @@ mod tests {
             "{warning}"
         );
         assert!(!warning.contains("re-run this command"), "{warning}");
+    }
+
+    #[test]
+    fn a_warning_lists_each_malformed_item_apart_from_its_summary() {
+        let files =
+            [file("PP-0002.md", "PP-0002"), file("PP-0003.md", "PP-0003")];
+
+        let warning = refuse_untrusted(&keyed(), &listing_of(&files))
+            .err()
+            .unwrap_or_else(|| unreachable!("the corpus is untrusted"))
+            .relative_to(Path::new("/repo"))
+            .warning();
+
+        assert_eq!(
+            warning.summary,
+            "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their \
+             IDs. Fix each one as shown:"
+        );
+        assert_eq!(warning.items.len(), 2, "{:?}", warning.items);
+        assert!(
+            warning.items[0].starts_with("meta/work/PP-0002.md has `id`"),
+            "{:?}",
+            warning.items
+        );
+        assert!(
+            warning.items[1].starts_with("meta/work/PP-0003.md has `id`"),
+            "{:?}",
+            warning.items
+        );
+    }
+
+    #[test]
+    fn a_warning_over_one_problem_is_all_summary() {
+        let files = [file("PP-0002.md", "PP-0002")];
+
+        let warning = refuse_untrusted(&keyed(), &listing_of(&files))
+            .err()
+            .unwrap_or_else(|| unreachable!("the corpus is untrusted"))
+            .warning();
+
+        assert_eq!(warning.summary, warning.to_string());
+        assert!(warning.items.is_empty());
     }
 }

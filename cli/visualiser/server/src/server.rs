@@ -59,22 +59,17 @@ pub struct AppState {
 pub fn work_item_problem(
     composed: &crate::config::WorkItemScheme,
     trust: &crate::indexer::Trust,
-) -> Option<String> {
+) -> Option<work::corpus_trust::CorpusWarning> {
     composed
         .problem()
-        .or_else(|| trust.problem())
-        .map(str::to_owned)
+        .map(|problem| work::corpus_trust::CorpusWarning {
+            summary: problem.to_owned(),
+            items: Vec::new(),
+        })
+        .or_else(|| trust.problem().cloned())
 }
 
 impl AppState {
-    /// Why work-item IDs cannot be trusted now: a scheme that could not be
-    /// read, or a corpus holding an item a re-key would move or a file
-    /// whose IDs cannot be read.
-    #[must_use]
-    pub fn work_item_problem(&self) -> Option<String> {
-        work_item_problem(&self.cfg.work_item, &self.indexer.trust())
-    }
-
     pub async fn build(
         cfg: Config,
         http_activity: Arc<crate::activity::Activity>,

@@ -38,7 +38,7 @@ impl work::corpus_trust::UntrustedCorpus
 pub const fn work::corpus_trust::UntrustedCorpus::code(&self) -> &'static str
 pub fn work::corpus_trust::UntrustedCorpus::relative_to(self, root: &std::path::Path) -> Self
 impl work::corpus_trust::UntrustedCorpus
-pub fn work::corpus_trust::UntrustedCorpus::warning(&self) -> alloc::string::String
+pub fn work::corpus_trust::UntrustedCorpus::warning(&self) -> work::corpus_trust::CorpusWarning
 impl core::clone::Clone for work::corpus_trust::UntrustedCorpus
 pub fn work::corpus_trust::UntrustedCorpus::clone(&self) -> work::corpus_trust::UntrustedCorpus
 impl core::cmp::Eq for work::corpus_trust::UntrustedCorpus
@@ -50,6 +50,19 @@ pub fn work::corpus_trust::UntrustedCorpus::fmt(&self, f: &mut core::fmt::Format
 impl core::fmt::Display for work::corpus_trust::UntrustedCorpus
 pub fn work::corpus_trust::UntrustedCorpus::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::corpus_trust::UntrustedCorpus
+pub struct work::corpus_trust::CorpusWarning
+pub work::corpus_trust::CorpusWarning::items: alloc::vec::Vec<alloc::string::String>
+pub work::corpus_trust::CorpusWarning::summary: alloc::string::String
+impl core::clone::Clone for work::corpus_trust::CorpusWarning
+pub fn work::corpus_trust::CorpusWarning::clone(&self) -> work::corpus_trust::CorpusWarning
+impl core::cmp::Eq for work::corpus_trust::CorpusWarning
+impl core::cmp::PartialEq for work::corpus_trust::CorpusWarning
+pub fn work::corpus_trust::CorpusWarning::eq(&self, other: &work::corpus_trust::CorpusWarning) -> bool
+impl core::fmt::Debug for work::corpus_trust::CorpusWarning
+pub fn work::corpus_trust::CorpusWarning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::corpus_trust::CorpusWarning
+pub fn work::corpus_trust::CorpusWarning::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::corpus_trust::CorpusWarning
 pub fn work::corpus_trust::refuse_untrusted(scheme: &work::id_scheme::IdScheme, listing: &work::work_item_files::WorkItemListing) -> core::result::Result<(), work::corpus_trust::UntrustedCorpus>
 pub mod work::create
 pub enum work::create::FieldValue

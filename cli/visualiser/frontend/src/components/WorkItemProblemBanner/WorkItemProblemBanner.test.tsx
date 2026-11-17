@@ -17,7 +17,10 @@ describe("WorkItemProblemBanner", () => {
 
   it("shows why work-item IDs cannot be trusted", async () => {
     vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
-      problem: "E_REKEY_REQUIRED: 1 work item is not under the ID",
+      problem: {
+        summary: "E_REKEY_REQUIRED: 1 work item is not under the ID",
+        items: [],
+      },
     });
 
     render(
@@ -33,7 +36,10 @@ describe("WorkItemProblemBanner", () => {
 
   it("says what is switched off and that the problem clears by itself", async () => {
     vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
-      problem: "E_REKEY_REQUIRED: 1 work item is not under the ID",
+      problem: {
+        summary: "E_REKEY_REQUIRED: 1 work item is not under the ID",
+        items: [],
+      },
       restartNeeded: false,
     });
 
@@ -54,7 +60,10 @@ describe("WorkItemProblemBanner", () => {
 
   it("says a configuration problem needs a restart", async () => {
     vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
-      problem: "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad",
+      problem: {
+        summary: "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad",
+        items: [],
+      },
       restartNeeded: true,
     });
 
@@ -75,8 +84,14 @@ describe("WorkItemProblemBanner", () => {
 
   it("lists each malformed work item on its own line", async () => {
     vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
-      problem:
-        "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their IDs. Fix each one as shown:\n    meta/work/0398-cafe.md is not UTF-8 text\n    meta/work/0399.md has `id` '0399'",
+      problem: {
+        summary:
+          "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their IDs. Fix each one as shown:",
+        items: [
+          "meta/work/0398-cafe.md is not UTF-8 text",
+          "meta/work/0399.md has `id` '0399'",
+        ],
+      },
       restartNeeded: false,
     });
 

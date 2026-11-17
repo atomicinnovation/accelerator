@@ -77,11 +77,17 @@ export async function patchWorkItemFrontmatter(
   return { etag: parsedEtag };
 }
 
+/** Why work-item IDs are switched off, and each item it lists beneath. */
+export interface WorkItemProblem {
+  summary: string;
+  items: string[];
+}
+
 /** The work-item ID settings a page reads IDs through, and why the IDs
  *  cannot be trusted when they cannot. */
 export interface WorkItemConfig {
   key?: string | null;
-  problem?: string | null;
+  problem?: WorkItemProblem | null;
   restartNeeded?: boolean;
   /** A regular-expression source matching every ID the configured pattern
    *  writes; absent while the pattern cannot be read. */

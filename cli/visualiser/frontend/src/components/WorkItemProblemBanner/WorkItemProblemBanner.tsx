@@ -3,23 +3,6 @@ import { fetchWorkItemConfig } from "../../api/fetch";
 import { queryKeys } from "../../api/query-keys";
 import styles from "./WorkItemProblemBanner.module.css";
 
-interface Problem {
-  summary: string;
-  items: string[];
-  restartNeeded: boolean;
-}
-
-/** The server's problem as its summary line and the items it lists
- *  beneath, one per indented line. */
-function problemOf(text: string, restartNeeded: boolean): Problem {
-  const [summary, ...items] = text.split("\n");
-  return {
-    summary,
-    items: items.map((item) => item.trim()).filter((item) => item !== ""),
-    restartNeeded,
-  };
-}
-
 /** Why work-item IDs cannot be trusted, with the remedy the server names,
  *  while they cannot. */
 export function WorkItemProblemBanner() {
@@ -27,7 +10,9 @@ export function WorkItemProblemBanner() {
     queryKey: queryKeys.workItemConfig(),
     queryFn: fetchWorkItemConfig,
     select: (config) =>
-      config.problem ? problemOf(config.problem, !!config.restartNeeded) : null,
+      config.problem
+        ? { ...config.problem, restartNeeded: !!config.restartNeeded }
+        : null,
   });
   if (!data) return null;
   return (

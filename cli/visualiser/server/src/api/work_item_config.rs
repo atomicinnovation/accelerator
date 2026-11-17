@@ -11,12 +11,28 @@ pub(crate) struct WorkItemConfigBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub problem: Option<String>,
+    pub problem: Option<ProblemBody>,
     /// Whether clearing the problem needs a restart: the scheme is read
     /// once, at boot, while the corpus is judged as it changes.
     pub restart_needed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id_token: Option<String>,
+}
+
+/// Why work-item IDs are switched off, and each item it lists beneath.
+#[derive(Debug, Serialize)]
+pub(crate) struct ProblemBody {
+    pub summary: String,
+    pub items: Vec<String>,
+}
+
+impl From<work::corpus_trust::CorpusWarning> for ProblemBody {
+    fn from(warning: work::corpus_trust::CorpusWarning) -> Self {
+        Self {
+            summary: warning.summary,
+            items: warning.items,
+        }
+    }
 }
 
 pub(crate) async fn get_work_item_config(
@@ -29,7 +45,8 @@ pub(crate) async fn get_work_item_config(
         .and_then(|scheme| scheme.key())
         .map(|key| key.as_str().to_owned());
     let problem =
-        crate::server::work_item_problem(&state.cfg.work_item, &trust);
+        crate::server::work_item_problem(&state.cfg.work_item, &trust)
+            .map(ProblemBody::from);
     let restart_needed = state.cfg.work_item.problem().is_some();
     let id_token = reading.id_token();
     Json(WorkItemConfigBody {
@@ -159,7 +176,10 @@ mod tests {
 
         assert_eq!(
             body["problem"],
-            "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad"
+            serde_json::json!({
+                "summary": "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad",
+                "items": [],
+            })
         );
         assert_eq!(body["restartNeeded"], true, "{body}");
     }
@@ -182,7 +202,7 @@ mod tests {
 
         let body = config_body(cfg).await;
 
-        let problem = body["problem"].as_str().unwrap_or_default();
+        let problem = body["problem"]["summary"].as_str().unwrap_or_default();
         assert!(
             problem.starts_with("E_REKEY_REQUIRED: 1 work item"),
             "{body}"
@@ -225,11 +245,41 @@ mod tests {
 
         let body = config_body(cfg).await;
 
-        let problem = body["problem"].as_str().unwrap_or_default();
+        let problem = body["problem"]["summary"].as_str().unwrap_or_default();
         assert!(
             problem.starts_with(
                 "E_WORK_ITEM_MALFORMED: meta/work/0001.md has `id` '0001'"
             ),
+            "{body}"
+        );
+    }
+
+    #[tokio::test]
+    async fn each_malformed_work_item_is_listed_apart_from_the_summary() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(work.join("0001.md"), "---\nid: \"0001\"\n---\n")
+            .unwrap();
+        std::fs::write(work.join("0002.md"), "---\nid: \"0002\"\n---\n")
+            .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+
+        let body = config_body(cfg).await;
+
+        assert_eq!(
+            body["problem"]["summary"],
+            "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their \
+             IDs. Fix each one as shown:",
+            "{body}"
+        );
+        let items = body["problem"]["items"].as_array().unwrap();
+        assert_eq!(items.len(), 2, "{body}");
+        assert!(
+            items[0]
+                .as_str()
+                .is_some_and(|item| item.starts_with("meta/work/0001.md")),
             "{body}"
         );
     }
@@ -259,7 +309,7 @@ mod tests {
             let bytes = resp.into_body().collect().await.unwrap().to_bytes();
             let body: serde_json::Value =
                 serde_json::from_slice(&bytes).unwrap();
-            body["problem"].as_str().map(str::to_owned)
+            body["problem"]["summary"].as_str().map(str::to_owned)
         };
 
         std::fs::write(work.join("42-a.md"), "---\nid: \"42\"\n---\n").unwrap();
