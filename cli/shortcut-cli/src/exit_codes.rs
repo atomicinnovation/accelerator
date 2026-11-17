@@ -152,6 +152,7 @@ pub const fn for_read(failure: &ReadFailure) -> u8 {
     match failure {
         ReadFailure::Status { status, .. } => for_status(*status),
         ReadFailure::Unsent(_) => CONNECT,
+        ReadFailure::UnusableBody(_) => BAD_RESPONSE,
     }
 }
 
@@ -212,6 +213,15 @@ pub const fn write_failure_name(error: &TrackerError) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unusable_answer_is_a_bad_response_and_no_answer_a_connect() {
+        let unusable = ReadFailure::UnusableBody("not JSON".to_owned());
+        let unsent = ReadFailure::Unsent("timed out".to_owned());
+
+        assert_eq!(for_read(&unusable), BAD_RESPONSE);
+        assert_eq!(for_read(&unsent), CONNECT);
+    }
 
     #[test]
     fn each_status_class_has_its_own_code() {

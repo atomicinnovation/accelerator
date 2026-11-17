@@ -101,7 +101,7 @@ impl ShortcutClient {
             .or_else(|| body.pointer("/entity/workflow_id"))
             .and_then(Value::as_i64)
             .ok_or_else(|| {
-                WriteError::Read(ReadFailure::Unsent(format!(
+                WriteError::Read(ReadFailure::UnusableBody(format!(
                     "sc-{} came back without a workflow",
                     story.number()
                 )))

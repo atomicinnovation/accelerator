@@ -226,7 +226,9 @@ impl ShortcutClient {
         self.succeeded(self.transport.get(url, deadline))?
             .json()
             .ok_or_else(|| {
-                ReadFailure::Unsent("Shortcut answered non-JSON".to_owned())
+                ReadFailure::UnusableBody(
+                    "Shortcut answered non-JSON".to_owned(),
+                )
             })
     }
 
@@ -388,7 +390,7 @@ impl ShortcutClient {
                 op,
                 &received.body,
             )
-            .map_err(|error| ReadFailure::Unsent(error.to_string()))
+            .map_err(|error| ReadFailure::UnusableBody(error.to_string()))
         };
         let body = project(remote_projection::Op::Body)?;
         let stamp = project(remote_projection::Op::Updated)?;
@@ -651,11 +653,14 @@ impl ShortcutClient {
 pub enum ReadFailure {
     Status { status: u16, detail: String },
     Unsent(String),
+    UnusableBody(String),
 }
 
 impl std::fmt::Display for ReadFailure {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (Self::Status { detail, .. } | Self::Unsent(detail)) = self;
+        let (Self::Status { detail, .. }
+        | Self::Unsent(detail)
+        | Self::UnusableBody(detail)) = self;
         formatter.write_str(detail)
     }
 }
