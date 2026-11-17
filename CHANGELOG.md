@@ -237,13 +237,12 @@
   with the same `E_WORK_*` refusal the `work` commands give.
 - **The visualiser shows an ID through the configured pattern.** An `id`
   the pattern reads is shown as written, so `PP_0042` under
-  `{key}_{number:04d}` and `v001` under `v{number:03d}` now show; a bare
-  number shows as the pattern renders it under every pattern: `ENG-0042`
-  for `42` under `{key}-{number:04d}` where it showed `ENG-42`, `0042` under
-  `{number:04d}` where it showed `42`, and `v001` for `1` under
-  `v{number:03d}` where it showed nothing; and an `id` in no shape the pattern
-  reads shows no ID. Consumers of the visualiser API's `workItemId` need
-  updating.
+  `{key}_{number:04d}` and `v001` under `v{number:03d}` now show. An `id`
+  the pattern does not read, a bare `42` under `{number:04d}` or
+  `{key}-{number:04d}` included, leaves the corpus untrusted: the
+  visualiser then shows no work-item ID on any item, and its banner reports
+  `E_REKEY_REQUIRED` until the corpus is re-keyed. Consumers of the
+  visualiser API's `workItemId` need updating.
 - **A work item whose IDs cannot be read is refused.** The commands that
   refuse an off-pattern corpus also refuse, with `E_WORK_ITEM_MALFORMED`
   (exit 4), a file whose name does not hold its `id` before a slug, as

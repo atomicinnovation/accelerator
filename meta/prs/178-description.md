@@ -314,10 +314,10 @@ notice:
   with `Error: E_VERB_RETIRED:`.
 - ⚠️ **Exit codes and prefixes**: `E_ID_TAKEN` exits 4; every `work id`
   refusal starts `Error:`.
-- ⚠️ **Visualiser `workItemId`** is read through the pattern: a bare `42`
-  shows as the pattern renders it (`0042`, `ENG-0042`, `v001`), and an `id`
-  the pattern does not read shows nothing. Over an untrusted corpus the
-  visualiser reads no work-item IDs.
+- ⚠️ **Visualiser `workItemId`** is read through the pattern. An `id` the
+  pattern does not read, a bare `42` under `{number:04d}` included, leaves
+  the corpus untrusted, and over an untrusted corpus the visualiser reads
+  no work-item IDs and reports `E_REKEY_REQUIRED` until it is re-keyed.
 - **References from an earlier pattern** (`PP-42` under `{key}_{number:04d}`,
   `ENG-42` under `{number:04d}`) no longer join their item until re-keyed.
 - **`corpus linkage extract`** reads work-item IDs through the configured
