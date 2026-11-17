@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-17T08:23:36+00:00"
+last_updated: "2026-11-17T10:15:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -38,11 +38,11 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 |---|---|---|---|
 | 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
-| 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
+| 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) merged 2026-11-17; after window at 5 of 10 runs |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
-| 5. Retries off | Playwright | #229 | Open |
+| 5. Retries off | Playwright | #229 | Merged 2026-11-17 |
 | 6. Host-relative workers | Playwright | #232 | Open; validated on `c8cf7e5e` |
-| 7. CI closing comparison | Both | — | Not started |
+| 7. CI closing comparison | Both | — | Not started; both before windows are contaminated, so both suites need the paired comparison |
 
 ## Current State Analysis
 
@@ -892,6 +892,35 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
   failed, on a DNS error during provenance attestation
   (`getaddrinfo ENOTFOUND run-actions-3-azure-eastus.actions.githubusercontent.com`),
   which is unrelated to 0364.
+
+  The after window so far holds five runs. Every `test-integration` job
+  passed:
+
+  | Run | Commit | ubuntu dev suite | ubuntu job | ubuntu workers | macOS dev suite | macOS job | macOS workers | macOS image |
+  |---|---|---|---|---|---|---|---|---|
+  | 43953328694 | `929fae79` (#225, #222) | 79.57 s | 914 s | 2 | 60.47 s | 1093 s | 3 | 20261028.624 |
+  | 43988761983 | `2b3aa94f` (#229, #230) | 75.30 s | 734 s | 2 | 44.94 s | 1314 s | 3 | 20261103.629 |
+  | 43989711594 | `f30a4f7c` (#224) | 90.73 s | 767 s | 2 | 21.03 s | 515 s | 5 | 20261103.629 |
+  | 43989762511 | `ba876153` (#226) | 93.37 s | 928 s | 2 | 60.69 s | 1260 s | 3 | 20261028.624 |
+  | 44031742886 | `902556ac` (#228) | 84.05 s | 941 s | 2 | 59.14 s | 1455 s | 3 | 20261028.624 |
+
+  - The ubuntu image is 20261103.629 throughout.
+  - The dev suite's medians so far are 84.05 s on ubuntu (IQR 13.3%) and
+    59.14 s on macOS (IQR 26.3%). Before, they were 163.39 s and 198.84 s.
+  - The whole job's medians so far are 914 s on ubuntu and 1260 s on macOS.
+    Before, the job took 666–756 s on ubuntu and 1247–1471 s on macOS. If
+    the ubuntu job stays slower when Phase 7 compares it, that is cost
+    moved onto the job's sibling lanes, which Phase 7 records on 0369.
+  - **macOS runners vary in size.** Run 43989711594's macOS job ran on a
+    5-CPU runner (xdist created 5 workers) and its whole job took 515 s.
+    The others ran on 3 CPUs. The paired comparison should note each
+    run's worker count.
+  - #230 added the `host:cpu-counts` step to the job from `2b3aa94f` on.
+    It takes seconds and doesn't touch the dev suite.
+  - Run 43988761983 failed only `Run unit tests (ubuntu-latest)`, on the
+    measurement harness's
+    `test_the_builds_group_is_forgotten_after_an_interrupt`
+    (`BuildLeftRunningError`), which is unrelated to 0364.
 - [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
@@ -1307,6 +1336,9 @@ that restarts the count.
     a timing test of the measurement harness, unrelated to the suite.
   - `test:e2e:visualiser` passed 355 with 1 skipped in every run, in
     58–78 s on 9 workers. The dev suite passed 21/21 in every run.
+  - After the runs, `main` moved on only by `f7a8bd22`, a `[skip ci]`
+    version bump. #232's branch was rebased onto it. The bump changes
+    nothing `default` runs, so the count stands.
 - [x] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
       `retries`. Every flake is listed with its fix or its split-out item.
       The diff under `cli/` adds no `.skip`, `.fixme`, `.only`, `test.fail`
