@@ -178,6 +178,10 @@ pub enum ShapePart<'a> {
 pub struct IdKey(String);
 
 impl IdKey {
+    /// The grammar [`IdKey::parse`] accepts, as a regular expression in the
+    /// syntax Rust and JavaScript share.
+    pub const REGEX_SOURCE: &'static str = "[A-Za-z][A-Za-z0-9]*";
+
     /// # Errors
     ///
     /// [`KeyError::BadKeyValue`] when `text` is not a letter followed by

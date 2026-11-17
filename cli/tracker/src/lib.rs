@@ -926,6 +926,16 @@ impl TrackerKeys {
         !matches!(self, Self::AnySupported)
     }
 
+    /// The grammar of an issue key under these rules, as a regular
+    /// expression in the syntax Rust and JavaScript share.
+    #[must_use]
+    pub const fn regex_source(self) -> &'static str {
+        match self {
+            Self::Jira | Self::AnySupported => r"[A-Za-z][A-Za-z0-9_]*-\d+",
+            Self::Linear => r"[A-Za-z][A-Za-z0-9]*-\d+",
+        }
+    }
+
     /// Whether `token` is an issue key under these rules.
     #[must_use]
     pub fn is_key(self, token: &str) -> bool {

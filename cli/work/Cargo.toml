@@ -20,4 +20,5 @@ kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 
 [dev-dependencies]
+regex = { workspace = true }
 serde_json = { workspace = true }

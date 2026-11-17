@@ -134,6 +134,7 @@ pub struct work::draft_id::DraftId(_)
 impl work::draft_id::DraftId
 pub const work::draft_id::DraftId::LENGTH: usize
 pub const work::draft_id::DraftId::PREFIX: &'static str
+pub const work::draft_id::DraftId::REGEX_SOURCE: &'static str
 pub fn work::draft_id::DraftId::as_str(&self) -> &str
 pub fn work::draft_id::DraftId::parse(raw: &str) -> core::option::Option<Self>
 impl core::clone::Clone for work::draft_id::DraftId
@@ -293,6 +294,7 @@ pub fn work::id_pattern::HeldPrefix::fmt(&self, f: &mut core::fmt::Formatter<'_>
 impl core::marker::StructuralPartialEq for work::id_pattern::HeldPrefix
 pub struct work::id_pattern::IdKey(_)
 impl work::id_pattern::IdKey
+pub const work::id_pattern::IdKey::REGEX_SOURCE: &'static str
 pub fn work::id_pattern::IdKey::as_str(&self) -> &str
 pub fn work::id_pattern::IdKey::parse(text: &str) -> core::result::Result<Self, work::id_pattern::KeyError>
 impl core::clone::Clone for work::id_pattern::IdKey

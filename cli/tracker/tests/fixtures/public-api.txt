@@ -115,6 +115,7 @@ impl tracker::TrackerKeys
 pub fn tracker::TrackerKeys::is_key(self, token: &str) -> bool
 pub fn tracker::TrackerKeys::of_integration(integration: &str) -> Self
 pub const fn tracker::TrackerKeys::owns_ids(self) -> bool
+pub const fn tracker::TrackerKeys::regex_source(self) -> &'static str
 impl core::clone::Clone for tracker::TrackerKeys
 pub fn tracker::TrackerKeys::clone(&self) -> tracker::TrackerKeys
 impl core::cmp::Eq for tracker::TrackerKeys

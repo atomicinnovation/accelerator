@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::Deserialize;
+use work::draft_id::DraftId;
+use work::id_pattern::IdKey;
 use work::id_scheme::IdScheme;
 
 #[derive(Debug, Deserialize)]
@@ -169,31 +171,34 @@ impl WorkItemConfig {
     }
 
     /// A JavaScript regular-expression source matching every ID the
-    /// scheme writes, and under a local pattern a bare number, for the
-    /// page's work-item link grammar; none when no IDs are read.
+    /// scheme writes, with a bare number under a local pattern and a draft
+    /// ID under `{tracker}`, for the page's work-item link grammar; none
+    /// when no IDs are read.
     #[must_use]
     pub fn id_token(&self) -> Option<String> {
         use work::id_pattern::ShapePart;
-        let pattern = self.scheme.as_ref()?.pattern();
-        if pattern.is_tracker_owned() {
-            return Some(
-                r"[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}".to_owned(),
-            );
-        }
+        let scheme = self.scheme.as_ref()?;
+        let pattern = scheme.pattern();
         let shape: String = pattern
             .shape()
             .map(|part| match part {
-                ShapePart::Literal(text) => text.replace('.', r"\."),
-                ShapePart::Key => "[A-Za-z][A-Za-z0-9]*".to_owned(),
-                ShapePart::Number { .. } => r"\d+".to_owned(),
-                ShapePart::Tracker => String::new(),
+                ShapePart::Literal(text) => regex_literal(text),
+                ShapePart::Key => IdKey::REGEX_SOURCE.to_owned(),
+                ShapePart::Number { .. } => BARE_NUMBER.to_owned(),
+                ShapePart::Tracker => {
+                    scheme.tracker_keys().regex_source().to_owned()
+                }
             })
             .collect();
-        let bare_number = r"\d+";
-        Some(if shape == bare_number {
+        let alongside = if pattern.is_tracker_owned() {
+            DraftId::REGEX_SOURCE
+        } else {
+            BARE_NUMBER
+        };
+        Some(if shape == alongside {
             shape
         } else {
-            format!("{shape}|{bare_number}")
+            format!("{shape}|{alongside}")
         })
     }
 
@@ -207,6 +212,18 @@ impl WorkItemConfig {
     pub fn identity_key(&self, reference: &str) -> Option<String> {
         self.scheme.as_ref()?.identity_key(reference)
     }
+}
+
+const BARE_NUMBER: &str = r"\d+";
+
+fn regex_literal(text: &str) -> String {
+    text.chars().fold(String::new(), |mut source, character| {
+        if r"\^$.|?*+()[]{}/".contains(character) {
+            source.push('\\');
+        }
+        source.push(character);
+        source
+    })
 }
 
 #[cfg(test)]
@@ -439,26 +456,72 @@ mod tests {
         assert_eq!(cfg.displayed_id("OPS-7").as_deref(), Some("OPS-7"));
     }
 
+    fn token_matches(token: &str, id: &str) -> bool {
+        regex::Regex::new(&format!("^(?:{token})$"))
+            .unwrap()
+            .is_match(id)
+    }
+
+    fn token_of(scheme: IdScheme) -> String {
+        WorkItemConfig::new(scheme).id_token().unwrap()
+    }
+
     #[test]
-    fn the_id_token_matches_every_id_the_pattern_writes() {
-        let token = |pattern: &str, key: Option<&str>| {
-            WorkItemConfig::new(scheme_for_test(pattern, key)).id_token()
+    fn the_id_token_matches_every_id_a_local_pattern_renders() {
+        for (pattern, key) in [
+            ("{key}_{number:04d}", Some("PP")),
+            ("{key}-{number:04d}", Some("PP")),
+            ("v{number:03d}", None),
+            ("a.{number}", None),
+            ("{number:04d}", None),
+        ] {
+            let scheme = scheme_for_test(pattern, key);
+            let token = token_of(scheme.clone());
+            let cap = scheme.pattern().cap().unwrap_or(99_999).min(99_999);
+            for number in [1, 42, cap] {
+                let id = scheme.pattern().render(scheme.key(), number).unwrap();
+                assert!(token_matches(&token, &id), "{pattern}: {id}");
+            }
+            assert!(token_matches(&token, "42"), "{pattern}: a bare number");
+        }
+    }
+
+    #[test]
+    fn the_id_token_reads_a_literal_dot_as_a_dot() {
+        let token = token_of(scheme_for_test("a.{number}", None));
+        assert!(!token_matches(&token, "aX7"));
+    }
+
+    #[test]
+    fn the_id_token_reads_tracker_keys_by_the_configured_trackers_rules() {
+        let under = |keys| {
+            token_of(IdScheme::under_tracker(
+                work::id_pattern::IdPattern::parse("{tracker}").unwrap(),
+                None,
+                keys,
+            ))
         };
-        assert_eq!(
-            token("{key}_{number:04d}", Some("PP")).as_deref(),
-            Some(r"[A-Za-z][A-Za-z0-9]*_\d+|\d+")
-        );
-        assert_eq!(token("v{number:03d}", None).as_deref(), Some(r"v\d+|\d+"));
-        assert_eq!(token("a.{number}", None).as_deref(), Some(r"a\.\d+|\d+"));
-        assert_eq!(
-            token("{tracker}", None).as_deref(),
-            Some(r"[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}")
-        );
-        assert_eq!(
-            WorkItemConfig::default_numeric().id_token().as_deref(),
-            Some(r"\d+")
-        );
+        let jira = under(tracker::TrackerKeys::Jira);
+        let linear = under(tracker::TrackerKeys::Linear);
+        for token in [&jira, &linear] {
+            assert!(token_matches(token, "ENG-7"));
+            assert!(token_matches(token, "draft-k7mq3x"));
+            assert!(!token_matches(token, "0017"));
+        }
+        assert!(token_matches(&jira, "MY_PROJ-7"));
+        assert!(!token_matches(&linear, "MY_PROJ-7"));
+    }
+
+    #[test]
+    fn no_id_token_is_served_while_no_ids_are_read() {
         assert_eq!(WorkItemConfig::unreadable().id_token(), None);
+    }
+
+    #[test]
+    fn a_literal_is_escaped_for_every_regex_metacharacter() {
+        let escaped = super::regex_literal(r"a.b*c+d?e^f$g{h}i(j)k|l[m]n\o/p");
+        assert!(token_matches(&escaped, r"a.b*c+d?e^f$g{h}i(j)k|l[m]n\o/p"));
+        assert!(!token_matches(&escaped, "aXb"));
     }
 
     #[test]
