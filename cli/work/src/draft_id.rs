@@ -19,10 +19,11 @@ pub struct DraftId(String);
 impl DraftId {
     pub const PREFIX: &'static str = "draft-";
     pub const LENGTH: usize = Self::PREFIX.len() + SUFFIX_LENGTH;
-    /// Every draft ID as written, as a regular expression in the syntax Rust
-    /// and JavaScript share. Neither can require a letter without
+    /// Every draft ID in any case, as a regular expression in the syntax
+    /// Rust and JavaScript share. Neither can require a letter without
     /// lookaround, so an all-digit suffix matches too.
-    pub const REGEX_SOURCE: &'static str = "draft-[0-9a-hjkmnp-tv-z]{6}";
+    pub const REGEX_SOURCE: &'static str =
+        "[dD][rR][aA][fF][tT]-[0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{6}";
 
     /// The lowercase form of `raw` when it is a draft ID: the prefix and six
     /// Crockford base-32 characters, at least one a letter, in any case.

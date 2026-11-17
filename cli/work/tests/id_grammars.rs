@@ -24,7 +24,7 @@ fn the_key_grammar_accepts_exactly_the_keys_that_parse() {
 }
 
 #[test]
-fn the_draft_grammar_accepts_every_draft_id_in_its_written_form() {
+fn the_draft_grammar_accepts_every_draft_id_in_any_case() {
     for raw in [
         "draft-k7mq3x",
         "DRAFT-K7MQ3X",
@@ -33,6 +33,7 @@ fn the_draft_grammar_accepts_every_draft_id_in_its_written_form() {
     ] {
         let draft = DraftId::parse(raw)
             .unwrap_or_else(|| unreachable!("{raw} is a draft ID"));
+        assert!(matches_whole(DraftId::REGEX_SOURCE, raw), "{raw}");
         assert!(
             matches_whole(DraftId::REGEX_SOURCE, draft.as_str()),
             "{raw}"
@@ -43,12 +44,16 @@ fn the_draft_grammar_accepts_every_draft_id_in_its_written_form() {
 #[test]
 fn the_draft_grammar_refuses_letters_outside_the_alphabet() {
     for letter in b'a'..=b'z' {
-        let text = format!("draft-{}00000", char::from(letter));
-        assert_eq!(
-            matches_whole(DraftId::REGEX_SOURCE, &text),
-            ALPHABET.contains(&letter),
-            "{text}"
-        );
+        for text in [
+            format!("draft-{}00000", char::from(letter)),
+            format!("DRAFT-{}00000", char::from(letter).to_ascii_uppercase()),
+        ] {
+            assert_eq!(
+                matches_whole(DraftId::REGEX_SOURCE, &text),
+                ALPHABET.contains(&letter),
+                "{text}"
+            );
+        }
     }
     assert!(!matches_whole(DraftId::REGEX_SOURCE, "draft-k7mq3"));
     assert!(!matches_whole(DraftId::REGEX_SOURCE, "draft-k7mq3xy"));

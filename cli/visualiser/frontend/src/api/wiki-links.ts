@@ -122,7 +122,8 @@ function parsePositiveInt(s: string): number | null {
 
 /** Build the resolver maps from the docs caches. ADRs are keyed by
  *  `frontmatter.adr_id` *or* the filename prefix. Work items are keyed by
- *  `entry.workItemId` (filename-derived, supplied by the server). Defensively
+ *  `entry.workItemId` in lower case, since an ID reads the same in any
+ *  case. Defensively
  *  filters by `entry.type` so a misuse — accidentally passing plans as work
  *  items — cannot route `[[WORK-ITEM-N]]` to a non-work-item. On duplicate
  *  keys the entry with the lexically-earliest `relPath` wins (deterministic
@@ -143,7 +144,7 @@ export function buildWikiLinkIndex(
     if (entry.type !== "work-items") continue;
     const id = entry.workItemId;
     if (id === null) continue;
-    insertWithEarliestRelPath(workItemById, id, entry);
+    insertWithEarliestRelPath(workItemById, id.toLowerCase(), entry);
   }
   return { adrById, workItemById };
 }
@@ -179,7 +180,7 @@ export function resolveWikiLink(
     if (n === null) return null;
     entry = idx.adrById.get(n);
   } else {
-    entry = idx.workItemById.get(id);
+    entry = idx.workItemById.get(id.toLowerCase());
   }
   if (!entry) return null;
   const fileSlug = fileSlugFromRelPath(entry.relPath);

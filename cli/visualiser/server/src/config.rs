@@ -228,10 +228,17 @@ const BARE_NUMBER: &str = r"\d+";
 
 fn regex_literal(text: &str) -> String {
     text.chars().fold(String::new(), |mut source, character| {
-        if r"\^$.|?*+()[]{}/".contains(character) {
-            source.push('\\');
+        if character.is_ascii_alphabetic() {
+            source.push('[');
+            source.push(character.to_ascii_lowercase());
+            source.push(character.to_ascii_uppercase());
+            source.push(']');
+        } else {
+            if r"\^$.|?*+()[]{}/".contains(character) {
+                source.push('\\');
+            }
+            source.push(character);
         }
-        source.push(character);
         source
     })
 }
@@ -494,6 +501,14 @@ mod tests {
             }
             assert!(token_matches(&token, "42"), "{pattern}: a bare number");
         }
+    }
+
+    #[test]
+    fn the_id_token_reads_an_id_in_any_case_as_the_cli_does() {
+        let literal = token_of(scheme_for_test("v{number:03d}", None));
+        assert!(token_matches(&literal, "V001"));
+        let tracker = token_of(scheme_for_test("{tracker}", None));
+        assert!(token_matches(&tracker, "DRAFT-K7MQ3X"));
     }
 
     #[test]

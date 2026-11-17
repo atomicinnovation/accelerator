@@ -183,9 +183,23 @@ describe("buildWikiLinkIndex", () => {
       type: "work-items",
       relPath: "meta/work/PROJ-0042-foo.md",
       workItemId: "PROJ-0042",
+      title: "Proj",
     });
     const idx = buildWikiLinkIndex([], [workItem]);
-    expect(idx.workItemById.get("PROJ-0042")).toBe(workItem);
+    expect(resolveWikiLink("WORK-ITEM", "PROJ-0042", idx)?.title).toBe("Proj");
+  });
+});
+
+describe("resolving a work item in any case", () => {
+  it("resolves a link spelled in another case to the item", () => {
+    const item = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/PP_0042-foo.md",
+      workItemId: "PP_0042",
+      title: "Foo",
+    });
+    const idx = buildWikiLinkIndex([], [item]);
+    expect(resolveWikiLink("WORK-ITEM", "pp_0042", idx)?.title).toBe("Foo");
   });
 });
 
