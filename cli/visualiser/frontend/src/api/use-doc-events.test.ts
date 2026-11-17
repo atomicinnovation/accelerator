@@ -106,7 +106,7 @@ describe("dispatchSseEvent", () => {
     );
   });
 
-  it("invalidates the work-item problem on a work-item event", () => {
+  it("invalidates the work-item config on a work-item event", () => {
     dispatchSseEvent(
       {
         type: "doc-invalid",
@@ -116,7 +116,7 @@ describe("dispatchSseEvent", () => {
       queryClient,
     );
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: queryKeys.workItemProblem() }),
+      expect.objectContaining({ queryKey: queryKeys.workItemConfig() }),
     );
   });
 

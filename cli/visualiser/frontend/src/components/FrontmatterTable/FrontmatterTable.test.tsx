@@ -11,7 +11,7 @@ const passThroughResolver: Resolver = (prefix, id) => ({
   title: `${prefix}-${id}`,
 });
 
-const bareIdPattern = buildBareIdPattern(null);
+const bareIdPattern = buildBareIdPattern();
 
 const baseProps = {
   resolveWikiLink: passThroughResolver,

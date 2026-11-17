@@ -13,29 +13,16 @@ export interface ResolvedWikiLink {
 
 type WikiLinkKind = "ADR" | "WORK-ITEM";
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** Build the wiki-link match pattern: `[[ADR-NNNN]]`, and a work item
  *  through the server's `idToken`, which matches every ID the configured
- *  pattern writes, such as `PP_0042`, `v001` or a tracker key. Without one
- *  the grammar falls back to the project code: `[[WORK-ITEM-NNNN]]`, and
- *  `[[WORK-ITEM-<PROJECT>-NNNN]]` when one is configured. Read a match
- *  with `wikiLinkOf`. */
-export function buildWikiLinkPattern(
-  projectCode: string | null,
-  idToken?: string | null,
-): RegExp {
-  return new RegExp(`\\[\\[${linkGrammar(projectCode, idToken)}\\]\\]`, "g");
+ *  pattern writes, such as `PP_0042`, `v001` or a tracker key, or a bare
+ *  number before one is served. Read a match with `wikiLinkOf`. */
+export function buildWikiLinkPattern(idToken?: string | null): RegExp {
+  return new RegExp(`\\[\\[${linkGrammar(idToken)}\\]\\]`, "g");
 }
 
-function linkGrammar(
-  projectCode: string | null,
-  idToken?: string | null,
-): string {
-  const innerWorkItem = idToken ?? legacyIdToken(projectCode);
-  return `(?:(ADR)-(\\d+)|(WORK-ITEM)-(${innerWorkItem}))`;
+function linkGrammar(idToken?: string | null): string {
+  return `(?:(ADR)-(\\d+)|(WORK-ITEM)-(${idToken ?? "\\d+"}))`;
 }
 
 export interface WikiLinkMatch {
@@ -49,11 +36,6 @@ export function wikiLinkOf(match: RegExpMatchArray): WikiLinkMatch {
   return match[1] === undefined
     ? { prefix: "WORK-ITEM", id: match[4] }
     : { prefix: "ADR", id: match[2] };
-}
-
-/** The ID grammar of a server that serves no `idToken`. */
-function legacyIdToken(projectCode: string | null): string {
-  return projectCode ? `${escapeRegExp(projectCode)}-\\d+|\\d+` : `\\d+`;
 }
 
 export type BareIdSegment =
@@ -75,11 +57,8 @@ export type BareIdSegment =
  *  Always returned with the `g` flag set so callers can iterate
  *  matches; `splitByBareIds` clones to avoid `lastIndex` bleed across
  *  calls. */
-export function buildBareIdPattern(
-  projectCode: string | null,
-  idToken?: string | null,
-): RegExp {
-  return new RegExp(`\\b${linkGrammar(projectCode, idToken)}\\b`, "g");
+export function buildBareIdPattern(idToken?: string | null): RegExp {
+  return new RegExp(`\\b${linkGrammar(idToken)}\\b`, "g");
 }
 
 /** Split a string into ordered segments alternating between plain text

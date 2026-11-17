@@ -145,7 +145,7 @@ export function dispatchSseEvent(
     if (event.docType === "work-items") {
       void queryClient.invalidateQueries({ queryKey: queryKeys.kanban() });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.workItemProblem(),
+        queryKey: queryKeys.workItemConfig(),
       });
     }
   }

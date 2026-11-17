@@ -7,7 +7,7 @@ import styles from "./WorkItemProblemBanner.module.css";
  *  while they cannot. */
 export function WorkItemProblemBanner() {
   const { data } = useQuery({
-    queryKey: queryKeys.workItemProblem(),
+    queryKey: queryKeys.workItemConfig(),
     queryFn: fetchWorkItemConfig,
     select: (config) =>
       config.problem
