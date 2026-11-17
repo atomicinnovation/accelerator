@@ -151,11 +151,13 @@ pub enum Command {
     /// Every failure prints `error: <id-or-path-or-dash>: <operation>
     /// failed: <cause>` on stderr (`would fail` on a preview), except a
     /// refused or rolled-back key change, which is a `failed` row awaiting
-    /// a human. A preview reports a create the run would refuse from its
-    /// pending-push marker. The report on stdout is authoritative: check its
-    /// `failed` rows and `#\tunidentified` records whatever the exit code,
-    /// since a run that exits 4 can carry retryable failures and a 71 run may
-    /// also carry conflicts. Besides the item rows — whose actions include
+    /// a human. For each create without a `--resolve` order, a preview
+    /// reports the pending-push refusal, incomplete-corpus deferral or
+    /// work-file failure the run would meet; a create with an order is
+    /// checked against its marker only on the run. The report on stdout is
+    /// authoritative: check its `failed` rows and `#\tunidentified` records
+    /// whatever the exit code, since a run that exits 4 can carry retryable
+    /// failures and a 71 run may also carry conflicts. Besides the item rows — whose actions include
     /// `adopt` and `relink` — it prints `#\tunidentified\t<path>\t<kind>` for
     /// each work file sync cannot use,
     /// `#\tkept-edits\t<id>\t<kind>\t<item-path>\t<copy-path>` for local
