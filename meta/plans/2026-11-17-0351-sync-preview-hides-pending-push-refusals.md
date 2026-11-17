@@ -302,17 +302,17 @@ impl LocalCreateInputs {
 
 #### Automated Verification:
 
-- [ ] The existing create tests pass unchanged:
+- [x] The existing create tests pass unchanged:
       `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters --test sync_create`
-- [ ] Everything else in `work-adapters` passes:
+- [x] Everything else in `work-adapters` passes:
       `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters`
-- [ ] The CLI's pending-push tests pass:
+- [x] The CLI's pending-push tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-work --bin accelerator-work pending_push`
-- [ ] Format and lint are clean: `mise run cli:check`
+- [x] Format and lint are clean: `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] The diff contains no behaviour change: every change to an existing test
+- [x] The diff contains no behaviour change: every change to an existing test
       is a rename forced by moved code, not a changed assertion.
 
 ---
@@ -493,15 +493,15 @@ fn previewed_outcome(
 
 #### Automated Verification:
 
-- [ ] Each red test fails before the preview branch changes and passes after
+- [x] Each red test fails before the preview branch changes and passes after
       it. The failing run is recorded in the PR.
-- [ ] Each guard test passes before and after the preview branch changes.
-- [ ] Engine tests pass:
+- [x] Each guard test passes before and after the preview branch changes.
+- [x] Engine tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters --test sync_create --test sync_settled`
-- [ ] CLI tests pass:
+- [x] CLI tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-work --bin accelerator-work`
-- [ ] The whole CLI workspace passes: `mise run test:unit:cli`
-- [ ] Format and lint are clean: `mise run cli:check`
+- [x] The whole CLI workspace passes: `mise run test:unit:cli`
+- [x] Format and lint are clean: `mise run cli:check`
 
 #### Manual Verification:
 

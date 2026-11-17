@@ -78,6 +78,7 @@ use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
 use work_adapters::sync::report::CorpusScope;
+use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
@@ -2371,4 +2372,86 @@ fn a_renamed_item_carries_its_adoption_record() {
 
     assert_eq!(recorded_key(&repo, "PP-760"), None);
     assert_eq!(recorded_key(&repo, "ENG-42").as_deref(), Some("ENG-42"));
+}
+
+fn seed_created_marker(
+    repo: &Repo,
+    file: &str,
+    id: &str,
+    key: &str,
+) -> PathBuf {
+    let content = repo.read(file).expect("the draft is readable");
+    let (_, body) =
+        digest::split_frontmatter_and_body(&content).expect("the draft splits");
+    let fields = work_adapters::create_request_fields::read(&content)
+        .expect("the draft has create fields");
+    let marker = work::sync::PendingPush::Created {
+        request: RequestFingerprint {
+            title: fields.title.clone(),
+            digest: work_adapters::sync::pending_push::request_digest(
+                &fields.title,
+                &body,
+                &fields.kind,
+            ),
+            attempted_at: 1,
+            failure: None,
+        },
+        external_id: self::key(key),
+    };
+    let path = work_adapters::sync::pending_push::path(
+        &repo.path(".accelerator/state/integrations"),
+        "linear",
+        id,
+    );
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, work_adapters::sync::pending_push::render(&marker))
+        .unwrap();
+    path
+}
+
+#[test]
+fn a_create_whose_marker_key_is_followed_this_run_is_refused() {
+    for mode in [RunMode::Preview, RunMode::Apply] {
+        let repo = Repo::new();
+        repo.item("0001-followed.md", "0001", Some("ENG-1"));
+        let draft = "meta/work/0002-draft.md";
+        repo.write(
+            draft,
+            "---\nid: \"0002\"\ntitle: \"Draft\"\nkind: task\n---\n\nBody\n",
+        );
+        let marker = seed_created_marker(&repo, draft, "0002", "ENG-2");
+        let seeded = fs::read(&marker).unwrap();
+
+        let outcome = sync(
+            &repo,
+            &moved("ENG-1", "ENG-2"),
+            Options {
+                ownership: IdOwnership::Local,
+                mode,
+                ..Options::default()
+            },
+        );
+
+        let error = outcome
+            .report()
+            .reported
+            .iter()
+            .find_map(|row| match &row.outcome {
+                ItemOutcome::Failed(error) if row.planned.id() == "0002" => {
+                    Some(error)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("{mode:?}: 0002 did not fail"));
+        assert_eq!(
+            error.cause(),
+            format!(
+                "pending push refused (already-written): ENG-2 is already \
+                 followed by this run's identity settlement (marker {})",
+                marker.display()
+            ),
+            "{mode:?}"
+        );
+        assert_eq!(fs::read(&marker).unwrap(), seeded, "{mode:?}");
+    }
 }
