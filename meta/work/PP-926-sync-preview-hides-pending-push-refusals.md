@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-884", "work-item:PP-880", "work-item:PP-927"]
 tags: ["sync", "preview", "pending-push"]
-last_updated: "2026-11-17T14:01:22+00:00"
+last_updated: "2026-11-17T14:14:34+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
 external_id: "PP-926"
@@ -48,10 +48,11 @@ of `creates_from_local` is reported `NotApplied`
 run). Only the apply path evaluates `push_precondition`
 (`create_from_local` in `cli/work-adapters/src/sync/apply.rs`).
 
-Only a *bare create* is affected: a create-from-local with no `--resolve`
+This item covers a *bare create*: a create-from-local with no `--resolve`
 order. A create carrying a `--resolve <id>=adopt:<KEY>` or
-`--resolve <id>=create` order is already previewed through
-`previewed_adoptions`.
+`--resolve <id>=create` order goes through `settle_order`, which the preview
+does not check either. Its local refusals belong with 0379's per-entry
+preview strategy and are out of scope here.
 
 `/sync-work-items` tells users to preview first. To cover this gap, its "Read
 the run's output" section tells the agent to read each previewed
@@ -82,6 +83,9 @@ Changes:
   where `<detail>`, including any remedy hint, is the apply run's text.
 - A reusable `Created` marker whose reuse the apply run would defer because the
   corpus is incomplete is reported as the failure the apply run reports.
+- A bare create whose work file cannot be read or parsed, which the apply run
+  fails before it reads the marker, is reported as the failure the apply run
+  reports.
 - A reusable `Created` marker the apply run would link previews exactly as the
   apply run reports it.
 - The preview's exit code follows the apply run's precedence,
@@ -102,6 +106,7 @@ Out of scope:
 - The action word for a reused `Created` marker. Both the preview and the
   apply run print `create-from-local`, so they already agree.
 - Failures the tracker reports only when the run applies.
+- Local refusals of a create carrying a `--resolve` order.
 
 ## Acceptance Criteria
 
@@ -130,6 +135,10 @@ directory has identical entries and bytes before and after the preview.
 - [ ] Given a reusable `Created` marker and a corpus with an unreadable work
       file, when a preview runs, then it reports the same `failed` row, error
       line and exit code as the apply run on a copy of the same fixture.
+- [ ] Given a bare create whose work file is undecodable or has frontmatter
+      that cannot be parsed, when a preview runs, then it reports the same
+      `failed` row, error line and exit code as the apply run on a copy of the
+      same fixture.
 - [ ] Given a reusable `Created` marker and a complete corpus, when a preview
       runs, then the row is `<id>\tcreate-from-local\tunsynced\t-`, stderr has
       no `error: <id>:` line, and it exits 0.
