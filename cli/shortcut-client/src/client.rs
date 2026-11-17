@@ -282,15 +282,20 @@ impl ShortcutClient {
         if let Some(scopes) = self.scopes.borrow().as_ref() {
             return scopes.clone();
         }
-        let scopes = whoami(
+        match whoami(
             &self.transport,
             self.paths.base(),
             &self.transport.deadline(),
-        )
-        .map(|me| me.scopes)
-        .unwrap_or_default();
-        *self.scopes.borrow_mut() = Some(scopes.clone());
-        scopes
+        ) {
+            Ok(me) => {
+                *self.scopes.borrow_mut() = Some(me.scopes.clone());
+                me.scopes
+            }
+            Err(error) => {
+                tracing::warn!(%error, "shortcut whoami failed; scopes unknown");
+                Vec::new()
+            }
+        }
     }
 
     /// Every story `scope` discovers, as the v4 search returned it, once
@@ -353,14 +358,18 @@ impl ShortcutClient {
         if let Some(state) = first_unstarted {
             return Ok(state);
         }
-        let fallback = whoami(
+        let me = whoami(
             &self.transport,
             self.paths.base(),
             &self.transport.deadline(),
         )
-        .ok()
-        .and_then(|me| me.default_state_id)
-        .filter(|state| {
+        .map_err(|error| TrackerError::Retryable {
+            detail: format!(
+                "shortcut whoami, read to find a state to create the story \
+                 in: {error}"
+            ),
+        })?;
+        let fallback = me.default_state_id.filter(|state| {
             workflow.is_some_and(|workflow| {
                 workflow.states.iter().any(|known| known.id == *state)
             })
