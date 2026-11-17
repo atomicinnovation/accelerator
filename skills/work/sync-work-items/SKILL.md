@@ -243,7 +243,8 @@ the run would meet, every planned pull carries the `unrenderable` failure the
 run would meet, and every create without a `--resolve` order carries the
 pending-push refusal, the incomplete-corpus deferral or the work-file failure
 the run would meet. A create with a `--resolve` order is checked against its
-marker only on the run.
+marker only on the run. When a preview carries a `--resolve` order for a
+create, tell the user the preview cannot confirm that item.
 
 **A re-key in progress.** `work sync` refuses before reading or writing
 anything while an `accelerator work rekey` run is unfinished. Before any other
