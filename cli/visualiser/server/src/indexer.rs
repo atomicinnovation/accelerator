@@ -378,7 +378,6 @@ impl Indexer {
             })
             .collect();
         let trust = self.judge_trust();
-        self.hold_trust(trust.clone());
         let reading = self.reading_under(&trust);
 
         // Phase 3 Pass A: parse and fold serially, in original order.
@@ -449,6 +448,7 @@ impl Indexer {
         *plans_w = plans_by_id;
         *reviews_w = reviews_by_target;
         *refs_w = work_item_refs_by_target;
+        self.hold_trust(trust);
         Ok(())
     }
 
@@ -467,14 +467,18 @@ impl Indexer {
         path: &Path,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
         let refreshed = self.refresh_entry(path).await?;
-        let (before, now) = {
+        let trust_flipped = {
             // acquire() errors only if the semaphore is closed, which never happens.
             #[allow(clippy::unwrap_used)]
             let _permit = self.rescan_lock.acquire().await.unwrap();
             let now = self.judge_trust();
-            (self.hold_trust(now.clone()), now)
+            let flipped = self.trust().is_trusted() != now.is_trusted();
+            if !flipped {
+                self.hold_trust(now);
+            }
+            flipped
         };
-        if before.is_trusted() == now.is_trusted() {
+        if !trust_flipped {
             return Ok(refreshed);
         }
         self.rescan().await?;
@@ -830,15 +834,12 @@ impl Indexer {
         self.trust().problem().map(str::to_owned)
     }
 
-    /// Holds `trust` as the corpus's, giving back the trust it replaces.
-    fn hold_trust(&self, trust: Trust) -> Trust {
-        std::mem::replace(
-            &mut *self
-                .trust
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-            trust,
-        )
+    /// Holds `trust` as the corpus's.
+    fn hold_trust(&self, trust: Trust) {
+        *self
+            .trust
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = trust;
     }
 
     /// Whether the remembered work-item files can be trusted for their IDs.
@@ -2024,6 +2025,114 @@ mod identity_join_tests {
             "{:?}",
             idx.untrusted_corpus_problem()
         );
+        assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
+    }
+
+    struct FailingOneRead {
+        inner: LocalFileDriver,
+        failing: std::sync::Mutex<Option<PathBuf>>,
+    }
+
+    impl FailingOneRead {
+        fn fail_next_read_of(&self, path: PathBuf) {
+            *self.failing.lock().unwrap() = Some(path);
+        }
+    }
+
+    impl FileDriver for FailingOneRead {
+        fn list(
+            &self,
+            kind: DocTypeKey,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<PathBuf>, FileDriverError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.inner.list(kind)
+        }
+
+        fn read(
+            &self,
+            path: &Path,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<FileContent, FileDriverError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let mut failing = self.failing.lock().unwrap();
+            if failing.as_deref() == Some(path) {
+                *failing = None;
+                let path = path.to_path_buf();
+                return Box::pin(async move {
+                    Err(FileDriverError::Io {
+                        path,
+                        source: std::io::Error::other("transient"),
+                    })
+                });
+            }
+            self.inner.read(path)
+        }
+
+        fn write_frontmatter(
+            &self,
+            path: &Path,
+            patch: crate::file_driver::FrontmatterPatch,
+            if_match: &str,
+            on_committed: Box<dyn FnOnce(&Path) + Send>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<FileContent, FileDriverError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.inner
+                .write_frontmatter(path, patch, if_match, on_committed)
+        }
+
+        fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey> {
+            self.inner.kind_for_canonical_path(path)
+        }
+    }
+
+    #[tokio::test]
+    async fn a_rescan_that_fails_after_trust_flips_is_retried_on_the_next_refresh(
+    ) {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let item = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let plan = ("meta/plans/a-plan.md", "---\ntitle: P\n---\n");
+        let mut dirs = HashMap::new();
+        for (path_key, dir) in DIRS {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            dirs.insert(path_key.to_string(), root.join(dir));
+        }
+        for (path, content) in [item, plan] {
+            std::fs::write(root.join(path), content).unwrap();
+        }
+        let driver = Arc::new(FailingOneRead {
+            inner: LocalFileDriver::new(&dirs, vec![], vec![]),
+            failing: std::sync::Mutex::new(None),
+        });
+        let cfg = WorkItemConfig::new(scheme_for_test("{number:04d}", None));
+        let idx = Indexer::build(driver.clone(), root.clone(), Arc::new(cfg))
+            .await
+            .unwrap();
+        let slugless = root.join("meta/work/0400.md");
+        std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
+
+        driver.fail_next_read_of(root.join(plan.0));
+        assert!(idx.refresh_one(&slugless).await.is_err());
+        idx.refresh_one(&slugless).await.unwrap();
+
+        assert!(idx.untrusted_corpus_problem().is_some());
         assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
     }
 
