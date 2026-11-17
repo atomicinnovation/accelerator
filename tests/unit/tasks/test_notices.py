@@ -1,4 +1,6 @@
 import json
+import re
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -239,6 +241,57 @@ class TestGeneratorFailures:
         ctx.run.return_value = MagicMock(exited=0, stdout="no json here")
         with pytest.raises(Exit, match="no JSON object"):
             _run_license_checker(ctx)
+
+
+_STRADDLING_TEXT = "a" * 989 + "—"
+_STRADDLING_PAYLOAD = json.dumps({"text": _STRADDLING_TEXT}, ensure_ascii=False)
+
+
+class _StandInGenerator(Context):
+    """Runs a stand-in for a generator, emitting `payload` as UTF-8 to the file
+    its command names after `--output-file` or `--out`, or to stdout."""
+
+    def __init__(self, source: Path):
+        super().__init__()
+        self._source = source
+
+    def run(self, command, **kwargs):
+        target = re.search(r"--(?:output-file|out) (\S+)", command)
+        sink = f" > {target.group(1)}" if target else ""
+        return super().run(
+            f"cat {self._source}{sink}", **kwargs, in_stream=False
+        )
+
+
+class TestGeneratorOutput:
+    """The generators' JSON reaches the render whole, a multi-byte character
+    straddling a 1000-byte read included, under an ASCII locale too."""
+
+    @pytest.fixture(autouse=True)
+    def _ascii_locale(self, monkeypatch):
+        monkeypatch.setattr(
+            "invoke.runners.Runner.default_encoding", lambda _self: "ascii"
+        )
+
+    @pytest.fixture
+    def generator(self, tmp_path):
+        source = tmp_path / "payload.json"
+        source.write_bytes(_STRADDLING_PAYLOAD.encode("utf-8"))
+        assert _STRADDLING_PAYLOAD.encode("utf-8").index("—".encode()) < 1000
+        assert (
+            _STRADDLING_PAYLOAD.encode("utf-8").index("—".encode()) + 3 > 1000
+        )
+        return _StandInGenerator(source)
+
+    def test_cargo_about_output_is_read_whole(self, generator):
+        assert json.loads(_run_cargo_about(generator))["text"] == (
+            _STRADDLING_TEXT
+        )
+
+    def test_license_checker_output_is_read_whole(self, generator):
+        assert json.loads(_run_license_checker(generator))["text"] == (
+            _STRADDLING_TEXT
+        )
 
 
 class TestCheck:
