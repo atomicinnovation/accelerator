@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-17T10:15:37+00:00"
+last_updated: "2026-11-17T20:51:39+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1336,9 +1336,22 @@ that restarts the count.
     a timing test of the measurement harness, unrelated to the suite.
   - `test:e2e:visualiser` passed 355 with 1 skipped in every run, in
     58–78 s on 9 workers. The dev suite passed 21/21 in every run.
-  - After the runs, `main` moved on only by `f7a8bd22`, a `[skip ci]`
-    version bump. #232's branch was rebased onto it. The bump changes
-    nothing `default` runs, so the count stands.
+  - **The count stands without a rerun, after two rebases.** After the
+    runs, #232's branch was rebased twice, both times by a sync process
+    outside this work:
+    1. Onto `f7a8bd22`, a `[skip ci]` version bump.
+    2. Onto `7ba3859c` (#233), which changes the visualiser server's
+       idle-timeout parsing (`config.rs`), `tasks/notices.py` and its
+       test.
+
+    Neither adds or removes a task in `default`. The e2e harness never
+    sets the idle timeout, so the server runs on its default, and a
+    parsing fault would stop it starting on every run rather than cause
+    a flake. #232's CI on the new head, `aabc3ae1`, passed every job. Its
+    e2e suite passed 355 with 1 skipped on both OSes: 149.03 s on 3
+    workers on ubuntu (run 44168400921), and 296.68 s on 2 workers on
+    macOS. So the ten runs were not repeated. Phase 7's paired
+    comparison would still catch a flake.
 - [x] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
       `retries`. Every flake is listed with its fix or its split-out item.
       The diff under `cli/` adds no `.skip`, `.fixme`, `.only`, `test.fail`
