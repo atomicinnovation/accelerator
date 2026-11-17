@@ -352,6 +352,14 @@ class TestDispatch:
             "the run would meet" in text
         )
 
+    def test_a_preview_of_an_ordered_create_is_flagged_as_unconfirmed(
+        self, skill: str
+    ) -> None:
+        assert (
+            "When a preview carries a `--resolve` order for a create, tell "
+            "the user the preview cannot confirm that item" in _prose(skill)
+        )
+
     def test_every_unidentified_kind_is_advised(
         self, output_section: str
     ) -> None:
