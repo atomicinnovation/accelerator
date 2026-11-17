@@ -725,15 +725,15 @@ impl CreateFromLocalRequest<'_> {
 
 /// What a create without an order does once its marker is read: create
 /// the issue, or link the one an earlier attempt already created.
-pub(crate) enum BareCreateDecision {
+pub(crate) enum UnorderedCreateDecision {
     Proceed,
     ReuseId(ExternalId),
 }
 
-pub(crate) fn bare_create_decision(
+pub(crate) fn unordered_create_decision(
     request: &CreateFromLocalRequest<'_>,
     marker: &MarkerReading,
-) -> Result<BareCreateDecision, ApplyError> {
+) -> Result<UnorderedCreateDecision, ApplyError> {
     let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
     match push_precondition(&marker.state(), &request.digest(), &is_carried) {
         PushPrecondition::Refuse(reason) => {
@@ -745,9 +745,9 @@ pub(crate) fn bare_create_decision(
                 deferred: IncompleteCorpusDeferral::ReuseId(key),
                 blocking,
             }),
-            None => Ok(BareCreateDecision::ReuseId(key)),
+            None => Ok(UnorderedCreateDecision::ReuseId(key)),
         },
-        PushPrecondition::Proceed => Ok(BareCreateDecision::Proceed),
+        PushPrecondition::Proceed => Ok(UnorderedCreateDecision::Proceed),
     }
 }
 
@@ -1270,11 +1270,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         if let Some(order) = request.order {
             return self.settle_order(request, attempt, &marker, order);
         }
-        match bare_create_decision(request, &marker)? {
-            BareCreateDecision::ReuseId(key) => self
+        match unordered_create_decision(request, &marker)? {
+            UnorderedCreateDecision::ReuseId(key) => self
                 .link_and_baseline(request, attempt, &key)
                 .map(CreatedLocally::from),
-            BareCreateDecision::Proceed => self
+            UnorderedCreateDecision::Proceed => self
                 .create_marking_progress(request, attempt)
                 .map(CreatedLocally::from),
         }
