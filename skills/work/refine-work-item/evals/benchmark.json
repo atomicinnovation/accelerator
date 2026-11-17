@@ -483,6 +483,6 @@
     "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
     "Evals 22 and 37 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call. Both passed.",
     "Evals 5, 14, 22, 23 and 37 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their wording was brought into line with the skill (kind for type, the ledger and files.md wording, a check that a refused allocation runs nothing further); all passed. The executors of evals 14 and 23 read evals.json before writing their outputs, so those runs were not blind.",
-    "Evals 22, 37 and the new 38 (the corpus refusals) were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone; all passed. Records whose grading files were lost with the scratch directory carry the grader's verdict without its evidence."
+    "Evals 22, 37 and the new 38 (the corpus refusals) were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone; all passed. Evals 37 and 38 were run again later that day, by claude-opus-5-5, so their records carry the grader's evidence."
   ]
 }

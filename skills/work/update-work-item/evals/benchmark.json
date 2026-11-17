@@ -160,6 +160,6 @@
     }
   },
   "notes": [
-    "Evals 0-4 were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone. Evals 3 and 4 are new (the corpus refusals and a scheme refusal from resolve). Evals 0 and 2 first failed one expectation each because their prompts named a repository item the executor had to invent; they now give the item's content and pass. Records whose grading files were lost with the scratch directory carry the grader's verdict without its evidence."
+    "Evals 0-4 were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone. Evals 3 and 4 are new (the corpus refusals and a scheme refusal from resolve). Evals 0 and 2 first failed one expectation each because their prompts named a repository item the executor had to invent; they now give the item's content and pass. Evals 3 and 4 were run again later that day, by claude-opus-5-5, so their records carry the grader's evidence."
   ]
 }
