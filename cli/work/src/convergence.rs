@@ -7,6 +7,7 @@ use std::fmt::Formatter;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::after_fixing::AfterFixing;
 use crate::draft_id::DraftId;
 use crate::id_pattern::escaped;
 use crate::id_reading::unclassifiable::why_unclassifiable;
@@ -103,6 +104,16 @@ impl RekeyRequired {
 
 impl Display for RekeyRequired {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        self.write_to(formatter, AfterFixing::RerunThisCommand)
+    }
+}
+
+impl RekeyRequired {
+    pub(crate) fn write_to(
+        &self,
+        formatter: &mut impl std::fmt::Write,
+        after: AfterFixing,
+    ) -> std::fmt::Result {
         let count = self.off_pattern.len();
         let (noun, verb) = if count == 1 {
             ("work item", "is")
@@ -134,8 +145,8 @@ impl Display for RekeyRequired {
         write!(
             formatter,
             "{then_run} `/rekey-work-items` (or `accelerator work rekey \
-             --preview`, then `accelerator work rekey`) to converge them, \
-             then re-run this command"
+             --preview`, then `accelerator work rekey`) to converge them{}",
+            after.then()
         )
     }
 }

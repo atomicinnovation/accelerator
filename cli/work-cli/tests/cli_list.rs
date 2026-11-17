@@ -105,10 +105,12 @@ fn list_warns_about_a_work_item_that_is_not_utf8() -> Result<(), TestError> {
     assert!(
         stderr.contains(
             "warning: E_WORK_ITEM_MALFORMED: meta/work/0400-x.md is not \
-             UTF-8 text"
+             UTF-8 text. Re-save it as UTF-8, or move it out of the work \
+             directory\n"
         ),
         "{stderr}"
     );
+    assert!(!stderr.contains("re-run this command"), "{stderr}");
     Ok(())
 }
 

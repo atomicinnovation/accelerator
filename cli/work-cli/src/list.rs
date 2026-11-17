@@ -581,9 +581,12 @@ pub fn run(
             message: missing_directory_message(&work_dir),
         };
     }
-    let untrusted = refuse_untrusted_under(&scheme, &work_dir)
-        .err()
-        .map(|refusal| format!("warning: {}", refusal.relative_to(&root)));
+    let untrusted =
+        refuse_untrusted_under(&scheme, &work_dir)
+            .err()
+            .map(|refusal| {
+                format!("warning: {}", refusal.relative_to(&root).warning())
+            });
 
     let scan_result = match scan(&work_dir) {
         Ok(scan_result) => scan_result,

@@ -5,6 +5,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::path::Path;
 
+use crate::after_fixing::AfterFixing;
 use crate::convergence::refuse_divergence;
 use crate::convergence::RekeyRequired;
 use crate::id_scheme::IdScheme;
@@ -41,6 +42,24 @@ impl UntrustedCorpus {
                 Self::Malformed(refusal.relative_to(root))
             }
         }
+    }
+}
+
+impl UntrustedCorpus {
+    /// The problem as a warning to a command that went ahead, which asks
+    /// for the fix but not for a re-run.
+    #[must_use]
+    pub fn warning(&self) -> String {
+        let mut text = String::new();
+        let written = match self {
+            Self::RekeyRequired(problem) => {
+                problem.write_to(&mut text, AfterFixing::NothingMore)
+            }
+            Self::Malformed(problem) => {
+                problem.write_to(&mut text, AfterFixing::NothingMore)
+            }
+        };
+        written.map_or_else(|_| self.to_string(), |()| text)
     }
 }
 

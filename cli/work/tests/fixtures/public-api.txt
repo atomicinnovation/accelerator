@@ -37,6 +37,8 @@ pub work::corpus_trust::UntrustedCorpus::RekeyRequired(work::convergence::RekeyR
 impl work::corpus_trust::UntrustedCorpus
 pub const fn work::corpus_trust::UntrustedCorpus::code(&self) -> &'static str
 pub fn work::corpus_trust::UntrustedCorpus::relative_to(self, root: &std::path::Path) -> Self
+impl work::corpus_trust::UntrustedCorpus
+pub fn work::corpus_trust::UntrustedCorpus::warning(&self) -> alloc::string::String
 impl core::clone::Clone for work::corpus_trust::UntrustedCorpus
 pub fn work::corpus_trust::UntrustedCorpus::clone(&self) -> work::corpus_trust::UntrustedCorpus
 impl core::cmp::Eq for work::corpus_trust::UntrustedCorpus

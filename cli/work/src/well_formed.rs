@@ -6,6 +6,7 @@ use std::fmt::Formatter;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::after_fixing::AfterFixing;
 use crate::draft_id::DraftId;
 use crate::id_pattern::escaped;
 use crate::id_scheme::IdScheme;
@@ -126,21 +127,33 @@ impl MalformedItems {
 
 impl Display for MalformedItems {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        self.write_to(formatter, AfterFixing::RerunThisCommand)
+    }
+}
+
+impl MalformedItems {
+    pub(crate) fn write_to(
+        &self,
+        formatter: &mut impl std::fmt::Write,
+        after: AfterFixing,
+    ) -> std::fmt::Result {
         if let [only] = self.items.as_slice() {
             return write!(
                 formatter,
-                "{}: {}. {}, then re-run this command",
+                "{}: {}. {}{}",
                 Self::CODE,
                 only.what(),
                 only.remedy(),
+                after.then(),
             );
         }
         write!(
             formatter,
             "{}: {} work items cannot be read for their IDs. Fix each one \
-             as shown, then re-run this command:",
+             as shown{}:",
             Self::CODE,
             self.items.len(),
+            after.then(),
         )?;
         for item in &self.items {
             write!(formatter, "\n    {}. {}", item.what(), item.remedy())?;
