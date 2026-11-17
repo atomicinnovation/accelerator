@@ -38,6 +38,7 @@ use work::sync::SyncState;
 use crate::create_request_fields;
 use crate::sync::adoption_records::AdoptionRecords;
 use crate::sync::adoption_records::UnretiredRecord;
+use crate::sync::apply::bare_create_decision;
 use crate::sync::apply::issue_title;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
@@ -45,6 +46,7 @@ use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::IncompleteCorpusDeferral;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::KeyCarrier;
+use crate::sync::apply::MarkerReading;
 use crate::sync::apply::OrderRefusal;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
@@ -1263,6 +1265,10 @@ impl LocalCreate<'_> {
         matches!(self.planned.order(), Some(PendingPushOrder::Adopt(_)))
     }
 
+    const fn is_bare(&self) -> bool {
+        self.planned.order().is_none()
+    }
+
     /// The create's report line, carrying the order that settled it; a
     /// relink keeps its planned state.
     fn report(&self, outcome: ItemOutcome) -> ReportedItem {
@@ -1802,6 +1808,34 @@ impl LocalCreateInputs {
             tracker_name: sync.integration,
             attempted_at,
         }
+    }
+}
+
+fn previewed_outcome(
+    create: &LocalCreate<'_>,
+    request: &SyncRequest<'_>,
+    ports: &SyncPorts<'_>,
+    carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
+    attempted_at: u64,
+) -> ItemOutcome {
+    if !create.is_bare() {
+        return ItemOutcome::NotApplied;
+    }
+    let inputs = LocalCreateInputs::gather(create, request);
+    let decision = inputs.and_then(|inputs| {
+        let local_create = inputs.create_request(
+            create,
+            request,
+            ports.author,
+            carrier_of,
+            attempted_at,
+        );
+        let marker = MarkerReading::read(&local_create, ports.files.tracking);
+        bare_create_decision(&local_create, &marker)
+    });
+    match decision {
+        Ok(_) => ItemOutcome::NotApplied,
+        Err(error) => ItemOutcome::Failed(error),
     }
 }
 
@@ -2404,6 +2438,8 @@ fn execute<'a>(
     let reported_as = |item: ReportedItem| {
         noting_unsupported_recipe(item, &unsupported_recipe)
     };
+    let carrier =
+        |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
     if matches!(request.mode, RunMode::Preview) {
         let mut reported: Vec<ReportedItem> =
             validate_pushes(&plan, ports.tracker, &knowledge)
@@ -2418,7 +2454,13 @@ fn execute<'a>(
             ));
         }
         for create in &creates_from_local {
-            reported.push(create.report(ItemOutcome::NotApplied));
+            reported.push(create.report(previewed_outcome(
+                create,
+                request,
+                ports,
+                &carrier,
+                run_start_epoch,
+            )));
         }
         let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
         let dossiers =
@@ -2463,8 +2505,6 @@ fn execute<'a>(
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
     let mut adoptions = Vec::new();
-    let carrier =
-        |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
 
     {
         let mut applier = ItemApplier::new(
