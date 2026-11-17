@@ -14,7 +14,7 @@ pr_number: 176
 tags: ["research", "research-topic", "ask", "report", "eval"]
 revision: "34b7d2125394b8132e9a6422427b73385f2dfac5"
 repository: "accelerator"
-last_updated: "2026-11-16T23:55:20+00:00"
+last_updated: "2026-11-17T00:29:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -124,11 +124,10 @@ refine loop that the build verbs left open.
 - [x] `mise run` (full local CI mirror, including `check` and the
   eval-fixtures pre-flight) exited 0 at `a50bcb38`, the branch tip before
   this description
-- [ ] `mise run eval:ask-and-report` — run 5 passed 111/111 before the
-  review fixes. Since then the refusal recovery lines, the allow-rule
-  wording and a preamble sentence in `SKILL.md` changed and the harness was
-  refactored, so a re-run (at least `--family G2,G3,R1,E2,P1`) is due
-  before merge
+- [x] `mise run eval:ask-and-report` — run 5 passed 111/111 before the
+  review fixes; after them (new refusal recovery lines, allow-rule wording,
+  a preamble sentence and the harness refactors), `--family G2,G3,R1,E2,P1`
+  passed 40/40 on Claude Code 2.1.322
 - [x] Permission probe rows recorded on Claude Code 2.1.144 and 2.1.316
 - [ ] Manual smoke test on a scratch copy: `report` accept-then-decline,
   `ask` confirming a proposal appends only the next round, `report` on a
