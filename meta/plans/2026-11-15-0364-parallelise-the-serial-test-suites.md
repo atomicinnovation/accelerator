@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-16T22:56:04+00:00"
+last_updated: "2026-11-17T20:51:39+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -38,11 +38,11 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 |---|---|---|---|
 | 1. Observable timeout branches | Dev | #220 | Merged 2026-11-16 |
 | 2. Shorter pure-delay waits | Dev | #221 | Merged 2026-11-16 |
-| 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
+| 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) merged 2026-11-17; after window at 5 of 10 runs |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
-| 5. Retries off | Playwright | #229 | Open |
-| 6. Host-relative workers | Playwright | — | Not started |
-| 7. CI closing comparison | Both | — | Not started |
+| 5. Retries off | Playwright | #229 | Merged 2026-11-17 |
+| 6. Host-relative workers | Playwright | #232 | Open; validated on `c8cf7e5e` |
+| 7. CI closing comparison | Both | — | Not started; both before windows are contaminated, so both suites need the paired comparison |
 
 ## Current State Analysis
 
@@ -892,6 +892,35 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
   failed, on a DNS error during provenance attestation
   (`getaddrinfo ENOTFOUND run-actions-3-azure-eastus.actions.githubusercontent.com`),
   which is unrelated to 0364.
+
+  The after window so far holds five runs. Every `test-integration` job
+  passed:
+
+  | Run | Commit | ubuntu dev suite | ubuntu job | ubuntu workers | macOS dev suite | macOS job | macOS workers | macOS image |
+  |---|---|---|---|---|---|---|---|---|
+  | 43953328694 | `929fae79` (#225, #222) | 79.57 s | 914 s | 2 | 60.47 s | 1093 s | 3 | 20261028.624 |
+  | 43988761983 | `2b3aa94f` (#229, #230) | 75.30 s | 734 s | 2 | 44.94 s | 1314 s | 3 | 20261103.629 |
+  | 43989711594 | `f30a4f7c` (#224) | 90.73 s | 767 s | 2 | 21.03 s | 515 s | 5 | 20261103.629 |
+  | 43989762511 | `ba876153` (#226) | 93.37 s | 928 s | 2 | 60.69 s | 1260 s | 3 | 20261028.624 |
+  | 44031742886 | `902556ac` (#228) | 84.05 s | 941 s | 2 | 59.14 s | 1455 s | 3 | 20261028.624 |
+
+  - The ubuntu image is 20261103.629 throughout.
+  - The dev suite's medians so far are 84.05 s on ubuntu (IQR 13.3%) and
+    59.14 s on macOS (IQR 26.3%). Before, they were 163.39 s and 198.84 s.
+  - The whole job's medians so far are 914 s on ubuntu and 1260 s on macOS.
+    Before, the job took 666–756 s on ubuntu and 1247–1471 s on macOS. If
+    the ubuntu job stays slower when Phase 7 compares it, that is cost
+    moved onto the job's sibling lanes, which Phase 7 records on 0369.
+  - **macOS runners vary in size.** Run 43989711594's macOS job ran on a
+    5-CPU runner (xdist created 5 workers) and its whole job took 515 s.
+    The others ran on 3 CPUs. The paired comparison should note each
+    run's worker count.
+  - #230 added the `host:cpu-counts` step to the job from `2b3aa94f` on.
+    It takes seconds and doesn't touch the dev suite.
+  - Run 43988761983 failed only `Run unit tests (ubuntu-latest)`, on the
+    measurement harness's
+    `test_the_builds_group_is_forgotten_after_an_interrupt`
+    (`BuildLeftRunningError`), which is unrelated to 0364.
 - [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
@@ -1231,8 +1260,12 @@ validation and the CI windows measured, so it belongs in a reviewed commit
 that restarts the count.
 
 **Test additions**:
-- Mock `node:os` so that the named `availableParallelism` export returns 4,
-  and keep the rest of the module real.
+- Make `availableParallelism` return 4 by spying on the `os` module object
+  (`vi.spyOn(os, "availableParallelism")`) in a `beforeEach`. A
+  `vi.mock("node:os")` does not reach the config: under `jsdom` Vite's web
+  transform rewrites the config's import to
+  `__vite-browser-external:node:os` and reads the export off that module's
+  `default`, which is the real `os` object the spy patches.
 - Under both `CI` values, assert the literal counts:
   - top-level `workers` is 3;
   - `resolved-styles` is 2;
@@ -1242,11 +1275,17 @@ that restarts the count.
 
 #### Automated Verification:
 
-- [ ] The worker-allocation and config tests fail before the change and pass
-      after: `npm --prefix cli/visualiser/frontend test -- scripts/`
-- [ ] `mise run frontend:check` passes
-- [ ] The suite passes: `mise run test:e2e:visualiser`
-- [ ] Projects overlap. Run `npx playwright test --reporter=json >
+- [x] The worker-allocation and config tests fail before the change and pass
+      after: `npm --prefix cli/visualiser/frontend test -- scripts/`. Before,
+      the allocation test failed on the missing module, and the config test's
+      six worker cases failed on the values (`workers` 1, project workers
+      `undefined`); after, all 26 script tests pass.
+- [x] `mise run frontend:check` passes
+- [x] The suite passes: `mise run test:e2e:visualiser`. 355 passed and 1
+      was skipped, in 45.3 s on 9 workers.
+- [x] Projects overlap. Before the config change the check printed `true`
+      then `false` (188 s wall); after, `true` then `true` (46 s wall). Both
+      runs had 355 expected, 0 unexpected, 1 skipped and 0 flaky. Run `npx playwright test --reporter=json >
       results.json` from the frontend directory, with the task's env, and
       then this `jq` check.
 
@@ -1276,28 +1315,122 @@ that restarts the count.
       ```
       Before the config change, the same check prints `true` then `false`.
       Record both outputs in the PR.
-- [ ] Timing target met: in
+- [x] Timing target met: in
       `mise run measure:build --isolate test:e2e:visualiser --cache-state warm-no-op --runs 5 --host-settings devtools --keep`,
-      the per-task outcome is success and the median is under 75 s
+      the per-task outcome is success and the median is under 75 s. It is
+      47.0 s (min 46.4, max 54.3) on `83572065`, with every run successful
+      and an idle load of 67.0%, recorded in
+      `meta/measurements/build_2026-11-16T230609Z_engywook_warm-no-op_devtools_isolated.json`.
 
 #### Manual Verification:
 
-- [ ] Ten counted `mise run` executions on one recorded commit, per
-      Requirement 7. The PR records each outcome and the commit.
-- [ ] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
+- [x] Ten counted `mise run` executions on one recorded commit, per
+      Requirement 7. The PR records each outcome and the commit. All ten
+      count, on `c8cf7e5e`, whose code is `399edd36` on top of `main` at
+      `902556ac` (#228); the commits above `399edd36` touch only `meta/`.
+      The working copy stayed clean.
+  - Nine exited 0, in 218–310 s. Run 8 exited 1 after 124 s, failing only
+    `test:unit:tasks`: `test_the_build_stamps_lines_in_arrival_order`
+    expects two lines printed 0.5 s apart to be stamped more than 0.3 s
+    apart, and under load the first was stamped late, leaving 0.25 s. It is
+    a timing test of the measurement harness, unrelated to the suite.
+  - `test:e2e:visualiser` passed 355 with 1 skipped in every run, in
+    58–78 s on 9 workers. The dev suite passed 21/21 in every run.
+  - **The count stands without a rerun, after two rebases.** After the
+    runs, #232's branch was rebased twice, both times by a sync process
+    outside this work:
+    1. Onto `f7a8bd22`, a `[skip ci]` version bump.
+    2. Onto `7ba3859c` (#233), which changes the visualiser server's
+       idle-timeout parsing (`config.rs`), `tasks/notices.py` and its
+       test.
+
+    Neither adds or removes a task in `default`. The e2e harness never
+    sets the idle timeout, so the server runs on its default, and a
+    parsing fault would stop it starting on every run rather than cause
+    a flake. #232's CI on the new head, `aabc3ae1`, passed every job. Its
+    e2e suite passed 355 with 1 skipped on both OSes: 149.03 s on 3
+    workers on ubuntu (run 44168400921), and 296.68 s on 2 workers on
+    macOS. So the ten runs were not repeated. Phase 7's paired
+    comparison would still catch a flake.
+- [x] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
       `retries`. Every flake is listed with its fix or its split-out item.
-- [ ] The CI before window for `test-e2e` is recorded in the PR before merge,
-      as in Phase 3, with every run after Phase 5's merge.
-- [ ] If 75 s is missed, the first lever is per-project
+      The diff under `cli/` adds no `.skip`, `.fixme`, `.only`, `test.fail`
+      or `retries`. The suite showed no flake. The one e2e failure seen
+      during this phase was the outside `pkill` recorded with the load
+      measurement below.
+- [x] The CI before window for `test-e2e` is recorded in the PR before merge,
+      as in Phase 3, with every run after Phase 5's merge. Only four `main`
+      runs follow #229's merge (`2b3aa94f`, through #230). All their E2E
+      jobs passed, each on one worker:
+
+      | Run | Commit | ubuntu suite | ubuntu job | ubuntu image | macOS suite | macOS job | macOS image |
+      |---|---|---|---|---|---|---|---|
+      | 43988761983 | `2b3aa94f` (#229, #230) | 301.79 s | 384 s | 20261103.629 | 322.39 s | 412 s | 20261028.624 |
+      | 43989711594 | `f30a4f7c` (#224) | 222.33 s | 294 s | 20261103.629 | 313.67 s | 415 s | 20261103.629 |
+      | 43989762511 | `ba876153` (#226) | 336.53 s | 429 s | 20261103.629 | 320.72 s | 439 s | 20261028.624 |
+      | 44031742886 | `902556ac` (#228) | 224.70 s | 328 s | 20261103.629 | 341.73 s | 474 s | 20261103.629 |
+
+      - The suite's medians are 263.25 s on ubuntu (IQR 86.37 s, 32.8%) and
+        321.56 s on macOS (IQR 8.27 s, 2.6%).
+      - No sibling in the window touches the job: #224, #226 and #228 change
+        nothing under the visualiser, Playwright, the workflows, `mise.toml`
+        or `tasks/test`.
+      - The macOS runner image changes inside the window, and ubuntu's IQR
+        is far over 5%.
+
+      Phase 7 therefore treats the Playwright before window as contaminated
+      and runs the paired comparison for it, as it does for the dev suite.
+      Node reports 4 CPUs on ubuntu and 3 on macOS, so on CI the change
+      gives `resolved-styles` 2 workers on ubuntu (cap 3) and 1 on macOS
+      (cap 2).
+- [x] If 75 s is missed, the first lever is per-project
       `fullyParallel: true` on `resolved-styles`, unless Phase 5 already
       turned it on. It is a config change, so it restarts the 10-run count.
-- [ ] Load measurement recorded in the PR (not a gate): one non-isolated
+      Not needed: the isolated median is 47.0 s.
+- [x] Load measurement recorded in the PR (not a gate): one non-isolated
       `mise run measure:build --cache-state warm-no-op --runs 5 --host-settings devtools --keep`
       without the worker change and one with it. Run them back to back,
       from one recorded base commit. Record whether the dev track's worker
       phase is in that base. Record the median and IQR of the `default` wall time and of the
       three slowest sibling tasks. These runs are separate from the 10
       counted runs.
+  - **Result.** The base is `main` at `902556ac` (#228), which contains the
+    dev track's worker phase (#222). "Without" ran on `902556ac` and "with"
+    on the Phase 6 config commit `399edd36` rebased onto it, back to back.
+    Both working copies matched at start and end. The idle load was 36.9%
+    before "without" and 60.0% before "with".
+
+    | Figure | Without | With |
+    |---|---|---|
+    | `default` wall time | 274.3 s, IQR 12.6 | 276.7 s, IQR 2.3 |
+    | `test:unit:cli` | 202.0 s, IQR 6.2 | 255.0 s, IQR 5.1 |
+    | `test:e2e:visualiser` | 199.4 s, IQR 7.8 | 87.5 s, IQR 6.6 |
+    | `test:unit:tasks` | 124.3 s, IQR 26.1 | 189.3 s, IQR 9.1 |
+    | `test:integration:research` | 79.2 s, IQR 15.0 | 84.4 s, IQR 10.9 |
+
+    The `default` median rises by 2.4 s, inside the larger IQR, so it is
+    unchanged. The e2e suite's saving moves onto `test:unit:cli` and
+    `test:unit:tasks`, which now set the critical path. That is the
+    cross-lane contention 0369 owns.
+  - **Unrelated-task failures.** "Without" run 4 failed `test:unit:cli`
+    (`research-cli`'s `arxiv_pacing`
+    `a_killed_calls_request_still_spaces_the_next`, whose 3 s spacing
+    assertion measured 2.983 s) and `lint:server:check` (the server's
+    build script found no `frontend/dist/index.html` while `build:frontend`
+    was rebuilding it). The records also flag `deps:install:public-api`
+    and `notices:check` as failed with no exit status. Both are parsing
+    artefacts: their last log line was interleaved with another task's
+    output, and their runs exited 0.
+  - **Two earlier attempts were discarded.** In the first, a fetch and
+    `jj rebase -b @ -d 'trunk()'` from outside this session moved the
+    "without" base mid-run. In the second, another Claude Code session ran
+    `pkill -f chrome-headless-shell` at 06:27:04 UTC, which SIGTERMed all
+    nine of the e2e suite's browsers at once (exit 143) and failed 9 tests.
+    Neither is a flake in the suite.
+  - The records are
+    `meta/measurements/build_2026-11-17T063700Z_engywook_warm-no-op_devtools.json`
+    and
+    `meta/measurements/build_2026-11-17T070532Z_engywook_warm-no-op_devtools.json`.
 
 ---
 

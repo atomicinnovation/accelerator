@@ -1,17 +1,16 @@
+import { availableParallelism } from "node:os";
 import { defineConfig } from "@playwright/test";
+import { allocateWorkers } from "./scripts/worker-allocation";
 
 const ALLOCATED_HEALTH_PORT = process.env.E2E_HEALTH_PORT;
 const HEALTH_PORT = Number(ALLOCATED_HEALTH_PORT ?? 19087);
+const allocation = allocateWorkers(availableParallelism());
 
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   retries: 0,
-  // Force sequential execution across all projects so that the chromium
-  // kanban drag tests cannot run concurrently with each other or with the
-  // visual-regression snapshot tests (both touch shared fixture files or
-  // compare screenshots of fixture-driven content).
-  workers: 1,
+  workers: allocation.total,
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
   use: {
@@ -21,22 +20,18 @@ export default defineConfig({
   },
   projects: [
     {
-      // Computed-style specs only — no screenshots. The screenshot-emitting
-      // visual-regression specs live in playwright.docker.config.ts and run
-      // only in the pinned Docker image. These hit static showcase routes, so
-      // they must stay independent of the chromium drag tests' fixture
-      // mutation/restore order (project order is unspecified under workers:1);
-      // do not add a resolved-styles spec that reads live work-item status.
+      // Runs concurrently with chromium, so no probe here may measure an
+      // element that comes from a fixture a chromium spec writes.
       name: "resolved-styles",
       testDir: "./tests/resolved-styles",
+      workers: allocation.resolvedStyles,
       use: { browserName: "chromium" },
     },
     {
-      // No dependency on a snapshot project: the clean-fixture-before-drag
-      // guarantee is now provided by globalSetup/globalTeardown restore, not by
-      // an inter-project dependency. Do not add a native spec that relies on
-      // observing pre-drag clean fixture state.
+      // One worker, because its drag specs mutate shared fixtures in place;
+      // globalSetup and globalTeardown restore them.
       name: "chromium",
+      workers: allocation.chromium,
       use: { browserName: "chromium" },
     },
   ],
