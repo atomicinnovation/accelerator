@@ -872,7 +872,7 @@ impl Indexer {
             work::corpus_trust::refuse_untrusted(scheme, &listing)
                 .err()
                 .map(|refusal| {
-                    refusal.relative_to(&self.project_root).to_string()
+                    refusal.relative_to(&self.project_root).warning()
                 })
         });
         problem.map_or(Trust::Trusted, Trust::Untrusted)
@@ -2047,7 +2047,7 @@ mod identity_join_tests {
             Some(
                 "E_WORK_ITEM_MALFORMED: meta/work/0400-cafe.md is not UTF-8 \
                  text. Re-save it as UTF-8, or move it out of the work \
-                 directory, then re-run this command"
+                 directory"
             )
         );
         assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);

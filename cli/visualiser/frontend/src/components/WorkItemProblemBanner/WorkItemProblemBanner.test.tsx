@@ -76,7 +76,7 @@ describe("WorkItemProblemBanner", () => {
   it("lists each malformed work item on its own line", async () => {
     vi.spyOn(fetchModule, "fetchWorkItemConfig").mockResolvedValue({
       problem:
-        "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their IDs. Fix each one as shown, then re-run this command:\n    meta/work/0398-cafe.md is not UTF-8 text\n    meta/work/0399.md has `id` '0399'",
+        "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their IDs. Fix each one as shown:\n    meta/work/0398-cafe.md is not UTF-8 text\n    meta/work/0399.md has `id` '0399'",
       restartNeeded: false,
     });
 
