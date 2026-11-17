@@ -5,7 +5,7 @@ title: "Explicit Work Item ID on accelerator work create"
 date: "2026-10-09T09:34:53+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
@@ -21,7 +21,7 @@ external_id: "PP-905"
 # 0319: Explicit Work Item ID on accelerator work create
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
