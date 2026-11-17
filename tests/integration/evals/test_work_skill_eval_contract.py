@@ -33,6 +33,8 @@ SKILLS = (
     "review-work-item",
     "refine-work-item",
     "extract-work-items",
+    "list-work-items",
+    "sync-work-items",
 )
 EXIT_STATUS = re.compile(r"\bexit(?:s|ing)? (\d+)\b")
 REFUSAL_CODE = re.compile(r"\bE_[A-Z][A-Z_]*[A-Z]\b")
@@ -59,9 +61,15 @@ def _prompts() -> list[str]:
     ]
 
 
+def _is_a_warning(prompt: str, start: int) -> bool:
+    line_start = prompt.rfind("\n", 0, start) + 1
+    return prompt[line_start:start].endswith("warning: ")
+
+
 def quoted_refusals(prompt: str) -> list[tuple[str, int | None]]:
     """Each refusal code in ``prompt`` with the exit status quoted nearest
-    before it, or ``None`` when no status precedes it."""
+    before it, or ``None`` when no status precedes it. A code quoted in a
+    ``warning:`` line is no refusal."""
     statuses = [
         (status.end(), int(status.group(1)))
         for status in EXIT_STATUS.finditer(prompt)
@@ -79,6 +87,7 @@ def quoted_refusals(prompt: str) -> list[tuple[str, int | None]]:
             ),
         )
         for code in REFUSAL_CODE.finditer(prompt)
+        if not _is_a_warning(prompt, code.start())
     ]
 
 
@@ -208,6 +217,12 @@ def test_a_quoted_code_takes_the_exit_status_quoted_nearest_before_it() -> None:
         ("E_RESOLVE_INVALID", 1)
     ]
     assert quoted_refusals("Relay E_ID_TAKEN.") == [("E_ID_TAKEN", None)]
+    assert (
+        quoted_refusals(
+            "exiting 0 with this stderr:\n\nwarning: E_REKEY_REQUIRED: …"
+        )
+        == []
+    )
 
 
 def test_every_quoted_code_is_elicited_or_named_as_not(cli: dict) -> None:

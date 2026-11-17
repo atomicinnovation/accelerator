@@ -4463,7 +4463,8 @@
           "evidence": "response.md only reports the E_WORK_ITEM_MALFORMED error and the rename remedy; it contains no questions or draft work item."
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:6cc8d1894048bece4c546170a162432b829e4c286c17bf8c80734ae916bd887b"
     },
     {
       "eval_id": 75,
@@ -4502,7 +4503,8 @@
           "evidence": "questions.md is \"none\"; commands.md lists only \"`accelerator work id check -- '0400'` — exit code 4\" and states next/create were not called."
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:6cc8d1894048bece4c546170a162432b829e4c286c17bf8c80734ae916bd887b"
     }
   ],
   "run_summary": {

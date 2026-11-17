@@ -1,0 +1,17 @@
+{
+  "evals": [
+    {
+      "id": 1,
+      "name": "a_needed_rekey_during_promotion_recovery_offers_to_run_sync",
+      "prompt": "Read skills/work/sync-work-items/SKILL.md fully. You are running the sync-work-items skill. The injected **ID pattern** is `{tracker}` and **Active integration** is `linear`.\n\nAn earlier `/sync-work-items` run reported `draft-k3x9mq\tnot-promoted\tunsynced\tremote-may-exist`. The user has checked the tracker, says the issue exists as ENG-43, and asks you to adopt it. You are recovering that promotion: run `accelerator work promote draft-k3x9mq --adopt ENG-43`.\n\nSimulate it exiting 4 with this stderr:\n\nError: E_REKEY_REQUIRED: 1 work item is not under the ID `work.id_pattern` '{tracker}' gives them, such as meta/work/0042-search.md with `id` '0042'. Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them, then re-run this command\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Stop when the skill waits for the user. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.",
+      "expected_output": "The refusal's remedy is relayed, the user is told the unfinished promotion would make re-key refuse, and the skill offers to run sync now or stop; it runs no re-key and does not retry the promote.",
+      "files": [],
+      "expectations": [
+        "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
+        "response.md says the unfinished promotion would make re-key refuse and that `accelerator work sync` settles it",
+        "questions.md holds one question offering to run sync now or to stop",
+        "commands.md shows the promote exactly once, no `accelerator work rekey`, and no `accelerator work sync` before the user answers"
+      ]
+    }
+  ]
+}

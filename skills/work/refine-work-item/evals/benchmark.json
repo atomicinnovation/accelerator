@@ -6,7 +6,8 @@
     "analyzer_model": "<model-name>",
     "timestamp": "2026-04-25T14:30:00Z",
     "evals_run": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38],
-    "runs_per_configuration": 1
+    "runs_per_configuration": 1,
+    "skill_digest": "sha256:950815c63a33390746193f9f59dc12f137eea241ff006691dae32ec870402325"
   },
   "runs": [
     {
@@ -426,25 +427,27 @@
     },
     {
       "eval_id": 37,
+      "skill_digest": "sha256:950815c63a33390746193f9f59dc12f137eea241ff006691dae32ec870402325",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
-        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
-        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"}
+        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: \"a re-key is unfinished (`E_REKEY_IN_PROGRESS`)\" and \"Run `/rekey-work-items` to finish the re-key or undo it.\""},
+        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "files.md contains exactly \"none\"."},
+        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "commands.md has a single entry: \"1. `accelerator work id next --count 3` (exit 4, E_REKEY_IN_PROGRESS)\"."}
       ],
       "notes": []
     },
     {
       "eval_id": 38,
+      "skill_digest": "sha256:950815c63a33390746193f9f59dc12f137eea241ff006691dae32ec870402325",
       "configuration": "with_skill",
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
-        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
-        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"}
+        {"text": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`", "passed": true, "evidence": "response.md quotes \"Error: E_REKEY_REQUIRED: 1 work item is not under the ID ... Run `/rekey-work-items` (or `accelerator work rekey --preview`...\"."},
+        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "files.md contains exactly \"none\"."},
+        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "commands.md contains only \"accelerator work id next --count 3\"."}
       ],
       "notes": []
     }

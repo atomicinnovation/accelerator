@@ -6,7 +6,8 @@
       2,
       3,
       4
-    ]
+    ],
+    "skill_digest": "sha256:e11de59ff538f23504afc74996d28a6efe6488805f24c72e03ddedd9e17db49b"
   },
   "runs": [
     {
@@ -157,14 +158,15 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "response.md contains \"Error: E_REKEY_REQUIRED: 1 work item is not under the ID ... Run `/rekey-work-items` (or `accelerator work rekey --preview`...\"."
         },
         {
           "text": "no review is run: response.md presents no lens findings and files.md is `none`",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "response.md holds only the error message with no lens findings, and files.md contains \"none\"."
         }
-      ]
+      ],
+      "skill_digest": "sha256:e11de59ff538f23504afc74996d28a6efe6488805f24c72e03ddedd9e17db49b"
     }
   ],
   "run_summary": {

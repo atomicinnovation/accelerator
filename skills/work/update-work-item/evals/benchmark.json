@@ -7,7 +7,8 @@
       2,
       3,
       4
-    ]
+    ],
+    "skill_digest": "sha256:2fb2ed25944f62bbf00148c5dcc967c714ffe40367ce1087fc70b011839f7a31"
   },
   "runs": [
     {
@@ -108,14 +109,15 @@
         {
           "text": "Relays the corpus refusal",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "response.md reads \"Error: E_REKEY_REQUIRED: 1 work item is not under the ID ... Run `/rekey-work-items` (or `accelerator work rekey --preview`...)\"."
         },
         {
           "text": "Writes nothing",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "files.md is \"none\" and commands.md lists only \"`accelerator work resolve 0041` — exit code 4\"."
         }
-      ]
+      ],
+      "skill_digest": "sha256:2fb2ed25944f62bbf00148c5dcc967c714ffe40367ce1087fc70b011839f7a31"
     },
     {
       "eval_id": 4,
@@ -131,19 +133,20 @@
         {
           "text": "Relays the scheme refusal",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "response.md is exactly the stderr from commands.md: \"E_WORK_ID_PATTERN_INVALID: work.id_pattern '{nmber:04d}': unknown token '{nmber:04d}' in pattern\"."
         },
         {
           "text": "Does not blame the argument",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "response.md only contains the pattern error and never mentions '0041' or says it was unrecognised."
         },
         {
           "text": "Writes nothing",
           "passed": true,
-          "evidence": "passed; graded from the outputs by a separate agent"
+          "evidence": "files.md contains \"none\"."
         }
-      ]
+      ],
+      "skill_digest": "sha256:2fb2ed25944f62bbf00148c5dcc967c714ffe40367ce1087fc70b011839f7a31"
     }
   ],
   "run_summary": {
