@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-17T08:21:09+00:00"
+last_updated: "2026-11-17T08:23:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -41,7 +41,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
 | 5. Retries off | Playwright | #229 | Open |
-| 6. Host-relative workers | Playwright | — | Validated on `c8cf7e5e`; PR not yet raised |
+| 6. Host-relative workers | Playwright | #232 | Open; validated on `c8cf7e5e` |
 | 7. CI closing comparison | Both | — | Not started |
 
 ## Current State Analysis
