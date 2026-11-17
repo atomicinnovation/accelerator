@@ -5888,6 +5888,30 @@ fn a_preview_reports_an_unusable_create_the_run_would() -> Result<(), TestError>
 }
 
 #[test]
+fn a_preview_reports_a_work_file_the_run_could_not_read(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    std::fs::remove_file(&item.path)?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        previewing(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let error = create_from_local_failure(&report);
+    assert_eq!(error.class(), FailureClass::Retryable, "{error}");
+    assert_eq!(error.operation(), SyncOperation::ReadLocal, "{error}");
+    assert_nothing_sent(&tracker, &author);
+    assert_no_pending_push_touched(&fixture);
+    Ok(())
+}
+
+#[test]
 fn a_preview_reports_an_id_that_cannot_name_a_marker() -> Result<(), TestError>
 {
     let fixture = Fixture::new()?;
