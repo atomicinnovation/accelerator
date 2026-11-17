@@ -13,9 +13,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
+GATED_COMMANDS = (
+    (REPO_ROOT / "cli/work-cli/tests/fixtures/gated-commands.txt")
+    .read_text()
+    .split("\n")
+)
 REFUSING_COMMAND = re.compile(
-    r"\baccelerator work (?:resolve|create|create-batch|promote"
-    r"|id next|id check)\b"
+    r"\baccelerator work (?:"
+    + "|".join(re.escape(command) for command in GATED_COMMANDS if command)
+    + r")\b"
 )
 CODES = ("E_REKEY_REQUIRED", "E_WORK_ITEM_MALFORMED")
 NAMES_A_REFUSING_COMMAND_WITHOUT_RUNNING_IT = {

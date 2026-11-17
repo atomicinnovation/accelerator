@@ -67,6 +67,27 @@ fn work_files(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
+const GATED_COMMANDS: &str = include_str!("fixtures/gated-commands.txt");
+
+fn command_name(args: &[&str]) -> String {
+    match args {
+        ["id", verb, ..] => format!("id {verb}"),
+        [command, ..] => (*command).to_owned(),
+        [] => String::new(),
+    }
+}
+
+fn assert_every_gated_command_is_run(commands: &[&[&str]]) {
+    let run: std::collections::BTreeSet<String> =
+        commands.iter().map(|args| command_name(args)).collect();
+    let gated: std::collections::BTreeSet<String> =
+        GATED_COMMANDS.lines().map(str::to_owned).collect();
+    assert_eq!(
+        run, gated,
+        "the gated commands are listed in {GATED_COMMANDS}"
+    );
+}
+
 #[test]
 fn every_id_command_refuses_a_diverged_corpus() -> Result<(), TestError> {
     let commands: &[&[&str]] = &[
@@ -93,6 +114,7 @@ fn every_id_command_refuses_a_diverged_corpus() -> Result<(), TestError> {
         &["resolve", "PP_0001"],
         &["promote", "draft-k7mq3x"],
     ];
+    assert_every_gated_command_is_run(commands);
     for args in commands {
         let repo = diverged_repo()?;
         let before = work_files(repo.path());
@@ -225,6 +247,7 @@ fn every_id_command_refuses_a_malformed_item() -> Result<(), TestError> {
         &["resolve", "PP_0001"],
         &["promote", "draft-k7mq3x"],
     ];
+    assert_every_gated_command_is_run(commands);
     for args in commands {
         let repo = diverged_repo()?;
         fs::remove_file(repo.path().join(OFF_PATTERN_ITEM))?;
