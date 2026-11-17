@@ -567,6 +567,9 @@ fn run_rekey(args: &cli::RekeyArgs) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    if let Err(error) = kernel::logging::init_if_requested() {
+        eprintln!("{error}");
+    }
     let cli = Cli::parse();
     match cli.command {
         Command::Resolve { input } => run_resolve(&input),

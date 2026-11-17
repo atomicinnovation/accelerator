@@ -468,6 +468,9 @@ fn story_summary(story: &Value) -> Value {
 fn main() -> ExitCode {
     #[cfg(feature = "test-loopback")]
     std::hint::black_box(TEST_LOOPBACK_MARKER);
+    if let Err(error) = kernel::logging::init_if_requested() {
+        eprintln!("{error}");
+    }
     let cli = Cli::parse();
     match cli.command {
         Command::Init { action } => run_init(action),

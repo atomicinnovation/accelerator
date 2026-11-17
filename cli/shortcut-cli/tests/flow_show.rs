@@ -112,3 +112,25 @@ fn without_a_catalogue_show_says_how_to_get_one() {
     assert_eq!(output.status.code(), Some(30));
     assert!(support::stderr(&output).contains("init-shortcut"));
 }
+
+#[test]
+fn accelerator_log_traces_each_request_without_the_token() {
+    let server = support::serving(&["story-show-200"]);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+
+    let output = support::command(
+        dir.path(),
+        &["show", "sc-14"],
+        Some(&server.base_url()),
+        &support::Token::Present,
+    )
+    .env("ACCELERATOR_LOG", "shortcut_client=debug")
+    .output()
+    .expect("run accelerator-shortcut");
+
+    assert!(output.status.success(), "{}", support::stderr(&output));
+    let stderr = support::stderr(&output);
+    assert!(stderr.contains("shortcut request attempt"), "{stderr}");
+    assert!(!stderr.contains(support::TOKEN_SENTINEL), "{stderr}");
+}
