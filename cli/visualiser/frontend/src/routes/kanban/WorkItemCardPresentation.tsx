@@ -2,7 +2,6 @@ import { formatMtime } from "../../api/format";
 import type { IndexEntry } from "../../api/types";
 import { Chip } from "../../components/Chip/Chip";
 import { PipelineMini } from "../../components/PipelineMini/PipelineMini";
-import { formatDocId } from "../library/doc-type-id";
 import { LinkIcon } from "./icons";
 import styles from "./WorkItemCard.module.css";
 import { WorkKindBadge } from "./WorkKindBadge";
@@ -37,7 +36,7 @@ export function WorkItemCardPresentation({
   const fmKind = entry.frontmatter.kind;
   const kindLabel =
     typeof fmKind === "string" && fmKind.length > 0 ? fmKind : null;
-  const idLabel = entry.workItemId ? formatDocId(entry.workItemId) : null;
+  const idLabel = entry.workItemId ? entry.workItemId : null;
 
   const className = [
     styles.card,

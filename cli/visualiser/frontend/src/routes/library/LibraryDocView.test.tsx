@@ -15,6 +15,7 @@ const mockEntry: IndexEntry = {
   relPath: "meta/plans/2026-01-01-foo.md",
   slug: "foo",
   workItemId: null,
+  workItemKey: null,
   draft: false,
   title: "Foo Plan",
   frontmatter: { status: "draft" },
@@ -442,6 +443,7 @@ describe("LibraryDocView", () => {
       relPath: "meta/work/0041-page-wrapper.md",
       slug: "0041-page-wrapper",
       workItemId: "0041",
+      workItemKey: null,
       title: "Page wrapper",
     };
     const subject: IndexEntry = {
@@ -450,6 +452,7 @@ describe("LibraryDocView", () => {
       relPath: "meta/work/0078-detail-page-frontmatter-table.md",
       slug: "0078-detail-page-frontmatter-table",
       workItemId: "0078",
+      workItemKey: null,
       frontmatter: { parent: "WORK-ITEM-0041" },
       frontmatterState: "parsed",
     };

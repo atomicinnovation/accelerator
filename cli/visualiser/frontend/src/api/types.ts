@@ -130,6 +130,9 @@ export interface IndexEntry {
   /** The work item's `id`, normalised under the configured scheme; null for
    *  other types or an `id` the scheme does not admit. */
   workItemId: string | null;
+  /** The key `workItemId` holds under the configured scheme, which the
+   *  project facet filters on; null when it holds none. */
+  workItemKey: string | null;
   /** A work item whose `id` is a draft's, which no tracker has confirmed.
    *  Older servers omitting the field are normalised to `false` at the API
    *  client boundary. */

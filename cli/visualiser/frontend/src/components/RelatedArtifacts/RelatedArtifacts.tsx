@@ -2,7 +2,6 @@ import { formatMtime } from "../../api/format";
 import { fileSlugFromRelPath } from "../../api/path-utils";
 import type { IndexEntry, RelatedArtifactsResponse } from "../../api/types";
 import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
-import { formatDocId } from "../../routes/library/doc-type-id";
 import { Glyph } from "../Glyph/Glyph";
 import { DOC_TYPE_COLOR_VAR } from "../Glyph/Glyph.constants";
 import { Icon } from "../Icon/Icon";
@@ -81,7 +80,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
           // Mirrors the lifecycle/search id treatment: a formatted work-item
           // id when present, else the file slug.
           const docId = entry.workItemId
-            ? formatDocId(entry.workItemId)
+            ? entry.workItemId
             : (entry.slug ?? fileSlugFromRelPath(entry.relPath));
           return (
             <li

@@ -241,8 +241,10 @@
   the pattern does not read, a bare `42` under `{number:04d}` or
   `{key}-{number:04d}` included, leaves the corpus untrusted: the
   visualiser then shows no work-item ID on any item, and its banner reports
-  `E_REKEY_REQUIRED` until the corpus is re-keyed. Consumers of the
-  visualiser API's `workItemId` need updating.
+  `E_REKEY_REQUIRED` until the corpus is re-keyed. IDs are shown as served,
+  no longer padded to four digits, and each entry carries `workItemKey`,
+  the key its ID holds, which the library's project filter reads.
+  Consumers of the visualiser API's `workItemId` need updating.
 - **A work item whose IDs cannot be read is refused.** The commands that
   refuse an off-pattern corpus also refuse, with `E_WORK_ITEM_MALFORMED`
   (exit 4), a file whose name does not hold its `id` before a slug, as

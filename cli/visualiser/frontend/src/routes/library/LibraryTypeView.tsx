@@ -19,7 +19,6 @@ import { EyebrowLabel } from "../../components/EyebrowLabel/EyebrowLabel";
 import { FilterPill } from "../../components/FilterPill/FilterPill";
 import { Page } from "../../components/Page/Page";
 import { type SortOption, SortPill } from "../../components/SortPill/SortPill";
-import { formatDocId } from "./doc-type-id";
 import { EmptyState } from "./EmptyState";
 import styles from "./LibraryTypeView.module.css";
 import { NoResultsPanel } from "./NoResultsPanel";
@@ -37,7 +36,7 @@ function firstColumnContent(
   | { kind: "date"; value: string }
   | { kind: "empty" } {
   if (entry.workItemId) {
-    return { kind: "id", value: formatDocId(entry.workItemId) };
+    return { kind: "id", value: entry.workItemId };
   }
   const dateRaw = entry.frontmatter?.date;
   if (typeof dateRaw === "string" && !Number.isNaN(Date.parse(dateRaw))) {
@@ -92,12 +91,7 @@ function matchesSelection(
     let entryValue: string | null = null;
     if (facetId === "status") entryValue = statusValue(entry) || null;
     else if (facetId === "clusterSlug") entryValue = entry.slug;
-    else if (facetId === "project") {
-      if (entry.workItemId) {
-        const idx = entry.workItemId.indexOf("-");
-        entryValue = idx > 0 ? entry.workItemId.slice(0, idx) : null;
-      }
-    }
+    else if (facetId === "project") entryValue = entry.workItemKey;
     if (entryValue === null) return false;
     if (!options.includes(entryValue)) return false;
   }

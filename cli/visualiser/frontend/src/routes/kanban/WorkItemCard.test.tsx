@@ -45,7 +45,18 @@ describe("WorkItemCard", () => {
     );
   });
 
-  it("renders bare-digit workItemId verbatim (formatDocId passthrough)", async () => {
+  it("renders a tracker key as served, unpadded", async () => {
+    const entry = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/ENG-7-foo.md",
+      workItemId: "ENG-7",
+      title: "Foo",
+    });
+    renderCard(entry);
+    expect(await screen.findByText("ENG-7")).toBeInTheDocument();
+  });
+
+  it("renders bare-digit workItemId verbatim", async () => {
     const entry = makeIndexEntry({
       type: "work-items",
       relPath: "meta/work/0042-foo.md",

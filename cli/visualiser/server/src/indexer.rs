@@ -71,7 +71,6 @@ pub fn facets_for(doc_type: DocTypeKey) -> &'static [&'static str] {
 /// the entry does not contribute to that facet at all.
 pub fn extract_facet_value(
     entry: &IndexEntry,
-    cfg: &crate::config::Config,
     facet_id: &str,
 ) -> Option<String> {
     match facet_id {
@@ -86,11 +85,7 @@ pub fn extract_facet_value(
                 .map(std::string::ToString::to_string)
         }
         "clusterSlug" => entry.slug.clone(),
-        "project" => {
-            let shown = entry.work_item_id.as_deref()?;
-            let scheme = crate::config::WorkItemConfig::of(&cfg.work_item);
-            scheme.scheme()?.read_held(shown)?.key().map(str::to_owned)
-        }
+        "project" => entry.work_item_key.clone(),
         _ => None,
     }
 }
@@ -100,7 +95,6 @@ pub fn extract_facet_value(
 /// options list for a facet acts as a no-op (matches every entry).
 pub fn entry_matches_all(
     entry: &IndexEntry,
-    cfg: &crate::config::Config,
     type_selection: Option<&HashMap<String, Vec<String>>>,
 ) -> bool {
     let Some(sel) = type_selection else {
@@ -110,7 +104,7 @@ pub fn entry_matches_all(
         if options.is_empty() {
             continue;
         }
-        let Some(value) = extract_facet_value(entry, cfg, facet_id) else {
+        let Some(value) = extract_facet_value(entry, facet_id) else {
             return false;
         };
         if !options.iter().any(|o| o == &value) {
@@ -123,7 +117,6 @@ pub fn entry_matches_all(
 /// Like `entry_matches_all` but skips the facet equal to `except_facet`.
 pub fn entry_matches_all_except(
     entry: &IndexEntry,
-    cfg: &crate::config::Config,
     type_selection: Option<&HashMap<String, Vec<String>>>,
     except_facet: &str,
 ) -> bool {
@@ -137,7 +130,7 @@ pub fn entry_matches_all_except(
         if options.is_empty() {
             continue;
         }
-        let Some(value) = extract_facet_value(entry, cfg, facet_id) else {
+        let Some(value) = extract_facet_value(entry, facet_id) else {
             return false;
         };
         if !options.iter().any(|o| o == &value) {
@@ -158,6 +151,9 @@ pub struct IndexEntry {
     /// The work item's `id` frontmatter, normalised under the configured
     /// scheme; `None` for other types or an `id` the scheme does not admit.
     pub work_item_id: Option<String>,
+    /// The key `work_item_id` holds under the configured scheme, which the
+    /// library's project facet filters on.
+    pub work_item_key: Option<String>,
     /// The key every spelling of this work item joins on, which the
     /// indexes and clusters use; never served as the item's ID.
     #[serde(skip)]
@@ -690,7 +686,6 @@ impl Indexer {
     // handler latency exceeds ~50ms or the entry count exceeds ~10k.
     pub async fn library_aggregates(
         &self,
-        cfg: &crate::config::Config,
         selection: &Selection,
     ) -> LibraryAggregates {
         let entries = self.entries.read().await;
@@ -725,7 +720,7 @@ impl Indexer {
 
             per.filtered_count = type_entries
                 .iter()
-                .filter(|e| entry_matches_all(e, cfg, type_selection))
+                .filter(|e| entry_matches_all(e, type_selection))
                 .count();
 
             for facet_id in facets_for(*doc_type) {
@@ -734,14 +729,13 @@ impl Indexer {
                 for entry in &type_entries {
                     if !entry_matches_all_except(
                         entry,
-                        cfg,
                         type_selection,
                         facet_id,
                     ) {
                         continue;
                     }
                     if let Some(option_id) =
-                        extract_facet_value(entry, cfg, facet_id)
+                        extract_facet_value(entry, facet_id)
                     {
                         *option_counts.entry(option_id).or_insert(0) += 1;
                     }
@@ -1551,6 +1545,9 @@ fn build_entry(
         draft: work_item_id
             .as_deref()
             .is_some_and(|id| work::draft_id::DraftId::parse(id).is_some()),
+        work_item_key: work_item_id
+            .as_deref()
+            .and_then(|shown| work_item_cfg.key_of(shown)),
         work_item_id,
         identity_key,
         title,
@@ -1832,28 +1829,6 @@ mod identity_join_tests {
         found
     }
 
-    fn config_with_key(key: &str) -> crate::config::Config {
-        crate::config::Config {
-            plugin_root: "/p".into(),
-            plugin_version: "test".into(),
-            project_root: "/p".into(),
-            tmp_path: "/t".into(),
-            host: "127.0.0.1".into(),
-            owner_pid: 0,
-            owner_start_time: None,
-            log_path: "/l".into(),
-            doc_paths: HashMap::new(),
-            templates: HashMap::default(),
-            work_item: crate::config::WorkItemScheme::Configured(
-                scheme_for_test("{key}-{number:04d}", Some(key)),
-            ),
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
-        }
-    }
-
     const PP_0500: (&str, &str) = (
         "meta/work/pp-0500-x.md",
         "---\nid: pp-0500\ntitle: X\n---\n",
@@ -1896,8 +1871,7 @@ mod identity_join_tests {
 
         assert_eq!(entry.work_item_id.as_deref(), Some("pp-0500"));
         assert_eq!(
-            extract_facet_value(&entry, &config_with_key("PP"), "project")
-                .as_deref(),
+            extract_facet_value(&entry, "project").as_deref(),
             Some("pp")
         );
     }
@@ -2477,32 +2451,11 @@ mod tests {
         assert_eq!(foo.body_preview, "First paragraph of the body.");
     }
 
-    fn make_cfg(doc_paths: HashMap<String, PathBuf>) -> crate::config::Config {
-        crate::config::Config {
-            plugin_root: "/p".into(),
-            plugin_version: "test".into(),
-            project_root: "/p".into(),
-            tmp_path: "/t".into(),
-            host: "127.0.0.1".into(),
-            owner_pid: 0,
-            owner_start_time: None,
-            log_path: "/l".into(),
-            doc_paths,
-            templates: HashMap::default(),
-            work_item: crate::config::WorkItemScheme::Default,
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
-        }
-    }
-
     #[tokio::test]
     async fn library_aggregates_returns_counts_and_latest_per_type() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
-        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let agg = idx.library_aggregates(&Selection::new()).await;
         let plans =
             agg.per_type.get(&DocTypeKey::Plans).expect("plans present");
         assert_eq!(plans.count, 3);
@@ -2526,8 +2479,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let cfg = make_cfg(HashMap::new());
-        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let agg = idx.library_aggregates(&Selection::new()).await;
         assert!(agg.per_type.is_empty());
     }
 
@@ -2535,8 +2487,7 @@ mod tests {
     async fn library_aggregates_status_facet_skips_non_parsed_frontmatter() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
-        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let agg = idx.library_aggregates(&Selection::new()).await;
         let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
         let status_options = plans.facet_options.get("status").unwrap();
         // Only the "draft" plan has parsed frontmatter with a status — the
@@ -2549,13 +2500,12 @@ mod tests {
     async fn library_aggregates_filtered_count_reflects_selection() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
         let mut sel: Selection = HashMap::new();
         sel.insert(
             DocTypeKey::Plans,
             HashMap::from([("status".to_string(), vec!["draft".to_string()])]),
         );
-        let agg = idx.library_aggregates(&cfg, &sel).await;
+        let agg = idx.library_aggregates(&sel).await;
         let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 1);
@@ -2565,13 +2515,12 @@ mod tests {
     async fn library_aggregates_empty_options_array_disables_facet_filter() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
         let mut sel: Selection = HashMap::new();
         sel.insert(
             DocTypeKey::Plans,
             HashMap::from([("status".to_string(), vec![])]),
         );
-        let agg = idx.library_aggregates(&cfg, &sel).await;
+        let agg = idx.library_aggregates(&sel).await;
         let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
         assert_eq!(plans.filtered_count, plans.count);
     }
@@ -2589,119 +2538,106 @@ mod tests {
         assert!(facets_for(DocTypeKey::Templates).is_empty());
     }
 
+    fn key_served(
+        id: &str,
+        pattern: &str,
+        key: Option<&str>,
+    ) -> Option<String> {
+        let text = format!("---\ntitle: T\nid: \"{id}\"\n---\n");
+        build_entry(
+            DocTypeKey::WorkItems,
+            PathBuf::from(format!("/repo/meta/work/{id}-x.md")),
+            &crate::file_driver::FileContent {
+                bytes: text.as_bytes().to_vec(),
+                etag: "etag".into(),
+                mtime_ms: 0,
+                size: text.len() as u64,
+            },
+            Path::new("/repo"),
+            &crate::config::WorkItemConfig::new(
+                crate::config::scheme_for_test(pattern, key),
+            ),
+        )
+        .work_item_key
+    }
+
     #[test]
-    fn extract_facet_value_project_derives_from_work_item_id() {
-        let entry = sample_entry_with_work_item("PROJ-0042");
-        let cfg = make_cfg_with_key("OTHER");
+    fn the_served_key_is_the_one_the_id_holds() {
         assert_eq!(
-            extract_facet_value(&entry, &cfg, "project"),
+            key_served("PROJ-0042", "{key}-{number:04d}", Some("OTHER")),
             Some("PROJ".to_string())
+        );
+        assert_eq!(
+            key_served("PP_0042", "{key}_{number:04d}", Some("PP")),
+            Some("PP".to_string())
+        );
+        assert_eq!(
+            key_served("0042-PP", "{number:04d}-{key}", Some("XY")),
+            Some("PP".to_string())
+        );
+        assert_eq!(
+            key_served("ENG-7", "{tracker}", None),
+            Some("ENG".to_string())
         );
     }
 
     #[test]
-    fn extract_facet_value_project_falls_back_to_default_for_prefixless_ids() {
-        let entry = sample_entry_with_work_item("0042");
-        let cfg = make_cfg_with_key("FALLBACK");
+    fn a_prefixless_id_is_served_under_the_configured_key() {
         assert_eq!(
-            extract_facet_value(&entry, &cfg, "project"),
+            key_served("0042", "{key}-{number:04d}", Some("FALLBACK")),
             Some("FALLBACK".to_string())
         );
     }
 
     #[test]
-    fn extract_facet_value_project_returns_none_for_empty_prefix() {
-        let entry = sample_entry_with_work_item("-0042");
-        let cfg = make_cfg(HashMap::new());
-        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+    fn no_key_is_served_for_an_id_without_one() {
+        assert_eq!(key_served("-0042", "{key}-{number:04d}", Some("PP")), None);
+        assert_eq!(key_served("draft-k7mq3x", "{tracker}", None), None);
     }
 
     #[test]
-    fn extract_facet_value_project_reads_the_key_where_the_pattern_puts_it() {
-        let entry = sample_entry_with_work_item("0042-PP");
-        let cfg = cfg_under("{number:04d}-{key}", Some("XY"));
+    fn the_project_facet_is_the_served_key() {
+        let entry = IndexEntry {
+            work_item_key: Some("PP".to_string()),
+            ..sample_entry_with_work_item("PP_0042")
+        };
         assert_eq!(
-            extract_facet_value(&entry, &cfg, "project"),
+            extract_facet_value(&entry, "project"),
             Some("PP".to_string())
         );
     }
 
     #[test]
-    fn extract_facet_value_project_is_none_for_a_draft() {
-        let entry = sample_entry_with_work_item("draft-k7mq3x");
-        let cfg = cfg_under("{tracker}", None);
-        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
-    }
-
-    fn cfg_under(pattern: &str, key: Option<&str>) -> crate::config::Config {
-        crate::config::Config {
-            work_item: crate::config::WorkItemScheme::Configured(
-                crate::config::scheme_for_test(pattern, key),
-            ),
-            ..make_cfg(HashMap::new())
-        }
-    }
-
-    #[test]
     fn extract_facet_value_project_returns_none_when_work_item_id_is_none() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg_with_key("FALLBACK");
-        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+        assert_eq!(extract_facet_value(&entry, "project"), None);
     }
 
     #[test]
     fn entry_matches_all_returns_true_when_selection_absent() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg(HashMap::new());
-        assert!(entry_matches_all(&entry, &cfg, None));
+        assert!(entry_matches_all(&entry, None));
     }
 
     #[test]
     fn entry_matches_all_empty_options_is_no_filter() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg(HashMap::new());
         let sel: HashMap<String, Vec<String>> =
             HashMap::from([("status".to_string(), vec![])]);
-        assert!(entry_matches_all(&entry, &cfg, Some(&sel)));
+        assert!(entry_matches_all(&entry, Some(&sel)));
     }
 
     #[test]
     fn entry_matches_all_except_skips_named_facet() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg(HashMap::new());
         let sel: HashMap<String, Vec<String>> = HashMap::from([(
             "status".to_string(),
             vec!["does-not-match".to_string()],
         )]);
         // entry_matches_all would reject it
-        assert!(!entry_matches_all(&entry, &cfg, Some(&sel)));
+        assert!(!entry_matches_all(&entry, Some(&sel)));
         // entry_matches_all_except("status") skips the rejecting facet
-        assert!(entry_matches_all_except(&entry, &cfg, Some(&sel), "status"));
-    }
-
-    fn make_cfg_with_key(code: &str) -> crate::config::Config {
-        crate::config::Config {
-            plugin_root: "/p".into(),
-            plugin_version: "test".into(),
-            project_root: "/p".into(),
-            tmp_path: "/t".into(),
-            host: "127.0.0.1".into(),
-            owner_pid: 0,
-            owner_start_time: None,
-            log_path: "/l".into(),
-            doc_paths: HashMap::new(),
-            templates: HashMap::default(),
-            work_item: crate::config::WorkItemScheme::Configured(
-                crate::config::scheme_for_test(
-                    "{key}-{number:04d}",
-                    Some(code),
-                ),
-            ),
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
-        }
+        assert!(entry_matches_all_except(&entry, Some(&sel), "status"));
     }
 
     fn sample_entry_with_work_item(work_item_id: &str) -> IndexEntry {
@@ -2711,6 +2647,7 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: Some(work_item_id.to_string()),
+            work_item_key: None,
             identity_key: Some(work_item_id.to_string()),
             draft: false,
             title: "Sample".into(),
@@ -2734,6 +2671,7 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: None,
+            work_item_key: None,
             identity_key: None,
             draft: false,
             title: "Sample".into(),

@@ -118,10 +118,7 @@ pub(crate) async fn library_structure(
     axum::extract::RawQuery(raw): axum::extract::RawQuery,
 ) -> Json<LibraryStructureResponse> {
     let selection = parse_selection_query(raw.as_deref().unwrap_or(""));
-    let agg = state
-        .indexer
-        .library_aggregates(&state.cfg, &selection)
-        .await;
+    let agg = state.indexer.library_aggregates(&selection).await;
     Json(build_structure(&state.cfg, &agg))
 }
 

@@ -202,6 +202,16 @@ impl WorkItemConfig {
         })
     }
 
+    /// The key `shown` holds under the scheme, if it holds one.
+    #[must_use]
+    pub fn key_of(&self, shown: &str) -> Option<String> {
+        self.scheme
+            .as_ref()?
+            .read_held(shown)?
+            .key()
+            .map(str::to_owned)
+    }
+
     #[must_use]
     pub fn displayed_id(&self, raw: &str) -> Option<String> {
         self.scheme.as_ref()?.displayed_id(raw)
