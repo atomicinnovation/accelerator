@@ -263,9 +263,13 @@ stderr:
 - `E_REKEY_REQUIRED` — relay the printed remedy as is and stop. It names
   `/rekey-work-items`, after any fix by hand an item re-key cannot read
   needs first. When it came from `accelerator work promote` while
-  recovering a promotion, say to run `accelerator work sync` before the
-  re-key: sync is not refused here and settles an unfinished promotion,
-  which would otherwise make re-key refuse with `E_REKEY_SYNC_UNFINISHED`.
+  recovering a promotion, the unfinished promotion would make re-key refuse
+  with `E_REKEY_SYNC_UNFINISHED`, and sync is not refused here and settles
+  it. Use the `AskUserQuestion` tool with two options:
+  1. **Run sync now** — run Step 2's `accelerator work sync` with no flags,
+     read its output as below, then say to re-key.
+  2. **Stop** — say to run `accelerator work sync`, then re-key.
+
   Once the corpus is re-keyed, this skill can be run again.
 - `E_WORK_ITEM_MALFORMED` — relay every file it lists with its printed fix,
   as is. Each is fixed by hand. Stop.
