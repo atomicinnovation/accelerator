@@ -107,6 +107,17 @@ pub fn run_with(
     api_url: Option<&str>,
     token: &Token,
 ) -> Output {
+    command(dir, args, api_url, token)
+        .output()
+        .expect("run accelerator-shortcut")
+}
+
+pub fn command(
+    dir: &Path,
+    args: &[&str],
+    api_url: Option<&str>,
+    token: &Token,
+) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-shortcut"));
     command
         .args(args)
@@ -129,7 +140,7 @@ pub fn run_with(
         Some(url) => command.env("ACCELERATOR_SHORTCUT_API_URL", url),
         None => command.env_remove("ACCELERATOR_SHORTCUT_API_URL"),
     };
-    command.output().expect("run accelerator-shortcut")
+    command
 }
 
 pub fn stderr(output: &Output) -> String {
