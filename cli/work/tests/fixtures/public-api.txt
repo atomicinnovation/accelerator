@@ -1191,6 +1191,7 @@ pub work::rekey::outcome::SyncBlocker::Promotion::draft: alloc::string::String
 pub work::rekey::outcome::SyncBlocker::Retirement
 pub work::rekey::outcome::SyncBlocker::Retirement::new: alloc::string::String
 pub work::rekey::outcome::SyncBlocker::Retirement::old: alloc::string::String
+pub work::rekey::outcome::SyncBlocker::UnlistableRecords(std::path::PathBuf)
 pub work::rekey::outcome::SyncBlocker::UnreadableRecord(std::path::PathBuf)
 impl core::clone::Clone for work::rekey::outcome::SyncBlocker
 pub fn work::rekey::outcome::SyncBlocker::clone(&self) -> work::rekey::outcome::SyncBlocker

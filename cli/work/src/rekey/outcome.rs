@@ -39,6 +39,7 @@ pub enum SyncBlocker {
     Retirement { old: String, new: String },
     Promotion { draft: String },
     UnreadableRecord(PathBuf),
+    UnlistableRecords(PathBuf),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,6 +133,9 @@ impl NotRekeyed {
                     .map(|blocker| match blocker {
                         SyncBlocker::UnreadableRecord(path) => {
                             SyncBlocker::UnreadableRecord(under(path))
+                        }
+                        SyncBlocker::UnlistableRecords(path) => {
+                            SyncBlocker::UnlistableRecords(under(path))
                         }
                         other => other,
                     })
@@ -359,17 +363,7 @@ impl NotRekeyed {
                  an existing alias (rename one item); restore from a named \
                  `RESTORE-PENDING` directory before removing it"
                 .to_owned(),
-            Self::SyncUnfinished(blockers)
-                if blockers.iter().any(|blocker| {
-                    matches!(blocker, SyncBlocker::UnreadableRecord(_))
-                }) =>
-            {
-                "Sync cannot read an unreadable record either: rename it so \
-                 its name no longer ends in `.json`, or move it out of \
-                 `retirement-records/`, then run `accelerator work sync`"
-                    .to_owned()
-            }
-            Self::SyncUnfinished(_) => "Run `accelerator work sync`".to_owned(),
+            Self::SyncUnfinished(blockers) => sync_unfinished_remedy(blockers),
             Self::PendingPush(_) => {
                 "Run `accelerator work sync` to settle the push".to_owned()
             }
@@ -485,6 +479,22 @@ fn still_running(holder: Option<&Holder>) -> String {
     }
 }
 
+fn sync_unfinished_remedy(blockers: &[SyncBlocker]) -> String {
+    let any = |wanted: fn(&SyncBlocker) -> bool| blockers.iter().any(wanted);
+    if any(|blocker| matches!(blocker, SyncBlocker::UnlistableRecords(_))) {
+        "Make `retirement-records/` readable, then run `accelerator work sync`"
+            .to_owned()
+    } else if any(|blocker| matches!(blocker, SyncBlocker::UnreadableRecord(_)))
+    {
+        "`accelerator work sync` cannot read these records either: rename \
+         each one so its name no longer ends in `.json`, or move it out of \
+         `retirement-records/`, then run `accelerator work sync`"
+            .to_owned()
+    } else {
+        "Run `accelerator work sync`".to_owned()
+    }
+}
+
 fn blocker_line(blocker: &SyncBlocker) -> String {
     match blocker {
         SyncBlocker::Retirement { old, new } => {
@@ -492,8 +502,12 @@ fn blocker_line(blocker: &SyncBlocker) -> String {
         }
         SyncBlocker::Promotion { draft } => format!("promoting {draft}"),
         SyncBlocker::UnreadableRecord(path) => {
-            format!("unreadable record {}", path.display())
+            format!("unreadable record {}", escaped(&path.to_string_lossy()))
         }
+        SyncBlocker::UnlistableRecords(dir) => format!(
+            "records directory {} cannot be listed",
+            escaped(&dir.to_string_lossy())
+        ),
     }
 }
 
@@ -789,9 +803,17 @@ mod tests {
                     },
                     SyncBlocker::UnreadableRecord(path("records/x.json")),
                 ]),
-                "Sync cannot read an unreadable record either: rename it so \
-                 its name no longer ends in `.json`, or move it out of \
-                 `retirement-records/`, then run `accelerator work sync`",
+                "`accelerator work sync` cannot read these records either: \
+                 rename each one so its name no longer ends in `.json`, or \
+                 move it out of `retirement-records/`, then run \
+                 `accelerator work sync`",
+            ),
+            (
+                NotRekeyed::SyncUnfinished(vec![
+                    SyncBlocker::UnlistableRecords(path("retirement-records")),
+                ]),
+                "Make `retirement-records/` readable, then run `accelerator \
+                 work sync`",
             ),
             (
                 NotRekeyed::SyncUnfinished(vec![SyncBlocker::Promotion {
@@ -993,6 +1015,9 @@ mod tests {
             NotRekeyed::SyncUnfinished(vec![SyncBlocker::UnreadableRecord(
                 at(".accelerator/state/retirements"),
             )]),
+            NotRekeyed::SyncUnfinished(vec![SyncBlocker::UnlistableRecords(
+                at(".accelerator/state/retirement-records"),
+            )]),
             NotRekeyed::PendingPush(vec![item()]),
             NotRekeyed::Collision {
                 first: item(),
@@ -1060,6 +1085,25 @@ mod tests {
             );
             assert!(rendered.contains(remedy), "{remedy}\n---\n{rendered}");
         }
+    }
+
+    #[test]
+    fn a_sync_blockers_path_is_escaped() {
+        let rendered = NotRekeyed::SyncUnfinished(vec![
+            SyncBlocker::UnreadableRecord(path("records/a\nb.json")),
+            SyncBlocker::UnlistableRecords(path("records\u{1b}")),
+        ])
+        .to_string();
+
+        assert!(
+            rendered.contains("  unreadable record records/aU+000Ab.json"),
+            "{rendered}"
+        );
+        assert!(
+            rendered
+                .contains("  records directory recordsU+001B cannot be listed"),
+            "{rendered}"
+        );
     }
 
     #[test]

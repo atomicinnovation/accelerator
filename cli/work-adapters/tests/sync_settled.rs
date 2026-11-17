@@ -64,6 +64,7 @@ use work_adapters::retirement::RetirementFiles;
 use work_adapters::retirement::RetirementPorts;
 use work_adapters::retirement_records::FileRetirementRecords;
 use work_adapters::retirement_records::RetirementRecords;
+use work_adapters::retirement_records::Unreadable;
 use work_adapters::sync::baseline::Entry;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::AuthoredLocal;
@@ -388,6 +389,12 @@ struct LoggingRecords<'a> {
 impl RetirementRecords for LoggingRecords<'_> {
     fn save(&self, record: &RetirementRecord) -> Result<(), StoreError> {
         self.inner.save(record)
+    }
+
+    fn survey(
+        &self,
+    ) -> Result<Vec<Result<RetirementRecord, Unreadable>>, Unreadable> {
+        self.inner.survey()
     }
 
     fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError> {

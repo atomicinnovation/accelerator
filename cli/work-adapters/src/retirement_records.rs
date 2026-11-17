@@ -14,15 +14,39 @@ use work::retirement::RetirementRecord;
 
 use crate::ignored_dir::prepare_ignored_dir;
 
+/// A records directory that cannot be listed, or a record file that
+/// cannot be read or understood.
+#[derive(Debug)]
+pub struct Unreadable {
+    pub path: PathBuf,
+    pub error: StoreError,
+}
+
 pub trait RetirementRecords {
     /// # Errors
     /// [`StoreError`] when the record cannot be written.
     fn save(&self, record: &RetirementRecord) -> Result<(), StoreError>;
 
+    /// Every record, each read on its own, so one that cannot be read
+    /// hides none of the others.
+    ///
+    /// # Errors
+    /// [`Unreadable`] naming the records directory when it cannot be
+    /// listed.
+    fn survey(
+        &self,
+    ) -> Result<Vec<Result<RetirementRecord, Unreadable>>, Unreadable>;
+
     /// # Errors
     /// [`StoreError`] when the records cannot be listed, or one cannot be
     /// read or understood.
-    fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError>;
+    fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError> {
+        self.survey()
+            .map_err(|unreadable| unreadable.error)?
+            .into_iter()
+            .map(|record| record.map_err(|unreadable| unreadable.error))
+            .collect()
+    }
 
     /// Removing a record that is already gone succeeds.
     ///
@@ -115,16 +139,21 @@ impl RetirementRecords for FileRetirementRecords<'_> {
             .write(&self.path_of(record), encode(record).as_bytes())
     }
 
-    fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError> {
+    fn survey(
+        &self,
+    ) -> Result<Vec<Result<RetirementRecord, Unreadable>>, Unreadable> {
         let entries = match std::fs::read_dir(&self.dir) {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(Vec::new());
             }
             Err(error) => {
-                return Err(StoreError::Io {
-                    path: self.dir.display().to_string(),
-                    detail: error.to_string(),
+                return Err(Unreadable {
+                    path: self.dir.clone(),
+                    error: StoreError::Io {
+                        path: self.dir.display().to_string(),
+                        detail: error.to_string(),
+                    },
                 });
             }
         };
@@ -134,18 +163,18 @@ impl RetirementRecords for FileRetirementRecords<'_> {
             .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
             .collect();
         paths.sort();
-        paths
-            .iter()
+        Ok(paths
+            .into_iter()
             .map(|path| {
-                let raw = std::fs::read_to_string(path).map_err(|error| {
-                    StoreError::Io {
+                std::fs::read_to_string(&path)
+                    .map_err(|error| StoreError::Io {
                         path: path.display().to_string(),
                         detail: error.to_string(),
-                    }
-                })?;
-                decode(path, &raw)
+                    })
+                    .and_then(|raw| decode(&path, &raw))
+                    .map_err(|error| Unreadable { path, error })
             })
-            .collect()
+            .collect())
     }
 
     fn remove(&self, record: &RetirementRecord) -> Result<(), StoreError> {

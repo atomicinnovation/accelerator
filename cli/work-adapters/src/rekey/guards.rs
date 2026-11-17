@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
-use corpus::store::StoreError;
 use work::identity::ItemIdentity;
 use work::promotion::PromotionStage;
 use work::rekey::entry::RekeyEntry;
@@ -59,25 +58,23 @@ impl SyncState<'_> {
 /// unfinished, and every record it cannot read.
 #[must_use]
 pub fn unfinished_sync_work(sync: &SyncState<'_>) -> Vec<SyncBlocker> {
-    let mut blockers: Vec<SyncBlocker> =
-        sync.records.outstanding().map_or_else(
-            |error| {
-                vec![SyncBlocker::UnreadableRecord(
-                    unreadable_record(&error).unwrap_or_else(|| {
-                        sync.state_dir.join("retirement-records")
-                    }),
-                )]
-            },
-            |records| {
-                records
-                    .into_iter()
-                    .map(|record| SyncBlocker::Retirement {
-                        old: record.old.as_str().to_owned(),
-                        new: record.new.as_str().to_owned(),
-                    })
-                    .collect()
-            },
-        );
+    let mut blockers: Vec<SyncBlocker> = match sync.records.survey() {
+        Err(unlistable) => {
+            vec![SyncBlocker::UnlistableRecords(unlistable.path)]
+        }
+        Ok(records) => records
+            .into_iter()
+            .map(|record| match record {
+                Ok(record) => SyncBlocker::Retirement {
+                    old: record.old.as_str().to_owned(),
+                    new: record.new.as_str().to_owned(),
+                },
+                Err(unreadable) => {
+                    SyncBlocker::UnreadableRecord(unreadable.path)
+                }
+            })
+            .collect(),
+    };
     blockers.extend(sync.markers().into_iter().filter_map(
         |marker| match marker {
             Ok((_, Marker::Promotion(record))) => {
@@ -169,13 +166,4 @@ pub fn unsettled_recoveries(sync: &SyncState<'_>) -> Vec<PathBuf> {
         .collect();
     unsettled.sort();
     unsettled
-}
-
-fn unreadable_record(error: &StoreError) -> Option<PathBuf> {
-    match error {
-        StoreError::Malformed { path, .. } | StoreError::Io { path, .. } => {
-            Some(PathBuf::from(path))
-        }
-        _ => None,
-    }
 }

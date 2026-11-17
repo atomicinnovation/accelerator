@@ -1107,8 +1107,9 @@
   record or marker whose `recovery_dir` is not one directory under
   `retirement-recovery/`. A record an earlier release wrote with such an
   ID, say with a space, blocks both re-key and sync after upgrading; the
-  re-key refusal names it, and renaming it so it no longer ends in `.json`,
-  or moving it out of `retirement-records/`, clears the way.
+  re-key refusal names every such record, and renaming each so it no
+  longer ends in `.json`, or moving it out of `retirement-records/`, clears
+  the way.
 - **`work rekey` validates every path and target in a run plan before
   touching any file**, so a run plan cannot name a path outside the
   repository or a target outside the work directory.
@@ -1185,7 +1186,7 @@
   - Should re-key refuse with `E_REKEY_SYNC_UNFINISHED` or
     `E_REKEY_PENDING_PUSH`, run `accelerator work sync` first. A retirement
     record an earlier release wrote with an ID outside the ID alphabet
-    blocks both: rename the record re-key names so it no longer ends in
+    blocks both: rename each record re-key names so it no longer ends in
     `.json`, or move it out of `retirement-records/`.
   - On `E_WORK_ITEM_MALFORMED`, apply the fix printed beside each file it
     lists: a rename, an `id`, re-saving it as UTF-8, or moving it out of
