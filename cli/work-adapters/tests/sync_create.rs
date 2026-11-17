@@ -5942,22 +5942,34 @@ fn a_previewed_reusable_marker_reports_no_failure() -> Result<(), TestError> {
     Ok(())
 }
 
-fn seed_refused_marker(fixture: &Fixture, refused: &str) {
-    match refused {
-        "attempted" => {
-            seed_attempted_marker(fixture, "0001");
+#[derive(Debug, Clone, Copy)]
+enum RefusedMarker {
+    Attempted,
+    Mismatched,
+}
+
+impl RefusedMarker {
+    const ALL: [Self; 2] = [Self::Attempted, Self::Mismatched];
+
+    fn seed(self, fixture: &Fixture) {
+        match self {
+            Self::Attempted => {
+                seed_attempted_marker(fixture, "0001");
+            }
+            Self::Mismatched => {
+                seed_marker(fixture, "0001", &mismatched_created_marker());
+            }
         }
-        _ => seed_marker(fixture, "0001", &mismatched_created_marker()),
     }
 }
 
 #[test]
 fn a_preview_leaves_an_ordered_create_to_its_order() -> Result<(), TestError> {
-    for refused in ["attempted", "mismatched"] {
+    for refused in RefusedMarker::ALL {
         for order in [adopt("ENG-7"), PendingPushOrder::Create] {
             let fixture = Fixture::new()?;
             let item = fixture.unsynced_item("0001", "Draft one")?;
-            seed_refused_marker(&fixture, refused);
+            refused.seed(&fixture);
             let tracker = RecordingTracker::holding(vec![keyed(
                 "ENG-7",
                 "Draft one\nBody\n",
@@ -5975,7 +5987,7 @@ fn a_preview_leaves_an_ordered_create_to_its_order() -> Result<(), TestError> {
             let row = only_row(&report, "0001");
             assert!(
                 matches!(row.outcome, ItemOutcome::NotApplied),
-                "{refused} under {order:?}"
+                "{refused:?} under {order:?}"
             );
             let adopted: Vec<&str> = report
                 .adoptions
@@ -5988,7 +6000,7 @@ fn a_preview_leaves_an_ordered_create_to_its_order() -> Result<(), TestError> {
                 } else {
                     &[]
                 };
-            assert_eq!(adopted, expected, "{refused} under {order:?}");
+            assert_eq!(adopted, expected, "{refused:?} under {order:?}");
             assert_nothing_sent(&tracker, &author);
             assert_no_pending_push_touched(&fixture);
         }
@@ -6011,36 +6023,40 @@ fn dossier_shapes(report: &RunReport) -> Vec<ConflictDossier> {
 
 #[test]
 fn a_preview_leaves_a_relink_to_its_order() -> Result<(), TestError> {
-    let preview_of = |refused: Option<&str>| -> Result<RunReport, TestError> {
-        let fixture = Fixture::new()?;
-        let (item, _) = unconfirmed_link(&fixture)?;
-        if let Some(refused) = refused {
-            seed_refused_marker(&fixture, refused);
-        }
-        let tracker = two_issues();
-        let author = RecordingAuthor::new(fixture.dir.path());
-        let orders = orders(&[("0001", adopt("ENG-8"))]);
-        let report = run_ordered(
-            &fixture,
-            &tracker,
-            &author,
-            previewing(std::slice::from_ref(&item), &orders),
-        )?;
-        assert_nothing_sent(&tracker, &author);
-        assert_no_pending_push_touched(&fixture);
-        Ok(report)
-    };
+    let preview_of =
+        |refused: Option<RefusedMarker>| -> Result<RunReport, TestError> {
+            let fixture = Fixture::new()?;
+            let (item, _) = unconfirmed_link(&fixture)?;
+            if let Some(refused) = refused {
+                refused.seed(&fixture);
+            }
+            let tracker = two_issues();
+            let author = RecordingAuthor::new(fixture.dir.path());
+            let orders = orders(&[("0001", adopt("ENG-8"))]);
+            let report = run_ordered(
+                &fixture,
+                &tracker,
+                &author,
+                previewing(std::slice::from_ref(&item), &orders),
+            )?;
+            assert_nothing_sent(&tracker, &author);
+            assert_no_pending_push_touched(&fixture);
+            Ok(report)
+        };
     let unmarked = preview_of(None)?;
 
-    for refused in ["attempted", "mismatched"] {
+    for refused in RefusedMarker::ALL {
         let report = preview_of(Some(refused))?;
 
         let row = relink_row(&report);
-        assert!(matches!(row.outcome, ItemOutcome::NotApplied), "{refused}");
+        assert!(
+            matches!(row.outcome, ItemOutcome::NotApplied),
+            "{refused:?}"
+        );
         assert_eq!(
             dossier_shapes(&report),
             dossier_shapes(&unmarked),
-            "{refused}"
+            "{refused:?}"
         );
     }
     Ok(())
