@@ -1192,20 +1192,29 @@ const JIRA_PULL_EXPECTED: &str = include_str!("fixtures/jira-pull/expected.md");
 enum Tracker {
     Jira,
     Linear,
+    Shortcut,
 }
 
 impl Tracker {
+    const fn key(self) -> &'static str {
+        match self {
+            Self::Jira | Self::Linear => "ENG-1",
+            Self::Shortcut => "sc-1",
+        }
+    }
+
     const fn baseline_stamp(self) -> &'static str {
         match self {
             Self::Jira => STAMP,
             Self::Linear => LINEAR_STAMP,
+            Self::Shortcut => SHORTCUT_STAMP,
         }
     }
 
     const fn expected_local_body(self) -> &'static str {
         match self {
             Self::Jira => JIRA_PULL_EXPECTED,
-            Self::Linear => "Remote body\n",
+            Self::Linear | Self::Shortcut => "Remote body\n",
         }
     }
 
@@ -1223,6 +1232,15 @@ impl Tracker {
                     &server.base_url(),
                     TransportConfig::default(),
                 ));
+                (server, client)
+            }
+            Self::Shortcut => {
+                let server = MockHTTPServer::start();
+                server.route(
+                    RequestKey::get(&format!("{SHORTCUT_API}/stories/1")),
+                    shortcut_moved_story(),
+                );
+                let client = Box::new(shortcut_client(&server.base_url()));
                 (server, client)
             }
         }
@@ -1276,6 +1294,19 @@ impl Tracker {
                     &server.base_url(),
                     TransportConfig::default(),
                 ))
+            }
+            Self::Shortcut => {
+                server.route(
+                    RequestKey::get(&format!("{SHORTCUT_API}/stories")),
+                    shortcut_page(&serde_json::json!([
+                        {"id": 1, "updated_at": SHORTCUT_MOVED}
+                    ])),
+                );
+                server.route(
+                    RequestKey::get(&format!("{SHORTCUT_API}/stories/1")),
+                    shortcut_moved_story(),
+                );
+                Box::new(shortcut_client(&server.base_url()))
             }
         };
         (server, client)
@@ -1415,7 +1446,7 @@ fn execute_targeted_pulling(
 #[test]
 fn every_pull_entry_point_writes_the_description_without_a_title_line(
 ) -> Result<(), TestError> {
-    for tracker in [Tracker::Jira, Tracker::Linear] {
+    for tracker in [Tracker::Jira, Tracker::Linear, Tracker::Shortcut] {
         for entry_point in [
             PullEntryPoint::ReconcilePull,
             PullEntryPoint::FrontmatterKeptPull,
@@ -1437,7 +1468,7 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
                     &Spy::default(),
                     &[],
                     &BTreeMap::new(),
-                    &[ExternalId::new("ENG-1".to_owned())],
+                    &[ExternalId::new(tracker.key().to_owned())],
                     &author,
                 );
                 assert_eq!(author.bodies.into_inner(), [description], "{case}");
@@ -1450,7 +1481,7 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
             let items = [LocalItem {
                 id: "0001".to_owned(),
                 path: path.clone(),
-                external_id: Some(ExternalId::new("ENG-1".to_owned())),
+                external_id: Some(ExternalId::new(tracker.key().to_owned())),
             }];
             let local_hash = if entry_point.local_side_changed() {
                 "stale".to_owned()
@@ -1692,6 +1723,17 @@ const SHORTCUT_API: &str = "/api/v4/acme";
 const SHORTCUT_TEAM: &str = "00000000-0000-4000-8000-000000000002";
 const SHORTCUT_WEB: &str = "00000000-0000-4000-8000-000000000009";
 const SHORTCUT_STAMP: &str = "2026-11-14T08:21:34.384Z";
+const SHORTCUT_MOVED: &str = "2026-11-15T09:00:00.000Z";
+
+fn shortcut_moved_story() -> Route {
+    shortcut_json(
+        200,
+        &serde_json::json!({"entity": {
+            "id": 1, "name": "Title", "description": "Remote body",
+            "updated_at": SHORTCUT_MOVED,
+        }}),
+    )
+}
 
 fn shortcut_catalogue() -> shortcut_client::catalogue::Catalogue {
     shortcut_client::catalogue::Catalogue::parse(
@@ -2185,5 +2227,61 @@ fn shortcut_push_refused_403_is_retryable_and_nothing_landed(
         error.to_string().contains("the token has only the"),
         "{error}"
     );
+    Ok(())
+}
+
+#[test]
+fn shortcut_push_sends_the_body_to_the_story_and_the_epic(
+) -> Result<(), TestError> {
+    for (id, external, entity) in [
+        ("0006", "sc-14", "stories/14"),
+        ("0007", "epic-17", "epics/17"),
+    ] {
+        let dir = tempfile::tempdir()?;
+        let item = shortcut_item(dir.path(), id, external)?;
+        let server = shortcut_story_server(14, "Remote body\n");
+        let entity_path = format!("{SHORTCUT_API}/{entity}");
+        let number = if external.starts_with("sc-") { 14 } else { 17 };
+        server.route(
+            RequestKey::get(&entity_path),
+            shortcut_entity(number, "Remote body\n"),
+        );
+        server.route(
+            RequestKey::new("PATCH", &entity_path),
+            shortcut_entity(number, "Local body\n"),
+        );
+        let client = shortcut_client(&server.base_url());
+        let spy = Spy::default();
+        shortcut_baseline(&spy, &client, id, external)?;
+
+        let report = execute_as(
+            "shortcut",
+            &client,
+            &spy,
+            &[item],
+            SyncDirection::PushOnly,
+            tracker::SearchScope::default(),
+            RunMode::Apply,
+        )
+        .expect("the run must not refuse");
+
+        assert!(
+            matches!(
+                report.reported[0].outcome,
+                work_adapters::sync::report::ItemOutcome::Applied
+            ),
+            "{external}"
+        );
+        let sent: serde_json::Value = serde_json::from_slice(
+            &server
+                .last_body(&RequestKey::new("PATCH", &entity_path))
+                .expect("a PATCH was sent"),
+        )?;
+        assert_eq!(
+            sent,
+            serde_json::json!({"description": "\nLocal body"}),
+            "{external}"
+        );
+    }
     Ok(())
 }
