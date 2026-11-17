@@ -87,19 +87,9 @@ pub fn extract_facet_value(
         }
         "clusterSlug" => entry.slug.clone(),
         "project" => {
-            let raw = entry.work_item_id.as_deref()?;
-            if let Some((prefix, _)) = raw.split_once('-') {
-                if prefix.is_empty() {
-                    None
-                } else {
-                    Some(prefix.to_string())
-                }
-            } else {
-                cfg.work_item
-                    .configured()
-                    .and_then(|scheme| scheme.key())
-                    .map(|key| key.as_str().to_owned())
-            }
+            let shown = entry.work_item_id.as_deref()?;
+            let scheme = crate::config::WorkItemConfig::of(&cfg.work_item);
+            scheme.scheme()?.read_held(shown)?.key().map(str::to_owned)
         }
         _ => None,
     }
@@ -2602,7 +2592,7 @@ mod tests {
     #[test]
     fn extract_facet_value_project_derives_from_work_item_id() {
         let entry = sample_entry_with_work_item("PROJ-0042");
-        let cfg = make_cfg(HashMap::new());
+        let cfg = make_cfg_with_key("OTHER");
         assert_eq!(
             extract_facet_value(&entry, &cfg, "project"),
             Some("PROJ".to_string())
@@ -2624,6 +2614,32 @@ mod tests {
         let entry = sample_entry_with_work_item("-0042");
         let cfg = make_cfg(HashMap::new());
         assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+    }
+
+    #[test]
+    fn extract_facet_value_project_reads_the_key_where_the_pattern_puts_it() {
+        let entry = sample_entry_with_work_item("0042-PP");
+        let cfg = cfg_under("{number:04d}-{key}", Some("XY"));
+        assert_eq!(
+            extract_facet_value(&entry, &cfg, "project"),
+            Some("PP".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_facet_value_project_is_none_for_a_draft() {
+        let entry = sample_entry_with_work_item("draft-k7mq3x");
+        let cfg = cfg_under("{tracker}", None);
+        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+    }
+
+    fn cfg_under(pattern: &str, key: Option<&str>) -> crate::config::Config {
+        crate::config::Config {
+            work_item: crate::config::WorkItemScheme::Configured(
+                crate::config::scheme_for_test(pattern, key),
+            ),
+            ..make_cfg(HashMap::new())
+        }
     }
 
     #[test]
