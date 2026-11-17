@@ -357,6 +357,8 @@
   passed before, now fails `corpus frontmatter validate` with `BAD-STATUS`,
   as a bare extra fails with `BAD-EXTRA-VALUE`. Give the key a value from its
   type's vocabulary or remove it.
+- **`work sync --preview` exits as the run would for a refused create** —
+  see Fixed. Scripts that parse `work sync` exit codes need updating.
 
 ### Added
 
@@ -1123,6 +1125,15 @@
 - **`work sync --preview` reports a pull's failure.** A planned pull the run
   would fail before writing, such as one over a Jira description with no
   Markdown form, previewed as not applied.
+- **`work sync --preview` reports a create the run would refuse.** A create
+  whose pending-push marker the run would refuse, or whose work file it could
+  not use, previewed as a clean create. The preview now prints the run's
+  `failed` row and `would fail` line, and exits as the run would: 71 for a
+  refused pending push, 75 for an unparseable work file or a reuse blocked by
+  one, and 70 for a work file that could not be read or a reuse blocked by an
+  environment fault. A whole-corpus preview that exited 70 for the
+  pending-push discovery deferral now exits 71. Scripts that parse
+  `work sync` exit codes need updating.
 - **`work sync` reports an unsynced item once.** An item it creates or adopts
   in the tracker no longer prints a second `noop\tunsynced` row beside its
   `create-from-local`, `adopt` or `failed` row; scripts that listed unsynced
