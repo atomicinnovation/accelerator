@@ -215,7 +215,15 @@ impl ShortcutClient {
     ///
     /// [`ReadFailure`], which keeps a non-2xx status for the caller.
     pub fn read(&self, url: &Url) -> Result<Value, ReadFailure> {
-        let delivery = self.transport.get(url, &self.transport.deadline());
+        self.read_within(url, &self.transport.deadline())
+    }
+
+    fn read_within(
+        &self,
+        url: &Url,
+        deadline: &Deadline,
+    ) -> Result<Value, ReadFailure> {
+        let delivery = self.transport.get(url, deadline);
         match delivery.result {
             Err(error) => Err(ReadFailure::Unsent(error.to_string())),
             Ok(received) if !received.succeeded() => Err(ReadFailure::Status {
@@ -315,6 +323,7 @@ impl ShortcutClient {
                 &uuid,
                 &filters,
                 whole_workspace,
+                &self.transport.deadline(),
                 &mut found,
             )?);
         }
@@ -506,9 +515,10 @@ impl ShortcutClient {
         uuid: &str,
         filters: &SearchFilters,
         whole_workspace: bool,
+        deadline: &Deadline,
         found: &mut BTreeMap<u64, Value>,
     ) -> Result<Completeness, TrackerError> {
-        let name = match self.read(&self.paths.team(uuid)) {
+        let name = match self.read_within(&self.paths.team(uuid), deadline) {
             Ok(team) => team
                 .pointer("/entity/name")
                 .and_then(Value::as_str)
@@ -542,7 +552,6 @@ impl ShortcutClient {
             }
         };
         let cap = pages(self.transport.config().discovery_max_pages);
-        let deadline = self.transport.deadline();
         let mut completeness = Completeness::Complete;
         for query in queries {
             let url = with_query(
@@ -550,7 +559,7 @@ impl ShortcutClient {
                 &[("query", &query), ("limit", PAGE_LIMIT)],
             );
             let result =
-                collect(&self.transport, &self.paths, &url, cap, &deadline)
+                collect(&self.transport, &self.paths, &url, cap, deadline)
                     .map_err(|failure| TrackerError::Retryable {
                         detail: format!(
                             "shortcut search: {}",
