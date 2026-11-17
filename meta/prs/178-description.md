@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0390", "work-item:0302", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
-revision: "ee46cc4d39e5e57debd1671cf3018093cf0b671a"
+revision: "59f9f202f27593a1121d61287d8461414a85d609"
 repository: "accelerator"
-last_updated: "2026-11-16T16:24:33+00:00"
+last_updated: "2026-11-17T06:15:56+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -139,28 +139,31 @@ is listed under "Behaviour changes".
 
 ### Convergence: a corpus off the pattern is refused
 
-- **`work::rekey::convergence`**: an item is converged when its `id` is in
+- **`work::convergence`**: an item is converged when its `id` is in
   the pattern's shape (its exact width, under any key, in any case) or,
   under `{tracker}`, is a draft or its issue's key. Re-key keeps exactly the
   items convergence accepts: both read a stored tracker key under the
   configured tracker's rules, and both check shape before treating an `id`
   equal to its `external_id` as a tracker key, so an aligned `ENG-1234` is
-  kept. `create`, `create-batch`, `id next`, `id check`, `list`, `resolve`
-  and `promote` refuse a corpus holding any other item with
-  `E_REKEY_REQUIRED` (exit 4), naming one and pointing to
-  `/rekey-work-items` (or `accelerator work rekey --preview`, then
-  `accelerator work rekey`), after the fix by hand for an item re-key cannot
-  read.
-  `sync`, `rekey` and `id canonicalise` still run.
+  kept. `create`, `create-batch`, `id next`, `id check`, `resolve` and
+  `promote` refuse a corpus holding any other item with `E_REKEY_REQUIRED`
+  (exit 4), naming one and pointing to `/rekey-work-items` (or
+  `accelerator work rekey --preview`, then `accelerator work rekey`), after
+  the fix by hand for an item re-key cannot read, such as one numbered above
+  the pattern's cap. `work list` lists such a corpus and prints the refusal
+  as a warning, so the items needing a fix can be seen. `sync`, `rekey` and
+  `id canonicalise` still run. The CLI's gate tests and the skills guard
+  read one fixture of the gated commands.
 - **The remedy is always reachable**: re-key's only sync refusals name
   `accelerator work sync`, which is not gated and settles a retiring
   promotion itself; `/sync-work-items` stops on exit 4 from `resolve` and
   `promote` with that route.
 - **`work::well_formed`**: the same commands refuse every work item whose
-  filename does not start with its `id` and a slug, or that names an ID
-  with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4), listing every one in
-  path order, each with its fix. A file with no frontmatter is not a work
-  item and is left alone.
+  filename does not hold its `id`, as the scheme reads both, and a slug, or
+  that names an ID with no `id`, as `E_WORK_ITEM_MALFORMED` (exit 4),
+  listing every one in path order, each with its fix. A file named only by
+  an ID, such as `0400.md` with no frontmatter, and one that is not UTF-8
+  are malformed too.
 - **`work::corpus_trust`** composes the two checks in order
   (`refuse_untrusted` → `UntrustedCorpus`), and
   `work_adapters::corpus_trust::refuse_untrusted_under` lists the work
@@ -194,16 +197,22 @@ is listed under "Behaviour changes".
   `TrackerIds` or `PatternIds` through one `IdReadings` trait grouped as
   display, join, occupancy and rendering. It implements both corpus ports,
   and takes the tracker keys `work.integration` names when it is built
-  (`IdScheme::under_tracker`); `TrackerKeys::owns_ids` says whether they can
-  serve as IDs. `displayed_id`
+  (`IdScheme::under_tracker`); a constructor reading any tracker's keys
+  says so (`IdScheme::under_any_tracker`), and `TrackerKeys::owns_ids` says
+  whether keys can serve as IDs. A tracker's issue key in `external_id`
+  takes and lifts no local number. Token safety reads an ID in shape as
+  convergence does. `displayed_id`
   replaces `normalise_id` and reads through the pattern; `HeldPrefix` says
   where a filename's ID ends. `requested_id` models an `--id` and its
   settlement.
 - **`work_adapters::config`** reads the scheme once for every command
   (`read_scheme`, `require_key`, `resolve_scheme`) through one
   `scheme_from_settings`, reporting through `SchemeError` with a `KeySource`
-  naming the setting a bad key came from, and warns once about a malformed
-  `work.key` the pattern does not use.
+  naming the setting a bad key came from; `scheme_from_settings` takes the
+  tracker's rules, and `scheme_from_settings_under_any_tracker` names the
+  permissive reading. Every command that reads the scheme prints the key
+  alias's deprecation and the warning about a malformed unused `work.key`
+  once, through `SchemeReading::announced`.
 - **`migrate`** owns the frozen legacy readings (`LegacyNumericIds`, the
   lenient `references_key`) that m0007 and m0009 read directly; its
   `WorkItemIdentity` port, wired in `migrate-cli`, now only canonicalises,
@@ -222,10 +231,12 @@ is listed under "Behaviour changes".
 - **Degrades instead of refusing to boot**: under a scheme it cannot read it
   serves every other document, reads no work-item IDs, and reports the
   refusal in its log, as `problem` from `/api/work-item/config` and in a
-  banner above every page, as it does a corpus needing a re-key or holding
-  a malformed item. The problem is worked out on each request and the
-  banner refetches on work-item events, so it clears after a re-key without
-  a restart. A setting that cannot be read at all refuses to compose.
+  banner above every page. It does the same over a corpus needing a re-key
+  or holding a malformed item, which the indexer judges from the work-item
+  files it already reads, on each rescan and work-item refresh, reindexing
+  when that changes. The banner says what is switched off and, from
+  `restartNeeded`, whether it clears by itself or after a restart. A setting
+  that cannot be read at all refuses to compose.
 - **One composed scheme**: `Config.work_item` is a `WorkItemScheme`
   (`Default`, `Configured`, `Unreadable`) in place of two parallel options.
 - **Joins**: the identity-key index is named after what it holds; two items
@@ -233,6 +244,10 @@ is listed under "Behaviour changes".
   removing it hands the key on, and a review targeting the key moves with
   it; `.MD` work items update live.
 - **Shown IDs** are read through the pattern (`PP_0042`, `v001` now show).
+  The page builds its wiki-link grammar from an `idToken` the config
+  endpoint serves from the pattern's shape, so `[[WORK-ITEM-PP_0042]]`,
+  `v001` and tracker keys link; the project facet reads its key through the
+  scheme.
 
 ### Hardening
 
@@ -244,7 +259,12 @@ is listed under "Behaviour changes".
   record holding an ID outside the alphabet, or a `recovery_dir` other than
   one directory under `retirement-recovery/`, cannot be built.
 - **Re-key** refuses an `id` outside the ID alphabet and escapes the item
-  path in that refusal.
+  path in that refusal. A retiring promotion holds its recovery directory
+  as a `RecoveryDir`, and an unreadable retirement record's remedy says to
+  move it aside before running sync.
+- **work-cli** reports every refusal through one `Refusal` (stderr line and
+  exit code); `AdmittedRequest` is built only by `admit` or
+  `without_requested_id`, so a batch opens as a create does.
 
 ### Housekeeping
 
@@ -259,6 +279,9 @@ is listed under "Behaviour changes".
   the user docs and the task README, and
   `test_untrusted_corpus_refusals.py` fails for any skill that runs a
   refusing `work` command without handling both corpus refusals.
+- **Eval contract**: the `test:integration:evals` lane checks that each
+  refusal and verdict a `/create-work-item` eval quotes is what the built
+  `accelerator-work` prints, in place of a work-cli test module.
 - **CHANGELOG**: a Migrations entry tells an upgrader to check the corpus
   with `accelerator work list` and what each refusal needs.
 - **Plan**: its Implementation Notes map each decision the review responses
@@ -270,13 +293,14 @@ The full list is in `CHANGELOG.md`. The ones a script or repository may
 notice:
 
 - ⚠️ **Off-pattern corpus refused**: `create`, `create-batch`, `id next`,
-  `id check`, `list`, `resolve` and `promote` exit 4 with `E_REKEY_REQUIRED`
-  until `/rekey-work-items` converges the corpus, including after a
-  width-only change (`{number:04d}` → `{number:05d}`) or a switch to
-  `{tracker}`, which were tolerated before.
+  `id check`, `resolve` and `promote` exit 4 with `E_REKEY_REQUIRED` until
+  `/rekey-work-items` converges the corpus, including after a width-only
+  change (`{number:04d}` → `{number:05d}`) or a switch to `{tracker}`,
+  which were tolerated before; `list` warns.
 - ⚠️ **Malformed items refused**: the same commands exit 4 with
-  `E_WORK_ITEM_MALFORMED` for a slugless filename such as `0400.md` or an
-  item naming an ID without an `id`, listing every such item.
+  `E_WORK_ITEM_MALFORMED` for a slugless filename such as `0400.md`, an
+  item naming an ID without an `id`, or a file that is not UTF-8, listing
+  every such item; `list` warns.
 - ⚠️ **Re-key keeps other keys**: items under a key other than `work.key`
   keep it unless `--from-key` names it, where re-key folded every key onto
   `work.key`; a promotion reports an ID outside the alphabet as the new
@@ -291,8 +315,9 @@ notice:
 - ⚠️ **Exit codes and prefixes**: `E_ID_TAKEN` exits 4; every `work id`
   refusal starts `Error:`.
 - ⚠️ **Visualiser `workItemId`** is read through the pattern: a bare `42`
-  under `{key}` shows as `ENG-0042` where it showed `ENG-42`, and an `id` the
-  pattern does not read shows nothing.
+  shows as the pattern renders it (`0042`, `ENG-0042`, `v001`), and an `id`
+  the pattern does not read shows nothing. Over an untrusted corpus the
+  visualiser reads no work-item IDs.
 - **References from an earlier pattern** (`PP-42` under `{key}_{number:04d}`,
   `ENG-42` under `{number:04d}`) no longer join their item until re-keyed.
 - **`corpus linkage extract`** reads work-item IDs through the configured
@@ -309,9 +334,13 @@ notice:
   about.
 - **Allocation** counts a key's sequence ignoring case, counts every held
   value, and under a `{key}` pattern counts a legacy bare-number item in
-  `work.key`'s sequence, so the next number may jump.
+  `work.key`'s sequence, so the next number may jump; a tracker's issue key
+  in `external_id` counts for nothing.
 - **`work resolve`** reads a missing work directory as empty rather than
-  exiting 1 for every input.
+  exiting 1 for every input, and finds a bare number's items through the
+  pattern, ignoring key case.
+- **Deprecation** of `work.default_project_code` is printed under every
+  pattern and by `corpus linkage extract`.
 - **Literal pattern text** is kept: `v{number:03d}` allocates `v001` and
   `work rekey` re-keys it.
 - **Short full IDs** canonicalise through the pattern: `PROJ-42` reads as
@@ -334,18 +363,20 @@ notice:
   (result `pass`, against the plan before the review response).
 - Reviews: `meta/reviews/prs/178-review-1.md`, `178-review-2.md` and
   `178-review-3.md`; every inline thread is answered and resolved. The
-  first two reviews' other findings are answered in PR comments; the third
-  review's are listed as open in the plan's Implementation Notes.
+  first two reviews' other findings are answered in PR comments. The third
+  review's, re-read through its review deck, are fixed here; the plan's
+  Implementation Notes list the few left open.
 - Follow-up: 0390 makes `--dry-run` run every invocation check the real
   create runs; it keeps this PR's `--id` checks.
 
 ## Testing
 
-- [x] `mise run` (the full default task) exits 0 end to end at the tip,
-      after the third review's response and the rebase onto main, changing
-      no file. A first run fell below the CLI coverage floor on stale
-      coverage data; after `cargo llvm-cov clean --workspace` the CLI unit
-      task reports lines 94.38%, functions 93.85%, regions 93.11%.
+- [x] `mise run` (the full default task) passes at the tip, after the
+      response to the review 3 deck and the rebase onto main, changing no
+      file: every task passed except the CLI unit task's coverage floor,
+      which its 7700 tests passed but stale coverage data pulled under; after
+      `cargo llvm-cov clean --workspace` that task exits 0 with lines
+      94.38%, functions 93.87%, regions 93.13%.
 - [x] `/create-work-item` evals pass in full, all 77 (with-skill mean 1.0).
       The 13 the first review's response touched (26, 39, 42, 45, 48, 49,
       51, 52, 59–62, 66) were re-run on 2026-11-15; the 7 the later
@@ -356,6 +387,12 @@ notice:
       the latest runs were graded against.
 - [x] `/rekey-work-items` evals 13 (other keys kept by default) and 14
       (every picked key folded in one preview) pass, beside 1–12.
+- [x] `/update-work-item` evals 0–4, `/review-work-item` 1–4 and
+      `/refine-work-item` 22, 37 and 38, covering the skills the second
+      review changed and the new corpus-refusal evals, were re-run on
+      2026-11-17 and pass in full. Evals that leant on a repository's state
+      now simulate their fixtures, and review eval 3 expects the five
+      default lenses.
 - [x] Every test the plan and its criteria traceability table name exists
       (88 of 88, per the validation report).
 - [x] Manual checks, run on 2026-11-16 in scratch repositories against a
@@ -373,7 +410,7 @@ notice:
 
 - **Review order**: the diff is about 245 files, a third of it the plan, its
   reviews and eval benchmarks. Reading `cli/work/src/id_pattern.rs`,
-  `id_scheme.rs` and `id_scheme/`, `rekey/convergence.rs`, `folding.rs`,
+  `id_scheme.rs` and `id_scheme/`, `convergence.rs`, `rekey/folding.rs`,
   `well_formed.rs`, `corpus_trust.rs` and `requested_id.rs`, then
   `cli/work-cli/src/create.rs`, `corpus_trust.rs` and `id/check.rs`, gives
   the core before the consumer moves.
@@ -391,10 +428,11 @@ notice:
   the dry run and the real create's admission; only the taken check under
   the create lock still classifies it from the frozen code at the start of
   its message (`exit_codes::of_failure`).
-- **`IdScheme::new` still defaults to any tracker's key rules**, and a run
-  plan's decoded scheme uses it: a run plan stores only the pattern and key,
-  and its targets are keys the tracker issued, so carrying the tracker's
-  rules would need a schema change for no change in behaviour.
+- **A run plan's decoded scheme reads any tracker's keys**
+  (`IdScheme::under_any_tracker`): it is decoded before configuration is
+  read, a run plan stores only the pattern and key, and its targets are
+  keys the tracker issued, so carrying the tracker's rules would need a
+  schema change for no change in behaviour.
 - **`WorkIdentity` stays copied** in the migrate-adapters test composition:
   `lint:crate-dependencies` lets only the `migrate-cli` composition root
   depend on both `migrate` and `work`, so the shipped adapter cannot move to
