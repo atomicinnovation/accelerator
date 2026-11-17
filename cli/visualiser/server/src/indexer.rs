@@ -199,6 +199,29 @@ pub(crate) struct PostSecondaryUpdateHook {
     pub proceed: tokio::sync::oneshot::Receiver<()>,
 }
 
+/// Whether the work-item corpus can be trusted for its IDs, and why not
+/// when it cannot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Trust {
+    Trusted,
+    Untrusted(String),
+}
+
+impl Trust {
+    #[must_use]
+    pub const fn is_trusted(&self) -> bool {
+        matches!(self, Self::Trusted)
+    }
+
+    #[must_use]
+    pub fn problem(&self) -> Option<&str> {
+        match self {
+            Self::Trusted => None,
+            Self::Untrusted(problem) => Some(problem),
+        }
+    }
+}
+
 pub struct Indexer {
     driver: Arc<dyn FileDriver>,
     /// Canonicalised once at the top of `Indexer::build`. Every
@@ -210,13 +233,15 @@ pub struct Indexer {
     project_root: PathBuf,
     /// The scheme the server was composed with.
     configured: Arc<crate::config::WorkItemConfig>,
-    /// The scheme IDs are read through now: the configured one, or none
-    /// while the corpus cannot be trusted for its IDs.
-    reading: std::sync::RwLock<Arc<crate::config::WorkItemConfig>>,
+    /// The scheme read while the corpus cannot be trusted: one reading no
+    /// IDs.
+    unread: Arc<crate::config::WorkItemConfig>,
+    /// Whether the corpus can be trusted for its IDs, judged under
+    /// `rescan_lock` from `work_item_files`.
+    trust: std::sync::RwLock<Trust>,
     /// Every work-item file's text, or `None` when it is not UTF-8, which
     /// the trust check reads instead of reading the files again.
     work_item_files: std::sync::Mutex<BTreeMap<PathBuf, Option<String>>>,
-    untrusted_corpus_problem: std::sync::RwLock<Option<String>>,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
@@ -264,10 +289,10 @@ impl Indexer {
         let me = Self {
             driver,
             project_root,
-            reading: std::sync::RwLock::new(work_item_cfg.clone()),
+            unread: Arc::new(crate::config::WorkItemConfig::unreadable()),
+            trust: std::sync::RwLock::new(Trust::Trusted),
             configured: work_item_cfg,
             work_item_files: std::sync::Mutex::new(BTreeMap::new()),
-            untrusted_corpus_problem: std::sync::RwLock::new(None),
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             work_item_by_identity_key: Arc::new(RwLock::new(HashMap::new())),
@@ -352,7 +377,9 @@ impl Indexer {
                 })
             })
             .collect();
-        self.judge_trust();
+        let trust = self.judge_trust();
+        self.hold_trust(trust.clone());
+        let reading = self.reading_under(&trust);
 
         // Phase 3 Pass A: parse and fold serially, in original order.
         // Build entries and every primary-id map. Defer reviews_by_target
@@ -369,7 +396,7 @@ impl Indexer {
                 path.clone(),
                 &content,
                 &self.project_root,
-                &self.work_item_cfg(),
+                &reading,
             );
 
             if let Some(id) = adr_id_from_entry(&entry) {
@@ -381,10 +408,7 @@ impl Indexer {
             if let Some(id) = plan_id_from_entry(&entry) {
                 plans_by_id.insert(id, path.clone());
             }
-            for id in identity_keys_of(
-                entry.work_item_refs.clone(),
-                &self.work_item_cfg(),
-            ) {
+            for id in identity_keys_of(entry.work_item_refs.clone(), &reading) {
                 // Skip self-references: a doc must not appear in its own index.
                 if entry.identity_key.as_deref() == Some(id.as_str()) {
                     continue;
@@ -405,7 +429,7 @@ impl Indexer {
             &entries,
             &plans_by_id,
             &work_item_by_identity_key,
-            &self.work_item_cfg(),
+            &reading,
             &self.project_root,
         );
 
@@ -443,7 +467,14 @@ impl Indexer {
         path: &Path,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
         let refreshed = self.refresh_entry(path).await?;
-        if !self.judge_trust() {
+        let (before, now) = {
+            // acquire() errors only if the semaphore is closed, which never happens.
+            #[allow(clippy::unwrap_used)]
+            let _permit = self.rescan_lock.acquire().await.unwrap();
+            let now = self.judge_trust();
+            (self.hold_trust(now.clone()), now)
+        };
+        if before.is_trusted() == now.is_trusted() {
             return Ok(refreshed);
         }
         self.rescan().await?;
@@ -485,12 +516,13 @@ impl Indexer {
                 if kind == DocTypeKey::WorkItems {
                     self.remember_work_item(&canonical, Some(&content));
                 }
+                let reading = self.work_item_cfg();
                 let entry = build_entry(
                     kind,
                     canonical.clone(),
                     &content,
                     &self.project_root,
-                    &self.work_item_cfg(),
+                    &reading,
                 );
 
                 // Single-writer-lock invariant: hold entries.write() across
@@ -530,7 +562,7 @@ impl Indexer {
                     &self.reviews_by_target,
                     &plans_snapshot,
                     &work_item_snapshot,
-                    &self.work_item_cfg(),
+                    &reading,
                     &self.project_root,
                     &entry,
                     previous.as_ref(),
@@ -538,7 +570,7 @@ impl Indexer {
                 .await;
                 update_work_item_refs_by_target(
                     &self.work_item_refs_by_target,
-                    &self.work_item_cfg(),
+                    &reading,
                     &entry,
                     previous.as_ref(),
                 )
@@ -769,7 +801,24 @@ impl Indexer {
     /// The work-item config IDs are read through now. Cluster-key
     /// resolution reuses it to canonicalise frontmatter values.
     pub fn work_item_cfg(&self) -> Arc<crate::config::WorkItemConfig> {
-        self.reading
+        self.reading_under(&self.trust())
+    }
+
+    /// The work-item config IDs are read through under `trust`: the
+    /// configured one, or none while the corpus cannot be trusted.
+    pub fn reading_under(
+        &self,
+        trust: &Trust,
+    ) -> Arc<crate::config::WorkItemConfig> {
+        match trust {
+            Trust::Trusted => self.configured.clone(),
+            Trust::Untrusted(_) => self.unread.clone(),
+        }
+    }
+
+    /// Whether the corpus can be trusted for its IDs, as last judged.
+    pub fn trust(&self) -> Trust {
+        self.trust
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
@@ -778,15 +827,22 @@ impl Indexer {
     /// Why the corpus cannot be trusted for its IDs, naming paths relative
     /// to the project root, while it cannot.
     pub fn untrusted_corpus_problem(&self) -> Option<String> {
-        self.untrusted_corpus_problem
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+        self.trust().problem().map(str::to_owned)
     }
 
-    /// Judges the remembered work-item files and reads IDs only while they
-    /// can be trusted. True when that changed whether they can.
-    fn judge_trust(&self) -> bool {
+    /// Holds `trust` as the corpus's, giving back the trust it replaces.
+    fn hold_trust(&self, trust: Trust) -> Trust {
+        std::mem::replace(
+            &mut *self
+                .trust
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+            trust,
+        )
+    }
+
+    /// Whether the remembered work-item files can be trusted for their IDs.
+    fn judge_trust(&self) -> Trust {
         let problem = self.configured.scheme().and_then(|scheme| {
             let files = self
                 .work_item_files
@@ -819,22 +875,7 @@ impl Indexer {
                     refusal.relative_to(&self.project_root).to_string()
                 })
         });
-        let reading = if problem.is_some() {
-            Arc::new(crate::config::WorkItemConfig::unreadable())
-        } else {
-            self.configured.clone()
-        };
-        let mut held = self
-            .untrusted_corpus_problem
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let flipped = held.is_some() != problem.is_some();
-        *held = problem;
-        *self
-            .reading
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = reading;
-        flipped
+        problem.map_or(Trust::Trusted, Trust::Untrusted)
     }
 
     fn remember_work_item(&self, path: &Path, content: Option<&FileContent>) {

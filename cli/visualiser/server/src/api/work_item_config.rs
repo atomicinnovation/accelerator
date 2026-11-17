@@ -22,16 +22,16 @@ pub(crate) struct WorkItemConfigBody {
 pub(crate) async fn get_work_item_config(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let key = state
-        .cfg
-        .work_item
-        .configured()
+    let trust = state.indexer.trust();
+    let reading = state.indexer.reading_under(&trust);
+    let key = reading
+        .scheme()
         .and_then(|scheme| scheme.key())
         .map(|key| key.as_str().to_owned());
-    let problem = state.work_item_problem();
+    let problem =
+        crate::server::work_item_problem(&state.cfg.work_item, &trust);
     let restart_needed = state.cfg.work_item.problem().is_some();
-    let id_token =
-        crate::config::WorkItemConfig::of(&state.cfg.work_item).id_token();
+    let id_token = reading.id_token();
     Json(WorkItemConfigBody {
         key,
         problem,
@@ -189,7 +189,28 @@ mod tests {
         );
         assert!(problem.contains("meta/work/PP-0001-a.md"), "{body}");
         assert_eq!(body["restartNeeded"], false, "{body}");
-        assert_eq!(body["idToken"], r"[A-Za-z][A-Za-z0-9]*_\d+|\d+", "{body}");
+    }
+
+    #[tokio::test]
+    async fn an_untrusted_corpus_serves_no_id_grammar() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(
+            work.join("PP-0001-a.md"),
+            "---\nid: \"PP-0001\"\n---\n",
+        )
+        .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test("{key}_{number:04d}", Some("PP")),
+        );
+
+        let body = config_body(cfg).await;
+
+        assert!(body.get("idToken").is_none(), "{body}");
+        assert!(body.get("key").is_none(), "{body}");
     }
 
     #[tokio::test]

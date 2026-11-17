@@ -54,17 +54,25 @@ pub struct AppState {
     pub write_coordinator: Arc<crate::write_coordinator::WriteCoordinator>,
 }
 
+/// Why the visualiser reads no work-item IDs: a scheme that could not be
+/// read at boot, or a corpus that cannot be trusted under it.
+pub fn work_item_problem(
+    composed: &crate::config::WorkItemScheme,
+    trust: &crate::indexer::Trust,
+) -> Option<String> {
+    composed
+        .problem()
+        .or_else(|| trust.problem())
+        .map(str::to_owned)
+}
+
 impl AppState {
     /// Why work-item IDs cannot be trusted now: a scheme that could not be
     /// read, or a corpus holding an item a re-key would move or a file
     /// whose IDs cannot be read.
     #[must_use]
     pub fn work_item_problem(&self) -> Option<String> {
-        self.cfg
-            .work_item
-            .problem()
-            .map(str::to_owned)
-            .or_else(|| self.indexer.untrusted_corpus_problem())
+        work_item_problem(&self.cfg.work_item, &self.indexer.trust())
     }
 
     pub async fn build(
@@ -96,11 +104,8 @@ impl AppState {
             )
             .await?,
         );
-        if let Some(problem) = cfg
-            .work_item
-            .problem()
-            .map(str::to_owned)
-            .or_else(|| indexer.untrusted_corpus_problem())
+        if let Some(problem) =
+            work_item_problem(&cfg.work_item, &indexer.trust())
         {
             tracing::warn!("{problem}");
         }
