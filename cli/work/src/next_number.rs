@@ -11,6 +11,7 @@ use crate::id_pattern::IdPattern;
 use crate::id_pattern::KeyError;
 use crate::id_pattern::MissingKey;
 use crate::id_scheme::IdScheme;
+use crate::identity::ItemIdentity;
 use crate::work_item_files::identity_of;
 use crate::work_item_files::is_md_filename;
 use crate::work_item_files::WorkItemListing;
@@ -171,13 +172,9 @@ pub fn allocate(
     if pattern.references_key() && key.is_none() {
         return Err(AllocationError::MissingKey);
     }
-    let in_sequence = |parts: &IdParts| match (parts.key(), key) {
-        (Some(held), Some(key)) => held.eq_ignore_ascii_case(key.as_str()),
-        (held, key) => held.is_none() && key.is_none(),
-    };
     let held: Vec<(u64, String)> = held_numbers(scheme, listing)
         .into_iter()
-        .filter(|(parts, _)| in_sequence(parts))
+        .filter(|(parts, _)| in_sequence_of(parts, key))
         .map(|(parts, holder)| (parts.number(), holder))
         .collect();
     let (highest, highest_file) = held
@@ -191,11 +188,9 @@ pub fn allocate(
         .map(|(number, _)| *number)
         .collect::<BTreeSet<_>>()
         .len();
-    let linked: BTreeSet<u64> = linked_tracker_numbers(scheme, listing)
-        .into_iter()
-        .filter(in_sequence)
-        .map(|parts| parts.number())
-        .collect();
+    let identities: Vec<ItemIdentity> =
+        listing.files.iter().filter_map(identity_of).collect();
+    let linked = linked_numbers_under(scheme, key, &identities);
 
     allocate_above(pattern, key, highest, count, &linked).map_err(|error| {
         match error {
@@ -261,19 +256,46 @@ fn held_numbers(
     held
 }
 
-/// Every number an `external_id` naming a tracker issue holds: it takes
-/// that number from a new item without lifting the sequence past it.
-fn linked_tracker_numbers(
+fn in_sequence_of(parts: &IdParts, key: Option<&IdKey>) -> bool {
+    match (parts.key(), key) {
+        (Some(held), Some(key)) => held.eq_ignore_ascii_case(key.as_str()),
+        (held, key) => held.is_none() && key.is_none(),
+    }
+}
+
+/// Every number under `key` that an `external_id` naming a tracker issue
+/// holds: it takes that number from a new item without lifting the
+/// sequence past it.
+#[must_use]
+pub fn linked_numbers_under(
     scheme: &IdScheme,
-    listing: &WorkItemListing,
-) -> Vec<IdParts> {
-    listing
-        .files
+    key: Option<&IdKey>,
+    items: &[ItemIdentity],
+) -> BTreeSet<u64> {
+    items
         .iter()
-        .filter_map(identity_of)
-        .filter_map(|item| item.external_id)
+        .filter_map(|item| item.external_id.as_deref())
         .filter(|value| scheme.names_a_tracker_issue(value))
-        .filter_map(|value| scheme.read_held(&value))
+        .filter_map(|value| scheme.read_held(value))
+        .filter(|parts| in_sequence_of(parts, key))
+        .map(|parts| parts.number())
+        .collect()
+}
+
+/// The first `count` numbers above `floor` that `linked` leaves free,
+/// within `pattern`'s cap; fewer when the cap comes first.
+#[must_use]
+pub fn free_numbers_above(
+    pattern: &IdPattern,
+    floor: u64,
+    count: usize,
+    linked: &BTreeSet<u64>,
+) -> Vec<u64> {
+    let cap = pattern.highest_number();
+    std::iter::successors(floor.checked_add(1), |n| n.checked_add(1))
+        .take_while(|&number| number <= cap)
+        .filter(|number| !linked.contains(number))
+        .take(count)
         .collect()
 }
 
@@ -300,21 +322,17 @@ fn allocate_above(
     count: u32,
     linked: &BTreeSet<u64>,
 ) -> Result<Vec<String>, AllocationError> {
-    let cap = pattern.highest_number();
     let wanted = usize::try_from(count).unwrap_or(usize::MAX);
-    let free: Vec<String> =
-        std::iter::successors(floor.checked_add(1), |n| n.checked_add(1))
-            .take_while(|&number| number <= cap)
-            .filter(|number| !linked.contains(number))
-            .take(wanted)
-            .map(|number| pattern.render(key, number))
-            .collect::<Result<_, _>>()?;
+    let free: Vec<String> = free_numbers_above(pattern, floor, wanted, linked)
+        .into_iter()
+        .map(|number| pattern.render(key, number))
+        .collect::<Result<_, _>>()?;
     if free.len() < wanted {
         return Err(AllocationError::Overflow {
             partial: free,
             highest: floor,
             highest_file: None,
-            cap,
+            cap: pattern.highest_number(),
             numbers_held: 0,
         });
     }

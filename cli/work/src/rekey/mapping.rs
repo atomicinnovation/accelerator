@@ -16,6 +16,8 @@ use crate::id_reading::unclassifiable::why_unclassifiable;
 use crate::id_reading::unclassifiable::UnclassifiableCause;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
+use crate::next_number::free_numbers_above;
+use crate::next_number::linked_numbers_under;
 use crate::rekey::collision::refuse_collisions;
 use crate::rekey::creation_date::CreationDate;
 use crate::rekey::entry::RekeyEntry;
@@ -36,7 +38,8 @@ pub struct RekeyCandidate {
 /// unless its key is folded. A kept number is re-rendered under the item's
 /// own key, or under `work.key` when its key is folded or it has none. Any
 /// other tracker key, and a draft, takes a fresh number under `work.key`, in
-/// creation-date order, above every number that key already holds.
+/// creation-date order, above every number that key already holds and
+/// skipping any an `external_id` links.
 ///
 /// # Errors
 ///
@@ -85,7 +88,7 @@ pub fn numeric_mapping(
     }
 
     let floor = default_key_floor(scheme, candidates, &entries);
-    entries.extend(fresh_entries(scheme, floor, needing_fresh)?);
+    entries.extend(fresh_entries(scheme, floor, needing_fresh, candidates)?);
     entries.sort_by(|left, right| left.old.cmp(&right.old));
     let items: Vec<ItemIdentity> = candidates
         .iter()
@@ -176,6 +179,7 @@ fn fresh_entries(
     scheme: &IdScheme,
     floor: u64,
     mut needing_fresh: Vec<&RekeyCandidate>,
+    candidates: &[RekeyCandidate],
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
     if needing_fresh.is_empty() {
         return Ok(Vec::new());
@@ -185,16 +189,25 @@ fn fresh_entries(
             .cmp(&right.created)
             .then_with(|| left.identity.id.cmp(&right.identity.id))
     });
-    let needed = u64::try_from(needing_fresh.len()).unwrap_or(u64::MAX);
-    let cap = scheme.pattern().highest_number();
-    if floor.saturating_add(needed) > cap {
+    let identities: Vec<ItemIdentity> = candidates
+        .iter()
+        .map(|candidate| candidate.identity.clone())
+        .collect();
+    let linked = linked_numbers_under(scheme, scheme.key(), &identities);
+    let free = free_numbers_above(
+        scheme.pattern(),
+        floor,
+        needing_fresh.len(),
+        &linked,
+    );
+    if free.len() < needing_fresh.len() {
         return Err(NotRekeyed::FreshNumbersExhausted {
-            needed,
-            remaining: cap.saturating_sub(floor),
+            needed: u64::try_from(needing_fresh.len()).unwrap_or(u64::MAX),
+            remaining: u64::try_from(free.len()).unwrap_or(u64::MAX),
             pattern: scheme.pattern().as_str().to_owned(),
         });
     }
-    let numbers = (1..=needed).map(|offset| rendered(scheme, floor + offset));
+    let numbers = free.into_iter().map(|number| rendered(scheme, number));
     Ok(needing_fresh
         .into_iter()
         .zip(numbers)
@@ -554,6 +567,35 @@ mod tests {
     fn fresh_numbers_past_the_cap_are_refused() {
         let corpus = [
             local("ACC-9998"),
+            draft("draft-k3x9mq", "2026-01-01"),
+            draft("draft-a1b2cd", "2026-01-02"),
+        ];
+        assert_eq!(
+            numeric_mapping(&acc(), &corpus, &FoldedKeys::none()),
+            Err(NotRekeyed::FreshNumbersExhausted {
+                needed: 2,
+                remaining: 1,
+                pattern: "{key}-{number:04d}".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn fresh_numbers_skip_a_number_an_external_id_links() {
+        let corpus = [
+            candidate("id: \"ACC-0001\"\nexternal_id: \"ACC-2\""),
+            draft("draft-k3x9mq", "2026-01-01"),
+        ];
+        assert_eq!(
+            mapped(&acc(), &corpus),
+            pairs(&[("draft-k3x9mq", "ACC-0003")])
+        );
+    }
+
+    #[test]
+    fn a_linked_number_counts_against_the_fresh_numbers_left() {
+        let corpus = [
+            candidate("id: \"ACC-9997\"\nexternal_id: \"ACC-9998\""),
             draft("draft-k3x9mq", "2026-01-01"),
             draft("draft-a1b2cd", "2026-01-02"),
         ];

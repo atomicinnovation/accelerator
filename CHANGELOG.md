@@ -294,8 +294,9 @@
   so allocation never hands out an ID `work create --id` would refuse as
   taken. An `external_id` that reads as a tracker's issue key, such as
   `PP-905`, still takes `PP-0905`, as it does for `work rekey`, but does not
-  lift the sequence: allocation skips that one number rather than jumping
-  past the tracker's numbers. The key is read by the rules of the tracker
+  lift the sequence: allocation, and `work rekey` when it hands out fresh
+  numbers, skips that one number rather than jumping past the tracker's
+  numbers. The key is read by the rules of the tracker
   `work.integration` names, or of any supported tracker when none is set.
 - **A bare number reads as the pattern's number everywhere.** Under a
   keyless pattern with literal text such as `v{number:03d}`, `1` held in an
