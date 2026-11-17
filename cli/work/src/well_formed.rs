@@ -20,8 +20,9 @@ use crate::work_item_files::WorkItemListing;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Malformation {
-    /// Its filename does not start with its `id` and a slug.
-    NoSlug { id: String },
+    /// Its filename does not start with its `id` and a slug; `slug` is the
+    /// one its filename already has after another ID.
+    Misnamed { id: String, slug: Option<String> },
     /// It names an ID in `aliases` or `external_id` but has no `id`.
     NoId,
     /// Its whole filename is an ID, with no slug, and it has no `id`.
@@ -46,7 +47,7 @@ impl MalformedItem {
     fn what(&self) -> String {
         let path = escaped(&self.path.to_string_lossy());
         match &self.malformation {
-            Malformation::NoSlug { id } => format!(
+            Malformation::Misnamed { id, .. } => format!(
                 "{path} has `id` '{}' but its filename does not start with \
                  its `id` and a slug",
                 escaped(id),
@@ -65,9 +66,11 @@ impl MalformedItem {
 
     fn remedy(&self) -> String {
         match &self.malformation {
-            Malformation::NoSlug { id } => {
-                format!("Rename it to `{}-<slug>.md`", escaped(id))
-            }
+            Malformation::Misnamed { id, slug } => format!(
+                "Rename it to `{}-{}.md`",
+                escaped(id),
+                slug.as_deref().map_or_else(|| "<slug>".to_owned(), escaped)
+            ),
             Malformation::NoId => {
                 "Give it the `id` its filename starts with".to_owned()
             }
@@ -195,13 +198,25 @@ fn malformation_of(
         Some(identity)
             if !names_with_slug(scheme, &file.path, &identity.id) =>
         {
-            Some(malformed(Malformation::NoSlug { id: identity.id }))
+            Some(malformed(Malformation::Misnamed {
+                id: identity.id,
+                slug: slug_after_an_id(scheme, &file.path),
+            }))
         }
         Some(_) => None,
         None if names_an_id(file) => Some(malformed(Malformation::NoId)),
         None => id_naming(scheme, &file.path)
             .map(|id| malformed(Malformation::NamedOnlyById { id })),
     }
+}
+
+fn slug_after_an_id(scheme: &IdScheme, path: &Path) -> Option<String> {
+    use corpus::IdConvention as _;
+    let stem = path.file_stem()?.to_str()?;
+    let start = scheme.slug_start(stem)?;
+    stem.get(start..)
+        .filter(|slug| !slug.is_empty())
+        .map(str::to_owned)
 }
 
 fn id_naming(scheme: &IdScheme, path: &Path) -> Option<String> {
@@ -318,10 +333,27 @@ mod tests {
                 Err(refusal)
                     if matches!(
                         refusal.first().malformation(),
-                        Malformation::NoSlug { .. }
+                        Malformation::Misnamed { .. }
                     )
             ),
             "{refused:?}"
+        );
+    }
+
+    #[test]
+    fn a_misnamed_items_fix_keeps_the_slug_its_filename_has() {
+        let refusal = malformed_in(
+            &numeric(),
+            &[file("0400-dark-mode.md", "---\nid: \"PP-0400\"\n---\n")],
+        )
+        .err()
+        .unwrap_or_else(|| unreachable!("refused"));
+
+        assert!(
+            refusal
+                .to_string()
+                .contains("Rename it to `PP-0400-dark-mode.md`"),
+            "{refusal}"
         );
     }
 
@@ -337,8 +369,9 @@ mod tests {
 
         assert_eq!(
             refusal.first().malformation(),
-            &Malformation::NoSlug {
-                id: "PP-0400".to_owned()
+            &Malformation::Misnamed {
+                id: "PP-0400".to_owned(),
+                slug: None,
             }
         );
         assert_eq!(
@@ -421,7 +454,10 @@ mod tests {
                 &refused,
                 Err(refusal)
                     if refusal.first().malformation()
-                        == &Malformation::NoSlug { id: "PP-0001".to_owned() }
+                        == &Malformation::Misnamed {
+                            id: "PP-0001".to_owned(),
+                            slug: None,
+                        }
             ),
             "{refused:?}"
         );

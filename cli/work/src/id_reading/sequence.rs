@@ -91,7 +91,7 @@ fn number(digits: &str) -> Result<u64, Unclassified> {
 /// above the pattern's cap, is not in shape.
 #[must_use]
 pub fn is_in_target_shape(id: &str, scheme: &IdScheme) -> bool {
-    let cap = scheme.pattern().cap().unwrap_or(u64::MAX);
+    let cap = scheme.pattern().highest_number();
     existing_id(id, scheme).is_some_and(|existing| {
         existing.number <= cap
             && scheme

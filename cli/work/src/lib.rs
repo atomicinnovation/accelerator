@@ -12,6 +12,7 @@ pub mod draft_id;
 pub mod filter;
 pub mod hierarchy;
 pub mod id_pattern;
+pub mod id_reading;
 pub mod id_scheme;
 pub mod identity;
 pub mod identity_run;

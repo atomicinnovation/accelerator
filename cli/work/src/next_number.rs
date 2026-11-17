@@ -300,7 +300,7 @@ fn allocate_above(
     count: u32,
     linked: &BTreeSet<u64>,
 ) -> Result<Vec<String>, AllocationError> {
-    let cap = pattern.cap().unwrap_or(u64::MAX);
+    let cap = pattern.highest_number();
     let wanted = usize::try_from(count).unwrap_or(usize::MAX);
     let free: Vec<String> =
         std::iter::successors(floor.checked_add(1), |n| n.checked_add(1))

@@ -8,9 +8,9 @@ use std::fmt::Formatter;
 use crate::convergence::is_converged;
 use crate::id_pattern::escaped;
 use crate::id_pattern::IdKey;
+use crate::id_reading::sequence::is_in_target_shape;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
-use crate::rekey::sequence::is_in_target_shape;
 
 /// The keys whose items a re-key moves onto `work.key`.
 ///

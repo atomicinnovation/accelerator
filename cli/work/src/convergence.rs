@@ -9,13 +9,11 @@ use std::path::PathBuf;
 
 use crate::draft_id::DraftId;
 use crate::id_pattern::escaped;
+use crate::id_reading::unclassifiable::why_unclassifiable;
+use crate::id_reading::unclassifiable::UnclassifiableCause;
 use crate::id_scheme::IdOwnership;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
-use crate::rekey::mapping::why_unclassifiable;
-use crate::rekey::outcome::unclassifiable;
-use crate::rekey::outcome::unclassifiable_remedy;
-use crate::rekey::outcome::UnclassifiableCause;
 use crate::shown_path::relative_to;
 use crate::tracker_key::TrackerKey;
 
@@ -127,8 +125,8 @@ impl Display for RekeyRequired {
                 write!(
                     formatter,
                     "Re-key cannot read one of them: {}. {} by hand, ",
-                    unclassifiable(&item.path, &item.cause),
-                    unclassifiable_remedy(&item.cause),
+                    item.cause.describe(&item.path),
+                    item.cause.remedy(),
                 )?;
                 "then run"
             }

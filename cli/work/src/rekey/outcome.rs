@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use crate::draft_id::DraftIdExhausted;
 use crate::id_pattern::escaped;
+use crate::id_reading::unclassifiable::UnclassifiableCause;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::fingerprint::Staleness;
 use crate::rekey::run_plan::Unreadability;
@@ -23,16 +24,6 @@ use crate::shown_path::relative_to;
 pub struct LinkedClash {
     pub external_id: String,
     pub shared_key: Option<String>,
-}
-
-/// Why an item's `id` cannot be re-keyed.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UnclassifiableCause {
-    AmbiguousDigitRuns { id: String, example: Option<String> },
-    NoNumber { id: String },
-    ForbiddenCharacter { id: String },
-    ExternalIdNotATrackerKey { external_id: String },
-    NumberAboveCap { id: String, number: u64, cap: u64 },
 }
 
 /// The process holding the identity-run lock.
@@ -270,7 +261,7 @@ impl NotRekeyed {
                 target,
                 linked,
             } => collision(first, second, target, linked.as_ref()),
-            Self::Unclassifiable { item, cause } => unclassifiable(item, cause),
+            Self::Unclassifiable { item, cause } => cause.describe(item),
             Self::FreshNumbersExhausted { pattern, .. } => format!(
                 "re-keying needs more fresh numbers than `{pattern}` has left"
             ),
@@ -383,7 +374,7 @@ impl NotRekeyed {
                 "Run `accelerator work sync` to settle the push".to_owned()
             }
             Self::Collision { linked, .. } => collision_remedy(linked.as_ref()),
-            Self::Unclassifiable { cause, .. } => unclassifiable_remedy(cause),
+            Self::Unclassifiable { cause, .. } => cause.remedy(),
             Self::FreshNumbersExhausted {
                 needed,
                 remaining,
@@ -587,66 +578,6 @@ fn collision_remedy(linked: Option<&LinkedClash>) -> String {
                tracker's keys"
             .to_owned(),
         _ => "Rename or merge one of the named items".to_owned(),
-    }
-}
-
-pub(crate) fn unclassifiable_remedy(cause: &UnclassifiableCause) -> String {
-    match cause {
-        UnclassifiableCause::AmbiguousDigitRuns {
-            example: Some(example),
-            ..
-        } => format!(
-            "Give the item an `id` in the shape of `work.id_pattern`, such \
-             as `{example}`"
-        ),
-        UnclassifiableCause::AmbiguousDigitRuns { .. }
-        | UnclassifiableCause::NoNumber { .. } => {
-            "Give the item an `id` in the shape of `work.id_pattern`".to_owned()
-        }
-        UnclassifiableCause::NumberAboveCap { number, .. } => format!(
-            "Widen `work.id_pattern` to hold {number}, or give the item an \
-             `id` in its shape and update the references to it"
-        ),
-        UnclassifiableCause::ForbiddenCharacter { .. } => "Give the item an \
-             `id` of ASCII letters, digits, `.`, `_` and `-`"
-            .to_owned(),
-        UnclassifiableCause::ExternalIdNotATrackerKey { .. } => {
-            "Correct the item's `external_id` to the key of its tracker issue"
-                .to_owned()
-        }
-    }
-}
-
-pub(crate) fn unclassifiable(
-    item: &Path,
-    cause: &UnclassifiableCause,
-) -> String {
-    let item = shown(item);
-    match cause {
-        UnclassifiableCause::AmbiguousDigitRuns { id, .. } => format!(
-            "{item} has `id` '{}', whose digit runs make its number ambiguous",
-            escaped(id)
-        ),
-        UnclassifiableCause::NoNumber { id } => {
-            format!("{item} has `id` '{}', which holds no number", escaped(id))
-        }
-        UnclassifiableCause::NumberAboveCap { id, number, cap } => format!(
-            "{item} has `id` '{}', whose number {number} is above {cap}, the \
-             most `work.id_pattern` holds",
-            escaped(id)
-        ),
-        UnclassifiableCause::ForbiddenCharacter { id } => format!(
-            "{item} has `id` '{}', which holds a character other than an \
-             ASCII letter, digit, `.`, `_` or `-`",
-            escaped(id)
-        ),
-        UnclassifiableCause::ExternalIdNotATrackerKey { external_id } => {
-            format!(
-                "{item} has `external_id` '{}', which is not shaped like a \
-                 tracker key",
-                escaped(external_id)
-            )
-        }
     }
 }
 

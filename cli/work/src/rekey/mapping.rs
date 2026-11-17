@@ -6,23 +6,22 @@ use std::collections::BTreeMap;
 use crate::draft_id::mint_draft_ids;
 use crate::draft_id::DraftId;
 use crate::draft_id::SuffixDraws;
-use crate::id_pattern::is_in_id_alphabet;
 use crate::id_pattern::IdKey;
-use crate::id_scheme::IdOwnership;
+use crate::id_reading::classify::classify;
+use crate::id_reading::classify::Classification;
+use crate::id_reading::sequence::existing_id;
+use crate::id_reading::sequence::is_in_target_shape;
+use crate::id_reading::unclassifiable::cause_of;
+use crate::id_reading::unclassifiable::why_unclassifiable;
+use crate::id_reading::unclassifiable::UnclassifiableCause;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
-use crate::rekey::classify::classify;
-use crate::rekey::classify::Classification;
-use crate::rekey::classify::Unclassified;
 use crate::rekey::collision::refuse_collisions;
 use crate::rekey::creation_date::CreationDate;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::entry::RekeyTarget;
 use crate::rekey::folding::FoldedKeys;
 use crate::rekey::outcome::NotRekeyed;
-use crate::rekey::outcome::UnclassifiableCause;
-use crate::rekey::sequence::existing_id;
-use crate::rekey::sequence::is_in_target_shape;
 use crate::tracker_key::TrackerKey;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,7 +47,7 @@ pub fn numeric_mapping(
     candidates: &[RekeyCandidate],
     folded: &FoldedKeys,
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
-    let cap = cap_of(scheme);
+    let cap = scheme.pattern().highest_number();
     let mut entries = Vec::new();
     let mut needing_fresh = Vec::new();
     for candidate in candidates {
@@ -96,10 +95,6 @@ pub fn numeric_mapping(
     Ok(entries)
 }
 
-fn cap_of(scheme: &IdScheme) -> u64 {
-    scheme.pattern().cap().unwrap_or(u64::MAX)
-}
-
 /// `number` as the pattern renders it under `work.key`, which a scheme a
 /// re-key runs under always holds when its pattern needs one.
 fn rendered(scheme: &IdScheme, number: u64) -> String {
@@ -131,67 +126,6 @@ fn own_key(id: &str, scheme: &IdScheme, folded: &FoldedKeys) -> Option<IdKey> {
         .and_then(|existing| existing.key)
         .filter(|key| !folded.folds(key) && !is_work_key(key))
         .and_then(|key| IdKey::parse(&key).ok())
-}
-
-/// Why re-key cannot read `identity`'s IDs and so refuses it, under the
-/// scheme's ownership.
-#[must_use]
-pub(crate) fn why_unclassifiable(
-    identity: &ItemIdentity,
-    scheme: &IdScheme,
-) -> Option<UnclassifiableCause> {
-    match scheme.ownership() {
-        IdOwnership::Local => match classify(identity, scheme) {
-            Classification::Unclassifiable(unclassified) => {
-                Some(cause_of(unclassified, &identity.id, scheme))
-            }
-            Classification::Sequenced(number) if number > cap_of(scheme) => {
-                Some(UnclassifiableCause::NumberAboveCap {
-                    id: identity.id.clone(),
-                    number,
-                    cap: cap_of(scheme),
-                })
-            }
-            _ => None,
-        },
-        IdOwnership::Tracker if DraftId::parse(&identity.id).is_some() => None,
-        IdOwnership::Tracker => identity.external_id.as_deref().map_or_else(
-            || {
-                (!is_in_id_alphabet(&identity.id)).then(|| {
-                    UnclassifiableCause::ForbiddenCharacter {
-                        id: identity.id.clone(),
-                    }
-                })
-            },
-            |stored| {
-                TrackerKey::parse_under(stored, scheme.tracker_keys())
-                    .is_none()
-                    .then(|| UnclassifiableCause::ExternalIdNotATrackerKey {
-                        external_id: stored.to_owned(),
-                    })
-            },
-        ),
-    }
-}
-
-fn cause_of(
-    unclassified: Unclassified,
-    id: &str,
-    scheme: &IdScheme,
-) -> UnclassifiableCause {
-    let id = id.to_owned();
-    match unclassified {
-        Unclassified::AmbiguousDigitRuns => {
-            UnclassifiableCause::AmbiguousDigitRuns {
-                id,
-                example: scheme.pattern().render(scheme.key(), 1).ok(),
-            }
-        }
-        Unclassified::NoNumber => UnclassifiableCause::NoNumber { id },
-        Unclassified::ForbiddenCharacter => {
-            UnclassifiableCause::ForbiddenCharacter { id }
-        }
-    }
 }
 
 fn not_a_tracker_key(identity: &ItemIdentity, stored: &str) -> NotRekeyed {
@@ -252,7 +186,7 @@ fn fresh_entries(
             .then_with(|| left.identity.id.cmp(&right.identity.id))
     });
     let needed = u64::try_from(needing_fresh.len()).unwrap_or(u64::MAX);
-    let cap = cap_of(scheme);
+    let cap = scheme.pattern().highest_number();
     if floor.saturating_add(needed) > cap {
         return Err(NotRekeyed::FreshNumbersExhausted {
             needed,
@@ -389,13 +323,13 @@ mod tests {
     use crate::convergence::is_converged;
     use crate::id_pattern::IdKey;
     use crate::id_pattern::IdPattern;
+    use crate::id_reading::unclassifiable::UnclassifiableCause;
     use crate::id_scheme::IdScheme;
     use crate::rekey::creation_date::CreationDate;
     use crate::rekey::entry::RekeyEntry;
     use crate::rekey::entry::RekeyTarget;
     use crate::rekey::folding::FoldedKeys;
     use crate::rekey::outcome::NotRekeyed;
-    use crate::rekey::outcome::UnclassifiableCause;
     use crate::work_item_files::identity_of;
     use crate::work_item_files::WorkItemFile;
 
@@ -856,6 +790,7 @@ mod tests {
         use crate::draft_id::SuffixDraws;
         use crate::draft_id::ALPHABET;
         use crate::id_pattern::IdPattern;
+        use crate::id_reading::unclassifiable::UnclassifiableCause;
         use crate::id_scheme::IdScheme;
         use crate::id_scheme::TRACKER_TOKEN;
         use crate::rekey::entry::RekeyEntry;
@@ -865,7 +800,6 @@ mod tests {
         use crate::rekey::mapping::RefreshedKeys;
         use crate::rekey::outcome::LinkedClash;
         use crate::rekey::outcome::NotRekeyed;
-        use crate::rekey::outcome::UnclassifiableCause;
         use crate::tracker_key::TrackerKey;
 
         struct Scripted(VecDeque<String>);

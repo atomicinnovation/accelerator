@@ -446,6 +446,13 @@ impl IdPattern {
         10u64.checked_pow(width).map(|bound| bound - 1)
     }
 
+    /// The highest number the pattern holds: its cap, with no limit under
+    /// `{tracker}`.
+    #[must_use]
+    pub fn highest_number(&self) -> u64 {
+        self.cap().unwrap_or(u64::MAX)
+    }
+
     /// # Errors
     ///
     /// [`MissingKey`] when the pattern has a key token and `key` is `None`.

@@ -326,6 +326,7 @@ impl work::id_pattern::IdPattern
 pub fn work::id_pattern::IdPattern::as_str(&self) -> &str
 pub fn work::id_pattern::IdPattern::cap(&self) -> core::option::Option<u64>
 pub fn work::id_pattern::IdPattern::describe(&self) -> alloc::string::String
+pub fn work::id_pattern::IdPattern::highest_number(&self) -> u64
 pub fn work::id_pattern::IdPattern::is_tracker_owned(&self) -> bool
 pub fn work::id_pattern::IdPattern::parse(text: &str) -> core::result::Result<Self, work::id_pattern::PatternError>
 pub fn work::id_pattern::IdPattern::read_exact(&self, text: &str) -> core::option::Option<work::id_pattern::IdParts>
@@ -360,6 +361,87 @@ impl core::marker::StructuralPartialEq for work::id_pattern::MissingKey
 pub const work::id_pattern::TRACKER_TOKEN: &str
 pub fn work::id_pattern::escaped(text: &str) -> alloc::string::String
 pub fn work::id_pattern::is_in_id_alphabet(text: &str) -> bool
+pub mod work::id_reading
+pub mod work::id_reading::classify
+pub enum work::id_reading::classify::Classification
+pub work::id_reading::classify::Classification::Draft
+pub work::id_reading::classify::Classification::Sequenced(u64)
+pub work::id_reading::classify::Classification::TrackerKey
+pub work::id_reading::classify::Classification::Unclassifiable(work::id_reading::sequence::Unclassified)
+impl core::clone::Clone for work::id_reading::classify::Classification
+pub fn work::id_reading::classify::Classification::clone(&self) -> work::id_reading::classify::Classification
+impl core::cmp::Eq for work::id_reading::classify::Classification
+impl core::cmp::PartialEq for work::id_reading::classify::Classification
+pub fn work::id_reading::classify::Classification::eq(&self, other: &work::id_reading::classify::Classification) -> bool
+impl core::fmt::Debug for work::id_reading::classify::Classification
+pub fn work::id_reading::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_reading::classify::Classification
+impl core::marker::StructuralPartialEq for work::id_reading::classify::Classification
+pub enum work::id_reading::classify::Unclassified
+pub work::id_reading::classify::Unclassified::AmbiguousDigitRuns
+pub work::id_reading::classify::Unclassified::ForbiddenCharacter
+pub work::id_reading::classify::Unclassified::NoNumber
+impl core::clone::Clone for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::sequence::Unclassified::clone(&self) -> work::id_reading::sequence::Unclassified
+impl core::cmp::Eq for work::id_reading::sequence::Unclassified
+impl core::cmp::PartialEq for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::sequence::Unclassified::eq(&self, other: &work::id_reading::sequence::Unclassified) -> bool
+impl core::fmt::Debug for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::sequence::Unclassified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_reading::sequence::Unclassified
+impl core::marker::StructuralPartialEq for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::classify::classify(identity: &work::identity::ItemIdentity, scheme: &work::id_scheme::IdScheme) -> work::id_reading::classify::Classification
+pub mod work::id_reading::sequence
+pub enum work::id_reading::sequence::Unclassified
+pub work::id_reading::sequence::Unclassified::AmbiguousDigitRuns
+pub work::id_reading::sequence::Unclassified::ForbiddenCharacter
+pub work::id_reading::sequence::Unclassified::NoNumber
+impl core::clone::Clone for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::sequence::Unclassified::clone(&self) -> work::id_reading::sequence::Unclassified
+impl core::cmp::Eq for work::id_reading::sequence::Unclassified
+impl core::cmp::PartialEq for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::sequence::Unclassified::eq(&self, other: &work::id_reading::sequence::Unclassified) -> bool
+impl core::fmt::Debug for work::id_reading::sequence::Unclassified
+pub fn work::id_reading::sequence::Unclassified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::id_reading::sequence::Unclassified
+impl core::marker::StructuralPartialEq for work::id_reading::sequence::Unclassified
+pub struct work::id_reading::sequence::ExistingId
+pub work::id_reading::sequence::ExistingId::key: core::option::Option<alloc::string::String>
+pub work::id_reading::sequence::ExistingId::number: u64
+impl core::clone::Clone for work::id_reading::sequence::ExistingId
+pub fn work::id_reading::sequence::ExistingId::clone(&self) -> work::id_reading::sequence::ExistingId
+impl core::cmp::Eq for work::id_reading::sequence::ExistingId
+impl core::cmp::PartialEq for work::id_reading::sequence::ExistingId
+pub fn work::id_reading::sequence::ExistingId::eq(&self, other: &work::id_reading::sequence::ExistingId) -> bool
+impl core::fmt::Debug for work::id_reading::sequence::ExistingId
+pub fn work::id_reading::sequence::ExistingId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_reading::sequence::ExistingId
+pub fn work::id_reading::sequence::existing_id(id: &str, scheme: &work::id_scheme::IdScheme) -> core::option::Option<work::id_reading::sequence::ExistingId>
+pub fn work::id_reading::sequence::is_in_target_shape(id: &str, scheme: &work::id_scheme::IdScheme) -> bool
+pub fn work::id_reading::sequence::read_existing_id(id: &str, scheme: &work::id_scheme::IdScheme) -> core::result::Result<work::id_reading::sequence::ExistingId, work::id_reading::sequence::Unclassified>
+pub mod work::id_reading::unclassifiable
+pub enum work::id_reading::unclassifiable::UnclassifiableCause
+pub work::id_reading::unclassifiable::UnclassifiableCause::AmbiguousDigitRuns
+pub work::id_reading::unclassifiable::UnclassifiableCause::AmbiguousDigitRuns::example: core::option::Option<alloc::string::String>
+pub work::id_reading::unclassifiable::UnclassifiableCause::AmbiguousDigitRuns::id: alloc::string::String
+pub work::id_reading::unclassifiable::UnclassifiableCause::ExternalIdNotATrackerKey
+pub work::id_reading::unclassifiable::UnclassifiableCause::ExternalIdNotATrackerKey::external_id: alloc::string::String
+pub work::id_reading::unclassifiable::UnclassifiableCause::ForbiddenCharacter
+pub work::id_reading::unclassifiable::UnclassifiableCause::ForbiddenCharacter::id: alloc::string::String
+pub work::id_reading::unclassifiable::UnclassifiableCause::NoNumber
+pub work::id_reading::unclassifiable::UnclassifiableCause::NoNumber::id: alloc::string::String
+pub work::id_reading::unclassifiable::UnclassifiableCause::NumberAboveCap
+pub work::id_reading::unclassifiable::UnclassifiableCause::NumberAboveCap::cap: u64
+pub work::id_reading::unclassifiable::UnclassifiableCause::NumberAboveCap::id: alloc::string::String
+pub work::id_reading::unclassifiable::UnclassifiableCause::NumberAboveCap::number: u64
+impl core::clone::Clone for work::id_reading::unclassifiable::UnclassifiableCause
+pub fn work::id_reading::unclassifiable::UnclassifiableCause::clone(&self) -> work::id_reading::unclassifiable::UnclassifiableCause
+impl core::cmp::Eq for work::id_reading::unclassifiable::UnclassifiableCause
+impl core::cmp::PartialEq for work::id_reading::unclassifiable::UnclassifiableCause
+pub fn work::id_reading::unclassifiable::UnclassifiableCause::eq(&self, other: &work::id_reading::unclassifiable::UnclassifiableCause) -> bool
+impl core::fmt::Debug for work::id_reading::unclassifiable::UnclassifiableCause
+pub fn work::id_reading::unclassifiable::UnclassifiableCause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::id_reading::unclassifiable::UnclassifiableCause
 pub mod work::id_scheme
 pub enum work::id_scheme::CanonicaliseError
 pub work::id_scheme::CanonicaliseError::EmptyInput
@@ -894,35 +976,6 @@ pub fn work::promotion::remote_untouched(created_remote_hash: core::option::Opti
 pub fn work::promotion::retitling(created_remote_hash: core::option::Option<&str>, read_back: &work::promotion::ReadBack, read_back_matches_draft: bool) -> work::promotion::Retitling
 pub fn work::promotion::without_ids(text: &str, ids: &[&str]) -> alloc::string::String
 pub mod work::rekey
-pub mod work::rekey::classify
-pub enum work::rekey::classify::Classification
-pub work::rekey::classify::Classification::Draft
-pub work::rekey::classify::Classification::Sequenced(u64)
-pub work::rekey::classify::Classification::TrackerKey
-pub work::rekey::classify::Classification::Unclassifiable(work::rekey::sequence::Unclassified)
-impl core::clone::Clone for work::rekey::classify::Classification
-pub fn work::rekey::classify::Classification::clone(&self) -> work::rekey::classify::Classification
-impl core::cmp::Eq for work::rekey::classify::Classification
-impl core::cmp::PartialEq for work::rekey::classify::Classification
-pub fn work::rekey::classify::Classification::eq(&self, other: &work::rekey::classify::Classification) -> bool
-impl core::fmt::Debug for work::rekey::classify::Classification
-pub fn work::rekey::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::rekey::classify::Classification
-impl core::marker::StructuralPartialEq for work::rekey::classify::Classification
-pub enum work::rekey::classify::Unclassified
-pub work::rekey::classify::Unclassified::AmbiguousDigitRuns
-pub work::rekey::classify::Unclassified::ForbiddenCharacter
-pub work::rekey::classify::Unclassified::NoNumber
-impl core::clone::Clone for work::rekey::sequence::Unclassified
-pub fn work::rekey::sequence::Unclassified::clone(&self) -> work::rekey::sequence::Unclassified
-impl core::cmp::Eq for work::rekey::sequence::Unclassified
-impl core::cmp::PartialEq for work::rekey::sequence::Unclassified
-pub fn work::rekey::sequence::Unclassified::eq(&self, other: &work::rekey::sequence::Unclassified) -> bool
-impl core::fmt::Debug for work::rekey::sequence::Unclassified
-pub fn work::rekey::sequence::Unclassified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::rekey::sequence::Unclassified
-impl core::marker::StructuralPartialEq for work::rekey::sequence::Unclassified
-pub fn work::rekey::classify::classify(identity: &work::identity::ItemIdentity, scheme: &work::id_scheme::IdScheme) -> work::rekey::classify::Classification
 pub mod work::rekey::collision
 pub fn work::rekey::collision::refuse_collisions(entries: &[work::rekey::entry::RekeyEntry], items: &[work::identity::ItemIdentity], scheme: &work::id_scheme::IdScheme) -> core::result::Result<(), work::rekey::outcome::NotRekeyed>
 pub mod work::rekey::creation_date
@@ -1110,7 +1163,7 @@ pub work::rekey::outcome::NotRekeyed::SyncUnfinished(alloc::vec::Vec<work::rekey
 pub work::rekey::outcome::NotRekeyed::TargetExists(std::path::PathBuf)
 pub work::rekey::outcome::NotRekeyed::TrackerUnreachable(alloc::string::String)
 pub work::rekey::outcome::NotRekeyed::Unclassifiable
-pub work::rekey::outcome::NotRekeyed::Unclassifiable::cause: work::rekey::outcome::UnclassifiableCause
+pub work::rekey::outcome::NotRekeyed::Unclassifiable::cause: work::id_reading::unclassifiable::UnclassifiableCause
 pub work::rekey::outcome::NotRekeyed::Unclassifiable::item: std::path::PathBuf
 pub work::rekey::outcome::NotRekeyed::WorkingCopyUnprobeable(alloc::string::String)
 impl work::rekey::outcome::NotRekeyed
@@ -1145,28 +1198,6 @@ pub fn work::rekey::outcome::SyncBlocker::eq(&self, other: &work::rekey::outcome
 impl core::fmt::Debug for work::rekey::outcome::SyncBlocker
 pub fn work::rekey::outcome::SyncBlocker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::outcome::SyncBlocker
-pub enum work::rekey::outcome::UnclassifiableCause
-pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns
-pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns::example: core::option::Option<alloc::string::String>
-pub work::rekey::outcome::UnclassifiableCause::AmbiguousDigitRuns::id: alloc::string::String
-pub work::rekey::outcome::UnclassifiableCause::ExternalIdNotATrackerKey
-pub work::rekey::outcome::UnclassifiableCause::ExternalIdNotATrackerKey::external_id: alloc::string::String
-pub work::rekey::outcome::UnclassifiableCause::ForbiddenCharacter
-pub work::rekey::outcome::UnclassifiableCause::ForbiddenCharacter::id: alloc::string::String
-pub work::rekey::outcome::UnclassifiableCause::NoNumber
-pub work::rekey::outcome::UnclassifiableCause::NoNumber::id: alloc::string::String
-pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap
-pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap::cap: u64
-pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap::id: alloc::string::String
-pub work::rekey::outcome::UnclassifiableCause::NumberAboveCap::number: u64
-impl core::clone::Clone for work::rekey::outcome::UnclassifiableCause
-pub fn work::rekey::outcome::UnclassifiableCause::clone(&self) -> work::rekey::outcome::UnclassifiableCause
-impl core::cmp::Eq for work::rekey::outcome::UnclassifiableCause
-impl core::cmp::PartialEq for work::rekey::outcome::UnclassifiableCause
-pub fn work::rekey::outcome::UnclassifiableCause::eq(&self, other: &work::rekey::outcome::UnclassifiableCause) -> bool
-impl core::fmt::Debug for work::rekey::outcome::UnclassifiableCause
-pub fn work::rekey::outcome::UnclassifiableCause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for work::rekey::outcome::UnclassifiableCause
 pub struct work::rekey::outcome::Holder
 pub work::rekey::outcome::Holder::command: core::option::Option<alloc::string::String>
 pub work::rekey::outcome::Holder::pid: u32
@@ -1261,34 +1292,6 @@ impl core::marker::StructuralPartialEq for work::rekey::run_plan::UnreadablePlan
 pub const work::rekey::run_plan::RUN_PLAN_SCHEMA: u32
 pub fn work::rekey::run_plan::preview_lines(entries: &[work::rekey::entry::RekeyEntry]) -> alloc::vec::Vec<alloc::string::String>
 pub const fn work::rekey::run_plan::readable_schema(schema: u32) -> core::result::Result<(), work::rekey::run_plan::Unreadability>
-pub mod work::rekey::sequence
-pub enum work::rekey::sequence::Unclassified
-pub work::rekey::sequence::Unclassified::AmbiguousDigitRuns
-pub work::rekey::sequence::Unclassified::ForbiddenCharacter
-pub work::rekey::sequence::Unclassified::NoNumber
-impl core::clone::Clone for work::rekey::sequence::Unclassified
-pub fn work::rekey::sequence::Unclassified::clone(&self) -> work::rekey::sequence::Unclassified
-impl core::cmp::Eq for work::rekey::sequence::Unclassified
-impl core::cmp::PartialEq for work::rekey::sequence::Unclassified
-pub fn work::rekey::sequence::Unclassified::eq(&self, other: &work::rekey::sequence::Unclassified) -> bool
-impl core::fmt::Debug for work::rekey::sequence::Unclassified
-pub fn work::rekey::sequence::Unclassified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::rekey::sequence::Unclassified
-impl core::marker::StructuralPartialEq for work::rekey::sequence::Unclassified
-pub struct work::rekey::sequence::ExistingId
-pub work::rekey::sequence::ExistingId::key: core::option::Option<alloc::string::String>
-pub work::rekey::sequence::ExistingId::number: u64
-impl core::clone::Clone for work::rekey::sequence::ExistingId
-pub fn work::rekey::sequence::ExistingId::clone(&self) -> work::rekey::sequence::ExistingId
-impl core::cmp::Eq for work::rekey::sequence::ExistingId
-impl core::cmp::PartialEq for work::rekey::sequence::ExistingId
-pub fn work::rekey::sequence::ExistingId::eq(&self, other: &work::rekey::sequence::ExistingId) -> bool
-impl core::fmt::Debug for work::rekey::sequence::ExistingId
-pub fn work::rekey::sequence::ExistingId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for work::rekey::sequence::ExistingId
-pub fn work::rekey::sequence::existing_id(id: &str, scheme: &work::id_scheme::IdScheme) -> core::option::Option<work::rekey::sequence::ExistingId>
-pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &work::id_scheme::IdScheme) -> bool
-pub fn work::rekey::sequence::read_existing_id(id: &str, scheme: &work::id_scheme::IdScheme) -> core::result::Result<work::rekey::sequence::ExistingId, work::rekey::sequence::Unclassified>
 pub mod work::rekey::write_set
 pub enum work::rekey::write_set::StartState
 pub work::rekey::write_set::StartState::Absent
@@ -3119,11 +3122,12 @@ pub fn work::update::mutate_list(current: &[alloc::string::String], action: work
 pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>
 pub mod work::well_formed
 pub enum work::well_formed::Malformation
+pub work::well_formed::Malformation::Misnamed
+pub work::well_formed::Malformation::Misnamed::id: alloc::string::String
+pub work::well_formed::Malformation::Misnamed::slug: core::option::Option<alloc::string::String>
 pub work::well_formed::Malformation::NamedOnlyById
 pub work::well_formed::Malformation::NamedOnlyById::id: alloc::string::String
 pub work::well_formed::Malformation::NoId
-pub work::well_formed::Malformation::NoSlug
-pub work::well_formed::Malformation::NoSlug::id: alloc::string::String
 pub work::well_formed::Malformation::Undecodable
 impl core::clone::Clone for work::well_formed::Malformation
 pub fn work::well_formed::Malformation::clone(&self) -> work::well_formed::Malformation

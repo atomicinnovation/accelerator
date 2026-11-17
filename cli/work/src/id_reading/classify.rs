@@ -2,10 +2,10 @@
 //! its number or hands it a fresh one.
 
 use crate::draft_id::DraftId;
+use crate::id_reading::sequence::read_existing_id;
+pub use crate::id_reading::sequence::Unclassified;
 use crate::id_scheme::IdScheme;
 use crate::identity::ItemIdentity;
-use crate::rekey::sequence::read_existing_id;
-pub use crate::rekey::sequence::Unclassified;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Classification {
