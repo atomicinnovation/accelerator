@@ -604,9 +604,9 @@ turns a retryable signal into one that must not be retried:
 
 #### Automated Verification:
 
-- [ ] The skill test fails before the skill edit and passes after it:
+- [x] The skill test fails before the skill edit and passes after it:
       `uv run pytest tests/unit/tasks/test_sync_work_items_skill_structure.py -v`
-- [ ] The CLI surface golden matches:
+- [x] The CLI surface golden matches:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-work --test cli_surface`
 - [ ] The read-only CI set passes: `mise run check`
 - [ ] The full local CI mirror, including `docs:check`, exits 0: `mise run`
