@@ -180,7 +180,12 @@ fn sync_is_not_refused_over_a_diverged_corpus() -> Result<(), TestError> {
 
     let stderr = String::from_utf8(output.stderr)?;
     assert!(!stderr.contains("E_REKEY_REQUIRED"), "{stderr}");
-    assert_ne!(output.status.code(), Some(4), "{stderr}");
+    assert_eq!(
+        output.status.code(),
+        Some(74),
+        "sync reaches its tracker check, past the corpus: {stderr}"
+    );
+    assert!(stderr.contains("linear"), "{stderr}");
     Ok(())
 }
 
@@ -208,9 +213,17 @@ fn rekey_converges_a_diverged_corpus() -> Result<(), TestError> {
 fn every_id_command_refuses_a_malformed_item() -> Result<(), TestError> {
     let commands: &[&[&str]] = &[
         &["create", "Fresh item", "task", "medium"],
+        &[
+            "create-batch",
+            "--manifest",
+            "manifest.json",
+            "--author",
+            "A",
+        ],
         &["id", "next"],
         &["id", "check", "PP_0400"],
         &["resolve", "PP_0001"],
+        &["promote", "draft-k7mq3x"],
     ];
     for args in commands {
         let repo = diverged_repo()?;

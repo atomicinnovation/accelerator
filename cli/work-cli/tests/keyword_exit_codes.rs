@@ -359,6 +359,8 @@ const FROZEN_CREATE_CODES: &[&str] = &[
     "E_PUSH_ALREADY_WRITTEN",
     "E_DRAFT_EXISTS",
     "E_DRAFT_ID_EXHAUSTED",
+    "E_REKEY_REQUIRED",
+    "E_WORK_ITEM_MALFORMED",
 ];
 
 const fn covered(refusal: &RequestedIdRefusal) {
@@ -423,5 +425,8 @@ fn id_refusal_codes_are_distinct_from_every_other_work_create_code() {
         .chain(every_id_refusal().iter().map(RequestedIdRefusal::code))
         .collect();
 
-    assert_eq!(codes.len(), 20);
+    assert_eq!(
+        codes.len(),
+        FROZEN_CREATE_CODES.len() + FROZEN_ID_REFUSAL_CODES.len()
+    );
 }
