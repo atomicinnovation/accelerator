@@ -1098,7 +1098,9 @@
   holds a character outside the ID alphabet, such as a quote or newline
   that would reach frontmatter, is refused as unreadable, and so is a
   record or marker whose `recovery_dir` is not one directory under
-  `retirement-recovery/`.
+  `retirement-recovery/`. A record an earlier release wrote with such an
+  ID, say with a space, blocks both re-key and sync after upgrading; the
+  re-key refusal names it, and moving it aside clears the way.
 - **`work rekey` validates every path and target in a run plan before
   touching any file**, so a run plan cannot name a path outside the
   repository or a target outside the work directory.

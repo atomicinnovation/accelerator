@@ -368,6 +368,15 @@ impl NotRekeyed {
                  an existing alias (rename one item); restore from a named \
                  `RESTORE-PENDING` directory before removing it"
                 .to_owned(),
+            Self::SyncUnfinished(blockers)
+                if blockers.iter().any(|blocker| {
+                    matches!(blocker, SyncBlocker::UnreadableRecord(_))
+                }) =>
+            {
+                "Move each unreadable record aside, since sync cannot read it \
+                 either, then run `accelerator work sync`"
+                    .to_owned()
+            }
             Self::SyncUnfinished(_) => "Run `accelerator work sync`".to_owned(),
             Self::PendingPush(_) => {
                 "Run `accelerator work sync` to settle the push".to_owned()
@@ -813,6 +822,13 @@ mod tests {
                     },
                     SyncBlocker::UnreadableRecord(path("records/x.json")),
                 ]),
+                "Move each unreadable record aside, since sync cannot read it \
+                 either, then run `accelerator work sync`",
+            ),
+            (
+                NotRekeyed::SyncUnfinished(vec![SyncBlocker::Promotion {
+                    draft: "draft-k3x9mq".to_owned(),
+                }]),
                 "Run `accelerator work sync`",
             ),
             (
