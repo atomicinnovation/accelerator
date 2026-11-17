@@ -6,7 +6,7 @@ const HEALTH_PORT = Number(ALLOCATED_HEALTH_PORT ?? 19087);
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
-  retries: 1,
+  retries: 0,
   // Force sequential execution across all projects so that the chromium
   // kanban drag tests cannot run concurrently with each other or with the
   // visual-regression snapshot tests (both touch shared fixture files or
@@ -17,7 +17,7 @@ export default defineConfig({
   use: {
     // BASE_URL is populated by globalSetup (which runs after webServer).
     baseURL: process.env.BASE_URL ?? "http://127.0.0.1",
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
   },
   projects: [
     {
