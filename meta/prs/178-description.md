@@ -73,9 +73,11 @@ is listed under "Behaviour changes".
 - **Taken rule**: an ID is held by any item's `id`, `aliases` entry or
   `external_id`, and by any filename's ID prefix at any width. Parseable IDs
   compare by key (ignoring case) and number, so `400-x.md` and `id: "400"`
-  both take `0400`, under every pattern including keyless literal ones. One
-  `ItemIdentity::fields_holding` reading serves the taken rule and the
-  holder and linker lookups.
+  both take `0400`, under every pattern including keyless literal ones. An
+  `external_id` that reads as a tracker's issue key, such as `PP-905`,
+  takes `PP-0905` as it does for re-key, so create and re-key refuse the
+  same IDs. One `ItemIdentity::fields_holding` reading serves the taken
+  rule and the holder and linker lookups.
 - **Ordering**: the identity-run guard, the corpus checks (`E_REKEY_REQUIRED`,
   `E_WORK_ITEM_MALFORMED`), checks 1–4, then under `--push` the pending-push
   refusals, then the taken check under the create lock, so a racing create
@@ -89,7 +91,9 @@ is listed under "Behaviour changes".
   A pass leaves the dry-run output unchanged.
 - **Allocation** stays max+1 per key, ignoring gaps an `--id` leaves, and now
   counts a number held in any item's `id`, aliases or `external_id`, drafts
-  included, so it never hands out an ID `--id` would refuse.
+  included, so it never hands out an ID `--id` would refuse. A tracker's
+  issue key in `external_id` does not lift the sequence: allocation skips
+  that one number instead.
 
 ### The `work id` verb group
 
@@ -126,16 +130,18 @@ is listed under "Behaviour changes".
   allocation or cancel. Under `{tracker}` only automatic allocation remains.
   `E_REKEY_REQUIRED` and `E_WORK_ITEM_MALFORMED` stop the skill with their
   printed remedy, including from the resolver.
-- **Evals**: 36 new cases (39–74) with a fresh benchmark, plus re-run
+- **Evals**: 37 new cases (39–75) with a fresh benchmark, plus re-run
   benchmarks for `extract-work-items` and `refine-work-item` after their
   move onto the `work id` verbs. The evals each review response touched
   were re-run (see Testing).
-- **Eval guards**: `test_create_work_item_id_evals.py` now covers every eval
-  in `evals.json` and fails a run graded against expectations the eval no
-  longer holds, or a `SKILL.md` or `evals.json` changed since the
-  benchmark's recorded `skill_digest`; `eval_contract.rs` holds the refusals
-  and verdicts the prompts quote to the exit codes and fields the CLI
-  prints.
+- **Eval guards**: `test_work_skill_benchmarks.py` covers every
+  `/create-work-item` eval and fails a run graded against expectations the
+  eval no longer holds. For create, update, review, refine, list and sync
+  it fails a `SKILL.md` or `evals.json` changed since the benchmark's
+  recorded `skill_digest`, or a digest no run was recorded under.
+  `test_work_skill_eval_contract.py` holds every refusal code the work
+  skills' evals quote, in any quote form, to the exit code the built
+  binary gives it, and the quoted verdicts to the fields it prints.
 
 ### Convergence: a corpus off the pattern is refused
 
@@ -147,7 +153,7 @@ is listed under "Behaviour changes".
   equal to its `external_id` as a tracker key, so an aligned `ENG-1234` is
   kept. `create`, `create-batch`, `id next`, `id check`, `resolve` and
   `promote` refuse a corpus holding any other item with `E_REKEY_REQUIRED`
-  (exit 4), naming one and pointing to `/rekey-work-items` (or
+  (exit 4), counting them, naming one and pointing to `/rekey-work-items` (or
   `accelerator work rekey --preview`, then `accelerator work rekey`), after
   the fix by hand for an item re-key cannot read, such as one numbered above
   the pattern's cap. `work list` lists such a corpus and prints the refusal
@@ -176,6 +182,10 @@ is listed under "Behaviour changes".
   items keep, and `/rekey-work-items` asks which to fold.
 - **`identity_key`** loses its `-`-joining fallback, so a reference an
   earlier pattern wrote joins nothing until re-keyed.
+- **`work::id_reading`** holds how an item's IDs read (`classify`,
+  `sequence`) and why one cannot be read (`UnclassifiableCause`, which
+  describes itself and its remedy), so convergence and re-key both depend
+  on it rather than on each other.
 
 ### Work-item identity moves into `work`
 
@@ -243,11 +253,18 @@ is listed under "Behaviour changes".
   sharing an identity key resolve to the lower path whatever the read order,
   removing it hands the key on, and a review targeting the key moves with
   it; `.MD` work items update live.
-- **Shown IDs** are read through the pattern (`PP_0042`, `v001` now show).
-  The page builds its wiki-link grammar from an `idToken` the config
-  endpoint serves from the pattern's shape, so `[[WORK-ITEM-PP_0042]]`,
-  `v001` and tracker keys link; the project facet reads its key through the
-  scheme.
+- **Trust** is one `Trust` state the indexer judges under its rescan lock,
+  and the config endpoint serves `key`, `idToken` and `problem` from one
+  snapshot of it, so an untrusted corpus serves no ID grammar. The page
+  reads that endpoint under one query key, refreshed on every work-item
+  event.
+- **Shown IDs** are read through the pattern (`PP_0042`, `v001` now show)
+  and shown as served, unpadded. The page builds its work-item link grammar
+  from an `idToken` assembled from the grammars `IdKey`, `DraftId` and
+  `TrackerKeys` publish, under the scheme's own tracker keys, matching in
+  any case as the CLI reads IDs; ADR links keep their own `ADR-(\d+)`
+  branch. Each entry carries `workItemKey`, which both the server's project
+  facet and the library's filter read.
 
 ### Hardening
 
@@ -372,17 +389,19 @@ notice:
 
 ## Testing
 
-- [x] `mise run` (the full default task) passes at the tip, after the
-      response to the review 3 deck and the rebase onto main, changing no
-      file: every task passed except the CLI unit task's coverage floor,
-      which its 7700 tests passed but stale coverage data pulled under; after
-      `cargo llvm-cov clean --workspace` that task exits 0 with lines
-      94.38%, functions 93.87%, regions 93.13%.
-- [x] `/create-work-item` evals pass in full, all 77 (with-skill mean 1.0).
+- [x] Every task of `mise run` (the full default task) passes at the tip,
+      after the response to review 4, changing no file, except
+      `deny:check`: RUSTSEC-2026-0542 (`humantime`) and RUSTSEC-2026-0543
+      (`chrono`), unmaintained advisories published after main's last green
+      run, fail it on main too. The CLI unit task's 7711 tests passed and,
+      after `cargo llvm-cov clean --workspace` cleared stale coverage data,
+      it exits 0 with lines 94.39%, functions 93.87%, regions 93.14%.
+- [x] `/create-work-item` evals pass in full, all 78 (with-skill mean 1.0).
       The 13 the first review's response touched (26, 39, 42, 45, 48, 49,
       51, 52, 59–62, 66) were re-run on 2026-11-15; the 7 the later
       refusal-routing rewording touches (37, 38, 39, 56, 62, 64, 65) and the
-      new 73 and 74 on 2026-11-16. Each run used `claude-opus-5-5` executor
+      new 73 and 74 on 2026-11-16; 74 and the new 75 again on 2026-11-17,
+      under `claude-sonnet-5-5`. Each earlier run used `claude-opus-5-5` executor
       agents barred from the evals and benchmark files, graded by separate
       agents from the outputs alone. The benchmark records the `skill_digest`
       the latest runs were graded against.
@@ -393,7 +412,11 @@ notice:
       review changed and the new corpus-refusal evals, were re-run on
       2026-11-17 and pass in full. Evals that leant on a repository's state
       now simulate their fixtures, and review eval 3 expects the five
-      default lenses.
+      default lenses. Update 3 and 4, review 4 and refine 37 and 38 were
+      run again later that day so their records carry the grader's
+      evidence, and `/list-work-items` 1 (the untrusted-corpus warning) and
+      `/sync-work-items` 1 (a needed re-key during promotion recovery) were
+      added; all pass in full under separate graders.
 - [x] Every test the plan and its criteria traceability table name exists
       (88 of 88, per the validation report).
 - [x] Manual checks, run on 2026-11-16 in scratch repositories against a
