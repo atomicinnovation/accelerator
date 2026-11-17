@@ -173,16 +173,7 @@ fn list_teams(session: &Session) -> ExitCode {
     let identities: Vec<TeamIdentity> = pages
         .entities
         .iter()
-        .filter_map(|team| {
-            Some(TeamIdentity {
-                uuid: team.get("id")?.as_str()?.to_owned(),
-                mention_name: team
-                    .get("mention_name")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned),
-                name: team.get("name")?.as_str()?.to_owned(),
-            })
-        })
+        .filter_map(|team| TeamIdentity::from_entity(team).ok())
         .collect();
     let keys = TeamKeys::over(&identities);
     let teams: Vec<Value> = identities

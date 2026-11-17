@@ -23,6 +23,7 @@ use crate::paging::collect;
 use crate::paging::PageError;
 use crate::paging::Pages;
 use crate::paths::Paths;
+use crate::team_key::TeamIdentity;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
@@ -182,13 +183,15 @@ fn integer(
 }
 
 fn team(entity: &Value) -> Result<Team, DiscoveryError> {
+    let identity = TeamIdentity::from_entity(entity).map_err(|error| {
+        DiscoveryError::Unusable {
+            what: error.to_string(),
+        }
+    })?;
     Ok(Team {
-        id: string(entity, "id", "team")?,
-        name: string(entity, "name", "team")?,
-        mention_name: entity
-            .get("mention_name")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
+        id: identity.uuid,
+        name: identity.name,
+        mention_name: identity.mention_name,
         default_workflow_id: entity
             .pointer("/default_workflow/id")
             .and_then(Value::as_i64),

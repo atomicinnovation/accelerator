@@ -6,6 +6,9 @@
 //! the key the catalogue resolves cannot drift apart.
 
 use std::collections::BTreeMap;
+use std::fmt;
+
+use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TeamKey(String);
@@ -33,7 +36,52 @@ pub struct TeamIdentity {
     pub name: String,
 }
 
+/// Why a team entity from the API names no usable team.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TeamFieldError {
+    Missing(&'static str),
+    NotText(&'static str),
+}
+
+impl fmt::Display for TeamFieldError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Missing(field) => write!(formatter, "a team had no {field}"),
+            Self::NotText(field) => {
+                write!(formatter, "a team's {field} was not text")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TeamFieldError {}
+
 impl TeamIdentity {
+    /// Reads a team entity from the API. A team needs a text id and a text
+    /// name; its mention name is optional.
+    ///
+    /// # Errors
+    ///
+    /// [`TeamFieldError`] naming the first field that is missing or not text.
+    pub fn from_entity(entity: &Value) -> Result<Self, TeamFieldError> {
+        let text = |field: &'static str| {
+            entity
+                .get(field)
+                .ok_or(TeamFieldError::Missing(field))?
+                .as_str()
+                .map(str::to_owned)
+                .ok_or(TeamFieldError::NotText(field))
+        };
+        Ok(Self {
+            uuid: text("id")?,
+            name: text("name")?,
+            mention_name: entity
+                .get("mention_name")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+        })
+    }
+
     #[must_use]
     pub fn key(&self) -> TeamKey {
         TeamKey::of(self.mention_name.as_deref(), &self.name)
