@@ -780,11 +780,11 @@ unchanged — do not reinterpret:
 Under `--preview`, present the same plan (every push carrying its
 locally-validated payload check, and every create without a `--resolve` order
 carrying the failure the run would meet) and report every pull instead of
-writing it; **no** baseline mutation occurs. A locally-detectable missing required field is
-surfaced here before any mutation — but update validation is now **local-only**,
-so a clean preview does not guarantee a successful push (a tracker-side field
-rejection surfaces only at apply, as a `retryable` or `terminal` row by
-whether the tracker can show nothing changed).
+writing it; **no** baseline mutation occurs. A locally-detectable missing
+required field is surfaced here before any mutation — but update validation is
+now **local-only**, so a clean preview does not guarantee a successful push (a
+tracker-side field rejection surfaces only at apply, as a `retryable` or
+`terminal` row by whether the tracker can show nothing changed).
 
 **Validate the frontmatter**: the sync engine owns every write, so after the
 engine run validate each concrete item it touched (created or written back)
