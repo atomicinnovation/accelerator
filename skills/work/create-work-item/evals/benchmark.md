@@ -2,7 +2,7 @@
 
 **Model**: claude-sonnet-4-6 (evals 1 to 38 first); claude-opus-5-5 (every with_skill run, 2026-11-02)  
 **Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02, for 13 evals 2026-11-15 and, for 9 evals, 2026-11-16  
-**Evals**: 77 evals, 1 run each
+**Evals**: 78 evals, 1 run each
 
 ## Summary
 
@@ -93,6 +93,7 @@ compares across models as well as skill versions for evals 1 to 38.
 - ✓ **a_marker_refusal_under_an_id_is_relayed_without_a_rerun** (72): 4/4 (100%)
 - ✓ **an_unconverged_corpus_at_resolve_stops_before_drafting** (73): 3/3 (100%)
 - ✓ **a_malformed_corpus_at_id_check_stops_rather_than_recovering** (74): 4/4 (100%)
+- ✓ **a_malformed_corpus_lists_every_file_with_its_own_fix** (75): 4/4 (100%)
 - ✓ **number-not-consumed** (8): 3/3 (100%)
 - ✓ **near-duplicate-surfaced** (9): 3/3 (100%)
 
@@ -152,7 +153,7 @@ compares across models as well as skill versions for evals 1 to 38.
 
 ## Analyst Notes
 
-- with_skill passes all 75 evals in full; eval 26, which failed one of three expectations on 2026-11-02, passed its re-run on 2026-11-15.
+- with_skill passes all 78 evals in full; eval 26, which failed one of three expectations on 2026-11-02, passed its re-run on 2026-11-15.
 - old_skill runs were limited to 18 representative evals; the remaining 17 enrich-existing evals were omitted since they all test a mode that does not exist in the old skill — including them would trivially inflate the delta without adding insight.
 - old_skill failures are all on enrich-existing mode evals: eval 15 (path-like discriminator), eval 21 (gap analysis), eval 24 (augmentation proposal) all score 0% because the old skill treats path-like input as a topic string.
 - eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values — showing identity is not preserved.
@@ -171,3 +172,4 @@ compares across models as well as skill versions for evals 1 to 38.
 - Evals 26, 39, 42, 45, 48, 49, 51, 52, 59, 60, 61, 62 and 66 were re-run with_skill only on 2026-11-15, by claude-opus-5-5, after `E_ID_TAKEN` moved to exit 4, `other-key` IDs came to need confirmation and an `--id` mid-argument came to be asked about (evals 45 and 52 gained new expectations). Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full, eval 26 included.
 - Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.
 - Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand.
+- Eval 74 was re-run with_skill on 2026-11-17, by claude-sonnet-5-5, after the corpus refusals came to say to relay every file `E_WORK_ITEM_MALFORMED` lists with its printed fix; eval 75 (two malformed files, one not UTF-8, each with its own fix) was added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Both pass in full.

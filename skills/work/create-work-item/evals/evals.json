@@ -960,6 +960,19 @@
         "commands.md shows exactly one `accelerator work id check`, and no `accelerator work id next` and no `accelerator work create`",
         "response.md asks no business-context question and presents no draft"
       ]
+    },
+    {
+      "id": 75,
+      "name": "a_malformed_corpus_lists_every_file_with_its_own_fix",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty.\n\nThe user invokes: `/create-work-item --id 0400 dark mode toggle`\n\nSimulate `accelerator work id check -- '0400'` exiting 4 with this stderr:\n\nError: E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their IDs. Fix each one as shown, then re-run this command:\n    meta/work/0398-cafe.md is not UTF-8 text. Re-save it as UTF-8, or move it out of the work directory\n    meta/work/0399.md has `id` '0399' but its filename does not start with its `id` and a slug. Rename it to `0399-<slug>.md`\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Do not spawn agents: Step 2 finds no similar work items and needs no research. The author resolves to \"Ada Lovelace\". Write no work item file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.\n",
+      "expected_output": "Both listed files are relayed, each with the fix printed for it, and the skill stops; the non-UTF-8 file is not told to take an `id` or be renamed.",
+      "files": [],
+      "expectations": [
+        "response.md names meta/work/0398-cafe.md with the fix of re-saving it as UTF-8 or moving it out of the work directory",
+        "response.md names meta/work/0399.md with the fix of renaming it to `0399-<slug>.md`",
+        "response.md does not tell the user to give meta/work/0398-cafe.md an `id` or to rename it",
+        "questions.md is `none` and commands.md shows exactly one `accelerator work id check`, and no `accelerator work id next` and no `accelerator work create`"
+      ]
     }
   ]
 }

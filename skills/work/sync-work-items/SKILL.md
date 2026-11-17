@@ -267,8 +267,8 @@ stderr:
   re-key: sync is not refused here and settles an unfinished promotion,
   which would otherwise make re-key refuse with `E_REKEY_SYNC_UNFINISHED`.
   Once the corpus is re-keyed, this skill can be run again.
-- `E_WORK_ITEM_MALFORMED` — relay the printed remedy as is: the named file is
-  fixed by hand. Stop.
+- `E_WORK_ITEM_MALFORMED` — relay every file it lists with its printed fix,
+  as is. Each is fixed by hand. Stop.
 
 ## Read the run's output
 

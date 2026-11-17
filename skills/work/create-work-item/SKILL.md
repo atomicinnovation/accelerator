@@ -93,8 +93,8 @@ every case nothing was written:
   `work.id_pattern` gives them, such as after the pattern changed: relay
   the printed remedy as is. It names `/rekey-work-items`, after any fix by
   hand an item re-key cannot read needs first. Stop.
-- `E_WORK_ITEM_MALFORMED` (exit 4) — relay the named file and its remedy
-  (rename it after its `id`, or give it an `id`). Stop.
+- `E_WORK_ITEM_MALFORMED` (exit 4) — relay every file it lists with its
+  printed fix, as is. Each is fixed by hand. Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
   retry once it ends. A `work create --push` in another session holds the
   lock while it waits on the tracker, so the refusal can follow a wait of up
