@@ -223,16 +223,21 @@ impl ShortcutClient {
         url: &Url,
         deadline: &Deadline,
     ) -> Result<Value, ReadFailure> {
-        let delivery = self.transport.get(url, deadline);
+        self.succeeded(self.transport.get(url, deadline))?
+            .json()
+            .ok_or_else(|| {
+                ReadFailure::Unsent("Shortcut answered non-JSON".to_owned())
+            })
+    }
+
+    fn succeeded(&self, delivery: Delivery) -> Result<Received, ReadFailure> {
         match delivery.result {
             Err(error) => Err(ReadFailure::Unsent(error.to_string())),
             Ok(received) if !received.succeeded() => Err(ReadFailure::Status {
                 status: received.status,
                 detail: self.explained(&received),
             }),
-            Ok(received) => received.json().ok_or_else(|| {
-                ReadFailure::Unsent("Shortcut answered non-JSON".to_owned())
-            }),
+            Ok(received) => Ok(received),
         }
     }
 
@@ -375,17 +380,8 @@ impl ShortcutClient {
     ) -> Result<RemoteIssue, ReadFailure> {
         let url =
             with_query(self.paths.entity(key), &[("fields", SHOW_FIELDS)]);
-        let delivery = self.transport.get(&url, &self.transport.deadline());
-        let received = match delivery.result {
-            Err(error) => return Err(ReadFailure::Unsent(error.to_string())),
-            Ok(received) if !received.succeeded() => {
-                return Err(ReadFailure::Status {
-                    status: received.status,
-                    detail: self.explained(&received),
-                });
-            }
-            Ok(received) => received,
-        };
+        let received = self
+            .succeeded(self.transport.get(&url, &self.transport.deadline()))?;
         let project = |op| {
             remote_projection::project_raw(
                 remote_projection::Integration::Shortcut,
