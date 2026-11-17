@@ -482,6 +482,48 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_number_finds_its_item_under_a_wider_keyless_pattern() {
+        let outcome = resolve(
+            "42",
+            SearchClass::BareNumber,
+            &scheme("{number:05d}", None),
+            &FakeLister(vec!["00042-x.md", "00043-y.md"]),
+        );
+        assert_eq!(outcome, ResolveOutcome::Single("00042-x.md".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_number_finds_its_item_under_literal_text() {
+        let outcome = resolve(
+            "1",
+            SearchClass::BareNumber,
+            &scheme("v{number:03d}", None),
+            &FakeLister(vec!["v001-x.md", "v002-y.md"]),
+        );
+        assert_eq!(outcome, ResolveOutcome::Single("v001-x.md".to_owned()));
+    }
+
+    #[test]
+    fn a_keyless_patterns_item_is_tagged_by_its_shape() {
+        let outcome = resolve(
+            "42",
+            SearchClass::BareNumber,
+            &scheme("{number:05d}", None),
+            &FakeLister(vec!["00042-x.md", "0042-y.md"]),
+        );
+        let ResolveOutcome::Ambiguous(candidates) = outcome else {
+            unreachable!("expected ambiguous outcome")
+        };
+        assert!(
+            candidates.contains(&super::TaggedCandidate {
+                path: "00042-x.md".to_owned(),
+                tag: "pattern-shape".to_owned(),
+            }),
+            "{candidates:?}"
+        );
+    }
+
+    #[test]
     fn resolve_bare_number_single_cross_project_match() {
         let lister = FakeLister(vec!["OTHER-0007-c.md"]);
         let scheme = project_scheme(None);
