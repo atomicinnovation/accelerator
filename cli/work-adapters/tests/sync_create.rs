@@ -49,6 +49,7 @@ use work_adapters::sync::operation::SyncOperation;
 use work_adapters::sync::report::CreateNotice;
 use work_adapters::sync::report::RunFailure;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::ItemSelection;
@@ -5995,6 +5996,19 @@ fn a_preview_leaves_an_ordered_create_to_its_order() -> Result<(), TestError> {
     Ok(())
 }
 
+/// Each dossier with its file's modification time reduced to whether it was
+/// read, so dossiers from fixtures written moments apart compare equal.
+fn dossier_shapes(report: &RunReport) -> Vec<ConflictDossier> {
+    report
+        .dossiers
+        .iter()
+        .map(|dossier| ConflictDossier {
+            local_modified: dossier.local_modified.map(|_| 0),
+            ..dossier.clone()
+        })
+        .collect()
+}
+
 #[test]
 fn a_preview_leaves_a_relink_to_its_order() -> Result<(), TestError> {
     let preview_of = |refused: Option<&str>| -> Result<RunReport, TestError> {
@@ -6023,7 +6037,11 @@ fn a_preview_leaves_a_relink_to_its_order() -> Result<(), TestError> {
 
         let row = relink_row(&report);
         assert!(matches!(row.outcome, ItemOutcome::NotApplied), "{refused}");
-        assert_eq!(report.dossiers, unmarked.dossiers, "{refused}");
+        assert_eq!(
+            dossier_shapes(&report),
+            dossier_shapes(&unmarked),
+            "{refused}"
+        );
     }
     Ok(())
 }
