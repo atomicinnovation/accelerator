@@ -514,8 +514,8 @@ mod tests {
     }
 
     #[test]
-    fn resolve_scheme_accepts_tracker_under_jira_or_linear() {
-        for integration in ["jira", "linear"] {
+    fn resolve_scheme_accepts_tracker_under_an_owning_tracker() {
+        for integration in ["jira", "linear", "shortcut"] {
             let config = FakeConfig::with(&[
                 ("work.id_pattern", "{tracker}"),
                 ("work.integration", integration),
@@ -556,7 +556,7 @@ mod tests {
             error.to_string(),
             format!(
                 "E_WORK_ID_PATTERN_INVALID: {}",
-                TrackerIntegrationError::TrackerNeedsJiraOrLinear
+                TrackerIntegrationError::TrackerNeedsAnOwningTracker
             )
         );
     }
@@ -673,12 +673,12 @@ mod tests {
         ));
         assert_eq!(
             SchemeError::Integration(
-                TrackerIntegrationError::TrackerNeedsJiraOrLinear
+                TrackerIntegrationError::TrackerNeedsAnOwningTracker
             )
             .to_string(),
             format!(
                 "E_WORK_ID_PATTERN_INVALID: {}",
-                TrackerIntegrationError::TrackerNeedsJiraOrLinear
+                TrackerIntegrationError::TrackerNeedsAnOwningTracker
             )
         );
     }

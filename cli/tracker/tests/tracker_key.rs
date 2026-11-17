@@ -57,6 +57,10 @@ fn any_supported_tracker_accepts_what_one_tracker_accepts() {
 fn an_integration_names_its_own_keys() {
     assert_eq!(TrackerKeys::of_integration("jira"), TrackerKeys::Jira);
     assert_eq!(TrackerKeys::of_integration("linear"), TrackerKeys::Linear);
+    assert_eq!(
+        TrackerKeys::of_integration("shortcut"),
+        TrackerKeys::Shortcut
+    );
     assert_eq!(TrackerKeys::of_integration(""), TrackerKeys::AnySupported);
     assert_eq!(
         TrackerKeys::of_integration("github"),

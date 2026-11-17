@@ -162,7 +162,8 @@ For Linear, set `work.integration: linear`; for Shortcut,
 
 ### Let the tracker own work-item IDs
 
-To name each item by its Jira or Linear key instead of a local number:
+To name each item by its Jira, Linear or Shortcut key instead of a local
+number:
 
 ```yaml
 ---
@@ -177,8 +178,8 @@ is read:
 
 - `{tracker}` must be the only token in `work.id_pattern` —
   `"{tracker}-{number:04d}"` is rejected.
-- `work.integration` must be `jira` or `linear`. Shortcut keys cannot be
-  work-item IDs yet.
+- `work.integration` must be `jira`, `linear` or `shortcut`. A Shortcut
+  story takes its `sc-<n>` key, and an epic its `epic-<n>` key.
 
 Under `{tracker}` an item pushed at creation takes the issue's key as
 its `id`; any other new item is saved as a draft in `meta/work/drafts/`

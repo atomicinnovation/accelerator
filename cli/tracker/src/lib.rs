@@ -916,6 +916,7 @@ impl TrackerKeys {
         match integration {
             "jira" => Self::Jira,
             "linear" => Self::Linear,
+            "shortcut" => Self::Shortcut,
             _ => Self::AnySupported,
         }
     }

@@ -729,12 +729,13 @@ The `id_pattern` value is a small DSL with two tokens:
   are rewritten to `{key}` by `/accelerator:migrate`.
 
 `{tracker}` is a pattern on its own rather than a token beside others: the
-tracker owns every item's `id`. An item pushed at creation takes its Jira
-or Linear key as `id`; any other new item is a **draft** in
+tracker owns every item's `id`. An item pushed at creation takes its Jira,
+Linear or Shortcut key as `id`; any other new item is a **draft** in
 `meta/work/drafts/` under a provisional `draft-xxxxxx` ID until `work
 sync` or `work promote` promotes it onto its key, keeping the draft ID in
 its `aliases`. Two rules apply: `{tracker}` must be the only token in
-`work.id_pattern`, and `work.integration` must be `jira` or `linear`.
+`work.id_pattern`, and `work.integration` must be `jira`, `linear` or
+`shortcut`.
 `work.key` and `--project` are unused under it. Items created earlier
 must be re-keyed with `/rekey-work-items`: until then `work create`,
 `create-batch`, `id next`, `id check`, `resolve` and `promote` refuse
@@ -798,8 +799,8 @@ not value — is what marks an item synced.
 
 #### Choosing between default and project-coded patterns
 
-Pick `{tracker}` when every new item should be named by its Jira or Linear
-key. Pick the default `{number:04d}` if your project tracks work items
+Pick `{tracker}` when every new item should be named by its Jira, Linear or
+Shortcut key. Pick the default `{number:04d}` if your project tracks work items
 internally and does not link out to an external tracker. Pick
 `{key}-{number:04d}` (with an explicit `work.key`) when:
 
