@@ -8,7 +8,6 @@ use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::WorkItemLocation;
 use crate::create::CreateArgs;
-use crate::refusal::Refusal;
 
 /// # Errors
 ///
@@ -46,13 +45,4 @@ pub fn refuse_if_requested_id_taken(
     requested.refuse_if_taken(&listing).map_err(|refusal| {
         TakenCheckFailure::Taken(refusal.relative_to(&location.root))
     })
-}
-
-/// A `--id` refusal as a command reports it.
-#[must_use]
-pub fn refused_line(refusal: &RequestedIdRefusal) -> Refusal {
-    Refusal {
-        message: format!("Error: {refusal}"),
-        code: crate::exit_codes::of_requested_id_refusal(refusal),
-    }
 }

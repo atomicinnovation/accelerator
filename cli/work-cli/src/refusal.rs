@@ -3,6 +3,8 @@
 
 use std::process::ExitCode;
 
+use work::requested_id::RequestedIdRefusal;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Refusal {
     pub message: String,
@@ -15,5 +17,14 @@ impl Refusal {
     pub fn report(&self) -> ExitCode {
         eprintln!("{}", self.message);
         ExitCode::from(self.code)
+    }
+}
+
+impl From<&RequestedIdRefusal> for Refusal {
+    fn from(refusal: &RequestedIdRefusal) -> Self {
+        Self {
+            message: format!("Error: {refusal}"),
+            code: crate::exit_codes::of_requested_id_refusal(refusal),
+        }
     }
 }

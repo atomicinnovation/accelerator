@@ -1382,7 +1382,7 @@ fn build_selection(
     targets: &[String],
     direction: SyncDirection,
     resolver: &dyn Fn(&str) -> RunOutcome,
-) -> Result<SelectedTargets, Refusal> {
+) -> Result<SelectedTargets, NotSynced> {
     if targets.is_empty() {
         return Ok(SelectedTargets {
             scope: CorpusScope::WholeCorpus,
@@ -1400,7 +1400,7 @@ fn build_selection(
                     .iter()
                     .map(push_only_remote_only)
                     .collect();
-                return Err(Refusal::of_targets(&failures));
+                return Err(NotSynced::of_targets(&failures));
             }
             Ok(SelectedTargets {
                 scope: CorpusScope::Targeted,
@@ -1408,7 +1408,7 @@ fn build_selection(
                 remote_candidates: found.remote_candidates,
             })
         }
-        Err(failures) => Err(Refusal::of_targets(&failures)),
+        Err(failures) => Err(NotSynced::of_targets(&failures)),
     }
 }
 
@@ -2015,12 +2015,18 @@ const fn sync_direction(args: &SyncArgs) -> SyncDirection {
 /// Why a sync stops before it plans anything: the lines it prints and the
 /// code it exits with.
 #[derive(Debug)]
-struct Refusal {
+struct NotSynced {
     lines: Vec<String>,
     code: u8,
 }
 
-impl Refusal {
+impl From<crate::refusal::Refusal> for NotSynced {
+    fn from(refusal: crate::refusal::Refusal) -> Self {
+        Self::new(refusal.code, refusal.message)
+    }
+}
+
+impl NotSynced {
     fn new(code: u8, cause: impl Display) -> Self {
         Self {
             lines: vec![cause.to_string()],
@@ -2103,38 +2109,36 @@ fn prepare_sync(
     direction: SyncDirection,
     registry: &dyn TrackerRegistry,
     console: &mut Console<'_>,
-) -> Result<PreparedSync, Refusal> {
+) -> Result<PreparedSync, NotSynced> {
     let integration =
         crate::config::effective_nonempty(config, "work.integration")
-            .map_err(Refusal::error)?;
-    validate_pull_config(config, &integration).map_err(Refusal::error)?;
-    validate_push_config(config, &integration).map_err(Refusal::error)?;
+            .map_err(NotSynced::error)?;
+    validate_pull_config(config, &integration).map_err(NotSynced::error)?;
+    validate_push_config(config, &integration).map_err(NotSynced::error)?;
 
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let repo_root = config_adapters::FileConfigStore::discover_root(start);
     let scheme = crate::config::announced_scheme_for_writing(config)
-        .map_err(Refusal::error)?;
+        .map_err(NotSynced::error)?;
     let discarding = ids_to_discard(&scheme, &args.discard_kept_edits)
-        .map_err(Refusal::usage)?;
+        .map_err(NotSynced::usage)?;
     let (work, integrations) =
-        configured_roots(config, &repo_root).map_err(Refusal::error)?;
+        configured_roots(config, &repo_root).map_err(NotSynced::error)?;
     let roots = ValidatedRoots::check(&work, &integrations, &repo_root)
-        .map_err(|refusal| Refusal::root(&refusal))?;
+        .map_err(|refusal| NotSynced::root(&refusal))?;
     let integration_state = roots
         .integration_state(&integration)
-        .map_err(|refusal| Refusal::root(&refusal))?;
+        .map_err(|refusal| NotSynced::root(&refusal))?;
     let identity_run =
         crate::identity_run::begin(&repo_root, "sync").map_err(|refusal| {
-            let crate::refusal::Refusal { message, code } =
-                crate::identity_run::refused(refusal, &repo_root);
-            Refusal::new(code, message)
+            NotSynced::from(crate::identity_run::refused(refusal, &repo_root))
         })?;
     let work_dir = roots.work_items.root().to_path_buf();
     let integrations_root = roots.integrations.root().to_path_buf();
 
     let orders = parse_orders(&args.resolutions, &integration, &scheme)
-        .map_err(Refusal::usage)?;
+        .map_err(NotSynced::usage)?;
     let names = ConfiguredNames::for_scheme(&scheme);
     let (conflicts, conflicts_unread) =
         VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
@@ -2142,10 +2146,10 @@ fn prepare_sync(
         console.warn(failure_line(&warning, "failed"));
     }
     let (items, inventory) = discover_corpus(&work_dir, &names, &conflicts)
-        .map_err(Refusal::error)?;
+        .map_err(NotSynced::error)?;
 
     let canonical_work_dir = work_dir.canonicalize().map_err(|error| {
-        Refusal::error(format_args!(
+        NotSynced::error(format_args!(
             "could not resolve the work directory {}: {}",
             single_line(&work_dir.display().to_string()),
             single_line(&error.to_string())
@@ -2159,16 +2163,16 @@ fn prepare_sync(
 
     let tracker = registry
         .resolve(&integration)
-        .map_err(|error| Refusal::of_tracker(&error))?;
+        .map_err(|error| NotSynced::of_tracker(&error))?;
     let pull_ids = if selected.remote_candidates.is_empty() {
         Vec::new()
     } else {
         confirm_remote_candidates(tracker.as_ref(), &selected.remote_candidates)
-            .map_err(|failures| Refusal::of_targets(&failures))?
+            .map_err(|failures| NotSynced::of_targets(&failures))?
     };
     let workspace =
         IdentityWorkspace::for_sync(config, &repo_root, &roots, &integration)
-            .map_err(Refusal::error)?;
+            .map_err(NotSynced::error)?;
     Ok(PreparedSync {
         integration,
         repo_root,
@@ -2214,7 +2218,7 @@ fn sync_request<'a>(
     config: &dyn ConfigAccess,
     args: &SyncArgs,
     direction: SyncDirection,
-) -> Result<PlannedRequest<'a>, Refusal> {
+) -> Result<PlannedRequest<'a>, NotSynced> {
     let integration = prepared.integration.as_str();
     let entities = if resolve_all_entities(config, integration) {
         tracker::EntityScope::WholeWorkspace
@@ -2243,7 +2247,7 @@ fn sync_request<'a>(
         work_adapters::sync::scope::is_broadened(&scope),
         args.allow_unbounded,
     ) {
-        return Err(Refusal::new(
+        return Err(NotSynced::new(
             exit_codes::REFUSED_UNBOUNDED,
             unbounded_gate_message(integration),
         ));

@@ -41,7 +41,7 @@ use crate::create::CreateFailure;
 use crate::create::CreationOutcome;
 use crate::create::CreationStore;
 use crate::create::Seams;
-use crate::create::Unadmitted;
+use crate::create::Unopened;
 use crate::exit_codes;
 use crate::promotion_report::detail_line;
 use crate::refusal::Refusal;
@@ -202,19 +202,13 @@ pub fn run_with(
     };
     let admitted = match AdmittedRequest::without_requested_id(start, config) {
         Ok(admitted) => admitted,
-        Err(Unadmitted::Untrusted(refusal)) => {
+        Err(Unopened::Untrusted(refusal)) => {
             return BatchOutcome::Refused(refusal)
         }
-        Err(Unadmitted::Unlocated(message)) => {
+        Err(Unopened::Unlocated(message)) => {
             return BatchOutcome::Failed {
                 report: report(&[]),
                 message,
-            }
-        }
-        Err(Unadmitted::Refused(refusal)) => {
-            return BatchOutcome::Failed {
-                report: report(&[]),
-                message: refusal.to_string(),
             }
         }
     };

@@ -443,11 +443,38 @@ pub struct AdmittedRequest {
     requested: Option<RequestedId>,
 }
 
-/// Why a create stopped before its request was admitted.
-pub enum Unadmitted {
+/// Why a create stopped before it could read its work items.
+pub enum Unopened {
     Unlocated(String),
     Untrusted(Refusal),
+}
+
+/// Why a create stopped before its request was admitted.
+pub enum Unadmitted {
+    Unopened(Unopened),
     Refused(RequestedIdRefusal),
+}
+
+impl From<Unopened> for Unadmitted {
+    fn from(unopened: Unopened) -> Self {
+        Self::Unopened(unopened)
+    }
+}
+
+impl From<Unadmitted> for RunOutcome {
+    fn from(unadmitted: Unadmitted) -> Self {
+        match unadmitted {
+            Unadmitted::Unopened(Unopened::Unlocated(message)) => {
+                Self::Failed(message)
+            }
+            Unadmitted::Unopened(Unopened::Untrusted(refusal)) => {
+                Self::Refused(refusal)
+            }
+            Unadmitted::Refused(refusal) => {
+                Self::Refused(Refusal::from(&refusal))
+            }
+        }
+    }
 }
 
 impl AdmittedRequest {
@@ -473,15 +500,15 @@ impl AdmittedRequest {
     pub fn without_requested_id(
         start: &Path,
         config: &dyn ConfigAccess,
-    ) -> Result<Self, Unadmitted> {
+    ) -> Result<Self, Unopened> {
         let location =
-            locate_work_items(start, config).map_err(Unadmitted::Unlocated)?;
+            locate_work_items(start, config).map_err(Unopened::Unlocated)?;
         refuse_untrusted_corpus(
             &location.scheme,
             &location.root,
             &location.work_dir,
         )
-        .map_err(Unadmitted::Untrusted)?;
+        .map_err(Unopened::Untrusted)?;
         Ok(Self {
             location,
             requested: None,
@@ -714,10 +741,6 @@ pub fn run(
     )
 }
 
-fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
-    RunOutcome::Refused(crate::requested_id::refused_line(refusal))
-}
-
 /// The outcome the real create's taken check would stop `requested` with,
 /// if any.
 fn preview_taken_check(
@@ -743,7 +766,9 @@ fn preview_taken_check(
         Err(RequestedIdBlock::Pending(message)) => {
             Some(RunOutcome::Failed(message))
         }
-        Err(RequestedIdBlock::Refused(refusal)) => Some(refused(&refusal)),
+        Err(RequestedIdBlock::Refused(refusal)) => {
+            Some(RunOutcome::Refused(Refusal::from(&refusal)))
+        }
     }
 }
 
@@ -761,13 +786,7 @@ fn preview_requested_id(
         requested,
     } = match AdmittedRequest::admit(start, config, args) {
         Ok(admitted) => admitted,
-        Err(Unadmitted::Unlocated(message)) => {
-            return RunOutcome::Failed(message)
-        }
-        Err(Unadmitted::Untrusted(refusal)) => {
-            return RunOutcome::Refused(refusal)
-        }
-        Err(Unadmitted::Refused(refusal)) => return refused(&refusal),
+        Err(unadmitted) => return unadmitted.into(),
     };
     let integration = integration_state(config, &location.root);
     if let Some(requested) = &requested {
@@ -812,13 +831,7 @@ pub fn run_with(
     };
     let admitted = match AdmittedRequest::admit(start, config, args) {
         Ok(admitted) => admitted,
-        Err(Unadmitted::Unlocated(message)) => {
-            return RunOutcome::Failed(message)
-        }
-        Err(Unadmitted::Untrusted(refusal)) => {
-            return RunOutcome::Refused(refusal)
-        }
-        Err(Unadmitted::Refused(refusal)) => return refused(&refusal),
+        Err(unadmitted) => return unadmitted.into(),
     };
     match create_item(
         &admitted,

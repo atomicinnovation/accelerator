@@ -8,14 +8,12 @@ use work::id_pattern::IdKey;
 use work::id_scheme::IdScheme;
 use work::requested_id::Proposal;
 use work::requested_id::RequestedId;
-use work::requested_id::RequestedIdRefusal;
 
 use crate::config::locate_work_items;
 use crate::corpus_trust::refuse_untrusted_corpus;
 use crate::identity_run::IdentityRunStart;
 use crate::refusal::Refusal;
 use crate::requested_id::refuse_if_requested_id_taken;
-use crate::requested_id::refused_line;
 use crate::requested_id::TakenCheckFailure;
 
 pub enum RunOutcome {
@@ -58,19 +56,17 @@ pub fn run(
     }
     let proposal = match RequestedId::propose(requested, &location.scheme) {
         Ok(proposal) => proposal,
-        Err(refusal) => return refused(&refusal),
+        Err(refusal) => return RunOutcome::Refused(Refusal::from(&refusal)),
     };
     match refuse_if_requested_id_taken(proposal.id(), &location) {
         Ok(()) => RunOutcome::Checked(verdict(&proposal, &location.scheme)),
         Err(TakenCheckFailure::Unlisted(message)) => {
             RunOutcome::Failed(message)
         }
-        Err(TakenCheckFailure::Taken(refusal)) => refused(&refusal),
+        Err(TakenCheckFailure::Taken(refusal)) => {
+            RunOutcome::Refused(Refusal::from(&refusal))
+        }
     }
-}
-
-fn refused(refusal: &RequestedIdRefusal) -> RunOutcome {
-    RunOutcome::Refused(refused_line(refusal))
 }
 
 fn verdict(proposal: &Proposal, scheme: &IdScheme) -> String {

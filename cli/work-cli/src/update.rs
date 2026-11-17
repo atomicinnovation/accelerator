@@ -144,7 +144,13 @@ enum TryRunError {
     Retryable(String),
     Terminal(String),
     Rejected(String),
-    Refused { message: String, code: u8 },
+    Refused(Refusal),
+}
+
+impl From<Refusal> for TryRunError {
+    fn from(refusal: Refusal) -> Self {
+        Self::Refused(refusal)
+    }
 }
 
 impl From<String> for TryRunError {
@@ -322,12 +328,8 @@ fn try_run(
 
     let _identity_run = if args.push {
         let root = config_adapters::FileConfigStore::discover_root(start);
-        let guard =
-            crate::identity_run::begin(&root, "update").map_err(|refusal| {
-                let crate::refusal::Refusal { message, code } =
-                    crate::identity_run::refused(refusal, &root);
-                TryRunError::Refused { message, code }
-            })?;
+        let guard = crate::identity_run::begin(&root, "update")
+            .map_err(|refusal| crate::identity_run::refused(refusal, &root))?;
         Some(guard)
     } else {
         None
@@ -431,9 +433,7 @@ pub fn run(
         Err(TryRunError::Rejected(message)) => {
             RunOutcome::PushRejected(message)
         }
-        Err(TryRunError::Refused { message, code }) => {
-            RunOutcome::Refused(Refusal { message, code })
-        }
+        Err(TryRunError::Refused(refusal)) => RunOutcome::Refused(refusal),
     }
 }
 

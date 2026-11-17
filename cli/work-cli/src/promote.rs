@@ -61,6 +61,15 @@ pub enum PromoteOutcome {
     },
 }
 
+impl From<crate::refusal::Refusal> for PromoteOutcome {
+    fn from(refusal: crate::refusal::Refusal) -> Self {
+        Self::Failed {
+            message: refusal.message,
+            code: refusal.code,
+        }
+    }
+}
+
 fn failed(code: u8) -> impl Fn(String) -> PromoteOutcome {
     move |message| PromoteOutcome::Failed { message, code }
 }
@@ -182,17 +191,12 @@ fn try_run(
         .map_err(|error| internal(error.to_string()))?;
     let identity_run =
         crate::identity_run::begin(&root, "promote").map_err(|refusal| {
-            let crate::refusal::Refusal { message, code } =
-                crate::identity_run::refused(refusal, &root);
-            PromoteOutcome::Failed { message, code }
+            PromoteOutcome::from(crate::identity_run::refused(refusal, &root))
         })?;
     let scheme = crate::config::announced_scheme_for_writing(config)
         .map_err(|error| internal(error.to_string()))?;
     crate::corpus_trust::refuse_untrusted_corpus(&scheme, &root, &work_dir)
-        .map_err(|untrusted| PromoteOutcome::Failed {
-            message: untrusted.message,
-            code: untrusted.code,
-        })?;
+        .map_err(PromoteOutcome::from)?;
     let (draft, draft_path) =
         tracker_owned_draft(config, &work_dir, &args.draft_id)?;
     let integration =
