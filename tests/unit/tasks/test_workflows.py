@@ -668,3 +668,27 @@ def test_every_action_is_pinned_to_a_commit(workflow_path):
         assert _PINNED_ACTION.match(action), (
             f"{workflow_path.name} {job_name} uses {action}, not a 40-hex SHA"
         )
+
+
+_CPU_COUNT_REPORT = "Report the runner's CPU counts"
+
+
+def _step_index(job, name):
+    names = [step.get("name") for step in job["steps"]]
+    assert name in names, f"{name!r} is not a step"
+    return names.index(name)
+
+
+def test_the_integration_job_reports_its_cpu_counts_before_the_tests(wf):
+    job = wf["jobs"]["test-integration"]
+
+    assert _step_index(job, _CPU_COUNT_REPORT) < _step_index(
+        job, "Run integration tests"
+    )
+
+
+def test_the_cpu_count_report_is_the_host_task(wf):
+    job = wf["jobs"]["test-integration"]
+    step = job["steps"][_step_index(job, _CPU_COUNT_REPORT)]
+
+    assert step["run"] == "mise run host:cpu-counts"
