@@ -1756,6 +1756,13 @@ fn shortcut_catalogue() -> shortcut_client::catalogue::Catalogue {
 }
 
 fn shortcut_client(base: &str) -> shortcut_client::ShortcutClient {
+    shortcut_client_within(base, TransportConfig::default())
+}
+
+fn shortcut_client_within(
+    base: &str,
+    config: TransportConfig,
+) -> shortcut_client::ShortcutClient {
     let transport = shortcut_client::transport::Transport::new(
         &shortcut_client::Credentials {
             token: Secret::new("sct_rw_secret".to_owned()),
@@ -1763,7 +1770,7 @@ fn shortcut_client(base: &str) -> shortcut_client::ShortcutClient {
             refusals: Vec::new(),
             notice: None,
         },
-        TransportConfig::default(),
+        config,
         Box::new(NoSleep),
         Box::new(NoJitter),
     )
@@ -2284,4 +2291,35 @@ fn shortcut_push_sends_the_body_to_the_story_and_the_epic(
         );
     }
     Ok(())
+}
+
+#[test]
+fn shortcut_search_stops_at_one_deadline_across_its_teams() {
+    let server = MockHTTPServer::start();
+    serve_shortcut_teams(&server);
+    let search = RequestKey::get(&format!("{SHORTCUT_API}/stories/search"));
+    server.route(
+        search.clone(),
+        Route::Sequence(vec![
+            Route::Delayed {
+                delay: std::time::Duration::from_millis(400),
+                route: Box::new(shortcut_page(&serde_json::json!([]))),
+            },
+            shortcut_page(&serde_json::json!([])),
+        ]),
+    );
+    let client = shortcut_client_within(
+        &server.base_url(),
+        TransportConfig {
+            deadline: std::time::Duration::from_millis(300),
+            ..TransportConfig::default()
+        },
+    );
+
+    let (_, completeness) = client
+        .search_stories(&keyed(SHORTCUT_TEAM, &[SHORTCUT_WEB]))
+        .expect("the search must not refuse");
+
+    assert_eq!(server.hits(&search), 1, "the second team is not searched");
+    assert!(!completeness.is_complete());
 }

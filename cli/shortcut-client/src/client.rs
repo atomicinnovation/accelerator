@@ -316,6 +316,7 @@ impl ShortcutClient {
                 });
             }
         };
+        let deadline = self.transport.deadline();
         let mut found = BTreeMap::new();
         let mut completeness = Completeness::Complete;
         for uuid in uuids {
@@ -323,7 +324,7 @@ impl ShortcutClient {
                 &uuid,
                 &filters,
                 whole_workspace,
-                &self.transport.deadline(),
+                &deadline,
                 &mut found,
             )?);
         }
