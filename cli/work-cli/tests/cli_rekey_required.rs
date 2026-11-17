@@ -153,6 +153,11 @@ fn list_warns_over_a_diverged_corpus_and_still_lists_it(
         )),
         "{stderr}"
     );
+    assert!(
+        stderr.contains("`accelerator work rekey`) to converge them\n"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("re-run this command"), "{stderr}");
     assert!(String::from_utf8(output.stdout)?.contains("PP-0001"));
     Ok(())
 }

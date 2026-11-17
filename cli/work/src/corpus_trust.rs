@@ -164,4 +164,25 @@ mod tests {
             "{refusal}"
         );
     }
+
+    #[test]
+    fn a_warning_over_several_malformed_items_asks_for_no_re_run() {
+        let files =
+            [file("PP-0002.md", "PP-0002"), file("PP-0003.md", "PP-0003")];
+
+        let warning = refuse_untrusted(&keyed(), &listing_of(&files))
+            .err()
+            .unwrap_or_else(|| unreachable!("the corpus is untrusted"))
+            .relative_to(Path::new("/repo"))
+            .warning();
+
+        assert!(
+            warning.starts_with(
+                "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their \
+                 IDs. Fix each one as shown:\n    meta/work/PP-0002.md"
+            ),
+            "{warning}"
+        );
+        assert!(!warning.contains("re-run this command"), "{warning}");
+    }
 }
