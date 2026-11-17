@@ -2028,6 +2028,32 @@ mod identity_join_tests {
     }
 
     #[tokio::test]
+    async fn a_work_item_that_is_not_utf8_takes_every_items_ids_away() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let item = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx = index_under(&root, "{number:04d}", None, &[item]).await;
+        let undecodable = root.join("meta/work/0400-cafe.md");
+
+        std::fs::write(
+            &undecodable,
+            b"---\nid: \"0400\"\ntitle: Caf\xe9\n---\n",
+        )
+        .unwrap();
+        idx.refresh_one(&undecodable).await.unwrap();
+
+        assert_eq!(
+            idx.untrusted_corpus_problem().as_deref(),
+            Some(
+                "E_WORK_ITEM_MALFORMED: meta/work/0400-cafe.md is not UTF-8 \
+                 text. Re-save it as UTF-8, or move it out of the work \
+                 directory, then re-run this command"
+            )
+        );
+        assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
+    }
+
+    #[tokio::test]
     async fn an_items_filename_id_and_references_share_one_identity_key() {
         let cases = [
             (
