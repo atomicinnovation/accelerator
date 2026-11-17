@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 0,
-      "prompt": "Update work item 0001 to status ready",
+      "prompt": "Read skills/work/update-work-item/SKILL.md fully. You are running the update-work-item skill. The user invokes: `/update-work-item 0001 status ready`.\n\nSimulate `accelerator work resolve 0001` exiting 0 with stdout `/repo/meta/work/0001-add-search.md`. That file reads:\n\n---\nid: \"0001\"\ntitle: \"Add search\"\nkind: story\nstatus: done\npriority: medium\n---\n\n# 0001: Add search\n\n**Status**: done\n\n## Summary\n\nLet users search work items by title.\n\nThe user answers yes when asked to apply the changes.\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command and every tool call (Read, Edit, Write, AskUserQuestion, Agent) you make, in order, in full, with its exit code or the answer given.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, with its new content or the edit's old and new text, or `none`.",
       "expected_output": "Should show a diff preview (-status: done / +status: ready), ask for confirmation, and on 'y' write the change. Should also update the body **Status**: label if present.",
       "files": [],
       "assertions": [
@@ -55,7 +55,7 @@
     },
     {
       "id": 2,
-      "prompt": "Update work item 0011 to priority high",
+      "prompt": "Read skills/work/update-work-item/SKILL.md fully. You are running the update-work-item skill. The user invokes: `/update-work-item 0011 priority high`.\n\nSimulate `accelerator work resolve 0011` exiting 0 with stdout `/repo/meta/work/0011-record-the-storage-decision.md`. That file, a legacy work item with no `priority` field, reads:\n\n---\nwork_item_id: \"0011\"\ntitle: \"Record the storage decision\"\ntype: adr-creation-task\nstatus: todo\n---\n\n# 0011: Record the storage decision\n\nWrite an ADR for the choice of storage engine.\n\nThe user answers yes when asked to apply the changes.\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command and every tool call (Read, Edit, Write, AskUserQuestion, Agent) you make, in order, in full, with its exit code or the answer given.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, with its new content or the edit's old and new text, or `none`.",
       "expected_output": "Should handle a legacy work item (type: adr-creation-task, no priority field) gracefully. Should show a diff with +priority: high (field insertion). May note that the work item has a non-template type but should proceed.",
       "files": [],
       "assertions": [
@@ -76,6 +76,52 @@
           "type": "output_contains",
           "description": "Asks user to confirm before writing",
           "check": "Output contains a y/n confirmation prompt"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Read skills/work/update-work-item/SKILL.md fully. You are running the update-work-item skill. The user invokes: `/update-work-item 0041 status ready`.\n\nSimulate `accelerator work resolve 0041` exiting 4 with this stderr:\n\nError: E_REKEY_REQUIRED: 1 work item is not under the ID `work.id_pattern` '{number:05d}' gives them, such as meta/work/0041-search.md with `id` '0041'. Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them, then re-run this command\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, with its exit code.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill relays the E_REKEY_REQUIRED remedy as is and exits, editing nothing.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "relays_rekey_remedy",
+          "type": "llm",
+          "description": "Relays the corpus refusal",
+          "check": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`"
+        },
+        {
+          "name": "edits_nothing",
+          "type": "behavioral",
+          "description": "Writes nothing",
+          "check": "files.md is `none` and commands.md shows only the `accelerator work resolve` call"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Read skills/work/update-work-item/SKILL.md fully. You are running the update-work-item skill. The user invokes: `/update-work-item 0041 status ready`.\n\nSimulate `accelerator work resolve 0041` exiting 1 with this stderr:\n\nE_WORK_ID_PATTERN_INVALID: work.id_pattern '{nmber:04d}': unknown token '{nmber:04d}' in pattern\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, with its exit code.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill relays the configuration error verbatim rather than calling the argument unrecognised, and edits nothing.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "relays_configuration_error",
+          "type": "llm",
+          "description": "Relays the scheme refusal",
+          "check": "response.md relays the E_WORK_ID_PATTERN_INVALID message verbatim"
+        },
+        {
+          "name": "not_unrecognised_input",
+          "type": "llm",
+          "description": "Does not blame the argument",
+          "check": "response.md does not say the input '0041' was unrecognised"
+        },
+        {
+          "name": "edits_nothing",
+          "type": "behavioral",
+          "description": "Writes nothing",
+          "check": "files.md is `none`"
         }
       ]
     }

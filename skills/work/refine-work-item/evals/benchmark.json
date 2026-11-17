@@ -5,7 +5,7 @@
     "executor_model": "<model-name>",
     "analyzer_model": "<model-name>",
     "timestamp": "2026-04-25T14:30:00Z",
-    "evals_run": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37],
+    "evals_run": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38],
     "runs_per_configuration": 1
   },
   "runs": [
@@ -256,8 +256,8 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "The skill calls accelerator work id next with --count 3 (or equivalent count) exactly once, not once per child", "passed": true, "evidence": "Transcript Allocation: single 'accelerator work id next --count 3' call returning 0043, 0044, 0045; no per-child allocation calls."},
-        {"text": "The skill emits a completion ledger listing each written child by ID and title, then the count of numbers allocated against files written", "passed": true, "evidence": "response.md: 'Wrote 0043 — Redis-Backed Session Management' ... 'Wrote 0045 — ...' then 'Allocated 3 numbers, wrote 3 files.' — matches SKILL.md step 4 ledger format."}
+        {"text": "The skill calls accelerator work id next with --count 3 (or equivalent count) exactly once, not once per child", "passed": true, "evidence": "commands.md step 14: `accelerator work id next --count 3` -> exit 0, output 0043/0044/0045; no other `work id next` call appears in the log (per-child steps are only Glob collision checks and Writes)"},
+        {"text": "The skill emits a completion ledger listing each written child by ID and title, then the count of numbers allocated against files written", "passed": true, "evidence": "response.md section 4: \"Wrote 0043 — Redis-Backed Session Management / Wrote 0044 — Consolidated Token Validation / Wrote 0045 — Structured Auth Audit Logging / Allocated 3 numbers, wrote 3 files.\""}
       ],
       "notes": []
     },
@@ -430,9 +430,21 @@
       "run_number": 1,
       "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: 'a work-item re-key is unfinished ... Run `/rekey-work-items` to finish the re-key, or to undo it.' Matches the SKILL.md E_REKEY_IN_PROGRESS branch; the raw `accelerator work rekey` commands from stderr are not passed on."},
-        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "files.md is exactly 'none\\n'. Transcript agrees: no children written, no parent edit; response.md says 'No child work items were created, and meta/work/0042-search.md is unchanged.'"},
-        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "commands.md lists only 'accelerator work id next --count 3' (exit 4) and says no further accelerator commands were run."}
+        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
+        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
+        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"}
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 38,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
+      "expectations": [
+        {"text": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
+        {"text": "files.md is `none`: no child file was written and the parent was not edited", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"},
+        {"text": "commands.md lists only the one `accelerator work id next --count 3` call", "passed": true, "evidence": "passed; graded from the outputs by a separate agent"}
       ],
       "notes": []
     }
@@ -467,6 +479,7 @@
   "notes": [
     "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
     "Evals 22 and 37 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call. Both passed.",
-    "Evals 5, 14, 22, 23 and 37 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their wording was brought into line with the skill (kind for type, the ledger and files.md wording, a check that a refused allocation runs nothing further); all passed. The executors of evals 14 and 23 read evals.json before writing their outputs, so those runs were not blind."
+    "Evals 5, 14, 22, 23 and 37 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their wording was brought into line with the skill (kind for type, the ledger and files.md wording, a check that a refused allocation runs nothing further); all passed. The executors of evals 14 and 23 read evals.json before writing their outputs, so those runs were not blind.",
+    "Evals 22, 37 and the new 38 (the corpus refusals) were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone; all passed. Records whose grading files were lost with the scratch directory carry the grader's verdict without its evidence."
   ]
 }

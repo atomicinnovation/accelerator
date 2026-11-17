@@ -966,6 +966,33 @@
           "value": "commands.md lists only the one `accelerator work id next --count 3` call"
         }
       ]
+    },
+    {
+      "id": 38,
+      "name": "routes-an-unconverged-corpus",
+      "prompt": "Read skills/work/refine-work-item/SKILL.md fully. You are running the refine-work-item skill on meta/work/0042-search.md, an epic whose ID pattern is `{number:05d}`. The user chose decompose, approved three proposed child stories, and chose \"Yes, proceed\" at the pre-write warning. Simulate `accelerator work id next --count 3` exiting 4 with this stderr:\n\nError: E_REKEY_REQUIRED: 1 work item is not under the ID `work.id_pattern` '{number:05d}' gives them, such as meta/work/0041-search.md with `id` '0041'. Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them, then re-run this command\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run after the user chose \"Yes, proceed\", in order, in full.\n- response.md: everything you tell the user after that, in order.\n- files.md: every file you write or edit after that, or `none`.",
+      "expected_output": "The skill stops at the refused work id next call, relays the E_REKEY_REQUIRED remedy, and writes nothing.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "relays-rekey-remedy",
+          "description": "Relays the corpus refusal",
+          "type": "llm",
+          "value": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`"
+        },
+        {
+          "name": "no-children-written",
+          "description": "Writes nothing",
+          "type": "llm",
+          "value": "files.md is `none`: no child file was written and the parent was not edited"
+        },
+        {
+          "name": "stops-after-the-refused-call",
+          "description": "Runs nothing after the refusal",
+          "type": "llm",
+          "value": "commands.md lists only the one `accelerator work id next --count 3` call"
+        }
+      ]
     }
   ]
 }

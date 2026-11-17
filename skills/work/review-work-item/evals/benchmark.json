@@ -4,7 +4,8 @@
     "evals_run": [
       1,
       2,
-      3
+      3,
+      4
     ]
   },
   "runs": [
@@ -22,22 +23,22 @@
         {
           "text": "mentions /list-work-items as a discovery tool",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response: \"Tip: Use `/list-work-items` to find the work item you want to review.\""
         },
         {
           "text": "shows an example invocation with a work item path or number",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response gives `meta/work/0042-my-work-item.md` and `/review-work-item 42`"
         },
         {
           "text": "does not attempt to run a review or read any work item file",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "commands.md: resolve not run, no work item read, no agents spawned, nothing written; files.md none"
         },
         {
           "text": "response is a help prompt rather than a question asking for more information",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "a 'Please provide:' list of input forms with examples and a tip; no AskUserQuestion"
         }
       ]
     },
@@ -53,19 +54,19 @@
       },
       "expectations": [
         {
-          "text": "response contains 'No work item at' followed by the path",
+          "text": "response relays the resolver's no-match error, naming the path",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response.md: \"The resolver reported: Error: no work item matches 'meta/work/9999-nonexistent-work-item.md'\""
         },
         {
           "text": "offers to run /list-work-items",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response.md: \"Do you want me to run `/list-work-items` so you can find the work item you meant?\""
         },
         {
           "text": "does not attempt to review or open the nonexistent file",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "commands.md: \"The skill stopped at the resolver before reading any work item. There were no Read, Edit, Write, AskUserQuestion or Agent calls\"; response.md: \"No review was run\"; files.md: \"none\""
         }
       ]
     },
@@ -81,64 +82,87 @@
       },
       "expectations": [
         {
-          "text": "spawns three reviewer agents (completeness, testability, clarity)",
+          "text": "runs one reviewer per default lens: clarity, completeness, dependency, scope and testability",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "commands.md calls 13-17: one Agent call each, subagent_type \"accelerator:reviewer\", lens: clarity, completeness, dependency, scope, testability, each with its own prompt and recorded result"
         },
         {
           "text": "review file written with correct frontmatter (type: work-item-review, producer: review-work-item)",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "review.md frontmatter: type: \"work-item-review\", producer: \"review-work-item\""
         },
         {
           "text": "review file frontmatter does NOT contain a literal `skill:` key",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "Frontmatter keys are type, id, title, date, author, producer, status, target, work_item_id, reviewer, verdict, lenses, review_number, review_pass, tags, last_updated, last_updated_by, schema_version; there is no skill: key"
         },
         {
           "text": "target field has the form \"work-item:<4-digit-id>\"",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "target: \"work-item:0042\""
         },
         {
           "text": "work_item_id field carries the same 4-digit identifier as target",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "work_item_id: \"0042\" matches target work-item:0042"
         },
         {
           "text": "id field is quoted as a YAML string",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "id: \"0042-payment-refund-feature-flag-review-1\""
         },
         {
           "text": "schema_version is the bare integer 1",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "schema_version: 1 (unquoted)"
         },
         {
           "text": "producer, last_updated, last_updated_by fields are populated with non-empty values",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "producer: \"review-work-item\", last_updated: \"2026-11-17T10:00:00+00:00\", last_updated_by: \"Toby Clemson\""
         },
         {
-          "text": "all three lenses listed in the lenses frontmatter field",
+          "text": "all five lenses listed in the lenses frontmatter field",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "lenses: [clarity, completeness, dependency, scope, testability]"
         },
         {
           "text": "verdict is one of APPROVE, REVISE, or COMMENT",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "verdict: \"REVISE\""
         },
         {
           "text": "review contains a Per-Lens Results section",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "\"## Per-Lens Results\" heading followed by Clarity, Completeness, Dependency, Scope and Testability subsections"
         },
         {
           "text": "no critical findings for this well-structured work item",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "\"#### Critical\\n\\nNone.\"; commands.md: \"17 findings (0 critical, 5 major, 11 minor, 1 suggestion)\""
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`",
+          "passed": true,
+          "evidence": "passed; graded from the outputs by a separate agent"
+        },
+        {
+          "text": "no review is run: response.md presents no lens findings and files.md is `none`",
+          "passed": true,
+          "evidence": "passed; graded from the outputs by a separate agent"
         }
       ]
     }
@@ -152,5 +176,8 @@
         "max": 1.0
       }
     }
-  }
+  },
+  "notes": [
+    "Evals 1-4 were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone. Eval 4 is new (the corpus refusals). Eval 2 first failed its 'No work item at' phrase, which the skill no longer prints: it relays the resolver's error, and the expectation now says so. Eval 3 named a fixture outside the work directory and three lenses; it now simulates resolving the fixture and expects the five default lenses, with each reviewer's findings written by the executor rather than a spawned agent; its verdict was REVISE (no critical findings), which its expectation allows though its expected output names APPROVE or COMMENT. Records whose grading files were lost with the scratch directory carry the grader's verdict without its evidence."
+  ]
 }
