@@ -479,6 +479,30 @@ pub fn rekey_plan_unreadable(root: &Path) {
 /// nothing.
 #[must_use]
 pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
+    files_under(root, &root.join("meta"))
+}
+
+/// Every pending-push marker `integration` keeps under `root`, by path, to
+/// show a run left them as they were.
+#[must_use]
+pub fn pending_push_tree(
+    root: &Path,
+    integration: &str,
+) -> std::collections::BTreeMap<String, String> {
+    files_under(
+        root,
+        &root
+            .join(crate::sync::STATE_DIR)
+            .join("integrations")
+            .join(integration)
+            .join("pending-push"),
+    )
+}
+
+fn files_under(
+    root: &Path,
+    dir: &Path,
+) -> std::collections::BTreeMap<String, String> {
     fn collect(
         root: &Path,
         dir: &Path,
@@ -499,7 +523,7 @@ pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
         }
     }
     let mut tree = std::collections::BTreeMap::new();
-    collect(root, &root.join("meta"), &mut tree);
+    collect(root, dir, &mut tree);
     tree
 }
 
