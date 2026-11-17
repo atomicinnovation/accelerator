@@ -206,6 +206,31 @@ mod tests {
     }
 
     #[test]
+    fn a_rekey_in_progress_outranks_a_malformed_pattern_as_in_create() {
+        let malformed = crate::test_support::FakeConfig(HashMap::from([(
+            "work.id_pattern".to_owned(),
+            "{number:4d}".to_owned(),
+        )]));
+        let root = repo();
+        crate::test_support::rekey_in_progress(root.path());
+
+        let RunOutcome::Refused(Refusal { message, .. }) = run(
+            root.path(),
+            &malformed,
+            None,
+            1,
+            &crate::identity_run::begin,
+        ) else {
+            panic!("id next read the scheme before the identity run");
+        };
+
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
+        );
+    }
+
+    #[test]
     fn id_next_under_tracker_returns_distinct_draft_ids() {
         let root = repo();
 
