@@ -435,6 +435,22 @@ mod tests {
     }
 
     #[test]
+    fn allocation_skips_only_numbers_linked_under_the_allocating_key() {
+        let keyed = scheme("{key}-{number:04d}", Some("PP"));
+        let listing = WorkItemListing {
+            files: vec![item(
+                "PP-0001-a.md",
+                "id: \"PP-0001\"\nexternal_id: \"XY-2\"",
+            )],
+            unreadable: Vec::new(),
+        };
+        assert_eq!(
+            allocate(&keyed, Some(&key("PP")), 2, &listing),
+            Ok(vec!["PP-0002".to_owned(), "PP-0003".to_owned()])
+        );
+    }
+
+    #[test]
     fn skipping_a_tracker_key_past_the_cap_overflows() {
         let keyed = scheme("{key}-{number:02d}", Some("PP"));
         let listing = WorkItemListing {
