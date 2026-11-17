@@ -229,12 +229,13 @@ async fn on_path_changed(
     let work_item_by_identity_key =
         indexer.work_item_by_identity_key_snapshot().await;
     let plans_by_id = indexer.plans_by_id_snapshot().await;
+    let work_item_cfg = indexer.work_item_cfg();
     let cluster_ctx = crate::clusters::ClusterContext::from_entries(
         &snapshot,
         &work_item_by_identity_key,
         &plans_by_id,
         indexer.project_root(),
-        indexer.work_item_cfg(),
+        &work_item_cfg,
     );
     let (new_clusters, completeness_backfill, cluster_key_backfill) =
         compute_clusters_with_backfill(&snapshot, &cluster_ctx);
@@ -612,12 +613,13 @@ mod tests {
         let work_item_by_identity_key =
             indexer.work_item_by_identity_key_snapshot().await;
         let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = indexer.work_item_cfg();
         let ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
             &work_item_by_identity_key,
             &plans_by_id,
             indexer.project_root(),
-            indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         let clusters = Arc::new(RwLock::new(
             crate::clusters::compute_clusters(&snapshot, &ctx),

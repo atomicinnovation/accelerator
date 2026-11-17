@@ -222,7 +222,15 @@ pub struct Indexer {
     /// prefix. The field is module-private (no `pub`) — read-only
     /// access is exposed via `project_root()`.
     project_root: PathBuf,
-    work_item_cfg: Arc<crate::config::WorkItemConfig>,
+    /// The scheme the server was composed with.
+    configured: Arc<crate::config::WorkItemConfig>,
+    /// The scheme IDs are read through now: the configured one, or none
+    /// while the corpus cannot be trusted for its IDs.
+    reading: std::sync::RwLock<Arc<crate::config::WorkItemConfig>>,
+    /// Every work-item file's text, or `None` when it is not UTF-8, which
+    /// the trust check reads instead of reading the files again.
+    work_item_files: std::sync::Mutex<BTreeMap<PathBuf, Option<String>>>,
+    untrusted_corpus_problem: std::sync::RwLock<Option<String>>,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
@@ -270,7 +278,10 @@ impl Indexer {
         let me = Self {
             driver,
             project_root,
-            work_item_cfg,
+            reading: std::sync::RwLock::new(work_item_cfg.clone()),
+            configured: work_item_cfg,
+            work_item_files: std::sync::Mutex::new(BTreeMap::new()),
+            untrusted_corpus_problem: std::sync::RwLock::new(None),
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             work_item_by_identity_key: Arc::new(RwLock::new(HashMap::new())),
@@ -340,6 +351,23 @@ impl Indexer {
             .collect()
             .await;
 
+        *self
+            .work_item_files
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = read_results
+            .iter()
+            .filter(|(kind, _, _)| *kind == DocTypeKey::WorkItems)
+            .filter_map(|(_, path, content)| {
+                content.as_ref().ok().map(|content| {
+                    (
+                        path.clone(),
+                        String::from_utf8(content.bytes.clone()).ok(),
+                    )
+                })
+            })
+            .collect();
+        self.judge_trust();
+
         // Phase 3 Pass A: parse and fold serially, in original order.
         // Build entries and every primary-id map. Defer reviews_by_target
         // until Pass B because resolving `target: "plan:<id>"` requires
@@ -355,7 +383,7 @@ impl Indexer {
                 path.clone(),
                 &content,
                 &self.project_root,
-                &self.work_item_cfg,
+                &self.work_item_cfg(),
             );
 
             if let Some(id) = adr_id_from_entry(&entry) {
@@ -369,7 +397,7 @@ impl Indexer {
             }
             for id in identity_keys_of(
                 entry.work_item_refs.clone(),
-                &self.work_item_cfg,
+                &self.work_item_cfg(),
             ) {
                 // Skip self-references: a doc must not appear in its own index.
                 if entry.identity_key.as_deref() == Some(id.as_str()) {
@@ -391,7 +419,7 @@ impl Indexer {
             &entries,
             &plans_by_id,
             &work_item_by_identity_key,
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
             &self.project_root,
         );
 
@@ -428,6 +456,21 @@ impl Indexer {
         &self,
         path: &Path,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
+        let refreshed = self.refresh_entry(path).await?;
+        if !self.judge_trust() {
+            return Ok(refreshed);
+        }
+        self.rescan().await?;
+        Ok(match refreshed {
+            Some(entry) => self.get(&entry.path).await,
+            None => None,
+        })
+    }
+
+    async fn refresh_entry(
+        &self,
+        path: &Path,
+    ) -> Result<Option<IndexEntry>, FileDriverError> {
         // acquire() errors only if the semaphore is closed, which never happens.
         #[allow(clippy::unwrap_used)]
         let _permit = self.rescan_lock.acquire().await.unwrap();
@@ -453,12 +496,15 @@ impl Indexer {
                     return Ok(None);
                 };
 
+                if kind == DocTypeKey::WorkItems {
+                    self.remember_work_item(&canonical, Some(&content));
+                }
                 let entry = build_entry(
                     kind,
                     canonical.clone(),
                     &content,
                     &self.project_root,
-                    &self.work_item_cfg,
+                    &self.work_item_cfg(),
                 );
 
                 // Single-writer-lock invariant: hold entries.write() across
@@ -498,7 +544,7 @@ impl Indexer {
                     &self.reviews_by_target,
                     &plans_snapshot,
                     &work_item_snapshot,
-                    &self.work_item_cfg,
+                    &self.work_item_cfg(),
                     &self.project_root,
                     &entry,
                     previous.as_ref(),
@@ -506,7 +552,7 @@ impl Indexer {
                 .await;
                 update_work_item_refs_by_target(
                     &self.work_item_refs_by_target,
-                    &self.work_item_cfg,
+                    &self.work_item_cfg(),
                     &entry,
                     previous.as_ref(),
                 )
@@ -559,6 +605,7 @@ impl Indexer {
         entries: &mut HashMap<PathBuf, IndexEntry>,
         previous: &IndexEntry,
     ) {
+        self.remember_work_item(&previous.path, None);
         let holders_before =
             self.work_item_by_identity_key.read().await.clone();
         remove_from_adr_by_id(&self.adr_by_id, previous).await;
@@ -578,14 +625,14 @@ impl Indexer {
             &self.reviews_by_target,
             &plans_snapshot,
             &work_item_snapshot,
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
             &self.project_root,
             previous,
         )
         .await;
         remove_from_work_item_refs_by_target(
             &self.work_item_refs_by_target,
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
             previous,
         )
         .await;
@@ -610,7 +657,7 @@ impl Indexer {
             entries,
             &plans,
             &holders,
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
             &self.project_root,
         );
     }
@@ -735,10 +782,93 @@ impl Indexer {
         self.plans_by_id.read().await.clone()
     }
 
-    /// Returns the work-item config used by the indexer. Cluster-key
+    /// The work-item config IDs are read through now. Cluster-key
     /// resolution reuses it to canonicalise frontmatter values.
-    pub fn work_item_cfg(&self) -> &crate::config::WorkItemConfig {
-        &self.work_item_cfg
+    pub fn work_item_cfg(&self) -> Arc<crate::config::WorkItemConfig> {
+        self.reading
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Why the corpus cannot be trusted for its IDs, naming paths relative
+    /// to the project root, while it cannot.
+    pub fn untrusted_corpus_problem(&self) -> Option<String> {
+        self.untrusted_corpus_problem
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Judges the remembered work-item files and reads IDs only while they
+    /// can be trusted. True when that changed whether they can.
+    fn judge_trust(&self) -> bool {
+        let problem = self.configured.scheme().and_then(|scheme| {
+            let files = self
+                .work_item_files
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let listing = work::work_item_files::WorkItemListing {
+                files: files
+                    .iter()
+                    .filter_map(|(path, content)| {
+                        content.as_ref().map(|content| {
+                            work::work_item_files::WorkItemFile {
+                                path: path.clone(),
+                                content: content.clone(),
+                            }
+                        })
+                    })
+                    .collect(),
+                unreadable: files
+                    .iter()
+                    .filter(|(_, content)| content.is_none())
+                    .map(|(path, _)| work::work_item_files::UnreadableFile {
+                        path: path.clone(),
+                        reason: work::work_item_files::ReadFailure::Undecodable,
+                    })
+                    .collect(),
+            };
+            work::corpus_trust::refuse_untrusted(scheme, &listing)
+                .err()
+                .map(|refusal| {
+                    refusal.relative_to(&self.project_root).to_string()
+                })
+        });
+        let reading = if problem.is_some() {
+            Arc::new(crate::config::WorkItemConfig::unreadable())
+        } else {
+            self.configured.clone()
+        };
+        let mut held = self
+            .untrusted_corpus_problem
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let flipped = held.is_some() != problem.is_some();
+        *held = problem;
+        *self
+            .reading
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = reading;
+        flipped
+    }
+
+    fn remember_work_item(&self, path: &Path, content: Option<&FileContent>) {
+        let mut files = self
+            .work_item_files
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match content {
+            Some(content) => {
+                files.insert(
+                    path.to_path_buf(),
+                    String::from_utf8(content.bytes.clone()).ok(),
+                );
+            }
+            None => {
+                files.remove(path);
+            }
+        }
     }
 
     /// Applies a per-path `cluster_key` map onto `IndexEntry.cluster_key`
@@ -875,7 +1005,7 @@ impl Indexer {
             entry,
             &plans,
             &by_id,
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
             &self.project_root,
         ) {
             if let Some(e) = entries.get(&target_key) {
@@ -886,8 +1016,10 @@ impl Indexer {
         }
 
         // Work-item cross-refs from `work_item_id:`, `parent:`, `related:`.
-        let canon_refs =
-            identity_keys_of(entry.work_item_refs.clone(), &self.work_item_cfg);
+        let canon_refs = identity_keys_of(
+            entry.work_item_refs.clone(),
+            &self.work_item_cfg(),
+        );
         for id in &canon_refs {
             if let Some(path) = by_id.get(id) {
                 if path != &entry.path {
@@ -1693,12 +1825,13 @@ mod identity_join_tests {
         let snapshot = idx.all().await;
         let by_id = idx.work_item_by_identity_key_snapshot().await;
         let plans = idx.plans_by_id_snapshot().await;
+        let work_item_cfg = idx.work_item_cfg();
         let ctx = ClusterContext::from_entries(
             &snapshot,
             &by_id,
             &plans,
             idx.project_root(),
-            idx.work_item_cfg(),
+            &work_item_cfg,
         );
         let (_, _, keys) = compute_clusters_with_backfill(&snapshot, &ctx);
         let mut found = Vec::new();
@@ -1814,14 +1947,79 @@ mod identity_join_tests {
     }
 
     #[tokio::test]
-    async fn a_bare_id_is_served_as_the_pattern_renders_it() {
+    async fn an_untrusted_corpus_serves_no_work_item_ids_and_says_why() {
         let tmp = tempfile::tempdir().unwrap();
-        let item = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
-        let idx = index_under(tmp.path(), "{number:04d}", None, &[item]).await;
+        let root = tmp.path().canonicalize().unwrap();
+        let off_pattern = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
+        let in_shape = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx =
+            index_under(&root, "{number:04d}", None, &[off_pattern, in_shape])
+                .await;
 
-        let entry = entry_at(&idx, tmp.path(), item.0).await;
+        let entry = entry_at(&idx, &root, in_shape.0).await;
 
-        assert_eq!(entry.work_item_id.as_deref(), Some("0042"));
+        assert_eq!(entry.work_item_id, None);
+        assert_eq!(entry.identity_key, None);
+        assert!(
+            idx.untrusted_corpus_problem().is_some_and(|problem| problem
+                .starts_with(
+                    "E_REKEY_REQUIRED: 1 work item is not under the ID"
+                )
+                && problem.contains("meta/work/0042-x.md")),
+            "{:?}",
+            idx.untrusted_corpus_problem()
+        );
+    }
+
+    #[tokio::test]
+    async fn fixing_the_corpus_restores_its_ids_on_refresh() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let off_pattern = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
+        let in_shape = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx =
+            index_under(&root, "{number:04d}", None, &[off_pattern, in_shape])
+                .await;
+
+        std::fs::write(root.join(off_pattern.0), "---\nid: \"0042\"\n---\n")
+            .unwrap();
+        idx.refresh_one(&root.join(off_pattern.0)).await.unwrap();
+
+        assert_eq!(idx.untrusted_corpus_problem(), None);
+        assert_eq!(
+            entry_at(&idx, &root, in_shape.0)
+                .await
+                .work_item_id
+                .as_deref(),
+            Some("0043")
+        );
+        assert_eq!(
+            entry_at(&idx, &root, off_pattern.0)
+                .await
+                .work_item_id
+                .as_deref(),
+            Some("0042")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_item_takes_every_items_ids_away() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let item = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx = index_under(&root, "{number:04d}", None, &[item]).await;
+        let slugless = root.join("meta/work/0400.md");
+
+        std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
+        idx.refresh_one(&slugless).await.unwrap();
+
+        assert!(
+            idx.untrusted_corpus_problem().is_some_and(|problem| problem
+                .starts_with("E_WORK_ITEM_MALFORMED: meta/work/0400.md")),
+            "{:?}",
+            idx.untrusted_corpus_problem()
+        );
+        assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
     }
 
     #[tokio::test]
@@ -1831,8 +2029,8 @@ mod identity_join_tests {
                 "{key}-{number:04d}",
                 Some("PROJ"),
                 "PROJ-1-short.md",
-                "PROJ-1",
                 "PROJ-0001",
+                "PROJ-1",
             ),
             (
                 "{key}_{number:04d}",
@@ -1853,7 +2051,7 @@ mod identity_join_tests {
                 "{key}-{number:04d}",
                 Some("PROJ"),
                 "0042-legacy.md",
-                "0042",
+                "PROJ-0042",
                 "PROJ-42",
             ),
         ];
@@ -1938,7 +2136,7 @@ mod identity_join_tests {
     async fn every_spelling_of_an_item_joins_its_cluster() {
         let tmp = tempfile::tempdir().unwrap();
         let files = [
-            ("meta/work/PP-42-a.md", "---\nid: PP-42\n---\n"),
+            ("meta/work/PP-42-a.md", "---\nid: PP-0042\n---\n"),
             (
                 "meta/plans/2026-01-01-a.md",
                 "---\nparent: \"work-item:PP-42\"\n---\n",
@@ -3943,7 +4141,7 @@ mod reverse_index_tests {
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
         std::fs::write(
-            work_dir.join("0001-foo.md"),
+            work_dir.join("ENG-0042-foo.md"),
             "---\ntitle: F\nid: \"ENG-0042\"\n---\n",
         )
         .unwrap();
@@ -3960,7 +4158,7 @@ mod reverse_index_tests {
             .await
             .unwrap();
         let entry = idx
-            .get(&work_dir.join("0001-foo.md"))
+            .get(&work_dir.join("ENG-0042-foo.md"))
             .await
             .expect("indexed");
         assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
@@ -3991,7 +4189,7 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn id_frontmatter_bare_digits_applies_project_code() {
+    async fn id_frontmatter_bare_digits_is_off_pattern_and_shows_no_id() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
@@ -4016,7 +4214,8 @@ mod reverse_index_tests {
             .get(&work_dir.join("0001-foo.md"))
             .await
             .expect("indexed");
-        assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
+        assert_eq!(entry.work_item_id, None);
+        assert!(idx.untrusted_corpus_problem().is_some());
     }
 
     #[tokio::test]
@@ -4027,8 +4226,8 @@ mod reverse_index_tests {
         // The workspace's local ID prefix is ENG, but the file declares a
         // foreign prefix — must passthrough verbatim.
         std::fs::write(
-            work_dir.join("0001-foo.md"),
-            "---\ntitle: F\nid: \"OPS-7\"\n---\n",
+            work_dir.join("OPS-0007-foo.md"),
+            "---\ntitle: F\nid: \"OPS-0007\"\n---\n",
         )
         .unwrap();
         let mut map = HashMap::new();
@@ -4044,10 +4243,10 @@ mod reverse_index_tests {
             .await
             .unwrap();
         let entry = idx
-            .get(&work_dir.join("0001-foo.md"))
+            .get(&work_dir.join("OPS-0007-foo.md"))
             .await
             .expect("indexed");
-        assert_eq!(entry.work_item_id.as_deref(), Some("OPS-7"));
+        assert_eq!(entry.work_item_id.as_deref(), Some("OPS-0007"));
     }
 
     #[tokio::test]

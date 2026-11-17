@@ -928,8 +928,11 @@
   links as a work item, and reports the refusal, naming the setting and
   value, in its log, as `problem` from `/api/work-item/config` and in a
   banner above every page. A corpus that needs a re-key, or holds a
-  malformed work item, is reported there too, and the banner clears once a
-  re-key or fix lands, without a restart.
+  malformed work item, is treated the same way: the visualiser reads no
+  work-item IDs from it, as the `work` commands refuse to, and reports why.
+  It judges the corpus from the files it already indexes, and once a
+  re-key or fix lands it reads the IDs again and clears the banner,
+  without a restart.
 - **The visualiser picks up a `.MD` work item's changes live**, as it does a
   `.md` one's, rather than at the next rescan.
 - **Two work items sharing an identity key resolve to one of them

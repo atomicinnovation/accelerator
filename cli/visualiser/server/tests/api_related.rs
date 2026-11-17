@@ -397,12 +397,13 @@ async fn related_endpoint_recovers_after_target_creation() {
         let snapshot = state.indexer.all().await;
         let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = state.indexer.work_item_cfg();
         let ctx = ClusterContext::from_entries(
             &snapshot,
             &wbi,
             &pbi,
             state.indexer.project_root(),
-            state.indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         *state.clusters.write().await = compute_clusters(&snapshot, &ctx);
     }

@@ -277,12 +277,13 @@ pub(crate) async fn doc_patch_frontmatter(
         let work_item_by_identity_key =
             state.indexer.work_item_by_identity_key_snapshot().await;
         let plans_by_id = state.indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = state.indexer.work_item_cfg();
         let cluster_ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
             &work_item_by_identity_key,
             &plans_by_id,
             state.indexer.project_root(),
-            state.indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         let (new_clusters, completeness_backfill, cluster_key_backfill) =
             crate::clusters::compute_clusters_with_backfill(

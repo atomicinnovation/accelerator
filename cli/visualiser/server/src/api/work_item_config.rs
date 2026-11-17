@@ -208,7 +208,7 @@ mod tests {
             crate::server::AppState::build(cfg, Arc::new(Activity::new()))
                 .await
                 .unwrap();
-        let app = build_router(state);
+        let app = build_router(state.clone());
         let problem = |app: axum::Router| async move {
             let resp = app
                 .oneshot(
@@ -226,9 +226,24 @@ mod tests {
         };
 
         std::fs::write(work.join("42-a.md"), "---\nid: \"42\"\n---\n").unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("42-a.md"))
+            .await
+            .unwrap();
         let off_pattern = problem(app.clone()).await;
         std::fs::remove_file(work.join("42-a.md")).unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("42-a.md"))
+            .await
+            .unwrap();
         std::fs::write(work.join("0042-a.md"), "---\nid: \"0042\"\n---\n")
+            .unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("0042-a.md"))
+            .await
             .unwrap();
         let converged = problem(app).await;
 

@@ -60,7 +60,11 @@ impl AppState {
     /// whose IDs cannot be read.
     #[must_use]
     pub fn work_item_problem(&self) -> Option<String> {
-        work_item_problem(&self.cfg, self.indexer.work_item_cfg())
+        self.cfg
+            .work_item
+            .problem()
+            .map(str::to_owned)
+            .or_else(|| self.indexer.untrusted_corpus_problem())
     }
 
     pub async fn build(
@@ -84,9 +88,6 @@ impl AppState {
             work_root,
         ));
         let work_item_cfg = Arc::new(WorkItemConfig::of(&cfg.work_item));
-        if let Some(problem) = work_item_problem(&cfg, &work_item_cfg) {
-            tracing::warn!("{problem}");
-        }
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),
@@ -95,6 +96,14 @@ impl AppState {
             )
             .await?,
         );
+        if let Some(problem) = cfg
+            .work_item
+            .problem()
+            .map(str::to_owned)
+            .or_else(|| indexer.untrusted_corpus_problem())
+        {
+            tracing::warn!("{problem}");
+        }
         let templates = Arc::new(arc_swap::ArcSwap::from_pointee(
             crate::templates::TemplateResolver::build(
                 &cfg.templates,
@@ -108,12 +117,13 @@ impl AppState {
         let work_item_by_identity_key =
             indexer.work_item_by_identity_key_snapshot().await;
         let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = indexer.work_item_cfg();
         let cluster_ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
             &work_item_by_identity_key,
             &plans_by_id,
             indexer.project_root(),
-            indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         let (cluster_seed, completeness_backfill, cluster_key_backfill) =
             crate::clusters::compute_clusters_with_backfill(
@@ -168,29 +178,6 @@ impl AppState {
             write_coordinator,
         }))
     }
-}
-
-/// Why the corpus under `work_dir` needs a re-key or a fix before its IDs
-/// can be trusted, if it does.
-fn work_item_problem(
-    cfg: &Config,
-    work_item_cfg: &WorkItemConfig,
-) -> Option<String> {
-    cfg.work_item.problem().map(str::to_owned).or_else(|| {
-        let scheme = work_item_cfg.scheme()?;
-        let work_dir = cfg.doc_paths.get("work")?;
-        unconverged(scheme, &cfg.project_root, work_dir)
-    })
-}
-
-fn unconverged(
-    scheme: &work::id_scheme::IdScheme,
-    root: &Path,
-    work_dir: &Path,
-) -> Option<String> {
-    work_adapters::corpus_trust::refuse_untrusted_under(scheme, work_dir)
-        .err()
-        .map(|refusal| refusal.relative_to(root).to_string())
 }
 
 async fn canonical_or_self(p: PathBuf) -> PathBuf {

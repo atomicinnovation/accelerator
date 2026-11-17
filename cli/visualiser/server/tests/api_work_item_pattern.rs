@@ -143,9 +143,9 @@ async fn tracker_pattern_keys_and_drafts_each_have_a_work_item_id() {
         &[
             (
                 "MY_PROJ-7-foo.md",
-                "---\nid: \"MY_PROJ-7\"\ntitle: Foo\n---\n",
+                "---\nid: \"MY_PROJ-7\"\nexternal_id: \"MY_PROJ-7\"\ntitle: Foo\n---\n",
             ),
-            ("ABC2-15-bar.md", "---\nid: \"ABC2-15\"\ntitle: Bar\n---\n"),
+            ("ABC2-15-bar.md", "---\nid: \"ABC2-15\"\nexternal_id: \"ABC2-15\"\ntitle: Bar\n---\n"),
             (
                 "draft-k7mq3x-baz.md",
                 "---\nid: \"draft-k7mq3x\"\ntitle: Baz\n---\n",
@@ -166,7 +166,10 @@ async fn a_draft_awaiting_its_tracker_key_is_indexed_and_flagged_as_a_draft() {
     let cfg = config_for(
         tmp.path(),
         &[
-            ("PP-1-kept.md", "---\nid: \"PP-1\"\ntitle: Kept\n---\n"),
+            (
+                "PP-1-kept.md",
+                "---\nid: \"PP-1\"\nexternal_id: \"PP-1\"\ntitle: Kept\n---\n",
+            ),
             (
                 "drafts/draft-k7mq3x-idea.md",
                 "---\nid: \"draft-k7mq3x\"\ntitle: Idea\n---\n",
