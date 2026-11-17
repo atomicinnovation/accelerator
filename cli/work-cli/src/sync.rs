@@ -9648,20 +9648,20 @@ mod tests {
         );
     }
 
-    fn empty_tracker(_: &Path) -> Rc<RecordingTracker> {
+    fn empty_tracker() -> Rc<RecordingTracker> {
         Rc::new(RecordingTracker::holding(Vec::new()))
     }
 
     fn draft_with_attempted_marker(dir: &Path) -> Rc<RecordingTracker> {
         unsynced_draft(dir);
         seed_attempted(dir, "0001");
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     fn draft_with_unreadable_marker(dir: &Path) -> Rc<RecordingTracker> {
         unsynced_draft(dir);
         seed_marker(dir, "0001", "{ not a marker");
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     fn draft_with_mismatched_marker(dir: &Path) -> Rc<RecordingTracker> {
@@ -9675,7 +9675,7 @@ mod tests {
                 ..draft_request(dir, "0001")
             },
         );
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     fn draft_whose_marker_key_another_item_carries(
@@ -9694,7 +9694,7 @@ mod tests {
         seed_created(dir, "0001", "PP-5");
         std::fs::write(dir.join("meta/work/0002-garbled.md"), [0xff, 0xfe])
             .expect("write the malformed item");
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     fn draft_with_unparseable_frontmatter(dir: &Path) -> Rc<RecordingTracker> {
@@ -9703,18 +9703,18 @@ mod tests {
             "---\nid: \"0001\"\ntitle: [Draft\n---\n\nBody\n",
         )
         .expect("write work item");
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     fn draft_with_reusable_marker(dir: &Path) -> Rc<RecordingTracker> {
         unsynced_draft(dir);
         seed_created(dir, "0001", "PP-5");
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     fn draft_without_marker(dir: &Path) -> Rc<RecordingTracker> {
         unsynced_draft(dir);
-        empty_tracker(dir)
+        empty_tracker()
     }
 
     /// A run's output with its repository root and preview wording read as
