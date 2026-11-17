@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-17T07:36:32+00:00"
+last_updated: "2026-11-17T08:21:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -41,7 +41,7 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) open |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
 | 5. Retries off | Playwright | #229 | Open |
-| 6. Host-relative workers | Playwright | — | Rebased onto `main` at #228; load measurement done, 10-run validation pending |
+| 6. Host-relative workers | Playwright | — | Validated on `c8cf7e5e`; PR not yet raised |
 | 7. CI closing comparison | Both | — | Not started |
 
 ## Current State Analysis
@@ -1295,12 +1295,49 @@ that restarts the count.
 
 #### Manual Verification:
 
-- [ ] Ten counted `mise run` executions on one recorded commit, per
-      Requirement 7. The PR records each outcome and the commit.
-- [ ] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
+- [x] Ten counted `mise run` executions on one recorded commit, per
+      Requirement 7. The PR records each outcome and the commit. All ten
+      count, on `c8cf7e5e`, whose code is `399edd36` on top of `main` at
+      `902556ac` (#228); the commits above `399edd36` touch only `meta/`.
+      The working copy stayed clean.
+  - Nine exited 0, in 218–310 s. Run 8 exited 1 after 124 s, failing only
+    `test:unit:tasks`: `test_the_build_stamps_lines_in_arrival_order`
+    expects two lines printed 0.5 s apart to be stamped more than 0.3 s
+    apart, and under load the first was stamped late, leaving 0.25 s. It is
+    a timing test of the measurement harness, unrelated to the suite.
+  - `test:e2e:visualiser` passed 355 with 1 skipped in every run, in
+    58–78 s on 9 workers. The dev suite passed 21/21 in every run.
+- [x] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
       `retries`. Every flake is listed with its fix or its split-out item.
-- [ ] The CI before window for `test-e2e` is recorded in the PR before merge,
-      as in Phase 3, with every run after Phase 5's merge.
+      The diff under `cli/` adds no `.skip`, `.fixme`, `.only`, `test.fail`
+      or `retries`. The suite showed no flake. The one e2e failure seen
+      during this phase was the outside `pkill` recorded with the load
+      measurement below.
+- [x] The CI before window for `test-e2e` is recorded in the PR before merge,
+      as in Phase 3, with every run after Phase 5's merge. Only four `main`
+      runs follow #229's merge (`2b3aa94f`, through #230). All their E2E
+      jobs passed, each on one worker:
+
+      | Run | Commit | ubuntu suite | ubuntu job | ubuntu image | macOS suite | macOS job | macOS image |
+      |---|---|---|---|---|---|---|---|
+      | 43988761983 | `2b3aa94f` (#229, #230) | 301.79 s | 384 s | 20261103.629 | 322.39 s | 412 s | 20261028.624 |
+      | 43989711594 | `f30a4f7c` (#224) | 222.33 s | 294 s | 20261103.629 | 313.67 s | 415 s | 20261103.629 |
+      | 43989762511 | `ba876153` (#226) | 336.53 s | 429 s | 20261103.629 | 320.72 s | 439 s | 20261028.624 |
+      | 44031742886 | `902556ac` (#228) | 224.70 s | 328 s | 20261103.629 | 341.73 s | 474 s | 20261103.629 |
+
+      - The suite's medians are 263.25 s on ubuntu (IQR 86.37 s, 32.8%) and
+        321.56 s on macOS (IQR 8.27 s, 2.6%).
+      - No sibling in the window touches the job: #224, #226 and #228 change
+        nothing under the visualiser, Playwright, the workflows, `mise.toml`
+        or `tasks/test`.
+      - The macOS runner image changes inside the window, and ubuntu's IQR
+        is far over 5%.
+
+      Phase 7 therefore treats the Playwright before window as contaminated
+      and runs the paired comparison for it, as it does for the dev suite.
+      Node reports 4 CPUs on ubuntu and 3 on macOS, so on CI the change
+      gives `resolved-styles` 2 workers on ubuntu (cap 3) and 1 on macOS
+      (cap 2).
 - [x] If 75 s is missed, the first lever is per-project
       `fullyParallel: true` on `resolved-styles`, unless Phase 5 already
       turned it on. It is a config change, so it restarts the 10-run count.
