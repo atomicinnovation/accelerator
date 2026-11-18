@@ -6,7 +6,7 @@ uv = "0.11.6"
 python = "3.14.4"
 gh = "2.89.0"
 rust = { version = "1.90.0", components = "rustfmt,clippy" }
-node = "22.22.2"
+node = "22.23.4"
 shellcheck = "0.11.0"
 shfmt = "3.13.1"
 # Kept in lockstep with the `jj-lib` crate pin in cli/ (0.43): the adapter reads
