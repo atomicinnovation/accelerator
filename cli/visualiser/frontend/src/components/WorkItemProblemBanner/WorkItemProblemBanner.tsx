@@ -56,8 +56,8 @@ export function WorkItemProblemBanner() {
         {data.restartNeeded ? (
           <>
             Once the configuration is fixed, restart the visualiser: run{" "}
-            <code>accelerator visualiser stop</code>, then{" "}
-            <code>/accelerator:visualise</code>.
+            <code>/accelerator:visualise stop</code>, then{" "}
+            <code>/accelerator:visualise</code>, and open the new URL it gives.
           </>
         ) : (
           "This clears by itself once the work items are fixed."

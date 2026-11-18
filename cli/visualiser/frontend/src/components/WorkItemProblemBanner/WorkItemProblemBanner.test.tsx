@@ -79,7 +79,7 @@ describe("WorkItemProblemBanner", () => {
       "every work command that reads work.id_pattern refuses with:",
     );
     expect(banner).toHaveTextContent(
-      "Once the configuration is fixed, restart the visualiser: run accelerator visualiser stop, then /accelerator:visualise.",
+      "Once the configuration is fixed, restart the visualiser: run /accelerator:visualise stop, then /accelerator:visualise, and open the new URL it gives.",
     );
   });
 
