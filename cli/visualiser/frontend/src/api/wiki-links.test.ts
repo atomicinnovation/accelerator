@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { makeIndexEntry } from "./test-fixtures";
 import {
@@ -394,8 +396,58 @@ describe("splitByBareIds", () => {
   });
 });
 
+interface ServedIdToken {
+  pattern: string;
+  trackerKeys: string;
+  idToken: string;
+  matching: string[];
+  nonMatching: string[];
+}
+
+const servedTokens: ServedIdToken[] = JSON.parse(
+  readFileSync(
+    resolve(__dirname, "../../../server/tests/fixtures/id-tokens.json"),
+    "utf8",
+  ),
+);
+
+function servedToken(pattern: string, trackerKeys = "any"): string {
+  const served = servedTokens.find(
+    (token) => token.pattern === pattern && token.trackerKeys === trackerKeys,
+  );
+  if (!served) throw new Error(`no served token for ${pattern}`);
+  return served.idToken;
+}
+
+describe.each(
+  servedTokens,
+)("the token the server serves for $pattern ($trackerKeys tracker keys)", ({
+  idToken,
+  matching,
+  nonMatching,
+}) => {
+  it.each(matching)("links %s", (id) => {
+    const found = [
+      ...`see [[WORK-ITEM-${id}]]`.matchAll(buildWikiLinkPattern(idToken)),
+    ];
+    expect(found.map((m) => wikiLinkOf(m).id)).toEqual([id]);
+  });
+
+  it.each(matching)("finds %s bare", (id) => {
+    const found = [...`WORK-ITEM-${id}`.matchAll(buildBareIdPattern(idToken))];
+    expect(found.map((m) => wikiLinkOf(m).id)).toEqual([id]);
+  });
+
+  it.each(nonMatching)("does not link %s", (id) => {
+    const found = [
+      ...`[[WORK-ITEM-${id}]]`.matchAll(buildWikiLinkPattern(idToken)),
+    ];
+    expect(found).toEqual([]);
+  });
+});
+
 describe("the server's ID token", () => {
-  const underscored = String.raw`[A-Za-z][A-Za-z0-9]*_\d+|\d+`;
+  const underscored = servedToken("{key}_{number:04d}");
 
   it("links an ID in the configured pattern's own shape", () => {
     const re = buildWikiLinkPattern(underscored);
@@ -410,14 +462,12 @@ describe("the server's ID token", () => {
   });
 
   it("links a tracker key", () => {
-    const re = buildWikiLinkPattern(
-      String.raw`[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}`,
-    );
+    const re = buildWikiLinkPattern(servedToken("{tracker}", "jira"));
     const found = [..."[[WORK-ITEM-MY_PROJ-7]]".matchAll(re)];
     expect(found.map((m) => wikiLinkOf(m).id)).toEqual(["MY_PROJ-7"]);
   });
 
-  const trackerToken = String.raw`[A-Za-z][A-Za-z0-9_]*-\d+|draft-[0-9a-z]{6}`;
+  const trackerToken = servedToken("{tracker}", "jira");
 
   it("links an ADR beside tracker keys", () => {
     const re = buildWikiLinkPattern(trackerToken);

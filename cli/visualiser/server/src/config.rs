@@ -537,6 +537,57 @@ mod tests {
         assert!(!token_matches(&linear, "MY_PROJ-7"));
     }
 
+    /// Shared with the frontend's tests, which compile each token as a
+    /// JavaScript `RegExp` and assert the same matches.
+    const ID_TOKENS: &str = include_str!("../tests/fixtures/id-tokens.json");
+
+    fn scheme_of(case: &serde_json::Value) -> IdScheme {
+        let pattern = case["pattern"].as_str().unwrap();
+        let key = case["key"].as_str();
+        let keys = match case["trackerKeys"].as_str().unwrap() {
+            "any" => return scheme_for_test(pattern, key),
+            "jira" => tracker::TrackerKeys::Jira,
+            "linear" => tracker::TrackerKeys::Linear,
+            other => unreachable!("tracker keys {other}"),
+        };
+        IdScheme::under_tracker(
+            work::id_pattern::IdPattern::parse(pattern).unwrap(),
+            key.map(|key| work::id_pattern::IdKey::parse(key).unwrap()),
+            keys,
+        )
+    }
+
+    #[test]
+    fn each_served_id_token_is_the_one_the_frontend_is_tested_against() {
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(ID_TOKENS).unwrap();
+        let served: Vec<serde_json::Value> = cases
+            .iter()
+            .map(|case| {
+                let mut served = case.clone();
+                served["idToken"] = token_of(scheme_of(case)).into();
+                served
+            })
+            .collect();
+
+        assert!(
+            served == cases,
+            "tests/fixtures/id-tokens.json is stale; it should read:\n{}",
+            serde_json::to_string_pretty(&served).unwrap()
+        );
+        for case in &cases {
+            let token = case["idToken"].as_str().unwrap();
+            for id in case["matching"].as_array().unwrap() {
+                let id = id.as_str().unwrap();
+                assert!(token_matches(token, id), "{token}: {id}");
+            }
+            for id in case["nonMatching"].as_array().unwrap() {
+                let id = id.as_str().unwrap();
+                assert!(!token_matches(token, id), "{token}: {id}");
+            }
+        }
+    }
+
     #[test]
     fn no_id_token_is_served_while_no_ids_are_read() {
         assert_eq!(WorkItemConfig::unreadable().id_token(), None);

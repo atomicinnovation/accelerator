@@ -1,0 +1,103 @@
+[
+  {
+    "idToken": "[A-Za-z][A-Za-z0-9]*_\\d+|\\d+",
+    "key": "PP",
+    "matching": [
+      "PP_0042",
+      "pp_0042",
+      "PP_9999",
+      "42"
+    ],
+    "nonMatching": [
+      "PP-0042",
+      "PP_"
+    ],
+    "pattern": "{key}_{number:04d}",
+    "trackerKeys": "any"
+  },
+  {
+    "idToken": "[A-Za-z][A-Za-z0-9]*-\\d+|\\d+",
+    "key": "PP",
+    "matching": [
+      "PP-0001",
+      "PP-0042",
+      "pp-0042",
+      "42"
+    ],
+    "nonMatching": [
+      "PP_0042",
+      "PP-"
+    ],
+    "pattern": "{key}-{number:04d}",
+    "trackerKeys": "any"
+  },
+  {
+    "idToken": "[vV]\\d+|\\d+",
+    "key": null,
+    "matching": [
+      "v001",
+      "V001",
+      "42"
+    ],
+    "nonMatching": [
+      "x001"
+    ],
+    "pattern": "v{number:03d}",
+    "trackerKeys": "any"
+  },
+  {
+    "idToken": "[aA]\\.\\d+|\\d+",
+    "key": null,
+    "matching": [
+      "a.7",
+      "42"
+    ],
+    "nonMatching": [
+      "aX7"
+    ],
+    "pattern": "a.{number}",
+    "trackerKeys": "any"
+  },
+  {
+    "idToken": "\\d+",
+    "key": null,
+    "matching": [
+      "0042",
+      "42"
+    ],
+    "nonMatching": [
+      "PP-0042"
+    ],
+    "pattern": "{number:04d}",
+    "trackerKeys": "any"
+  },
+  {
+    "idToken": "[A-Za-z][A-Za-z0-9_]*-\\d+|[dD][rR][aA][fF][tT]-[0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{6}",
+    "key": null,
+    "matching": [
+      "ENG-7",
+      "MY_PROJ-7",
+      "draft-k7mq3x",
+      "DRAFT-K7MQ3X"
+    ],
+    "nonMatching": [
+      "0017"
+    ],
+    "pattern": "{tracker}",
+    "trackerKeys": "jira"
+  },
+  {
+    "idToken": "[A-Za-z][A-Za-z0-9]*-\\d+|[dD][rR][aA][fF][tT]-[0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{6}",
+    "key": null,
+    "matching": [
+      "ENG-7",
+      "draft-k7mq3x"
+    ],
+    "nonMatching": [
+      "MY_PROJ-7",
+      "0017"
+    ],
+    "pattern": "{tracker}",
+    "trackerKeys": "linear"
+  }
+]

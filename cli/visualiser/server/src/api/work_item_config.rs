@@ -294,12 +294,15 @@ mod tests {
         std::fs::create_dir_all(&work).unwrap();
         let mut cfg = minimal_config(tmp.path());
         cfg.doc_paths.insert("work".into(), work.clone());
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test("{key}-{number:04d}", Some("PP")),
+        );
         let state =
             crate::server::AppState::build(cfg, Arc::new(Activity::new()))
                 .await
                 .unwrap();
         let app = build_router(state.clone());
-        let problem = |app: axum::Router| async move {
+        let config = |app: axum::Router| async move {
             let resp = app
                 .oneshot(
                     Request::builder()
@@ -310,40 +313,67 @@ mod tests {
                 .await
                 .unwrap();
             let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-            let body: serde_json::Value =
-                serde_json::from_slice(&bytes).unwrap();
-            body["problem"]["summary"].as_str().map(str::to_owned)
+            serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()
         };
 
-        std::fs::write(work.join("42-a.md"), "---\nid: \"42\"\n---\n").unwrap();
-        state
-            .indexer
-            .refresh_one(&work.join("42-a.md"))
-            .await
-            .unwrap();
-        let off_pattern = problem(app.clone()).await;
-        std::fs::remove_file(work.join("42-a.md")).unwrap();
-        state
-            .indexer
-            .refresh_one(&work.join("42-a.md"))
-            .await
-            .unwrap();
-        std::fs::write(work.join("0042-a.md"), "---\nid: \"0042\"\n---\n")
+        std::fs::write(work.join("PP-42-a.md"), "---\nid: \"PP-42\"\n---\n")
             .unwrap();
         state
             .indexer
-            .refresh_one(&work.join("0042-a.md"))
+            .refresh_one(&work.join("PP-42-a.md"))
             .await
             .unwrap();
-        let converged = problem(app).await;
+        let off_pattern = config(app.clone()).await;
+        std::fs::remove_file(work.join("PP-42-a.md")).unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("PP-42-a.md"))
+            .await
+            .unwrap();
+        std::fs::write(
+            work.join("PP-0042-a.md"),
+            "---\nid: \"PP-0042\"\n---\n",
+        )
+        .unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("PP-0042-a.md"))
+            .await
+            .unwrap();
+        let converged = config(app).await;
 
         assert!(
-            off_pattern
-                .as_deref()
+            off_pattern["problem"]["summary"]
+                .as_str()
                 .is_some_and(|p| p.starts_with("E_REKEY_REQUIRED")),
-            "{off_pattern:?}"
+            "{off_pattern}"
         );
-        assert_eq!(converged, None);
+        assert!(off_pattern.get("idToken").is_none(), "{off_pattern}");
+        assert!(off_pattern.get("key").is_none(), "{off_pattern}");
+        assert!(converged.get("problem").is_none(), "{converged}");
+        assert_eq!(converged["key"], "PP", "{converged}");
+        assert!(converged["idToken"].is_string(), "{converged}");
+    }
+
+    #[tokio::test]
+    async fn a_trusted_corpus_serves_its_id_grammar() {
+        let tmp = tempfile::tempdir().unwrap();
+        let scheme =
+            crate::config::scheme_for_test("{key}_{number:04d}", Some("PP"));
+        let mut cfg = minimal_config(tmp.path());
+        cfg.work_item =
+            crate::config::WorkItemScheme::Configured(scheme.clone());
+
+        let body = config_body(cfg).await;
+
+        assert_eq!(
+            body["idToken"].as_str(),
+            crate::config::WorkItemConfig::new(scheme)
+                .id_token()
+                .as_deref(),
+            "{body}"
+        );
+        assert_eq!(body["key"], "PP", "{body}");
     }
 
     #[tokio::test]
