@@ -19,7 +19,10 @@ observationally in CI (see the plan's Testing Strategy).
 """
 
 import copy
+import json
+import os
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -435,9 +438,10 @@ _NIGHTLY_MARKERS = (
     "+nightly",
 )
 _NIGHTLY_JOB = "check-architecture"
-# The release-pipeline aggregators MAY gate on check-architecture (you should
-# not ship with a red required check); everything else must not couple to it.
-_RELEASE_JOBS = {"prerelease", "approve-release", "release"}
+# The aggregators — the release pipeline and the CI gate — MAY wait on
+# check-architecture (nothing should merge or ship with it red); everything
+# else must not couple to it.
+_AGGREGATOR_JOBS = {"prerelease", "approve-release", "release", "ci-passed"}
 
 
 def _job_run_text(job):
@@ -474,7 +478,7 @@ def _isolation_invariants(wf):
 
     # No stable-lane / product job couples to the nightly lane via needs.
     for name, job in jobs.items():
-        if name == _NIGHTLY_JOB or name in _RELEASE_JOBS:
+        if name == _NIGHTLY_JOB or name in _AGGREGATOR_JOBS:
             continue
         assert _NIGHTLY_JOB not in _needs(job), (
             f"{name} needs {_NIGHTLY_JOB} — couples a stable job to the "
@@ -692,3 +696,96 @@ def test_the_cpu_count_report_is_the_host_task(wf):
     step = job["steps"][_step_index(job, _CPU_COUNT_REPORT)]
 
     assert step["run"] == "mise run host:cpu-counts"
+
+
+# --- Pull-request contention -------------------------------------------
+
+PUSH_ONLY = "github.event_name == 'push'"
+GATE_JOB = "ci-passed"
+
+
+def test_editing_a_pull_request_description_does_not_rerun_ci(wf):
+    types = wf[True]["pull_request"]["types"]
+    assert "edited" not in types
+    assert "synchronize" in types
+
+
+def test_a_new_push_to_a_pull_request_cancels_its_superseded_run(wf):
+    concurrency = wf["concurrency"]
+    assert "github.event.pull_request.number" in concurrency["group"]
+    assert (
+        concurrency["cancel-in-progress"]
+        == "${{ github.event_name == 'pull_request' }}"
+    )
+
+
+def test_runs_outside_pull_requests_never_share_a_concurrency_group(wf):
+    # A main run can wait on release approval indefinitely; a shared group
+    # would hold back, then evict, every push queued behind it.
+    assert "github.run_id" in wf["concurrency"]["group"]
+
+
+def test_the_measurement_harness_runs_only_on_main(wf):
+    assert wf["jobs"]["check-measure-harness"].get("if") == PUSH_ONLY
+
+
+def _push_only_jobs(jobs):
+    push_only = {
+        name for name, job in jobs.items() if job.get("if") == PUSH_ONLY
+    }
+    while True:
+        grown = push_only | {
+            name for name, job in jobs.items() if set(_needs(job)) & push_only
+        }
+        if grown == push_only:
+            return push_only
+        push_only = grown
+
+
+def _blocking_pull_request_checks(jobs):
+    excluded = _push_only_jobs(jobs) | {GATE_JOB}
+    return {
+        name
+        for name, job in jobs.items()
+        if name not in excluded and not job.get("continue-on-error")
+    }
+
+
+def test_the_gate_is_the_check_the_ruleset_requires(wf):
+    assert wf["jobs"][GATE_JOB]["name"] == "CI passed"
+
+
+def test_the_gate_waits_on_every_blocking_pull_request_check(wf):
+    jobs = wf["jobs"]
+    checks = _blocking_pull_request_checks(jobs)
+    assert {"test-unit", "check-cli"} <= checks
+    assert set(_needs(jobs[GATE_JOB])) == checks
+
+
+def test_the_gate_reports_even_when_a_check_fails(wf):
+    # A skipped required check counts as passing.
+    assert wf["jobs"][GATE_JOB].get("if") == "always()"
+
+
+def _run_gate(wf, results):
+    (step,) = wf["jobs"][GATE_JOB]["steps"]
+    env = {
+        **os.environ,
+        **{name: json.dumps(results) for name in step.get("env", {})},
+    }
+    return subprocess.run(
+        ["bash", "-c", step["run"]], env=env, check=False
+    ).returncode
+
+
+@pytest.mark.parametrize(
+    ("results", "passes"),
+    [
+        (["success", "success"], True),
+        (["success", "failure"], False),
+        (["success", "cancelled"], False),
+        (["success", "skipped"], False),
+    ],
+)
+def test_the_gate_passes_only_when_every_check_succeeded(wf, results, passes):
+    assert (_run_gate(wf, results) == 0) is passes
