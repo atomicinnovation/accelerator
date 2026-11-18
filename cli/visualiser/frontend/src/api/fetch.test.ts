@@ -73,6 +73,17 @@ describe("fetchDocs", () => {
     expect(doc.draft).toBe(false);
   });
 
+  it("reads an entry from a server that predates work-item keys as keyless", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        docs: [{ type: "work-items", path: "/p", relPath: "r" }],
+      }),
+    });
+    const [doc] = await fetchDocs("work-items");
+    expect(doc.workItemKey).toBeNull();
+  });
+
   it("url-encodes the type parameter", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

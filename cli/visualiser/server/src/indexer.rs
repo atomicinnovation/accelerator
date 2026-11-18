@@ -149,10 +149,12 @@ pub struct IndexEntry {
     pub rel_path: PathBuf,
     pub slug: Option<String>,
     /// The work item's `id` frontmatter, normalised under the configured
-    /// scheme; `None` for other types or an `id` the scheme does not admit.
+    /// scheme; `None` for other types, an `id` the scheme does not admit, or
+    /// any item while the corpus cannot be trusted.
     pub work_item_id: Option<String>,
     /// The key `work_item_id` holds under the configured scheme, which the
-    /// library's project facet filters on.
+    /// library's project facet filters on; `None` when it holds none, or
+    /// while the corpus cannot be trusted.
     pub work_item_key: Option<String>,
     /// The key every spelling of this work item joins on, which the
     /// indexes and clusters use; never served as the item's ID.

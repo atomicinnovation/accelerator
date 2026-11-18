@@ -86,13 +86,16 @@ export interface WorkItemProblem {
 /** The work-item ID settings a page reads IDs through, and why the IDs
  *  cannot be trusted when they cannot. */
 export interface WorkItemConfig {
+  /** `work.key`; absent when none is configured or while the IDs cannot
+   *  be trusted. */
   key?: string | null;
   problem?: WorkItemProblem | null;
   restartNeeded?: boolean;
   /** The `work` commands that refuse while the corpus cannot be trusted. */
   gatedCommands?: string[];
   /** A regular-expression source matching every ID the configured pattern
-   *  writes; absent while the pattern cannot be read. */
+   *  writes; absent while the pattern cannot be read or the corpus cannot
+   *  be trusted. */
   idToken?: string | null;
 }
 
@@ -116,11 +119,12 @@ export async function fetchTypes(): Promise<DocType[]> {
  *  the boundary. */
 type WireIndexEntry = Omit<
   IndexEntry,
-  "completeness" | "linkedCount" | "draft"
+  "completeness" | "linkedCount" | "draft" | "workItemKey"
 > & {
   completeness?: IndexEntry["completeness"];
   linkedCount?: number;
   draft?: boolean;
+  workItemKey?: string | null;
 };
 
 /** Normalises an `IndexEntry` shape from the wire. Servers older than the
@@ -133,6 +137,7 @@ function normaliseEntry(raw: WireIndexEntry): IndexEntry {
     completeness: raw.completeness ?? null,
     linkedCount: raw.linkedCount ?? 0,
     draft: raw.draft ?? false,
+    workItemKey: raw.workItemKey ?? null,
   };
 }
 
