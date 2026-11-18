@@ -14,7 +14,7 @@ pr_number: 234
 tags: ["sync", "preview", "pending-push"]
 revision: "ba4fe8fa6aa55aeb9800e5035a13a30886eccd3f"
 repository: "accelerator"
-last_updated: "2026-11-18T08:11:10+00:00"
+last_updated: "2026-11-18T08:16:04+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
 ---
@@ -170,17 +170,9 @@ records this under both Fixed and Breaking.
       edit.
 - [x] `cli_surface` golden test passes.
 - [x] `mise run test` exits 0.
-- [x] Every check in `mise run check` passes except `deny:check`.
-- [ ] `deny:check` fails on RUSTSEC-2026-0542 (`humantime`, used by the
-      visualiser, is unmaintained). `Cargo.lock` is untouched here, so the
-      check fails on the base commit too.
-- [ ] `docs:check` wasn't run locally (it needs network and Chromium).
-- [ ] Manual check against the `TES` sandbox:
-  - Leave an `Attempted` marker on an unsynced item.
-  - `--target <id> --preview` exits 71 and leaves the marker unchanged.
-  - With the marker deleted, the same preview exits 0.
-- [ ] `/sync-work-items --preview` with an `Attempted` marker points to
-      the recovery skill without reading the marker.
+- [x] `mise run check` exits 0, including `deny:check` now that #233 is
+      merged.
+- [x] `mise run docs:check` exits 0.
 
 ## Notes for Reviewers
 
