@@ -897,11 +897,10 @@
 - **Every `work` command that reads the ID scheme refuses a malformed one
   at start, naming the setting.** `create`, `create-batch`, `id next`,
   `id check`, `resolve`, `list`, `promote`, `rekey` and `sync` refuse a
-  malformed
-  `work.id_pattern`, or a malformed `work.key` under a `{key}` pattern, as
-  `E_WORK_ID_PATTERN_INVALID` or the new `E_WORK_KEY_INVALID`, quoting the
-  value; an invalid `--project` gives `E_WORK_KEY_INVALID` too, an empty
-  `--project ""` included, where it gave `E_PATTERN_MISSING_KEY`.
+  malformed `work.id_pattern`, or a malformed `work.key` under a `{key}`
+  pattern, as `E_WORK_ID_PATTERN_INVALID` or the new `E_WORK_KEY_INVALID`,
+  quoting the value; an invalid `--project` gives `E_WORK_KEY_INVALID` too,
+  an empty `--project ""` included, where it gave `E_PATTERN_MISSING_KEY`.
   `work id canonicalise` keeps its own codes. `work list` refuses where it
   fell back to the default scheme. `work create --dry-run` without `--id`
   does not read the scheme, so it still previews under a malformed one.
