@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 // Re-exported from @testing-library/dom, which is not a declared dependency —
 // importing it directly would be a phantom. Every spec reaches `screen` and
 // `waitFor` through this package for the same reason.
@@ -89,3 +90,10 @@ if (!Element.prototype.scrollIntoView) {
 afterAll(() => {
   vi.unstubAllGlobals();
 });
+
+declare module "vitest" {
+  interface Matchers<
+    R extends void | Promise<void> = void | Promise<void>,
+    T = unknown,
+  > extends TestingLibraryMatchers<unknown, R> {}
+}
