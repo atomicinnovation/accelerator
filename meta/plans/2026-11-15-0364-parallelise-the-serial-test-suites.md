@@ -5,7 +5,7 @@ title: "Parallelise the Serial Test Suites Implementation Plan"
 date: "2026-11-15T16:47:37+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0364"
 parent: "work-item:0364"
 derived_from: ["codebase-research:2026-11-15-0364-parallelise-the-serial-test-suites"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:03
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
-last_updated: "2026-11-17T20:51:39+00:00"
+last_updated: "2026-11-18T10:03:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -41,8 +41,8 @@ goes last, so that phase is "the suite's change" for the 10-run validation
 | 3. pytest-xdist workers | Dev | #222, #230 | #222 merged 2026-11-16, without a full CI before window; #230 (CI CPU counts) merged 2026-11-17; after window at 5 of 10 runs |
 | 4. Fixture isolation | Playwright | #225 | Merged 2026-11-16 |
 | 5. Retries off | Playwright | #229 | Merged 2026-11-17 |
-| 6. Host-relative workers | Playwright | #232 | Open; validated on `c8cf7e5e` |
-| 7. CI closing comparison | Both | — | Not started; both before windows are contaminated, so both suites need the paired comparison |
+| 6. Host-relative workers | Playwright | #232 | Merged 2026-11-17; validated on `c8cf7e5e` |
+| 7. CI closing comparison | Both | #235, #236 (closed), #238, #239 | Paired comparison passed for both suites on both OSes; the two failures it exposed are fixed by #238 and #239, merged 2026-11-18; both suites landed |
 
 ## Current State Analysis
 
@@ -921,6 +921,15 @@ regenerated `uv.lock`, since `deps:install:python` uses `--frozen`.
     measurement harness's
     `test_the_builds_group_is_forgotten_after_an_interrupt`
     (`BuildLeftRunningError`), which is unrelated to 0364.
+  - Two more runs bring the after window to seven: 44142416435 on
+    `7ba3859c` (#233) took 48.60 s on ubuntu and 42.23 s on macOS, and
+    44182225437 on `a646f527` (#232) took 86.61 s and 52.18 s. Both
+    integration jobs passed in each. #233's run failed only "Check
+    documentation site", which is unrelated. The seven-run medians are
+    84.05 s on ubuntu and 52.18 s on macOS.
+  - **Resolved by the paired comparison.** The box stays unchecked,
+    because the window was never met. Phase 7's paired comparison
+    decided the CI rule instead, and the dev suite passed it.
 - [x] Validation and measurement don't overlap 0370's host-settings
       recording.
 
@@ -1355,9 +1364,14 @@ that restarts the count.
 - [x] Anti-masking: the diff adds no `skip`, `fixme` or per-test/describe
       `retries`. Every flake is listed with its fix or its split-out item.
       The diff under `cli/` adds no `.skip`, `.fixme`, `.only`, `test.fail`
-      or `retries`. The suite showed no flake. The one e2e failure seen
-      during this phase was the outside `pkill` recorded with the load
-      measurement below.
+      or `retries`. The suite showed no flake locally. The one local e2e
+      failure seen during this phase was the outside `pkill` recorded
+      with the load measurement below.
+      **Correction.** #232's CI did fail once, and this record missed
+      it. Run 44062948001 on `cc46ef68` failed the macOS E2E job on
+      `dev-design-system.spec.ts`'s scroll-hash test, with 2 workers.
+      Phase 7's paired comparison found the same flake twice more, and
+      #238 fixes it.
 - [x] The CI before window for `test-e2e` is recorded in the PR before merge,
       as in Phase 3, with every run after Phase 5's merge. Only four `main`
       runs follow #229's merge (`2b3aa94f`, through #230). All their E2E
@@ -1477,9 +1491,62 @@ both suites have passed.
 
 #### Manual Verification:
 
-- [ ] Both windows (or the paired run IDs) are recorded in each suite's PR.
-- [ ] The 5% rule passes on both OSes for both suites.
-- [ ] The work item's Landing Status and status are updated.
+- [x] Both windows (or the paired run IDs) are recorded in each suite's
+      PR. Both before windows were contaminated, so the paired comparison
+      ran once for both suites.
+  - **The pairs.** Two draft PRs came from `main` at `a646f527` (#232's
+    merge). #235 kept both suites' workers, and #236 reverted #222's
+    `-n auto` and #232's worker allocation.
+  - **Why two PRs cover both suites.** The dev suite runs only in the
+    integration job and Playwright only in the E2E job, on separate
+    runners. So each suite's pair differs only in its own change.
+  - **The runs.** Each arm's `Main` run was re-run 10 times: run
+    44189947764 for #235 and run 44189949799 for #236. The medians are
+    over attempts 2–11. Both PRs are closed.
+  - **Where the records are.** The per-attempt figures are in the "Paired
+    CI comparison" sections of #222's and #232's descriptions. The
+    after windows so far, 7 `main` runs for the dev suite and 1 for
+    Playwright, are recorded beside them, as information only.
+- [x] The 5% rule passes on both OSes for both suites:
+
+  | Suite | OS | With workers | Serial | Change |
+  |---|---|---|---|---|
+  | Dev | ubuntu | 92.25 s | 174.00 s | −47.0% |
+  | Dev | macOS | 48.28 s | 223.78 s | −78.4% |
+  | Playwright | ubuntu | 168.69 s | 231.44 s | −27.1% |
+  | Playwright | macOS | 274.53 s (9 runs) | 313.88 s | −12.5% |
+
+  - **macOS runner size.** macOS runners came with 3 or 5 CPUs, which
+    swings the times more than the arm does. Comparing like-sized
+    runners still gives about −79% for the dev suite and −13.6% for
+    Playwright.
+  - **The whole jobs (informational).** The integration job is slightly
+    slower with workers: 934 s against 862 s on ubuntu, and 1,319 s
+    against 1,272 s on macOS. Both differences are inside the larger
+    IQR, so nothing is recorded on 0369. The E2E job is faster: 332 s
+    against 524 s on ubuntu, and 386 s against 436 s on macOS.
+  - **Two failures, both fixed.** The arm with workers failed 4 of its
+    11 runs, and the serial arm none. The dev suite itself passed 21/21
+    in all 22 runs.
+    - **Playwright's scroll-hash spec failed twice on macOS,** and once
+      on #232's own branch. It scrolled to the top before the page's
+      deep-link scroll to `#code` had run. #238 makes it wait for that
+      scroll. By decision, this didn't restart Playwright's 10-run
+      count.
+    - **The entrypoint lane's footprint test failed twice on ubuntu,**
+      and once on 0351's branch. A dispatch's prune is best-effort: it
+      tries the lock and has a 1–2 s budget, so under the dev suite's
+      xdist load the superseded claims survived. #239 asserts the
+      footprint after `cache prune` instead.
+
+    Both failures were reproduced on demand before the fix, then shown
+    to pass under the same conditions.
+  - **A correction to the windows' versions.** The "image" versions
+    recorded in Phases 3 and 6 are the Hosted Compute Agent's, not the
+    runner image's. The runner images also change inside the windows,
+    so the contamination verdicts stand.
+- [x] The work item's Landing Status and status are updated. Both suites
+      are landed, and 0364 is done.
 
 ---
 

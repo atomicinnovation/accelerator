@@ -5,14 +5,14 @@ title: "Parallelise the serial test suites"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "in-progress"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 relates_to: ["work-item:0362", "work-item:0368", "work-item:0369", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "flakiness"]
-last_updated: "2026-11-15T20:23:08+00:00"
+last_updated: "2026-11-18T10:03:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # 0364: Parallelise the serial test suites
 
 **Kind**: Task
-**Status**: In Progress
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -51,8 +51,13 @@ and passed their CI comparison.
 
 ## Landing Status
 
-- Playwright: not landed
-- Dev-task suite: not landed
+- **Playwright: landed.** #232 merged on 2026-11-17, and the paired CI
+  comparison passed on both OSes: −27.1% on ubuntu and −12.5% on macOS.
+  #238 fixes the scroll-hash spec flake that the comparison exposed.
+- **Dev-task suite: landed.** #222 merged on 2026-11-16, and the paired CI
+  comparison passed on both OSes: −47.0% on ubuntu and −78.4% on macOS.
+  #239 fixes the entrypoint footprint test that failed under the
+  workers' load.
 
 ## Context
 
@@ -225,69 +230,107 @@ Both changes also run on CI, because in `.github/workflows/main.yml` the
 
 Landing criteria for Playwright:
 
-- [ ] Given `mise run measure:build --isolate test:e2e:visualiser
+- [x] Given `mise run measure:build --isolate test:e2e:visualiser
       --cache-state warm-no-op --runs 5 --host-settings devtools` on the
       reference workstation, when it finishes, then the median duration of
       `test:e2e:visualiser` is under 75 s (131 s today). The record is kept
       with `--keep`.
-- [ ] Given a `test:e2e:visualiser` run with the JSON reporter, when its
+      Median 46.89 s, on `devtools` with no failed task:
+      `meta/measurements/build_2026-11-16T230609Z_engywook_warm-no-op_devtools_isolated.json`.
+- [x] Given a `test:e2e:visualiser` run with the JSON reporter, when its
       output is inspected, then no two `chromium` results' runs overlap in
       time, and at least one `chromium` result's run overlaps in time with a
       `resolved-styles` result's.
-- [ ] Given the worker-count function, when a unit test calls it with 1, 3,
+      Printed `true` then `true` in #232, and again on `main` at `52f5d20f`
+      during validation, with 355 passed and none unexpected.
+- [x] Given the worker-count function, when a unit test calls it with 1, 3,
       4 and 16 CPUs, then the `resolved-styles` count and the global cap are
       1 and 2, 1 and 2, 2 and 3, and 8 and 9 respectively.
-- [ ] Given `playwright.config.ts`, when it is loaded with and without `CI`
+      `scripts/worker-allocation.test.ts` covers exactly these four cases
+      (#232).
+- [x] Given `playwright.config.ts`, when it is loaded with and without `CI`
       set, then `retries` is 0 and traces are kept on failure. The
       `resolved-styles` project's `workers` and the global `workers` equal
       the worker-count function's outputs for `os.availableParallelism()`,
       and the `chromium` project's `workers` is 1.
-- [ ] Given a test made to fail deliberately, when the suite runs, then a
+      `scripts/playwright-config.test.ts` loads the config under both `CI`
+      values with 4 CPUs faked. It checks `retries` 0, `retain-on-failure`, a
+      cap of 3, 2 `resolved-styles` workers and 1 `chromium` worker (#229,
+      #232).
+- [x] Given a test made to fail deliberately, when the suite runs, then a
       trace for that test is left in the output directory. This is checked
       once and recorded in the PR.
-- [ ] Given the fixture audit, when it is recorded in the PR, then it lists
+      Recorded in #229: a deliberately failed `smoke.spec.ts` left its
+      `trace.zip`.
+- [x] Given the fixture audit, when it is recorded in the PR, then it lists
       each project's written and read files, says how each list was traced,
       and shows no conflict as defined in Requirement 2.
+      Recorded in #225. It was traced with `fs_usage` and by reading the
+      aggregate routes' code, and found no conflict once the probes were pinned.
 
 Landing criteria for the dev-task suite:
 
-- [ ] Given `mise run measure:build --isolate test:integration:dev
+- [x] Given `mise run measure:build --isolate test:integration:dev
       --cache-state warm-no-op --runs 5 --host-settings devtools` on the
       reference workstation, when it finishes, then the median duration of
       `test:integration:dev` is under 60 s (163 s today). The record is kept
       with `--keep`.
-- [ ] Given the project's dev dependencies, when they are inspected, then
+      Median 7.85 s, on `devtools` with no failed task:
+      `meta/measurements/build_2026-11-16T004012Z_engywook_warm-no-op_devtools_isolated.json`.
+- [x] Given the project's dev dependencies, when they are inspected, then
       `pytest-xdist` is declared and `test:integration:dev` passes `-n auto`.
-- [ ] Given the negative-path record from Requirement 6, when each
+      `pytest-xdist>=3` is in `pyproject.toml`'s `dev` group, and the task runs
+      `pytest tests/integration/dev -n auto -v` (#222).
+- [x] Given the negative-path record from Requirement 6, when each
       negative-path test runs after the change, then it asserts the message,
       exit reason or log line of its recorded branch.
-- [ ] Given the same record, when each happy-path dev test runs after the
+      Tests 8 and 9 assert their branch's message and `dev.log` line, and that
+      the sibling branch's line is absent. Test 16 asserts the frontend logged
+      no SIGTERM and our code never signalled it (#220).
+- [x] Given the same record, when each happy-path dev test runs after the
       change, then it asserts that none of the recorded timeout-branch outputs
       appear. In particular, no stop escalates to SIGKILL. Reporting the
       arbiter unreachable at teardown is expected and is not checked.
-- [ ] Given `dev_integration_driver.py`, when its defaults are compared with
+      `stop_cleanly` and the `workspace` fixture assert that our code sent no
+      SIGKILL and that no timeout-branch line appears. Harness self-tests and an
+      `ast` guard show the check fails when it should (#220).
+- [x] Given `dev_integration_driver.py`, when its defaults are compared with
       today's, then `grace_kill` and `probe_timeout` are lower. The
       readiness, pidfile and frontend-active budgets and the dev task's
       production defaults are unchanged.
-- [ ] Given `test_dev_integration.py`, when its settle sleeps are compared
+      `probe_timeout` went from 5.0 to 2.0 and `grace_kill` from 3.0 to 0.5. The
+      other budgets are unchanged, and `tasks/shared/dev` has no diff across
+      0364 (#221).
+- [x] Given `test_dev_integration.py`, when its settle sleeps are compared
       with today's, then each one is either a fixed delay below 0.5 s or a
       condition wait that returns as soon as its condition holds.
+      The three 0.5 s sleeps are now condition waits. Only a 0.05 s poll
+      interval remains (#220, #221).
 
 Landing criteria for each suite:
 
-- [ ] Given 10 counted runs under Requirement 7, when they finish, then the
+- [x] Given 10 counted runs under Requirement 7, when they finish, then the
       suite passes in every one. The PR records each run's outcome and the
       commit they ran on, and that commit is the PR's merge base or has been
       re-validated after rebasing.
-- [ ] Given the change's diff to the suite's specs, tests, fixtures and
+      Dev suite: ten exits of 0 on `d29d7621` (#222). Playwright: the suite
+      passed in all ten runs on `c8cf7e5e`; one run failed only an unrelated
+      `test:unit:tasks` timing test (#232). #232's two rebases and #238's
+      one-spec fix didn't restart the count, for the reasons recorded there and
+      in the plan.
+- [x] Given the change's diff to the suite's specs, tests, fixtures and
       config, when it is inspected, then it adds none of the following:
       `skip`, `fixme`, a per-test or per-describe `retries`, or a pytest
       rerun or flaky marker. The PR lists each flake found during validation
       with its fix or its split-out work item.
+      No 0364 PR adds any of them; the only `retries` added is the config's
+      `retries: 0`. Two flakes were found after landing and are listed in #222
+      and #232: the scroll-hash spec, fixed by #238, and the entrypoint
+      footprint test, fixed by #239.
 
 Closing criterion for each suite, checked after it lands:
 
-- [ ] Given the suite's per-task "Finished in" duration in its CI job
+- [x] Given the suite's per-task "Finished in" duration in its CI job
       (`test-e2e` for Playwright, `test-integration` for the dev suite), when
       the after window's median is compared with the before window's, then
       it is no more than 5% higher. The comparison is made on ubuntu and on
@@ -308,6 +351,11 @@ Closing criterion for each suite, checked after it lands:
       suite's Landing Status to "not landed". A re-landing carries the
       retuned worker change alone. It repeats the timing, 10-run and
       anti-masking landing criteria, then this check with new windows.
+
+      Both before windows were contaminated, so the paired comparison decided
+      it: #235 and #236, runs 44189947764 and 44189949799, recorded in #222 and
+      #232. With the change, the dev suite is 47.0% faster on ubuntu and 78.4%
+      faster on macOS, and Playwright is 27.1% and 12.5% faster.
 
 ## Open Questions
 

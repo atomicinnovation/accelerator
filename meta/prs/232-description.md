@@ -11,10 +11,11 @@ parent: "work-item:0364"
 relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites", "work-item:0369"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/232"
 pr_number: 232
+merge_commit: "a646f52775df912b9b4de1bc7d2516a428c09527"
 tags: ["visualiser", "testing", "playwright", "performance"]
-revision: "270a84d6154a2a2aea8053303799eaca460bc1c9"
+revision: "67d620ed634abbfa42927133c96842215e9cb72e"
 repository: "accelerator"
-last_updated: "2026-11-17T20:51:54+00:00"
+last_updated: "2026-11-18T10:01:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -257,6 +258,78 @@ their E2E jobs passed, each on one worker.
   therefore gets 2 workers under a cap of 3, and on macOS 1 under a cap
   of 2.
 
+## Paired CI comparison
+
+The CI before window was contaminated, so the CI rule was judged by a
+paired comparison instead. Two draft PRs were opened from `main` at
+`a646f527` (this PR's merge):
+- #235 kept the workers.
+- #236 reverted this PR's worker allocation and #222's `-n auto`.
+
+Each arm's `Main` run was re-run 10 times: run 44189947764 for #235 and
+run 44189949799 for #236. The medians are over those 10 reruns
+(attempts 2–11) of `test:e2e:visualiser`'s "Finished in" line, leaving
+out failed suites.
+
+| OS | With workers (#235) | Serial (#236) | Change | 5% rule |
+|---|---|---|---|---|
+| ubuntu | 168.69 s (IQR 40.4%) | 231.44 s (IQR 33.0%) | −27.1% | Pass |
+| macOS | 274.53 s, 9 runs (IQR 14.5%) | 313.88 s (IQR 34.2%) | −12.5% | Pass |
+
+Each attempt's figure, with Playwright's worker count:
+
+| Attempt | ubuntu, workers | ubuntu, serial | macOS, workers | macOS, serial |
+|---|---|---|---|---|
+| 1 | 148.79 (3w) | 241.92 (1w) | failed | 306.16 (1w) |
+| 2 | 185.88 (3w) | 228.50 (1w) | 251.97 (2w) | 307.93 (1w) |
+| 3 | 154.83 (3w) | 229.24 (1w) | 315.46 (2w) | 354.63 (1w) |
+| 4 | 141.48 (3w) | 225.16 (1w) | 274.53 (2w) | 319.84 (1w) |
+| 5 | 156.73 (3w) | 327.55 (1w) | 291.72 (2w) | 199.05 (1w) |
+| 6 | 152.80 (3w) | 232.94 (1w) | 113.89 (3w) | 328.73 (1w) |
+| 7 | 233.37 (3w) | 229.93 (1w) | 283.87 (2w) | 339.63 (1w) |
+| 8 | 180.65 (3w) | 333.11 (1w) | 106.51 (3w) | 199.74 (1w) |
+| 9 | 238.05 (3w) | 316.08 (1w) | failed | 303.79 (1w) |
+| 10 | 148.27 (3w) | 272.12 (1w) | 331.49 (2w) | 204.92 (1w) |
+| 11 | 235.89 (3w) | 225.96 (1w) | 270.91 (2w) | 340.67 (1w) |
+
+- **Runner size dominates macOS.**
+  - With workers, the two runs on a 5-CPU runner (3 workers) took
+    106–114 s, against 252–331 s with 2 workers on 3 CPUs.
+  - The E2E job doesn't print its CPU count. The serial arm's times fall
+    into two groups, 199–205 s and 304–355 s, which suggests the same
+    split.
+  - Comparing only the 2-worker runs with the slower serial group gives
+    283.87 s against 328.73 s, or −13.6%. That is close to the −12.5%
+    from all the runs.
+- **The whole job is faster (informational).** The E2E job's medians are
+  332 s with workers against 524 s serially on ubuntu, and 386 s against
+  436 s on macOS.
+- **A flake the workers exposed.** `dev-design-system.spec.ts`'s "scrolling
+  back to the top clears the hash to bare /dev" failed on attempts 1 and
+  9 on macOS, and never on the serial arm.
+  - It also failed once on this PR's own branch, in run 44062948001 on
+    `cc46ef68` with 2 workers on macOS. That run is missing from the
+    sections above. They recorded only the CI run on `aabc3ae1`, and
+    said the suite showed no flake.
+  - The spec scrolled to the top before the page's deep-link scroll to
+    `#code` had run. When that scroll ran afterwards, the hash stayed on
+    `#code`.
+  - #238 fixes the spec by waiting for the landing scroll first. By
+    decision, the fix didn't restart the 10-run count: it changes one
+    spec's wait, not the config or the other specs.
+- **The windows (informational).** The after window holds one `main` run
+  so far, this PR's own (44182225437). It took 154.35 s on 3 workers on
+  ubuntu and 206.77 s on 2 workers on macOS, against the contaminated
+  before window's 263.25 s and 321.56 s.
+- **A correction to the windows recorded above.** The "image" versions
+  (20261103.629 and 20261028.624) are the Hosted Compute Agent's
+  version, not the runner image's. The runner images (`ubuntu-24.04`
+  20261111.127.1 and 20261111.370.1, `macos-26-arm64` 20261102.0473.1
+  and 20261112.0504.1) also change inside the window, so it stays
+  contaminated.
+
+Playwright passes the CI rule on both OSes and has landed.
+
 ## Testing
 
 - [x] The allocation and config tests fail before the change and pass
@@ -273,7 +346,9 @@ their E2E jobs passed, each on one worker.
       Requirement 7. Each one includes `frontend:check` and the frontend
       unit tests.
 - [x] Anti-masking: the diff under `cli/` adds no `.skip`, `.fixme`,
-      `.only`, `test.fail` or `retries`. The suite showed no flake.
+      `.only`, `test.fail` or `retries`. Locally the suite showed no
+      flake. On CI it showed one, which #238 fixes (see "Paired CI
+      comparison").
 - [x] The CI before window is recorded above. It is contaminated, so
       Phase 7 runs the paired comparison.
 - [x] Load measurement recorded (not a gate).
@@ -306,6 +381,6 @@ their E2E jobs passed, each on one worker.
   reviewed by 2026-12-01. The docs site passes `picomatch` only globs that
   its own build config and tooling write, at build time for a static
   site.
-- **What comes next.** The CI after window starts with this PR's merge
-  commit. Phase 7 then runs paired comparisons for both suites, because
-  both before windows are contaminated.
+- **How the CI rule was judged.** Both before windows were contaminated,
+  so Phase 7 used the paired comparison above. It passed, so no revert
+  or retune was needed.

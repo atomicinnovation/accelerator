@@ -11,10 +11,11 @@ parent: "work-item:0364"
 relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/222"
 pr_number: 222
+merge_commit: "929fae79d128bd359729172e2557f4952ba2bdff"
 tags: ["build-system", "testing", "pytest", "pytest-xdist", "dev-task", "performance"]
-revision: "30fc6872c9dd3afeee39c59687af0fd272ab6ea1"
+revision: "67d620ed634abbfa42927133c96842215e9cb72e"
 repository: "accelerator"
-last_updated: "2026-11-16T12:18:46+00:00"
+last_updated: "2026-11-18T10:01:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -80,14 +81,17 @@ parallel load fail a test instead of passing unnoticed.
 - [x] No dev-suite flake appeared in any parallel run: no `stop_cleanly`
       failure, no null recorded PID and no missed `reused`. The diff adds
       no `skip`, rerun or flaky marker.
-- [ ] Worker counts on both CI runners, next to psutil's physical and
+- [x] Worker counts on both CI runners, next to psutil's physical and
       logical counts. The xdist banners are recorded below. The CI logs
-      don't print psutil's counts, so the logical counts are still to be
-      recorded.
-- [ ] The CI before window for `test-integration` on each OS: the last 10
-      main runs after #221 merges, with the median and IQR% of
-      `test:integration:dev`'s "Finished in" line and the runner image
-      version.
+      didn't print psutil's counts, so #230 added `mise run
+      host:cpu-counts` to the integration job. On `ubuntu-latest`, xdist
+      creates 2 workers from 2 physical cores and 4 logical CPUs. On
+      `macos-latest`, it creates 3 workers from 3 cores, or 5 on the
+      occasional 5-CPU runner.
+- [ ] The CI before window for `test-integration` on each OS. This was
+      not met: only three `main` runs fell between #221's merge and this
+      PR's, so the window was contaminated. The paired comparison below
+      decides the CI rule instead.
 
 ### Counted runs
 
@@ -146,6 +150,71 @@ with fewer dev-suite workers either. The idle load was 20.7% before the
 and
 `meta/measurements/build_2026-11-16T083530Z_engywook_warm-no-op_devtools.json`.
 
+## Paired CI comparison
+
+The CI before window was contaminated, so the CI rule was judged by a
+paired comparison instead. Two draft PRs were opened from `main` at
+`a646f527` (#232's merge):
+- #235 kept the workers.
+- #236 reverted this PR's `-n auto` and #232's Playwright worker
+  allocation.
+
+Each arm's `Main` run was re-run 10 times: run 44189947764 for #235 and
+run 44189949799 for #236. The medians are over those 10 reruns
+(attempts 2–11) of `test:integration:dev`'s "Finished in" line.
+
+| OS | With workers (#235) | Serial (#236) | Change | 5% rule |
+|---|---|---|---|---|
+| ubuntu | 92.25 s (IQR 9.6%) | 174.00 s (IQR 10.0%) | −47.0% | Pass |
+| macOS | 48.28 s (IQR 9.0%) | 223.78 s (IQR 38.0%) | −78.4% | Pass |
+
+The suite passed 21 of 21 in all 22 runs. Each attempt's figure, with
+xdist's worker count and the runner's logical CPU count:
+
+| Attempt | ubuntu, workers | ubuntu, serial | macOS, workers | macOS, serial |
+|---|---|---|---|---|
+| 1 | 70.66 (2w, 4 CPU) | 174.67 (4 CPU) | 53.45 (3w, 3 CPU) | 177.46 (3 CPU) |
+| 2 | 91.62 (2w, 4 CPU) | 169.21 (4 CPU) | 41.25 (3w, 3 CPU) | 233.66 (3 CPU) |
+| 3 | 94.94 (2w, 4 CPU) | 165.36 (4 CPU) | 52.69 (3w, 3 CPU) | 130.89 (5 CPU) |
+| 4 | 90.63 (2w, 4 CPU) | 192.31 (4 CPU) | 44.31 (3w, 3 CPU) | 233.31 (3 CPU) |
+| 5 | 98.35 (2w, 4 CPU) | 174.21 (4 CPU) | 47.45 (3w, 3 CPU) | 214.54 (3 CPU) |
+| 6 | 78.21 (2w, 4 CPU) | 195.55 (4 CPU) | 48.22 (3w, 3 CPU) | 109.16 (5 CPU) |
+| 7 | 94.92 (2w, 4 CPU) | 186.11 (4 CPU) | 53.57 (3w, 3 CPU) | 233.03 (3 CPU) |
+| 8 | 96.79 (2w, 4 CPU), job failed | 156.70 (4 CPU) | 48.34 (3w, 3 CPU) | 201.65 (3 CPU) |
+| 9 | 77.89 (2w, 4 CPU) | 176.82 (4 CPU) | 48.42 (3w, 3 CPU) | 267.02 (3 CPU) |
+| 10 | 84.52 (2w, 4 CPU), job failed | 173.78 (4 CPU) | 58.49 (3w, 3 CPU) | 112.64 (5 CPU) |
+| 11 | 92.88 (2w, 4 CPU) | 144.58 (4 CPU) | 47.24 (3w, 3 CPU) | 234.51 (3 CPU) |
+
+- **Runner size dominates macOS's serial spread.** The serial arm drew a
+  5-CPU runner three times, at 109–131 s, against 177–267 s on 3 CPUs.
+  The arm with workers always drew 3 CPUs. On 3-CPU runners alone the
+  serial median is 233.3 s, so the change is still about −79%.
+- **The whole job (informational).** The integration job's medians are
+  934 s with workers against 862 s serially on ubuntu, and 1,319 s
+  against 1,272 s on macOS. Both differences are inside the larger IQR
+  (273 s and 626 s), so nothing is recorded on 0369.
+- **A sibling lane failed under the workers' load.** Attempts 8 and 10
+  failed `test:integration:entrypoint`'s
+  `test_a_relocated_root_keeps_only_the_current_versions_footprint`,
+  which also failed once on 0351's branch. The serial arm never failed.
+  - The test asserted the full footprint after one dispatch, but a
+    dispatch's prune is best-effort. It tries the lock and has a 1–2 s
+    budget, so on the loaded runner the superseded versions' claims
+    survived.
+  - #239 fixes the test by asserting the footprint after `cache prune`.
+- **The windows (informational).** The after window holds seven `main`
+  runs so far, from #222's merge to #232's. Their dev-suite medians are
+  84.05 s on ubuntu and 52.18 s on macOS, against the contaminated
+  before window's 163.39 s and 198.84 s.
+- **A correction to the windows recorded earlier.** The "image" versions
+  recorded for the windows (20261103.629 and 20261028.624) are the
+  Hosted Compute Agent's version, not the runner image's. The runner
+  images (`ubuntu-26.04` 20261111.196.1 and 20261111.82.6,
+  `macos-26-arm64` 20261102.0473.1 and 20261112.0504.1) also change
+  inside the windows, so they stay contaminated.
+
+The dev suite passes the CI rule on both OSes and has landed.
+
 ## Notes for Reviewers
 
 - **The `uv.lock` revision drops from 5 to 3.** The relock used the uv
@@ -168,6 +237,6 @@ and
 
   The fix is to raise the budget, not to weaken the assertion. No flake
   appeared in the parallel runs so far.
-- **What's next.** Phase 7 judges this PR's CI effect against the before
-  window. A revert would remove only this PR's change and keep #221's
-  shorter waits.
+- **How the CI rule was judged.** Phase 7 used the paired comparison
+  above, because the before window was contaminated. It passed, so no
+  revert or retune was needed.
