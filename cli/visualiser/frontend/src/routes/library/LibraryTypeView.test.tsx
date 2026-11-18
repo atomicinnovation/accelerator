@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 import * as fetchModule from "../../api/fetch";
 import { makeIndexEntry } from "../../api/test-fixtures";
 import type { IndexEntry, LibraryStructureResponse } from "../../api/types";
@@ -442,11 +442,11 @@ describe("LibraryTypeView", () => {
 
 describe("LibraryTypeView markSeen wiring", () => {
   function mockHandle(): UnseenDocTypesHandle & {
-    markSeen: ReturnType<typeof vi.fn>;
+    markSeen: Mock<UnseenDocTypesHandle["markSeen"]>;
   } {
     return {
       unseenSet: new Set(),
-      markSeen: vi.fn(),
+      markSeen: vi.fn<UnseenDocTypesHandle["markSeen"]>(),
       onEvent: vi.fn(),
       onReconnect: vi.fn(),
     };
