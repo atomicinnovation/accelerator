@@ -1,7 +1,10 @@
-import os from "node:os";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@playwright/test", () => ({ defineConfig: <T>(c: T) => c }));
+vi.mock("node:os", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:os")>()),
+  availableParallelism: () => 4,
+}));
 
 async function loadConfig(ci: string | undefined) {
   vi.resetModules();
@@ -15,10 +18,6 @@ function projectWorkers(
 ) {
   return config.projects?.find((project) => project.name === name)?.workers;
 }
-
-beforeEach(() => {
-  vi.spyOn(os, "availableParallelism").mockReturnValue(4);
-});
 
 afterEach(() => vi.unstubAllEnvs());
 
