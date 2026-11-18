@@ -3,9 +3,11 @@
 An eval prompt simulates an ``accelerator work`` command by quoting what it
 prints. Each refusal code a prompt quotes must exit as the built binary
 exits that refusal, read from the nearest exit status the prompt gives
-before it, and each quoted verdict must have the fields the binary prints
-for its kind, so an eval cannot keep passing against output the CLI no
-longer gives.
+before it, each refusal or warning a prompt quotes as a block must read as
+a line the binary prints for its code, up to the paths, quoted values and
+numbers in it, and each quoted verdict must have the fields the binary
+prints for its kind, so an eval cannot keep passing against output the CLI
+no longer gives.
 
 ``NOT_ELICITED`` names the codes this lane does not draw from the binary,
 since eliciting them needs a live identity-run lock, a re-key run plan, a
@@ -49,6 +51,9 @@ NOT_ELICITED = frozenset(
     }
 )
 VERDICT_KINDS = ("exact", "other-key", "corrected")
+QUOTED_BLOCK = re.compile(
+    r"(?m)^(Error: |warning: )?(E_[A-Z][A-Z_]*[A-Z]): [^\n]*(?:\n    [^\n]*)*"
+)
 
 
 def _prompts() -> list[str]:
@@ -91,6 +96,56 @@ def quoted_refusals(prompt: str) -> list[tuple[str, int | None]]:
     ]
 
 
+def normalised(line: str) -> str:
+    """``line`` with its paths, quoted values and numbers made generic, and
+    without the ``Error:`` or ``warning:`` a caller prints it after."""
+    line = re.sub(r"^(?:Error: |warning: )", "", line.strip())
+    line = re.sub(r"'[^']*'", "'…'", line)
+    line = re.sub(r"meta/[^\s`'),]+", "<path>", line)
+    return re.sub(r"\d+", "#", line)
+
+
+def _form(prefix: str | None) -> str:
+    return "warning" if prefix == "warning: " else "refusal"
+
+
+def quoted_blocks(prompt: str) -> list[tuple[tuple[str, str], list[str]]]:
+    """Each refusal or warning ``prompt`` quotes on a line of its own, by
+    form and code, as its normalised lines: the line naming the code and
+    each indented line it lists beneath."""
+    return [
+        (
+            (_form(block.group(1)), block.group(2)),
+            [normalised(line) for line in block.group(0).split("\n")],
+        )
+        for block in QUOTED_BLOCK.finditer(prompt)
+    ]
+
+
+def printed_lines(stderr: str) -> dict[tuple[str, str], set[str]]:
+    """Each normalised line of ``stderr`` under the form and code it belongs
+    to: those of the line naming a code, or of the line it is listed
+    beneath."""
+    lines: dict[tuple[str, str], set[str]] = {}
+    owner = None
+    for line in stderr.splitlines():
+        if not line.startswith("    "):
+            named = REFUSAL_CODE.search(line)
+            owner = (
+                (
+                    _form(
+                        "warning: " if line.startswith("warning: ") else None
+                    ),
+                    named.group(0),
+                )
+                if named
+                else None
+            )
+        if owner:
+            lines.setdefault(owner, set()).add(normalised(line))
+    return lines
+
+
 def _repository(tmp_path: Path, name: str, work: str) -> Path:
     root = tmp_path / name
     (root / ".jj").mkdir(parents=True)
@@ -111,7 +166,7 @@ def _run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _refusal_exit_codes(tmp_path: Path) -> dict[str, int]:
+def _elicited(tmp_path: Path) -> dict[str, subprocess.CompletedProcess[str]]:
     keyed = '  id_pattern: "{key}-{number:04d}"\n  key: PP\n'
     numeric = '  id_pattern: "{number:04d}"\n'
     held = _repository(tmp_path, "held", numeric)
@@ -175,7 +230,36 @@ def _refusal_exit_codes(tmp_path: Path) -> dict[str, int]:
     }
     for code, run in elicited.items():
         assert code in run.stderr, f"{code} not elicited: {run.stderr}"
-    return {code: run.returncode for code, run in elicited.items()}
+    return elicited
+
+
+def _variants(tmp_path: Path) -> list[subprocess.CompletedProcess[str]]:
+    """Runs printing the other forms a quoted refusal or warning takes."""
+    keyed = '  id_pattern: "{key}-{number:04d}"\n  key: PP\n'
+    two_off = _repository(tmp_path, "two-off-pattern", keyed)
+    (two_off / "meta/work/0001-x.md").write_text('---\nid: "0001"\n---\n')
+    (two_off / "meta/work/0002-y.md").write_text('---\nid: "0002"\n---\n')
+    tracker = _repository(
+        tmp_path,
+        "tracker-off",
+        '  id_pattern: "{tracker}"\n  integration: jira\n',
+    )
+    (tracker / "meta/work/0042-search.md").write_text('---\nid: "0042"\n---\n')
+    one_off = _repository(tmp_path, "one-off-pattern", keyed)
+    (one_off / "meta/work/0001-x.md").write_text('---\nid: "0001"\n---\n')
+    malformed = _repository(
+        tmp_path, "two-malformed", '  id_pattern: "{number:04d}"\n'
+    )
+    (malformed / "meta/work/0399.md").write_text('---\nid: "0399"\n---\n')
+    (malformed / "meta/work/0398-cafe.md").write_bytes(
+        b'---\nid: "0398"\ntitle: Caf\xe9\n---\n'
+    )
+    return [
+        _run(two_off, "id", "check", "--", "0400"),
+        _run(tracker, "resolve", "--", "meta/work/0042-search.md"),
+        _run(one_off, "list"),
+        _run(malformed, "id", "check", "--", "0400"),
+    ]
 
 
 def _verdict_field_counts(tmp_path: Path) -> dict[str, set[int]]:
@@ -195,8 +279,14 @@ def _verdict_field_counts(tmp_path: Path) -> dict[str, set[int]]:
 def cli(tmp_path_factory: pytest.TempPathFactory) -> dict:
     assert WORK.exists(), f"build {WORK} first (mise run build:cli:work:dev)"
     tmp_path = tmp_path_factory.mktemp("eval-contract")
+    elicited = _elicited(tmp_path)
+    lines: dict[tuple[str, str], set[str]] = {}
+    for run in [*elicited.values(), *_variants(tmp_path)]:
+        for owner, printed in printed_lines(run.stderr).items():
+            lines.setdefault(owner, set()).update(printed)
     return {
-        "exit_codes": _refusal_exit_codes(tmp_path),
+        "exit_codes": {code: run.returncode for code, run in elicited.items()},
+        "lines": lines,
         "verdict_fields": _verdict_field_counts(tmp_path),
     }
 
@@ -223,6 +313,43 @@ def test_a_quoted_code_takes_the_exit_status_quoted_nearest_before_it() -> None:
         )
         == []
     )
+
+
+def test_a_quoted_block_is_read_as_its_generic_lines() -> None:
+    assert quoted_blocks(
+        "stderr:\n\nError: E_WORK_ITEM_MALFORMED: 2 work items cannot be "
+        "read. Fix each one:\n    meta/work/0399.md has `id` '0399'. Rename "
+        "it to `0399-<slug>.md`\n\nSimulate"
+    ) == [
+        (
+            ("refusal", "E_WORK_ITEM_MALFORMED"),
+            [
+                "E_WORK_ITEM_MALFORMED: # work items cannot be read. Fix "
+                "each one:",
+                "<path> has `id` '…'. Rename it to `#-<slug>.md`",
+            ],
+        )
+    ]
+    assert quoted_blocks("warning: E_REKEY_REQUIRED: 1 item\n") == [
+        (("warning", "E_REKEY_REQUIRED"), ["E_REKEY_REQUIRED: # item"])
+    ]
+    assert quoted_blocks("relay `E_ID_TAKEN: …` as is") == []
+
+
+def test_a_printed_line_belongs_to_the_code_above_it() -> None:
+    assert printed_lines(
+        "warning: E_XY: 2 bad:\n    a.md bad\nother\n    stray\n"
+    ) == {("warning", "E_XY"): {"E_XY: # bad:", "a.md bad"}}
+
+
+def test_every_quoted_block_reads_as_lines_the_cli_prints(cli: dict) -> None:
+    for prompt in _prompts():
+        for (form, code), lines in quoted_blocks(prompt):
+            if code in NOT_ELICITED:
+                continue
+            assert (form, code) in cli["lines"], (form, code)
+            for line in lines:
+                assert line in cli["lines"][form, code], (form, code, line)
 
 
 def test_every_quoted_code_is_elicited_or_named_as_not(cli: dict) -> None:
