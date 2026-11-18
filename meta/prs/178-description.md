@@ -139,9 +139,12 @@ is listed under "Behaviour changes".
   eval no longer holds. For create, update, review, refine, list and sync
   it fails a `SKILL.md` or `evals.json` changed since the benchmark's
   recorded `skill_digest`, or a digest no run was recorded under.
-  `test_work_skill_eval_contract.py` holds every refusal code the work
+  `test_work_skill_eval_contract.py` holds each refusal code the work
   skills' evals quote, in any quote form, to the exit code the built
-  binary gives it, and the quoted verdicts to the fields it prints.
+  binary gives it, except the six it cannot elicit (`NOT_ELICITED`). Each
+  refusal or warning an eval quotes on its own line, with the items listed
+  beneath it, must read as a line the binary prints in that form, and the
+  quoted verdicts must have the fields it prints.
 
 ### Convergence: a corpus off the pattern is refused
 
