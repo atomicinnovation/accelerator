@@ -12,9 +12,9 @@ relates_to: ["work-item:0392", "work-item:0393", "work-item:0394", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/215"
 pr_number: 215
 tags: ["shortcut", "integrations", "sync"]
-revision: "ba5dd5390bd7e05f73ece2192e7cee6a8c42e3cd"
+revision: "92034ab8536de1f2dca686007ec1a30524fe5304"
 repository: "accelerator"
-last_updated: "2026-11-14T23:05:00+00:00"
+last_updated: "2026-11-18T13:07:10+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
@@ -46,6 +46,12 @@ the Jira and Linear connectors.
   registry, and `/sync-work-items` resolves `work.integration: shortcut`. Sync
   maps a work item's title and body to the story, and its `kind` to the
   story type. An `epic` item becomes a Shortcut epic.
+- **Shortcut keys can own work item IDs.** Under `work.id_pattern:
+  "{tracker}"`, a pushed story takes its `sc-<n>` key as its `id` and an
+  epic takes `epic-<n>`. ADR-0075 records the decision. ADR-0070's rules
+  for drafts, promotion and ID retirement apply unchanged.
+- **`ACCELERATOR_LOG` reaches the work and Shortcut binaries**, so a sync
+  can trace each Shortcut request. The trace never includes the token.
 - **Docs.** The issue-trackers page gains a Shortcut tab, and a new
   `shortcut.md` page covers setup. The sync guide, the cookbook,
   `which-skill`, `configuration.md`, the README and the CHANGELOG mention
@@ -58,20 +64,24 @@ the Jira and Linear connectors.
 - Work item: `meta/work/0391-shortcut-integration.md`
 - Plan: `meta/plans/2026-11-13-0391-shortcut-integration.md`. Each phase has
   implementation notes that record where the code departs from the plan.
+- Decision: `meta/decisions/ADR-0075-shortcut-keys-as-tracker-owned-work-item-ids.md`
 
 ## Testing
 
-- [x] The full `mise run` exits 0 on `cea2374c`.
+- [x] On the branch rebased onto main, every `mise run` gate passes except
+      `test_dev_launcher_marker_is_gitignored_and_unshipped`. That test
+      fails on one machine only, because of a local dev-launcher marker file.
 - [x] Client tests cover references, filters, state resolution and the 16
       write cases, including a truncated listing and a timed-out create.
 - [x] CLI flow tests run each subcommand against 21 recorded scenarios. Pins
       hold the CLI surface, the keywords, the exit codes, the stdout goldens
       and the stderr diagnostics.
-- [x] Nine `sync_run_real_client` cases drive the sync engine through the
-      real Shortcut client against a mock server. Eight run in Preview mode
-      and check how sync classifies push, pull, conflict and discovery. One
-      applies a push and checks the 403 failure. No case applies a
-      successful push or pull.
+- [x] Eleven `sync_run_real_client` cases drive the sync engine through
+      the real Shortcut client against a mock server, and the shared pull
+      test runs for Shortcut beside Jira and Linear. They check how sync
+      classifies push, pull, conflict and discovery, and they apply a push
+      to a story and an epic, a pull, and a push refused with 403. One case
+      checks that a search across several teams stops at one deadline.
 - [x] Three corpus fixtures pin the sync hashes. An independent Python script
       produced the expected values.
 - [ ] Manual: push a work item and an epic item to a live workspace, pull an
