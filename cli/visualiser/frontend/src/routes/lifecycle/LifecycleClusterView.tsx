@@ -208,9 +208,7 @@ function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
     entry.frontmatterState === "parsed" ? entry.frontmatter.verdict : undefined;
   const fmDate =
     entry.frontmatterState === "parsed" ? entry.frontmatter.date : undefined;
-  const id = entry.workItemId
-    ? entry.workItemId
-    : fileSlugFromRelPath(entry.relPath);
+  const id = entry.workItemId || fileSlugFromRelPath(entry.relPath);
   return (
     <li className={styles.step} data-stage={step.docType}>
       <span className={styles.stepNode}>

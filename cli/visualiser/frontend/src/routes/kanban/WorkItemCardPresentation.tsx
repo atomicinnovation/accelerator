@@ -36,7 +36,7 @@ export function WorkItemCardPresentation({
   const fmKind = entry.frontmatter.kind;
   const kindLabel =
     typeof fmKind === "string" && fmKind.length > 0 ? fmKind : null;
-  const idLabel = entry.workItemId ? entry.workItemId : null;
+  const idLabel = entry.workItemId || null;
 
   const className = [
     styles.card,
