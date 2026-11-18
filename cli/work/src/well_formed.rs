@@ -238,10 +238,15 @@ fn malformation_of(
     }
 }
 
+/// The slug a file is named with: what follows its ID, or the whole stem
+/// when it is no ID at all.
 fn slug_after_an_id(scheme: &IdScheme, path: &Path) -> Option<String> {
     use corpus::IdConvention as _;
     let stem = path.file_stem()?.to_str()?;
-    let start = scheme.slug_start(stem)?;
+    if id_naming(scheme, path).is_some() || scheme.names_a_tracker_issue(stem) {
+        return None;
+    }
+    let start = scheme.slug_start(stem).unwrap_or(0);
     stem.get(start..)
         .filter(|slug| !slug.is_empty())
         .map(str::to_owned)
@@ -411,6 +416,47 @@ mod tests {
     }
 
     #[test]
+    fn a_stem_holding_no_id_is_offered_whole_as_the_slug() {
+        let refusal = malformed_in(
+            &numeric(),
+            &[file("search.md", "---\nid: \"0400\"\n---\n")],
+        )
+        .err()
+        .unwrap_or_else(|| unreachable!("refused"));
+
+        assert_eq!(
+            refusal.first().malformation(),
+            &Malformation::Misnamed {
+                id: "0400".to_owned(),
+                slug: Some("search".to_owned()),
+            }
+        );
+        assert!(
+            refusal
+                .to_string()
+                .contains("Rename it to `0400-search.md`"),
+            "{refusal}"
+        );
+    }
+
+    #[test]
+    fn a_stem_naming_only_a_draft_is_not_offered_as_the_slug() {
+        let refusal = malformed_in(
+            &numeric(),
+            &[file("draft-k7mq3x.md", "---\nid: \"0400\"\n---\n")],
+        )
+        .err()
+        .unwrap_or_else(|| unreachable!("refused"));
+
+        assert!(
+            refusal
+                .to_string()
+                .contains("Rename it to `0400-<slug>.md`"),
+            "{refusal}"
+        );
+    }
+
+    #[test]
     fn a_file_naming_an_id_without_one_is_malformed() {
         for content in [
             "---\naliases: [\"0400\"]\n---\n",
@@ -484,7 +530,7 @@ mod tests {
                     if refusal.first().malformation()
                         == &Malformation::Misnamed {
                             id: "PP-0001".to_owned(),
-                            slug: None,
+                            slug: Some("notes-a".to_owned()),
                         }
             ),
             "{refused:?}"
