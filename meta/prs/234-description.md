@@ -1,7 +1,7 @@
 ---
 type: "pr-description"
 id: "234"
-title: "[0351] Preview the pending-push refusal a create would meet"
+title: "[0351] Show pending-push refusals in a sync preview"
 date: "2026-11-17T16:14:05+00:00"
 author: "Phil Helm"
 producer: "describe-pr"
@@ -14,12 +14,12 @@ pr_number: 234
 tags: ["sync", "preview", "pending-push"]
 revision: "ba4fe8fa6aa55aeb9800e5035a13a30886eccd3f"
 repository: "accelerator"
-last_updated: "2026-11-17T16:17:14+00:00"
+last_updated: "2026-11-18T08:11:10+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
-# [0351] Preview the pending-push refusal a create would meet
+# [0351] Show pending-push refusals in a sync preview
 
 ## Problem
 
