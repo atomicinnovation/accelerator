@@ -5,14 +5,14 @@ title: "Parallelise the serial test suites"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "in-progress"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 relates_to: ["work-item:0362", "work-item:0368", "work-item:0369", "work-item:0370"]
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "flakiness"]
-last_updated: "2026-11-15T20:23:08+00:00"
+last_updated: "2026-11-18T10:03:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # 0364: Parallelise the serial test suites
 
 **Kind**: Task
-**Status**: In Progress
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -51,8 +51,13 @@ and passed their CI comparison.
 
 ## Landing Status
 
-- Playwright: not landed
-- Dev-task suite: not landed
+- **Playwright: landed.** #232 merged on 2026-11-17, and the paired CI
+  comparison passed on both OSes: −27.1% on ubuntu and −12.5% on macOS.
+  #238 fixes the scroll-hash spec flake that the comparison exposed.
+- **Dev-task suite: landed.** #222 merged on 2026-11-16, and the paired CI
+  comparison passed on both OSes: −47.0% on ubuntu and −78.4% on macOS.
+  #239 fixes the entrypoint footprint test that failed under the
+  workers' load.
 
 ## Context
 
