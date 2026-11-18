@@ -8,8 +8,13 @@ on:
     types:
       - opened
       - reopened
-      - edited
       - synchronize
+
+# A main run can wait on release approval indefinitely; a shared group would
+# hold back, then evict, every push queued behind it.
+concurrency:
+  group: main-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test-unit:
@@ -119,8 +124,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
     # ubuntu-latest is Ubuntu 26.04, which the pinned Playwright cannot
-    # install Chromium on. The matrix value keeps its name because the
-    # ruleset requires a check called "Run E2E tests (ubuntu-latest)".
+    # install Chromium on.
     runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-24.04' || matrix.os }}
 
     steps:
@@ -409,6 +413,7 @@ jobs:
     # unowned state the module would rot in. It also records `sha256sum`'s
     # resolution on both lanes, so the fast-backend population is a known number
     # rather than an assumption.
+    if: github.event_name == 'push'
     continue-on-error: true
     timeout-minutes: 10
     strategy:
@@ -461,6 +466,31 @@ jobs:
 
       - name: Run documentation site checks
         run: mise run docs:check
+
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    # A skipped required check counts as passing.
+    if: always()
+    needs:
+      - test-unit
+      - test-integration
+      - test-e2e
+      - test-visual-regression
+      - check-build-system
+      - check-visualiser-server
+      - check-cli
+      - check-supply-chain
+      - check-architecture
+      - check-attribution
+      - check-visualiser-frontend
+      - check-docs
+    permissions: {}
+    steps:
+      - name: Require every check to have succeeded
+        env:
+          CHECK_RESULTS: ${{ toJSON(needs.*.result) }}
+        run: jq --exit-status 'all(. == "success")' <<< "$CHECK_RESULTS"
 
   # Assemble the vendored runtime upstream of any signing job, in a job holding
   # no credentials — it extracts three third-party archives, so it must not be
