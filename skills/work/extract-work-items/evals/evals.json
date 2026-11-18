@@ -177,6 +177,19 @@
         "commands.md shows exactly one accelerator work create-batch call",
         "files.md says no work-item file was written or edited"
       ]
+    },
+    {
+      "id": 13,
+      "name": "relays_every_malformed_item_with_its_fix",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{number:04d}`, **Key** is empty and **Active integration** is empty. Two candidates were approved in Step 3: a story \"Typo-tolerant search\" (priority medium) and a story \"Search analytics\" (priority low). The author resolves to \"Ada Lovelace\". You are at Step 4. Simulate the first `accelerator work id next` call exiting 4 with empty stdout and this stderr:\n\nError: E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their IDs. Fix each one as shown, then re-run this command:\n    meta/work/0398-cafe.md is not UTF-8 text. Re-save it as UTF-8, or move it out of the work directory\n    meta/work/0399.md has `id` '0399' but its filename does not start with its `id` and a slug. Rename it to `0399-<slug>.md`\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user after the id next call, in order.\n- files.md: every work-item file you write or edit, or `none`.\n",
+      "expected_output": "One id next call. The skill relays both listed files, each with its printed fix, stops without retrying or creating anything, and writes no work item.",
+      "files": [],
+      "expectations": [
+        "response.md names meta/work/0398-cafe.md with the fix of re-saving it as UTF-8 or moving it out of the work directory",
+        "response.md names meta/work/0399.md with the fix of renaming it to `0399-<slug>.md`",
+        "commands.md shows exactly one `accelerator work id next` call and no `accelerator work create-batch`",
+        "files.md says no work-item file was written or edited"
+      ]
     }
   ]
 }

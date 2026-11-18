@@ -13,8 +13,10 @@
       9,
       10,
       11,
-      12
-    ]
+      12,
+      13
+    ],
+    "skill_digest": "sha256:1d85c630008c1e6587b8699782cd9cdf6005de2f3bda664af6c21c60232c3009"
   },
   "runs": [
     {
@@ -577,6 +579,46 @@
         }
       ],
       "notes": []
+    },
+    {
+      "eval_id": 13,
+      "eval_name": "relays_every_malformed_item_with_its_fix",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "response.md names meta/work/0398-cafe.md with the fix of re-saving it as UTF-8 or moving it out of the work directory",
+          "passed": true,
+          "evidence": "`meta/work/0398-cafe.md` is not UTF-8 text. Re-save it as UTF-8, or move it out of the work directory"
+        },
+        {
+          "text": "response.md names meta/work/0399.md with the fix of renaming it to `0399-<slug>.md`",
+          "passed": true,
+          "evidence": "`meta/work/0399.md` has `id` '0399' but its filename does not start with its `id` and a slug. Rename it to `0399-<slug>.md`"
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator work id next` call and no `accelerator work create-batch`",
+          "passed": true,
+          "evidence": "Only id-next call is \"3. `accelerator work id next --count 2`\" (exit 4); \"No further `accelerator` commands were run\"; create-batch never appears"
+        },
+        {
+          "text": "files.md says no work-item file was written or edited",
+          "passed": true,
+          "evidence": "files.md content is exactly \"none\""
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:1d85c630008c1e6587b8699782cd9cdf6005de2f3bda664af6c21c60232c3009"
     }
   ],
   "run_summary": {
@@ -595,6 +637,7 @@
     "Eval 12 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time.",
     "Evals 1, 2, 3, 6, 7, 8 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call.",
     "Eval 2 failed one expectation: its bug and epic skeletons justify a priority of high in Drafting Notes, a field choice rather than a scope interpretation. Eval 3 failed one expectation that quotes the Step 3.4 note with \"type\" where the skill's note now says \"kind\"; the run copied the current note verbatim. Superseded by the re-run of the corrected eval below.",
-    "Evals 2, 3, 6, 7, 8 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call."
+    "Evals 2, 3, 6, 7, 8 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call.",
+    "Eval 13 (every malformed item relayed with its own fix) was added and run with_skill on 2026-11-18, by claude-opus-5-5: the executor was barred from the evals and benchmark files and simulated every accelerator call; a separate grader judged each expectation from the outputs alone. It passes in full."
   ]
 }

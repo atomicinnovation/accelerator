@@ -26,6 +26,7 @@ DIGEST_GUARDED = (
     "update-work-item",
     "review-work-item",
     "refine-work-item",
+    "extract-work-items",
     "list-work-items",
     "sync-work-items",
 )

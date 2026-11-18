@@ -136,8 +136,8 @@ is listed under "Behaviour changes".
   were re-run (see Testing).
 - **Eval guards**: `test_work_skill_benchmarks.py` covers every
   `/create-work-item` eval and fails a run graded against expectations the
-  eval no longer holds. For create, update, review, refine, list and sync
-  it fails a `SKILL.md` or `evals.json` changed since the benchmark's
+  eval no longer holds. For create, update, review, refine, extract, list
+  and sync it fails a `SKILL.md` or `evals.json` changed since the benchmark's
   recorded `skill_digest`, or a digest no run was recorded under.
   `test_work_skill_eval_contract.py` holds each refusal code the work
   skills' evals quote, in any quote form, to the exit code the built
