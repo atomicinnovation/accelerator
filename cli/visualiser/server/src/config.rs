@@ -178,11 +178,15 @@ impl WorkItemConfig {
     /// The key `shown` holds under the scheme, if it holds one.
     #[must_use]
     pub fn key_of(&self, shown: &str) -> Option<String> {
-        self.scheme
-            .as_ref()?
-            .read_held(shown)?
-            .key()
-            .map(str::to_owned)
+        let scheme = self.scheme.as_ref()?;
+        let held = scheme.read_held(shown)?;
+        let key = held.key()?;
+        Some(match scheme.key() {
+            Some(own) if own.as_str().eq_ignore_ascii_case(key) => {
+                own.as_str().to_owned()
+            }
+            _ => key.to_ascii_uppercase(),
+        })
     }
 
     #[must_use]

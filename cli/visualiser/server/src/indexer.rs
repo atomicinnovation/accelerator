@@ -1916,7 +1916,7 @@ mod identity_join_tests {
         assert_eq!(entry.work_item_id.as_deref(), Some("pp-0500"));
         assert_eq!(
             extract_facet_value(&entry, "project").as_deref(),
-            Some("pp")
+            Some("PP")
         );
     }
 
@@ -2755,6 +2755,22 @@ mod tests {
         );
         assert_eq!(
             key_served("ENG-7", "{tracker}", None),
+            Some("ENG".to_string())
+        );
+    }
+
+    #[test]
+    fn the_served_key_folds_case_as_links_and_the_cli_do() {
+        assert_eq!(
+            key_served("pp-0042", "{key}-{number:04d}", Some("PP")),
+            Some("PP".to_string())
+        );
+        assert_eq!(
+            key_served("proj-0042", "{key}-{number:04d}", Some("PP")),
+            Some("PROJ".to_string())
+        );
+        assert_eq!(
+            key_served("eng-7", "{tracker}", None),
             Some("ENG".to_string())
         );
     }
