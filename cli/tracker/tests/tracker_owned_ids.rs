@@ -1,6 +1,10 @@
 //! Which integrations' issue keys a work item may take as its `id`.
 
-use tracker::supports_tracker_owned_ids;
+use tracker::TrackerKeys;
+
+fn supports_tracker_owned_ids(integration: &str) -> bool {
+    TrackerKeys::of_integration(integration).owns_ids()
+}
 
 #[test]
 fn only_jira_and_linear_support_tracker_owned_ids() {

@@ -28,6 +28,7 @@ fn record() -> RetirementRecord {
         new_id: "ENG-42",
         new_external_id: Some("ENG-42"),
     })
+    .unwrap()
 }
 
 #[test]
@@ -40,27 +41,6 @@ fn a_saved_record_is_outstanding_until_removed() {
 
     records.remove(&record()).unwrap();
     assert!(records.outstanding().unwrap().is_empty());
-}
-
-#[test]
-fn a_record_whose_ids_would_name_a_path_is_refused() {
-    let state = tempfile::tempdir().unwrap();
-    let records = FileRetirementRecords::new(state.path(), &PlainWrite);
-    let escaping = RetirementRecord::of(&Retirement {
-        old_id: "PP-760",
-        new_id: "../../escaped",
-        new_external_id: Some("../../escaped"),
-    });
-
-    assert!(matches!(
-        records.save(&escaping),
-        Err(StoreError::Validation { .. })
-    ));
-    assert!(matches!(
-        records.remove(&escaping),
-        Err(StoreError::Validation { .. })
-    ));
-    assert!(!state.path().join("escaped.json").exists());
 }
 
 #[test]
@@ -110,8 +90,80 @@ fn a_malformed_record_is_reported_rather_than_skipped() {
     std::fs::write(dir.join("PP-1--ENG-1.json"), "{").unwrap();
     let records = FileRetirementRecords::new(state.path(), &PlainWrite);
 
+    let named = dir.join("PP-1--ENG-1.json").display().to_string();
     assert!(matches!(
         records.outstanding(),
-        Err(StoreError::Validation { .. })
+        Err(StoreError::Malformed { path, .. }) if path == named
     ));
+}
+
+#[test]
+fn a_record_whose_ids_are_not_one_path_component_is_unreadable() {
+    let state = tempfile::tempdir().unwrap();
+    let dir = state.path().join("retirement-records");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("x.json"),
+        "{\"schema\":1,\"old\":\"..\",\"new\":\"ENG-1\",\
+         \"recovery_dir\":\"retirement-recovery/x\"}",
+    )
+    .unwrap();
+    let records = FileRetirementRecords::new(state.path(), &PlainWrite);
+
+    assert!(matches!(
+        records.outstanding(),
+        Err(StoreError::Malformed { .. })
+    ));
+}
+
+fn outstanding_with(body: &str) -> Result<Vec<RetirementRecord>, StoreError> {
+    let state = tempfile::tempdir().unwrap();
+    let dir = state.path().join("retirement-records");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("x.json"), body).unwrap();
+    FileRetirementRecords::new(state.path(), &PlainWrite).outstanding()
+}
+
+#[test]
+fn a_record_whose_ids_leave_the_id_alphabet_is_unreadable() {
+    for (old, new, external) in [
+        ("PP\\\"1", "ENG-1", "ENG-1"),
+        ("PP-1", "ENG-1\\nid: x", "ENG-1"),
+        ("PP-1", "ENG-1", "ENG 1"),
+    ] {
+        let body = format!(
+            "{{\"schema\":1,\"old\":\"{old}\",\"new\":\"{new}\",\
+             \"new_external_id\":\"{external}\",\
+             \"recovery_dir\":\"retirement-recovery/PP-1--ENG-1\"}}"
+        );
+        assert!(
+            matches!(
+                outstanding_with(&body),
+                Err(StoreError::Malformed { .. })
+            ),
+            "{body}"
+        );
+    }
+}
+
+#[test]
+fn a_record_whose_recovery_dir_leaves_the_recovery_parent_is_unreadable() {
+    for recovery_dir in
+        ["../../etc", "/abs", "retirement-recovery/a/b", "other/x"]
+    {
+        let body = format!(
+            "{{\"schema\":1,\"old\":\"PP-1\",\"new\":\"ENG-1\",\
+             \"recovery_dir\":\"{recovery_dir}\"}}"
+        );
+        assert!(
+            matches!(
+                outstanding_with(&body),
+                Err(StoreError::Malformed { .. })
+            ),
+            "{recovery_dir}"
+        );
+    }
+    let well_formed = "{\"schema\":1,\"old\":\"PP-1\",\"new\":\"ENG-1\",\
+                       \"recovery_dir\":\"retirement-recovery/PP-1--ENG-1\"}";
+    assert!(outstanding_with(well_formed).is_ok());
 }

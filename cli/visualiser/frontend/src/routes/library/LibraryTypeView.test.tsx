@@ -56,6 +56,7 @@ const mockEntries: IndexEntry[] = [
     relPath: "meta/plans/2026-01-01-foo.md",
     slug: "foo",
     workItemId: null,
+    workItemKey: null,
     draft: false,
     title: "Foo Plan",
     frontmatter: { status: "draft", date: "2026-01-01" },
@@ -75,6 +76,7 @@ const mockEntries: IndexEntry[] = [
     relPath: "meta/plans/2026-02-01-bar.md",
     slug: "bar",
     workItemId: null,
+    workItemKey: null,
     draft: false,
     title: "Bar Plan",
     frontmatter: { status: "complete", date: "2026-02-01" },
@@ -127,6 +129,7 @@ describe("LibraryTypeView", () => {
         relPath: "meta/work/drafts/draft-k7mq3x-idea.md",
         slug: "idea",
         workItemId: "draft-k7mq3x",
+        workItemKey: null,
         title: "An idea",
         draft: true,
       }),
@@ -165,14 +168,54 @@ describe("LibraryTypeView", () => {
     expect(screen.getByText("2026-01-01")).toBeInTheDocument();
   });
 
-  it("renders the id pill when workItemId is present", async () => {
+  it("renders the id pill as the server serves it", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
-      { ...mockEntries[0], workItemId: "PROJ-7" },
+      { ...mockEntries[0], workItemId: "PP-001" },
     ]);
     spyOnStructure();
     render(<LibraryTypeView type="plans" />, { wrapper: Wrapper });
     await screen.findByText("Foo Plan");
-    expect(screen.getByText("PROJ-0007")).toBeInTheDocument();
+    expect(screen.getByText("PP-001")).toBeInTheDocument();
+  });
+
+  it("filters on the project key the server serves", async () => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      { ...mockEntries[0], workItemId: "PP_0042", workItemKey: "PP" },
+      { ...mockEntries[1], workItemId: "XY_0001", workItemKey: "XY" },
+    ]);
+    const [phase] = baseStructure.phases;
+    const [plans] = phase.docTypes;
+    spyOnStructure({
+      ...baseStructure,
+      phases: [
+        {
+          ...phase,
+          docTypes: [
+            {
+              ...plans,
+              filterFacets: [
+                {
+                  id: "project",
+                  label: "Project",
+                  options: [
+                    { id: "PP", label: "PP", count: 1 },
+                    { id: "XY", label: "XY", count: 1 },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<LibraryTypeView type="plans" />, { wrapper: Wrapper });
+    await screen.findByText("Foo Plan");
+    await user.click(screen.getByRole("button", { name: /filter/i }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /PP/ }));
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("Foo Plan");
   });
 
   it("renders an em-dash when neither workItemId nor a valid date is present", async () => {
@@ -180,6 +223,7 @@ describe("LibraryTypeView", () => {
       {
         ...mockEntries[0],
         workItemId: null,
+        workItemKey: null,
         frontmatter: {},
       },
     ]);

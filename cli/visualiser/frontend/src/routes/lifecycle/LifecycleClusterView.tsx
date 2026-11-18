@@ -18,7 +18,6 @@ import { Glyph } from "../../components/Glyph/Glyph";
 import { Page } from "../../components/Page/Page";
 import { Pipeline } from "../../components/Pipeline/Pipeline";
 import { lifecycleClusterRoute } from "../../router";
-import { formatDocId } from "../library/doc-type-id";
 import { clusterViaLabel } from "./cluster-via-label";
 import { ClockIcon, LifecycleEyebrowIcon } from "./icons";
 import styles from "./LifecycleClusterView.module.css";
@@ -209,9 +208,7 @@ function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
     entry.frontmatterState === "parsed" ? entry.frontmatter.verdict : undefined;
   const fmDate =
     entry.frontmatterState === "parsed" ? entry.frontmatter.date : undefined;
-  const id = entry.workItemId
-    ? formatDocId(entry.workItemId)
-    : fileSlugFromRelPath(entry.relPath);
+  const id = entry.workItemId || fileSlugFromRelPath(entry.relPath);
   return (
     <li className={styles.step} data-stage={step.docType}>
       <span className={styles.stepNode}>

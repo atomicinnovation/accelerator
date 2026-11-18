@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use accelerator_visualiser::activity::Activity;
-use accelerator_visualiser::config::{
-    Config, RawWorkItemConfig, TemplateTiers,
-};
+use accelerator_visualiser::config::{Config, TemplateTiers};
 use accelerator_visualiser::server::{build_router, AppState};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use std::collections::HashMap;
 use tower::ServiceExt;
+use work::id_pattern::{IdKey, IdPattern};
+use work::id_scheme::IdScheme;
 
 fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
     config_for(
@@ -32,19 +32,21 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
                 "---\ntitle: Legacy Work Item\nstatus: todo\n---\n# body\n",
             ),
         ],
-        RawWorkItemConfig {
-            // Captures only the digit run; project code literal is outside group 1.
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        },
+        scheme("{project}-{number:04d}", Some("PROJ")),
+    )
+}
+
+fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+    IdScheme::under_any_tracker(
+        IdPattern::parse(pattern).unwrap(),
+        key.map(|key| IdKey::parse(key).unwrap()),
     )
 }
 
 fn config_for(
     tmp: &std::path::Path,
     files: &[(&str, &str)],
-    work_item: RawWorkItemConfig,
+    work_item: IdScheme,
 ) -> Config {
     let work = tmp.join("meta/work");
     std::fs::create_dir_all(&work).unwrap();
@@ -94,7 +96,9 @@ fn config_for(
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
-        work_item: Some(work_item),
+        work_item: accelerator_visualiser::config::WorkItemScheme::Configured(
+            work_item,
+        ),
         kanban_columns: None,
         idle_timeout: None,
         editor: None,
@@ -139,19 +143,15 @@ async fn tracker_pattern_keys_and_drafts_each_have_a_work_item_id() {
         &[
             (
                 "MY_PROJ-7-foo.md",
-                "---\nid: \"MY_PROJ-7\"\ntitle: Foo\n---\n",
+                "---\nid: \"MY_PROJ-7\"\nexternal_id: \"MY_PROJ-7\"\ntitle: Foo\n---\n",
             ),
-            ("ABC2-15-bar.md", "---\nid: \"ABC2-15\"\ntitle: Bar\n---\n"),
+            ("ABC2-15-bar.md", "---\nid: \"ABC2-15\"\nexternal_id: \"ABC2-15\"\ntitle: Bar\n---\n"),
             (
                 "draft-k7mq3x-baz.md",
                 "---\nid: \"draft-k7mq3x\"\ntitle: Baz\n---\n",
             ),
         ],
-        RawWorkItemConfig {
-            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
-            id_pattern: "{tracker}".to_string(),
-            key: None,
-        },
+        scheme("{tracker}", None),
     );
 
     assert_eq!(
@@ -166,17 +166,16 @@ async fn a_draft_awaiting_its_tracker_key_is_indexed_and_flagged_as_a_draft() {
     let cfg = config_for(
         tmp.path(),
         &[
-            ("PP-1-kept.md", "---\nid: \"PP-1\"\ntitle: Kept\n---\n"),
+            (
+                "PP-1-kept.md",
+                "---\nid: \"PP-1\"\nexternal_id: \"PP-1\"\ntitle: Kept\n---\n",
+            ),
             (
                 "drafts/draft-k7mq3x-idea.md",
                 "---\nid: \"draft-k7mq3x\"\ntitle: Idea\n---\n",
             ),
         ],
-        RawWorkItemConfig {
-            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
-            id_pattern: "{tracker}".to_string(),
-            key: None,
-        },
+        scheme("{tracker}", None),
     );
     let state = AppState::build(cfg, Arc::new(Activity::new()))
         .await
@@ -355,7 +354,7 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
-        work_item: None,
+        work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,
         idle_timeout: None,
         editor: None,
@@ -385,4 +384,36 @@ async fn default_numeric_pattern_indexes_bare_numeric_files() {
         .find(|d| d["workItemId"].as_str() == Some("0042"))
         .expect("0042-ship-it.md must be indexed with id '0042'");
     assert_eq!(entry["slug"], "ship-it");
+}
+
+#[tokio::test]
+async fn an_unreadable_scheme_still_serves_work_items_without_ids() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut cfg = config_for(
+        tmp.path(),
+        &[("0001-a.md", "---\nid: \"0001\"\ntitle: A\n---\n")],
+        scheme("{number:04d}", None),
+    );
+    cfg.work_item = accelerator_visualiser::config::WorkItemScheme::Unreadable(
+        "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad".into(),
+    );
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=work-items")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body = json_body(res).await;
+    let docs = body["docs"].as_array().expect("docs array");
+    assert_eq!(docs.len(), 1, "{body}");
+    assert!(docs[0]["workItemId"].is_null(), "{body}");
 }

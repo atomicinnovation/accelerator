@@ -199,7 +199,7 @@ fn a_non_rekey_command_begins_with_a_proposed_plan() {
     let begun = begin_identity_run(
         &lock,
         &plan(RunPlanGate::Clear, &events),
-        "next-number",
+        "id next",
         &no_wait,
     );
 

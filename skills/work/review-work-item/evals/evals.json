@@ -7,41 +7,93 @@
       "expected_output": "Responds with help text explaining how to invoke the skill. Should mention providing a work item path or work item number shorthand, give an example invocation, and reference /list-work-items as a way to discover work items. Should NOT attempt to run a review.",
       "files": [],
       "assertions": [
-        {"text": "mentions /list-work-items as a discovery tool"},
-        {"text": "shows an example invocation with a work item path or number"},
-        {"text": "does not attempt to run a review or read any work item file"},
-        {"text": "response is a help prompt rather than a question asking for more information"}
+        {
+          "text": "mentions /list-work-items as a discovery tool"
+        },
+        {
+          "text": "shows an example invocation with a work item path or number"
+        },
+        {
+          "text": "does not attempt to run a review or read any work item file"
+        },
+        {
+          "text": "response is a help prompt rather than a question asking for more information"
+        }
       ]
     },
     {
       "id": 2,
-      "prompt": "Please review the work item at meta/work/9999-nonexistent-work item.md",
-      "expected_output": "Reports that the work item does not exist at the given path. Should use phrasing like 'No work item at meta/work/9999-nonexistent-work item.md' and offer to run /list-work-items to find a valid work item path. Should NOT attempt to run a review against a nonexistent file.",
+      "prompt": "Read skills/work/review-work-item/SKILL.md fully. You are running the review-work-item skill. The user invokes: `/review-work-item meta/work/9999-nonexistent-work-item.md`.\n\nSimulate `accelerator work resolve meta/work/9999-nonexistent-work-item.md` exiting 3 with this stderr:\n\nError: no work item matches 'meta/work/9999-nonexistent-work-item.md'\n\nDo not spawn agents.\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command and every tool call (Read, Edit, Write, AskUserQuestion, Agent) you make, in order, in full, with its exit code or the answer given.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, with its new content or the edit's old and new text, or `none`.",
+      "expected_output": "Prints the resolver's no-match error naming the path, offers to run /list-work-items, and runs no review.",
       "files": [],
       "assertions": [
-        {"text": "response contains 'No work item at' followed by the path"},
-        {"text": "offers to run /list-work-items"},
-        {"text": "does not attempt to review or open the nonexistent file"}
+        {
+          "text": "response relays the resolver's no-match error, naming the path"
+        },
+        {
+          "text": "offers to run /list-work-items"
+        },
+        {
+          "text": "does not attempt to review or open the nonexistent file"
+        }
       ]
     },
     {
       "id": 3,
-      "prompt": "Please review the work item at skills/work/review-work-item/evals/files/full-review-flow/work-item.md\n\nProceed with all three lenses without waiting for confirmation. After the review is complete and the review file is written, also copy the review file to the outputs directory at the path you were given for outputs.",
-      "expected_output": "Runs the full review flow: reads the work item, spawns three reviewer agents in parallel (completeness, testability, clarity), aggregates findings, determines a verdict, presents the review summary, and writes a review artifact. The review file should have correct frontmatter (type: work-item-review, producer: review-work-item, lenses listing all three, target: \"work-item:<id>\", work_item_id as transitional alias, id quoted, schema_version: 1, producer/last_updated/last_updated_by populated). The legacy `skill:` key must not appear. The work item is a well-structured story so verdict should be APPROVE or COMMENT. Per-Lens Results section should be present.",
+      "prompt": "Read skills/work/review-work-item/SKILL.md fully. You are running the review-work-item skill. The user invokes: `/review-work-item 0042`.\n\nSimulate `accelerator work resolve 0042` exiting 0 with stdout `/repo/meta/work/0042-payment-refund-feature-flag.md`. That file's content is that of skills/work/review-work-item/evals/files/full-review-flow/work-item.md; read it there. No earlier review of it exists, and the config sets no lens restrictions. The user accepts the proposed lenses.\n\nDo not spawn agents: for each reviewer agent the skill would spawn, record the Agent call in commands.md with its lens, and write that reviewer's findings yourself, following its lens skill and output format. Write the review file the skill writes to outputs/review.md, and name the path it would have in files.md.\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command and every tool call (Read, Edit, Write, AskUserQuestion, Agent) you make, in order, in full, with its exit code or the answer given.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, with its new content or the edit's old and new text, or `none`.",
+      "expected_output": "Runs the full review flow: reads the work item, runs a reviewer for each of the five default lenses (clarity, completeness, dependency, scope, testability), aggregates findings, determines a verdict, presents the review summary, and writes a review artifact. The review file has correct frontmatter (type: work-item-review, producer: review-work-item, lenses listing all five, target: \"work-item:0042\", work_item_id as transitional alias, id quoted, schema_version: 1, producer/last_updated/last_updated_by populated). The legacy `skill:` key must not appear. The work item is a well-structured story so verdict should be APPROVE or COMMENT. Per-Lens Results section should be present.",
       "files": [],
       "assertions": [
-        {"text": "spawns three reviewer agents (completeness, testability, clarity)"},
-        {"text": "review file written with correct frontmatter (type: work-item-review, producer: review-work-item)"},
-        {"text": "review file frontmatter does NOT contain a literal `skill:` key"},
-        {"text": "target field has the form \"work-item:<4-digit-id>\""},
-        {"text": "work_item_id field carries the same 4-digit identifier as target"},
-        {"text": "id field is quoted as a YAML string"},
-        {"text": "schema_version is the bare integer 1"},
-        {"text": "producer, last_updated, last_updated_by fields are populated with non-empty values"},
-        {"text": "all three lenses listed in the lenses frontmatter field"},
-        {"text": "verdict is one of APPROVE, REVISE, or COMMENT"},
-        {"text": "review contains a Per-Lens Results section"},
-        {"text": "no critical findings for this well-structured work item"}
+        {
+          "text": "runs one reviewer per default lens: clarity, completeness, dependency, scope and testability"
+        },
+        {
+          "text": "review file written with correct frontmatter (type: work-item-review, producer: review-work-item)"
+        },
+        {
+          "text": "review file frontmatter does NOT contain a literal `skill:` key"
+        },
+        {
+          "text": "target field has the form \"work-item:<4-digit-id>\""
+        },
+        {
+          "text": "work_item_id field carries the same 4-digit identifier as target"
+        },
+        {
+          "text": "id field is quoted as a YAML string"
+        },
+        {
+          "text": "schema_version is the bare integer 1"
+        },
+        {
+          "text": "producer, last_updated, last_updated_by fields are populated with non-empty values"
+        },
+        {
+          "text": "all five lenses listed in the lenses frontmatter field"
+        },
+        {
+          "text": "verdict is one of APPROVE, REVISE, or COMMENT"
+        },
+        {
+          "text": "review contains a Per-Lens Results section"
+        },
+        {
+          "text": "no critical findings for this well-structured work item"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Read skills/work/review-work-item/SKILL.md fully. You are running the review-work-item skill. The user invokes: `/review-work-item 0041`.\n\nSimulate `accelerator work resolve 0041` exiting 4 with this stderr:\n\nError: E_REKEY_REQUIRED: 1 work item is not under the ID `work.id_pattern` '{number:05d}' gives them, such as meta/work/0041-search.md with `id` '0041'. Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them, then re-run this command\n\nDo not spawn agents.\n\nSimulate every `accelerator` call; where this prompt gives a call's output, use it exactly. Save to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, with its exit code.\n- response.md: everything you tell the user, in order.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill relays the E_REKEY_REQUIRED remedy as is and stops before any review.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "response.md relays the E_REKEY_REQUIRED message as given, including `/rekey-work-items`"
+        },
+        {
+          "text": "no review is run: response.md presents no lens findings and files.md is `none`"
+        }
       ]
     }
   ]

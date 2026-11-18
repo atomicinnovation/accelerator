@@ -118,6 +118,16 @@ def conformance(context: Context) -> None:
 
 
 @task
+def evals(context: Context) -> None:
+    """Hold the CLI output skill evals quote to what the CLI prints.
+
+    Runs against the accelerator-work built by the build:cli:work:dev
+    dependency.
+    """
+    context.run("uv run pytest tests/integration/evals -v")
+
+
+@task
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 

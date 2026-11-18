@@ -12,6 +12,7 @@ use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
+use work::id_scheme::IdScheme;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::RetirementFiles;
@@ -35,6 +36,7 @@ struct Directories<'a> {
 /// The corpus a retirement rewrites and the state it keeps beside it,
 /// whether or not an integration is configured.
 pub struct CorpusWorkspace {
+    scheme: IdScheme,
     work_dir: PathBuf,
     state_dir: PathBuf,
     roots: Vec<PathBuf>,
@@ -71,7 +73,10 @@ impl CorpusWorkspace {
     ) -> Result<Self, String> {
         let roots = crate::sync::corpus_roots(config, repo_root)
             .map_err(|error| error.to_string())?;
+        let scheme = crate::config::announced_scheme(config)
+            .map_err(|error| error.to_string())?;
         Ok(Self {
+            scheme,
             work_dir: work_dir.to_path_buf(),
             locks: LockdirLock::new(work_dir),
             recovery: FileRecoveryCopies::new(&state_dir, repo_root),
@@ -126,6 +131,7 @@ impl CorpusWorkspace {
             layout: CorpusLayout {
                 roots: &self.roots,
                 work_dir: &self.work_dir,
+                scheme: &self.scheme,
             },
             walker: &RealFs,
             status: &self.status,

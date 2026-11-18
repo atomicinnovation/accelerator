@@ -147,9 +147,8 @@
             ],
         )),
         // The whole work crate is domain (no adapter modules live in it); it
-        // additionally permits corpus for WorkItemIdScheme/IdScanner and
-        // tracker for the sync engine's RemoteTracker vocabulary, both
-        // zero-dependency port crates.
+        // additionally permits corpus's document vocabulary and ports and
+        // tracker's vocabulary, both zero-dependency crates.
         Module((
             name: "work_domain_imports_only_permitted",
             matches: Module("^work($|::)"),
@@ -168,7 +167,8 @@
             ],
         )),
         // The whole tracker crate is domain: the port a remote issue tracker
-        // satisfies, and nothing else. Unlike its sibling domain rules it
+        // satisfies and the vocabulary trackers speak, tracker-key shape
+        // included. Unlike its sibling domain rules it
         // omits the kernel::Error allowance — the crate declares no
         // dependencies, so that import could not compile.
         Module((
@@ -594,8 +594,9 @@
         )),
         // The whole migrate crate is domain (no adapter modules live in it).
         // Unlike corpus/vcs, it also reuses `corpus`'s own `Record`/
-        // `RecordStore`/`linkage` directly (its session log is a
-        // `corpus`-typed record, not a new record type) — a narrow, justified
+        // `RecordStore`/`linkage` and its `LinkageIds` port directly (its
+        // session log is a `corpus`-typed record, not a new record type, and
+        // m0007 extracts linkage as `corpus` does) — a narrow, justified
         // widening beyond the std/kernel::Error/crate baseline every other
         // domain crate here is held to. `config`/`vcs` and frontmatter YAML
         // stay excluded: migrate reaches them only through its own

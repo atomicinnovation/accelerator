@@ -110,7 +110,7 @@ fn request() -> RequestFingerprint {
 }
 
 fn tracker_key() -> Result<TrackerKey, TestError> {
-    Ok(TrackerKey::parse("ENG-42").ok_or("a tracker key")?)
+    Ok(TrackerKey::parse_any_supported("ENG-42").ok_or("a tracker key")?)
 }
 
 fn draft() -> Result<DraftId, TestError> {
@@ -143,7 +143,10 @@ fn retiring() -> Result<PromotionStage, TestError> {
                 fingerprints: None,
             },
         }),
-        recovery_dir: PathBuf::from("retirement-recovery/draft-k3x9mq--ENG-42"),
+        recovery_dir: work::retirement::RecoveryDir::parse(
+            std::path::Path::new("retirement-recovery/draft-k3x9mq--ENG-42"),
+        )
+        .unwrap_or_else(|| unreachable!("a recovery directory")),
         before: Box::new(created()?),
     })
 }
@@ -194,7 +197,7 @@ fn an_outstanding_retirement_record_blocks_naming_its_old_id(
         old_id: "PP-760",
         new_id: "ENG-42",
         new_external_id: Some("ENG-42"),
-    }))?;
+    })?)?;
 
     let blockers = with_sync_state(&repo, true, unfinished_sync_work);
 
@@ -217,10 +220,52 @@ fn a_malformed_retirement_record_blocks() -> Result<(), TestError> {
 
     let blockers = with_sync_state(&repo, false, unfinished_sync_work);
 
-    assert!(
-        matches!(blockers.as_slice(), [SyncBlocker::UnreadableRecord(_)]),
-        "{blockers:?}"
+    assert_eq!(
+        blockers,
+        vec![SyncBlocker::UnreadableRecord(dir.join("PP-1--ENG-1.json"))]
     );
+    Ok(())
+}
+
+#[test]
+fn every_unreadable_retirement_record_blocks() -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let dir = repo.state().join("retirement-records");
+    fs::create_dir_all(dir.join("PP-2--ENG-2.json"))?;
+    fs::write(dir.join("PP-1--ENG-1.json"), "{")?;
+    repo.records().save(&RetirementRecord::of(&Retirement {
+        old_id: "PP-760",
+        new_id: "ENG-42",
+        new_external_id: Some("ENG-42"),
+    })?)?;
+
+    let blockers = with_sync_state(&repo, false, unfinished_sync_work);
+
+    assert_eq!(
+        blockers,
+        vec![
+            SyncBlocker::UnreadableRecord(dir.join("PP-1--ENG-1.json")),
+            SyncBlocker::UnreadableRecord(dir.join("PP-2--ENG-2.json")),
+            SyncBlocker::Retirement {
+                old: "PP-760".to_owned(),
+                new: "ENG-42".to_owned(),
+            },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_records_directory_that_cannot_be_listed_blocks_as_one(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let dir = repo.state().join("retirement-records");
+    fs::create_dir_all(repo.state())?;
+    fs::write(&dir, "not a directory")?;
+
+    let blockers = with_sync_state(&repo, false, unfinished_sync_work);
+
+    assert_eq!(blockers, vec![SyncBlocker::UnlistableRecords(dir)]);
     Ok(())
 }
 

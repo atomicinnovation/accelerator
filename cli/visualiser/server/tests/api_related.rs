@@ -66,7 +66,7 @@ fn cfg_with_only(
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
-        work_item: None,
+        work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,
         idle_timeout: None,
         editor: None,
@@ -395,14 +395,15 @@ async fn related_endpoint_recovers_after_target_creation() {
     state.indexer.rescan().await.unwrap();
     {
         let snapshot = state.indexer.all().await;
-        let wbi = state.indexer.work_item_by_id_snapshot().await;
+        let wbi = state.indexer.work_item_by_identity_key_snapshot().await;
         let pbi = state.indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = state.indexer.work_item_cfg();
         let ctx = ClusterContext::from_entries(
             &snapshot,
             &wbi,
             &pbi,
             state.indexer.project_root(),
-            state.indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         *state.clusters.write().await = compute_clusters(&snapshot, &ctx);
     }
@@ -674,12 +675,6 @@ async fn linked_count_reflects_inbound_merge_dedup() {
 // ── RCA inbound linkage (work item 0110, AC #5) ─────────────────────────────
 #[tokio::test]
 async fn related_endpoint_surfaces_rca_linked_to_a_work_item() {
-    // An RCA whose frontmatter links to a work item (via `parent:`) appears in
-    // that work item's declaredInbound through work_item_refs_by_id, with
-    // docType `root-cause-analyses` — the server half of AC #5. `parent:` uses
-    // the bare-numeric form because `canonicalise_one_id` only resolves
-    // bare-numeric / project-prefixed refs (not the `work-item:` typed prefix)
-    // for the aggregating `parent:`/`related:` keys.
     let tmp = tempfile::tempdir().unwrap();
     let work = tmp.path().join("meta/work");
     let issues = tmp.path().join("meta/research/issues");
@@ -739,4 +734,113 @@ async fn related_endpoint_validates_decoded_path_segments() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::FORBIDDEN);
+}
+
+fn pp_scheme() -> work::id_scheme::IdScheme {
+    work::id_scheme::IdScheme::under_any_tracker(
+        work::id_pattern::IdPattern::parse("{key}-{number:04d}").unwrap(),
+        Some(work::id_pattern::IdKey::parse("PP").unwrap()),
+    )
+}
+
+async fn inbound_rel_paths(cfg: Config, path: &str) -> Vec<String> {
+    let (_state, app) = build_app(cfg).await;
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/related/{path}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = json_body(res).await;
+    let mut paths: Vec<String> = body["declaredInbound"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["relPath"].as_str().unwrap().to_owned())
+        .collect();
+    paths.sort();
+    paths
+}
+
+fn pp_0500_project(tmp: &std::path::Path, item: &str) -> Config {
+    let work = tmp.join("meta/work");
+    let plans = tmp.join("meta/plans");
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::create_dir_all(&plans).unwrap();
+    std::fs::write(work.join("pp-0500-x.md"), item).unwrap();
+    std::fs::write(
+        plans.join("2026-01-01-a.md"),
+        "---\ntitle: A\nparent: \"work-item:pp-0500\"\n---\n",
+    )
+    .unwrap();
+    std::fs::write(
+        plans.join("2026-01-02-b.md"),
+        "---\ntitle: B\nparent: \"work-item:PP-500\"\n---\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), work);
+    paths.insert("plans".into(), plans);
+    let mut cfg = cfg_with_only(tmp, paths);
+    cfg.work_item =
+        accelerator_visualiser::config::WorkItemScheme::Configured(pp_scheme());
+    cfg
+}
+
+#[tokio::test]
+async fn related_items_find_inbound_references_by_any_spelling() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = pp_0500_project(tmp.path(), "---\nid: pp-0500\ntitle: X\n---\n");
+
+    assert_eq!(
+        inbound_rel_paths(cfg, "meta/work/pp-0500-x.md").await,
+        vec!["meta/plans/2026-01-01-a.md", "meta/plans/2026-01-02-b.md"]
+    );
+}
+
+#[tokio::test]
+async fn an_item_naming_itself_in_another_spelling_is_not_its_own_referrer() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = pp_0500_project(
+        tmp.path(),
+        "---\nid: pp-0500\ntitle: X\nparent: PP-500\n---\n",
+    );
+
+    let inbound = inbound_rel_paths(cfg, "meta/work/pp-0500-x.md").await;
+
+    assert!(
+        !inbound.contains(&"meta/work/pp-0500-x.md".to_owned()),
+        "{inbound:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_related_work_item_reference_is_an_inbound_link() {
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("meta/work");
+    let plans = tmp.path().join("meta/plans");
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::create_dir_all(&plans).unwrap();
+    std::fs::write(work.join("PP-0500-x.md"), "---\nid: PP-0500\n---\n")
+        .unwrap();
+    std::fs::write(
+        plans.join("2026-01-01-a.md"),
+        "---\ntitle: A\nrelated: [\"work-item:pp-500\"]\n---\n",
+    )
+    .unwrap();
+    let mut paths = HashMap::new();
+    paths.insert("work".into(), work);
+    paths.insert("plans".into(), plans);
+    let mut cfg = cfg_with_only(tmp.path(), paths);
+    cfg.work_item =
+        accelerator_visualiser::config::WorkItemScheme::Configured(pp_scheme());
+
+    assert_eq!(
+        inbound_rel_paths(cfg, "meta/work/PP-0500-x.md").await,
+        vec!["meta/plans/2026-01-01-a.md"]
+    );
 }

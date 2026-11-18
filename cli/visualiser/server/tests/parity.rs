@@ -22,9 +22,8 @@ use corpus::DocTypeKey;
 #[test]
 fn slug_and_id_conventions_are_pinned() {
     let cfg = WorkItemConfig::default_numeric();
-    let derive = |kind, f: &str| {
-        corpus::slug::derive(kind, f, cfg.scheme(), cfg.scanner())
-    };
+    let derive =
+        |kind, f: &str| corpus::slug::derive(kind, f, cfg.convention());
     assert_eq!(
         derive(DocTypeKey::WorkItems, "0042-ship-it.md").as_deref(),
         Some("ship-it")
@@ -34,18 +33,19 @@ fn slug_and_id_conventions_are_pinned() {
         Some("some-choice")
     );
     assert_eq!(
-        corpus::slug::derive_work_item("0007-thing.md", cfg.scanner())
+        corpus::slug::derive_work_item("0007-thing.md", cfg.convention())
             .as_deref(),
         Some("thing")
     );
     assert_eq!(corpus::slug::humanise_slug("2026-07-23-my-note"), "My Note");
 
-    assert_eq!(cfg.extract_id("0042-x.md").as_deref(), Some("0042"));
-    assert_eq!(cfg.extract_id("no-id.md"), None);
-    assert_eq!(cfg.normalise_id("  42  ").as_deref(), Some("42"));
-    assert_eq!(cfg.normalise_id("ENG-7").as_deref(), Some("ENG-7"));
-    assert!(cfg.is_canonical_id_token("0042"));
-    assert!(!cfg.is_canonical_id_token("42"));
+    assert_eq!(
+        cfg.convention().id_in_filename("0042-x.md").as_deref(),
+        Some("0042")
+    );
+    assert_eq!(cfg.convention().id_in_filename("no-id.md"), None);
+    assert_eq!(cfg.displayed_id("  42  ").as_deref(), Some("0042"));
+    assert_eq!(cfg.displayed_id("ENG-7"), None);
 }
 
 /// The doc-type wire token and config-path key are the load-bearing SPA/config
@@ -187,6 +187,8 @@ fn entry(
         rel_path: PathBuf::from(path),
         slug: Some(slug.to_string()),
         work_item_id: None,
+        work_item_key: None,
+        identity_key: None,
         draft: false,
         title: slug.to_string(),
         frontmatter,
@@ -216,6 +218,7 @@ fn clustering_typed_linkage_is_pinned() {
         serde_json::Value::Null,
     );
     wi.work_item_id = Some("0040".to_string());
+    wi.identity_key = Some("0040".to_string());
     let plan = entry(
         DocTypeKey::Plans,
         "/repo/meta/plans/2026-05-31-0040-pipeline.md",
@@ -230,7 +233,7 @@ fn clustering_typed_linkage_is_pinned() {
     );
     let entries = vec![wi, plan, note];
 
-    let work_item_by_id: HashMap<String, PathBuf> = [(
+    let work_item_by_identity_key: HashMap<String, PathBuf> = [(
         "0040".to_string(),
         PathBuf::from("/repo/meta/work/0040-pipeline.md"),
     )]
@@ -240,7 +243,7 @@ fn clustering_typed_linkage_is_pinned() {
     let root = PathBuf::from("/repo");
     let ctx = ClusterContext::from_entries(
         &entries,
-        &work_item_by_id,
+        &work_item_by_identity_key,
         &plans_by_id,
         &root,
         &cfg,

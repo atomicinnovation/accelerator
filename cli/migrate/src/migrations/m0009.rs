@@ -59,7 +59,8 @@ impl Migration for Migration0009 {
             ctx.config_value("work.integration")?.unwrap_or_default();
         let id_pattern =
             ctx.config_value("work.id_pattern")?.unwrap_or_default();
-        let pattern_uses_prefix = corpus::references_key(&id_pattern);
+        let pattern_uses_prefix =
+            crate::legacy_ids::references_key(&id_pattern);
 
         let legacy_pinned =
             ctx.configured_path_override("work.default_project_code")?;

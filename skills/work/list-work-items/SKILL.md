@@ -132,10 +132,10 @@ accelerator work list \
 The CLI does everything the previous scan/filter/render steps did, so there
 is nothing to reconstruct in prose:
 
-- **Scan and validity.** It reads every `*.md` file in the work directory
-  and in its `drafts/` subdirectory, treats a file as a work item only when
-  it has closed frontmatter and a non-empty `id` (or legacy `work_item_id`),
-  silently excludes non-items, and warns
+- **Scan and validity.** It reads every `.md` file (in any case) in the
+  work directory and in its `drafts/` subdirectory, treats a file as a work
+  item only when it has closed frontmatter and a non-empty `id` (or legacy
+  `work_item_id`), silently excludes non-items, and warns
   `"<filename>: skipped — no frontmatter"` / `"… unclosed frontmatter"` on
   malformed files. The frontmatter `id` is the displayed ID.
 - **Drafts.** A draft item lives in `drafts/` under a provisional
@@ -171,10 +171,18 @@ NNNN — parent title (kind: <kind>, status: <status>)
   └── NNNN — last child title (kind: <kind>, status: <status>)
 <!-- /canonical-tree-fence -->
 
-- **Empty and missing.** A directory that does not exist prints the
+- **Empty and missing.** A malformed `work.id_pattern` or `work.key` is
+  reported first, with exit 1, even when the directory does not exist;
+  relay it as is. Otherwise a directory that does not exist prints the
   `paths.work` guidance and exits 0; an empty directory prints `No work
   items found in …`; a filter that matches nothing prints `No work items
   matched: …` rather than an empty table.
+- **An untrusted corpus.** While an item's `id` is off `work.id_pattern`
+  (`E_REKEY_REQUIRED`) or a work-item file's IDs cannot be read
+  (`E_WORK_ITEM_MALFORMED`), the CLI still lists the items and exits 0,
+  printing a `warning:` line on stderr naming the problem and its fix. Show
+  the listing, then relay that warning's remedy as is, saying that creating
+  or resolving items is refused until it is followed.
 
 Print the CLI's stdout to the user as-is (it is markdown-native — a table or
 tree the conversation renders directly), and surface any stderr warnings it

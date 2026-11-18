@@ -72,6 +72,8 @@ dependencies = [
  "tempfile",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
+ "work-adapters",
 ]
 
 [[package]]
@@ -111,6 +113,7 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
  "work-adapters",
 ]
 
@@ -205,6 +208,9 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "tracker",
+ "work",
+ "work-adapters",
 ]
 
 [[package]]
@@ -920,7 +926,6 @@ dependencies = [
  "corpus",
  "document",
  "kernel",
- "regex",
  "serde_json",
  "store",
  "tempfile",
@@ -3400,6 +3405,8 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work",
+ "work-adapters",
 ]
 
 [[package]]
@@ -5264,7 +5271,6 @@ name = "tracker-support"
 version = "1.24.0-pre.103"
 dependencies = [
  "config",
- "corpus",
  "tracker",
 ]
 
@@ -5903,6 +5909,7 @@ version = "1.24.0-pre.103"
 dependencies = [
  "corpus",
  "kernel",
+ "regex",
  "serde_json",
  "tracker",
 ]

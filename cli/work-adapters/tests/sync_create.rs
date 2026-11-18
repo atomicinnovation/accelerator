@@ -3487,7 +3487,9 @@ fn run_ordered(
 }
 
 fn adopt(key: &str) -> PendingPushOrder {
-    PendingPushOrder::Adopt(TrackerKey::parse(key).expect("a tracker key"))
+    PendingPushOrder::Adopt(
+        TrackerKey::parse_any_supported(key).expect("a tracker key"),
+    )
 }
 
 fn orders(

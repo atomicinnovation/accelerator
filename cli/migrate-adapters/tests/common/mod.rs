@@ -5,12 +5,14 @@ use config::ConfigError;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
-use corpus_adapters::PatternCanonicaliser;
 use corpus_adapters::RealFs;
 use corpus_adapters::YamlFrontmatter;
 use migrate::ports::MigrationError;
 use migrate::ports::SyncBaselines;
+use migrate::ports::WorkItemIdentity;
 use migrate_adapters::context::Capabilities;
+use work_adapters::config::scheme_from_settings_under_any_tracker;
+use work_adapters::config::KeySource;
 
 pub struct NoBaselines;
 
@@ -21,6 +23,30 @@ impl SyncBaselines for NoBaselines {
         _pre_migration: &[(PathBuf, String)],
     ) -> Result<usize, MigrationError> {
         Ok(0)
+    }
+}
+
+pub struct WorkIdentity;
+
+fn failure(error: &impl ToString) -> MigrationError {
+    MigrationError::new(error.to_string())
+}
+
+impl WorkItemIdentity for WorkIdentity {
+    fn canonicalise(
+        &self,
+        raw: &str,
+        pattern: &str,
+        key: Option<&str>,
+    ) -> Result<String, MigrationError> {
+        scheme_from_settings_under_any_tracker(
+            pattern,
+            key,
+            KeySource::LegacyDefaultProjectCode,
+        )
+        .map_err(|error| failure(&error))?
+        .canonicalise(raw)
+        .map_err(|error| failure(&error))
     }
 }
 
@@ -46,7 +72,7 @@ impl Composition {
             walker: &RealFs,
             reader: &RealFs,
             frontmatter: &YamlFrontmatter,
-            canonicaliser: &PatternCanonicaliser,
+            identity: &WorkIdentity,
             sync_baselines: &NoBaselines,
             version_control: None,
         }

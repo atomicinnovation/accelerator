@@ -2,6 +2,8 @@
 //! in-process section diffing, and VCS-derived authorship.
 
 pub mod author;
+pub mod config;
+pub mod corpus_trust;
 pub mod create_request_fields;
 pub mod creation;
 pub mod diff;

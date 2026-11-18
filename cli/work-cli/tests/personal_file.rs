@@ -86,11 +86,11 @@ fn every_writer_refuses_and_writes_nothing() -> Result<(), TestError> {
 }
 
 #[test]
-fn next_number_still_runs_with_an_insecure_personal_file(
-) -> Result<(), TestError> {
+fn id_next_still_runs_with_an_insecure_personal_file() -> Result<(), TestError>
+{
     let repo = insecure_repo()?;
 
-    let output = run(repo.path(), &["next-number"])?;
+    let output = run(repo.path(), &["id", "next"])?;
 
     let stderr = String::from_utf8(output.stderr)?;
     assert_eq!(output.status.code(), Some(0), "{stderr}");

@@ -6,15 +6,25 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::draft_id::DraftIdExhausted;
+use crate::id_pattern::escaped;
+use crate::id_reading::unclassifiable::UnclassifiableCause;
 use crate::rekey::entry::RekeyEntry;
 use crate::rekey::fingerprint::Staleness;
 use crate::rekey::run_plan::Unreadability;
 use crate::rekey::run_plan::UnreadablePlan;
 use crate::rekey::write_set::Base;
 use crate::rekey::write_set::Unreverted;
-use crate::retirement::relative_to;
 use crate::retirement::RetirementCause;
 use crate::retirement::RetirementRefusal;
+use crate::shown_path::relative_to;
+
+/// The `external_id` a re-key target would read as, and `work.key` when it
+/// is the tracker's own key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkedClash {
+    pub external_id: String,
+    pub shared_key: Option<String>,
+}
 
 /// The process holding the identity-run lock.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +39,7 @@ pub enum SyncBlocker {
     Retirement { old: String, new: String },
     Promotion { draft: String },
     UnreadableRecord(PathBuf),
+    UnlistableRecords(PathBuf),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,8 +58,12 @@ pub enum NotRekeyed {
         first: PathBuf,
         second: PathBuf,
         target: String,
+        linked: Option<LinkedClash>,
     },
-    Unclassifiable(PathBuf),
+    Unclassifiable {
+        item: PathBuf,
+        cause: UnclassifiableCause,
+    },
     FreshNumbersExhausted {
         needed: u64,
         remaining: u64,
@@ -119,6 +134,9 @@ impl NotRekeyed {
                         SyncBlocker::UnreadableRecord(path) => {
                             SyncBlocker::UnreadableRecord(under(path))
                         }
+                        SyncBlocker::UnlistableRecords(path) => {
+                            SyncBlocker::UnlistableRecords(under(path))
+                        }
                         other => other,
                     })
                     .collect(),
@@ -128,12 +146,17 @@ impl NotRekeyed {
                 first,
                 second,
                 target,
+                linked,
             } => Self::Collision {
                 first: under(first),
                 second: under(second),
                 target,
+                linked,
             },
-            Self::Unclassifiable(path) => Self::Unclassifiable(under(path)),
+            Self::Unclassifiable { item, cause } => Self::Unclassifiable {
+                item: under(item),
+                cause,
+            },
             Self::KeptNumberAboveCap {
                 item,
                 number,
@@ -181,7 +204,7 @@ impl NotRekeyed {
             Self::SyncUnfinished(_) => "E_REKEY_SYNC_UNFINISHED",
             Self::PendingPush(_) => "E_REKEY_PENDING_PUSH",
             Self::Collision { .. } => "E_REKEY_ID_COLLISION",
-            Self::Unclassifiable(_) => "E_REKEY_UNCLASSIFIABLE_ID",
+            Self::Unclassifiable { .. } => "E_REKEY_UNCLASSIFIABLE_ID",
             Self::FreshNumbersExhausted { .. }
             | Self::KeptNumberAboveCap { .. } => {
                 "E_REKEY_NUMBER_SPACE_EXHAUSTED"
@@ -240,15 +263,9 @@ impl NotRekeyed {
                 first,
                 second,
                 target,
-            } => format!(
-                "{target} is claimed by both {} and {}",
-                first.display(),
-                second.display()
-            ),
-            Self::Unclassifiable(item) => format!(
-                "{} has an `id` of no numeric or tracker shape",
-                item.display()
-            ),
+                linked,
+            } => collision(first, second, target, linked.as_ref()),
+            Self::Unclassifiable { item, cause } => cause.describe(item),
             Self::FreshNumbersExhausted { pattern, .. } => format!(
                 "re-keying needs more fresh numbers than `{pattern}` has left"
             ),
@@ -346,16 +363,12 @@ impl NotRekeyed {
                  an existing alias (rename one item); restore from a named \
                  `RESTORE-PENDING` directory before removing it"
                 .to_owned(),
-            Self::SyncUnfinished(_) => "Run `accelerator work sync`".to_owned(),
+            Self::SyncUnfinished(blockers) => sync_unfinished_remedy(blockers),
             Self::PendingPush(_) => {
                 "Run `accelerator work sync` to settle the push".to_owned()
             }
-            Self::Collision { .. } => {
-                "Rename or merge one of the named items".to_owned()
-            }
-            Self::Unclassifiable(_) => {
-                "Give the item a numeric or tracker-shaped `id`".to_owned()
-            }
+            Self::Collision { linked, .. } => collision_remedy(linked.as_ref()),
+            Self::Unclassifiable { cause, .. } => cause.remedy(),
             Self::FreshNumbersExhausted {
                 needed,
                 remaining,
@@ -466,6 +479,22 @@ fn still_running(holder: Option<&Holder>) -> String {
     }
 }
 
+fn sync_unfinished_remedy(blockers: &[SyncBlocker]) -> String {
+    let any = |wanted: fn(&SyncBlocker) -> bool| blockers.iter().any(wanted);
+    if any(|blocker| matches!(blocker, SyncBlocker::UnlistableRecords(_))) {
+        "Make `retirement-records/` readable, then run `accelerator work sync`"
+            .to_owned()
+    } else if any(|blocker| matches!(blocker, SyncBlocker::UnreadableRecord(_)))
+    {
+        "`accelerator work sync` cannot read these records either: rename \
+         each one so its name no longer ends in `.json`, or move it out of \
+         `retirement-records/`, then run `accelerator work sync`"
+            .to_owned()
+    } else {
+        "Run `accelerator work sync`".to_owned()
+    }
+}
+
 fn blocker_line(blocker: &SyncBlocker) -> String {
     match blocker {
         SyncBlocker::Retirement { old, new } => {
@@ -473,8 +502,12 @@ fn blocker_line(blocker: &SyncBlocker) -> String {
         }
         SyncBlocker::Promotion { draft } => format!("promoting {draft}"),
         SyncBlocker::UnreadableRecord(path) => {
-            format!("unreadable record {}", path.display())
+            format!("unreadable record {}", escaped(&path.to_string_lossy()))
         }
+        SyncBlocker::UnlistableRecords(dir) => format!(
+            "records directory {} cannot be listed",
+            escaped(&dir.to_string_lossy())
+        ),
     }
 }
 
@@ -523,6 +556,45 @@ impl fmt::Display for NotRekeyed {
 
 impl std::error::Error for NotRekeyed {}
 
+fn shown(path: &Path) -> String {
+    escaped(&path.to_string_lossy())
+}
+
+fn collision(
+    first: &Path,
+    second: &Path,
+    target: &str,
+    linked: Option<&LinkedClash>,
+) -> String {
+    let (first, second, target) =
+        (shown(first), shown(second), escaped(target));
+    match linked {
+        Some(LinkedClash {
+            external_id,
+            shared_key: Some(key),
+        }) => format!(
+            "{first}'s target {target} would read as {second}'s linked \
+             tracker key {}, because `work.key` `{}` is the tracker's own key",
+            escaped(external_id),
+            escaped(key)
+        ),
+        _ => format!("{target} is claimed by both {first} and {second}"),
+    }
+}
+
+fn collision_remedy(linked: Option<&LinkedClash>) -> String {
+    match linked {
+        Some(LinkedClash {
+            shared_key: Some(_),
+            ..
+        }) => "Either choose a `work.key` the tracker does not use, or set \
+               `work.id_pattern` to `{tracker}` if items should carry the \
+               tracker's keys"
+            .to_owned(),
+        _ => "Rename or merge one of the named items".to_owned(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // DSL pattern strings such as "{number:04d}" are literal token markers,
@@ -539,8 +611,10 @@ mod tests {
     use corpus::StoreError;
 
     use super::Holder;
+    use super::LinkedClash;
     use super::NotRekeyed;
     use super::SyncBlocker;
+    use super::UnclassifiableCause;
     use crate::draft_id::DraftIdExhausted;
     use crate::identity::IdentityField;
     use crate::rekey::entry::RekeyEntry;
@@ -596,7 +670,7 @@ mod tests {
             | NotRekeyed::SyncUnfinished(_)
             | NotRekeyed::PendingPush(_)
             | NotRekeyed::Collision { .. }
-            | NotRekeyed::Unclassifiable(_)
+            | NotRekeyed::Unclassifiable { .. }
             | NotRekeyed::FreshNumbersExhausted { .. }
             | NotRekeyed::KeptNumberAboveCap { .. }
             | NotRekeyed::TargetExists(_)
@@ -617,7 +691,13 @@ mod tests {
 
     /// Every remedy form, each with a fragment of the remedy it must print.
     fn every_remedy() -> Vec<(NotRekeyed, &'static str)> {
-        [plan_remedies(), corpus_remedies(), run_remedies()].concat()
+        [
+            plan_remedies(),
+            corpus_remedies(),
+            unclassifiable_remedies(),
+            run_remedies(),
+        ]
+        .concat()
     }
 
     fn plan_remedies() -> Vec<(NotRekeyed, &'static str)> {
@@ -675,6 +755,33 @@ mod tests {
         ]
     }
 
+    fn unclassifiable_remedies() -> Vec<(NotRekeyed, &'static str)> {
+        vec![
+            (
+                NotRekeyed::Unclassifiable {
+                    item: path("meta/work/notes.md"),
+                    cause: UnclassifiableCause::NoNumber {
+                        id: "notes".to_owned(),
+                    },
+                },
+                "Give the item an `id` in the shape of `work.id_pattern`",
+            ),
+            (
+                NotRekeyed::Unclassifiable {
+                    item: path("meta/work/12345-x.md"),
+                    cause: UnclassifiableCause::NumberAboveCap {
+                        id: "12345".to_owned(),
+                        number: 12_345,
+                        cap: 9999,
+                    },
+                },
+                "Widen `work.id_pattern` to hold 12345, after which re-key \
+                 renames every item to the wider pattern, or give this one \
+                 item an `id` in its shape and update the references to it",
+            ),
+        ]
+    }
+
     fn corpus_remedies() -> Vec<(NotRekeyed, &'static str)> {
         vec![
             (
@@ -697,6 +804,22 @@ mod tests {
                     },
                     SyncBlocker::UnreadableRecord(path("records/x.json")),
                 ]),
+                "`accelerator work sync` cannot read these records either: \
+                 rename each one so its name no longer ends in `.json`, or \
+                 move it out of `retirement-records/`, then run \
+                 `accelerator work sync`",
+            ),
+            (
+                NotRekeyed::SyncUnfinished(vec![
+                    SyncBlocker::UnlistableRecords(path("retirement-records")),
+                ]),
+                "Make `retirement-records/` readable, then run `accelerator \
+                 work sync`",
+            ),
+            (
+                NotRekeyed::SyncUnfinished(vec![SyncBlocker::Promotion {
+                    draft: "draft-k3x9mq".to_owned(),
+                }]),
                 "Run `accelerator work sync`",
             ),
             (
@@ -708,12 +831,23 @@ mod tests {
                     first: path("meta/work/0042-a.md"),
                     second: path("meta/work/ACC-0042-b.md"),
                     target: "ACC-0042".to_owned(),
+                    linked: None,
                 },
                 "Rename or merge one of the named items",
             ),
             (
-                NotRekeyed::Unclassifiable(path("meta/work/notes.md")),
-                "Give the item a numeric or tracker-shaped `id`",
+                NotRekeyed::Collision {
+                    first: path("meta/work/0043-a.md"),
+                    second: path("meta/work/0021-b.md"),
+                    target: "PP-0043".to_owned(),
+                    linked: Some(LinkedClash {
+                        external_id: "PP-43".to_owned(),
+                        shared_key: Some("PP".to_owned()),
+                    }),
+                },
+                "Either choose a `work.key` the tracker does not use, or set \
+                 `work.id_pattern` to `{tracker}` if items should carry the \
+                 tracker's keys",
             ),
             (
                 NotRekeyed::FreshNumbersExhausted {
@@ -882,13 +1016,22 @@ mod tests {
             NotRekeyed::SyncUnfinished(vec![SyncBlocker::UnreadableRecord(
                 at(".accelerator/state/retirements"),
             )]),
+            NotRekeyed::SyncUnfinished(vec![SyncBlocker::UnlistableRecords(
+                at(".accelerator/state/retirement-records"),
+            )]),
             NotRekeyed::PendingPush(vec![item()]),
             NotRekeyed::Collision {
                 first: item(),
                 second: at("meta/work/ACC-0042-b.md"),
                 target: "ACC-0042".to_owned(),
+                linked: None,
             },
-            NotRekeyed::Unclassifiable(item()),
+            NotRekeyed::Unclassifiable {
+                item: item(),
+                cause: UnclassifiableCause::NoNumber {
+                    id: "notes".to_owned(),
+                },
+            },
             NotRekeyed::KeptNumberAboveCap {
                 item: item(),
                 number: 12_345,
@@ -946,6 +1089,25 @@ mod tests {
     }
 
     #[test]
+    fn a_sync_blockers_path_is_escaped() {
+        let rendered = NotRekeyed::SyncUnfinished(vec![
+            SyncBlocker::UnreadableRecord(path("records/a\nb.json")),
+            SyncBlocker::UnlistableRecords(path("records\u{1b}")),
+        ])
+        .to_string();
+
+        assert!(
+            rendered.contains("  unreadable record records/aU+000Ab.json"),
+            "{rendered}"
+        );
+        assert!(
+            rendered
+                .contains("  records directory recordsU+001B cannot be listed"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
     fn a_malformed_plan_remedy_never_suggests_finishing_or_deleting_files() {
         let rendered = malformed().to_string();
         for forbidden in ["to finish", "delete", "remove"] {
@@ -979,5 +1141,67 @@ mod tests {
         ] {
             assert!(rendered.contains(listed), "{listed}\n---\n{rendered}");
         }
+    }
+
+    #[test]
+    fn an_unclassifiable_id_names_its_cause() {
+        let refused = |cause: UnclassifiableCause| {
+            NotRekeyed::Unclassifiable {
+                item: path("meta/work/x.md"),
+                cause,
+            }
+            .to_string()
+        };
+        let ambiguous = refused(UnclassifiableCause::AmbiguousDigitRuns {
+            id: "PP2_0001".to_owned(),
+            example: Some("PP-0001".to_owned()),
+        });
+        let no_number = refused(UnclassifiableCause::NoNumber {
+            id: "notes".to_owned(),
+        });
+        let escaping = refused(UnclassifiableCause::ForbiddenCharacter {
+            id: "a/b/0001".to_owned(),
+        });
+        let unkeyed = refused(UnclassifiableCause::ExternalIdNotATrackerKey {
+            external_id: "not a key".to_owned(),
+        });
+        let control = refused(UnclassifiableCause::ForbiddenCharacter {
+            id: "x\u{1b}[H0001".to_owned(),
+        });
+
+        assert!(ambiguous.contains("'PP2_0001'"), "{ambiguous}");
+        assert!(ambiguous.contains("digit runs"), "{ambiguous}");
+        assert!(ambiguous.contains("such as `PP-0001`"), "{ambiguous}");
+        assert!(
+            no_number.contains("'notes', which holds no number"),
+            "{no_number}"
+        );
+        assert!(
+            escaping.contains(
+                "'a/b/0001', which holds a character other than an ASCII \
+                 letter, digit, `.`, `_` or `-`"
+            ),
+            "{escaping}"
+        );
+        assert!(unkeyed.contains("`external_id` 'not a key'"), "{unkeyed}");
+        assert!(unkeyed.contains("tracker key"), "{unkeyed}");
+        assert!(control.contains("U+001B"), "{control:?}");
+        for text in [ambiguous, no_number, escaping, unkeyed] {
+            assert!(!text.contains("no numeric or tracker shape"), "{text}");
+        }
+    }
+
+    #[test]
+    fn an_unclassifiable_item_path_is_escaped() {
+        let refusal = NotRekeyed::Unclassifiable {
+            item: path("meta/work/x\u{1b}[H.md"),
+            cause: UnclassifiableCause::NoNumber {
+                id: "notes".to_owned(),
+            },
+        }
+        .to_string();
+
+        assert!(!refusal.contains('\u{1b}'), "{refusal:?}");
+        assert!(refusal.contains("U+001B"), "{refusal:?}");
     }
 }

@@ -49,7 +49,7 @@ state when the order was refused while applying) carries a fixed cause on its
 | `marker records <KEY>; …` | Offer `--resolve <id>=adopt:<KEY>` with that key. |
 | `already written by <carrier>; …` | Ask the user which item is the real one; offer no order. |
 | `orders settle pending pushes; run without --pull-only` | Offer the same order without `--pull-only`. |
-| `<id> is a draft; promote it with …` | Offer `accelerator work promote <id>`. |
+| `<id> is a draft; promote it with …` | Offer `accelerator work promote <id>`; on its `E_REKEY_REQUIRED` or `E_WORK_ITEM_MALFORMED`, follow `/sync-work-items`' *A corpus re-key would move*. |
 | `<id> is not in this run's --target` | Offer the order again with `--target <id>`. |
 | `no work item <id> in this run` | Check the id with the user. |
 | `<id> was deferred by identity settlement; …` | Settle the item's identity row first (see `/sync-work-items` Step 5). |

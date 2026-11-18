@@ -1,0 +1,98 @@
+{
+  "metadata": {
+    "skill_name": "sync-work-items",
+    "skill_path": "skills/work/sync-work-items",
+    "executor_model": "claude-opus-5-5",
+    "analyzer_model": "claude-opus-5-5",
+    "timestamp": "2026-11-18T00:00:00Z",
+    "evals_run": [
+      "1",
+      "2"
+    ],
+    "runs_per_configuration": 1,
+    "skill_digest": "sha256:489108094a2ce423af754c9c4aa8c98926d61fbcbd7d2500b98d6b8a4580515b"
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "a_needed_rekey_during_promotion_recovery_offers_to_run_sync",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
+          "passed": true,
+          "evidence": "response.md quotes \"Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\""
+        },
+        {
+          "text": "response.md says the unfinished promotion would make re-key refuse and that `accelerator work sync` settles it",
+          "passed": true,
+          "evidence": "\"re-key itself would refuse right now with `E_REKEY_SYNC_UNFINISHED`, because this promotion of `draft-k3x9mq` is still unfinished. `accelerator work sync` ... can settle the unfinished promotion first\""
+        },
+        {
+          "text": "questions.md holds one question offering to run sync now or to stop",
+          "passed": true,
+          "evidence": "Single question \"Run sync now?\" with options \"1. **Run sync now**\" and \"2. **Stop**\""
+        },
+        {
+          "text": "commands.md shows the promote exactly once, no `accelerator work rekey`, and no `accelerator work sync` before the user answers",
+          "passed": true,
+          "evidence": "Only command: \"1. `accelerator work promote draft-k3x9mq --adopt ENG-43`\"; \"No other `accelerator` command was run\" (rekey appears only inside quoted stderr)"
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:489108094a2ce423af754c9c4aa8c98926d61fbcbd7d2500b98d6b8a4580515b"
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "a_needed_rekey_outside_promotion_recovery_relays_and_stops",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
+          "passed": true,
+          "evidence": "response.md quotes 'Error: E_REKEY_REQUIRED: ...' and says 'Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`).'"
+        },
+        {
+          "text": "questions.md is `none`",
+          "passed": true,
+          "evidence": "questions.md contains exactly 'none'"
+        },
+        {
+          "text": "commands.md shows the resolve exactly once and no `accelerator work sync` or `accelerator work rekey` after it",
+          "passed": true,
+          "evidence": "commands.md lists only '1. `accelerator work resolve ENG-7` — exit 4'; 'accelerator work rekey' appears only inside that command's quoted stderr, not as a run command"
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:489108094a2ce423af754c9c4aa8c98926d61fbcbd7d2500b98d6b8a4580515b"
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  },
+  "notes": [
+    "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone.",
+    "Eval 1 was re-run and eval 2 (a needed re-key outside promotion recovery relays and stops) added with_skill on 2026-11-18, by claude-opus-5-5, after the E_REKEY_REQUIRED branch was reordered: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
+  ]
+}

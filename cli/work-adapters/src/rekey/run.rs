@@ -5,16 +5,17 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::IdOwnership;
-use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use vcs::RepositoryProbe;
 use work::draft_id::SuffixDraws;
+use work::id_scheme::IdOwnership;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::rekey::collision::refuse_collisions;
 use work::rekey::creation_date::CreationDate;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::fingerprint::IdentityFingerprint;
+use work::rekey::folding::FoldedKeys;
 use work::rekey::mapping::keys_to_refresh;
 use work::rekey::mapping::numeric_mapping;
 use work::rekey::mapping::tracker_mapping;
@@ -70,7 +71,8 @@ pub enum Forcing {
 pub struct RekeyRequest {
     pub action: RekeyAction,
     pub forcing: Forcing,
-    pub scheme: WorkItemIdScheme,
+    pub scheme: IdScheme,
+    pub folded: FoldedKeys,
 }
 
 /// What a person sees while a run proceeds, before its report.
@@ -282,7 +284,7 @@ fn preflight(
     let plan = match mapping {
         Mapping::Computed => ProposedPlan::new(
             IdentityFingerprint::of(&request.scheme, &items),
-            computed(&request.scheme, &candidates, ports)?,
+            computed(request, &candidates, ports)?,
         ),
         Mapping::Previewed(plan) => {
             still_current(plan, &request.scheme, &items)?
@@ -312,18 +314,22 @@ fn preflight(
 }
 
 fn computed(
-    scheme: &WorkItemIdScheme,
+    request: &RekeyRequest,
     candidates: &[RekeyCandidate],
     ports: &RekeyPorts<'_>,
 ) -> Result<Vec<RekeyEntry>, NotRekeyed> {
+    let scheme = &request.scheme;
     match scheme.ownership() {
-        IdOwnership::Local => numeric_mapping(scheme, candidates),
+        IdOwnership::Local => {
+            numeric_mapping(scheme, candidates, &request.folded)
+        }
         IdOwnership::Tracker => {
-            let stored: Vec<ExternalId> = keys_to_refresh(candidates)?
+            let stored: Vec<ExternalId> = keys_to_refresh(scheme, candidates)?
                 .iter()
                 .map(|key| ExternalId::new(key.as_str().to_owned()))
                 .collect();
             tracker_mapping(
+                scheme,
                 candidates,
                 &ports.refresh.refresh(&stored)?,
                 &mut *ports.draws.borrow_mut(),
@@ -336,7 +342,7 @@ fn computed(
 /// and none of its targets has since been claimed.
 fn still_current(
     plan: ProposedPlan,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     items: &[ItemIdentity],
 ) -> Result<ProposedPlan, NotRekeyed> {
     if let Some(staleness) = IdentityFingerprint::of(scheme, items)
@@ -344,7 +350,7 @@ fn still_current(
     {
         return Err(NotRekeyed::PreviewStale(staleness));
     }
-    refuse_collisions(plan.entries(), items)?;
+    refuse_collisions(plan.entries(), items, scheme)?;
     Ok(plan)
 }
 

@@ -59,9 +59,12 @@ Scans a document's qualifying body sections (`## Dependencies`,
 `## References`, and similar) for typed-linkage mentions and emits one TSV
 record per match: `source_type<TAB>key<TAB>target_ref<TAB>anchor<TAB>band`.
 The source type is inferred from the file's path unless `--source-type`
-overrides it. This is how the `/accelerator:migrate` framework's 0007
-migration normalises body-section prose links into typed frontmatter
-references.
+overrides it. Work-item IDs, in a path or bare in a `## Dependencies`
+line, are read through the configured `work.id_pattern` and `work.key`.
+Migration 0007 normalises body-section prose links into typed frontmatter
+references with the same extraction, but reads work-item IDs by the
+four-digit rules its links were written against, so its output never moves
+with the pattern.
 
 ## `frontmatter`
 

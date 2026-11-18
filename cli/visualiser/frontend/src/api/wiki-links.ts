@@ -13,23 +13,30 @@ export interface ResolvedWikiLink {
 
 type WikiLinkKind = "ADR" | "WORK-ITEM";
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Build the wiki-link match pattern: `[[ADR-NNNN]]`, and a work item
+ *  through the server's `idToken`, which matches every ID the configured
+ *  pattern writes, such as `PP_0042`, `v001` or a tracker key, or a bare
+ *  number before one is served. Read a match with `wikiLinkOf`. */
+export function buildWikiLinkPattern(idToken?: string | null): RegExp {
+  return new RegExp(`\\[\\[${linkGrammar(idToken)}\\]\\]`, "g");
 }
 
-/** Build the wiki-link match pattern from the server-supplied project code
- *  (or `null` when no project code is configured / default pattern).
- *
- *  - Default (`null`): matches `[[ADR-NNNN]]` and `[[WORK-ITEM-NNNN]]`.
- *  - Project-prefixed: also matches `[[WORK-ITEM-<PROJECT>-NNNN]]` via the
- *    `<PROJECT>-\d+` alternative, with bare-numeric `\d+` as fallback for
- *    legacy files. Multi-segment project codes (e.g. `ACME-CORE`) are out of
- *    scope: the compiler grammar forbids hyphens in project codes. */
-export function buildWikiLinkPattern(projectCode: string | null): RegExp {
-  const innerWorkItem = projectCode
-    ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
-    : `\\d+`;
-  return new RegExp(`\\[\\[(ADR|WORK-ITEM)-(${innerWorkItem})\\]\\]`, "g");
+function linkGrammar(idToken?: string | null): string {
+  return `(?:ADR-(?<adrId>\\d+)|WORK-ITEM-(?<workItemId>${idToken ?? "\\d+"}))`;
+}
+
+export interface WikiLinkMatch {
+  prefix: WikiLinkKind;
+  id: string;
+}
+
+/** The prefix and ID of a match of `buildWikiLinkPattern` or
+ *  `buildBareIdPattern`. */
+export function wikiLinkOf(match: RegExpMatchArray): WikiLinkMatch {
+  const { adrId, workItemId } = match.groups ?? {};
+  return adrId === undefined
+    ? { prefix: "WORK-ITEM", id: workItemId }
+    : { prefix: "ADR", id: adrId };
 }
 
 export type BareIdSegment =
@@ -51,11 +58,8 @@ export type BareIdSegment =
  *  Always returned with the `g` flag set so callers can iterate
  *  matches; `splitByBareIds` clones to avoid `lastIndex` bleed across
  *  calls. */
-export function buildBareIdPattern(projectCode: string | null): RegExp {
-  const innerWorkItem = projectCode
-    ? `${escapeRegExp(projectCode)}-\\d+|\\d+`
-    : `\\d+`;
-  return new RegExp(`\\b(ADR|WORK-ITEM)-(${innerWorkItem})\\b`, "g");
+export function buildBareIdPattern(idToken?: string | null): RegExp {
+  return new RegExp(`\\b${linkGrammar(idToken)}\\b`, "g");
 }
 
 /** Split a string into ordered segments alternating between plain text
@@ -77,12 +81,7 @@ export function splitByBareIds(text: string, pattern: RegExp): BareIdSegment[] {
     if (m.index > lastIndex) {
       segments.push({ kind: "text", text: text.slice(lastIndex, m.index) });
     }
-    segments.push({
-      kind: "match",
-      text: m[0],
-      prefix: m[1] as "ADR" | "WORK-ITEM",
-      id: m[2],
-    });
+    segments.push({ kind: "match", text: m[0], ...wikiLinkOf(m) });
     lastIndex = m.index + m[0].length;
     m = re.exec(text);
   }
@@ -124,7 +123,8 @@ function parsePositiveInt(s: string): number | null {
 
 /** Build the resolver maps from the docs caches. ADRs are keyed by
  *  `frontmatter.adr_id` *or* the filename prefix. Work items are keyed by
- *  `entry.workItemId` (filename-derived, supplied by the server). Defensively
+ *  `entry.workItemId` in lower case, since an ID reads the same in any
+ *  case. Defensively
  *  filters by `entry.type` so a misuse — accidentally passing plans as work
  *  items — cannot route `[[WORK-ITEM-N]]` to a non-work-item. On duplicate
  *  keys the entry with the lexically-earliest `relPath` wins (deterministic
@@ -145,7 +145,7 @@ export function buildWikiLinkIndex(
     if (entry.type !== "work-items") continue;
     const id = entry.workItemId;
     if (id === null) continue;
-    insertWithEarliestRelPath(workItemById, id, entry);
+    insertWithEarliestRelPath(workItemById, id.toLowerCase(), entry);
   }
   return { adrById, workItemById };
 }
@@ -181,7 +181,7 @@ export function resolveWikiLink(
     if (n === null) return null;
     entry = idx.adrById.get(n);
   } else {
-    entry = idx.workItemById.get(id);
+    entry = idx.workItemById.get(id.toLowerCase());
   }
   if (!entry) return null;
   const fileSlug = fileSlugFromRelPath(entry.relPath);

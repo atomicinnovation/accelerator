@@ -4,23 +4,25 @@
 mod batch_journal;
 mod batch_manifest;
 mod bounded_roots;
-mod canonicalise_id;
 mod cli;
 mod config;
+mod corpus_trust;
 mod create;
 mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
 mod finished_run;
+mod id;
 mod identity_run;
 mod identity_workspace;
 mod list;
-mod next_number;
 mod promote;
 mod promotion_report;
+mod refusal;
 mod rekey;
 mod report_records;
+mod requested_id;
 mod resolve;
 mod show;
 mod sync;
@@ -140,10 +142,11 @@ fn run_resolve(input: &str) -> ExitCode {
             eprintln!("E_RESOLVE_UNLISTABLE: {message}");
             ExitCode::FAILURE
         }
-        Err(error) => {
+        Err(resolve::RunFailure::Config(error)) => {
             eprintln!("{error}");
             ExitCode::FAILURE
         }
+        Err(resolve::RunFailure::Untrusted(refusal)) => refusal.report(),
     }
 }
 
@@ -233,6 +236,7 @@ fn create_args_from_cli(cli_args: cli::CreateArgs) -> create::CreateArgs {
         author: cli_args.author,
         producer: cli_args.producer,
         body_file: cli_args.body_file,
+        id: cli_args.id,
         push: cli_args.push,
         dry_run: cli_args.dry_run,
     }
@@ -292,12 +296,9 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
         }
         create::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");
-            ExitCode::FAILURE
+            ExitCode::from(exit_codes::of_failure(&message))
         }
-        create::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        create::RunOutcome::Refused(refusal) => refusal.report(),
     }
 }
 
@@ -352,10 +353,7 @@ fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
-        create_batch::BatchOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        create_batch::BatchOutcome::Refused(refusal) => refusal.report(),
     }
 }
 
@@ -401,10 +399,7 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
             eprintln!("{message}");
             ExitCode::from(exit_codes::REJECTED)
         }
-        update::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
-        }
+        update::RunOutcome::Refused(refusal) => refusal.report(),
     }
 }
 
@@ -415,55 +410,6 @@ fn run_link_external_id(path: &Path, external_id: &str) -> ExitCode {
         Err(error) => {
             eprintln!("{error}");
             ExitCode::FAILURE
-        }
-    }
-}
-
-fn run_canonicalise_id(input: &str) -> ExitCode {
-    let (_, composed) = match composed_here(Intent::Read) {
-        Ok(composed) => composed,
-        Err(code) => return code,
-    };
-    let service: &dyn ConfigAccess = &composed.service;
-    match canonicalise_id::run(service, input) {
-        canonicalise_id::RunOutcome::Canonicalised(id) => {
-            println!("{id}");
-            ExitCode::SUCCESS
-        }
-        canonicalise_id::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
-    let (start, composed) = match composed_here(Intent::Read) {
-        Ok(composed) => composed,
-        Err(code) => return code,
-    };
-    let service: &dyn ConfigAccess = &composed.service;
-    match next_number::run(&start, service, project, count) {
-        next_number::RunOutcome::Allocated(ids) => {
-            for id in ids {
-                println!("{id}");
-            }
-            ExitCode::SUCCESS
-        }
-        next_number::RunOutcome::Overflow { partial, message } => {
-            for id in partial {
-                println!("{id}");
-            }
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-        next_number::RunOutcome::Failed(message) => {
-            eprintln!("{message}");
-            ExitCode::FAILURE
-        }
-        next_number::RunOutcome::Refused { message, code } => {
-            eprintln!("{message}");
-            ExitCode::from(code)
         }
     }
 }
@@ -629,10 +575,9 @@ fn main() -> ExitCode {
         Command::LinkExternalId { path, external_id } => {
             run_link_external_id(&path, &external_id)
         }
-        Command::CanonicaliseId { input } => run_canonicalise_id(&input),
-        Command::NextNumber { project, count } => {
-            run_next_number(project.as_deref(), count)
-        }
+        Command::Id { action } => id::run(action),
+        Command::NextNumber(_) => id::retired(cli::RETIRED_NEXT_NUMBER),
+        Command::CanonicaliseId(_) => id::retired(cli::RETIRED_CANONICALISE_ID),
         Command::List(args) => run_list(&args),
         Command::Sync(args) => run_sync(&args),
         Command::Promote(args) => run_promote(&args),

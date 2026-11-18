@@ -30,6 +30,10 @@ vi.mock("../../api/use-doc-events", () => ({
   DocEventsContext: { Provider: ({ children }: any) => children },
 }));
 
+vi.mock("../WorkItemProblemBanner/WorkItemProblemBanner", () => ({
+  WorkItemProblemBanner: () => null,
+}));
+
 vi.mock("../../api/use-origin", () => ({
   useOrigin: vi.fn(() => "localhost"),
 }));

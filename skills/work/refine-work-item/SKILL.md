@@ -179,7 +179,7 @@ options. State the allocation count and warn about partial state:
    recover)
 2. **No, cancel** — cancel without writing
 
-**A re-key in progress.** `accelerator work next-number` and
+**A re-key in progress.** `accelerator work id next` and
 `accelerator work create` refuse before reading or writing anything while an
 `accelerator work rekey` run is unfinished. Before any other branch on a
 non-zero exit from one of them, check its stderr for these codes; in every
@@ -189,11 +189,17 @@ case nothing was written:
   run `/rekey-work-items` to finish or undo it. Stop.
 - `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
   suggesting the re-key be finished. Stop.
+- `E_REKEY_REQUIRED` (exit 4) — some items are not yet under the IDs
+  `work.id_pattern` gives them, such as after the pattern changed: relay
+  the printed remedy as is. It names `/rekey-work-items`, after any fix by
+  hand an item re-key cannot read needs first. Stop.
+- `E_WORK_ITEM_MALFORMED` (exit 4) — relay every file it lists with its
+  printed fix, as is. Each is fixed by hand. Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
   retry once it ends.
 
 **On approval** under `{tracker}`: do not call `accelerator work
-next-number` and do not write children with the `Write` tool. For each
+id next` and do not write children with the `Write` tool. For each
 child, write its body (H1 through the remaining template sections, with the
 `NNNN` placeholder left literally in place) to a scratch file and run:
 
@@ -213,7 +219,7 @@ warning says "create N drafts" rather than "allocate N numbers".
 
 **On approval** under every other pattern:
 
-1. Call `accelerator work next-number --count N`
+1. Call `accelerator work id next --count N`
    exactly once to allocate N consecutive numbers.
 
 2. For each child, write `NNNN-kebab-slug.md`, populating every unified

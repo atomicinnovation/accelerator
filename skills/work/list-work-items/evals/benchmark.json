@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "skill_name": "list-work-items",
+    "skill_path": "skills/work/list-work-items",
+    "executor_model": "claude-sonnet-5-5",
+    "analyzer_model": "claude-sonnet-5-5",
+    "timestamp": "2026-11-17T00:00:00Z",
+    "evals_run": [
+      "1"
+    ],
+    "runs_per_configuration": 1,
+    "skill_digest": "sha256:6ce0254aee74195c85a116b39f825efcbb78fe973fbd6e17c679bce839c57695"
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "an_untrusted_corpus_is_listed_with_its_warning_relayed",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "response.md shows the table with both rows, 0001 and 2, as the CLI printed it",
+          "passed": true,
+          "evidence": "response.md has a table with rows '| 0001 | Dark mode | story | ready | high |' and '| 2 | Export to CSV | task | draft | medium |'."
+        },
+        {
+          "text": "response.md relays the warning's remedy, naming `/rekey-work-items`, after the listing",
+          "passed": true,
+          "evidence": "After the table: 'To fix it, run `/rekey-work-items`.'"
+        },
+        {
+          "text": "response.md says that creating or resolving work items is refused until the remedy is followed",
+          "passed": true,
+          "evidence": "'Until you do, creating or resolving work items is refused.'"
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator work list` and no `accelerator work rekey`",
+          "passed": true,
+          "evidence": "commands.md item 12 is the only `accelerator work list` and no rekey command appears."
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:6ce0254aee74195c85a116b39f825efcbb78fe973fbd6e17c679bce839c57695"
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  },
+  "notes": [
+    "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone."
+  ]
+}

@@ -71,7 +71,6 @@ pub fn facets_for(doc_type: DocTypeKey) -> &'static [&'static str] {
 /// the entry does not contribute to that facet at all.
 pub fn extract_facet_value(
     entry: &IndexEntry,
-    cfg: &crate::config::Config,
     facet_id: &str,
 ) -> Option<String> {
     match facet_id {
@@ -86,18 +85,7 @@ pub fn extract_facet_value(
                 .map(std::string::ToString::to_string)
         }
         "clusterSlug" => entry.slug.clone(),
-        "project" => {
-            let raw = entry.work_item_id.as_deref()?;
-            if let Some((prefix, _)) = raw.split_once('-') {
-                if prefix.is_empty() {
-                    None
-                } else {
-                    Some(prefix.to_string())
-                }
-            } else {
-                cfg.work_item.as_ref().and_then(|w| w.key.clone())
-            }
-        }
+        "project" => entry.work_item_key.clone(),
         _ => None,
     }
 }
@@ -107,7 +95,6 @@ pub fn extract_facet_value(
 /// options list for a facet acts as a no-op (matches every entry).
 pub fn entry_matches_all(
     entry: &IndexEntry,
-    cfg: &crate::config::Config,
     type_selection: Option<&HashMap<String, Vec<String>>>,
 ) -> bool {
     let Some(sel) = type_selection else {
@@ -117,7 +104,7 @@ pub fn entry_matches_all(
         if options.is_empty() {
             continue;
         }
-        let Some(value) = extract_facet_value(entry, cfg, facet_id) else {
+        let Some(value) = extract_facet_value(entry, facet_id) else {
             return false;
         };
         if !options.iter().any(|o| o == &value) {
@@ -130,7 +117,6 @@ pub fn entry_matches_all(
 /// Like `entry_matches_all` but skips the facet equal to `except_facet`.
 pub fn entry_matches_all_except(
     entry: &IndexEntry,
-    cfg: &crate::config::Config,
     type_selection: Option<&HashMap<String, Vec<String>>>,
     except_facet: &str,
 ) -> bool {
@@ -144,7 +130,7 @@ pub fn entry_matches_all_except(
         if options.is_empty() {
             continue;
         }
-        let Some(value) = extract_facet_value(entry, cfg, facet_id) else {
+        let Some(value) = extract_facet_value(entry, facet_id) else {
             return false;
         };
         if !options.iter().any(|o| o == &value) {
@@ -163,8 +149,17 @@ pub struct IndexEntry {
     pub rel_path: PathBuf,
     pub slug: Option<String>,
     /// The work item's `id` frontmatter, normalised under the configured
-    /// scheme; `None` for other types or an `id` the scheme does not admit.
+    /// scheme; `None` for other types, an `id` the scheme does not admit, or
+    /// any item while the corpus cannot be trusted.
     pub work_item_id: Option<String>,
+    /// The key `work_item_id` holds under the configured scheme, which the
+    /// library's project facet filters on; `None` when it holds none, or
+    /// while the corpus cannot be trusted.
+    pub work_item_key: Option<String>,
+    /// The key every spelling of this work item joins on, which the
+    /// indexes and clusters use; never served as the item's ID.
+    #[serde(skip)]
+    pub identity_key: Option<String>,
     /// A work item whose `id` is a draft's, which no tracker has confirmed.
     pub draft: bool,
     pub title: String,
@@ -206,6 +201,29 @@ pub(crate) struct PostSecondaryUpdateHook {
     pub proceed: tokio::sync::oneshot::Receiver<()>,
 }
 
+/// Whether the work-item corpus can be trusted for its IDs, and why not
+/// when it cannot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Trust {
+    Trusted,
+    Untrusted(work::corpus_trust::CorpusWarning),
+}
+
+impl Trust {
+    #[must_use]
+    pub const fn is_trusted(&self) -> bool {
+        matches!(self, Self::Trusted)
+    }
+
+    #[must_use]
+    pub const fn problem(&self) -> Option<&work::corpus_trust::CorpusWarning> {
+        match self {
+            Self::Trusted => None,
+            Self::Untrusted(problem) => Some(problem),
+        }
+    }
+}
+
 pub struct Indexer {
     driver: Arc<dyn FileDriver>,
     /// Canonicalised once at the top of `Indexer::build`. Every
@@ -215,14 +233,24 @@ pub struct Indexer {
     /// prefix. The field is module-private (no `pub`) — read-only
     /// access is exposed via `project_root()`.
     project_root: PathBuf,
-    work_item_cfg: Arc<crate::config::WorkItemConfig>,
+    /// The scheme the server was composed with.
+    configured: Arc<crate::config::WorkItemConfig>,
+    /// The scheme read while the corpus cannot be trusted: one reading no
+    /// IDs.
+    unread: Arc<crate::config::WorkItemConfig>,
+    /// Whether the corpus can be trusted for its IDs, judged under
+    /// `rescan_lock` from `work_item_files`.
+    trust: std::sync::RwLock<Trust>,
+    /// Every work-item file's text, or `None` when it is not UTF-8, which
+    /// the trust check reads instead of reading the files again.
+    work_item_files: std::sync::Mutex<BTreeMap<PathBuf, Option<String>>>,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
     adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
-    work_item_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
+    work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Secondary index mapping plan `id:` (filename stem) to plan path.
     /// Used to resolve `target: "plan:<id>"` typed-linkage references per
-    /// ADR-0034. Lock-ordering invariant: acquire after `work_item_by_id`
-    /// and before `reviews_by_target`.
+    /// ADR-0034. Lock-ordering invariant: acquire after
+    /// `work_item_by_identity_key` and before `reviews_by_target`.
     plans_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
     /// paths of target plans (or any future target type); values are
@@ -230,8 +258,8 @@ pub struct Indexer {
     /// `BTreeSet` gives deterministic iteration order and
     /// dedup-by-construction.
     reviews_by_target: Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
-    /// Reverse work-item cross-ref index. Keys are canonical work-item IDs
-    /// (as produced by `canonicalise_refs`); values are sets of canonicalised
+    /// Reverse work-item cross-ref index. Keys are work-item identity keys
+    /// (as produced by `identity_keys_of`); values are sets of canonicalised
     /// paths of entries that reference that work-item via `work_item_id:`,
     /// `parent:`, or `related:` frontmatter keys.
     work_item_refs_by_target: Arc<RwLock<HashMap<String, BTreeSet<PathBuf>>>>,
@@ -263,10 +291,13 @@ impl Indexer {
         let me = Self {
             driver,
             project_root,
-            work_item_cfg,
+            unread: Arc::new(crate::config::WorkItemConfig::unreadable()),
+            trust: std::sync::RwLock::new(Trust::Trusted),
+            configured: work_item_cfg,
+            work_item_files: std::sync::Mutex::new(BTreeMap::new()),
             entries: Arc::new(RwLock::new(HashMap::new())),
             adr_by_id: Arc::new(RwLock::new(HashMap::new())),
-            work_item_by_id: Arc::new(RwLock::new(HashMap::new())),
+            work_item_by_identity_key: Arc::new(RwLock::new(HashMap::new())),
             plans_by_id: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
@@ -291,10 +322,9 @@ impl Indexer {
 
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
         let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
-        let mut work_item_by_id: HashMap<String, PathBuf> = HashMap::new();
-        let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
-        let mut reviews_by_target: HashMap<PathBuf, BTreeSet<PathBuf>> =
+        let mut work_item_by_identity_key: HashMap<String, PathBuf> =
             HashMap::new();
+        let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
         let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> =
             HashMap::new();
 
@@ -334,6 +364,24 @@ impl Indexer {
             .collect()
             .await;
 
+        *self
+            .work_item_files
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = read_results
+            .iter()
+            .filter(|(kind, _, _)| *kind == DocTypeKey::WorkItems)
+            .filter_map(|(_, path, content)| {
+                content.as_ref().ok().map(|content| {
+                    (
+                        path.clone(),
+                        String::from_utf8(content.bytes.clone()).ok(),
+                    )
+                })
+            })
+            .collect();
+        let trust = self.judge_trust();
+        let reading = self.reading_under(&trust);
+
         // Phase 3 Pass A: parse and fold serially, in original order.
         // Build entries and every primary-id map. Defer reviews_by_target
         // until Pass B because resolving `target: "plan:<id>"` requires
@@ -349,24 +397,21 @@ impl Indexer {
                 path.clone(),
                 &content,
                 &self.project_root,
-                &self.work_item_cfg,
+                &reading,
             );
 
             if let Some(id) = adr_id_from_entry(&entry) {
                 adr_by_id.insert(id, path.clone());
             }
-            if let Some(id) = work_item_id_from_entry(&entry) {
-                work_item_by_id.insert(id, path.clone());
+            if let Some(id) = identity_key_of_entry(&entry) {
+                hold_if_lower(&mut work_item_by_identity_key, id, &path);
             }
             if let Some(id) = plan_id_from_entry(&entry) {
                 plans_by_id.insert(id, path.clone());
             }
-            for id in canonicalise_refs(
-                entry.work_item_refs.clone(),
-                &self.work_item_cfg,
-            ) {
+            for id in identity_keys_of(entry.work_item_refs.clone(), &reading) {
                 // Skip self-references: a doc must not appear in its own index.
-                if entry.work_item_id.as_deref() == Some(id.as_str()) {
+                if entry.identity_key.as_deref() == Some(id.as_str()) {
                     continue;
                 }
                 work_item_refs_by_target
@@ -381,20 +426,13 @@ impl Indexer {
         // Phase 3 Pass B: resolve reviews_by_target with the fully-
         // populated `plans_by_id` so typed-linkage `target: "plan:<id>"`
         // references resolve regardless of file-driver iteration order.
-        for entry in entries.values() {
-            if let Some(target_key) = target_path_from_entry(
-                entry,
-                &plans_by_id,
-                &work_item_by_id,
-                &self.work_item_cfg,
-                &self.project_root,
-            ) {
-                reviews_by_target
-                    .entry(target_key)
-                    .or_default()
-                    .insert(entry.path.clone());
-            }
-        }
+        let reviews_by_target = reviews_by_target_of(
+            &entries,
+            &plans_by_id,
+            &work_item_by_identity_key,
+            &reading,
+            &self.project_root,
+        );
 
         // Hold all six write locks simultaneously and replace contents
         // so readers never observe a partial (entries, secondary)
@@ -402,16 +440,17 @@ impl Indexer {
         // work_item → plans → reviews_by_target → work_item_refs_by_target.
         let mut entries_w = self.entries.write().await;
         let mut adr_w = self.adr_by_id.write().await;
-        let mut work_item_w = self.work_item_by_id.write().await;
+        let mut work_item_w = self.work_item_by_identity_key.write().await;
         let mut plans_w = self.plans_by_id.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         let mut refs_w = self.work_item_refs_by_target.write().await;
         *entries_w = entries;
         *adr_w = adr_by_id;
-        *work_item_w = work_item_by_id;
+        *work_item_w = work_item_by_identity_key;
         *plans_w = plans_by_id;
         *reviews_w = reviews_by_target;
         *refs_w = work_item_refs_by_target;
+        self.hold_trust(trust);
         Ok(())
     }
 
@@ -426,6 +465,32 @@ impl Indexer {
     /// own write lock *while* the caller holds `entries.write()`, so readers
     /// never observe a partial (entries, secondary) snapshot.
     pub async fn refresh_one(
+        &self,
+        path: &Path,
+    ) -> Result<Option<IndexEntry>, FileDriverError> {
+        let refreshed = self.refresh_entry(path).await?;
+        let trust_flipped = {
+            // acquire() errors only if the semaphore is closed, which never happens.
+            #[allow(clippy::unwrap_used)]
+            let _permit = self.rescan_lock.acquire().await.unwrap();
+            let now = self.judge_trust();
+            let flipped = self.trust().is_trusted() != now.is_trusted();
+            if !flipped {
+                self.hold_trust(now);
+            }
+            flipped
+        };
+        if !trust_flipped {
+            return Ok(refreshed);
+        }
+        self.rescan().await?;
+        Ok(match refreshed {
+            Some(entry) => self.get(&entry.path).await,
+            None => None,
+        })
+    }
+
+    async fn refresh_entry(
         &self,
         path: &Path,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
@@ -449,47 +514,21 @@ impl Indexer {
                     // any previous entry under this path before dropping.
                     let mut entries = self.entries.write().await;
                     if let Some(previous) = entries.get(&canonical).cloned() {
-                        remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                        remove_from_work_item_by_id(
-                            &self.work_item_by_id,
-                            &previous,
-                        )
-                        .await;
-                        remove_from_plans_by_id(&self.plans_by_id, &previous)
-                            .await;
-                        let plans_snapshot =
-                            self.plans_by_id.read().await.clone();
-                        // Snapshot work_item_by_id AFTER the work-item-by-id
-                        // removal, mirroring plans_snapshot, so the typed
-                        // `work-item:` target resolves against a consistent view.
-                        let work_item_snapshot =
-                            self.work_item_by_id.read().await.clone();
-                        remove_from_reviews_by_target(
-                            &self.reviews_by_target,
-                            &plans_snapshot,
-                            &work_item_snapshot,
-                            &self.work_item_cfg,
-                            &self.project_root,
-                            &previous,
-                        )
-                        .await;
-                        remove_from_work_item_refs_by_target(
-                            &self.work_item_refs_by_target,
-                            &self.work_item_cfg,
-                            &previous,
-                        )
-                        .await;
-                        entries.remove(&canonical);
+                        self.forget(&mut entries, &previous).await;
                     }
                     return Ok(None);
                 };
 
+                if kind == DocTypeKey::WorkItems {
+                    self.remember_work_item(&canonical, Some(&content));
+                }
+                let reading = self.work_item_cfg();
                 let entry = build_entry(
                     kind,
                     canonical.clone(),
                     &content,
                     &self.project_root,
-                    &self.work_item_cfg,
+                    &reading,
                 );
 
                 // Single-writer-lock invariant: hold entries.write() across
@@ -497,13 +536,16 @@ impl Indexer {
                 // (entries, secondary) snapshot.
                 let mut entries = self.entries.write().await;
                 let previous = entries.get(&canonical).cloned();
+                let holders_before =
+                    self.work_item_by_identity_key.read().await.clone();
 
                 update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref())
                     .await;
-                update_work_item_by_id(
-                    &self.work_item_by_id,
+                update_work_item_by_identity_key(
+                    &self.work_item_by_identity_key,
                     &entry,
                     previous.as_ref(),
+                    &entries,
                 )
                 .await;
                 update_plans_by_id(
@@ -516,16 +558,17 @@ impl Indexer {
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
                 let plans_snapshot = self.plans_by_id.read().await.clone();
-                // Snapshot work_item_by_id AFTER update_work_item_by_id has
-                // folded the new entry in, mirroring plans_snapshot, so a typed
-                // `work-item:` target resolves against a consistent view.
+                // Snapshot work_item_by_identity_key AFTER
+                // update_work_item_by_identity_key has folded the new entry
+                // in, mirroring plans_snapshot, so a typed `work-item:`
+                // target resolves against a consistent view.
                 let work_item_snapshot =
-                    self.work_item_by_id.read().await.clone();
+                    self.work_item_by_identity_key.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
                     &plans_snapshot,
                     &work_item_snapshot,
-                    &self.work_item_cfg,
+                    &reading,
                     &self.project_root,
                     &entry,
                     previous.as_ref(),
@@ -533,13 +576,15 @@ impl Indexer {
                 .await;
                 update_work_item_refs_by_target(
                     &self.work_item_refs_by_target,
-                    &self.work_item_cfg,
+                    &reading,
                     &entry,
                     previous.as_ref(),
                 )
                 .await;
 
                 entries.insert(canonical.clone(), entry.clone());
+                self.rehome_reviews_if_holders_moved(&holders_before, &entries)
+                    .await;
 
                 #[cfg(test)]
                 if let Some(hook) =
@@ -558,35 +603,8 @@ impl Indexer {
                 // and keeps deletion under the same single-writer-lock
                 // invariant.
                 let mut entries = self.entries.write().await;
-                let previous = find_entry_for_deleted(&entries, path);
-
-                if let Some(previous) = previous {
-                    remove_from_adr_by_id(&self.adr_by_id, &previous).await;
-                    remove_from_work_item_by_id(
-                        &self.work_item_by_id,
-                        &previous,
-                    )
-                    .await;
-                    remove_from_plans_by_id(&self.plans_by_id, &previous).await;
-                    let plans_snapshot = self.plans_by_id.read().await.clone();
-                    let work_item_snapshot =
-                        self.work_item_by_id.read().await.clone();
-                    remove_from_reviews_by_target(
-                        &self.reviews_by_target,
-                        &plans_snapshot,
-                        &work_item_snapshot,
-                        &self.work_item_cfg,
-                        &self.project_root,
-                        &previous,
-                    )
-                    .await;
-                    remove_from_work_item_refs_by_target(
-                        &self.work_item_refs_by_target,
-                        &self.work_item_cfg,
-                        &previous,
-                    )
-                    .await;
-                    entries.remove(&previous.path);
+                if let Some(previous) = find_entry_for_deleted(&entries, path) {
+                    self.forget(&mut entries, &previous).await;
                 }
 
                 #[cfg(test)]
@@ -602,6 +620,70 @@ impl Indexer {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Drops `previous` from the entries and every secondary index, then
+    /// re-homes any review whose target key it held.
+    async fn forget(
+        &self,
+        entries: &mut HashMap<PathBuf, IndexEntry>,
+        previous: &IndexEntry,
+    ) {
+        self.remember_work_item(&previous.path, None);
+        let holders_before =
+            self.work_item_by_identity_key.read().await.clone();
+        remove_from_adr_by_id(&self.adr_by_id, previous).await;
+        remove_from_work_item_by_identity_key(
+            &self.work_item_by_identity_key,
+            previous,
+            entries,
+        )
+        .await;
+        remove_from_plans_by_id(&self.plans_by_id, previous).await;
+        // Snapshot both id indexes AFTER their removals so a typed
+        // `work-item:` target resolves against a consistent view.
+        let plans_snapshot = self.plans_by_id.read().await.clone();
+        let work_item_snapshot =
+            self.work_item_by_identity_key.read().await.clone();
+        remove_from_reviews_by_target(
+            &self.reviews_by_target,
+            &plans_snapshot,
+            &work_item_snapshot,
+            &self.work_item_cfg(),
+            &self.project_root,
+            previous,
+        )
+        .await;
+        remove_from_work_item_refs_by_target(
+            &self.work_item_refs_by_target,
+            &self.work_item_cfg(),
+            previous,
+        )
+        .await;
+        entries.remove(&previous.path);
+        self.rehome_reviews_if_holders_moved(&holders_before, entries)
+            .await;
+    }
+
+    /// Re-resolves every review once an identity key changed holder, so a
+    /// review targeting the key moves with it.
+    async fn rehome_reviews_if_holders_moved(
+        &self,
+        holders_before: &HashMap<String, PathBuf>,
+        entries: &HashMap<PathBuf, IndexEntry>,
+    ) {
+        let holders = self.work_item_by_identity_key.read().await.clone();
+        if holders == *holders_before {
+            return;
+        }
+        let plans = self.plans_by_id.read().await.clone();
+        *self.reviews_by_target.write().await = reviews_by_target_of(
+            entries,
+            &plans,
+            &holders,
+            &self.work_item_cfg(),
+            &self.project_root,
+        );
     }
 
     #[cfg(test)]
@@ -642,7 +724,6 @@ impl Indexer {
     // handler latency exceeds ~50ms or the entry count exceeds ~10k.
     pub async fn library_aggregates(
         &self,
-        cfg: &crate::config::Config,
         selection: &Selection,
     ) -> LibraryAggregates {
         let entries = self.entries.read().await;
@@ -677,7 +758,7 @@ impl Indexer {
 
             per.filtered_count = type_entries
                 .iter()
-                .filter(|e| entry_matches_all(e, cfg, type_selection))
+                .filter(|e| entry_matches_all(e, type_selection))
                 .count();
 
             for facet_id in facets_for(*doc_type) {
@@ -686,14 +767,13 @@ impl Indexer {
                 for entry in &type_entries {
                     if !entry_matches_all_except(
                         entry,
-                        cfg,
                         type_selection,
                         facet_id,
                     ) {
                         continue;
                     }
                     if let Some(option_id) =
-                        extract_facet_value(entry, cfg, facet_id)
+                        extract_facet_value(entry, facet_id)
                     {
                         *option_counts.entry(option_id).or_insert(0) += 1;
                     }
@@ -710,10 +790,12 @@ impl Indexer {
         self.entries.read().await.values().cloned().collect()
     }
 
-    /// Returns a cloned snapshot of `work_item_by_id` for callers
+    /// Returns a cloned snapshot of `work_item_by_identity_key` for callers
     /// constructing a `ClusterContext`.
-    pub async fn work_item_by_id_snapshot(&self) -> HashMap<String, PathBuf> {
-        self.work_item_by_id.read().await.clone()
+    pub async fn work_item_by_identity_key_snapshot(
+        &self,
+    ) -> HashMap<String, PathBuf> {
+        self.work_item_by_identity_key.read().await.clone()
     }
 
     /// Returns a cloned snapshot of `plans_by_id` for callers
@@ -722,10 +804,99 @@ impl Indexer {
         self.plans_by_id.read().await.clone()
     }
 
-    /// Returns the work-item config used by the indexer. Cluster-key
+    /// The work-item config IDs are read through now. Cluster-key
     /// resolution reuses it to canonicalise frontmatter values.
-    pub fn work_item_cfg(&self) -> &crate::config::WorkItemConfig {
-        &self.work_item_cfg
+    pub fn work_item_cfg(&self) -> Arc<crate::config::WorkItemConfig> {
+        self.reading_under(&self.trust())
+    }
+
+    /// The work-item config IDs are read through under `trust`: the
+    /// configured one, or none while the corpus cannot be trusted.
+    pub fn reading_under(
+        &self,
+        trust: &Trust,
+    ) -> Arc<crate::config::WorkItemConfig> {
+        match trust {
+            Trust::Trusted => self.configured.clone(),
+            Trust::Untrusted(_) => self.unread.clone(),
+        }
+    }
+
+    /// Whether the corpus can be trusted for its IDs, as last judged.
+    pub fn trust(&self) -> Trust {
+        self.trust
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Why the corpus cannot be trusted for its IDs, naming paths relative
+    /// to the project root, while it cannot.
+    pub fn untrusted_corpus_problem(&self) -> Option<String> {
+        self.trust().problem().map(ToString::to_string)
+    }
+
+    /// Holds `trust` as the corpus's.
+    fn hold_trust(&self, trust: Trust) {
+        *self
+            .trust
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = trust;
+    }
+
+    /// Whether the remembered work-item files can be trusted for their IDs.
+    fn judge_trust(&self) -> Trust {
+        let problem = self.configured.scheme().and_then(|scheme| {
+            let files = self
+                .work_item_files
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let listing = work::work_item_files::WorkItemListing {
+                files: files
+                    .iter()
+                    .filter_map(|(path, content)| {
+                        content.as_ref().map(|content| {
+                            work::work_item_files::WorkItemFile {
+                                path: path.clone(),
+                                content: content.clone(),
+                            }
+                        })
+                    })
+                    .collect(),
+                unreadable: files
+                    .iter()
+                    .filter(|(_, content)| content.is_none())
+                    .map(|(path, _)| work::work_item_files::UnreadableFile {
+                        path: path.clone(),
+                        reason: work::work_item_files::ReadFailure::Undecodable,
+                    })
+                    .collect(),
+            };
+            work::corpus_trust::refuse_untrusted(scheme, &listing)
+                .err()
+                .map(|refusal| {
+                    refusal.relative_to(&self.project_root).warning()
+                })
+        });
+        problem.map_or(Trust::Trusted, Trust::Untrusted)
+    }
+
+    fn remember_work_item(&self, path: &Path, content: Option<&FileContent>) {
+        let mut files = self
+            .work_item_files
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match content {
+            Some(content) => {
+                files.insert(
+                    path.to_path_buf(),
+                    String::from_utf8(content.bytes.clone()).ok(),
+                );
+            }
+            None => {
+                files.remove(path);
+            }
+        }
     }
 
     /// Applies a per-path `cluster_key` map onto `IndexEntry.cluster_key`
@@ -791,8 +962,17 @@ impl Indexer {
         self.get(&path).await
     }
 
-    pub async fn work_item_by_id(&self, id: &str) -> Option<IndexEntry> {
-        let path = { self.work_item_by_id.read().await.get(id).cloned()? };
+    pub async fn work_item_by_identity_key(
+        &self,
+        id: &str,
+    ) -> Option<IndexEntry> {
+        let path = {
+            self.work_item_by_identity_key
+                .read()
+                .await
+                .get(id)
+                .cloned()?
+        };
         self.get(&path).await
     }
 
@@ -843,7 +1023,7 @@ impl Indexer {
         entry: &IndexEntry,
     ) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
-        let by_id = self.work_item_by_id.read().await;
+        let by_id = self.work_item_by_identity_key.read().await;
         let plans = self.plans_by_id.read().await;
         let mut result: Vec<IndexEntry> = Vec::new();
         let mut seen: HashSet<PathBuf> = HashSet::new();
@@ -853,7 +1033,7 @@ impl Indexer {
             entry,
             &plans,
             &by_id,
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
             &self.project_root,
         ) {
             if let Some(e) = entries.get(&target_key) {
@@ -864,9 +1044,9 @@ impl Indexer {
         }
 
         // Work-item cross-refs from `work_item_id:`, `parent:`, `related:`.
-        let canon_refs = canonicalise_refs(
+        let canon_refs = identity_keys_of(
             entry.work_item_refs.clone(),
-            &self.work_item_cfg,
+            &self.work_item_cfg(),
         );
         for id in &canon_refs {
             if let Some(path) = by_id.get(id) {
@@ -883,10 +1063,6 @@ impl Indexer {
         result
     }
 }
-
-// ──────────────────────────────────────────────────────────────────────
-// Lexical path helpers.
-// ──────────────────────────────────────────────────────────────────────
 
 /// Lexically clean an absolute path: collapse `.` and `..` segments
 /// without touching the filesystem.
@@ -935,19 +1111,18 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 ///   - Typed `plan:` form: `target: "plan:<plan-id>"` — resolved via
 ///     the `plans_by_id` index (the plan's `id:` field; usually the
 ///     filename stem).
-///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via the
-///     `work_item_by_id` index, canonicalising the raw id through
-///     `canonicalise_one_id` first (so a project-prefixed/under-padded id still
-///     resolves, matching `cluster_key.rs`). Story 0070 types work-item-review
-///     targets to this shape; resolving it here keeps the path-keyed
-///     `reviews_by_target` reverse index populated.
+///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via
+///     the `work_item_by_identity_key` index under the raw id's identity key,
+///     so any spelling of the item resolves, as clustering does. Resolving
+///     it here keeps the path-keyed `reviews_by_target` reverse index
+///     populated.
 ///
 /// Returns `None` for entries that carry no `target:`, or for `adr:`/`pr:`
 /// targets (no corpus path).
 pub(crate) fn target_path_from_entry(
     entry: &IndexEntry,
     plans_by_id: &HashMap<String, PathBuf>,
-    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> Option<PathBuf> {
@@ -955,8 +1130,8 @@ pub(crate) fn target_path_from_entry(
         entry.r#type,
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
         plans_by_id,
-        work_item_by_id,
-        work_item_cfg.scheme(),
+        work_item_by_identity_key,
+        work_item_cfg.convention(),
         project_root,
     )
 }
@@ -985,16 +1160,9 @@ fn find_entry_for_deleted(
         .cloned()
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// Secondary-index update / remove helpers.
-//
-// Each helper takes (storage, [context], new_entry, previous) — except
-// `remove_from_*` which only needs the entry being removed. They are
-// async only because the per-index `RwLock::write().await` acquisition
-// is async; the bodies are otherwise straight map mutation. They are
-// expected to be called *while the caller holds `entries.write()`* —
-// see the lock-ordering invariant on `Indexer`.
-// ──────────────────────────────────────────────────────────────────────
+// The secondary-index helpers below are async only for the per-index
+// `RwLock::write().await`, and must be called while the caller holds
+// `entries.write()`, per the lock-ordering invariant on `Indexer`.
 
 async fn update_adr_by_id(
     map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
@@ -1014,21 +1182,62 @@ async fn update_adr_by_id(
     }
 }
 
-async fn update_work_item_by_id(
+/// Gives `key` to `path` when nothing holds it or `path` sorts lower than
+/// its holder, so two files sharing an identity key resolve to the same
+/// one whatever order they are read in.
+fn hold_if_lower(map: &mut HashMap<String, PathBuf>, key: String, path: &Path) {
+    map.entry(key)
+        .and_modify(|holder| {
+            if path < holder.as_path() {
+                *holder = path.to_path_buf();
+            }
+        })
+        .or_insert_with(|| path.to_path_buf());
+}
+
+/// Takes `key` from `leaving` when it holds it, handing it to the lowest
+/// other path in `entries` sharing it.
+fn release(
+    map: &mut HashMap<String, PathBuf>,
+    key: &str,
+    leaving: &Path,
+    entries: &HashMap<PathBuf, IndexEntry>,
+) {
+    if map.get(key).map(PathBuf::as_path) != Some(leaving) {
+        return;
+    }
+    let next = entries
+        .values()
+        .filter(|entry| entry.path != leaving)
+        .filter(|entry| identity_key_of_entry(entry).as_deref() == Some(key))
+        .map(|entry| entry.path.clone())
+        .min();
+    match next {
+        Some(path) => {
+            map.insert(key.to_owned(), path);
+        }
+        None => {
+            map.remove(key);
+        }
+    }
+}
+
+async fn update_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
+    entries: &HashMap<PathBuf, IndexEntry>,
 ) {
-    let prev_id = previous.and_then(work_item_id_from_entry);
-    let next_id = work_item_id_from_entry(new_entry);
+    let prev_id = previous.and_then(identity_key_of_entry);
+    let next_id = identity_key_of_entry(new_entry);
     let mut m = map.write().await;
     if let Some(ref prev_id) = prev_id {
         if Some(prev_id.as_str()) != next_id.as_deref() {
-            m.remove(prev_id);
+            release(&mut m, prev_id, &new_entry.path, entries);
         }
     }
     if let Some(id) = next_id {
-        m.insert(id, new_entry.path.clone());
+        hold_if_lower(&mut m, id, &new_entry.path);
     }
 }
 
@@ -1053,7 +1262,7 @@ async fn update_plans_by_id(
 async fn update_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
-    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
     new_entry: &IndexEntry,
@@ -1071,7 +1280,7 @@ async fn update_reviews_by_target(
         target_path_from_entry(
             p,
             plans_by_id,
-            work_item_by_id,
+            work_item_by_identity_key,
             work_item_cfg,
             project_root,
         )
@@ -1079,7 +1288,7 @@ async fn update_reviews_by_target(
     let next_target = target_path_from_entry(
         new_entry,
         plans_by_id,
-        work_item_by_id,
+        work_item_by_identity_key,
         work_item_cfg,
         project_root,
     );
@@ -1106,12 +1315,13 @@ async fn remove_from_adr_by_id(
     }
 }
 
-async fn remove_from_work_item_by_id(
+async fn remove_from_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     previous: &IndexEntry,
+    entries: &HashMap<PathBuf, IndexEntry>,
 ) {
-    if let Some(id) = work_item_id_from_entry(previous) {
-        map.write().await.remove(&id);
+    if let Some(id) = identity_key_of_entry(previous) {
+        release(&mut *map.write().await, &id, &previous.path, entries);
     }
 }
 
@@ -1124,10 +1334,36 @@ async fn remove_from_plans_by_id(
     }
 }
 
+/// Every review, by the path of the document it targets.
+fn reviews_by_target_of(
+    entries: &HashMap<PathBuf, IndexEntry>,
+    plans_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
+    work_item_cfg: &crate::config::WorkItemConfig,
+    project_root: &Path,
+) -> HashMap<PathBuf, BTreeSet<PathBuf>> {
+    let mut reviews: HashMap<PathBuf, BTreeSet<PathBuf>> = HashMap::new();
+    for entry in entries.values() {
+        if let Some(target) = target_path_from_entry(
+            entry,
+            plans_by_id,
+            work_item_by_identity_key,
+            work_item_cfg,
+            project_root,
+        ) {
+            reviews
+                .entry(target)
+                .or_default()
+                .insert(entry.path.clone());
+        }
+    }
+    reviews
+}
+
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
     plans_by_id: &HashMap<String, PathBuf>,
-    work_item_by_id: &HashMap<String, PathBuf>,
+    work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
     previous: &IndexEntry,
@@ -1135,7 +1371,7 @@ async fn remove_from_reviews_by_target(
     if let Some(target_key) = target_path_from_entry(
         previous,
         plans_by_id,
-        work_item_by_id,
+        work_item_by_identity_key,
         work_item_cfg,
         project_root,
     ) {
@@ -1149,38 +1385,51 @@ async fn remove_from_reviews_by_target(
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// Work-item cross-reference canonicalisation.
-// ──────────────────────────────────────────────────────────────────────
+/// A work item's frontmatter `id` as shown and as joined, warning when a
+/// non-blank one reads as neither.
+fn work_item_identity(
+    raw: &str,
+    work_item_cfg: &crate::config::WorkItemConfig,
+    path: &Path,
+) -> (Option<String>, Option<String>) {
+    let trimmed = raw.trim();
+    let shown = work_item_cfg.displayed_id(trimmed);
+    let identity = work_item_cfg.identity_key(trimmed);
+    if !trimmed.is_empty() && shown.is_none() && identity.is_none() {
+        tracing::warn!(
+            file = %path.display(),
+            key = "id",
+            value = raw,
+            "work-item identity frontmatter value failed shape validation",
+        );
+    }
+    (shown, identity)
+}
 
-/// Canonicalises a single raw cross-reference string to match
-/// `work_item_by_id` keys. Returns `None` for malformed values
-/// (anything not in one of the three accepted shapes). The
-/// allocation-light counterpart to `canonicalise_refs`.
-pub fn canonicalise_one_id(
+/// The identity key a raw cross-reference, bare or a typed `work-item:`
+/// reference, joins `work_item_by_identity_key` on, or `None` for a value
+/// that names no work item.
+pub fn identity_key_of(
     raw: &str,
     cfg: &crate::config::WorkItemConfig,
 ) -> Option<String> {
-    cfg.scheme().canonicalise_id(raw)
+    match corpus::parse_typed_ref(raw) {
+        Some(corpus::TypedRef::WorkItem(id)) => cfg.identity_key(&id),
+        Some(_) => None,
+        None => cfg.identity_key(raw),
+    }
 }
 
-/// Canonicalises raw cross-reference strings to match `work_item_by_id` keys.
-///
-/// Four cases (applied in order):
-/// 1. Bare numeric (`^\d+$`) under a non-project pattern: zero-pad to width.
-/// 2. Bare numeric under a project pattern with `key`: prefix + zero-pad.
-/// 3. Project-prefixed (`^[A-Za-z][A-Za-z0-9]*-\d+$`): pass through verbatim.
-/// 4. Anything else: skip (silent drop; never panics).
-///
-/// Duplicates are removed; insertion order is preserved for the unique elements.
-pub fn canonicalise_refs(
+/// The identity keys of raw cross-references, malformed values dropped and
+/// duplicates removed, in first-seen order.
+pub fn identity_keys_of(
     raw: Vec<String>,
     cfg: &crate::config::WorkItemConfig,
 ) -> Vec<String> {
     let mut seen: HashSet<String> = HashSet::new();
     let mut result: Vec<String> = Vec::new();
     for r in raw {
-        let Some(canonical) = canonicalise_one_id(&r, cfg) else {
+        let Some(canonical) = identity_key_of(&r, cfg) else {
             continue;
         };
         if seen.insert(canonical.clone()) {
@@ -1197,9 +1446,9 @@ async fn update_work_item_refs_by_target(
     previous: Option<&IndexEntry>,
 ) {
     let prev_refs = previous
-        .map(|p| canonicalise_refs(p.work_item_refs.clone(), cfg))
+        .map(|p| identity_keys_of(p.work_item_refs.clone(), cfg))
         .unwrap_or_default();
-    let next_refs = canonicalise_refs(new_entry.work_item_refs.clone(), cfg);
+    let next_refs = identity_keys_of(new_entry.work_item_refs.clone(), cfg);
     let mut m = map.write().await;
     // Remove the previous entry's path from all its canonical IDs.
     if let Some(prev) = previous {
@@ -1214,7 +1463,7 @@ async fn update_work_item_refs_by_target(
     }
     // Insert the new entry's path under all its canonical IDs (excluding self-refs).
     for id in &next_refs {
-        if new_entry.work_item_id.as_deref() == Some(id.as_str()) {
+        if new_entry.identity_key.as_deref() == Some(id.as_str()) {
             continue;
         }
         m.entry(id.clone())
@@ -1228,7 +1477,7 @@ async fn remove_from_work_item_refs_by_target(
     cfg: &crate::config::WorkItemConfig,
     previous: &IndexEntry,
 ) {
-    let refs = canonicalise_refs(previous.work_item_refs.clone(), cfg);
+    let refs = identity_keys_of(previous.work_item_refs.clone(), cfg);
     if refs.is_empty() {
         return;
     }
@@ -1243,6 +1492,13 @@ async fn remove_from_work_item_refs_by_target(
     }
 }
 
+fn markdown_stem(filename: &str) -> &str {
+    filename
+        .rsplit_once('.')
+        .filter(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+        .map_or(filename, |(stem, _)| stem)
+}
+
 fn build_entry(
     kind: DocTypeKey,
     path: PathBuf,
@@ -1252,7 +1508,6 @@ fn build_entry(
 ) -> IndexEntry {
     let parsed = frontmatter::parse(&content.bytes);
     let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-    let filename_stem = filename.strip_suffix(".md").unwrap_or(filename);
 
     // For nested-manifest doc types (e.g. design inventories) the slug
     // source is the parent directory name, not the manifest filename.
@@ -1265,62 +1520,39 @@ fn build_entry(
         filename.to_string()
     };
 
-    let (slug_val, work_item_id) = if kind == DocTypeKey::WorkItems {
-        let regex_slug =
-            corpus::slug::derive_work_item(filename, work_item_cfg.scanner());
-        // Fall back to the default numeric slug derivation when the primary
-        // regex doesn't match (e.g., legacy bare-numeric files in a
-        // project-prefixed workspace during a pattern-config rollout).
-        let slug = regex_slug.or_else(|| {
-            corpus::slug::derive(
-                kind,
+    let (slug_val, work_item_id, identity_key) =
+        if kind == DocTypeKey::WorkItems {
+            let id_slug = corpus::slug::derive_work_item(
                 filename,
-                work_item_cfg.scheme(),
-                work_item_cfg.scanner(),
-            )
-        });
-        // Identity resolution: the unified `id:` key is the sole work-item
-        // identity source. It routes through `normalise_id` so the identity
-        // shape is canonical (a raw `id:` must not bypass normalisation). A
-        // synced work-item may carry its id in frontmatter even when the
-        // filename doesn't encode it.
-        let read_fm_id = |key: &str| -> Option<String> {
-            let FrontmatterState::Parsed(map) = &parsed.state else {
-                return None;
-            };
-            map.get(key).and_then(|v| v.as_str()).and_then(|raw| {
-                let normalised = work_item_cfg.normalise_id(raw);
-                if normalised.is_none() && !raw.trim().is_empty() {
-                    tracing::warn!(
-                        file = %path.display(),
-                        key = key,
-                        value = raw,
-                        "work-item identity frontmatter value failed shape validation",
-                    );
+                work_item_cfg.convention(),
+            );
+            let slug = id_slug.or_else(|| {
+                corpus::slug::derive(kind, filename, work_item_cfg.convention())
+            });
+            let raw_id = match &parsed.state {
+                FrontmatterState::Parsed(map) => {
+                    map.get("id").and_then(|v| v.as_str())
                 }
-                normalised
-            })
+                _ => None,
+            };
+            let (shown, identity) = raw_id.map_or((None, None), |raw| {
+                work_item_identity(raw, work_item_cfg, &path)
+            });
+            (slug, shown, identity)
+        } else {
+            (
+                corpus::slug::derive(
+                    kind,
+                    &slug_filename,
+                    work_item_cfg.convention(),
+                ),
+                None,
+                None,
+            )
         };
-        // `id:` is the sole work-item identity source (validated via
-        // normalise_id); absence → None, i.e. the entry is excluded from the
-        // index.
-        let id = read_fm_id("id");
-        (slug, id)
-    } else {
-        (
-            corpus::slug::derive(
-                kind,
-                &slug_filename,
-                work_item_cfg.scheme(),
-                work_item_cfg.scanner(),
-            ),
-            None,
-        )
-    };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.
-    let title_fallback_stem =
-        slug_filename.strip_suffix(".md").unwrap_or(filename_stem);
+    let title_fallback_stem = markdown_stem(&slug_filename);
     let title = frontmatter::title_from(
         &parsed.state,
         &parsed.body,
@@ -1356,8 +1588,12 @@ fn build_entry(
         slug: slug_val,
         draft: work_item_id
             .as_deref()
-            .is_some_and(|id| corpus::canonical_draft_id(id).is_some()),
+            .is_some_and(|id| work::draft_id::DraftId::parse(id).is_some()),
+        work_item_key: work_item_id
+            .as_deref()
+            .and_then(|shown| work_item_cfg.key_of(shown)),
         work_item_id,
+        identity_key,
         title,
         frontmatter: fm_json,
         frontmatter_state: state_str,
@@ -1380,8 +1616,8 @@ fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
     parse_adr_id(&entry.frontmatter, filename)
 }
 
-fn work_item_id_from_entry(entry: &IndexEntry) -> Option<String> {
-    entry.work_item_id.clone()
+fn identity_key_of_entry(entry: &IndexEntry) -> Option<String> {
+    entry.identity_key.clone()
 }
 
 /// Extracts a plan's `id:` value (typically the filename stem). Used to
@@ -1412,54 +1648,52 @@ fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
 }
 
 #[cfg(test)]
-mod canonicalise_tests {
+mod identity_key_tests {
     use super::*;
+    use crate::config::scheme_for_test;
     use crate::config::WorkItemConfig;
 
     fn cfg_numeric() -> WorkItemConfig {
-        WorkItemConfig::default_numeric() // id_pattern = "{number:04d}", no project
+        WorkItemConfig::default_numeric()
     }
 
     fn cfg_project(code: &str) -> WorkItemConfig {
-        let raw = crate::config::RawWorkItemConfig {
-            scan_regex: format!("^{code}-(\\d+)-"),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some(code.to_string()),
-        };
-        WorkItemConfig::from_raw(raw).unwrap()
+        WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some(code),
+        ))
     }
 
     #[test]
-    fn canonicalise_refs_pads_bare_numeric_under_default_pattern() {
+    fn identity_keys_of_pads_bare_numeric_under_default_pattern() {
         let cfg = cfg_numeric();
         let raw = vec!["42".to_string(), "0007".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["0042", "0007"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["0042", "0007"]);
     }
 
     #[test]
-    fn canonicalise_refs_prefixes_default_project_under_project_pattern() {
+    fn identity_keys_of_prefixes_default_project_under_project_pattern() {
         let cfg = cfg_project("PROJ");
         let raw = vec!["42".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["PROJ-0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["PROJ-0042"]);
     }
 
     #[test]
-    fn canonicalise_refs_passes_prefixed_input_through_under_default_pattern() {
+    fn identity_keys_of_drops_prefixed_input_under_default_pattern() {
         let cfg = cfg_numeric();
         let raw = vec!["PROJ-0042".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["PROJ-0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), Vec::<String>::new());
     }
 
     #[test]
-    fn canonicalise_refs_dedups_after_canonicalisation() {
+    fn identity_keys_of_dedups_after_canonicalisation() {
         let cfg = cfg_numeric();
-        // "42", "0042", and 42 all canonicalise to "0042"
         let raw = vec!["42".to_string(), "0042".to_string()];
-        assert_eq!(canonicalise_refs(raw, &cfg), vec!["0042"]);
+        assert_eq!(identity_keys_of(raw, &cfg), vec!["0042"]);
     }
 
     #[test]
-    fn canonicalise_refs_drops_malformed_input() {
+    fn identity_keys_of_drops_malformed_input() {
         let cfg = cfg_numeric();
         let raw = vec![
             "not-a-valid-id".to_string(),
@@ -1468,16 +1702,16 @@ mod canonicalise_tests {
             "PROJ-".to_string(),
             "-0042".to_string(),
         ];
-        assert_eq!(canonicalise_refs(raw, &cfg), Vec::<String>::new());
+        assert_eq!(identity_keys_of(raw, &cfg), Vec::<String>::new());
     }
 
     #[test]
-    fn canonicalise_refs_case_3_vs_case_4_boundary() {
+    fn identity_keys_of_drop_a_foreign_key_under_a_keyless_pattern() {
         let cfg = cfg_numeric();
         let cases: &[(&str, Option<&str>)] = &[
-            ("PROJ-0042", Some("PROJ-0042")),
-            ("FOO-1", Some("FOO-1")),
-            ("Web2-7", Some("Web2-7")),
+            ("PROJ-0042", None),
+            ("FOO-1", None),
+            ("Web2-7", None),
             ("42-foo", None),
             ("PROJ-", None),
             ("-0042", None),
@@ -1486,10 +1720,693 @@ mod canonicalise_tests {
             ("", None),
         ];
         for (input, expected) in cases {
-            let got = canonicalise_refs(vec![(*input).to_string()], &cfg);
+            let got = identity_keys_of(vec![(*input).to_string()], &cfg);
             let got_first = got.first().map(String::as_str);
             assert_eq!(got_first, *expected, "input={input}");
         }
+    }
+}
+
+#[cfg(test)]
+mod identity_join_tests {
+    use super::*;
+    use crate::clusters::{compute_clusters_with_backfill, ClusterContext};
+    use crate::config::{scheme_for_test, WorkItemConfig};
+    use crate::file_driver::LocalFileDriver;
+    use std::sync::Arc;
+
+    const DIRS: [(&str, &str); 3] = [
+        ("work", "meta/work"),
+        ("plans", "meta/plans"),
+        ("review_work", "meta/reviews/work"),
+    ];
+
+    async fn index_under(
+        root: &Path,
+        pattern: &str,
+        key: Option<&str>,
+        files: &[(&str, &str)],
+    ) -> Indexer {
+        let mut dirs = HashMap::new();
+        for (path_key, dir) in DIRS {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            dirs.insert(path_key.to_string(), root.join(dir));
+        }
+        for (path, content) in files {
+            std::fs::write(root.join(path), content).unwrap();
+        }
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let cfg = WorkItemConfig::new(scheme_for_test(pattern, key));
+        Indexer::build(driver, root.to_path_buf(), Arc::new(cfg))
+            .await
+            .unwrap()
+    }
+
+    async fn entry_at(idx: &Indexer, root: &Path, path: &str) -> IndexEntry {
+        idx.get(&root.join(path)).await.expect("indexed")
+    }
+
+    #[tokio::test]
+    async fn a_shared_identity_key_goes_to_the_lower_path_and_passes_on() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let lower = "meta/work/PP-0500-y.md";
+        let higher = "meta/work/pp-0500-x.md";
+        let idx = index_under(
+            &root,
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[
+                (higher, "---\nid: pp-0500\n---\n"),
+                (lower, "---\nid: PP-0500\n---\n"),
+            ],
+        )
+        .await;
+        let snapshot = idx.work_item_by_identity_key_snapshot().await;
+        assert_eq!(snapshot.get("PP-0500"), Some(&root.join(lower)));
+
+        std::fs::remove_file(root.join(lower)).unwrap();
+        idx.refresh_one(&root.join(lower)).await.unwrap();
+
+        let snapshot = idx.work_item_by_identity_key_snapshot().await;
+        assert_eq!(snapshot.get("PP-0500"), Some(&root.join(higher)));
+    }
+
+    #[tokio::test]
+    async fn a_review_by_identity_key_follows_the_key_to_its_next_holder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let lower = "meta/work/PP-0500-y.md";
+        let higher = "meta/work/pp-0500-x.md";
+        let idx = index_under(
+            &root,
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[
+                (higher, "---\nid: pp-0500\n---\n"),
+                (lower, "---\nid: PP-0500\n---\n"),
+                (
+                    "meta/reviews/work/PP-0500-review-1.md",
+                    "---\ntarget: \"work-item:PP-0500\"\n---\n",
+                ),
+            ],
+        )
+        .await;
+
+        std::fs::remove_file(root.join(lower)).unwrap();
+        idx.refresh_one(&root.join(lower)).await.unwrap();
+
+        assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 0);
+        assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_review_by_identity_key_moves_to_a_new_lower_holder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let lower = "meta/work/PP-0500-y.md";
+        let higher = "meta/work/pp-0500-x.md";
+        let idx = index_under(
+            &root,
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[
+                (higher, "---\nid: pp-0500\n---\n"),
+                (
+                    "meta/reviews/work/PP-0500-review-1.md",
+                    "---\ntarget: \"work-item:PP-0500\"\n---\n",
+                ),
+            ],
+        )
+        .await;
+
+        std::fs::write(root.join(lower), "---\nid: PP-0500\n---\n").unwrap();
+        idx.refresh_one(&root.join(lower)).await.unwrap();
+
+        assert_eq!(idx.reviews_by_target(&root.join(higher)).await.len(), 0);
+        assert_eq!(idx.reviews_by_target(&root.join(lower)).await.len(), 1);
+    }
+
+    async fn cluster_keys(
+        idx: &Indexer,
+        root: &Path,
+        paths: &[&str],
+    ) -> Vec<Option<String>> {
+        let snapshot = idx.all().await;
+        let by_id = idx.work_item_by_identity_key_snapshot().await;
+        let plans = idx.plans_by_id_snapshot().await;
+        let work_item_cfg = idx.work_item_cfg();
+        let ctx = ClusterContext::from_entries(
+            &snapshot,
+            &by_id,
+            &plans,
+            idx.project_root(),
+            &work_item_cfg,
+        );
+        let (_, _, keys) = compute_clusters_with_backfill(&snapshot, &ctx);
+        let mut found = Vec::new();
+        for path in paths {
+            let entry = entry_at(idx, root, path).await;
+            found.push(keys.get(&entry.path).cloned().flatten());
+        }
+        found
+    }
+
+    const PP_0500: (&str, &str) = (
+        "meta/work/pp-0500-x.md",
+        "---\nid: pp-0500\ntitle: X\n---\n",
+    );
+
+    #[tokio::test]
+    async fn a_lower_case_key_filename_belongs_to_the_configured_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500],
+        )
+        .await;
+
+        let entry = entry_at(&idx, tmp.path(), PP_0500.0).await;
+
+        assert_eq!(entry.slug.as_deref(), Some("x"));
+        assert_eq!(
+            idx.work_item_by_identity_key_snapshot()
+                .await
+                .get("PP-0500"),
+            Some(&entry.path)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_served_work_item_id_is_the_id_as_written() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500],
+        )
+        .await;
+
+        let entry = entry_at(&idx, tmp.path(), PP_0500.0).await;
+
+        assert_eq!(entry.work_item_id.as_deref(), Some("pp-0500"));
+        assert_eq!(
+            extract_facet_value(&entry, "project").as_deref(),
+            Some("PP")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_served_cluster_key_is_the_canonical_identity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = (
+            "meta/plans/2026-01-01-x.md",
+            "---\ntitle: P\nparent: \"work-item:pp-0500\"\n---\n",
+        );
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500, plan],
+        )
+        .await;
+
+        assert_eq!(
+            cluster_keys(&idx, tmp.path(), &[PP_0500.0, plan.0]).await,
+            vec![Some("PP-0500".to_owned()), Some("PP-0500".to_owned())]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_work_item_under_another_key_gets_a_slug() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/XY-0400-foo.md", "---\nid: XY-0400\n---\n");
+        let idx =
+            index_under(tmp.path(), "{key}-{number:04d}", Some("PP"), &[item])
+                .await;
+
+        let entry = entry_at(&idx, tmp.path(), item.0).await;
+
+        assert_eq!(entry.slug.as_deref(), Some("foo"));
+    }
+
+    #[tokio::test]
+    async fn an_untrusted_corpus_serves_no_work_item_ids_and_says_why() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let off_pattern = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
+        let in_shape = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx =
+            index_under(&root, "{number:04d}", None, &[off_pattern, in_shape])
+                .await;
+
+        let entry = entry_at(&idx, &root, in_shape.0).await;
+
+        assert_eq!(entry.work_item_id, None);
+        assert_eq!(entry.identity_key, None);
+        assert!(
+            idx.untrusted_corpus_problem().is_some_and(|problem| problem
+                .starts_with(
+                    "E_REKEY_REQUIRED: 1 work item is not under the ID"
+                )
+                && problem.contains("meta/work/0042-x.md")),
+            "{:?}",
+            idx.untrusted_corpus_problem()
+        );
+    }
+
+    #[tokio::test]
+    async fn fixing_the_corpus_restores_its_ids_on_refresh() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let off_pattern = ("meta/work/0042-x.md", "---\nid: \"42\"\n---\n");
+        let in_shape = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx =
+            index_under(&root, "{number:04d}", None, &[off_pattern, in_shape])
+                .await;
+
+        std::fs::write(root.join(off_pattern.0), "---\nid: \"0042\"\n---\n")
+            .unwrap();
+        idx.refresh_one(&root.join(off_pattern.0)).await.unwrap();
+
+        assert_eq!(idx.untrusted_corpus_problem(), None);
+        assert_eq!(
+            entry_at(&idx, &root, in_shape.0)
+                .await
+                .work_item_id
+                .as_deref(),
+            Some("0043")
+        );
+        assert_eq!(
+            entry_at(&idx, &root, off_pattern.0)
+                .await
+                .work_item_id
+                .as_deref(),
+            Some("0042")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_item_takes_every_items_ids_away() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let item = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx = index_under(&root, "{number:04d}", None, &[item]).await;
+        let slugless = root.join("meta/work/0400.md");
+
+        std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
+        idx.refresh_one(&slugless).await.unwrap();
+
+        assert!(
+            idx.untrusted_corpus_problem().is_some_and(|problem| problem
+                .starts_with("E_WORK_ITEM_MALFORMED: meta/work/0400.md")),
+            "{:?}",
+            idx.untrusted_corpus_problem()
+        );
+        assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
+    }
+
+    struct FailingOneRead {
+        inner: LocalFileDriver,
+        failing: std::sync::Mutex<Option<PathBuf>>,
+    }
+
+    impl FailingOneRead {
+        fn fail_next_read_of(&self, path: PathBuf) {
+            *self.failing.lock().unwrap() = Some(path);
+        }
+    }
+
+    impl FileDriver for FailingOneRead {
+        fn list(
+            &self,
+            kind: DocTypeKey,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<PathBuf>, FileDriverError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.inner.list(kind)
+        }
+
+        fn read(
+            &self,
+            path: &Path,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<FileContent, FileDriverError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let mut failing = self.failing.lock().unwrap();
+            if failing.as_deref() == Some(path) {
+                *failing = None;
+                let path = path.to_path_buf();
+                return Box::pin(async move {
+                    Err(FileDriverError::Io {
+                        path,
+                        source: std::io::Error::other("transient"),
+                    })
+                });
+            }
+            self.inner.read(path)
+        }
+
+        fn write_frontmatter(
+            &self,
+            path: &Path,
+            patch: crate::file_driver::FrontmatterPatch,
+            if_match: &str,
+            on_committed: Box<dyn FnOnce(&Path) + Send>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<FileContent, FileDriverError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.inner
+                .write_frontmatter(path, patch, if_match, on_committed)
+        }
+
+        fn kind_for_canonical_path(&self, path: &Path) -> Option<DocTypeKey> {
+            self.inner.kind_for_canonical_path(path)
+        }
+    }
+
+    #[tokio::test]
+    async fn a_rescan_that_fails_after_trust_flips_is_retried_on_the_next_refresh(
+    ) {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let item = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let plan = ("meta/plans/a-plan.md", "---\ntitle: P\n---\n");
+        let mut dirs = HashMap::new();
+        for (path_key, dir) in DIRS {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            dirs.insert(path_key.to_string(), root.join(dir));
+        }
+        for (path, content) in [item, plan] {
+            std::fs::write(root.join(path), content).unwrap();
+        }
+        let driver = Arc::new(FailingOneRead {
+            inner: LocalFileDriver::new(&dirs, vec![], vec![]),
+            failing: std::sync::Mutex::new(None),
+        });
+        let cfg = WorkItemConfig::new(scheme_for_test("{number:04d}", None));
+        let idx = Indexer::build(driver.clone(), root.clone(), Arc::new(cfg))
+            .await
+            .unwrap();
+        let slugless = root.join("meta/work/0400.md");
+        std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
+
+        driver.fail_next_read_of(root.join(plan.0));
+        assert!(idx.refresh_one(&slugless).await.is_err());
+        idx.refresh_one(&slugless).await.unwrap();
+
+        assert!(idx.untrusted_corpus_problem().is_some());
+        assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
+    }
+
+    #[tokio::test]
+    async fn a_work_item_that_is_not_utf8_takes_every_items_ids_away() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let item = ("meta/work/0043-y.md", "---\nid: \"0043\"\n---\n");
+        let idx = index_under(&root, "{number:04d}", None, &[item]).await;
+        let undecodable = root.join("meta/work/0400-cafe.md");
+
+        std::fs::write(
+            &undecodable,
+            b"---\nid: \"0400\"\ntitle: Caf\xe9\n---\n",
+        )
+        .unwrap();
+        idx.refresh_one(&undecodable).await.unwrap();
+
+        assert_eq!(
+            idx.untrusted_corpus_problem().as_deref(),
+            Some(
+                "E_WORK_ITEM_MALFORMED: meta/work/0400-cafe.md is not UTF-8 \
+                 text. Re-save it as UTF-8, or move it out of the work \
+                 directory"
+            )
+        );
+        assert_eq!(entry_at(&idx, &root, item.0).await.work_item_id, None);
+    }
+
+    #[tokio::test]
+    async fn an_items_filename_id_and_references_share_one_identity_key() {
+        let cases = [
+            (
+                "{key}-{number:04d}",
+                Some("PROJ"),
+                "PROJ-1-short.md",
+                "PROJ-0001",
+                "PROJ-1",
+            ),
+            (
+                "{key}_{number:04d}",
+                Some("PP"),
+                "PP_0042-x.md",
+                "PP_0042",
+                "pp_42",
+            ),
+            ("v{number:03d}", None, "v001-x.md", "v001", "v1"),
+            (
+                "{key}-{number:04d}",
+                Some("PP"),
+                "XY-0400-x.md",
+                "XY-0400",
+                "xy-400",
+            ),
+            (
+                "{key}-{number:04d}",
+                Some("PROJ"),
+                "0042-legacy.md",
+                "PROJ-0042",
+                "PROJ-42",
+            ),
+        ];
+        for (pattern, key, filename, id, reference) in cases {
+            let tmp = tempfile::tempdir().unwrap();
+            let item_path = format!("meta/work/{filename}");
+            let item = format!("---\nid: \"{id}\"\n---\n");
+            let by_reference = format!(
+                "---\ntitle: R\nparent: \"work-item:{reference}\"\n---\n"
+            );
+            let by_path =
+                format!("---\ntitle: P\nparent: \"{item_path}\"\n---\n");
+            let idx = index_under(
+                tmp.path(),
+                pattern,
+                key,
+                &[
+                    (&item_path, &item),
+                    ("meta/plans/2026-01-01-r.md", &by_reference),
+                    ("meta/plans/2026-01-02-p.md", &by_path),
+                ],
+            )
+            .await;
+
+            let keys = cluster_keys(
+                &idx,
+                tmp.path(),
+                &[
+                    &item_path,
+                    "meta/plans/2026-01-01-r.md",
+                    "meta/plans/2026-01-02-p.md",
+                ],
+            )
+            .await;
+
+            assert!(keys[0].is_some(), "{filename}: {keys:?}");
+            assert!(keys.iter().all(|k| k == &keys[0]), "{filename}: {keys:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_dated_slug_keeps_words_that_look_like_ids() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = ("meta/plans/2026-10-29-iso-8601-dates.md", "---\n---\n");
+        let review = (
+            "meta/reviews/work/2026-10-29-XY-0400-foo-review-1.md",
+            "---\n---\n",
+        );
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[plan, review],
+        )
+        .await;
+
+        assert_eq!(
+            entry_at(&idx, tmp.path(), plan.0).await.slug.as_deref(),
+            Some("iso-8601-dates")
+        );
+        assert_eq!(
+            entry_at(&idx, tmp.path(), review.0).await.slug.as_deref(),
+            Some("XY-0400-foo")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_dated_slug_strips_the_configured_key_in_any_case() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = ("meta/plans/2026-10-29-pp-0400-foo.md", "---\n---\n");
+        let idx =
+            index_under(tmp.path(), "{key}-{number:04d}", Some("PP"), &[plan])
+                .await;
+
+        assert_eq!(
+            entry_at(&idx, tmp.path(), plan.0).await.slug.as_deref(),
+            Some("foo")
+        );
+    }
+
+    #[tokio::test]
+    async fn every_spelling_of_an_item_joins_its_cluster() {
+        let tmp = tempfile::tempdir().unwrap();
+        let files = [
+            ("meta/work/PP-42-a.md", "---\nid: PP-0042\n---\n"),
+            (
+                "meta/plans/2026-01-01-a.md",
+                "---\nparent: \"work-item:PP-42\"\n---\n",
+            ),
+            (
+                "meta/plans/2026-01-02-b.md",
+                "---\nparent: \"work-item:PP-0042\"\n---\n",
+            ),
+            PP_0500,
+            (
+                "meta/plans/2026-01-03-c.md",
+                "---\nparent: \"work-item:PP-0500\"\n---\n",
+            ),
+            (
+                "meta/plans/2026-01-04-d.md",
+                "---\nparent: \"meta/work/pp-0500-x.md\"\n---\n",
+            ),
+        ];
+        let idx =
+            index_under(tmp.path(), "{key}-{number:04d}", Some("PP"), &files)
+                .await;
+
+        let keys =
+            cluster_keys(&idx, tmp.path(), &files.map(|(path, _)| path)).await;
+
+        let pp_42 = Some("PP-0042".to_owned());
+        let pp_500 = Some("PP-0500".to_owned());
+        assert_eq!(
+            keys,
+            vec![
+                pp_42.clone(),
+                pp_42.clone(),
+                pp_42,
+                pp_500.clone(),
+                pp_500.clone(),
+                pp_500
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_free_text_parent_forms_no_cluster_under_tracker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plan = ("meta/plans/2026-01-01-a.md", "---\nparent: TBD\n---\n");
+        let idx = index_under(tmp.path(), "{tracker}", None, &[plan]).await;
+
+        assert_eq!(cluster_keys(&idx, tmp.path(), &[plan.0]).await, vec![None]);
+    }
+
+    #[tokio::test]
+    async fn a_foreign_key_reference_does_not_join_under_a_keyless_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/ENG-0042-x.md", "---\nid: ENG-0042\n---\n");
+        let plan = (
+            "meta/plans/2026-01-01-a.md",
+            "---\nparent: \"work-item:ENG-42\"\n---\n",
+        );
+        let idx =
+            index_under(tmp.path(), "{number:04d}", None, &[item, plan]).await;
+
+        let keys = cluster_keys(&idx, tmp.path(), &[item.0, plan.0]).await;
+
+        assert_eq!(keys, vec![None; 2]);
+    }
+
+    #[tokio::test]
+    async fn a_short_reference_clusters_with_its_padded_work_item() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/PROJ-0042-x.md", "---\nid: PROJ-0042\n---\n");
+        let plan = (
+            "meta/plans/2026-01-01-a.md",
+            "---\nparent: \"work-item:PROJ-42\"\n---\n",
+        );
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PROJ"),
+            &[item, plan],
+        )
+        .await;
+
+        let keys = cluster_keys(&idx, tmp.path(), &[item.0, plan.0]).await;
+
+        assert_eq!(keys, vec![Some("PROJ-0042".to_owned()); 2]);
+    }
+
+    #[tokio::test]
+    async fn the_visualiser_indexes_an_upper_case_md_item() {
+        let tmp = tempfile::tempdir().unwrap();
+        let item = ("meta/work/0400-x.MD", "---\nid: \"0400\"\n---\n");
+        let idx = index_under(tmp.path(), "{number:04d}", None, &[item]).await;
+
+        let entry = entry_at(&idx, tmp.path(), item.0).await;
+
+        assert_eq!(entry.r#type, DocTypeKey::WorkItems);
+        assert_eq!(entry.slug.as_deref(), Some("x"));
+        assert_eq!(entry.title, "X");
+    }
+
+    #[tokio::test]
+    async fn a_refreshed_item_keeps_its_identity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_under(
+            tmp.path(),
+            "{key}-{number:04d}",
+            Some("PP"),
+            &[PP_0500],
+        )
+        .await;
+        let path = tmp.path().join(PP_0500.0);
+
+        std::fs::write(&path, "---\nid: pp-0500\nparent: PP-500\n---\n")
+            .unwrap();
+        idx.refresh_one(&path).await.unwrap();
+
+        assert!(idx
+            .work_item_by_identity_key_snapshot()
+            .await
+            .contains_key("PP-0500"));
+        assert!(idx.work_item_refs_by_id("PP-0500").await.is_empty());
+
+        std::fs::remove_file(&path).unwrap();
+        idx.refresh_one(&path).await.unwrap();
+
+        assert!(!idx
+            .work_item_by_identity_key_snapshot()
+            .await
+            .contains_key("PP-0500"));
     }
 }
 
@@ -1712,32 +2629,11 @@ mod tests {
         assert_eq!(foo.body_preview, "First paragraph of the body.");
     }
 
-    fn make_cfg(doc_paths: HashMap<String, PathBuf>) -> crate::config::Config {
-        crate::config::Config {
-            plugin_root: "/p".into(),
-            plugin_version: "test".into(),
-            project_root: "/p".into(),
-            tmp_path: "/t".into(),
-            host: "127.0.0.1".into(),
-            owner_pid: 0,
-            owner_start_time: None,
-            log_path: "/l".into(),
-            doc_paths,
-            templates: HashMap::default(),
-            work_item: None,
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
-        }
-    }
-
     #[tokio::test]
     async fn library_aggregates_returns_counts_and_latest_per_type() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
-        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let agg = idx.library_aggregates(&Selection::new()).await;
         let plans =
             agg.per_type.get(&DocTypeKey::Plans).expect("plans present");
         assert_eq!(plans.count, 3);
@@ -1761,8 +2657,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let cfg = make_cfg(HashMap::new());
-        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let agg = idx.library_aggregates(&Selection::new()).await;
         assert!(agg.per_type.is_empty());
     }
 
@@ -1770,8 +2665,7 @@ mod tests {
     async fn library_aggregates_status_facet_skips_non_parsed_frontmatter() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
-        let agg = idx.library_aggregates(&cfg, &Selection::new()).await;
+        let agg = idx.library_aggregates(&Selection::new()).await;
         let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
         let status_options = plans.facet_options.get("status").unwrap();
         // Only the "draft" plan has parsed frontmatter with a status — the
@@ -1784,13 +2678,12 @@ mod tests {
     async fn library_aggregates_filtered_count_reflects_selection() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
         let mut sel: Selection = HashMap::new();
         sel.insert(
             DocTypeKey::Plans,
             HashMap::from([("status".to_string(), vec!["draft".to_string()])]),
         );
-        let agg = idx.library_aggregates(&cfg, &sel).await;
+        let agg = idx.library_aggregates(&sel).await;
         let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 1);
@@ -1800,13 +2693,12 @@ mod tests {
     async fn library_aggregates_empty_options_array_disables_facet_filter() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let cfg = make_cfg(HashMap::new());
         let mut sel: Selection = HashMap::new();
         sel.insert(
             DocTypeKey::Plans,
             HashMap::from([("status".to_string(), vec![])]),
         );
-        let agg = idx.library_aggregates(&cfg, &sel).await;
+        let agg = idx.library_aggregates(&sel).await;
         let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
         assert_eq!(plans.filtered_count, plans.count);
     }
@@ -1824,92 +2716,122 @@ mod tests {
         assert!(facets_for(DocTypeKey::Templates).is_empty());
     }
 
+    fn key_served(
+        id: &str,
+        pattern: &str,
+        key: Option<&str>,
+    ) -> Option<String> {
+        let text = format!("---\ntitle: T\nid: \"{id}\"\n---\n");
+        build_entry(
+            DocTypeKey::WorkItems,
+            PathBuf::from(format!("/repo/meta/work/{id}-x.md")),
+            &crate::file_driver::FileContent {
+                bytes: text.as_bytes().to_vec(),
+                etag: "etag".into(),
+                mtime_ms: 0,
+                size: text.len() as u64,
+            },
+            Path::new("/repo"),
+            &crate::config::WorkItemConfig::new(
+                crate::config::scheme_for_test(pattern, key),
+            ),
+        )
+        .work_item_key
+    }
+
     #[test]
-    fn extract_facet_value_project_derives_from_work_item_id() {
-        let entry = sample_entry_with_work_item("PROJ-0042");
-        let cfg = make_cfg(HashMap::new());
+    fn the_served_key_is_the_one_the_id_holds() {
         assert_eq!(
-            extract_facet_value(&entry, &cfg, "project"),
+            key_served("PROJ-0042", "{key}-{number:04d}", Some("OTHER")),
             Some("PROJ".to_string())
+        );
+        assert_eq!(
+            key_served("PP_0042", "{key}_{number:04d}", Some("PP")),
+            Some("PP".to_string())
+        );
+        assert_eq!(
+            key_served("0042-PP", "{number:04d}-{key}", Some("XY")),
+            Some("PP".to_string())
+        );
+        assert_eq!(
+            key_served("ENG-7", "{tracker}", None),
+            Some("ENG".to_string())
         );
     }
 
     #[test]
-    fn extract_facet_value_project_falls_back_to_default_for_prefixless_ids() {
-        let entry = sample_entry_with_work_item("0042");
-        let cfg = make_cfg_with_key("FALLBACK");
+    fn the_served_key_folds_case_as_links_and_the_cli_do() {
         assert_eq!(
-            extract_facet_value(&entry, &cfg, "project"),
+            key_served("pp-0042", "{key}-{number:04d}", Some("PP")),
+            Some("PP".to_string())
+        );
+        assert_eq!(
+            key_served("proj-0042", "{key}-{number:04d}", Some("PP")),
+            Some("PROJ".to_string())
+        );
+        assert_eq!(
+            key_served("eng-7", "{tracker}", None),
+            Some("ENG".to_string())
+        );
+    }
+
+    #[test]
+    fn a_prefixless_id_is_served_under_the_configured_key() {
+        assert_eq!(
+            key_served("0042", "{key}-{number:04d}", Some("FALLBACK")),
             Some("FALLBACK".to_string())
         );
     }
 
     #[test]
-    fn extract_facet_value_project_returns_none_for_empty_prefix() {
-        let entry = sample_entry_with_work_item("-0042");
-        let cfg = make_cfg(HashMap::new());
-        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+    fn no_key_is_served_for_an_id_without_one() {
+        assert_eq!(key_served("-0042", "{key}-{number:04d}", Some("PP")), None);
+        assert_eq!(key_served("draft-k7mq3x", "{tracker}", None), None);
+    }
+
+    #[test]
+    fn the_project_facet_is_the_served_key() {
+        let entry = IndexEntry {
+            work_item_key: Some("PP".to_string()),
+            ..sample_entry_with_work_item("PP_0042")
+        };
+        assert_eq!(
+            extract_facet_value(&entry, "project"),
+            Some("PP".to_string())
+        );
     }
 
     #[test]
     fn extract_facet_value_project_returns_none_when_work_item_id_is_none() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg_with_key("FALLBACK");
-        assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
+        assert_eq!(extract_facet_value(&entry, "project"), None);
     }
 
     #[test]
     fn entry_matches_all_returns_true_when_selection_absent() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg(HashMap::new());
-        assert!(entry_matches_all(&entry, &cfg, None));
+        assert!(entry_matches_all(&entry, None));
     }
 
     #[test]
     fn entry_matches_all_empty_options_is_no_filter() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg(HashMap::new());
         let sel: HashMap<String, Vec<String>> =
             HashMap::from([("status".to_string(), vec![])]);
-        assert!(entry_matches_all(&entry, &cfg, Some(&sel)));
+        assert!(entry_matches_all(&entry, Some(&sel)));
     }
 
     #[test]
     fn entry_matches_all_except_skips_named_facet() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg(HashMap::new());
         let sel: HashMap<String, Vec<String>> = HashMap::from([(
             "status".to_string(),
             vec!["does-not-match".to_string()],
         )]);
         // entry_matches_all would reject it
-        assert!(!entry_matches_all(&entry, &cfg, Some(&sel)));
+        assert!(!entry_matches_all(&entry, Some(&sel)));
         // entry_matches_all_except("status") skips the rejecting facet
-        assert!(entry_matches_all_except(&entry, &cfg, Some(&sel), "status"));
-    }
-
-    fn make_cfg_with_key(code: &str) -> crate::config::Config {
-        crate::config::Config {
-            plugin_root: "/p".into(),
-            plugin_version: "test".into(),
-            project_root: "/p".into(),
-            tmp_path: "/t".into(),
-            host: "127.0.0.1".into(),
-            owner_pid: 0,
-            owner_start_time: None,
-            log_path: "/l".into(),
-            doc_paths: HashMap::new(),
-            templates: HashMap::default(),
-            work_item: Some(crate::config::RawWorkItemConfig {
-                scan_regex: r"^(?<id>\d+)".to_string(),
-                id_pattern: "{number:04d}".to_string(),
-                key: Some(code.to_string()),
-            }),
-            kanban_columns: None,
-            idle_timeout: None,
-            editor: None,
-            editor_project: None,
-        }
+        assert!(entry_matches_all_except(&entry, Some(&sel), "status"));
     }
 
     fn sample_entry_with_work_item(work_item_id: &str) -> IndexEntry {
@@ -1919,6 +2841,8 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: Some(work_item_id.to_string()),
+            work_item_key: None,
+            identity_key: Some(work_item_id.to_string()),
             draft: false,
             title: "Sample".into(),
             frontmatter: serde_json::Value::Null,
@@ -1941,6 +2865,8 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: None,
+            work_item_key: None,
+            identity_key: None,
             draft: false,
             title: "Sample".into(),
             frontmatter: serde_json::Value::Null,
@@ -2176,7 +3102,6 @@ mod refresh_tests {
         (idx, work)
     }
 
-    // ── Step 2.14 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_picks_up_external_edit() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2208,7 +3133,6 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.15 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_updates_etag_on_change() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2235,7 +3159,6 @@ mod refresh_tests {
         assert_eq!(new_entry.etag, etag_of(&raw));
     }
 
-    // ── Step 2.16 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_deleted_file() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2259,12 +3182,11 @@ mod refresh_tests {
             "entry should be gone from index"
         );
         assert!(
-            idx.work_item_by_id("0001").await.is_none(),
-            "work_item_by_id index must also be cleaned up"
+            idx.work_item_by_identity_key("0001").await.is_none(),
+            "work_item_by_identity_key index must also be cleaned up"
         );
     }
 
-    // ── Step 2.17 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_does_not_disturb_unrelated_entries() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2296,19 +3218,18 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.18 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_rebuilds_secondary_indexes_for_work_items_and_decisions(
     ) {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, work) = build_refresh_indexer(tmp.path()).await;
 
-        // Refresh work item #1 — work_item_by_id must still work
+        // Refresh work item #1 — work_item_by_identity_key must still work
         let path1 = work.join("0001-foo.md");
         idx.refresh_one(&path1).await.unwrap();
         assert!(
-            idx.work_item_by_id("0001").await.is_some(),
-            "work_item_by_id(\"0001\") must still resolve after refresh_one"
+            idx.work_item_by_identity_key("0001").await.is_some(),
+            "work_item_by_identity_key(\"0001\") must still resolve after refresh_one"
         );
 
         // Refresh ADR-0001 — adr_by_id must still work
@@ -2320,7 +3241,6 @@ mod refresh_tests {
         );
     }
 
-    // ── Step 2.19 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_serialises_with_concurrent_rescan() {
         use std::sync::Arc as StdArc;
@@ -2411,7 +3331,6 @@ mod reverse_index_tests {
         (idx, plan, review)
     }
 
-    // ── Step 1.0 ────────────────────────────────────────────────────────────
     #[test]
     fn normalize_absolute_collapses_dot_and_dotdot_lexically() {
         // Cases come from Step 1.0 of the plan.
@@ -2438,7 +3357,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.1 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_populated_on_initial_scan() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2449,7 +3367,6 @@ mod reverse_index_tests {
         assert_eq!(inbound[0].path, review_path);
     }
 
-    // ── Step 1.2 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_round_trips_via_canonical_root() {
         // tempfile::tempdir on macOS gives /var/folders/... which is a
@@ -2494,7 +3411,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "round-trip via canonical entry path");
     }
 
-    // ── Step 1.3 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_excludes_reviews_without_target_field() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2532,7 +3448,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.4 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_tolerates_target_pointing_at_missing_file() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2571,7 +3486,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.5 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_supports_multiple_reviews_per_target() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2626,7 +3540,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.5b ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_on_unchanged_review_keeps_set_size_one() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2639,7 +3552,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "BTreeSet dedup-by-construction holds");
     }
 
-    // ── Step 1.5c ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_on_renamed_review_with_unchanged_target() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2664,7 +3576,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.6 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_adds_review_to_reverse_index() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2706,7 +3617,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1);
     }
 
-    // ── Step 1.7 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_review_from_reverse_index_on_target_change() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2747,7 +3657,6 @@ mod reverse_index_tests {
         assert_eq!(inbound_b.len(), 1, "new key under B must be present");
     }
 
-    // ── Step 1.7b ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_target_migration_is_atomic_under_single_writer_lock() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2830,7 +3739,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.8 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn refresh_one_removes_review_from_reverse_index_on_deletion() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2845,7 +3753,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.8b ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn delete_target_plan_with_inbound_reviews() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2896,7 +3803,6 @@ mod reverse_index_tests {
         assert!(idx.get(&rev_canon).await.is_some());
     }
 
-    // ── Step 1.9 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_survives_full_rescan() {
         let tmp = tempfile::tempdir().unwrap();
@@ -2907,7 +3813,6 @@ mod reverse_index_tests {
         assert_eq!(inbound.len(), 1, "rescan re-populates the reverse index");
     }
 
-    // ── Step 1.10 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_admits_every_target_carrying_doc_type() {
         // Target resolution admits every doc type carrying a `target:`
@@ -2948,9 +3853,9 @@ mod reverse_index_tests {
     ) {
         // Story 0070: a migrated work-item-review carries `target:
         // "work-item:NNNN"`. target_path_from_entry now resolves it via
-        // work_item_by_id, so the path-keyed reviews_by_target reverse index
-        // is populated on BOTH the full rescan (Indexer::build Pass B) and the
-        // incremental refresh_one path.
+        // work_item_by_identity_key, so the path-keyed reviews_by_target
+        // reverse index is populated on BOTH the full rescan (Indexer::build
+        // Pass B) and the incremental refresh_one path.
         let tmp = tempfile::tempdir().unwrap();
         let work = tmp.path().join("meta/work");
         let wi_reviews = tmp.path().join("meta/reviews/work");
@@ -2998,7 +3903,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.11 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn target_path_from_entry_rejects_malformed_values() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3055,7 +3959,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.12 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn rescan_clears_all_three_secondary_maps_before_repopulating() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3066,7 +3969,7 @@ mod reverse_index_tests {
             .write()
             .await
             .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
-        idx.work_item_by_id.write().await.insert(
+        idx.work_item_by_identity_key.write().await.insert(
             "99".to_string(),
             PathBuf::from("/nonexistent/9999-work-item.md"),
         );
@@ -3078,7 +3981,7 @@ mod reverse_index_tests {
         idx.rescan().await.unwrap();
 
         let adr_map = idx.adr_by_id.read().await;
-        let work_item_map = idx.work_item_by_id.read().await;
+        let work_item_map = idx.work_item_by_identity_key.read().await;
         let reviews_map = idx.reviews_by_target.read().await;
         assert!(!adr_map.contains_key(&99u32), "stale ADR cleared on rescan");
         assert!(
@@ -3091,7 +3994,6 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Step 1.13 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn concurrent_rescan_and_target_migration_under_rescan_lock() {
         let tmp = tempfile::tempdir().unwrap();
@@ -3168,8 +4070,6 @@ mod reverse_index_tests {
             "review must be under exactly one target (B)"
         );
     }
-
-    // ── Work-item cross-ref reverse index tests ──────────────────────────
 
     async fn build_indexer_with_work_items(
         tmp: &Path,
@@ -3383,16 +4283,13 @@ mod reverse_index_tests {
         );
     }
 
-    // ── Frontmatter-first id: resolution ────────────────────────────────────
     #[tokio::test]
     async fn id_uses_frontmatter_when_present() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
-        // Filename is bare-numeric (matches default scan_regex) but
-        // frontmatter declares a prefixed `id:` — frontmatter wins.
         std::fs::write(
-            work_dir.join("0001-foo.md"),
+            work_dir.join("ENG-0042-foo.md"),
             "---\ntitle: F\nid: \"ENG-0042\"\n---\n",
         )
         .unwrap();
@@ -3400,18 +4297,21 @@ mod reverse_index_tests {
         map.insert("work".into(), work_dir.clone());
         let driver: Arc<dyn FileDriver> =
             Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let cfg =
+            Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("ENG"),
+            )));
         let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
             .await
             .unwrap();
         let entry = idx
-            .get(&work_dir.join("0001-foo.md"))
+            .get(&work_dir.join("ENG-0042-foo.md"))
             .await
             .expect("indexed");
         assert_eq!(entry.work_item_id.as_deref(), Some("ENG-0042"));
     }
 
-    // ── Unified `id:` read path ─────────────────────────────────────────────
     fn fc_for(s: &str) -> crate::file_driver::FileContent {
         crate::file_driver::FileContent {
             bytes: s.as_bytes().to_vec(),
@@ -3424,7 +4324,7 @@ mod reverse_index_tests {
     #[test]
     fn work_item_identity_resolves_via_unified_id_key() {
         // `id:` is primary and wins over the filename (9999), routed through
-        // normalise_id — no legacy `work_item_id:` present.
+        // displayed_id — no legacy `work_item_id:` present.
         let cfg = crate::config::WorkItemConfig::default_numeric();
         let entry = build_entry(
             DocTypeKey::WorkItems,
@@ -3437,7 +4337,7 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn id_frontmatter_bare_digits_applies_project_code() {
+    async fn id_frontmatter_bare_digits_is_off_pattern_and_shows_no_id() {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
@@ -3450,14 +4350,11 @@ mod reverse_index_tests {
         map.insert("work".into(), work_dir.clone());
         let driver: Arc<dyn FileDriver> =
             Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(
-            WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
-                scan_regex: "^ENG-([0-9]+)-".to_string(),
-                id_pattern: "{project}-{number:04d}".to_string(),
-                key: Some("ENG".to_string()),
-            })
-            .unwrap(),
-        );
+        let cfg =
+            Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("ENG"),
+            )));
         let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
             .await
             .unwrap();
@@ -3465,7 +4362,8 @@ mod reverse_index_tests {
             .get(&work_dir.join("0001-foo.md"))
             .await
             .expect("indexed");
-        assert_eq!(entry.work_item_id.as_deref(), Some("ENG-42"));
+        assert_eq!(entry.work_item_id, None);
+        assert!(idx.untrusted_corpus_problem().is_some());
     }
 
     #[tokio::test]
@@ -3476,30 +4374,27 @@ mod reverse_index_tests {
         // The workspace's local ID prefix is ENG, but the file declares a
         // foreign prefix — must passthrough verbatim.
         std::fs::write(
-            work_dir.join("0001-foo.md"),
-            "---\ntitle: F\nid: \"OPS-7\"\n---\n",
+            work_dir.join("OPS-0007-foo.md"),
+            "---\ntitle: F\nid: \"OPS-0007\"\n---\n",
         )
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
         let driver: Arc<dyn FileDriver> =
             Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let cfg = Arc::new(
-            WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
-                scan_regex: "^ENG-([0-9]+)-".to_string(),
-                id_pattern: "{project}-{number:04d}".to_string(),
-                key: Some("ENG".to_string()),
-            })
-            .unwrap(),
-        );
+        let cfg =
+            Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("ENG"),
+            )));
         let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
             .await
             .unwrap();
         let entry = idx
-            .get(&work_dir.join("0001-foo.md"))
+            .get(&work_dir.join("OPS-0007-foo.md"))
             .await
             .expect("indexed");
-        assert_eq!(entry.work_item_id.as_deref(), Some("OPS-7"));
+        assert_eq!(entry.work_item_id.as_deref(), Some("OPS-0007"));
     }
 
     #[tokio::test]
@@ -3554,11 +4449,6 @@ mod reverse_index_tests {
             .expect("indexed");
         assert_eq!(entry.work_item_id, None);
     }
-
-    // ── Typed-linkage `target:` resolution ───────────────────────────────────
-    //
-    // Introduces a `plans_by_id` secondary index and teaches
-    // `target_path_from_entry` to resolve `target: "plan:<id>"` against it.
 
     #[tokio::test]
     async fn target_path_resolves_typed_linkage_plan_form() {
@@ -3917,24 +4807,25 @@ mod target_path_resolution_tests {
     }
 
     #[test]
-    fn typed_work_item_target_resolves_via_work_item_by_id() {
+    fn typed_work_item_target_resolves_via_work_item_by_identity_key() {
         // Story 0070 types work-item-review targets to `work-item:NNNN`;
-        // target_path_from_entry now resolves them through work_item_by_id
-        // (canonicalising the raw id first), so the path-keyed
+        // target_path_from_entry now resolves them through
+        // work_item_by_identity_key (canonicalising the raw id first), so the
+        // path-keyed
         // reviews_by_target reverse index stays populated. (Was previously
         // pinned to return None and resolved only by the cluster-key resolver.)
         let mut entry =
             entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
-        let mut work_item_by_id = HashMap::new();
-        work_item_by_id.insert(
+        let mut work_item_by_identity_key = HashMap::new();
+        work_item_by_identity_key.insert(
             "0042".to_string(),
             PathBuf::from("/repo/meta/work/0042-foo.md"),
         );
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &crate::config::WorkItemConfig::default(),
             &PathBuf::from("/repo"),
         );

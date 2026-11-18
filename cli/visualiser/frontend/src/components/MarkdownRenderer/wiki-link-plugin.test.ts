@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import { buildWikiLinkPattern } from "../../api/wiki-links";
 import { type Resolver, remarkWikiLinks } from "./wiki-link-plugin";
 
-const defaultPattern = buildWikiLinkPattern(null);
+const keyed = String.raw`[A-Za-z][A-Za-z0-9]*-\d+|\d+`;
+
+const defaultPattern = buildWikiLinkPattern();
 
 /** Run the plugin over a parsed markdown source. Returns the
  *  transformed mdast root. */
@@ -188,10 +190,10 @@ describe("remarkWikiLinks: SKIP prevents double rewrite of inserted children", (
   });
 });
 
-// ── Project-pattern wiki-link tests ─────────────────────────────────────────
-describe("remarkWikiLinks: project-pattern wiki-links", () => {
-  it("rewrites [[WORK-ITEM-PROJ-0042]] with a project-code pattern", () => {
-    const pattern = buildWikiLinkPattern("PROJ");
+// ── Keyed-token wiki-link tests ─────────────────────────────────────────────
+describe("remarkWikiLinks: keyed-token wiki-links", () => {
+  it("rewrites [[WORK-ITEM-PROJ-0042]] under a keyed token", () => {
+    const pattern = buildWikiLinkPattern(keyed);
     const resolver: Resolver = (prefix, id) =>
       prefix === "WORK-ITEM" && id === "PROJ-0042"
         ? {
@@ -208,8 +210,8 @@ describe("remarkWikiLinks: project-pattern wiki-links", () => {
     expect(link.url).toBe("/library/work-items/PROJ-0042-foo");
   });
 
-  it("rewrites bare-numeric [[WORK-ITEM-0007]] under a project pattern (legacy fallback)", () => {
-    const pattern = buildWikiLinkPattern("PROJ");
+  it("rewrites bare-numeric [[WORK-ITEM-0007]] under a keyed token", () => {
+    const pattern = buildWikiLinkPattern(keyed);
     const resolver: Resolver = (prefix, id) =>
       prefix === "WORK-ITEM" && id === "0007"
         ? {

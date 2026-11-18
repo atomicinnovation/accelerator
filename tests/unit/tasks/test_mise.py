@@ -36,6 +36,7 @@ _CLI_CHECK_GATES = [
     "lint:vcs-settings:check",
     "lint:config-test-support:check",
     "lint:crate-dependencies:check",
+    "lint:corpus-identity:check",
 ]
 
 # The dispatch guard is a skills-tree guard, so it cannot join _CLI_CHECK_GATES
@@ -63,6 +64,7 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 # nothing.
 _CLI_DEV_BUILDS = {
     "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:evals": {"build:cli:work:dev"},
     "test:integration:hooks": {
         _LAUNCHER,
         "build:cli:vcs:dev",

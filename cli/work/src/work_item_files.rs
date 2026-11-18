@@ -35,6 +35,13 @@ pub struct WorkItemListing {
     pub unreadable: Vec<UnreadableFile>,
 }
 
+/// Whether `name` has the `.md` extension, ignoring ASCII case.
+#[must_use]
+pub fn is_md_filename(name: &str) -> bool {
+    name.rsplit_once('.')
+        .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+}
+
 pub trait WorkItemFiles {
     /// Every work-item file, drafts included, sorted by path; a file that
     /// cannot be read is listed as unreadable rather than dropped.
@@ -102,11 +109,11 @@ pub(crate) fn frontmatter_of(content: &str) -> Option<&str> {
     None
 }
 
-fn nonempty_field(frontmatter: &str, field: &str) -> Option<String> {
+pub(crate) fn nonempty_field(frontmatter: &str, field: &str) -> Option<String> {
     read_field_raw(frontmatter, field).filter(|value| !value.trim().is_empty())
 }
 
-fn list_field(frontmatter: &str, field: &str) -> Vec<String> {
+pub(crate) fn list_field(frontmatter: &str, field: &str) -> Vec<String> {
     match read_field_raw(frontmatter, field) {
         Some(inline) if !inline.is_empty() => {
             crate::tags::parse_current_tags(&inline)

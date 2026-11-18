@@ -16,6 +16,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::doc_type::DocTypeKey;
+use crate::linkage_ids::LinkageIds;
 
 /// How confidently a reference was classified.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -211,6 +212,7 @@ pub fn type_from_path(
 pub fn resolve_path_target(
     path: &str,
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
 ) -> Option<(&'static str, String)> {
     let kind = crate::doc_type::infer(Path::new(path), table)?;
     let name = kind.linkage_type_name()?;
@@ -218,9 +220,7 @@ pub fn resolve_path_target(
     let stem = file.strip_suffix(".md").unwrap_or(file);
 
     let id = match kind {
-        DocTypeKey::WorkItems => {
-            stem.chars().take_while(char::is_ascii_digit).collect()
-        }
+        DocTypeKey::WorkItems => ids.id_in_filename(file).unwrap_or_default(),
         DocTypeKey::Decisions => {
             stem.strip_prefix("ADR-").map_or_else(String::new, |rest| {
                 let digits: String =
@@ -498,30 +498,17 @@ fn extract_pr_refs(line: &str) -> Vec<String> {
     tokens
 }
 
-fn extract_bare_ids(line: &str) -> Vec<String> {
-    let characters: Vec<char> = line.chars().collect();
-    let mut tokens = Vec::new();
-    let mut index = 0;
-    while index + 4 <= characters.len() {
-        if characters[index..index + 4]
-            .iter()
-            .all(char::is_ascii_digit)
-        {
-            tokens.push(characters[index..index + 4].iter().collect());
-            index += 4;
-        } else {
-            index += 1;
-        }
-    }
-    tokens
-}
-
-fn extract_tokens(section: &str, line: &str, roots: &[String]) -> Vec<String> {
+fn extract_tokens(
+    section: &str,
+    line: &str,
+    roots: &[String],
+    ids: &dyn LinkageIds,
+) -> Vec<String> {
     let mut tokens = extract_doc_paths(line, roots);
     tokens.extend(extract_adr_ids(line));
     tokens.extend(extract_pr_refs(line));
     if section == "## Dependencies" && has_dependency_label(line) {
-        tokens.extend(extract_bare_ids(line));
+        tokens.extend(ids.bare_ids_in(line));
     }
     tokens
 }
@@ -530,12 +517,13 @@ fn extract_tokens(section: &str, line: &str, roots: &[String]) -> Vec<String> {
 fn classify_token(
     token: &str,
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
 ) -> (&'static str, String) {
     // The extractor only yields path tokens ending `.md`; ADR ids, `pr:` refs and
     // bare ids never do. So the suffix identifies a path without pinning it to a
     // hardcoded root.
     if token.ends_with(".md") {
-        return resolve_path_target(token, table)
+        return resolve_path_target(token, table, ids)
             .map_or(("", String::new()), |(kind, id)| (kind, id));
     }
     if token.starts_with("ADR-") {
@@ -563,12 +551,13 @@ fn section_slug(section: &str) -> String {
 }
 
 /// Extracts every linkage record from a document body, resolving path targets
-/// through the injected doc-type table.
+/// through the injected doc-type table and work-item IDs through `ids`.
 #[must_use]
 pub fn parse_document(
     source_type: &str,
     content: &str,
     table: &[(DocTypeKey, PathBuf)],
+    ids: &dyn LinkageIds,
 ) -> Vec<LinkageRecord> {
     let mut records: Vec<LinkageRecord> = Vec::new();
     let mut section: Option<&'static str> = None;
@@ -585,11 +574,12 @@ pub fn parse_document(
         };
 
         let mut seen: Vec<(String, String)> = Vec::new();
-        for token in extract_tokens(section, line, &roots) {
+        for token in extract_tokens(section, line, &roots, ids) {
             if is_template_path(&token) {
                 continue;
             }
-            let (mut target_type, target_id) = classify_token(&token, table);
+            let (mut target_type, target_id) =
+                classify_token(&token, table, ids);
             let (key, explicit) = infer_key(section, line, target_type);
             let (band, filled) =
                 classify_band(source_type, &key, target_type, explicit);
@@ -636,6 +626,7 @@ mod tests {
         Band, LinkageRecord,
     };
     use crate::doc_type::DocTypeKey;
+    use crate::linkage_ids::test_ids::KNOWN;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         [
@@ -664,7 +655,11 @@ mod tests {
     #[test]
     fn a_work_item_resolves_to_its_leading_digits() {
         assert_eq!(
-            super::resolve_path_target("meta/work/0042-foo.md", &table()),
+            super::resolve_path_target(
+                "meta/work/0042-foo.md",
+                &table(),
+                &KNOWN
+            ),
             Some(("work-item", "0042".to_owned()))
         );
     }
@@ -674,7 +669,8 @@ mod tests {
         assert_eq!(
             super::resolve_path_target(
                 "meta/plans/2026-05-13-0055-sidebar-activity-feed.md",
-                &table()
+                &table(),
+                &KNOWN
             ),
             Some(("plan", "2026-05-13-0055-sidebar-activity-feed".to_owned()))
         );
@@ -688,10 +684,12 @@ mod tests {
         let first = super::resolve_path_target(
             "meta/research/design-inventories/auth-module/inventory.md",
             &table(),
+            &KNOWN,
         );
         let second = super::resolve_path_target(
             "meta/research/design-inventories/billing-module/inventory.md",
             &table(),
+            &KNOWN,
         );
 
         assert_eq!(first, Some(("design-inventory", "auth-module".to_owned())));
@@ -707,14 +705,16 @@ mod tests {
         assert_eq!(
             super::resolve_path_target(
                 "meta/prs/2026-06-17-pr-430-add-thing.md",
-                &table()
+                &table(),
+                &KNOWN
             ),
             Some(("pr-description", "430".to_owned()))
         );
         assert_eq!(
             super::resolve_path_target(
                 "meta/prs/no-pr-number-here.md",
-                &table()
+                &table(),
+                &KNOWN
             ),
             Some(("pr-description", "no-pr-number-here".to_owned()))
         );
@@ -723,7 +723,11 @@ mod tests {
     #[test]
     fn a_path_outside_every_configured_dir_resolves_to_none() {
         assert_eq!(
-            super::resolve_path_target("meta/docs/logging-guide.md", &table()),
+            super::resolve_path_target(
+                "meta/docs/logging-guide.md",
+                &table(),
+                &KNOWN
+            ),
             None
         );
     }
@@ -734,18 +738,22 @@ mod tests {
             vec![(DocTypeKey::WorkItems, PathBuf::from("custom/work-items"))];
 
         assert_eq!(
-            super::resolve_path_target("custom/work-items/0042-foo.md", &table),
+            super::resolve_path_target(
+                "custom/work-items/0042-foo.md",
+                &table,
+                &KNOWN
+            ),
             Some(("work-item", "0042".to_owned()))
         );
         assert_eq!(
-            super::resolve_path_target("meta/work/0042-foo.md", &table),
+            super::resolve_path_target("meta/work/0042-foo.md", &table, &KNOWN),
             None,
             "the default dir must not resolve once it's unconfigured"
         );
     }
 
     fn parse_document(source: &str, content: &str) -> Vec<LinkageRecord> {
-        super::parse_document(source, content, &table())
+        super::parse_document(source, content, &table(), &KNOWN)
     }
 
     #[test]
@@ -759,7 +767,8 @@ mod tests {
         ];
         let content = "## References\n- A sibling `docs/tickets/0002-y.md`\n";
 
-        let records = super::parse_document("work-item", content, &table);
+        let records =
+            super::parse_document("work-item", content, &table, &KNOWN);
 
         assert_eq!(
             records.len(),

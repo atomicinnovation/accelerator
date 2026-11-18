@@ -1,6 +1,7 @@
 //! CLI-boundary tests for `work list`.
 
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -63,5 +64,144 @@ fn an_uncredentialed_integration_shows_the_presence_label_despite_a_baseline(
          | --- | --- | --- | --- | --- | --- |\n\
          | 0001 | Existing | task | draft | medium | 🟢 synced |\n"
     );
+    Ok(())
+}
+
+fn list(dir: &std::path::Path) -> Result<std::process::Output, TestError> {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
+        .arg("list")
+        .current_dir(dir)
+        .env("ACCELERATOR_PLUGIN_ROOT", dir)
+        .stdin(Stdio::null());
+    common::scrub_provider_env(&mut command);
+    Ok(command.output()?)
+}
+
+#[test]
+fn list_warns_about_a_work_item_that_is_not_utf8() -> Result<(), TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-list-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".git"))?;
+    fs::create_dir_all(dir.path().join("meta/work"))?;
+    fs::write(dir.path().join("meta/work/0001-existing.md"), SYNCED_ITEM)?;
+    fs::write(
+        dir.path().join("meta/work/0002-other.md"),
+        SYNCED_ITEM.replace("0001", "0002"),
+    )?;
+    let without = list(dir.path())?;
+
+    fs::write(dir.path().join("meta/work/0400-x.md"), [0xff, 0xfe, 0xfd])?;
+    let with = list(dir.path())?;
+
+    assert!(without.status.success(), "{without:?}");
+    assert!(with.status.success(), "{with:?}");
+    assert_eq!(
+        String::from_utf8(with.stdout)?,
+        String::from_utf8(without.stdout)?
+    );
+    let stderr = String::from_utf8(with.stderr)?;
+    assert!(
+        stderr.contains(
+            "warning: E_WORK_ITEM_MALFORMED: meta/work/0400-x.md is not \
+             UTF-8 text. Re-save it as UTF-8, or move it out of the work \
+             directory\n"
+        ),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("re-run this command"), "{stderr}");
+    Ok(())
+}
+
+fn listed_under(work_body: &str) -> Result<std::process::Output, TestError> {
+    listed_in_repository(work_body, write_item)
+}
+
+fn listed_in_repository(
+    work_body: &str,
+    populate: fn(&Path) -> Result<(), TestError>,
+) -> Result<std::process::Output, TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-list-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".git"))?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        format!("---\nwork:\n{work_body}---\n"),
+    )?;
+    populate(dir.path())?;
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
+        .arg("list")
+        .current_dir(dir.path())
+        .env("ACCELERATOR_PLUGIN_ROOT", dir.path())
+        .stdin(Stdio::null());
+    common::scrub_provider_env(&mut command);
+    Ok(command.output()?)
+}
+
+fn write_item(root: &Path) -> Result<(), TestError> {
+    fs::create_dir_all(root.join("meta/work"))?;
+    fs::write(
+        root.join("meta/work/0001-existing.md"),
+        "---\nid: \"0001\"\ntitle: \"Existing\"\nstatus: \"draft\"\n---\n",
+    )?;
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn list_refuses_a_malformed_pattern() -> Result<(), TestError> {
+    let output = listed_under("  id_pattern: \"{number:4d}\"\n")?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn list_refuses_a_malformed_pattern_without_a_work_directory(
+) -> Result<(), TestError> {
+    let output =
+        listed_in_repository("  id_pattern: \"{number:4d}\"\n", |_| Ok(()))?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn list_reads_a_key_pattern_without_a_key() -> Result<(), TestError> {
+    let output = listed_in_repository(
+        "  id_pattern: \"{key}-{number:04d}\"\n",
+        |root| {
+            fs::create_dir_all(root.join("meta/work"))?;
+            fs::write(
+                root.join("meta/work/PP-0001-existing.md"),
+                "---\nid: \"PP-0001\"\ntitle: \"Existing\"\n\
+                 status: \"draft\"\n---\n",
+            )?;
+            Ok(())
+        },
+    )?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert!(String::from_utf8(output.stdout)?.contains("Existing"));
     Ok(())
 }

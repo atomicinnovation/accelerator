@@ -1,0 +1,17 @@
+{
+  "evals": [
+    {
+      "id": 1,
+      "name": "an_untrusted_corpus_is_listed_with_its_warning_relayed",
+      "prompt": "Read skills/work/list-work-items/SKILL.md fully. You are running the list-work-items skill. The injected **ID pattern** is `{number:04d}`.\n\nThe user invokes: `/list-work-items`\n\nSimulate `accelerator work list` exiting 0 with this stdout:\n\nAll work items (2 total)\n| ID | Title | Kind | Status | Priority |\n| --- | --- | --- | --- | --- |\n| 0001 | Dark mode | story | ready | high |\n| 2 | Export to CSV | task | draft | medium |\n\nand this stderr:\n\nwarning: E_REKEY_REQUIRED: 1 work item is not under the ID `work.id_pattern` '{number:04d}' gives them, such as meta/work/0002-export-to-csv.md with `id` '2'. Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.",
+      "expected_output": "The listing is shown as printed, then the warning's remedy is relayed as is, saying creating or resolving items is refused until it is followed.",
+      "files": [],
+      "expectations": [
+        "response.md shows the table with both rows, 0001 and 2, as the CLI printed it",
+        "response.md relays the warning's remedy, naming `/rekey-work-items`, after the listing",
+        "response.md says that creating or resolving work items is refused until the remedy is followed",
+        "commands.md shows exactly one `accelerator work list` and no `accelerator work rekey`"
+      ]
+    }
+  ]
+}

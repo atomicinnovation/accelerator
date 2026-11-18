@@ -384,6 +384,60 @@
           "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
         }
       ]
+    },
+    {
+      "id": 13,
+      "name": "other_keys_kept_by_default",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout:\n\n0041 → ACC-0041\n\nand this stderr:\n\nnote: 5 work items keep keys other than `work.key` 'ACC': PP (3), XY (2). To re-key a key's items onto 'ACC', preview again with `--from-key <KEY>`\n\nThe question about the other keys is answered **Keep them all**. Any later question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill asks which other keys to fold, with one option per key plus Keep them all; on Keep them all it previews nothing more and asks to apply the first preview.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "asks_per_key",
+          "description": "Offers each other key",
+          "type": "llm",
+          "value": "questions.md shows a multiSelect AskUserQuestion, asked before any re-key confirmation, whose options are PP, XY and **Keep them all**"
+        },
+        {
+          "name": "no_fold_when_kept",
+          "description": "Folds nothing when kept",
+          "type": "llm",
+          "value": "commands.md shows exactly one `accelerator work rekey --preview` and no command carrying `--from-key`"
+        },
+        {
+          "name": "confirms_first_preview",
+          "description": "Goes on to confirm",
+          "type": "llm",
+          "value": "questions.md shows a later AskUserQuestion offering **Yes, re-key** and **No, discard**, and commands.md shows no `accelerator work rekey` without `--preview` or `--discard`"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "every_picked_key_folds_in_one_preview",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout:\n\n0041 → ACC-0041\n\nand this stderr:\n\nnote: 5 work items keep keys other than `work.key` 'ACC': PP (3), XY (2). To re-key a key's items onto 'ACC', preview again with `--from-key <KEY>`\n\nThe question about the other keys is answered by picking both PP and XY. An `accelerator work rekey --preview` carrying `--from-key PP` and `--from-key XY`, in either order, exits 0 with this stdout and an empty stderr:\n\n0041 → ACC-0041\nPP-0003 → ACC-0042\nPP-0004 → ACC-0043\nPP-0007 → ACC-0044\nXY-0001 → ACC-0045\nXY-0002 → ACC-0046\n\nA preview carrying only one of the two keys exits 0 with this stdout alone and an empty stderr:\n\n0041 → ACC-0041\n\nAny later question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill previews once more with --from-key for both picked keys in one command, shows that mapping and asks to apply it.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "one_fold_preview",
+          "description": "Folds both keys in one preview",
+          "type": "llm",
+          "value": "commands.md shows exactly two `accelerator work rekey --preview` commands, the second carrying both `--from-key PP` and `--from-key XY`"
+        },
+        {
+          "name": "no_per_key_preview",
+          "description": "Never previews one key alone",
+          "type": "llm",
+          "value": "commands.md shows no `accelerator work rekey --preview` carrying `--from-key` for only one of PP and XY"
+        },
+        {
+          "name": "shows_folded_mapping",
+          "description": "Branches on the new preview",
+          "type": "llm",
+          "value": "response.md shows `XY-0002 → ACC-0046` before the question offering **Yes, re-key** and **No, discard**, and commands.md shows no `accelerator work rekey` without `--preview` or `--discard`"
+        }
+      ]
     }
   ]
 }

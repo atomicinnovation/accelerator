@@ -4,7 +4,7 @@
     "skill_path": "skills/work/rekey-work-items",
     "executor_model": "claude-opus-5-5",
     "analyzer_model": "claude-opus-5-5",
-    "timestamp": "2026-10-17T21:00:00Z",
+    "timestamp": "2026-11-16T12:00:00Z",
     "evals_run": [
       1,
       2,
@@ -17,7 +17,9 @@
       9,
       10,
       11,
-      12
+      12,
+      13,
+      14
     ],
     "runs_per_configuration": 1
   },
@@ -479,6 +481,74 @@
         }
       ],
       "notes": []
+    },
+    {
+      "eval_id": 13,
+      "eval_name": "other_keys_kept_by_default",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "questions.md shows a multiSelect AskUserQuestion, asked before any re-key confirmation, whose options are PP, XY and **Keep them all**",
+          "passed": true,
+          "evidence": "questions.md opens with \"## Question 1 (multiSelect)\" listing options \"**PP** (3 items)\", \"**XY** (2 items)\" and \"**Keep them all**\"; the re-key confirmation comes after it as Question 2."
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator work rekey --preview` and no command carrying `--from-key`",
+          "passed": true,
+          "evidence": "commands.md contains a single line, \"1. `accelerator work rekey --preview`\", and nothing with `--from-key`."
+        },
+        {
+          "text": "questions.md shows a later AskUserQuestion offering **Yes, re-key** and **No, discard**, and commands.md shows no `accelerator work rekey` without `--preview` or `--discard`",
+          "passed": true,
+          "evidence": "questions.md Question 2 offers \"**Yes, re-key**\" and \"**No, discard**\"; the only command in commands.md is `accelerator work rekey --preview`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 14,
+      "eval_name": "every_picked_key_folds_in_one_preview",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows exactly two `accelerator work rekey --preview` commands, the second carrying both `--from-key PP` and `--from-key XY`",
+          "passed": true,
+          "evidence": "commands.md lists exactly two commands: \"1. `accelerator work rekey --preview`\" and \"2. `accelerator work rekey --preview --from-key PP --from-key XY`\"."
+        },
+        {
+          "text": "commands.md shows no `accelerator work rekey --preview` carrying `--from-key` for only one of PP and XY",
+          "passed": true,
+          "evidence": "The only command with `--from-key` is \"`accelerator work rekey --preview --from-key PP --from-key XY`\", which carries both; the other has no `--from-key` at all."
+        },
+        {
+          "text": "response.md shows `XY-0002 → ACC-0046` before the question offering **Yes, re-key** and **No, discard**, and commands.md shows no `accelerator work rekey` without `--preview` or `--discard`",
+          "passed": true,
+          "evidence": "response.md's text block ends with \"XY-0002 → ACC-0046\" before \"[question 2]\", which questions.md shows offering \"**Yes, re-key**\" and \"**No, discard**\"; both commands in commands.md carry `--preview`."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -504,6 +574,7 @@
     }
   },
   "notes": [
-    "Every eval was run with_skill only, on 2026-10-17, by claude-opus-5-5, and passed first time. A new skill has no old_skill baseline."
+    "Every eval was run with_skill only, on 2026-10-17, by claude-opus-5-5, and passed first time. A new skill has no old_skill baseline.",
+    "Evals 13 (other keys kept by default) and 14 (every picked key folds in one preview) were added and run with_skill only on 2026-11-16, by claude-opus-5-5, after the *Other keys first* dialogue was reworded to fold every picked key in one preview. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each assertion from the executor's outputs alone. Both pass in full."
   ]
 }

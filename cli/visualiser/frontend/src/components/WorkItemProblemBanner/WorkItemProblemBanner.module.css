@@ -1,0 +1,27 @@
+.banner {
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--ac-warn) 8%, var(--ac-bg));
+  border-left: 4px solid var(--ac-warn);
+  color: var(--ac-warn);
+  font-size: var(--size-160);
+  overflow-wrap: anywhere;
+}
+
+.banner p {
+  margin: 0;
+}
+
+.lead {
+  font-weight: 600;
+}
+
+.problem {
+  margin-block: var(--sp-2);
+  font-family: var(--ac-font-mono);
+}
+
+.items {
+  margin: 0 0 var(--sp-2);
+  padding-inline-start: var(--sp-4);
+  font-family: var(--ac-font-mono);
+}

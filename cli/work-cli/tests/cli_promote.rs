@@ -19,8 +19,8 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
     )?;
     fs::create_dir_all(dir.path().join("meta/work"))?;
     fs::write(
-        dir.path().join("meta/work/0042-legacy.md"),
-        "---\nid: \"0042\"\n---\n\n# 0042: Legacy\n",
+        dir.path().join("meta/work/ENG-42-synced.md"),
+        "---\nid: \"ENG-42\"\nexternal_id: \"ENG-42\"\n---\n\n# ENG-42: Synced\n",
     )?;
     Ok(dir)
 }
@@ -37,7 +37,7 @@ fn promoting_a_non_draft_prints_e_promote_not_a_draft() -> Result<(), TestError>
 {
     let repo = scratch_repo()?;
 
-    let output = run(repo.path(), &["promote", "0042"])?;
+    let output = run(repo.path(), &["promote", "ENG-42"])?;
 
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr)?;

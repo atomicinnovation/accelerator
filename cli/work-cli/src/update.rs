@@ -34,6 +34,7 @@ use work_adapters::sync::baseline_store::BaselineStore;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
+use crate::refusal::Refusal;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -48,10 +49,7 @@ pub enum RunOutcome {
     PushRejected(String),
     /// The identity run an `update --push` needs could not begin; nothing
     /// was read or written.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 fn set_key_error_message(error: &UpdateError) -> String {
@@ -146,7 +144,13 @@ enum TryRunError {
     Retryable(String),
     Terminal(String),
     Rejected(String),
-    Refused { message: String, code: u8 },
+    Refused(Refusal),
+}
+
+impl From<Refusal> for TryRunError {
+    fn from(refusal: Refusal) -> Self {
+        Self::Refused(refusal)
+    }
 }
 
 impl From<String> for TryRunError {
@@ -324,12 +328,8 @@ fn try_run(
 
     let _identity_run = if args.push {
         let root = config_adapters::FileConfigStore::discover_root(start);
-        let guard =
-            crate::identity_run::begin(&root, "update").map_err(|refusal| {
-                let (message, code) =
-                    crate::identity_run::refused(refusal, &root);
-                TryRunError::Refused { message, code }
-            })?;
+        let guard = crate::identity_run::begin(&root, "update")
+            .map_err(|refusal| crate::identity_run::refused(refusal, &root))?;
         Some(guard)
     } else {
         None
@@ -433,9 +433,7 @@ pub fn run(
         Err(TryRunError::Rejected(message)) => {
             RunOutcome::PushRejected(message)
         }
-        Err(TryRunError::Refused { message, code }) => {
-            RunOutcome::Refused { message, code }
-        }
+        Err(TryRunError::Refused(refusal)) => RunOutcome::Refused(refusal),
     }
 }
 
@@ -542,7 +540,7 @@ mod tests {
             &untouched_registry(),
         );
 
-        let RunOutcome::Refused { message, code } = outcome else {
+        let RunOutcome::Refused(Refusal { message, code }) = outcome else {
             panic!("an update --push ran during a re-key");
         };
         assert_eq!(code, crate::exit_codes::UNRESOLVED);
@@ -572,7 +570,7 @@ mod tests {
                 &update_args(item, true),
                 &untouched_registry(),
             );
-            let _ = done.send(matches!(outcome, RunOutcome::Refused { .. }));
+            let _ = done.send(matches!(outcome, RunOutcome::Refused(_)));
         });
 
         assert_eq!(

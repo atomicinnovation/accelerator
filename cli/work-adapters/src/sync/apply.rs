@@ -1234,7 +1234,9 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             PendingPush::Attempted { .. } => None,
         };
         let issued_key = created
-            .filter(|key| TrackerKey::parse(key.as_str()).is_some())
+            .filter(|key| {
+                TrackerKey::parse_any_supported(key.as_str()).is_some()
+            })
             .cloned();
         if self.files.tracking.file_tracking(request.marker_path)
             != FileTracking::Untracked
@@ -1356,14 +1358,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         };
         if !same_key(&issue.key, key) {
             return Err(refused(
-                TrackerKey::parse(issue.key.as_str()).map_or_else(
-                    || OrderRefusal::MovedToUnknownKey { key: key.clone() },
-                    |to| OrderRefusal::IssueMoved {
-                        id: request.item_id.to_owned(),
-                        key: key.clone(),
-                        to,
-                    },
-                ),
+                TrackerKey::parse_any_supported(issue.key.as_str())
+                    .map_or_else(
+                        || OrderRefusal::MovedToUnknownKey { key: key.clone() },
+                        |to| OrderRefusal::IssueMoved {
+                            id: request.item_id.to_owned(),
+                            key: key.clone(),
+                            to,
+                        },
+                    ),
             ));
         }
         let differs = !self.says_what_the_item_does(request, &issue);

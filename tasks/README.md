@@ -31,11 +31,12 @@ members join enforcement with no per-member wiring. `format:cli:*` and
 rust `components` field is silently skipped for an already-present toolchain, so
 rustfmt/clippy are provisioned explicitly. `lint:cli:fix` applies only clippy's
 machine-rewritable subset (lints such as `unwrap_used` cannot be auto-fixed), so
-`cli:check` must still be run for the remainder. It also folds six Python
+`cli:check` must still be run for the remainder. It also folds seven Python
 guards over the same tree — `lint:vendor-shims:check`,
 `lint:store-duplication:check`, `lint:claude-coupling:check`,
-`lint:vcs-settings:check`, `lint:config-test-support:check` and
-`lint:crate-dependencies:check`. All six are wired into `lint:check` as well:
+`lint:vcs-settings:check`, `lint:config-test-support:check`,
+`lint:crate-dependencies:check` and `lint:corpus-identity:check`. All seven
+are wired into `lint:check` as well:
 `cli:check` is what CI runs, but the bare `default` task depends on
 `lint:check` and not on `check`, so a `cli:check`-only
 guard stays green in a full local run however badly its invariant is broken.

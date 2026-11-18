@@ -203,7 +203,7 @@ fn unpromoted_subjects(
             RetirementFailure::RestoreIncomplete { unrestored, .. },
         ) => {
             let recovery_dir = held_key
-                .and_then(|key| TrackerKey::parse(key.as_str()))
+                .and_then(|key| TrackerKey::parse_any_supported(key.as_str()))
                 .map(|key| {
                     Retirement::onto(draft.as_str(), &key).recovery_dir()
                 });
@@ -555,7 +555,9 @@ impl Promoting<'_> {
         };
         match created {
             RemoteCreate::Created(answered) => {
-                let Some(key) = TrackerKey::parse(answered.as_str()) else {
+                let Some(key) =
+                    TrackerKey::parse_any_supported(answered.as_str())
+                else {
                     let _ = self.save(&self.record(
                         RequestFingerprint {
                             failure: Some(format!(
@@ -788,11 +790,20 @@ impl Promoting<'_> {
         ) else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
+        let recovery_dir =
+            work::retirement::RecoveryDir::parse(&retirement.recovery_dir())
+                .ok_or_else(|| {
+                    NotPromoted::Refused(
+                        RetirementRefusal::IdNotOnePathComponent {
+                            id: key.as_str().to_owned(),
+                        },
+                    )
+                })?;
         let retiring = PromotionRecord {
             stage: PromotionStage::Retiring {
                 key: key.clone(),
                 baseline: Box::new(baseline),
-                recovery_dir: retirement.recovery_dir(),
+                recovery_dir,
                 before: Box::new(record.stage.clone()),
             },
             ..(**record).clone()

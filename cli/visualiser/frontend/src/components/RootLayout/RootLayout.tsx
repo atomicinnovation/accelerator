@@ -20,6 +20,7 @@ import { Sidebar } from "../Sidebar/Sidebar";
 import { ExternalEditToast } from "../Toaster/ExternalEditToast";
 import { Toaster } from "../Toaster/Toaster";
 import { Topbar } from "../Topbar/Topbar";
+import { WorkItemProblemBanner } from "../WorkItemProblemBanner/WorkItemProblemBanner";
 import styles from "./RootLayout.module.css";
 
 function isPlainSlashKey(event: KeyboardEvent): boolean {
@@ -123,6 +124,7 @@ export function RootLayout() {
               <DevActivationProvider value={devActivation}>
                 <div className={styles.root}>
                   <Topbar />
+                  <WorkItemProblemBanner />
                   <div className={styles.body}>
                     <Sidebar
                       docTypes={docTypes}

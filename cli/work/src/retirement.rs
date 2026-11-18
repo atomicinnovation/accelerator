@@ -3,6 +3,7 @@
 //!
 //! Planning is pure; applying the plan all-or-nothing is the adapter's job.
 
+use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -15,20 +16,33 @@ use corpus::StoreError;
 
 use crate::dirtiness::Dirtiness;
 use crate::draft_id::DraftId;
-use crate::identity::holder_of;
-use crate::identity::linker_of;
+use crate::id_pattern::escaped;
+use crate::id_pattern::is_in_id_alphabet;
+use crate::id_scheme::IdScheme;
+use crate::identity::holder_of_under;
+use crate::identity::linker_of_under;
 use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
+use crate::path_component::is_one_path_component;
 use crate::show::read_field_raw;
+use crate::shown_path::relative_to;
 use crate::tracker_key::TrackerKey;
 use crate::work_item_files::frontmatter_of;
 use crate::work_item_files::DRAFTS_DIRECTORY;
+
+mod record;
+
+pub use crate::retirement::record::RecordedId;
+pub use crate::retirement::record::RecoveryDir;
+pub use crate::retirement::record::RetirementRecord;
+pub use crate::retirement::record::UnrecordableRetirement;
 
 const WORK_ITEM: &str = "work-item";
 
 /// Where every retirement keeps its recovery copies, relative to the state
 /// directory.
 pub const RECOVERY_PARENT: &str = "retirement-recovery";
+
 const WORK_ITEM_REVIEW: &str = "work-item-review";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,40 +93,6 @@ impl<'a> Retirement<'a> {
     pub fn recovery_dir(&self) -> PathBuf {
         PathBuf::from(RECOVERY_PARENT)
             .join(format!("{}--{}", self.old_id, self.new_id))
-    }
-}
-
-/// The durable note that a retirement has started.
-///
-/// Written before it applies and removed once it has finished, rolled back
-/// or been refused, so a leftover record always names a retirement still in
-/// progress.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RetirementRecord {
-    pub old: String,
-    pub new: String,
-    pub new_external_id: Option<String>,
-    pub recovery_dir: PathBuf,
-}
-
-impl RetirementRecord {
-    #[must_use]
-    pub fn of(retirement: &Retirement<'_>) -> Self {
-        Self {
-            old: retirement.old_id.to_owned(),
-            new: retirement.new_id.to_owned(),
-            new_external_id: retirement.new_external_id.map(str::to_owned),
-            recovery_dir: retirement.recovery_dir(),
-        }
-    }
-
-    #[must_use]
-    pub fn retirement(&self) -> Retirement<'_> {
-        Retirement {
-            old_id: &self.old,
-            new_id: &self.new,
-            new_external_id: self.new_external_id.as_deref(),
-        }
     }
 }
 
@@ -176,13 +156,12 @@ pub enum RetirementRefusal {
     },
     TargetExists(PathBuf),
     ItemNotFound(String),
-}
-
-/// `path` relative to `root` when it lies under it, else as it is.
-pub(crate) fn relative_to(path: PathBuf, root: &Path) -> PathBuf {
-    path.strip_prefix(root)
-        .map(Path::to_path_buf)
-        .unwrap_or(path)
+    IdNotOnePathComponent {
+        id: String,
+    },
+    IdOutsideAlphabet {
+        id: String,
+    },
 }
 
 impl RetirementRefusal {
@@ -201,6 +180,10 @@ impl RetirementRefusal {
                 Self::TargetExists(relative_to(path, root))
             }
             Self::ItemNotFound(id) => Self::ItemNotFound(id),
+            Self::IdNotOnePathComponent { id } => {
+                Self::IdNotOnePathComponent { id }
+            }
+            Self::IdOutsideAlphabet { id } => Self::IdOutsideAlphabet { id },
         }
     }
 
@@ -211,12 +194,15 @@ impl RetirementRefusal {
             Self::KeyLinked { .. } => "key-linked",
             Self::TargetExists(_) => "target-exists",
             Self::ItemNotFound(_) => "item-not-found",
+            Self::IdNotOnePathComponent { .. } => "id-not-one-path-component",
+            Self::IdOutsideAlphabet { .. } => "id-outside-alphabet",
         }
     }
 
     #[must_use]
     pub fn message(&self, retirement: &Retirement<'_>) -> String {
-        let Retirement { old_id, new_id, .. } = retirement;
+        let old_id = escaped(retirement.old_id);
+        let new_id = escaped(retirement.new_id);
         match self {
             Self::IdTaken { holder, field } => format!(
                 "cannot retire {old_id} for {new_id}: {} already holds \
@@ -228,15 +214,30 @@ impl RetirementRefusal {
                 "cannot retire {old_id} for {new_id}: {} is already linked \
                  to {}",
                 holder.display(),
-                retirement.new_external_id.unwrap_or(new_id)
+                retirement
+                    .new_external_id
+                    .map_or_else(|| new_id.clone(), escaped)
             ),
             Self::TargetExists(path) => format!(
                 "cannot retire {old_id} for {new_id}: {} already exists",
                 path.display()
             ),
             Self::ItemNotFound(id) => {
-                format!("cannot retire {id}: no work item has that id")
+                format!(
+                    "cannot retire {}: no work item has that id",
+                    escaped(id)
+                )
             }
+            Self::IdNotOnePathComponent { id } => format!(
+                "cannot retire {old_id} for {new_id}: '{}' is not one path \
+                 component",
+                escaped(id)
+            ),
+            Self::IdOutsideAlphabet { id } => format!(
+                "cannot retire {old_id} for {new_id}: '{}' holds a character \
+                 other than an ASCII letter, digit, `.`, `_` or `-`",
+                escaped(id)
+            ),
         }
     }
 }
@@ -346,7 +347,9 @@ fn is_interrupted_target(item: &ItemIdentity, r: &Retirement<'_>) -> bool {
 }
 
 fn shape_of(id: &str) -> IdShape {
-    if DraftId::parse(id).is_some() || corpus::is_tracker_key(id) {
+    if DraftId::parse(id).is_some()
+        || TrackerKey::parse_any_supported(id).is_some()
+    {
         IdShape::Distinctive
     } else {
         IdShape::NumericOnly
@@ -362,7 +365,10 @@ fn file_name(path: &Path) -> String {
 /// The filename after its leading ID, so a retired file keeps its title.
 fn slug_after(id: &str, path: &Path) -> String {
     let name = file_name(path);
-    let stem = name.strip_suffix(".md").unwrap_or(&name);
+    let stem = name
+        .rsplit_once('.')
+        .filter(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+        .map_or(name.as_str(), |(stem, _)| stem);
     let without_id = stem
         .get(..id.len())
         .filter(|prefix| same_id(prefix, id))
@@ -444,15 +450,30 @@ fn directory_of(path: &Path) -> &Path {
 
 /// # Errors
 ///
-/// A [`RetirementRefusal`] when no item holds `old_id`, another item already
-/// holds `new_id` or is linked to `new_external_id`, or a file other than an
-/// interrupted retirement's already occupies the target path.
+/// A [`RetirementRefusal`] when either ID is not one path component or
+/// holds a character outside the ID alphabet, no item
+/// holds `old_id`, another item already holds `new_id` or is linked to
+/// `new_external_id`, or a file other than an interrupted retirement's
+/// already occupies the target path.
 pub fn plan_retirement(
     retirement: &Retirement<'_>,
+    scheme: &IdScheme,
     work_dir: &Path,
     items: &[ItemIdentity],
     corpus: &[CorpusFile],
 ) -> Result<RetirementPlan, RetirementRefusal> {
+    for id in [retirement.old_id, retirement.new_id] {
+        if !is_one_path_component(id) {
+            return Err(RetirementRefusal::IdNotOnePathComponent {
+                id: id.to_owned(),
+            });
+        }
+        if !is_in_id_alphabet(id) {
+            return Err(RetirementRefusal::IdOutsideAlphabet {
+                id: id.to_owned(),
+            });
+        }
+    }
     let retiring = items
         .iter()
         .find(|item| same_id(&item.id, retirement.old_id));
@@ -472,7 +493,7 @@ pub fn plan_retirement(
             ))
         }
     };
-    refuse_collisions(retirement, items, retiring, interrupted)?;
+    refuse_collisions(retirement, scheme, items, retiring, interrupted)?;
 
     let to = interrupted.map_or_else(
         || destination_of(retirement, &from, work_dir),
@@ -599,6 +620,7 @@ fn retired_from(
 
 fn refuse_collisions(
     retirement: &Retirement<'_>,
+    scheme: &IdScheme,
     items: &[ItemIdentity],
     retiring: Option<&ItemIdentity>,
     interrupted: Option<&ItemIdentity>,
@@ -611,7 +633,7 @@ fn refuse_collisions(
         .filter(|item| !is_party(item))
         .cloned()
         .collect();
-    if let Some(held) = holder_of(retirement.new_id, &others) {
+    if let Some(held) = holder_of_under(scheme, retirement.new_id, &others) {
         return Err(RetirementRefusal::IdTaken {
             holder: held.item.path.clone(),
             field: held.field,
@@ -619,7 +641,7 @@ fn refuse_collisions(
     }
     if let Some(linker) = retirement
         .new_external_id
-        .and_then(|key| linker_of(key, &others))
+        .and_then(|key| linker_of_under(scheme, key, &others))
     {
         return Err(RetirementRefusal::KeyLinked {
             holder: linker.path.clone(),
@@ -667,7 +689,8 @@ fn rewrite_review_link(content: &str, retirement: &Retirement<'_>) -> String {
                 same_id(unquoted(value), retirement.old_id)
             });
         if names_old_id {
-            *line = format!("work_item_id: \"{}\"", retirement.new_id);
+            *line =
+                format!("work_item_id: {}", double_quoted(retirement.new_id));
         }
     }
     rejoin(&lines, content)
@@ -696,7 +719,7 @@ fn set_scalar(
     value: &str,
     after: &[&str],
 ) {
-    let line = format!("{key}: \"{value}\"");
+    let line = format!("{key}: {}", double_quoted(value));
     if let Some(index) = position_of(lines, *range, key) {
         lines[index] = line;
         return;
@@ -711,8 +734,28 @@ fn set_scalar(
 
 fn quoted_list(items: &[String]) -> String {
     let quoted: Vec<String> =
-        items.iter().map(|item| format!("\"{item}\"")).collect();
+        items.iter().map(|item| double_quoted(item)).collect();
     format!("[{}]", quoted.join(", "))
+}
+
+/// `value` as a YAML double-quoted scalar that cannot close its quotes or
+/// break its line, whatever it holds.
+fn double_quoted(value: &str) -> String {
+    let mut quoted = String::with_capacity(value.len() + 2);
+    quoted.push('"');
+    for character in value.chars() {
+        match character {
+            '"' => quoted.push_str("\\\""),
+            '\\' => quoted.push_str("\\\\"),
+            '\n' => quoted.push_str("\\n"),
+            control if control.is_control() => {
+                let _ = write!(quoted, "\\u{:04X}", u32::from(control));
+            }
+            other => quoted.push(other),
+        }
+    }
+    quoted.push('"');
+    quoted
 }
 
 fn alias_value(entry: &str) -> &str {
@@ -833,12 +876,18 @@ mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
+    use super::double_quoted;
     use super::plan_retirement;
+    use super::quoted_list;
     use super::CorpusFile;
     use super::Retirement;
     use super::RetirementPlan;
     use super::RetirementRefusal;
     use crate::dirtiness::Dirtiness;
+    use crate::id_pattern::IdKey;
+    use crate::id_pattern::IdPattern;
+    use crate::id_scheme::IdScheme;
+    use crate::id_scheme::TRACKER_TOKEN;
     use crate::identity::IdentityField;
     use crate::work_item_files::identities;
     use crate::work_item_files::WorkItemFile;
@@ -886,7 +935,23 @@ mod tests {
         }
     }
 
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::under_any_tracker(
+            IdPattern::parse(pattern)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            key.and_then(|key| IdKey::parse(key).ok()),
+        )
+    }
+
     fn plan(
+        retirement: &Retirement<'_>,
+        corpus: &[CorpusFile],
+    ) -> Result<RetirementPlan, RetirementRefusal> {
+        plan_under(&scheme(TRACKER_TOKEN, None), retirement, corpus)
+    }
+
+    fn plan_under(
+        scheme: &IdScheme,
         retirement: &Retirement<'_>,
         corpus: &[CorpusFile],
     ) -> Result<RetirementPlan, RetirementRefusal> {
@@ -900,12 +965,12 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
         );
-        plan_retirement(retirement, work_dir(), &items, corpus)
+        plan_retirement(retirement, scheme, work_dir(), &items, corpus)
     }
 
     #[test]
     fn retiring_onto_a_tracker_key_renames_and_links_the_item_to_it() {
-        let key = crate::tracker_key::TrackerKey::parse("PP-900")
+        let key = crate::tracker_key::TrackerKey::parse_any_supported("PP-900")
             .unwrap_or_else(|| unreachable!("a tracker key"));
 
         assert_eq!(
@@ -1540,6 +1605,120 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn a_retirement_target_held_at_another_width_is_taken() {
+        let corpus = [
+            numbered_item(),
+            work_item("/repo/meta/work/pp-42-other.md", "id: \"pp-42\"\n", "O"),
+        ];
+
+        assert_eq!(
+            plan_under(
+                &scheme("{key}-{number:04d}", Some("PP")),
+                &Retirement::renumbering("0042", "PP-0042"),
+                &corpus,
+            ),
+            Err(RetirementRefusal::IdTaken {
+                holder: PathBuf::from("/repo/meta/work/pp-42-other.md"),
+                field: IdentityField::Id,
+            })
+        );
+    }
+
+    #[test]
+    fn a_promotion_proceeds_beside_an_alias_at_another_width() {
+        let corpus = [
+            draft(),
+            work_item(
+                "/repo/meta/work/ENG-1-other.md",
+                "id: \"ENG-1\"\naliases: [\"PP-0900\"]\n",
+                "O",
+            ),
+        ];
+
+        assert!(plan(&promotion(), &corpus).is_ok());
+    }
+
+    #[test]
+    fn retirement_refuses_an_id_that_is_not_one_path_component() {
+        for (old_id, new_id, refused) in [
+            ("draft-k7mq3x", "..", ".."),
+            ("draft-k7mq3x", "a/b", "a/b"),
+            ("draft-k7mq3x", "", ""),
+            ("../x", "PP-900", "../x"),
+        ] {
+            let retirement = Retirement {
+                old_id,
+                new_id,
+                new_external_id: None,
+            };
+            let refusal = plan(&retirement, &[draft()]);
+            assert_eq!(
+                refusal,
+                Err(RetirementRefusal::IdNotOnePathComponent {
+                    id: refused.to_owned()
+                }),
+                "{old_id} {new_id}"
+            );
+            assert_eq!(
+                refusal.err().map(|refusal| refusal.keyword()),
+                Some("id-not-one-path-component")
+            );
+        }
+    }
+
+    #[test]
+    fn a_refusal_escapes_the_ids_it_names() {
+        let retirement = Retirement {
+            old_id: "x\u{1b}[H",
+            new_id: "PP-900",
+            new_external_id: None,
+        };
+        let message = RetirementRefusal::IdNotOnePathComponent {
+            id: "x\u{1b}[H".to_owned(),
+        }
+        .message(&retirement);
+
+        assert!(!message.contains('\u{1b}'), "{message:?}");
+    }
+
+    #[test]
+    fn a_value_written_double_quoted_cannot_close_its_quotes() {
+        assert_eq!(
+            quoted_list(&["a\"b".to_owned(), "c\\d".to_owned()]),
+            r#"["a\"b", "c\\d"]"#
+        );
+        assert_eq!(double_quoted("x\ny"), r#""x\ny""#);
+    }
+
+    #[test]
+    fn retirement_refuses_an_id_outside_the_id_alphabet() {
+        for (old_id, new_id, refused) in [
+            ("PP-1\", \"ENG-99", "PP-900", "PP-1\", \"ENG-99"),
+            ("draft-k7mq3x", "PP 900", "PP 900"),
+            ("draft-k7mq3x", "PP-9'0", "PP-9'0"),
+        ] {
+            let retirement = Retirement {
+                old_id,
+                new_id,
+                new_external_id: None,
+            };
+            let refusal = plan(&retirement, &[draft()]);
+            assert_eq!(
+                refusal,
+                Err(RetirementRefusal::IdOutsideAlphabet {
+                    id: refused.to_owned()
+                }),
+                "{old_id} {new_id}"
+            );
+            assert_eq!(
+                refusal.err().map(|refusal| refusal.keyword()),
+                Some("id-outside-alphabet")
+            );
+        }
+    }
+
+    #[test]
     fn retirement_refuses_when_the_new_id_is_another_items_alias() {
         let corpus = [
             draft(),
@@ -1732,10 +1911,29 @@ mod tests {
 
     #[test]
     fn a_record_carries_its_retirement_back() {
-        let record = super::RetirementRecord::of(&promotion());
+        let record = super::RetirementRecord::of(&promotion())
+            .unwrap_or_else(|_| unreachable!());
 
         assert_eq!(record.retirement(), promotion());
-        assert_eq!(record.recovery_dir, promotion().recovery_dir());
+        assert_eq!(
+            record.recovery_dir.as_path(),
+            promotion().recovery_dir().as_path()
+        );
+    }
+
+    #[test]
+    fn a_retirement_whose_ids_would_name_a_path_cannot_be_recorded() {
+        let escaping = Retirement {
+            old_id: "PP-760",
+            new_id: "../../escaped",
+            new_external_id: Some("../../escaped"),
+        };
+
+        assert_eq!(
+            super::RetirementRecord::of(&escaping)
+                .map_err(|refusal| refusal.to_string()),
+            Err("'../../escaped' cannot name a retirement record".to_owned())
+        );
     }
 
     #[test]

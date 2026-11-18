@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { buildBareIdPattern } from "../../api/wiki-links";
 import type { Resolver } from "../MarkdownRenderer/wiki-link-plugin";
 import { FrontmatterTable } from "./FrontmatterTable";
 import css from "./FrontmatterTable.module.css?raw";
@@ -10,7 +11,7 @@ const passThroughResolver: Resolver = (prefix, id) => ({
   title: `${prefix}-${id}`,
 });
 
-const bareIdPattern = /\b(ADR|WORK-ITEM)-(\d+)\b/g;
+const bareIdPattern = buildBareIdPattern();
 
 const baseProps = {
   resolveWikiLink: passThroughResolver,

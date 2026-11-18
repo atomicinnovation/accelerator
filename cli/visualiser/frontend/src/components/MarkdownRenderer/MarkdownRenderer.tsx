@@ -15,7 +15,7 @@ import { Icon } from "../Icon/Icon";
 import styles from "./MarkdownRenderer.module.css";
 import { type Resolver, remarkWikiLinks } from "./wiki-link-plugin";
 
-const DEFAULT_WIKI_LINK_PATTERN = buildWikiLinkPattern(null);
+const DEFAULT_WIKI_LINK_PATTERN = buildWikiLinkPattern();
 
 // Extracts the fence language label from a `<pre><code class="language-X …">`
 // pair emitted by rehype-highlight. Returns `null` for unlabelled fences

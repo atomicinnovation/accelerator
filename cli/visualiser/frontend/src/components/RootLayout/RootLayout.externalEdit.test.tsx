@@ -40,6 +40,7 @@ function entry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     relPath: RELPATH,
     slug: SLUG,
     workItemId: "0007",
+    workItemKey: null,
     draft: false,
     title: "Foo",
     frontmatter: {},

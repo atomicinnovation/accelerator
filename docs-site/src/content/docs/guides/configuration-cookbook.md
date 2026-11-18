@@ -181,10 +181,13 @@ is read:
 Under `{tracker}` an item pushed at creation takes the issue's key as
 its `id`; any other new item is saved as a draft in `meta/work/drafts/`
 under a `draft-xxxxxx` ID until `work sync` or `work promote` promotes it.
-`work.key` and `--project` are unused, and items created before the
-switch keep their IDs until
-[`rekey-work-items`](../reference/skills/work/rekey-work-items.md)
-converges them.
+`work.key` and `--project` are unused. Items created before the switch
+must be converged with
+[`rekey-work-items`](../reference/skills/work/rekey-work-items.md):
+until then `work create`, `create-batch`, `id next`, `id check`,
+`resolve` and `promote` refuse with `E_REKEY_REQUIRED`. `work sync` and
+`work rekey` still run, so the way out stays open, and `work list` lists
+the items with the refusal as a warning.
 
 ⚠️ `{tracker}` needs Accelerator 1.24.0 or later. An older version cannot
 read the pattern at all, so upgrade every teammate before switching a

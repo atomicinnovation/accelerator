@@ -4,8 +4,11 @@
     "evals_run": [
       0,
       1,
-      2
-    ]
+      2,
+      3,
+      4
+    ],
+    "skill_digest": "sha256:2fb2ed25944f62bbf00148c5dcc967c714ffe40367ce1087fc70b011839f7a31"
   },
   "runs": [
     {
@@ -22,17 +25,17 @@
         {
           "text": "Shows a before/after diff with the old and new status values",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response.md preview block: \"-status: done\\n+status: ready\""
         },
         {
           "text": "Asks user to confirm before writing",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "commands.md step 9: AskUserQuestion \"Apply these changes to 0001-add-search.md?\" with options \"Yes, apply changes\" / \"No, cancel\", before step 10 (work update) and step 11 (Edit)"
         },
         {
           "text": "Does not use Edit tool before user confirms",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "The only Edit is commands.md step 11, after the AskUserQuestion at step 9"
         }
       ]
     },
@@ -50,17 +53,17 @@
         {
           "text": "Prints error about work_item_id being immutable",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response: \"'id' is the work item's own identity and cannot be edited with work update\" (E_OWN_IDENTITY)"
         },
         {
           "text": "Suggests file rename as the correct approach",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response tells the user to rename the file with `jj mv`"
         },
         {
           "text": "Does not show a diff preview or write any files",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "commands.md records no Step 4 preview and no write (only a Read); files.md says none"
         }
       ]
     },
@@ -78,19 +81,72 @@
         {
           "text": "Does not error on non-template type value adr-creation-task",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "commands.md step 9: `accelerator work update ... --set priority=high` exit 0; response.md: \"Updated 0011-record-the-storage-decision.md: priority: (unset) → high\". No refusal or migration mentioned."
         },
         {
           "text": "Shows priority being added as a new field",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response.md preview: \"`priority` is not set on this work item yet, so it will be added:\" followed by a code block \"+priority: high\" (no \"-priority\" line)."
         },
         {
           "text": "Asks user to confirm before writing",
           "passed": true,
-          "evidence": "ok"
+          "evidence": "response.md section 2: \"Apply this change to 0011-record-the-storage-decision.md?\" with options \"1. Yes, apply changes\" / \"2. No, cancel\"; a yes/no choice, though not a literal \"(y/n)\" string."
         }
       ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 2,
+        "failed": 0,
+        "total": 2
+      },
+      "expectations": [
+        {
+          "text": "Relays the corpus refusal",
+          "passed": true,
+          "evidence": "response.md reads \"Error: E_REKEY_REQUIRED: 1 work item is not under the ID ... Run `/rekey-work-items` (or `accelerator work rekey --preview`...)\"."
+        },
+        {
+          "text": "Writes nothing",
+          "passed": true,
+          "evidence": "files.md is \"none\" and commands.md lists only \"`accelerator work resolve 0041` — exit code 4\"."
+        }
+      ],
+      "skill_digest": "sha256:2fb2ed25944f62bbf00148c5dcc967c714ffe40367ce1087fc70b011839f7a31"
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
+      "expectations": [
+        {
+          "text": "Relays the scheme refusal",
+          "passed": true,
+          "evidence": "response.md is exactly the stderr from commands.md: \"E_WORK_ID_PATTERN_INVALID: work.id_pattern '{nmber:04d}': unknown token '{nmber:04d}' in pattern\"."
+        },
+        {
+          "text": "Does not blame the argument",
+          "passed": true,
+          "evidence": "response.md only contains the pattern error and never mentions '0041' or says it was unrecognised."
+        },
+        {
+          "text": "Writes nothing",
+          "passed": true,
+          "evidence": "files.md contains \"none\"."
+        }
+      ],
+      "skill_digest": "sha256:2fb2ed25944f62bbf00148c5dcc967c714ffe40367ce1087fc70b011839f7a31"
     }
   ],
   "run_summary": {
@@ -102,5 +158,8 @@
         "max": 1.0
       }
     }
-  }
+  },
+  "notes": [
+    "Evals 0-4 were re-run with_skill only on 2026-11-17, by claude-opus-5-5 executor agents barred from the evals and benchmark files, which simulated every accelerator call, graded by separate agents from the outputs alone. Evals 3 and 4 are new (the corpus refusals and a scheme refusal from resolve). Evals 0 and 2 first failed one expectation each because their prompts named a repository item the executor had to invent; they now give the item's content and pass. Evals 3 and 4 were run again later that day, by claude-opus-5-5, so their records carry the grader's evidence."
+  ]
 }
