@@ -8,8 +8,7 @@ producer: "create-work-item"
 status: "draft"
 kind: "epic"
 priority: "medium"
-parent: "work-item:0146"
-relates_to: ["work-item:0352"]
+relates_to: ["work-item:0146", "work-item:0352"]
 tags: ["sync", "architecture", "work-adapters", "work"]
 last_updated: "2026-11-16T11:17:15+00:00"
 last_updated_by: "Toby Clemson"
@@ -162,7 +161,7 @@ without them. Each finding marked to be fixed, and the item that owns it:
 
 - 0373 and 0374 are placed under this epic at the author's request, although
   both stand on their own.
-- The epic sits under 0146, the parent of 0352.
+- The epic relates to 0146, the parent of 0352, rather than sitting under it.
 - Line numbers are deliberately absent: the code is cited by function name,
   as read at PR #188's head `581fee36`.
 

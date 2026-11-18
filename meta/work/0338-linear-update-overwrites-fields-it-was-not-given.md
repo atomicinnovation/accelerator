@@ -5,7 +5,7 @@ title: "Linear Update Overwrites Fields It Was Not Given"
 date: "2026-10-15T00:01:33+00:00"
 author: "Toby Clemson"
 producer: "accelerator-work"
-status: "draft"
+status: "done"
 kind: "bug"
 priority: "high"
 parent: "work-item:0146"
@@ -19,7 +19,7 @@ external_id: "PP-921"
 # 0338: Linear Update Overwrites Fields It Was Not Given
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

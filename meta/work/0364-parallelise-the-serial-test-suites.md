@@ -5,7 +5,7 @@ title: "Parallelise the serial test suites"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "in-progress"
 kind: "task"
 priority: "medium"
 parent: "work-item:0361"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0364: Parallelise the serial test suites
 
 **Kind**: Task
-**Status**: Ready
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 

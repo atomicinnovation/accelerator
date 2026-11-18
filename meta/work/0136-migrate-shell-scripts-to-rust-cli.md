@@ -5,7 +5,7 @@ title: "Migrate Shell Scripts into a Rust CLI"
 date: "2026-06-22T23:41:03+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "in-progress"
+status: "done"
 kind: "epic"
 priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
@@ -20,7 +20,7 @@ external_id: "PP-157"
 # 0136: Migrate Shell Scripts into a Rust CLI
 
 **Kind**: Epic
-**Status**: In Progress
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -154,8 +154,11 @@ successor epic 0276.
   scaffolding)*
 - 0269 — Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira
   And Linear Clients *(retires shell-to-Rust residue)*
-- 0222 — Offline Populate Route for the Runtime Cache *(runtime-cache cluster)*
 - 0223 — Bounding the Default Runtime Cache Root *(sibling of 0218)*
+- 0334 — Tree leases are not held on the cold path or honoured when liveness
+  is unknown *(blocks 0218)*
+- 0339 — Tree reap deletes another artifact's in-progress materialise
+  *(blocks 0218)*
 - 0225 — Advisory-Feed Monitoring for the Vendored Runtime Pins *(sibling of 0214)*
 - 0226 — Unify the Trust Barrier for Consent Config Keys *(hardens the shipped
   config crates)*
@@ -169,10 +172,10 @@ ADR-0045/0046/0047/0051/0052/0053/0054.
 
 ## Acceptance Criteria
 
-- [ ] Shell-script responsibilities are migrated into a Rust CLI without
+- [x] Shell-script responsibilities are migrated into a Rust CLI without
       regressing skill behaviour, with the migration sequenced so the plugin
       stays functional at each step.
-- [ ] Every work item in the Decomposition list above — direct children and the
+- [x] Every work item in the Decomposition list above — direct children and the
       grandchildren indented beneath their parents — reaches a terminal status
       (done, or abandoned where superseded by a split).
 
@@ -194,8 +197,8 @@ questions are answered:)*
 - Blocked by: None.
 - Blocks: None directly (the children carry the internal dependency spine).
 - Children (direct, parented to this epic): 0158, 0162–0174, 0182, 0184–0191,
-  0194–0201, 0203, 0204, 0215, 0216, 0218, 0221–0223, 0225, 0226, 0240, 0241,
-  0245, 0264, 0269 and 0286.
+  0194–0201, 0203, 0204, 0215, 0216, 0218, 0221, 0223, 0225, 0226, 0240, 0241,
+  0245, 0264, 0269, 0286, 0334 and 0339.
 - Grandchildren (covered transitively by their parent's completion): 0178–0180
   under 0166; 0210–0213 under 0171; 0206, 0207, 0209 and 0214 under 0196.
 - Outside this epic, blocked by its children: 0227 and 0298 (by 0226); 0271
@@ -265,6 +268,11 @@ questions are answered:)*
   Decomposition titles now match each item's `title` verbatim; twenty had
   drifted, nine in wording (0158, 0182, 0184, 0198, 0203, 0209, 0226, 0241,
   0269).
+- **Closed on 2026-11-17.** The last open child, 0222, moved under the
+  runtime-cache epic 0355, whose seeding work it now belongs to. 0334 and
+  0339, parented here but missing from the Decomposition list and the
+  Children line, were added. Every listed item is terminal, so the epic is
+  done.
 
 ## References
 

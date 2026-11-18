@@ -5,7 +5,7 @@ title: "Sync Preview Hides Pending-Push Refusals"
 date: "2026-10-24T11:40:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "in-progress"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0146"
@@ -19,7 +19,7 @@ external_id: "PP-926"
 # 0351: Sync Preview Hides Pending-Push Refusals
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 

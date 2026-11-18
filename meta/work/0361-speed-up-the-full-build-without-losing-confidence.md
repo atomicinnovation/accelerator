@@ -5,7 +5,7 @@ title: "Speed up the full build without losing confidence"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "in-progress"
 kind: "epic"
 priority: "high"
 blocks: ["work-item:0369"]
@@ -20,7 +20,7 @@ schema_version: 1
 # 0361: Speed up the full build without losing confidence
 
 **Kind**: Epic
-**Status**: Draft
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 
