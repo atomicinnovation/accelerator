@@ -32,6 +32,8 @@ use work::promotion::PromotionStage;
 use work::promotion::ReadBack;
 use work::promotion::RemoteHash;
 use work::promotion::ID_PLACEHOLDER;
+use work::requested_id::RequestedId;
+use work::requested_id::RequestedIdRefusal;
 use work::retirement::Retirement;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
@@ -44,6 +46,7 @@ use work::sync::RequestFingerprint;
 use work::tracker_key::TrackerKey;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
+use work::work_item_files::WorkItemListing;
 
 use crate::create_request_fields;
 use crate::filesystem::drafts_dir;
@@ -63,6 +66,7 @@ use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::pending_push;
 use crate::sync::pending_push::Marker;
+use crate::sync::pending_push::MarkerError;
 use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
@@ -293,8 +297,14 @@ impl Creation<'_> {
             .or_else(|_| self.write_new(store, target, content))
     }
 
+    fn listing(&self) -> Result<WorkItemListing, String> {
+        FilesystemWorkItemFiles::new(self.work_dir)
+            .listing()
+            .map_err(|error| error.to_string())
+    }
+
     fn identities(&self) -> Result<Vec<ItemIdentity>, String> {
-        corpus_identities(self.work_dir)
+        Ok(identities(&self.listing()?.files))
     }
 
     fn target_for(&self, id: &str) -> PathBuf {
@@ -322,13 +332,6 @@ impl Creation<'_> {
         )?;
         Ok((draft, target))
     }
-}
-
-fn corpus_identities(work_dir: &Path) -> Result<Vec<ItemIdentity>, String> {
-    FilesystemWorkItemFiles::new(work_dir)
-        .files()
-        .map(|files| identities(&files))
-        .map_err(|error| error.to_string())
 }
 
 fn carries_external_id(
@@ -471,42 +474,109 @@ impl LegacyMarker {
     }
 }
 
+fn read_push_marker(
+    state: &IntegrationState,
+    slug: &str,
+    reader: &dyn FileReader,
+) -> (PathBuf, Result<Option<PendingPush>, MarkerError>) {
+    let path = pending_push::path(&state.root, &state.name, slug);
+    let content = reader.read(&path).ok().flatten();
+    let parsed = pending_push::read(content.as_deref());
+    (path, parsed)
+}
+
+/// Refuses a push whose slug's marker is unreadable or records an attempt
+/// of unknown outcome. A `Created` marker passes: what it decides depends
+/// on the rendered body, which only the real create has.
+///
+/// # Errors
+///
+/// `E_PUSH_MARKER_UNREADABLE` or `E_PUSH_PENDING`, naming the marker.
+pub fn refuse_unfinished_push(
+    state: &IntegrationState,
+    slug: &str,
+    reader: &dyn FileReader,
+) -> Result<(), String> {
+    let (marker_path, parsed) = read_push_marker(state, slug, reader);
+    work::sync::unfinished_push(&MarkerState::of(&parsed)).map_or(
+        Ok(()),
+        |reason| {
+            Err(refusal_message(
+                reason,
+                &marker_path,
+                parsed.as_ref().ok().and_then(Option::as_ref),
+            ))
+        },
+    )
+}
+
+struct PendingPushCheck {
+    marker_path: PathBuf,
+    digest: String,
+    next: PushNext,
+}
+
+enum PushNext {
+    Proceed,
+    ReuseId(ExternalId),
+}
+
+fn check_pending_push(
+    creation: &Creation<'_>,
+    listing: &WorkItemListing,
+    body: &str,
+    pushing: &LegacyPushing<'_>,
+) -> Result<PendingPushCheck, String> {
+    let item = creation.item;
+    let (marker_path, parsed) =
+        read_push_marker(pushing.state, &item.slug(), creation.reader);
+    let digest = pending_push::request_digest(item.title(), body, item.kind());
+    let corpus = identities(&listing.files);
+    let corpus_carries = |id: &ExternalId| carries_external_id(&corpus, id);
+    let next = match work::sync::push_precondition(
+        &MarkerState::of(&parsed),
+        &digest,
+        &corpus_carries,
+    ) {
+        PushPrecondition::Refuse(reason) => {
+            return Err(refusal_message(
+                reason,
+                &marker_path,
+                parsed.ok().flatten().as_ref(),
+            ));
+        }
+        PushPrecondition::ReuseId(key) => PushNext::ReuseId(key),
+        PushPrecondition::Proceed => PushNext::Proceed,
+    };
+    Ok(PendingPushCheck {
+        marker_path,
+        digest,
+        next,
+    })
+}
+
 fn push_legacy_item(
     creation: &Creation<'_>,
     body: &str,
     pushing: &LegacyPushing<'_>,
+    check: PendingPushCheck,
 ) -> Result<LegacyPush, String> {
     let item = creation.item;
     let state = pushing.state;
-    let marker_path =
-        pending_push::path(&state.root, &state.name, &item.slug());
-    let marker_content = creation.reader.read(&marker_path).ok().flatten();
-    let parsed = pending_push::read(marker_content.as_deref());
-    let digest = pending_push::request_digest(item.title(), body, item.kind());
-    let marker_state = match &parsed {
-        Err(_) => MarkerState::Unreadable,
-        Ok(None) => MarkerState::Absent,
-        Ok(Some(marker)) => MarkerState::Present(marker),
-    };
-    let corpus = creation.identities()?;
-    let corpus_carries = |id: &ExternalId| carries_external_id(&corpus, id);
-    let precondition =
-        work::sync::push_precondition(&marker_state, &digest, &corpus_carries);
-
-    match precondition {
-        PushPrecondition::Refuse(reason) => Err(refusal_message(
-            reason,
-            &marker_path,
-            parsed.ok().flatten().as_ref(),
-        )),
-        PushPrecondition::ReuseId(key) => Ok(LegacyPush {
+    let PendingPushCheck {
+        marker_path,
+        digest,
+        next,
+    } = check;
+    match next {
+        PushNext::ReuseId(key) => Ok(LegacyPush {
             outcome: PushOutcome::WriteOnce,
             key: Some(key),
             cause: None,
             tracker: (pushing.tracker)().ok(),
             marker: Some(marker_path),
         }),
-        PushPrecondition::Proceed => {
+        PushNext::Proceed => {
             pending_push::prepare_dir(&state.root, &state.name)
                 .map_err(|error| error.to_string())?;
             let tracker = match (pushing.tracker)() {
@@ -631,26 +701,117 @@ fn record_baseline_after_create(
     .map_err(|error| error.to_string())
 }
 
-/// Writes a locally numbered item under the ID `allocate` gives it, pushing
+/// Refuses `requested` in the order a create writes it under.
+///
+/// The corpus is listed, then `pending`'s pending-push check runs over that
+/// listing, then the taken rule, naming any holder relative to `root`. The
+/// real create and its dry-run pass their own pending-push checks, so both
+/// refuse alike.
+///
+/// # Errors
+///
+/// The first refusal: [`RequestedIdBlock::Pending`] with the pending-push
+/// check's message, or [`RequestedIdBlock::Refused`] with the typed refusal.
+pub fn refuse_requested_id<T>(
+    requested: &RequestedId,
+    listing: &WorkItemListing,
+    pending: &dyn Fn(&WorkItemListing) -> Result<T, String>,
+    root: &Path,
+) -> Result<T, RequestedIdBlock> {
+    let checked = pending(listing).map_err(RequestedIdBlock::Pending)?;
+    requested.refuse_if_taken(listing).map_err(|refusal| {
+        RequestedIdBlock::Refused(refusal.relative_to(root))
+    })?;
+    Ok(checked)
+}
+
+/// What keeps a requested ID from being claimed: an earlier push still in
+/// its way, or the ID itself refused.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestedIdBlock {
+    Pending(String),
+    Refused(RequestedIdRefusal),
+}
+
+impl std::fmt::Display for RequestedIdBlock {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pending(message) => formatter.write_str(message),
+            Self::Refused(refusal) => refusal.fmt(formatter),
+        }
+    }
+}
+
+pub enum LocalId<'a> {
+    Allocate(&'a dyn Fn(&CreateLockGuard) -> Result<String, String>),
+    Requested(&'a RequestedId),
+}
+
+impl Creation<'_> {
+    /// The ID the item takes, with what an earlier push of the same title
+    /// leaves a push to do.
+    fn claim_id(
+        &self,
+        local_id: &LocalId<'_>,
+        pushing: Option<&LegacyPushing<'_>>,
+        create: &CreateLockGuard,
+    ) -> Result<(String, Option<PendingPushCheck>), String> {
+        let pending_push = |listing: &WorkItemListing, id: &str| {
+            pushing
+                .map(|pushing| {
+                    check_pending_push(
+                        self,
+                        listing,
+                        &self.item.body(id)?,
+                        pushing,
+                    )
+                })
+                .transpose()
+        };
+        match local_id {
+            LocalId::Allocate(allocate) => {
+                let id = allocate(create)?;
+                let check = match pushing {
+                    Some(_) => pending_push(&self.listing()?, &id)?,
+                    None => None,
+                };
+                Ok((id, check))
+            }
+            LocalId::Requested(requested) => {
+                let check = refuse_requested_id(
+                    requested,
+                    &self.listing()?,
+                    &|listing| pending_push(listing, requested.as_str()),
+                    self.repo_root,
+                )
+                .map_err(|block| block.to_string())?;
+                Ok((requested.as_str().to_owned(), check))
+            }
+        }
+    }
+}
+
+/// Writes a locally numbered item under the ID `local_id` gives it, pushing
 /// it first when `pushing` names where to.
 ///
 /// # Errors
 ///
-/// A message when the ID cannot be allocated, the item cannot be written,
-/// or an earlier push of the same title refuses this one.
+/// A message when the ID cannot be allocated, a requested ID is already
+/// held (`E_ID_TAKEN`), the item cannot be written, or an earlier push of
+/// the same title refuses this one.
 pub fn create_local_item(
     creation: &Creation<'_>,
-    allocate: &dyn Fn(&CreateLockGuard) -> Result<String, String>,
+    local_id: &LocalId<'_>,
     pushing: Option<&LegacyPushing<'_>>,
     identity_run: &IdentityRunGuard,
 ) -> Result<CreationOutcome, String> {
     let create = creation.hold_create_lock(identity_run)?;
-    let id = allocate(&create)?;
+    let (id, pending_push) = creation.claim_id(local_id, pushing, &create)?;
     let target = creation.target_for(&id);
     creation.refuse_to_overwrite(&target)?;
     let store = creation.item_store();
 
-    let Some(pushing) = pushing else {
+    let Some((pushing, check)) = pushing.zip(pending_push) else {
         creation.write_new(
             store.as_ref(),
             &target,
@@ -658,7 +819,8 @@ pub fn create_local_item(
         )?;
         return Ok(CreationOutcome::unpushed(target));
     };
-    let push = push_legacy_item(creation, &creation.item.body(&id)?, pushing)?;
+    let push =
+        push_legacy_item(creation, &creation.item.body(&id)?, pushing, check)?;
     let item = creation
         .item
         .content(&id, push.key.as_ref().map(ExternalId::as_str))?;
@@ -902,6 +1064,11 @@ pub fn blocked_remedy(
         RetirementRefusal::ItemNotFound(_) => {
             format!("the draft {draft} is gone; the issue {key} is unlinked")
         }
+        RetirementRefusal::IdNotOnePathComponent { .. }
+        | RetirementRefusal::IdOutsideAlphabet { .. } => format!(
+            "{key} cannot name a work-item file; link the draft {draft} to \
+             it by hand"
+        ),
     }
 }
 
@@ -920,15 +1087,15 @@ fn incomplete_outcome(
         .chain(target.as_deref())
         .find(|path| creation.exists(path))
         .map(Path::to_path_buf);
-    let cause =
-        key.and_then(|key| TrackerKey::parse(key.as_str()))
-            .map(|key| {
-                let retirement = Retirement::onto(draft.as_str(), &key);
-                failure.message(
-                    &retirement,
-                    &creation.state_dir.join(retirement.recovery_dir()),
-                )
-            });
+    let cause = key
+        .and_then(|key| TrackerKey::parse_any_supported(key.as_str()))
+        .map(|key| {
+            let retirement = Retirement::onto(draft.as_str(), &key);
+            failure.message(
+                &retirement,
+                &creation.state_dir.join(retirement.recovery_dir()),
+            )
+        });
     pushed(path, PushOutcome::RetirementIncomplete, key, cause)
 }
 
@@ -1069,8 +1236,11 @@ pub fn create_tracker_keyed_item(
 mod tests {
     use tracker::ExternalId;
 
+    use work::work_item_files::identities;
+    use work::work_item_files::WorkItemFiles as _;
+
     use super::carries_external_id;
-    use super::corpus_identities;
+    use crate::filesystem::FilesystemWorkItemFiles;
 
     #[test]
     fn the_push_duplicate_check_sees_external_ids_in_drafts() {
@@ -1083,7 +1253,11 @@ mod tests {
         )
         .expect("write draft");
 
-        let corpus = corpus_identities(dir.path()).expect("listable corpus");
+        let corpus = identities(
+            &FilesystemWorkItemFiles::new(dir.path())
+                .files()
+                .expect("listable corpus"),
+        );
         let carries = |key: &str| {
             carries_external_id(&corpus, &ExternalId::new(key.to_owned()))
         };

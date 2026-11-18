@@ -11,6 +11,8 @@ const SCROLL_ROOT = "[data-scroll-root]";
 
 const hash = (page: import("@playwright/test").Page) =>
   page.evaluate(() => window.location.hash);
+const scrollTop = (root: import("@playwright/test").Locator) =>
+  root.evaluate((el) => el.scrollTop);
 const theme = (page: import("@playwright/test").Page) =>
   page.evaluate(() => document.documentElement.dataset.theme ?? "");
 const bgColour = (chip: import("@playwright/test").Locator) =>
@@ -61,7 +63,9 @@ test.describe("DevDesignSystem (/dev)", () => {
     page,
   }) => {
     await page.goto("/dev#code");
-    await page.locator(SCROLL_ROOT).evaluate((el) => {
+    const scrollRoot = page.locator(SCROLL_ROOT);
+    await expect.poll(() => scrollTop(scrollRoot)).toBeGreaterThan(0);
+    await scrollRoot.evaluate((el) => {
       el.scrollTo({ top: 0, behavior: "auto" });
     });
     await expect.poll(() => hash(page), { timeout: 5000 }).toBe("");

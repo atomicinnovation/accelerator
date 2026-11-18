@@ -44,6 +44,11 @@ the corpus, because version control is how a re-key is undone.
 
 Pass `--per-item-reads` through to the preview when the user gives it.
 
+Under a `{key}` pattern an item in shape under another key keeps it: items
+written with `--project` carry keys of their own. Only the keys the user
+names with `--from-key` are re-keyed onto **Local ID prefix**, such as the
+key in use before `work.key` changed.
+
 ## The override note
 
 `ACCELERATOR_FORCE` makes `work rekey` skip its safety checks: the apply's
@@ -62,8 +67,19 @@ run without checking the restore, and ask the user to unset
 ## Step 1: Preview
 
 ```bash
-accelerator work rekey --preview [--per-item-reads]
+accelerator work rekey --preview [--per-item-reads] [--from-key <KEY>]...
 ```
+
+**Other keys first.** On exit 0, when stderr carries a line starting
+`note:` that names keys other than `work.key`, each with its item count,
+ask before any branch below. Explain that items under a key used with
+`--project` should keep it, and items under a key in use before `work.key`
+changed should move onto **Local ID prefix**. Use the `AskUserQuestion`
+tool with `multiSelect`, one option per named key plus **Keep them all**.
+Unless the user keeps them all, preview once more, passing a
+`--from-key <KEY>` for every key picked in that one preview, since each
+preview replaces the last as the proposed plan; branch on that preview
+instead. Ask once per invocation.
 
 Branch on the outcome:
 

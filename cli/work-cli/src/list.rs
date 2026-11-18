@@ -10,7 +10,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
-use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use work::draft_id::DraftId;
@@ -21,6 +20,7 @@ use work::filter::WorkItemView;
 use work::hierarchy::children_of;
 use work::hierarchy::cyclic_members;
 use work::hierarchy::HierarchyNode;
+use work::id_scheme::IdScheme;
 use work::identity::ItemIdentity;
 use work::show::read_field_raw;
 use work::sync::label;
@@ -31,6 +31,8 @@ use work::sync::SyncState;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+
+use work_adapters::corpus_trust::refuse_untrusted_under;
 use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
@@ -170,7 +172,7 @@ fn item_view(item: &ScannedItem) -> WorkItemView<'_> {
 pub fn apply_filter<'a>(
     items: &'a [ScannedItem],
     filter: &Filter,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Vec<&'a ScannedItem> {
     items
         .iter()
@@ -326,7 +328,7 @@ fn tree_line(item: &ScannedItem, label: Option<&&'static str>) -> String {
 pub fn render_hierarchy(
     items: &[&ScannedItem],
     labels: Option<&BTreeMap<String, &'static str>>,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> String {
     let canonical_id: BTreeMap<String, &ScannedItem> = items
         .iter()
@@ -393,7 +395,7 @@ fn render_children(
     labels: Option<&BTreeMap<String, &'static str>>,
     lines: &mut Vec<String>,
     depth: usize,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) {
     let Some(group) = children.get(parent) else {
         return;
@@ -542,7 +544,7 @@ pub fn render(
     filter: &Filter,
     labels: Option<&BTreeMap<String, &'static str>>,
     hierarchy: bool,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> String {
     let selected = apply_filter(items, filter, scheme);
     if selected.is_empty() {
@@ -570,22 +572,32 @@ pub fn run(
         Ok(dir) => dir,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
+    let scheme = match crate::config::announced_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
     if !work_dir.is_dir() {
         return RunOutcome::MissingDirectory {
             message: missing_directory_message(&work_dir),
         };
     }
-
-    let scheme = crate::config::resolve_scheme(config).unwrap_or_default();
+    let untrusted =
+        refuse_untrusted_under(&scheme, &work_dir)
+            .err()
+            .map(|refusal| {
+                format!("warning: {}", refusal.relative_to(&root).warning())
+            });
 
     let scan_result = match scan(&work_dir) {
         Ok(scan_result) => scan_result,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
+    let warnings: Vec<String> =
+        untrusted.into_iter().chain(scan_result.warnings).collect();
     if scan_result.items.is_empty() {
         return RunOutcome::EmptyDirectory {
             message: empty_directory_message(&work_dir),
-            warnings: scan_result.warnings,
+            warnings,
         };
     }
 
@@ -607,10 +619,7 @@ pub fn run(
         args.hierarchy,
         &scheme,
     );
-    RunOutcome::Rendered {
-        output,
-        warnings: scan_result.warnings,
-    }
+    RunOutcome::Rendered { output, warnings }
 }
 
 fn is_draft(item: &ScannedItem) -> bool {
@@ -693,8 +702,8 @@ mod tests {
 
     use super::*;
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn scheme() -> IdScheme {
+        IdScheme::numeric()
     }
 
     struct AlwaysClean;
@@ -978,12 +987,20 @@ mod tests {
     }
 
     fn integrated_repo(items: &[(&str, &str)]) -> tempfile::TempDir {
+        repo_under("  integration: jira\n", items)
+    }
+
+    fn tracker_owned_repo(items: &[(&str, &str)]) -> tempfile::TempDir {
+        repo_under("  integration: jira\n  id_pattern: \"{tracker}\"\n", items)
+    }
+
+    fn repo_under(work: &str, items: &[(&str, &str)]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
         std::fs::create_dir(dir.path().join(".git")).unwrap();
         std::fs::create_dir_all(dir.path().join(".accelerator")).unwrap();
         std::fs::write(
             dir.path().join(".accelerator/config.md"),
-            "---\nwork:\n  integration: jira\n---\n",
+            format!("---\nwork:\n{work}---\n"),
         )
         .unwrap();
         for (relative, id) in items {
@@ -1051,22 +1068,21 @@ mod tests {
 
     #[test]
     fn with_a_draft_and_no_baseline_the_sync_column_is_present() {
-        let repo = integrated_repo(&[
-            ("0001-a.md", "0001"),
+        let repo = tracker_owned_repo(&[
             ("drafts/draft-k7mq3x-b.md", "draft-k7mq3x"),
+            ("drafts/draft-m4np8q-c.md", "draft-m4np8q"),
         ]);
 
         let listing = listed(repo.path());
 
         assert!(header(&listing).contains("Sync"), "{listing}");
         assert!(listing.contains("🟠 draft"), "{listing}");
-        assert!(listing.contains("⚪ unsynced"), "{listing}");
     }
 
     #[test]
     fn a_draft_in_the_canonical_directory_is_listed_as_a_draft() {
-        let repo = integrated_repo(&[
-            ("0001-a.md", "0001"),
+        let repo = tracker_owned_repo(&[
+            ("drafts/draft-m4np8q-a.md", "draft-m4np8q"),
             ("draft-k7mq3x-b.md", "draft-k7mq3x"),
         ]);
 

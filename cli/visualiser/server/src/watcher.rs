@@ -226,14 +226,16 @@ async fn on_path_changed(
     }
 
     let snapshot = indexer.all().await;
-    let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+    let work_item_by_identity_key =
+        indexer.work_item_by_identity_key_snapshot().await;
     let plans_by_id = indexer.plans_by_id_snapshot().await;
+    let work_item_cfg = indexer.work_item_cfg();
     let cluster_ctx = crate::clusters::ClusterContext::from_entries(
         &snapshot,
-        &work_item_by_id,
+        &work_item_by_identity_key,
         &plans_by_id,
         indexer.project_root(),
-        indexer.work_item_cfg(),
+        &work_item_cfg,
     );
     let (new_clusters, completeness_backfill, cluster_key_backfill) =
         compute_clusters_with_backfill(&snapshot, &cluster_ctx);
@@ -364,7 +366,8 @@ fn payload_for_entry(
 }
 
 fn is_markdown(path: &Path) -> bool {
-    path.extension().is_some_and(|e| e == "md")
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("md"))
 }
 
 /// Canonicalise a path that may not exist yet by walking up to the
@@ -560,6 +563,14 @@ const EVENT_BUDGET: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_markdown_file_is_watched_whatever_its_extensions_case() {
+        for name in ["a.md", "a.MD", "a.Md"] {
+            assert!(super::is_markdown(std::path::Path::new(name)), "{name}");
+        }
+        assert!(!super::is_markdown(std::path::Path::new("a.mdx")));
+    }
     use super::*;
     use crate::file_driver::LocalFileDriver;
     use crate::indexer::Indexer;
@@ -599,14 +610,16 @@ mod tests {
         let hub = Arc::new(SseHub::new(64));
         let activity_feed = Arc::new(ActivityRingBuffer::new());
         let snapshot = indexer.all().await;
-        let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+        let work_item_by_identity_key =
+            indexer.work_item_by_identity_key_snapshot().await;
         let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = indexer.work_item_cfg();
         let ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &plans_by_id,
             indexer.project_root(),
-            indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         let clusters = Arc::new(RwLock::new(
             crate::clusters::compute_clusters(&snapshot, &ctx),

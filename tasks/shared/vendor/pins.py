@@ -53,7 +53,7 @@ def chromium_sha256(platform: str, path: Path = PINS_TOML) -> str:
 
 
 def node_version(path: Path = PINS_TOML) -> str:
-    """Return the pinned Node version (mirrors the driver's pairing)."""
+    """Return the pinned Node version."""
     return str(_document(path)["node"]["version"])
 
 

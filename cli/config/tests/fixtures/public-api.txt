@@ -552,6 +552,7 @@ pub const fn config::legacy::is_blocked(team_present: bool, legacy_present: bool
 pub mod config::legacy_alias
 pub struct config::legacy_alias::AliasedScalar
 pub config::legacy_alias::AliasedScalar::deprecation: core::option::Option<alloc::string::String>
+pub config::legacy_alias::AliasedScalar::from_deprecated: bool
 pub config::legacy_alias::AliasedScalar::value: core::option::Option<alloc::string::String>
 pub const config::legacy_alias::REMOVAL_RELEASE: &str
 pub fn config::legacy_alias::emit_deprecation_once(deprecated_key: &str, deprecation: core::option::Option<&str>)
@@ -1099,6 +1100,7 @@ pub fn config::service::Value::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> c
 impl core::marker::StructuralPartialEq for config::service::Value
 pub struct config::AliasedScalar
 pub config::AliasedScalar::deprecation: core::option::Option<alloc::string::String>
+pub config::AliasedScalar::from_deprecated: bool
 pub config::AliasedScalar::value: core::option::Option<alloc::string::String>
 pub struct config::ConfigService<R, W>
 impl<R, W> config::service::ConfigService<R, W>

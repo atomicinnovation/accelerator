@@ -119,7 +119,7 @@ pre-release version.
 | `ACCELERATOR_VISUALISER_BIN`               | One-shot override pointing at a locally-built binary                                                      |
 | `visualiser.binary` config key             | Persistent binary override in `.accelerator/config.local.md`                                              |
 | `ACCELERATOR_VISUALISER_IDLE_TIMEOUT`      | One-shot override of the idle auto-shutdown window (duration string, or `never`/`0` to disable)           |
-| `visualiser.idle_timeout` config key       | Persistent idle auto-shutdown window (humantime duration; default `8h`; `never`/`0` to disable)           |
+| `visualiser.idle_timeout` config key       | Persistent idle auto-shutdown window (duration such as `30m` or `2d`; default `8h`; `never`/`0` to disable) |
 | `visualiser.editor` config key             | Editor deep-link for the detail-page "Open in editor" action (preset key or `{abs}`/`{rel}` URL template) |
 | `ACCELERATOR_VISUALISER_EDITOR`            | One-shot override of `visualiser.editor`                                                                  |
 | `visualiser.editor_project` config key     | JetBrains project name for the editor deep-link (defaults to the project directory basename)              |

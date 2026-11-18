@@ -1,6 +1,7 @@
 import type { Link, Parents, Root, Text } from "mdast";
 import type { Plugin } from "unified";
 import { SKIP, visit } from "unist-util-visit";
+import { wikiLinkOf } from "../../api/wiki-links";
 
 /** The resolver's three return shapes drive three distinct visual
  *  treatments downstream. The hook in Phase 5 returns `pending` while
@@ -76,8 +77,8 @@ function splitTextNode(
   let cursor = 0;
   let match: RegExpExecArray | null = pattern.exec(value);
   while (match !== null) {
-    const [bracketForm, prefixRaw, id] = match;
-    const prefix = prefixRaw as "ADR" | "WORK-ITEM";
+    const bracketForm = match[0];
+    const { prefix, id } = wikiLinkOf(match);
     const start = match.index;
     const end = start + bracketForm.length;
 

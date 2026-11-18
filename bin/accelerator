@@ -363,6 +363,16 @@ release_lock() {
 	lock_held=""
 }
 
+# uutils coreutils' mkdir, the default on Ubuntu 26.04, can report success to
+# more than one concurrent caller, so the lock belongs to whoever creates its
+# pid file: under noclobber bash opens it O_EXCL, which only one caller wins.
+claim_lock() {
+	(
+		set -o noclobber
+		printf '%s\n' "$$" >"${lock_dir}/pid"
+	) 2>/dev/null
+}
+
 acquire_lock() {
 	max_wait="${ACCELERATOR_LOCK_MAX_WAIT:-300}"
 	case "${max_wait}" in
@@ -371,8 +381,7 @@ acquire_lock() {
 	esac
 	waited=0
 	while true; do
-		if mkdir "${lock_dir}" 2>/dev/null; then
-			printf '%s\n' "$$" >"${lock_dir}/pid" 2>/dev/null
+		if mkdir "${lock_dir}" 2>/dev/null && claim_lock; then
 			lock_held=1
 			trap release_lock EXIT INT TERM
 			return 0

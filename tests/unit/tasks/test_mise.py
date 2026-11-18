@@ -36,6 +36,7 @@ _CLI_CHECK_GATES = [
     "lint:vcs-settings:check",
     "lint:config-test-support:check",
     "lint:crate-dependencies:check",
+    "lint:corpus-identity:check",
 ]
 
 # The dispatch guard is a skills-tree guard, so it cannot join _CLI_CHECK_GATES
@@ -63,6 +64,7 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 # nothing.
 _CLI_DEV_BUILDS = {
     "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:evals": {"build:cli:work:dev"},
     "test:integration:hooks": {
         _LAUNCHER,
         "build:cli:vcs:dev",
@@ -77,7 +79,7 @@ _CLI_DEV_BUILDS = {
 # reason. Every test:integration:* task must appear in exactly one of the two.
 _NO_LAUNCHER_NEEDED = {
     "test:integration:entrypoint": "builds it in-fixture, mirroring shim_bin",
-    "test:integration:skill-invocation": "builds it in-fixture, same harness",
+    "test:integration:skill-invocation": "builds it in-fixture, as entrypoint",
     "test:integration:tasks": "pytest over the invoke task modules",
     "test:integration:dev": "drives circusd with Python fake processes",
     "test:integration:deny": "cargo-deny over offline fixtures",
@@ -403,4 +405,26 @@ def test_fixture_size_guard_runs_in_the_integration_rollup(mise):
     # CI.
     assert "build:cli:fixture-size" in _transitive_depends(
         mise, "test:integration"
+    )
+
+
+# Vitest's worker-to-runner RPC has a fixed 60-second timeout that no config
+# reaches. On the 3-vCPU, 7 GB macos-latest runner the instrumented cargo build
+# and nextest run starve the Vitest forks past it, so a run whose every test
+# passed still fails with `Timeout calling "onTaskUpdate"`. `wait_for` orders
+# the suite after those lanes only when they share a run, so running
+# test:unit:frontend on its own stays as fast as before.
+_RUST_COMPILING_UNIT_LANES = {"test:unit:cli", "test:unit:visualiser"}
+
+
+def test_the_rust_compiling_lanes_are_in_the_unit_rollup(mise):
+    rollup = set(_task_depends(mise, "test:unit"))
+    assert rollup >= _RUST_COMPILING_UNIT_LANES
+
+
+def test_the_vitest_suite_waits_out_the_rust_compiling_unit_lanes(mise):
+    waits_for = set(mise["tasks"]["test:unit:frontend"].get("wait_for", []))
+    assert waits_for >= _RUST_COMPILING_UNIT_LANES, (
+        "test:unit:frontend runs alongside cargo; on a small runner Vitest's "
+        "fixed 60s worker RPC timeout then fails a fully passing suite"
     )

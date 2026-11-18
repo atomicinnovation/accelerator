@@ -62,6 +62,20 @@ pub fn seed_catalogue(dir: &Path) {
     );
 }
 
+/// Seeds a catalogue whose base team `BLA` has two states named `Done`.
+pub fn seed_ambiguous_catalogue(dir: &Path) {
+    write_catalogue(
+        dir,
+        r#"{"baseTeam": "team-uuid", "labels": [],
+           "teams": [{"id": "team-uuid", "key": "BLA", "name": "Bla",
+             "states": [{"id": "state-done-a-uuid", "name": "Done",
+                         "type": "completed", "position": 1},
+                        {"id": "state-done-b-uuid", "name": "Done",
+                         "type": "completed", "position": 2}],
+             "labels": [], "members": [], "projects": []}]}"#,
+    );
+}
+
 /// Seeds only the legacy `team` and `workflowStates` an older binary wrote.
 pub fn seed_legacy_catalogue(dir: &Path) {
     write_catalogue(

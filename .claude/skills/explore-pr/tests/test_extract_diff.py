@@ -99,3 +99,54 @@ def test_the_command_line_writes_json_for_every_listed_path(tmp_path, script):
     extract.main([str(base), str(head), str(listing), str(out)])
 
     assert list(json.loads(out.read_text())) == ["a.md"]
+
+
+def changed_at(count, line):
+    return numbered(count).replace(f"line {line}\n", "line XX\n")
+
+
+def test_a_long_source_file_still_keeps_its_whole_body(tmp_path, script):
+    extract = script("extract_diff")
+    base, head = tmp_path / "base", tmp_path / "head"
+    write(base, "tests/sync_create.rs", numbered(6000))
+    write(head, "tests/sync_create.rs", changed_at(6000, 3000))
+
+    entry = extract.diff_tree(base, head, ["tests/sync_create.rs"])[
+        "tests/sync_create.rs"
+    ]
+
+    assert entry["full"] is True
+    assert entry["hunks"][0]["l"][0] == " line 1"
+    assert entry["hunks"][-1]["l"][-1] == " line 6000"
+
+
+def test_a_file_too_long_to_carry_whole_keeps_only_what_is_near_a_change(
+    tmp_path, script
+):
+    extract = script("extract_diff")
+    base, head = tmp_path / "base", tmp_path / "head"
+    write(base, "src/generated.rs", numbered(25_000))
+    write(head, "src/generated.rs", changed_at(25_000, 12_000))
+
+    entry = extract.diff_tree(base, head, ["src/generated.rs"])[
+        "src/generated.rs"
+    ]
+
+    assert entry["full"] is False
+    assert len(entry["hunks"]) == 1
+    assert entry["hunks"][0]["l"][0] == " line 11995"
+    assert entry["hunks"][0]["l"][-1] == " line 12005"
+
+
+def test_a_lockfile_keeps_only_what_is_near_a_change_however_short(
+    tmp_path, script
+):
+    extract = script("extract_diff")
+    base, head = tmp_path / "base", tmp_path / "head"
+    write(base, "Cargo.lock", numbered(40))
+    write(head, "Cargo.lock", changed_at(40, 20))
+
+    entry = extract.diff_tree(base, head, ["Cargo.lock"])["Cargo.lock"]
+
+    assert entry["full"] is False
+    assert entry["hunks"][0]["l"][0] == " line 15"

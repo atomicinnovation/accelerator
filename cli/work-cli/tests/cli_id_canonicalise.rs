@@ -1,0 +1,212 @@
+//! CLI-boundary tests for `work id canonicalise`.
+
+// The `{project}`/`{number:04d}` DSL tokens in test literals are not
+// formatting args.
+#![allow(clippy::literal_string_with_formatting_args)]
+
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+
+type TestError = Box<dyn std::error::Error>;
+
+fn scratch_repo(
+    pattern: &str,
+    project: &str,
+) -> Result<tempfile::TempDir, TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-id-canonicalise-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    let config = format!(
+        "---\nwork:\n  id_pattern: \"{pattern}\"\n  default_project_code: \"{project}\"\n---\n"
+    );
+    fs::write(dir.path().join(".accelerator/config.md"), config)?;
+    Ok(dir)
+}
+
+fn run(dir: &Path, input: &str) -> Result<std::process::Output, TestError> {
+    Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+        .args(["id", "canonicalise", input])
+        .current_dir(dir)
+        .output()?)
+}
+
+#[test]
+fn bare_number_under_a_project_less_pattern() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "0042");
+    Ok(())
+}
+
+#[test]
+fn already_zero_padded_number() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "0042")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "0042");
+    Ok(())
+}
+
+#[test]
+fn double_quoted_number_is_unwrapped() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "\"0042\"")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "0042");
+    Ok(())
+}
+
+#[test]
+fn single_quoted_number_is_unwrapped() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "'0042'")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "0042");
+    Ok(())
+}
+
+#[test]
+fn bare_number_under_a_project_pattern_with_project_configured(
+) -> Result<(), TestError> {
+    let repo = scratch_repo("{project}-{number:04d}", "PROJ")?;
+    let output = run(repo.path(), "42")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PROJ-0042");
+    Ok(())
+}
+
+#[test]
+fn bare_number_under_a_key_pattern_honours_work_key() -> Result<(), TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-id-canonicalise-key-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+         key: \"PP\"\n---\n",
+    )?;
+    let output = run(dir.path(), "42")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PP-0042");
+    Ok(())
+}
+
+#[test]
+fn bare_number_under_a_project_pattern_with_no_project_configured(
+) -> Result<(), TestError> {
+    let repo = scratch_repo("{project}-{number:04d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(
+        stderr.trim(),
+        "Error: E_PATTERN_MISSING_KEY: bare number '42' under pattern \
+         '{project}-{number:04d}' requires a key value"
+    );
+    Ok(())
+}
+
+#[test]
+fn already_canonical_full_id() -> Result<(), TestError> {
+    let repo = scratch_repo("{project}-{number:04d}", "PROJ")?;
+    let output = run(repo.path(), "PROJ-0042")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PROJ-0042");
+    Ok(())
+}
+
+#[test]
+fn full_id_with_an_unpadded_number() -> Result<(), TestError> {
+    let repo = scratch_repo("{project}-{number:04d}", "PROJ")?;
+    let output = run(repo.path(), "PROJ-42")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PROJ-0042");
+    Ok(())
+}
+
+#[test]
+fn empty_input_is_rejected() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "")?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(
+        stderr.trim(),
+        "Error: E_PATTERN_BAD_FORMAT_SPEC: empty input"
+    );
+    Ok(())
+}
+
+#[test]
+fn unrecognised_id_shape_is_rejected() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "not-an-id")?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(
+        stderr.trim(),
+        "Error: E_PATTERN_BAD_FORMAT_SPEC: input 'not-an-id' is not a recognised \
+         ID shape"
+    );
+    Ok(())
+}
+
+#[test]
+fn canonicalise_keeps_its_error_codes_for_a_malformed_pattern(
+) -> Result<(), TestError> {
+    let repo = scratch_repo("{number:4d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "Error: E_PATTERN_BAD_FORMAT_SPEC: {number} format spec '4d' must match 0Nd \
+         (rule 4)"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_number_too_long_for_the_pattern_does_not_match() -> Result<(), TestError> {
+    let repo = scratch_repo("{number:04d}", "")?;
+    let output = run(repo.path(), "99999999999999999999")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "Error: E_PATTERN: input does not match the pattern"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_pattern_with_a_forbidden_literal_is_refused() -> Result<(), TestError> {
+    let repo = scratch_repo("x/{number:04d}", "")?;
+    let output = run(repo.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr)?.trim(),
+        "Error: E_PATTERN: literal '/' is forbidden in patterns (rule 2)"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_key_is_refused_as_its_siblings_refuse_it(
+) -> Result<(), TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-id-canonicalise-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  key: 1PP\n---\n",
+    )?;
+    let output = run(dir.path(), "42")?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8(output.stderr)?
+        .starts_with("Error: E_WORK_KEY_INVALID: work.key '1PP':"),);
+    Ok(())
+}

@@ -7,6 +7,7 @@ pub mod decisions_file;
 pub mod engine;
 pub mod interactive;
 pub mod ledger;
+pub mod legacy_ids;
 pub mod lifecycle;
 pub mod list;
 pub mod manifest;

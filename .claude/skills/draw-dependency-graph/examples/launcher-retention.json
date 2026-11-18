@@ -1,0 +1,52 @@
+{
+  "id": "launcher-retention",
+  "kind": "dependency-graph",
+  "title": "Retention reaches disk and time only through ports",
+  "caption": "The launcher's start-up and cold path both depend on retention; retention depends on the outbound ports, never on their adapters. The cycle between claims and prune is the one thing to question.",
+  "modules": [
+    { "id": "cli", "label": "cli::main" },
+    {
+      "id": "launch",
+      "label": "launch",
+      "status": "changed",
+      "modules": [
+        { "id": "start_up", "label": "start_up", "detail": "identify, claim", "status": "changed", "link": "https://example.test/start_up.rs#L78" },
+        { "id": "resolve", "label": "resolve", "detail": "cold path" },
+        {
+          "id": "retention",
+          "label": "retention",
+          "status": "new",
+          "modules": [
+            { "id": "claims", "label": "version_claims", "status": "new" },
+            { "id": "prune", "label": "prune", "detail": "removes stale trees", "status": "new", "tone": "risk" },
+            { "id": "windows", "label": "retention_windows", "status": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ports",
+      "label": "outbound ports",
+      "modules": [
+        { "id": "disk", "label": "Disk" },
+        { "id": "clock", "label": "Clock" },
+        { "id": "fetch", "label": "Fetch" }
+      ]
+    },
+    { "id": "legacy", "label": "legacy_sweep", "status": "removed" }
+  ],
+  "dependencies": [
+    { "from": "cli", "to": "start_up" },
+    { "from": "start_up", "to": "resolve" },
+    { "from": "start_up", "to": "claims", "label": "refreshes", "status": "new" },
+    { "from": "resolve", "to": "prune", "label": "on a cold start", "status": "new" },
+    { "from": "resolve", "to": "fetch" },
+    { "from": "prune", "to": "claims", "label": "reads", "status": "new" },
+    { "from": "claims", "to": "prune", "label": "orphans" },
+    { "from": "prune", "to": "windows", "status": "new" },
+    { "from": "claims", "to": "windows", "status": "new" },
+    { "from": "prune", "to": "disk", "label": "unlink", "status": "new" },
+    { "from": "claims", "to": "clock", "status": "new" },
+    { "from": "resolve", "to": "legacy", "status": "removed" }
+  ]
+}

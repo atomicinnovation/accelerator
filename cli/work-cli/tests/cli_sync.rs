@@ -94,6 +94,27 @@ fn an_unrecognised_tracker_exits_73_and_echoes_the_value(
 }
 
 #[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn sync_refuses_a_malformed_pattern() -> Result<(), TestError> {
+    let repo = configured_repo(
+        "---\nwork:\n  integration: jira\n  id_pattern: \"{number:4d}\"\n\
+         jira:\n  site: acme\n  email: fixture@example.com\n  \
+         project_key: ENG\n---\n",
+    )?;
+    let output = run(repo.path(), &[])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    assert!(!repo.path().join(".accelerator/state/integrations").exists());
+    Ok(())
+}
+
+#[test]
 fn a_wired_tracker_without_credentials_exits_74() -> Result<(), TestError> {
     let repo = scratch_repo(Some("jira"))?;
     let output = run(repo.path(), &[])?;
@@ -355,7 +376,6 @@ fn a_push_only_preview_plans_an_unsynced_item_without_reaching_the_tracker(
     assert_eq!(
         String::from_utf8(output.stdout)?,
         "0001\tcreate-from-local\tunsynced\t-\n\
-         0001\tnoop\tunsynced\t-\n\
          #\tdiscovery\tskipped\tpush-only\n"
     );
     assert_eq!(proxy.contacts(), 0, "the preview reached the network");

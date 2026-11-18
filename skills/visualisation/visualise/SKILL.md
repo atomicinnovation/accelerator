@@ -115,8 +115,8 @@ The release-binary mirror URL can be overridden via
 or proxy-hosted mirrors).
 
 The idle auto-shutdown window is configurable via the
-`visualiser.idle_timeout` config key (a humantime duration like
-`"8h"`, `"30m"`, `"1h30m"`; `never`/`0` disables it), with the
+`visualiser.idle_timeout` config key (a duration like `"8h"`,
+`"30m"`, `"1h30m"` or `"2d"`; `never`/`0` disables it), with the
 `ACCELERATOR_VISUALISER_IDLE_TIMEOUT` environment variable as a
 one-shot, shell-scoped override (precedence:
 env > `visualiser.idle_timeout` > 8h default).

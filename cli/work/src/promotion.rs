@@ -5,8 +5,6 @@
 //! deterministically, whoever finishes it, so a promotion interrupted at any
 //! stage resumes without sending a second create.
 
-use std::path::PathBuf;
-
 use corpus::references::rewrite_references;
 use corpus::references::IdShape;
 use corpus::references::Renaming;
@@ -58,7 +56,7 @@ pub enum PromotionStage {
     Retiring {
         key: TrackerKey,
         baseline: Box<IntendedBaseline>,
-        recovery_dir: PathBuf,
+        recovery_dir: crate::retirement::RecoveryDir,
         before: Box<PromotionStage>,
     },
 }
@@ -538,6 +536,7 @@ pub fn intended_baseline(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::path::PathBuf;
 
     use tracker::ExternalId;
@@ -570,7 +569,7 @@ mod tests {
     use crate::tracker_key::TrackerKey;
 
     fn key() -> TrackerKey {
-        TrackerKey::parse("PP-900")
+        TrackerKey::parse_any_supported("PP-900")
             .unwrap_or_else(|| unreachable!("a tracker key"))
     }
 
@@ -640,7 +639,10 @@ mod tests {
                 remote_hash: RemoteHash::Unknown,
                 local: local("draft"),
             }),
-            recovery_dir: PathBuf::from("retirement-recovery/x"),
+            recovery_dir: crate::retirement::RecoveryDir::parse(Path::new(
+                "retirement-recovery/x",
+            ))
+            .unwrap_or_else(|| unreachable!("a recovery directory")),
             before: Box::new(kept(RemoteKeptReason::NoHash {
                 read_back: read_back("r"),
             })),
@@ -790,7 +792,7 @@ mod tests {
 
     #[test]
     fn next_step_under_adopt_and_create_modes() {
-        let other = TrackerKey::parse("PP-901")
+        let other = TrackerKey::parse_any_supported("PP-901")
             .unwrap_or_else(|| unreachable!("a tracker key"));
         let later_stages = [
             (
@@ -859,7 +861,7 @@ mod tests {
             read_back: read_back("h"),
         });
         let adopt_lowercase = PromotionMode::Adopt(
-            TrackerKey::parse("pp-900")
+            TrackerKey::parse_any_supported("pp-900")
                 .unwrap_or_else(|| unreachable!("a tracker key")),
         );
 

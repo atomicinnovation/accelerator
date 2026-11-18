@@ -1,0 +1,227 @@
+//! CLI-boundary tests for `work id next`: a display-only allocation
+//! preview.
+
+#![allow(clippy::literal_string_with_formatting_args)]
+
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+
+type TestError = Box<dyn std::error::Error>;
+
+fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-id-next-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".git"))?;
+    fs::create_dir_all(dir.path().join("meta/work"))?;
+    Ok(dir)
+}
+
+fn scratch_repo_with_work_config(
+    work_body: &str,
+) -> Result<tempfile::TempDir, TestError> {
+    let dir = scratch_repo()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        format!("---\nwork:\n{work_body}---\n"),
+    )?;
+    Ok(dir)
+}
+
+fn run(dir: &Path, args: &[&str]) -> Result<std::process::Output, TestError> {
+    Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+        .args(["id", "next"])
+        .args(args)
+        .current_dir(dir)
+        .output()?)
+}
+
+#[test]
+fn three_sequential_ids_from_an_empty_corpus() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let output = run(repo.path(), &["--count", "3"])?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?, "0001\n0002\n0003\n");
+    Ok(())
+}
+
+#[test]
+fn a_repeated_invocation_prints_the_same_starting_number(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let first = run(repo.path(), &["--count", "2"])?;
+    assert!(first.status.success());
+    let second = run(repo.path(), &["--count", "2"])?;
+    assert!(second.status.success());
+    assert_eq!(first.stdout, second.stdout);
+    let entries: Vec<_> = fs::read_dir(repo.path().join("meta/work"))?
+        .filter_map(Result::ok)
+        .collect();
+    assert!(entries.is_empty(), "id next must never write a file");
+    Ok(())
+}
+
+#[test]
+fn allocates_after_the_highest_existing_number() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(repo.path().join("meta/work/0007-existing.md"), "")?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?, "0008\n");
+    Ok(())
+}
+
+#[test]
+fn a_key_pattern_mints_from_work_key() -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: \"PP\"\n",
+    )?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert!(output.status.success(), "{:?}", output.status);
+    assert_eq!(String::from_utf8(output.stdout)?, "PP-0001\n");
+    Ok(())
+}
+
+#[test]
+fn a_legacy_tracker_less_config_mints_and_warns_once() -> Result<(), TestError>
+{
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: \"PP\"\n",
+    )?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert!(output.status.success(), "{:?}", output.status);
+    assert_eq!(String::from_utf8(output.stdout)?, "PP-0001\n");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(
+        stderr.matches("1.25.0").count(),
+        1,
+        "expected exactly one deprecation warning, got: {stderr}"
+    );
+    assert!(stderr.contains("work.default_project_code"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_key_pattern_without_work_key_is_a_config_error() -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n",
+    )?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("work.key"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn overflow_prints_the_partial_ids_that_fit_then_exits_one(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(repo.path().join("meta/work/9998-near-cap.md"), "")?;
+    let output = run(repo.path(), &["--count", "3"])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(String::from_utf8(output.stdout)?, "9999\n");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.starts_with("Error: E_PATTERN_OVERFLOW:"), "{stderr}");
+    assert!(stderr.contains("number space exhausted"));
+    Ok(())
+}
+
+#[test]
+fn a_hostile_project_is_refused_with_the_key_shape_reason(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",
+    )?;
+    let output = run(repo.path(), &["--project", "a/b"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.starts_with(
+            "Error: E_WORK_KEY_INVALID: --project 'a/b': key value 'a/b' must \
+             match [A-Za-z][A-Za-z0-9]* (rule 5)"
+        ),
+        "{stderr}"
+    );
+    let empty = run(repo.path(), &["--project", ""])?;
+    assert_eq!(empty.status.code(), Some(1), "{empty:?}");
+    let stderr = String::from_utf8(empty.stderr)?;
+    assert!(
+        stderr.starts_with("Error: E_WORK_KEY_INVALID: --project '':"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_pattern_is_refused_before_allocating() -> Result<(), TestError> {
+    let repo =
+        scratch_repo_with_work_config("  id_pattern: \"{number:4d}\"\n")?;
+    let output = run(repo.path(), &[])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_lower_case_key_counts_in_the_configured_keys_sequence(
+) -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: PP\n",
+    )?;
+    for (number, slug) in (1..=10).zip('a'..='j') {
+        fs::write(
+            repo.path()
+                .join(format!("meta/work/PP-{number:04}-{slug}.md")),
+            "",
+        )?;
+    }
+    fs::write(repo.path().join("meta/work/pp-0500-b.md"), "")?;
+    let output = run(repo.path(), &[])?;
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PP-0501");
+    Ok(())
+}
+
+#[test]
+fn the_flat_id_verbs_name_their_replacements() -> Result<(), TestError> {
+    let next = "`work next-number` is now `work id next`";
+    let canonicalise = "`work canonicalise-id` is now `work id canonicalise`";
+    let cases: [(&[&str], &str); 3] = [
+        (&["next-number"], next),
+        (&["next-number", "--count", "3", "--project", "PP"], next),
+        (&["canonicalise-id", "--", "42"], canonicalise),
+    ];
+    for (args, pointer) in cases {
+        let repo = scratch_repo()?;
+
+        let output = Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+            .args(args)
+            .current_dir(repo.path())
+            .output()?;
+
+        let stderr = String::from_utf8(output.stderr)?;
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {stderr}");
+        assert!(output.stdout.is_empty(), "{args:?}");
+        assert_eq!(
+            stderr.trim_end(),
+            format!("Error: E_VERB_RETIRED: {pointer}"),
+            "{args:?}"
+        );
+    }
+    let help = Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+        .args(["next-number", "--help"])
+        .output()?;
+    assert!(String::from_utf8(help.stdout)?.contains(next));
+    Ok(())
+}

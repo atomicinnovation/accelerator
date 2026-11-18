@@ -25,7 +25,7 @@ import zipfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, NamedTuple
+from typing import Literal
 
 from tasks.shared.paths import (
     CHROMIUM_LICENSE,
@@ -129,18 +129,6 @@ class TreePlacement:
     dest_relpath: str
 
 
-class Rename(NamedTuple):
-    """A rename applied at the tree root after placement.
-
-    A placed upstream directory's binary can carry the name the runtime expects
-    (Chromium ships ``headless_shell``; the runtime resolves
-    ``chrome-headless-shell``).
-    """
-
-    source_name: str
-    dest_name: str
-
-
 @dataclass(frozen=True, slots=True)
 class TreeSpec:
     """What one artifact tree is composed from."""
@@ -149,7 +137,6 @@ class TreeSpec:
     placements: tuple[TreePlacement, ...]
     notices: tuple[NoticeSource, ...]
     executables: tuple[str, ...] = ()
-    renames: tuple[Rename, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,8 +183,6 @@ def stage_tree(spec: TreeSpec, dest: Path) -> None:
             )
         else:
             shutil.copy2(placement.source, target)
-    for source_name, dest_name in spec.renames:
-        (dest / source_name).rename(dest / dest_name)
     write_notices(dest, spec.notices)
 
 
@@ -405,16 +390,12 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
         [package / "LICENSE"] if (package / "LICENSE").exists() else [],
         "the playwright-core licence",
     )
-    # Playwright's Chromium archive ships `chrome-<platform>/headless_shell`
-    # (with support files beside it); the runtime resolves
-    # `chrome-headless-shell` at the tree root, so the whole directory is placed
-    # and the binary renamed.
     shell = _sole(
-        extracted.chromium.glob("**/headless_shell"),
+        extracted.chromium.glob("**/chrome-headless-shell"),
         "the chromium headless-shell binary",
     )
-    # Playwright's headless-shell archive ships no licence, so the Chromium
-    # licence is committed and sourced from the repo rather than the archive.
+    # The NOTICES entry is the reviewed, committed Chromium licence; the
+    # archive's own LICENSE.headless_shell still ships beside the binary.
     if not CHROMIUM_LICENSE.is_file():
         raise ValueError(
             f"the committed Chromium licence is missing at {CHROMIUM_LICENSE}"
@@ -437,7 +418,6 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
         placements=(TreePlacement(shell.parent, ""),),
         notices=(NoticeSource("chromium", (chromium_licence,)),),
         executables=("chrome-headless-shell",),
-        renames=(Rename("headless_shell", "chrome-headless-shell"),),
     )
     return (driver, browser)
 

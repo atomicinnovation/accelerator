@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn a_tracker_key_target_retires_onto_the_key() {
-        let key = TrackerKey::parse("ENG-42")
+        let key = TrackerKey::parse_any_supported("ENG-42")
             .unwrap_or_else(|| unreachable!("a tracker key"));
         let entry = entry("0042", RekeyTarget::TrackerKey(key.clone()));
         assert_eq!(entry.target.id(), "ENG-42");

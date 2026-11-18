@@ -1,0 +1,295 @@
+//! Adapter/binary wiring for `work id next`: a thin display wrapper
+//! around `work::next_number::allocate`, or `work::draft_id::mint_draft_ids`
+//! under `{tracker}`. It writes nothing in the corpus and commits no number;
+//! it takes the identity-run lock under `.accelerator/state/`, so it never
+//! allocates while a re-key is moving IDs.
+
+use std::path::Path;
+
+use ::config::ConfigAccess;
+use work::draft_id::mint_draft_ids;
+use work::next_number::allocate;
+use work::next_number::allocation_key;
+use work::next_number::AllocationError;
+use work::work_item_files::identities;
+use work::work_item_files::WorkItemFiles;
+use work_adapters::draft_id::RandomSuffixDraws;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
+
+use crate::config::locate_work_items;
+use crate::config::WorkItemLocation;
+use crate::corpus_trust::refuse_untrusted_corpus;
+use crate::identity_run::IdentityRunStart;
+use crate::refusal::Refusal;
+
+pub enum RunOutcome {
+    Allocated(Vec<String>),
+    Overflow {
+        partial: Vec<String>,
+        message: String,
+    },
+    Failed(String),
+    /// Nothing was allocated: the identity run could not begin, or the
+    /// corpus cannot be trusted.
+    Refused(Refusal),
+}
+
+fn mint_drafts(work_dir: &Path, count: u32) -> RunOutcome {
+    let files = match FilesystemWorkItemFiles::new(work_dir).files() {
+        Ok(files) => files,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
+    let count = usize::try_from(count).unwrap_or(usize::MAX);
+    match mint_draft_ids(&mut RandomSuffixDraws, &identities(&files), count) {
+        Ok(drafts) => RunOutcome::Allocated(
+            drafts
+                .into_iter()
+                .map(|draft| draft.as_str().to_owned())
+                .collect(),
+        ),
+        Err(error) => RunOutcome::Failed(error.to_string()),
+    }
+}
+
+/// # Errors
+///
+/// Never returns `Err`; every failure is reported through [`RunOutcome`].
+#[must_use]
+pub fn run(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    project: Option<&str>,
+    count: u32,
+    identity_run: &IdentityRunStart<'_>,
+) -> RunOutcome {
+    let start_root = config_adapters::FileConfigStore::discover_root(start);
+    let _identity_run = match identity_run(&start_root, "id next") {
+        Ok(guard) => guard,
+        Err(refusal) => {
+            return RunOutcome::Refused(crate::identity_run::refused(
+                refusal,
+                &start_root,
+            ));
+        }
+    };
+    let WorkItemLocation {
+        scheme,
+        root,
+        work_dir,
+    } = match locate_work_items(start, config) {
+        Ok(location) => location,
+        Err(message) => return RunOutcome::Failed(message),
+    };
+    let pattern = scheme.pattern();
+    if let Err(refusal) = refuse_untrusted_corpus(&scheme, &root, &work_dir) {
+        return RunOutcome::Refused(refusal);
+    }
+    let shown_dir = work_dir.strip_prefix(&root).unwrap_or(&work_dir);
+    let key = match allocation_key(pattern, project, scheme.key()) {
+        Ok(key) => key,
+        Err(error) => {
+            return RunOutcome::Failed(error.message(pattern, shown_dir))
+        }
+    };
+    if pattern.is_tracker_owned() {
+        return mint_drafts(&work_dir, count);
+    }
+
+    let listing = match FilesystemWorkItemFiles::new(&work_dir).listing() {
+        Ok(listing) => listing,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
+    match allocate(&scheme, key.as_ref(), count, &listing) {
+        Ok(ids) => RunOutcome::Allocated(ids),
+        Err(error) => {
+            let message = error.message(pattern, shown_dir);
+            match error {
+                AllocationError::Overflow { partial, .. } => {
+                    RunOutcome::Overflow { partial, message }
+                }
+                _ => RunOutcome::Failed(message),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod tests {
+    use crate::refusal::Refusal;
+    use std::collections::BTreeSet;
+    use std::collections::HashMap;
+
+    use ::config::ConfigAccess;
+    use ::config::ConfigError;
+    use ::config::Key;
+    use ::config::Level;
+    use ::config::Resolved;
+    use ::config::Scalar;
+    use ::config::Value;
+    use work::draft_id::DraftId;
+    use work::identity_run::waiting_line;
+    use work::identity_run::IdentityRunRefusal;
+    use work::rekey::outcome::Holder;
+
+    use super::run;
+    use super::RunOutcome;
+
+    struct TrackerConfig(HashMap<String, String>);
+
+    impl TrackerConfig {
+        fn new() -> Self {
+            Self(
+                [
+                    ("work.id_pattern", "{tracker}"),
+                    ("work.integration", "jira"),
+                ]
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                .collect(),
+            )
+        }
+    }
+
+    impl ConfigAccess for TrackerConfig {
+        fn get(
+            &self,
+            key: &Key,
+            _level: Option<Level>,
+        ) -> Result<Resolved, ConfigError> {
+            Ok(self
+                .0
+                .get(&key.to_string())
+                .map_or(Resolved::Absent, |value| {
+                    Resolved::Found(Value::Scalar(Scalar::String(
+                        value.clone(),
+                    )))
+                }))
+        }
+
+        fn set(
+            &self,
+            _key: &Key,
+            _value: &str,
+            _level: Level,
+        ) -> Result<(), ConfigError> {
+            unreachable!("id next never writes config")
+        }
+    }
+
+    fn repo() -> tempfile::TempDir {
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        root
+    }
+
+    #[test]
+    fn id_next_refuses_while_a_rekey_is_in_progress() {
+        let numeric = crate::test_support::FakeConfig(HashMap::new());
+        let configs: [&dyn ConfigAccess; 2] = [&numeric, &TrackerConfig::new()];
+        for config in configs {
+            let root = repo();
+            crate::test_support::rekey_in_progress(root.path());
+
+            let RunOutcome::Refused(Refusal { message, code }) =
+                run(root.path(), config, None, 1, &crate::identity_run::begin)
+            else {
+                panic!("id next allocated during a re-key");
+            };
+
+            assert_eq!(code, crate::exit_codes::UNRESOLVED);
+            assert!(
+                message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+                "{message}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_rekey_in_progress_outranks_a_malformed_pattern_as_in_create() {
+        let malformed = crate::test_support::FakeConfig(HashMap::from([(
+            "work.id_pattern".to_owned(),
+            "{number:4d}".to_owned(),
+        )]));
+        let root = repo();
+        crate::test_support::rekey_in_progress(root.path());
+
+        let RunOutcome::Refused(Refusal { message, .. }) = run(
+            root.path(),
+            &malformed,
+            None,
+            1,
+            &crate::identity_run::begin,
+        ) else {
+            panic!("id next read the scheme before the identity run");
+        };
+
+        assert!(
+            message.starts_with("Error: E_REKEY_IN_PROGRESS"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn id_next_under_tracker_returns_distinct_draft_ids() {
+        let root = repo();
+
+        let RunOutcome::Allocated(ids) = run(
+            root.path(),
+            &TrackerConfig::new(),
+            None,
+            5,
+            &crate::identity_run::begin,
+        ) else {
+            panic!("id next under {{tracker}} mints drafts");
+        };
+
+        assert_eq!(ids.len(), 5);
+        assert!(ids.iter().all(|id| DraftId::parse(id).is_some()), "{ids:?}");
+        assert_eq!(ids.iter().collect::<BTreeSet<_>>().len(), 5, "{ids:?}");
+    }
+
+    #[test]
+    fn id_next_with_project_under_tracker_is_e_pattern_key_unused() {
+        let root = repo();
+
+        let RunOutcome::Failed(message) = run(
+            root.path(),
+            &TrackerConfig::new(),
+            Some("ENG"),
+            1,
+            &crate::identity_run::begin,
+        ) else {
+            panic!("--project names no token under {{tracker}}");
+        };
+
+        assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
+    }
+
+    #[test]
+    fn a_command_waiting_on_id_next_names_it() {
+        let root = repo();
+        let holder = std::cell::RefCell::new(None);
+        let recording = |_: &std::path::Path, command: &str| {
+            holder.replace(Some(command.to_owned()));
+            Err(IdentityRunRefusal::Busy(None))
+        };
+
+        let _ = run(
+            root.path(),
+            &crate::test_support::FakeConfig(HashMap::new()),
+            None,
+            1,
+            &recording,
+        );
+
+        let waiting = waiting_line(Some(&Holder {
+            pid: 4242,
+            command: holder.take(),
+        }));
+        assert!(
+            waiting.starts_with("waiting for accelerator work id next "),
+            "{waiting}"
+        );
+    }
+}

@@ -260,7 +260,7 @@ fn an_unfinished_sync_retirement_is_reported_as_sync_unfinished_not_partly_appli
     };
     let writer = FileCorpusStore::new(repo.root());
     FileRetirementRecords::new(&repo.state_dir(), &writer)
-        .save(&RetirementRecord::of(&retirement))?;
+        .save(&RetirementRecord::of(&retirement)?)?;
     ports.recovery.prepare(&retirement.recovery_dir())?;
 
     let outcome = ports.apply(&clean(&repo));
@@ -655,7 +655,7 @@ impl Obstacle {
                         old_id: "draft-k7mq3x",
                         new_id: "ENG-42",
                         new_external_id: Some("ENG-42"),
-                    }),
+                    })?,
                 )?;
             }
             Self::RestorePendingRecovery => {

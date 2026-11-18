@@ -2,11 +2,10 @@ import json
 
 DIFF = {"src/a.rs": {"status": "added", "add": 1, "del": 0, "hunks": []}}
 FIGURE = {
-    "id": "f-flow",
-    "kind": "flow",
+    "id": "f-drawing",
+    "kind": "svg",
     "title": "Shape",
-    "nodes": [{"id": "a", "label": "A"}],
-    "edges": [],
+    "svg": "<svg viewBox='0 0 1 1'/>",
 }
 ABSTRACTION = {
     "id": "a-store",
@@ -98,7 +97,14 @@ def test_the_design_is_part_of_the_content_model(tmp_path, script):
 
 
 def test_design_figures_are_checked_like_any_other(tmp_path, script):
-    broken = dict(FIGURE, id="f-arch", edges=[{"from": "a", "to": "zz"}])
+    broken = {
+        "id": "f-arch",
+        "kind": "matrix",
+        "title": "Shape",
+        "rows": ["r1", "r2"],
+        "cols": ["c1"],
+        "cells": [["a"]],
+    }
 
     _, warnings = assemble(
         tmp_path,
@@ -107,7 +113,7 @@ def test_design_figures_are_checked_like_any_other(tmp_path, script):
         design={"summary": "s", "figures": [broken]},
     )
 
-    assert any("f-arch" in w and "zz" in w for w in warnings)
+    assert any("f-arch" in w and "rows of cells" in w for w in warnings)
 
 
 def test_a_design_item_naming_a_missing_chapter_is_reported(tmp_path, script):
@@ -221,6 +227,45 @@ def test_a_key_abstraction_works_with_every_declarations_collaborators(
     assert entry["item"]["collaborators"] == ["Clock", "Disk", "Log"]
 
 
+def test_a_collaborator_given_with_its_kind_is_drawn_with_that_kind(
+    tmp_path, script
+):
+    collaborator = {"name": "Clock", "kind": "trait"}
+    chapters = [
+        chapter(
+            "c", abstractions=[dict(ABSTRACTION, collaborators=[collaborator])]
+        )
+    ]
+
+    content, _ = assemble(tmp_path, script, chapters)
+
+    [entry] = content["keyAbstractions"]
+    assert entry["item"]["collaborators"] == ["Clock"]
+    assert content["collaboratorKinds"] == {"Clock": "trait"}
+
+
+def test_a_collaborator_that_is_not_an_abstraction_needs_a_kind(
+    tmp_path, script
+):
+    chapters = [
+        chapter("c", abstractions=[dict(ABSTRACTION, collaborators=["Clock"])])
+    ]
+
+    _, warnings = assemble(tmp_path, script, chapters)
+
+    assert any("Clock" in w and "kind" in w for w in warnings)
+
+
+def test_a_collaborator_that_is_an_abstraction_needs_no_kind(tmp_path, script):
+    clock = dict(ABSTRACTION, id="a-clock", name="Clock")
+    store = dict(ABSTRACTION, collaborators=["Clock"])
+    chapters = [chapter("c", abstractions=[store, clock])]
+
+    _, warnings = assemble(tmp_path, script, chapters)
+
+    assert not any("Clock" in w for w in warnings)
+
+
 def test_a_design_abstraction_owned_by_a_chapter_lists_that_chapter_first(
     tmp_path, script
 ):
@@ -259,7 +304,7 @@ STOP = {
     "start": 1,
     "end": 1,
     "title": "The store",
-    "note": "Writes one record.",
+    "why": "A recorded write is the only way a test can see the order.",
 }
 
 
@@ -272,7 +317,7 @@ def test_a_stop_that_does_not_place_itself_in_the_change_is_reported(
         [chapter("c", abstractions=[ABSTRACTION], stops=[STOP])],
     )
 
-    assert any("stop c-s1" in w and "bigger picture" in w for w in warnings)
+    assert any("stop c-s1" in w and "role it plays" in w for w in warnings)
 
 
 def test_a_stop_that_places_itself_in_the_change_raises_nothing(
@@ -286,4 +331,4 @@ def test_a_stop_that_places_itself_in_the_change_raises_nothing(
         [chapter("c", abstractions=[ABSTRACTION], stops=[stop])],
     )
 
-    assert not [w for w in warnings if "bigger picture" in w]
+    assert not [w for w in warnings if "role it plays" in w]

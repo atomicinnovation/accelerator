@@ -67,6 +67,15 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::pending_push;
 
+static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
+    std::sync::LazyLock::new(|| {
+        work::id_scheme::IdScheme::under_any_tracker(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            None,
+        )
+    });
+
 const DRAFT_ID: &str = "draft-k7mq3x";
 const DRAFT: &str = "meta/work/drafts/draft-k7mq3x-add-search.md";
 const KEY: &str = "REC-1";
@@ -235,7 +244,7 @@ fn key() -> ExternalId {
 }
 
 fn tracker_key() -> TrackerKey {
-    TrackerKey::parse(KEY).expect("a tracker key")
+    TrackerKey::parse_any_supported(KEY).expect("a tracker key")
 }
 
 /// Promotes the draft once over `store`, as one process would.
@@ -283,6 +292,7 @@ fn promote_reading(
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -324,6 +334,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -720,6 +731,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -1231,7 +1243,10 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
                 fingerprints: None,
             },
         }),
-        recovery_dir: PathBuf::from("retirement-recovery/draft-k7mq3x--REC-1"),
+        recovery_dir: work::retirement::RecoveryDir::parse(
+            std::path::Path::new("retirement-recovery/draft-k7mq3x--REC-1"),
+        )
+        .unwrap_or_else(|| unreachable!("a recovery directory")),
         before: Box::new(before),
     }));
 
@@ -1427,6 +1442,7 @@ fn promoted_waiting(
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &Clean,
@@ -1609,7 +1625,7 @@ fn creating_accepts_the_duplicate_risk_over_an_attempted_record() {
 fn an_adopt_naming_another_key_than_the_record_holds_stops() {
     let repo = Repo::new().unwrap();
     repo.save(&record_at(PromotionStage::Created {
-        key: TrackerKey::parse("REC-7").expect("a tracker key"),
+        key: TrackerKey::parse_any_supported("REC-7").expect("a tracker key"),
         created_remote_hash: None,
     }));
 

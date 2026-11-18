@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use corpus::lock::LockName;
 use sha2::Digest as _;
 use sha2::Sha256;
+use work::id_reading::unclassifiable::UnclassifiableCause;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::fingerprint::Staleness;
 use work::rekey::outcome::NotRekeyed;
@@ -199,10 +200,18 @@ fn refused_before_writing(
             first: mover,
             second: holder,
             target: entry.target.id().to_owned(),
+            linked: None,
         },
         RetirementRefusal::TargetExists(path) => NotRekeyed::TargetExists(path),
         RetirementRefusal::ItemNotFound(_) => {
             NotRekeyed::PreviewStale(Staleness::ItemsChanged(vec![mover]))
+        }
+        RetirementRefusal::IdNotOnePathComponent { id }
+        | RetirementRefusal::IdOutsideAlphabet { id } => {
+            NotRekeyed::Unclassifiable {
+                item: mover,
+                cause: UnclassifiableCause::ForbiddenCharacter { id },
+            }
         }
     }
 }
@@ -233,6 +242,7 @@ pub fn write_set(
             );
         let plan = plan_retirement(
             &entry.retirement(),
+            corpus.ports.layout.scheme,
             corpus.ports.layout.work_dir,
             &snapshot.items,
             &snapshot.files,

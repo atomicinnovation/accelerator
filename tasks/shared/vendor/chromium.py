@@ -1,15 +1,15 @@
 """Chromium is pinned, not verified.
 
-Playwright's Chromium build is fetched from the CDN over TLS with no publisher
-signature, so provenance rests on a committed per-platform sha256 that makes the
-bytes reviewable: a digest derived from whatever the CDN served this release
-attests our own output rather than the input, and committing it converts a
-trust-on-first-use into one reviewed moment. It bounds blast radius; it does not
-establish provenance.
+The Chrome for Testing headless shell is fetched from Playwright's CDN mirror
+over TLS with no publisher signature, so provenance rests on a committed
+per-platform sha256 that makes the bytes reviewable: a digest derived from
+whatever the CDN served this release attests our own output rather than the
+input, and committing it converts a trust-on-first-use into one reviewed moment.
+It bounds blast radius; it does not establish provenance.
 
-The revision is not chosen independently either: assembly refuses a pinned
-revision that the vendored ``playwright-core``'s ``browsers.json`` does not
-declare (see :mod:`tasks.shared.vendor.browsers`).
+The revision is not chosen independently either: both the fetch and assembly
+refuse a pinned revision that the vendored ``playwright-core``'s
+``browsers.json`` does not declare (see :mod:`tasks.shared.vendor.browsers`).
 """
 
 import hashlib
@@ -28,12 +28,7 @@ def assert_chromium_bytes(
     platform: Platform,
     pins_path: Path = PINS_TOML,
 ) -> None:
-    """Fail unless ``archive``'s sha256 matches the reviewed per-platform pin.
-
-    Used at fetch time, when only the revision (from the pins) is known; the
-    revision cross-check against ``browsers.json`` happens at assembly, once the
-    driver bundle is extracted.
-    """
+    """Fail unless ``archive``'s sha256 matches its reviewed platform pin."""
     actual = _sha256_file(archive)
     expected = pins.chromium_sha256(platform, pins_path)
     if actual != expected:

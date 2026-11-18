@@ -24,6 +24,8 @@ config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 kernel = { path = "../kernel" }
 vcs-adapters = { path = "../vcs-adapters" }
+work = { path = "../work" }
+work-adapters = { path = "../work-adapters" }
 clap = { workspace = true }
 serde_json = { workspace = true }
 

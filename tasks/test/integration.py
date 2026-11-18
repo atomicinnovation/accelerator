@@ -54,7 +54,7 @@ def visualiser_os_watcher(context: Context) -> None:
 @task
 def dev(context: Context) -> None:
     """Integration tests for the dev task (real circusd, fake processes)."""
-    context.run("uv run pytest tests/integration/dev -v")
+    context.run("uv run pytest tests/integration/dev -n auto -v")
 
 
 @task
@@ -118,19 +118,24 @@ def conformance(context: Context) -> None:
 
 
 @task
+def evals(context: Context) -> None:
+    """Hold the CLI output skill evals quote to what the CLI prints.
+
+    Runs against the accelerator-work built by the build:cli:work:dev
+    dependency.
+    """
+    context.run("uv run pytest tests/integration/evals -v")
+
+
+@task
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
-    The launcher-dispatch smoke drives the compiled accelerator-vcs through the
-    real `bin/accelerator` wrapper, so it needs ACCELERATOR_VCS_BIN — the
-    vcs_bin=True overlay — and the launcher, accelerator-vcs and
-    accelerator-research built by the build:cli:dev, build:cli:vcs:dev and
-    build:cli:research:dev dependencies.
+    The suite runs the launcher, accelerator-vcs and accelerator-research
+    built by the build:cli:dev, build:cli:vcs:dev and build:cli:research:dev
+    dependencies.
     """
-    context.run(
-        "uv run pytest tests/integration/hooks -v",
-        env=accelerator_env(vcs_bin=True),
-    )
+    context.run("uv run pytest tests/integration/hooks -v")
 
 
 _RESEARCH_DIFFERENTIAL = "uv run pytest tests/integration/research -v"

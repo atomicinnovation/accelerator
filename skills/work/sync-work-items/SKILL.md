@@ -254,6 +254,28 @@ nothing was written:
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
   retry once it ends.
 
+**A corpus re-key would move.** `work sync` runs over a corpus holding an
+item off `work.id_pattern`, so that it can finish what re-key waits on. But
+`accelerator work resolve` and `accelerator work promote`, which this skill
+also runs, refuse that corpus with exit 4 and write nothing. Check their
+stderr:
+
+- `E_REKEY_REQUIRED` — relay the printed remedy as is. It names
+  `/rekey-work-items`, after any fix by hand an item re-key cannot read
+  needs first. Then:
+  - When it came from `accelerator work promote` while recovering a
+    promotion, the unfinished promotion would make re-key refuse with
+    `E_REKEY_SYNC_UNFINISHED`, and sync is not refused here and settles
+    it. Use the `AskUserQuestion` tool with two options:
+    1. **Run sync now** — run Step 2's `accelerator work sync` with no
+       flags, read its output as below, then say to re-key.
+    2. **Stop** — say to run `accelerator work sync`, then re-key.
+  - Otherwise, stop.
+
+  Once the corpus is re-keyed, this skill can be run again.
+- `E_WORK_ITEM_MALFORMED` — relay every file it lists with its printed fix,
+  as is. Each is fixed by hand. Stop.
+
 ## Read the run's output
 
 **The stdout report is authoritative.** Read every record below whatever the
@@ -463,7 +485,7 @@ the cause is fixed:
 | `adopt` or `relink` row | `adopted: <id> → <KEY>` (annotated "conflict to resolve on next sync" when a `note: <id>: adopt:` line exists) | no |
 | `#\tunidentified` `unreadable`, `undecodable` or `malformed`, targeted run | listed once, with its `warning:` | no |
 | `#\tunidentified` `no-frontmatter` or `no-id` | listed once | no |
-| `noop\tunsynced` row for an id that also has a `failed`, `create-from-local` or `adopt` row | none: that row speaks for the item | no |
+| `noop\tunsynced` row for an id that also has a `failed` row, `order-refused` | none: the refusal speaks for the item | no |
 
 Example: `needs-retry: 0001, meta/work/0002-x.md (unreadable), sync baseline
 (not saved)`.
@@ -723,6 +745,7 @@ the same record keyed by the draft ID:
 | `rejected` | 75 | Nothing was sent, but the same request would be refused again. Change the draft (for example, its body), then sync. |
 | `id-taken`, `key-linked` | 4 | The issue exists, and the `holder` item already carries its key. If it is the same issue, delete the draft or merge it into the holder; otherwise fix the holder. Then `accelerator work promote <draft-id>`. |
 | `target-exists` | 4 | Move the `holder` file aside, then `accelerator work promote <draft-id>`. |
+| `id-not-one-path-component`, `id-outside-alphabet` | 4 | The draft's ID or the issue's key cannot name a file in the work directory, so nothing was written. Correct the draft's `id`, then `accelerator work promote <draft-id>`. |
 | `item-not-found` | 4 (71 once an issue exists) | The draft vanished. An issue it created is unlinked; the next sync imports it. |
 | `adopted-issue-missing` | 4 | The tracker has no issue under the `--adopt` key. Check the key, or use `--create`. |
 | `adopt-conflicts-with-recorded-key` | 4 | The draft's record already holds another key. `accelerator work promote <draft-id>` resumes onto that key. |

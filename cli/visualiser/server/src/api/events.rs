@@ -59,7 +59,7 @@ mod tests {
             log_path: tmp.path().join("server.log"),
             doc_paths: std::collections::HashMap::default(),
             templates: std::collections::HashMap::default(),
-            work_item: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

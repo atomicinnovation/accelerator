@@ -9,14 +9,24 @@
 // gives a file a verdict and finds its lines read in By commit, and marks one
 // line at a time in All files, checking a mark link sits above each run of
 // unread lines and that the n key jumps to the next unread line. Needs Node
-// 22+ (global WebSocket). Last, it unfolds a run of unchanged lines in a file
-// opened by link and in one picked from the file list.
+// 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
+// opened by link and in one picked from the file list. Last, it renders prose
+// naming a stop and its chapter, and checks both become links and that the
+// stop's link opens its chapter at that stop. It checks that a stop names
+// everything it carries, that each name opens what it names, and that every
+// line a stop says to focus on is marked in its code. It also records a file verdict,
+// pretends it was given at an earlier head, and checks that rewritten lines are
+// unread again and announced, that untouched ones stay read, and that only a
+// new verdict, not a note, moves the record to this head. Every diagram the
+// kit drew is put through the kit's own checks: text inside its box, no box
+// across another or across an arrow, tracing, and a linked box opening its link.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { DRAWING_CHECKS, SELF_DRAWN_CHECKS, TRACING_CHECK } = require('../../diagram-kit/lib/page-checks.js');
 
 const CHROME_CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -150,6 +160,111 @@ const COMMITS_PROBE = `(async () => {
   return { sha: row.sha, line: row.path + ' ' + row.key, commitReachesFiles, filesReachCommits, linesMarkOneByOne, linkAboveEachUnreadRun, nextUnreadKey };
 })()`;
 
+const REFERENCES_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api;
+  const chapters = api.content.chapters || [];
+  const last = [...chapters].reverse().find(chapter => (chapter.stops || []).length);
+  if (!last) return { skipped: 'no chapter with a stop' };
+  const stop = last.stops[last.stops.length - 1];
+  location.hash = 'overview'; await settle();
+  const holder = document.createElement('p');
+  holder.innerHTML = api.md('See \`' + stop.id + '\` in chapter \`' + last.id + '\`.', true);
+  document.querySelector('#main .view').prepend(holder);
+  const [toStop, toChapter] = holder.querySelectorAll('a.ref');
+  const named = !!toStop && !!toChapter && !holder.querySelector('code') && toStop.textContent.includes(stop.title || stop.id) && toChapter.textContent === (last.title || last.id);
+  if (!named) return { named, html: holder.innerHTML };
+  toStop.click(); await settle();
+  const target = document.getElementById('stop-' + stop.id);
+  const top = target ? target.getBoundingClientRect().top : null;
+  return { named, opensChapter: location.hash === '#tour-' + last.id, reachesStop: top !== null && top >= -2 && top < innerHeight };
+})()`;
+
+const EVIDENCE_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api;
+  const chapters = api.content.chapters || [];
+  const evidence = window.StopEvidence.index(api.content);
+  const chapter = chapters.find(each => (each.stops || []).some(stop => evidence.carriedBy(stop).length));
+  if (!chapter) return { skipped: 'no stop carries anything the page declares' };
+  const stop = chapter.stops.find(each => evidence.carriedBy(each).length);
+  location.hash = 'tour-' + chapter.id; await settle();
+  const shown = document.getElementById('stop-' + stop.id);
+  const links = shown ? [...shown.querySelectorAll('a.carried')] : [];
+  const named = links.length === evidence.carriedBy(stop).length;
+  const pointed = chapters.flatMap(each => each.stops || []).filter(each => (each.focus || []).some(focus => focus.why));
+  const focusMarked = pointed.every(each => {
+    const there = document.getElementById('stop-' + each.id);
+    return !there || !there.querySelector('.code table') || !!there.querySelector('tr.focus + tr.point');
+  });
+  if (!named) return { named, focusMarked };
+  links[0].click(); await settle();
+  const target = document.getElementById(links[0].dataset.scrollTo);
+  const top = target ? target.getBoundingClientRect().top : null;
+  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight };
+})()`;
+
+const HEADS_PROBE = `(async () => {
+  const api = window.ExplorePR.api, store = api.store, content = api.content;
+  const settle = () => new Promise(r => setTimeout(r, 500));
+  const file = content.files.find(f => window.ReviewCoverage.changedLinesOf((api.diff || {})[f.path]).length);
+  if (!file || !content.pr.head) return { skipped: 'no head, or no file with a changed line' };
+  const path = file.path, target = 'file:' + path, earlier = 'earlier-head';
+  const bar = () => document.querySelector('[data-coverage-of="' + CSS.escape(path) + '"]');
+  const since = () => document.querySelector('.ctl[data-ctl="' + CSS.escape(target) + '"] [data-since-note]');
+  const recordedAt = (head, lineage) => {
+    content.lineage = { ...(content.lineage || {}), [earlier]: { [path]: lineage } };
+    store.docs.set(target, { ...store.get(target), head });
+    store.version++;
+    api.rerender();
+  };
+  store.put(target, 'file', { status: 'ok' }, {});
+  const saved = store.get(target);
+  const stamped = saved.head === content.pr.head && Array.isArray(saved.claimed) && saved.claimed.length > 0;
+  api.openFile(path); await settle();
+  const readAtHead = +bar().dataset.read;
+  recordedAt(earlier, { new: [], old: [], changed: true }); api.openFile(path); await settle();
+  const rewrittenUnread = readAtHead > 0 && +bar().dataset.read === 0;
+  const marked = !!since() && !since().hidden && since().textContent.includes(earlier.slice(0, 7));
+  const banner = document.querySelector('#store-banner');
+  const announced = !!banner && !banner.hidden && /moved/.test(banner.textContent);
+  recordedAt(earlier, 'same'); api.openFile(path); await settle();
+  const untouchedCarried = +bar().dataset.read === readAtHead && !!since() && since().hidden;
+  store.put(target, 'file', { note: 'checked' }, {});
+  const noteKeepsHead = store.get(target).head === earlier;
+  store.put(target, 'file', { status: 'issue' }, {});
+  const verdictRestamps = store.get(target).head === content.pr.head;
+  store.put(target, 'file', { status: '', note: '' }, {});
+  delete content.lineage[earlier];
+  return { stamped, rewrittenUnread, marked, announced, untouchedCarried, noteKeepsHead, verdictRestamps };
+})()`;
+
+const DIAGRAMS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const seen = {};
+  let tracing = { skipped: 'no diagram with an arrow' };
+  for (const route of [...window.ExplorePR.figureViews(), ...window.ExplorePR.customViews()]) {
+    location.hash = route; await settle();
+    for (let waited = 0; waited < 40 && document.querySelector('[data-drawing]'); waited++) await settle();
+    if (document.querySelector('[data-drawing]')) { seen[route] = ['a diagram was still being drawn after 12 seconds']; continue; }
+    if (!document.querySelector('svg.dk, .dk-drawn')) continue;
+    const checked = await ${DRAWING_CHECKS};
+    [...checked.diagrams, ...${SELF_DRAWN_CHECKS}].forEach(each => { seen[each.id] = each.problems; });
+    const traced = await ${TRACING_CHECK};
+    if (!traced.skipped) tracing = traced;
+    const link = document.querySelector('svg.dk .node-link');
+    if (link && !('linkOpens' in seen)) {
+      const before = location.hash;
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await settle();
+      seen.linkOpens = location.hash !== before || !!document.querySelector('#file-pane');
+    }
+  }
+  const { linkOpens = null, ...problems } = seen;
+  if (!Object.keys(problems).length) return { skipped: 'no kit diagram on the page' };
+  return { problems, tracing, linkOpens };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -171,6 +286,11 @@ const UNFOLD_PROBE = `(async () => {
   return { file: folded.path, afterOpening, afterPicking };
 })()`;
 
+async function wholePage(cdp) {
+  const { result: { cssContentSize: size } } = await cdp.send('Page.getLayoutMetrics');
+  return { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: size.width, height: size.height, scale: 1 } };
+}
+
 async function main() {
   const options = args(process.argv.slice(2));
   const chrome = findChrome(options.chrome);
@@ -186,18 +306,24 @@ async function main() {
     for (let i = 0; i < 50 && !(await cdp.evaluate('!!(window.ExplorePR && window.ExplorePR.routes().length)')); i++) await sleep(100);
     const routes = await cdp.evaluate('window.ExplorePR ? window.ExplorePR.routes() : []');
     if (options.shots) fs.mkdirSync(options.shots, { recursive: true });
-    for (const route of routes) {
+    const figureViews = await cdp.evaluate('window.ExplorePR.figureViews()');
+    const chapters = figureViews.filter(view => !routes.includes(view));
+    for (const route of [...routes, ...chapters]) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
       await sleep(700);
       report.routes[route] = await cdp.evaluate(`({ heading: (document.querySelector('main h1') || {}).textContent || null, unresolvedSlices: document.querySelectorAll('[data-pending-slice]').length, highlighted: document.querySelectorAll('[class^="hljs-"]').length })`);
       if (options.shots) {
-        const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        const shot = await cdp.send('Page.captureScreenshot', figureViews.includes(route) ? await wholePage(cdp) : { format: 'png' });
         fs.writeFileSync(path.join(options.shots, `${route}.png`), Buffer.from(shot.result.data, 'base64'));
       }
     }
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
+    report.references = await cdp.evaluate(REFERENCES_PROBE);
+    report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
+    report.heads = await cdp.evaluate(HEADS_PROBE);
+    report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -221,7 +347,16 @@ async function main() {
   const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
   const unfold = report.unfold || {};
   const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
-  report.ok = commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const references = report.references || {};
+  const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
+  const evidence = report.evidence || {};
+  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries);
+  const heads = report.heads || {};
+  const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
+  const diagrams = report.diagrams || {};
+  const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
+  const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
+  report.ok = diagramsHold && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

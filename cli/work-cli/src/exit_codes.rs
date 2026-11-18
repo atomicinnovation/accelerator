@@ -126,7 +126,9 @@
 //!   carries it.
 //! - `rejected` — `75`.
 //! - `possible-duplicate`, `id-taken`, `key-linked`, `target-exists`,
-//!   `adopted-issue-missing`, `adopt-conflicts-with-recorded-key` — `4`.
+//!   `id-not-one-path-component`, `id-outside-alphabet`,
+//!   `adopted-issue-missing`,
+//!   `adopt-conflicts-with-recorded-key` — `4`.
 //! - `item-not-found` — `4`, or `71` once an issue exists for the vanished
 //!   draft.
 //! - `record-unwritable` — `71` once an issue exists, otherwise `1`.
@@ -165,17 +167,57 @@
 //!   configured, as for `work promote`. Finishing a run, applying a
 //!   preview and discarding never select one.
 //!
+//! Every command that reads the ID scheme (`create`, `create-batch`,
+//! `id next`, `id check`, `resolve`, `list`, `promote`, `rekey` and `sync`)
+//! reports its config refusals at start, each exiting `1` and naming the
+//! setting and value: `E_WORK_ID_PATTERN_INVALID`, `E_WORK_KEY_INVALID` and
+//! `E_WORK_KEY_REQUIRED`. `list` reads the scheme without requiring a key, so
+//! it never gives `E_WORK_KEY_REQUIRED`, and `id canonicalise` maps them to
+//! its own `E_PATTERN*` codes. Commands that never read the scheme (`show`,
+//! `diff`, `update`, `template-hints`, `link-external-id`) do not refuse.
+//!
 //! `work sync`, `work promote`, `work create`, `work create-batch`,
-//! `work next-number` and `work update --push` hold the identity-run lock
-//! for their whole run, and before reading or writing anything refuse with
-//! `E_REKEY_IN_PROGRESS` (`4`) while a re-key is in progress,
-//! `E_REKEY_PLAN_UNREADABLE` (`4`) while its plan cannot be read, and
-//! `E_IDENTITY_RUN_BUSY` (`1`) when another identity command still holds the
-//! lock after a 60 s wait. `work create --push` refuses too, writing nothing:
-//! a deliberate exception to its save-intent contract, as plain `work create`
-//! refuses.
+//! `work id next`, `work id check` and `work update --push` hold the
+//! identity-run lock for their whole run, and before reading or writing
+//! anything refuse with `E_REKEY_IN_PROGRESS` (`4`) while a re-key is in
+//! progress, `E_REKEY_PLAN_UNREADABLE` (`4`) while its plan cannot be read,
+//! and `E_IDENTITY_RUN_BUSY` (`1`) when another identity command still holds
+//! the lock after a 60 s wait. `work create --push` refuses too, writing
+//! nothing: a deliberate exception to its save-intent contract, as plain
+//! `work create` refuses.
+//!
+//! `create`, `create-batch`, `id next`, `id check`, `resolve` and `promote`
+//! refuse with `E_REKEY_REQUIRED` (`4`), writing nothing, while
+//! any item's `id` is not in the configured pattern's exact shape, under any
+//! key, or under `{tracker}` is neither a draft nor its issue's key; the
+//! refusal counts such items, names one, and points to `/rekey-work-items`
+//! after any fix by hand an item re-key cannot read needs. They refuse
+//! with `E_WORK_ITEM_MALFORMED` (`4`) too, listing with its own fix every
+//! work-item file whose filename does not start with its `id` and a slug,
+//! that names an ID in `aliases` or `external_id` with no `id`, that is
+//! named only by an ID, or that is not UTF-8. `sync`, `rekey`
+//! and `id canonicalise` do not refuse, since only they clear what keeps a
+//! re-key from running or read no corpus. `list` prints either refusal as a
+//! warning and lists the corpus, so a user can see what to fix.
+//!
+//! `work create --id` refuses an ID it cannot write under, after the
+//! identity-run, config and corpus refusals above, writing nothing and
+//! sending no tracker request: `E_ID_WITH_PROJECT`, `E_ID_TRACKER_OWNED`,
+//! `E_ID_DRAFT_RESERVED`, `E_ID_PATTERN_MISMATCH` and `E_ID_TAKEN`, in that
+//! order. Under `--push`, the pending-push refusals (`E_PUSH_PENDING`,
+//! `E_PUSH_MARKER_UNREADABLE`, `E_PUSH_FINGERPRINT_MISMATCH`,
+//! `E_PUSH_ALREADY_WRITTEN`) come between `E_ID_PATTERN_MISMATCH` and
+//! `E_ID_TAKEN`. `E_ID_TAKEN` exits `4`, as every other collision does; the
+//! others exit `1`, as `work create`'s other argument refusals
+//! (`E_PATTERN_*`, `E_WORK_*`) do. So a caller tells a bad ID from a taken
+//! one by its exit code, and a taken ID from the other exit-`4` refusals
+//! above by its `E_ID_TAKEN` code. `work id check` gives the same refusals
+//! with the same exit codes, except `E_ID_WITH_PROJECT`, since it takes no
+//! `--project`, and like `work create` takes the identity-run lock before
+//! reading the scheme.
 
 use tracker::TrackerError;
+use work::requested_id::RequestedIdRefusal;
 
 pub const CLEAN: u8 = 0;
 pub const ERROR: u8 = 1;
@@ -204,9 +246,89 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
     }
 }
 
+/// The exit code a `--id` refusal exits with: a taken ID is a collision,
+/// exiting [`UNRESOLVED`] like every other, and any other refusal is
+/// [`ERROR`].
+#[must_use]
+pub const fn of_requested_id_refusal(refusal: &RequestedIdRefusal) -> u8 {
+    match refusal {
+        RequestedIdRefusal::Taken { .. } => UNRESOLVED,
+        _ => ERROR,
+    }
+}
+
+/// [`of_requested_id_refusal`] for a real create's failure, which reaches
+/// the binary as its message alone.
+#[must_use]
+pub fn of_failure(message: &str) -> u8 {
+    if message.starts_with("E_ID_TAKEN:") {
+        UNRESOLVED
+    } else {
+        ERROR
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    use work::requested_id::ExampleShape;
+    use work::requested_id::Holding;
+    use work::requested_id::ProjectRemedy;
+    use work::requested_id::RequestedIdRefusal;
+
     use super::*;
+
+    #[test]
+    fn a_taken_requested_id_exits_as_a_collision_and_the_rest_as_errors() {
+        let shape = || ExampleShape {
+            pattern: "{number:04d}".to_owned(),
+            description: "four digits".to_owned(),
+            first: None,
+        };
+        let taken = RequestedIdRefusal::Taken {
+            requested: "0400".to_owned(),
+            holder: PathBuf::from("meta/work/0400-a.md"),
+            holding: Holding::Filename,
+            held: "0400".to_owned(),
+        };
+        assert_eq!(of_requested_id_refusal(&taken), UNRESOLVED);
+        for refusal in [
+            RequestedIdRefusal::WithProject {
+                pattern: "{number:04d}".to_owned(),
+                remedy: ProjectRemedy::DropProject,
+            },
+            RequestedIdRefusal::TrackerOwned {
+                pattern: "{tracker}".to_owned(),
+            },
+            RequestedIdRefusal::DraftReserved {
+                requested: "draft-k7mq3x".to_owned(),
+                shape: shape(),
+            },
+            RequestedIdRefusal::PatternMismatch {
+                requested: "400".to_owned(),
+                shape: shape(),
+                correction: None,
+            },
+        ] {
+            assert_eq!(of_requested_id_refusal(&refusal), ERROR, "{refusal:?}");
+        }
+    }
+
+    #[test]
+    fn a_taken_id_exits_as_a_collision_and_other_refusals_as_errors() {
+        assert_eq!(
+            of_failure("E_ID_TAKEN: '0400' is already held"),
+            UNRESOLVED
+        );
+        for message in [
+            "E_ID_PATTERN_MISMATCH: '400' is not",
+            "E_PATTERN_OVERFLOW: number space exhausted",
+            "could not create the work-item directory",
+        ] {
+            assert_eq!(of_failure(message), ERROR, "{message}");
+        }
+    }
 
     #[test]
     fn the_keyed_read_abort_has_its_own_code_distinct_from_the_rest() {

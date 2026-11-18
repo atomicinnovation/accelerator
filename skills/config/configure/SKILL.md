@@ -685,6 +685,13 @@ Here local IDs carry the `PP-` prefix while creation and discovery scope to
 the `PROJ` Jira project. A divergent `work.key` is a supported configuration,
 not a smell — no warning is raised.
 
+Changing `work.key` refuses nothing: items under the old key stay in
+shape, since any key is, and allocation starts a new sequence under the
+new key beside them. To move the old key's items onto the new one, run
+`/rekey-work-items` and pick the old key when it asks which keys to fold,
+or run `accelerator work rekey --preview --from-key <old key>`, then
+`accelerator work rekey`.
+
 #### Local-first storage
 
 Work items are always written to `meta/work/` as local files, regardless
@@ -706,10 +713,12 @@ skill operates purely against `meta/work/` with no external API calls.
 The `id_pattern` value is a small DSL with two tokens:
 
 - `{number[:format]}` — required, exactly one occurrence. The `format`
-  is a printf width spec of the form `0Nd` (e.g. `04d`, `05d`). If
-  omitted, defaults to `04d`. The width is enforced when generating
-  new IDs; scanning is width-agnostic, so legacy 4-digit files remain
-  visible after a width change.
+  is a printf width spec of the form `0Nd` (e.g. `04d`, `05d`), at most
+  19 digits wide. If omitted, defaults to `04d`. The width is enforced
+  when generating new IDs, and existing items must be re-keyed to it:
+  until then `work create`, `create-batch`, `id next`, `id check`,
+  `resolve` and `promote` refuse with `E_REKEY_REQUIRED` (see *Width
+  changes vs structural changes*).
 - `{key}` — optional, at most one occurrence. The local ID prefix,
   substituted at use time from `work.key` (or a `--project` flag). When a
   pattern references `{key}`, `work.key` is required — it never silently falls
@@ -717,7 +726,6 @@ The `id_pattern` value is a small DSL with two tokens:
 - `{project}` — **deprecated** synonym for `{key}`, removed in 1.25.0.
   Existing `{project}` patterns keep working through the deprecation window and
   are rewritten to `{key}` by `/accelerator:migrate`.
-- `{{` and `}}` — escaped literals for a literal `{` or `}`.
 
 `{tracker}` is a pattern on its own rather than a token beside others: the
 tracker owns every item's `id`. An item pushed at creation takes its Jira
@@ -726,8 +734,11 @@ or Linear key as `id`; any other new item is a **draft** in
 sync` or `work promote` promotes it onto its key, keeping the draft ID in
 its `aliases`. Two rules apply: `{tracker}` must be the only token in
 `work.id_pattern`, and `work.integration` must be `jira` or `linear`.
-`work.key` and `--project` are unused under it, and items created earlier
-keep their IDs. It needs Accelerator 1.24.0 or later; upgrade every
+`work.key` and `--project` are unused under it. Items created earlier
+must be re-keyed with `/rekey-work-items`: until then `work create`,
+`create-batch`, `id next`, `id check`, `resolve` and `promote` refuse
+with `E_REKEY_REQUIRED`, while `work sync` and `work rekey` still run and
+`work list` warns. It needs Accelerator 1.24.0 or later; upgrade every
 teammate before switching a shared config, since an older version cannot
 read the pattern.
 
@@ -735,24 +746,33 @@ read the pattern.
 consumed):
 
 1. Pattern must contain at least one `{number}` token.
-2. No filesystem-hostile chars (`/`, `\`, `:`, `*`, `?`, `<`, `>`,
-   `|`, `"`) outside token format specs.
+2. Literal text is ASCII letters, digits, `.`, `_` and `-` only, so an
+   ID is safe in a filename and in any shell quoting. Filesystem-hostile
+   characters (`/`, `\`, `:`, `*`, `?`, `<`, `>`, `|`, `"`), spaces,
+   quotes and braces are all rejected. Escaped braces (`{{`, `}}`) are no
+   longer supported.
 3. Adjacent dynamic tokens must have at least one literal char between
    them (`{key}{number}` is rejected; `{key}-{number}` is accepted).
-4. The `{number}` format spec must be `0Nd`. Non-padded specs (`%d`)
-   are rejected so the overflow guard cap is well-defined.
+4. The `{number}` format spec must be `0Nd`, at most 19 digits wide.
+   Non-padded specs (`%d`) are rejected so the overflow guard cap is
+   well-defined.
 5. Key values must match `[A-Za-z][A-Za-z0-9]*`. This covers
    Jira/Linear-style alphanumeric keys (`PROJ`, `ENG`, `ENG2`).
    Keys with internal hyphens or underscores (`PROJ-FE`,
    `proj_alpha`) are rejected — this is a known limitation of the
    initial scope.
+6. No literal digit beside a token: literal text may not start with a
+   digit after `{key}` or `{number}`, nor end with a digit before
+   `{number}` (`v2{number:03d}` and `{key}1{number:04d}` are rejected), so
+   an ID's number is always a digit run of its own.
+7. At most one `{number}` token and one `{key}` token.
 
 #### `id` and `external_id`: local own-identity vs remote identifier
 
 A work item carries two distinct identity fields:
 
 - **`id`** — the **local own-identity**, allocated locally by
-  `accelerator work create` (via `accelerator work next-number`) under
+  `accelerator work create` (via `accelerator work id next`) under
   the configured `id_pattern`. It is **always a quoted YAML string**,
   regardless of the pattern: new work items write `id: "0001"` under
   the default pattern and `id: "PROJ-0001"` under
@@ -789,19 +809,31 @@ internally and does not link out to an external tracker. Pick
 
 #### Width changes vs structural changes
 
-Changing the width spec (`{number:04d}` → `{number:05d}`) is
-**absorbed transparently**: legacy files remain visible because the
-scan regex is width-agnostic. New files are generated at the new
-width.
+Any change to the pattern, a width change (`{number:04d}` →
+`{number:05d}`) included, needs a re-key: until every item's `id` is in
+the new pattern's exact shape, each `work` command that reads or writes
+IDs (`create`, `create-batch`, `id next`, `id check`, `resolve` and
+`promote`) refuses with `E_REKEY_REQUIRED`, naming an item to
+converge. A work-item file whose IDs cannot be read, such as a slugless
+`0400.md`, is refused by the same commands with `E_WORK_ITEM_MALFORMED`,
+naming the fix. Run `/rekey-work-items` after changing the pattern. `work
+sync`, `work rekey` and `work id canonicalise` still run, and `work
+list` lists the items with the refusal as a warning. A reference
+written under the earlier pattern joins nothing until re-keyed.
 
 Changing the structural shape (default → `{project}-{number:04d}`,
-or vice versa) leaves legacy files coexisting with their original IDs.
+or vice versa) is converged the same way.
 Use `/accelerator:migrate` to apply migration `0002-rename-work-items-with-project-prefix`,
 which renames legacy `NNNN-*.md` files to the configured pattern with
 your `default_project_code`. The migration stays pending until both
 the pattern includes `{project}` and `default_project_code` is set; if
 neither applies, you can opt out via `accelerator migrate --skip
-0002-rename-work-items-with-project-prefix`.
+0002-rename-work-items-with-project-prefix`. A skipped repository keeps
+its legacy `NNNN-*.md` files, which are off a `{key}` pattern's shape, so
+`work create`, `create-batch`, `id next`, `id check`, `resolve` and
+`promote` refuse with `E_REKEY_REQUIRED` until `/rekey-work-items`
+renames each under `work.key`, keeping its
+number: `0400-x.md` becomes `PP-0400-x.md`.
 
 #### Recognised keys
 
@@ -816,7 +848,7 @@ Configure the visualiser plugin.
 | Key               | Default                                                         | Description                                                                  |
 |-------------------|-----------------------------------------------------------------|------------------------------------------------------------------------------|
 | `kanban_columns`  | `[draft, ready, in-progress, review, done, blocked, abandoned]` | Ordered list of kanban column keys                                           |
-| `idle_timeout`    | `8h`                                                            | Idle auto-shutdown window (humantime duration; `never`/`0` to disable)       |
+| `idle_timeout`    | `8h`                                                            | Idle auto-shutdown window (duration such as `30m` or `2d`; `never`/`0` to disable) |
 | `editor`          | (empty)                                                         | Editor deep-link command; absent disables the "open in editor" button        |
 | `editor_project`  | (empty)                                                         | Companion project argument passed alongside `editor`                         |
 | `binary`          | (bundled)                                                       | Override visualiser binary path (absolute or project-relative; must be executable) |
@@ -849,9 +881,9 @@ next page-load (TanStack Query re-fetches `/api/kanban/config` each time).
 #### Idle auto-shutdown
 
 The visualiser server auto-exits after a period with no incoming HTTP
-requests. `visualiser.idle_timeout` sets that window as a humantime
-duration string (`"8h"`, `"30m"`, `"1h30m"`); it defaults to `8h` when
-absent.
+requests. `visualiser.idle_timeout` sets that window as a duration string
+(`"8h"`, `"30m"`, `"1h30m"`, `"2d"`, with a day of 24 hours; months, years
+and negative durations are refused); it defaults to `8h` when absent.
 
 Setting it to `never` (case-insensitive), `0`, or any zero-length
 duration (`0s`, `0ms`) **disables** idle auto-shutdown — the idle timer

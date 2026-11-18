@@ -824,7 +824,8 @@ fn unsynced_item<'a>(
 
 fn adopt(key: &str) -> PendingPushOrder {
     PendingPushOrder::Adopt(
-        work::tracker_key::TrackerKey::parse(key).expect("a tracker key"),
+        work::tracker_key::TrackerKey::parse_any_supported(key)
+            .expect("a tracker key"),
     )
 }
 

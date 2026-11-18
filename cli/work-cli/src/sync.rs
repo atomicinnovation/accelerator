@@ -31,7 +31,6 @@ use ::config::Key;
 use config_adapters::credentials::SystemEnvironment;
 use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
 use config_adapters::TrackedConfigFile;
-use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
@@ -39,6 +38,7 @@ use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use vcs_adapters::InProcessTracking;
 use work::draft_id::is_token_safe;
+use work::id_scheme::IdScheme;
 use work::identity::IdentityField;
 use work::identity_run::IdentityRunGuard;
 use work::inventory::CorpusInventory;
@@ -374,7 +374,7 @@ struct Orders {
 fn parse_orders(
     raw: &[(String, String)],
     integration: &str,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Result<Orders, String> {
     let mut orders = Orders {
         resolutions: BTreeMap::new(),
@@ -993,7 +993,7 @@ fn dossier_path(dir: &Path, id: &str) -> PathBuf {
 fn retire_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     authority: &DossierAuthority<'_>,
 ) {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -1055,7 +1055,7 @@ fn persist_dossiers(
     store: &dyn SyncStore,
     dossiers: &[ConflictDossier],
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> Vec<StaleDossier> {
     let mut stale = Vec::new();
@@ -1096,7 +1096,7 @@ fn partially_resolved_dossiers(
     console: &mut Console<'_>,
     ids: &[String],
     dir: &Path,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
 ) -> Vec<StaleDossier> {
     ids.iter()
         .filter(|id| is_token_safe(scheme, id))
@@ -1117,7 +1117,7 @@ fn persist_conflict_dossiers(
     store: &dyn SyncStore,
     dir: &Path,
     report: &RunReport,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> Vec<StaleDossier> {
     let mut stale = partially_resolved_dossiers(
@@ -1382,7 +1382,7 @@ fn build_selection(
     targets: &[String],
     direction: SyncDirection,
     resolver: &dyn Fn(&str) -> RunOutcome,
-) -> Result<SelectedTargets, Refusal> {
+) -> Result<SelectedTargets, NotSynced> {
     if targets.is_empty() {
         return Ok(SelectedTargets {
             scope: CorpusScope::WholeCorpus,
@@ -1400,7 +1400,7 @@ fn build_selection(
                     .iter()
                     .map(push_only_remote_only)
                     .collect();
-                return Err(Refusal::of_targets(&failures));
+                return Err(NotSynced::of_targets(&failures));
             }
             Ok(SelectedTargets {
                 scope: CorpusScope::Targeted,
@@ -1408,7 +1408,7 @@ fn build_selection(
                 remote_candidates: found.remote_candidates,
             })
         }
-        Err(failures) => Err(Refusal::of_targets(&failures)),
+        Err(failures) => Err(NotSynced::of_targets(&failures)),
     }
 }
 
@@ -2015,12 +2015,18 @@ const fn sync_direction(args: &SyncArgs) -> SyncDirection {
 /// Why a sync stops before it plans anything: the lines it prints and the
 /// code it exits with.
 #[derive(Debug)]
-struct Refusal {
+struct NotSynced {
     lines: Vec<String>,
     code: u8,
 }
 
-impl Refusal {
+impl From<crate::refusal::Refusal> for NotSynced {
+    fn from(refusal: crate::refusal::Refusal) -> Self {
+        Self::new(refusal.code, refusal.message)
+    }
+}
+
+impl NotSynced {
     fn new(code: u8, cause: impl Display) -> Self {
         Self {
             lines: vec![cause.to_string()],
@@ -2075,7 +2081,7 @@ impl Refusal {
 struct PreparedSync {
     integration: String,
     repo_root: PathBuf,
-    scheme: WorkItemIdScheme,
+    scheme: IdScheme,
     discarding: BTreeSet<String>,
     roots: ValidatedRoots,
     integration_state: BoundedRoot,
@@ -2103,49 +2109,47 @@ fn prepare_sync(
     direction: SyncDirection,
     registry: &dyn TrackerRegistry,
     console: &mut Console<'_>,
-) -> Result<PreparedSync, Refusal> {
+) -> Result<PreparedSync, NotSynced> {
     let integration =
         crate::config::effective_nonempty(config, "work.integration")
-            .map_err(Refusal::error)?;
-    validate_pull_config(config, &integration).map_err(Refusal::error)?;
-    validate_push_config(config, &integration).map_err(Refusal::error)?;
+            .map_err(NotSynced::error)?;
+    validate_pull_config(config, &integration).map_err(NotSynced::error)?;
+    validate_push_config(config, &integration).map_err(NotSynced::error)?;
 
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let repo_root = config_adapters::FileConfigStore::discover_root(start);
-    let scheme =
-        crate::config::resolve_scheme(config).map_err(Refusal::error)?;
+    let scheme = crate::config::announced_scheme_for_writing(config)
+        .map_err(NotSynced::error)?;
     let discarding = ids_to_discard(&scheme, &args.discard_kept_edits)
-        .map_err(Refusal::usage)?;
+        .map_err(NotSynced::usage)?;
     let (work, integrations) =
-        configured_roots(config, &repo_root).map_err(Refusal::error)?;
+        configured_roots(config, &repo_root).map_err(NotSynced::error)?;
     let roots = ValidatedRoots::check(&work, &integrations, &repo_root)
-        .map_err(|refusal| Refusal::root(&refusal))?;
+        .map_err(|refusal| NotSynced::root(&refusal))?;
     let integration_state = roots
         .integration_state(&integration)
-        .map_err(|refusal| Refusal::root(&refusal))?;
+        .map_err(|refusal| NotSynced::root(&refusal))?;
     let identity_run =
         crate::identity_run::begin(&repo_root, "sync").map_err(|refusal| {
-            let (message, code) =
-                crate::identity_run::refused(refusal, &repo_root);
-            Refusal::new(code, message)
+            NotSynced::from(crate::identity_run::refused(refusal, &repo_root))
         })?;
     let work_dir = roots.work_items.root().to_path_buf();
     let integrations_root = roots.integrations.root().to_path_buf();
 
     let orders = parse_orders(&args.resolutions, &integration, &scheme)
-        .map_err(Refusal::usage)?;
-    let names = ConfiguredNames::for_scheme(&scheme).map_err(Refusal::error)?;
+        .map_err(NotSynced::usage)?;
+    let names = ConfiguredNames::for_scheme(&scheme);
     let (conflicts, conflicts_unread) =
         VcsConflicts::read(&repo_root, &InProcessProbe, &InProcessProbe);
     if let Some(warning) = conflicts_unread {
         console.warn(failure_line(&warning, "failed"));
     }
     let (items, inventory) = discover_corpus(&work_dir, &names, &conflicts)
-        .map_err(Refusal::error)?;
+        .map_err(NotSynced::error)?;
 
     let canonical_work_dir = work_dir.canonicalize().map_err(|error| {
-        Refusal::error(format_args!(
+        NotSynced::error(format_args!(
             "could not resolve the work directory {}: {}",
             single_line(&work_dir.display().to_string()),
             single_line(&error.to_string())
@@ -2159,16 +2163,16 @@ fn prepare_sync(
 
     let tracker = registry
         .resolve(&integration)
-        .map_err(|error| Refusal::of_tracker(&error))?;
+        .map_err(|error| NotSynced::of_tracker(&error))?;
     let pull_ids = if selected.remote_candidates.is_empty() {
         Vec::new()
     } else {
         confirm_remote_candidates(tracker.as_ref(), &selected.remote_candidates)
-            .map_err(|failures| Refusal::of_targets(&failures))?
+            .map_err(|failures| NotSynced::of_targets(&failures))?
     };
     let workspace =
         IdentityWorkspace::for_sync(config, &repo_root, &roots, &integration)
-            .map_err(Refusal::error)?;
+            .map_err(NotSynced::error)?;
     Ok(PreparedSync {
         integration,
         repo_root,
@@ -2214,7 +2218,7 @@ fn sync_request<'a>(
     config: &dyn ConfigAccess,
     args: &SyncArgs,
     direction: SyncDirection,
-) -> Result<PlannedRequest<'a>, Refusal> {
+) -> Result<PlannedRequest<'a>, NotSynced> {
     let integration = prepared.integration.as_str();
     let entities = if resolve_all_entities(config, integration) {
         tracker::EntityScope::WholeWorkspace
@@ -2243,7 +2247,7 @@ fn sync_request<'a>(
         work_adapters::sync::scope::is_broadened(&scope),
         args.allow_unbounded,
     ) {
-        return Err(Refusal::new(
+        return Err(NotSynced::new(
             exit_codes::REFUSED_UNBOUNDED,
             unbounded_gate_message(integration),
         ));
@@ -2286,7 +2290,7 @@ fn sync_request<'a>(
 }
 
 fn ids_to_discard(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     named: &[String],
 ) -> Result<BTreeSet<String>, String> {
     named
@@ -2311,7 +2315,7 @@ struct RunAssembly<'a> {
     repo_root: &'a Path,
     tracker: &'a dyn tracker::RemoteTracker,
     identity_run: &'a IdentityRunGuard,
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     roots: &'a ValidatedRoots,
 }
 
@@ -2399,7 +2403,7 @@ struct FinishedRunContext<'a> {
     corpus: &'a [LocalItem],
     workspace: &'a IdentityWorkspace,
     work_dir: &'a Path,
-    scheme: &'a WorkItemIdScheme,
+    scheme: &'a IdScheme,
     discarding: &'a BTreeSet<String>,
     finaliser: &'a dyn RunFinaliser,
     dossier_store: &'a dyn SyncStore,
@@ -2559,14 +2563,15 @@ fn report_stopped_run(
     clippy::unwrap_used,
     clippy::unnecessary_wraps,
     clippy::unimplemented,
-    clippy::panic
+    clippy::panic,
+    clippy::literal_string_with_formatting_args
 )]
 mod tests {
     use crate::finished_run::StaleDossier;
     use crate::finished_run::StaleDossierCause;
-    use corpus::WorkItemIdScheme;
     use tracker::RemoteTimestamp;
     use tracker::TrackerError;
+    use work::id_scheme::IdScheme;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
@@ -2623,8 +2628,8 @@ mod tests {
         assert!(!unbounded_gate_fires(Ceiling::Unlimited, false, false));
     }
 
-    fn scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme::numeric()
+    fn scheme() -> IdScheme {
+        IdScheme::numeric()
     }
 
     fn target_item(dir: &Path, id: &str, external: Option<&str>) -> LocalItem {
@@ -2676,8 +2681,7 @@ mod tests {
             );
             super::work_files::discover_corpus(
                 &self.work_dir,
-                &super::work_files::ConfiguredNames::for_scheme(&scheme())
-                    .expect("the scheme compiles"),
+                &super::work_files::ConfiguredNames::for_scheme(&scheme()),
                 &conflicts,
             )
             .expect("discover items")
@@ -5266,11 +5270,12 @@ mod tests {
         );
     }
 
-    fn tracker_scheme() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        }
+    fn tracker_scheme() -> IdScheme {
+        IdScheme::under_any_tracker(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .expect("the tracker pattern"),
+            None,
+        )
     }
 
     #[test]
@@ -6101,6 +6106,7 @@ mod tests {
                 producer: "create-work-item".to_owned(),
                 body_file: None,
                 push: true,
+                id: None,
                 dry_run: false,
             },
             &StubRegistry(Rc::clone(tracker)),

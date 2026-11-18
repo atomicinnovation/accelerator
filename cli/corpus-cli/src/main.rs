@@ -98,7 +98,16 @@ fn run_linkage(action: LinkageAction) -> Result<Outcome, kernel::Error> {
         LinkageAction::Extract { file, source_type } => {
             let composed = config::compose(&current_dir()?)?;
             let table = config::table_from_config(&composed.service)?;
-            linkage::run_extract(&file, source_type.as_deref(), &table, &RealFs)
+            let scheme = work_adapters::config::read_scheme(&composed.service)
+                .map_err(kernel::Error::from)?
+                .announced();
+            linkage::run_extract(
+                &file,
+                source_type.as_deref(),
+                &table,
+                &scheme,
+                &RealFs,
+            )
         }
     }
 }

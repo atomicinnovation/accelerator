@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use config_adapters::FileConfigStore;
-use corpus::WorkItemIdScheme;
+use work::id_scheme::IdScheme;
 use work::identity::resolve_identity;
 use work::identity::IdentityField;
 use work::identity::IdentityMatch;
@@ -24,8 +24,10 @@ use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
-use crate::config::resolve_scheme;
+use crate::config::announced_scheme_for_writing;
 use crate::config::resolve_work_dir;
+use crate::corpus_trust::refuse_untrusted_corpus;
+use crate::refusal::Refusal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityCandidate {
@@ -75,22 +77,43 @@ fn resolve_path_class(root: &Path, start: &Path, input: &str) -> RunOutcome {
     }
 }
 
+/// Why `work resolve` could not resolve at all.
+#[derive(Debug)]
+pub enum RunFailure {
+    Config(kernel::Error),
+    Untrusted(Refusal),
+}
+
+impl From<kernel::Error> for RunFailure {
+    fn from(error: kernel::Error) -> Self {
+        Self::Config(error)
+    }
+}
+
 /// # Errors
 ///
-/// A [`kernel::Error`] when the configuration cannot be read.
+/// [`RunFailure::Config`] when the configuration cannot be read, and
+/// [`RunFailure::Untrusted`] when the corpus's IDs cannot be trusted.
 pub fn run(
     start: &Path,
     config: &dyn ConfigAccess,
     input: &str,
-) -> Result<RunOutcome, kernel::Error> {
-    let scheme = resolve_scheme(config)?;
+) -> Result<RunOutcome, RunFailure> {
+    let scheme =
+        announced_scheme_for_writing(config).map_err(kernel::Error::from)?;
     let work_dir = canonical_work_dir(start, config)?;
+    let root = FileConfigStore::discover_root(start);
+    refuse_untrusted_corpus(&scheme, &root, &work_dir)
+        .map_err(RunFailure::Untrusted)?;
     Ok(resolve_with(&scheme, &work_dir, start, input))
 }
 
 /// Resolves the canonical work directory once, so a caller resolving many
 /// tokens reads config a single time and then resolves each infallibly through
 /// [`resolve_with`].
+///
+/// A missing work directory is canonicalised through the repository root,
+/// so it reads as an empty corpus.
 ///
 /// # Errors
 ///
@@ -103,12 +126,25 @@ pub fn canonical_work_dir(
 ) -> Result<PathBuf, kernel::Error> {
     let root = FileConfigStore::discover_root(start);
     let work_dir = resolve_work_dir(config, &root)?;
-    work_dir.canonicalize().map_err(|error| {
+    let unresolvable = |path: &Path, error: std::io::Error| {
         kernel::Error::Failed(format!(
             "could not resolve the work directory {}: {error}",
-            work_dir.display()
+            path.display()
         ))
-    })
+    };
+    match work_dir.canonicalize() {
+        Ok(canonical) => Ok(canonical),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let Ok(within_root) = work_dir.strip_prefix(&root) else {
+                return Err(unresolvable(&work_dir, error));
+            };
+            let canonical_root = root
+                .canonicalize()
+                .map_err(|error| unresolvable(&root, error))?;
+            Ok(canonical_root.join(within_root))
+        }
+        Err(error) => Err(unresolvable(&work_dir, error)),
+    }
 }
 
 /// The core: resolve `input` against the already resolved `scheme` and
@@ -117,7 +153,7 @@ pub fn canonical_work_dir(
 /// set.
 #[must_use]
 pub fn resolve_with(
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     work_dir: &Path,
     start: &Path,
     input: &str,
@@ -146,7 +182,7 @@ pub fn resolve_with(
 
 fn resolve_by_filename(
     class: InputClass,
-    scheme: &WorkItemIdScheme,
+    scheme: &IdScheme,
     work_dir: &Path,
     input: &str,
 ) -> RunOutcome {
@@ -183,12 +219,15 @@ fn resolve_by_filename(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::literal_string_with_formatting_args)]
 mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
-    use corpus::WorkItemIdScheme;
+    use work::id_pattern::IdKey;
+    use work::id_pattern::IdPattern;
+    use work::id_scheme::IdScheme;
+    use work::id_scheme::TRACKER_TOKEN;
     use work::identity::IdentityField;
 
     use super::resolve_with;
@@ -208,11 +247,15 @@ mod tests {
         path.to_path_buf()
     }
 
-    fn tracker() -> WorkItemIdScheme {
-        WorkItemIdScheme {
-            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
-            key: None,
-        }
+    fn scheme(pattern: &str, key: Option<&str>) -> IdScheme {
+        IdScheme::under_any_tracker(
+            IdPattern::parse(pattern).expect("a well-formed pattern"),
+            key.map(|key| IdKey::parse(key).expect("a well-formed key")),
+        )
+    }
+
+    fn tracker() -> IdScheme {
+        scheme(TRACKER_TOKEN, None)
     }
 
     fn resolved(outcome: RunOutcome) -> Option<PathBuf> {
@@ -231,7 +274,7 @@ mod tests {
         );
 
         let outcome = resolve_with(
-            &WorkItemIdScheme::numeric(),
+            &IdScheme::numeric(),
             &work_dir,
             &work_dir,
             "draft-k7mq3x",
@@ -268,6 +311,25 @@ mod tests {
             let outcome = resolve_with(&tracker(), &work_dir, &work_dir, token);
             assert_eq!(resolved(outcome), Some(keyed.clone()), "{token}");
         }
+    }
+
+    #[test]
+    fn an_external_id_resolves_before_the_input_is_canonicalised() {
+        let (_dir, work_dir) = corpus();
+        let linked = item(
+            &work_dir.join("PP-0001-title.md"),
+            "id: \"PP-0001\"\nexternal_id: \"PP-905\"\n",
+        );
+        item(&work_dir.join("PP-0905-other.md"), "id: \"PP-0905\"\n");
+
+        let outcome = resolve_with(
+            &scheme("{key}-{number:04d}", Some("PP")),
+            &work_dir,
+            &work_dir,
+            "PP-905",
+        );
+
+        assert_eq!(resolved(outcome), Some(linked));
     }
 
     #[test]
@@ -341,12 +403,8 @@ mod tests {
         )
         .expect("chmod");
 
-        let outcome = resolve_with(
-            &WorkItemIdScheme::numeric(),
-            &work_dir,
-            &work_dir,
-            "0042",
-        );
+        let outcome =
+            resolve_with(&IdScheme::numeric(), &work_dir, &work_dir, "0042");
 
         std::fs::set_permissions(
             &drafts,

@@ -19,6 +19,7 @@ from pathlib import Path
 from tasks.shared.paths import PINS_TOML
 from tasks.shared.targets import Platform
 from tasks.shared.vendor import assemble, chromium, nodejs, npm, pins
+from tasks.shared.vendor.browsers import BrowsersManifest
 from tasks.shared.vendor.fetch import (
     Fetcher,
     JsonFetcher,
@@ -31,21 +32,21 @@ NODE_DIST = "https://nodejs.org/dist"
 PLAYWRIGHT_PACKAGE = "playwright-core"
 
 # The signing-certificate identity the SLSA provenance must carry: the GitHub
-# Actions OIDC issuer, and a SAN anchored to microsoft/playwright's npm publish
-# publish workflow (the tag ref varies per release, so it is matched by prefix).
+# Actions OIDC issuer, and a SAN anchored to microsoft/playwright's release
+# publishing workflow run from a release tag (the tag varies per release, so
+# it is matched by prefix). cosign searches the SAN unanchored, so the leading
+# `^` is load-bearing.
 GITHUB_ACTIONS_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 PLAYWRIGHT_PROVENANCE_IDENTITY = (
     r"^https://github\.com/microsoft/playwright/\.github/workflows/"
-    r"publish_release_npm\.yml@"
+    r"publish_release\.yml@refs/tags/v"
 )
 
-CHROMIUM_CDN = (
-    "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium"
-)
-_CHROMIUM_PLATFORM: dict[Platform, str] = {
-    "linux-x64": "linux",
+CHROME_FOR_TESTING_CDN = "https://cdn.playwright.dev/builds/cft"
+_CHROME_FOR_TESTING_PLATFORM: dict[Platform, str] = {
+    "linux-x64": "linux64",
     "linux-arm64": "linux-arm64",
-    "darwin-x64": "mac",
+    "darwin-x64": "mac-x64",
     "darwin-arm64": "mac-arm64",
 }
 
@@ -79,9 +80,25 @@ def node_tarball_url(version: str, platform: Platform) -> str:
     return f"{NODE_DIST}/v{version}/{node_tarball_name(version, platform)}"
 
 
-def chromium_url(revision: str, platform: Platform) -> str:
-    build = _CHROMIUM_PLATFORM[platform]
-    return f"{CHROMIUM_CDN}/{revision}/chromium-headless-shell-{build}.zip"
+def chromium_url(browser_version: str, platform: Platform) -> str:
+    build = _CHROME_FOR_TESTING_PLATFORM[platform]
+    return (
+        f"{CHROME_FOR_TESTING_CDN}/{browser_version}/{build}/"
+        f"chrome-headless-shell-{build}.zip"
+    )
+
+
+def pinned_browser_version(playwright_tarball: Path, revision: str) -> str:
+    """Return the browser version the pinned headless-shell build carries."""
+    build = BrowsersManifest.read_packed(
+        playwright_tarball
+    ).pinned_headless_shell(revision)
+    if build.browser_version is None:
+        raise ValueError(
+            f"playwright-core declares no browserVersion for the "
+            f"{build.name} build at revision {revision}"
+        )
+    return build.browser_version
 
 
 def verify_upstream_inputs(
@@ -149,8 +166,9 @@ def verify_upstream_inputs(
     )
 
     revision = pins.chromium_revision(pins_path)
+    browser_version = pinned_browser_version(playwright_tarball, revision)
     chromium_archive = staging_dir / f"chromium-headless-shell-{platform}.zip"
-    fetch(chromium_url(revision, platform), chromium_archive)
+    fetch(chromium_url(browser_version, platform), chromium_archive)
     chromium.assert_chromium_bytes(
         chromium_archive, platform=platform, pins_path=pins_path
     )

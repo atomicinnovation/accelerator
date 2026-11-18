@@ -35,6 +35,7 @@ export function makeIndexEntry(
     relPath: "foo.md",
     slug: "foo",
     workItemId: null,
+    workItemKey: null,
     draft: false,
     title: "Foo",
     frontmatter: {},

@@ -24,7 +24,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
-use crate::config::Config;
+use crate::config::{Config, WorkItemConfig};
 use crate::shutdown::ShutdownReason;
 
 /// 1 MiB cap on request bodies. The placeholder route never reads a body,
@@ -54,6 +54,21 @@ pub struct AppState {
     pub write_coordinator: Arc<crate::write_coordinator::WriteCoordinator>,
 }
 
+/// Why the visualiser reads no work-item IDs: a scheme that could not be
+/// read at boot, or a corpus that cannot be trusted under it.
+pub fn work_item_problem(
+    composed: &crate::config::WorkItemScheme,
+    trust: &crate::indexer::Trust,
+) -> Option<work::corpus_trust::CorpusWarning> {
+    composed
+        .problem()
+        .map(|problem| work::corpus_trust::CorpusWarning {
+            summary: problem.to_owned(),
+            items: Vec::new(),
+        })
+        .or_else(|| trust.problem().cloned())
+}
+
 impl AppState {
     pub async fn build(
         cfg: Config,
@@ -75,10 +90,7 @@ impl AppState {
             template_roots,
             work_root,
         ));
-        let work_item_cfg = Arc::new(match cfg.work_item.clone() {
-            Some(raw) => crate::config::WorkItemConfig::from_raw(raw)?,
-            None => crate::config::WorkItemConfig::default_numeric(),
-        });
+        let work_item_cfg = Arc::new(WorkItemConfig::of(&cfg.work_item));
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),
@@ -87,6 +99,11 @@ impl AppState {
             )
             .await?,
         );
+        if let Some(problem) =
+            work_item_problem(&cfg.work_item, &indexer.trust())
+        {
+            tracing::warn!("{problem}");
+        }
         let templates = Arc::new(arc_swap::ArcSwap::from_pointee(
             crate::templates::TemplateResolver::build(
                 &cfg.templates,
@@ -97,14 +114,16 @@ impl AppState {
             .await,
         ));
         let snapshot = indexer.all().await;
-        let work_item_by_id = indexer.work_item_by_id_snapshot().await;
+        let work_item_by_identity_key =
+            indexer.work_item_by_identity_key_snapshot().await;
         let plans_by_id = indexer.plans_by_id_snapshot().await;
+        let work_item_cfg = indexer.work_item_cfg();
         let cluster_ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &plans_by_id,
             indexer.project_root(),
-            indexer.work_item_cfg(),
+            &work_item_cfg,
         );
         let (cluster_seed, completeness_backfill, cluster_key_backfill) =
             crate::clusters::compute_clusters_with_backfill(
@@ -667,7 +686,7 @@ mod tests {
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
-            work_item: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

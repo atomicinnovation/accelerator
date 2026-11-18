@@ -71,6 +71,7 @@ use crate::transport::Received;
 use crate::transport::Transport;
 use crate::transport::Url;
 use crate::transport::ENDPOINT;
+use crate::update::UpdateFields;
 use crate::upload::UploadTransport;
 
 const SHOW: &str = "query($id: String!) {
@@ -95,10 +96,6 @@ const SHOW_DETAILED: &str = "query($id: String!) {
 
 const CREATE: &str = "mutation($input: IssueCreateInput!) {
     issueCreate(input: $input) { success issue { id identifier } }
-  }";
-
-const UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
-    issueUpdate(id: $id, input: $input) { success issue { id identifier } }
   }";
 
 const SEARCH: &str =
@@ -390,7 +387,7 @@ impl LinearClient {
     /// A GraphQL call whose failure carries the structured discriminant. The
     /// binary maps its [`Outcome`] straight to an exit code; the port derives a
     /// `TrackerError` from the same value.
-    fn call_op(
+    pub(crate) fn call_op(
         &self,
         document: &str,
         variables: &Value,
@@ -487,9 +484,11 @@ impl LinearClient {
                 if let Some(identifier) =
                     node.get("identifier").and_then(Value::as_str)
                 {
-                    tracker_support::issue_key_is_safe(identifier).map_err(
-                        |refusal| format!("{identifier:?}: {refusal}"),
-                    )?;
+                    tracker_support::issue_key_is_safe(
+                        identifier,
+                        tracker::TrackerKeys::Linear,
+                    )
+                    .map_err(|refusal| format!("{identifier:?}: {refusal}"))?;
                     found.push((
                         identifier.to_owned(),
                         stamp(node.get("updatedAt")),
@@ -704,53 +703,15 @@ impl LinearClient {
                 )
             })?;
         // The issue exists remotely, so an unusable identifier is Terminal.
-        tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
-            LinearFailure::UnwritableIdentifier {
-                identifier: identifier.to_owned(),
-                reason: refusal.to_string(),
-            }
+        tracker_support::issue_key_is_safe(
+            identifier,
+            tracker::TrackerKeys::Linear,
+        )
+        .map_err(|refusal| LinearFailure::UnwritableIdentifier {
+            identifier: identifier.to_owned(),
+            reason: refusal.to_string(),
         })?;
         Ok(ExternalId::new(identifier.to_owned()))
-    }
-
-    /// `update`, surfacing the structured discriminant.
-    ///
-    /// # Errors
-    ///
-    /// [`LinearFailure`] for a refused identifier or a wire failure.
-    pub fn update_op(
-        &self,
-        id: &ExternalId,
-        title: Option<&str>,
-        body: &str,
-    ) -> Result<(), LinearFailure> {
-        refuse_identifier_op(id, Operation::Update)?;
-        let input = title.map_or_else(
-            || json!({"description": body}),
-            |title| json!({"title": title, "description": body}),
-        );
-        let variables = json!({"id": id.as_str(), "input": input});
-        self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
-        Ok(())
-    }
-
-    /// `retitle`, surfacing the structured discriminant.
-    ///
-    /// # Errors
-    ///
-    /// [`LinearFailure`] for a refused identifier or a wire failure.
-    pub fn retitle_op(
-        &self,
-        id: &ExternalId,
-        title: &str,
-    ) -> Result<(), LinearFailure> {
-        refuse_identifier_op(id, Operation::Update)?;
-        let variables = json!({
-            "id": id.as_str(),
-            "input": {"title": title},
-        });
-        self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
-        Ok(())
     }
 
     /// `show`, surfacing the structured discriminant.
@@ -841,7 +802,11 @@ fn current_identifier(
     else {
         return Ok(requested.clone());
     };
-    tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
+    tracker_support::issue_key_is_safe(
+        identifier,
+        tracker::TrackerKeys::Linear,
+    )
+    .map_err(|refusal| {
         LinearFailure::wire(
             Outcome::RequestInvalid,
             Operation::Read,
@@ -897,7 +862,7 @@ fn slice_comments(body: &mut Value, limit: usize) {
     }
 }
 
-fn refuse_identifier_op(
+pub(crate) fn refuse_identifier_op(
     id: &ExternalId,
     operation: Operation,
 ) -> Result<(), LinearFailure> {
@@ -940,7 +905,16 @@ impl RemoteTracker for LinearClient {
         title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError> {
-        self.update_op(id, title, body).map_err(TrackerError::from)
+        self.update_op(
+            id,
+            &UpdateFields {
+                title,
+                description: Some(body),
+                ..UpdateFields::default()
+            },
+        )
+        .map(drop)
+        .map_err(TrackerError::from)
     }
 
     fn retitle(
@@ -948,7 +922,15 @@ impl RemoteTracker for LinearClient {
         id: &ExternalId,
         title: &str,
     ) -> Result<(), TrackerError> {
-        self.retitle_op(id, title).map_err(TrackerError::from)
+        self.update_op(
+            id,
+            &UpdateFields {
+                title: Some(title),
+                ..UpdateFields::default()
+            },
+        )
+        .map(drop)
+        .map_err(TrackerError::from)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {

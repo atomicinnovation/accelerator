@@ -5,7 +5,7 @@ title: "Speed up the full build without losing confidence"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "in-progress"
 kind: "epic"
 priority: "high"
 blocks: ["work-item:0369"]
@@ -20,7 +20,7 @@ schema_version: 1
 # 0361: Speed up the full build without losing confidence
 
 **Kind**: Epic
-**Status**: Draft
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -72,7 +72,8 @@ Goals:
 
 Decomposition:
 - 0362: Make the bootstrap test suites fast and hermetic (A1, A7)
-- 0363: Remove repeated work from the Rust test lanes (A2, A3, A4)
+- 0363: Remove repeated work from the Rust test lanes (A2, A3; A4 shipped
+  separately)
 - 0364: Parallelise the serial test suites (A5, A6)
 - 0365: Build the VCS fixture matrix once per test run (B1)
 - 0366: Cut Rust compile cost (B2, B5)

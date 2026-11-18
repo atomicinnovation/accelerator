@@ -10,13 +10,54 @@ use crate::server::AppState;
 pub(crate) struct WorkItemConfigBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<ProblemBody>,
+    /// Whether clearing the problem needs a restart: the scheme is read
+    /// once, at boot, while the corpus is judged as it changes.
+    pub restart_needed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_token: Option<String>,
+    /// The `work` commands that refuse while the corpus cannot be trusted.
+    pub gated_commands: Vec<&'static str>,
+}
+
+/// Why work-item IDs are switched off, and each item it lists beneath.
+#[derive(Debug, Serialize)]
+pub(crate) struct ProblemBody {
+    pub summary: String,
+    pub items: Vec<String>,
+}
+
+impl From<work::corpus_trust::CorpusWarning> for ProblemBody {
+    fn from(warning: work::corpus_trust::CorpusWarning) -> Self {
+        Self {
+            summary: warning.summary,
+            items: warning.items,
+        }
+    }
 }
 
 pub(crate) async fn get_work_item_config(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let key = state.cfg.work_item.as_ref().and_then(|w| w.key.clone());
-    Json(WorkItemConfigBody { key })
+    let trust = state.indexer.trust();
+    let reading = state.indexer.reading_under(&trust);
+    let key = reading
+        .scheme()
+        .and_then(|scheme| scheme.key())
+        .map(|key| key.as_str().to_owned());
+    let problem =
+        crate::server::work_item_problem(&state.cfg.work_item, &trust)
+            .map(ProblemBody::from);
+    let restart_needed = state.cfg.work_item.problem().is_some();
+    let id_token = reading.id_token();
+    Json(WorkItemConfigBody {
+        key,
+        problem,
+        restart_needed,
+        id_token,
+        gated_commands: work::corpus_trust::gated_commands().collect(),
+    })
 }
 
 #[cfg(test)]
@@ -42,7 +83,7 @@ mod tests {
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
-            work_item: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,
@@ -82,11 +123,12 @@ mod tests {
     async fn returns_the_key_when_configured() {
         let tmp = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(tmp.path());
-        cfg.work_item = Some(crate::config::RawWorkItemConfig {
-            scan_regex: "^PROJ-([0-9]+)-".into(),
-            id_pattern: "{project}-{number:04d}".into(),
-            key: Some("PROJ".into()),
-        });
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test(
+                "{project}-{number:04d}",
+                Some("PROJ"),
+            ),
+        );
         let activity = Arc::new(Activity::new());
         let state =
             crate::server::AppState::build(cfg, activity).await.unwrap();
@@ -106,5 +148,251 @@ mod tests {
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(v["key"], "PROJ");
+    }
+
+    async fn config_body(cfg: Config) -> serde_json::Value {
+        let activity = Arc::new(Activity::new());
+        let state =
+            crate::server::AppState::build(cfg, activity).await.unwrap();
+        let resp = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/work-item/config")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_scheme_is_reported_as_the_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.work_item = crate::config::WorkItemScheme::Unreadable(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad".into(),
+        );
+
+        let body = config_body(cfg).await;
+
+        assert_eq!(
+            body["problem"],
+            serde_json::json!({
+                "summary": "E_WORK_ID_PATTERN_INVALID: work.id_pattern 'x': bad",
+                "items": [],
+            })
+        );
+        assert_eq!(body["restartNeeded"], true, "{body}");
+    }
+
+    #[tokio::test]
+    async fn a_corpus_off_the_pattern_is_reported_as_the_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(
+            work.join("PP-0001-a.md"),
+            "---\nid: \"PP-0001\"\n---\n",
+        )
+        .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test("{key}_{number:04d}", Some("PP")),
+        );
+
+        let body = config_body(cfg).await;
+
+        let problem = body["problem"]["summary"].as_str().unwrap_or_default();
+        assert!(
+            problem.starts_with("E_REKEY_REQUIRED: 1 work item"),
+            "{body}"
+        );
+        assert!(problem.contains("meta/work/PP-0001-a.md"), "{body}");
+        assert_eq!(body["restartNeeded"], false, "{body}");
+    }
+
+    #[tokio::test]
+    async fn an_untrusted_corpus_serves_no_id_grammar() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(
+            work.join("PP-0001-a.md"),
+            "---\nid: \"PP-0001\"\n---\n",
+        )
+        .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test("{key}_{number:04d}", Some("PP")),
+        );
+
+        let body = config_body(cfg).await;
+
+        assert!(body.get("idToken").is_none(), "{body}");
+        assert!(body.get("key").is_none(), "{body}");
+    }
+
+    #[tokio::test]
+    async fn a_malformed_work_item_is_reported_as_the_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(work.join("0001.md"), "---\nid: \"0001\"\n---\n")
+            .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+
+        let body = config_body(cfg).await;
+
+        let problem = body["problem"]["summary"].as_str().unwrap_or_default();
+        assert!(
+            problem.starts_with(
+                "E_WORK_ITEM_MALFORMED: meta/work/0001.md has `id` '0001'"
+            ),
+            "{body}"
+        );
+    }
+
+    #[tokio::test]
+    async fn each_malformed_work_item_is_listed_apart_from_the_summary() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(work.join("0001.md"), "---\nid: \"0001\"\n---\n")
+            .unwrap();
+        std::fs::write(work.join("0002.md"), "---\nid: \"0002\"\n---\n")
+            .unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work);
+
+        let body = config_body(cfg).await;
+
+        assert_eq!(
+            body["problem"]["summary"],
+            "E_WORK_ITEM_MALFORMED: 2 work items cannot be read for their \
+             IDs. Fix each one as shown:",
+            "{body}"
+        );
+        let items = body["problem"]["items"].as_array().unwrap();
+        assert_eq!(items.len(), 2, "{body}");
+        assert!(
+            items[0]
+                .as_str()
+                .is_some_and(|item| item.starts_with("meta/work/0001.md")),
+            "{body}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_problem_follows_the_corpus_after_boot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("meta/work");
+        std::fs::create_dir_all(&work).unwrap();
+        let mut cfg = minimal_config(tmp.path());
+        cfg.doc_paths.insert("work".into(), work.clone());
+        cfg.work_item = crate::config::WorkItemScheme::Configured(
+            crate::config::scheme_for_test("{key}-{number:04d}", Some("PP")),
+        );
+        let state =
+            crate::server::AppState::build(cfg, Arc::new(Activity::new()))
+                .await
+                .unwrap();
+        let app = build_router(state.clone());
+        let config = |app: axum::Router| async move {
+            let resp = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/work-item/config")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+            serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()
+        };
+
+        std::fs::write(work.join("PP-42-a.md"), "---\nid: \"PP-42\"\n---\n")
+            .unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("PP-42-a.md"))
+            .await
+            .unwrap();
+        let off_pattern = config(app.clone()).await;
+        std::fs::remove_file(work.join("PP-42-a.md")).unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("PP-42-a.md"))
+            .await
+            .unwrap();
+        std::fs::write(
+            work.join("PP-0042-a.md"),
+            "---\nid: \"PP-0042\"\n---\n",
+        )
+        .unwrap();
+        state
+            .indexer
+            .refresh_one(&work.join("PP-0042-a.md"))
+            .await
+            .unwrap();
+        let converged = config(app).await;
+
+        assert!(
+            off_pattern["problem"]["summary"]
+                .as_str()
+                .is_some_and(|p| p.starts_with("E_REKEY_REQUIRED")),
+            "{off_pattern}"
+        );
+        assert!(off_pattern.get("idToken").is_none(), "{off_pattern}");
+        assert!(off_pattern.get("key").is_none(), "{off_pattern}");
+        assert!(converged.get("problem").is_none(), "{converged}");
+        assert_eq!(converged["key"], "PP", "{converged}");
+        assert!(converged["idToken"].is_string(), "{converged}");
+    }
+
+    #[tokio::test]
+    async fn a_trusted_corpus_serves_its_id_grammar() {
+        let tmp = tempfile::tempdir().unwrap();
+        let scheme =
+            crate::config::scheme_for_test("{key}_{number:04d}", Some("PP"));
+        let mut cfg = minimal_config(tmp.path());
+        cfg.work_item =
+            crate::config::WorkItemScheme::Configured(scheme.clone());
+
+        let body = config_body(cfg).await;
+
+        assert_eq!(
+            body["idToken"].as_str(),
+            crate::config::WorkItemConfig::new(scheme)
+                .id_token()
+                .as_deref(),
+            "{body}"
+        );
+        assert_eq!(body["key"], "PP", "{body}");
+    }
+
+    #[tokio::test]
+    async fn the_commands_an_untrusted_corpus_stops_are_served() {
+        let tmp = tempfile::tempdir().unwrap();
+        let body = config_body(minimal_config(tmp.path())).await;
+        assert_eq!(
+            body["gatedCommands"],
+            serde_json::json!(
+                work::corpus_trust::gated_commands().collect::<Vec<_>>()
+            ),
+            "{body}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_converged_corpus_reports_no_problem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let body = config_body(minimal_config(tmp.path())).await;
+        assert!(body.get("problem").is_none(), "{body}");
     }
 }

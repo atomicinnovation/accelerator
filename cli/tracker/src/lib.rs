@@ -1,8 +1,8 @@
 //! The port a remote issue tracker satisfies, and the vocabulary it speaks.
 //!
 //! The provider clients that implement it and the sync engine that calls it
-//! both live elsewhere; this crate is the seam between them and holds no
-//! logic.
+//! both live elsewhere; this crate is the seam between them and holds only
+//! the port and the vocabulary trackers speak, tracker-key shape included.
 
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -899,9 +899,75 @@ pub trait RemoteTracker: BodyDialect {
     ) -> ValidationOutcome;
 }
 
-/// True iff the integration's issue keys are stable, unique, file-safe
-/// identifiers a work item can take as its `id`.
-#[must_use]
-pub fn supports_tracker_owned_ids(integration: &str) -> bool {
-    matches!(integration, "jira" | "linear")
+/// Whose rules decide what an issue key looks like: one tracker's, or any
+/// supported tracker's when no integration names one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrackerKeys {
+    Jira,
+    Linear,
+    AnySupported,
+}
+
+impl TrackerKeys {
+    /// The keys `integration` answers issues under.
+    #[must_use]
+    pub fn of_integration(integration: &str) -> Self {
+        match integration {
+            "jira" => Self::Jira,
+            "linear" => Self::Linear,
+            _ => Self::AnySupported,
+        }
+    }
+
+    /// Whether these are one tracker's keys, stable, unique and file-safe
+    /// enough for a work item to take as its `id`.
+    #[must_use]
+    pub const fn owns_ids(self) -> bool {
+        !matches!(self, Self::AnySupported)
+    }
+
+    /// The grammar of an issue key under these rules, as a regular
+    /// expression in the syntax Rust and JavaScript share.
+    #[must_use]
+    pub const fn regex_source(self) -> &'static str {
+        match self {
+            Self::Jira | Self::AnySupported => r"[A-Za-z][A-Za-z0-9_]*-\d+",
+            Self::Linear => r"[A-Za-z][A-Za-z0-9]*-\d+",
+        }
+    }
+
+    /// Whether `token` is an issue key under these rules.
+    #[must_use]
+    pub fn is_key(self, token: &str) -> bool {
+        match self {
+            Self::Jira => is_jira_key(token),
+            Self::Linear => is_linear_identifier(token),
+            Self::AnySupported => {
+                is_jira_key(token) || is_linear_identifier(token)
+            }
+        }
+    }
+}
+
+/// A Jira key: a project key of a letter then letters, digits and `_`,
+/// a hyphen, and the issue number.
+fn is_jira_key(token: &str) -> bool {
+    is_keyed_number(token, |c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// A Linear identifier: a team key of a letter then letters and digits, a
+/// hyphen, and the issue number.
+fn is_linear_identifier(token: &str) -> bool {
+    is_keyed_number(token, |c| c.is_ascii_alphanumeric())
+}
+
+fn is_keyed_number(token: &str, is_key_character: fn(char) -> bool) -> bool {
+    let Some((prefix, number)) = token.rsplit_once('-') else {
+        return false;
+    };
+    let mut prefix_chars = prefix.chars();
+    prefix_chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && prefix_chars.all(is_key_character)
+        && !number.is_empty()
+        && number.chars().all(|c| c.is_ascii_digit())
 }

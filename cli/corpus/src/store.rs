@@ -23,6 +23,7 @@ pub enum StoreError {
     UnsafePath { path: String },
     AlreadyExists { path: String },
     Validation { detail: String },
+    Malformed { path: String, detail: String },
     Io { path: String, detail: String },
     NotDurable { path: String, detail: String },
 }
@@ -50,6 +51,9 @@ impl Display for StoreError {
             }
             Self::Validation { detail } => {
                 write!(formatter, "invalid record: {detail}")
+            }
+            Self::Malformed { path, detail } => {
+                write!(formatter, "invalid record: {path}: {detail}")
             }
             Self::Io { path, detail } => {
                 write!(formatter, "I/O error on '{path}': {detail}")

@@ -55,7 +55,7 @@ mod tests {
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
             templates: HashMap::new(),
-            work_item: None,
+            work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
             idle_timeout: None,
             editor: None,

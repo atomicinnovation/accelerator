@@ -9,6 +9,7 @@ from . import (
     docs,
     git,
     github,
+    host,
     lint,
     marketplace,
     measure,
@@ -64,6 +65,7 @@ ns.add_collection(Collection.from_module(deps))
 ns.add_collection(Collection.from_module(docs))
 ns.add_collection(Collection.from_module(git))
 ns.add_collection(Collection.from_module(github))
+ns.add_collection(Collection.from_module(host))
 ns.add_collection(Collection.from_module(marketplace))
 ns.add_collection(Collection.from_module(measure))
 ns.add_collection(Collection.from_module(notices))
@@ -107,6 +109,7 @@ ns_lint.add_collection(Collection.from_module(lint.integration_skills))
 ns_lint.add_collection(Collection.from_module(lint.vcs_settings))
 ns_lint.add_collection(Collection.from_module(lint.config_test_support))
 ns_lint.add_collection(Collection.from_module(lint.crate_dependencies))
+ns_lint.add_collection(Collection.from_module(lint.corpus_identity))
 ns_lint.add_collection(Collection.from_module(lint.git_tokens))
 ns_lint.add_collection(Collection.from_module(lint.skill_cli_refs))
 ns.add_collection(ns_lint)

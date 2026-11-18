@@ -34,20 +34,19 @@ from tests.integration.support.installation import (
     REPO_BIN,
     REPO_ROOT,
     Installation,
-    copy_bootstrap,
-    generate_keys,
-    host_platform,
     make_installation,
     run_bootstrap,
     write_downloader,
 )
-from tests.support.artefacts import build_launcher, build_shim
+from tests.support.artefacts import build_launcher
+
+pytest_plugins = ("tests.integration.support.installation_fixtures",)
 
 _SKILLS = REPO_ROOT / "skills"
 
 # Collected at import time because parametrisation needs it before fixtures
 # run. One case per *distinct* command: the 204 occurrences carry 122 distinct
-# texts, and re-running a duplicate exercises nothing new at ~0.1s a go.
+# texts, and re-running a duplicate exercises nothing new.
 _ALL = corpus.extract(_SKILLS)
 _DISTINCT = sorted({c.raw: c for c in _ALL}.values(), key=lambda c: c.tail)
 
@@ -66,17 +65,19 @@ def repo_bin_is_untouched() -> Iterator[None]:
 
 
 @pytest.fixture(scope="module")
-def installation(tmp_path_factory: pytest.TempPathFactory) -> Installation:
+def installation(
+    tmp_path_factory: pytest.TempPathFactory,
+    keys: Path,
+    shim_bin: Path,
+    host_platform: str,
+) -> Installation:
     base = tmp_path_factory.mktemp("conformance")
-    keys = base / "keys"
-    keys.mkdir()
     return make_installation(
         base / "root",
         base / "server",
-        keys=generate_keys(keys),
-        shim=build_shim(),
-        bootstrap=copy_bootstrap(base / "bootstrap-accelerator"),
-        alias=host_platform(),
+        keys=keys,
+        shim=shim_bin,
+        alias=host_platform,
         launcher_source=build_launcher(),
         templates=REPO_ROOT / "templates",
     )

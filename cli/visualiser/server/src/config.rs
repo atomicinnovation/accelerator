@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::Deserialize;
+use work::id_scheme::IdScheme;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,15 +25,14 @@ pub struct Config {
     pub log_path: PathBuf,
     pub doc_paths: HashMap<String, PathBuf>,
     pub templates: HashMap<String, TemplateTiers>,
-    /// Work-item ID pattern configuration. Absent from pre-Phase-2
-    /// configs; treated as the numeric default when missing.
-    #[serde(default)]
-    pub work_item: Option<RawWorkItemConfig>,
+    /// The work-item ID scheme composed in-process; never deserialised.
+    #[serde(skip)]
+    pub work_item: WorkItemScheme,
     /// Kanban column keys. Absent → seven template-status defaults.
     /// An empty list is rejected at boot.
     #[serde(default)]
     pub kanban_columns: Option<Vec<String>>,
-    /// Idle auto-shutdown window as a humantime duration string
+    /// Idle auto-shutdown window as a duration string
     /// (`"8h"`, `"30m"`, `"1h30m"`), or a disable token (`"never"`, `0`,
     /// or any zero-length duration). Absent → the built-in 8h default.
     /// Resolved + validated at boot by `resolve_idle_limit_ms`.
@@ -58,94 +58,62 @@ pub struct KanbanColumn {
     pub label: String,
 }
 
-/// Deserializable form of the work-item ID configuration, built in-process by
-/// the composer. `key` is the local ID prefix (`work.key`), populated only when
-/// `id_pattern` references the prefix token.
-#[derive(Debug, Clone, Deserialize)]
-pub struct RawWorkItemConfig {
-    pub scan_regex: String,
-    #[serde(default = "default_id_pattern")]
-    pub id_pattern: String,
-    #[serde(default)]
-    pub key: Option<String>,
+/// The work-item ID scheme a server is composed with.
+#[derive(Debug, Clone, Default)]
+pub enum WorkItemScheme {
+    /// None was composed: the `{number:04d}` default.
+    #[default]
+    Default,
+    Configured(IdScheme),
+    /// The configured scheme could not be read, and why: the server then
+    /// reads no work-item IDs rather than refusing to serve.
+    Unreadable(String),
 }
 
-fn default_id_pattern() -> String {
-    "{number:04d}".to_string()
-}
-
-/// Runtime work-item ID configuration: the shared corpus id scheme plus its
-/// compiled scan regex, resolved once at boot. The admission predicates
-/// (`extract_id`/`normalise_id`/`is_canonical_id_token`) delegate to
-/// `corpus::WorkItemIdScheme`; no id convention lives here.
-pub struct WorkItemConfig {
-    scheme: corpus::WorkItemIdScheme,
-    scanner: corpus_adapters::RegexScanner,
-}
-
-impl std::fmt::Debug for WorkItemConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkItemConfig")
-            .field("scheme", &self.scheme)
-            .finish_non_exhaustive()
-    }
-}
-
-impl WorkItemConfig {
-    pub fn from_raw(raw: RawWorkItemConfig) -> Result<Self, ConfigError> {
-        let scanner = corpus_adapters::RegexScanner::compile(&raw.scan_regex)
-            .map_err(|source| ConfigError::InvalidScanRegex {
-            pattern: raw.scan_regex.clone(),
-            source,
-        })?;
-        Ok(Self {
-            scheme: corpus::WorkItemIdScheme {
-                id_pattern: raw.id_pattern,
-                key: raw.key,
-            },
-            scanner,
-        })
-    }
-
-    /// Fallback used when `work_item` is absent from config (pre-Phase-2
-    /// launchers). Behaves identically to the default `{number:04d}` pattern.
+impl WorkItemScheme {
     #[must_use]
-    pub fn default_numeric() -> Self {
-        // Compile-time-constant regex literal cannot fail to compile.
-        #[allow(clippy::expect_used)]
-        let scanner = corpus_adapters::RegexScanner::compile("^([0-9]+)-")
-            .expect("numeric scan regex is a valid literal");
-        Self {
-            scheme: corpus::WorkItemIdScheme::numeric(),
-            scanner,
+    pub const fn configured(&self) -> Option<&IdScheme> {
+        match self {
+            Self::Configured(scheme) => Some(scheme),
+            Self::Default | Self::Unreadable(_) => None,
         }
     }
 
-    /// The shared id scheme (pattern + project code) driving admission.
     #[must_use]
-    pub fn scheme(&self) -> &corpus::WorkItemIdScheme {
-        &self.scheme
+    pub fn problem(&self) -> Option<&str> {
+        match self {
+            Self::Unreadable(problem) => Some(problem),
+            Self::Default | Self::Configured(_) => None,
+        }
+    }
+}
+
+/// The work-item ID scheme the server reads IDs through, resolved once at
+/// boot, or none when the configured one could not be read.
+#[derive(Debug, Clone)]
+pub struct WorkItemConfig {
+    scheme: Option<IdScheme>,
+}
+
+/// The convention of a server whose scheme could not be read: it names no
+/// work item, so nothing clusters or links as one.
+struct NoWorkItemIds;
+
+impl corpus::IdConvention for NoWorkItemIds {
+    fn slug_start(&self, _stem: &str) -> Option<usize> {
+        None
     }
 
-    /// The compiled scan regex, as a `corpus::IdScanner`.
-    #[must_use]
-    pub fn scanner(&self) -> &corpus_adapters::RegexScanner {
-        &self.scanner
+    fn is_id(&self, _token: &str) -> bool {
+        false
     }
 
-    #[must_use]
-    pub fn is_canonical_id_token(&self, token: &str) -> bool {
-        self.scheme.is_canonical_id_token(token)
+    fn identity_key(&self, _reference: &str) -> Option<String> {
+        None
     }
 
-    #[must_use]
-    pub fn extract_id(&self, filename: &str) -> Option<String> {
-        self.scheme.extract_id(filename, &self.scanner)
-    }
-
-    #[must_use]
-    pub fn normalise_id(&self, raw: &str) -> Option<String> {
-        self.scheme.normalise_id(raw)
+    fn id_in_filename(&self, _filename: &str) -> Option<String> {
+        None
     }
 }
 
@@ -155,20 +123,101 @@ impl Default for WorkItemConfig {
     }
 }
 
+impl WorkItemConfig {
+    #[must_use]
+    pub const fn new(scheme: IdScheme) -> Self {
+        Self {
+            scheme: Some(scheme),
+        }
+    }
+
+    /// Used when `work_item` is absent from config: the `{number:04d}`
+    /// pattern.
+    #[must_use]
+    pub fn default_numeric() -> Self {
+        Self::new(IdScheme::numeric())
+    }
+
+    /// Used when the configured scheme could not be read.
+    #[must_use]
+    pub const fn unreadable() -> Self {
+        Self { scheme: None }
+    }
+
+    /// The scheme a server composed with `composed` reads IDs through.
+    #[must_use]
+    pub fn of(composed: &WorkItemScheme) -> Self {
+        match composed {
+            WorkItemScheme::Default => Self::default_numeric(),
+            WorkItemScheme::Configured(scheme) => Self::new(scheme.clone()),
+            WorkItemScheme::Unreadable(_) => Self::unreadable(),
+        }
+    }
+
+    #[must_use]
+    pub const fn scheme(&self) -> Option<&IdScheme> {
+        self.scheme.as_ref()
+    }
+
+    /// The convention files and references are read through.
+    #[must_use]
+    pub fn convention(&self) -> &dyn corpus::IdConvention {
+        match &self.scheme {
+            Some(scheme) => scheme,
+            None => &NoWorkItemIds,
+        }
+    }
+
+    /// The scheme's ID grammar, for the page's work-item link grammar;
+    /// none when no IDs are read.
+    #[must_use]
+    pub fn id_token(&self) -> Option<String> {
+        self.scheme.as_ref().map(IdScheme::regex_source)
+    }
+
+    /// The key `shown` holds under the scheme, if it holds one.
+    #[must_use]
+    pub fn key_of(&self, shown: &str) -> Option<String> {
+        let scheme = self.scheme.as_ref()?;
+        let held = scheme.read_held(shown)?;
+        let key = held.key()?;
+        Some(match scheme.key() {
+            Some(own) if own.as_str().eq_ignore_ascii_case(key) => {
+                own.as_str().to_owned()
+            }
+            _ => key.to_ascii_uppercase(),
+        })
+    }
+
+    #[must_use]
+    pub fn displayed_id(&self, raw: &str) -> Option<String> {
+        self.scheme.as_ref()?.displayed_id(raw)
+    }
+
+    /// The key every spelling of one work item joins on.
+    #[must_use]
+    pub fn identity_key(&self, reference: &str) -> Option<String> {
+        self.scheme.as_ref()?.identity_key(reference)
+    }
+}
+
 #[cfg(test)]
 impl WorkItemConfig {
     pub fn with_pattern_for_test(prefix: &str, width: usize) -> Self {
-        let raw = format!("^({}-[0-9]{{{}}})-", regex::escape(prefix), width);
-        Self {
-            scanner: corpus_adapters::RegexScanner::compile(&raw).unwrap(),
-            scheme: corpus::WorkItemIdScheme {
-                // Use the literal `{project}` placeholder so `id_pattern`
-                // lookups behave like production configs.
-                id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-                key: Some(prefix.to_string()),
-            },
-        }
+        Self::new(scheme_for_test(
+            &format!("{{project}}-{{number:0{width}d}}"),
+            Some(prefix),
+        ))
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+pub fn scheme_for_test(pattern: &str, key: Option<&str>) -> IdScheme {
+    IdScheme::under_any_tracker(
+        work::id_pattern::IdPattern::parse(pattern).unwrap(),
+        key.map(|key| work::id_pattern::IdKey::parse(key).unwrap()),
+    )
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -297,54 +346,59 @@ impl Config {
     /// - `"never"` (case-insensitive), the bare `"0"`, or *any* zero-length
     ///   duration (`"0s"`, `"0ms"`, …) → `DISABLED_IDLE_LIMIT_MS`, so the
     ///   "zero idle window" case is uniform regardless of spelling.
-    /// - Any other value → parsed by `humantime`; an unparseable value is
-    ///   rejected (`ConfigError::InvalidIdleTimeout`, carrying the
-    ///   underlying parse error) so the server fails fast at boot rather
-    ///   than silently defaulting.
+    /// - Any other value → parsed as a `jiff` friendly duration, a day or
+    ///   week counting as 24 hours or 7 such days; an unparseable value, a
+    ///   month or year (whose length depends on a date), or a negative
+    ///   duration is rejected so the server fails fast at boot rather than
+    ///   silently defaulting.
     pub fn resolve_idle_limit_ms(&self) -> Result<i64, ConfigError> {
         let default = default_idle_timeout();
         let raw = self.idle_timeout.as_deref().unwrap_or(&default);
         let trimmed = raw.trim();
         // Disable tokens handled before parsing: the textual "never" and the
-        // bare "0" (which humantime cannot parse, lacking a unit).
+        // bare "0" (which jiff cannot parse, lacking a unit).
         if trimmed.eq_ignore_ascii_case("never") || trimmed == "0" {
             return Ok(DISABLED_IDLE_LIMIT_MS);
         }
-        let dur = humantime::parse_duration(trimmed).map_err(|source| {
-            ConfigError::InvalidIdleTimeout {
+        let invalid = |source| ConfigError::InvalidIdleTimeout {
+            value: raw.to_string(),
+            source,
+        };
+        let dur = trimmed
+            .parse::<jiff::Span>()
+            .and_then(|span| {
+                span.to_duration(jiff::SpanRelativeTo::days_are_24_hours())
+            })
+            .map_err(invalid)?;
+        if dur.is_negative() {
+            return Err(ConfigError::NegativeIdleTimeout {
                 value: raw.to_string(),
-                source,
-            }
-        })?;
+            });
+        }
         // A zero-length window ("0s", "0ms", …) also disables, matching the
         // bare-"0" token above.
         if dur.is_zero() {
             return Ok(DISABLED_IDLE_LIMIT_MS);
         }
-        // Saturate in u128 *before* the i64 cast (an over-large duration must
-        // clamp to MAX_IDLE_LIMIT_MS, never wrap negative), and floor at 1ms so a
-        // sub-millisecond-but-non-zero value ("1ns", "500us") — which is NOT
-        // is_zero() yet truncates to 0 ms — stays a tiny finite window (fires on
-        // the next tick) rather than collapsing to `idle_limit_ms == 0`, which
-        // the loop would treat as fire-on-first-tick.
-        Ok(dur.as_millis().min(MAX_IDLE_LIMIT_MS as u128).max(1) as i64)
+        // Floor at 1ms so a sub-millisecond-but-non-zero value ("1ns",
+        // "500us") — which is NOT is_zero() yet truncates to 0 ms — stays a
+        // tiny finite window (fires on the next tick) rather than collapsing
+        // to `idle_limit_ms == 0`, which the loop would treat as
+        // fire-on-first-tick.
+        Ok(i64::try_from(dur.as_millis())
+            .unwrap_or(MAX_IDLE_LIMIT_MS)
+            .clamp(1, MAX_IDLE_LIMIT_MS))
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("invalid work-item scan regex '{pattern}': {source}")]
-    InvalidScanRegex {
-        pattern: String,
-        source: regex::Error,
-    },
     #[error("visualiser.kanban_columns must not be empty")]
     EmptyKanbanColumns,
-    #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable: {source}")]
-    InvalidIdleTimeout {
-        value: String,
-        source: humantime::DurationError,
-    },
+    #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", \"2d\", or \"never\"/0 to disable: {source}")]
+    InvalidIdleTimeout { value: String, source: jiff::Error },
+    #[error("invalid visualiser.idle_timeout '{value}': a duration must not be negative")]
+    NegativeIdleTimeout { value: String },
 }
 
 #[cfg(test)]
@@ -352,168 +406,139 @@ mod tests {
     use super::*;
 
     #[test]
-    fn work_item_config_from_raw_compiles_valid_regex() {
-        let raw = RawWorkItemConfig {
-            scan_regex: "^([0-9]+)-".to_string(),
-            id_pattern: "{number:04d}".to_string(),
-            key: None,
+    fn a_keyed_id_displays_nothing_under_the_default_pattern() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.displayed_id("ENG-0042"), None);
+        assert_eq!(cfg.displayed_id("OPS-7"), None);
+    }
+
+    #[test]
+    fn a_bare_number_displays_under_the_project_code() {
+        let cfg = WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some("ENG"),
+        ));
+        assert_eq!(cfg.displayed_id("42").as_deref(), Some("ENG-0042"));
+        assert_eq!(cfg.displayed_id("0042").as_deref(), Some("ENG-0042"));
+    }
+
+    #[test]
+    fn a_foreign_key_displays_as_written_when_the_pattern_has_a_key() {
+        let cfg = WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some("ENG"),
+        ));
+        assert_eq!(cfg.displayed_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    fn token_matches(token: &str, id: &str) -> bool {
+        regex::Regex::new(&format!("^(?:{token})$"))
+            .unwrap()
+            .is_match(id)
+    }
+
+    fn token_of(scheme: IdScheme) -> String {
+        WorkItemConfig::new(scheme).id_token().unwrap()
+    }
+
+    /// Shared with the frontend's tests, which compile each token as a
+    /// JavaScript `RegExp` and assert the same matches.
+    const ID_TOKENS: &str = include_str!("../tests/fixtures/id-tokens.json");
+
+    fn scheme_of(case: &serde_json::Value) -> IdScheme {
+        let pattern = case["pattern"].as_str().unwrap();
+        let key = case["key"].as_str();
+        let keys = match case["trackerKeys"].as_str().unwrap() {
+            "any" => return scheme_for_test(pattern, key),
+            "jira" => tracker::TrackerKeys::Jira,
+            "linear" => tracker::TrackerKeys::Linear,
+            other => unreachable!("tracker keys {other}"),
         };
-        assert!(WorkItemConfig::from_raw(raw).is_ok());
+        IdScheme::under_tracker(
+            work::id_pattern::IdPattern::parse(pattern).unwrap(),
+            key.map(|key| work::id_pattern::IdKey::parse(key).unwrap()),
+            keys,
+        )
     }
 
     #[test]
-    fn work_item_config_from_raw_rejects_invalid_regex() {
-        let raw = RawWorkItemConfig {
-            scan_regex: "([unclosed".to_string(),
-            id_pattern: "{number:04d}".to_string(),
-            key: None,
-        };
-        let err =
-            WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
-        assert!(matches!(err, ConfigError::InvalidScanRegex { .. }));
-    }
+    fn each_served_id_token_is_the_one_the_frontend_is_tested_against() {
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(ID_TOKENS).unwrap();
+        let served: Vec<serde_json::Value> = cases
+            .iter()
+            .map(|case| {
+                let mut served = case.clone();
+                served["idToken"] = token_of(scheme_of(case)).into();
+                served
+            })
+            .collect();
 
-    #[test]
-    fn work_item_config_extract_id_default_pattern() {
-        let cfg = WorkItemConfig::default_numeric();
-        assert_eq!(cfg.extract_id("0001-foo.md").as_deref(), Some("0001"));
-        assert_eq!(cfg.extract_id("0042-bar-baz.md").as_deref(), Some("0042"));
-        assert_eq!(cfg.extract_id("malformed.md"), None);
-        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
-    }
-
-    #[test]
-    fn work_item_config_extract_id_project_pattern() {
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        })
-        .unwrap();
-        assert_eq!(
-            cfg.extract_id("PROJ-0042-foo.md").as_deref(),
-            Some("PROJ-0042")
+        assert!(
+            served == cases,
+            "tests/fixtures/id-tokens.json is stale; it should read:\n{}",
+            serde_json::to_string_pretty(&served).unwrap()
         );
-        assert_eq!(
-            cfg.extract_id("PROJ-1-short.md").as_deref(),
-            Some("PROJ-1")
-        );
-        assert_eq!(cfg.extract_id("PROJ-0042.md"), None);
-        assert_eq!(cfg.extract_id("malformed.md"), None);
+        for case in &cases {
+            let token = case["idToken"].as_str().unwrap();
+            for id in case["matching"].as_array().unwrap() {
+                let id = id.as_str().unwrap();
+                assert!(token_matches(token, id), "{token}: {id}");
+            }
+            for id in case["nonMatching"].as_array().unwrap() {
+                let id = id.as_str().unwrap();
+                assert!(!token_matches(token, id), "{token}: {id}");
+            }
+        }
     }
 
     #[test]
-    fn work_item_config_extract_id_fallback_for_legacy_files() {
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        })
-        .unwrap();
-        // Bare-numeric file that doesn't match the project pattern:
-        // admitted via fallback keyed as PROJ-<digits>.
-        assert_eq!(cfg.extract_id("0042-foo.md").as_deref(), Some("PROJ-0042"));
-        assert_eq!(cfg.extract_id("0001-bar.md").as_deref(), Some("PROJ-0001"));
+    fn no_id_token_is_served_while_no_ids_are_read() {
+        assert_eq!(WorkItemConfig::unreadable().id_token(), None);
     }
 
     #[test]
-    fn work_item_config_extract_id_no_fallback_without_project_code() {
+    fn a_bare_number_displays_as_the_pattern_renders_it_without_a_key() {
         let cfg = WorkItemConfig::default_numeric();
-        // Default pattern: bare-numeric files go through primary, not fallback.
-        // Non-numeric prefixes are rejected.
-        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
+        assert_eq!(cfg.displayed_id("42").as_deref(), Some("0042"));
+        assert_eq!(cfg.displayed_id("0042").as_deref(), Some("0042"));
     }
 
     #[test]
-    fn normalise_id_passes_prefixed_form_through_unchanged() {
+    fn a_value_the_pattern_does_not_read_displays_nothing() {
         let cfg = WorkItemConfig::default_numeric();
-        assert_eq!(cfg.normalise_id("ENG-0042").as_deref(), Some("ENG-0042"));
-        assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+        for value in ["ENG0042", "PROJ-1.2", "", "   ", "123-456", "ENG-42abc"]
+        {
+            assert_eq!(cfg.displayed_id(value), None, "{value:?}");
+        }
     }
 
     #[test]
-    fn normalise_id_applies_project_code_to_bare_digits() {
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^ENG-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("ENG".to_string()),
-        })
-        .unwrap();
-        assert_eq!(cfg.normalise_id("42").as_deref(), Some("ENG-42"));
-        assert_eq!(cfg.normalise_id("0042").as_deref(), Some("ENG-0042"));
-    }
-
-    #[test]
-    fn normalise_id_preserves_foreign_prefix_when_a_key_is_set() {
-        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"` in a
-        // workspace whose local ID prefix is "ENG" passes through verbatim —
-        // the workspace's prefix is NOT re-applied.
-        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
-            scan_regex: "^ENG-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("ENG".to_string()),
-        })
-        .unwrap();
-        assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
-    }
-
-    #[test]
-    fn normalise_id_returns_bare_digits_when_no_default_code() {
-        let cfg = WorkItemConfig::default_numeric();
-        assert_eq!(cfg.normalise_id("42").as_deref(), Some("42"));
-        assert_eq!(cfg.normalise_id("0042").as_deref(), Some("0042"));
-    }
-
-    #[test]
-    fn normalise_id_rejects_shape_invalid_values() {
-        let cfg = WorkItemConfig::default_numeric();
-        // Prefix without dash:
-        assert_eq!(cfg.normalise_id("ENG0042"), None);
-        // Dotted suffix:
-        assert_eq!(cfg.normalise_id("PROJ-1.2"), None);
-        // Empty / whitespace:
-        assert_eq!(cfg.normalise_id(""), None);
-        assert_eq!(cfg.normalise_id("   "), None);
-        // Non-alphabetic prefix:
-        assert_eq!(cfg.normalise_id("123-456"), None);
-        // Trailing letters:
-        assert_eq!(cfg.normalise_id("ENG-42abc"), None);
-    }
-
-    #[test]
-    fn is_canonical_id_token_under_default_numeric() {
-        let cfg = WorkItemConfig::default_numeric();
-        assert!(cfg.is_canonical_id_token("0040"));
-        assert!(!cfg.is_canonical_id_token("40"));
-        assert!(!cfg.is_canonical_id_token("00040"));
-        assert!(!cfg.is_canonical_id_token("100"));
-        assert!(!cfg.is_canonical_id_token("004A"));
-        assert!(!cfg.is_canonical_id_token(""));
-    }
-
-    #[test]
-    fn is_canonical_id_token_under_project_prefixed_pattern() {
-        let cfg = WorkItemConfig::with_pattern_for_test("PROJ", 4);
-        assert!(cfg.is_canonical_id_token("PROJ-0040"));
-        assert!(!cfg.is_canonical_id_token("0040"));
-        assert!(!cfg.is_canonical_id_token("PROJ-40"));
-        assert!(!cfg.is_canonical_id_token("OTHER-0040"));
+    fn an_unreadable_scheme_reads_no_work_item_ids() {
+        let cfg = WorkItemConfig::unreadable();
+        assert_eq!(cfg.displayed_id("0042"), None);
+        assert_eq!(cfg.identity_key("0042"), None);
+        assert_eq!(cfg.convention().id_in_filename("0042-x.md"), None);
+        assert_eq!(cfg.convention().slug_start("0042-x"), None);
     }
 
     #[test]
     fn default_impl_matches_default_numeric() {
-        let a: WorkItemConfig = WorkItemConfig::default();
-        let b = WorkItemConfig::default_numeric();
-        assert_eq!(a.scheme().id_pattern, b.scheme().id_pattern);
-        assert_eq!(a.scheme().key, b.scheme().key);
-        assert_eq!(a.extract_id("0042-x.md"), b.extract_id("0042-x.md"));
+        assert_eq!(
+            WorkItemConfig::default().scheme(),
+            WorkItemConfig::default_numeric().scheme()
+        );
     }
 
     #[test]
-    fn normalise_id_trims_surrounding_whitespace() {
-        let cfg = WorkItemConfig::default_numeric();
-        assert_eq!(cfg.normalise_id("  0042  ").as_deref(), Some("0042"));
-        assert_eq!(cfg.normalise_id(" ENG-7 ").as_deref(), Some("ENG-7"));
+    fn a_displayed_id_is_trimmed() {
+        let numeric = WorkItemConfig::default_numeric();
+        assert_eq!(numeric.displayed_id("  0042  ").as_deref(), Some("0042"));
+        let keyed = WorkItemConfig::new(scheme_for_test(
+            "{project}-{number:04d}",
+            Some("ENG"),
+        ));
+        assert_eq!(keyed.displayed_id(" ENG-7 ").as_deref(), Some("ENG-7"));
     }
 
     fn bare_config_json() -> &'static str {
@@ -666,12 +691,53 @@ mod tests {
     }
 
     #[test]
-    fn idle_timeout_over_large_saturates_below_sentinel() {
-        let cfg = config_with_idle_timeout(r#""100000000000years""#);
+    fn idle_timeout_days_and_weeks_are_24_hour_days() {
+        for (token, days) in
+            [(r#""1d""#, 1), (r#""2 days""#, 2), (r#""1w""#, 7)]
+        {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                days * 24 * 60 * 60 * 1000,
+                "{token}"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_the_longest_window_resolves_exactly() {
+        let cfg = config_with_idle_timeout(r#""1000000w""#);
         let resolved = cfg.resolve_idle_limit_ms().unwrap();
-        assert_eq!(resolved, MAX_IDLE_LIMIT_MS);
-        assert_ne!(resolved, DISABLED_IDLE_LIMIT_MS);
-        assert!(resolved > 0, "must not wrap negative or to zero");
+        assert_eq!(resolved, 1_000_000 * 7 * 24 * 60 * 60 * 1000);
+        assert!(resolved < MAX_IDLE_LIMIT_MS);
+    }
+
+    #[test]
+    fn idle_timeout_months_and_years_fail_fast() {
+        for token in [r#""1y""#, r#""2 years""#, r#""1 month""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert!(
+                matches!(
+                    cfg.resolve_idle_limit_ms(),
+                    Err(ConfigError::InvalidIdleTimeout { .. })
+                ),
+                "{token} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_negative_durations_fail_fast() {
+        for token in [r#""-1h""#, r#""1h ago""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert!(
+                matches!(
+                    cfg.resolve_idle_limit_ms(),
+                    Err(ConfigError::NegativeIdleTimeout { .. })
+                ),
+                "{token} must be rejected"
+            );
+        }
     }
 
     #[test]

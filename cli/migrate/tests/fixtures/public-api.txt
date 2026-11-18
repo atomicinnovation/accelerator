@@ -59,6 +59,12 @@ pub fn migrate::ledger::skip(store: &dyn migrate::ports::LedgerStore, id: &str) 
 pub fn migrate::ledger::unapply(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ledger::unskip(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ledger::warnings(entries: &[migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String]) -> migrate::ledger::Warnings
+pub mod migrate::legacy_ids
+pub struct migrate::legacy_ids::LegacyNumericIds
+impl corpus::linkage_ids::LinkageIds for migrate::legacy_ids::LegacyNumericIds
+pub fn migrate::legacy_ids::LegacyNumericIds::bare_ids_in(&self, line: &str) -> alloc::vec::Vec<alloc::string::String>
+pub fn migrate::legacy_ids::LegacyNumericIds::id_in_filename(&self, filename: &str) -> core::option::Option<alloc::string::String>
+pub fn migrate::legacy_ids::references_key(pattern: &str) -> bool
 pub mod migrate::lifecycle
 pub fn migrate::lifecycle::run_pending(entries: &[migrate::registry::MigrationEntry], ctx: &dyn migrate::ports::MigrationContext, ledger_store: &dyn migrate::ports::LedgerStore, reporter: &dyn migrate::ports::Reporter, decisions: &dyn migrate::ports::DecisionSource, session_logs: &dyn migrate::ports::SessionLogFactory, timeout: core::time::Duration, decisions_file_content: core::option::Option<&str>) -> core::result::Result<(), migrate::ports::MigrationError>
 pub mod migrate::list
@@ -327,6 +333,8 @@ pub trait migrate::ports::SessionLogFactory
 pub fn migrate::ports::SessionLogFactory::for_migration(&self, id: &str) -> alloc::boxed::Box<(dyn migrate::ports::SessionLog + '_)>
 pub trait migrate::ports::SyncBaselines
 pub fn migrate::ports::SyncBaselines::realign(&self, integrations_root: &std::path::Path, pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
+pub trait migrate::ports::WorkItemIdentity
+pub fn migrate::ports::WorkItemIdentity::canonicalise(&self, raw: &str, pattern: &str, key: core::option::Option<&str>) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
 pub trait migrate::ports::WorkingCopy
 pub fn migrate::ports::WorkingCopy::observe(&self, roots: &[&str]) -> core::result::Result<migrate::ports::WorkingCopyObservation, migrate::ports::MigrationError>
 pub mod migrate::preflight

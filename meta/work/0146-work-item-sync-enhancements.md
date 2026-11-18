@@ -9,7 +9,7 @@ status: "in-progress"
 kind: "epic"
 priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
-relates_to: ["work-item:0171"]
+relates_to: ["work-item:0171", "work-item:0372"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
 last_updated: "2026-10-27T13:57:08+00:00"
 last_updated_by: "Toby Clemson"
@@ -108,6 +108,15 @@ Three structural findings frame the scoping work:
   `aliases`), provisional-and-rewritable before first push. The largest and least urgent
   child. See 0230.
 
+### Work-item ID model (children)
+
+- **Tracker-owned IDs and drafts** — as above; see 0230.
+- **Re-keying** — converge existing IDs onto the current `work.id_pattern`,
+  retiring old IDs into `aliases`. See 0302, with alias normalisation in 0343.
+- **Explicit IDs on create** — let a caller name the ID `work create` writes,
+  refusing taken, mismatched, draft-form and `{tracker}` IDs. See 0319, with
+  general dry-run validation in 0390.
+
 ## Design
 
 The target scope-and-configuration model, common to both trackers.
@@ -187,6 +196,11 @@ surface uses each tracker's vocabulary.
       requires an explicit `work.key`).
 - [ ] Pulls can be broadened by configured `additional_*` entities, `filters`, or a
       whole-workspace flag, each validated per tracker at config time.
+- [ ] Existing IDs can be converged onto the current `work.id_pattern`, with each
+      retired ID kept in `aliases`.
+- [ ] No two work items share an ID across `id`, `aliases` and `external_id`,
+      whichever path assigned it: allocation, the tracker, a re-key or an explicit
+      `--id`.
 
 ## Open Questions
 
@@ -282,13 +296,18 @@ Resolved during refinement (2026-08-30):
 - 0346 — Remove deprecated `ACCELERATOR_MIGRATE_FORCE` (blocked by 0302).
 - 0300 — Sync pulls of tracked work items fail silently (every pull into an
   already-tracked item fails, reported as a bare `failed` row with exit 0).
-- 0319 — Explicit work item ID on `accelerator work create` (avoid numbers
-  taken on unmerged branches without bypassing the atomic write and push).
+- 0319 — Explicit work item ID on `accelerator work create` (`--id`
+  refuses taken, mismatched, draft-form and `{tracker}` IDs).
 - 0336 — Linear init cannot bootstrap a fresh repository (resolve the team
   from `linear.team_key` before a catalogue exists; coordinates with 0294).
 - 0338 — Linear update overwrites fields it was not given (`accelerator
   linear update` sends empty title / description and drops named flags; sync
   is unaffected).
+- 0390 — Invocation validation on `accelerator work create --dry-run`
+  (parity with the real create's checks; blocked by 0319).
+- 0333 — Work item writers omit the required tags field (`work create`, its
+  batch mode and the sync importer drop `tags` when empty, failing frontmatter
+  validation).
 
 ### Future candidates (deferred from 0229 refinement)
 
@@ -334,4 +353,4 @@ follow-on work.
 ## References
 
 - Source: `meta/notes/2026-06-22-ideas-backlog.md`
-- Related: 0171, 0220
+- Related: 0171, 0220, 0372

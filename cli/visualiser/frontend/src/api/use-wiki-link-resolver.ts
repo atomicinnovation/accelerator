@@ -4,7 +4,7 @@ import type {
   Resolver,
   ResolverResult,
 } from "../components/MarkdownRenderer/wiki-link-plugin";
-import { fetchDocs } from "./fetch";
+import { fetchDocs, fetchWorkItemConfig } from "./fetch";
 import { queryKeys } from "./query-keys";
 import {
   buildBareIdPattern,
@@ -13,17 +13,6 @@ import {
   resolveWikiLink,
   type WikiLinkIndex,
 } from "./wiki-links";
-
-interface WorkItemConfig {
-  key?: string | null;
-}
-
-async function fetchWorkItemConfig(): Promise<WorkItemConfig> {
-  const resp = await fetch("/api/work-item/config");
-  if (!resp.ok)
-    throw new Error(`/api/work-item/config returned ${resp.status}`);
-  return resp.json() as Promise<WorkItemConfig>;
-}
 
 export interface UseWikiLinkResolverResult {
   resolver: Resolver;
@@ -61,13 +50,13 @@ export function useWikiLinkResolver(): UseWikiLinkResolverResult {
   const isWarming = adrs.isPending || workItems.isPending;
 
   const pattern = useMemo<RegExp>(
-    () => buildWikiLinkPattern(workItemConfig.data?.key ?? null),
-    [workItemConfig.data?.key],
+    () => buildWikiLinkPattern(workItemConfig.data?.idToken),
+    [workItemConfig.data?.idToken],
   );
 
   const bareIdPattern = useMemo<RegExp>(
-    () => buildBareIdPattern(workItemConfig.data?.key ?? null),
-    [workItemConfig.data?.key],
+    () => buildBareIdPattern(workItemConfig.data?.idToken),
+    [workItemConfig.data?.idToken],
   );
 
   const wikiIndex = useMemo<WikiLinkIndex>(

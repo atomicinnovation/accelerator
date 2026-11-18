@@ -30,6 +30,20 @@ struct Repo {
 
 impl Repo {
     fn committed() -> Result<Self, TestError> {
+        Self::committed_with(&[])
+    }
+
+    fn committed_with(items: &[(&str, &str)]) -> Result<Self, TestError> {
+        let mut files = vec![
+            (".accelerator/config.md", CONFIG),
+            ("meta/work/0042-search.md", ITEM),
+            (NOTE, "See work-item:0042.\n"),
+        ];
+        files.extend_from_slice(items);
+        Self::committed_as(&files)
+    }
+
+    fn committed_as(files: &[(&str, &str)]) -> Result<Self, TestError> {
         let dir = tempfile::Builder::new()
             .prefix("work-cli-rekey-")
             .tempdir()?;
@@ -40,14 +54,30 @@ impl Repo {
             _env_dir: env_dir,
             env,
         };
-        repo.write(".accelerator/config.md", CONFIG)?;
-        repo.write("meta/work/0042-search.md", ITEM)?;
-        repo.write(NOTE, "See work-item:0042.\n")?;
+        for (relative, content) in files {
+            repo.write(relative, content)?;
+        }
         repo.env.git(&["init", "--quiet"], repo.root())?;
-        repo.env.git(&["add", "-A"], repo.root())?;
-        repo.env
-            .git(&["commit", "--quiet", "-m", "init"], repo.root())?;
+        repo.commit("init")?;
         Ok(repo)
+    }
+
+    fn commit(&self, message: &str) -> Result<(), TestError> {
+        self.env.git(&["add", "-A"], self.root())?;
+        self.env
+            .git(&["commit", "--quiet", "-m", message], self.root())?;
+        Ok(())
+    }
+
+    fn work_items(&self) -> Result<Vec<String>, TestError> {
+        let mut names: Vec<String> =
+            fs::read_dir(self.root().join("meta/work"))?
+                .filter_map(Result::ok)
+                .filter(|entry| entry.path().is_file())
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .collect();
+        names.sort();
+        Ok(names)
     }
 
     fn root(&self) -> &Path {
@@ -190,5 +220,255 @@ fn the_deprecated_migrate_force_does_not_override_rekey(
     let stderr = String::from_utf8(output.stderr)?;
     assert_eq!(output.status.code(), Some(4), "{stderr}");
     assert!(stderr.contains("E_REKEY_DIRTY_WORKING_COPY"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn an_upper_case_md_item_is_listed_and_re_keyed_like_any_other(
+) -> Result<(), TestError> {
+    let repo = Repo::committed_with(&[(
+        "meta/work/0001-x.MD",
+        "---\nid: \"0001\"\ntitle: \"Upper\"\n---\n\n# 0001: Upper\n",
+    )])?;
+
+    let rekeyed = repo.rekey(&[])?;
+
+    assert_eq!(
+        rekeyed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&rekeyed.stderr)
+    );
+    let mut names: Vec<String> = fs::read_dir(repo.root().join("meta/work"))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+    names.sort();
+    assert_eq!(names, vec!["ACC-0001-x.md", "ACC-0042-search.md"]);
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn rekey_refuses_a_malformed_pattern() -> Result<(), TestError> {
+    let repo = Repo::committed()?;
+    repo.write(
+        ".accelerator/config.md",
+        "---\nwork:\n  id_pattern: \"{number:4d}\"\n---\n",
+    )?;
+
+    let output = repo.rekey(&[])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{stderr}"
+    );
+    assert!(repo.root().join("meta/work/0042-search.md").exists());
+    assert!(!repo.root().join(".accelerator/state/rekey").exists());
+    Ok(())
+}
+
+fn literal_item(id: &str, title: &str) -> String {
+    format!("---\nid: \"{id}\"\ntitle: \"{title}\"\n---\n\n# {id}: {title}\n")
+}
+
+fn rekeyed_twice(repo: &Repo) -> Result<(), TestError> {
+    let first = repo.rekey(&[])?;
+    assert_eq!(
+        first.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    repo.commit("rekeyed")?;
+    let before = repo.work_items()?;
+    let second = repo.rekey(&[])?;
+    assert_eq!(
+        second.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert_eq!(repo.work_items()?, before);
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn rekey_moves_literal_text_items_to_a_new_pattern() -> Result<(), TestError> {
+    let x = literal_item("v001", "X");
+    let y = literal_item("v002", "Y");
+    let repo = Repo::committed_as(&[
+        (
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+             key: PP\n---\n",
+        ),
+        ("meta/work/v001-x.md", &x),
+        ("meta/work/v002-y.md", &y),
+    ])?;
+
+    rekeyed_twice(&repo)?;
+
+    assert_eq!(repo.work_items()?, vec!["PP-0001-x.md", "PP-0002-y.md"]);
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn rekey_adds_literal_text_then_leaves_it() -> Result<(), TestError> {
+    let x = literal_item("001", "X");
+    let repo = Repo::committed_as(&[
+        (
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"v{number:03d}\"\n---\n",
+        ),
+        ("meta/work/001-x.md", &x),
+    ])?;
+
+    rekeyed_twice(&repo)?;
+
+    assert_eq!(repo.work_items()?, vec!["v001-x.md"]);
+    Ok(())
+}
+
+const KEY_CHANGED: &str =
+    "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+                           key: QQ\n---\n";
+
+fn key_changed_repo() -> Result<Repo, TestError> {
+    Repo::committed_as(&[
+        (".accelerator/config.md", KEY_CHANGED),
+        (
+            "meta/work/PP-0001-old.md",
+            "---\nid: \"PP-0001\"\ntitle: \"Old\"\n---\n",
+        ),
+        (
+            "meta/work/XY-0002-project.md",
+            "---\nid: \"XY-0002\"\ntitle: \"Project\"\n---\n",
+        ),
+    ])
+}
+
+#[test]
+fn a_preview_keeps_other_keys_and_names_them() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let output = repo.run(&["rekey", "--preview"], &[])?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8(output.stdout)?, "");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "note: 2 work items keep keys other than `work.key` 'QQ': PP \
+             (1), XY (1). To re-key a key's items onto 'QQ', preview again \
+             with `--from-key <KEY>`"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_preview_from_a_key_folds_only_that_keys_items() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let previewed =
+        repo.run(&["rekey", "--preview", "--from-key", "PP"], &[])?;
+    let applied = repo.run(&["rekey"], &[])?;
+
+    assert!(previewed.status.success(), "{previewed:?}");
+    assert_eq!(String::from_utf8(previewed.stdout)?, "PP-0001 → QQ-0001\n");
+    let stderr = String::from_utf8(previewed.stderr)?;
+    assert!(stderr.contains("1 work item keeps"), "{stderr}");
+    assert!(stderr.contains("XY (1)"), "{stderr}");
+    assert!(applied.status.success(), "{applied:?}");
+    assert_eq!(
+        repo.work_items()?,
+        vec!["QQ-0001-old.md".to_owned(), "XY-0002-project.md".to_owned()]
+    );
+    Ok(())
+}
+
+#[test]
+fn from_key_needs_a_preview() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let output = repo.run(&["rekey", "--from-key", "PP"], &[])?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert_eq!(
+        repo.work_items()?,
+        vec!["PP-0001-old.md".to_owned(), "XY-0002-project.md".to_owned()]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_from_key_that_is_not_a_key_is_refused() -> Result<(), TestError> {
+    let repo = key_changed_repo()?;
+
+    let output = repo.run(&["rekey", "--preview", "--from-key", "P-P"], &[])?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("--from-key"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn an_item_created_beside_a_linked_tracker_key_survives_a_width_change(
+) -> Result<(), TestError> {
+    let template = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../templates/work-item.md"),
+    )?;
+    let repo = Repo::committed_as(&[
+        ("templates/work-item.md", &template),
+        (
+            ".accelerator/config.md",
+            "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+             key: PP\n---\n",
+        ),
+        (
+            "meta/work/PP-0001-linked.md",
+            "---\nid: \"PP-0001\"\ntitle: \"Linked\"\nexternal_id: \
+             \"PP-2\"\n---\n",
+        ),
+    ])?;
+    let created = repo.run(
+        &["create", "Fresh item", "task", "medium", "--author", "A"],
+        &[],
+    )?;
+    assert_eq!(
+        created.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&created.stderr)
+    );
+    repo.write(
+        ".accelerator/config.md",
+        "---\nwork:\n  id_pattern: \"{key}-{number:05d}\"\n  key: PP\n---\n",
+    )?;
+    repo.commit("widen")?;
+
+    let rekeyed = repo.rekey(&[])?;
+
+    assert_eq!(
+        rekeyed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&rekeyed.stderr)
+    );
+    assert_eq!(
+        repo.work_items()?,
+        vec!["PP-00001-linked.md", "PP-00003-fresh-item.md"]
+    );
     Ok(())
 }

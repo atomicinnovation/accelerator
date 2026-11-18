@@ -212,3 +212,95 @@ fn a_configured_doc_type_directory_is_honoured() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn a_bare_id_reads_through_the_configured_pattern() -> Result<(), TestError> {
+    let dir = tempdir("keyed")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{key}_{number:04d}\"\n  key: PP\n---\n",
+    )?;
+    let file = root.join("meta/work/PP_0050-deps.md");
+    fs::create_dir_all(file.parent().ok_or("no parent")?)?;
+    fs::write(
+        &file,
+        "## Dependencies\n- Blocks: PP_0061\n- Blocks: 0062\n",
+    )?;
+
+    let output = run(
+        &root,
+        &["linkage", "extract", file.to_str().ok_or("non-utf8 path")?],
+    )?;
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        stdout(&output),
+        "work-item\tblocks\twork-item:PP_0061\tbody:dependencies#0\tresolved\n"
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn an_unreadable_work_scheme_refuses_extraction_for_every_doc_type(
+) -> Result<(), TestError> {
+    let dir = tempdir("bad-scheme")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{number:4d}\"\n---\n",
+    )?;
+    let file = root.join("meta/decisions/ADR-0001-a.md");
+    fs::create_dir_all(file.parent().ok_or("no parent")?)?;
+    fs::write(&file, "---\nadr_id: ADR-0001\n---\n")?;
+
+    let output = run(
+        &root,
+        &["linkage", "extract", file.to_str().ok_or("non-utf8 path")?],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("E_WORK_ID_PATTERN_INVALID"),
+        "{output:?}"
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn extraction_warns_about_the_work_scheme_as_the_work_commands_do(
+) -> Result<(), TestError> {
+    let dir = tempdir("scheme-warnings")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{number:04d}\"\n  \
+         default_project_code: \"1PP\"\n---\n",
+    )?;
+    let file = root.join("meta/work/0050-deps.md");
+    fs::create_dir_all(file.parent().ok_or("no parent")?)?;
+    fs::write(&file, "## Dependencies\n- Blocks: 0061\n")?;
+
+    let output = run(
+        &root,
+        &["linkage", "extract", file.to_str().ok_or("non-utf8 path")?],
+    )?;
+
+    assert!(output.status.success(), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("'work.default_project_code' is deprecated"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("is unused by"), "{stderr}");
+    Ok(())
+}

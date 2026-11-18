@@ -58,23 +58,23 @@ impl SyncState<'_> {
 /// unfinished, and every record it cannot read.
 #[must_use]
 pub fn unfinished_sync_work(sync: &SyncState<'_>) -> Vec<SyncBlocker> {
-    let mut blockers: Vec<SyncBlocker> =
-        sync.records.outstanding().map_or_else(
-            |_| {
-                vec![SyncBlocker::UnreadableRecord(
-                    sync.state_dir.join("retirement-records"),
-                )]
-            },
-            |records| {
-                records
-                    .into_iter()
-                    .map(|record| SyncBlocker::Retirement {
-                        old: record.old,
-                        new: record.new,
-                    })
-                    .collect()
-            },
-        );
+    let mut blockers: Vec<SyncBlocker> = match sync.records.survey() {
+        Err(unlistable) => {
+            vec![SyncBlocker::UnlistableRecords(unlistable.path)]
+        }
+        Ok(records) => records
+            .into_iter()
+            .map(|record| match record {
+                Ok(record) => SyncBlocker::Retirement {
+                    old: record.old.as_str().to_owned(),
+                    new: record.new.as_str().to_owned(),
+                },
+                Err(unreadable) => {
+                    SyncBlocker::UnreadableRecord(unreadable.path)
+                }
+            })
+            .collect(),
+    };
     blockers.extend(sync.markers().into_iter().filter_map(
         |marker| match marker {
             Ok((_, Marker::Promotion(record))) => {

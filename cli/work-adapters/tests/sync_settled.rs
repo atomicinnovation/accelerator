@@ -19,7 +19,6 @@ use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
-use corpus::IdOwnership;
 use corpus::StoreError;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -35,6 +34,7 @@ use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use work::dirtiness::Dirtiness;
 use work::draft_id::DraftId;
+use work::id_scheme::IdOwnership;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::promotion::IntendedBaseline;
@@ -64,6 +64,7 @@ use work_adapters::retirement::RetirementFiles;
 use work_adapters::retirement::RetirementPorts;
 use work_adapters::retirement_records::FileRetirementRecords;
 use work_adapters::retirement_records::RetirementRecords;
+use work_adapters::retirement_records::Unreadable;
 use work_adapters::sync::baseline::Entry;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::AuthoredLocal;
@@ -88,6 +89,15 @@ use work_adapters::sync::settled_run::CorpusDiscovery;
 use work_adapters::sync::settled_run::DiscoveredCorpus;
 use work_adapters::sync::settled_run::SettledRunFailure;
 
+static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
+    std::sync::LazyLock::new(|| {
+        work::id_scheme::IdScheme::under_any_tracker(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .unwrap_or_else(|error| unreachable!("{error}")),
+            None,
+        )
+    });
+
 const BASELINE: &str = ".accelerator/state/integrations/linear/last-sync.json";
 const STATE: &str = ".accelerator/state";
 const STAMP: &str = "2026-06-01T00:00:00Z";
@@ -104,7 +114,7 @@ fn key(raw: &str) -> ExternalId {
 }
 
 fn tracker_key(raw: &str) -> TrackerKey {
-    TrackerKey::parse(raw).expect("a tracker key")
+    TrackerKey::parse_any_supported(raw).expect("a tracker key")
 }
 
 fn held(raw: &str) -> (ExternalId, RemoteIssue) {
@@ -224,7 +234,7 @@ impl Repo {
     fn save_record(&self, retirement: &Retirement<'_>) {
         let store = FileCorpusStore::new(self.root());
         FileRetirementRecords::new(&self.path(STATE), &store)
-            .save(&RetirementRecord::of(retirement))
+            .save(&RetirementRecord::of(retirement).unwrap())
             .unwrap();
     }
 
@@ -379,6 +389,12 @@ struct LoggingRecords<'a> {
 impl RetirementRecords for LoggingRecords<'_> {
     fn save(&self, record: &RetirementRecord) -> Result<(), StoreError> {
         self.inner.save(record)
+    }
+
+    fn survey(
+        &self,
+    ) -> Result<Vec<Result<RetirementRecord, Unreadable>>, Unreadable> {
+        self.inner.survey()
     }
 
     fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError> {
@@ -546,6 +562,15 @@ fn request<'a>(
     }
 }
 
+fn faulty_store(root: &Path, options: &Options) -> Faulty {
+    Faulty {
+        inner: FileCorpusStore::new(root),
+        count: Cell::new(0),
+        fail_at: options.fail_at,
+        keep_failing: options.keep_failing,
+    }
+}
+
 #[allow(clippy::too_many_lines)]
 fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let root = repo.root();
@@ -553,12 +578,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let state = repo.path(STATE);
     let roots = vec![repo.path("meta")];
     let plain = FileCorpusStore::new(root);
-    let faulty = Faulty {
-        inner: FileCorpusStore::new(root),
-        count: Cell::new(0),
-        fail_at: options.fail_at,
-        keep_failing: options.keep_failing,
-    };
+    let faulty = faulty_store(root, &options);
     let log = options.log.clone().unwrap_or_default();
     let locks = LoggingLock {
         inner: LockdirLock::with_options(&work_dir, FAST),
@@ -580,6 +600,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         layout: CorpusLayout {
             roots: &roots,
             work_dir: &work_dir,
+            scheme: &TRACKER,
         },
         walker: &RealFs,
         status: &status,
@@ -1709,9 +1730,7 @@ fn promotion_records_left(repo: &Repo) -> usize {
     .len()
 }
 
-#[test]
-fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
-    let repo = Repo::new();
+fn promotion_killed_while_retiring_its_draft_onto_eng_42(repo: &Repo) {
     let promoted = "---\nid: \"ENG-42\"\ntitle: \"Title\"\nexternal_id: \
                     \"ENG-42\"\naliases: [\"draft-k7mq3x\"]\n---\n\n\
                     # ENG-42: Title\n";
@@ -1722,7 +1741,7 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
     };
     save_promotion(
-        &repo,
+        repo,
         &promotion_record(PromotionStage::Retiring {
             key: tracker_key("ENG-42"),
             baseline: Box::new(IntendedBaseline {
@@ -1732,15 +1751,24 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
                     fingerprints: None,
                 },
             }),
-            recovery_dir: PathBuf::from(
-                "retirement-recovery/draft-k7mq3x--ENG-42",
-            ),
+            recovery_dir: work::retirement::RecoveryDir::parse(
+                std::path::Path::new(
+                    "retirement-recovery/draft-k7mq3x--ENG-42",
+                ),
+            )
+            .unwrap_or_else(|| unreachable!("a recovery directory")),
             before: Box::new(PromotionStage::RemoteRetitled {
                 key: tracker_key("ENG-42"),
                 read_back: settled_remote,
             }),
         }),
     );
+}
+
+#[test]
+fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
+    let repo = Repo::new();
+    promotion_killed_while_retiring_its_draft_onto_eng_42(&repo);
 
     let outcome = sync(
         &repo,
@@ -1757,6 +1785,28 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
         outcome.engine_state("ENG-42"),
         Some(SyncState::Synced),
         "a_fresh_create_then_sync_reports_synced_under_tracker"
+    );
+}
+
+#[test]
+fn a_retiring_promotion_is_settled_over_a_corpus_re_key_would_move() {
+    let repo = Repo::new();
+    promotion_killed_while_retiring_its_draft_onto_eng_42(&repo);
+    let off_pattern = "---\nid: \"PP-0001\"\ntitle: \"Earlier\"\n---\n";
+    repo.write("meta/work/PP-0001-earlier.md", off_pattern);
+
+    let outcome = sync(
+        &repo,
+        &RecordingTracker::holding(vec![held("ENG-42")]),
+        Options::default(),
+    );
+
+    let row = outcome.row(PROMOTED_DRAFT);
+    assert_eq!(row.outcome, IdentityOutcome::Applied);
+    assert_eq!(promotion_records_left(&repo), 0);
+    assert_eq!(
+        repo.read("meta/work/PP-0001-earlier.md").as_deref(),
+        Some(off_pattern)
     );
 }
 

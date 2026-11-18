@@ -64,7 +64,7 @@ impl ClusterEntry for IndexEntry {
         self.frontmatter_state == "parsed"
     }
     fn work_item_id(&self) -> Option<&str> {
-        self.work_item_id.as_deref()
+        self.identity_key.as_deref()
     }
     fn parent(&self) -> Option<&str> {
         self.frontmatter.get("parent").and_then(|v| v.as_str())
@@ -91,7 +91,7 @@ pub struct LifecycleCluster {
 /// Snapshots and conventions the cluster-key resolver needs, threaded from the
 /// indexer caller into `corpus::cluster`.
 pub struct ClusterContext<'a> {
-    pub work_item_by_id: &'a HashMap<String, PathBuf>,
+    pub work_item_by_identity_key: &'a HashMap<String, PathBuf>,
     pub plans_by_id: &'a HashMap<String, PathBuf>,
     pub project_root: &'a Path,
     pub work_item_cfg: &'a WorkItemConfig,
@@ -100,13 +100,13 @@ pub struct ClusterContext<'a> {
 impl<'a> ClusterContext<'a> {
     pub fn from_entries(
         _entries: &'a [IndexEntry],
-        work_item_by_id: &'a HashMap<String, PathBuf>,
+        work_item_by_identity_key: &'a HashMap<String, PathBuf>,
         plans_by_id: &'a HashMap<String, PathBuf>,
         project_root: &'a Path,
         work_item_cfg: &'a WorkItemConfig,
     ) -> Self {
         Self {
-            work_item_by_id,
+            work_item_by_identity_key,
             plans_by_id,
             project_root,
             work_item_cfg,
@@ -144,7 +144,7 @@ impl EmptyClusterFixture {
     }
     pub fn ctx(&self) -> ClusterContext<'_> {
         ClusterContext {
-            work_item_by_id: &self.wi,
+            work_item_by_identity_key: &self.wi,
             plans_by_id: &self.pl,
             project_root: &self.root,
             work_item_cfg: &self.cfg,
@@ -180,13 +180,13 @@ pub fn compute_clusters_with_backfill(
     HashMap<PathBuf, Completeness>,
     HashMap<PathBuf, Option<String>>,
 ) {
+    let identity = ctx.work_item_cfg.convention();
     let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
         entries,
-        ctx.work_item_by_id,
+        ctx.work_item_by_identity_key,
         ctx.plans_by_id,
         ctx.project_root,
-        ctx.work_item_cfg.scheme(),
-        ctx.work_item_cfg.scanner(),
+        identity,
     );
     let clustering = corpus::cluster::compute(entries, &corpus_ctx);
 
@@ -260,7 +260,7 @@ mod tests {
     }
 
     /// Run clustering with snapshot maps derived from the entries
-    /// themselves — `work_item_by_id` from `WorkItems` entries, `plans_by_id`
+    /// themselves — `work_item_by_identity_key` from `WorkItems` entries, `plans_by_id`
     /// from Plans entries (by file stem).
     fn run_clusters(
         entries: &[IndexEntry],
@@ -270,11 +270,11 @@ mod tests {
         HashMap<PathBuf, Completeness>,
         HashMap<PathBuf, Option<String>>,
     ) {
-        let work_item_by_id: HashMap<String, PathBuf> = entries
+        let work_item_by_identity_key: HashMap<String, PathBuf> = entries
             .iter()
             .filter(|e| e.r#type == DocTypeKey::WorkItems)
             .filter_map(|e| {
-                e.work_item_id.clone().map(|id| (id, e.path.clone()))
+                e.identity_key.clone().map(|id| (id, e.path.clone()))
             })
             .collect();
         let plans_by_id: HashMap<String, PathBuf> = entries
@@ -289,7 +289,7 @@ mod tests {
         let project_root = PathBuf::from("/repo");
         let ctx = ClusterContext::from_entries(
             entries,
-            &work_item_by_id,
+            &work_item_by_identity_key,
             &plans_by_id,
             &project_root,
             cfg,
@@ -617,6 +617,7 @@ mod tests {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
         wi.work_item_id = Some("0040".into());
+        wi.identity_key = Some("0040".into());
         wi.path = PathBuf::from("/repo/meta/work/0040-pipeline.md");
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
         plan.path =
@@ -644,6 +645,7 @@ mod tests {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
         wi.work_item_id = Some("0040".into());
+        wi.identity_key = Some("0040".into());
         wi.path = PathBuf::from("/repo/meta/work/0040-pipeline.md");
         let plan_path =
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
@@ -673,6 +675,7 @@ mod tests {
             "WI",
         );
         wi.work_item_id = Some("0033".into());
+        wi.identity_key = Some("0033".into());
         wi.path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
         let mut review = entry_for_test(
             DocTypeKey::WorkItemReviews,
@@ -706,9 +709,6 @@ mod tests {
 
     #[test]
     fn path_shape_parent_resolves_to_work_item_cluster() {
-        // Integration-level coverage of the path-shape `parent:` resolution
-        // (id_from_value's TypedRef::Path → extract_id branch): a plan whose
-        // `parent:` is a work-item path clusters with that work item.
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(
             DocTypeKey::WorkItems,
@@ -717,6 +717,7 @@ mod tests {
             "WI",
         );
         wi.work_item_id = Some("0033".into());
+        wi.identity_key = Some("0033".into());
         wi.path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
         let mut plan = entry_for_test(DocTypeKey::Plans, "tokens", 2, "Plan");
         plan.frontmatter =
@@ -731,6 +732,7 @@ mod tests {
         let cfg = WorkItemConfig::with_pattern_for_test("PROJ", 4);
         let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
         wi.work_item_id = Some("PROJ-0040".into());
+        wi.identity_key = Some("PROJ-0040".into());
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
         plan.frontmatter = json!({ "parent": "work-item:PROJ-0040" });
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
@@ -776,6 +778,7 @@ mod tests {
             "WI",
         );
         wi.work_item_id = Some("0042".into());
+        wi.identity_key = Some("0042".into());
         wi.path =
             PathBuf::from("/repo/meta/work/0042-templates-view-redesign.md");
         let mut plan = entry_for_test(
@@ -821,6 +824,7 @@ mod tests {
         let mut wi =
             entry_for_test(DocTypeKey::WorkItems, "shared-slug", 1, "WI");
         wi.work_item_id = Some("0040".into());
+        wi.identity_key = Some("0040".into());
         let plan = entry_for_test(DocTypeKey::Plans, "shared-slug", 2, "Plan");
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
         assert_eq!(clusters.len(), 1);
@@ -831,6 +835,7 @@ mod tests {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
         wi.work_item_id = Some("0040".into());
+        wi.identity_key = Some("0040".into());
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
         plan.frontmatter = json!({ "parent": "work-item:0040" });
         let (_, _, cluster_key_by_path) =
@@ -851,6 +856,7 @@ mod tests {
         let mut wi =
             entry_for_test(DocTypeKey::WorkItems, "ac2-coverage", 1, "WI");
         wi.work_item_id = Some("0099".into());
+        wi.identity_key = Some("0099".into());
         wi.path = PathBuf::from("/repo/meta/work/0099-ac2-coverage.md");
         for orphan_kind in [
             DocTypeKey::Decisions,
@@ -888,6 +894,7 @@ mod tests {
         let cfg = WorkItemConfig::default();
         let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
         wi.work_item_id = Some("0042".into());
+        wi.identity_key = Some("0042".into());
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
         plan.frontmatter = json!({ "parent": "work-item:0042" });
         let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);

@@ -465,6 +465,22 @@ pub trait SyncBaselines {
     ) -> Result<usize, MigrationError>;
 }
 
+/// Work-item identity, answered by the work context.
+pub trait WorkItemIdentity {
+    /// `raw` in canonical form under `pattern`, with `key` read only when
+    /// the pattern names the key token.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when `pattern` or `key` is malformed, or `raw` is
+    /// not an ID under them.
+    fn canonicalise(
+        &self,
+        raw: &str,
+        pattern: &str,
+        key: Option<&str>,
+    ) -> Result<String, MigrationError>;
+}
+
 /// One migration's interactive session log, bound to its own path at
 /// construction.
 ///

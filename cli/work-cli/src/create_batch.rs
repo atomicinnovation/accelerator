@@ -36,12 +36,15 @@ use crate::batch_manifest::ManifestEntry;
 use crate::batch_manifest::ParentLink;
 use crate::cli::CreateBatchArgs;
 use crate::create::create_item;
+use crate::create::AdmittedRequest;
 use crate::create::CreateFailure;
 use crate::create::CreationOutcome;
 use crate::create::CreationStore;
 use crate::create::Seams;
+use crate::create::Unopened;
 use crate::exit_codes;
 use crate::promotion_report::detail_line;
+use crate::refusal::Refusal;
 use crate::sync::severity;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -103,10 +106,7 @@ pub enum BatchOutcome {
         message: String,
     },
     /// The identity run could not begin; nothing was read or written.
-    Refused {
-        message: String,
-        code: u8,
-    },
+    Refused(Refusal),
 }
 
 #[must_use]
@@ -167,6 +167,7 @@ pub fn run(
         &mut Seams {
             registry,
             store_at: &store_at,
+            lock_at: &crate::create::lockdir_lock_at,
             draws: &mut RandomSuffixDraws,
             identity_run: &crate::identity_run::begin,
         },
@@ -194,8 +195,21 @@ pub fn run_with(
     let identity_run = match (seams.identity_run)(&root, "create-batch") {
         Ok(guard) => guard,
         Err(refusal) => {
-            let (message, code) = crate::identity_run::refused(refusal, &root);
-            return BatchOutcome::Refused { message, code };
+            return BatchOutcome::Refused(crate::identity_run::refused(
+                refusal, &root,
+            ));
+        }
+    };
+    let admitted = match AdmittedRequest::without_requested_id(start, config) {
+        Ok(admitted) => admitted,
+        Err(Unopened::Untrusted(refusal)) => {
+            return BatchOutcome::Refused(refusal)
+        }
+        Err(Unopened::Unlocated(message)) => {
+            return BatchOutcome::Failed {
+                report: report(&[]),
+                message,
+            }
         }
     };
     let entries = match crate::batch_manifest::read(&args.manifest) {
@@ -222,7 +236,7 @@ pub fn run_with(
         }
     };
     let mut batch = Batch {
-        start,
+        admitted,
         config,
         templates,
         authorship: Authorship {
@@ -317,7 +331,7 @@ impl BatchWorkspace {
 }
 
 struct Batch<'a> {
-    start: &'a Path,
+    admitted: AdmittedRequest,
     config: &'a dyn ConfigAccess,
     templates: &'a dyn ReadTemplate,
     authorship: Authorship<'a>,
@@ -347,7 +361,7 @@ impl Batch<'_> {
         let args = entry.create_args(parent.clone(), &self.authorship);
         let mut journal = self.workspace.journal.as_mut();
         let result = create_item(
-            self.start,
+            &self.admitted,
             self.config,
             self.templates,
             &args,
@@ -648,6 +662,7 @@ mod tests {
                 &mut Seams {
                     registry: &StubRegistry(Rc::clone(tracker)),
                     store_at: &store_at,
+                    lock_at: &crate::create::lockdir_lock_at,
                     draws: &mut RandomSuffixDraws,
                     identity_run: &crate::identity_run::begin,
                 },
@@ -679,6 +694,7 @@ mod tests {
                         RecordingTracker::holding(Vec::new()),
                     )),
                     store_at: &store_at,
+                    lock_at: &crate::create::lockdir_lock_at,
                     draws: &mut RandomSuffixDraws,
                     identity_run,
                 },
@@ -765,7 +781,7 @@ mod tests {
 
         let outcome = repo.run(EPIC_AND_TWO_STORIES, true, &tracker);
 
-        let BatchOutcome::Refused { message, code } = outcome else {
+        let BatchOutcome::Refused(Refusal { message, code }) = outcome else {
             panic!("not refused: {outcome:?}");
         };
         assert_eq!(code, exit_codes::UNRESOLVED);
@@ -803,7 +819,7 @@ mod tests {
                 panic!("the manifest was refused: {problems:?}")
             }
             BatchOutcome::Failed { message, .. }
-            | BatchOutcome::Refused { message, .. } => {
+            | BatchOutcome::Refused(Refusal { message, .. }) => {
                 panic!("the batch failed: {message}")
             }
         }
@@ -1375,8 +1391,9 @@ mod tests {
     fn blocked_and_incomplete_items_carry_trailing_detail_lines() {
         let repo = BatchRepo::tracker_owned();
         repo.write(
-            "meta/work/0002-holder.md",
-            "---\nid: \"0002\"\naliases: [\"REC-1\"]\n---\n\n# 0002: Holder\n",
+            "meta/work/ENG-5-holder.md",
+            "---\nid: \"ENG-5\"\nexternal_id: \"ENG-5\"\n\
+             aliases: [\"REC-1\"]\n---\n\n# ENG-5: Holder\n",
         );
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
 
@@ -1394,7 +1411,7 @@ mod tests {
             Some(
                 format!(
                     "#\tdetail\tepic\tholder\t{}",
-                    repo.path("meta/work/0002-holder.md").display()
+                    repo.path("meta/work/ENG-5-holder.md").display()
                 )
                 .as_str()
             )
@@ -1439,51 +1456,42 @@ mod tests {
     fn a_parent_given_as_a_typed_reference_to_an_existing_item_is_kept() {
         let repo = BatchRepo::tracker_owned();
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
-        let legacy = [
-            ("meta/work/0042-a.md", "---\nid: \"0042\"\n---\n\n# 0042: A\n"),
+        let existing = [
             (
-                "meta/work/ACC-0042-b.md",
-                "---\nid: \"ACC-0042\"\n---\n\n# ACC-0042: B\n",
+                "meta/work/ENG-5-a.md",
+                "---\nid: \"ENG-5\"\nexternal_id: \"ENG-5\"\n---\n\n# ENG-5: A\n",
             ),
             (
-                "meta/work/0230-c.md",
-                "---\nid: \"0230\"\nexternal_id: \"PP-760\"\n---\n\n# 0230: C\n",
+                "meta/work/drafts/draft-k7mq3x-b.md",
+                "---\nid: \"draft-k7mq3x\"\n---\n\n# draft-k7mq3x: B\n",
             ),
         ];
-        for (path, content) in legacy {
+        for (path, content) in existing {
             repo.write(path, content);
         }
 
         let report = reported(repo.run(
             r#"[
-                {"ref": "a", "title": "Under 0042", "kind": "story",
-                 "priority": "low", "parent": "work-item:0042"},
-                {"ref": "b", "title": "Under ACC-0042", "kind": "story",
-                 "priority": "low", "parent": "work-item:ACC-0042"},
-                {"ref": "c", "title": "Under PP-760", "kind": "story",
-                 "priority": "low", "parent": "work-item:PP-760"}
+                {"ref": "a", "title": "Under ENG-5", "kind": "story",
+                 "priority": "low", "parent": "work-item:ENG-5"},
+                {"ref": "b", "title": "Under the draft", "kind": "story",
+                 "priority": "low", "parent": "work-item:draft-k7mq3x"}
             ]"#,
             true,
             &tracker,
         ));
 
         let lines = items(&report);
-        for (reference, parent) in [
-            ("a", "work-item:0042"),
-            ("b", "work-item:ACC-0042"),
-            ("c", "work-item:PP-760"),
-        ] {
+        for (reference, parent) in
+            [("a", "work-item:ENG-5"), ("b", "work-item:draft-k7mq3x")]
+        {
             assert_eq!(
                 parent_of(&read(Path::new(&lines[reference].0))),
                 Some(parent.to_owned())
             );
         }
-        for (path, content) in legacy {
-            assert_eq!(
-                read(&repo.path(path)),
-                content,
-                "legacy_items_named_as_parents_keep_their_ids"
-            );
+        for (path, content) in existing {
+            assert_eq!(read(&repo.path(path)), content, "{path}");
         }
     }
 

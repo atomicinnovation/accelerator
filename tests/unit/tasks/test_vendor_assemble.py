@@ -514,15 +514,11 @@ def _realistic_inputs(tmp_path):
     _licence(pw / "package/LICENSE")
     _browsers_json(pw / "package/browsers.json")
     chromium = tmp_path / "chromium-src"
-    # Upstream ships `chrome-<platform>/headless_shell`; the spec builder
-    # renames it to `chrome-headless-shell` at the tree root.
     _executable(
-        chromium / "chrome-linux/headless_shell",
+        chromium / "chrome-headless-shell-linux64/chrome-headless-shell",
         "#!/bin/sh\necho v1181\n",
     )
-    # No licence in the archive — the Chromium licence is sourced from the
-    # committed licences/chromium.LICENSE, matching the real headless-shell zip.
-    _licence(chromium / "chrome-linux/resources.pak", "res")
+    _licence(chromium / "chrome-headless-shell-linux64/resources.pak", "res")
     return (
         _tgz(tmp_path / "node.tar.gz", node),
         _tgz(tmp_path / "pw.tgz", pw),

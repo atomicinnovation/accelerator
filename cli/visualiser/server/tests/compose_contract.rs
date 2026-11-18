@@ -158,9 +158,12 @@ fn resolves_kanban_idle_and_work_item_scheme() {
     );
     assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 30 * 60 * 1000);
 
-    let work_item = cfg.work_item.as_ref().expect("work_item resolved");
-    assert_eq!(work_item.scan_regex, "^ENG-([0-9]+)-");
-    assert_eq!(work_item.key.as_deref(), Some("ENG"));
+    let work_item = cfg.work_item.configured().expect("work_item resolved");
+    assert_eq!(work_item.pattern().as_str(), "{project}-{number:04d}");
+    assert_eq!(
+        work_item.key().map(work::id_pattern::IdKey::as_str),
+        Some("ENG")
+    );
 }
 
 #[test]
@@ -178,9 +181,9 @@ fn unconfigured_project_uses_catalogue_defaults() {
     // Absent idle → catalogue 8h default.
     assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 8 * 60 * 60 * 1000);
     // Absent work scheme → numeric default.
-    let work_item = cfg.work_item.as_ref().unwrap();
-    assert_eq!(work_item.scan_regex, "^([0-9]+)-");
-    assert!(work_item.key.is_none());
+    let work_item = cfg.work_item.configured().unwrap();
+    assert_eq!(work_item.pattern().as_str(), "{number:04d}");
+    assert!(work_item.key().is_none());
 }
 
 #[test]
@@ -198,10 +201,57 @@ work:
 
     let cfg = compose(tmp.path());
 
-    let work_item = cfg.work_item.as_ref().unwrap();
-    assert_eq!(work_item.id_pattern, "{tracker}");
-    assert_eq!(work_item.scan_regex, "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-");
-    assert!(work_item.key.is_none());
+    let work_item = cfg.work_item.configured().unwrap();
+    assert_eq!(work_item.pattern().as_str(), "{tracker}");
+    assert!(work_item.key().is_none());
+}
+
+fn project_with_work_config(work: &str) -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().unwrap();
+    let acc = tmp.path().join(".accelerator");
+    std::fs::create_dir_all(&acc).unwrap();
+    std::fs::write(acc.join("config.md"), format!("---\nwork:\n{work}---\n"))
+        .unwrap();
+    tmp
+}
+
+#[test]
+fn the_visualiser_composes_under_tracker_without_an_integration() {
+    let tmp = project_with_work_config("  id_pattern: \"{tracker}\"\n");
+
+    let cfg = compose(tmp.path());
+
+    let work_item = cfg.work_item.configured().unwrap();
+    assert_eq!(work_item.pattern().as_str(), "{tracker}");
+}
+
+#[test]
+fn a_pattern_needing_a_key_without_one_boots_reporting_e_work_key_required() {
+    let tmp =
+        project_with_work_config("  id_pattern: \"{key}-{number:04d}\"\n");
+
+    let cfg = compose(tmp.path());
+
+    assert!(cfg.work_item.configured().is_none());
+    let problem = cfg.work_item.problem().expect("the problem is reported");
+    assert!(problem.starts_with("E_WORK_KEY_REQUIRED:"), "{problem}");
+}
+
+#[test]
+fn a_malformed_pattern_boots_reporting_the_setting() {
+    let tmp = project_with_work_config("  id_pattern: \"{number:4d}\"\n");
+
+    let cfg = compose(tmp.path());
+
+    assert!(cfg.work_item.configured().is_none());
+    let problem = cfg.work_item.problem().expect("the problem is reported");
+    assert!(
+        problem.starts_with(
+            "E_WORK_ID_PATTERN_INVALID: work.id_pattern '{number:4d}':"
+        ),
+        "{problem}"
+    );
+    assert!(problem.contains("(rule 4)"), "{problem}");
 }
 
 /// The emptiness rule lives in `with_plugin_root`, so the server inherits it:

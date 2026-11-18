@@ -128,8 +128,14 @@ export interface IndexEntry {
   relPath: string;
   slug: string | null;
   /** The work item's `id`, normalised under the configured scheme; null for
-   *  other types or an `id` the scheme does not admit. */
+   *  other types, an `id` the scheme does not admit, or any item while the
+   *  corpus cannot be trusted. */
   workItemId: string | null;
+  /** The key `workItemId` holds under the configured scheme, which the
+   *  project facet filters on; null when it holds none, or while the corpus
+   *  cannot be trusted. Older servers omitting the field are normalised to
+   *  null at the API client boundary. */
+  workItemKey: string | null;
   /** A work item whose `id` is a draft's, which no tracker has confirmed.
    *  Older servers omitting the field are normalised to `false` at the API
    *  client boundary. */

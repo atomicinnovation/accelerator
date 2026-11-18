@@ -313,6 +313,7 @@ run = "invoke test.unit.visualiser"
 [tasks."test:unit:frontend"]
 description = "Run visualiser frontend unit tests (Vitest)"
 depends = ["deps:install:node"]
+wait_for = ["test:unit:cli", "test:unit:visualiser"]
 run = "invoke test.unit.frontend"
 
 [tasks."test:unit:tasks"]
@@ -331,7 +332,7 @@ depends = ["deps:install:python"]
 run = "uv run pytest tests/unit/vcs -v"
 
 [tasks."test:unit:cli"]
-description = "Run cli/ workspace tests via nextest with coverage folded in (report-only; ACCELERATOR_COVERAGE=off drops to plain nextest)"
+description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts, fails below COVERAGE_FLOOR; ACCELERATOR_COVERAGE=off drops to plain nextest)"
 depends = ["deps:install:rust-components"]
 run = "invoke test.cli.run"
 
@@ -388,6 +389,11 @@ run = "invoke test.integration.entrypoint"
 description = "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment"
 depends = ["deps:install:python"]
 run = "invoke test.integration.skill-invocation"
+
+[tasks."test:integration:evals"]
+description = "Hold the CLI output skill evals quote to the built accelerator-work"
+depends = ["build:cli:work:dev"]
+run = "invoke test.integration.evals"
 
 [tasks."test:integration:conformance"]
 description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
@@ -501,6 +507,7 @@ depends = [
     "test:integration:entrypoint",
     "test:integration:skill-invocation",
     "test:integration:conformance",
+    "test:integration:evals",
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
@@ -682,6 +689,11 @@ description = "Keep atomic_write consolidated: no temp-and-rename outside cli/st
 depends = ["deps:install:python"]
 run = "invoke lint.store-duplication.check"
 
+[tasks."lint:corpus-identity:check"]
+description = "Keep work-item identity out of cli/corpus and cli/corpus-adapters (it lives in the work crates)"
+depends = ["deps:install:python"]
+run = "invoke lint.corpus-identity.check"
+
 [tasks."lint:vcs-settings:check"]
 description = "Keep jj UserSettings and Workspace::load out of cli/vcs-adapters (their defaults are private to jj-lib)"
 depends = ["deps:install:python"]
@@ -709,7 +721,7 @@ run = "invoke lint.claude-coupling.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check", "lint:config-test-support:check", "lint:crate-dependencies:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check", "lint:config-test-support:check", "lint:crate-dependencies:check", "lint:corpus-identity:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -771,7 +783,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check", "lint:config-test-support:check", "lint:crate-dependencies:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check", "lint:config-test-support:check", "lint:crate-dependencies:check", "lint:corpus-identity:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"
@@ -808,6 +820,11 @@ run = "invoke version.bump"
 [tasks."github:check-auth"]
 description = "Verify the GitHub CLI is authenticated"
 run = "invoke github.check-auth"
+
+[tasks."host:cpu-counts"]
+description = "Report the CPU counts that size the parallel test workers"
+depends = ["deps:install:python"]
+run = "invoke host.cpu-counts"
 
 [tasks."keys:generate"]
 description = "Generate a -W release signing keypair (writes keys/accelerator-release.{pub,sec}; does not print the secret)"

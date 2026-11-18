@@ -257,12 +257,18 @@ impl FileDriver for LocalFileDriver {
         };
         let Some(nested_manifest) = kind.nested_manifest_filename() else {
             return Box::pin(async move {
-                let mut entries = markdown_files_in(&root).await?;
-                if kind == DocTypeKey::WorkItems {
-                    entries.extend(
-                        markdown_files_in(&root.join(DRAFTS_DIR)).await?,
-                    );
+                if kind != DocTypeKey::WorkItems {
+                    return markdown_files_in(&root, has_md_extension).await;
                 }
+                let mut entries =
+                    markdown_files_in(&root, is_work_item_file).await?;
+                entries.extend(
+                    markdown_files_in(
+                        &root.join(DRAFTS_DIR),
+                        is_work_item_file,
+                    )
+                    .await?,
+                );
                 Ok(entries)
             });
         };
@@ -534,9 +540,20 @@ pub fn template_extra_roots(
 /// Where a work item no tracker has confirmed yet waits, beside the rest.
 const DRAFTS_DIR: &str = "drafts";
 
+fn has_md_extension(path: &Path) -> bool {
+    path.extension().and_then(|s| s.to_str()) == Some("md")
+}
+
+fn is_work_item_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(work::work_item_files::is_md_filename)
+}
+
 /// The markdown files directly in `dir`; none when it does not exist.
 async fn markdown_files_in(
     dir: &Path,
+    is_markdown: fn(&Path) -> bool,
 ) -> Result<Vec<PathBuf>, FileDriverError> {
     let mut stream = match tokio::fs::read_dir(dir).await {
         Ok(read) => read,
@@ -561,7 +578,7 @@ async fn markdown_files_in(
             })?
     {
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+        if !is_markdown(&path) {
             continue;
         }
         let file_type =

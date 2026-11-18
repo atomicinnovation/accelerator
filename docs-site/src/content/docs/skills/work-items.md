@@ -43,6 +43,23 @@ meeting notes, design docs. Under `{tracker}` it creates the batch
 through `accelerator work create-batch` after one push offer, linking each
 child to its parent's key or draft.
 
+Pass `--id` to `create-work-item` to choose an item's ID yourself, for
+example when other branches have unmerged items:
+
+```
+/create-work-item --id PP-0400 Add a retry budget to sync
+```
+
+The ID must be in the exact shape `work.id_pattern` renders — `PP-0400`
+under `{key}-{number:04d}`, `0400` under the default `{number:04d}` — with
+a number of at least 1, no `draft-` prefix and no other item holding it.
+The skill checks it with `accelerator work id check` before drafting: an
+exact ID is used as given, and one that needs padding or names a key
+other than `work.key` is proposed in full for you to confirm. `--id` is
+refused under `{tracker}`, where the tracker owns every ID, and beside
+`--project`. Run `accelerator work id check <ID>` yourself to see what an
+ID would become without creating anything.
+
 ## Sharpening before planning
 
 After drafting and before planning:
@@ -71,8 +88,15 @@ reconciles `meta/work/` with the configured remote tracker — run it with
 [`rekey-work-items`](../reference/skills/work/rekey-work-items.md)
 previews and then gives every existing item an ID in the new shape,
 renaming files and rewriting references across `meta/`; the old ID joins
-`aliases`. Under a `{key}` pattern every item keeps its number under
-`work.key`, whatever key it had before.
+`aliases`. Under a `{key}` pattern every item keeps its number and its
+key; the preview names items under keys other than `work.key` and asks
+which keys' items to move onto it, as after `work.key` changes. Until
+every item is in the pattern's shape, `work create`, `create-batch`,
+`id next`, `id check`, `resolve` and `promote` refuse with
+`E_REKEY_REQUIRED`, and a file whose IDs cannot be read, such as a
+slugless `0400.md`, with `E_WORK_ITEM_MALFORMED`; each names its fix.
+`work sync` and `work rekey` still run, so the way out stays open, and
+`work list` lists the items with the refusal as a warning.
 
 Work items share a template with YAML frontmatter (`work_item_id`,
 `title`, `type`, `status`, `priority`, `parent`, `tags`) and structured

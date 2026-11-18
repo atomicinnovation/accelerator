@@ -1,4 +1,5 @@
 import type { DocTypeKey } from "../../src/api/types";
+import { UNWRITTEN_WORK_ITEM } from "./stable-fixtures";
 
 /**
  * Canonical slug per doc type for the detail-route URL
@@ -19,7 +20,7 @@ import type { DocTypeKey } from "../../src/api/types";
  */
 export const DETAIL_ROUTE_SLUGS: Record<DocTypeKey, string> = {
   decisions: "ADR-0001-example-decision",
-  "work-items": "0001-first-work-item",
+  "work-items": UNWRITTEN_WORK_ITEM,
   plans: "2026-01-01-first-plan",
   "codebase-research": "2026-01-01-first-research",
   "plan-reviews": "2026-01-01-first-plan-review-1",

@@ -7,7 +7,7 @@ PAGE = """<title>__EXPLORE_PR_TITLE__</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <!-- explore-pr:data -->
-<!-- explore-pr:coverage -->
+<!-- explore-pr:models -->
 <script>window.APP = true;</script>
 <!-- explore-pr:views -->
 """
@@ -146,7 +146,14 @@ def test_a_ledger_range_must_contain_its_call(tmp_path, script):
 
 def test_a_ledger_range_inside_its_file_is_accepted(tmp_path, script):
     build = script("build")
-    row = {"id": "L1", "file": "src/core.rs", "line": 2, "start": 1, "end": 3}
+    row = {
+        "id": "L1",
+        "file": "src/core.rs",
+        "line": 2,
+        "start": 1,
+        "end": 3,
+        "anchor": "c",
+    }
 
     _, warnings = build.assemble(workspace(tmp_path, ledger=[row]))
 
@@ -195,8 +202,28 @@ def test_both_layouts_carry_the_review_coverage_model(tmp_path, script):
     build.hosted(PAGE, tmp_path, {}, {}, [], "t")
 
     for html in (page, (tmp_path / "index.html").read_text()):
-        assert "explore-pr:coverage" not in html
+        assert "explore-pr:models" not in html
         assert html.index("ReviewCoverage") < html.index("window.APP")
+
+
+def test_both_layouts_carry_the_prose_references_model(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert html.index("ProseReferences") < html.index("window.APP")
+
+
+def test_both_layouts_carry_the_stop_evidence_model(tmp_path, script):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        assert html.index("StopEvidence") < html.index("window.APP")
 
 
 def test_the_standalone_page_is_a_complete_document(script):

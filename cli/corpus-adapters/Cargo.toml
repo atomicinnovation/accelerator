@@ -19,7 +19,6 @@ document = { path = "../document" }
 kernel = { path = "../kernel" }
 store = { path = "../store" }
 vcs = { path = "../vcs" }
-regex = { workspace = true }
 time = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }

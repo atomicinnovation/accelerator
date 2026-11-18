@@ -19,6 +19,7 @@ CLI_DIR = REPO_ROOT / "cli"
 # The server is the 12th cli/ workspace member, so it builds into the shared
 # workspace target dir, not a crate-local one.
 CLI_TARGET_DIR = CLI_DIR / "target"
+CLI_INSTRUMENTED_BUILD_DIR = CLI_TARGET_DIR / "llvm-cov-target" / "debug"
 SERVER = CLI_DIR / "visualiser/server"
 CARGO_TOML = SERVER / "Cargo.toml"
 FRONTEND = CLI_DIR / "visualiser/frontend"

@@ -1,0 +1,40 @@
+{
+  "id": "launcher-components",
+  "kind": "component-diagram",
+  "title": "Retention needs a disk and a clock, and does not care which",
+  "caption": "The new retention component requires two interfaces and names no adapter. The file-system disk and the system clock provide them in production; a test can provide both itself, which is what lets a prune be tested without touching the real cache.",
+  "components": [
+    {
+      "id": "launcher", "name": "Launcher", "stereotype": "subsystem", "status": "changed",
+      "components": [
+        { "id": "start_up", "name": "StartUp", "status": "changed" },
+        { "id": "resolve", "name": "Resolve" },
+        { "id": "retention", "name": "Retention", "status": "new" }
+      ]
+    },
+    {
+      "id": "outbound", "name": "Outbound", "stereotype": "subsystem",
+      "components": [
+        { "id": "fs_disk", "name": "FsDisk" },
+        { "id": "system_clock", "name": "SystemClock" },
+        { "id": "http_fetch", "name": "HttpFetch" }
+      ]
+    }
+  ],
+  "interfaces": [
+    { "id": "Disk", "status": "new" },
+    { "id": "Clock", "status": "new" },
+    { "id": "Fetch" }
+  ],
+  "relationships": [
+    { "from": "start_up", "to": "retention", "kind": "dependency", "label": "refreshes the claim", "status": "new" },
+    { "from": "start_up", "to": "resolve", "kind": "dependency" },
+    { "from": "resolve", "to": "retention", "kind": "dependency", "label": "prunes on a cold start", "status": "new" },
+    { "from": "retention", "to": "Disk", "kind": "requires", "status": "new" },
+    { "from": "retention", "to": "Clock", "kind": "requires", "status": "new" },
+    { "from": "resolve", "to": "Fetch", "kind": "requires" },
+    { "from": "fs_disk", "to": "Disk", "kind": "provides", "status": "new" },
+    { "from": "system_clock", "to": "Clock", "kind": "provides", "status": "new" },
+    { "from": "http_fetch", "to": "Fetch", "kind": "provides" }
+  ]
+}

@@ -115,7 +115,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
-        work_item: None,
+        work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,
         idle_timeout: None,
         editor: None,

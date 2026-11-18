@@ -2,6 +2,8 @@
 //! `InputClass` outcomes, exercised against a real temp directory (not
 //! domain-level doubles — this is the adapter/binary boundary).
 
+#![allow(clippy::literal_string_with_formatting_args)]
+
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -111,5 +113,60 @@ fn traversal_path_escaping_the_work_directory_exits_six(
     assert_eq!(output.status.code(), Some(6));
     let stderr = String::from_utf8(output.stderr)?;
     assert!(stderr.contains("E_RESOLVE_OUTSIDE_WORKDIR"));
+    Ok(())
+}
+
+fn scratch_repo_with_work_config(
+    work_body: &str,
+) -> Result<tempfile::TempDir, TestError> {
+    let dir = scratch_repo()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        format!("---\nwork:\n{work_body}---\n"),
+    )?;
+    Ok(dir)
+}
+
+#[test]
+fn resolve_refuses_a_malformed_pattern() -> Result<(), TestError> {
+    let repo =
+        scratch_repo_with_work_config("  id_pattern: \"{number:4d}\"\n")?;
+    let output = run(repo.path(), &["resolve", "0042"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("format spec '4d' must match 0Nd (rule 4)"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr
+            .lines()
+            .any(|line| line.starts_with("E_RESOLVE_INVALID:")),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_without_a_work_directory_is_e_resolve_invalid(
+) -> Result<(), TestError> {
+    let repo = tempfile::Builder::new()
+        .prefix("work-cli-resolve-")
+        .tempdir()?;
+    fs::create_dir_all(repo.path().join(".git"))?;
+
+    let topic = run(repo.path(), &["resolve", "add dark mode"])?;
+    assert_eq!(topic.status.code(), Some(1));
+    let stderr = String::from_utf8(topic.stderr)?;
+    assert!(
+        stderr
+            .lines()
+            .any(|line| line.starts_with("E_RESOLVE_INVALID:")),
+        "{stderr}"
+    );
+
+    let number = run(repo.path(), &["resolve", "0042"])?;
+    assert_eq!(number.status.code(), Some(3));
     Ok(())
 }
