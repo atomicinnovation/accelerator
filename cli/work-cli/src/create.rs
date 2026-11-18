@@ -452,7 +452,7 @@ pub enum Unopened {
 /// Why a create stopped before its request was admitted.
 pub enum Unadmitted {
     Unopened(Unopened),
-    Refused(RequestedIdRefusal),
+    IdRefused(RequestedIdRefusal),
 }
 
 impl From<Unopened> for Unadmitted {
@@ -470,7 +470,7 @@ impl From<Unadmitted> for RunOutcome {
             Unadmitted::Unopened(Unopened::Untrusted(refusal)) => {
                 Self::Refused(refusal)
             }
-            Unadmitted::Refused(refusal) => {
+            Unadmitted::IdRefused(refusal) => {
                 Self::Refused(Refusal::from(&refusal))
             }
         }
@@ -488,7 +488,7 @@ impl AdmittedRequest {
     ) -> Result<Self, Unadmitted> {
         let located = Self::without_requested_id(start, config)?;
         let requested = admit_requested_id(args, &located.location.scheme)
-            .map_err(Unadmitted::Refused)?;
+            .map_err(Unadmitted::IdRefused)?;
         Ok(Self {
             requested,
             ..located
