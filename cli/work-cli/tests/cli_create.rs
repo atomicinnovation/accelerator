@@ -2,11 +2,17 @@
 
 #![allow(clippy::literal_string_with_formatting_args)]
 
+mod common;
+
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+
+use common::frontmatter_of;
+use common::omit_when_empty_lines;
+use common::violations;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -120,8 +126,8 @@ fn a_second_invocation_allocates_the_next_sequential_id(
 }
 
 #[test]
-fn typed_linkage_and_tags_are_populated_and_omitted_when_empty(
-) -> Result<(), TestError> {
+fn typed_linkage_is_populated_and_omitted_when_empty() -> Result<(), TestError>
+{
     let repo = scratch_repo()?;
     let output = run(
         repo.path(),
@@ -151,6 +157,54 @@ fn typed_linkage_and_tags_are_populated_and_omitted_when_empty(
     assert!(!content.contains("derived_from:"));
     assert!(!content.contains("relates_to:"));
     assert!(!content.contains("external_id:"));
+    Ok(())
+}
+
+#[test]
+fn an_untagged_item_is_written_with_empty_tags_before_last_updated(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let output = run(repo.path(), &["create", "Example", "story", "medium"])?;
+    assert!(output.status.success(), "{output:?}");
+    let path = String::from_utf8(output.stdout)?.trim().to_owned();
+    let content = fs::read_to_string(&path)?;
+    let frontmatter = frontmatter_of(&content);
+
+    assert!(frontmatter.contains("tags: []\nlast_updated:"), "{content}");
+    assert_eq!(omit_when_empty_lines(&frontmatter), Vec::<&str>::new());
+    assert_eq!(violations(&content), Vec::new());
+    Ok(())
+}
+
+#[test]
+fn tags_follow_the_linkage_fields_immediately_before_last_updated(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let output = run(
+        repo.path(),
+        &[
+            "create",
+            "Example",
+            "story",
+            "medium",
+            "--tag",
+            "api",
+            "--relates-to",
+            "work-item:0001",
+        ],
+    )?;
+    assert!(output.status.success(), "{output:?}");
+    let path = String::from_utf8(output.stdout)?.trim().to_owned();
+    let content = fs::read_to_string(&path)?;
+    let frontmatter = frontmatter_of(&content);
+
+    let relates_to = frontmatter
+        .find("relates_to: [\"work-item:0001\"]\n")
+        .ok_or_else(|| content.clone())?;
+    let tags = frontmatter
+        .find("tags: [\"api\"]\nlast_updated:")
+        .ok_or_else(|| content.clone())?;
+    assert!(relates_to < tags, "{content}");
     Ok(())
 }
 
