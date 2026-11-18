@@ -260,15 +260,17 @@ item off `work.id_pattern`, so that it can finish what re-key waits on. But
 also runs, refuse that corpus with exit 4 and write nothing. Check their
 stderr:
 
-- `E_REKEY_REQUIRED` — relay the printed remedy as is and stop. It names
+- `E_REKEY_REQUIRED` — relay the printed remedy as is. It names
   `/rekey-work-items`, after any fix by hand an item re-key cannot read
-  needs first. When it came from `accelerator work promote` while
-  recovering a promotion, the unfinished promotion would make re-key refuse
-  with `E_REKEY_SYNC_UNFINISHED`, and sync is not refused here and settles
-  it. Use the `AskUserQuestion` tool with two options:
-  1. **Run sync now** — run Step 2's `accelerator work sync` with no flags,
-     read its output as below, then say to re-key.
-  2. **Stop** — say to run `accelerator work sync`, then re-key.
+  needs first. Then:
+  - When it came from `accelerator work promote` while recovering a
+    promotion, the unfinished promotion would make re-key refuse with
+    `E_REKEY_SYNC_UNFINISHED`, and sync is not refused here and settles
+    it. Use the `AskUserQuestion` tool with two options:
+    1. **Run sync now** — run Step 2's `accelerator work sync` with no
+       flags, read its output as below, then say to re-key.
+    2. **Stop** — say to run `accelerator work sync`, then re-key.
+  - Otherwise, stop.
 
   Once the corpus is re-keyed, this skill can be run again.
 - `E_WORK_ITEM_MALFORMED` — relay every file it lists with its printed fix,
