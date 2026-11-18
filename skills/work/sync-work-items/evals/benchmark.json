@@ -10,7 +10,7 @@
       "2"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:a11552b6dc5af6a045caecb0a25d5adb6ae12e099a5dab4f4d15112f8d648b1c"
+    "skill_digest": "sha256:f1696d147179346e87d9fcd65954a605ad09c0e3a41ad9d51181de3801f204b2"
   },
   "runs": [
     {
@@ -28,26 +28,26 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md quotes the error: \"Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\""
+          "evidence": "response.md: \"So your corpus holds an item that is not yet under the `{tracker}` ID pattern, and it needs re-keying with `/rekey-work-items`.\""
         },
         {
           "text": "response.md says the unfinished promotion would make re-key refuse and that `accelerator work sync` settles it",
           "passed": true,
-          "evidence": "\"the draft-k3x9mq promotion is still unfinished, and re-key will refuse to run until it's settled (`E_REKEY_SYNC_UNFINISHED`). `accelerator work sync` isn't blocked by this and can settle the promotion.\""
+          "evidence": "response.md: \"this unfinished promotion of `draft-k3x9mq` would itself make re-key refuse (with `E_REKEY_SYNC_UNFINISHED`) ... `accelerator work sync` is not refused on this corpus and settles the unfinished promotion\""
         },
         {
           "text": "questions.md holds one question offering to run sync now or to stop",
           "passed": true,
-          "evidence": "One question, \"What would you like to do?\", with two options: \"Run sync now\" (runs `accelerator work sync`) and \"Stop\""
+          "evidence": "questions.md: one AskUserQuestion with options \"1. **Run sync now**\" and \"2. **Stop**\""
         },
         {
           "text": "commands.md shows the promote exactly once, no `accelerator work rekey`, and no `accelerator work sync` before the user answers",
           "passed": true,
-          "evidence": "Only command run is \"1. `accelerator work promote draft-k3x9mq --adopt ENG-43`\"; `accelerator work rekey` appears only inside the quoted stderr. The file adds: \"No other `accelerator` command was run. The skill stops at the AskUserQuestion prompt\""
+          "evidence": "commands.md: only `accelerator work promote draft-k3x9mq --adopt ENG-43`, then \"No further `accelerator` command was run: the skill waits for the user's answer\" (rekey appears only inside quoted stderr)"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:a11552b6dc5af6a045caecb0a25d5adb6ae12e099a5dab4f4d15112f8d648b1c"
+      "skill_digest": "sha256:f1696d147179346e87d9fcd65954a605ad09c0e3a41ad9d51181de3801f204b2"
     },
     {
       "eval_id": 2,
@@ -64,21 +64,21 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md quotes \"Error: E_REKEY_REQUIRED: ...\" and says \"Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to re-key it.\""
+          "evidence": "response.md: \"Run `/rekey-work-items` to converge the corpus.\""
         },
         {
           "text": "questions.md is `none`",
           "passed": true,
-          "evidence": "questions.md contains only \"none\""
+          "evidence": "questions.md contains exactly 'none'"
         },
         {
           "text": "commands.md shows the resolve exactly once and no `accelerator work sync` or `accelerator work rekey` after it",
           "passed": true,
-          "evidence": "commands.md lists one command only: \"1. `accelerator work resolve ENG-7`\" (exit 4); `accelerator work rekey` appears only inside the quoted stderr, and no other command was run."
+          "evidence": "commands.md lists only '1. `accelerator work resolve ENG-7`'; `accelerator work rekey` appears only inside that command's quoted stderr"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:a11552b6dc5af6a045caecb0a25d5adb6ae12e099a5dab4f4d15112f8d648b1c"
+      "skill_digest": "sha256:f1696d147179346e87d9fcd65954a605ad09c0e3a41ad9d51181de3801f204b2"
     }
   ],
   "run_summary": {
@@ -93,6 +93,7 @@
   },
   "notes": [
     "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone.",
-    "Eval 1 was re-run and eval 2 (a needed re-key outside promotion recovery relays and stops) added with_skill on 2026-11-18, by claude-opus-5-5, after the E_REKEY_REQUIRED branch was reordered: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
+    "Eval 1 was re-run and eval 2 (a needed re-key outside promotion recovery relays and stops) added with_skill on 2026-11-18, by claude-opus-5-5, after the E_REKEY_REQUIRED branch was reordered: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
+    "Evals 1 and 2 were re-run with_skill on 2026-11-18, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
   ]
 }
