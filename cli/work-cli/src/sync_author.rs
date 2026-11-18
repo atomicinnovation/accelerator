@@ -401,6 +401,9 @@ mod tests {
     use crate::bounded_roots::BoundedRoot;
     use crate::bounded_roots::ConfiguredRoot;
     use crate::bounded_roots::RootKey;
+    use crate::test_support::frontmatter_of;
+    use crate::test_support::omit_when_empty_lines;
+    use crate::test_support::violations;
     use ::config::provenance::PathSource;
     use work::identity_run::IdentityRunGuard;
 
@@ -604,6 +607,27 @@ mod tests {
         let identity = identity_at(&authored.path);
         assert_eq!(identity.id, "ENG-42");
         assert_eq!(identity.external_id.as_deref(), Some("ENG-42"));
+    }
+
+    #[test]
+    fn a_pulled_issue_whose_labels_are_not_imported_gets_empty_tags_after_its_external_id(
+    ) {
+        let repo = TrackerRepo::new();
+
+        let authored = repo.pull("ENG-42").expect("the pull authors a file");
+
+        let content = std::fs::read_to_string(&authored.path).expect("read");
+        let frontmatter = frontmatter_of(&content);
+        let external_id = frontmatter
+            .find("external_id: \"ENG-42\"\n")
+            .expect(&content);
+        let tags = frontmatter.find("tags: []\nlast_updated:").expect(&content);
+        assert!(external_id < tags, "{content}");
+        assert_eq!(
+            omit_when_empty_lines(&frontmatter),
+            vec!["external_id: \"ENG-42\""]
+        );
+        assert_eq!(violations(&content), Vec::new());
     }
 
     #[test]

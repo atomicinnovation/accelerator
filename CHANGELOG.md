@@ -999,6 +999,13 @@
 
 ### Fixed
 
+- **New work items always carry `tags`.** `/create-work-item`,
+  `/extract-work-items` and `/sync-work-items` (through `work create`,
+  `work create-batch` and `work sync`) wrote no `tags` key for an item
+  without tags, so it failed `corpus frontmatter validate` with
+  `MISSING-BASE-FIELD`. They now write `tags: []`. Run
+  `/accelerator:migrate` (migration 0012) to repair items already written
+  without it.
 - **`/create-work-item` stops on a configuration error from `work resolve`.**
   Only `E_RESOLVE_INVALID` now reads as a topic; any other exit 1, such as
   `E_WORK_ID_PATTERN_INVALID`, is relayed and stops the skill rather than
