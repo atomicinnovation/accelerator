@@ -5,7 +5,7 @@ title: "Work Item Writers Omit the Required Tags Field"
 date: "2026-10-13T13:38:37+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "ready"
 kind: "bug"
 priority: "high"
 parent: "work-item:PP-167"
@@ -13,15 +13,14 @@ relates_to: ["work-item:PP-885"]
 external_id: "PP-886"
 aliases: ["0333"]
 tags: []
-last_updated: "2026-10-13T13:38:37+00:00"
+last_updated: "2026-11-18T15:08:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
-
 # PP-886: Work Item Writers Omit the Required Tags Field
 
 **Kind**: Bug
-**Status**: Done
+**Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -55,10 +54,10 @@ The **omit-when-empty fields** are exactly `parent`, `blocks`,
 
 Three paths call `render_frontmatter` and so share the defect:
 
-* `accelerator work create`, used by `create-work-item`.
-* `accelerator work create-batch --manifest <file>`, used by
+- `accelerator work create`, used by `create-work-item`.
+- `accelerator work create-batch --manifest <file>`, used by
   `extract-work-items`.
-* The sync importer in `cli/work-cli/src/sync_author.rs`, used by
+- The sync importer in `cli/work-cli/src/sync_author.rs`, used by
   `sync-work-items`. It always passes no tags, so it writes every
   pulled issue without the key.
 
@@ -86,25 +85,25 @@ Actual: the item has no `tags` key and validation exits 1 with
 
 Fix:
 
-* Every work item written through `render_frontmatter` carries `tags`,
+- Every work item written through `render_frontmatter` carries `tags`,
   as `[]` when there are none, on the line immediately before
   `last_updated` and after any omit-when-empty fields that are present.
-* The omit-when-empty fields keep their behaviour on all three paths:
+- The omit-when-empty fields keep their behaviour on all three paths:
   written when they have a value, left out when they do not.
-* The `create-work-item` SKILL.md no longer claims `work create` omits
+- The `create-work-item` SKILL.md no longer claims `work create` omits
   the `tags` key when `--tag` is absent, and instead states that `tags`
   is always written and names the omit-when-empty fields as the only
   keys left out when empty.
-* A migration, applied through `/accelerator:migrate`, repairs every
+- A migration, applied through `/accelerator:migrate`, repairs every
   work item in the work directory whose frontmatter has no `tags` key:
-  * it inserts exactly one line, `tags: []`, immediately before the
+  - it inserts exactly one line, `tags: []`, immediately before the
     `last_updated` line, or as the last frontmatter line when there is
     no `last_updated`;
-  * the rest of the repaired file is byte-for-byte unchanged;
-  * it decides whether `tags` is present by reading the frontmatter
+  - the rest of the repaired file is byte-for-byte unchanged;
+  - it decides whether `tags` is present by reading the frontmatter
     only, so a `tags` key in any YAML form (flow or block list) counts
     as present and a `tags:` line in the body is ignored;
-  * every file that already has a `tags` key is byte-for-byte
+  - every file that already has a `tags` key is byte-for-byte
     unchanged.
 
 ## Acceptance Criteria
@@ -159,57 +158,57 @@ Fix:
 
 ## Dependencies
 
-* Blocked by: none
-* Blocks: none
-* Ordering: the migration runs after `m0007`, which gives every legacy
+- Blocked by: none
+- Blocks: none
+- Ordering: the migration runs after `m0007`, which gives every legacy
   item its frontmatter, and takes the next free migration number at
   the time it lands; any other in-flight item adding a migration must
   agree the numbering.
-* Informs: a future work item mapping tracker labels to tags (not yet
+- Informs: a future work item mapping tracker labels to tags (not yet
   raised), which would supersede the sync criterion's `tags: []`
   expectation.
 
 ## Assumptions
 
-* Imported issues should start with `tags: []` rather than carrying the
+- Imported issues should start with `tags: []` rather than carrying the
   tracker's labels; mapping labels to tags is a separate concern for
   which no work item has been raised yet.
-* The migration covers work items only; other artefact types are
+- The migration covers work items only; other artefact types are
   written from templates that already carry `tags`.
 
 ## Technical Notes
 
-* The omission is at `cli/work/src/create.rs:154` in
+- The omission is at `cli/work/src/create.rs:154` in
   `compose_frontmatter`. The function's doc comment
   (`cli/work/src/create.rs:77-78`) lists `tags` among its
   "non-empty-only" fields — its name for the omit-when-empty fields —
   and needs correcting alongside.
-* `cli/work-cli/tests/cli_create.rs:123`
+- `cli/work-cli/tests/cli_create.rs:123`
   (`typed_linkage_and_tags_are_populated_and_omitted_when_empty`)
   asserts only the populated `tags` case; the empty case is untested.
-* Migrations live in `cli/migrate/src/migrations/`; the latest is
+- Migrations live in `cli/migrate/src/migrations/`; the latest is
   `m0011.rs`. `m0007/backfill.rs` already writes `tags: []` when it
   synthesises frontmatter and is a starting point for the insertion.
-* This repository's own `meta/work/` items all carry `tags`, so here
+- This repository's own `meta/work/` items all carry `tags`, so here
   the migration is expected to change nothing.
 
 ## Drafting Notes
 
-* Classed as a bug rather than a schema change because both the schema
+- Classed as a bug rather than a schema change because both the schema
   and the template treat `tags` as always present; only the writer
   diverges.
-* Priority set high because the defect fires on the common path of
+- Priority set high because the defect fires on the common path of
   `create-work-item`, `extract-work-items`, and `sync-work-items`, and
   each one's own validation step fails on the item it just wrote.
-* The backfill migration is kept in this item rather than split out
+- The backfill migration is kept in this item rather than split out
   because both halves serve one goal — every work item carries `tags`
   and validates — and together they remain a small change.
-* An item with no `last_updated` gets `tags: []` as its last
+- An item with no `last_updated` gets `tags: []` as its last
   frontmatter line rather than being skipped, so the migration leaves
   no item failing validation for want of `tags`.
 
 ## References
 
-* Related: 0332 (Push PR Descriptions to GitHub Unwrapped), the item
+- Related: 0332 (Push PR Descriptions to GitHub Unwrapped), the item
   that surfaced this
-* Review: `meta/reviews/work/PP-886-work-item-writers-omit-the-required-tags-field-review-1.md`
+- Review: `meta/reviews/work/0333-work-item-writers-omit-the-required-tags-field-review-1.md`
