@@ -369,8 +369,9 @@ mod tests {
                     "Re-key cannot read one of them: meta/work/{id}-item.md \
                      has `id` '{id}', whose number 12345 is above 9999, the \
                      most `work.id_pattern` holds. Widen `work.id_pattern` \
-                     to hold 12345, or give the item an `id` in its shape \
-                     and update the references to it by hand, then run"
+                     to hold 12345, after which re-key renames every item to \
+                     the wider pattern, or give this one item an `id` in its \
+                     shape and update the references to it by hand, then run"
                 )),
                 "{refusal}"
             );

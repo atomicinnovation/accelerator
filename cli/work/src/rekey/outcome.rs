@@ -775,8 +775,9 @@ mod tests {
                         cap: 9999,
                     },
                 },
-                "Widen `work.id_pattern` to hold 12345, or give the item an \
-                 `id` in its shape and update the references to it",
+                "Widen `work.id_pattern` to hold 12345, after which re-key \
+                 renames every item to the wider pattern, or give this one \
+                 item an `id` in its shape and update the references to it",
             ),
         ]
     }

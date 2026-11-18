@@ -40,8 +40,9 @@ impl UnclassifiableCause {
                 "Give the item an `id` in the shape of `work.id_pattern`".to_owned()
             }
             Self::NumberAboveCap { number, .. } => format!(
-                "Widen `work.id_pattern` to hold {number}, or give the item an \
-                 `id` in its shape and update the references to it"
+                "Widen `work.id_pattern` to hold {number}, after which re-key \
+                 renames every item to the wider pattern, or give this one \
+                 item an `id` in its shape and update the references to it"
             ),
             Self::ForbiddenCharacter { .. } => "Give the item an \
                  `id` of ASCII letters, digits, `.`, `_` and `-`"
