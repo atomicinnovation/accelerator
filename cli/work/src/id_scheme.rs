@@ -12,6 +12,7 @@ use crate::id_pattern::IdKey;
 use crate::id_pattern::IdParts;
 use crate::id_pattern::IdPattern;
 use crate::id_pattern::MissingKey;
+use crate::id_pattern::ShapePart;
 pub use crate::id_pattern::TRACKER_TOKEN;
 use tracker::TrackerKeys;
 
@@ -213,6 +214,36 @@ impl IdScheme {
         self.readings().tracker_keys()
     }
 
+    /// A regular-expression source matching every ID the scheme writes,
+    /// in any letter case as the scheme reads them, with a bare number
+    /// under a local pattern and a draft ID under `{tracker}`. It holds no
+    /// capture groups and only syntax JavaScript reads as Rust does.
+    #[must_use]
+    pub fn regex_source(&self) -> String {
+        let pattern = self.pattern();
+        let shape: String = pattern
+            .shape()
+            .map(|part| match part {
+                ShapePart::Literal(text) => case_insensitive_literal(text),
+                ShapePart::Key => IdKey::REGEX_SOURCE.to_owned(),
+                ShapePart::Number { .. } => BARE_NUMBER.to_owned(),
+                ShapePart::Tracker => {
+                    self.tracker_keys().regex_source().to_owned()
+                }
+            })
+            .collect();
+        let alongside = if pattern.is_tracker_owned() {
+            DraftId::REGEX_SOURCE
+        } else {
+            BARE_NUMBER
+        };
+        if shape == alongside {
+            shape
+        } else {
+            format!("{shape}|{alongside}")
+        }
+    }
+
     #[must_use]
     pub fn numeric() -> Self {
         let pattern = IdPattern::parse("{number:04d}")
@@ -400,6 +431,27 @@ impl corpus::LinkageIds for IdScheme {
             .map(str::to_owned)
             .collect()
     }
+}
+
+const BARE_NUMBER: &str = r"\d+";
+
+/// `text` as a source matching it literally, each ASCII letter in either
+/// case.
+fn case_insensitive_literal(text: &str) -> String {
+    text.chars().fold(String::new(), |mut source, character| {
+        if character.is_ascii_alphabetic() {
+            source.push('[');
+            source.push(character.to_ascii_lowercase());
+            source.push(character.to_ascii_uppercase());
+            source.push(']');
+        } else {
+            if r"\^$.|?*+()[]{}/".contains(character) {
+                source.push('\\');
+            }
+            source.push(character);
+        }
+        source
+    })
 }
 
 #[cfg(test)]
@@ -1023,5 +1075,19 @@ mod tests {
                 "{reference}"
             );
         }
+    }
+
+    #[test]
+    fn a_literal_matches_every_regex_metacharacter_as_itself() {
+        let text = r"a.b*c+d?e^f$g{h}i(j)k|l[m]n\o/p";
+        let source = super::case_insensitive_literal(text);
+        let whole = |candidate: &str| {
+            regex::Regex::new(&format!("^(?:{source})$"))
+                .unwrap()
+                .is_match(candidate)
+        };
+        assert!(whole(text));
+        assert!(whole(&text.to_ascii_uppercase()));
+        assert!(!whole("aXb"));
     }
 }

@@ -6,8 +6,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use work::draft_id::DraftId;
-use work::id_pattern::IdKey;
 use work::id_scheme::IdScheme;
 
 #[derive(Debug, Deserialize)]
@@ -170,36 +168,11 @@ impl WorkItemConfig {
         }
     }
 
-    /// A JavaScript regular-expression source matching every ID the
-    /// scheme writes, with a bare number under a local pattern and a draft
-    /// ID under `{tracker}`, for the page's work-item link grammar; none
-    /// when no IDs are read.
+    /// The scheme's ID grammar, for the page's work-item link grammar;
+    /// none when no IDs are read.
     #[must_use]
     pub fn id_token(&self) -> Option<String> {
-        use work::id_pattern::ShapePart;
-        let scheme = self.scheme.as_ref()?;
-        let pattern = scheme.pattern();
-        let shape: String = pattern
-            .shape()
-            .map(|part| match part {
-                ShapePart::Literal(text) => regex_literal(text),
-                ShapePart::Key => IdKey::REGEX_SOURCE.to_owned(),
-                ShapePart::Number { .. } => BARE_NUMBER.to_owned(),
-                ShapePart::Tracker => {
-                    scheme.tracker_keys().regex_source().to_owned()
-                }
-            })
-            .collect();
-        let alongside = if pattern.is_tracker_owned() {
-            DraftId::REGEX_SOURCE
-        } else {
-            BARE_NUMBER
-        };
-        Some(if shape == alongside {
-            shape
-        } else {
-            format!("{shape}|{alongside}")
-        })
+        self.scheme.as_ref().map(IdScheme::regex_source)
     }
 
     /// The key `shown` holds under the scheme, if it holds one.
@@ -222,25 +195,6 @@ impl WorkItemConfig {
     pub fn identity_key(&self, reference: &str) -> Option<String> {
         self.scheme.as_ref()?.identity_key(reference)
     }
-}
-
-const BARE_NUMBER: &str = r"\d+";
-
-fn regex_literal(text: &str) -> String {
-    text.chars().fold(String::new(), |mut source, character| {
-        if character.is_ascii_alphabetic() {
-            source.push('[');
-            source.push(character.to_ascii_lowercase());
-            source.push(character.to_ascii_uppercase());
-            source.push(']');
-        } else {
-            if r"\^$.|?*+()[]{}/".contains(character) {
-                source.push('\\');
-            }
-            source.push(character);
-        }
-        source
-    })
 }
 
 #[cfg(test)]
@@ -483,60 +437,6 @@ mod tests {
         WorkItemConfig::new(scheme).id_token().unwrap()
     }
 
-    #[test]
-    fn the_id_token_matches_every_id_a_local_pattern_renders() {
-        for (pattern, key) in [
-            ("{key}_{number:04d}", Some("PP")),
-            ("{key}-{number:04d}", Some("PP")),
-            ("v{number:03d}", None),
-            ("a.{number}", None),
-            ("{number:04d}", None),
-        ] {
-            let scheme = scheme_for_test(pattern, key);
-            let token = token_of(scheme.clone());
-            let cap = scheme.pattern().cap().unwrap_or(99_999).min(99_999);
-            for number in [1, 42, cap] {
-                let id = scheme.pattern().render(scheme.key(), number).unwrap();
-                assert!(token_matches(&token, &id), "{pattern}: {id}");
-            }
-            assert!(token_matches(&token, "42"), "{pattern}: a bare number");
-        }
-    }
-
-    #[test]
-    fn the_id_token_reads_an_id_in_any_case_as_the_cli_does() {
-        let literal = token_of(scheme_for_test("v{number:03d}", None));
-        assert!(token_matches(&literal, "V001"));
-        let tracker = token_of(scheme_for_test("{tracker}", None));
-        assert!(token_matches(&tracker, "DRAFT-K7MQ3X"));
-    }
-
-    #[test]
-    fn the_id_token_reads_a_literal_dot_as_a_dot() {
-        let token = token_of(scheme_for_test("a.{number}", None));
-        assert!(!token_matches(&token, "aX7"));
-    }
-
-    #[test]
-    fn the_id_token_reads_tracker_keys_by_the_configured_trackers_rules() {
-        let under = |keys| {
-            token_of(IdScheme::under_tracker(
-                work::id_pattern::IdPattern::parse("{tracker}").unwrap(),
-                None,
-                keys,
-            ))
-        };
-        let jira = under(tracker::TrackerKeys::Jira);
-        let linear = under(tracker::TrackerKeys::Linear);
-        for token in [&jira, &linear] {
-            assert!(token_matches(token, "ENG-7"));
-            assert!(token_matches(token, "draft-k7mq3x"));
-            assert!(!token_matches(token, "0017"));
-        }
-        assert!(token_matches(&jira, "MY_PROJ-7"));
-        assert!(!token_matches(&linear, "MY_PROJ-7"));
-    }
-
     /// Shared with the frontend's tests, which compile each token as a
     /// JavaScript `RegExp` and assert the same matches.
     const ID_TOKENS: &str = include_str!("../tests/fixtures/id-tokens.json");
@@ -591,13 +491,6 @@ mod tests {
     #[test]
     fn no_id_token_is_served_while_no_ids_are_read() {
         assert_eq!(WorkItemConfig::unreadable().id_token(), None);
-    }
-
-    #[test]
-    fn a_literal_is_escaped_for_every_regex_metacharacter() {
-        let escaped = super::regex_literal(r"a.b*c+d?e^f$g{h}i(j)k|l[m]n\o/p");
-        assert!(token_matches(&escaped, r"a.b*c+d?e^f$g{h}i(j)k|l[m]n\o/p"));
-        assert!(!token_matches(&escaped, "aXb"));
     }
 
     #[test]

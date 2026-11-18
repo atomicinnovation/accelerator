@@ -519,6 +519,7 @@ pub fn work::id_scheme::IdScheme::pad_legacy_number(input: &str) -> core::option
 pub const fn work::id_scheme::IdScheme::pattern(&self) -> &work::id_pattern::IdPattern
 pub fn work::id_scheme::IdScheme::read_held(&self, value: &str) -> core::option::Option<work::id_pattern::IdParts>
 pub fn work::id_scheme::IdScheme::read_held_prefix(&self, filename: &str) -> core::option::Option<work::id_pattern::HeldPrefix>
+pub fn work::id_scheme::IdScheme::regex_source(&self) -> alloc::string::String
 pub fn work::id_scheme::IdScheme::tracker_keys(&self) -> tracker::TrackerKeys
 pub fn work::id_scheme::IdScheme::under_any_tracker(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>) -> Self
 pub fn work::id_scheme::IdScheme::under_tracker(pattern: work::id_pattern::IdPattern, key: core::option::Option<work::id_pattern::IdKey>, tracker_keys: tracker::TrackerKeys) -> Self
