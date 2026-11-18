@@ -53,7 +53,7 @@
     "license-checker-rseidelsohn": "5.0.1",
     "pngjs": "^7.0.0",
     "typescript": "^5",
-    "vite": "^6",
+    "vite": "^8",
     "vitest": "^5"
   }
 }
