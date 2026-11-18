@@ -1,14 +1,14 @@
 ---
 type: "plan"
-id: "2026-11-13-0371-shortcut-integration"
+id: "2026-11-13-0391-shortcut-integration"
 title: "Shortcut Integration Implementation Plan"
 date: "2026-11-13T16:10:27+00:00"
 author: "Tom Scott"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0371"
-parent: "work-item:0371"
-relates_to: ["work-item:0181", "work-item:0171", "work-item:0290", "plan-review:2026-11-13-0371-shortcut-integration-review-1"]
+work_item_id: "work-item:0391"
+parent: "work-item:0391"
+relates_to: ["work-item:0181", "work-item:0171", "work-item:0290", "plan-review:2026-11-13-0391-shortcut-integration-review-1"]
 tags: ["integrations", "shortcut", "tracker"]
 revision: "654a72f616fcebe9e253fdc9834d75a6b227a061"
 repository: "accelerator"
@@ -1634,10 +1634,10 @@ items are recorded.
 
 #### Implementation notes
 
-- The follow-up work items are 0372 (file upload), 0373 (parent/child sync,
-  under 0291), 0374 (epics in discovery, blocked by 0290), 0375 (status and
-  priority mapping, related to 0290), 0376 (one tracker registry) and 0377
-  (client-crate duplication). 0378 records the two read-skill evals Phase 5
+- The follow-up work items are 0392 (file upload), 0393 (parent/child sync,
+  under 0291), 0394 (epics in discovery, blocked by 0290), 0395 (status and
+  priority mapping, related to 0290), 0396 (one tracker registry) and 0397
+  (client-crate duplication). 0398 records the two read-skill evals Phase 5
   left out.
 - The sync guide and the cookbook say that `{tracker}` IDs do not support
   Shortcut keys yet, because `supports_tracker_owned_ids` stays false for
@@ -1719,9 +1719,9 @@ We're NOT Doing.
 
 ## References
 
-- Work item: `meta/work/0371-shortcut-integration.md`
+- Work item: `meta/work/0391-shortcut-integration.md`
 - Parent epic: `meta/work/0181-work-management-additional-integrations.md`
-- Review: `meta/reviews/plans/2026-11-13-0371-shortcut-integration-review-1.md`
+- Review: `meta/reviews/plans/2026-11-13-0391-shortcut-integration-review-1.md`
 - Linear and Jira client plan:
   `meta/plans/2026-08-17-0210-provider-client-crates-over-the-tracker-port.md`
 - Binaries plan:

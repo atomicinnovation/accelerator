@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0373"
+id: "0393"
 title: "Shortcut Parent/Child Sync"
 date: "2026-11-14T09:52:01+00:00"
 author: "Tom Scott"
@@ -9,13 +9,13 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0291"
-relates_to: ["work-item:0371"]
+relates_to: ["work-item:0391"]
 tags: ["work-management", "integrations", "shortcut", "sync"]
 last_updated: "2026-11-14T09:52:01+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0373: Shortcut Parent/Child Sync
+# 0393: Shortcut Parent/Child Sync
 
 ## Summary
 
@@ -24,7 +24,7 @@ Sync a story's epic, and a sub-task's parent story, with the local
 
 ## Context
 
-Work item 0371 syncs a story's or an epic's title and body only. A Shortcut
+Work item 0391 syncs a story's or an epic's title and body only. A Shortcut
 story names its epic in `epic_id`, and a sub-task names its parent story.
 0291 defines parent/child sync for the tracker port; this item is its
 Shortcut part.

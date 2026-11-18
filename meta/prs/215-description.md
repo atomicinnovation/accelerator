@@ -1,14 +1,14 @@
 ---
 type: "pr-description"
 id: "215"
-title: "[0371] Add a Shortcut issue-tracker connector"
+title: "[0391] Add a Shortcut issue-tracker connector"
 date: "2026-11-14T12:25:13+00:00"
 author: "Tom Scott"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0371"
-parent: "work-item:0371"
-relates_to: ["work-item:0372", "work-item:0373", "work-item:0374", "work-item:0375", "work-item:0376", "work-item:0377", "work-item:0378"]
+work_item_id: "0391"
+parent: "work-item:0391"
+relates_to: ["work-item:0392", "work-item:0393", "work-item:0394", "work-item:0395", "work-item:0396", "work-item:0397", "work-item:0398"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/215"
 pr_number: 215
 tags: ["shortcut", "integrations", "sync"]
@@ -19,7 +19,7 @@ last_updated_by: "Tom Scott"
 schema_version: 1
 ---
 
-# [0371] Add a Shortcut issue-tracker connector
+# [0391] Add a Shortcut issue-tracker connector
 
 ## Summary
 
@@ -50,13 +50,13 @@ the Jira and Linear connectors.
   `shortcut.md` page covers setup. The sync guide, the cookbook,
   `which-skill`, `configuration.md`, the README and the CHANGELOG mention
   Shortcut.
-- **Follow-up work items 0372–0378.** They record the work this PR leaves
+- **Follow-up work items 0392–0398.** They record the work this PR leaves
   out.
 
 ## Context
 
-- Work item: `meta/work/0371-shortcut-integration.md`
-- Plan: `meta/plans/2026-11-13-0371-shortcut-integration.md`. Each phase has
+- Work item: `meta/work/0391-shortcut-integration.md`
+- Plan: `meta/plans/2026-11-13-0391-shortcut-integration.md`. Each phase has
   implementation notes that record where the code departs from the plan.
 
 ## Testing
@@ -89,14 +89,14 @@ the Jira and Linear connectors.
 
 - **The client and CLI crates repeat much of the Jira and Linear crates.** I
   kept the duplication so this PR changes no existing tracker. Work items
-  0376 and 0377 propose one exhaustive tracker registry and a review of the
+  0396 and 0397 propose one exhaustive tracker registry and a review of the
   shared code.
 - **`attach` takes a URL and no title.** v4 stores an external link as a
-  bare URL, so no field can carry a title. File upload is work item 0372.
+  bare URL, so no field can carry a title. File upload is work item 0392.
 - **The read-skill evals are missing.** The evals guard needs a real
-  `benchmark.json` from live runs. Work item 0378 tracks them.
+  `benchmark.json` from live runs. Work item 0398 tracks them.
 - **Sync does not yet map parent links, epics in discovery, or status and
-  priority.** Work items 0373, 0374 and 0375 cover these.
+  priority.** Work items 0393, 0394 and 0395 cover these.
 - **The exit codes are new values.** They do not reuse the Jira or Linear
   numbers. `exit_codes_parity` pins them against
   `captured-exit-codes.txt`.

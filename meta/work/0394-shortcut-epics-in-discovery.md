@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0374"
+id: "0394"
 title: "Shortcut Epics in Discovery"
 date: "2026-11-14T09:52:01+00:00"
 author: "Tom Scott"
@@ -10,13 +10,13 @@ kind: "story"
 priority: "medium"
 parent: "work-item:0181"
 blocked_by: ["work-item:0290"]
-relates_to: ["work-item:0371"]
+relates_to: ["work-item:0391"]
 tags: ["work-management", "integrations", "shortcut", "sync"]
 last_updated: "2026-11-14T09:52:01+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0374: Shortcut Epics in Discovery
+# 0394: Shortcut Epics in Discovery
 
 ## Summary
 
@@ -25,7 +25,7 @@ untracked epics too, so a pull can create local epic work items.
 
 ## Context
 
-Work item 0371 searches stories by team through `/stories/search`. Epics are
+Work item 0391 searches stories by team through `/stories/search`. Epics are
 not owned by one team in the same way, so discovering them needs its own
 scope rule. 0290's field mapping decides how an epic's fields map to a local
 item, so this item waits for it.

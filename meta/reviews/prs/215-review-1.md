@@ -1,7 +1,7 @@
 ---
 type: "pr-review"
 id: "215-review-1"
-title: "[0371] Add a Shortcut issue-tracker connector"
+title: "[0391] Add a Shortcut issue-tracker connector"
 date: "2026-11-14T22:55:22+00:00"
 author: "Tom Scott"
 producer: "review-pr"
@@ -18,7 +18,7 @@ last_updated_by: "Tom Scott"
 schema_version: 1
 ---
 
-## Code Review: #215 - [0371] Add a Shortcut issue-tracker connector
+## Code Review: #215 - [0391] Add a Shortcut issue-tracker connector
 
 **Verdict:** COMMENT
 
@@ -67,10 +67,10 @@ is COMMENT, but the first three themes below should be fixed before merge.
   skills copy the Linear grant on purpose. I recommend narrowing the Shortcut
   grants now and recording a work item for Jira and Linear.
 - **Shipping now vs removing duplication**: architecture and code-quality want
-  the frontmatter linker and the team parser shared. Work item 0377 already
+  the frontmatter linker and the team parser shared. Work item 0397 already
   covers cross-tracker duplication. The linker sits inside one tracker and
   corrupts data when it fails, so I recommend fixing it in this PR. The team
-  parser can wait for 0377.
+  parser can wait for 0397.
 
 ### Strengths
 
@@ -135,7 +135,7 @@ is COMMENT, but the first three themes below should be fixed before merge.
 - 🔵 **Code Quality**: `client.rs` is 1,090 lines, and `ShortcutClient` holds
   the search and keyed-fetch logic as well as the raw transport.
 - 🔵 **Architecture**: the string-matched integration dispatch gains
-  `"shortcut"` in eight or more places. Work item 0376 covers this.
+  `"shortcut"` in eight or more places. Work item 0396 covers this.
 
 ### Additional Findings
 
@@ -254,7 +254,7 @@ This paragraph says that when stdout carries no JSON, nothing was created and a 
 
 **Impact**: a `create` that runs during `/sync-work-items` can lose an update or tear the file. Template-style work items are refused or get the wrong kind.
 
-**Suggestion**: move the YAML-aware read and link out of `work-cli` into a crate both composition roots can use, and call it here. If pup blocks that today, record it beside 0377 instead of keeping a second copy.
+**Suggestion**: move the YAML-aware read and link out of `work-cli` into a crate both composition roots can use, and call it here. If pup blocks that today, record it beside 0397 instead of keeping a second copy.
 
 ---
 
@@ -355,7 +355,7 @@ comments posted to GitHub.
 
 ### Architecture
 
-**Summary**: The connector follows the provider-adapter shape: `shortcut-client` implements `RemoteTracker`, `shortcut-cli` is the composition root, and one registry arm wires it into sync, with pup and provider-isolation guards. Two structural problems stand out: `create` links work items through its own unlocked, line-based writer, and the client restarts the deadline for each sub-call. The duplication and string dispatch are acknowledged by 0376 and 0377.
+**Summary**: The connector follows the provider-adapter shape: `shortcut-client` implements `RemoteTracker`, `shortcut-cli` is the composition root, and one registry arm wires it into sync, with pup and provider-isolation guards. Two structural problems stand out: `create` links work items through its own unlocked, line-based writer, and the client restarts the deadline for each sub-call. The duplication and string dispatch are acknowledged by 0396 and 0397.
 
 **Strengths**: the provider boundary is enforced by new pup rules and the provider-isolation test; Shortcut joins sync only through the port and one registry arm; each write chooses its idempotency explicitly; catalogue writes use the shared atomic write and lock; remote hashing stays in `remote-projection`; the contract suite gains a `create_kind` hook; the tradeoffs are recorded as work items.
 
@@ -368,7 +368,7 @@ comments posted to GitHub.
 - suggestion, high — `cli/shortcut-client/src/workspace.rs:7` — `workspace` and `discovery` depend on each other.
 
 **General Findings**:
-- suggestion — the string-matched integration dispatch gains `"shortcut"` in eight or more places; do 0376 before a fourth tracker.
+- suggestion — the string-matched integration dispatch gains `"shortcut"` in eight or more places; do 0396 before a fourth tracker.
 
 ### Correctness
 

@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0371"
+id: "0391"
 title: "Shortcut Integration"
 date: "2026-11-13T22:45:09+00:00"
 author: "Tom Scott"
@@ -15,7 +15,7 @@ last_updated: "2026-11-13T22:45:09+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0371: Shortcut Integration
+# 0391: Shortcut Integration
 
 **Kind**: Story
 **Status**: Draft
@@ -136,8 +136,8 @@ phases merge in the order 1, 2, 3, 5, 4, 6, 7.
 
 ## References
 
-- Plan: `meta/plans/2026-11-13-0371-shortcut-integration.md`
-- Review: `meta/reviews/plans/2026-11-13-0371-shortcut-integration-review-1.md`
+- Plan: `meta/plans/2026-11-13-0391-shortcut-integration.md`
+- Review: `meta/reviews/plans/2026-11-13-0391-shortcut-integration-review-1.md`
 - Parent epic: `meta/work/0181-work-management-additional-integrations.md`
 - Related: 0171, 0204, 0194, 0210, 0211, 0290, 0291
 - Shortcut v4 reference: https://developer.shortcut.com/api/rest/v4

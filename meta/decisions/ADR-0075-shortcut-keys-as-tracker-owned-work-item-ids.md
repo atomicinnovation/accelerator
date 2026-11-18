@@ -7,7 +7,7 @@ author: "Tom Scott"
 producer: "create-adr"
 status: "accepted"
 decision_makers: ["Tom Scott"]
-parent: "work-item:0371"
+parent: "work-item:0391"
 relates_to: ["adr:ADR-0070"]
 tags: ["work-management", "integrations", "identity", "sync", "tracker", "shortcut"]
 last_updated: "2026-11-17T14:55:18+00:00"
@@ -25,7 +25,7 @@ schema_version: 1
 
 ADR-0070 lets the tracker own a work item's `id` when `work.id_pattern` is
 `"{tracker}"`, and limits that to `work.integration` of `jira` or `linear`.
-Work item 0371 added a Shortcut connector and left `{tracker}` for Shortcut
+Work item 0391 added a Shortcut connector and left `{tracker}` for Shortcut
 out of scope, because widening ADR-0070 needed its own decision.
 
 A repository that already used `{tracker}` with Linear found the gap when it
@@ -94,5 +94,5 @@ project.
 ## References
 
 - `meta/decisions/ADR-0070-tracker-owned-work-item-identity.md`
-- `meta/work/0371-shortcut-integration.md`
-- `meta/plans/2026-11-13-0371-shortcut-integration.md`
+- `meta/work/0391-shortcut-integration.md`
+- `meta/plans/2026-11-13-0391-shortcut-integration.md`

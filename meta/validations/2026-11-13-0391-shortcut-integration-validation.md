@@ -1,14 +1,14 @@
 ---
 type: "plan-validation"
-id: "2026-11-13-0371-shortcut-integration-validation"
+id: "2026-11-13-0391-shortcut-integration-validation"
 title: "Validation Report: Shortcut Integration Implementation Plan"
 date: "2026-11-14T12:40:00+00:00"
 author: "Tom Scott"
 producer: "validate-plan"
 status: "complete"
 result: "partial"
-parent: "plan:2026-11-13-0371-shortcut-integration"
-target: "plan:2026-11-13-0371-shortcut-integration"
+parent: "plan:2026-11-13-0391-shortcut-integration"
+target: "plan:2026-11-13-0391-shortcut-integration"
 tags: ["shortcut", "integrations", "tracker"]
 last_updated: "2026-11-14T12:40:00+00:00"
 last_updated_by: "Tom Scott"
@@ -19,7 +19,7 @@ schema_version: 1
 
 The code implements all seven phases, and every automated check passes. I
 mark the result `partial` for two reasons. Phase 5 leaves out the two
-read-skill eval cases the plan asked for, and work item 0378 now holds them.
+read-skill eval cases the plan asked for, and work item 0398 now holds them.
 Sixteen manual checks for Phases 4–7 are still open. The plan stays at
 `draft` until those checks pass.
 
@@ -82,7 +82,7 @@ That test predates this branch, and it passes.
 
 - Phase 5 adds no eval cases. The evals guard needs a real `benchmark.json`
   from live runs, and a fabricated one would defeat the guard. Work item
-  0378 records them.
+  0398 records them.
 - `attach` has no `--title`. v4 stores an external link as a bare URL, so no
   field can carry a title.
 - The 403 engine test pushes a linked story instead of creating one. Sync
@@ -98,12 +98,12 @@ That test predates this branch, and it passes.
 
 - `shortcut-client` and `shortcut-cli` repeat much of the Jira and Linear
   crates. A fix to one tracker's transport or flow code will not reach the
-  others. Work items 0376 and 0377 cover this.
+  others. Work items 0396 and 0397 cover this.
 - Sync maps title, body and kind only. A user who expects status, priority
-  or parent links to sync will see them stay local. Work items 0373 and
-  0375 cover this.
+  or parent links to sync will see them stay local. Work items 0393 and
+  0395 cover this.
 - Discovery finds stories only. An epic created in Shortcut does not appear
-  locally until work item 0374 is done.
+  locally until work item 0394 is done.
 - The trigger phrases of `show-shortcut-story` and `search-shortcut-stories`
   have no eval yet. A wording change could stop a natural prompt from
   triggering them, and no test would fail.
@@ -148,5 +148,5 @@ That test predates this branch, and it passes.
 - Run the sixteen manual checks before you merge PR #215.
 - Tick each manual box in the plan as it passes. Set the plan `status` to
   `done` when all sixteen pass.
-- Start work item 0378 next. The read-skill triggers are the part of this
+- Start work item 0398 next. The read-skill triggers are the part of this
   change that no automated test guards.

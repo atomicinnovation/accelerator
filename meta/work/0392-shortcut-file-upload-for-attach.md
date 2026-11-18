@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0372"
+id: "0392"
 title: "Shortcut File Upload for Attach"
 date: "2026-11-14T09:52:01+00:00"
 author: "Tom Scott"
@@ -9,13 +9,13 @@ status: "draft"
 kind: "story"
 priority: "low"
 parent: "work-item:0181"
-relates_to: ["work-item:0371"]
+relates_to: ["work-item:0391"]
 tags: ["work-management", "integrations", "shortcut"]
 last_updated: "2026-11-14T09:52:01+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0372: Shortcut File Upload for Attach
+# 0392: Shortcut File Upload for Attach
 
 ## Summary
 
@@ -24,8 +24,8 @@ upload, so `attach --file` works for Shortcut as it does for Jira and Linear.
 
 ## Context
 
-Work item 0371 shipped `attach` with links only: v4's `external_links_add`
-takes bare URLs, and file upload uses a separate multipart endpoint that 0371
+Work item 0391 shipped `attach` with links only: v4's `external_links_add`
+takes bare URLs, and file upload uses a separate multipart endpoint that 0391
 did not build. `attach --file` exits 2 with "not supported yet".
 
 ## Acceptance Criteria
