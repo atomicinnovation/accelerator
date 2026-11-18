@@ -14,7 +14,7 @@ pr_number: 241
 tags: ["build-system", "testing", "performance", "ci"]
 revision: "9bd4c48ec95c5fb7b29a08811a23d4be07fe7a87"
 repository: "accelerator"
-last_updated: "2026-11-18T10:05:05+00:00"
+last_updated: "2026-11-18T10:50:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -48,8 +48,12 @@ is done. Only `meta/` changes.
   - Phase 6's anti-masking box now records a CI failure on #232's own
     branch that the earlier record missed.
   - Phase 7's three boxes are ticked, with the results.
-- **Work item 0364**: status `done`, and Landing Status shows both
-  suites landed.
+- **Work item 0364**:
+  - Status `done`, and Landing Status shows both suites landed.
+  - All 15 acceptance criteria are ticked, each with a one-line pointer
+    to its evidence.
+- **`meta/validations/2026-11-15-0364-parallelise-the-serial-test-suites-validation.md`**
+  (new): the plan's validation report, with result `pass`.
 
 ## Context
 
@@ -89,7 +93,13 @@ is done. Only `meta/` changes.
 - [x] Every figure in the new records was checked against the collected
       run data. That includes the like-sized-runner medians and the
       after-window medians.
-- [x] No code changes, so no build or test tasks apply.
+- [x] No code changes. The validation still ran the full `mise run` on
+      `main` at `52f5d20f` with these records on top, and it exits 0:
+  - The first run failed only `test:unit:cli`'s coverage floor, on stale
+    profile data.
+  - `cargo llvm-cov clean --workspace`, as the task advises, fixed it.
+- [x] The JSON-reporter overlap check, rerun on `main`, prints `true` then
+      `true`.
 
 ## Notes for Reviewers
 
@@ -101,9 +111,13 @@ is done. Only `meta/` changes.
   swings the timings more than the arm does. The records compare
   like-sized runners too, and the result holds: about −79% for the dev
   suite and −13.6% for Playwright.
-- **Left for validation.** The work item's individual acceptance
-  criteria are not ticked here. `validate-plan` is the place to check
-  them against the shipped work.
+- **The acceptance criteria were ticked by validation.** `validate-plan`
+  checked each one against the shipped code, the timing records and the
+  PR records before ticking it. The report lists the evidence.
+- **The parent repository's `mise.toml` has jj conflict markers** from a
+  rebase outside this work. The final `mise run` ignored it with
+  `MISE_IGNORED_CONFIG_PATHS`, because this workspace's own `mise.toml`
+  is the one that applies.
 - **The after windows are incomplete.** They hold 7 `main` runs for the
   dev suite and 1 for Playwright. They are information only, because the
   paired comparison decided the rule.
