@@ -1922,22 +1922,29 @@ def test_a_relocated_root_keeps_only_the_current_versions_footprint(
     ]
 
     with _release_server(installation.server) as (base_url, requests):
+        env = {
+            "ACCELERATOR_CACHE_DIR": str(cache),
+            "ACCELERATOR_RELEASE_BASE_URL": base_url,
+            "ACCELERATOR_TEST_RELEASE_PUBLIC_KEY": str(keys / "release.pub"),
+        }
         result = _run_bootstrap(
             installation.root,
             installation.server,
             downloader,
             args=("visualiser",),
-            extra_env={
-                "ACCELERATOR_CACHE_DIR": str(cache),
-                "ACCELERATOR_RELEASE_BASE_URL": base_url,
-                "ACCELERATOR_TEST_RELEASE_PUBLIC_KEY": str(
-                    keys / "release.pub"
-                ),
-            },
+            extra_env=env,
+        )
+        pruned = _run_bootstrap(
+            installation.root,
+            installation.server,
+            downloader,
+            args=("cache", "prune"),
+            extra_env=env,
         )
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert _VISUALISER_MARKER in result.stdout, result.stdout + result.stderr
+    assert pruned.returncode == 0, pruned.stdout + pruned.stderr
     asset = f"/accelerator-visualiser-{host_platform}"
     assert requests.count(asset) == 1, requests
     crate = _crate_version()
