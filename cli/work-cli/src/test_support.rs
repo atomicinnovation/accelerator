@@ -8,10 +8,13 @@ use std::rc::Rc;
 
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
+use corpus::frontmatter_validation::pipeline::validate_text;
+use corpus::frontmatter_validation::Violation;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
 use corpus::AtomicWrite;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::YamlFrontmatter;
 
 use tracker::RemoteTracker;
 use tracker_test_support::RecordingTracker;
@@ -592,6 +595,34 @@ pub fn documented_exit_code(line: &str) -> u8 {
     } else {
         1
     }
+}
+
+pub const OMIT_WHEN_EMPTY: [&str; 7] = [
+    "parent:",
+    "blocks:",
+    "blocked_by:",
+    "derived_from:",
+    "relates_to:",
+    "source:",
+    "external_id:",
+];
+
+pub fn frontmatter_of(content: &str) -> String {
+    let (frontmatter, _) =
+        work_adapters::sync::digest::split_frontmatter_and_body(content)
+            .expect("a fenced frontmatter");
+    frontmatter
+}
+
+pub fn omit_when_empty_lines(frontmatter: &str) -> Vec<&str> {
+    frontmatter
+        .lines()
+        .filter(|line| OMIT_WHEN_EMPTY.iter().any(|key| line.starts_with(key)))
+        .collect()
+}
+
+pub fn violations(content: &str) -> Vec<Violation> {
+    validate_text(content, &YamlFrontmatter)
 }
 
 #[cfg(test)]
