@@ -22,7 +22,7 @@ export function buildWikiLinkPattern(idToken?: string | null): RegExp {
 }
 
 function linkGrammar(idToken?: string | null): string {
-  return `(?:(ADR)-(\\d+)|(WORK-ITEM)-(${idToken ?? "\\d+"}))`;
+  return `(?:ADR-(?<adrId>\\d+)|WORK-ITEM-(?<workItemId>${idToken ?? "\\d+"}))`;
 }
 
 export interface WikiLinkMatch {
@@ -33,9 +33,10 @@ export interface WikiLinkMatch {
 /** The prefix and ID of a match of `buildWikiLinkPattern` or
  *  `buildBareIdPattern`. */
 export function wikiLinkOf(match: RegExpMatchArray): WikiLinkMatch {
-  return match[1] === undefined
-    ? { prefix: "WORK-ITEM", id: match[4] }
-    : { prefix: "ADR", id: match[2] };
+  const { adrId, workItemId } = match.groups ?? {};
+  return adrId === undefined
+    ? { prefix: "WORK-ITEM", id: workItemId }
+    : { prefix: "ADR", id: adrId };
 }
 
 export type BareIdSegment =
