@@ -77,7 +77,8 @@ Decomposition:
 - 0363: Remove repeated work from the Rust test lanes (A2, A3; A4 shipped
   separately)
 - 0364: Parallelise the serial test suites (A5, A6)
-- 0365: Build the VCS fixture matrix once per test run (B1)
+- 0365: Build the VCS test fixtures once per test run (B1, plus the
+  status-log state set)
 - 0366: Cut Rust compile cost (B2, B5)
 - 0367: Stop rebuilding unchanged inputs (B3, B4, B6)
 - 0368: Build-performance measurement and host guidance (C1, C2)
