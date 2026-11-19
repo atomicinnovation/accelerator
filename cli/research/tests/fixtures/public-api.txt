@@ -138,6 +138,7 @@ pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::t
 pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
 pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory, search_budgets: core::option::Option<research::conduct::search_budget::SearchBudgets>) -> Self
 pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
+pub fn research::conduct::ledger::RunLedger::offered_context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
 pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
@@ -164,12 +165,26 @@ impl core::fmt::Debug for research::conduct::ledger::Superseded
 pub fn research::conduct::ledger::Superseded::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::ledger::Superseded
 pub mod research::conduct::memory
+pub struct research::conduct::memory::Offer
+impl research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::new(spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>, nodes: research::conduct::offered_nodes::OfferedNodes) -> Self
+impl core::clone::Clone for research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::clone(&self) -> research::conduct::memory::Offer
+impl core::cmp::Eq for research::conduct::memory::Offer
+impl core::cmp::PartialEq for research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::eq(&self, other: &research::conduct::memory::Offer) -> bool
+impl core::fmt::Debug for research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::memory::Offer
 pub struct research::conduct::memory::PendingBatch
 impl research::conduct::memory::PendingBatch
 pub fn research::conduct::memory::PendingBatch::acknowledge(&mut self, spawned: u32) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
 pub const fn research::conduct::memory::PendingBatch::new(number: u32, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> Self
+pub const fn research::conduct::memory::PendingBatch::nodes(&self) -> &research::conduct::offered_nodes::OfferedNodes
 pub const fn research::conduct::memory::PendingBatch::number(&self) -> u32
-pub fn research::conduct::memory::PendingBatch::replace(&mut self, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::replace(&mut self, offer: research::conduct::memory::Offer) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::restored(number: u32, offer: research::conduct::memory::Offer) -> Self
 pub fn research::conduct::memory::PendingBatch::spawns(&self) -> &[research::conduct::spawn::SpawnRef]
 impl core::clone::Clone for research::conduct::memory::PendingBatch
 pub fn research::conduct::memory::PendingBatch::clone(&self) -> research::conduct::memory::PendingBatch
@@ -234,6 +249,36 @@ pub fn research::conduct::observed::Observed::default() -> research::conduct::ob
 impl core::fmt::Debug for research::conduct::observed::Observed
 pub fn research::conduct::observed::Observed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::observed::Observed
+pub mod research::conduct::offered_nodes
+pub struct research::conduct::offered_nodes::NodeContext
+pub research::conduct::offered_nodes::NodeContext::known_questions: alloc::vec::Vec<alloc::string::String>
+pub research::conduct::offered_nodes::NodeContext::profile: alloc::string::String
+pub research::conduct::offered_nodes::NodeContext::question: alloc::string::String
+impl core::clone::Clone for research::conduct::offered_nodes::NodeContext
+pub fn research::conduct::offered_nodes::NodeContext::clone(&self) -> research::conduct::offered_nodes::NodeContext
+impl core::cmp::Eq for research::conduct::offered_nodes::NodeContext
+impl core::cmp::PartialEq for research::conduct::offered_nodes::NodeContext
+pub fn research::conduct::offered_nodes::NodeContext::eq(&self, other: &research::conduct::offered_nodes::NodeContext) -> bool
+impl core::fmt::Debug for research::conduct::offered_nodes::NodeContext
+pub fn research::conduct::offered_nodes::NodeContext::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::offered_nodes::NodeContext
+pub struct research::conduct::offered_nodes::OfferedNodes(_)
+impl research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
+pub const fn research::conduct::offered_nodes::OfferedNodes::empty() -> Self
+pub fn research::conduct::offered_nodes::OfferedNodes::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&research::topic::layout::note_ref::NoteRef, &research::conduct::offered_nodes::NodeContext)>
+pub fn research::conduct::offered_nodes::OfferedNodes::of(contexts: impl core::iter::traits::collect::IntoIterator<Item = (research::topic::layout::note_ref::NoteRef, research::conduct::offered_nodes::NodeContext)>) -> Self
+pub fn research::conduct::offered_nodes::OfferedNodes::retained_for(self, spawns: &[research::conduct::spawn::SpawnRef]) -> Self
+impl core::clone::Clone for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::clone(&self) -> research::conduct::offered_nodes::OfferedNodes
+impl core::cmp::Eq for research::conduct::offered_nodes::OfferedNodes
+impl core::cmp::PartialEq for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::eq(&self, other: &research::conduct::offered_nodes::OfferedNodes) -> bool
+impl core::default::Default for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::default() -> research::conduct::offered_nodes::OfferedNodes
+impl core::fmt::Debug for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::offered_nodes::OfferedNodes
 pub mod research::conduct::replaced_run
 pub struct research::conduct::replaced_run::Leftover
 impl research::conduct::replaced_run::Leftover
@@ -354,6 +399,8 @@ pub research::conduct::window::Window::remaining: usize
 pub research::conduct::window::Window::unexpected: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::unfinished: alloc::vec::Vec<research::conduct::window::UnfinishedSpawn>
 pub research::conduct::window::Window::withheld_spawns: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
+impl research::conduct::window::Window
+pub fn research::conduct::window::Window::offer(&self) -> research::conduct::memory::Offer
 impl core::clone::Clone for research::conduct::window::Window
 pub fn research::conduct::window::Window::clone(&self) -> research::conduct::window::Window
 impl core::cmp::Eq for research::conduct::window::Window
