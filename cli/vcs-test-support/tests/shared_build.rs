@@ -166,3 +166,42 @@ fn tool_versions_are_the_first_line_of_each_tool_s_version(
     assert_eq!(versions.jj, first_line_of_version("jj")?);
     Ok(())
 }
+
+#[test]
+#[allow(clippy::panic)]
+fn a_build_panicking_with_a_formatted_message_names_it() -> Result<(), TestError>
+{
+    let directory = tempfile::tempdir()?;
+    let request = matrix_at(&directory.path().join("matrix"));
+
+    let failures = request.build_with(&FixtureLog::disabled(), |_, tree| {
+        std::panic::panic_any(format!("broke at {}", tree.display()))
+    });
+
+    assert_eq!(failures.len(), 1);
+    assert!(
+        failures[0].cause.contains("broke at "),
+        "{}",
+        failures[0].cause
+    );
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::panic)]
+fn a_build_panicking_without_a_message_still_fails_its_family(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let request = matrix_at(&directory.path().join("matrix"));
+
+    let failures = request
+        .build_with(&FixtureLog::disabled(), |_, _| std::panic::panic_any(42));
+
+    assert_eq!(failures.len(), 1);
+    assert!(
+        failures[0].cause.contains("an unprintable panic"),
+        "{}",
+        failures[0].cause
+    );
+    Ok(())
+}

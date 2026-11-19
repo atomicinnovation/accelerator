@@ -69,3 +69,22 @@ fn a_forced_failure_naming_no_family_is_refused() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+#[test]
+fn without_git_every_requested_family_fails_unbuilt() -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let nothing_on_path = tempfile::tempdir()?;
+    let tree = directory.path().join("matrix");
+
+    let output = shared_fixtures()
+        .env("PATH", nothing_on_path.path())
+        .arg("--matrix")
+        .arg(&tree)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = stderr(&output);
+    assert!(stderr.starts_with("matrix: git: "), "{stderr}");
+    assert!(!tree.exists());
+    Ok(())
+}
