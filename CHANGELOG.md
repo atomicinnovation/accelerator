@@ -1229,6 +1229,17 @@
   Move a team-config `paths.work` or `paths.integrations` outside the
   repository into an untracked `.accelerator/config.local.md`, or sync
   refuses with `74`.
+- **Run `/accelerator:migrate` (migration 0012) to add `tags: []` to work
+  items written without it.** It inserts one line, before `last_updated`
+  or at the end of the frontmatter, changes nothing else, and realigns
+  the sync baselines of the items it repairs. It leaves alone, and names
+  with the fix each needs, any file that is not UTF-8, whose frontmatter
+  doesn't parse, whose `tags` key is spelled unusually (such as
+  `"tags":`), or whose repair would change another value. Upgrade
+  everyone who writes work items before running it. To repair items
+  written without `tags` afterwards, run
+  `accelerator migrate --unapply 0012-backfill-work-item-tags`, then
+  `/accelerator:migrate`.
 - **A `work.id_pattern` the grammar now refuses must be edited.** Literal
   text holding a character other than an ASCII letter, digit, `.`, `_` or
   `-` (such as a space, `'`, `$`, or a `{` or `}` written as `{{` or `}}`),
