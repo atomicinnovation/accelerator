@@ -12,7 +12,6 @@
 //! already repaired, because once an item holds `tags` a re-run could never
 //! see its original to realign its sync baseline.
 
-use std::iter;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -56,14 +55,10 @@ impl Migration for Migration0012 {
             return Ok(ApplyOutcome::Applied);
         }
         let mut backfill = Backfill::default();
-        let realigned = backfill
-            .over(ctx, &work_dir)
-            .map_err(Failure::Backfilling)
-            .and_then(|()| {
-                ctx.realign_sync_baseline(&backfill.pre_migration())
-                    .map_err(Failure::Realigning)
-            })
-            .map_err(|failure| backfill.restore_after(ctx, &failure))?;
+        let realigned = match backfill.repair_and_realign(ctx, &work_dir) {
+            Ok(realigned) => realigned,
+            Err(failure) => return Err(backfill.restore_after(ctx, &failure)),
+        };
         eprintln!(
             "{}",
             summary(&configured, backfill.repairs.len(), realigned)
@@ -225,7 +220,7 @@ enum Failure {
 }
 
 impl Failure {
-    fn stage(&self) -> String {
+    fn headline(&self) -> String {
         match self {
             Self::Backfilling(cause) => {
                 format!("0012: adding tags failed: {cause}.")
@@ -237,7 +232,8 @@ impl Failure {
     }
 }
 
-const RECOVERY: &str = "If the migrate pre-flight then reports changes from \
+const RECOVERY_STEPS: &str =
+    "If the migrate pre-flight then reports changes from \
                         this run, including any sync baselines, commit them \
                         all rather than discarding them, and don't push yet; \
                         re-run /accelerator:migrate before syncing.";
@@ -248,7 +244,7 @@ fn restoration_message(
     restored: usize,
     by_hand: &[(&Path, MigrationError)],
 ) -> String {
-    let mut sentences = vec![failure.stage()];
+    let mut sentences = vec![failure.headline()];
     if restored > 0 {
         sentences.push(format!(
             "Left the {restored} work item(s) it had repaired as it found \
@@ -268,7 +264,7 @@ fn restoration_message(
              {named}."
         ));
     }
-    sentences.push(RECOVERY.to_owned());
+    sentences.push(RECOVERY_STEPS.to_owned());
     sentences.join("\n")
 }
 
@@ -279,6 +275,16 @@ struct Backfill {
 }
 
 impl Backfill {
+    fn repair_and_realign(
+        &mut self,
+        ctx: &dyn MigrationContext,
+        work_dir: &Path,
+    ) -> Result<usize, Failure> {
+        self.over(ctx, work_dir).map_err(Failure::Backfilling)?;
+        ctx.realign_sync_baseline(&self.pre_migration())
+            .map_err(Failure::Realigning)
+    }
+
     fn over(
         &mut self,
         ctx: &dyn MigrationContext,
@@ -300,15 +306,28 @@ impl Backfill {
                 self.untouched.push((file, reason));
                 continue;
             }
-            let written = ctx.write(&file, &backfilled);
-            self.repairs.push(Repair {
-                file,
-                original: content,
-                repaired: backfilled,
-            });
-            written?;
+            self.attempt_and_record(
+                ctx,
+                Repair {
+                    file,
+                    original: content,
+                    repaired: backfilled,
+                },
+            )?;
         }
         Ok(())
+    }
+
+    /// Records the repair whatever the write reports, because a write can
+    /// land and still report failure, and a rollback must find it.
+    fn attempt_and_record(
+        &mut self,
+        ctx: &dyn MigrationContext,
+        repair: Repair,
+    ) -> Result<(), MigrationError> {
+        let written = ctx.write(&repair.file, &repair.repaired);
+        self.repairs.push(repair);
+        written
     }
 
     fn pre_migration(&self) -> Vec<(PathBuf, String)> {
@@ -458,18 +477,22 @@ impl<'a> Frontmatter<'a> {
     }
 
     fn tags_insertion(&self) -> Insertion<'a> {
-        let preceding = iter::once(self.opening).chain(self.fields);
-        let following = self.fields.iter().chain(iter::once(self.closing));
-        let (before, anchor) = preceding
-            .zip(following)
-            .find(|(_, line)| line.holds_key("last_updated"))
-            .unwrap_or_else(|| {
-                (self.fields.last().unwrap_or(self.opening), self.closing)
-            });
+        let insert_before = self
+            .fields
+            .iter()
+            .position(|line| line.holds_key("last_updated"))
+            .unwrap_or(self.fields.len());
         Insertion {
-            at: anchor.start,
-            ending: before.ending(),
+            at: self.fields.get(insert_before).unwrap_or(self.closing).start,
+            ending: self.line_above(insert_before).ending(),
         }
+    }
+
+    fn line_above(&self, field: usize) -> &'a Line<'a> {
+        field
+            .checked_sub(1)
+            .and_then(|above| self.fields.get(above))
+            .unwrap_or(self.opening)
     }
 }
 
@@ -1448,7 +1471,10 @@ mod tests {
                 "---\ntype: \"work-item\"\nid: \"0001\"\n---\n\nBody\n"
             )
             .as_deref(),
-            Some("---\ntype: \"work-item\"\nid: \"0001\"\ntags: []\n---\n\nBody\n")
+            Some(
+                "---\ntype: \"work-item\"\nid: \"0001\"\ntags: []\n---\n\n\
+                 Body\n"
+            )
         );
     }
 
