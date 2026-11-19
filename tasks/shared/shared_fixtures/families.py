@@ -21,6 +21,19 @@ class Family(StrEnum):
         return {Family.MATRIX: "the matrix"}[self]
 
 
+class PrivateSets(StrEnum):
+    PRIVATE_SETS = "private-sets"
+
+
+PRIVATE_SETS = PrivateSets.PRIVATE_SETS
+
+type Fixtures = Family | PrivateSets
+
+
+def fixtures_named(name: str) -> Fixtures:
+    return PRIVATE_SETS if name == PRIVATE_SETS else Family(name)
+
+
 SHARED_FAMILIES: tuple[Family, ...] = tuple(Family)
 WORKBENCHES_VARIABLE = "ACCELERATOR_SHARED_WORKBENCHES"
 FIXTURE_LOG_VARIABLE = "ACCELERATOR_FIXTURE_LOG"

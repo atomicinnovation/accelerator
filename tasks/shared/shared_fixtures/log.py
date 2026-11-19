@@ -14,7 +14,12 @@ from typing import Any
 
 from tasks.shared.hashing import TreeChanges, TreeDigest
 from tasks.shared.shared_fixtures.consumers import consumers_of
-from tasks.shared.shared_fixtures.families import Family
+from tasks.shared.shared_fixtures.families import (
+    PRIVATE_SETS,
+    Family,
+    Fixtures,
+    fixtures_named,
+)
 from tasks.shared.shared_fixtures.runs import RUN_ID
 
 _CONSUMERS_MODULE = "tasks/shared/shared_fixtures/consumers.py"
@@ -50,9 +55,7 @@ class Adoption:
 
 @dataclasses.dataclass(frozen=True)
 class PrivateBuild:
-    """A fixture a test built for itself; no family means the private sets."""
-
-    family: Family | None
+    fixtures: Fixtures
     test: str
     hermetic_root: Path
 
@@ -122,7 +125,7 @@ class FixtureSummary:
             f"Shared VCS fixtures (log: {self.log}; shared root: {self.root})",
             *(self._family_line(family) for family in Family),
             "  private sets (never shared): "
-            + _count(self._private_builds(None), "private build"),
+            + _count(self._private_builds(PRIVATE_SETS), "private build"),
         ]
 
     def _family_line(self, family: Family) -> str:
@@ -140,9 +143,9 @@ class FixtureSummary:
             f"{_count(self._private_builds(family), 'private build')}"
         )
 
-    def _private_builds(self, family: Family | None) -> int:
+    def _private_builds(self, fixtures: Fixtures) -> int:
         return sum(
-            isinstance(event, PrivateBuild) and event.family is family
+            isinstance(event, PrivateBuild) and event.fixtures is fixtures
             for event in self.events
         )
 
@@ -255,9 +258,8 @@ def _event(line: Mapping[str, Any]) -> Event:
             Family(line["family"]), line["test"], Path(line["hermetic-root"])
         )
     if kind == "private-build":
-        fixtures = line["fixtures"]
         return PrivateBuild(
-            None if fixtures == "private-sets" else Family(fixtures),
+            fixtures_named(line["fixtures"]),
             line["test"],
             Path(line["hermetic-root"]),
         )
@@ -321,9 +323,11 @@ def _private_builds_of_shared_families(
     events: Sequence[Event], run: FinishedRun
 ) -> Iterator[str]:
     for event in events:
-        if not isinstance(event, PrivateBuild) or event.family is None:
+        if not isinstance(event, PrivateBuild) or not isinstance(
+            event.fixtures, Family
+        ):
             continue
-        family = event.family
+        family = event.fixtures
         if family in run.trees:
             yield (
                 f"{event.test} built {family.noun} privately although the "
@@ -376,9 +380,16 @@ def _silent_consumers(
     events: Sequence[Event], run: FinishedRun
 ) -> Iterator[str]:
     used = {
-        (event.binary, event.family)
-        for event in events
-        if isinstance(event, Adoption | PrivateBuild)
+        *(
+            (event.binary, event.family)
+            for event in events
+            if isinstance(event, Adoption)
+        ),
+        *(
+            (event.binary, event.fixtures)
+            for event in events
+            if isinstance(event, PrivateBuild)
+        ),
     }
     for family in run.trees:
         for binary in sorted(consumers_of(family)):

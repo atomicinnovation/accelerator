@@ -8,6 +8,7 @@ from tasks.shared.hashing import TreeChanges, TreeDigest
 from tasks.shared.paths import REPO_ROOT
 from tasks.shared.shared_fixtures.families import (
     FIXTURE_LOG_VARIABLE,
+    PRIVATE_SETS,
     WORKBENCHES_VARIABLE,
     Family,
 )
@@ -144,14 +145,16 @@ class TestTheSharedFormat:
             ),
         )
 
-    def test_a_private_build_of_the_private_sets_names_no_family(
+    def test_a_private_build_of_the_private_sets_names_them(
         self, tmp_path: Path
     ):
         log = _log(tmp_path, [_private_build("private-sets")])
 
         assert log.read().events == (
             PrivateBuild(
-                None, f"{CLASSIFY} a_test", Path("/tmp/vcs-workbench-a_test")
+                PRIVATE_SETS,
+                f"{CLASSIFY} a_test",
+                Path("/tmp/vcs-workbench-a_test"),
             ),
         )
 
