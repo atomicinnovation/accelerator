@@ -24,7 +24,7 @@ fn store_rooted_at(dir: &Path) -> Box<dyn AtomicWrite> {
 fn body_rules(integration: &str) -> Option<&'static dyn BodyDialect> {
     match integration {
         "jira" => Some(&JiraBodyDialect),
-        "linear" => Some(&PlainDialect),
+        "linear" | "shortcut" => Some(&PlainDialect),
         _ => None,
     }
 }
@@ -72,15 +72,15 @@ mod tests {
             body_rules("linear").map(|rules| rules.is_wire_document(ADF)),
             Some(false)
         );
+        assert_eq!(
+            body_rules("shortcut").map(|rules| rules.is_wire_document(ADF)),
+            Some(false)
+        );
     }
 
     #[test]
     fn a_tracker_with_unknown_body_rules_has_none() {
         assert!(body_rules("trello").is_none());
-        assert!(
-            body_rules("shortcut").is_none(),
-            "no repository holds Shortcut baselines older than the migration"
-        );
     }
 
     #[test]

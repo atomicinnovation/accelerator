@@ -123,11 +123,17 @@ fn applied(dir: &Path) -> Result<String, TestError> {
     read(dir, ".accelerator/state/migrations-applied")
 }
 
-fn baseline_local_hash(dir: &Path, id: &str) -> Option<String> {
-    let content = fs::read_to_string(
-        dir.join(".accelerator/state/integrations/linear/last-sync.json"),
-    )
-    .ok()?;
+fn baseline_path(integration: &str) -> String {
+    format!(".accelerator/state/integrations/{integration}/last-sync.json")
+}
+
+fn baseline_local_hash(
+    dir: &Path,
+    integration: &str,
+    id: &str,
+) -> Option<String> {
+    let content =
+        fs::read_to_string(dir.join(baseline_path(integration))).ok()?;
     let (baseline, _) =
         work_adapters::sync::baseline::Baseline::read(Some(&content));
     baseline.get(id).map(|entry| {
@@ -140,12 +146,13 @@ fn baseline_local_hash(dir: &Path, id: &str) -> Option<String> {
 
 fn seed_baseline(
     dir: &Path,
+    integration: &str,
     id: &str,
     local_hash: &str,
 ) -> Result<(), TestError> {
     write(
         dir,
-        ".accelerator/state/integrations/linear/last-sync.json",
+        &baseline_path(integration),
         &format!(
             "{{\"timestamp\":1,\"items\":{{\"{id}\":{{\
              \"remote_updated_at\":\"2026-06-01T00:00:00Z\",\
@@ -347,7 +354,18 @@ fn a_backfilled_work_directory_is_byte_stable_on_re_application(
 }
 
 #[test]
-fn a_synced_item_s_baseline_is_realigned() -> Result<(), TestError> {
+fn a_linear_synced_item_s_baseline_is_realigned() -> Result<(), TestError> {
+    realigns_the_baseline_of_an_item_synced_with("linear")
+}
+
+#[test]
+fn a_shortcut_synced_item_s_baseline_is_realigned() -> Result<(), TestError> {
+    realigns_the_baseline_of_an_item_synced_with("shortcut")
+}
+
+fn realigns_the_baseline_of_an_item_synced_with(
+    integration: &str,
+) -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
     let synced = "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"Synced\"\n\
@@ -357,7 +375,7 @@ fn a_synced_item_s_baseline_is_realigned() -> Result<(), TestError> {
     write(root, "meta/work/0001-synced.md", synced)?;
     already_applied_except_0012(root)?;
     let before = work_adapters::sync::digest::local(synced)?;
-    seed_baseline(root, "0001", &before)?;
+    seed_baseline(root, integration, "0001", &before)?;
 
     let stderr = succeeded(root)?;
 
@@ -366,7 +384,7 @@ fn a_synced_item_s_baseline_is_realigned() -> Result<(), TestError> {
         "meta/work/0001-synced.md",
     )?)?;
     assert_ne!(after, before);
-    assert_eq!(baseline_local_hash(root, "0001"), Some(after));
+    assert_eq!(baseline_local_hash(root, integration, "0001"), Some(after));
     assert!(
         stderr.contains(
             "0012: added tags to 1 work item(s) under meta/work, 1 sync \
