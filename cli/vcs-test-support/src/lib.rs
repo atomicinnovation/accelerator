@@ -16,6 +16,7 @@ pub mod matrix_manifest;
 pub mod path_scan;
 pub mod shared_build;
 pub mod status_log;
+pub mod status_log_manifest;
 pub mod stubs;
 pub mod workbench;
 

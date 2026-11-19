@@ -8,7 +8,6 @@
 
 use std::collections::BTreeMap;
 use std::env;
-use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -17,14 +16,12 @@ use tempfile::TempDir;
 
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::status_log_manifest::StatusLogManifest;
 use crate::Error;
 
 /// Names the root of a status/log state set built by an earlier step, for a
 /// caller inside the shadow window that cannot build one itself.
 pub const STATES_ROOT_VARIABLE: &str = "ACCELERATOR_ZERO_SPAWN_STATUS_LOG";
-
-/// Written beside the states so a later process can adopt them without git/jj.
-const MANIFEST: &str = "status-log-states.tsv";
 
 fn non_utf8(path: &Path) -> Error {
     Error::message(format!("non-utf8 path: {}", path.display()))
@@ -502,59 +499,66 @@ impl States {
     ///
     /// When the manifest is unreadable or malformed, or a builder fails.
     pub fn build_or_adopt(base: &Path) -> Result<Self, Error> {
-        if base.join(MANIFEST).is_file() {
+        if StatusLogManifest::exists_in(base) {
             return Self::adopt(base);
         }
+        Self::build_for_sharing(base)
+    }
+
+    /// Builds the full set beneath `base`, refusing a base inside a checkout
+    /// before its hermetic environment writes anything there.
+    ///
+    /// # Errors
+    ///
+    /// When `base` lies inside a repository, or any builder fails.
+    pub fn build_in(base: &Path) -> Result<Self, Error> {
         assert_no_repository_ancestor(base)?;
+        fs::create_dir_all(base)?;
         let base = base.canonicalize()?;
         let env = Hermetic::rooted_at(&base)?;
+        Self::build_with(&base, &env)
+    }
 
-        let mut states: BTreeMap<String, PathBuf> = build_states(&base, &env)?
-            .into_iter()
-            .map(|(key, path)| (key.to_owned(), path))
-            .collect();
-        let mut extra = BTreeMap::new();
-        build_adversarial_state(&base, &env, &mut extra)?;
-        states.extend(
-            extra.into_iter().map(|(key, path)| (key.to_owned(), path)),
-        );
-
-        let built = Self { base, states };
-        built.write_manifest()?;
+    /// Builds the full set at `base` for every test of a run to adopt, writing
+    /// the manifest adoption reads.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_in`], or when the manifest cannot be written.
+    pub(crate) fn build_for_sharing(base: &Path) -> Result<Self, Error> {
+        let built = Self::build_in(base)?;
+        StatusLogManifest {
+            states: built.states.clone(),
+        }
+        .write(&built.base)?;
         Ok(built)
     }
 
-    fn write_manifest(&self) -> Result<(), Error> {
-        let mut manifest = String::new();
-        for (key, path) in &self.states {
-            writeln!(manifest, "{key}\t{}", path.display())
-                .map_err(|error| Error::message(error.to_string()))?;
-        }
-        fs::write(self.base.join(MANIFEST), manifest)?;
-        Ok(())
+    /// Builds the full set and the adversarial state beneath `base` with
+    /// `env`.
+    ///
+    /// # Errors
+    ///
+    /// When any builder fails.
+    pub(crate) fn build_with(
+        base: &Path,
+        env: &Hermetic,
+    ) -> Result<Self, Error> {
+        let base = base.canonicalize()?;
+        let mut states = build_states(&base, env)?;
+        build_adversarial_state(&base, env, &mut states)?;
+        Ok(Self {
+            base,
+            states: states
+                .into_iter()
+                .map(|(key, path)| (key.to_owned(), path))
+                .collect(),
+        })
     }
 
     fn adopt(base: &Path) -> Result<Self, Error> {
         let base = base.canonicalize()?;
-        let manifest = fs::read_to_string(base.join(MANIFEST))?;
-        let mut states = BTreeMap::new();
-        for line in manifest.lines() {
-            let mut fields = line.split('\t');
-            let (Some(key), Some(path), None) =
-                (fields.next(), fields.next(), fields.next())
-            else {
-                return Err(Error::message(format!(
-                    "malformed status-log manifest line: {line}"
-                )));
-            };
-            states.insert(key.to_owned(), PathBuf::from(path));
-        }
-        if states.is_empty() {
-            return Err(Error::message(format!(
-                "the status-log manifest at {} is empty",
-                base.display()
-            )));
-        }
+        let StatusLogManifest { states } = StatusLogManifest::read(&base)?;
         Ok(Self { base, states })
     }
 }
