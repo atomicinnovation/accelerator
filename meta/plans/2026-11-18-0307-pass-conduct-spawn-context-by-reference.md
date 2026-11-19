@@ -5,7 +5,7 @@ title: "Pass Conduct Spawn Context by Reference Implementation Plan"
 date: "2026-11-18T20:56:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0307"
 parent: "work-item:0307"
 derived_from: ["codebase-research:2026-11-18-0307-pass-conduct-spawn-context-by-reference"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:03
 tags: ["research", "deep-research", "conduct", "cli", "run-ledger", "research-guard", "config-template"]
 revision: "d5a62f06c836dbf06c2de86555017ed876634a46"
 repository: "accelerator"
-last_updated: "2026-11-19T01:45:00+00:00"
+last_updated: "2026-11-19T09:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -297,8 +297,9 @@ impl Role {
 - The `WrongCommand` refusal is built from the role's list. It reads
   `E_RESEARCH_GUARD_COMMAND: {agent} may run only '{…}', '{…}' or '{…}'`,
   with `…` after a prefix.
-- The module doc's first sentence says each role runs only its listed
-  commands.
+- The module doc's opening paragraph says the subagents are confined to
+  their listed commands and writes. It stays one sentence, as clippy's
+  `too_long_first_doc_paragraph` requires.
 
 **File**: `cli/research/tests/fixtures/public-api.txt`
 **Changes**: regenerate for `PermittedCommand`, the three constants and
@@ -390,7 +391,7 @@ The phase's success criteria also run
 
 #### Automated Verification
 
-- [x] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p research-cli --test guard`
+- [x] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p accelerator-research --test guard`
 - [x] Lexer differential passes: `uv run pytest tests/integration/research/test_lexer_differential.py`
 - [x] Guard-command helpers pass: `uv run pytest tests/unit/tasks/test_guard_commands.py`
 - [x] Public API snapshot matches (cargo-public-api task in `tasks/README.md`)
@@ -563,8 +564,11 @@ impl PendingBatch {
 - The private `research_nodes`, `outstanding` and `of_profile` builders move
   into a `pub(crate) mod test_support`, following
   `concurrency::test_support`.
-- `research_nodes` takes each node's profile, question and
-  `known_questions`, instead of hard-coding `"{at}?"` and an empty list.
+- `research_nodes(stem, lineages)` keeps its `"{at}?"` questions and empty
+  `known_questions`, so the window tests are untouched. Beside it,
+  `missing(lineage, question, known_questions)` builds a node and
+  `researching(stem, nodes)` a pair of them; `of_profile` sets a pair's
+  profile.
 - Both `window.rs` and `ledger.rs` tests use it.
 
 **Domain** (`cli/research/src/conduct/ledger.rs` tests):
@@ -637,7 +641,7 @@ Write or Edit to `<set>/.conduct-run.json` is blocked as `OutsideScope`.
 
 - [x] Domain tests pass: `cargo test -p research conduct::`
 - [x] Adapter tests pass: `cargo test -p research-adapters conduct::ledger`
-- [x] Outstanding tests pass: `cargo test -p research-cli --test topic_outstanding`
+- [x] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
 - [x] Public API snapshot matches (cargo-public-api task in `tasks/README.md`)
 - [x] Full suite green: `mise run`
 
@@ -915,8 +919,8 @@ it to the researcher.
 
 #### Automated Verification
 
-- [ ] Node query tests pass: `cargo test -p research-cli --test topic_node`
-- [ ] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p research-cli --test guard`
+- [ ] Node query tests pass: `cargo test -p accelerator-research --test topic_node`
+- [ ] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p accelerator-research --test guard`
 - [ ] Lexer differential passes: `uv run pytest tests/integration/research/test_lexer_differential.py`
 - [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
 - [ ] Full suite green, including `docs:check`: `mise run`
@@ -1358,7 +1362,7 @@ field list points at `research topic node` for the context it dropped.
 
 #### Automated Verification
 
-- [ ] Outstanding tests pass: `cargo test -p research-cli --test topic_outstanding`
+- [ ] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
 - [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
 - [ ] Full suite green: `mise run`
 
