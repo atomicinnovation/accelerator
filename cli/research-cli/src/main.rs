@@ -256,6 +256,10 @@ fn outstanding(
         search_cap: search_cap::from_environment(|name| {
             std::env::var(name).ok()
         }),
+        template_fallbacks: match mode {
+            RunMode::Start(_) => project.conduct_template_fallbacks(),
+            RunMode::Query | RunMode::Continue { .. } => Vec::new(),
+        },
         mode,
     };
     topic_command::run_outstanding(
