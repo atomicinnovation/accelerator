@@ -5,7 +5,7 @@ title: "Pass Conduct Spawn Context by Reference Implementation Plan"
 date: "2026-11-18T20:56:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-893"
 parent: "work-item:PP-893"
 derived_from: ["codebase-research:2026-11-18-PP-893-pass-conduct-spawn-context-by-reference"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-867", "work-item:PP-889", "work-item:PP-890", "work-i
 tags: ["research", "deep-research", "conduct", "cli", "run-ledger", "research-guard", "config-template"]
 revision: "d5a62f06c836dbf06c2de86555017ed876634a46"
 repository: "accelerator"
-last_updated: "2026-11-19T16:33:42+00:00"
+last_updated: "2026-11-19T16:52:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1425,7 +1425,7 @@ re-plan after a turn boundary stalls on approval. A broader
 `accelerator research topic` rule would also cover the node query and hide
 whether researchers inherit their grant for it.
 
-- [ ] **Smoke run**: `conduct <slug> --depth 2` over one web pair passes
+- [x] **Smoke run**: `conduct <slug> --depth 2` over one web pair passes
       when:
   - every research-node Task prompt holds no `question`, `known_questions`,
     template text or search budget;
@@ -1434,6 +1434,14 @@ whether researchers inherit their grant for it.
   - no level note's follow-ups repeat a question in its queried
     `known_questions`;
   - the web note stamps the queried `search_budget`.
+
+The smoke run was a headless `claude -p` session, set up as in phase 4, over
+a one-pair web outline at depth 2. Five research nodes and one composer
+were spawned. Each node prompt was 1.3 KB, the same at levels 1 and 2. Every
+researcher ran the node query first, and every note's `id`, path, question
+and `search_budget` (66 at level 1, 31 at level 2) matched what its query
+printed. No note's follow-ups repeated, or reworded, one of its queried
+`known_questions`. The run ended with no failures or warnings.
 
 ---
 
