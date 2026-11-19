@@ -6,7 +6,7 @@ date: "2026-06-20T16:43:31+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0122"
+work_item_id: "PP-143"
 parent: "work-item:PP-143"
 relates_to: ["work-item:PP-128", "work-item:PP-120", "work-item:PP-129"]
 topic: "Audit and correct missing executable bits on skill entrypoint scripts; library-list guard"

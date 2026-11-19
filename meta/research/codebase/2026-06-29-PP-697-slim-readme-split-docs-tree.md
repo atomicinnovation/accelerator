@@ -6,7 +6,7 @@ date: "2026-06-29T12:52:42+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0175"
+work_item_id: "PP-697"
 parent: "work-item:PP-697"
 topic: "Slim the README and split content into a docs/ tree"
 tags: ["research", "codebase", "readme", "docs", "documentation", "information-architecture"]

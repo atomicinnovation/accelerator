@@ -6,7 +6,7 @@ date: "2026-10-28T12:29:31+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0306"
+work_item_id: "PP-892"
 parent: "work-item:PP-892"
 relates_to: ["codebase-research:2026-10-24-PP-936-structured-source-metadata", "codebase-research:2026-09-26-PP-867-recursive-finding-deepening", "codebase-research:2026-09-23-PP-864-academic-source-profiles"]
 topic: "Deterministic Rule for Citing a Source Once (0306): current citation pipeline and implementation surface"

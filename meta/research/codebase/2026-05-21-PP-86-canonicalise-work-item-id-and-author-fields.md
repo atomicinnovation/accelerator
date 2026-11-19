@@ -3,7 +3,7 @@ date: "2026-05-21T18:47:09+01:00"
 author: "Toby Clemson"
 revision: "64eca1bf99c3b311862da9df1baf1095b43ca4a7"
 repository: "accelerator"
-work_item_id: "0064"
+work_item_id: "PP-86"
 topic: "Canonicalise `work_item_id` and `author` frontmatter field names"
 tags: ["research", "codebase", "frontmatter", "schema", "migration", "visualiser", "plan", "templates"]
 status: "complete"

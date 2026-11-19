@@ -6,7 +6,7 @@ date: "2026-09-26T01:04:58+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0283"
+work_item_id: "PP-867"
 parent: "work-item:PP-867"
 relates_to: ["codebase-research:2026-09-20-PP-866-tunable-depth-and-breadth", "codebase-research:2026-09-23-PP-864-academic-source-profiles"]
 topic: "Codebase seams for 0283 recursive finding deepening"

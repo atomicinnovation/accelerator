@@ -6,7 +6,7 @@ date: "2026-10-16T11:30:09+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0339"
+work_item_id: "PP-922"
 parent: "work-item:PP-922"
 relates_to: ["codebase-research:2026-10-12-PP-930-tree-leases-cold-path-and-unknown-liveness"]
 topic: "Tree reap cross-artifact lock probe: implementation surface for 0339"

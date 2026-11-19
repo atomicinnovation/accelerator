@@ -6,7 +6,7 @@ date: "2026-08-31T20:33:45+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0272"
+work_item_id: "PP-802"
 parent: "work-item:PP-802"
 topic: "Relocate insecure-local override marker to .accelerator"
 tags: ["research", "codebase", "credentials", "tracker-support", "security", "config"]

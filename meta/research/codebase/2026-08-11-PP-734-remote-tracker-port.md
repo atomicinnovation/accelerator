@@ -6,7 +6,7 @@ date: "2026-08-11T11:37:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0204"
+work_item_id: "PP-734"
 parent: "work-item:PP-734"
 topic: "What an implementation plan for 0204 (the tracker port crate) must know"
 tags: ["research", "codebase", "rust", "tracker", "sync", "port", "cargo-pup", "jira", "linear"]

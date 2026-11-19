@@ -6,7 +6,7 @@ date: "2026-06-15T22:02:48+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0102"
+work_item_id: "PP-124"
 parent: "work-item:PP-124"
 relates_to: ["codebase-research:2026-06-07-PP-92-meta-corpus-unified-schema-migration"]
 topic: "Removing the visualiser server's legacy linkage fallback arms (work-item:/ticket:/work_item_id:/filename) and adding a migration-completion gate"

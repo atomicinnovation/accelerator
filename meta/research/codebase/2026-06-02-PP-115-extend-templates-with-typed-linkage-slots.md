@@ -6,7 +6,7 @@ date: "2026-06-02T11:23:51+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0093"
+work_item_id: "PP-115"
 topic: "Extend artifact templates with empty optional slots for the typed-linkage keys defined in ADR-0034"
 tags: ["research", "codebase", "templates", "frontmatter", "schema", "linkage", "adr-0034"]
 revision: "1486bcbe3adbdab4cf852d4716f339b47c1b08e3"

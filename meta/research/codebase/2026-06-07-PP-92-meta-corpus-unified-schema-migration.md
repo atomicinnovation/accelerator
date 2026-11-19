@@ -6,7 +6,7 @@ date: "2026-06-07T08:36:10+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0070"
+work_item_id: "PP-92"
 parent: "work-item:PP-92"
 relates_to: ["codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0038"]
 topic: "Implementing the meta/ corpus unified-schema migration (story 0070)"

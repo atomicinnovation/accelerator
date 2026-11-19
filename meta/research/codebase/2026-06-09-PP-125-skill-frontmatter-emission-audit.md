@@ -6,7 +6,7 @@ date: "2026-06-09T18:44:38+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0103"
+work_item_id: "PP-125"
 parent: "work-item:PP-125"
 topic: "How skills emit artifact frontmatter, what the unified-schema validator enforces, the known validate-plan divergence, and how to wire an automated producer-conformance guard"
 tags: ["research", "codebase", "frontmatter", "schema", "validator", "skills", "validate-plan", "test-harness", "mise"]

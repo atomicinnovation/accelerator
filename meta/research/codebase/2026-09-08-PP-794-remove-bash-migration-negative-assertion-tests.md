@@ -6,7 +6,7 @@ date: "2026-09-08T21:27:06+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0264"
+work_item_id: "PP-794"
 parent: "work-item:PP-794"
 topic: "Remove Bash-Migration Negative-Assertion Tests (0264)"
 tags: ["research", "codebase", "bash-parity", "cargo-pup", "lint", "migration", "cleanup"]

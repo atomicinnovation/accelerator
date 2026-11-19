@@ -6,7 +6,7 @@ date: "2026-06-06T09:33:34+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0067"
+work_item_id: "PP-89"
 parent: "work-item:PP-89"
 relates_to: ["codebase-research:2026-05-30-PP-87-update-artifact-templates-to-unified-schema", "codebase-research:2026-06-02-PP-115-extend-templates-with-typed-linkage-slots", "work-item:PP-79", "adr:ADR-0033", "adr:ADR-0034", "plan:2026-06-02-PP-115-extend-templates-with-typed-linkage-slots", "adr:ADR-0038"]
 topic: "Implementing the create-note skill and templates/note.md"

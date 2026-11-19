@@ -2,7 +2,7 @@
 date: "2026-05-18T20:55:37+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0071"
+work_item_id: "PP-93"
 status: "done"
 id: "2026-05-18-PP-93-pr-base-repo-url-derivation"
 title: "pr-base-repo.sh URL-Derivation Migration Implementation Plan"

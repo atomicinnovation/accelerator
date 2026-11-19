@@ -6,7 +6,7 @@ date: "2026-10-06T08:19:41+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0299"
+work_item_id: "PP-881"
 parent: "work-item:PP-881"
 topic: "Bringing the CLI workspace's crate dependencies into line with ADR-0069"
 tags: ["research", "codebase", "cli", "architecture", "dependencies", "consent-adapters", "corpus-adapters", "migrate", "tracker-support", "config", "vcs", "build-system"]

@@ -6,7 +6,7 @@ date: "2026-09-20T21:47:34+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0282"
+work_item_id: "PP-866"
 parent: "work-item:PP-866"
 relates_to: ["codebase-research:2026-09-10-PP-758-layered-configuration-key-model", "codebase-research:2026-09-08-PP-861-single-round-web-research-engine"]
 topic: "Tunable Depth and Breadth"

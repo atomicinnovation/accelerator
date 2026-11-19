@@ -2,7 +2,7 @@
 date: "2026-05-12T10:14:12Z"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0037"
+work_item_id: "PP-59"
 status: "ready"
 id: "2026-05-12-PP-59-glyph-component"
 title: "Glyph Component Implementation Plan"

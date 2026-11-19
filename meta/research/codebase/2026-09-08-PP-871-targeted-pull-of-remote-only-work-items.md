@@ -6,7 +6,7 @@ date: "2026-09-08T19:37:42+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0285"
+work_item_id: "PP-871"
 parent: "work-item:PP-871"
 relates_to: ["codebase-research:2026-09-06-PP-787-sync-specific-work-items"]
 topic: "Targeted Pull of Remote-Only Work Items and Resolution Normalisation"

@@ -6,7 +6,7 @@ date: "2026-10-05T23:35:10+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0295"
+work_item_id: "PP-882"
 parent: "work-item:PP-882"
 topic: "Codebase context for 0295: a fair arXiv fetch queue that waits across calls"
 tags: ["research", "codebase", "research-cli", "research-adapters", "pacing", "arxiv", "fetch", "researcher"]

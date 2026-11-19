@@ -2,7 +2,7 @@
 date: "2026-05-08T22:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0046"
+work_item_id: "PP-68"
 status: "done"
 id: "2026-05-08-PP-68-work-management-system-configuration"
 title: "0046 Work Management System Configuration — Implementation Plan"

@@ -6,7 +6,7 @@ date: "2026-06-11T13:00:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0085"
+work_item_id: "PP-107"
 parent: "work-item:PP-107"
 relates_to: ["codebase-research:2026-05-31-PP-107-humanise-detail-page-h1-fallback"]
 topic: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"

@@ -6,7 +6,7 @@ date: "2026-06-28T13:21:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0136"
+work_item_id: "PP-157"
 parent: "work-item:PP-157"
 relates_to: ["codebase-research:2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface"]
 topic: "Full migration scope and CLI architecture required to migrate the shell library into the accelerator Rust CLI under the accepted ADRs"

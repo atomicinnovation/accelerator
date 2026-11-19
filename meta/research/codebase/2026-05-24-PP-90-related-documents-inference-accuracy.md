@@ -8,7 +8,7 @@ tags: ["spike", "frontmatter", "migration", "knowledge-graph", "parser", "typed-
 status: "complete"
 last_updated: "2026-05-24T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-work_item_id: "0068"
+work_item_id: "PP-90"
 type: "codebase-research"
 id: "2026-05-24-PP-90-related-documents-inference-accuracy"
 title: "Accuracy of inferring typed linkages from body sections in `meta/`"

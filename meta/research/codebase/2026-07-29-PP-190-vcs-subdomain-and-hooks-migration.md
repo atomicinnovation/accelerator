@@ -6,7 +6,7 @@ date: "2026-07-29T16:20:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0169"
+work_item_id: "PP-190"
 parent: "work-item:PP-190"
 relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture", "codebase-research:2026-07-19-PP-188-config-command-and-invocation-contract-migration", "codebase-research:2026-07-11-PP-703-corpus-crates-parsing-conventions", "codebase-research:2026-07-03-PP-185-launcher-and-git-style-dispatch"]
 topic: "Implementation surface for the accelerator-vcs subdomain and the SessionStart/PreToolUse hooks migration"

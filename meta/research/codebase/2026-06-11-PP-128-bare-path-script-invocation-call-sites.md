@@ -6,7 +6,7 @@ date: "2026-06-11T13:23:54+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0106"
+work_item_id: "PP-128"
 parent: "work-item:PP-128"
 topic: "Which SKILL.md passages invoke artifact-*/config-* plugin scripts, how each is shaped, and whether the work item's acceptance criteria are satisfiable"
 tags: ["research", "codebase", "permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]

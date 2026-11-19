@@ -6,7 +6,7 @@ date: "2026-05-31T22:24:45+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0077"
+work_item_id: "PP-99"
 topic: "Audit --ac-shadow-soft/--ac-shadow-lift and dark --ac-accent/--ac-accent-2 against prototype"
 tags: ["research", "codebase", "design-tokens", "shadows", "dark-theme", "visualiser"]
 revision: "e16087c18363b92240c1c8ccb30cdd32ca861417"

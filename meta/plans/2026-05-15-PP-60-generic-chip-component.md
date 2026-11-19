@@ -2,7 +2,7 @@
 date: "2026-05-15T00:00:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0038"
+work_item_id: "PP-60"
 status: "done"
 id: "2026-05-15-PP-60-generic-chip-component"
 title: "0038 — Generic Chip Component Implementation Plan"

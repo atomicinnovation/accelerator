@@ -6,7 +6,7 @@ date: "2026-06-09T19:08:54+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0080"
+work_item_id: "PP-102"
 parent: "work-item:PP-102"
 topic: "Detail-page header actions: Open in editor and Copy path for LibraryDocView"
 tags: ["research", "codebase", "visualiser", "detail-page", "config", "editor-deeplink", "clipboard", "toaster"]

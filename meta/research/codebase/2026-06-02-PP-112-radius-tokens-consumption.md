@@ -6,7 +6,7 @@ date: "2026-06-02T15:45:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0090"
+work_item_id: "PP-112"
 topic: "Full current-app border-radius inventory, pre-migration computed values, EXCEPTIONS cleanup scope, ADR + gate + Playwright-spec context for radius token consumption"
 tags: ["research", "codebase", "visualiser", "frontend", "css", "design-tokens", "radius"]
 revision: "ed3be5b886672d63f708b91cd5baa70dba792430"

@@ -6,7 +6,7 @@ date: "2026-06-06T13:06:58+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0086"
+work_item_id: "PP-108"
 parent: "work-item:PP-108"
 relates_to: ["codebase-research:2026-05-31-PP-62-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-PP-61-toaster-and-external-edit-notifications", "adr:ADR-0024", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:PP-66"]
 topic: "Kanban Drag-and-Drop with Toast Confirmations"

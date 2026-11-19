@@ -2,7 +2,7 @@
 date: "2026-05-12T00:00:00+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0056"
+work_item_id: "PP-78"
 status: "done"
 id: "2026-05-12-PP-78-restructure-meta-research-into-subject-subcategories"
 title: "0056 — Restructure `meta/research/codebase/` into Subject Subcategories — Implementation Plan"

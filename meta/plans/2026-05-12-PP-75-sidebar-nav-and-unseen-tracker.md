@@ -2,7 +2,7 @@
 date: "2026-05-12T20:28:19+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0053"
+work_item_id: "PP-75"
 status: "draft"
 id: "2026-05-12-PP-75-sidebar-nav-and-unseen-tracker"
 title: "Sidebar Nav with Per-Type Change Indicators — Implementation Plan"

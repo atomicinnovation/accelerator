@@ -6,7 +6,7 @@ date: "2026-09-23T16:45:45+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0280"
+work_item_id: "PP-864"
 parent: "work-item:PP-864"
 topic: "Academic source profiles: codebase landing points and OpenAlex/arXiv API requirements"
 tags: ["research", "codebase", "research-topic", "openalex", "arxiv", "cli", "hooks", "credentials"]

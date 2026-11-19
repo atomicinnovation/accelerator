@@ -6,7 +6,7 @@ date: "2026-10-15T21:19:05+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0304"
+work_item_id: "PP-890"
 parent: "work-item:PP-890"
 relates_to: ["codebase-research:2026-10-10-PP-889-research-concurrency-subagent-limit", "codebase-research:2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run", "codebase-research:2026-09-26-PP-867-recursive-finding-deepening"]
 topic: "Codebase seams for 0304: budget web searches and halt on exhaustion"

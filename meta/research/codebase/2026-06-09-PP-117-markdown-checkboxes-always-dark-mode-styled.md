@@ -6,7 +6,7 @@ date: "2026-06-08T23:31:30+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0095"
+work_item_id: "PP-117"
 parent: "work-item:PP-117"
 relates_to: ["codebase-research:2026-06-02-PP-116-inline-code-styling-in-meta-artifact-markdown"]
 topic: "Theme-Reactive Markdown Task-List Checkboxes"

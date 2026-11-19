@@ -6,7 +6,7 @@ date: "2026-10-13T09:54:08+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0310"
+work_item_id: "PP-896"
 parent: "work-item:PP-896"
 relates_to: ["codebase-research:2026-09-26-PP-867-recursive-finding-deepening", "codebase-research:2026-10-10-PP-889-research-concurrency-subagent-limit"]
 topic: "Recovering from an interrupted conduct run (0310)"

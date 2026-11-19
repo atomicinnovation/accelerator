@@ -6,7 +6,7 @@ date: "2026-10-12T02:54:33+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0334"
+work_item_id: "PP-930"
 parent: "work-item:PP-930"
 topic: "Tree leases on the cold path and under Unknown liveness (work item 0334)"
 tags: ["research", "codebase", "launcher", "design-adapters", "design-cli", "tree-lease", "lease", "prune", "repair", "cache"]

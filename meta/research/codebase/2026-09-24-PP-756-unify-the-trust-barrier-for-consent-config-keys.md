@@ -6,7 +6,7 @@ date: "2026-09-24T14:09:48+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0226"
+work_item_id: "PP-756"
 parent: "work-item:PP-756"
 topic: "Unify the trust barrier for consent config keys"
 tags: ["research", "codebase", "config", "config-adapters", "credentials", "research-cli", "openalex", "design", "playwright", "vcs-adapters", "launcher", "session-start", "security"]

@@ -6,7 +6,7 @@ date: "2026-08-31T20:26:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0203"
+work_item_id: "PP-733"
 parent: "work-item:PP-733"
 relates_to: ["codebase-research:2026-08-10-PP-715-converge-corpus-adapters-library-backed-vcs", "codebase-research:2026-08-02-PP-718-library-backed-vcs-adapter", "codebase-research:2026-07-06-PP-186-multi-binary-distribution-release-pipeline"]
 topic: "Ship a Third-Party Attribution Artefact with the Release Uploads"

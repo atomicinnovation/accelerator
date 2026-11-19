@@ -6,7 +6,7 @@ date: "2026-10-30T16:06:33+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0368"
+work_item_id: "PP-960"
 parent: "work-item:PP-960"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "codebase-research:2026-10-09-PP-755-scheduled-advisory-and-age-guards", "plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 topic: "Implementation surface for 0368: the `measure:build` harness and host guidance"

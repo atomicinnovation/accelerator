@@ -6,7 +6,7 @@ date: "2026-06-05T21:43:50+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0079"
+work_item_id: "PP-101"
 topic: "Detail-Page Aside Region Redesign — Option B aside structure, Cluster block, eyebrow typography unification"
 tags: ["research", "codebase", "related-artifacts", "aside", "eyebrow", "typography", "lifecycle-cluster", "detail-page"]
 revision: "8058920f5698ac50a0cd809db4499d719cc82ef5"

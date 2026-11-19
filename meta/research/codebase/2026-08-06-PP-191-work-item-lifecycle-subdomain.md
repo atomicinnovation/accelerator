@@ -6,7 +6,7 @@ date: "2026-08-06T08:12:12+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0170"
+work_item_id: "PP-191"
 parent: "work-item:PP-191"
 topic: "Work-Item Lifecycle Subdomain (accelerator-work)"
 tags: ["research", "codebase", "rust", "work-items", "cli", "corpus", "config", "store"]

@@ -6,7 +6,7 @@ date: "2026-10-24T13:38:20+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0348"
+work_item_id: "PP-936"
 parent: "work-item:PP-936"
 relates_to: ["codebase-research:2026-09-23-PP-864-academic-source-profiles", "codebase-research:2026-09-26-PP-867-recursive-finding-deepening", "codebase-research:2026-09-08-PP-861-single-round-web-research-engine"]
 topic: "Structured Source Metadata (0348): current pipeline and implementation surface"

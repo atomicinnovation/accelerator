@@ -6,7 +6,7 @@ date: "2026-06-27T12:00:42+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0157"
+work_item_id: "PP-178"
 parent: "work-item:PP-178"
 relates_to: ["codebase-research:2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface"]
 topic: "Porting luminosity ADRs and feeding spikes into Accelerator"

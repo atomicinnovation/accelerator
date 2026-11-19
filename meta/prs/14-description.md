@@ -6,7 +6,7 @@ date: "2026-07-06T17:37:11+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0165-multi-binary-distribution-and-release-pipeline"
+work_item_id: "PP-186-multi-binary-distribution-and-release-pipeline"
 parent: "work-item:PP-186"
 relates_to: ["work-item:PP-185", "work-item:PP-189"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/14"

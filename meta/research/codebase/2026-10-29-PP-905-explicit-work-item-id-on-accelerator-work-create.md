@@ -6,7 +6,7 @@ date: "2026-10-29T13:36:05+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0319"
+work_item_id: "PP-905"
 parent: "work-item:PP-905"
 relates_to: ["codebase-research:2026-10-15-PP-879-work-item-re-key-command", "codebase-research:2026-09-26-PP-760-tracker-owned-work-item-id-generation", "codebase-research:2026-09-10-PP-758-layered-configuration-key-model"]
 topic: "Explicit Work Item ID on accelerator work create: implementation surface"

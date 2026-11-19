@@ -2,7 +2,7 @@
 date: "2026-05-15T16:50:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0059"
+work_item_id: "PP-81"
 status: "done"
 id: "2026-05-15-PP-81-gh-pr-edit-projects-classic-deprecation"
 title: "gh pr edit → REST PATCH Migration in describe-pr Implementation Plan"

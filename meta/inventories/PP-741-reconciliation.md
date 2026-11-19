@@ -6,8 +6,8 @@ date: "2026-08-23T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
 status: in-progress
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
 relates_to:
   - "plan:2026-08-19-PP-741-integration-binaries-and-bash-cluster-retirement"
 tags: [jira, linear, integrations, cli, cutover, reconciliation]

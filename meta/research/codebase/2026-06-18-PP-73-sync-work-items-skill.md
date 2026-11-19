@@ -6,7 +6,7 @@ date: "2026-06-18T12:48:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0051"
+work_item_id: "PP-73"
 parent: "work-item:PP-73"
 relates_to: ["codebase-research:2026-06-15-PP-69-core-skills-sync-integration"]
 topic: "Implementing /sync-work-items: reconciliation engine, last-sync.json baseline, conflict UX, and the /list-work-items five-state extension"

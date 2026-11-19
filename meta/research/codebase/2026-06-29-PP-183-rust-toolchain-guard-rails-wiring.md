@@ -6,7 +6,7 @@ date: "2026-06-29T00:20:02+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0162"
+work_item_id: "PP-183"
 parent: "work-item:PP-183"
 relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 topic: "How to extend Rust toolchain guard rails (format/lint/test/coverage/supply-chain/architecture-enforcement) into mise tasks and CI for the incoming cli/ workspace"

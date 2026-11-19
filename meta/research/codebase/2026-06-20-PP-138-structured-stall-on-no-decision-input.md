@@ -6,7 +6,7 @@ date: "2026-06-20T15:40:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0116"
+work_item_id: "PP-138"
 parent: "work-item:PP-138"
 topic: "Structured Stall on No Decision Input"
 tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "interactive-lib", "run-migrations"]

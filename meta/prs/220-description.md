@@ -6,7 +6,7 @@ date: "2026-11-15T23:34:08+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0364"
+work_item_id: "PP-956"
 parent: "work-item:PP-956"
 relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites", "work-item:PP-942"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/220"

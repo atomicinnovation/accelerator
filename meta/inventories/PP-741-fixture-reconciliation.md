@@ -4,8 +4,8 @@ id: "PP-741-fixture-reconciliation"
 title: "0211 Fixture Reconciliation Ledger"
 date: "2026-08-22T00:00:00+00:00"
 author: Toby Clemson
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
 tags: [jira, linear, integrations, fixtures, cutover]
 schema_version: 1
 ---

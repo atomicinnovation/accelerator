@@ -6,7 +6,7 @@ date: "2026-06-02T14:30:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0094"
+work_item_id: "PP-116"
 topic: "Inline code styling in the visualiser's meta-artifact markdown renderer"
 tags: ["research", "codebase", "visualiser", "markdown", "css", "design-tokens", "inline-code"]
 revision: "fd91646a8309247cdd84fd5654582f81fe5d8a52"

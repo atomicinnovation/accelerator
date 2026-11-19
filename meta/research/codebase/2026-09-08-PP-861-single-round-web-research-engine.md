@@ -6,7 +6,7 @@ date: "2026-09-08T22:01:02+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0277"
+work_item_id: "PP-861"
 parent: "work-item:PP-861"
 relates_to: ["work-item:PP-22"]
 topic: "Single-Round Web Research Engine implementation seams"

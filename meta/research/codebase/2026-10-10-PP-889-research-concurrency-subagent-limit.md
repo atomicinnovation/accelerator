@@ -6,7 +6,7 @@ date: "2026-10-10T20:58:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0303"
+work_item_id: "PP-889"
 parent: "work-item:PP-889"
 relates_to: ["codebase-research:2026-09-26-PP-867-recursive-finding-deepening", "codebase-research:2026-10-06-PP-882-fair-arxiv-fetch-queue"]
 topic: "Default research concurrency exceeds the subagent limit (0303)"

@@ -6,7 +6,7 @@ date: "2026-06-06T13:06:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0100"
+work_item_id: "PP-122"
 parent: "work-item:PP-122"
 topic: "Configurable Visualiser Auto-Shutdown"
 tags: ["research", "codebase", "visualiser", "server", "lifecycle", "configuration", "idle-timeout"]

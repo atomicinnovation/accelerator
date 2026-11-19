@@ -2,7 +2,7 @@
 date: "2026-05-13T10:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0055"
+work_item_id: "PP-77"
 status: "done"
 id: "2026-05-13-PP-77-sidebar-activity-feed"
 title: "0055 — Sidebar Activity Feed and SSE Action Discriminator: Implementation Plan"

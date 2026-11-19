@@ -6,7 +6,7 @@ date: "2026-08-31T20:24:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0206"
+work_item_id: "PP-736"
 parent: "work-item:PP-736"
 topic: "Carrying the AccessPolicy verdict (reachability + scheme) from validate-source through the executor into per-request navigate and links classification"
 tags: ["research", "codebase", "design", "security", "ssrf", "playwright", "executor", "access-policy"]

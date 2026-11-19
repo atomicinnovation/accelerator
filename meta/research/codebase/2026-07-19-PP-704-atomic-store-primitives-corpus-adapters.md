@@ -6,7 +6,7 @@ date: "2026-07-18T23:21:31+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0180"
+work_item_id: "PP-704"
 parent: "work-item:PP-704"
 relates_to: ["work-item:PP-187", "work-item:PP-703", "work-item:PP-193"]
 topic: "Porting the bash atomic-store primitives (atomic_write, mkdir-lock, canonical JSONL) into the corpus-adapters Rust crate"

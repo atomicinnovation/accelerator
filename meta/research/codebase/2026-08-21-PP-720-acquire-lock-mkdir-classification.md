@@ -6,7 +6,7 @@ date: "2026-08-21T14:47:24+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0190"
+work_item_id: "PP-720"
 parent: "work-item:PP-720"
 topic: "acquire_lock cannot classify an unusable lock directory and can spin unbounded on reclaim"
 tags: ["research", "codebase", "shell", "bootstrap", "bash-3.2", "locking", "acquire_lock"]

@@ -6,7 +6,7 @@ date: "2026-06-02T14:56:53+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "0094"
+work_item_id: "PP-116"
 reviewer: "Toby Clemson"
 tags: ["visualiser", "markdown", "css", "design-tokens", "inline-code", "bug"]
 revision: "c7f49b8e3ad2c6b37f8645d1168bb6be02939295"

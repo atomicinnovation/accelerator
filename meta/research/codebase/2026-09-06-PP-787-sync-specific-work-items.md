@@ -6,7 +6,7 @@ date: "2026-09-06T15:00:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0257"
+work_item_id: "PP-787"
 parent: "work-item:PP-787"
 topic: "Targeted sync of specific work items"
 tags: ["research", "codebase", "work-sync", "sync-engine", "resolve", "external-id", "cli"]

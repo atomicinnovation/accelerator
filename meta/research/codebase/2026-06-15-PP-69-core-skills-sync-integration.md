@@ -6,7 +6,7 @@ date: "2026-06-15T21:25:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0047"
+work_item_id: "PP-69"
 parent: "work-item:PP-69"
 relates_to: ["codebase-research:2026-06-14-PP-70-linear-integration-apis", "codebase-research:2026-05-08-PP-68-work-management-system-configuration"]
 topic: "Core Skills Sync Integration"

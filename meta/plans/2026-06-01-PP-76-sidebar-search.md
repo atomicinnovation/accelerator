@@ -2,7 +2,7 @@
 date: "2026-06-01T20:45:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0054"
+work_item_id: "PP-76"
 status: "done"
 id: "2026-06-01-PP-76-sidebar-search"
 title: "0054 Sidebar Search Input and API Search Endpoint — Implementation Plan"

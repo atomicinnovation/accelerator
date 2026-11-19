@@ -6,7 +6,7 @@ date: "2026-07-07T00:49:01+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0178"
+work_item_id: "PP-702"
 parent: "work-item:PP-702"
 relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 topic: "config and config-adapters Crates with Native YAML Reader"

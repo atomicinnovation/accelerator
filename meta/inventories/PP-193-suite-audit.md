@@ -6,7 +6,7 @@ date: "2026-08-08T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
 status: complete
-parent: "work-item:0172"
+parent: "work-item:PP-193"
 relates_to:
   - "plan:2026-08-07-PP-193-migration-engine-subdomain"
 tags: [rust, migrate, cli, migration, suite-audit]

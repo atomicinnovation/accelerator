@@ -6,7 +6,7 @@ date: "2026-06-09T21:17:04+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0098"
+work_item_id: "PP-120"
 parent: "work-item:PP-120"
 topic: "Codebase context for implementing work item 0098 — repo-wide linting, formatting, and static analysis guardrails"
 tags: ["research", "codebase", "linting", "formatting", "static-analysis", "tooling", "ci", "mise", "biome", "ruff", "pyrefly", "clippy", "shellcheck", "shfmt"]

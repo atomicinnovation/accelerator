@@ -6,7 +6,7 @@ date: "2026-06-01T20:31:09+01:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0054"
+work_item_id: "PP-76"
 topic: "Wire the sidebar search input slot, add a /api/search endpoint, and introduce the supporting useDebouncedValue and `/` keybind primitives"
 tags: ["research", "codebase", "sidebar", "search", "keybind", "visualiser", "api"]
 revision: "ba1d8a25116abda4fdfedfc2fb8f8c4a33c97c4a"

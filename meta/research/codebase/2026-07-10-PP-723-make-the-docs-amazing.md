@@ -6,7 +6,7 @@ date: "2026-07-10T19:55:16+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0193"
+work_item_id: "PP-723"
 parent: "work-item:PP-723"
 relates_to: ["codebase-research:2026-07-10-PP-699-documentation-site-for-docs-tree"]
 topic: "Docs site overhaul: generated per-skill reference, tutorials, splash landing, sidebar restructure, drift guards"

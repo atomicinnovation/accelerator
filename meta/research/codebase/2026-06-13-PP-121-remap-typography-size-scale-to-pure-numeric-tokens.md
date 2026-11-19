@@ -6,7 +6,7 @@ date: "2026-06-13T09:39:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0099"
+work_item_id: "PP-121"
 parent: "work-item:PP-121"
 relates_to: ["codebase-research:2026-05-23-PP-97-typography-size-scale-consumption", "codebase-research:2026-06-02-PP-112-radius-tokens-consumption", "codebase-research:2026-06-02-PP-116-inline-code-styling-in-meta-artifact-markdown"]
 topic: "Remap Typography Size Scale To Pure-Numeric Tokens"

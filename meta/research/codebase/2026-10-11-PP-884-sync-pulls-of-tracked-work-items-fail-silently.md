@@ -6,7 +6,7 @@ date: "2026-10-10T23:42:53+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0300"
+work_item_id: "PP-884"
 parent: "work-item:PP-884"
 topic: "Sync pulls of tracked work items fail silently"
 tags: ["research", "codebase", "sync", "work-cli", "work-adapters", "corpus-adapters", "store", "sync-work-items"]

@@ -6,7 +6,7 @@ date: "2026-07-11T11:27:14+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0179"
+work_item_id: "PP-703"
 parent: "work-item:PP-703"
 topic: "corpus and corpus-adapters crate extraction — parsing, conventions, and artifact-metadata"
 tags: ["research", "codebase", "corpus", "config-crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "slug", "work-item-id", "vcs-detection", "cargo-pup"]

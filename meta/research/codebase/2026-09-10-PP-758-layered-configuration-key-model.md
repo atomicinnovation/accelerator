@@ -6,7 +6,7 @@ date: "2026-09-10T07:50:25+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0228"
+work_item_id: "PP-758"
 parent: "work-item:PP-758"
 relates_to: ["codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-08-30-PP-749-untracked-remote-discovery-never-runs-on-linear"]
 topic: "Layered Configuration Key Model"

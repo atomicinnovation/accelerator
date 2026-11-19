@@ -8,7 +8,7 @@ tags: ["research", "codebase", "templates", "frontmatter", "schema", "work-item-
 status: "complete"
 last_updated: "2026-05-30T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-work_item_id: "0065"
+work_item_id: "PP-87"
 type: "codebase-research"
 id: "2026-05-30-PP-87-update-artifact-templates-to-unified-schema"
 title: "Update All Artifact Templates to Unified Schema (Work Item 0065)"

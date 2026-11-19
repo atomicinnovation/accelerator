@@ -2,7 +2,7 @@
 date: "2026-05-31T22:54:08+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0066"
+work_item_id: "PP-88"
 status: "done"
 id: "2026-05-31-PP-88-update-review-skills-inline-frontmatter"
 title: "Move Review/Validation Skills' Frontmatter into Templates Implementation Plan"

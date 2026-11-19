@@ -6,7 +6,7 @@ date: "2026-11-05T16:35:14+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0338"
+work_item_id: "PP-921"
 parent: "work-item:PP-921"
 relates_to: ["codebase-research:2026-10-03-cli-surface-inventory", "codebase-research:2026-10-10-PP-880-sync-round-trip-defects", "codebase-research:2026-06-14-PP-70-linear-integration-apis"]
 topic: "Linear Update Overwrites Fields It Was Not Given"

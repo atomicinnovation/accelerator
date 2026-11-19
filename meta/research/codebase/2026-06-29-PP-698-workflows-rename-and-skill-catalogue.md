@@ -6,7 +6,7 @@ date: "2026-06-29T15:01:34+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0176"
+work_item_id: "PP-698"
 parent: "work-item:PP-698"
 relates_to: ["codebase-research:2026-06-29-PP-697-slim-readme-split-docs-tree"]
 topic: "Skill-family page naming, a master user-invokable skill list, and per-skill reference pages"

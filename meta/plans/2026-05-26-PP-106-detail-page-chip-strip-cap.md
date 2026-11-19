@@ -2,7 +2,7 @@
 date: "2026-05-26T16:30:00+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0084"
+work_item_id: "PP-106"
 status: "draft"
 id: "2026-05-26-PP-106-detail-page-chip-strip-cap"
 title: "Detail-Page Chip Strip Cap (Status, Date, Author) — Implementation Plan"

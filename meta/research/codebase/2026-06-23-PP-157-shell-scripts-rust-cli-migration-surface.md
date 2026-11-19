@@ -6,7 +6,7 @@ date: "2026-06-23T19:27:07+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0136"
+work_item_id: "PP-157"
 parent: "work-item:PP-157"
 topic: "Shell-script feature & test-suite surface for the Rust CLI migration"
 tags: ["research", "codebase", "shell", "rust-cli", "migration", "tooling", "vcs", "config", "frontmatter"]

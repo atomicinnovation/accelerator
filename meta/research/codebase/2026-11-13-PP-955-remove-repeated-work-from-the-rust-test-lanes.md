@@ -6,7 +6,7 @@ date: "2026-11-13T16:26:11+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0363"
+work_item_id: "PP-955"
 parent: "work-item:PP-955"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 topic: "Remove repeated work from the Rust test lanes"

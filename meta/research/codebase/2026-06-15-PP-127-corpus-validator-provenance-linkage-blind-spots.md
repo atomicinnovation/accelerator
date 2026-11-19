@@ -6,7 +6,7 @@ date: "2026-06-15T16:38:06+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0105"
+work_item_id: "PP-127"
 parent: "work-item:PP-127"
 relates_to: ["codebase-research:2026-06-09-PP-125-skill-frontmatter-emission-audit"]
 topic: "Folding the two known validate-corpus-frontmatter.sh blind spots (non-anchored provenance over-emission; bare/unquoted typed-linkage values) into the single oracle"

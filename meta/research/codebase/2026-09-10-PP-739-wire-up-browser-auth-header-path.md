@@ -6,7 +6,7 @@ date: "2026-09-10T00:17:50+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0209"
+work_item_id: "PP-739"
 parent: "work-item:PP-739"
 topic: "Wiring up the browser auth-header path in design skills"
 tags: ["research", "codebase", "design", "auth", "playwright", "browser", "security"]

@@ -6,7 +6,7 @@ date: "2026-07-26T18:27:02+00:00"
 author: "Toby Clemson"
 producer: "research-issue"
 status: "complete"
-work_item_id: "0182"
+work_item_id: "PP-712"
 parent: "work-item:PP-712"
 topic: "Every skill that calls the CLI fails with 'accelerator: CLAUDE_PLUGIN_ROOT is not set' because the bash bootstrap reads the plugin root from the environment rather than deriving it from its own location"
 tags: ["research", "debugging", "cli", "launcher", "bootstrap", "plugin-root", "allowed-tools"]

@@ -6,7 +6,7 @@ date: "2026-09-10T21:47:20+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0278"
+work_item_id: "PP-862"
 parent: "work-item:PP-862"
 topic: "Topic-Research Visualiser Doc Type and Indexer"
 tags: ["research", "codebase", "visualiser", "doc-type", "indexer", "corpus", "rename"]

@@ -6,7 +6,7 @@ date: "2026-06-09T19:29:44+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0082"
+work_item_id: "PP-104"
 parent: "work-item:PP-104"
 relates_to: ["codebase-research:2026-05-12-PP-59-glyph-component", "codebase-research:2026-05-24-PP-96-per-doc-type-hues-on-detail-page"]
 topic: "Implementing the BigGlyph per-doc-type hero illustration component"

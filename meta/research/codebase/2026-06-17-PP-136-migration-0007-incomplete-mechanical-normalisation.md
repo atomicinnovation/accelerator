@@ -6,7 +6,7 @@ date: "2026-06-17T21:52:32+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0114"
+work_item_id: "PP-136"
 parent: "work-item:PP-136"
 relates_to: ["issue-research:2026-06-17-migration-0007-incomplete-mechanical-normalisation"]
 topic: "How migration 0007's mechanical passes diverge from its validator, and exactly where each of the six fixes must land"

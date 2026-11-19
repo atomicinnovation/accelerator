@@ -6,7 +6,7 @@ date: "2026-11-14T14:00:45+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0363"
+work_item_id: "PP-955"
 parent: "work-item:PP-955"
 relates_to: ["plan:2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/216"

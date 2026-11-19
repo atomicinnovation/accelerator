@@ -6,7 +6,7 @@ date: "2026-06-14T21:19:22+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0048"
+work_item_id: "PP-70"
 parent: "work-item:PP-70"
 topic: "Linear Integration skills — Jira patterns and Linear GraphQL API (auth, rate limiting, pagination, mutations, attachments)"
 tags: ["research", "codebase", "integrations", "linear", "jira", "graphql", "authentication"]

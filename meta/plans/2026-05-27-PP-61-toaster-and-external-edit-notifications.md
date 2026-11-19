@@ -2,7 +2,7 @@
 date: "2026-05-27T00:00:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0039"
+work_item_id: "PP-61"
 status: "ready"
 id: "2026-05-27-PP-61-toaster-and-external-edit-notifications"
 title: "Toaster and External-Edit Notifications Implementation Plan"

@@ -6,7 +6,7 @@ date: "2026-09-20T20:05:40+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0217"
+work_item_id: "PP-746"
 parent: "work-item:PP-746"
 topic: "Measuring warm dispatch on linux (work item 0217)"
 tags: ["research", "codebase", "cli", "launcher", "measurement", "performance", "sha2", "calibration"]

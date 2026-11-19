@@ -6,7 +6,7 @@ date: "2026-09-23T16:39:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0241"
+work_item_id: "PP-771"
 parent: "work-item:PP-771"
 topic: "False dirty-tree detection on jj repositories (0241)"
 tags: ["research", "codebase", "migrate", "vcs-adapters", "jj", "jj-lib", "preflight", "dirty-paths"]

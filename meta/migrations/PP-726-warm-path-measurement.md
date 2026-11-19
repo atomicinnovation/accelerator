@@ -82,7 +82,7 @@ single `flock` at launcher exit on every path.
 `meta/migrations/PP-726-warm-path-measurement.py` is not committed: it is a
 throwaway harness whose inputs (an absolute plugin root, a reconstructed
 baseline tree, a bootstrapped Playwright namespace) cannot be reproduced from
-the repository alone. The method is work-item:0186's, restated above in full so
+the repository alone. The method is work-item:PP-716's, restated above in full so
 the result can be re-derived rather than re-run.
 
 Both variants measured the **warm reuse path** — a daemon already running,

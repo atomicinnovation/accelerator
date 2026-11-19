@@ -6,7 +6,7 @@ date: "2026-06-29T20:21:32+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "draft"
-work_item_id: "0176"
+work_item_id: "PP-698"
 parent: "work-item:PP-698"
 derived_from: ["codebase-research:2026-06-29-PP-698-workflows-rename-and-skill-catalogue"]
 tags: ["docs", "skills", "documentation"]

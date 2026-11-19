@@ -6,7 +6,7 @@ date: "2026-06-15T19:23:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0111"
+work_item_id: "PP-133"
 parent: "work-item:PP-133"
 topic: "Visualiser Frontend Closeout Fixes (work item 0111)"
 tags: ["research", "codebase", "visualiser", "frontend", "markdown", "lifecycle", "sidebar", "design-tokens", "visual-regression"]

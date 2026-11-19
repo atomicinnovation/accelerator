@@ -2,7 +2,7 @@
 date: "2026-05-08T00:00:00Z"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0030"
+work_item_id: "PP-52"
 status: "done"
 id: "2026-05-08-PP-52-remove-inline-path-defaults-from-consumers"
 title: "Remove Inline Path Defaults from Consumer Call Sites"

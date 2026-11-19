@@ -6,7 +6,7 @@ date: "2026-06-23T12:35:21+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0123"
+work_item_id: "PP-144"
 parent: "work-item:PP-144"
 relates_to: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
 topic: "User-facing CHANGELOG and README update for 1.23.0"

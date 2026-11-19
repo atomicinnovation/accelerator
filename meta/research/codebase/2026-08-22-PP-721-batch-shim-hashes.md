@@ -6,7 +6,7 @@ date: "2026-08-22T22:37:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0191"
+work_item_id: "PP-721"
 parent: "work-item:PP-721"
 relates_to: ["work-item:PP-716", "work-item:PP-719", "work-item:PP-735", "work-item:PP-190"]
 topic: "Batching the two shim sha256 hashes in bin/accelerator into one backend invocation"

@@ -6,7 +6,7 @@ date: "2026-08-02T21:21:52+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0186"
+work_item_id: "PP-716"
 parent: "work-item:PP-716"
 relates_to: ["codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration", "codebase-research:2026-07-27-PP-712-plugin-root-self-location-implementation-surface", "codebase-research:2026-07-03-PP-185-launcher-and-git-style-dispatch"]
 topic: "Remove the exec probe from the bin/accelerator warm path"

@@ -6,7 +6,7 @@ date: "2026-06-20T16:47:01+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0118"
+work_item_id: "PP-140"
 parent: "work-item:PP-140"
 relates_to: ["work-item:PP-136", "work-item:PP-137", "work-item:PP-142"]
 topic: "Reconcile 0007 Backfill Sentinel With Its Validator"

@@ -6,7 +6,7 @@ date: "2026-08-10T14:55:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0185"
+work_item_id: "PP-715"
 parent: "work-item:PP-715"
 relates_to: ["codebase-research:2026-08-02-PP-718-library-backed-vcs-adapter", "codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration"]
 topic: "Converge corpus-adapters on the Library-Backed VCS Adapter (0185)"

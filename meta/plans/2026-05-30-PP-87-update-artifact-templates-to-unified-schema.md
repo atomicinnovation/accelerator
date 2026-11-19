@@ -2,7 +2,7 @@
 date: "2026-05-30T01:30:00+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0065"
+work_item_id: "PP-87"
 status: "ready"
 id: "2026-05-30-PP-87-update-artifact-templates-to-unified-schema"
 title: "Update All Artifact Templates to Unified Schema Implementation Plan"

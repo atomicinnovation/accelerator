@@ -6,7 +6,7 @@ date: "2026-08-05T13:57:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0169"
+work_item_id: "PP-190"
 parent: "work-item:PP-190"
 relates_to: ["codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration"]
 topic: "VCS Subdomain and Hooks Migration (0169)"

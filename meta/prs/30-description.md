@@ -6,7 +6,7 @@ date: "2026-07-29T16:18:51+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0182"
+work_item_id: "PP-712"
 parent: "work-item:PP-712"
 relates_to: ["plan:2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename", "plan-validation:2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename-validation", "work-item:PP-714"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/30"

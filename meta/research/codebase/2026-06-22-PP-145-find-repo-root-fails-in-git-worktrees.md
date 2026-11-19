@@ -6,7 +6,7 @@ date: "2026-06-22T14:01:39+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0124"
+work_item_id: "PP-145"
 parent: "work-item:PP-145"
 relates_to: ["codebase-research:2026-05-15-PP-80-workspace-worktree-boundary-detection"]
 topic: "find_repo_root fails in git worktrees (-d vs -e marker test)"

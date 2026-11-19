@@ -6,7 +6,7 @@ date: "2026-09-20T21:28:29+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0286"
+work_item_id: "PP-872"
 parent: "work-item:PP-872"
 topic: "Make Accelerator skills VCS-agnostic by eradicating direct git calls"
 tags: ["research", "codebase", "vcs", "skills", "cli", "guard", "jj"]

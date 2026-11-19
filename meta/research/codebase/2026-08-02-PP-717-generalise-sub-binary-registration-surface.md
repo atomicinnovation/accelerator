@@ -6,7 +6,7 @@ date: "2026-08-02T21:22:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0187"
+work_item_id: "PP-717"
 parent: "work-item:PP-717"
 topic: "Generalising validate_dispatch_coherence over dispatch tokens, parameterising the release-stage builders, and documenting the sub-binary registration surface"
 tags: ["research", "codebase", "build-system", "distribution", "rust", "skills", "tasks"]

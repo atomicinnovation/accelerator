@@ -6,7 +6,7 @@ date: "2026-08-06T08:16:17+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0172"
+work_item_id: "PP-193"
 parent: "work-item:PP-193"
 topic: "Migration Engine Subdomain (0172) implementation groundwork"
 tags: ["research", "codebase", "migration-engine", "rust-cli", "migrate", "concurrency", "interactive"]

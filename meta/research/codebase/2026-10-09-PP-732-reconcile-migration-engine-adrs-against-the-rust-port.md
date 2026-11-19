@@ -6,7 +6,7 @@ date: "2026-10-09T08:42:53+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0202"
+work_item_id: "PP-732"
 parent: "work-item:PP-732"
 topic: "Superseding the migration-engine ADRs (0023, 0037, 0038) against the Rust port"
 tags: ["research", "codebase", "migrate", "migration-engine", "adr", "interactive-contract", "m0007"]

@@ -6,7 +6,7 @@ date: "2026-09-26T00:53:23+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0230"
+work_item_id: "PP-760"
 parent: "work-item:PP-760"
 topic: "Tracker-Owned Work Item ID Generation: implementation surface"
 tags: ["research", "codebase", "work-cli", "work-adapters", "tracker", "sync", "corpus", "id-pattern", "drafts", "pending-push"]

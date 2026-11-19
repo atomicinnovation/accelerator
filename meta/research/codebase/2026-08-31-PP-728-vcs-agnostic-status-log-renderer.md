@@ -6,7 +6,7 @@ date: "2026-08-30T23:32:14+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0198"
+work_item_id: "PP-728"
 parent: "work-item:PP-728"
 relates_to: ["codebase-research:2026-08-30-PP-728-vcs-agnostic-status-log-renderer"]
 topic: "VCS-agnostic status/log renderer (0198)"

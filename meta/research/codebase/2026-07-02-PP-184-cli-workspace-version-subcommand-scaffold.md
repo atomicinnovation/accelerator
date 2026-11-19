@@ -6,7 +6,7 @@ date: "2026-07-02T22:44:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0163"
+work_item_id: "PP-184"
 parent: "work-item:PP-184"
 topic: "Scaffolding the cli/ hexagonal workspace with a version subcommand"
 tags: ["research", "codebase", "rust", "cli", "hexagonal", "version", "vergen", "cargo-pup", "kernel"]

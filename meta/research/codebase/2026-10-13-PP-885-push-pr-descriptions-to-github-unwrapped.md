@@ -6,7 +6,7 @@ date: "2026-10-13T19:20:34+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0332"
+work_item_id: "PP-885"
 parent: "work-item:PP-885"
 topic: "Push PR Descriptions to GitHub Unwrapped"
 tags: ["research", "codebase", "collaboration", "collaboration-cli", "github", "describe-pr", "markdown", "pulldown-cmark"]

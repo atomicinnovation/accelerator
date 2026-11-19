@@ -2,7 +2,7 @@
 date: "2026-05-16T09:00:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0041"
+work_item_id: "PP-63"
 status: "done"
 id: "2026-05-16-PP-63-library-page-wrapper-and-overview-hub"
 title: "0041 — Library Page Wrapper, Overview Hub, and List Views Implementation Plan"

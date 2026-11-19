@@ -6,7 +6,7 @@ date: "2026-08-11T11:39:14+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0196"
+work_item_id: "PP-726"
 parent: "work-item:PP-726"
 topic: "Implementation surface for the accelerator-design sub-binary, tree artifacts, and the release-pipeline assembly step"
 tags: ["research", "codebase", "design", "cli", "playwright", "launcher", "release-pipeline", "tree-artifacts"]

@@ -6,7 +6,7 @@ date: "2026-11-10T16:24:28+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0362"
+work_item_id: "PP-954"
 parent: "work-item:PP-954"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 topic: "Making the bootstrap test suites fast and hermetic (0362)"

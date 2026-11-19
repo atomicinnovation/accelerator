@@ -6,7 +6,7 @@ date: "2026-07-23T01:40:15+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0168"
+work_item_id: "PP-189"
 parent: "work-item:PP-189"
 relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 topic: "Folding the Visualiser into the cli/ Workspace (0168)"

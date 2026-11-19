@@ -6,7 +6,7 @@ date: "2026-08-17T13:16:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0211"
+work_item_id: "PP-741"
 parent: "work-item:PP-741"
 relates_to: ["codebase-research:2026-08-02-PP-717-generalise-sub-binary-registration-surface", "codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-17-PP-740-provider-client-crates-over-the-tracker-port", "codebase-research:2026-08-19-PP-742-work-item-script-cutover"]
 topic: "Implementation ground for shipping accelerator-jira and accelerator-linear and retiring both bash script clusters"

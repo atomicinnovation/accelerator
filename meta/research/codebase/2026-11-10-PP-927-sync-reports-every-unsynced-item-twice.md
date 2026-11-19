@@ -6,7 +6,7 @@ date: "2026-11-10T12:04:22+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0352"
+work_item_id: "PP-927"
 parent: "work-item:PP-927"
 relates_to: ["codebase-research:2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently", "codebase-research:2026-10-10-PP-880-sync-round-trip-defects"]
 topic: "Sync Reports Every Unsynced Item Twice"

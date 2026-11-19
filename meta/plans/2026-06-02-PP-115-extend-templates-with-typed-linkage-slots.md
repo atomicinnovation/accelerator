@@ -6,7 +6,7 @@ date: "2026-06-02T18:00:37+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "0093"
+work_item_id: "PP-115"
 parent: "work-item:PP-115"
 reviewer: "review-plan (3 passes, APPROVE)"
 tags: ["templates", "frontmatter", "schema", "linkage", "adr-0034", "emission"]

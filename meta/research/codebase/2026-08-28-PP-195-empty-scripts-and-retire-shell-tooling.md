@@ -6,7 +6,7 @@ date: "2026-08-28T00:37:08+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0174"
+work_item_id: "PP-195"
 parent: "work-item:PP-195"
 relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface"]
 topic: "Empty scripts/ and retire shell tooling and CI guards"

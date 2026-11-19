@@ -6,7 +6,7 @@ date: "2026-08-06T08:16:04+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0195"
+work_item_id: "PP-725"
 parent: "work-item:PP-725"
 topic: "Implementation surface for accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI"
 tags: ["research", "codebase", "rust", "cli", "corpus", "adr", "frontmatter", "linkage", "sub-binary"]

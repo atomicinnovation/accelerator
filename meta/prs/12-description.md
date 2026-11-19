@@ -6,7 +6,7 @@ date: "2026-06-30T07:57:19+00:00"
 author: "Phil Helm"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0176"
+work_item_id: "PP-698"
 parent: "work-item:PP-698"
 relates_to: ["plan:2026-06-29-PP-698-skill-reference-index-and-subsections"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/12"

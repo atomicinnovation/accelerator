@@ -6,7 +6,7 @@ date: "2026-10-15T22:22:05+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0302"
+work_item_id: "PP-879"
 parent: "work-item:PP-879"
 relates_to: ["codebase-research:2026-09-26-PP-760-tracker-owned-work-item-id-generation", "codebase-research:2026-09-23-PP-771-migrate-false-dirty-tree-detection"]
 topic: "Work Item Re-Key Command: implementation surface"

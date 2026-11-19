@@ -6,7 +6,7 @@ date: "2026-09-05T12:45:31+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0258"
+work_item_id: "PP-788"
 parent: "work-item:PP-788"
 topic: "Launcher help divergence: help, bare, and --help entry points"
 tags: ["research", "codebase", "launcher", "cli", "help", "dispatch", "manifest"]

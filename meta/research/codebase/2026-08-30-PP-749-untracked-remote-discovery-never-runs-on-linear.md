@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 topic: "Why untracked-remote discovery is skipped on Linear and where the gate, scope, and key resolution live"
-work_item_id: "0220"
+work_item_id: "PP-749"
 parent: "work-item:PP-749"
 tags: ["research", "codebase", "sync", "linear", "tracker", "discovery"]
 revision: "3cc3fe422551f0fd064105dc12e2f1f6082a67c5"

@@ -6,7 +6,7 @@ date: "2026-11-15T16:05:23+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0364"
+work_item_id: "PP-956"
 parent: "work-item:PP-956"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 topic: "What the Playwright and dev-task integration suites look like today, and what 0364's requirements will run into when parallelising them"

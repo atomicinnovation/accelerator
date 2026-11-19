@@ -6,7 +6,7 @@ date: "2026-08-17T23:16:08+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0213"
+work_item_id: "PP-743"
 parent: "work-item:PP-743"
 relates_to: ["codebase-research:2026-08-12-PP-724-tracker-crate-and-remote-sync-engine", "codebase-research:2026-08-11-PP-734-remote-tracker-port", "codebase-research:2026-06-18-PP-73-sync-work-items-skill"]
 topic: "Conversational conflict resolution flow for /sync-work-items"

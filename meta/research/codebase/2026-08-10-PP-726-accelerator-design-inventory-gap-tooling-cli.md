@@ -6,7 +6,7 @@ date: "2026-08-10T00:43:47+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0196"
+work_item_id: "PP-726"
 parent: "work-item:PP-726"
 relates_to: ["codebase-research:2026-08-06-PP-725-accelerator-corpus-cli-implementation-surface", "codebase-research:2026-08-08-PP-727-accelerator-collaboration-pr-helper-cli", "codebase-research:2026-07-06-PP-186-multi-binary-distribution-release-pipeline", "codebase-research:2026-08-02-PP-717-generalise-sub-binary-registration-surface"]
 topic: "Implementation surface for migrating design inventory/gap tooling into an accelerator-design sub-binary with a bundled Playwright driver"

@@ -2,7 +2,7 @@
 date: "2026-05-18T22:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0042"
+work_item_id: "PP-64"
 status: "done"
 id: "2026-05-18-PP-64-templates-view-redesign"
 title: "0042 Templates View Redesign — Implementation Plan"

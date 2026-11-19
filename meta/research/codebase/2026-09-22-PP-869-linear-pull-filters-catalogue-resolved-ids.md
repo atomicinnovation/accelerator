@@ -6,7 +6,7 @@ date: "2026-09-22T09:46:05+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0292"
+work_item_id: "PP-869"
 parent: "work-item:PP-869"
 topic: "Linear Pull Filters via Catalogue-Resolved Ids"
 tags: ["research", "codebase", "linear", "pull-filters", "catalogue", "filter-lowering", "discovery", "tracker-support"]

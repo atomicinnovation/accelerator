@@ -6,7 +6,7 @@ date: "2026-06-13T20:42:18+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0110"
+work_item_id: "PP-132"
 parent: "work-item:PP-132"
 relates_to: ["codebase-research:2026-05-24-PP-96-per-doc-type-hues-on-detail-page", "codebase-research:2026-06-09-PP-104-big-glyph-hero-illustrations", "codebase-research:2026-05-15-PP-63-library-page-wrapper-and-overview-hub", "codebase-research:2026-06-01-PP-76-sidebar-search", "codebase-research:2026-06-11-PP-118-templates-view-auto-discovery"]
 topic: "Surfacing Root Cause Analyses in the Visualiser under a new Operate category"

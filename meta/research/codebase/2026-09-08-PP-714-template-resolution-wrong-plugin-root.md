@@ -6,7 +6,7 @@ date: "2026-09-08T22:44:28+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0184"
+work_item_id: "PP-714"
 parent: "work-item:PP-714"
 topic: "Template resolution succeeds silently on a plugin root that is not an installation"
 tags: ["research", "codebase", "config", "templates", "plugin-root", "cli", "visualiser"]

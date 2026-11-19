@@ -6,7 +6,7 @@ date: "2026-08-30T13:56:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0221"
+work_item_id: "PP-750"
 parent: "work-item:PP-750"
 relates_to: ["adr:ADR-0065", "adr:ADR-0033", "adr:ADR-0034", "work-item:PP-749", "work-item:PP-757"]
 topic: "Canonical Quoting Standard for All Frontmatter"

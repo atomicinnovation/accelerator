@@ -6,7 +6,7 @@ date: "2026-08-17T14:02:30+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0210"
+work_item_id: "PP-740"
 parent: "work-item:PP-740"
 relates_to: ["codebase-research:2026-08-17-PP-741-integration-binaries-and-bash-cluster-retirement"]
 topic: "Implementation ground for jira-client and linear-client, and whether any existing crate simplifies the effort"

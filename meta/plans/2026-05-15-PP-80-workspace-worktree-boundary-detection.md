@@ -2,7 +2,7 @@
 date: "2026-05-15T15:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0058"
+work_item_id: "PP-80"
 status: "done"
 id: "2026-05-15-PP-80-workspace-worktree-boundary-detection"
 title: "Workspace and Worktree Boundary Detection Implementation Plan"

@@ -6,7 +6,7 @@ date: "2026-08-30T13:02:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0201"
+work_item_id: "PP-731"
 parent: "work-item:PP-731"
 relates_to: ["work-item:PP-191", "work-item:PP-718", "work-item:PP-728", "work-item:PP-195"]
 topic: "Replacing the subprocess diff -u section renderer with an in-process Rust implementation"

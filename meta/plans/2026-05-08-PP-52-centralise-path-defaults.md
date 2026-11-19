@@ -2,7 +2,7 @@
 date: "2026-05-08T09:02:26Z"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0030"
+work_item_id: "PP-52"
 status: "draft"
 id: "2026-05-08-PP-52-centralise-path-defaults"
 title: "Centralise PATH and TEMPLATE Config Arrays Implementation Plan"

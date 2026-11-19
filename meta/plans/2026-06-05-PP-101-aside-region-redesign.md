@@ -6,7 +6,7 @@ date: "2026-06-05T22:36:44+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "0079"
+work_item_id: "PP-101"
 reviewer: "Toby Clemson"
 tags: ["design", "frontend", "detail-page", "aside", "eyebrow", "lifecycle-cluster"]
 revision: "4daa574d16893179833fe762052c84a863e2d635"

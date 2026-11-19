@@ -6,7 +6,7 @@ date: "2026-06-11T13:38:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0096"
+work_item_id: "PP-118"
 parent: "work-item:PP-118"
 relates_to: ["work-item:PP-64", "work-item:PP-111", "work-item:PP-51", "work-item:PP-59"]
 topic: "Templates view auto-discovery from the templates/ directory"

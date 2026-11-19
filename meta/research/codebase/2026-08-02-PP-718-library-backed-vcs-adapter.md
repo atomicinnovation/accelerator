@@ -6,7 +6,7 @@ date: "2026-08-02T21:19:48+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0188"
+work_item_id: "PP-718"
 parent: "work-item:PP-718"
 relates_to: ["codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration"]
 topic: "Library-backed VCS adapter over gix and jj-lib: enforcement surfaces, test apparatus, fixture matrix, CI capability and sibling hand-offs"

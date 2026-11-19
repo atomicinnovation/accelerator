@@ -6,7 +6,7 @@ date: "2026-07-05T23:35:11+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0165"
+work_item_id: "PP-186"
 parent: "work-item:PP-186"
 relates_to: ["codebase-research:2026-07-03-PP-185-launcher-and-git-style-dispatch", "codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 topic: "How to build the producer half of the static-binary release pipeline that satisfies the launcher's frozen manifest.json + minisign contract"

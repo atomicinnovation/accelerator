@@ -6,7 +6,7 @@ date: "2026-07-19T17:39:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0167"
+work_item_id: "PP-188"
 parent: "work-item:PP-188"
 relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture", "codebase-research:2026-07-07-PP-702-config-crates-native-yaml-reader", "codebase-research:2026-07-19-PP-704-atomic-store-primitives-corpus-adapters", "codebase-research:2026-06-11-PP-128-bare-path-script-invocation-call-sites"]
 topic: "Built-in config Command and Invocation-Contract Migration (0167)"

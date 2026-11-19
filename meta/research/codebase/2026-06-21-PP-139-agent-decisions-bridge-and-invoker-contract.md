@@ -6,7 +6,7 @@ date: "2026-06-21T00:14:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0117"
+work_item_id: "PP-139"
 parent: "work-item:PP-139"
 relates_to: ["codebase-research:2026-06-20-PP-138-structured-stall-on-no-decision-input"]
 topic: "Agent-Decisions Bridge: --list mode, decisions-file promotion, invoker contract"

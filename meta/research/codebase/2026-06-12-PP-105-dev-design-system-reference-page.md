@@ -6,7 +6,7 @@ date: "2026-06-12T22:17:22+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0083"
+work_item_id: "PP-105"
 parent: "work-item:PP-105"
 topic: "DevDesignSystem Reference Page (0083)"
 tags: ["research", "codebase", "visualiser", "design-system", "dev-tools", "router", "visual-regression", "theming", "scroll-spy", "keybind"]

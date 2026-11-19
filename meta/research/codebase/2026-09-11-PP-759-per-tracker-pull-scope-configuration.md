@@ -6,7 +6,7 @@ date: "2026-09-11T10:03:48+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0229"
+work_item_id: "PP-759"
 parent: "work-item:PP-759"
 topic: "Per-Tracker Pull Scope Configuration"
 tags: ["research", "codebase", "sync", "tracker", "pull-scope", "search-scope", "config", "jira", "linear"]

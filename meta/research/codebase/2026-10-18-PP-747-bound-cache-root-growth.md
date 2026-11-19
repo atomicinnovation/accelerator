@@ -6,7 +6,7 @@ date: "2026-10-18T16:24:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0218"
+work_item_id: "PP-747"
 parent: "work-item:PP-747"
 relates_to: ["codebase-research:2026-10-12-PP-930-tree-leases-cold-path-and-unknown-liveness", "codebase-research:2026-10-16-PP-922-tree-reap-cross-artifact-lock-probe", "codebase-research:2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee"]
 topic: "Codebase surface for bounding a relocated cache root's growth (0218)"

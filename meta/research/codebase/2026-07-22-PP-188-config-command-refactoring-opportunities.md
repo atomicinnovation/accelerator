@@ -6,7 +6,7 @@ date: "2026-07-22T16:24:52+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0167"
+work_item_id: "PP-188"
 parent: "work-item:PP-188"
 relates_to: ["codebase-research:2026-07-19-PP-188-config-command-and-invocation-contract-migration"]
 topic: "Duplication, adapter-vs-core layering, and shared-crate placement in the implemented 0167 config-command migration"

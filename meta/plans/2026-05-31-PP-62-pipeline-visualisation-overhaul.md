@@ -2,7 +2,7 @@
 date: "2026-05-31T23:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "0040"
+work_item_id: "PP-62"
 status: "done"
 id: "2026-05-31-PP-62-pipeline-visualisation-overhaul"
 title: "Pipeline Visualisation Overhaul Implementation Plan"

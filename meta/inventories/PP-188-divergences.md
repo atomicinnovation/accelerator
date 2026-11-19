@@ -6,7 +6,7 @@ date: "2026-07-21T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
 status: complete
-parent: "work-item:0167"
+parent: "work-item:PP-188"
 relates_to:
   - "plan:2026-07-19-PP-188-config-command-and-invocation-contract-migration"
 tags: [rust, config, cli, migration, divergences]

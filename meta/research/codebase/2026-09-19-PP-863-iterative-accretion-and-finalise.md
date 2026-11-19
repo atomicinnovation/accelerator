@@ -6,7 +6,7 @@ date: "2026-09-19T15:56:33+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0279"
+work_item_id: "PP-863"
 parent: "work-item:PP-863"
 topic: "Implementing story 0279 — Iterative Accretion and Finalise"
 tags: ["research", "codebase", "topic-research", "research-topic", "lifecycle", "finalise"]

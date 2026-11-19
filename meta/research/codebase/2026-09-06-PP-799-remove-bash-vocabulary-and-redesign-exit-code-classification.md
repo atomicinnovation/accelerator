@@ -6,7 +6,7 @@ date: "2026-09-06T12:16:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0269"
+work_item_id: "PP-799"
 parent: "work-item:PP-799"
 topic: "Remove bash vocabulary and redesign exit-code classification in jira-client and linear-client"
 tags: ["research", "codebase", "jira-client", "linear-client", "exit-codes", "classification", "migration"]

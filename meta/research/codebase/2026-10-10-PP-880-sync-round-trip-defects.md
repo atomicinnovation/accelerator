@@ -6,7 +6,7 @@ date: "2026-10-10T21:09:12+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0296"
+work_item_id: "PP-880"
 parent: "work-item:PP-880"
 topic: "Sync round-trip defects between local work items and the tracker"
 tags: ["research", "codebase", "sync", "baseline", "digest", "projection", "dossier", "work-adapters", "remote-projection", "jira-client", "linear"]

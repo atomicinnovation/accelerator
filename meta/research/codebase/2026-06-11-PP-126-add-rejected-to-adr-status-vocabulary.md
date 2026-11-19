@@ -6,7 +6,7 @@ date: "2026-06-11T13:10:20+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0104"
+work_item_id: "PP-126"
 parent: "work-item:PP-126"
 relates_to: ["codebase-research:2026-06-09-PP-125-skill-frontmatter-emission-audit"]
 topic: "Add rejected to the ADR Status Vocabulary in the Unified Schema"

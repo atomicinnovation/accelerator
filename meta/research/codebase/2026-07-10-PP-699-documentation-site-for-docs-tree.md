@@ -6,7 +6,7 @@ date: "2026-07-10T13:16:28+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0177"
+work_item_id: "PP-699"
 parent: "work-item:PP-699"
 relates_to: ["codebase-research:2026-06-29-PP-697-slim-readme-split-docs-tree", "codebase-research:2026-06-29-PP-698-workflows-rename-and-skill-catalogue"]
 topic: "What must change in the docs/ tree, build system, and CI to stand up an Astro Starlight documentation site published to GitHub Pages"

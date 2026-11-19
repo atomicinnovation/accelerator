@@ -6,7 +6,7 @@ date: "2026-08-12T21:29:42+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0194"
+work_item_id: "PP-724"
 parent: "work-item:PP-724"
 relates_to: ["codebase-research:2026-08-11-PP-734-remote-tracker-port", "codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 topic: "Educating a plan for 0194 — Tracker Crate and Remote Sync Engine"

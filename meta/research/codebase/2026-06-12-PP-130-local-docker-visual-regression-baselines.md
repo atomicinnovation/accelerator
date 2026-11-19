@@ -6,7 +6,7 @@ date: "2026-06-12T16:10:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0108"
+work_item_id: "PP-130"
 parent: "work-item:PP-130"
 topic: "Local Docker-Based Visual Regression Baseline Generation"
 tags: ["research", "codebase", "visual-regression", "playwright", "docker", "ci", "baselines", "testing"]

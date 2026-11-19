@@ -6,7 +6,7 @@ date: "2026-08-11T15:44:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0189"
+work_item_id: "PP-719"
 parent: "work-item:PP-719"
 relates_to: ["codebase-research:2026-08-02-PP-716-remove-exec-probe-from-bootstrap-warm-path", "codebase-research:2026-07-03-PP-185-launcher-and-git-style-dispatch", "codebase-research:2026-08-05-PP-190-vcs-subdomain-and-hooks-migration"]
 topic: "Implementation surface for 0189's at-most-once cache-root probe guarantee"
