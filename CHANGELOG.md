@@ -873,6 +873,12 @@
   (`accelerator:composer`, or the name `agents.composer` configures) may
   write findings only and run no commands, the fetch included.
 
+- **The research guard permits the researcher its template commands.** Beside
+  `accelerator research fetch …`, a researcher may run exactly
+  `accelerator config template topic-research --kind finding` and
+  `accelerator config template topic-research --kind level-note`, with
+  nothing before or after them. The composer still runs no command.
+
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
   and a composer per (focus area, profile) after upgrading. A configured
