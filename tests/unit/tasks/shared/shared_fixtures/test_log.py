@@ -27,6 +27,7 @@ from tasks.shared.shared_fixtures.log import (
 CONTRACT = REPO_ROOT / "cli/vcs-test-support/contract"
 LOG_FORMAT = CONTRACT / "fixture-log.jsonl"
 VARIABLES = CONTRACT / "variables.json"
+FLAGS = CONTRACT / "flags.json"
 
 TREE = Path("/tmp/accelerator-shared-fixtures-501/run/matrix")
 CLASSIFY = "vcs-adapters::classify"
@@ -208,6 +209,11 @@ class TestTheSharedFormat:
         }
         assert names["workbenches"] == WORKBENCHES_VARIABLE
         assert names["log"] == FIXTURE_LOG_VARIABLE
+
+    def test_every_builder_flag_matches_the_shared_flags(self):
+        flags = json.loads(FLAGS.read_text())
+
+        assert flags == {family.value: family.flag for family in Family}
 
 
 def _contract_line(kind: str) -> str:

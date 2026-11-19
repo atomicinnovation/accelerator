@@ -316,7 +316,7 @@ def _building_with(
         flags = [
             word
             for family, tree in trees.items()
-            for word in (f"--{family.value}", str(tree))
+            for word in (family.flag, str(tree))
         ]
         result = context.run(
             shlex.join([str(builder), *flags]),

@@ -9,6 +9,10 @@ class Family(StrEnum):
         return {Family.MATRIX: "ACCELERATOR_SHARED_MATRIX"}[self]
 
     @property
+    def flag(self) -> str:
+        return {Family.MATRIX: "--matrix"}[self]
+
+    @property
     def heading(self) -> str:
         return {Family.MATRIX: "matrix"}[self]
 

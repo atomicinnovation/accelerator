@@ -19,6 +19,8 @@ const LOG_FORMAT: &str =
 const VARIABLES: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/contract/variables.json");
 
+const FLAGS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/contract/flags.json");
+
 const KINDS_THE_TASK_WRITES: [&str; 2] = ["tree-digest", "tree-changes"];
 
 fn classify_test() -> TestName {
@@ -206,5 +208,19 @@ fn every_variable_matches_the_shared_names() -> Result<(), TestError> {
     );
     assert_eq!(names["workbenches"], SHARED_WORKBENCHES_VARIABLE);
     assert_eq!(names["log"], FIXTURE_LOG_VARIABLE);
+    Ok(())
+}
+
+#[test]
+fn every_builder_flag_matches_the_shared_flags() -> Result<(), TestError> {
+    let flags: Value = serde_json::from_str(&fs::read_to_string(FLAGS)?)?;
+
+    for family in Family::ALL {
+        assert_eq!(flags[family.name()], family.flag());
+    }
+    assert_eq!(
+        flags.as_object().map(serde_json::Map::len),
+        Some(Family::ALL.len())
+    );
     Ok(())
 }
