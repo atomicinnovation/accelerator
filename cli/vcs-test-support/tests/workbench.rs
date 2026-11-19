@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -344,10 +345,35 @@ fn the_test_is_named_from_the_variables() {
     );
 }
 
+struct VariableSetForThisTest {
+    name: &'static str,
+    previous: Option<OsString>,
+}
+
+impl VariableSetForThisTest {
+    fn new(name: &'static str, value: &Path) -> Self {
+        let previous = env::var_os(name);
+        env::set_var(name, value);
+        Self { name, previous }
+    }
+}
+
+impl Drop for VariableSetForThisTest {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => env::set_var(self.name, value),
+            None => env::remove_var(self.name),
+        }
+    }
+}
+
 #[test]
 fn the_environment_is_read_from_the_process() -> Result<(), TestError> {
     let workbenches = tempfile::tempdir()?;
-    env::set_var(SHARED_WORKBENCHES_VARIABLE, workbenches.path());
+    let _set = VariableSetForThisTest::new(
+        SHARED_WORKBENCHES_VARIABLE,
+        workbenches.path(),
+    );
 
     let handover = Handover::from_environment();
 
