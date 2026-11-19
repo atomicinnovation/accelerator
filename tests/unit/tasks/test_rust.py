@@ -325,6 +325,16 @@ class TestTestUnitCli:
         assert environment[FIXTURE_LOG_VARIABLE].endswith(".jsonl")
         assert environment["PATH"] == os.environ["PATH"]
 
+    def test_the_builder_s_profile_data_lands_beside_the_tests(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        test_cli.run(lane)
+
+        environment = self._builder_call(lane, build_dir).kwargs["env"]
+        assert environment["LLVM_PROFILE_FILE"] == str(
+            build_dir.parent / "cli-%p-%16m.profraw"
+        )
+
     def test_nextest_is_handed_the_trees_the_workbenches_and_the_log(
         self, lane: MagicMock, build_dir: Path
     ):

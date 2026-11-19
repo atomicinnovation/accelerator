@@ -139,7 +139,9 @@ def _run_instrumented(context: Context, interruption: Interruption) -> None:
     builder = _locate_builder(context, build_environment)
     with _session(interruption).open(
         SHARED_FAMILIES,
-        _building_with(context, builder, build_environment),
+        _building_with(
+            context, builder, _profiling_beside_the_tests(build_environment)
+        ),
         filtered=False,
     ) as handover:
         _run_tests(
@@ -149,6 +151,22 @@ def _run_instrumented(context: Context, interruption: Interruption) -> None:
     print(totals.summary_line())
     _sweep_superseded_artefacts(context, build_environment)
     _enforce_floor(totals)
+
+
+def _profiling_beside_the_tests(
+    build_environment: Mapping[str, str],
+) -> Mapping[str, str]:
+    """Write the builder's profile data where the coverage report reads.
+
+    `show-env` names a profile file in the plain target directory, but
+    `cargo llvm-cov nextest` writes and reports from the instrumented one, so
+    data written where `show-env` says would never reach the totals.
+    """
+    profile_file = Path(build_environment["LLVM_PROFILE_FILE"]).name
+    return {
+        **build_environment,
+        "LLVM_PROFILE_FILE": str(_INSTRUMENTED_BUILD.parent / profile_file),
+    }
 
 
 def _session(interruption: Interruption) -> SharedFixtureSession:
