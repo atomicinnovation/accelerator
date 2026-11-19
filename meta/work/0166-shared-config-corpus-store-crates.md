@@ -23,7 +23,7 @@ external_id: "PP-187"
 # 0166: Shared config, corpus, and store Crates
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

@@ -19,7 +19,7 @@ schema_version: 1
 # 0178: config and config-adapters Crates with Native YAML Reader
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

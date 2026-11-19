@@ -23,7 +23,7 @@ external_id: "PP-189"
 # 0168: Fold the Visualiser into the cli/ Workspace
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

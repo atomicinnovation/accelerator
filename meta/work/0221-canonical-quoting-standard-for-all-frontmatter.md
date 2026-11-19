@@ -19,7 +19,7 @@ schema_version: 1
 # 0221: Canonical Quoting Standard for All Frontmatter
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

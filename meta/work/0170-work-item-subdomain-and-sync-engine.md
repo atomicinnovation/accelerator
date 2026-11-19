@@ -22,7 +22,7 @@ external_id: "PP-191"
 # 0170: Work-Item Lifecycle Subdomain
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

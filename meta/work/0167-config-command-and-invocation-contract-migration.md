@@ -24,7 +24,7 @@ external_id: "PP-188"
 # 0167: Built-in config Command and Invocation-Contract Migration
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

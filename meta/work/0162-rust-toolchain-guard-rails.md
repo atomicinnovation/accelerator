@@ -21,7 +21,7 @@ external_id: "PP-183"
 # 0162: Rust Toolchain Guard Rails in mise + CI
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
