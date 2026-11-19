@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
 target: "work-item:PP-886"
-work_item_id: "0333"
+work_item_id: "PP-886"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
