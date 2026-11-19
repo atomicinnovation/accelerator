@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0391"
+id: "PP-943"
 title: "Shorten the guarded-resume migration tests"
 date: "2026-11-18T13:28:33+00:00"
 author: "Toby Clemson"
@@ -8,16 +8,17 @@ producer: "create-work-item"
 status: "draft"
 kind: "task"
 priority: "medium"
-parent: "work-item:0361"
-blocked_by: ["work-item:0365"]
-relates_to: ["work-item:0365"]
+parent: "work-item:PP-953"
+blocked_by: ["work-item:PP-957"]
+relates_to: ["work-item:PP-957"]
 external_id: "PP-943"
 tags: ["performance", "testing", "rust", "migrate"]
 last_updated: "2026-11-18T13:28:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+aliases: ["0391"]
 ---
-# 0391: Shorten the guarded-resume migration tests
+# PP-943: Shorten the guarded-resume migration tests
 
 **Kind**: Task
 **Status**: Draft

@@ -1,12 +1,12 @@
 ---
 type: "plan-review"
-id: "2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run-review-1"
+id: "2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run-review-1"
 title: "Plan Review: Build the VCS Test Fixtures Once per Test Run Implementation Plan"
 date: "2026-11-18T20:12:06+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run"
+target: "plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "performance", "safety", "portability", "usability"]

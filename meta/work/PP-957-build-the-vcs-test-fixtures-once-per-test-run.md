@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0365"
+id: "PP-957"
 title: "Build the VCS test fixtures once per test run"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
@@ -8,18 +8,19 @@ producer: "extract-work-items"
 status: "ready"
 kind: "story"
 priority: "medium"
-parent: "work-item:0361"
-blocks: ["work-item:0391"]
-relates_to: ["work-item:0264", "work-item:0363", "work-item:0364", "work-item:0366", "work-item:0368", "work-item:0370", "work-item:0391"]
+parent: "work-item:PP-953"
+blocks: ["work-item:PP-943"]
+relates_to: ["work-item:PP-794", "work-item:PP-955", "work-item:PP-956", "work-item:PP-958", "work-item:PP-960", "work-item:PP-962", "work-item:PP-943"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
 last_updated: "2026-11-18T18:21:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-957"
+aliases: ["0365"]
 ---
 
-# 0365: Build the VCS test fixtures once per test run
+# PP-957: Build the VCS test fixtures once per test run
 
 **Kind**: Story
 **Status**: Ready

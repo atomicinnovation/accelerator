@@ -1,15 +1,15 @@
 ---
 type: "plan"
-id: "2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run"
+id: "2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"
 title: "Build the VCS Test Fixtures Once per Test Run Implementation Plan"
 date: "2026-11-18T19:51:03+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0365"
-parent: "work-item:0365"
-derived_from: ["codebase-research:2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run"]
-relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "work-item:0361", "work-item:0364", "work-item:0366", "work-item:0391"]
+work_item_id: "work-item:PP-957"
+parent: "work-item:PP-957"
+derived_from: ["codebase-research:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"]
+relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "work-item:PP-953", "work-item:PP-956", "work-item:PP-958", "work-item:PP-943"]
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
@@ -45,7 +45,7 @@ phase can be merged on its own:
 ## Current State Analysis
 
 The work item describes the cost, and the research document
-(`meta/research/codebase/2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run.md`)
+(`meta/research/codebase/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`)
 describes the code. These are the facts this plan depends on.
 
 - **Each test builds its own fixtures.**
@@ -313,7 +313,7 @@ yet, so every consumer still builds privately, as it does today.
 
 #### 0. Amend the work item
 
-**File**: `meta/work/0365-build-the-vcs-test-fixtures-once-per-test-run.md`
+**File**: `meta/work/PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
 
 These changes record the decision that no matrix copy is made, and the one
 test this plan adds to a consumer:
@@ -2992,10 +2992,10 @@ These are listed per phase. The ones that can't be automated cheaply are:
 
 ## References
 
-- Work item: `meta/work/0365-build-the-vcs-test-fixtures-once-per-test-run.md`
-- Research: `meta/research/codebase/2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run.md`
+- Work item: `meta/work/PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
+- Research: `meta/research/codebase/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
 - Baseline: `meta/measurements/build_2026-11-18T123358Z_engywook_warm-no-op_devtools_isolated.json`
-- Coverage lane shape: `meta/plans/2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes.md`
+- Coverage lane shape: `meta/plans/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
 - Fixture-binary precedent: `cli/vcs-adapters/Cargo.toml:15-29`
-- Adopt-path history: `meta/plans/2026-08-31-0198-vcs-agnostic-status-log-renderer.md`,
-  `meta/validations/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs-validation.md`
+- Adopt-path history: `meta/plans/2026-08-31-PP-728-vcs-agnostic-status-log-renderer.md`,
+  `meta/validations/2026-08-10-PP-715-converge-corpus-adapters-on-library-backed-vcs-validation.md`

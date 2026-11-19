@@ -1,14 +1,14 @@
 ---
 type: "codebase-research"
-id: "2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run"
+id: "2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"
 title: "Build the VCS test fixtures once per test run"
 date: "2026-11-18T18:56:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0365"
-parent: "work-item:0365"
-relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "codebase-research:2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes"]
+work_item_id: "PP-957"
+parent: "work-item:PP-957"
+relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "codebase-research:2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes"]
 topic: "Build the VCS test fixtures once per test run"
 tags: ["research", "codebase", "vcs-test-support", "vcs-adapters", "vcs-cli", "tasks", "nextest", "mise", "testing", "performance"]
 revision: "d70239480bdf055a8e23952e1554c755f7eb5558"
@@ -508,7 +508,7 @@ Points the planner must settle for this inventory:
     nextest's process model is not the overhead.
   - One matrix build takes 3.3 s wall when run alone and 35–47 s under
     load.
-- `meta/reviews/work/0365-build-the-vcs-test-fixtures-once-per-test-run-review-1.md`
+- `meta/reviews/work/PP-957-build-the-vcs-test-fixtures-once-per-test-run-review-1.md`
   explains the rationale for:
   - the explicit hand-over;
   - the fixture log, which exists because nextest hides output from
@@ -517,26 +517,26 @@ Points the planner must settle for this inventory:
   - scoping the `ZERO_SPAWN` search to `cli/`, `tasks/`, `mise.toml` and
     `.github/`;
   - the permanent guards.
-- `meta/plans/2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes.md`
+- `meta/plans/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
   - It gives the current shape of the coverage lane.
   - It warns that `show-env` does not set `CARGO_TARGET_DIR`.
   - It records the `_MANIFEST` sharing gotcha.
-- `meta/plans/2026-08-31-0198-vcs-agnostic-status-log-renderer.md`
+- `meta/plans/2026-08-31-PP-728-vcs-agnostic-status-log-renderer.md`
   - It sets out why the status-log adopt path exists.
   - It describes the adversarial state.
   - It explains why the cap, bookmark and parity sets were kept private.
   - It notes that `conflict-git` needs `git_allow_failure`.
 - `meta/prs/61-description.md` and
-  `meta/validations/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs-validation.md`
+  `meta/validations/2026-08-10-PP-715-converge-corpus-adapters-on-library-backed-vcs-validation.md`
   - They describe the zero-spawn hand-over through
     `ACCELERATOR_ZERO_SPAWN_MATRIX`.
   - They record that inline fixture building defeated it.
   - They recommend a single start-directory helper and a "fail closed"
     hand-over.
-- `meta/plans/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic.md`
+- `meta/plans/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic.md`
   is a pytest analogue. Two practices transfer: run each consumer alone,
   and record pass counts before and after.
-- `meta/work/0391-shorten-the-guarded-resume-migration-tests.md`
+- `meta/work/PP-943-shorten-the-guarded-resume-migration-tests.md`
   - It lists "build once, give each test a private copy" as a candidate.
     Design the copy helper so it can be reused.
   - 0365's after-record must keep per-test `PASS [ Ns ]` lines usable.
@@ -544,9 +544,9 @@ Points the planner must settle for this inventory:
 ## Related Research
 
 - `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
-- `meta/research/codebase/2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes.md`
-- `meta/research/codebase/2026-08-31-0198-vcs-agnostic-status-log-renderer.md`
-- `meta/research/codebase/2026-08-10-0185-converge-corpus-adapters-library-backed-vcs.md`
+- `meta/research/codebase/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
+- `meta/research/codebase/2026-08-31-PP-728-vcs-agnostic-status-log-renderer.md`
+- `meta/research/codebase/2026-08-10-PP-715-converge-corpus-adapters-library-backed-vcs.md`
 
 ## Answers to the Work Item's Open Questions
 

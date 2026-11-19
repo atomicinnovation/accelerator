@@ -1,13 +1,13 @@
 ---
 type: "work-item-review"
-id: "0365-build-the-vcs-test-fixtures-once-per-test-run-review-1"
+id: "PP-957-build-the-vcs-test-fixtures-once-per-test-run-review-1"
 title: "Work Item Review: Build the VCS test fixtures once per test run"
 date: "2026-11-18T13:55:46+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0365"
-work_item_id: "0365"
+target: "work-item:PP-957"
+work_item_id: "PP-957"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
