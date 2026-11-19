@@ -1575,13 +1575,13 @@ labelled as fault injection for checking the build step and never for CI.
 
 #### Automated Verification
 
-- [ ] The task and domain tests pass:
+- [x] The task and domain tests pass:
       `uv run pytest tests/unit/tasks/shared/shared_fixtures tests/unit/tasks/shared/test_hashing.py tests/unit/tasks/test_instrumented_build.py tests/unit/tasks/test_rust.py tests/unit/tasks/test_cli_permission_skip.py tests/unit/tasks/test_nextest_filter.py tests/unit/tasks/shared/test_locking.py -v`
-- [ ] The Rust tests pass:
+- [x] The Rust tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support`
-- [ ] The build-system and cli checks pass:
+- [x] The build-system and cli checks pass:
       `mise run build-system:check && mise run cli:check`
-- [ ] The full local run passes: `mise run`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
@@ -1594,16 +1594,16 @@ On engywook:
   - The log has a distinct `hermetic-root` for each adoption, none under
     `<run>/matrix`.
   - The coverage totals are no lower than at `287b6279`.
-- [ ] Coverage off (`ACCELERATOR_COVERAGE=off`): the same summary, and no
+- [x] Coverage off (`ACCELERATOR_COVERAGE=off`): the same summary, and no
       `Compiling` line after the builder runs.
-- [ ] Under coverage, the nextest step compiles nothing (no `Compiling` line
+- [x] Under coverage, the nextest step compiles nothing (no `Compiling` line
       between the builder's run and the `Summary [` line).
-- [ ] `ACCELERATOR_SHARED_FIXTURES_FAIL=matrix` stops the run before
+- [x] `ACCELERATOR_SHARED_FIXTURES_FAIL=matrix` stops the run before
       nextest's test phase.
   - There is one failure naming the matrix and its cause.
   - The summary is printed, and the log has no `adoption` event.
   - Nothing remains under the root the summary prints.
-- [ ] A temporary edit that makes one `classify` test write a file into
+- [x] A temporary edit that makes one `classify` test write a file into
       `matrix.base` fails the run, and the failure names the matrix tree.
       Revert the edit.
 
