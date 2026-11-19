@@ -1162,8 +1162,8 @@ relayed by the orchestrator.
 #### Automated Verification
 
 - [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
-- [ ] Full suite green, including regenerated skill reference docs: `mise run`
+- [x] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
+- [x] Full suite green, including regenerated skill reference docs: `mise run`
 
 #### Manual Verification
 
@@ -1173,7 +1173,7 @@ relayed by the orchestrator.
 - [x] With a `templates.topic-research-finding` override outside the
       project, the composer's finding follows the override with no extra
       allow rule.
-- [ ] With a `templates.topic-research-level-note` value naming a missing
+- [x] With a `templates.topic-research-level-note` value naming a missing
       file, `conduct` reports the fallback warning before its first spawn and
       in its summary, and the level notes follow the default template.
 - [x] With an override `.accelerator/templates/topic-research-level-note.md`
