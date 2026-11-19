@@ -177,6 +177,22 @@ class TestTheSharedFormat:
 
         assert FixtureLog(path).read().unparsed == (2, 3)
 
+    @pytest.mark.parametrize("separator", ["\u0085", "\u2028", "\u2029"])
+    def test_a_line_holding_a_unicode_line_separator_is_one_event(
+        self, tmp_path: Path, separator: str
+    ):
+        path = tmp_path / "run.jsonl"
+        tree = Path(f"/tmp/a{separator}b/matrix")
+        path.write_text(
+            json.dumps(_shared_build(tree), ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
+        contents = FixtureLog(path).read()
+
+        assert contents.unparsed == ()
+        assert [event.tree for event in contents.events] == [tree]
+
     def test_a_digest_is_recorded_in_the_shared_format(self, tmp_path: Path):
         log = FixtureLog(tmp_path / "run.jsonl")
 

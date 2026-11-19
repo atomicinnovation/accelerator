@@ -156,7 +156,7 @@ class FixtureLog:
             return LogContents((), ())
         events: list[Event] = []
         unparsed: list[int] = []
-        for number, line in enumerate(self.path.read_text().splitlines(), 1):
+        for number, line in enumerate(_jsonl_lines(self.path.read_text()), 1):
             try:
                 events.append(_event(json.loads(line)))
             except ValueError, KeyError, TypeError, _UnreadableEventError:
@@ -397,3 +397,8 @@ def _binary(test: str) -> str:
 def _count(amount: int, singular: str, plural: str | None = None) -> str:
     noun = singular if amount == 1 else (plural or f"{singular}s")
     return f"{amount} {noun}"
+
+
+def _jsonl_lines(text: str) -> list[str]:
+    """Split on newline alone: JSON writers leave U+2028 and kin unescaped."""
+    return text.removesuffix("\n").split("\n") if text else []
