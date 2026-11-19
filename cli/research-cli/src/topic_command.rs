@@ -60,6 +60,15 @@ use crate::search_wording;
 use crate::subagent_cap::EnvironmentCap;
 use crate::topic_set::Printed;
 
+/// The name a set's note ids are scoped by: its directory's, whatever named
+/// the set on the command line.
+pub fn set_slug(set_root: &Path) -> String {
+    set_root
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 /// Whether a plan belongs to a `conduct` run, and which.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RunMode {
@@ -520,21 +529,37 @@ pub fn run_end_run<F: FileReader, R: FileRemove>(
     fs: &F,
     remover: &R,
 ) -> Result<Printed, String> {
+    if owned_ledger(set_root, run, fs)?.is_some() {
+        delete_run_ledger(set_root, remover).map_err(|error| {
+            failed(format!(
+                "E_TOPIC_RESEARCH_RUN_LEDGER: could not remove {}: {error}",
+                run_ledger_path(set_root).display()
+            ))
+        })?;
+    }
+    Ok(Printed::default())
+}
+
+/// The set's ledger when `run` owns it, or `None` when the set has none.
+///
+/// # Errors
+///
+/// A message when the ledger is corrupt, unreadable or owned by another
+/// run.
+pub fn owned_ledger<F: FileReader>(
+    set_root: &Path,
+    run: &RunId,
+    fs: &F,
+) -> Result<Option<RunLedger>, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
-        Ok(None) => Ok(Printed::default()),
-        Ok(Some(ledger)) if ledger.run() == run => {
-            delete_run_ledger(set_root, remover).map_err(|error| {
-                failed(format!(
-                    "E_TOPIC_RESEARCH_RUN_LEDGER: could not remove {}: \
-                     {error}",
-                    run_ledger_path(set_root).display()
-                ))
-            })?;
-            Ok(Printed::default())
-        }
-        Ok(Some(ledger)) => Err(superseded(run, ledger.run())),
-        Err(LedgerError::Corrupt) => Err(no_usable_ledger(run)),
-        Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
+        Ok(None) => Ok(None),
+        Ok(Some(ledger)) if ledger.run() == run => Ok(Some(ledger)),
+        Ok(Some(ledger)) => Err(ledger_wording::superseded(run, ledger.run())),
+        Err(LedgerError::Corrupt) => Err(ledger_wording::no_usable_ledger(run)),
+        Err(LedgerError::Unreadable(error)) => Err(format!(
+            "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: {error}",
+            run_ledger_path(set_root).display()
+        )),
     }
 }
 
@@ -546,8 +571,10 @@ fn continued_ledger<F: FileReader>(
 ) -> Result<RunLedger, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
         Ok(Some(stored)) => RunLedger::continue_as(stored, run, spawned)
-            .map_err(|owner| superseded(run, &owner.by)),
-        Ok(None) | Err(LedgerError::Corrupt) => Err(no_usable_ledger(run)),
+            .map_err(|owner| ledger_wording::superseded(run, &owner.by)),
+        Ok(None) | Err(LedgerError::Corrupt) => {
+            Err(ledger_wording::no_usable_ledger(run))
+        }
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
 }
@@ -660,20 +687,6 @@ fn replaced_ledger<F: FileReader>(
         Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
-}
-
-fn superseded(run: &RunId, owner: &RunId) -> String {
-    failed(format!(
-        "E_TOPIC_RESEARCH_RUN_SUPERSEDED: run {run} was superseded by run \
-         {owner}; another conduct run now owns this set, so let it finish"
-    ))
-}
-
-fn no_usable_ledger(run: &RunId) -> String {
-    failed(format!(
-        "E_TOPIC_RESEARCH_RUN_LEDGER: no usable ledger for run {run}; re-run \
-         conduct to start a fresh run"
-    ))
 }
 
 fn unfinished_spawn(unfinished: &UnfinishedSpawn) -> Value {
@@ -923,7 +936,7 @@ impl PlanOutput<'_> {
             "level": node.lineage.level(),
             "question": node.question,
             "cap": node.cap(),
-            "id": address.id(&self.set_slug()),
+            "id": address.id(&set_slug(self.set_root)),
             "path": self.absolute(&address.path()),
             "known_questions": node.known_questions,
             "spawn": SpawnRef::Node(address).to_string(),
@@ -939,13 +952,6 @@ impl PlanOutput<'_> {
 
     fn absolute(&self, relative: &str) -> String {
         self.set_root.join(relative).to_string_lossy().into_owned()
-    }
-
-    fn set_slug(&self) -> String {
-        self.set_root
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default()
     }
 }
 
