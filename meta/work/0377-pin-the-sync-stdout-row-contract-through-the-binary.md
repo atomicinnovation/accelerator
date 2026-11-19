@@ -14,6 +14,7 @@ tags: ["sync", "work-cli", "tests", "stdout-contract"]
 last_updated: "2026-11-16T11:17:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-968"
 ---
 # 0377: Pin the Sync Stdout Row Contract Through the Binary
 

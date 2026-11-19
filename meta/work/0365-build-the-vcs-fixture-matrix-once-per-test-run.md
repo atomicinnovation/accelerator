@@ -14,6 +14,7 @@ tags: ["performance", "testing", "rust", "vcs"]
 last_updated: "2026-11-02T09:00:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-957"
 ---
 
 # 0365: Build the VCS fixture matrix once per test run

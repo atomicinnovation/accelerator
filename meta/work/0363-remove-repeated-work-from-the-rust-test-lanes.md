@@ -15,6 +15,7 @@ tags: ["build-system", "performance", "testing", "rust", "coverage"]
 last_updated: "2026-11-15T09:57:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-955"
 ---
 
 # 0363: Remove repeated work from the Rust test lanes

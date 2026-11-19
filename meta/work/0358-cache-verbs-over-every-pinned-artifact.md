@@ -15,6 +15,7 @@ tags: ["runtime", "cache", "cli"]
 last_updated: "2026-10-27T18:01:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-950"
 ---
 # 0358: Cache Verbs over Every Pinned Artifact
 

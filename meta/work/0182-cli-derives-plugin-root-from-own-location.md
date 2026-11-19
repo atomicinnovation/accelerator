@@ -23,7 +23,7 @@ external_id: "PP-712"
 # 0182: bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never exported to skills)
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

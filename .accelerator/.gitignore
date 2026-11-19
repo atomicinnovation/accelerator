@@ -1,2 +1,7 @@
 config.local.md
 .tmp-*
+state/retirement-recovery/
+state/sync-recovery/
+state/integrations/*/pending-push/
+state/integrations/*/conflicts/
+state/integrations/*/adopted/

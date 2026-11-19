@@ -20,7 +20,7 @@ external_id: "PP-871"
 # 0285: Targeted Pull of Remote-Only Work Items and Resolution Normalisation
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

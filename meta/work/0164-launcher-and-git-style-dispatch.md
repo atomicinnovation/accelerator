@@ -23,7 +23,7 @@ external_id: "PP-185"
 # 0164: Launcher and Git-Style Dispatch
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

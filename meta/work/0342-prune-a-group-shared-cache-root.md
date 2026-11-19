@@ -14,6 +14,7 @@ tags: ["cli", "launcher", "cache", "prune", "multi-user", "nfs"]
 last_updated: "2026-10-21T18:42:51+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-946"
 ---
 # 0342: Prune a Group-Shared Cache Root
 

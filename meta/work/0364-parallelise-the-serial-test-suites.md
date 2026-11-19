@@ -15,6 +15,7 @@ tags: ["build-system", "performance", "testing", "playwright", "pytest", "flakin
 last_updated: "2026-11-18T10:03:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-956"
 ---
 
 # 0364: Parallelise the serial test suites

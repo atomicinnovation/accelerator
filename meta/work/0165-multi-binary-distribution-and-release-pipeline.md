@@ -21,7 +21,7 @@ external_id: "PP-186"
 # 0165: Multi-Binary Static Distribution and Release Pipeline with minisign
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

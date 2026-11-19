@@ -13,6 +13,7 @@ tags: ["cli", "launcher", "cache", "multi-user", "security", "nfs"]
 last_updated: "2026-10-27T19:14:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-944"
 ---
 # 0340: Shared Cache Roots on Multi-User Systems
 

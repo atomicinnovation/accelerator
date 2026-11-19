@@ -14,6 +14,7 @@ tags: ["runtime", "cache", "offline"]
 last_updated: "2026-10-27T18:01:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-952"
 ---
 # 0360: Stage a Release Directory for Cache Seeding
 

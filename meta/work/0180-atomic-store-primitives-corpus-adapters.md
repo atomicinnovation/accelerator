@@ -22,7 +22,7 @@ schema_version: 1
 # 0180: Atomic-Store Primitives in corpus-adapters
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

@@ -15,6 +15,7 @@ tags: ["build-system", "performance", "tooling", "documentation", "macos"]
 last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-960"
 ---
 
 # 0368: Build-performance measurement and host guidance

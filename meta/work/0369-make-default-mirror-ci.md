@@ -15,6 +15,7 @@ tags: ["build-system", "ci"]
 last_updated: "2026-10-30T15:12:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-961"
 ---
 
 # 0369: Make default mirror CI

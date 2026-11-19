@@ -14,6 +14,7 @@ tags: ["sync", "sync-work-items", "manual-verification"]
 last_updated: "2026-11-16T11:25:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-980"
 ---
 # 0389: Run 0352's Outstanding Manual Sync Checks
 
