@@ -278,11 +278,28 @@ outlives the run (the newest 20 are kept). When the run ends, pass or fail,
 the task digests each tree again, removes the run's directory and prints the
 fixture summary, which names the log and the resolved root.
 
-The run fails when a shared tree changed during the run, when a test built a
-shared family privately, or when the log disagrees with the consumer list in
-`tasks/shared/shared_fixtures/consumers.py`. A test acquires a shared family
-only through `Workbench::for_this_test()`; a new consumer binary goes in that
-list.
+The task seals each tree read-only once it is built, so a test that writes
+into one fails at the write. The run also fails when a shared tree changed
+during the run anyway, when a test built a shared family privately, or when
+the log disagrees with the consumer list in
+`tasks/shared/shared_fixtures/consumers.py`.
+
+To use the matrix in a test:
+
+```rust
+let workbench = Workbench::for_this_test()?;
+let matrix = workbench.matrix()?;
+```
+
+- Treat the matrix as read-only, and write any scratch files under
+  `workbench.path()`.
+- Open the workbench with `Workbench::for_this_test()`, never
+  `Workbench::with`: an explicit hand-over hides the test's builds from the
+  run's log, and a guard (`tests/unit/tasks/test_fixture_builds.py`) refuses
+  it outside the files that test the workbench itself.
+- A test binary that uses the matrix for the first time goes in `CONSUMERS`
+  in `tasks/shared/shared_fixtures/consumers.py`, with the families it
+  consumes. Until it does, the run fails naming the binary and that file.
 
 A failing shared build stops the lane before any test runs. Fixture builds
 are deterministic and the builder's error names the family and its cause, so
