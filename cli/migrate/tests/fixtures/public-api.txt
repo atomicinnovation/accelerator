@@ -182,6 +182,13 @@ pub fn migrate::migrations::m0011::Migration0011::apply(&self, ctx: &dyn migrate
 impl migrate::registry::MigrationMeta for migrate::migrations::m0011::Migration0011
 pub fn migrate::migrations::m0011::Migration0011::description(&self) -> &'static str
 pub fn migrate::migrations::m0011::Migration0011::id(&self) -> &'static str
+pub mod migrate::migrations::m0012
+pub struct migrate::migrations::m0012::Migration0012
+impl migrate::registry::Migration for migrate::migrations::m0012::Migration0012
+pub fn migrate::migrations::m0012::Migration0012::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0012::Migration0012
+pub fn migrate::migrations::m0012::Migration0012::description(&self) -> &'static str
+pub fn migrate::migrations::m0012::Migration0012::id(&self) -> &'static str
 pub mod migrate::migrations::text
 pub fn migrate::migrations::text::filter_lines(content: &str, keep: impl core::ops::function::Fn(&str) -> bool) -> alloc::string::String
 pub fn migrate::migrations::text::flat_rename(line: &str, old_key: &str, new_key: &str) -> core::option::Option<alloc::string::String>
@@ -422,6 +429,8 @@ impl migrate::registry::Migration for migrate::migrations::m0010::Migration0010
 pub fn migrate::migrations::m0010::Migration0010::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 impl migrate::registry::Migration for migrate::migrations::m0011::Migration0011
 pub fn migrate::migrations::m0011::Migration0011::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0012::Migration0012
+pub fn migrate::migrations::m0012::Migration0012::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 pub trait migrate::registry::MigrationMeta
 pub fn migrate::registry::MigrationMeta::description(&self) -> &'static str
 pub fn migrate::registry::MigrationMeta::id(&self) -> &'static str
@@ -458,6 +467,9 @@ pub fn migrate::migrations::m0010::Migration0010::id(&self) -> &'static str
 impl migrate::registry::MigrationMeta for migrate::migrations::m0011::Migration0011
 pub fn migrate::migrations::m0011::Migration0011::description(&self) -> &'static str
 pub fn migrate::migrations::m0011::Migration0011::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0012::Migration0012
+pub fn migrate::migrations::m0012::Migration0012::description(&self) -> &'static str
+pub fn migrate::migrations::m0012::Migration0012::id(&self) -> &'static str
 pub fn migrate::registry::registry() -> alloc::vec::Vec<migrate::registry::MigrationEntry>
 pub mod migrate::run_base
 pub struct migrate::run_base::RunBase(_)
