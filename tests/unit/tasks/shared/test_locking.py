@@ -1,9 +1,10 @@
+import os
 import threading
 from pathlib import Path
 
 import pytest
 
-from tasks.shared.locking import workspace_lock
+from tasks.shared.locking import try_exclusive_flock, workspace_lock
 
 
 class TestWorkspaceLock:
@@ -113,3 +114,22 @@ class TestWorkspaceLockMkdirFallback:
 
         assert overlaps == 0, "two contenders held the lock at the same time"
         assert wins >= 1, "the stale lock was never reclaimed"
+
+
+class TestTryExclusiveFlock:
+    def test_takes_a_free_lock(self, tmp_path: Path):
+        fd = os.open(tmp_path / "run.lock", os.O_CREAT | os.O_RDWR)
+        try:
+            assert try_exclusive_flock(fd) is True
+        finally:
+            os.close(fd)
+
+    def test_reports_a_lock_another_descriptor_holds(self, tmp_path: Path):
+        holder = os.open(tmp_path / "run.lock", os.O_CREAT | os.O_RDWR)
+        contender = os.open(tmp_path / "run.lock", os.O_RDWR)
+        try:
+            assert try_exclusive_flock(holder) is True
+            assert try_exclusive_flock(contender) is False
+        finally:
+            os.close(contender)
+            os.close(holder)
