@@ -19,8 +19,11 @@ def test_every_consumer_is_a_nextest_binary_id():
     assert all(_BINARY_ID.fullmatch(binary) for binary in CONSUMERS)
 
 
-def test_every_consumer_consumes_a_shared_family():
-    assert all(isinstance(family, Family) for family in CONSUMERS.values())
+def test_every_consumer_consumes_one_or_more_shared_families():
+    assert all(
+        families and all(isinstance(family, Family) for family in families)
+        for families in CONSUMERS.values()
+    )
 
 
 def test_the_matrix_consumers_are_the_four_binaries_that_adopt_it():

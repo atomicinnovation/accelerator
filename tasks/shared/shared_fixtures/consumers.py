@@ -10,21 +10,25 @@ from collections.abc import Mapping
 from tasks.shared.nextest_listing import NextestListing
 from tasks.shared.shared_fixtures.families import Family
 
-CONSUMERS: Mapping[str, Family] = {
-    "vcs-adapters::classify": Family.MATRIX,
-    "vcs-adapters::queries": Family.MATRIX,
-    "vcs-adapters::scrub": Family.MATRIX,
-    "vcs-test-support::matrix": Family.MATRIX,
+_MATRIX = frozenset({Family.MATRIX})
+
+CONSUMERS: Mapping[str, frozenset[Family]] = {
+    "vcs-adapters::classify": _MATRIX,
+    "vcs-adapters::queries": _MATRIX,
+    "vcs-adapters::scrub": _MATRIX,
+    "vcs-test-support::matrix": _MATRIX,
 }
 
 
 def consumers_of(family: Family) -> frozenset[str]:
     return frozenset(
-        binary for binary, consumed in CONSUMERS.items() if consumed is family
+        binary for binary, consumed in CONSUMERS.items() if family in consumed
     )
 
 
 def families_consumed(listing: NextestListing) -> frozenset[Family]:
     return frozenset(
-        CONSUMERS[binary] for binary in listing.binaries if binary in CONSUMERS
+        family
+        for binary in listing.binaries
+        for family in CONSUMERS.get(binary, frozenset())
     )
