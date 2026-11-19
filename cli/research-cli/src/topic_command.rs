@@ -54,20 +54,12 @@ use serde_json::Value;
 
 use crate::concurrency_wording;
 use crate::ledger_wording;
+use crate::node_address;
 use crate::plan_wording;
 use crate::search_cap::EnvironmentSearchCap;
 use crate::search_wording;
 use crate::subagent_cap::EnvironmentCap;
 use crate::topic_set::Printed;
-
-/// The name a set's note ids are scoped by: its directory's, whatever named
-/// the set on the command line.
-pub fn set_slug(set_root: &Path) -> String {
-    set_root
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
 
 /// Whether a plan belongs to a `conduct` run, and which.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -939,14 +931,8 @@ impl PlanOutput<'_> {
         node: &MissingNode,
         search_budget: Option<NonZeroU32>,
     ) -> Value {
-        let mut rendered = json!({
-            "lineage": node.lineage.to_string(),
-            "level": node.lineage.level(),
-            "cap": node.cap(),
-            "id": address.id(&set_slug(self.set_root)),
-            "path": self.absolute(&address.path()),
-            "spawn": SpawnRef::Node(address).to_string(),
-        });
+        let mut rendered = node_address::addressed(self.set_root, &address);
+        rendered["spawn"] = json!(SpawnRef::Node(address).to_string());
         if let Some(rejected) = &node.rejected {
             rendered["rejected"] = json!(plan_wording::rejection(rejected));
         }
