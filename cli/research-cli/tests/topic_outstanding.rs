@@ -17,6 +17,7 @@ use topic_project::continued;
 use topic_project::installed_plugin;
 use topic_project::level_note;
 use topic_project::level_note_with;
+use topic_project::node_query_set;
 use topic_project::note_path;
 use topic_project::started;
 use topic_project::stored_ledger;
@@ -27,6 +28,7 @@ use topic_project::HARNESS_CAP;
 use topic_project::PLUGIN_ROOT;
 use topic_project::SEARCH_CAP;
 use topic_project::TOPICS;
+use topic_project::WEB_STEM;
 
 fn path_in(set: &Path, name: &str) -> Result<String, TestError> {
     Ok(set
@@ -448,15 +450,46 @@ fn a_missing_level_two_note_holds_back_level_three() -> Result<(), TestError> {
             "nodes": [{
                 "lineage": "2-2",
                 "level": 2,
-                "question": "C?",
                 "cap": 2,
                 "id": "s.01-a-web.2-2",
                 "path": absolute(&project, &note_path("01-a-web", "2-2"))?,
-                "known_questions": ["A?", "B?", "C?"],
                 "spawn": "01-a-web:2-2",
             }],
         }])
     );
+    Ok(())
+}
+
+#[test]
+fn a_research_node_entry_carries_only_its_references() -> Result<(), TestError>
+{
+    const REFERENCES: [&str; 6] =
+        ["cap", "id", "level", "lineage", "path", "spawn"];
+    let project = node_query_set()?;
+    project.write(
+        &note_path(WEB_STEM, "2-1"),
+        &level_note_with(
+            WEB_STEM,
+            "2-1",
+            "question: \"A1?\"\nlevel: 1\nfollow_ups: []\n",
+        ),
+    )?;
+
+    let (plan, _) = started(&project, &["--depth", "3"])?;
+
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        for node in nodes_of(pair)? {
+            let mut expected = REFERENCES.to_vec();
+            if node["spawn"] == json!(format!("{WEB_STEM}:2-1")) {
+                expected.push("rejected");
+            }
+            if pair["profile"] == json!("web") {
+                expected.push("search_budget");
+            }
+            expected.sort_unstable();
+            assert_eq!(keys_of(&node)?, expected, "{node}");
+        }
+    }
     Ok(())
 }
 
