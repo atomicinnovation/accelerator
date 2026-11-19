@@ -9,15 +9,14 @@ status: "in-progress"
 kind: "bug"
 priority: "medium"
 parent: "work-item:PP-167"
-relates_to: ["work-item:PP-884", "work-item:PP-880"]
+relates_to: ["work-item:PP-884", "work-item:PP-880", "work-item:PP-927"]
 tags: ["sync", "preview", "pending-push"]
-last_updated: "2026-10-24T11:40:00+00:00"
-last_updated_by: "Toby Clemson"
+last_updated: "2026-11-17T14:14:34+00:00"
+last_updated_by: "Phil Helm"
 schema_version: 1
 external_id: "PP-926"
 aliases: ["0351"]
 ---
-
 # PP-926: Sync Preview Hides Pending-Push Refusals
 
 **Kind**: Bug
@@ -74,40 +73,40 @@ Expected: the preview reports the refusal the apply run would meet.
 
 Changes:
 
-* For each bare create, the preview reads the item's marker the way the apply
+- For each bare create, the preview reads the item's marker the way the apply
   run does, including distrusting a marker that version control tracks or that
   records a key the tracker could not have issued, and evaluates it with the
   same precondition and key-carrier check.
-* A refusal is reported as the apply run reports it, with `failed` read as
+- A refusal is reported as the apply run reports it, with `failed` read as
   `would fail`: the row `<id>\tfailed\tunsynced\tterminal` and the stderr line
   `error: <id>: create would fail: pending push refused (<reason>): <detail>`,
   where `<detail>`, including any remedy hint, is the apply run's text.
-* A reusable `Created` marker whose reuse the apply run would defer because the
+- A reusable `Created` marker whose reuse the apply run would defer because the
   corpus is incomplete is reported as the failure the apply run reports.
-* A bare create whose work file cannot be read or parsed, which the apply run
+- A bare create whose work file cannot be read or parsed, which the apply run
   fails before it reads the marker, is reported as the failure the apply run
   reports.
-* A reusable `Created` marker the apply run would link previews exactly as the
+- A reusable `Created` marker the apply run would link previews exactly as the
   apply run reports it.
-* The preview's exit code follows the apply run's precedence,
+- The preview's exit code follows the apply run's precedence,
   `71 > 1 > 4 > 75 > 74 > 70`.
-* `skills/work/sync-work-items/SKILL.md` drops the manual marker check for
+- `skills/work/sync-work-items/SKILL.md` drops the manual marker check for
   previewed creates ("A preview does not yet read a create's pending-push
   marker…"), and its `--preview` paragraph adds pending-push refusals to what
   a preview carries. `tests/unit/tasks/test_sync_work_items_skill_structure.py`
   follows.
-* `CHANGELOG.md` notes that a preview can now exit 71 for a create the run
+- `CHANGELOG.md` notes that a preview can now exit 71 for a create the run
   would refuse, for callers that gate on a preview exiting 0.
 
 Out of scope:
 
-* The `#\tdiscovery\tskipped\tpending-push` record. It is derived from the
+- The `#\tdiscovery\tskipped\tpending-push` record. It is derived from the
   `pending-push/` directory while the run is prepared, which the preview and
   the apply run share, so it already matches.
-* The action word for a reused `Created` marker. Both the preview and the
+- The action word for a reused `Created` marker. Both the preview and the
   apply run print `create-from-local`, so they already agree.
-* Failures the tracker reports only when the run applies.
-* Local refusals of a create carrying a `--resolve` order.
+- Failures the tracker reports only when the run applies.
+- Local refusals of a create carrying a `--resolve` order.
 
 ## Acceptance Criteria
 
@@ -116,7 +115,8 @@ directory has identical entries and bytes before and after the preview.
 
 - [ ] Given an `Attempted` marker, when a preview runs, then the item's row is
       `<id>\tfailed\tunsynced\tterminal`, stderr carries
-      `error: <id>: create would fail: pending push refused     (prior-attempt-unknown): `, and it exits 71.
+      `error: <id>: create would fail: pending push refused
+      (prior-attempt-unknown): `, and it exits 71.
 - [ ] Given an unreadable marker, when a preview runs, then the row is
       `<id>\tfailed\tunsynced\tterminal`, stderr carries
       `create would fail: pending push refused (marker-unreadable): `, and it
@@ -158,11 +158,11 @@ None.
 
 ## Dependencies
 
-* Blocked by: none. 0300 (with 0296) merged in PR #169 and provides
+- Blocked by: none. 0300 (with 0296) merged in PR #169 and provides
   `push_precondition`, the refusal text and the exit precedence this reuses.
   0352 merged in PR #188.
-* Blocks: none.
-* Coordinates with 0377 and 0379, drafted on PR #224 under epic 0372. 0377
+- Blocks: none.
+- Coordinates with 0377 and 0379, drafted on PR #224 under epic 0372. 0377
   pins the sync stdout row contract: whichever of 0377 and 0351 lands second
   updates the other's preview expectations. 0379 restructures the apply loop
   and expects this precondition check to live in the create's preview
@@ -170,23 +170,23 @@ None.
 
 ## Assumptions
 
-* Reading a marker during a preview is acceptable: it is local state the
+- Reading a marker during a preview is acceptable: it is local state the
   apply run reads anyway.
 
 ## Technical Notes
 
-* `push_precondition` (`cli/work/src/sync/push_precondition.rs`) is pure and
+- `push_precondition` (`cli/work/src/sync/push_precondition.rs`) is pure and
   takes the marker state, request digest and a corpus-carries predicate. The
   preview can call it with the inputs `create_from_local_steps` builds, once
   the marker reading and distrust in `ItemApplier::read_marker` are shared
   between the two paths.
-* The refusal's `<detail>` comes from `refused_marker_state` and the marker
+- The refusal's `<detail>` comes from `refused_marker_state` and the marker
   path, and the remedy hint from `ApplyError::cause`; the preview should reuse
   both rather than restate them.
 
 ## References
 
-* Found during: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Found during: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
   (Phase 7 manual verification)
-* Skill: `skills/work/sync-work-items/SKILL.md`
-* Review: `meta/reviews/work/PP-926-sync-preview-hides-pending-push-refusals-review-1.md`
+- Skill: `skills/work/sync-work-items/SKILL.md`
+- Review: `meta/reviews/work/0351-sync-preview-hides-pending-push-refusals-review-1.md`

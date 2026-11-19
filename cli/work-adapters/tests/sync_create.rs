@@ -49,6 +49,7 @@ use work_adapters::sync::operation::SyncOperation;
 use work_adapters::sync::report::CreateNotice;
 use work_adapters::sync::report::RunFailure;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::ItemSelection;
@@ -5657,5 +5658,430 @@ fn a_link_fault_after_the_record_leaves_it_unconfirmed() -> Result<(), TestError
     let rewritten = work_adapters::sync::adoption_records::read(&written)?;
     assert_eq!(rewritten.key, ExternalId::new("ENG-8".to_owned()));
     assert!(rewritten.vouches_for(item.external_id.as_ref()));
+    Ok(())
+}
+
+fn previewing<'a>(
+    corpus: &'a [LocalItem],
+    orders: &'a BTreeMap<String, PendingPushOrder>,
+) -> OrderedRun<'a> {
+    OrderedRun {
+        mode: RunMode::Preview,
+        ..OrderedRun::over(corpus, orders)
+    }
+}
+
+fn assert_no_pending_push_touched(fixture: &Fixture) {
+    let marker = marker_of(fixture, "0001");
+    let pending_push = marker.parent().expect("a pending-push directory");
+    let writes = fixture.spy.writes.borrow();
+    let removals = fixture.spy.removals.borrow();
+    let touched: Vec<&PathBuf> = writes
+        .iter()
+        .chain(removals.iter())
+        .filter(|path| path.starts_with(pending_push))
+        .collect();
+    assert!(touched.is_empty(), "{touched:?}");
+}
+
+#[test]
+fn a_preview_reports_each_pending_push_refusal_the_run_would(
+) -> Result<(), TestError> {
+    for (token, seed, carried_by_another, state) in [
+        (
+            "marker-unreadable",
+            Some("{ not a marker".to_owned()),
+            false,
+            "the marker could not be read or parsed",
+        ),
+        (
+            "prior-attempt-unknown",
+            Some(attempted_marker()),
+            false,
+            "an earlier create attempted at 1600000000 has an unknown \
+             outcome (failure: timed out)",
+        ),
+        (
+            "fingerprint-mismatch",
+            Some(mismatched_created_marker()),
+            false,
+            "the marker records ENG-42 for a different request",
+        ),
+        (
+            "already-written",
+            None,
+            true,
+            "ENG-42 is already carried by work item 0002",
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        match seed {
+            Some(content) => seed_marker(&fixture, "0001", &content),
+            None => seed_created_marker(&fixture, &item, "ENG-42"),
+        }
+        let mut corpus = vec![item];
+        if carried_by_another {
+            corpus.push(LocalItem {
+                id: "0002".to_owned(),
+                path: fixture.dir.path().join("0002.md"),
+                external_id: Some(ExternalId::new("ENG-42".to_owned())),
+            });
+        }
+        let tracker = RecordingTracker::holding(Vec::new());
+        let author = RecordingAuthor::new(fixture.dir.path());
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            previewing(&corpus, &BTreeMap::new()),
+        )?;
+
+        let ApplyError::PendingPushRefused { reason, detail, .. } =
+            create_from_local_failure(&report)
+        else {
+            panic!("{token}: expected a pending-push refusal");
+        };
+        assert_eq!(reason.token(), token);
+        assert_eq!(
+            *detail,
+            format!(
+                "{state} (marker {})",
+                marker_of(&fixture, "0001").display()
+            )
+        );
+        assert_eq!(
+            create_from_local_failure(&report).class(),
+            FailureClass::Terminal
+        );
+        assert_nothing_sent(&tracker, &author);
+        assert_no_pending_push_touched(&fixture);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_preview_distrusts_a_marker_as_the_run_does() -> Result<(), TestError> {
+    for (tracking, key, cause) in [
+        (
+            FileTracking::Tracked,
+            "ENG-5",
+            "marker is tracked by version control",
+        ),
+        (
+            FileTracking::Unknown,
+            "ENG-5",
+            "marker is tracked by version control",
+        ),
+        (
+            FileTracking::Untracked,
+            "../last-sync",
+            "marker records a key that is not a jira key",
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        seed_created_marker_keyed_raw(&fixture, &item, key);
+        let tracker = RecordingTracker::holding(Vec::new());
+        let author = RecordingAuthor::new(fixture.dir.path());
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            OrderedRun {
+                marker_tracking: tracking,
+                ..previewing(std::slice::from_ref(&item), &BTreeMap::new())
+            },
+        )?;
+
+        let (reason, shown) = pending_push_refusal(&report);
+        assert_eq!(reason, "marker-unreadable");
+        assert!(shown.contains(cause), "{shown}");
+        assert_nothing_sent(&tracker, &author);
+        assert_no_pending_push_touched(&fixture);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_preview_defers_a_reuse_while_the_corpus_is_incomplete(
+) -> Result<(), TestError> {
+    for (reason, class) in [
+        (
+            work::inventory::UnidentifiedReason::Malformed(
+                work::inventory::MalformedCause::UnclosedFence,
+            ),
+            FailureClass::Unparseable,
+        ),
+        (
+            work::inventory::UnidentifiedReason::Unreadable(
+                "Permission denied".to_owned(),
+            ),
+            FailureClass::Retryable,
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        seed_created_marker(&fixture, &item, "ENG-42");
+        let tracker = RecordingTracker::holding(Vec::new());
+        let author = RecordingAuthor::new(fixture.dir.path());
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            OrderedRun {
+                unusable: vec![work::inventory::Unidentified {
+                    path: fixture.dir.path().join("0002-broken.md"),
+                    reason,
+                }],
+                ..previewing(std::slice::from_ref(&item), &BTreeMap::new())
+            },
+        )?;
+
+        let error = create_from_local_failure(&report);
+        assert!(
+            matches!(error, ApplyError::CorpusIncomplete { .. }),
+            "{error:?}"
+        );
+        assert_eq!(error.class(), class);
+        assert_eq!(error.operation(), SyncOperation::LinkExternalId);
+        assert!(error.cause().contains("ENG-42"), "{error}");
+        assert_nothing_sent(&tracker, &author);
+        assert_no_pending_push_touched(&fixture);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_preview_reports_an_unusable_create_the_run_would() -> Result<(), TestError>
+{
+    for (content, operation) in [
+        (&[0xff, 0xfe, b'\n'][..], SyncOperation::ReadLocal),
+        (
+            &b"---\nid: \"0001\"\ntitle: Draft\n"[..],
+            SyncOperation::ParseLocal,
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let item = fixture.unsynced_item("0001", "Draft one")?;
+        std::fs::write(&item.path, content)?;
+        let tracker = RecordingTracker::holding(Vec::new());
+        let author = RecordingAuthor::new(fixture.dir.path());
+
+        let report = run_ordered(
+            &fixture,
+            &tracker,
+            &author,
+            previewing(std::slice::from_ref(&item), &BTreeMap::new()),
+        )?;
+
+        let error = create_from_local_failure(&report);
+        assert_eq!(error.class(), FailureClass::Unparseable, "{error}");
+        assert_eq!(error.operation(), operation, "{error}");
+        assert_nothing_sent(&tracker, &author);
+        assert_no_pending_push_touched(&fixture);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_preview_reports_a_work_file_the_run_could_not_read(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    std::fs::remove_file(&item.path)?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        previewing(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let error = create_from_local_failure(&report);
+    assert_eq!(error.class(), FailureClass::Retryable, "{error}");
+    assert_eq!(error.operation(), SyncOperation::ReadLocal, "{error}");
+    assert_nothing_sent(&tracker, &author);
+    assert_no_pending_push_touched(&fixture);
+    Ok(())
+}
+
+#[test]
+fn a_preview_reports_an_id_that_cannot_name_a_marker() -> Result<(), TestError>
+{
+    let fixture = Fixture::new()?;
+    let item = LocalItem {
+        id: "../last-sync".to_owned(),
+        ..fixture.unsynced_item("0001", "Draft one")?
+    };
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        previewing(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let ApplyError::Io {
+        operation, detail, ..
+    } = create_from_local_failure(&report)
+    else {
+        panic!("an unsafe id is a local failure");
+    };
+    assert_eq!(*operation, SyncOperation::MarkerWrite);
+    assert_eq!(detail, "id cannot name a pending-push marker");
+    assert_nothing_sent(&tracker, &author);
+    assert_no_pending_push_touched(&fixture);
+    Ok(())
+}
+
+#[test]
+fn a_previewed_reusable_marker_reports_no_failure() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-42");
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report = run_ordered(
+        &fixture,
+        &tracker,
+        &author,
+        previewing(std::slice::from_ref(&item), &BTreeMap::new()),
+    )?;
+
+    let row = only_row(&report, "0001");
+    assert_eq!(row.planned.action(), Action::CreateFromLocal);
+    assert!(matches!(row.outcome, ItemOutcome::NotApplied));
+    assert!(fixture.spy.writes.borrow().is_empty());
+    assert!(fixture.spy.removals.borrow().is_empty());
+    assert_nothing_sent(&tracker, &author);
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+enum RefusedMarker {
+    Attempted,
+    Mismatched,
+}
+
+impl RefusedMarker {
+    const ALL: [Self; 2] = [Self::Attempted, Self::Mismatched];
+
+    fn seed(self, fixture: &Fixture) {
+        match self {
+            Self::Attempted => {
+                seed_attempted_marker(fixture, "0001");
+            }
+            Self::Mismatched => {
+                seed_marker(fixture, "0001", &mismatched_created_marker());
+            }
+        }
+    }
+}
+
+#[test]
+fn a_preview_leaves_an_ordered_create_to_its_order() -> Result<(), TestError> {
+    for refused in RefusedMarker::ALL {
+        for order in [adopt("ENG-7"), PendingPushOrder::Create] {
+            let fixture = Fixture::new()?;
+            let item = fixture.unsynced_item("0001", "Draft one")?;
+            refused.seed(&fixture);
+            let tracker = RecordingTracker::holding(vec![keyed(
+                "ENG-7",
+                "Draft one\nBody\n",
+            )]);
+            let author = RecordingAuthor::new(fixture.dir.path());
+            let orders = orders(&[("0001", order.clone())]);
+
+            let report = run_ordered(
+                &fixture,
+                &tracker,
+                &author,
+                previewing(std::slice::from_ref(&item), &orders),
+            )?;
+
+            let row = only_row(&report, "0001");
+            assert!(
+                matches!(row.outcome, ItemOutcome::NotApplied),
+                "{refused:?} under {order:?}"
+            );
+            let adopted: Vec<&str> = report
+                .adoptions
+                .iter()
+                .map(|adoption| adoption.key.as_str())
+                .collect();
+            let expected: &[&str] =
+                if matches!(order, PendingPushOrder::Adopt(_)) {
+                    &["ENG-7"]
+                } else {
+                    &[]
+                };
+            assert_eq!(adopted, expected, "{refused:?} under {order:?}");
+            assert_nothing_sent(&tracker, &author);
+            assert_no_pending_push_touched(&fixture);
+        }
+    }
+    Ok(())
+}
+
+/// Each dossier with its file's modification time reduced to whether it was
+/// read, so dossiers from fixtures written moments apart compare equal.
+fn dossier_shapes(report: &RunReport) -> Vec<ConflictDossier> {
+    report
+        .dossiers
+        .iter()
+        .map(|dossier| ConflictDossier {
+            local_modified: dossier.local_modified.map(|_| 0),
+            ..dossier.clone()
+        })
+        .collect()
+}
+
+#[test]
+fn a_preview_leaves_a_relink_to_its_order() -> Result<(), TestError> {
+    let preview_of =
+        |refused: Option<RefusedMarker>| -> Result<RunReport, TestError> {
+            let fixture = Fixture::new()?;
+            let (item, _) = unconfirmed_link(&fixture)?;
+            if let Some(refused) = refused {
+                refused.seed(&fixture);
+            }
+            let tracker = two_issues();
+            let author = RecordingAuthor::new(fixture.dir.path());
+            let orders = orders(&[("0001", adopt("ENG-8"))]);
+            let report = run_ordered(
+                &fixture,
+                &tracker,
+                &author,
+                previewing(std::slice::from_ref(&item), &orders),
+            )?;
+            assert_nothing_sent(&tracker, &author);
+            assert_no_pending_push_touched(&fixture);
+            Ok(report)
+        };
+    let unmarked = preview_of(None)?;
+
+    for refused in RefusedMarker::ALL {
+        let report = preview_of(Some(refused))?;
+
+        let row = relink_row(&report);
+        assert!(
+            matches!(row.outcome, ItemOutcome::NotApplied),
+            "{refused:?}"
+        );
+        assert_eq!(
+            dossier_shapes(&report),
+            dossier_shapes(&unmarked),
+            "{refused:?}"
+        );
+    }
     Ok(())
 }

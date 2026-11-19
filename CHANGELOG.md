@@ -348,6 +348,17 @@
   with exit 34 before anything is sent. A transition that succeeds prints the
   same JSON as before. Scripts that parse a failed `linear transition`'s
   output or exit codes need updating.
+- **`work sync --preview` exits as the run would for a create it would
+  fail.** For a create without a `--resolve` order, a preview that exited 0
+  now exits 71 for a refused pending push, 75 for an unparseable work file or
+  a reuse blocked by one, and 70 for a work file that could not be read, an
+  id that cannot name a pending-push marker, or a reuse blocked by an
+  environment fault. A refusal outranks conflicts, so a preview that exited 4
+  exits 71 when it also plans a refused create, and a whole-corpus preview
+  that exited 70 for the pending-push discovery deferral exits 71 when it
+  plans the refused create; a `--pull-only` preview plans no creates and
+  still exits 70. A create with a `--resolve` order previews as before.
+  Scripts that parse `work sync` exit codes need updating.
 
 ### Added
 
@@ -1034,6 +1045,11 @@
 - **`work sync --preview` reports a pull's failure.** A planned pull the run
   would fail before writing, such as one over a Jira description with no
   Markdown form, previewed as not applied.
+- **`work sync --preview` reports a create the run would fail.** A create
+  without a `--resolve` order whose pending-push marker the run would refuse,
+  or whose work file it could not use, previewed as a clean create. The
+  preview now prints the run's `failed` row and `would fail` line, and exits
+  as the run would.
 - **`work sync` reports an unsynced item once.** An item it creates or adopts
   in the tracker no longer prints a second `noop\tunsynced` row beside its
   `create-from-local`, `adopt` or `failed` row; scripts that listed unsynced

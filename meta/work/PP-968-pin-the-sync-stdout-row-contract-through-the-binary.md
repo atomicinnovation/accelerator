@@ -11,13 +11,12 @@ priority: "medium"
 parent: "work-item:PP-963"
 relates_to: ["work-item:PP-927", "work-item:PP-926"]
 tags: ["sync", "work-cli", "tests", "stdout-contract"]
-last_updated: "2026-11-16T11:17:16+00:00"
-last_updated_by: "Toby Clemson"
+last_updated: "2026-11-17T16:51:34+00:00"
+last_updated_by: "Phil Helm"
 schema_version: 1
 external_id: "PP-968"
 aliases: ["0377"]
 ---
-
 # PP-968: Pin the Sync Stdout Row Contract Through the Binary
 
 **Kind**: Task
@@ -49,16 +48,16 @@ settled id.
 
 Whole-stdout equality tests in `cli/work-cli/tests/cli_sync.rs` for:
 
-* An apply run that creates one item and leaves another untouched.
-* An apply run whose create fails.
-* A preview and an apply with an adopt order.
-* A refused order beside its item's `noop` row, on a draft and under
+- An apply run that creates one item and leaves another untouched.
+- An apply run whose create fails.
+- A preview and an apply with an adopt order.
+- A refused order beside its item's `noop` row, on a draft and under
   `--pull-only`.
-* A run with an import, a plan row and a create together, fixing their
+- A run with an import, a plan row and a create together, fixing their
   order.
-* A run with an identity row beside the engine row for the same settled id.
-* An unclassifiable item.
-* An unsynced item with an unknown-recipe entry under `--pull-only`.
+- A run with an identity row beside the engine row for the same settled id.
+- An unclassifiable item.
+- An unsynced item with an unknown-recipe entry under `--pull-only`.
 
 ## Acceptance Criteria
 
@@ -69,22 +68,22 @@ Whole-stdout equality tests in `cli/work-cli/tests/cli_sync.rs` for:
 
 ## Open Questions
 
-* Should stderr be compared whole as well, for the cases that print a
+- Should stderr be compared whole as well, for the cases that print a
   warning or an `error:` line?
 
 ## Dependencies
 
-* Blocked by: 0352 (PR #188) merging.
-* Blocks: 0378, 0379.
+- Blocked by: 0352 (PR #188) merging.
+- Blocks: 0378, 0379.
 
 ## Assumptions
 
-* These are characterisation tests: they record current behaviour,
+- These are characterisation tests: they record current behaviour,
   including behaviour a later item changes on purpose.
 
 ## Technical Notes
 
-* 0351 (PR #234) lands first, so this item pins its new preview row. A
+- 0351 (PR #234) lands first, so this item pins its new preview row. A
   create with no `--resolve` order whose pending-push marker the run would
   refuse now previews as the run reports it: the row
   `<id>\tfailed\tunsynced\tterminal`, the stderr line
@@ -94,13 +93,13 @@ Whole-stdout equality tests in `cli/work-cli/tests/cli_sync.rs` for:
 
 ## Drafting Notes
 
-* Placed before the structural stories so that "stdout unchanged" in their
+- Placed before the structural stories so that "stdout unchanged" in their
   criteria is checkable.
 
 ## References
 
-* Source: PR #188 and its exploration record
+- Source: PR #188 and its exploration record
   (`.accelerator/tmp/explore-pr-188-context.md`)
-* Related: 0352, 0146
-* PR reviews: `meta/reviews/prs/188-review-1.md`,
+- Related: 0352, 0146
+- PR reviews: `meta/reviews/prs/188-review-1.md`,
   `meta/reviews/prs/188-review-2.md`
