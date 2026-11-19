@@ -5,12 +5,16 @@
 //! `[features]` and CI's `--all-features` cannot turn a fixture feature on
 //! workspace-wide.
 
+pub mod family;
+pub mod fixture_log;
 pub mod fixtures;
+pub mod handover;
 pub mod hermetic;
 pub mod jj_status;
 pub mod masks;
 pub mod status_log;
 pub mod stubs;
+pub mod workbench;
 
 use std::fmt;
 

@@ -1,0 +1,3 @@
+{"event":"shared-build","family":"matrix","tree":"/tmp/accelerator-shared-fixtures-501/run/matrix","git":"2.50.1","jj":"0.43.0"}
+{"event":"adoption","family":"matrix","test":"vcs-adapters::classify every_fixture_classifies_as_expected","hermetic-root":"/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-a"}
+{"event":"private-build","fixtures":"matrix","test":"vcs-adapters::classify every_fixture_classifies_as_expected","hermetic-root":"/tmp/vcs-workbench-b"}

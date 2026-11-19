@@ -1,0 +1,7 @@
+{
+  "handover": {
+    "matrix": "ACCELERATOR_SHARED_MATRIX"
+  },
+  "workbenches": "ACCELERATOR_SHARED_WORKBENCHES",
+  "log": "ACCELERATOR_FIXTURE_LOG"
+}
