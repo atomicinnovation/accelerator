@@ -2741,6 +2741,20 @@ def _troubleshooting_row(reason: str) -> str:
     return rows[0]
 
 
+def _rows_for(source: str) -> list[str]:
+    return [
+        line
+        for line in _failure_reasons().splitlines()
+        if line.lstrip().startswith("| ") and f" {source} |" in line
+    ]
+
+
+def _row_for(code: str, source: str) -> str:
+    rows = [row for row in _rows_for(source) if f"`{code}`" in row]
+    assert len(rows) == 1, f"conduct needs one row for {code} {source}"
+    return rows[0]
+
+
 def _template_check() -> str:
     return _section(_conduct(), "**Template check.**", "2. **Plan.**")
 
@@ -2902,9 +2916,9 @@ def test_a_guard_refusal_of_a_template_command_is_troubleshot(
         "When it exits non-zero, a research-guard refusal "
         "(`E_RESEARCH_GUARD_COMMAND`) included, write no file" in step
     ), f"{outputter.parent.name} must name a guard refusal as non-zero"
-    unavailable = _troubleshooting_row(TEMPLATE_UNAVAILABLE)
-    assert "`E_RESEARCH_GUARD_COMMAND`" in unavailable
-    assert "`agents.researcher` override" in unavailable
+    refused = _row_for("E_RESEARCH_GUARD_COMMAND", "from a template command")
+    assert "`agents.researcher` override" in refused
+    assert "the rows that follow" in _troubleshooting_row(TEMPLATE_UNAVAILABLE)
 
 
 def test_a_level_note_takes_its_path_and_question_from_the_node_query() -> None:
@@ -3193,10 +3207,11 @@ def test_the_researcher_reports_node_query_failures() -> None:
     assert "`Bash(accelerator research topic *)`" in denied
     failed = _troubleshooting_row(NODE_QUERY_FAILED)
     for code in NODE_QUERY_CODES:
-        assert f"`{code}`" in failed, (
-            f"the {NODE_QUERY_FAILED} row omits {code}"
-        )
-    assert "This row takes precedence over the generic `E_*` row" in failed
+        assert _row_for(code, "from the node query")
+    assert (
+        "These node-query rows take precedence over the generic `E_*` row"
+        in failed
+    )
 
 
 NODE_ACKNOWLEDGED_EARLY = (
@@ -3207,8 +3222,10 @@ NODE_ACKNOWLEDGED_EARLY = (
 def test_a_node_refused_as_not_offered_names_an_early_acknowledgement() -> (
     None
 ):
-    failed = _troubleshooting_row(NODE_QUERY_FAILED)
-    assert NODE_ACKNOWLEDGED_EARLY in failed
+    not_offered = _row_for(
+        "E_TOPIC_RESEARCH_NODE_NOT_OFFERED", "from the node query"
+    )
+    assert NODE_ACKNOWLEDGED_EARLY in not_offered
     not_offered = next(
         line
         for line in _read(DOCS_RESEARCH).splitlines()
