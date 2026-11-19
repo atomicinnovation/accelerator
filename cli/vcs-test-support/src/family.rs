@@ -15,10 +15,11 @@ use crate::Error;
 #[serde(rename_all = "kebab-case")]
 pub enum Family {
     Matrix,
+    StatusLog,
 }
 
 impl Family {
-    pub const ALL: [Self; 1] = [Self::Matrix];
+    pub const ALL: [Self; 2] = [Self::Matrix, Self::StatusLog];
 
     const fn traits(self) -> Traits {
         match self {
@@ -27,6 +28,12 @@ impl Family {
                 handover_variable: "ACCELERATOR_SHARED_MATRIX",
                 flag: "--matrix",
                 noun: "the matrix",
+            },
+            Self::StatusLog => Traits {
+                name: "status-log",
+                handover_variable: "ACCELERATOR_SHARED_STATUS_LOG",
+                flag: "--status-log",
+                noun: "the status-log set",
             },
         }
     }

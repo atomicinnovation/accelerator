@@ -250,8 +250,9 @@ assurance beside it, and what proves it ran is the committed evidence file.
 
 ### Shared VCS fixtures
 
-`test:unit:cli` builds the VCS fixture matrix once per run and hands it to
-every test that needs it, rather than letting each test build its own. Before
+`test:unit:cli` builds the VCS fixture matrix and the status-log set once per
+run and hands them to every test that needs them, rather than letting each
+test build its own. Before
 nextest's test phase it compiles the workspace tests with the same arguments
 nextest uses (so nextest compiles nothing afterwards, and the task fails if
 it does), finds the `shared-fixtures` bin in that build's unit listing and
@@ -261,17 +262,17 @@ the builder code it exercises still counts towards the floor.
 The trees live under one root per user,
 `<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
 is the resolved system temp directory: `<run-id>.lock` beside
-`<run-id>/{matrix,workbenches}/`. A run holds an `flock` on its lock for its
-lifetime, and each run starts by sweeping the directories of runs whose lock
-nobody holds, so a killed run's leftovers go on the next run. The root is
+`<run-id>/{matrix,status-log,workbenches}/`. A run holds an `flock` on its
+lock for its lifetime, and each run starts by sweeping the directories of
+runs whose lock nobody holds, so a killed run's leftovers go on the next run. The root is
 refused if it is a symlink, not a directory, owned by someone else, writable
 by group or world, or inside a checkout; move it aside and the next run
 recreates it.
 
-The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`, the
-directory tests open their workbenches under through
-`ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
-`ACCELERATOR_FIXTURE_LOG`. The task owns all three: never export them, and an
+The task hands the trees over through `ACCELERATOR_SHARED_MATRIX` and
+`ACCELERATOR_SHARED_STATUS_LOG`, the directory tests open their workbenches
+under through `ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
+`ACCELERATOR_FIXTURE_LOG`. The task owns all four: never export them, and an
 exported value never reaches the run. Every build, adoption and private
 build is logged to `cli/target/vcs-fixture-logs/<run-id>.jsonl`, which
 outlives the run (the newest 20 are kept). When the run ends, pass or fail,
@@ -324,7 +325,7 @@ hand. Neither is for CI.
 
 | Variable | Effect |
 |---|---|
-| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix`) without building it; any other value is refused. |
+| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix` or `status-log`) without building it; any other value is refused. |
 | `ACCELERATOR_SHARED_FIXTURES_HOLD` | A directory: after the build step the task writes `held` there and waits up to 30 minutes for `release`. Refused when `CI` is set. |
 
 ### The gix/jj-lib link-ratio guard

@@ -266,6 +266,8 @@ class TestTheSummary:
             f"Shared VCS fixtures (log: {log.path}; shared root: /root)",
             "  matrix: 1 shared build, 19 adoptions, 0 copies, "
             "0 private builds",
+            "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
             "  private sets (never shared): 0 private builds",
         ]
 
@@ -281,6 +283,8 @@ class TestTheSummary:
 
         assert log.summary(Path("/root")).lines()[1:] == [
             "  matrix: 0 shared builds, 0 adoptions, 0 copies, 1 private build",
+            "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
             "  private sets (never shared): 2 private builds",
         ]
 
