@@ -231,7 +231,7 @@ def test_both_layouts_carry_the_stop_evidence_model(tmp_path, script):
         assert html.index("StopEvidence") < html.index("window.APP")
 
 
-PAGE_MODEL_SUITES = ("review-sections", "catalogue")
+PAGE_MODEL_SUITES = ("review-sections", "catalogue", "review-notes")
 TESTS = Path(__file__).resolve().parent
 
 
@@ -248,7 +248,7 @@ def test_each_page_model_the_build_inlines_passes_its_node_suite(model):
     assert run.returncode == 0, run.stdout + run.stderr
 
 
-def test_both_layouts_carry_the_review_sections_and_catalogue_models(
+def test_both_layouts_carry_the_page_models_the_reviewer_works_through(
     tmp_path, script
 ):
     build = script("build")
@@ -257,7 +257,7 @@ def test_both_layouts_carry_the_review_sections_and_catalogue_models(
     build.hosted(PAGE, tmp_path, {}, {}, [], "t")
 
     for html in (page, (tmp_path / "index.html").read_text()):
-        for model in ("ReviewSections", "Catalogue"):
+        for model in ("ReviewSections", "Catalogue", "ReviewNotes"):
             assert html.index(model) < html.index("window.APP"), model
 
 
