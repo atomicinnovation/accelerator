@@ -8,6 +8,7 @@
 //! goldens are produced through, reviewed by hand before they are committed.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -60,6 +61,18 @@ fn run_vcs(
         .to_owned())
 }
 
+fn golden_names() -> Result<BTreeSet<String>, TestError> {
+    let mut names = BTreeSet::new();
+    for entry in fs::read_dir(fixtures_dir())? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|extension| extension == "txt") {
+            let stem = path.file_stem().ok_or("a golden has no name")?;
+            names.insert(stem.to_string_lossy().into_owned());
+        }
+    }
+    Ok(names)
+}
+
 fn regenerating() -> bool {
     std::env::var_os("REGENERATE_GOLDENS").is_some()
 }
@@ -74,11 +87,13 @@ fn status_and_log_match_every_captured_state() -> Result<(), TestError> {
     let states = status_log::build_states(work.path(), &env)?;
 
     let mut failures = Vec::new();
+    let mut compared = BTreeSet::new();
     for (name, directory) in &states {
         for subcommand in ["status", "log"] {
             let rendered =
                 masks::apply(&masks, &run_vcs(&env, subcommand, directory)?)?;
             let golden_name = format!("{name}-{subcommand}");
+            compared.insert(golden_name.clone());
             if regenerating() {
                 fs::write(
                     fixtures_dir().join(format!("{golden_name}.txt")),
@@ -102,6 +117,11 @@ fn status_and_log_match_every_captured_state() -> Result<(), TestError> {
         regenerating() || failures.is_empty(),
         "{}",
         failures.join("\n\n")
+    );
+    assert_eq!(
+        compared,
+        golden_names()?,
+        "every golden on disk is compared, and nothing else"
     );
     Ok(())
 }
