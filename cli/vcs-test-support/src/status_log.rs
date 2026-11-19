@@ -12,12 +12,15 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::family::CopyableFamily;
 use crate::family::Family;
 use crate::family::PrivateBuild;
 use crate::family::SharedFamily;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::hermetic::ENTRY_PREFIX;
 use crate::status_log_manifest::StatusLogManifest;
+use crate::status_log_manifest::FILE as MANIFEST;
 use crate::Error;
 
 /// The state whose hostile config proves a read spawns nothing; it carries no
@@ -594,5 +597,107 @@ impl SharedFamily for States {
         _token: PrivateBuild,
     ) -> Result<Self, Error> {
         Self::build_with(directory, hermetic)
+    }
+}
+
+/// A part of the status-log set a test can take a writable copy of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusLogPart {
+    Everything,
+    PlainGit,
+    Conflicts,
+}
+
+impl StatusLogPart {
+    /// The top-level entries of `tree` that make up this part.
+    ///
+    /// # Errors
+    ///
+    /// When `tree` cannot be listed.
+    pub fn entries(self, tree: &Path) -> Result<Vec<String>, Error> {
+        let named = |names: &[&str]| {
+            names.iter().map(|&name| name.to_owned()).collect()
+        };
+        match self {
+            Self::Everything => every_state_and_supporting_repository(tree),
+            Self::PlainGit => {
+                Ok(named(&["clean-git", "dirty-git", "detached-head-git"]))
+            }
+            Self::Conflicts => Ok(named(&["conflict-git", "conflict-jj"])),
+        }
+    }
+
+    pub(crate) fn build_privately(
+        self,
+        directory: &Path,
+        hermetic: &Hermetic,
+    ) -> Result<States, Error> {
+        let build_family = match self {
+            Self::Everything => return States::build_with(directory, hermetic),
+            Self::PlainGit => build_plain_git_states,
+            Self::Conflicts => build_conflict_states,
+        };
+        let base = directory.canonicalize()?;
+        let mut states = BTreeMap::new();
+        build_family(&base, hermetic, &mut states)?;
+        Ok(States {
+            base,
+            states: states
+                .into_iter()
+                .map(|(key, path)| (key.to_owned(), path))
+                .collect(),
+        })
+    }
+}
+
+fn every_state_and_supporting_repository(
+    tree: &Path,
+) -> Result<Vec<String>, Error> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(tree)? {
+        let name = entry?.file_name();
+        let name = name.to_str().ok_or_else(|| non_utf8(&tree.join(&name)))?;
+        if name != MANIFEST && !name.starts_with(ENTRY_PREFIX) {
+            entries.push(name.to_owned());
+        }
+    }
+    entries.sort();
+    Ok(entries)
+}
+
+impl CopyableFamily for States {
+    type Part = StatusLogPart;
+
+    fn entries(
+        part: &StatusLogPart,
+        tree: &Path,
+    ) -> Result<Vec<String>, Error> {
+        part.entries(tree)
+    }
+
+    fn build_part_privately(
+        part: StatusLogPart,
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        part.build_privately(directory, hermetic)
+    }
+
+    fn rebased(self, from: &Path, onto: &Path, entries: &[String]) -> Self {
+        let copied = |relative: &Path| {
+            entries.iter().any(|entry| relative.starts_with(entry))
+        };
+        Self {
+            base: onto.to_path_buf(),
+            states: self
+                .states
+                .into_iter()
+                .filter_map(|(key, path)| {
+                    let relative = path.strip_prefix(from).ok()?;
+                    copied(relative).then(|| (key, onto.join(relative)))
+                })
+                .collect(),
+        }
     }
 }

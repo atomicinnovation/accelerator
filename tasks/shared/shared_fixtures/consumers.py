@@ -18,6 +18,8 @@ CONSUMERS: Mapping[str, frozenset[Family]] = {
     "vcs-adapters::queries": _MATRIX,
     "vcs-adapters::scrub": _MATRIX,
     "vcs-test-support::matrix": _MATRIX,
+    "vcs-test-support::copy_fidelity": _STATUS_LOG,
+    "vcs-test-support::status_log_parts": _STATUS_LOG,
     "vcs-test-support::status_log_states": _STATUS_LOG,
 }
 

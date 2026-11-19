@@ -3,8 +3,10 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use vcs_test_support::family::CopyableFamily;
 use vcs_test_support::family::SharedFamily;
 use vcs_test_support::status_log::States;
+use vcs_test_support::status_log::StatusLogPart;
 use vcs_test_support::status_log::ADVERSARIAL_STATE;
 use vcs_test_support::status_log_manifest::StatusLogManifest;
 
@@ -184,5 +186,56 @@ fn a_state_is_found_by_its_key() -> Result<(), TestError> {
     assert_eq!(states.get("clean-git")?, base.join("clean-git"));
     let error = states.get("dirty-jj").err().ok_or("it should fail")?;
     assert!(error.to_string().contains("dirty-jj"), "{error}");
+    Ok(())
+}
+
+#[test]
+fn everything_is_every_entry_but_the_manifest_and_the_hermetic_environment(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    for state in ["clean-git", "seed", "hermetic-home", "hermetic-xdg"] {
+        fs::create_dir(directory.path().join(state))?;
+    }
+    fs::write(directory.path().join("hermetic-jj.toml"), "")?;
+    written_states(directory.path())?;
+
+    let entries = StatusLogPart::Everything.entries(directory.path())?;
+
+    assert_eq!(entries, ["clean-git", "seed"]);
+    Ok(())
+}
+
+#[test]
+fn the_plain_git_and_conflict_parts_name_their_states() -> Result<(), TestError>
+{
+    let directory = tempfile::tempdir()?;
+
+    assert_eq!(
+        StatusLogPart::PlainGit.entries(directory.path())?,
+        ["clean-git", "dirty-git", "detached-head-git"]
+    );
+    assert_eq!(
+        StatusLogPart::Conflicts.entries(directory.path())?,
+        ["conflict-git", "conflict-jj"]
+    );
+    Ok(())
+}
+
+#[test]
+fn rebased_states_keep_only_the_copied_entries_at_their_new_base(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let base = directory.path().canonicalize()?;
+    written_states(&base)?;
+    let onto = PathBuf::from("/copy");
+
+    let rebased =
+        States::adopt(&base)?.rebased(&base, &onto, &["clean-git".to_owned()]);
+
+    assert_eq!(rebased.base, onto);
+    assert_eq!(
+        rebased.states,
+        BTreeMap::from([("clean-git".to_owned(), onto.join("clean-git"))])
+    );
     Ok(())
 }

@@ -27,6 +27,7 @@ use crate::handover::SHARED_WORKBENCHES_VARIABLE;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
 use crate::status_log::States;
+use crate::status_log::StatusLogPart;
 use crate::Error;
 
 /// The states of one private set, keyed by name.
@@ -228,6 +229,19 @@ impl Workbench {
     /// As [`Self::shared`].
     pub fn status_log_states(&self) -> Result<Held<'_, States>, Error> {
         self.shared::<States>()
+    }
+
+    /// A copy of `part` of the run's status-log set, the test's own to
+    /// change.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::writable`].
+    pub fn writable_status_log_states(
+        &self,
+        part: StatusLogPart,
+    ) -> Result<Held<'_, States>, Error> {
+        self.writable::<States>(part)
     }
 
     fn hand_out<F>(

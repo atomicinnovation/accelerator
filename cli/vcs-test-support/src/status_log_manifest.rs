@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use crate::Error;
 
-const FILE: &str = "status-log-states.tsv";
+pub(crate) const FILE: &str = "status-log-states.tsv";
 
 #[derive(Debug, Clone)]
 pub struct StatusLogManifest {
