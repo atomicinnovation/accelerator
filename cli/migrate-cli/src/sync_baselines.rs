@@ -1,4 +1,5 @@
-//! Migration 0008's sync-baseline realignment, answered by the work context.
+//! Sync-baseline realignment after a migration rewrites work items, answered
+//! by the work context.
 
 use std::path::Path;
 use std::path::PathBuf;

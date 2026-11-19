@@ -1,6 +1,6 @@
-//! Realigning every integration's sync baseline after the corpus has been
-//! re-rendered, so content-identical items are not reclassified as locally
-//! modified.
+//! Realigning every integration's sync baseline after a migration has
+//! rewritten work items, so items that were in sync before it are not
+//! reclassified as locally modified.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -38,11 +38,11 @@ impl fmt::Display for RealignError {
 
 impl std::error::Error for RealignError {}
 
-/// Advances each entry that was `Synced` before the re-render to its file's
+/// Advances each entry that was `Synced` before the migration to its file's
 /// new digest, returning how many advanced.
 ///
 /// A diverged entry is left untouched so its pending push survives.
-/// `pre_migration` carries each re-rendered file's original content.
+/// `pre_migration` carries each rewritten file's original content.
 ///
 /// `writer_at` builds a writer rooted at a baseline's own directory, so an
 /// integrations root outside the repository stays writable, and
@@ -126,7 +126,7 @@ fn realign_one_baseline(
 }
 
 /// `entry` with its local digests moved to `new_content`'s, when they
-/// recorded `original` and the re-render moved them.
+/// recorded `original` and the migration moved them.
 fn realigned_entry(
     entry: &baseline::Entry,
     original: &str,
