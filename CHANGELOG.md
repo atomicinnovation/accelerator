@@ -462,6 +462,18 @@
   injected citing-once rule as well as the finding outputter, or its
   findings can cite a source more than once. See
   [Citing a source once](https://atomicinnovation.github.io/accelerator/research/#citing-a-source-once).
+- **`conduct`'s researchers fetch their own templates.** A researcher's
+  prompt carries no template: it runs the
+  `accelerator config template topic-research` command its outputter names,
+  `--kind finding` or `--kind level-note`. An `agents.researcher` override
+  must run that command; an `agents.composer` override still receives the
+  finding template inline. `conduct` runs both commands before its first
+  plan, so a missing or unreadable template, or a denied command, stops it
+  before any spawn. `research-topic`'s spawns inherit its
+  `Bash(accelerator config *)` grant; a skill that spawns them without such
+  a grant needs `Bash(accelerator config template topic-research --kind
+  finding)` and `Bash(accelerator config template topic-research --kind
+  level-note)`.
 - **The web source profile grants `Bash(accelerator research fetch *)`**, the
   rule `research-topic` already grants, and runs `fetch web metadata` for
   each page it cites. A denied or failed call leaves that entry without a

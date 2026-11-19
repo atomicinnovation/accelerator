@@ -728,11 +728,13 @@ def test_research_topic_emits_no_dormant_depth_notice() -> None:
     )
 
 
-def test_research_topic_loads_the_level_note_template() -> None:
-    assert (
-        "config template topic-research --kind level-note"
-        in _research_topic_prose()
-    ), "conduct injects the level-note template into node spawns"
+def test_node_spawns_load_the_level_note_template_through_their_outputter() -> (
+    None
+):
+    level_note = permitted_command("LEVEL_NOTE_TEMPLATE").text
+    assert f"`{level_note}`" in _prose(LEVEL_NOTE_OUTPUTTER), (
+        "the level-note outputter must name the command printing its template"
+    )
 
 
 def test_research_topic_routes_nodes_to_the_level_note_outputter() -> None:
@@ -2359,7 +2361,7 @@ def _dedented(text: str) -> str:
 def test_research_topic_loads_the_report_template() -> None:
     prose = _research_topic_prose()
     assert "config template topic-research --kind report" in prose
-    assert "The seven artifact templates" in prose
+    assert "The five artifact templates" in prose
 
 
 def test_report_names_the_citing_once_rule_s_path() -> None:
@@ -2664,3 +2666,286 @@ def test_the_verdict_is_taken_again_before_the_first_write() -> None:
         "`Bash(accelerator research topic consultable *)`",
     ):
         assert phrase in consult, f"the re-check lacks {phrase!r}"
+
+
+FINDING_TEMPLATE_COMMAND = permitted_command("FINDING_TEMPLATE").text
+LEVEL_NOTE_TEMPLATE_COMMAND = permitted_command("LEVEL_NOTE_TEMPLATE").text
+TEMPLATE_DENIED = "template command denied by permissions"
+TEMPLATE_UNAVAILABLE = "template unavailable"
+NO_TEMPLATE_GIVEN = "no template given"
+TEMPLATE_OUTPUTTERS = pytest.mark.parametrize(
+    ("outputter", "command"),
+    [
+        (FINDING_OUTPUTTER, FINDING_TEMPLATE_COMMAND),
+        (LEVEL_NOTE_OUTPUTTER, LEVEL_NOTE_TEMPLATE_COMMAND),
+    ],
+    ids=["finding", "level-note"],
+)
+SPAWN_BULLETS = (
+    "a `single_pass` pair",
+    "a node of a `research_nodes` pair",
+    "a `compose` pair",
+)
+COMPOSE_TEMPLATE_ITEM = (
+    "the finding template the template check printed, verbatim"
+)
+
+
+def _injected_items(bullet: str) -> list[str]:
+    """The fields a spawn bullet injects: the items of its nested list under
+    "injecting:", one per field, each continuation line joined to its item."""
+    lines = bullet.splitlines()
+    starts = [
+        at for at, line in enumerate(lines) if line.endswith("injecting:")
+    ]
+    assert starts, "the spawn bullet injects nothing"
+    items: list[str] = []
+    indent: int | None = None
+    for line in lines[starts[0] + 1 :]:
+        text = line.lstrip()
+        depth = len(line) - len(text)
+        if indent is None and text.startswith("- "):
+            indent = depth
+        if indent is None or not text or depth < indent:
+            break
+        if depth == indent and text.startswith("- "):
+            items.append(text.removeprefix("- "))
+        elif depth > indent:
+            items[-1] += f" {text}"
+        else:
+            break
+    return items
+
+
+def _spawn_bullets() -> dict[str, str]:
+    step = _section(
+        _read(RESEARCH_TOPIC), "4. **Spawn the batch**", "   Each agent writes"
+    )
+    parts = re.split(r"^   - \*\*(a [^*]+)\*\*", step, flags=re.MULTILINE)
+    return dict(zip(parts[1::2], parts[2::2], strict=True))
+
+
+def _troubleshooting_row(reason: str) -> str:
+    rows = _rows_naming(_failure_reasons(), reason)
+    assert len(rows) == 1, f"conduct needs one troubleshooting row for {reason}"
+    return rows[0]
+
+
+def _template_check() -> str:
+    return _section(_conduct(), "**Template check.**", "2. **Plan.**")
+
+
+def _outputter_template_step(outputter: Path) -> str:
+    return _section(
+        _prose(outputter), "## Template", "## Shape", path=outputter
+    )
+
+
+def test_injected_items_joins_continuation_lines() -> None:
+    bullet = (
+        "   - **a pair** gets an agent, injecting:\n"
+        "     - the profile path:\n"
+        "       `profiles/web/SKILL.md`\n"
+        "     - the `question`, byte for byte\n"
+        "\n"
+        "     The prompt states more.\n"
+    )
+    assert _injected_items(bullet) == [
+        "the profile path: `profiles/web/SKILL.md`",
+        "the `question`, byte for byte",
+    ]
+
+
+def test_step_four_has_exactly_three_spawn_bullets() -> None:
+    bullets = _spawn_bullets()
+    assert tuple(bullets) == SPAWN_BULLETS
+    for name, bullet in bullets.items():
+        assert _injected_items(bullet), f"{name} injects no field"
+
+
+def test_only_the_composer_is_given_a_template() -> None:
+    bullets = _spawn_bullets()
+    for name in SPAWN_BULLETS[:2]:
+        assert not [
+            item
+            for item in _injected_items(bullets[name])
+            if "template" in item
+        ], f"{name} must not be given a template, as text or as a reference"
+    compose_templates = [
+        item
+        for item in _injected_items(bullets["a `compose` pair"])
+        if "template" in item
+    ]
+    assert compose_templates == [COMPOSE_TEMPLATE_ITEM]
+    raw = _read(RESEARCH_TOPIC)
+    assert "## Finding template" not in raw
+    assert "## Level-note template" not in raw
+    assert (
+        "A researcher runs no CLI but the `accelerator research fetch` calls "
+        "its profile directs and the template command its outputter names; "
+        "a composer runs nothing"
+    ) in _spawn_step()
+
+
+def test_the_finding_outputter_fills_a_given_template_or_runs_its_command() -> (
+    None
+):
+    step = _outputter_template_step(FINDING_OUTPUTTER)
+    composer = _section(step, "**A composer**", "**A researcher**")
+    researcher = step[step.index("**A researcher**") :]
+    assert "fills the finding template its task prompt carries" in composer
+    assert FINDING_TEMPLATE_COMMAND not in composer
+    assert f'"{NO_TEMPLATE_GIVEN}"' in composer
+    assert f"runs `{FINDING_TEMPLATE_COMMAND}`" in researcher
+
+
+def test_the_level_note_outputter_always_runs_its_command() -> None:
+    outputter = _prose(LEVEL_NOTE_OUTPUTTER)
+    deferral = _section(
+        outputter,
+        "Read `finding-outputter` too",
+        "## Sink",
+        path=LEVEL_NOTE_OUTPUTTER,
+    )
+    assert "Its **Template** step is the exception" in deferral
+    step = _outputter_template_step(LEVEL_NOTE_OUTPUTTER)
+    assert "A level-note writer is always a researcher" in step
+    assert f"Run `{LEVEL_NOTE_TEMPLATE_COMMAND}`" in step
+    assert "prompt carries" not in outputter, (
+        "a level-note writer never fills a template it is given"
+    )
+
+
+def test_only_the_researcher_states_the_template_ordering() -> None:
+    assert "before any research" in _prose(RESEARCHER)
+    for outputter in (FINDING_OUTPUTTER, LEVEL_NOTE_OUTPUTTER):
+        assert "before any research" not in _prose(outputter)
+
+
+@TEMPLATE_OUTPUTTERS
+def test_each_outputter_names_its_template_command(
+    outputter: Path, command: str
+) -> None:
+    prose = _prose(outputter)
+    assert f"`{command}`" in prose
+    assert f"{command} --fail-safe" not in prose, (
+        "--fail-safe would swallow the failure the outputter must report"
+    )
+
+
+@TEMPLATE_OUTPUTTERS
+def test_every_skill_injecting_a_template_outputter_grants_its_command(
+    outputter: Path, command: str
+) -> None:
+    assert command in frontmatter_bash_rules(_read(outputter)), (
+        f"{outputter.parent.name} must grant its exact template command"
+    )
+    outputters = REPO_ROOT / "skills/research/outputters"
+    injected = outputter.relative_to(REPO_ROOT).as_posix()
+    injecting = [
+        path
+        for path in sorted((REPO_ROOT / "skills").rglob("SKILL.md"))
+        if not path.is_relative_to(outputters) and injected in _read(path)
+    ]
+    assert injecting, f"no skill injects {outputter.parent.name}"
+    for path in injecting:
+        assert any(
+            rule_covers(f"Bash({rule})", command)
+            for rule in frontmatter_bash_rules(_read(path))
+        ), (
+            f"{path.relative_to(REPO_ROOT)} injects {outputter.parent.name} "
+            f"without granting a rule covering {command}"
+        )
+
+
+def test_the_researcher_fetches_its_template_before_researching() -> None:
+    prose = _prose(RESEARCHER)
+    template = prose.index("the outputter's **Template** step")
+    assert template < prose.index("**Research the focus question**")
+    assert template < prose.index("`accelerator research fetch`")
+    assert (
+        "Run no CLI except `accelerator research fetch`, only as your profile "
+        "directs, and the template command your outputter names"
+    ) in prose
+
+
+@TEMPLATE_OUTPUTTERS
+def test_template_failures_are_named_and_troubleshot(
+    outputter: Path, command: str
+) -> None:
+    step = _outputter_template_step(outputter)
+    for outcome in (TEMPLATE_DENIED, TEMPLATE_UNAVAILABLE):
+        assert f'"{outcome}"' in step, (
+            f"{outputter.parent.name} must report {outcome!r}"
+        )
+    assert "quoting the first line of its stderr" in step
+    denied = _troubleshooting_row(TEMPLATE_DENIED)
+    for rule in (FINDING_TEMPLATE_COMMAND, LEVEL_NOTE_TEMPLATE_COMMAND):
+        assert f"`Bash({rule})`" in denied
+    assert _troubleshooting_row(TEMPLATE_UNAVAILABLE)
+    assert _troubleshooting_row(NO_TEMPLATE_GIVEN)
+
+
+def test_conduct_checks_its_templates_before_the_first_plan() -> None:
+    conduct = _conduct()
+    assert conduct.index("**Template check.**") < conduct.index("--start")
+    check = _template_check()
+    for command in (FINDING_TEMPLATE_COMMAND, LEVEL_NOTE_TEMPLATE_COMMAND):
+        assert command in check
+        assert f"{command} --fail-safe" not in check
+    for sentence in (
+        "if either exits non-zero, `conduct` starts no run and spawns nothing.",
+        "if either command is denied by permissions, `conduct` starts no run "
+        "and spawns nothing.",
+        "the finding command's fenced block, from its opening fence line to "
+        "its closing one",
+        "The level-note command's block is discarded",
+        "any other line from a command that exits 0 is a warning, whatever "
+        "its wording.",
+    ):
+        assert sentence in check, f"the template check must state {sentence!r}"
+    assert "falling back to defaults" not in check, (
+        "the check must not match the CLI's warning wording"
+    )
+    assert COMPOSE_TEMPLATE_ITEM in _injected_items(
+        _spawn_bullets()["a `compose` pair"]
+    )
+    assert "each template-check warning" in _summary()
+
+
+COMPOSE_FIELDS = {
+    "the outputter path": ("Finding outputter",),
+    "the citing-once rule path": (
+        "Citing-once rule, which every Sources entry of the finding follows",
+    ),
+    "the finding template": ("Finding template",),
+    "the pair's `question`": ("Question", "Source profile"),
+    "the resolved `depth`": ("Depth",),
+    "the `notes` paths": ("Notes to read",),
+    "the pair's `path`": ("Output path",),
+}
+PREAMBLE_FIELDS = ("Round", "Timestamp", "Author")
+
+
+def test_the_citing_once_eval_mirrors_the_compose_bullet(
+    tmp_path: Path,
+) -> None:
+    from tasks.eval.citing_once.projects import Project
+    from tasks.eval.citing_once.sessions import composer_prompt
+
+    items = _injected_items(_spawn_bullets()["a `compose` pair"])
+    matched = {
+        field: [item for item in items if item.startswith(field)]
+        for field in COMPOSE_FIELDS
+    }
+    assert all(len(found) == 1 for found in matched.values()), matched
+    assert len(items) == len(COMPOSE_FIELDS), items
+    assert "and the derived timestamp and author" in _spawn_step()
+    note = tmp_path / "note.md"
+    note.write_text('question: "Q?"\n')
+    project = Project(tmp_path, tmp_path, "s", (note,), tmp_path / "out.md")
+    labels = re.findall(
+        r"^- ([^:\n]+):", composer_prompt(project, REPO_ROOT), re.MULTILINE
+    )
+    expected = [label for field in COMPOSE_FIELDS.values() for label in field]
+    assert sorted(labels) == sorted([*expected, *PREAMBLE_FIELDS])
