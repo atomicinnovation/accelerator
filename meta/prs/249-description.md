@@ -1,7 +1,7 @@
 ---
 type: "pr-description"
 id: "249"
-title: "[0365] Build the status-log states without recording where they were built"
+title: "[0365] Build the status-log states once per run, copying them for tests that write"
 date: "2026-11-19T18:58:43+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
@@ -11,135 +11,163 @@ parent: "work-item:PP-957"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/249"
 pr_number: 249
 tags: ["build-system", "testing", "rust", "vcs"]
-revision: "d85b373b3a6359b6b27e0fa8d06838904c1d23ec"
+revision: "ab4090f307f60b37e0a3a1d29847db9d561b74b7"
 repository: "accelerator"
-last_updated: "2026-11-19T18:58:43+00:00"
+last_updated: "2026-11-19T19:51:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# [0365] Build the status-log states without recording where they were built
+# [0365] Build the status-log states once per run, copying them for tests that write
 
 ## Summary
 
-A test can only work in a copy of the status-log states if no state
-records the directory it was built in. Otherwise the copy still points
-back at the original. This PR changes the status-log builders so that
-none does, and adds a test that checks every state for its build
-directory. Every golden is byte-identical. Nothing shares or copies the
-states yet; that is Phase 5.
+`test:unit:cli` built the `vcs status`/`vcs log` fixture states six or more
+times per run, once in each test that needed them. It now builds them once,
+in the build step that already builds the matrix, and hands them to the
+tests. Tests that only read the states adopt the shared build. Tests that
+change them, as anything that snapshots a jj working copy does, each get
+their own copy. Every golden is byte-identical.
 
-This is Phase 4 of 0365's plan, the first phase of its status-log
-increment. It is stacked on #247 (the matrix increment) and is a draft
-mainly so that CI's `ubuntu-latest` leg runs the new test and the
-status-log goldens.
+This is 0365's status-log increment: Phase 4 (the states record no absolute
+path, so a copy reads as a fresh build would) and Phase 5 (sharing and
+copying). Phase 6, the closing measurement, follows once this merges. #247,
+the matrix increment, has merged, so this PR is now based on `main`.
 
 ## Changes
 
-- **A path scan.** `path_scan::files_naming(tree, needle)` lists every
-  regular file under a tree whose bytes name a directory, and every
-  symlink whose target does, in path order. It matches the needle both
-  as given and as its canonical path, so `/var` and `/private/var` on
-  macOS cannot hide each other. Phase 5's copy helper will use the same
-  scan on every copy. `walkdir` becomes a workspace dependency; it was
-  already in the lockfile.
-- **Path-free status-log builders.** Each place a state recorded its
-  build directory now records a relative path, or nothing:
-  - `git-ahead` and `git-behind` are cloned with a command-scoped
-    `-c core.logAllRefUpdates=false`, so the clone writes no
-    `clone: from <path>` reflog entry. Their `remote.origin.url` is then
-    set to `../origin.git`. The repository's own config still enables
-    reflogs, so later commits are logged as before.
-  - The bare `origin.git` points back at `../seed`.
-  - `adversarial-git`'s `core.hooksPath` is `hostile-hooks`, which git
-    resolves against the working tree, so it is the same directory.
-  - The secondary jj workspace is added as `../jj-secondary`, so jj's
-    operation log, which records each command line, names no absolute
-    path.
-- **The matrix's build split, for the status-log states.**
-  `States::build_or_adopt` built, recorded and adopted in one body. The
-  build now goes through three functions:
-  - `build_with(base, env)` builds the full set with the hermetic
-    environment it is given;
-  - `build_in(base)` refuses a base inside a checkout, roots a
-    hermetic environment there and builds;
-  - `build_for_sharing(base)` builds and writes the manifest.
+### Phase 4: states that record no build directory
 
-  `build_or_adopt` adopts or calls `build_for_sharing`, and stays until
-  Phase 5 removes it.
-- **`StatusLogManifest`.** The manifest is read and written through its
-  own type in `status_log_manifest.rs`, beside `MatrixManifest`. The
-  `status-log-states.tsv` format is unchanged.
+- **A path scan.** `path_scan::files_naming(tree, needle)` lists every
+  regular file under a tree whose bytes name a directory, and every symlink
+  whose target does, in path order. It matches the needle both as given and
+  as its canonical path, so `/var` and `/private/var` on macOS cannot hide
+  each other.
+- **Path-free status-log builders.** Each place a state recorded its build
+  directory now records a relative path, or nothing:
+  - `git-ahead` and `git-behind` are cloned with a command-scoped
+    `-c core.logAllRefUpdates=false`, then pointed at `../origin.git`;
+  - the bare `origin.git` points back at `../seed`;
+  - `adversarial-git`'s `core.hooksPath` is `hostile-hooks`;
+  - the secondary jj workspace is added as `../jj-secondary`, so jj's
+    operation log names no absolute path.
+- **The matrix's build split and a manifest type.** `States` builds through
+  `build_with`, `build_in` and `build_for_sharing`, as `Matrix` does, and
+  its manifest goes through `StatusLogManifest`.
 - **A guard test.** `status_log_states::no_state_names_the_directory_it_was_built_in`
-  builds the full set and scans every state, plus `seed`, `origin.git`
-  and `jj-secondary-main`, for the build directory. The manifest and
-  the `hermetic-*` entries are not scanned.
-- **The plan and work item.** Phase 4's automated checks are ticked, and
-  the status-log build's cost is recorded (see Notes for Reviewers).
+  scans every state, plus `seed`, `origin.git` and `jj-secondary-main`, for
+  the directory it was built in.
+
+### Phase 5: sharing and copying
+
+- **The status-log set is a shared family.** `Family::StatusLog` joins the
+  matrix on both sides of the contract (`--status-log`,
+  `ACCELERATOR_SHARED_STATUS_LOG`), and the `shared-fixtures` builder builds
+  both families concurrently. A filtered run builds only the families its
+  selected tests consume.
+- **The copy helper.** `copies::copy_part` copies named top-level entries of
+  a shared tree, keeping every file's contents, mode and times to the
+  nanosecond, so git's index and jj's working-copy state see nothing
+  changed. Each copy is then scanned for the shared tree's path.
+- **The workbench hands out three new kinds of fixture:**
+  - `status_log_states()` adopts the shared set;
+  - `writable_status_log_states(part)` copies `Everything`, `PlainGit` or
+    `Conflicts` into the workbench, or builds that part privately when
+    nothing is handed over;
+  - `private_states(builder)` builds a cap, bookmark or parity set in the
+    workbench, so it is logged under "private sets".
+
+  A copy that still names the shared tree is logged with the offending files
+  and fails the test.
+- **The fixture log records copies.** A `copy` event carries the copy and
+  its scan. The summary counts copies, the run fails on any copy whose scan
+  found the shared path, and copies count towards the consumer checks.
+- **The consumers move.** The six goldens tests and `conflicts` copy the
+  states, the `status_log_states` self-test adopts them, and the cap,
+  bookmark and parity tests build their sets through `private_states`. The
+  full-set builders are `pub(crate)`, so no test can build the shared set
+  behind the log's back. `ACCELERATOR_ZERO_SPAWN_STATUS_LOG`, `states_root`
+  and `build_or_adopt` are gone.
+- **New tests against real states.** `copy_fidelity` checks a copy of every
+  state: the same modification times, the same `git status`/`jj status`
+  output, and a jj snapshot that sees exactly the builder's own edits.
+  `status_log_parts` checks each part's private build holds what the
+  copied part holds.
+- **Guards.** `tests/unit/tasks/test_fixture_builds.py` now also refuses
+  `copy_part(` outside the copy's own tests, and a direct call to a
+  private-set builder anywhere in a test. The goldens test asserts that it
+  compared exactly the 38 golden files on disk.
+- **Python side.** `consumers.py` lists the five status-log consumer
+  binaries, and the captured nextest listing grows to cover them.
+- **Docs, plan and work item.** `tasks/README.md`'s "Shared VCS fixtures"
+  subsection covers copies, the path scan and the private sets. The plan's
+  Phase 4 and 5 checks are ticked, with an "as built" note on each phase,
+  and the work item records every status-log outcome.
 
 ## Context
 
 - Work item: `meta/work/PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
 - Plan: `meta/plans/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`,
-  Phase 4
-- Builds on #247, which builds the matrix once per run and hands it to
-  the tests.
+  Phases 4 and 5
+- Builds on #247 (merged), which builds the matrix once per run and hands
+  it to the tests.
 
 ## Testing
 
-- [x] Written test first: before the builder changes,
-      `no_state_names_the_directory_it_was_built_in` failed, naming
-      `git-ahead` and `git-behind` (config and three reflogs each),
-      `origin.git/config`, `adversarial-git/.git/config` and one jj
-      operation in `jj-secondary-main`. These are the files the plan
-      predicted.
-- [x] The status-log suites pass:
+- [x] Each step written test first; the Phase 4 guard test failed before
+      the builder changes, naming the files the plan predicted.
+- [x] Regenerating the goldens changes nothing, and
+      `jj diff --stat cli/vcs-test-support/fixtures` is empty.
+- [x] Run directly (nothing handed over, so every test builds privately),
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support -p accelerator-vcs -p vcs-adapters`
-      (310 tests).
-- [x] Regenerating the goldens changes nothing:
-      `REGENERATE_GOLDENS=1 cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-vcs -E 'test(status_and_log_match_every_captured_state)'`
-      rewrote all 38 files, and `jj diff --stat cli/vcs-test-support/fixtures`
-      is empty.
-- [x] `mise run cli:check` passes.
-- [x] `mise run` passes end to end (8,083 tests in `test:unit:cli`).
-- [x] The path scan's own tests cover:
-  - a tree that doesn't name the needle;
-  - a file naming the needle as given;
-  - a file naming its canonical spelling;
-  - a symlink whose target names it;
-  - several matches, returned in path order.
-- [ ] On `ubuntu-latest` (CI's `test-unit` leg), the status-log goldens
-      and the new scan test pass. This is why the PR is open as a draft.
+      passes (340 tests), and writes no fixture log.
+- [x] `mise run` passes end to end with coverage on: 8,113 tests in
+      `test:unit:cli`, coverage above the floor (lines 93.64%, functions
+      93.14%, regions 92.22%). The fixture summary reads:
+      - matrix: 1 shared build, 19 adoptions, 0 copies, 0 private builds;
+      - status-log set: 1 shared build, 7 adoptions, 10 copies, 0 private
+        builds;
+      - private sets: 4 private builds.
+- [x] Coverage off passes with the same summary.
+- [x] The log shows 17 distinct hermetic roots for the status-log set,
+      none inside a shared tree, every copy's scan clean, and matching
+      before-and-after digests.
+- [x] A test made to write into the adopted set fails the run, naming the
+      tree and the added file. A shared path planted in
+      `conflict-git/.git/config` through the hold switch fails the run,
+      naming the copy and the file.
+- [x] `--filter 'binary_id(vcs-adapters::conflicts)'` and
+      `--filter 'test(conflicts)'` build the status-log set alone and pass;
+      `--filter 'binary_id(vcs-adapters::classify)'` builds the matrix
+      alone.
+- [x] `ACCELERATOR_SHARED_FIXTURES_FAIL=status-log` stops the run before
+      any test, with one failure naming the status-log set.
+- [x] Passing, failing-test and forced-failure runs leave nothing under the
+      shared root, and only nextest's own line matches `Summary [`.
+- [x] The SIGKILL check: run C removed killed run A's directory and lock,
+      kept held run B's, and B passed once released.
+- [x] Phase 4's push: the `ubuntu-latest` unit leg passed.
+- [ ] Both CI `test-unit` legs pass on this push, each summary showing both
+      families built once. Pending.
 
 ## Notes for Reviewers
 
-- **No behaviour change for consumers.** The only files that change are
-  git config, reflog and jj operation-log files, which the status and
-  log renderers don't read. The byte-identical goldens confirm it. After
-  the build, nothing fetches from or pushes to the relative remotes.
-- **One change from the plan.** The plan said to widen a shared
-  `Manifest` to hold both families' rows. Since the plan was written,
-  that type became `MatrixManifest`, matrix-only, on purpose. So the
-  status-log states got their own `StatusLogManifest` beside it, rather
-  than undoing that rename. The plan has been updated to say so.
-- **Visibility.** `States::build_in` is `pub` for now, because the guard
-  test calls it from `tests/`. `build_with` and `build_for_sharing` are
-  `pub(crate)`, like the matrix's. Phase 5 moves the guard test onto
-  the workbench and makes `build_in` `pub(crate)` too.
-- **The status-log build's cost.** Timed on engywook, which was not
-  idle (load average 27–29 on 16 cores):
-
-  | Build | Median wall time |
-  |---|---|
-  | Status-log set alone | 2.4 s |
-  | Matrix alone | 3.55 s |
-  | Both together | about 4 s |
-
-  Built together, the step takes as long as the matrix does, inside the
-  build step's 5 s budget. So neither family needs to build its parts
-  on separate threads. A rerun on an idle host is still owed and is
-  noted in the work item.
-- **Stacked base.** The base is `0365-build-vcs-fixtures-once` (#247).
-  Retarget this PR to `main` once #247 merges. Phases 5 and 6 (sharing
-  and copying the status-log states, then the closing measurement) can
-  grow this PR into the full status-log increment, or follow it.
+- **Copies are writable.** The plan asked for copies with exactly their
+  source's modes. Since it was written, the build step started sealing each
+  shared tree read-only, so an exact copy could not be written. `copy_part`
+  keeps every mode and adds the owner's write permission.
+- **Why the matrix is never copied.** It records absolute paths throughout,
+  and every matrix consumer only reads it, so all of them adopt. Only the
+  status-log set has a copy path.
+- **A filter can build a set its test doesn't use.** Families are chosen
+  per consumer binary, so selecting only `the_log_is_capped_at_five_entries`
+  (a private-set test in the goldens binary) still builds the status-log
+  set: 2.0 s of a 6.5 s task, recorded in the work item.
+- **Smaller departures from the plan,** each noted in its "as built"
+  section:
+  - the workbench's fixture type is `Held`, not `Fixture`;
+  - jj summarises `rename-jj`'s snapshot as `R {old.txt => new.txt}`;
+  - `copy_fidelity`'s planted-path test copies rather than adopts, so the
+    run shows 7 adoptions, not 8.
+- **Still to come.** Phase 6 measures `test:unit:cli` against the
+  18 November baseline once this lands; the filters increment follows.
