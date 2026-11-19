@@ -178,7 +178,7 @@ class TestRealTree:
 
 _CAP = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"
 _CAP_READER = "cli/research-cli/src/subagent_cap.rs"
-_CAP_TEST = "cli/research-cli/tests/topic_outstanding.rs"
+_CAP_TEST = "cli/research-cli/tests/topic_project/mod.rs"
 _CAP_READ = f'const HARNESS_CAPS: [&str; 1] = ["{_CAP}"];\n'
 _SEARCH_CAP = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION"
 _SEARCH_CAP_READER = "cli/research-cli/src/search_cap.rs"

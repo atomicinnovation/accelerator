@@ -4,184 +4,29 @@
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Output;
 
 use research::topic::layout::finding_path::is_finding_path;
 use research::topic::layout::finding_path::is_level_note_path;
 use serde_json::json;
 use serde_json::Value;
 
-type TestError = Box<dyn std::error::Error>;
+mod topic_project;
 
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
-const TOPICS: &str = "meta/research/topics";
-const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
-const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
-const SEARCH_CAP: &str = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION";
-const PLUGIN_ROOT: &str = "ACCELERATOR_PLUGIN_ROOT";
-
-struct Project {
-    _dir: tempfile::TempDir,
-    root: PathBuf,
-}
-
-impl Project {
-    fn new(tag: &str) -> Result<Self, TestError> {
-        let dir = tempfile::Builder::new()
-            .prefix(&format!("research-topic-{tag}-"))
-            .tempdir()?;
-        let root = dir.path().canonicalize()?;
-        fs::create_dir_all(root.join(".git"))?;
-        Ok(Self { _dir: dir, root })
-    }
-
-    fn with_fixture_set(self, fixture: &str) -> Result<Self, TestError> {
-        copy_tree(&fixtures().join(fixture), &self.set(fixture))?;
-        Ok(self)
-    }
-
-    fn set(&self, slug: &str) -> PathBuf {
-        self.root.join(TOPICS).join(slug)
-    }
-
-    fn write(&self, relative: &str, content: &str) -> Result<(), TestError> {
-        let path = self.root.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, content)?;
-        Ok(())
-    }
-
-    fn outstanding(
-        &self,
-        slug: &str,
-        plugin_root: &Path,
-    ) -> Result<Output, TestError> {
-        Ok(command_without_an_inherited_cap()
-            .current_dir(&self.root)
-            .env(PLUGIN_ROOT, plugin_root)
-            .args(["topic", "outstanding", slug])
-            .output()?)
-    }
-
-    fn run(&self, args: &[&str]) -> Result<Output, TestError> {
-        self.run_in(args, &[])
-    }
-
-    fn run_in(
-        &self,
-        args: &[&str],
-        cap: &[(&str, &str)],
-    ) -> Result<Output, TestError> {
-        Ok(command_without_an_inherited_cap()
-            .current_dir(&self.root)
-            .envs(cap.iter().copied())
-            .arg("topic")
-            .args(args)
-            .output()?)
-    }
-
-    fn outstanding_with(&self, args: &[&str]) -> Result<Output, TestError> {
-        self.outstanding_in(args, &[])
-    }
-
-    fn outstanding_in(
-        &self,
-        args: &[&str],
-        cap: &[(&str, &str)],
-    ) -> Result<Output, TestError> {
-        let mut all = vec!["outstanding", "s"];
-        all.extend_from_slice(args);
-        self.run_in(&all, cap)
-    }
-
-    fn plan_with(&self, args: &[&str]) -> Result<(Value, String), TestError> {
-        self.plan_in(args, &[])
-    }
-
-    fn plan_in(
-        &self,
-        args: &[&str],
-        cap: &[(&str, &str)],
-    ) -> Result<(Value, String), TestError> {
-        let output = self.outstanding_in(args, cap)?;
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        assert!(output.status.success(), "{stderr}");
-        Ok((serde_json::from_slice(&output.stdout)?, stderr))
-    }
-
-    fn write_note(
-        &self,
-        stem: &str,
-        lineage: &str,
-        question: &str,
-        follow_ups: &[&str],
-    ) -> Result<(), TestError> {
-        self.write(
-            &note_path(stem, lineage),
-            &level_note(stem, lineage, question, follow_ups),
-        )
-    }
-
-    fn ledger(&self) -> PathBuf {
-        self.set("s").join(".conduct-run.json")
-    }
-
-    fn plan(&self, slug: &str) -> Result<Value, TestError> {
-        self.plan_from(slug, &installed_plugin())
-    }
-
-    fn plan_from(
-        &self,
-        slug: &str,
-        plugin_root: &Path,
-    ) -> Result<Value, TestError> {
-        let output = self.outstanding(slug, plugin_root)?;
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        Ok(serde_json::from_slice(&output.stdout)?)
-    }
-}
-
-fn command_without_an_inherited_cap() -> Command {
-    let mut command = Command::new(BIN);
-    command
-        .env_remove(ACCELERATOR_CAP)
-        .env_remove(HARNESS_CAP)
-        .env_remove(SEARCH_CAP)
-        .env(PLUGIN_ROOT, installed_plugin());
-    command
-}
-
-/// The committed topic-research sets live beside the frontmatter goldens that
-/// hold them to the schema.
-fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../corpus-cli/tests/fixtures")
-}
-
-fn installed_plugin() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
+use topic_project::assert_exits_1;
+use topic_project::continued;
+use topic_project::installed_plugin;
+use topic_project::level_note;
+use topic_project::level_note_with;
+use topic_project::note_path;
+use topic_project::started;
+use topic_project::stored_ledger;
+use topic_project::Project;
+use topic_project::TestError;
+use topic_project::ACCELERATOR_CAP;
+use topic_project::HARNESS_CAP;
+use topic_project::PLUGIN_ROOT;
+use topic_project::SEARCH_CAP;
+use topic_project::TOPICS;
 
 fn path_in(set: &Path, name: &str) -> Result<String, TestError> {
     Ok(set
@@ -226,7 +71,7 @@ const LONG_CONTEXT: &str = "What limits long-context attention?";
 fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
 ) -> Result<(), TestError> {
     let slug = "topic-research-multiprofile-set";
-    let project = Project::new("multiprofile")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
     let set = project.set(slug);
 
     let plan = project.plan(slug)?;
@@ -271,7 +116,7 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
 fn a_quarantined_single_profile_pair_reuses_its_markers_index(
 ) -> Result<(), TestError> {
     let slug = "topic-research-quarantine-set";
-    let project = Project::new("quarantine")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
     let set = project.set(slug);
 
     let plan = project.plan(slug)?;
@@ -314,7 +159,7 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
 fn a_fully_researched_legacy_set_has_nothing_outstanding(
 ) -> Result<(), TestError> {
     for slug in ["topic-research-set", "topic-research-multiround-set"] {
-        let project = Project::new("legacy")?.with_fixture_set(slug)?;
+        let project = Project::with_fixture_set(slug)?;
 
         let plan = project.plan(slug)?;
 
@@ -442,13 +287,9 @@ fn an_unresolvable_set_exits_1() -> Result<(), TestError> {
 fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
 {
     let slug = "topic-research-multiprofile-set";
-    let project = Project::new("no-plugin-root")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
 
-    let output = command_without_an_inherited_cap()
-        .env_remove(PLUGIN_ROOT)
-        .current_dir(&project.root)
-        .args(["topic", "outstanding", slug])
-        .output()?;
+    let output = project.run_without_a_plugin_root("outstanding", &[slug])?;
 
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -465,7 +306,7 @@ fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
 fn every_allocated_path_is_a_finding_path_the_guard_admits(
 ) -> Result<(), TestError> {
     let slug = "topic-research-multiprofile-set";
-    let project = Project::new("guard-shape")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
     let fresh = small_set(
         "guard-shape-fresh",
         "- [ ] A? — profiles: web, openalex\n- [ ] 注意力？",
@@ -490,42 +331,6 @@ fn every_allocated_path_is_a_finding_path_the_guard_admits(
     }
     assert_eq!(checked, 4);
     Ok(())
-}
-
-fn note_path(stem: &str, lineage: &str) -> String {
-    format!("{TOPICS}/s/findings/{stem}.levels/{lineage}.md")
-}
-
-fn level_note_with(stem: &str, lineage: &str, fields: &str) -> String {
-    format!(
-        "---\ntype: \"topic-research\"\nid: \"s.{stem}.{lineage}\"\n\
-         title: \"A note\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
-         author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
-         status: \"complete\"\nkind: \"level-note\"\nround: 1\n\
-         source_profile: \"web\"\ndepth: 3\n{fields}\
-         tags: [\"research\"]\n\
-         last_updated: \"2026-09-27T00:00:00+00:00\"\n\
-         last_updated_by: \"Fixture Author\"\nschema_version: 1\n---\n\n\
-         # A note\n"
-    )
-}
-
-fn level_note(
-    stem: &str,
-    lineage: &str,
-    question: &str,
-    follow_ups: &[&str],
-) -> String {
-    let level = lineage.split('-').next().unwrap_or("1");
-    level_note_with(
-        stem,
-        lineage,
-        &format!(
-            "question: {}\nlevel: {level}\nfollow_ups: {}\n",
-            json!(question),
-            json!(follow_ups)
-        ),
-    )
 }
 
 fn finding(stem: &str, question: &str, depth: &str) -> String {
@@ -847,17 +652,6 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
     Ok(())
 }
 
-fn assert_exits_1(output: &Output, stderr: &str) {
-    assert_eq!(
-        output.status.code(),
-        Some(1),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(String::from_utf8_lossy(&output.stderr).trim_end(), stderr);
-    assert!(output.stdout.is_empty());
-}
-
 #[test]
 fn an_invalid_depth_exits_1() -> Result<(), TestError> {
     let project = a_set()?;
@@ -941,27 +735,6 @@ fn a_concurrency_of_2_offers_the_first_spawns_and_counts_the_rest(
     assert_eq!(spawns_of(&plan)?, ["01-a-web:1", "02-b-web:1"]);
     assert_eq!(plan["remaining"], json!(1));
     Ok(())
-}
-
-fn started(
-    project: &Project,
-    args: &[&str],
-) -> Result<(Value, String), TestError> {
-    let mut all = vec!["--start"];
-    all.extend_from_slice(args);
-    let (plan, _) = project.plan_with(&all)?;
-    let run = plan["run"].as_str().ok_or("no run")?.to_owned();
-    Ok((plan, run))
-}
-
-fn continued(
-    project: &Project,
-    run: &str,
-    args: &[&str],
-) -> Result<Value, TestError> {
-    let mut all = vec!["--run", run];
-    all.extend_from_slice(args);
-    Ok(project.plan_with(&all)?.0)
 }
 
 #[test]
@@ -1699,7 +1472,7 @@ fn no_replaced_run_without_a_ledger_to_replace() -> Result<(), TestError> {
     let project = a_set()?;
 
     let (first, run) = started(&project, &[])?;
-    let ended = project.run(&["end-run", "s", "--run", &run])?;
+    let ended = project.run("end-run", &["s", "--run", &run])?;
     assert!(ended.status.success());
     let (after_end, _) = started(&project, &[])?;
 
@@ -1732,7 +1505,7 @@ fn outline_and_counts_match_disk_after_a_replaced_batch(
         &finding("01-a-web", "A?", "depth: 1\n"),
     )?;
     let (_, run) = started(&project, &[])?;
-    let ended = project.run(&["end-run", "s", "--run", &run])?;
+    let ended = project.run("end-run", &["s", "--run", &run])?;
     assert!(ended.status.success());
 
     let (plan, _) = project.plan_with(&[])?;
@@ -1959,13 +1732,13 @@ fn end_run_deletes_only_its_own_ledger_and_tolerates_absence(
     let (_, run) = started(&project, &[])?;
 
     assert_exits_1(
-        &project.run(&["end-run", "s", "--run", "other"])?,
+        &project.run("end-run", &["s", "--run", "other"])?,
         &superseded("other", &run),
     );
     assert!(project.ledger().exists());
 
     for _ in 0..2 {
-        let output = project.run(&["end-run", "s", "--run", &run])?;
+        let output = project.run("end-run", &["s", "--run", &run])?;
         assert!(
             output.status.success(),
             "{}",
@@ -2826,12 +2599,6 @@ fn budgeted_start(
     project.plan_in(&["--start", "--depth", depth], variables)
 }
 
-fn stored_ledger(project: &Project) -> Result<Value, TestError> {
-    Ok(serde_json::from_str(&fs::read_to_string(
-        project.ledger(),
-    )?)?)
-}
-
 #[test]
 fn a_started_run_sizes_search_budgets_over_every_web_pair(
 ) -> Result<(), TestError> {
@@ -3495,7 +3262,7 @@ fn the_tick_plan_lists_every_web_pair_left_unfinished() -> Result<(), TestError>
     assert_eq!(spawns_of(&first)?, ["03-c-web:1"]);
     continued(&project, &run, &[&deep[..], &["--spawned", "0"]].concat())?;
     assert!(project
-        .run(&["end-run", "s", "--run", &run])?
+        .run("end-run", &["s", "--run", &run])?
         .status
         .success());
 
@@ -3549,7 +3316,7 @@ fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
         &["--depth", "2", "--spawned", "0", WITHHOLD, "web"],
     )?;
     assert!(project
-        .run(&["end-run", "s", "--run", &run])?
+        .run("end-run", &["s", "--run", &run])?
         .status
         .success());
 
