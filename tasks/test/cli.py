@@ -46,6 +46,7 @@ from tasks.shared.shared_fixtures.session import (
     SharedFixtureSession,
 )
 from tasks.shared.signals import UNWIND_SIGNALS, Interruption, unwind_then_defer
+from tasks.shared.terminal import without_ansi_escapes
 from tasks.test.filters import selection_from
 
 # The visualiser server is a workspace member but keeps its own dedicated test
@@ -70,6 +71,7 @@ _HANDOVER_VARIABLES = frozenset(
     }
 )
 _COMPILING = re.compile(r"^\s*Compiling ", re.MULTILINE)
+_COMPILES_SHOWN = {"CARGO_TERM_QUIET": "false"}
 _MISE_TASK = "test:unit:cli"
 _NEXTEST_FILTER_SYNTAX = (
     "test() matches test names; binary_id() matches test binaries"
@@ -376,7 +378,7 @@ def _run_tests(
         command,
         warn=True,
         pty=False,
-        env=_without_inherited_handover(handover),
+        env=_without_inherited_handover({**handover, **_COMPILES_SHOWN}),
         replace_env=True,
     )
     failures = [
@@ -386,7 +388,7 @@ def _run_tests(
                 "nextest recompiled after the build step, so the builder "
                 "and the tests were not the same build"
             ]
-            if _COMPILING.search(result.stderr or "")
+            if _COMPILING.search(without_ansi_escapes(result.stderr or ""))
             else []
         ),
     ]

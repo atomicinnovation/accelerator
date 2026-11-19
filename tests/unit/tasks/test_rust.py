@@ -604,6 +604,30 @@ class TestTestUnitCli:
         assert "recompiled after the build step" in str(exc_info.value)
         assert "nextest: cli tests failed" in str(exc_info.value)
 
+    def test_a_coloured_recompile_still_fails_the_task(self, lane: MagicMock):
+        lane.run.side_effect = FakeSharedFixtures(
+            _responding(),
+            nextest=passed(
+                stderr="\x1b[1m\x1b[32m   Compiling\x1b[0m vcs-adapters v1.24\n"
+            ),
+        )
+
+        with pytest.raises(Exit, match="recompiled after the build step"):
+            test_cli.run(lane)
+
+    def test_a_quiet_cargo_config_cannot_hide_a_recompile(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setenv("CARGO_TERM_QUIET", "true")
+
+        test_cli.run(lane)
+
+        tests = self._call(lane, "cargo llvm-cov nextest")
+        assert tests.kwargs["env"]["CARGO_TERM_QUIET"] == "false"
+
     def test_failing_report_stops_before_the_sweep(
         self, lane: MagicMock, build_dir: Path
     ):
