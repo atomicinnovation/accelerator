@@ -30,7 +30,6 @@ impl OfferedNodes {
         Self(BTreeMap::new())
     }
 
-    /// A context belongs only to a node spawn among `spawns`.
     #[must_use]
     pub fn retained_for(mut self, spawns: &[SpawnRef]) -> Self {
         self.0
