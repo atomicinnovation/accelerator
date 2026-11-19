@@ -1,6 +1,6 @@
-//! Realigning sync baselines after a whole-corpus re-render: a `Synced`
-//! entry advances to the re-rendered digest, a diverged one keeps its
-//! pending push.
+//! Realigning sync baselines after a migration rewrites work items: a
+//! `Synced` entry advances to the rewritten file's digest, a diverged one
+//! keeps its pending push.
 
 use std::cell::RefCell;
 use std::fs;
