@@ -42,6 +42,17 @@ def test_an_empty_expression_is_refused(expression: str):
         Selection(expression)
 
 
+def test_the_flag_is_the_option_as_the_developer_gave_it():
+    assert Selection("x").flag == "--filter 'x'"
+
+
+def test_the_flag_splits_back_into_the_option_and_the_expression():
+    assert shlex.split(Selection("test(it's)").flag) == [
+        "--filter",
+        "test(it's)",
+    ]
+
+
 def test_nothing_selected_names_the_filter_and_where_its_syntax_is():
     assert Selection("x").nothing_selected("test:unit:tasks") == (
         "--filter 'x' selected no tests; "

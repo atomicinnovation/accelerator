@@ -24,10 +24,14 @@ class Selection:
             return ""
         return f"-E {_quoted(self.expression)}"
 
+    @property
+    def flag(self) -> str:
+        return f"--filter {_quoted(self.expression or '')}"
+
     def nothing_selected(self, task: str) -> str:
         return (
-            f"--filter {_quoted(self.expression or '')} selected no "
-            f"tests; see mise run {task} --help for its syntax"
+            f"{self.flag} selected no tests; "
+            f"see mise run {task} --help for its syntax"
         )
 
 
