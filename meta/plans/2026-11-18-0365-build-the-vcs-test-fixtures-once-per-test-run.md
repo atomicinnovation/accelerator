@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T01:22:13+00:00"
+last_updated: "2026-11-19T09:21:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -701,7 +701,9 @@ fixture summary. Both coverage lanes do this, with no filter yet.
   becomes a `FamilyFailure` naming the panic. Before Phase 5 adds a second
   family, the test injects a builder that panics on its first call and
   succeeds on its second, over two requests. From Phase 5, the other
-  family's result is returned alongside it.
+  family's result is returned alongside it. A panic carrying a formatted
+  `String`, and one carrying no string at all (`an unprintable panic`),
+  each still fail their family.
 - **Logging.** Every test here passes a test-local `FixtureLog::at(...)` or
   `FixtureLog::disabled()`, never `from_environment()`, so none writes to a
   run's log.
@@ -720,6 +722,15 @@ pub struct FamilyFailure {
     pub cause: String,
 }
 
+pub struct ToolVersions {
+    pub git: String,
+    pub jj: String,
+}
+
+impl ToolVersions {
+    pub fn detect() -> Result<Self, Error>;
+}
+
 impl SharedBuildRequest {
     pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Self, Error>;
     pub fn build(&self, log: &FixtureLog) -> Vec<FamilyFailure>;
@@ -731,7 +742,9 @@ impl SharedBuildRequest {
 }
 ```
 
-`build` is `build_with` over each family's `build_for_sharing`.
+`build` is `build_with` over each family's `build_for_sharing`. When
+`ToolVersions::detect` fails, `build_with` builds nothing and fails every
+requested family with that cause.
 
 **File**: `cli/vcs-test-support/src/fixtures.rs`
 **Changes**: Add the two builders Phase 1 deferred, both `pub(crate)`:
@@ -745,7 +758,9 @@ impl SharedBuildRequest {
 The "real build error" test above drives `build_in`'s refusal, and the
 build step's tests drive `build_for_sharing`.
 
-- Each family's flag is `--<family>`, taken from `Family`.
+- Each family's flag is `--<family>`, taken from `Family::flag`. `Family`
+  also gains `name` (`matrix`), its name in the log and on the bin's
+  stderr.
 - `build` builds each requested family on its own scoped thread, using
   `Matrix::build_for_sharing`.
 - It records a `shared-build` event for each family that builds, carrying
@@ -757,7 +772,8 @@ build step's tests drive `build_for_sharing`.
 
 **File**: `cli/vcs-test-support/tests/fixtures/shared_fixtures.rs` (new),
 plus a `[[bin]] name = "shared-fixtures"` table with `test = false` in
-`cli/vcs-test-support/Cargo.toml`, next to the precedent comment. With
+`cli/vcs-test-support/Cargo.toml`, with a comment pointing at
+`vcs-adapters`' fixture binaries as the precedent. With
 `test = false`, cargo builds no libtest harness for the bin, so the unit
 listing names one `shared-fixtures` executable, not two.
 
@@ -791,6 +807,8 @@ stderr, and exits 1 if there was any failure.
 - Runs it with `ACCELERATOR_SHARED_FIXTURES_FAIL=matrx`, and expects exit 2
   with `ACCELERATOR_SHARED_FIXTURES_FAIL='matrx' is not a family; expected
   matrix` (the list grows with `Family`).
+- Runs it with an empty `PATH`, and expects exit 1 with stderr starting
+  `matrix: git: `. Nothing is created under the destination.
 - Every family-failure is built as `FamilyFailure { family, cause }`; the
   library has no test-only constructor.
 - Every case `env_remove`s the fixture log variable, so none writes to the
@@ -1026,8 +1044,8 @@ file as above, continued)
 
 - **`FixtureRuns.open(root).live_run_ids()`** is the ids of runs whose lock is
   held, using the same liveness rule as the sweep.
-- **`HoldPoint(dir, poll=…, timeout=…).wait()`** writes `held` containing
-  the run directory, and returns once `release` exists. A thread creates
+- **`HoldPoint(dir, poll=…, timeout=…).wait(run)`** writes `held`
+  containing the run directory `run`, and returns once `release` exists. A thread creates
   `release` after a short delay. The poll interval and timeout are
   injected, and the test itself has a timeout.
 - **A hold nobody releases.** With a timeout of a few milliseconds and no
@@ -1055,12 +1073,18 @@ class Family(StrEnum):
     @property
     def heading(self) -> str: ...
 
+    @property
+    def noun(self) -> str: ...
+
 
 SHARED_FAMILIES: tuple[Family, ...] = tuple(Family)
 WORKBENCHES_VARIABLE = "ACCELERATOR_SHARED_WORKBENCHES"
 FIXTURE_LOG_VARIABLE = "ACCELERATOR_FIXTURE_LOG"
 HOLD_VARIABLE = "ACCELERATOR_SHARED_FIXTURES_HOLD"
 ```
+
+`heading` names the family in the summary (`matrix`), and `noun` in prose
+(`the matrix`).
 
 **File**: `tasks/shared/shared_fixtures/errors.py`
 
@@ -1096,7 +1120,17 @@ class FixtureRun:
 
 class FixtureRuns:
     @classmethod
-    def open(cls, root: Path) -> FixtureRuns: ...
+    def open(
+        cls,
+        root: Path,
+        *,
+        lstat=os.lstat,
+        flock=try_exclusive_flock,
+        link=os.link,
+        open_lock=lambda path: os.open(path, os.O_RDWR),
+        new_run_id=_new_run_id,
+        rmtree=shutil.rmtree,
+    ) -> FixtureRuns: ...
 
     def sweep_abandoned(self) -> None: ...
 
@@ -1109,8 +1143,16 @@ class HoldPoint:
     @classmethod
     def from_environment(cls, environ: Mapping[str, str]) -> HoldPoint | None: ...
 
-    def wait(self) -> None: ...
+    def wait(self, run: Path) -> None: ...
 ```
+
+The keyword collaborators of `FixtureRuns.open` default to production
+behaviour; the tests inject them to simulate a foreign owner, an
+unsupported `flock` or hard link, an existing lock, a lock appearing or
+vanishing between the listing and the decision, and an unremovable
+leftover. The make-writable walk gives directories owner read as well as
+write and execute, so a leftover directory of mode `000` can still be
+listed and emptied.
 
 **File**: `tasks/shared/shared_fixtures/log.py`
 
@@ -1127,6 +1169,8 @@ class FixtureSummary:
 
 class FixtureLog:
     def __init__(self, path: Path) -> None: ...
+
+    def read(self) -> LogContents: ...
 
     def summary(self, root: Path) -> FixtureSummary: ...
 
@@ -1159,7 +1203,20 @@ class FixtureLogs:
     def create(self, run_id: str) -> FixtureLog: ...
 
     def prune(self, keep: int, live: Collection[str]) -> None: ...
+
+    def listed(self) -> list[Path]: ...
 ```
+
+`read()` gives a `LogContents`: the parsed events (`SharedBuild`,
+`Adoption`, `PrivateBuild`, `TreeDigestRecorded`, `TreeChangesRecorded`)
+and the numbers of the lines that do not parse. A missing log reads as
+empty. A `PrivateBuild` of the private sets has no family. The concurrent
+prune is tested by overriding `listed()`.
+
+The two contract files' samples are what the code writes: the
+`shared-build` sample's `git` and `jj` are whole first lines
+(`git version 2.50.1`, `jj 0.43.0`), and the `tree-digest` sample's value
+is the digest of an empty tree.
 
 **File**: `tasks/shared/shared_fixtures/consumers.py`
 
@@ -1271,7 +1328,7 @@ stream, so tests read the printed lines without capturing stdout.
   run. With only a body failure it is that message, with only problems it
   is those lines, and with both it is the body's message followed by every
   problem line. A failed cleanup step's line counts as a problem.
-- **The builder fails.** The session raises `SharedBuildFailed`, a
+- **The builder fails.** The session raises `SharedBuildError`, a
   `SharedFixturesError`, naming the family and its cause. It adds no "no
   shared build" line. The body never runs, no tree is digested, the run
   directory is gone, and the summary is printed. The task, not the session,
@@ -1347,7 +1404,7 @@ class RunOutcome:
     def failure(self) -> str | None: ...
 
 
-class SharedBuildFailed(SharedFixturesError): ...
+class SharedBuildError(SharedFixturesError): ...
 
 
 class SharedFixtureSession:
@@ -1361,7 +1418,8 @@ class SharedFixtureSession:
         hold_point: Callable[[Mapping[str, str]], HoldPoint | None] = HoldPoint.from_environment,
         runs: Callable[[Path], FixtureRuns] = FixtureRuns.open,
         logs_store: Callable[[Path], FixtureLogs] = FixtureLogs,
-        out: TextIO = sys.stdout,
+        digest: Callable[[Path], TreeDigest] = tree_digest,
+        out: TextIO | None = None,
     ) -> None: ...
 
     @contextlib.contextmanager
@@ -1375,12 +1433,16 @@ class SharedFixtureSession:
 
 `build` receives each family's tree and the log path, and raises
 `SharedFixturesError` on failure; the session wraps that as
-`SharedBuildFailed`. The body passing means the tests passed, which
+`SharedBuildError` (ruff's N818 requires the `Error` suffix). The body passing means the tests passed, which
 `problems()` needs. The session calls `hold_point(environ)` inside its
 `try`, so a refused hold is handled like any other failure. The keyword
 collaborators default to production behaviour. Tests replace them: a hold
 point with a short poll and timeout, a `FixtureRuns` whose run removal
-raises, a `FixtureLogs` whose pruning raises, and an `interrupted` flag.
+raises, a `FixtureLogs` whose pruning raises, a `digest` that sends the
+process `SIGINT` on its second call, and an `interrupted` flag. `out`
+defaults to `None`, which `print` resolves to `sys.stdout` at each call, so
+captured output still reaches the test; every line is flushed, so it lands
+in order with nextest's output when piped.
 `RunOutcome` and its tests live here, with the policy that uses them.
 
 #### 4. The build step in the task (tests first)
@@ -1400,8 +1462,11 @@ the task adds: the command sequence, the environments, and the wiring.
   It also removes `ACCELERATOR_SHARED_FIXTURES_HOLD` and
   `ACCELERATOR_SHARED_FIXTURES_FAIL` from the environment, so a switch
   left exported in a developer's shell never reaches a unit test.
-- Add a `FakeSharedFixtures` helper to the same conftest, used by every test
-  that runs the task. It answers the builder command by creating
+- Add a `FakeSharedFixtures` helper in
+  `tests/unit/tasks/shared_fixture_doubles.py`, beside `passed`, `failed`
+  and `builder_artefact`, used by every test that runs the task. It is a
+  module rather than part of the conftest, because importing from a
+  conftest loads it twice. It answers the builder command by creating
   `<tree>/fixtures.tsv` and writing a `shared-build` line for that tree to
   the handed log. It answers the nextest command by writing one `adoption`
   per consumer binary of each handed family, then returning the configured
@@ -1412,7 +1477,8 @@ the task adds: the command sequence, the environments, and the wiring.
   2. `show-env`;
   3. the unit listing (compile and locate the builder, in the instrumented
      environment);
-  4. the builder (instrumented environment, plus `--matrix <run>/matrix`);
+  4. the builder (instrumented environment with its profile file moved
+     beside the tests', plus `--matrix <run>/matrix`);
   5. `llvm-cov nextest`, whose `env` carries `ACCELERATOR_SHARED_MATRIX`,
      `ACCELERATOR_SHARED_WORKBENCHES` and `ACCELERATOR_FIXTURE_LOG`;
   6. report;
@@ -1465,7 +1531,7 @@ unchanged.
 ```python
 _shared_root = shared_fixtures_root
 _FIXTURE_LOGS = CLI_TARGET_DIR / "vcs-fixture-logs"
-_BUILDER_LISTING = f"cargo test {_MANIFEST} --no-run --message-format=json"
+_UNIT_LISTING = f"cargo test {_MANIFEST} --no-run --message-format=json"
 
 
 @task
@@ -1477,14 +1543,14 @@ def run(context: Context) -> None:
                 _run_instrumented(context, interruption)
             else:
                 _run_plain(context, interruption)
-        except SharedBuildFailed as error:
+        except SharedBuildError as error:
             raise Exit(f"{error}\n{_RUN_DIRECTLY}", code=1) from error
         except SharedFixturesError as error:
             raise Exit(str(error), code=1) from error
 
 
 def _run_plain(context: Context, interruption: Interruption) -> None:
-    builder = _locate_builder(context, build_environment={})
+    builder = _locate_builder(context, build_environment=None)
     with _session(interruption).open(
         SHARED_FAMILIES, _building_with(context, builder, {}), filtered=False
     ) as handover:
@@ -1497,7 +1563,9 @@ def _run_instrumented(context: Context, interruption: Interruption) -> None:
     builder = _locate_builder(context, build_environment)
     with _session(interruption).open(
         SHARED_FAMILIES,
-        _building_with(context, builder, build_environment),
+        _building_with(
+            context, builder, _profiling_beside_the_tests(build_environment)
+        ),
         filtered=False,
     ) as handover:
         _run_tests(
@@ -1535,7 +1603,14 @@ directory.
 Some details:
 - **`_instrumented_environment` is the existing `show-env` parse plus
   `CARGO_TARGET_DIR`,** lifted out of `_list_units` so that the builder and
-  the sweep share it.
+  the sweep share it. Both unit listings use `_UNIT_LISTING`; the first
+  passes no `env` when coverage is off.
+- **The builder's profile data goes beside the tests'.** `show-env` names
+  `LLVM_PROFILE_FILE` in `cli/target/`, but `cargo llvm-cov nextest` writes,
+  and `report` reads, profile data in `cli/target/llvm-cov-target/`.
+  `_profiling_beside_the_tests` keeps the file-name pattern `show-env`
+  gives and moves it into `_INSTRUMENTED_BUILD.parent`. Without it the
+  builder's run of the fixture code never reaches the totals.
 - **`_run_tests` removes inherited hand-over variables** in the same way as
   the builder, so nextest sees only what this run hands over. It also checks
   nextest's captured stderr for a cargo `Compiling ` line.
@@ -1556,11 +1631,10 @@ Some details:
   where the consumer list lives;
 - that the hand-over and log variables are owned by the task and must not be
   exported;
-- what a nextest bump has to re-check: recapture
-  `tests/unit/tasks/fixtures/shared-fixtures/nextest-list.json` (Phase 3),
-  because filtered runs read its schema; and confirm that nextest still sets
+- what a nextest bump has to re-check: that nextest still sets
   `NEXTEST_BINARY_ID` and `NEXTEST_TEST_NAME`, because every event's test
-  and binary come from them.
+  and binary come from them. (Recapturing `nextest-list.json` joins this
+  list in Phase 3, which adds the capture.)
 
 It also records the fail-fast trade-off from "What We're NOT Doing": a
 failing shared build stops the lane before any test runs, and how to see
@@ -1792,8 +1866,11 @@ with the same help as the invoke task, and that its `run` forwards
 `$usage_filter` to `--filter`.
 
 **File**: `tasks/README.md`
-**Changes**: a `### Task options` subsection under "Conventions" setting out
-the pattern:
+**Changes**: the "Shared VCS fixtures" subsection adds, to what a nextest
+bump must re-check, recapturing
+`tests/unit/tasks/fixtures/shared-fixtures/nextest-list.json`, because
+filtered runs read its schema. And a `### Task options` subsection under
+"Conventions" setting out the pattern:
 - declare the flag in mise `usage`;
 - forward it in the form this phase settles (`${usage_<name>+…}` if mise
   leaves the variable unset when the flag is absent, otherwise
@@ -2308,13 +2385,15 @@ Everywhere `env` was `Hermetic::rooted_at(work)`, it becomes
 
 **File**: `cli/vcs-test-support/src/shared_build.rs` and its tests
 **Changes**: `Family::StatusLog` brings the `--status-log <dir>` flag with
-it. Both families build on their own threads, the status-log set using
+it, through new arms in `Family::flag`, `name`, `handover_variable` and
+`Display`. Both families build on their own threads, the status-log set using
 `States::build_for_sharing`. The bin's forced failure accepts `status-log`,
 and its refusal of an unknown value lists both families.
 
 **Files**: `tasks/shared/shared_fixtures/` and its tests
-- `Family` gains `STATUS_LOG = "status-log"`, so `SHARED_FAMILIES` is both
-  families.
+- `Family` gains `STATUS_LOG = "status-log"`, with entries in its
+  `handover_variable`, `heading` (`status-log set`) and `noun` (`the
+  status-log set`) maps, so `SHARED_FAMILIES` is both families.
 - `CONSUMERS` gains `vcs-adapters::conflicts`,
   `vcs-test-support::status_log_states`,
   `vcs-test-support::copy_fidelity`, `vcs-test-support::status_log_parts`
