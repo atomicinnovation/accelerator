@@ -519,7 +519,7 @@ mod tests {
 
     struct Context {
         root: PathBuf,
-        work: String,
+        work: Option<String>,
         work_dir_exists: bool,
         files: RefCell<BTreeMap<PathBuf, String>>,
         not_utf8: BTreeSet<PathBuf>,
@@ -537,7 +537,7 @@ mod tests {
         fn new() -> Self {
             Self {
                 root: PathBuf::from("/repo"),
-                work: "meta/work".to_owned(),
+                work: Some("meta/work".to_owned()),
                 work_dir_exists: true,
                 files: RefCell::new(BTreeMap::new()),
                 not_utf8: BTreeSet::new(),
@@ -641,11 +641,15 @@ mod tests {
             &self,
             key: &str,
         ) -> Result<Option<String>, MigrationError> {
-            Ok((key == "paths.work").then(|| self.work.clone()))
+            Ok(self.work.clone().filter(|_| key == "paths.work"))
         }
 
         fn dir_exists(&self, path: &Path) -> bool {
-            self.work_dir_exists && path == self.path(&self.work)
+            self.work_dir_exists
+                && self
+                    .work
+                    .as_deref()
+                    .is_some_and(|work| path == self.path(work))
         }
 
         fn list_md_files(
@@ -793,7 +797,7 @@ mod tests {
     #[test]
     fn reads_the_configured_work_directory() -> TestResult {
         let ctx = Context {
-            work: "docs/work".to_owned(),
+            work: Some("docs/work".to_owned()),
             ..Context::new()
         }
         .holding("docs/work/0001-a.md", &untagged("A"))
@@ -841,11 +845,31 @@ mod tests {
     #[test]
     fn refuses_an_empty_work_path() {
         let ctx = Context {
-            work: String::new(),
+            work: Some(String::new()),
             ..Context::new()
         };
 
-        assert!(failure_of(&ctx).contains("0012"), "{}", failure_of(&ctx));
+        let message = failure_of(&ctx);
+
+        assert!(
+            message.contains("0012: config path returned empty for 'work'"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn refuses_an_unset_work_path() {
+        let ctx = Context {
+            work: None,
+            ..Context::new()
+        };
+
+        let message = failure_of(&ctx);
+
+        assert!(
+            message.contains("0012: config path returned empty for 'work'"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -864,7 +888,7 @@ mod tests {
     fn applies_without_touching_a_work_path_outside_the_project() -> TestResult
     {
         let ctx = Context {
-            work: "../elsewhere".to_owned(),
+            work: Some("../elsewhere".to_owned()),
             ..Context::new()
         }
         .holding("../elsewhere/0001-x.md", &untagged("X"));
