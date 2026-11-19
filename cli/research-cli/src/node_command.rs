@@ -45,7 +45,8 @@ pub fn run_node<F: FileReader>(
     let context = ledger.offered_context(at).ok_or_else(|| {
         format!(
             "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: node {at} is not in run \
-             {run}'s offered batch; re-run conduct"
+             {run}'s current offered batch, which conduct may have \
+             acknowledged before this query ran; re-run conduct"
         )
     })?;
     let level = at.lineage.level();

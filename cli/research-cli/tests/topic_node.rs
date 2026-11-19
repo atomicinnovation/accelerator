@@ -53,7 +53,8 @@ fn budgeted_run(project: &Project) -> Result<String, TestError> {
 fn not_offered(at: &str, run: &str) -> String {
     format!(
         "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: node {at} is not in run {run}'s \
-         offered batch; re-run conduct"
+         current offered batch, which conduct may have acknowledged before \
+         this query ran; re-run conduct"
     )
 }
 
