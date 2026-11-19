@@ -37,23 +37,23 @@ Per 0057, the Accelerator plugin produces twelve distinct artifact types (work-i
 
 ## Requirements
 
-* Update every template file under `templates/` to emit the unified base fields: `type`, `id` (the artifact's own identity), `title`, `date` (quoted ISO UTC), `author`, `producer` (the skill/automated agent that produced the artifact — renamed from `skill` per ADR-0033), `status`, `tags`, `last_updated`, `last_updated_by`, `schema_version`. `id` is always a base field on every artifact type, never a per-type extra.
-* Apply the identity-key naming convention: an artifact's **own** identity key is always `id`; a reference to a **foreign** artifact is keyed by the referenced artifact's snake_case type suffixed with `_id` (e.g. a pr-description referencing its work-item uses `work_item_id`; an ADR referencing a work-item uses `work_item_id`). This replaces the earlier `<type>_id`-for-own-identity shape (`adr_id`, `work_item_id` as the artifact's *own* key).
-* Add the provenance bundle (`revision`, `repository`) to code-state-anchored templates: plan, codebase-research, issue-research, design-inventory, pr-description. Remove `git_commit` and `branch` where present.
-* Apply per-artifact-type extras per **ADR-0033's "Per-artifact-type extras" section** (the authoritative, determinate list — it supersedes 0057's earlier hedged enumeration), reproduced in the Schema Reference table below: e.g. `kind` / `priority` / `external_id` on work-item, `decision_makers` on ADR, `pr_url` / `pr_number` / `merge_commit` on pr-description, `current_inventory` / `target_inventory` on design-gap. Note: ADR-0033 classifies relationship-named keys (`target`, `supersedes`, `superseded_by`, `derived_from`, `parent`, etc.) as **typed-linkage vocabulary** owned by 0061's sibling ADR — they are *not* per-type extras and are applied per that vocabulary, not this list.
-* Ensure all identity values — own (`id`) and foreign (`<type>_id`) — are quoted YAML strings (e.g. `id: "0042"`, `work_item_id: "0031"`).
-* Run a discovery pass over all frontmatter producers and bring any *non-review* inline producer (one that emits frontmatter outside `templates/` and is not `review-plan`, `review-work-item`, `review-pr`, or `validate-plan`) to the unified schema. If the pass finds none, record that it was run and found nothing.
-* Each template carries a comment enumerating that artifact type's valid `status` values, taken from the per-type status vocabulary recorded in the Schema Reference table below. The vocabulary itself is unchanged (vocabulary unification is out of scope per 0057); the comment documents the existing per-type set in the place producers read.
-* Confirm that each updated template's *consuming skill* supplies values for the new fields (`schema_version`, `producer`, `last_updated`, `last_updated_by`, and the provenance bundle where applicable) so artifacts created from the updated templates are born populated, not carrying placeholders. Where the consuming skill needs a code change to populate a field, that change is in scope for this story; where field-population was already handled by an upstream story (0063 `kind`, 0064 `work_item_id`/`author`), no further change is needed. `validation.md` **is excepted from this consuming-skill check**: its consuming skill (`validate-plan`) is rewired to read the template by 0066, so population from that skill is verified under 0066, not here. This story's responsibility for `validation.md` is the template's frontmatter block only.
+- Update every template file under `templates/` to emit the unified base fields: `type`, `id` (the artifact's own identity), `title`, `date` (quoted ISO UTC), `author`, `producer` (the skill/automated agent that produced the artifact — renamed from `skill` per ADR-0033), `status`, `tags`, `last_updated`, `last_updated_by`, `schema_version`. `id` is always a base field on every artifact type, never a per-type extra.
+- Apply the identity-key naming convention: an artifact's **own** identity key is always `id`; a reference to a **foreign** artifact is keyed by the referenced artifact's snake_case type suffixed with `_id` (e.g. a pr-description referencing its work-item uses `work_item_id`; an ADR referencing a work-item uses `work_item_id`). This replaces the earlier `<type>_id`-for-own-identity shape (`adr_id`, `work_item_id` as the artifact's *own* key).
+- Add the provenance bundle (`revision`, `repository`) to code-state-anchored templates: plan, codebase-research, issue-research, design-inventory, pr-description. Remove `git_commit` and `branch` where present.
+- Apply per-artifact-type extras per **ADR-0033's "Per-artifact-type extras" section** (the authoritative, determinate list — it supersedes 0057's earlier hedged enumeration), reproduced in the Schema Reference table below: e.g. `kind` / `priority` / `external_id` on work-item, `decision_makers` on ADR, `pr_url` / `pr_number` / `merge_commit` on pr-description, `current_inventory` / `target_inventory` on design-gap. Note: ADR-0033 classifies relationship-named keys (`target`, `supersedes`, `superseded_by`, `derived_from`, `parent`, etc.) as **typed-linkage vocabulary** owned by 0061's sibling ADR — they are *not* per-type extras and are applied per that vocabulary, not this list.
+- Ensure all identity values — own (`id`) and foreign (`<type>_id`) — are quoted YAML strings (e.g. `id: "0042"`, `work_item_id: "0031"`).
+- Run a discovery pass over all frontmatter producers and bring any *non-review* inline producer (one that emits frontmatter outside `templates/` and is not `review-plan`, `review-work-item`, `review-pr`, or `validate-plan`) to the unified schema. If the pass finds none, record that it was run and found nothing.
+- Each template carries a comment enumerating that artifact type's valid `status` values, taken from the per-type status vocabulary recorded in the Schema Reference table below. The vocabulary itself is unchanged (vocabulary unification is out of scope per 0057); the comment documents the existing per-type set in the place producers read.
+- Confirm that each updated template's *consuming skill* supplies values for the new fields (`schema_version`, `producer`, `last_updated`, `last_updated_by`, and the provenance bundle where applicable) so artifacts created from the updated templates are born populated, not carrying placeholders. Where the consuming skill needs a code change to populate a field, that change is in scope for this story; where field-population was already handled by an upstream story (0063 `kind`, 0064 `work_item_id`/`author`), no further change is needed. **`validation.md` is excepted from this consuming-skill check**: its consuming skill (`validate-plan`) is rewired to read the template by 0066, so population from that skill is verified under 0066, not here. This story's responsibility for `validation.md` is the template's frontmatter block only.
 
 ## Schema Reference
 
 Authoritative source: **ADR-0033** (base schema, provenance bundle, `schema_version` contract, per-artifact-type extras) and 0061's sibling ADR (typed-linkage vocabulary). The values below are pinned here so the acceptance criteria are verifiable from this document alone; on any discrepancy, ADR-0033 wins and this story should be re-synced.
 
-**In-scope template files** (the nine frontmatter-bearing templates under `templates/`). Note on `validation.md`: it currently exists as a **body-only report template carrying no frontmatter** (the plan-validation frontmatter is emitted inline by `validate-plan`, which writes `date`, `type`, `skill`, `target`, `result`, `status`). This story **adds the unified frontmatter block to** `validation.md` so the template becomes the source of truth; the separate work of rewiring `validate-plan` to read frontmatter from the template instead of baking it inline is **0066's scope** (0066 is moving inline frontmatter into templates). The three review types (`plan-review`, `work-item-review`, `pr-review`) have no `templates/` file today — 0066 creates those when it moves their inline frontmatter into templates, so they are out of this story's scope.
+**In-scope template files** (the nine frontmatter-bearing templates under `templates/`). Note on `validation.md`: it currently exists as a **body-only report template carrying no frontmatter** (the plan-validation frontmatter is emitted inline by `validate-plan`, which writes `date`, `type`, `skill`, `target`, `result`, `status`). This story **adds the unified frontmatter block to `validation.md`** so the template becomes the source of truth; the separate work of rewiring `validate-plan` to read frontmatter from the template instead of baking it inline is **0066's scope** (0066 is moving inline frontmatter into templates). The three review types (`plan-review`, `work-item-review`, `pr-review`) have no `templates/` file today — 0066 creates those when it moves their inline frontmatter into templates, so they are out of this story's scope.
 
 | Template file | Artifact `type` | `schema_version` | Provenance bundle? | Per-type extras (beyond base) |
-| -- | -- | -- | -- | -- |
+|---|---|---|---|---|
 | `work-item.md` | `work-item` | 1 | no | `kind`, `priority`, `external_id` |
 | `plan.md` | `plan` | 1 | yes | `reviewer` (present-but-empty until reviewed) |
 | `validation.md` | `plan-validation` | 1 | no | `result` (`target` is a linkage key per 0061, not an extra). No "baseline fields" are emitted today — none are introduced here. |
@@ -70,7 +70,7 @@ Reconciliation against the Context's twelve types: twelve artifact types plus `n
 
 **Base fields on every template**: `type`, `id`, `title`, `date`, `author`, `producer`, `status`, `tags`, `last_updated`, `last_updated_by`, `schema_version`.
 
-**Per-type** `status` **vocabularies** (for the status-comment requirement): the existing per-type sets are unchanged by this story. The implementer reads each type's current valid-status set from its existing template/skill and reproduces it verbatim in the comment — vocabulary unification is explicitly out of scope (0057).
+**Per-type `status` vocabularies** (for the status-comment requirement): the existing per-type sets are unchanged by this story. The implementer reads each type's current valid-status set from its existing template/skill and reproduces it verbatim in the comment — vocabulary unification is explicitly out of scope (0057).
 
 ### Topic-research set templates (registered by work item 0277)
 
@@ -80,14 +80,13 @@ templates are pinned here only so the schema cross-check sees one
 authoritative template set. Their field contracts live with 0277 and ADR-0067.
 
 | Template file | Artifact `type` | `kind` | `schema_version` | Provenance bundle? | Per-kind extras (beyond base) |
-| -- | -- | -- | -- | -- | -- |
-| `topic-research-manifest.md` | `topic-research` | `manifest` | 1 | no | `slug`, `round_count`, `finding_count`, `primary`, optional `report_count` |
+|---|---|---|---|---|---|
+| `topic-research-manifest.md` | `topic-research` | `manifest` | 1 | no | `slug`, `research_status`, `round_count`, `finding_count`, `primary` |
 | `topic-research-brief.md` | `topic-research` | `brief` | 1 | no | `source_profiles` |
 | `topic-research-outline.md` | `topic-research` | `outline` | 1 | no | (none) |
 | `topic-research-finding.md` | `topic-research` | `finding` | 1 | no | `round`, `question`, `source_profile`, optional `depth` |
 | `topic-research-synthesis.md` | `topic-research` | `synthesis` | 1 | no | `rounds_covered` |
 | `topic-research-level-note.md` | `topic-research` | `level-note` | 1 | no | `round`, `question`, `source_profile`, `level`, `depth`, `follow_ups` |
-| `topic-research-report.md` | `topic-research` | `report` | 1 | no | `question`, `rounds_covered`, `coverage` (`answered` | `partial`) |
 
 ## Acceptance Criteria
 
@@ -103,35 +102,35 @@ authoritative template set. Their field contracts live with 0277 and ADR-0067.
 
 ## Open Questions
 
-* None — all prior open questions were resolved during refinement (see Drafting Notes). The schema source-of-truth, ADR-0033, now documents the own-`id` / foreign-`<type>_id` convention, so this story can treat it as authoritative.
+- None — all prior open questions were resolved during refinement (see Drafting Notes). The schema source-of-truth, ADR-0033, now documents the own-`id` / foreign-`<type>_id` convention, so this story can treat it as authoritative.
 
 ## Dependencies
 
-* Blocked by: 0060 (base schema — produced **ADR-0033**, which is the authoritative source this story reads, not 0060's as-shipped wording), 0061 (linkage vocabulary — produced the sibling typed-linkage ADR), 0063 (work-item `kind:` rename — touches `templates/work-item.md`), 0064 (`work_item_id` / `author` canonicalisation — touches plan/research templates). Note: 0060 and 0064 shipped `status: done` before the own-`id`/foreign-`<type>_id` convention was finalised, so this story depends on the *corrected* convention as recorded in ADR-0033, not on those work items' original wording.
-* Blocks: 0070 (corpus migration).
-* Blocks: 0066 (for the `validation.md` handoff — see below).
-* Related: 0057 (parent epic); 0066 (review/validation skills' frontmatter, now being *moved from inline into templates*). The cut line is **statically fixed**, not negotiated at runtime:
-  * **This story (0065)** owns the template *files*: it adds the unified frontmatter block to the nine frontmatter-bearing templates, including `validation.md`.
-  * **0066** owns the *skill-side* rewiring: it converts the four review/validation skills (`review-plan`, `review-work-item`, `review-pr`, `validate-plan`) from emitting frontmatter inline to reading it from templates, and creates the three missing review templates (`plan-review`, `work-item-review`, `pr-review`) as part of that move.
-  * **Ordering**: 0066's rewiring of `validate-plan` depends on 0065 having added `validation.md`'s frontmatter first, so 0065 blocks 0066 for that piece. Any other inline producer discovered (non-review) is wholly this story's. Because the boundary is a fixed, named set, no producer can be claimed by both or neither.
+- Blocked by: 0060 (base schema — produced **ADR-0033**, which is the authoritative source this story reads, not 0060's as-shipped wording), 0061 (linkage vocabulary — produced the sibling typed-linkage ADR), 0063 (work-item `kind:` rename — touches `templates/work-item.md`), 0064 (`work_item_id` / `author` canonicalisation — touches plan/research templates). Note: 0060 and 0064 shipped `status: done` before the own-`id`/foreign-`<type>_id` convention was finalised, so this story depends on the *corrected* convention as recorded in ADR-0033, not on those work items' original wording.
+- Blocks: 0070 (corpus migration).
+- Blocks: 0066 (for the `validation.md` handoff — see below).
+- Related: 0057 (parent epic); 0066 (review/validation skills' frontmatter, now being *moved from inline into templates*). The cut line is **statically fixed**, not negotiated at runtime:
+  - **This story (0065)** owns the template *files*: it adds the unified frontmatter block to the nine frontmatter-bearing templates, including `validation.md`.
+  - **0066** owns the *skill-side* rewiring: it converts the four review/validation skills (`review-plan`, `review-work-item`, `review-pr`, `validate-plan`) from emitting frontmatter inline to reading it from templates, and creates the three missing review templates (`plan-review`, `work-item-review`, `pr-review`) as part of that move.
+  - **Ordering**: 0066's rewiring of `validate-plan` depends on 0065 having added `validation.md`'s frontmatter first, so 0065 blocks 0066 for that piece. Any other inline producer discovered (non-review) is wholly this story's. Because the boundary is a fixed, named set, no producer can be claimed by both or neither.
 
 ## Assumptions
 
-* The `templates/` directory is the source of truth for template-based producers. Inline frontmatter generators in the four review/validation skills (`review-plan`, `review-work-item`, `review-pr`, `validate-plan`) are 0066's scope; any *other* inline producer discovered is this story's scope.
+- The `templates/` directory is the source of truth for template-based producers. Inline frontmatter generators in the four review/validation skills (`review-plan`, `review-work-item`, `review-pr`, `validate-plan`) are 0066's scope; any *other* inline producer discovered is this story's scope.
 
 ## Technical Notes
 
-* `last_updated` is only refreshed by skills that touch the artifact — manual editor edits don't automatically update it. Templates can document this contract in a comment.
-* The identity-value shape contract (quoted strings) already applies to the work-item identity per `skills/config/configure/SKILL.md`; 0060 extends it to every artifact's `id` and to foreign `<type>_id` references.
-* The own-`id` / foreign-`<type>_id` naming convention is documented in the schema source-of-truth, ADR-0033 (which work item 0060 produced): own identity was already keyed `id`, and the foreign-reference rule (`<snake_case_type>_id`) has been added to its identity-value shape contract. The 0057 epic and 0060 work item were corrected to match; 0064's renames were reviewed and remain valid (the plan's `work_item_id` is a foreign reference). ADR-0033's own frontmatter file still carries `adr_id` (unquoted) — this is *corpus-frontmatter divergence*: the field value sitting in an existing `meta/` file does not yet match the template output this story produces. Fixing existing files is the 0070 migration's job, not this template story's; ADR-0033's own frontmatter will be rewritten to `id` by that migration.
-* The discovery pass needs to distinguish three producer shapes: (a) skills that read a `templates/` file, (b) the four review/validation skills that bake frontmatter inline (0066's), (c) any other skill that emits frontmatter inline (this story's). Grepping skill prose for frontmatter field literals (`schema_version`, `last_updated`) is a reasonable way to enumerate inline producers.
+- `last_updated` is only refreshed by skills that touch the artifact — manual editor edits don't automatically update it. Templates can document this contract in a comment.
+- The identity-value shape contract (quoted strings) already applies to the work-item identity per `skills/config/configure/SKILL.md`; 0060 extends it to every artifact's `id` and to foreign `<type>_id` references.
+- The own-`id` / foreign-`<type>_id` naming convention is documented in the schema source-of-truth, ADR-0033 (which work item 0060 produced): own identity was already keyed `id`, and the foreign-reference rule (`<snake_case_type>_id`) has been added to its identity-value shape contract. The 0057 epic and 0060 work item were corrected to match; 0064's renames were reviewed and remain valid (the plan's `work_item_id` is a foreign reference). ADR-0033's own frontmatter file still carries `adr_id` (unquoted) — this is *corpus-frontmatter divergence*: the field value sitting in an existing `meta/` file does not yet match the template output this story produces. Fixing existing files is the 0070 migration's job, not this template story's; ADR-0033's own frontmatter will be rewritten to `id` by that migration.
+- The discovery pass needs to distinguish three producer shapes: (a) skills that read a `templates/` file, (b) the four review/validation skills that bake frontmatter inline (0066's), (c) any other skill that emits frontmatter inline (this story's). Grepping skill prose for frontmatter field literals (`schema_version`, `last_updated`) is a reasonable way to enumerate inline producers.
 
 ## Drafting Notes
 
-* Open question on producers outside `templates/` resolved: this story absorbs any *non-review* inline frontmatter producer; only the four review/validation skills remain 0066's. This expands scope beyond pure template edits and adds a discovery-pass requirement.
-* Open question on status comments resolved: each template carries a per-type valid-status comment. The status *vocabulary* stays unchanged per 0057's out-of-scope decision; only its documentation-in-place is added.
-* Identity-key convention set per user: own identity = `id`; foreign-artifact references = `<snake_case_type>_id`. Threaded into the 0057 epic and 0060 work item, and into the source-of-truth ADR-0033 (own-`id` was already present; the foreign-`<type>_id` rule was added to its shape contract). 0064 was reviewed and needed no spec change. With ADR-0033 now authoritative, this story's prior open question (waiting on the schema source-of-truth) is resolved.
-* `templates/note.md` was removed from this story's scope per user decision and moved to 0067 (create-note), so the note template ships alongside the skill that consumes it. This story therefore touches only templates that already exist under `templates/`.
+- Open question on producers outside `templates/` resolved: this story absorbs any *non-review* inline frontmatter producer; only the four review/validation skills remain 0066's. This expands scope beyond pure template edits and adds a discovery-pass requirement.
+- Open question on status comments resolved: each template carries a per-type valid-status comment. The status *vocabulary* stays unchanged per 0057's out-of-scope decision; only its documentation-in-place is added.
+- Identity-key convention set per user: own identity = `id`; foreign-artifact references = `<snake_case_type>_id`. Threaded into the 0057 epic and 0060 work item, and into the source-of-truth ADR-0033 (own-`id` was already present; the foreign-`<type>_id` rule was added to its shape contract). 0064 was reviewed and needed no spec change. With ADR-0033 now authoritative, this story's prior open question (waiting on the schema source-of-truth) is resolved.
+- `templates/note.md` was removed from this story's scope per user decision and moved to 0067 (create-note), so the note template ships alongside the skill that consumes it. This story therefore touches only templates that already exist under `templates/`.
 
 ## Discovery Pass Record
 
@@ -154,15 +153,15 @@ plus describe-pr's `pr_number:` extra (for cross-reference).
 
 Producer split:
 
-* **Template-based emitters (updated by 0065)**: create-work-item,
+- **Template-based emitters (updated by 0065)**: create-work-item,
   extract-work-items, create-plan, create-adr, extract-adrs,
   research-codebase, research-issue, inventory-design,
   analyse-design-gaps.
-* **Hybrid emitter brought into compliance by 0065**: describe-pr.
-* **Inline-only emitters owned by 0066 (excluded from this story)**:
+- **Hybrid emitter brought into compliance by 0065**: describe-pr.
+- **Inline-only emitters owned by 0066 (excluded from this story)**:
   review-plan, review-work-item, review-pr, validate-plan.
-* **Non-emitter template consumers (no action on frontmatter; read-path**
-  **fallback handled in Phase 3 §4)**: refine-work-item, update-work-item,
+- **Non-emitter template consumers (no action on frontmatter; read-path
+  fallback handled in Phase 3 §4)**: refine-work-item, update-work-item,
   list-work-items.
 
 Other non-review inline producers found: NONE.
@@ -178,31 +177,32 @@ rg -n "work_item_id|adr_id|pr_title|^skill:|supersedes:|GIT_COMMIT|Current Git C
 
 Expected hits and resolution per hit:
 
-* `work_item_id` in `work-item-common.sh` and `work-item-read-field.sh`
+- `work_item_id` in `work-item-common.sh` and `work-item-read-field.sh`
   → handled by Phase 3 §4 read-path fallback (both keys accepted on
   read during the 0065→0070 transition).
-* `work_item_id` in the four work-item consuming SKILL.md files
+- `work_item_id` in the four work-item consuming SKILL.md files
   (`list-work-items`, `update-work-item`, `refine-work-item`, plus
   `create-work-item`'s enrich-existing self-check) → prose-updated
   by Phase 3 §4 to name both keys.
-* `work_item_id` in `skills/config/configure/SKILL.md` →
+- `work_item_id` in `skills/config/configure/SKILL.md` →
   documentation-only; the legacy field-shape contract is preserved
   for the alias and rewritten by 0070.
-* `work_item_id` in `skills/config/migrate/migrations/0001…0006` and
+- `work_item_id` in `skills/config/migrate/migrations/0001…0006` and
   in `skills/config/migrate/scripts/test-migrate.sh` → migration
   history and their fixtures; intentionally frozen at the legacy
   shape (the migrations target legacy files).
-* `adr_id` in visualiser `indexer.rs` and `wiki-links.ts` → protected
+- `adr_id` in visualiser `indexer.rs` and `wiki-links.ts` → protected
   by filename-prefix fallback (`indexer.rs:1098`,
   `wiki-links.ts:103-115`); no change required.
-* `adr_id` in `skills/decisions/scripts/test-adr-scripts.sh` and
-  fixture ADRs under `skills/visualisation/visualise/server/tests/ fixtures/` → fixture data exercising the read-path that already
+- `adr_id` in `skills/decisions/scripts/test-adr-scripts.sh` and
+  fixture ADRs under `skills/visualisation/visualise/server/tests/
+  fixtures/` → fixture data exercising the read-path that already
   tolerates either shape.
-* `pr_title` in `review-pr/SKILL.md` → owned by 0066; coordinated
+- `pr_title` in `review-pr/SKILL.md` → owned by 0066; coordinated
   via the plan's Migration Notes.
-* `Current Git Commit Hash` in `scripts/test-metadata-helpers.sh` →
+- `Current Git Commit Hash` in `scripts/test-metadata-helpers.sh` →
   negative assertion ("no Current Git Commit Hash line"), expected.
-* `GIT_COMMIT` matches in `skills/config/migrate/migrations/` →
+- `GIT_COMMIT` matches in `skills/config/migrate/migrations/` →
   migration fixtures, frozen.
 
 The Phase 11 SKILL-prose test's discovery assertion encodes the same
@@ -212,8 +212,8 @@ out of those three buckets.
 
 ## References
 
-* Source: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
-* Authoritative schema: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` (base schema, provenance, `schema_version`, per-type extras)
-* `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` — task that produced ADR-0033 (the base-schema decision)
-* `meta/work/PP-83-adr-typed-linkage-vocabulary.md` — task that produced the sibling typed-linkage ADR
-* Related: 0057, 0063, 0064, 0066, 0067, 0070
+- Source: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Authoritative schema: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` (base schema, provenance, `schema_version`, per-type extras)
+- `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` — task that produced ADR-0033 (the base-schema decision)
+- `meta/work/PP-83-adr-typed-linkage-vocabulary.md` — task that produced the sibling typed-linkage ADR
+- Related: 0057, 0063, 0064, 0066, 0067, 0070
