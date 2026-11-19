@@ -1204,13 +1204,67 @@ def declared_ids(model: dict, keys: tuple[str, ...]) -> set[str]:
     }
 
 
-def carried_ids(chapters: list[dict]) -> set[str]:
-    return {
+EVIDENCED_KINDS = {
+    "decisions": "decision",
+    "abstractions": "abstraction",
+    "invariants": "invariant",
+    "risks": "risk",
+}
+MUST_BE_CARRIED = (
+    ("decisions", "show where it is enforced"),
+    ("abstractions", "show where it lives"),
+)
+
+
+def stop_ids(chapters: list[dict]) -> set[str]:
+    return {stop["id"] for c in chapters for stop in c.get("stops", [])}
+
+
+def evidenced_items(model: dict) -> Iterator[tuple[str, str, dict]]:
+    """Yield where each evidenced item is declared, its kind and the item."""
+    holders = [("design", model["design"])] + [
+        (f"chapter {chapter['id']}", chapter) for chapter in model["chapters"]
+    ]
+    for where, holder in holders:
+        for key, kind in EVIDENCED_KINDS.items():
+            for item in holder.get(key, []):
+                yield where, kind, item
+
+
+def carried_ids(model: dict) -> set[str]:
+    """Return what a stop carries, or what names a stop that carries it."""
+    stops = stop_ids(model["chapters"])
+    carried = {
         carried
-        for chapter in chapters
+        for chapter in model["chapters"]
         for stop in chapter.get("stops", [])
         for carried in stop.get("carries", [])
     }
+    return carried | {
+        item["id"]
+        for _, _, item in evidenced_items(model)
+        if item.get("id") and stops.intersection(item.get("carriedBy", []))
+    }
+
+
+def unknown_carriers(model: dict) -> list[str]:
+    stops = stop_ids(model["chapters"])
+    return [
+        f"{where}: {kind} {item.get('id', '?')}: carriedBy names unknown "
+        f"stop {named}"
+        for where, kind, item in evidenced_items(model)
+        for named in item.get("carriedBy", [])
+        if named not in stops
+    ]
+
+
+def uncarried(holder: dict, carried: set[str]) -> list[str]:
+    return [
+        f"{EVIDENCED_KINDS[key]} {item['id']}: no stop carries it; {instead}"
+        for key, instead in MUST_BE_CARRIED
+        for item in holder.get(key, [])
+        if item.get("id") and item["id"] not in carried
+    ]
 
 
 def own_lines(stop: dict, diff: dict) -> str:
@@ -1273,15 +1327,10 @@ def stop_evidence_problems(
 
 
 def unevidenced(chapter: dict, carried: set[str]) -> list[str]:
-    """Return the decisions and high risks no stop was chosen to show."""
+    """Return what a chapter declares that no stop was chosen to show."""
     if not chapter.get("stops"):
         return []
-    problems = [
-        f"decision {decision['id']}: no stop carries it; "
-        "show where it is enforced"
-        for decision in chapter.get("decisions", [])
-        if decision.get("id") and decision["id"] not in carried
-    ]
+    problems = uncarried(chapter, carried)
     for position, risk in enumerate(chapter.get("risks", []), 1):
         if risk.get("level") != "high":
             continue
@@ -1302,8 +1351,13 @@ def evidence_warnings(model: dict, diff: dict) -> list[str]:
     """Return warnings for stops that narrate code instead of explaining it."""
     declared = declared_ids(model, EVIDENCED_KEYS)
     risks = declared_ids(model, ("risks",))
-    carried = carried_ids(model["chapters"])
-    warnings: list[str] = []
+    carried = carried_ids(model)
+    warnings: list[str] = unknown_carriers(model)
+    if stop_ids(model["chapters"]):
+        warnings += [
+            f"design: {problem}"
+            for problem in uncarried(model["design"], carried)
+        ]
     for chapter in model["chapters"]:
         for stop in chapter.get("stops", []):
             warnings += [
@@ -1377,7 +1431,14 @@ TEXT_FIELDS = (
     "kind",
 )
 WHOLE_NUMBER_FIELDS = ("line", "start", "end", "anchorLine")
-TEXT_LIST_FIELDS = ("findings", "refs", "pinnedBy", "over", "carries")
+TEXT_LIST_FIELDS = (
+    "findings",
+    "refs",
+    "pinnedBy",
+    "over",
+    "carries",
+    "carriedBy",
+)
 LIST_FIELDS = ("rows", "cols", "cells", "tests", "items")
 
 
@@ -1621,8 +1682,20 @@ def stops_named_in(prose: str, chapters: set[str]) -> list[str]:
     return stop_shaped.findall(prose)
 
 
+DESIGN_ID = re.compile(r"`((d|a)-[a-z0-9]+(?:-[a-z0-9]+)*)`")
+DESIGN_ID_KINDS = {"d": "decision", "a": "abstraction"}
+
+
+def unknown_design_ids(prose: str, declared: set[str]) -> list[str]:
+    return [
+        f"names unknown {DESIGN_ID_KINDS[prefix]} {name}"
+        for name, prefix in DESIGN_ID.findall(prose)
+        if name not in declared
+    ]
+
+
 def prose_problems(
-    prose: str, chapters: set[str], stops: set[str]
+    prose: str, chapters: set[str], stops: set[str], declared: set[str]
 ) -> list[str]:
     unknown_stops = [
         f"names unknown stop {stop}"
@@ -1634,7 +1707,8 @@ def prose_problems(
         for name in chapters_named_in(prose)
         if name not in chapters
     ]
-    return list(dict.fromkeys(unknown_stops + unknown_chapters))
+    unknown_ids = unknown_design_ids(prose, declared)
+    return list(dict.fromkeys(unknown_stops + unknown_chapters + unknown_ids))
 
 
 def item_problems(
@@ -1670,9 +1744,8 @@ def link_problem(link: object, diff: dict, chapters: set[str]) -> str | None:
 def reference_warnings(model: dict, diff: dict) -> list[str]:
     """Return a warning for every citation the page could not open."""
     chapters = {chapter["id"] for chapter in model["chapters"]}
-    stops = {
-        stop["id"] for c in model["chapters"] for stop in c.get("stops", [])
-    }
+    stops = stop_ids(model["chapters"])
+    declared = declared_ids(model, DESIGN_KEYS)
     warnings = []
     for source, content in sources(model):
         for trail, value in located(content):
@@ -1681,7 +1754,9 @@ def reference_warnings(model: dict, diff: dict) -> list[str]:
             else:
                 problems = [
                     at(trail, problem)
-                    for problem in prose_problems(value, chapters, stops)
+                    for problem in prose_problems(
+                        value, chapters, stops, declared
+                    )
                 ]
             warnings += [at(source, problem) for problem in problems]
     warnings += [
