@@ -14,8 +14,9 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 
-use crate::family::Family;
 use crate::family::Fixtures;
+use crate::family::PrivateBuild;
+use crate::family::SharedFamily;
 use crate::fixture_log::Event;
 use crate::fixtures::Matrix;
 use crate::handover::Handover;
@@ -23,34 +24,6 @@ use crate::handover::SHARED_WORKBENCHES_VARIABLE;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
 use crate::Error;
-
-/// Proof that a private build goes through a workbench, which logs it.
-///
-/// Only this crate can make one, so code elsewhere can implement
-/// [`SharedFamily`] but never call its `build_privately`.
-pub struct PrivateBuild(());
-
-pub trait SharedFamily: Sized {
-    const FAMILY: Family;
-
-    /// Takes over a tree the run's build step made, building nothing.
-    ///
-    /// # Errors
-    ///
-    /// When `tree` is not a build of this family.
-    fn adopt(tree: &Path) -> Result<Self, Error>;
-
-    /// Builds the family in `directory` with `hermetic`.
-    ///
-    /// # Errors
-    ///
-    /// When any part of the build fails.
-    fn build_privately(
-        directory: &Path,
-        hermetic: &Hermetic,
-        token: PrivateBuild,
-    ) -> Result<Self, Error>;
-}
 
 #[derive(Debug, Clone, Copy)]
 enum Acquisition {

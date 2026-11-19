@@ -6,13 +6,13 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use vcs_test_support::family::Family;
+use vcs_test_support::family::PrivateBuild;
+use vcs_test_support::family::SharedFamily;
 use vcs_test_support::fixture_log::FixtureLog;
 use vcs_test_support::fixture_log::FIXTURE_LOG_VARIABLE;
 use vcs_test_support::handover::Handover;
 use vcs_test_support::handover::SHARED_WORKBENCHES_VARIABLE;
 use vcs_test_support::hermetic::Hermetic;
-use vcs_test_support::workbench::PrivateBuild;
-use vcs_test_support::workbench::SharedFamily;
 use vcs_test_support::workbench::Workbench;
 use vcs_test_support::Error;
 

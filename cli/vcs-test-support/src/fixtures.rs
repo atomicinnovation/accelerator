@@ -7,12 +7,12 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::family::Family;
+use crate::family::PrivateBuild;
+use crate::family::SharedFamily;
 use crate::hermetic::assert_git_is_recent_enough;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
 use crate::manifest::Manifest;
-use crate::workbench::PrivateBuild;
-use crate::workbench::SharedFamily;
 use crate::Error;
 
 /// One (fixture, start directory) pair from the matrix.

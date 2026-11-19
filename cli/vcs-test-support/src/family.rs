@@ -1,9 +1,13 @@
 //! The fixture families a run can build once and hand to every test.
 
 use std::fmt;
+use std::path::Path;
 
 use serde::Serialize;
 use serde::Serializer;
+
+use crate::hermetic::Hermetic;
+use crate::Error;
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize,
@@ -76,4 +80,32 @@ impl fmt::Display for Fixtures {
             Self::PrivateSets => formatter.write_str("the private sets"),
         }
     }
+}
+
+/// Proof that a private build goes through a workbench, which logs it.
+///
+/// Only this crate can make one, so code elsewhere can implement
+/// [`SharedFamily`] but never call its `build_privately`.
+pub struct PrivateBuild(pub(crate) ());
+
+pub trait SharedFamily: Sized {
+    const FAMILY: Family;
+
+    /// Takes over a tree the run's build step made, building nothing.
+    ///
+    /// # Errors
+    ///
+    /// When `tree` is not a build of this family.
+    fn adopt(tree: &Path) -> Result<Self, Error>;
+
+    /// Builds the family in `directory` with `hermetic`.
+    ///
+    /// # Errors
+    ///
+    /// When any part of the build fails.
+    fn build_privately(
+        directory: &Path,
+        hermetic: &Hermetic,
+        token: PrivateBuild,
+    ) -> Result<Self, Error>;
 }
