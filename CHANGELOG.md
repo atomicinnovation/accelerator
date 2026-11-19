@@ -865,10 +865,16 @@
   back to the default, and `accelerator research topic outstanding --start`
   names the template among its `warnings`, which `conduct` reports before
   spawning. `research-topic`'s spawns inherit its
-  `Bash(accelerator config *)` grant; a skill that spawns them without such
-  a grant needs `Bash(accelerator config template topic-research --kind
-  finding)` and `Bash(accelerator config template topic-research --kind
-  level-note)`.
+  `Bash(accelerator config template *)` grant; a skill that spawns them
+  without such a grant needs `Bash(accelerator config template
+  topic-research --kind finding)` and `Bash(accelerator config template
+  topic-research --kind level-note)`.
+
+- **`research-topic` grants only the config reads it runs.** Its
+  `Bash(accelerator config *)` rule becomes one rule each for `config
+  agent`, `agents`, `context`, `get`, `instructions`, `path` and
+  `template`, so no spawn inherits a grant for `config set` or
+  `config init`, even when the research guard cannot run.
 
 - **`conduct`'s node researchers query their own context.**
   `accelerator research topic outstanding`'s node entries no longer carry

@@ -515,12 +515,13 @@ and `research-topic`'s `allowed-tools` covers all of them:
   the same rule, and a contract test enforces this for skills in this
   repository.
 - `Bash(accelerator research topic *)` covers the node query.
-- `Bash(accelerator config *)` covers both template commands.
+- `Bash(accelerator config template *)` covers both template commands.
 
-Those inherited grants are broad: at the permission layer they also cover
-commands such as `accelerator config set` and `accelerator research topic
-end-run`. The research guard is what narrows a spawn to its listed commands,
-and it fails open when it cannot run (see [Failure
+`research-topic` grants only the config reads it runs, so no spawn inherits
+a grant for `accelerator config set`. The other inherited grants are broad:
+at the permission layer they also cover commands such as `accelerator
+research topic end-run`. The research guard is what narrows a spawn to its
+listed commands, and it fails open when it cannot run (see [Failure
 signatures](#failure-signatures)). The exact rules below are the
 least-privilege option.
 
