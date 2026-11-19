@@ -16,9 +16,7 @@ use corpus::DocTypeKey;
 use research::conduct::concurrency::ConfigFile;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
-
-const CONDUCT_TEMPLATE_SET: &str = "topic-research";
-const CONDUCT_TEMPLATE_KINDS: [&str; 2] = ["finding", "level-note"];
+use research::conduct::template::ConductTemplate;
 
 pub struct ProjectContext {
     pub root: PathBuf,
@@ -54,20 +52,20 @@ impl ProjectContext {
     /// on that command's own failure.
     #[must_use]
     pub fn conduct_template_fallbacks(&self) -> Vec<String> {
-        CONDUCT_TEMPLATE_KINDS
+        ConductTemplate::ALL
             .iter()
-            .filter_map(|kind| {
+            .filter_map(|template| {
                 let resolved = config::template::resolve(
                     self.config.as_ref(),
                     self.templates.as_ref(),
-                    CONDUCT_TEMPLATE_SET,
-                    Some(kind),
+                    ConductTemplate::SET,
+                    Some(template.kind()),
                 )
                 .ok()??;
                 let warning = resolved.warning?;
                 let reason =
                     warning.strip_prefix("Warning: ").unwrap_or(&warning);
-                Some(format!("{CONDUCT_TEMPLATE_SET}-{kind}: {reason}"))
+                Some(format!("{}: {reason}", template.name()))
             })
             .collect()
     }
