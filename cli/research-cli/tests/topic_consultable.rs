@@ -3,7 +3,6 @@
 
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Output;
 
 use serde_json::json;
@@ -11,6 +10,7 @@ use serde_json::Value;
 
 mod topic_project;
 
+use topic_project::installed_profiles;
 use topic_project::tree;
 use topic_project::Project;
 use topic_project::TestError;
@@ -22,15 +22,6 @@ const ARXIV_ITEM: &str = "Which planning preprints appeared this year?";
 impl Project {
     fn multiround() -> Result<Self, TestError> {
         Self::with_fixture_set(SET)
-    }
-
-    fn write(&self, relative: &str, content: &str) -> Result<(), TestError> {
-        let path = self.root.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, content)?;
-        Ok(())
     }
 
     fn edit(
@@ -66,12 +57,6 @@ impl Project {
         json_of(&self.consultable_output(SET, &installed_profiles())?)
     }
 
-    fn plan(&self) -> Result<Value, TestError> {
-        let profiles = installed_profiles();
-        let profiles = profiles.to_str().ok_or("non-utf8")?;
-        json_of(&self.run("outstanding", &[SET, "--profiles-dir", profiles])?)
-    }
-
     fn counts(&self) -> Result<Value, TestError> {
         json_of(&self.run("counts", &[SET])?)
     }
@@ -88,11 +73,6 @@ fn json_of(output: &Output) -> Result<Value, TestError> {
         String::from_utf8_lossy(&output.stderr)
     );
     Ok(serde_json::from_slice(&output.stdout)?)
-}
-
-fn installed_profiles() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../skills/research/profiles")
 }
 
 #[test]
@@ -162,7 +142,7 @@ fn consultable_holds_back_an_item_with_only_skipped_pairs(
         .append_to_outline(&format!("- [ ] {ARXIV_ITEM} — profiles: arxiv"))?;
 
     let verdict = project.consultable()?;
-    let plan = project.plan()?;
+    let plan = project.plan(SET)?;
 
     let skipped_reasons: Vec<Value> = plan["skipped"]
         .as_array()
