@@ -260,7 +260,8 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
     assert (
         "report the first plan's `warnings` as soon as it returns — a "
         "corrupt run ledger, a clamped concurrency, an unhonoured search "
-        "cap, or search budgets that cannot fit the cap"
+        "cap, search budgets that cannot fit the cap, or a template that "
+        "falls back to its default"
     ) in conduct
     assert (
         "Proceed even when the budgets cannot fit: the run's other researchers "
@@ -2900,8 +2901,6 @@ def test_conduct_checks_its_templates_before_the_first_plan() -> None:
         "the finding command's fenced block, from its opening fence line to "
         "its closing one",
         "The level-note command's block is discarded",
-        "any other line from a command that exits 0 is a warning, whatever "
-        "its wording.",
     ):
         assert sentence in check, f"the template check must state {sentence!r}"
     assert "falling back to defaults" not in check, (
@@ -2910,7 +2909,20 @@ def test_conduct_checks_its_templates_before_the_first_plan() -> None:
     assert COMPOSE_TEMPLATE_ITEM in _injected_items(
         _spawn_bullets()["a `compose` pair"]
     )
-    assert "each template-check warning" in _summary()
+
+
+def test_the_first_plan_reports_a_template_falling_back() -> None:
+    check = _template_check()
+    assert (
+        "every other line is left to the first plan, whose `warnings` name "
+        "a template that falls back to its default."
+    ) in check
+    assert "is a warning" not in check, (
+        "the orchestrator does not reliably relay the check's own warnings"
+    )
+    assert "a template that falls back to its default" in _section(
+        _plan_step(), "report the first plan's", "then proceed"
+    )
 
 
 COMPOSE_FIELDS = {

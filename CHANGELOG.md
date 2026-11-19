@@ -469,7 +469,10 @@
   must run that command; an `agents.composer` override still receives the
   finding template inline. `conduct` runs both commands before its first
   plan, so a missing or unreadable template, or a denied command, stops it
-  before any spawn. `research-topic`'s spawns inherit its
+  before any spawn. A configured template path that does not exist falls
+  back to the default, and `accelerator research topic outstanding --start`
+  names the template among its `warnings`, which `conduct` reports before
+  spawning. `research-topic`'s spawns inherit its
   `Bash(accelerator config *)` grant; a skill that spawns them without such
   a grant needs `Bash(accelerator config template topic-research --kind
   finding)` and `Bash(accelerator config template topic-research --kind
