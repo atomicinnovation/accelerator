@@ -7,7 +7,7 @@
 //! binary output (masked) instead of comparing — the generation path the
 //! goldens are produced through, reviewed by hand before they are committed.
 
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -16,6 +16,8 @@ use std::process::Command;
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::masks;
 use vcs_test_support::status_log;
+use vcs_test_support::status_log::StatusLogPart;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -60,6 +62,18 @@ fn run_vcs(
         .to_owned())
 }
 
+fn golden_names() -> Result<BTreeSet<String>, TestError> {
+    let mut names = BTreeSet::new();
+    for entry in fs::read_dir(fixtures_dir())? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|extension| extension == "txt") {
+            let stem = path.file_stem().ok_or("a golden has no name")?;
+            names.insert(stem.to_string_lossy().into_owned());
+        }
+    }
+    Ok(names)
+}
+
 fn regenerating() -> bool {
     std::env::var_os("REGENERATE_GOLDENS").is_some()
 }
@@ -67,18 +81,19 @@ fn regenerating() -> bool {
 #[test]
 fn status_and_log_match_every_captured_state() -> Result<(), TestError> {
     let masks = masks::load(&masks_path())?;
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-goldens-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::Everything)?;
+    let env = workbench.hermetic();
 
     let mut failures = Vec::new();
-    for (name, directory) in &states {
+    let mut compared = BTreeSet::new();
+    for (name, directory) in states.with_goldens() {
         for subcommand in ["status", "log"] {
             let rendered =
-                masks::apply(&masks, &run_vcs(&env, subcommand, directory)?)?;
+                masks::apply(&masks, &run_vcs(env, subcommand, directory)?)?;
             let golden_name = format!("{name}-{subcommand}");
+            compared.insert(golden_name.clone());
             if regenerating() {
                 fs::write(
                     fixtures_dir().join(format!("{golden_name}.txt")),
@@ -103,21 +118,24 @@ fn status_and_log_match_every_captured_state() -> Result<(), TestError> {
         "{}",
         failures.join("\n\n")
     );
+    assert_eq!(
+        compared,
+        golden_names()?,
+        "every golden on disk is compared, and nothing else"
+    );
     Ok(())
 }
 
 #[test]
 fn a_conflict_status_carries_the_conflicted_marker_and_path(
 ) -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-conflict-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::Everything)?;
+    let env = workbench.hermetic();
 
     for name in ["conflict-git", "conflict-jj"] {
-        let directory = states.get(name).ok_or("conflict state missing")?;
-        let rendered = run_vcs(&env, "status", directory)?;
+        let rendered = run_vcs(env, "status", states.get(name)?)?;
         assert!(
             rendered.contains("conflicted") && rendered.contains("f.txt"),
             "{name} must mark the unmerged path conflicted: {rendered:?}"
@@ -126,8 +144,7 @@ fn a_conflict_status_carries_the_conflicted_marker_and_path(
 
     // jj's conflict is absent from the change diff and unioned in from the
     // tree, so it lists exactly the one conflicted path and no other change.
-    let conflict_jj = states.get("conflict-jj").ok_or("conflict-jj missing")?;
-    let rendered = run_vcs(&env, "status", conflict_jj)?;
+    let rendered = run_vcs(env, "status", states.get("conflict-jj")?)?;
     assert!(
         rendered.contains("1 changed, 1 conflicted"),
         "conflict-jj must show a single conflicted change: {rendered:?}"
@@ -137,14 +154,11 @@ fn a_conflict_status_carries_the_conflicted_marker_and_path(
 
 #[test]
 fn a_rename_renders_as_deleted_old_plus_added_new() -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-rename-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_states(work.path(), &env)?;
-    let rename_git = states.get("rename-git").ok_or("rename-git missing")?;
-
-    let rendered = run_vcs(&env, "status", rename_git)?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::Everything)?;
+    let env = workbench.hermetic();
+    let rendered = run_vcs(env, "status", states.get("rename-git")?)?;
     let body: Vec<&str> = rendered.lines().skip(2).collect();
     assert_eq!(
         body,
@@ -156,14 +170,12 @@ fn a_rename_renders_as_deleted_old_plus_added_new() -> Result<(), TestError> {
 
 #[test]
 fn the_log_is_capped_at_five_entries() -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-cap-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_cap_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states = workbench.private_states(status_log::build_cap_states)?;
+    let env = workbench.hermetic();
 
-    for (name, directory) in &states {
-        let log = run_vcs(&env, "log", directory)?;
+    for (name, directory) in states.iter() {
+        let log = run_vcs(env, "log", directory)?;
         assert_eq!(
             log.lines().count(),
             5,
@@ -179,23 +191,21 @@ fn the_log_is_capped_at_five_entries() -> Result<(), TestError> {
 
 #[test]
 fn an_empty_history_renders_no_commits() -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-empty-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::Everything)?;
+    let env = workbench.hermetic();
 
     for name in ["unborn-git", "empty-jj"] {
-        let directory = states.get(name).ok_or("empty state missing")?;
         assert_eq!(
-            run_vcs(&env, "log", directory)?,
+            run_vcs(env, "log", states.get(name)?)?,
             "No commits",
             "{name} log must be No commits"
         );
     }
-    let unborn = states.get("unborn-git").ok_or("unborn-git missing")?;
     assert!(
-        run_vcs(&env, "status", unborn)?.contains("No changes"),
+        run_vcs(env, "status", states.get("unborn-git")?)?
+            .contains("No changes"),
         "unborn-git status must be No changes"
     );
     Ok(())
@@ -204,20 +214,18 @@ fn an_empty_history_renders_no_commits() -> Result<(), TestError> {
 #[test]
 fn a_jj_bookmark_header_lists_the_byte_sorted_bookmarks(
 ) -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-bookmark-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_bookmark_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states = workbench.private_states(status_log::build_bookmark_states)?;
+    let env = workbench.hermetic();
 
     let one = states.get("bookmark-one-jj").ok_or("one missing")?;
     assert!(
-        run_vcs(&env, "status", one)?.starts_with("Branch: solo"),
+        run_vcs(env, "status", one)?.starts_with("Branch: solo"),
         "a single bookmark must head the status"
     );
     let two = states.get("bookmark-two-jj").ok_or("two missing")?;
     assert!(
-        run_vcs(&env, "status", two)?.starts_with("Branch: alpha, zed"),
+        run_vcs(env, "status", two)?.starts_with("Branch: alpha, zed"),
         "two bookmarks must be byte-sorted and comma-joined"
     );
     Ok(())
@@ -226,13 +234,11 @@ fn a_jj_bookmark_header_lists_the_byte_sorted_bookmarks(
 #[test]
 fn a_malformed_accelerator_log_still_renders_and_exits_zero(
 ) -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-badlog-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let mut states = BTreeMap::new();
-    status_log::build_plain_git_states(work.path(), &env, &mut states)?;
-    let root = states.get("clean-git").ok_or("clean-git state missing")?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::PlainGit)?;
+    let env = workbench.hermetic();
+    let root = states.get("clean-git")?;
 
     for subcommand in ["status", "log"] {
         let mut command = Command::new(BIN);
@@ -298,13 +304,11 @@ fn a_forced_adapter_failure_emits_the_gix_token_to_stderr(
 #[test]
 fn fail_safe_has_no_effect_on_a_successful_status_or_log(
 ) -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-fail-safe-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let mut states = BTreeMap::new();
-    status_log::build_plain_git_states(work.path(), &env, &mut states)?;
-    let root = states.get("clean-git").ok_or("clean-git state missing")?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::PlainGit)?;
+    let env = workbench.hermetic();
+    let root = states.get("clean-git")?;
 
     for subcommand in ["status", "log"] {
         let mut with_flag = Command::new(BIN);

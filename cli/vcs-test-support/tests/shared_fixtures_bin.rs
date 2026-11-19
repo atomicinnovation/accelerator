@@ -49,6 +49,30 @@ fn a_forced_failure_fails_its_family_without_building() -> Result<(), TestError>
 }
 
 #[test]
+fn a_forced_status_log_failure_fails_that_family_and_builds_nothing(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let matrix = directory.path().join("matrix");
+    let status_log = directory.path().join("status-log");
+
+    let output = shared_fixtures()
+        .env(FORCED_FAILURE_VARIABLE, "status-log")
+        .arg("--matrix")
+        .arg(&matrix)
+        .arg("--status-log")
+        .arg(&status_log)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = stderr(&output);
+    assert!(stderr.starts_with("status-log: "), "{stderr}");
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(!matrix.exists());
+    assert!(!status_log.exists());
+    Ok(())
+}
+
+#[test]
 fn a_forced_failure_naming_no_family_is_refused() -> Result<(), TestError> {
     let directory = tempfile::tempdir()?;
 
@@ -62,7 +86,7 @@ fn a_forced_failure_naming_no_family_is_refused() -> Result<(), TestError> {
     assert!(
         stderr(&output).contains(
             "ACCELERATOR_SHARED_FIXTURES_FAIL='matrx' is not a family; \
-             expected matrix"
+             expected matrix or status-log"
         ),
         "{}",
         stderr(&output)

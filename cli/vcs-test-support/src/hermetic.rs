@@ -18,6 +18,10 @@ use crate::Error;
 /// in this repo, so a floor with a named diagnostic beats recording a version.
 pub const MINIMUM_GIT: (u32, u32) = (2, 45);
 
+/// What every entry a hermetic environment writes into its base is named
+/// after, so a copy of a fixture tree can leave them behind.
+pub(crate) const ENTRY_PREFIX: &str = "hermetic-";
+
 /// An isolated `HOME`, config and ceiling, applied to every `git` and `jj`
 /// invocation the fixtures make.
 #[derive(Debug, Clone)]
@@ -44,9 +48,9 @@ impl Hermetic {
     ///
     /// When the config tree cannot be written.
     pub fn rooted_at(base: &Path) -> Result<Self, Error> {
-        let home = base.join("hermetic-home");
-        let config_home = base.join("hermetic-xdg");
-        let jj_config = base.join("hermetic-jj.toml");
+        let home = base.join(format!("{ENTRY_PREFIX}home"));
+        let config_home = base.join(format!("{ENTRY_PREFIX}xdg"));
+        let jj_config = base.join(format!("{ENTRY_PREFIX}jj.toml"));
         fs::create_dir_all(&home)?;
         fs::create_dir_all(&config_home)?;
 

@@ -1,3 +1,4 @@
 {
-  "matrix": "--matrix"
+  "matrix": "--matrix",
+  "status-log": "--status-log"
 }

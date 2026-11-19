@@ -13,7 +13,7 @@ blocks: ["work-item:PP-943"]
 relates_to: ["work-item:PP-794", "work-item:PP-955", "work-item:PP-956", "work-item:PP-958", "work-item:PP-960", "work-item:PP-962", "work-item:PP-943"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-11-18T18:21:11+00:00"
+last_updated: "2026-11-19T20:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-957"
@@ -240,7 +240,7 @@ Mutation audit of today's consumers:
 | `vcs-adapters::scrub` | 2 | matrix | writes `poison.gitconfig` into the matrix's base directory | adopting, with `poison.gitconfig` written to the test's own workbench |
 | `accelerator-vcs::status_log_goldens` (full set and plain-git subset) | 6 | status-log set | runs the binary; `jj status` takes the working-copy lock and writes store objects but commits no operation | a copy (full set, or the plain-git part for the two subset tests) |
 | `vcs-adapters::conflicts` | 1 | status-log set | `jj resolve --list` snapshots and records an operation | a copy of `conflict-git` and `conflict-jj` (the in-process jj snapshot writes store objects) |
-| `vcs-test-support::status_log_states` | 1 | status-log set plus adversarial state | reads the full set; builds an adversarial state | adopting (`adversarial-git` is already part of the shared build) |
+| `vcs-test-support::status_log_states` | 1 (2 once this item adds the path test) | status-log set plus adversarial state | reads the full set; builds an adversarial state | adopting (`adversarial-git` is already part of the shared build) |
 | `accelerator-vcs::status_log_goldens` (cap, bookmark), `status_log_parity` | 4 | private sets | read-only | private build; out of scope |
 
 ## Acceptance Criteria
@@ -252,14 +252,22 @@ Mutation audit of today's consumers:
       *Matrix, 2026-11-19 (engywook):* met. A full coverage-on run's log shows
       one matrix shared build, 19 adoptions (classify 6, queries 5, scrub 2,
       vcs-test-support::matrix 6) and no private build; 7,770 tests passed.
-- [ ] [status-log] Given a full `test:unit:cli` run, when it completes,
+- [x] [status-log] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows one status-log shared build and, for each
       test named in Requirement 2, an adoption or a copy as the audit table
       records, and no private build.
-- [ ] [status-log] Given a full `test:unit:cli` run, when it completes,
+      *Status-log, 2026-11-19 (engywook):* met, coverage off and on (8,113 tests
+      passed). One status-log shared build; the six goldens tests and
+      `conflicts` each copy, both `status_log_states` tests adopt, and no
+      test builds the set privately. The new `copy_fidelity` and
+      `status_log_parts` tests add 3 copies and 5 adoptions: 10 copies and 7
+      adoptions in all.
+- [x] [status-log] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows a private build under "private sets" for
       each private-set consumer.
-- [ ] [each family] Given a full `test:unit:cli` run, when it completes,
+      *Status-log, 2026-11-19 (engywook):* 4 private builds under "private sets":
+      the cap and bookmark goldens tests and both `status_log_parity` tests.
+- [x] [each family] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows matching hashes for the family's shared
       tree and a clean path scan for each of its copies. Given a test made
       to write into the shared tree, the run fails and names the tree.
@@ -271,17 +279,31 @@ Mutation audit of today's consumers:
       temporary edit writing `poison.gitconfig` into `matrix.base` from a
       `classify` test fails the run, naming the matrix tree and the added
       path. The matrix makes no copies.
-- [ ] [each family] Given a full `test:unit:cli` run, when it completes,
+      *Status-log, 2026-11-19 (engywook):* the built and removed digests match, and all
+      10 copies scan clean. A temporary edit making `status_log_states`
+      write `poison` into the adopted (sealed, so first made writable) tree
+      fails the run naming the status-log tree and the added path. The
+      shared tree's path planted in its `conflict-git/.git/config` through
+      the hold switch fails `conflicts` and the run, naming the copy and the
+      file.
+- [x] [each family] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows a distinct hermetic root for each test
       using the family's shared build, none inside a shared tree.
       *Matrix, 2026-11-19 (engywook):* 19 adoptions, 19 distinct hermetic
       roots, none inside the matrix tree.
-- [ ] [each family] Given a copy made by the copy helper and a private
+      *Status-log, 2026-11-19 (engywook):* 7 adoptions and 10 copies, 17 distinct
+      hermetic roots, none inside a shared tree.
+- [x] [each family] Given a copy made by the copy helper and a private
       build of the same family, when they are compared, then every file's
       modification time in the copy matches its source, and
       `git status --porcelain` and `jj status --ignore-working-copy` give
       the same output in both. The matrix meets this by making no copies.
-- [ ] [each family] Given every consumer in the audit table whose test
+      *Status-log, 2026-11-19 (engywook):* `copy_fidelity` checks it on every state,
+      against the shared build under the task and a private build run
+      directly: every modification time matches to the nanosecond, the
+      status output matches, and a jj snapshot in the copy sees exactly the
+      builder's unsnapshotted edits and records no operation elsewhere.
+- [x] [each family] Given every consumer in the audit table whose test
       code changes, when it is compared with `287b6279`, then its golden
       files are byte-identical, it keeps the same test names and count, and
       every assertion and golden comparison it made there is still made,
@@ -290,6 +312,10 @@ Mutation audit of today's consumers:
       `no_state_names_the_directory_it_was_built_in`, which guards the
       path-freedom the status-log copies depend on; its other test keeps
       its name and assertions.
+      *Both families, 2026-11-19:* met. No golden changed; the moved tests
+      keep their names, count and assertions, and
+      `status_and_log_match_every_captured_state` now also asserts that the
+      goldens it compared are exactly the 38 on disk.
 - [x] [matrix] Given `mise run test:unit:cli --filter 'test(classify)'`,
       when it runs, then the matrix alone is built, the `classify` tests
       adopt it, and they pass. Given a malformed filter or an undeclared
@@ -307,15 +333,22 @@ Mutation audit of today's consumers:
       macOS's `sh` and under dash, run by forcing mise's inline shell to
       `/bin/dash` (`MISE_UNIX_DEFAULT_INLINE_SHELL_ARGS`), as Ubuntu's `sh`
       would.
-- [ ] [status-log] Given `mise run test:unit:cli --filter 'test(conflicts)'`,
+- [x] [status-log] Given `mise run test:unit:cli --filter 'test(conflicts)'`,
       when it runs, then the status-log set alone is built, `conflicts`
       adopts or copies it as the audit table records, and it passes.
-- [ ] [each family] Given a filter that selects no consumer of the family,
+      *Status-log, 2026-11-19 (engywook):* met with `test(conflicts)` (5 tests) and
+      `binary_id(vcs-adapters::conflicts)`: the status-log set alone is
+      built, and `conflicts` copies `conflict-git` and `conflict-jj` and
+      passes. A filter selecting only `the_log_is_capped_at_five_entries`
+      builds the set its test never uses: 2.0 s of a 6.5 s task.
+- [x] [each family] Given a filter that selects no consumer of the family,
       when `test:unit:cli` runs, then the family is not built.
       *Matrix, 2026-11-19 (engywook):* `--filter
       'binary_id(accelerator-vcs::status_log_parity)'` builds nothing and its
       two tests pass.
-- [ ] [each family] Given each consumer row in the audit table, run
+      *Status-log, 2026-11-19 (engywook):* `--filter 'binary_id(vcs-adapters::classify)'`
+      builds the matrix alone.
+- [x] [each family] Given each consumer row in the audit table, run
       through `cargo nextest run -E <filter>` directly with a filter
       selecting only that row's tests, when it runs, then the tests pass,
       no shared fixture location is created and no fixture log is written.
@@ -323,7 +356,11 @@ Mutation audit of today's consumers:
       `queries`, `vcs-test-support::matrix`, and `scrub` without
       `status_honours_the_global_excludes_file`) pass when run directly, with
       nothing created under the shared root and no new fixture log.
-- [ ] [each family] Given the test-only switch failing the family's shared
+      *Status-log, 2026-11-19 (engywook):* the five status-log rows (the goldens,
+      `conflicts`, `status_log_states`, `copy_fidelity`, `status_log_parts`)
+      pass when run directly, with nothing under the shared root and no new
+      fixture log.
+- [x] [each family] Given the test-only switch failing the family's shared
       build, when `test:unit:cli` runs, then the run stops before
       nextest's test phase with one failure naming that family and its
       cause, the fixture log has no event for that family's consumers, and
@@ -332,7 +369,10 @@ Mutation audit of today's consumers:
       `ACCELERATOR_SHARED_FIXTURES_FAIL=matrix` stops the run before nextest
       with one failure naming the matrix and its cause; the log has no event
       and the summary is printed.
-- [ ] [each family] Given a passing run, a run with a failing test and a
+      *Status-log, 2026-11-19 (engywook):* `ACCELERATOR_SHARED_FIXTURES_FAIL=status-log`
+      stops the run the same way, with one failure naming the status-log
+      set.
+- [x] [each family] Given a passing run, a run with a failing test and a
       run whose shared build fails, when each ends, then nothing it created
       remains under the shared fixture location, the fixture log remains
       with the `git` and `jj` versions on each shared-build event, the
@@ -344,21 +384,26 @@ Mutation audit of today's consumers:
       matches `Summary [`. The passing and failing runs' logs carry `git
       version 2.56.0` and `jj 0.43.0` on the shared-build event; the forced
       failure stops before any build, so its log has no shared-build event.
-- [ ] [each family] Given run A held after its build step and then killed
+      *Status-log, 2026-11-19 (engywook):* met for a passing run, a failing `conflicts`
+      test and the forced status-log failure, the same way.
+- [x] [each family] Given run A held after its build step and then killed
       with SIGKILL, and run B held after its build step, when run C
       starts, then A's trees are removed and B's remain, and B passes once
       released.
       *Matrix, 2026-11-19 (engywook):* met, with A killed only once B was
       held, so that B's own start-up sweep could not be what removed A: C
       removed A's directory and lock and kept B's, and B passed once released.
+      *Status-log, 2026-11-19 (engywook):* met the same way, with A building both
+      families and B and C filtered to `conflicts`.
 - [x] [matrix] Given `cli/`, `tasks/`, `mise.toml` and `.github/`, when
       they are searched for `ACCELERATOR_ZERO_SPAWN_MATRIX` or
       `MATRIX_ROOT_VARIABLE`, then nothing matches.
       *Matrix, 2026-11-19 (engywook):* nothing matches.
-- [ ] [status-log] Given `cli/`, `tasks/`, `mise.toml` and `.github/`,
+- [x] [status-log] Given `cli/`, `tasks/`, `mise.toml` and `.github/`,
       when they are searched for `ACCELERATOR_ZERO_SPAWN_STATUS_LOG` or
       `STATES_ROOT_VARIABLE`, then nothing matches.
-- [ ] [each family] Given `test:unit:cli` with coverage on, with coverage
+      *Status-log, 2026-11-19 (engywook):* nothing matches.
+- [x] [each family] Given `test:unit:cli` with coverage on, with coverage
       off, and on CI's `ubuntu-latest` and `macos-latest` `test-unit`
       legs, when each runs, then it passes and its fixture summary shows
       the family built once.
@@ -367,6 +412,11 @@ Mutation audit of today's consumers:
       `ubuntu-latest` leg ran 7,770 tests and the `macos-latest` leg 7,771,
       all passing; each summary shows 1 matrix shared build, 19 adoptions and
       no private build, with the build step taking 1.1 s and 2.3 s.
+      *Status-log, 2026-11-19 (engywook):* coverage on (full run) and off pass, each
+      summary showing both families built once. CI (PR #249) passed: the `ubuntu-latest` leg ran 8,112 tests and the
+      `macos-latest` leg 8,113, each summary showing 1 matrix shared build
+      with 19 adoptions, 1 status-log shared build with 7 adoptions and 10
+      copies, and 4 private-set builds; the build step took 2.4 s and 5.0 s.
 - [ ] [filters] Given each task listed in Requirement 5, when it is run
       with `--help`, with a filter selecting a subset, and with its listed
       malformed expression, then its help lists `--filter` and names the
@@ -518,6 +568,15 @@ Planning answers each of these:
   The build step took 5.0–5.7 s, the first digest 0.1 s, and the second
   digest and removal 0.3 s each. The record is noisy: idle load was
   46.9%, and the IDE used 271 s of CPU against the baseline's 128 s.
+- Status-log shared build cost (2026-11-19, engywook, not idle: load
+  average 27–29 on 16 cores, IDE and other workspaces busy; three runs
+  each, debug build, `States::build_in` timed in-process and the
+  `shared-fixtures` bin for the matrix). The status-log set alone took
+  2.4–3.2 s (median 2.4 s); the matrix alone 3.5–4.5 s (median 3.55 s).
+  Built together, the status-log set took 2.8–3.4 s and the matrix
+  3.75–4.3 s, so the build step's wall time is the matrix's, about 4 s,
+  inside the 5 s budget even under load. Neither family's groups need
+  building on scoped threads. An idle-host rerun is still owed.
 
 ## Drafting Notes
 

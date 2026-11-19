@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T09:21:18+00:00"
+last_updated: "2026-11-19T20:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1993,14 +1993,16 @@ metadata that the status and log renderers never read.
 - It also matches every other spelling of the needle that the filesystem
   gives it: the needle as given, and its canonical path. The test creates a
   directory and a symlink to it, and passes the symlinked spelling as the
-  needle. A file naming the canonical spelling is found, and so is the
-  reverse. This covers macOS's `/var` → `/private/var` and `/tmp` →
+  needle. A file naming the canonical spelling is found, and so is one
+  naming the symlinked spelling. This covers macOS's `/var` → `/private/var` and `/tmp` →
   `/private/tmp`, and runs on both CI legs.
 - It returns nothing for a tree that doesn't name the needle.
 - It reports a symlink whose target contains the needle.
+- It returns every match in path order.
 
 **File**: `cli/vcs-test-support/src/path_scan.rs` (new); add `walkdir =
-"2.5.0"` to `vcs-test-support`'s dependencies.
+"2.5.0"` to the workspace dependencies, and take it in `vcs-test-support`
+as `{ workspace = true }`, as every other dependency is.
 
 #### 2. A path-free private build (tests first)
 
@@ -2035,10 +2037,13 @@ builder.
   workspace store, record the workspace there in a form relative to the
   repository, or with a path jj writes itself, so that the test goes
   green.
-- **The manifest.** `Manifest` holds the matrix's `Fixture` rows (key,
-  shape, start), while the status-log set records a key and a path per
-  state. Widen it so both families write and read their manifest through
-  it, keeping the matrix's `fixtures.tsv` format unchanged.
+- **The manifest.** The matrix's manifest became `MatrixManifest` in
+  `matrix_manifest.rs` after Phase 3, holding only the matrix's rows (key,
+  shape, start). The status-log set records a key and a path per state, so
+  it gets its own `StatusLogManifest` in `status_log_manifest.rs`, beside
+  it, writing the unchanged `status-log-states.tsv`. `adopt` reads through
+  it. `tests/status_log_sharing.rs` starts here with its round-trip,
+  missing, malformed and empty cases; Phase 5 adds the `adopt` cases.
 - **The full-set builder.** Mirror the matrix's split (Phase 1's
   `build_with`, Phase 2's `build_in` and `build_for_sharing`). Extract from
   `States::build_or_adopt`:
@@ -2049,28 +2054,38 @@ builder.
   - `States::build_for_sharing(base)`, which creates `base` if missing,
     calls `build_in` and writes the manifest through `Manifest`.
 
-  Keep `build_or_adopt` and `states_root` until Phase 5.
+  Keep `build_or_adopt` and `states_root` until Phase 5; `build_or_adopt`
+  now adopts or calls `build_for_sharing`. `build_in` is `pub`, for the
+  path test; `build_with` and `build_for_sharing` are `pub(crate)` from
+  the start, as the matrix's are.
 - **Its cost.** A `States::build_for_sharing` run is timed on engywook when
   idle, alone and alongside a matrix build, and recorded in the work item.
   That decides, before Phase 5, whether the status-log set's groups need
   building on scoped threads (Performance Considerations).
 
+  *As measured (2026-11-19):* engywook was not idle (load 27–29). The
+  status-log set took a median 2.4 s alone; built alongside the matrix,
+  the step's wall time was the matrix's, about 4 s. Scoped threads are not
+  needed. An idle rerun is still owed.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] The status-log tests pass:
+- [x] The status-log tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support -p accelerator-vcs -p vcs-adapters`
-- [ ] Regenerating the goldens changes nothing:
+- [x] Regenerating the goldens changes nothing:
       `REGENERATE_GOLDENS=1 cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-vcs -E 'test(status_and_log_match_every_captured_state)'`,
       then `jj diff --stat cli/vcs-test-support/fixtures` is empty.
-- [ ] The cli checks pass: `mise run cli:check`
-- [ ] The full local run passes: `mise run`
+- [x] The cli checks pass: `mise run cli:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
-- [ ] On `ubuntu-latest` (CI's `test-unit` leg), the status-log goldens and
+- [x] On `ubuntu-latest` (CI's `test-unit` leg), the status-log goldens and
       the new scan test pass.
+      *Passed (2026-11-19):* PR #249's `Run unit tests (ubuntu-latest)` leg
+      passed.
 
 ---
 
@@ -2082,6 +2097,24 @@ This phase adds the copy helper. The build step builds the status-log set
 too, and the status-log consumers adopt it or copy from it. The private
 sets log their builds. `STATES_ROOT_VARIABLE` is renamed. This completes the
 status-log increment.
+
+### As built
+
+- **A copy is writable.** Phase 3 seals each shared tree read-only, so a
+  copy that kept its source's modes exactly could not be written. `copy_part`
+  keeps every mode and adds the owner's write permission; `copies.rs` asserts
+  that, and that a sealed source copies. The root-only ordering check falls
+  away, because no copied directory is ever read-only.
+- **Names.** The fixture a workbench hands out is `Held<'_, F>`, not
+  `Fixture`. `States` adopts through `SharedFamily::adopt`, as `Matrix` does,
+  rather than a public inherent `adopt`. `private_states` takes a
+  `PrivateSetBuilder` and returns `Held<'_, PrivateStates>`.
+  `CopyableFamily::build_part_privately` and `StatusLogPart`'s methods take
+  the part by value.
+- **jj reports a rename as a rename.** `rename-jj`'s snapshot summary is
+  `R {old.txt => new.txt}`, not `D old.txt` and `A new.txt`.
+- **`build_conflict_states` was already private**, so only the other full-set
+  builders narrowed to `pub(crate)`.
 
 ### Changes Required
 
@@ -2197,8 +2230,9 @@ is `ACCELERATOR_SHARED_STATUS_LOG`, and `variables.json` gains its entry.
 **File**: `cli/vcs-test-support/src/status_log.rs`
 - Remove `STATES_ROOT_VARIABLE`, `states_root` and `build_or_adopt`. Make
   `adopt` public; it fails on a missing manifest, a malformed line or an
-  empty manifest, naming the base. `tests/status_log_sharing.rs` (new)
-  covers each case with a hand-written manifest and no git, as
+  empty manifest, naming the base. `tests/status_log_sharing.rs`, which
+  Phase 4 started with `StatusLogManifest`'s own cases, gains a test for
+  each case with a hand-written manifest and no git, as
   `matrix_sharing.rs` does for the matrix.
 - Add these:
 
@@ -2425,24 +2459,24 @@ scan and the private sets.
 
 #### Automated Verification
 
-- [ ] The Rust tests pass:
+- [x] The Rust tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support -p accelerator-vcs -p vcs-adapters`
-- [ ] The Python tests pass:
+- [x] The Python tests pass:
       `uv run pytest tests/unit/tasks/shared/shared_fixtures tests/unit/tasks/test_rust.py tests/unit/tasks/test_fixture_builds.py -v`
-- [ ] Nothing in `cli/`, `tasks/`, `mise.toml` or `.github/` mentions the
+- [x] Nothing in `cli/`, `tasks/`, `mise.toml` or `.github/` mentions the
       old status-log variable:
       `! rg -n 'ACCELERATOR_ZERO_SPAWN_STATUS_LOG|STATES_ROOT_VARIABLE' cli tasks mise.toml .github`
-- [ ] The goldens are unchanged: `jj diff --stat cli/vcs-test-support/fixtures`
+- [x] The goldens are unchanged: `jj diff --stat cli/vcs-test-support/fixtures`
       is empty.
-- [ ] The checks pass: `mise run cli:check && mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The checks pass: `mise run cli:check && mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
 These are the status-log increment's acceptance criteria. Record each outcome
 in the work item, along with the audit table's final outcomes.
 
-- [ ] A full run's log shows the following, with a distinct `hermetic-root`
+- [x] A full run's log shows the following, with a distinct `hermetic-root`
       for each test using the set, and none inside a shared tree:
   - one status-log shared build;
   - six copies for the goldens and one for `conflicts`, plus one from
@@ -2454,30 +2488,51 @@ in the work item, along with the audit table's final outcomes.
   - no private build of the status-log set (the part tests' private builds
     go to their own test-local logs);
   - four private builds under "private sets".
-- [ ] The status-log digests match.
-- [ ] A temporary edit that writes into the adopted tree from
+
+  *As run (2026-11-19, engywook, coverage off and on):* 1 status-log shared
+  build, 10 copies (six goldens, `conflicts`, `copy_fidelity`'s planted-path
+  test, two part tests), 7 adoptions (two `status_log_states`, three
+  `copy_fidelity` tests — its planted-path test copies rather than adopts —
+  and two part tests), no private status-log build, 4 private-set builds.
+  17 distinct hermetic roots, none inside a shared tree; every copy's scan
+  clean.
+- [x] The status-log digests match.
+- [x] A temporary edit that writes into the adopted tree from
       `status_log_states` fails the run, and the failure names the tree.
-- [ ] A temporary edit planting the shared path in the shared tree's
+      *As run:* the tree is sealed, so the edit first made the base
+      writable; the run failed naming the status-log tree and `added
+      poison`.
+- [x] A temporary edit planting the shared path in the shared tree's
       `conflict-git/.git/config`, made right after the build through the
       hold switch, fails the run naming the copy.
-- [ ] `--filter 'binary_id(vcs-adapters::conflicts)'` builds the status-log
+      *As run:* `conflicts` failed naming its copy and the shared tree, and
+      the run reported the copy's file; it also reported the tree as
+      changed, since the plant itself modified it after the built digest.
+- [x] `--filter 'binary_id(vcs-adapters::conflicts)'` builds the status-log
       set alone, and `conflicts` copies its two states and passes.
-- [ ] `--filter 'binary_id(vcs-adapters::classify)'` does not build the
+- [x] `--filter 'binary_id(vcs-adapters::classify)'` does not build the
       status-log set.
-- [ ] Each status-log row run directly through `cargo nextest run -E …`
+- [x] Each status-log row run directly through `cargo nextest run -E …`
       passes, with no shared location created and no log written.
-- [ ] `ACCELERATOR_SHARED_FIXTURES_FAIL=status-log` stops the run before the
+- [x] `ACCELERATOR_SHARED_FIXTURES_FAIL=status-log` stops the run before the
       test phase. There is one failure naming the status-log set, and no
       status-log consumer event.
-- [ ] The cleanup, summary and `Summary [` checks from Phase 3 hold for the
+- [x] The cleanup, summary and `Summary [` checks from Phase 3 hold for the
       status-log set.
-- [ ] The SIGKILL check from Phase 3 holds for the status-log set.
-- [ ] Coverage off, coverage on, and both CI `test-unit` legs pass. Each
+- [x] The SIGKILL check from Phase 3 holds for the status-log set.
+- [x] Coverage off, coverage on, and both CI `test-unit` legs pass. Each
       summary shows both families built once.
-- [ ] Time a filtered run selecting only
+      *Local (2026-11-19):* coverage off and on pass (8,113 tests), each
+      summary showing both families built once. CI (PR #249) passed: the `ubuntu-latest` leg ran 8,112 tests and the
+      `macos-latest` leg 8,113, each summary showing 1 matrix shared build
+      with 19 adoptions, 1 status-log shared build with 7 adoptions and 10
+      copies, and 4 private-set builds; the build step took 2.4 s and 5.0 s.
+- [x] Time a filtered run selecting only
       `test(=the_log_is_capped_at_five_entries)`, which builds the
       status-log set although its test doesn't use it. Record the cost in
       the work item (Performance Considerations).
+      *As run (coverage off, engywook):* the status-log build took 2.0 s and
+      the whole task 6.5 s.
 
 ---
 

@@ -15,10 +15,11 @@ use crate::Error;
 #[serde(rename_all = "kebab-case")]
 pub enum Family {
     Matrix,
+    StatusLog,
 }
 
 impl Family {
-    pub const ALL: [Self; 1] = [Self::Matrix];
+    pub const ALL: [Self; 2] = [Self::Matrix, Self::StatusLog];
 
     const fn traits(self) -> Traits {
         match self {
@@ -27,6 +28,12 @@ impl Family {
                 handover_variable: "ACCELERATOR_SHARED_MATRIX",
                 flag: "--matrix",
                 noun: "the matrix",
+            },
+            Self::StatusLog => Traits {
+                name: "status-log",
+                handover_variable: "ACCELERATOR_SHARED_STATUS_LOG",
+                flag: "--status-log",
+                noun: "the status-log set",
             },
         }
     }
@@ -118,4 +125,33 @@ pub trait SharedFamily: Sized {
         hermetic: &Hermetic,
         token: PrivateBuild,
     ) -> Result<Self, Error>;
+}
+
+/// A shared family a test can take a writable copy of, one part at a time.
+pub trait CopyableFamily: SharedFamily {
+    type Part;
+
+    /// The top-level entries of `tree` that make up `part`.
+    ///
+    /// # Errors
+    ///
+    /// When `tree` cannot be listed.
+    fn entries(part: &Self::Part, tree: &Path) -> Result<Vec<String>, Error>;
+
+    /// Builds `part` alone in `directory` with `hermetic`.
+    ///
+    /// # Errors
+    ///
+    /// When any part of the build fails.
+    fn build_part_privately(
+        part: Self::Part,
+        directory: &Path,
+        hermetic: &Hermetic,
+        token: PrivateBuild,
+    ) -> Result<Self, Error>;
+
+    /// The family as it reads once `entries` of the tree at `from` are copied
+    /// to `onto`, keeping only what those entries hold.
+    #[must_use]
+    fn rebased(self, from: &Path, onto: &Path, entries: &[String]) -> Self;
 }

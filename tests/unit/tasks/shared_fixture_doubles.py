@@ -17,11 +17,15 @@ BUILDER = "/workspace/cli/target/debug/shared-fixtures"
 CAPTURE = Path(__file__).parent / "fixtures/shared-fixtures"
 CAPTURED_BINARIES = frozenset(
     {
+        "accelerator-vcs::status_log_goldens",
+        "accelerator-vcs::status_log_parity",
         "vcs-adapters::classify",
+        "vcs-adapters::conflicts",
+        "vcs-adapters::detection",
         "vcs-adapters::queries",
         "vcs-adapters::scrub",
-        "vcs-adapters::detection",
         "vcs-test-support::matrix",
+        "vcs-test-support::status_log_states",
     }
 )
 
@@ -99,7 +103,7 @@ class FakeSharedFixtures:
         environment = kwargs.get("env") or {}
         if command.startswith("cargo nextest list"):
             return self._listing
-        if " --matrix " in command:
+        if shlex.split(command)[0].endswith("/shared-fixtures"):
             return self._build(command, environment)
         if "nextest" in command:
             return self._test(environment)
@@ -110,9 +114,8 @@ class FakeSharedFixtures:
             return self._builder
         words = shlex.split(command)
         for family in Family:
-            flag = f"--{family.value}"
-            if flag in words:
-                tree = Path(words[words.index(flag) + 1])
+            if family.flag in words:
+                tree = Path(words[words.index(family.flag) + 1])
                 tree.mkdir(parents=True)
                 (tree / "fixtures.tsv").write_text("PG-r\tplain git\t/x\n")
                 _append(

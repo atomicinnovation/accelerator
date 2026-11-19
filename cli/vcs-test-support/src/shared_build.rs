@@ -12,6 +12,7 @@ use crate::fixture_log::Event;
 use crate::fixture_log::FixtureLog;
 use crate::fixtures::Matrix;
 use crate::hermetic::tool_version;
+use crate::status_log::States;
 use crate::Error;
 
 /// The families a run asks the build step for, each with the tree to build.
@@ -148,6 +149,7 @@ impl SharedBuildRequest {
 fn build_for_sharing(family: Family, tree: &Path) -> Result<(), Error> {
     match family {
         Family::Matrix => Matrix::build_for_sharing(tree).map(drop),
+        Family::StatusLog => States::build_for_sharing(tree).map(drop),
     }
 }
 

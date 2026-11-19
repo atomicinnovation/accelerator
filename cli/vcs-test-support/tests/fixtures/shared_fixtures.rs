@@ -1,7 +1,7 @@
 //! Builds the requested shared fixture families once, before a run's tests.
 //!
-//! Usage: `shared-fixtures --matrix <tree>`. Each family that fails is printed
-//! as `<family>: <cause>` on stderr.
+//! Usage: `shared-fixtures [--matrix <tree>] [--status-log <tree>]`. Each
+//! family that fails is printed as `<family>: <cause>` on stderr.
 #![allow(clippy::print_stderr)]
 
 use std::env;

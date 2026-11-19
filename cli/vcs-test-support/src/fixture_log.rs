@@ -40,6 +40,14 @@ pub enum Event<'a> {
         test: &'a TestName,
         hermetic_root: &'a Path,
     },
+    Copy {
+        family: Family,
+        #[serde(flatten)]
+        test: &'a TestName,
+        hermetic_root: &'a Path,
+        copy: &'a Path,
+        named_by: &'a [PathBuf],
+    },
 }
 
 #[derive(Debug, Clone, Default)]

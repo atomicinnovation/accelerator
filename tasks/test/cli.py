@@ -102,8 +102,9 @@ def run(context: Context, filter_: str | None = None) -> None:
     A run given --filter lists the selected tests first, builds only the
     shared fixtures they use, and skips the report, sweep and floor.
 
-    The VCS fixture matrix is built once per run and handed to the tests;
-    `cargo nextest run` run directly builds it in each test that needs it.
+    The VCS fixture matrix and status-log set are built once per run and
+    handed to the tests; `cargo nextest run` run directly builds them in
+    each test that needs them.
 
     `--all-features` turns on the `test-loopback` and `test-support` features
     the black-box suites need. The suites that build real repositories run

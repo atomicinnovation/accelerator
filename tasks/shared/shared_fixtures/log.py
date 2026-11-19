@@ -67,6 +67,20 @@ class PrivateBuild:
 
 
 @dataclasses.dataclass(frozen=True)
+class Copy:
+    family: Family
+    binary: str
+    test: str
+    hermetic_root: Path
+    copy: Path
+    named_by: tuple[Path, ...]
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.binary} {self.test}"
+
+
+@dataclasses.dataclass(frozen=True)
 class TreeDigestRecorded:
     family: Family
     tree: Path
@@ -85,6 +99,7 @@ type Event = (
     SharedBuild
     | Adoption
     | PrivateBuild
+    | Copy
     | TreeDigestRecorded
     | TreeChangesRecorded
 )
@@ -139,9 +154,14 @@ class FixtureSummary:
             isinstance(event, Adoption) and event.family is family
             for event in self.events
         )
+        copies = sum(
+            isinstance(event, Copy) and event.family is family
+            for event in self.events
+        )
         return (
             f"  {family.heading}: {_count(shared_builds, 'shared build')}, "
-            f"{_count(adoptions, 'adoption')}, {_count(0, 'copy', 'copies')}, "
+            f"{_count(adoptions, 'adoption')}, "
+            f"{_count(copies, 'copy', 'copies')}, "
             f"{_count(self._private_builds(family), 'private build')}"
         )
 
@@ -204,6 +224,7 @@ class FixtureLog:
         problems = [
             *_changed_trees(run),
             *_private_builds_of_shared_families(events, run),
+            *_copies_naming_their_shared_tree(events),
             *(
                 f"line {number} of the fixture log {self.path} does not parse"
                 for number in contents.unparsed
@@ -268,6 +289,15 @@ def _event(line: Mapping[str, Any]) -> Event:
             _binary_of(line),
             line["test"],
             Path(line["hermetic-root"]),
+        )
+    if kind == "copy":
+        return Copy(
+            Family(line["family"]),
+            _binary_of(line),
+            line["test"],
+            Path(line["hermetic-root"]),
+            Path(line["copy"]),
+            tuple(Path(path) for path in line["named-by"]),
         )
     if kind == "tree-digest":
         return TreeDigestRecorded(
@@ -350,6 +380,20 @@ def _private_builds_of_shared_families(
             )
 
 
+def _copies_naming_their_shared_tree(
+    events: Sequence[Event],
+) -> Iterator[str]:
+    for event in events:
+        if isinstance(event, Copy) and event.named_by:
+            named = ", ".join(str(path) for path in event.named_by)
+            yield (
+                f"{event.full_name} copied {event.family.noun} into "
+                f"{event.copy}, but these copied files still name the shared "
+                f"tree, so the test would read or write it through them: "
+                f"{named}"
+            )
+
+
 def _builds_missing_from_the_log(
     events: Sequence[Event], run: FinishedRun
 ) -> Iterator[str]:
@@ -371,7 +415,7 @@ def _unlisted_consumers(events: Sequence[Event]) -> Iterator[str]:
         {
             (event.binary, event.family)
             for event in events
-            if isinstance(event, Adoption)
+            if isinstance(event, Adoption | Copy)
         }
     )
     for binary, family in users:
@@ -389,7 +433,7 @@ def _silent_consumers(
         *(
             (event.binary, event.family)
             for event in events
-            if isinstance(event, Adoption)
+            if isinstance(event, Adoption | Copy)
         ),
         *(
             (event.binary, event.fixtures)

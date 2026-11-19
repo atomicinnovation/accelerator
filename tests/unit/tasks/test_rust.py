@@ -269,11 +269,14 @@ class TestTestUnitCli:
         assert builder_listing == (
             f"cargo test {test_cli._MANIFEST} --no-run --message-format=json"
         )
-        [executable, flag, tree] = shlex.split(builder)
+        [executable, *flags] = shlex.split(builder)
         assert executable == str(build_dir / SHARED_FIXTURES)
-        assert flag == "--matrix"
-        assert Path(tree).parent.parent == tmp_path / "shared-fixtures"
-        assert Path(tree).name == "matrix"
+        [matrix_flag, matrix, status_log_flag, status_log] = flags
+        assert (matrix_flag, status_log_flag) == ("--matrix", "--status-log")
+        assert Path(matrix).parent == Path(status_log).parent
+        assert Path(matrix).parent.parent == tmp_path / "shared-fixtures"
+        assert Path(matrix).name == "matrix"
+        assert Path(status_log).name == "status-log"
         assert tests.startswith("cargo llvm-cov nextest")
         for flag in (
             "--no-report",
@@ -347,10 +350,12 @@ class TestTestUnitCli:
         tests = self._call(lane, "cargo llvm-cov nextest")
         environment = tests.kwargs["env"]
         assert tests.kwargs["replace_env"] is True
-        assert (
-            environment[Family.MATRIX.handover_variable]
-            == (shlex.split(builder.args[0])[2])
-        )
+        flags = shlex.split(builder.args[0])[1:]
+        for family in Family:
+            assert (
+                environment[family.handover_variable]
+                == (flags[flags.index(family.flag) + 1])
+            )
         assert environment[WORKBENCHES_VARIABLE].endswith("/workbenches")
         assert (
             environment[FIXTURE_LOG_VARIABLE]
@@ -370,7 +375,8 @@ class TestTestUnitCli:
 
         builder = self._builder_call(lane, build_dir).kwargs["env"]
         tests = self._call(lane, "cargo llvm-cov nextest").kwargs["env"]
-        assert Family.MATRIX.handover_variable not in builder
+        for family in Family:
+            assert family.handover_variable not in builder
         assert WORKBENCHES_VARIABLE not in builder
         assert "/elsewhere" not in builder.values()
         assert "/elsewhere" not in tests.values()
@@ -380,9 +386,11 @@ class TestTestUnitCli:
     ):
         test_cli.run(lane)
 
+        out = capsys.readouterr().out
         assert (
             "  matrix: 1 shared build, 4 adoptions, 0 copies, 0 private builds"
-        ) in capsys.readouterr().out
+        ) in out
+        assert "  status-log set: 1 shared build" in out
 
     def test_only_the_report_and_listing_output_is_captured(
         self, lane: MagicMock
@@ -448,7 +456,8 @@ class TestTestUnitCli:
         assert "RUSTC_WRAPPER" not in builder.kwargs["env"]
         assert tests.args[0].startswith("cargo nextest run")
         assert "llvm-cov" not in tests.args[0]
-        assert Family.MATRIX.handover_variable in tests.kwargs["env"]
+        for family in Family:
+            assert family.handover_variable in tests.kwargs["env"]
         assert self._swept_nothing(build_dir)
 
     def test_passes_no_threshold_flag_to_cargo_llvm_cov(self, lane: MagicMock):
@@ -746,6 +755,27 @@ class TestTestUnitCli:
             tests == f"cargo nextest run {test_cli._MANIFEST} -E '{CLASSIFY}'"
         )
 
+    def test_a_filter_consuming_only_the_status_log_set_builds_only_it(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        self._filtered_to(
+            lane, lambda binary, _name: binary == "vcs-adapters::conflicts"
+        )
+
+        test_cli.run(lane, filter_="binary_id(vcs-adapters::conflicts)")
+
+        builder = self._builder_call(lane, build_dir).args[0]
+        [_executable, flag, tree] = shlex.split(builder)
+        assert flag == "--status-log"
+        assert Path(tree).name == "status-log"
+        handover = self._call(lane, "cargo nextest run").kwargs["env"]
+        assert handover[Family.STATUS_LOG.handover_variable] == tree
+        assert Family.MATRIX.handover_variable not in handover
+
     def test_the_listing_leaves_nextest_s_own_errors_on_the_terminal(
         self, lane: MagicMock
     ):
@@ -835,7 +865,8 @@ class TestTestUnitCli:
             "consumes a shared family)"
         ) in capsys.readouterr().out.splitlines()
         handover = self._call(lane, "cargo nextest run").kwargs["env"]
-        assert Family.MATRIX.handover_variable not in handover
+        for family in Family:
+            assert family.handover_variable not in handover
         assert WORKBENCHES_VARIABLE in handover
         assert FIXTURE_LOG_VARIABLE in handover
 

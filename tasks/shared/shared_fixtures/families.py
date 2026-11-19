@@ -4,6 +4,7 @@ from enum import StrEnum
 
 class Family(StrEnum):
     MATRIX = "matrix"
+    STATUS_LOG = "status-log"
 
     @property
     def handover_variable(self) -> str:
@@ -36,6 +37,12 @@ _TRAITS = {
         flag="--matrix",
         heading="matrix",
         noun="the matrix",
+    ),
+    Family.STATUS_LOG: _Traits(
+        handover_variable="ACCELERATOR_SHARED_STATUS_LOG",
+        flag="--status-log",
+        heading="status-log set",
+        noun="the status-log set",
     ),
 }
 

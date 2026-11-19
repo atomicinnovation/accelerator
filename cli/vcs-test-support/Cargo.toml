@@ -22,6 +22,8 @@ regex = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 serde_json = { workspace = true }
+walkdir = { workspace = true }
+filetime = { workspace = true }
 
 # The build step's builder, run once per `test:unit:cli` run before any test.
 # Lives under tests/fixtures/ for the same reason as vcs-adapters' fixture

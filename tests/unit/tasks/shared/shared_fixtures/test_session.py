@@ -124,6 +124,12 @@ class Harness:
     def printed(self) -> str:
         return self.out.getvalue()
 
+    def digest_phases(self) -> list[tuple[str, str]]:
+        return [
+            (digest["family"], digest["phase"])
+            for digest in self.events("tree-digest")
+        ]
+
 
 @pytest.fixture
 def harness(tmp_path: Path) -> Harness:
@@ -149,19 +155,33 @@ class TestACleanRun:
 
         assert set(handover) == {
             Family.MATRIX.handover_variable,
+            Family.STATUS_LOG.handover_variable,
             WORKBENCHES_VARIABLE,
             FIXTURE_LOG_VARIABLE,
         }
         assert handover[Family.MATRIX.handover_variable].endswith("/matrix")
+        assert handover[Family.STATUS_LOG.handover_variable].endswith(
+            "/status-log"
+        )
 
     def test_digests_each_tree_after_the_build_and_before_removal(
         self, harness: Harness
     ):
         harness.run()
 
-        digests = harness.events("tree-digest")
-        assert [digest["phase"] for digest in digests] == ["built", "removed"]
-        assert digests[0]["value"] == digests[1]["value"]
+        assert harness.digest_phases() == [
+            ("matrix", "built"),
+            ("status-log", "built"),
+            ("matrix", "removed"),
+            ("status-log", "removed"),
+        ]
+        for family in Family:
+            built, removed = (
+                digest["value"]
+                for digest in harness.events("tree-digest")
+                if digest["family"] == family.value
+            )
+            assert built == removed
         assert harness.events("tree-changes") == []
 
     def test_removes_the_run_and_prints_the_summary(self, harness: Harness):
@@ -204,7 +224,7 @@ class TestACleanRun:
         harness.run()
 
         lines = harness.printed().splitlines()
-        assert "shared VCS fixtures: building matrix" in lines
+        assert "shared VCS fixtures: building matrix and status-log" in lines
         assert any(
             re.fullmatch(
                 r"shared VCS fixtures: built in [\d.]+ s, digested in [\d.]+ s",
@@ -407,7 +427,10 @@ class TestAnInterruptAsInvokeReportsIt:
 
         assert not isinstance(interruption.value, SharedFixturesError)
         assert harness.run_directories() == []
-        assert [d["phase"] for d in harness.events("tree-digest")] == ["built"]
+        assert harness.digest_phases() == [
+            ("matrix", "built"),
+            ("status-log", "built"),
+        ]
 
     def test_the_tests_absorbed_still_ends_as_an_interrupt(
         self, harness: Harness
@@ -420,7 +443,10 @@ class TestAnInterruptAsInvokeReportsIt:
             harness.run(absorbing_the_interrupt)
 
         assert harness.run_directories() == []
-        assert [d["phase"] for d in harness.events("tree-digest")] == ["built"]
+        assert harness.digest_phases() == [
+            ("matrix", "built"),
+            ("status-log", "built"),
+        ]
 
 
 class TestAnExitThatIsNotAnException:
@@ -507,9 +533,11 @@ class TestFailingTests:
 
         assert str(failure.value) == "nextest: cli tests failed"
         assert failure.value.code == 1
-        assert [d["phase"] for d in harness.events("tree-digest")] == [
-            "built",
-            "removed",
+        assert harness.digest_phases() == [
+            ("matrix", "built"),
+            ("status-log", "built"),
+            ("matrix", "removed"),
+            ("status-log", "removed"),
         ]
 
     def test_fail_the_run_even_without_a_message(self, harness: Harness):
@@ -582,9 +610,11 @@ class TestAChangedTree:
             r"added poison\.gitconfig",
             str(failure.value),
         )
-        assert [d["phase"] for d in harness.events("tree-digest")] == [
-            "built",
-            "removed",
+        assert harness.digest_phases() == [
+            ("matrix", "built"),
+            ("status-log", "built"),
+            ("matrix", "removed"),
+            ("status-log", "removed"),
         ]
         assert [c["added"] for c in harness.events("tree-changes")] == [
             ["poison.gitconfig"]

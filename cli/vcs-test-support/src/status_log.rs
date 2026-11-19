@@ -1,30 +1,31 @@
 //! The shared `vcs status`/`vcs log` fixture states.
 //!
-//! Built once here so the golden harness (`status_log_goldens.rs`), the parity
-//! harness, and the zero-spawn lane each consume one builder rather than
-//! duplicating state construction. `build_states` returns the states that carry
-//! committed goldens; the cap and bookmark states drive focused assertions and
-//! carry no golden, to keep the golden set branch-stable.
+//! Built in one place so the golden harness (`status_log_goldens.rs`), the
+//! parity harness and the in-process conflict test each consume one builder
+//! rather than duplicating state construction. `build_states` returns the
+//! states that carry committed goldens; the cap and bookmark states drive
+//! focused assertions and carry no golden, to keep the golden set
+//! branch-stable.
 
 use std::collections::BTreeMap;
-use std::env;
-use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use tempfile::TempDir;
-
+use crate::family::CopyableFamily;
+use crate::family::Family;
+use crate::family::PrivateBuild;
+use crate::family::SharedFamily;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::hermetic::ENTRY_PREFIX;
+use crate::status_log_manifest::StatusLogManifest;
+use crate::status_log_manifest::FILE as MANIFEST;
 use crate::Error;
 
-/// Names the root of a status/log state set built by an earlier step, for a
-/// caller inside the shadow window that cannot build one itself.
-pub const STATES_ROOT_VARIABLE: &str = "ACCELERATOR_ZERO_SPAWN_STATUS_LOG";
-
-/// Written beside the states so a later process can adopt them without git/jj.
-const MANIFEST: &str = "status-log-states.tsv";
+/// The state whose hostile config proves a read spawns nothing; it carries no
+/// golden.
+pub const ADVERSARIAL_STATE: &str = "adversarial-git";
 
 fn non_utf8(path: &Path) -> Error {
     Error::message(format!("non-utf8 path: {}", path.display()))
@@ -32,12 +33,10 @@ fn non_utf8(path: &Path) -> Error {
 
 /// Clean, dirty, and detached git checkouts.
 ///
-/// `pub` because the fail-safe and malformed-log tests reach only this family.
-///
 /// # Errors
 ///
 /// When a fixture cannot be built.
-pub fn build_plain_git_states(
+pub(crate) fn build_plain_git_states(
     work: &Path,
     env: &Hermetic,
     states: &mut BTreeMap<&'static str, PathBuf>,
@@ -101,10 +100,10 @@ fn build_ahead_behind_states(
         ],
         work,
     )?;
+    env.git(&["remote", "set-url", "origin", "../seed"], &origin)?;
     let origin = origin.to_str().ok_or_else(|| non_utf8(&origin))?;
 
-    let git_ahead = work.join("git-ahead");
-    env.git(&["clone", "-q", origin, "git-ahead"], work)?;
+    let git_ahead = clone_of_origin(work, env, origin, "git-ahead")?;
     fs::write(git_ahead.join("g.txt"), "2\n")?;
     env.git(&["add", "g.txt"], &git_ahead)?;
     env.git(&["commit", "--quiet", "-m", "commit-2"], &git_ahead)?;
@@ -113,8 +112,7 @@ fn build_ahead_behind_states(
     env.git(&["commit", "--quiet", "-m", "commit-3"], &git_ahead)?;
     states.insert("git-ahead", git_ahead);
 
-    let git_behind = work.join("git-behind");
-    env.git(&["clone", "-q", origin, "git-behind"], work)?;
+    let git_behind = clone_of_origin(work, env, origin, "git-behind")?;
     fs::write(seed.join("i.txt"), "4\n")?;
     env.git(&["add", "i.txt"], &seed)?;
     env.git(&["commit", "--quiet", "-m", "commit-4"], &seed)?;
@@ -122,6 +120,30 @@ fn build_ahead_behind_states(
     states.insert("git-behind", git_behind);
 
     Ok(())
+}
+
+/// Clones `origin` as `name` beneath `work`, recording neither the clone's
+/// reflog entry nor its URL as the absolute path it was cloned from.
+fn clone_of_origin(
+    work: &Path,
+    env: &Hermetic,
+    origin: &str,
+    name: &str,
+) -> Result<PathBuf, Error> {
+    env.git(
+        &[
+            "-c",
+            "core.logAllRefUpdates=false",
+            "clone",
+            "-q",
+            origin,
+            name,
+        ],
+        work,
+    )?;
+    let clone = work.join(name);
+    env.git(&["remote", "set-url", "origin", "../origin.git"], &clone)?;
+    Ok(clone)
 }
 
 fn build_jj_states(
@@ -153,19 +175,11 @@ fn build_jj_states(
     let jj_main = work.join("jj-secondary-main");
     fs::create_dir_all(&jj_main)?;
     env.jj(&["git", "init", "--no-colocate"], &jj_main)?;
-    let jj_secondary = work.join("jj-secondary");
     env.jj(
-        &[
-            "workspace",
-            "add",
-            "--quiet",
-            jj_secondary
-                .to_str()
-                .ok_or_else(|| non_utf8(&jj_secondary))?,
-        ],
+        &["workspace", "add", "--quiet", "../jj-secondary"],
         &jj_main,
     )?;
-    states.insert("jj-secondary", jj_secondary);
+    states.insert("jj-secondary", work.join("jj-secondary"));
 
     Ok(())
 }
@@ -293,7 +307,7 @@ fn build_sha256_git_state(
 /// # Errors
 ///
 /// When a fixture cannot be built (git/jj missing, or a filesystem failure).
-pub fn build_states(
+pub(crate) fn build_states(
     work: &Path,
     env: &Hermetic,
 ) -> Result<BTreeMap<&'static str, PathBuf>, Error> {
@@ -446,21 +460,20 @@ pub fn build_bookmark_states(
 /// # Errors
 ///
 /// When the fixture cannot be built.
-pub fn build_adversarial_state(
+pub(crate) fn build_adversarial_state(
     work: &Path,
     env: &Hermetic,
     states: &mut BTreeMap<&'static str, PathBuf>,
 ) -> Result<(), Error> {
-    let adversarial = work.join("adversarial-git");
+    let adversarial = work.join(ADVERSARIAL_STATE);
     fs::create_dir_all(&adversarial)?;
     env.git(&["init", "--quiet"], &adversarial)?;
     fs::write(adversarial.join("tracked.dat"), "data\n")?;
     env.git(&["add", "tracked.dat"], &adversarial)?;
     env.git(&["commit", "--quiet", "-m", "init"], &adversarial)?;
 
-    let hooks = adversarial.join("hostile-hooks");
-    fs::create_dir_all(&hooks)?;
-    let hooks_path = hooks.to_str().ok_or_else(|| non_utf8(&hooks))?;
+    let hooks_path = "hostile-hooks";
+    fs::create_dir_all(adversarial.join(hooks_path))?;
     for (key, value) in [
         ("core.fsmonitor", "/nonexistent/fsmonitor-hook"),
         ("filter.evil.process", "/nonexistent/evil-process"),
@@ -479,13 +492,13 @@ pub fn build_adversarial_state(
     // it, and a worktree edit so the tracked one is re-hashed.
     fs::write(adversarial.join("untracked.dat"), "more\n")?;
     fs::write(adversarial.join("tracked.dat"), "data\nchanged\n")?;
-    states.insert("adversarial-git", adversarial);
+    states.insert(ADVERSARIAL_STATE, adversarial);
 
     Ok(())
 }
 
-/// The status/log states beneath a caller-supplied root, adopted inside the
-/// zero-spawn shadow window and built (with real git/jj) outside it.
+/// The status/log states beneath one base: the run's shared build, or a
+/// private build in a workbench.
 #[derive(Debug)]
 pub struct States {
     pub base: PathBuf,
@@ -493,87 +506,196 @@ pub struct States {
 }
 
 impl States {
-    /// Adopts a state set already built beneath `base`, or builds one there.
-    ///
-    /// Adoption needs neither `git` nor `jj`, so a CI step builds the states
-    /// while both are reachable and this consumes them after they are shadowed.
+    /// Builds the full set beneath `base`, refusing a base inside a checkout
+    /// before its hermetic environment writes anything there.
     ///
     /// # Errors
     ///
-    /// When the manifest is unreadable or malformed, or a builder fails.
-    pub fn build_or_adopt(base: &Path) -> Result<Self, Error> {
-        if base.join(MANIFEST).is_file() {
-            return Self::adopt(base);
-        }
+    /// When `base` lies inside a repository, or any builder fails.
+    pub(crate) fn build_in(base: &Path) -> Result<Self, Error> {
         assert_no_repository_ancestor(base)?;
+        fs::create_dir_all(base)?;
         let base = base.canonicalize()?;
         let env = Hermetic::rooted_at(&base)?;
+        Self::build_with(&base, &env)
+    }
 
-        let mut states: BTreeMap<String, PathBuf> = build_states(&base, &env)?
-            .into_iter()
-            .map(|(key, path)| (key.to_owned(), path))
-            .collect();
-        let mut extra = BTreeMap::new();
-        build_adversarial_state(&base, &env, &mut extra)?;
-        states.extend(
-            extra.into_iter().map(|(key, path)| (key.to_owned(), path)),
-        );
-
-        let built = Self { base, states };
-        built.write_manifest()?;
+    /// Builds the full set at `base` for every test of a run to adopt, writing
+    /// the manifest adoption reads.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_in`], or when the manifest cannot be written.
+    pub(crate) fn build_for_sharing(base: &Path) -> Result<Self, Error> {
+        let built = Self::build_in(base)?;
+        StatusLogManifest {
+            states: built.states.clone(),
+        }
+        .write(&built.base)?;
         Ok(built)
     }
 
-    fn write_manifest(&self) -> Result<(), Error> {
-        let mut manifest = String::new();
-        for (key, path) in &self.states {
-            writeln!(manifest, "{key}\t{}", path.display())
-                .map_err(|error| Error::message(error.to_string()))?;
-        }
-        fs::write(self.base.join(MANIFEST), manifest)?;
-        Ok(())
+    /// Builds the full set and the adversarial state beneath `base` with
+    /// `env`.
+    ///
+    /// # Errors
+    ///
+    /// When any builder fails.
+    pub(crate) fn build_with(
+        base: &Path,
+        env: &Hermetic,
+    ) -> Result<Self, Error> {
+        let base = base.canonicalize()?;
+        let mut states = build_states(&base, env)?;
+        build_adversarial_state(&base, env, &mut states)?;
+        Ok(Self {
+            base,
+            states: states
+                .into_iter()
+                .map(|(key, path)| (key.to_owned(), path))
+                .collect(),
+        })
     }
 
-    fn adopt(base: &Path) -> Result<Self, Error> {
-        let base = base.canonicalize()?;
-        let manifest = fs::read_to_string(base.join(MANIFEST))?;
-        let mut states = BTreeMap::new();
-        for line in manifest.lines() {
-            let mut fields = line.split('\t');
-            let (Some(key), Some(path), None) =
-                (fields.next(), fields.next(), fields.next())
-            else {
-                return Err(Error::message(format!(
-                    "malformed status-log manifest line: {line}"
-                )));
-            };
-            states.insert(key.to_owned(), PathBuf::from(path));
-        }
-        if states.is_empty() {
-            return Err(Error::message(format!(
-                "the status-log manifest at {} is empty",
-                base.display()
-            )));
-        }
-        Ok(Self { base, states })
+    /// Every state that carries a committed golden, in key order.
+    pub fn with_goldens(&self) -> impl Iterator<Item = (&str, &Path)> {
+        self.states
+            .iter()
+            .filter(|(key, _)| key.as_str() != ADVERSARIAL_STATE)
+            .map(|(key, path)| (key.as_str(), path.as_path()))
+    }
+
+    /// The directory of the state keyed `key`.
+    ///
+    /// # Errors
+    ///
+    /// When no state carries that key.
+    pub fn get(&self, key: &str) -> Result<&Path, Error> {
+        self.states
+            .get(key)
+            .map(PathBuf::as_path)
+            .ok_or_else(|| Error::message(format!("no state keyed {key}")))
     }
 }
 
-/// Where the status/log states should live: a caller-supplied root when one is
-/// named, otherwise a temp directory the returned guard owns.
-///
-/// # Errors
-///
-/// When the temp directory cannot be created.
-pub fn states_root() -> Result<(Option<TempDir>, PathBuf), Error> {
-    match env::var(STATES_ROOT_VARIABLE) {
-        Ok(root) if !root.is_empty() => Ok((None, PathBuf::from(root))),
-        _ => {
-            let guard = tempfile::Builder::new()
-                .prefix("vcs-status-log-")
-                .tempdir()?;
-            let path = guard.path().to_path_buf();
-            Ok((Some(guard), path))
+impl SharedFamily for States {
+    const FAMILY: Family = Family::StatusLog;
+
+    fn adopt(tree: &Path) -> Result<Self, Error> {
+        let base = tree.canonicalize().map_err(|error| {
+            Error::message(format!("{}: {error}", tree.display()))
+        })?;
+        let StatusLogManifest { states } = StatusLogManifest::read(&base)?;
+        Ok(Self { base, states })
+    }
+
+    fn build_privately(
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        Self::build_with(directory, hermetic)
+    }
+}
+
+/// A part of the status-log set a test can take a writable copy of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusLogPart {
+    Everything,
+    PlainGit,
+    Conflicts,
+}
+
+impl StatusLogPart {
+    /// The top-level entries of `tree` that make up this part.
+    ///
+    /// # Errors
+    ///
+    /// When `tree` cannot be listed.
+    pub fn entries(self, tree: &Path) -> Result<Vec<String>, Error> {
+        let named = |names: &[&str]| {
+            names.iter().map(|&name| name.to_owned()).collect()
+        };
+        match self {
+            Self::Everything => every_state_and_supporting_repository(tree),
+            Self::PlainGit => {
+                Ok(named(&["clean-git", "dirty-git", "detached-head-git"]))
+            }
+            Self::Conflicts => Ok(named(&["conflict-git", "conflict-jj"])),
+        }
+    }
+
+    pub(crate) fn build_privately(
+        self,
+        directory: &Path,
+        hermetic: &Hermetic,
+    ) -> Result<States, Error> {
+        let build_family = match self {
+            Self::Everything => return States::build_with(directory, hermetic),
+            Self::PlainGit => build_plain_git_states,
+            Self::Conflicts => build_conflict_states,
+        };
+        let base = directory.canonicalize()?;
+        let mut states = BTreeMap::new();
+        build_family(&base, hermetic, &mut states)?;
+        Ok(States {
+            base,
+            states: states
+                .into_iter()
+                .map(|(key, path)| (key.to_owned(), path))
+                .collect(),
+        })
+    }
+}
+
+fn every_state_and_supporting_repository(
+    tree: &Path,
+) -> Result<Vec<String>, Error> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(tree)? {
+        let name = entry?.file_name();
+        let name = name.to_str().ok_or_else(|| non_utf8(&tree.join(&name)))?;
+        if name != MANIFEST && !name.starts_with(ENTRY_PREFIX) {
+            entries.push(name.to_owned());
+        }
+    }
+    entries.sort();
+    Ok(entries)
+}
+
+impl CopyableFamily for States {
+    type Part = StatusLogPart;
+
+    fn entries(
+        part: &StatusLogPart,
+        tree: &Path,
+    ) -> Result<Vec<String>, Error> {
+        part.entries(tree)
+    }
+
+    fn build_part_privately(
+        part: StatusLogPart,
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        part.build_privately(directory, hermetic)
+    }
+
+    fn rebased(self, from: &Path, onto: &Path, entries: &[String]) -> Self {
+        let copied = |relative: &Path| {
+            entries.iter().any(|entry| relative.starts_with(entry))
+        };
+        Self {
+            base: onto.to_path_buf(),
+            states: self
+                .states
+                .into_iter()
+                .filter_map(|(key, path)| {
+                    let relative = path.strip_prefix(from).ok()?;
+                    copied(relative).then(|| (key, onto.join(relative)))
+                })
+                .collect(),
         }
     }
 }

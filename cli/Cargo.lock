@@ -5469,11 +5469,13 @@ dependencies = [
 name = "vcs-test-support"
 version = "1.24.0-pre.108"
 dependencies = [
+ "filetime",
  "regex",
  "serde",
  "serde_json",
  "tempfile",
  "toml",
+ "walkdir",
 ]
 
 [[package]]

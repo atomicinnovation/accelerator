@@ -49,6 +49,25 @@ fn a_family_flag_requests_that_family_at_its_tree() -> Result<(), TestError> {
 }
 
 #[test]
+fn both_family_flags_request_both_families() -> Result<(), TestError> {
+    let request = SharedBuildRequest::parse(arguments(&[
+        "--matrix",
+        "/a",
+        "--status-log",
+        "/b",
+    ]))?;
+
+    assert_eq!(
+        request.trees,
+        BTreeMap::from([
+            (Family::Matrix, PathBuf::from("/a")),
+            (Family::StatusLog, PathBuf::from("/b")),
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn an_unknown_argument_is_refused_by_name() -> Result<(), TestError> {
     let error = SharedBuildRequest::parse(arguments(&["--matrx", "/a"]))
         .err()

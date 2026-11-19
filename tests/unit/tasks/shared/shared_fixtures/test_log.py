@@ -14,6 +14,7 @@ from tasks.shared.shared_fixtures.families import (
 )
 from tasks.shared.shared_fixtures.log import (
     Adoption,
+    Copy,
     DigestPhase,
     FinishedRun,
     FixtureLog,
@@ -32,11 +33,15 @@ FLAGS = CONTRACT / "flags.json"
 
 TREE = Path("/tmp/accelerator-shared-fixtures-501/run/matrix")
 CLASSIFY = "vcs-adapters::classify"
+GOLDENS = "accelerator-vcs::status_log_goldens"
 MATRIX_CONSUMERS = (
     "vcs-adapters::classify",
     "vcs-adapters::queries",
     "vcs-adapters::scrub",
     "vcs-test-support::matrix",
+)
+WORKBENCH_C = Path(
+    "/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c"
 )
 RUN_ID = "20261119T101500123456Z-0b6f9a0e-6c1d-4f0a-9d7e-2c1b3a4d5e6f"
 
@@ -74,6 +79,24 @@ def _private_build(
         "binary": binary,
         "test": test,
         "hermetic-root": f"/tmp/vcs-workbench-{test}",
+    }
+
+
+def _copy(
+    binary: str = GOLDENS,
+    test: str = "a_test",
+    named_by: tuple[str, ...] = (),
+    family: str = "status-log",
+) -> dict:
+    workbench = f"/workbenches/{binary}-{test}"
+    return {
+        "event": "copy",
+        "family": family,
+        "binary": binary,
+        "test": test,
+        "hermetic-root": workbench,
+        "copy": workbench,
+        "named-by": list(named_by),
     }
 
 
@@ -131,6 +154,14 @@ class TestTheSharedFormat:
                 "vcs-adapters::classify",
                 "every_fixture_classifies_as_expected",
                 Path("/tmp/vcs-workbench-b"),
+            ),
+            Copy(
+                Family.STATUS_LOG,
+                GOLDENS,
+                "status_and_log_match_every_captured_state",
+                WORKBENCH_C,
+                WORKBENCH_C,
+                (WORKBENCH_C / "conflict-git/.git/config",),
             ),
             TreeDigestRecorded(
                 Family.MATRIX,
@@ -266,6 +297,8 @@ class TestTheSummary:
             f"Shared VCS fixtures (log: {log.path}; shared root: /root)",
             "  matrix: 1 shared build, 19 adoptions, 0 copies, "
             "0 private builds",
+            "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
             "  private sets (never shared): 0 private builds",
         ]
 
@@ -281,8 +314,18 @@ class TestTheSummary:
 
         assert log.summary(Path("/root")).lines()[1:] == [
             "  matrix: 0 shared builds, 0 adoptions, 0 copies, 1 private build",
+            "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
             "  private sets (never shared): 2 private builds",
         ]
+
+    def test_counts_the_copies_of_each_family(self, tmp_path: Path):
+        log = _log(tmp_path, [_copy(test="a"), _copy(test="b")])
+
+        assert log.summary(Path("/root")).lines()[2] == (
+            "  status-log set: 0 shared builds, 0 adoptions, 2 copies, "
+            "0 private builds"
+        )
 
     def test_no_line_reads_as_a_nextest_summary_or_a_task_duration(
         self, tmp_path: Path
@@ -452,6 +495,45 @@ class TestProblems:
             )
             == []
         )
+
+    def test_a_copy_still_naming_its_shared_tree_names_those_files(
+        self, tmp_path: Path
+    ):
+        named = ("/w/conflict-git/.git/config", "/w/seed/.git/config")
+        log = _log(tmp_path, _a_clean_run(_copy(named_by=named)))
+
+        assert log.problems(_finished(filtered=True)) == [
+            f"{GOLDENS} a_test copied the status-log set into "
+            f"/workbenches/{GOLDENS}-a_test, but these copied files still "
+            "name the shared tree, so the test would read or write it "
+            "through them: /w/conflict-git/.git/config, /w/seed/.git/config"
+        ]
+
+    def test_a_clean_copy_is_no_problem(self, tmp_path: Path):
+        log = _log(tmp_path, _a_clean_run(_copy()))
+
+        assert log.problems(_finished(filtered=True)) == []
+
+    def test_an_unlisted_consumer_that_copies_is_named(self, tmp_path: Path):
+        log = _log(tmp_path, _a_clean_run(_copy("vcs-cli::status")))
+
+        assert log.problems(_finished()) == [
+            "vcs-cli::status uses the status-log set but is not among its "
+            "consumers in tasks/shared/shared_fixtures/consumers.py; add it "
+            "there"
+        ]
+
+    def test_a_consumer_that_only_copies_is_not_silent(self, tmp_path: Path):
+        log = _log(
+            tmp_path,
+            [
+                _shared_build(),
+                _copy(CLASSIFY, family="matrix"),
+                *(_adoption(b) for b in MATRIX_CONSUMERS[1:]),
+            ],
+        )
+
+        assert log.problems(_finished()) == []
 
     def test_a_tree_without_both_digests_is_not_judged_changed(
         self, tmp_path: Path

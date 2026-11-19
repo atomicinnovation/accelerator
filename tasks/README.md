@@ -250,8 +250,9 @@ assurance beside it, and what proves it ran is the committed evidence file.
 
 ### Shared VCS fixtures
 
-`test:unit:cli` builds the VCS fixture matrix once per run and hands it to
-every test that needs it, rather than letting each test build its own. Before
+`test:unit:cli` builds the VCS fixture matrix and the status-log set once per
+run and hands them to every test that needs them, rather than letting each
+test build its own. Before
 nextest's test phase it compiles the workspace tests with the same arguments
 nextest uses (so nextest compiles nothing afterwards, and the task fails if
 it does), finds the `shared-fixtures` bin in that build's unit listing and
@@ -261,18 +262,18 @@ the builder code it exercises still counts towards the floor.
 The trees live under one root per user,
 `<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
 is the resolved system temp directory: `<run-id>.lock` beside
-`<run-id>/{matrix,workbenches}/`. A run holds an `flock` on its lock for its
-lifetime, and each run starts by sweeping the directories of runs whose lock
-nobody holds, so a killed run's leftovers go on the next run. The root is
+`<run-id>/{matrix,status-log,workbenches}/`. A run holds an `flock` on its
+lock for its lifetime, and each run starts by sweeping the directories of
+runs whose lock nobody holds, so a killed run's leftovers go on the next run. The root is
 refused if it is a symlink, not a directory, owned by someone else, writable
 by group or world, or inside a checkout; move it aside and the next run
 recreates it.
 
-The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`, the
-directory tests open their workbenches under through
-`ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
-`ACCELERATOR_FIXTURE_LOG`. The task owns all three: never export them, and an
-exported value never reaches the run. Every build, adoption and private
+The task hands the trees over through `ACCELERATOR_SHARED_MATRIX` and
+`ACCELERATOR_SHARED_STATUS_LOG`, the directory tests open their workbenches
+under through `ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
+`ACCELERATOR_FIXTURE_LOG`. The task owns all four: never export them, and an
+exported value never reaches the run. Every build, adoption, copy and private
 build is logged to `cli/target/vcs-fixture-logs/<run-id>.jsonl`, which
 outlives the run (the newest 20 are kept). When the run ends, pass or fail,
 the task digests each tree again, removes the run's directory and prints the
@@ -280,26 +281,62 @@ fixture summary, which names the log and the resolved root.
 
 The task seals each tree read-only once it is built, so a test that writes
 into one fails at the write. The run also fails when a shared tree changed
-during the run anyway, when a test built a shared family privately, or when
-the log disagrees with the consumer list in
-`tasks/shared/shared_fixtures/consumers.py`.
+during the run anyway, when a test built a shared family privately, when a
+copy still names the shared tree it came from, or when the log disagrees
+with the consumer list in `tasks/shared/shared_fixtures/consumers.py`.
 
-To use the matrix in a test:
+To read a shared family in a test, adopt it:
 
 ```rust
 let workbench = Workbench::for_this_test()?;
 let matrix = workbench.matrix()?;
 ```
 
-- Treat the matrix as read-only, and write any scratch files under
-  `workbench.path()`.
+`workbench.status_log_states()?` adopts the status-log set the same way. A
+workbench holds one fixture, so a test that needs two opens two
+workbenches. Treat an adopted family as read-only, and write any scratch files
+under `workbench.path()`.
+
+A test that changes the states it reads, as anything that snapshots a jj
+working copy does, takes a writable copy of part of the status-log set
+instead:
+
+```rust
+let states =
+    workbench.writable_status_log_states(StatusLogPart::Conflicts)?;
+let env = workbench.hermetic();
+```
+
+The parts are `Everything`, `PlainGit` and `Conflicts`. The copy lands in the
+workbench's own directory, beside its hermetic environment, and keeps each
+file's contents, mode and times to the nanosecond, so git and jj see their
+recorded working-copy state as unchanged; it also gains its owner's write
+permission, which the sealed shared tree lacks. The status-log builders record
+no absolute path, so the copy reads exactly as a private build would. After
+copying, the workbench scans the copy for any file naming the shared tree
+(`path_scan::files_naming`); a hit is logged with the copy and fails the
+test, because the copy would read or write the shared tree through it. The
+matrix is never copied: it records absolute paths throughout, and every
+matrix consumer only reads it.
+
+The private sets (the cap, bookmark and parity states) are never shared.
+Pass their builder to the workbench, which builds the set in its directory
+and logs it under "private sets":
+
+```rust
+let states = workbench.private_states(status_log::build_cap_states)?;
+```
+
 - Open the workbench with `Workbench::for_this_test()`, never
   `Workbench::with`: an explicit hand-over hides the test's builds from the
-  run's log, and a guard (`tests/unit/tasks/test_fixture_builds.py`) refuses
-  it outside the files that test the workbench itself.
-- A test binary that uses the matrix for the first time goes in `CONSUMERS`
-  in `tasks/shared/shared_fixtures/consumers.py`, with the families it
-  consumes. Until it does, the run fails naming the binary and that file.
+  run's log. A guard (`tests/unit/tasks/test_fixture_builds.py`) refuses it
+  outside the files that test the workbench itself, refuses `copy_part`
+  outside the copy's own tests, and refuses a direct call to a private-set
+  builder anywhere in a test.
+- A test binary that uses a shared family for the first time goes in
+  `CONSUMERS` in `tasks/shared/shared_fixtures/consumers.py`, with the
+  families it consumes. Until it does, the run fails naming the binary and
+  that file.
 
 A failing shared build stops the lane before any test runs. Fixture builds
 are deterministic and the builder's error names the family and its cause, so
@@ -324,7 +361,7 @@ hand. Neither is for CI.
 
 | Variable | Effect |
 |---|---|
-| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix`) without building it; any other value is refused. |
+| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix` or `status-log`) without building it; any other value is refused. |
 | `ACCELERATOR_SHARED_FIXTURES_HOLD` | A directory: after the build step the task writes `held` there and waits up to 30 minutes for `release`. Refused when `CI` is set. |
 
 ### The gix/jj-lib link-ratio guard

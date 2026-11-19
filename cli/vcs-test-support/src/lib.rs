@@ -5,6 +5,7 @@
 //! `[features]` and CI's `--all-features` cannot turn a fixture feature on
 //! workspace-wide.
 
+pub mod copies;
 pub mod family;
 pub mod fixture_log;
 pub mod fixtures;
@@ -13,8 +14,10 @@ pub mod hermetic;
 pub mod jj_status;
 pub mod masks;
 pub mod matrix_manifest;
+pub mod path_scan;
 pub mod shared_build;
 pub mod status_log;
+pub mod status_log_manifest;
 pub mod stubs;
 pub mod workbench;
 
