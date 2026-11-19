@@ -171,9 +171,12 @@ is that branch.
         fallback warning before the first spawn;
       - an unreadable template override, where `conduct` reported
         "template unavailable" and spawned nothing.
-- [ ] Manual: add a `deny` rule for `Bash(accelerator config template *)`
-      and confirm `conduct` prints "template command denied by
-      permissions" with its next step, and spawns nothing.
+- [x] Manual: with `deny` rules for exactly the two template commands,
+      a headless `conduct` printed "template command denied by
+      permissions" with its next step, spawned nothing, and wrote no ledger.
+      A `deny` on `Bash(accelerator config template *)` instead stops
+      `research-topic` from loading, since its `!` preprocessor injects
+      its own templates through the same command.
 
 ## Notes for Reviewers
 
