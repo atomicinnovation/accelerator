@@ -13,6 +13,7 @@ mod harness_setting;
 mod ledger_wording;
 #[cfg(feature = "test-loopback")]
 mod loopback;
+mod node_address;
 mod node_command;
 mod plan_wording;
 mod render;

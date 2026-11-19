@@ -7,12 +7,11 @@ use corpus::scan::FileReader;
 use research::conduct::ledger::RunId;
 use research::conduct::spawn::SpawnRef;
 use research::topic::layout::note_ref::NoteRef;
-use research::topic::tree::follow_up_cap;
 use serde_json::json;
 
 use crate::ledger_wording;
+use crate::node_address;
 use crate::topic_command::owned_ledger;
-use crate::topic_command::set_slug;
 use crate::topic_command::Printed;
 
 /// # Errors
@@ -49,16 +48,10 @@ pub fn run_node<F: FileReader>(
              acknowledged before this query ran; re-run conduct"
         )
     })?;
+    let mut rendered = node_address::addressed(set_root, at);
+    rendered["question"] = json!(context.question);
+    rendered["known_questions"] = json!(context.known_questions);
     let level = at.lineage.level();
-    let mut rendered = json!({
-        "question": context.question,
-        "lineage": at.lineage.to_string(),
-        "level": level,
-        "cap": follow_up_cap(level),
-        "known_questions": context.known_questions,
-        "id": at.id(&set_slug(set_root)),
-        "path": set_root.join(at.path()).to_string_lossy(),
-    });
     if let Some(budget) = ledger.search_budget(&context.profile, level) {
         rendered["search_budget"] = json!(budget);
     }
