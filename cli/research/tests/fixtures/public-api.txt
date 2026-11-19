@@ -383,6 +383,25 @@ pub fn research::conduct::spawn::SpawnRef::fmt(&self, f: &mut core::fmt::Formatt
 impl core::hash::Hash for research::conduct::spawn::SpawnRef
 pub fn research::conduct::spawn::SpawnRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::conduct::spawn::SpawnRef
+pub mod research::conduct::template
+pub enum research::conduct::template::ConductTemplate
+pub research::conduct::template::ConductTemplate::Finding
+pub research::conduct::template::ConductTemplate::LevelNote
+impl research::conduct::template::ConductTemplate
+pub const research::conduct::template::ConductTemplate::ALL: [Self; 2]
+pub const research::conduct::template::ConductTemplate::SET: &'static str
+pub const fn research::conduct::template::ConductTemplate::kind(self) -> &'static str
+pub fn research::conduct::template::ConductTemplate::name(&self) -> alloc::string::String
+pub const fn research::conduct::template::ConductTemplate::permitted_command(self) -> research::confinement::PermittedCommand
+impl core::clone::Clone for research::conduct::template::ConductTemplate
+pub fn research::conduct::template::ConductTemplate::clone(&self) -> research::conduct::template::ConductTemplate
+impl core::cmp::Eq for research::conduct::template::ConductTemplate
+impl core::cmp::PartialEq for research::conduct::template::ConductTemplate
+pub fn research::conduct::template::ConductTemplate::eq(&self, other: &research::conduct::template::ConductTemplate) -> bool
+impl core::fmt::Debug for research::conduct::template::ConductTemplate
+pub fn research::conduct::template::ConductTemplate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::conduct::template::ConductTemplate
+impl core::marker::StructuralPartialEq for research::conduct::template::ConductTemplate
 pub mod research::conduct::window
 pub struct research::conduct::window::UnfinishedSpawn
 pub research::conduct::window::UnfinishedSpawn::rejected: core::option::Option<research::topic::evidence::NoteRejection>

@@ -9,4 +9,5 @@ pub mod offered_nodes;
 pub mod replaced_run;
 pub mod search_budget;
 pub mod spawn;
+pub mod template;
 pub mod window;
