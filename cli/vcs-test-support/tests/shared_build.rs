@@ -132,6 +132,21 @@ fn a_successful_build_records_one_shared_build() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_build_that_cannot_be_logged_is_a_failure_of_its_family(
+) -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let unwritable_log = directory.path().to_path_buf();
+
+    let failures = matrix_at(&directory.path().join("matrix"))
+        .build_with(&FixtureLog::at(&unwritable_log), |_, _| Ok(()));
+
+    assert_eq!(failures.len(), 1);
+    assert_eq!(failures[0].family, Family::Matrix);
+    assert!(!failures[0].cause.is_empty());
+    Ok(())
+}
+
+#[test]
 fn a_panicking_build_becomes_a_failure_of_its_family() -> Result<(), TestError>
 {
     let directory = tempfile::tempdir()?;
