@@ -1,14 +1,14 @@
 ---
 type: "plan"
-id: "2026-10-30-0281-corpus-consumption-ask-and-report"
+id: "2026-10-30-PP-865-corpus-consumption-ask-and-report"
 title: "Corpus Consumption: Ask and Report Implementation Plan"
 date: "2026-10-30T01:35:27+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0281"
-parent: "work-item:0281"
-derived_from: ["codebase-research:2026-10-29-0281-corpus-consumption-ask-and-report"]
+work_item_id: "work-item:PP-865"
+parent: "work-item:PP-865"
+derived_from: ["codebase-research:2026-10-29-PP-865-corpus-consumption-ask-and-report"]
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
@@ -581,7 +581,7 @@ manifest template carries `report_count:`.
 
 #### 4. Schema Reference row
 
-In `meta/work/0065-update-artifact-templates-to-unified-schema.md`, add a row
+In `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`, add a row
 to the topic-research table (:74-88):
 
 ```markdown
@@ -3085,17 +3085,17 @@ user's allow rules avoids that.
 after a reply" paragraph under the `` ## `topic` `` H2 says the same, for
 `ask` now; Phase 7 extends it to `report`.
 
-**0281.** In `meta/work/0281-corpus-consumption-ask-and-report.md`, the
+**0281.** In `meta/work/PP-865-corpus-consumption-ask-and-report.md`, the
 `arxiv`-only criterion (:258-262) no longer says "not `conduct SLUG`". It
 says the refusal names the item and the skipped-pair recovery, and closes
 with `conduct SLUG` then `synthesise SLUG`, as every `conducted` refusal
 does.
 
-**0330.** In `meta/work/0330-skill-command-grants-that-survive-across-queries.md`,
+**0330.** In `meta/work/PP-916-skill-command-grants-that-survive-across-queries.md`,
 the Context sentence that lists unaffected skills no longer names
 research-topic's non-`conduct` verbs. Instead it names `ask` and `report` as
 affected: both run `metadata derive` and `validate` after a user reply.
-`relates_to` gains `work-item:0281`.
+`relates_to` gains `work-item:PP-865`.
 
 ### Success Criteria:
 
@@ -3363,7 +3363,7 @@ A report's `status` stays `complete` whatever the set's status.
   `skills/research/outputters/citing-once/SKILL.md:3-6`, the description reads
   "Injected into the composer by the research-topic conduct verb and read by
   its synthesise, ask and report verbs — not invoked directly."
-- **0121.** In `meta/work/0121-topic-research-skillset.md`:
+- **0121.** In `meta/work/PP-22-topic-research-skillset.md`:
   - **Contract row (:89):**
     `| \`reports/<question-slug>.md\` | \`kind: report\`, \`question\`, \`rounds_covered\`, \`coverage\` (\`answered\` \| \`partial\`); base \`status\` = \`complete\` | Answer, Coverage, Gaps (\`partial\` only), Sources |`
   - **Manifest row (:84):** gains optional `report_count`.
@@ -3421,8 +3421,8 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 #### Automated Verification:
 
 - [x] New and carrier structure tests fail before the prose, then pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [x] 0121 uses the new path only: `rg -c 'reports/<slug>\.md' meta/work/0121-topic-research-skillset.md` finds no match, and `rg -c 'reports/<question-slug>\.md'` finds at least 4.
-- [x] 0121 carries the vocabulary and body: `rg -n 'answered.*partial' meta/work/0121-topic-research-skillset.md` and `rg -n 'Answer, Coverage, Gaps' meta/work/0121-topic-research-skillset.md` each match.
+- [x] 0121 uses the new path only: `rg -c 'reports/<slug>\.md' meta/work/PP-22-topic-research-skillset.md` finds no match, and `rg -c 'reports/<question-slug>\.md'` finds at least 4.
+- [x] 0121 carries the vocabulary and body: `rg -n 'answered.*partial' meta/work/PP-22-topic-research-skillset.md` and `rg -n 'Answer, Coverage, Gaps' meta/work/PP-22-topic-research-skillset.md` each match.
 - [x] The visualiser's one-entry-per-set test still passes: `mise run test:unit:visualiser`
 - [x] The probe's fixture-option tests fail before the option exists, then pass: `uv run pytest tests/unit/tasks/test_claude_permissions.py`
 - [x] The read-only gate passes: `mise run check`
@@ -3691,11 +3691,11 @@ set to `<scratch>/meta/research/topics/<slug>/`, and run every command from
 
 ## References
 
-- Work item: `meta/work/0281-corpus-consumption-ask-and-report.md`
-- Research: `meta/research/codebase/2026-10-29-0281-corpus-consumption-ask-and-report.md`
-- Parent epic: `meta/work/0121-topic-research-skillset.md` (Slice 4)
+- Work item: `meta/work/PP-865-corpus-consumption-ask-and-report.md`
+- Research: `meta/research/codebase/2026-10-29-PP-865-corpus-consumption-ask-and-report.md`
+- Parent epic: `meta/work/PP-22-topic-research-skillset.md` (Slice 4)
 - Citing-once rule: `skills/research/outputters/citing-once/SKILL.md`; carrier precedent `skills/research/research-topic/SKILL.md:645-670`
 - Freshness gate: `skills/research/research-topic/SKILL.md:703-731`
-- Eval precedent: `tasks/eval/citing_once/`, `meta/plans/2026-10-28-0306-deterministic-rule-for-citing-a-source-once.md`
+- Eval precedent: `tasks/eval/citing_once/`, `meta/plans/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once.md`
 - Dev launcher override: `CONTRIBUTING.md:17-33`
 - Downstream: 0284 (renders reports), 0347 (operation items in proposals)

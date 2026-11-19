@@ -1,13 +1,13 @@
 ---
 type: "plan-validation"
-id: "2026-10-30-0281-corpus-consumption-ask-and-report-validation"
+id: "2026-10-30-PP-865-corpus-consumption-ask-and-report-validation"
 title: "Validation Report: Corpus Consumption: Ask and Report Implementation Plan"
 date: "2026-11-01T19:33:43+00:00"
 author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-target: "plan:2026-10-30-0281-corpus-consumption-ask-and-report"
+target: "plan:2026-10-30-PP-865-corpus-consumption-ask-and-report"
 tags: ["research", "research-topic", "ask", "report", "eval"]
 last_updated: "2026-11-01T19:33:43+00:00"
 last_updated_by: "Toby Clemson"
@@ -106,7 +106,7 @@ behaves as planned.
   A model is unlikely to take these paths, but the global checks would not
   catch one that did.
 - **0281 contradicts itself.** Requirement
-  `meta/work/0281-corpus-consumption-ask-and-report.md:85-92` still says the
+  `meta/work/PP-865-corpus-consumption-ask-and-report.md:85-92` still says the
   skipped-pair refusal names its recovery "instead of `conduct SLUG`". Its
   edited criterion and `SKILL.md:858-860` close with `conduct` then
   `synthesise`.
