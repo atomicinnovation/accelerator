@@ -14,6 +14,34 @@ from tasks.shared.shared_fixtures.families import (
 )
 
 BUILDER = "/workspace/cli/target/debug/shared-fixtures"
+CAPTURE = Path(__file__).parent / "fixtures/shared-fixtures"
+CAPTURED_BINARIES = frozenset(
+    {
+        "vcs-adapters::classify",
+        "vcs-adapters::queries",
+        "vcs-adapters::scrub",
+        "vcs-adapters::detection",
+        "vcs-test-support::matrix",
+    }
+)
+
+
+def captured_listing(matching: Callable[[str, str], bool]) -> str:
+    """The captured nextest listing as if filtered to what ``matching`` admits.
+
+    ``matching`` takes a binary id and a test name.
+    """
+    listing = json.loads((CAPTURE / "nextest-list.json").read_text())
+    for binary, suite in listing["rust-suites"].items():
+        for name, case in suite["testcases"].items():
+            if case["filter-match"]["status"] == "matches" and not matching(
+                binary, name
+            ):
+                case["filter-match"] = {
+                    "status": "mismatch",
+                    "reason": "expression",
+                }
+    return json.dumps(listing)
 
 
 def builder_artefact(executable: str = BUILDER) -> str:

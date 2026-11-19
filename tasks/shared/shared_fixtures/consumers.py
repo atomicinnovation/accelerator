@@ -7,6 +7,7 @@ use no fixture builds the family anyway.
 
 from collections.abc import Mapping
 
+from tasks.shared.nextest_listing import NextestListing
 from tasks.shared.shared_fixtures.families import Family
 
 CONSUMERS: Mapping[str, Family] = {
@@ -20,4 +21,10 @@ CONSUMERS: Mapping[str, Family] = {
 def consumers_of(family: Family) -> frozenset[str]:
     return frozenset(
         binary for binary, consumed in CONSUMERS.items() if consumed is family
+    )
+
+
+def families_consumed(listing: NextestListing) -> frozenset[Family]:
+    return frozenset(
+        CONSUMERS[binary] for binary in listing.binaries if binary in CONSUMERS
     )
