@@ -86,7 +86,7 @@
       "75"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:6cc8d1894048bece4c546170a162432b829e4c286c17bf8c80734ae916bd887b"
+    "skill_digest": "sha256:894aea2ef2a9491385638ffddf077e61e377c530a0d246c8c7abfd6a1b4b398b"
   },
   "runs": [
     {
@@ -2055,15 +2055,16 @@
         {
           "text": "draft.md contains 'id: \"NNNN\"' in frontmatter (not a real number)",
           "passed": true,
-          "evidence": "draft.md frontmatter: id: \"NNNN\""
+          "evidence": "draft.md frontmatter: \"id: \\\"NNNN\\\"\"; H1 \"# NNNN: CSV Export from Reporting Dashboard Report Views\""
         },
         {
           "text": "behavior.md says the draft does not contain any real work item number (0001, 0002, etc.)",
           "passed": true,
-          "evidence": "behavior.md: \"No. No real work item number appears anywhere in the draft.\""
+          "evidence": "behavior.md: \"(b) Does the draft contain any real work item number (0001, 0002, etc.)? No. The draft contains no real or projected work item number.\""
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:894aea2ef2a9491385638ffddf077e61e377c530a0d246c8c7abfd6a1b4b398b"
     },
     {
       "eval_id": 8,
@@ -2220,20 +2221,21 @@
         {
           "text": "behavior.md says author was resolved automatically (not asked of the user)",
           "passed": true,
-          "evidence": "behavior.md (b): 'It was resolved automatically... The user was never asked for the author name'"
+          "evidence": "behavior.md: \"(b) I resolved it automatically and did not ask the user.\" ... \"The user was never asked for an author name.\""
         },
         {
           "text": "final-work-item.md frontmatter has author: Toby Clemson (not a placeholder)",
           "passed": true,
-          "evidence": "final-work-item.md frontmatter: 'author: Toby Clemson'"
+          "evidence": "final-work-item.md frontmatter: \"author: \\\"Toby Clemson\\\"\""
         },
         {
           "text": "behavior.md says author field does not contain placeholder text like [author]",
           "passed": true,
-          "evidence": "behavior.md (c): 'No. The `author` field contains `Toby Clemson`, not `[author]` or any other placeholder'"
+          "evidence": "behavior.md: \"(c) No. The `author` field holds the real name `Toby Clemson`. It does not contain `[author]`, `Author Name` or any other placeholder.\""
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:894aea2ef2a9491385638ffddf077e61e377c530a0d246c8c7abfd6a1b4b398b"
     },
     {
       "eval_id": 13,
@@ -3162,25 +3164,26 @@
         {
           "text": "response.md states that the item's ID will be 0400",
           "passed": true,
-          "evidence": "response.md: '**ID**: 0400 (your requested ID)'"
+          "evidence": "response.md: \"The draft is approved, so I'll save it as **0400** (the ID you asked for).\""
         },
         {
           "text": "commands.md shows no `accelerator work id next`",
           "passed": true,
-          "evidence": "commands.md contains only the dry-run, the --push create and a frontmatter validate"
+          "evidence": "commands.md: no command block runs it; the only mention is prose: \"`accelerator work id next` is not called\". Commands run: id check, two work creates, frontmatter validate."
         },
         {
           "text": "Both the `--push --dry-run` create and the `--push` create in commands.md carry `--id='0400'`",
           "passed": true,
-          "evidence": "commands.md items 1 and 2 both end with `--id='0400'`"
+          "evidence": "commands.md: \"... --push --dry-run --body-file /tmp/create-work-item-body.md --id='0400'\" and \"... --producer create-work-item --push --body-file /tmp/create-work-item-body.md --id='0400'\""
         },
         {
           "text": "No command in commands.md carries `--project`",
           "passed": true,
-          "evidence": "No --project in any command in commands.md"
+          "evidence": "commands.md: none of the four commands (work id check, two work create, corpus frontmatter validate) contains `--project`."
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:894aea2ef2a9491385638ffddf077e61e377c530a0d246c8c7abfd6a1b4b398b"
     },
     {
       "eval_id": 41,
@@ -4573,6 +4576,7 @@
     "The whole suite (ids 1 to 72) was re-run with_skill on 2026-11-02, by claude-opus-5-5, after Step 0 and Step 5 changed; executors simulated every accelerator call. Every run passes in full except eval 26, which failed 'The transcript shows an `accelerator work show <path> --field id` identity-swap check immediately before the Step 5 confirmation prompt': its behavior.md placed the check directly before the write without showing its order against the confirmation prompt.",
     "Evals 26, 39, 42, 45, 48, 49, 51, 52, 59, 60, 61, 62 and 66 were re-run with_skill only on 2026-11-15, by claude-opus-5-5, after `E_ID_TAKEN` moved to exit 4, `other-key` IDs came to need confirmation and an `--id` mid-argument came to be asked about (evals 45 and 52 gained new expectations). Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full, eval 26 included.",
     "Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.",
-    "Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand."
+    "Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand.",
+    "Evals 7, 12 and 40 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `work create` always writes `tags` and leaves only the typed-linkage keys and `external_id` out when empty: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full."
   ]
 }

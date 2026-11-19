@@ -1,7 +1,7 @@
 # Skill Benchmark: create-work-item
 
 **Model**: claude-sonnet-4-6 (evals 1 to 38 first); claude-opus-5-5 (every with_skill run, 2026-11-02); claude-sonnet-5-5 (evals 74 and 75, 2026-11-17)  
-**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02, for 13 evals 2026-11-15 and, for 9 evals, 2026-11-16 and, for 2 evals, 2026-11-17  
+**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02, for 13 evals 2026-11-15 and, for 9 evals, 2026-11-16 and, for 2 evals, 2026-11-17 and, for 3 evals, 2026-11-19  
 **Evals**: 78 evals, 1 run each
 
 ## Summary
@@ -173,3 +173,4 @@ compares across models as well as skill versions for evals 1 to 38.
 - Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.
 - Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand.
 - Eval 74 was re-run with_skill on 2026-11-17, by claude-sonnet-5-5, after the corpus refusals came to say to relay every file `E_WORK_ITEM_MALFORMED` lists with its printed fix; eval 75 (two malformed files, one not UTF-8, each with its own fix) was added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Both pass in full.
+- Evals 7, 12 and 40 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `work create` always writes `tags` and leaves only the typed-linkage keys and `external_id` out when empty: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full.

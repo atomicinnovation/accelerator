@@ -16,7 +16,7 @@
       12,
       13
     ],
-    "skill_digest": "sha256:1d85c630008c1e6587b8699782cd9cdf6005de2f3bda664af6c21c60232c3009"
+    "skill_digest": "sha256:6b3d4a4c2e635d101268535ca08c5e0fc0937706fded383f29dac6d24b55d657"
   },
   "runs": [
     {
@@ -404,30 +404,31 @@
         {
           "text": "push-offer.md contains exactly one push offer covering all three items",
           "passed": true,
-          "evidence": "push-offer.md: one AskUserQuestion 'Push these 3 work items to Linear now?' with 'Yes, push all 3' / 'No, save as drafts'; 'No per-item push offer was made.'"
+          "evidence": "push-offer.md: single question \"Push the 3 approved work items (Search overhaul, Typo-tolerant search, Search analytics) to Linear now?\" with \"Presented once ... never per item\""
         },
         {
           "text": "manifest.json has three entries and both stories' parent is {\"ref\": \"<the epic's ref>\"}",
           "passed": true,
-          "evidence": "manifest.json has three entries; both stories carry '\"parent\": {\"ref\": \"search-overhaul\"}', the epic's ref."
+          "evidence": "manifest.json: 3 entries; epic ref \"search-overhaul\"; both stories have \"parent\": {\"ref\": \"search-overhaul\"}"
         },
         {
           "text": "Every manifest.json entry carries derived_from [\"codebase-research:2026-09-01-search\"]",
           "passed": true,
-          "evidence": "All three entries: '\"derived_from\": [\"codebase-research:2026-09-01-search\"]'."
+          "evidence": "manifest.json: all three entries have \"derived_from\": [\"codebase-research:2026-09-01-search\"]"
         },
         {
           "text": "commands.md shows exactly one accelerator work create-batch --manifest call, without --push, and no accelerator work id next call",
           "passed": true,
-          "evidence": "commands.md: one 'accelerator work create-batch --manifest ... --producer extract-work-items --author \"Ada Lovelace\"' with no --push; 'Not run: accelerator work id next'. Followed by three frontmatter validate calls, as Step 4.8 requires."
+          "evidence": "commands.md: one \"accelerator work create-batch --manifest .../manifest.json --producer extract-work-items --author \\\"Ada Lovelace\\\"\" (no --push); other commands are frontmatter validate; \"No `accelerator work id next` call is made\""
         },
         {
           "text": "summary.md renders all three items with the outcome 'draft \u2014 push declined'",
           "passed": true,
-          "evidence": "summary.md: all three rows 'draft \u2014 push declined'."
+          "evidence": "summary.md: rows for Search overhaul, Typo-tolerant search, Search analytics each with Outcome \"draft \u2014 push declined\""
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:6b3d4a4c2e635d101268535ca08c5e0fc0937706fded383f29dac6d24b55d657"
     },
     {
       "eval_id": 9,
@@ -526,25 +527,26 @@
         {
           "text": "commands.md shows exactly two accelerator work create-batch --manifest calls, neither with --push",
           "passed": true,
-          "evidence": "Two create-batch --manifest calls, the initial batch and the retry; neither carries --push after the declined offer."
+          "evidence": "commands.md: step 1 \"accelerator work create-batch --manifest extract-work-items/manifest.json --producer extract-work-items --author \\\"Ada Lovelace\\\"\" and step 4 \"... --manifest extract-work-items/manifest-remaining.json ...\"; no --push on either."
         },
         {
           "text": "The second manifest in manifests.md has exactly one entry, Search analytics",
           "passed": true,
-          "evidence": "manifest-retry.json holds the single search-analytics entry."
+          "evidence": "manifests.md Manifest 2: single-element array [{\"ref\": \"search-analytics\", \"title\": \"Search analytics\", ...}]"
         },
         {
           "text": "The second manifest's entry has parent \"work-item:draft-a1b2c3\", not an in-batch {\"ref\": ...} parent",
           "passed": true,
-          "evidence": "Retry entry has \"parent\": \"work-item:draft-a1b2c3\", taken from the epic's printed draft filename."
+          "evidence": "manifests.md Manifest 2: \"parent\": \"work-item:draft-a1b2c3\""
         },
         {
           "text": "Neither the epic nor Typo-tolerant search appears in the second manifest",
           "passed": true,
-          "evidence": "The retry manifest omits search-overhaul and typo-tolerant-search, whose item lines were printed."
+          "evidence": "manifests.md Manifest 2 JSON contains only the search-analytics entry; no search-overhaul or typo-tolerant-search entries."
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:6b3d4a4c2e635d101268535ca08c5e0fc0937706fded383f29dac6d24b55d657"
     },
     {
       "eval_id": 12,
@@ -638,6 +640,7 @@
     "Evals 1, 2, 3, 6, 7, 8 name `accelerator work id next` (formerly `work next-number`) and were re-run with_skill only on 2026-11-01, by claude-opus-5-5, after the rename; executors simulated every accelerator call.",
     "Eval 2 failed one expectation: its bug and epic skeletons justify a priority of high in Drafting Notes, a field choice rather than a scope interpretation. Eval 3 failed one expectation that quotes the Step 3.4 note with \"type\" where the skill's note now says \"kind\"; the run copied the current note verbatim. Superseded by the re-run of the corrected eval below.",
     "Evals 2, 3, 6, 7, 8 were re-run or re-graded with_skill only on 2026-11-01, by claude-opus-5-5, after their prompts and expectations were brought into line with the skill (kind for type, the NNNN placeholder, work show --field id); executors simulated every accelerator call.",
-    "Eval 13 (every malformed item relayed with its own fix) was added and run with_skill on 2026-11-18, by claude-opus-5-5: the executor was barred from the evals and benchmark files and simulated every accelerator call; a separate grader judged each expectation from the outputs alone. It passes in full."
+    "Eval 13 (every malformed item relayed with its own fix) was added and run with_skill on 2026-11-18, by claude-opus-5-5: the executor was barred from the evals and benchmark files and simulated every accelerator call; a separate grader judged each expectation from the outputs alone. It passes in full.",
+    "Evals 8 and 11 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `create-batch` always writes `tags`, so a manifest entry without tags leaves the key out: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
   ]
 }
