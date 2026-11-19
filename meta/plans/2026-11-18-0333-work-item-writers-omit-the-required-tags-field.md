@@ -1298,23 +1298,23 @@ already carries `tags: []`, so it isn't used.
 
 #### Automated Verification:
 
-- [ ] The `m0012` unit tests fail before the code they drive exists and pass
+- [x] The `m0012` unit tests fail before the code they drive exists and pass
       after:
       `cargo nextest run --manifest-path cli/Cargo.toml -p migrate m0012`
-- [ ] The `read_text` adapter tests fail before the method exists and pass
+- [x] The `read_text` adapter tests fail before the method exists and pass
       after:
       `cargo nextest run --manifest-path cli/Cargo.toml -p migrate-adapters read_text`
-- [ ] The `migration_0012` end-to-end tests fail before registration and
+- [x] The `migration_0012` end-to-end tests fail before registration and
       pass after:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate -E 'binary(migration_0012)'`
-- [ ] The whole migrate-cli suite passes after the registry updates:
+- [x] The whole migrate-cli suite passes after the registry updates:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate`
-- [ ] The CLI workspace suite passes: `mise run test:unit:cli`
-- [ ] The public-API snapshot matches: `mise run public-api:check`
-- [ ] The architecture rules hold (`migrate` imports only `std`, `kernel`,
+- [x] The CLI workspace suite passes: `mise run test:unit:cli`
+- [x] The public-API snapshot matches: `mise run public-api:check`
+- [x] The architecture rules hold (`migrate` imports only `std`, `kernel`,
       `crate`, `corpus`): `mise run test:integration:pup`
-- [ ] Format and lint pass: `mise run cli:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] Format and lint pass: `mise run cli:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
