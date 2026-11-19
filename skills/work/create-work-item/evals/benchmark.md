@@ -1,7 +1,7 @@
 # Skill Benchmark: create-work-item
 
-**Model**: claude-sonnet-4-6 (evals 1 to 38 first); claude-opus-5-5 (every with_skill run, 2026-11-02); claude-sonnet-5-5 (evals 74 and 75, 2026-11-17)  
-**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02, for 13 evals 2026-11-15 and, for 9 evals, 2026-11-16 and, for 2 evals, 2026-11-17 and, for 3 evals, 2026-11-19  
+**Model**: claude-sonnet-4-6 (evals 1 to 38 first); claude-opus-5-5 (every with_skill run, 2026-11-02); claude-sonnet-5-5 (evals 74 and 75, 2026-11-17; evals 12, 40 and 49, 2026-11-19)  
+**Date**: 2026-04-27T22:05:54Z; re-run 2026-11-02, for 13 evals 2026-11-15 and, for 9 evals, 2026-11-16 and, for 2 evals, 2026-11-17 and, for 3 evals at a time, twice on 2026-11-19  
 **Evals**: 78 evals, 1 run each
 
 ## Summary
