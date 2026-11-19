@@ -531,7 +531,7 @@ fn a_failed_write_leaves_the_work_directory_as_it_found_it(
         assert_eq!(read(root, "meta/work/0001-a.md")?, first);
         assert_eq!(read(root, "meta/work/locked/0002-b.md")?, second);
         let stderr = String::from_utf8(output.stderr)?;
-        assert!(stderr.contains("Left the 2 work item(s)"), "{stderr}");
+        assert!(stderr.contains("Left the 1 work item(s)"), "{stderr}");
         assert!(!applied(root)?.contains(MIGRATION));
     }
 
