@@ -280,6 +280,24 @@ class TestStartingARun:
 
         assert list(root.iterdir()) == []
 
+    def test_a_lock_it_could_not_take_is_never_put_in_place(self, root: Path):
+        runs = FixtureRuns.open(root, flock=lambda descriptor: False)
+
+        with pytest.raises(SharedFixturesError, match="could not take"):
+            runs.start()
+
+        assert list(root.iterdir()) == []
+
+    def test_a_flock_that_excludes_nothing_is_named(self, root: Path):
+        runs = FixtureRuns.open(root, flock=lambda descriptor: True)
+
+        with pytest.raises(
+            SharedFixturesError, match="does not exclude a second holder"
+        ):
+            runs.start()
+
+        assert list(root.iterdir()) == []
+
     @pytest.mark.parametrize("number", [errno.EPERM, errno.ENOSYS])
     def test_a_filesystem_without_hard_links_is_named(
         self, root: Path, number: int

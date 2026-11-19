@@ -206,8 +206,11 @@ class FixtureRuns:
             temporary, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600
         )
         try:
-            self._flock(descriptor)
+            self._take(descriptor, temporary)
             self._link(temporary, lock)
+        except SharedFixturesError:
+            os.close(descriptor)
+            raise
         except FileExistsError:
             os.close(descriptor)
             raise SharedFixturesError(
@@ -223,6 +226,23 @@ class FixtureRuns:
         finally:
             temporary.unlink(missing_ok=True)
         return descriptor
+
+    def _take(self, descriptor: int, lock: Path) -> None:
+        if not self._flock(descriptor):
+            raise SharedFixturesError(
+                f"could not take the new run lock {lock}, which nothing else "
+                "should hold"
+            )
+        second_holder = os.open(lock, os.O_RDWR)
+        try:
+            if self._flock(second_holder):
+                raise SharedFixturesError(
+                    f"flock under {self._root} does not exclude a second "
+                    "holder; the temp filesystem must support flock; set "
+                    "TMPDIR to one that does"
+                )
+        finally:
+            os.close(second_holder)
 
     def _sweep_run(self, run_id: str) -> None:
         directory = self._root / run_id
