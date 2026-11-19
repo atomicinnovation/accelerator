@@ -22,8 +22,8 @@ a level note takes its template as **Template** below says.
 
 ## Sink
 
-Write the note to the **single note path injected into your task prompt**,
-and to no other path.
+Write the note to the **single note path the node query prints**, and to no
+other path.
 
 ## Injected Values
 
@@ -32,7 +32,8 @@ from your task prompt:
 
 - **From the node query**: the question, level, lineage, id, follow-up cap,
   known questions and note path, with the note path in place of
-  `finding-outputter`'s output path.
+  `finding-outputter`'s output path, and the question in place of its
+  injected question, byte for byte.
   - **level** — your node's level; `1` is the root.
   - **lineage** — your node's position in the tree, such as `3-2-1`.
   - **id** — the note's `id`, verbatim.
@@ -51,7 +52,8 @@ A level-note writer is always a researcher. Run
 `accelerator config template topic-research --kind level-note` exactly as
 written, without `--fail-safe`, and fill the fenced template it prints. When
 the command is denied by permissions, write no file, and say "template command
-denied by permissions" in your summary. When it exits non-zero, write no file,
+denied by permissions" in your summary. When it exits non-zero, a
+research-guard refusal (`E_RESEARCH_GUARD_COMMAND`) included, write no file,
 and say "template unavailable" in your summary, quoting the first line of its
 stderr.
 

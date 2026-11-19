@@ -67,7 +67,7 @@ const SHELL_BLANKS: [char; 3] = [' ', '\t', '\n'];
 ///
 /// Together they let a researcher read an environment secret back through a
 /// usage error's echo, or send it to a remote host through bash's
-/// `/dev/tcp`. The fetch needs neither.
+/// `/dev/tcp`. No permitted command needs either.
 pub const STRICTER_THAN_MEASURED: [Construct; 2] =
     [Construct::Expansion, Construct::InputRedirection];
 
