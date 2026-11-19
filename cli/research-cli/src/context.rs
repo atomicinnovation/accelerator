@@ -6,8 +6,10 @@ use std::path::PathBuf;
 use config::ConfigAccess;
 use config::ConfigError;
 use config::Key;
+use config::ReadTemplate;
 use config::Source;
 use config_adapters::compose;
+use config_adapters::plugin_root_from_env;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use corpus::DocTypeKey;
@@ -15,9 +17,13 @@ use research::conduct::concurrency::ConfigFile;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
 
+const CONDUCT_TEMPLATE_SET: &str = "topic-research";
+const CONDUCT_TEMPLATE_KINDS: [&str; 2] = ["finding", "level-note"];
+
 pub struct ProjectContext {
     pub root: PathBuf,
     pub config: Box<dyn ConfigAccess>,
+    pub templates: Box<dyn ReadTemplate>,
 }
 
 impl ProjectContext {
@@ -31,8 +37,39 @@ impl ProjectContext {
         composed.report_ignored_personal_file();
         Ok(Self {
             root: FileConfigStore::discover_root(cwd),
+            templates: Box::new(
+                composed.store.with_plugin_root(plugin_root_from_env()),
+            ),
             config: Box::new(composed.service),
         })
+    }
+}
+
+impl ProjectContext {
+    /// A warning for each template `conduct`'s spawns fill that falls back
+    /// from its configured path, named by the template it concerns.
+    ///
+    /// A template that cannot be resolved at all gives no warning here:
+    /// `conduct` runs the template command before its first plan, and stops
+    /// on that command's own failure.
+    #[must_use]
+    pub fn conduct_template_fallbacks(&self) -> Vec<String> {
+        CONDUCT_TEMPLATE_KINDS
+            .iter()
+            .filter_map(|kind| {
+                let resolved = config::template::resolve(
+                    self.config.as_ref(),
+                    self.templates.as_ref(),
+                    CONDUCT_TEMPLATE_SET,
+                    Some(kind),
+                )
+                .ok()??;
+                let warning = resolved.warning?;
+                let reason =
+                    warning.strip_prefix("Warning: ").unwrap_or(&warning);
+                Some(format!("{CONDUCT_TEMPLATE_SET}-{kind}: {reason}"))
+            })
+            .collect()
     }
 }
 

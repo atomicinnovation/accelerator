@@ -720,6 +720,11 @@ else 200. A set value Claude Code would not honour is ignored, with a warning
 on `--start` when the run has web pairs. There is no `ACCELERATOR_*`
 counterpart.
 
+On `--start`, a `templates.topic-research-finding` or
+`templates.topic-research-level-note` path that does not exist gives a
+warning naming the template; `conduct`'s spawns then fill the template it
+falls back to.
+
 A run sizes per-level search budgets once, on its `--start` plan, and stores
 them in its ledger with the cap they were sized against, so later plans keep
 them rather than resize to what remains. A run begun before budgets existed

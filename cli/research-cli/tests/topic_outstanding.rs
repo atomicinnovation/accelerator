@@ -3349,3 +3349,97 @@ fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
     assert_eq!(spawns_of(&plan)?, ["01-a-web:1"]);
     Ok(())
 }
+
+fn plugin_root() -> Result<PathBuf, TestError> {
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?)
+}
+
+fn configured_templates(
+    project: &Project,
+    templates: &[(&str, &str)],
+) -> Result<(), TestError> {
+    let entries = templates
+        .iter()
+        .fold(String::new(), |entries, (name, path)| {
+            entries + &format!("  {name}: {path}\n")
+        });
+    project.write(
+        ".accelerator/config.md",
+        &format!("---\ntemplates:\n{entries}---\n"),
+    )
+}
+
+fn falling_back(project: &Project, name: &str, path: &str) -> String {
+    format!(
+        "{name}: configured template path '{}' not found, falling back to \
+         defaults",
+        project.root.join(path).display()
+    )
+}
+
+#[test]
+fn a_started_run_warns_of_each_conduct_template_falling_back(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[
+            ("topic-research-finding", "missing/finding.md"),
+            ("topic-research-level-note", "missing/level-note.md"),
+        ],
+    )?;
+    let root = plugin_root()?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, root.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    let warnings = [
+        falling_back(&project, "topic-research-finding", "missing/finding.md"),
+        falling_back(
+            &project,
+            "topic-research-level-note",
+            "missing/level-note.md",
+        ),
+    ];
+    assert_warned(&plan, &stderr, &warnings);
+    Ok(())
+}
+
+#[test]
+fn a_continued_plan_does_not_repeat_a_template_fallback(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-level-note", "missing/level-note.md")],
+    )?;
+    let root = plugin_root()?;
+    let env = [(PLUGIN_ROOT, root.to_str().ok_or("non-utf8")?)];
+    let (plan, _) = project.plan_in(&["--start"], &env)?;
+    let run = plan["run"].as_str().ok_or("no run")?;
+
+    let (plan, _) = project.plan_in(&["--run", run, "--spawned", "0"], &env)?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    Ok(())
+}
+
+#[test]
+fn a_fallback_of_a_template_conduct_does_not_use_goes_unreported(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(&project, &[("plan", "missing/plan.md")])?;
+    let root = plugin_root()?;
+
+    let (plan, _) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, root.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    Ok(())
+}
