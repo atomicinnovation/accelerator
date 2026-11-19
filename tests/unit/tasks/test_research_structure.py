@@ -3156,9 +3156,7 @@ NODE_ACKNOWLEDGED_EARLY = (
 )
 
 
-def test_a_node_refused_as_not_offered_names_an_early_acknowledgement() -> (
-    None
-):
+def test_a_node_refused_as_not_offered_names_an_early_acknowledgement() -> None:
     not_offered = _row_for(
         "E_TOPIC_RESEARCH_NODE_NOT_OFFERED", "from the node query"
     )
@@ -3267,6 +3265,6 @@ def test_research_topic_grants_only_the_config_reads_it_runs() -> None:
         "accelerator config init",
         "accelerator config templates eject topic-research",
     ):
-        assert not any(
-            rule_covers(f"Bash({rule})", write) for rule in rules
-        ), f"research-topic's spawns would inherit a grant for {write!r}"
+        assert not any(rule_covers(f"Bash({rule})", write) for rule in rules), (
+            f"research-topic's spawns would inherit a grant for {write!r}"
+        )
