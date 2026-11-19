@@ -401,9 +401,9 @@ mod tests {
     use crate::bounded_roots::BoundedRoot;
     use crate::bounded_roots::ConfiguredRoot;
     use crate::bounded_roots::RootKey;
-    use crate::test_support::frontmatter_of;
-    use crate::test_support::omit_when_empty_lines;
-    use crate::test_support::violations;
+    use crate::test_support::written_item::frontmatter_of;
+    use crate::test_support::written_item::omit_when_empty_lines;
+    use crate::test_support::written_item::violations;
     use ::config::provenance::PathSource;
     use work::identity_run::IdentityRunGuard;
 

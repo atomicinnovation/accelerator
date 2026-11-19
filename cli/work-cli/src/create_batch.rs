@@ -567,9 +567,9 @@ mod tests {
     use tracker_test_support::RecordingTracker;
 
     use super::*;
-    use crate::test_support::frontmatter_of;
-    use crate::test_support::omit_when_empty_lines;
-    use crate::test_support::violations;
+    use crate::test_support::written_item::frontmatter_of;
+    use crate::test_support::written_item::omit_when_empty_lines;
+    use crate::test_support::written_item::violations;
     use crate::test_support::FakeConfig;
     use crate::test_support::Faults;
     use crate::test_support::PluginWorkItemTemplate;

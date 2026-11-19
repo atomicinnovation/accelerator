@@ -11,9 +11,8 @@
 
 use std::process::Command;
 
-use corpus::frontmatter_validation::pipeline::validate_text;
-use corpus::frontmatter_validation::Violation;
-use corpus_adapters::YamlFrontmatter;
+#[path = "../../src/test_support/written_item.rs"]
+pub mod written_item;
 
 /// The environment variables the credential ladders read, so a scrubbed child
 /// cannot resolve a real client from an inherited token.
@@ -37,32 +36,4 @@ pub fn scrub_provider_env(command: &mut Command) {
     for name in provider_env_vars() {
         command.env_remove(name);
     }
-}
-
-pub const OMIT_WHEN_EMPTY: [&str; 7] = [
-    "parent:",
-    "blocks:",
-    "blocked_by:",
-    "derived_from:",
-    "relates_to:",
-    "source:",
-    "external_id:",
-];
-
-pub fn frontmatter_of(content: &str) -> String {
-    let (frontmatter, _) =
-        work_adapters::sync::digest::split_frontmatter_and_body(content)
-            .expect("a fenced frontmatter");
-    frontmatter
-}
-
-pub fn omit_when_empty_lines(frontmatter: &str) -> Vec<&str> {
-    frontmatter
-        .lines()
-        .filter(|line| OMIT_WHEN_EMPTY.iter().any(|key| line.starts_with(key)))
-        .collect()
-}
-
-pub fn violations(content: &str) -> Vec<Violation> {
-    validate_text(content, &YamlFrontmatter)
 }
