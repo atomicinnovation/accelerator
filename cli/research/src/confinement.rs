@@ -1,6 +1,7 @@
-//! Confining the research subagents. The researcher may run only the
-//! research fetch, and write only findings and level notes; the composer may
-//! run nothing, and write only findings.
+//! Confining the research subagents. Each role may run only its listed
+//! commands: the researcher the research fetch and its outputters' template
+//! commands, the composer nothing. The researcher may write only findings and
+//! level notes, the composer only findings.
 //!
 //! The command rule follows Claude Code's own matching of a `Bash(… *)`
 //! allow rule, as measured release by release, and is stricter for the
@@ -10,7 +11,44 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-pub const PERMITTED_PREFIX: &str = "accelerator research fetch ";
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PermittedCommand {
+    Exactly(&'static str),
+    Prefixed(&'static str),
+}
+
+impl PermittedCommand {
+    fn decide(self, command: &str) -> Option<Decision> {
+        match self {
+            Self::Exactly(permitted) => {
+                (command == permitted).then_some(Decision::Pass)
+            }
+            Self::Prefixed(prefix) => command
+                .strip_prefix(prefix)
+                .map(|arguments| Lexer::new(arguments).decision()),
+        }
+    }
+}
+
+impl Display for PermittedCommand {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Exactly(command) => write!(formatter, "'{command}'"),
+            Self::Prefixed(prefix) => write!(formatter, "'{prefix}…'"),
+        }
+    }
+}
+
+pub const FETCH: PermittedCommand =
+    PermittedCommand::Prefixed("accelerator research fetch ");
+
+pub const FINDING_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
+    "accelerator config template topic-research --kind finding",
+);
+
+pub const LEVEL_NOTE_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
+    "accelerator config template topic-research --kind level-note",
+);
 
 pub const DEFAULT_RESEARCHER: &str = "accelerator:researcher";
 
@@ -63,6 +101,13 @@ pub enum Role {
 }
 
 impl Role {
+    pub const fn permitted_commands(self) -> &'static [PermittedCommand] {
+        match self {
+            Self::Researcher => &[FETCH, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE],
+            Self::Composer => &[],
+        }
+    }
+
     pub const fn may_write(self, file: TopicFile) -> bool {
         match (self, file) {
             (Self::Researcher, TopicFile::Finding | TopicFile::LevelNote)
@@ -281,12 +326,9 @@ pub fn decide(
     layout: &dyn TopicLayout,
 ) -> Decision {
     match action {
-        Action::Command(command) => match agent.role {
-            Role::Researcher => {
-                command_decision(command.trim_matches(SHELL_BLANKS))
-            }
-            Role::Composer => Decision::Block(Block::NoCommands),
-        },
+        Action::Command(command) => {
+            command_decision(agent.role, command.trim_matches(SHELL_BLANKS))
+        }
         Action::Write(Ok(target))
             if layout
                 .classify(target)
@@ -304,15 +346,15 @@ pub fn decide(
     }
 }
 
-pub fn command_decision(command: &str) -> Decision {
-    let Some(arguments) = command.strip_prefix(PERMITTED_PREFIX) else {
-        return Decision::Block(Block::WrongCommand);
-    };
-    Lexer::new(arguments)
-        .first_construct()
-        .map_or(Decision::Pass, |construct| {
-            Decision::Block(Block::Syntax(construct))
-        })
+pub fn command_decision(role: Role, command: &str) -> Decision {
+    let permitted = role.permitted_commands();
+    if permitted.is_empty() {
+        return Decision::Block(Block::NoCommands);
+    }
+    permitted
+        .iter()
+        .find_map(|candidate| candidate.decide(command))
+        .unwrap_or(Decision::Block(Block::WrongCommand))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -353,6 +395,12 @@ impl Lexer {
             (self.peek(1), self.peek(2)),
             (Some('\n'), _) | (Some('\r'), Some('\n'))
         )
+    }
+
+    fn decision(self) -> Decision {
+        self.first_construct().map_or(Decision::Pass, |construct| {
+            Decision::Block(Block::Syntax(construct))
+        })
     }
 
     fn first_construct(mut self) -> Option<Construct> {
@@ -502,11 +550,13 @@ impl Display for Refusal<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let agent = self.agent;
         match self.block {
-            Block::WrongCommand => write!(
-                formatter,
-                "E_RESEARCH_GUARD_COMMAND: {agent} may run only \
-                 '{PERMITTED_PREFIX}…'"
-            ),
+            Block::WrongCommand => {
+                write!(
+                    formatter,
+                    "E_RESEARCH_GUARD_COMMAND: {agent} may run only "
+                )?;
+                write_alternatives(agent.role.permitted_commands(), formatter)
+            }
             Block::NoCommands => write!(
                 formatter,
                 "E_RESEARCH_GUARD_COMMAND: {agent} may run no commands"
@@ -541,6 +591,22 @@ impl Display for Refusal<'_> {
             ),
         }
     }
+}
+
+fn write_alternatives(
+    commands: &[PermittedCommand],
+    formatter: &mut Formatter<'_>,
+) -> fmt::Result {
+    let last = commands.len().saturating_sub(1);
+    for (index, command) in commands.iter().enumerate() {
+        let separator = match index {
+            0 => "",
+            _ if index == last => " or ",
+            _ => ", ",
+        };
+        write!(formatter, "{separator}{command}")?;
+    }
+    Ok(())
 }
 
 impl Refusal<'_> {

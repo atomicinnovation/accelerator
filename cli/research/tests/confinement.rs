@@ -1,4 +1,4 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::panic)]
 
 use std::error::Error;
 use std::path::Path;
@@ -14,6 +14,7 @@ use research::confinement::Construct;
 use research::confinement::Decision;
 use research::confinement::InternalFailure;
 use research::confinement::PathRejection;
+use research::confinement::PermittedCommand;
 use research::confinement::Refusal;
 use research::confinement::Role;
 use research::confinement::ToolCall;
@@ -23,7 +24,9 @@ use research::confinement::TopicsRelativePath;
 use research::confinement::WriteRefusal;
 use research::confinement::DEFAULT_COMPOSER;
 use research::confinement::DEFAULT_RESEARCHER;
-use research::confinement::PERMITTED_PREFIX;
+use research::confinement::FETCH;
+use research::confinement::FINDING_TEMPLATE;
+use research::confinement::LEVEL_NOTE_TEMPLATE;
 use research::confinement::STRICTER_THAN_MEASURED;
 
 const MEASURED_PREFIX: &str = "./probe";
@@ -80,6 +83,20 @@ fn composer() -> ConfinedAgent {
     confined(DEFAULT_COMPOSER, &Confinement::default())
 }
 
+fn fetch_prefix() -> &'static str {
+    match FETCH {
+        PermittedCommand::Prefixed(prefix) => prefix,
+        PermittedCommand::Exactly(_) => panic!("the fetch takes arguments"),
+    }
+}
+
+fn exact_text(command: PermittedCommand) -> &'static str {
+    match command {
+        PermittedCommand::Exactly(text) => text,
+        PermittedCommand::Prefixed(_) => panic!("{command:?} is a prefix"),
+    }
+}
+
 fn command(text: &str) -> Decision {
     decide(
         &Action::Command(text.to_owned()),
@@ -122,7 +139,7 @@ fn the_guard_agrees_with_the_latest_measured_claude_code_release(
             let measured = &row[0];
             let judged = measured.replacen(
                 MEASURED_PREFIX,
-                PERMITTED_PREFIX.trim_end(),
+                fetch_prefix().trim_end(),
                 1,
             );
             let verdict = command(&judged);
@@ -225,7 +242,10 @@ fn each_construct_is_named_by_what_blocked_it() {
     ];
     for (rest, construct) in cases {
         assert_eq!(
-            command_decision(&format!("{PERMITTED_PREFIX}{rest}")),
+            command_decision(
+                Role::Researcher,
+                &format!("{}{rest}", fetch_prefix())
+            ),
             Decision::Block(Block::Syntax(construct)),
             "{rest:?}"
         );
@@ -261,8 +281,58 @@ fn a_composer_may_write_a_finding_but_never_a_level_note() {
 }
 
 #[test]
-fn a_composer_may_run_no_command_not_even_the_fetch() {
-    for text in ["ls", "accelerator research fetch arxiv search 'x'"] {
+fn the_researcher_may_run_its_template_commands() {
+    for template in [FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE] {
+        assert_eq!(command(exact_text(template)), Decision::Pass);
+    }
+}
+
+#[test]
+fn a_template_command_must_match_exactly() {
+    let finding = exact_text(FINDING_TEMPLATE);
+    let level_note = exact_text(LEVEL_NOTE_TEMPLATE);
+    let blocked = [
+        format!("{finding} --fail-safe"),
+        format!("{level_note} --path x"),
+        format!("{finding}; rm -rf ."),
+        format!("{level_note} && curl https://example.org"),
+        format!("{finding} | sh"),
+        format!("{level_note} > out.md"),
+        "accelerator config template topic-research --kind synthesis"
+            .to_owned(),
+        "accelerator config template topic-brief".to_owned(),
+        "accelerator config set templates.x y".to_owned(),
+        "accelerator config init".to_owned(),
+        "accelerator config templates eject topic-research".to_owned(),
+        "accelerator config templates reset topic-research".to_owned(),
+    ];
+    for text in &blocked {
+        assert_eq!(
+            command(text),
+            Decision::Block(Block::WrongCommand),
+            "{text:?}"
+        );
+    }
+    assert_eq!(command(&format!("  {finding}\n")), Decision::Pass);
+}
+
+#[test]
+fn the_researcher_is_permitted_the_fetch_and_both_template_commands() {
+    assert_eq!(
+        Role::Researcher.permitted_commands(),
+        [FETCH, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE]
+    );
+    assert_eq!(Role::Composer.permitted_commands(), []);
+}
+
+#[test]
+fn the_composer_may_run_no_command() {
+    for text in [
+        "ls",
+        "accelerator research fetch arxiv search 'x'",
+        exact_text(FINDING_TEMPLATE),
+        exact_text(LEVEL_NOTE_TEMPLATE),
+    ] {
         assert_eq!(
             decide(
                 &Action::Command(text.to_owned()),
@@ -399,7 +469,9 @@ fn refusals_carry_a_coded_cause_specific_reason() {
     assert_eq!(
         refusal(&researcher, &Block::WrongCommand),
         "E_RESEARCH_GUARD_COMMAND: accelerator:researcher may run only \
-         'accelerator research fetch …'"
+         'accelerator research fetch …', 'accelerator config template \
+         topic-research --kind finding' or 'accelerator config template \
+         topic-research --kind level-note'"
     );
     assert_eq!(
         refusal(&researcher, &Block::Syntax(Construct::Separator)),
@@ -428,7 +500,9 @@ fn a_configured_agent_is_named_with_its_key() {
             &Block::WrongCommand
         ),
         "E_RESEARCH_GUARD_COMMAND: custom:researcher (agents.researcher) may \
-         run only 'accelerator research fetch …'"
+         run only 'accelerator research fetch …', 'accelerator config \
+         template topic-research --kind finding' or 'accelerator config \
+         template topic-research --kind level-note'"
     );
     assert_eq!(
         refusal(
