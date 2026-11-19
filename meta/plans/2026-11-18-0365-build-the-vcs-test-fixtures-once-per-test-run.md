@@ -643,20 +643,20 @@ same use elsewhere fails.
 
 #### Automated Verification
 
-- [ ] The new and moved tests pass:
+- [x] The new and moved tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support -p vcs-adapters`
-- [ ] The guard passes: `uv run pytest tests/unit/tasks/test_fixture_builds.py -v`
-- [ ] Nothing in `cli/`, `tasks/`, `mise.toml` or `.github/` mentions the
+- [x] The guard passes: `uv run pytest tests/unit/tasks/test_fixture_builds.py -v`
+- [x] Nothing in `cli/`, `tasks/`, `mise.toml` or `.github/` mentions the
       old matrix variable:
       `! rg -n 'ACCELERATOR_ZERO_SPAWN_MATRIX|MATRIX_ROOT_VARIABLE' cli tasks mise.toml .github`
-- [ ] The cli checks pass: `mise run cli:check`
-- [ ] The cli lane passes, with coverage at or above its floor:
+- [x] The cli checks pass: `mise run cli:check`
+- [x] The cli lane passes, with coverage at or above its floor:
       `mise run test:unit:cli`
-- [ ] The full local run passes: `mise run`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `cargo nextest list` shows the same names and count for `classify`,
+- [x] `cargo nextest list` shows the same names and count for `classify`,
       `queries`, `matrix` and `scrub` as at `287b6279`.
 
 ---
