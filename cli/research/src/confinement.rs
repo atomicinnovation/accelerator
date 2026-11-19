@@ -1,8 +1,8 @@
 //! Confining the research subagents to their listed commands and writes.
 //!
-//! The researcher may run the research fetch and its outputters' template
-//! commands, the composer nothing. The researcher may write only findings and
-//! level notes, the composer only findings.
+//! The researcher may run the research fetch, the node query and its
+//! outputters' template commands, the composer nothing. The researcher may
+//! write only findings and level notes, the composer only findings.
 //!
 //! The command rule follows Claude Code's own matching of a `Bash(… *)`
 //! allow rule, as measured release by release, and is stricter for the
@@ -42,6 +42,9 @@ impl Display for PermittedCommand {
 
 pub const FETCH: PermittedCommand =
     PermittedCommand::Prefixed("accelerator research fetch ");
+
+pub const NODE_QUERY: PermittedCommand =
+    PermittedCommand::Prefixed("accelerator research topic node ");
 
 pub const FINDING_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
     "accelerator config template topic-research --kind finding",
@@ -104,7 +107,9 @@ pub enum Role {
 impl Role {
     pub const fn permitted_commands(self) -> &'static [PermittedCommand] {
         match self {
-            Self::Researcher => &[FETCH, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE],
+            Self::Researcher => {
+                &[FETCH, NODE_QUERY, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE]
+            }
             Self::Composer => &[],
         }
     }
@@ -283,7 +288,7 @@ pub enum WriteRefusal {
 }
 
 /// A shell construct that could run, redirect, or expand something beyond
-/// the fetch.
+/// the permitted command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Construct {
     Separator,
@@ -366,8 +371,8 @@ enum Quoting {
     Comment,
 }
 
-/// Scans the fetch's arguments as bash and zsh would tokenise them, far
-/// enough to find the first construct that blocks.
+/// Scans a prefixed command's arguments as bash and zsh would tokenise
+/// them, far enough to find the first construct that blocks.
 struct Lexer {
     chars: Vec<char>,
     at: usize,

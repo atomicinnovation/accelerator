@@ -607,6 +607,7 @@ pub const research::confinement::DEFAULT_RESEARCHER: &str
 pub const research::confinement::FETCH: research::confinement::PermittedCommand
 pub const research::confinement::FINDING_TEMPLATE: research::confinement::PermittedCommand
 pub const research::confinement::LEVEL_NOTE_TEMPLATE: research::confinement::PermittedCommand
+pub const research::confinement::NODE_QUERY: research::confinement::PermittedCommand
 pub const research::confinement::STRICTER_THAN_MEASURED: [research::confinement::Construct; 2]
 pub trait research::confinement::TopicLayout
 pub fn research::confinement::TopicLayout::classify(&self, target: &research::confinement::TopicsRelativePath) -> core::option::Option<research::confinement::TopicFile>

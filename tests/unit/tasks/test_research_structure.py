@@ -577,6 +577,32 @@ def test_the_docs_allow_the_template_commands(name: str) -> None:
     ), f"research-topic grants no rule its spawns inherit for {command.text}"
 
 
+def test_the_docs_allow_the_node_query_beside_the_fetch() -> None:
+    fetch = permitted_command("FETCH")
+    node_query = permitted_command("NODE_QUERY")
+    assert node_query.form == "Prefixed", "the node query takes no arguments"
+    granting = _section(
+        _read(DOCS_RESEARCH),
+        "### Granting the commands\n",
+        "### Failure signatures\n",
+        path=DOCS_RESEARCH,
+    )
+    fetch_rule = f'"Bash({fetch.text.rstrip()} *)",'
+    node_rule = f'"Bash({node_query.text.rstrip()} *)",'
+    rules = [line.strip() for line in granting.splitlines()]
+    assert node_rule in rules, "the docs' allow rules omit the node query"
+    assert rules.index(node_rule) == rules.index(fetch_rule) + 1, (
+        "the node query's rule does not sit beside the fetch's"
+    )
+    assert any(
+        rule_covers(f"Bash({rule})", node_query.text + "s --run r --node x")
+        for rule in frontmatter_bash_rules(_read(RESEARCH_TOPIC))
+    ), "research-topic grants no rule its spawns inherit for the node query"
+    assert "`accelerator research topic node …`" in _section(
+        _read(DOCS_RESEARCH), "## `guard`\n", "### Command matching\n"
+    ), "the guard section omits the node query from the researcher's commands"
+
+
 def test_the_docs_link_conduct_to_the_quota_halt() -> None:
     docs = _read(DOCS_RESEARCH)
     assert "\n#### Web search quota\n" in docs
