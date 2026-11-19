@@ -24,14 +24,6 @@ fn matrix_at(tree: &Path) -> SharedBuildRequest {
     }
 }
 
-fn entries(directory: &Path) -> Result<Vec<PathBuf>, TestError> {
-    let mut entries = fs::read_dir(directory)?
-        .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<Result<Vec<_>, _>>()?;
-    entries.sort();
-    Ok(entries)
-}
-
 fn events(log: &Path) -> Result<Vec<Value>, TestError> {
     fs::read_to_string(log)?
         .lines()
@@ -90,16 +82,16 @@ fn a_request_naming_no_family_is_refused() -> Result<(), TestError> {
 }
 
 #[test]
-fn a_tree_inside_this_checkout_is_refused_before_anything_is_written(
+fn a_tree_inside_a_checkout_is_refused_before_anything_is_written(
 ) -> Result<(), TestError> {
-    let inside_the_checkout = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let before = entries(&inside_the_checkout)?;
-    let directory = tempfile::tempdir()?;
-    let log = directory.path().join("run.jsonl");
+    let checkout = tempfile::tempdir()?;
+    fs::create_dir(checkout.path().join(".git"))?;
+    let run = checkout.path().join("run");
+    let log = checkout.path().join("run.jsonl");
 
-    let failures = matrix_at(&inside_the_checkout).build(&FixtureLog::at(&log));
+    let failures = matrix_at(&run.join("matrix")).build(&FixtureLog::at(&log));
 
-    assert_eq!(entries(&inside_the_checkout)?, before);
+    assert!(!run.exists(), "{} was created", run.display());
     assert_eq!(failures.len(), 1);
     assert_eq!(failures[0].family, Family::Matrix);
     assert!(

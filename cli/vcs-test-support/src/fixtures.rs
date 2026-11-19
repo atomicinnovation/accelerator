@@ -90,6 +90,7 @@ impl Matrix {
     /// When `base` lies inside a repository, or any builder fails.
     pub(crate) fn build_in(base: &Path) -> Result<Self, Error> {
         assert_no_repository_ancestor(base)?;
+        fs::create_dir_all(base)?;
         let env = Hermetic::rooted_at(base)?;
         Self::build_with(base, &env)
     }
@@ -101,7 +102,6 @@ impl Matrix {
     ///
     /// As [`Self::build_in`], or when the manifest cannot be written.
     pub(crate) fn build_for_sharing(base: &Path) -> Result<Self, Error> {
-        fs::create_dir_all(base)?;
         let matrix = Self::build_in(base)?;
         Manifest {
             fixtures: matrix.fixtures.clone(),

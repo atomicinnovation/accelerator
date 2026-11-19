@@ -278,22 +278,37 @@ impl Hermetic {
 ///
 /// When a marked ancestor is found, naming it.
 pub fn assert_no_repository_ancestor(base: &Path) -> Result<(), Error> {
-    let mut dir = Some(base.canonicalize()?);
-    while let Some(current) = dir {
-        if current != base
-            && (current.join(".git").exists() || current.join(".jj").exists())
-        {
-            return Err(Error::message(format!(
-                "the fixture base {} lies inside the repository at {} — every \
-                 absence expectation in the matrix would silently resolve that \
-                 repository instead. Point TMPDIR outside any checkout.",
-                base.display(),
-                current.display()
-            )));
-        }
-        dir = current.parent().map(Path::to_path_buf);
+    let resolved = resolved_even_if_absent(base)?;
+    if let Some(repository) = resolved
+        .ancestors()
+        .skip(1)
+        .find(|ancestor| is_repository_root(ancestor))
+    {
+        return Err(Error::message(format!(
+            "the fixture base {} lies inside the repository at {} — every \
+             absence expectation in the matrix would silently resolve that \
+             repository instead. Point TMPDIR outside any checkout.",
+            base.display(),
+            repository.display()
+        )));
     }
     Ok(())
+}
+
+fn resolved_even_if_absent(path: &Path) -> Result<PathBuf, Error> {
+    let path = std::path::absolute(path)?;
+    let deepest_existing = path
+        .ancestors()
+        .find(|ancestor| ancestor.exists())
+        .unwrap_or(&path);
+    let absent = path
+        .strip_prefix(deepest_existing)
+        .unwrap_or_else(|_| Path::new(""));
+    Ok(deepest_existing.canonicalize()?.join(absent))
+}
+
+fn is_repository_root(directory: &Path) -> bool {
+    directory.join(".git").exists() || directory.join(".jj").exists()
 }
 
 /// Fails unless the installed `jj` CLI matches `jj_lib_version` at major.minor.
