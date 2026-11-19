@@ -998,6 +998,27 @@ fn a_started_run_returns_its_minted_id_and_first_batch() -> Result<(), TestError
     Ok(())
 }
 
+#[test]
+fn a_started_run_records_its_offered_nodes() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?", "C?"])?;
+
+    started(&project, &["--depth", "2"])?;
+
+    let asked = |question: &str| {
+        json!({
+            "profile": "web",
+            "question": question,
+            "known_questions": ["A?", "B?", "C?"],
+        })
+    };
+    assert_eq!(
+        stored_ledger(&project)?["offered_nodes"],
+        json!({"01-a-web:2-1": asked("B?"), "01-a-web:2-2": asked("C?")})
+    );
+    Ok(())
+}
+
 fn replaced_notice(run: &str) -> String {
     format!(
         "replaced the ledger of run {run}; if it is still going it stops at \
