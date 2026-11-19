@@ -1,14 +1,14 @@
 ---
 type: "work-item-review"
-id: "0307-pass-conduct-spawn-context-by-reference-review-1"
+id: "PP-893-pass-conduct-spawn-context-by-reference-review-1"
 title: "Work Item Review: Pass Conduct Spawn Context by Reference"
 date: "2026-11-18T18:34:43+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0121"
-target: "work-item:0307"
-work_item_id: "0307"
+parent: "work-item:PP-22"
+target: "work-item:PP-893"
+work_item_id: "PP-893"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

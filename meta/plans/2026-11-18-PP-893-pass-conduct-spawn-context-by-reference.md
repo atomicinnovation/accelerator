@@ -1,15 +1,15 @@
 ---
 type: "plan"
-id: "2026-11-18-0307-pass-conduct-spawn-context-by-reference"
+id: "2026-11-18-PP-893-pass-conduct-spawn-context-by-reference"
 title: "Pass Conduct Spawn Context by Reference Implementation Plan"
 date: "2026-11-18T20:56:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0307"
-parent: "work-item:0307"
-derived_from: ["codebase-research:2026-11-18-0307-pass-conduct-spawn-context-by-reference"]
-relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:0308", "work-item:0310"]
+work_item_id: "work-item:PP-893"
+parent: "work-item:PP-893"
+derived_from: ["codebase-research:2026-11-18-PP-893-pass-conduct-spawn-context-by-reference"]
+relates_to: ["work-item:PP-867", "work-item:PP-889", "work-item:PP-890", "work-item:PP-894", "work-item:PP-896"]
 tags: ["research", "deep-research", "conduct", "cli", "run-ledger", "research-guard", "config-template"]
 revision: "d5a62f06c836dbf06c2de86555017ed876634a46"
 repository: "accelerator"
@@ -1450,12 +1450,12 @@ against the work item's criteria.
 
 ## References
 
-- Original work item: `meta/work/0307-pass-conduct-spawn-context-by-reference.md`
-- Codebase research: `meta/research/codebase/2026-11-18-0307-pass-conduct-spawn-context-by-reference.md`
+- Original work item: `meta/work/PP-893-pass-conduct-spawn-context-by-reference.md`
+- Codebase research: `meta/research/codebase/2026-11-18-PP-893-pass-conduct-spawn-context-by-reference.md`
 - Read-only command model: `cli/research-cli/src/consultable_command.rs:30-55`
 - Ledger owner check: `cli/research-cli/src/topic_command.rs:555-577`
 - Optional ledger key precedent: `cli/research-adapters/src/conduct/ledger.rs:182-187`
 - Per-role guard decision: `cli/research/src/confinement.rs:278-290`
-- Related plans: `meta/plans/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`,
-  `meta/plans/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`,
-  `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md`
+- Related plans: `meta/plans/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion.md`,
+  `meta/plans/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`,
+  `meta/plans/2026-10-10-PP-889-research-concurrency-subagent-limit.md`
