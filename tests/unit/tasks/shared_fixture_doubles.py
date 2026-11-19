@@ -137,7 +137,8 @@ class FakeSharedFixtures:
                     {
                         "event": "adoption",
                         "family": family.value,
-                        "test": f"{binary} a_test",
+                        "binary": binary,
+                        "test": "a_test",
                         "hermetic-root": (
                             f"{environment[WORKBENCHES_VARIABLE]}/w"
                         ),

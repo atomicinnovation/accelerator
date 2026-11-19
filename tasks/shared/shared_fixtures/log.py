@@ -45,23 +45,25 @@ class SharedBuild:
 @dataclasses.dataclass(frozen=True)
 class Adoption:
     family: Family
+    binary: str
     test: str
     hermetic_root: Path
 
     @property
-    def binary(self) -> str:
-        return _binary(self.test)
+    def full_name(self) -> str:
+        return f"{self.binary} {self.test}"
 
 
 @dataclasses.dataclass(frozen=True)
 class PrivateBuild:
     fixtures: BuiltFixtures
+    binary: str
     test: str
     hermetic_root: Path
 
     @property
-    def binary(self) -> str:
-        return _binary(self.test)
+    def full_name(self) -> str:
+        return f"{self.binary} {self.test}"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -255,11 +257,15 @@ def _event(line: Mapping[str, Any]) -> Event:
         )
     if kind == "adoption":
         return Adoption(
-            Family(line["family"]), line["test"], Path(line["hermetic-root"])
+            Family(line["family"]),
+            _binary_of(line),
+            line["test"],
+            Path(line["hermetic-root"]),
         )
     if kind == "private-build":
         return PrivateBuild(
             fixtures_named(line["fixtures"]),
+            _binary_of(line),
             line["test"],
             Path(line["hermetic-root"]),
         )
@@ -330,7 +336,7 @@ def _private_builds_of_shared_families(
         family = event.fixtures
         if family in run.trees:
             yield (
-                f"{event.test} built {family.noun} privately although the "
+                f"{event.full_name} built {family.noun} privately although the "
                 f"run handed it over through {family.handover_variable}; its "
                 "Handover did not come from the environment; open it with "
                 "Workbench::for_this_test(), or give a deliberately private "
@@ -338,7 +344,7 @@ def _private_builds_of_shared_families(
             )
         else:
             yield (
-                f"{event.test} built {family.noun} privately; add "
+                f"{event.full_name} built {family.noun} privately; add "
                 f"{event.binary} to the {family.heading} consumers in "
                 f"{_CONSUMERS_MODULE}"
             )
@@ -401,8 +407,11 @@ def _silent_consumers(
                 )
 
 
-def _binary(test: str) -> str:
-    return test.partition(" ")[0]
+def _binary_of(line: Mapping[str, Any]) -> str:
+    binary = line["binary"]
+    if not isinstance(binary, str):
+        raise _UnreadableEventError
+    return binary
 
 
 def _count(amount: int, singular: str, plural: str | None = None) -> str:

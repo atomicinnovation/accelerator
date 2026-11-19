@@ -59,7 +59,8 @@ def _adoption(binary: str = CLASSIFY, test: str = "a_test") -> dict:
     return {
         "event": "adoption",
         "family": "matrix",
-        "test": f"{binary} {test}",
+        "binary": binary,
+        "test": test,
         "hermetic-root": f"/workbenches/{binary}-{test}",
     }
 
@@ -70,7 +71,8 @@ def _private_build(
     return {
         "event": "private-build",
         "fixtures": fixtures,
-        "test": f"{binary} {test}",
+        "binary": binary,
+        "test": test,
         "hermetic-root": f"/tmp/vcs-workbench-{test}",
     }
 
@@ -117,7 +119,8 @@ class TestTheSharedFormat:
             SharedBuild(Family.MATRIX, TREE, "git version 2.50.1", "jj 0.43.0"),
             Adoption(
                 Family.MATRIX,
-                "vcs-adapters::classify every_fixture_classifies_as_expected",
+                "vcs-adapters::classify",
+                "every_fixture_classifies_as_expected",
                 Path(
                     "/tmp/accelerator-shared-fixtures-501/run/workbenches/"
                     "vcs-workbench-a"
@@ -125,7 +128,8 @@ class TestTheSharedFormat:
             ),
             PrivateBuild(
                 Family.MATRIX,
-                "vcs-adapters::classify every_fixture_classifies_as_expected",
+                "vcs-adapters::classify",
+                "every_fixture_classifies_as_expected",
                 Path("/tmp/vcs-workbench-b"),
             ),
             TreeDigestRecorded(
@@ -153,15 +157,22 @@ class TestTheSharedFormat:
         assert log.read().events == (
             PrivateBuild(
                 PRIVATE_SETS,
-                f"{CLASSIFY} a_test",
+                CLASSIFY,
+                "a_test",
                 Path("/tmp/vcs-workbench-a_test"),
             ),
         )
 
-    def test_a_test_belongs_to_the_binary_its_name_starts_with(self):
-        adoption = Adoption(Family.MATRIX, f"{CLASSIFY} a_test", Path("/w"))
+    def test_a_test_is_named_in_full_by_its_binary_and_its_name(self):
+        adoption = Adoption(Family.MATRIX, CLASSIFY, "a_test", Path("/w"))
 
-        assert adoption.binary == CLASSIFY
+        assert adoption.full_name == f"{CLASSIFY} a_test"
+
+    def test_an_event_without_its_binary_does_not_parse(self, tmp_path: Path):
+        adoption = _adoption()
+        del adoption["binary"]
+
+        assert _log(tmp_path, [adoption]).read().unparsed == (1,)
 
     def test_a_missing_log_reads_as_empty(self, tmp_path: Path):
         contents = FixtureLog(tmp_path / "absent.jsonl").read()

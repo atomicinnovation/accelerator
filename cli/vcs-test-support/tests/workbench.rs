@@ -190,7 +190,9 @@ fn with_nothing_handed_the_family_is_built_privately_in_the_workbench(
     assert_eq!(events.len(), 1);
     assert_eq!(events[0]["event"], "private-build");
     assert_eq!(events[0]["fixtures"], "matrix");
-    assert_eq!(events[0]["test"], Value::String(test_name()));
+    let current = test_name();
+    assert_eq!(events[0]["binary"], current["binary"]);
+    assert_eq!(events[0]["test"], current["test"]);
     assert_eq!(
         events[0]["hermetic-root"],
         Value::String(workbench.path().display().to_string())
@@ -334,7 +336,10 @@ fn the_test_is_named_from_the_variables() {
 
     assert_eq!(
         serde_json::to_value(&handover.test).ok(),
-        Some(Value::from("vcs-adapters::classify a_test"))
+        Some(serde_json::json!({
+            "binary": "vcs-adapters::classify",
+            "test": "a_test",
+        }))
     );
 }
 
@@ -398,9 +403,7 @@ fn dropping_the_workbench_removes_its_directory() -> Result<(), TestError> {
     Ok(())
 }
 
-fn test_name() -> String {
+fn test_name() -> Value {
     serde_json::to_value(vcs_test_support::fixture_log::TestName::current())
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_owned))
         .unwrap_or_default()
 }

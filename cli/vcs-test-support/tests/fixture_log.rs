@@ -121,9 +121,10 @@ fn a_test_is_named_by_its_binary_and_its_name() {
 
     assert_eq!(
         name,
-        Some(Value::from(
-            "vcs-adapters::classify every_fixture_classifies_as_expected"
-        ))
+        Some(serde_json::json!({
+            "binary": "vcs-adapters::classify",
+            "test": "every_fixture_classifies_as_expected",
+        }))
     );
 }
 
@@ -133,7 +134,10 @@ fn a_test_outside_nextest_is_named_by_its_thread() {
 
     assert_eq!(
         name,
-        thread::current().name().map(Value::from),
+        Some(serde_json::json!({
+            "binary": null,
+            "test": thread::current().name(),
+        })),
         "the libtest harness names each test's thread after the test"
     );
 }

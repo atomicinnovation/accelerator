@@ -30,11 +30,13 @@ pub enum Event<'a> {
     },
     Adoption {
         family: Family,
+        #[serde(flatten)]
         test: &'a TestName,
         hermetic_root: &'a Path,
     },
     PrivateBuild {
         fixtures: BuiltFixtures,
+        #[serde(flatten)]
         test: &'a TestName,
         hermetic_root: &'a Path,
     },
@@ -94,10 +96,14 @@ impl FixtureLog {
     }
 }
 
-/// The test a fixture event belongs to, as nextest names it.
+/// The test a fixture event belongs to, as nextest names it: its binary and
+/// its own name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(transparent)]
-pub struct TestName(String);
+pub struct TestName {
+    binary: Option<String>,
+    #[serde(rename = "test")]
+    name: String,
+}
 
 impl TestName {
     #[must_use]
@@ -114,9 +120,15 @@ impl TestName {
             (Some(binary), Some(test))
                 if !binary.is_empty() && !test.is_empty() =>
             {
-                Self(format!("{binary} {test}"))
+                Self {
+                    binary: Some(binary.to_owned()),
+                    name: test.to_owned(),
+                }
             }
-            _ => Self(thread::current().name().unwrap_or("unnamed").to_owned()),
+            _ => Self {
+                binary: None,
+                name: thread::current().name().unwrap_or("unnamed").to_owned(),
+            },
         }
     }
 }

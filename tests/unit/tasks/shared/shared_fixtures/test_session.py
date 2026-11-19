@@ -66,7 +66,8 @@ def adopt_everywhere(handover: Mapping[str, str]) -> None:
                 {
                     "event": "adoption",
                     "family": family.value,
-                    "test": f"{binary} a_test",
+                    "binary": binary,
+                    "test": "a_test",
                     "hermetic-root": f"{handover[WORKBENCHES_VARIABLE]}/w",
                 },
             )
@@ -597,7 +598,8 @@ def _private_build(handover: Mapping[str, str]) -> None:
         {
             "event": "private-build",
             "fixtures": "matrix",
-            "test": "vcs-adapters::classify sneaky",
+            "binary": "vcs-adapters::classify",
+            "test": "sneaky",
             "hermetic-root": "/tmp/vcs-workbench-x",
         },
     )
@@ -610,7 +612,8 @@ def _unlisted_consumer(handover: Mapping[str, str]) -> None:
         {
             "event": "adoption",
             "family": "matrix",
-            "test": "vcs-cli::status a_test",
+            "binary": "vcs-cli::status",
+            "test": "a_test",
             "hermetic-root": "/w",
         },
     )
