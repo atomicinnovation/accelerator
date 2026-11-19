@@ -51,22 +51,6 @@ pub trait CorpusIndex {
     fn target_exists(&self, target_type: &str, target_id: &str) -> bool;
 }
 
-/// The capabilities every migration's `apply()`/`apply_decision()`
-/// implementation receives.
-///
-/// `write` is the only *content-mutation* path available to a migration —
-/// routing every write through one method is what lets the path manifest be
-/// recorded as a side effect of the call itself, rather than as a discipline
-/// each migration author must remember. `merge_move` is the one other
-/// mutation primitive (whole-file/whole-directory relocation, needed by the
-/// directory-rename and state-relocation migrations); it is not
-/// content-writing, so it is not manifest-tracked the same way — the
-/// migrations that use it own their own idempotency self-check instead.
-///
-/// `read`/`list_md_files`/`config_value` default to the empty/absent case so
-/// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
-/// `engine.rs`), which never exercise a real migration, do not need updating
-/// every time a migration's own needs grow this trait.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VersionControl {
     Git,
@@ -92,6 +76,30 @@ pub struct TrackedState {
     pub tracked: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextFile {
+    Utf8(String),
+    NotUtf8,
+}
+
+/// The capabilities every migration's `apply()`/`apply_decision()`
+/// implementation receives.
+///
+/// `write` is the only *content-mutation* path available to a migration —
+/// routing every write through one method is what lets the path manifest be
+/// recorded as a side effect of the call itself, rather than as a discipline
+/// each migration author must remember. `merge_move` is the one other
+/// mutation primitive (whole-file/whole-directory relocation, needed by the
+/// directory-rename and state-relocation migrations); it is not
+/// content-writing, so it is not manifest-tracked the same way — the
+/// migrations that use it own their own idempotency self-check instead.
+///
+/// `read`/`list_md_files`/`config_value` default to the empty/absent case so
+/// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
+/// `engine.rs`), which never exercise a real migration, do not need updating
+/// every time a migration's own needs grow this trait. `read_text` is the
+/// exception: its default errors, because an absent answer would let a
+/// migration mistake a context that cannot read strictly for a missing file.
 pub trait MigrationContext {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir>;
     fn corpus_index(&self) -> &dyn CorpusIndex;
@@ -170,12 +178,29 @@ pub trait MigrationContext {
         None
     }
 
-    /// `Ok(None)` when `path` does not exist.
+    /// `Ok(None)` when `path` does not exist. Decodes lossily; use
+    /// [`read_text`](Self::read_text) when the content may be written back.
     ///
     /// # Errors
     /// [`MigrationError`] when a present file cannot be read.
     fn read(&self, _path: &Path) -> Result<Option<String>, MigrationError> {
         Ok(None)
+    }
+
+    /// `Ok(None)` when `path` does not exist. Unlike [`read`](Self::read),
+    /// never decodes lossily, so a migration can leave a file that is not
+    /// UTF-8 byte-identical.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when a present file cannot be read, or when this
+    /// context does not implement strict reads.
+    fn read_text(
+        &self,
+        _path: &Path,
+    ) -> Result<Option<TextFile>, MigrationError> {
+        Err(MigrationError::new(
+            "read_text is not implemented by this context",
+        ))
     }
 
     /// Whether `path` exists and is a directory.
@@ -270,8 +295,7 @@ pub trait MigrationContext {
     }
 
     /// The value of `content`'s frontmatter, whatever its root; unfenced or
-    /// empty frontmatter is an empty mapping. Only migrations 0001 and 0008
-    /// call this.
+    /// empty frontmatter is an empty mapping.
     ///
     /// # Errors
     /// [`MigrationError`] for an unterminated fence, invalid YAML or a tagged
@@ -316,17 +340,18 @@ pub trait MigrationContext {
     }
 
     /// Recomputes the `/sync-work-items` change-detection baseline for every
-    /// tracked item that was `Synced` before this run, so a whole-corpus
-    /// re-render does not spuriously reclassify content-identical items as
-    /// locally modified. `pre_migration` carries each rewritten `meta/` file's
-    /// pre-render bytes, so an entry's pre-migration digest can still be
-    /// computed after the files on disk have been re-rendered. A pre-run
+    /// tracked item that was `Synced` before this run, so a migration that
+    /// rewrites work items does not reclassify items that were in sync before
+    /// it as locally modified. `pre_migration` carries each rewritten file's
+    /// pre-migration bytes, so an entry's pre-migration digest can still be
+    /// computed after the files on disk have been rewritten. A pre-run
     /// diverged entry keeps its baseline, so its pending push survives.
-    /// Returns the number of realigned baselines. Only migration 0008 calls
-    /// it.
+    /// Returns the number of realigned baselines.
     ///
     /// # Errors
-    /// [`MigrationError`] when a baseline file cannot be read or written.
+    /// [`MigrationError`] when a baseline cannot be read or written. Every
+    /// baseline is then left as it was, unless the error names those it
+    /// could not put back.
     fn realign_sync_baseline(
         &self,
         _pre_migration: &[(PathBuf, String)],
@@ -450,14 +475,15 @@ pub trait ManifestStore {
 }
 
 /// Realigns every integration's sync baseline under one integrations root
-/// after a whole-corpus re-render.
+/// after a migration rewrites work items.
 pub trait SyncBaselines {
-    /// `pre_migration` carries each re-rendered `meta/` file's original
-    /// content. Returns the number of realigned entries.
+    /// `pre_migration` carries each rewritten file's pre-migration content.
+    /// Returns the number of realigned entries.
     ///
     /// # Errors
     /// [`MigrationError`] when the root cannot be listed or a baseline cannot
-    /// be read or written.
+    /// be read or written. Every baseline is then left as it was, unless the
+    /// error names those it could not put back.
     fn realign(
         &self,
         integrations_root: &Path,

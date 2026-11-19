@@ -1,7 +1,8 @@
-//! Realigning sync baselines after a whole-corpus re-render: a `Synced`
-//! entry advances to the re-rendered digest, a diverged one keeps its
-//! pending push.
+//! Realigning sync baselines after a migration rewrites work items: a
+//! `Synced` entry advances to the rewritten file's digest, a diverged one
+//! keeps its pending push.
 
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
@@ -55,6 +56,45 @@ impl AtomicWrite for DiskWriter {
         fs::write(path, bytes).map_err(|error| StoreError::Io {
             path: path.display().to_string(),
             detail: error.to_string(),
+        })
+    }
+}
+
+#[derive(Clone, Default)]
+struct WriteLog {
+    calls: Rc<Cell<usize>>,
+    landed: Rc<RefCell<Vec<PathBuf>>>,
+}
+
+struct ScriptedWriter {
+    log: WriteLog,
+    refused_calls: &'static [usize],
+}
+
+impl AtomicWrite for ScriptedWriter {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+        let call = self.log.calls.get() + 1;
+        self.log.calls.set(call);
+        if self.refused_calls.contains(&call) {
+            return Err(StoreError::Io {
+                path: path.display().to_string(),
+                detail: format!("write {call} refused"),
+            });
+        }
+        self.log.landed.borrow_mut().push(path.to_path_buf());
+        DiskWriter.write(path, bytes)
+    }
+}
+
+fn scripted_writer_at(
+    log: &WriteLog,
+    refused_calls: &'static [usize],
+) -> impl Fn(&Path) -> Box<dyn AtomicWrite> {
+    let log = log.clone();
+    move |_dir: &Path| -> Box<dyn AtomicWrite> {
+        Box::new(ScriptedWriter {
+            log: log.clone(),
+            refused_calls,
         })
     }
 }
@@ -345,6 +385,123 @@ fn each_baseline_is_written_from_its_own_directory() -> Result<(), TestError> {
             corpus.integrations.join("jira"),
             corpus.integrations.join("linear"),
         ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_baseline_is_realigned_in_a_single_write() -> Result<(), TestError> {
+    let first = work_item("0001", "First");
+    let second = work_item("0002", "Second");
+    let corpus = re_rendered_corpus(&first)?;
+    let second_item = corpus.item.with_file_name("0002-y.md");
+    fs::write(&second_item, quoted_work_item("0002", "Second"))?;
+    fs::write(&corpus.item, quoted_work_item("0001", "First"))?;
+    let baseline = seed_baseline(
+        &corpus.integrations,
+        "linear",
+        "0001",
+        &digest::local(&first)?,
+    )?;
+    let seeded = fs::read_to_string(&baseline)?;
+    fs::write(
+        &baseline,
+        seeded.replace(
+            "}}}",
+            &format!(
+                "}},\"0002\":{{\"remote_updated_at\":\
+                 \"2026-06-01T00:00:00Z\",\"remote_hash\":\"rh\",\
+                 \"local_hash\":\"{}\"}}}}}}",
+                digest::local(&second)?
+            ),
+        ),
+    )?;
+    let log = WriteLog::default();
+
+    let realigned = realign_baselines(
+        &corpus.integrations,
+        &[(corpus.item.clone(), first), (second_item, second)],
+        &DiskReader,
+        &scripted_writer_at(&log, &[]),
+        &plain_rules,
+        &CommonMarkBody,
+    )?;
+
+    assert_eq!(realigned, 2);
+    assert_eq!(log.calls.get(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_failed_write_puts_back_every_baseline_already_realigned(
+) -> Result<(), TestError> {
+    let original = work_item("0001", "Twice");
+    let corpus = re_rendered_corpus(&original)?;
+    let hash = digest::local(&original)?;
+    let jira = seed_baseline(&corpus.integrations, "jira", "0001", &hash)?;
+    let linear = seed_baseline(&corpus.integrations, "linear", "0001", &hash)?;
+    let seeded = fs::read_to_string(&jira)?;
+    fs::write(&corpus.item, quoted_work_item("0001", "Twice"))?;
+    let log = WriteLog::default();
+
+    let result = realign_baselines(
+        &corpus.integrations,
+        &[(corpus.item.clone(), original)],
+        &DiskReader,
+        &scripted_writer_at(&log, &[2]),
+        &plain_rules,
+        &CommonMarkBody,
+    );
+
+    let Err(error @ RealignError::Baseline(_)) = result else {
+        return Err(format!("expected a baseline error, got {result:?}").into());
+    };
+    assert!(error.to_string().contains("write 2 refused"), "{error}");
+    assert_eq!(fs::read_to_string(&jira)?, seeded);
+    assert_eq!(fs::read_to_string(&linear)?, seeded);
+    Ok(())
+}
+
+#[test]
+fn a_baseline_that_cannot_be_put_back_is_named() -> Result<(), TestError> {
+    let original = work_item("0001", "Twice");
+    let corpus = re_rendered_corpus(&original)?;
+    let hash = digest::local(&original)?;
+    seed_baseline(&corpus.integrations, "jira", "0001", &hash)?;
+    seed_baseline(&corpus.integrations, "linear", "0001", &hash)?;
+    fs::write(&corpus.item, quoted_work_item("0001", "Twice"))?;
+    let log = WriteLog::default();
+
+    let result = realign_baselines(
+        &corpus.integrations,
+        &[(corpus.item.clone(), original)],
+        &DiskReader,
+        &scripted_writer_at(&log, &[2, 3]),
+        &plain_rules,
+        &CommonMarkBody,
+    );
+
+    let Some(left_realigned) = log.landed.borrow().first().cloned() else {
+        return Err("the first baseline write must land".into());
+    };
+    let Err(error) = result else {
+        return Err("a refused write must fail the realignment".into());
+    };
+    let shown = error.to_string();
+    let RealignError::LeftRealigned {
+        left_realigned_baselines,
+        ..
+    } = error
+    else {
+        return Err(
+            format!("expected a left-realigned error, got {shown}").into()
+        );
+    };
+    assert_eq!(left_realigned_baselines, vec![left_realigned.clone()]);
+    assert!(shown.contains("write 2 refused"), "{shown}");
+    assert!(
+        shown.contains(&left_realigned.display().to_string()),
+        "{shown}"
     );
     Ok(())
 }

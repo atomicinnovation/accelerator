@@ -11,6 +11,9 @@
 
 use std::process::Command;
 
+#[path = "../../src/test_support/written_item.rs"]
+pub mod written_item;
+
 /// The environment variables the credential ladders read, so a scrubbed child
 /// cannot resolve a real client from an inherited token.
 #[must_use]

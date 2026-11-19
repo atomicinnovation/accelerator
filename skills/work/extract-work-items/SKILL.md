@@ -595,9 +595,11 @@ before completing.
    - `parent` is `{"ref": "<ref>"}` when the approved hierarchy places the
      item under another draft of this batch, or a typed reference such as
      `"work-item:0042"` when its parent already exists. Omit it otherwise.
-   - `tags`, `blocks`, `blocked_by`, `relates_to`, `derived_from` and
-     `source` follow the same omit-when-empty rules as the frontmatter in
-     Step 4 h. `body_file` is relative to the manifest's directory.
+   - `blocks`, `blocked_by`, `relates_to`, `derived_from` and `source`
+     follow the same omit-when-empty rules as the frontmatter in Step 4 h.
+     Leave `tags` out of an entry that has none: `create-batch` always
+     writes `tags`, as `[]` when empty. `body_file` is relative to the
+     manifest's directory.
    - Do not call `accelerator work id next`, and never write an item
      with the `Write` tool: `create-batch` mints every ID and writes every
      file.
@@ -735,17 +737,17 @@ before completing.
 - Work item kind inference must use kinds read from the work item template
   frontmatter (loaded at the top of this skill), not a hardcoded list.
   Default to `story` for items where the kind is genuinely ambiguous.
-- All frontmatter fields defined in the work item template must be populated
-  in every written work item — `type` (`work-item`), `id` matching the
-  assigned full ID, `title` matching the work item's title, `date`,
-  `author`, `producer` (`extract-work-items`), `status` (`draft`),
-  `kind`, `priority` (medium unless the source implies otherwise),
-  `parent` (empty string unless the source establishes a parent),
-  `external_id` (empty unless set), `tags` (a YAML array, possibly
-  empty), `last_updated`, `last_updated_by`, and `schema_version: 1`.
-  No field may contain unfilled placeholder text like `[author]` or
-  `NNNN`. The body H1 format is `# <full-id>: <title>` — kept in sync
-  with the frontmatter `title:` field.
+- Every written work item carries the required fields — `type`
+  (`work-item`), `id` matching the assigned full ID, `title` matching the
+  work item's title, `date`, `author`, `producer` (`extract-work-items`),
+  `status` (`draft`), `kind`, `priority` (medium unless the source implies
+  otherwise), `tags` (a YAML array, possibly empty), `last_updated`,
+  `last_updated_by`, and `schema_version: 1` — and the omit-when-empty
+  fields (the typed-linkage keys such as `parent`, plus `external_id` and
+  `aliases`) only when they have a value. No field may contain unfilled
+  placeholder text like `[author]` or `NNNN`. The body H1 format is
+  `# <full-id>: <title>` — kept in sync with the frontmatter `title:`
+  field.
 - `date` must use the work item template's `YYYY-MM-DDTHH:MM:SS+00:00`
   format in UTC (e.g. obtained via `date -u +%Y-%m-%dT%H:%M:%S+00:00`).
 - `author` is sourced in this order: configuration if present, then the

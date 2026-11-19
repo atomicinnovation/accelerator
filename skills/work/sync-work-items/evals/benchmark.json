@@ -4,13 +4,13 @@
     "skill_path": "skills/work/sync-work-items",
     "executor_model": "claude-opus-5-5",
     "analyzer_model": "claude-opus-5-5",
-    "timestamp": "2026-11-18T00:00:00Z",
+    "timestamp": "2026-11-19T00:00:00Z",
     "evals_run": [
       "1",
       "2"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:f1696d147179346e87d9fcd65954a605ad09c0e3a41ad9d51181de3801f204b2"
+    "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
   },
   "runs": [
     {
@@ -28,26 +28,26 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md: \"So your corpus holds an item that is not yet under the `{tracker}` ID pattern, and it needs re-keying with `/rekey-work-items`.\""
+          "evidence": "response.md: \"The command printed this remedy: > Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\""
         },
         {
           "text": "response.md says the unfinished promotion would make re-key refuse and that `accelerator work sync` settles it",
           "passed": true,
-          "evidence": "response.md: \"this unfinished promotion of `draft-k3x9mq` would itself make re-key refuse (with `E_REKEY_SYNC_UNFINISHED`) ... `accelerator work sync` is not refused on this corpus and settles the unfinished promotion\""
+          "evidence": "response.md: \"The promotion of `draft-k3x9mq` is still unfinished, so `/rekey-work-items` would refuse with `E_REKEY_SYNC_UNFINISHED`. `accelerator work sync` does not have this restriction: ... and it settles the unfinished promotion.\""
         },
         {
           "text": "questions.md holds one question offering to run sync now or to stop",
           "passed": true,
-          "evidence": "questions.md: one AskUserQuestion with options \"1. **Run sync now**\" and \"2. **Stop**\""
+          "evidence": "questions.md: only \"## AskUserQuestion 1\", with options \"1. **Run sync now**\" and \"2. **Stop**\""
         },
         {
           "text": "commands.md shows the promote exactly once, no `accelerator work rekey`, and no `accelerator work sync` before the user answers",
           "passed": true,
-          "evidence": "commands.md: only `accelerator work promote draft-k3x9mq --adopt ENG-43`, then \"No further `accelerator` command was run: the skill waits for the user's answer\" (rekey appears only inside quoted stderr)"
+          "evidence": "commands.md: only \"1. `accelerator work promote draft-k3x9mq --adopt ENG-43`\", then \"The run stopped at the AskUserQuestion, so `accelerator work sync` was not run.\" (rekey appears only inside quoted stderr)"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:f1696d147179346e87d9fcd65954a605ad09c0e3a41ad9d51181de3801f204b2"
+      "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
     },
     {
       "eval_id": 2,
@@ -64,21 +64,21 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md: \"Run `/rekey-work-items` to converge the corpus.\""
+          "evidence": "response.md quotes the error and says \"To fix it, run `/rekey-work-items`, or run `accelerator work rekey --preview` and then `accelerator work rekey`.\""
         },
         {
           "text": "questions.md is `none`",
           "passed": true,
-          "evidence": "questions.md contains exactly 'none'"
+          "evidence": "questions.md contains only \"none\""
         },
         {
           "text": "commands.md shows the resolve exactly once and no `accelerator work sync` or `accelerator work rekey` after it",
           "passed": true,
-          "evidence": "commands.md lists only '1. `accelerator work resolve ENG-7`'; `accelerator work rekey` appears only inside that command's quoted stderr"
+          "evidence": "commands.md lists one command: \"1. `accelerator work resolve ENG-7`\" (exit 4); `accelerator work rekey` appears only inside the quoted stderr, and no `accelerator work sync` appears."
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:f1696d147179346e87d9fcd65954a605ad09c0e3a41ad9d51181de3801f204b2"
+      "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
     }
   ],
   "run_summary": {
@@ -94,6 +94,7 @@
   "notes": [
     "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone.",
     "Eval 1 was re-run and eval 2 (a needed re-key outside promotion recovery relays and stops) added with_skill on 2026-11-18, by claude-opus-5-5, after the E_REKEY_REQUIRED branch was reordered: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
-    "Evals 1 and 2 were re-run with_skill on 2026-11-18, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
+    "Evals 1 and 2 were re-run with_skill on 2026-11-18, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
+    "Evals 1 and 2 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after rebasing onto a main whose skill had come to name `shortcut` as a wired tracker and to accept lower-case tracker keys: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
   ]
 }

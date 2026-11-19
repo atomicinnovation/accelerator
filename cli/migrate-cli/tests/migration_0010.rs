@@ -1,6 +1,8 @@
 //! Migration 0010 (`strip-research-title-prefix`) driven end to end against
-//! the compiled binary, with the ledger pre-seeded through 0009 so 0010 is the
-//! sole pending migration.
+//! the compiled binary, with every other migration pre-seeded in the ledger
+//! so 0010 is the sole pending migration.
+
+mod common;
 
 use std::fs;
 use std::path::Path;
@@ -20,18 +22,9 @@ fn write(dir: &Path, relative: &str, content: &str) -> Result<(), TestError> {
 }
 
 fn already_applied_except_0010(dir: &Path) -> Result<(), TestError> {
-    write(
+    common::mark_all_migrations_applied_except(
         dir,
-        ".accelerator/state/migrations-applied",
-        "0001-rename-tickets-to-work\n\
-         0002-rename-work-items-with-project-prefix\n\
-         0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n\
-         0005-rename-work-item-type-to-kind\n\
-         0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+        "0010-strip-research-title-prefix",
     )
 }
 
