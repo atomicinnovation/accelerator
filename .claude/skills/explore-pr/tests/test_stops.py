@@ -21,7 +21,18 @@ FIGURE = {
     "title": "Shape",
     "svg": "<svg viewBox='0 0 1 1'/>",
 }
-DESIGN = {"summary": "One port, two adapters.", "figures": [FIGURE]}
+ARTICLE = [
+    {
+        "id": "shape",
+        "heading": "One port, two adapters",
+        "blocks": [{"kind": "figure", "figure": dict(FIGURE, id="f-article")}],
+    }
+]
+DESIGN = {
+    "summary": "One port, two adapters.",
+    "figures": [FIGURE],
+    "article": ARTICLE,
+}
 DECISION = {
     "id": "d-port",
     "decision": "Reach the disk through a port",

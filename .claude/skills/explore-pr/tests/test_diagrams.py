@@ -39,6 +39,25 @@ def chapter(**fields):
     return {"chapter-first": {**CHAPTER, **fields}}
 
 
+ARTICLE = [
+    {
+        "id": "shape",
+        "heading": "The shape",
+        "blocks": [
+            {
+                "kind": "figure",
+                "figure": {
+                    "id": "f-article",
+                    "kind": "svg",
+                    "title": "Shape",
+                    "svg": "<svg viewBox='0 0 1 1'/>",
+                },
+            }
+        ],
+    }
+]
+
+
 def assembled(root, script, **content):
     (root / "content").mkdir(parents=True)
     (root / "data").mkdir()
@@ -48,7 +67,7 @@ def assembled(root, script, **content):
     base = {
         "chapter-first": CHAPTER,
         "overview": {"figures": [graph(id="g0")]},
-        "design": {"summary": "s"},
+        "design": {"summary": "s", "article": ARTICLE},
         "files": files,
     }
     for name, value in {**base, **content}.items():

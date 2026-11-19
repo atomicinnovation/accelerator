@@ -146,13 +146,25 @@ REQUIRED = {
     "accepted risk": {"id": str},
     "check": {"question": str, "problem": str},
     "focus": {"line": int},
+    "article section": {"id": str, "heading": str, "blocks": list},
+    "prose block": {"md": str},
+    "figure block": {"figure": dict},
+    "code block": {"file": str, "start": int, "end": int, "anchor": str},
+    "aside block": {"refs": list},
 }
 STOP_PARTS = (("checks", "check"), ("focus", "focus"))
 OPTIONAL = {
     "stop": {"anchorLine": int, "figure": dict},
     "ledger row": {"start": int, "end": int},
+    "code block": {"anchorLine": int},
 }
-DESCRIBED = {str: "text", int: "a whole number", dict: "an object"}
+DESCRIBED = {
+    str: "text",
+    int: "a whole number",
+    dict: "an object",
+    list: "a list",
+}
+BLOCK_KINDS = ("prose", "figure", "code", "aside")
 OBJECT_LISTS = {
     "chapter": (
         "figures",
@@ -173,6 +185,7 @@ OBJECT_LISTS = {
         "decisions",
         "principles",
         "extension",
+        "article",
     ),
     "overview": ("figures", "paths"),
 }
@@ -268,6 +281,59 @@ def well_formed_stop_parts(stop: dict, faults: list[str]) -> None:
                 None, stop[field], f"{where}: {field}", faults
             )
             stop[field] = well_formed(kind, entries, where, faults)
+
+
+def usable_block(
+    block: dict, position: int, where: str, faults: list[str]
+) -> bool:
+    kind = block.get("kind")
+    if kind not in BLOCK_KINDS:
+        faults.append(
+            f'{where}: block {position}: kind "{kind}" is not one of '
+            f"{', '.join(BLOCK_KINDS)}; left out"
+        )
+        return False
+    problem = shape_problem(f"{kind} block", block)
+    if problem:
+        faults.append(f"{where}: {kind} block {position} {problem}; left out")
+    return not problem
+
+
+def well_formed_article(design: dict, faults: list[str]) -> dict:
+    """Keep the sections and blocks of the design's article a view can use."""
+    if "article" not in design:
+        return design
+    sections = well_formed(
+        "article section", design["article"], "design", faults
+    )
+    for section in sections:
+        where = f"design article {section['id']}"
+        blocks = entries_with(
+            None, section["blocks"], f"{where}: blocks", faults
+        )
+        section["blocks"] = [
+            block
+            for position, block in enumerate(blocks, 1)
+            if usable_block(block, position, where, faults)
+        ]
+    design["article"] = sections
+    return design
+
+
+def article_blocks(design: dict) -> Iterator[tuple[str, dict]]:
+    """Yield the name and the block of every block in the design's article."""
+    for section in design.get("article", []):
+        for position, block in enumerate(section.get("blocks", []), 1):
+            kind = block.get("kind")
+            yield f"article {section.get('id')} {kind} block {position}", block
+
+
+def excerpts(design: dict) -> Iterator[tuple[str, dict]]:
+    for name, block in article_blocks(design):
+        if block.get("kind") == "code" and not shape_problem(
+            "code block", block
+        ):
+            yield name, block
 
 
 def layer_of(path: str, layers: list[dict]) -> str:
@@ -423,7 +489,9 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "title": manifest.get("title") or f"PR {pr.get('number')} explorer",
         "pr": pr,
         "overview": held(content, "overview", "overview", faults),
-        "design": held(content, "design", "design", faults),
+        "design": well_formed_article(
+            held(content, "design", "design", faults), faults
+        ),
         "chapters": ordered_chapters(manifest, content, faults),
         "ledger": concatenated(content, "ledger*.json", "ledger row", faults),
         "ledgerMeta": manifest.get("ledger", {}),
@@ -463,6 +531,10 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
     if model["moduleMap"]:
         model["moduleMap"] = module_map_graph(model["moduleMap"])
     faults += kit_warnings(model)
+    if (content / "design.json").exists() and not model["design"].get(
+        "article"
+    ):
+        faults.append("design: no article; write the design as one")
     summarised = {entry["path"] for entry in summaries}
     warnings = faults + check(model, diff) + commit_warnings(commits, diff)
     warnings += [
@@ -746,12 +818,26 @@ def ledger_anchorage(row: dict) -> dict:
     }
 
 
-def anchored_items(chapters: list[dict], ledger: list[dict]) -> Iterator:
+def excerpt_anchorage(name: str, block: dict) -> dict:
+    return {
+        "name": name,
+        "side": block.get("side", "new"),
+        "line": block.get("anchorLine", block["start"]),
+        "moves": ("start", "end", "anchorLine"),
+        "span": ("start", "end"),
+    }
+
+
+def anchored_items(
+    chapters: list[dict], ledger: list[dict], design: dict | None = None
+) -> Iterator:
     for chapter in chapters:
         for stop in chapter.get("stops", []):
             yield stop, stop_anchorage(stop)
     for row in ledger:
         yield row, ledger_anchorage(row)
+    for name, block in excerpts(design or {}):
+        yield block, excerpt_anchorage(name, block)
 
 
 def new_home(item: dict, anchorage: dict, diff: dict) -> int | None:
@@ -805,11 +891,11 @@ def anchor_problem(item: dict, anchorage: dict, diff: dict) -> str | None:
 
 
 def anchor_warnings(model: dict, diff: dict) -> list[str]:
-    """Return a warning for every stop and ledger row its code has left."""
+    """Return a warning for every stop, row and excerpt its code has left."""
     problems = [
         (anchorage["name"], anchor_problem(item, anchorage, diff))
         for item, anchorage in anchored_items(
-            model["chapters"], model["ledger"]
+            model["chapters"], model["ledger"], model["design"]
         )
     ]
     return [f"{name}: {problem}" for name, problem in problems if problem]
@@ -845,7 +931,7 @@ def moved_with_its_anchor(
 
 
 def reanchor(workspace: Path) -> list[str]:
-    """Move every stop and ledger row whose anchor has one new home."""
+    """Move every stop, ledger row and excerpt whose anchor has one new home."""
     diff = load_json(workspace / "data/diff.json", {})
     content = workspace / "content"
     report = []
@@ -863,6 +949,14 @@ def reanchor(workspace: Path) -> list[str]:
             for item, anchorage in anchored_items([], rows)
         ]
         report += rewritten(path, rows, moves)
+    path = content / "design.json"
+    design = json.loads(path.read_text()) if path.exists() else None
+    if isinstance(design, dict):
+        moves = [
+            moved_with_its_anchor(item, anchorage, diff)
+            for item, anchorage in anchored_items([], [], design)
+        ]
+        report += rewritten(path, design, moves)
     return report
 
 
@@ -992,6 +1086,11 @@ NO_LONGER_DRAWN = {
 def placed_figures(model: dict) -> list[tuple[str, dict]]:
     placed = [("overview", f) for f in model["overview"].get("figures", [])]
     placed += [("design", f) for f in model["design"].get("figures", [])]
+    placed += [
+        ("design article", block["figure"])
+        for _, block in article_blocks(model["design"])
+        if block.get("kind") == "figure"
+    ]
     for chapter in model["chapters"]:
         where = f"chapter {chapter['id']}"
         placed += [(where, f) for f in chapter.get("figures", [])]
@@ -1767,6 +1866,64 @@ def reference_warnings(model: dict, diff: dict) -> list[str]:
     return warnings
 
 
+MOST_EXCERPT_LINES = 15
+MOST_PROSE_WORDS = 150
+
+
+def article_block_problems(
+    block: dict, declared: set[str], diff: dict
+) -> list[str]:
+    if block["kind"] == "prose":
+        words = len(block["md"].split())
+        return (
+            [Note(f"prose block of {words} words; keep it to 150")]
+            if words > MOST_PROSE_WORDS
+            else []
+        )
+    if block["kind"] == "aside":
+        return [
+            f"aside names unknown {ref}"
+            for ref in block["refs"]
+            if ref not in declared
+        ]
+    if block["kind"] != "code":
+        return []
+    problems = []
+    lines = block["end"] - block["start"] + 1
+    if lines > MOST_EXCERPT_LINES:
+        problems.append(
+            f"excerpt of {lines} lines; keep it to 15 and show more at a stop"
+        )
+    if block["file"] not in diff:
+        return [*problems, f"{block['file']} not in diff"]
+    last = last_line(diff[block["file"]], block.get("side", "new"))
+    if not 1 <= block["start"] <= block["end"] <= last:
+        problems.append(
+            f"lines {block['start']}-{block['end']} outside 1-{last} of "
+            f"{block['file']}"
+        )
+    return problems
+
+
+def article_warnings(model: dict, diff: dict) -> list[str]:
+    """Return warnings for an article that cannot be shown or read well."""
+    article = model["design"].get("article", [])
+    if not article:
+        return []
+    declared = declared_ids(model, EVIDENCED_KEYS)
+    blocks = list(article_blocks(model["design"]))
+    warnings = [
+        at(f"design {name}", problem)
+        for name, block in blocks
+        for problem in article_block_problems(block, declared, diff)
+    ]
+    if not any(block["kind"] == "figure" for _, block in blocks):
+        warnings.append(
+            "design article: no figure; draw the shape it describes"
+        )
+    return warnings
+
+
 def check(model: dict, diff: dict) -> list[str]:
     """Return a warning for every reference the page could not honour."""
     warnings = []
@@ -1783,6 +1940,7 @@ def check(model: dict, diff: dict) -> list[str]:
     warnings += anchor_warnings(model, diff)
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
+    warnings += article_warnings(model, diff)
     warnings += evidence_warnings(model, diff)
     warnings += reference_warnings(model, diff)
     warnings += vocabulary_warnings(model)
