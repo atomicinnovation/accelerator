@@ -817,6 +817,12 @@ offered, so a sibling's note written mid-batch never changes it. The command
 answers only for a node in the run's current offered batch, and writes
 nothing. A node of an earlier batch, or one withheld, is refused.
 
+The web profile and the level-note outputter use `{search budget}` without
+defining it. The researcher resolves it: the query's `search_budget` when it
+prints one, else a search budget injected into its prompt, else none, and
+then as many `WebSearch` calls as the question needs. An `agents.researcher`
+override must resolve it the same way, or it ignores the run's search quota.
+
 #### Exit codes
 
 Each exit code below exits `1`:
