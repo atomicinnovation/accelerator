@@ -33,12 +33,10 @@ fn non_utf8(path: &Path) -> Error {
 
 /// Clean, dirty, and detached git checkouts.
 ///
-/// `pub` because the fail-safe and malformed-log tests reach only this family.
-///
 /// # Errors
 ///
 /// When a fixture cannot be built.
-pub fn build_plain_git_states(
+pub(crate) fn build_plain_git_states(
     work: &Path,
     env: &Hermetic,
     states: &mut BTreeMap<&'static str, PathBuf>,
@@ -309,7 +307,7 @@ fn build_sha256_git_state(
 /// # Errors
 ///
 /// When a fixture cannot be built (git/jj missing, or a filesystem failure).
-pub fn build_states(
+pub(crate) fn build_states(
     work: &Path,
     env: &Hermetic,
 ) -> Result<BTreeMap<&'static str, PathBuf>, Error> {
@@ -462,7 +460,7 @@ pub fn build_bookmark_states(
 /// # Errors
 ///
 /// When the fixture cannot be built.
-pub fn build_adversarial_state(
+pub(crate) fn build_adversarial_state(
     work: &Path,
     env: &Hermetic,
     states: &mut BTreeMap<&'static str, PathBuf>,
@@ -514,7 +512,7 @@ impl States {
     /// # Errors
     ///
     /// When `base` lies inside a repository, or any builder fails.
-    pub fn build_in(base: &Path) -> Result<Self, Error> {
+    pub(crate) fn build_in(base: &Path) -> Result<Self, Error> {
         assert_no_repository_ancestor(base)?;
         fs::create_dir_all(base)?;
         let base = base.canonicalize()?;

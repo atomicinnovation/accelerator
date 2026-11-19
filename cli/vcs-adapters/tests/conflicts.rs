@@ -11,8 +11,8 @@ use vcs::status::ChangeType;
 use vcs::VcsKind;
 use vcs::VcsReporter;
 use vcs_adapters::library::InProcessProbe;
-use vcs_test_support::hermetic::Hermetic;
-use vcs_test_support::status_log;
+use vcs_test_support::status_log::StatusLogPart;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -31,20 +31,19 @@ fn reported_conflicts(
 
 #[test]
 fn real_merge_conflicts_are_reported_conflicted() -> Result<(), TestError> {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-conflicts-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states =
+        workbench.writable_status_log_states(StatusLogPart::Conflicts)?;
+    let env = workbench.hermetic();
 
-    let git = states.get("conflict-git").ok_or("conflict-git missing")?;
+    let git = states.get("conflict-git")?;
     let git_oracle: BTreeSet<String> = env
         .git(&["diff", "--name-only", "--diff-filter=U"], git)?
         .lines()
         .map(str::to_owned)
         .collect();
 
-    let jj = states.get("conflict-jj").ok_or("conflict-jj missing")?;
+    let jj = states.get("conflict-jj")?;
     let jj_oracle: BTreeSet<String> = env
         .jj(&["resolve", "--list"], jj)?
         .lines()

@@ -14,11 +14,13 @@ _MATRIX = frozenset({Family.MATRIX})
 _STATUS_LOG = frozenset({Family.STATUS_LOG})
 
 CONSUMERS: Mapping[str, frozenset[Family]] = {
+    "accelerator-vcs::status_log_goldens": _STATUS_LOG,
     "vcs-adapters::classify": _MATRIX,
+    "vcs-adapters::conflicts": _STATUS_LOG,
     "vcs-adapters::queries": _MATRIX,
     "vcs-adapters::scrub": _MATRIX,
-    "vcs-test-support::matrix": _MATRIX,
     "vcs-test-support::copy_fidelity": _STATUS_LOG,
+    "vcs-test-support::matrix": _MATRIX,
     "vcs-test-support::status_log_parts": _STATUS_LOG,
     "vcs-test-support::status_log_states": _STATUS_LOG,
 }

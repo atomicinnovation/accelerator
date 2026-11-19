@@ -37,6 +37,8 @@ def test_the_matrix_consumers_are_the_four_binaries_that_adopt_it():
 
 def test_the_status_log_consumers_are_the_binaries_that_adopt_or_copy_it():
     assert consumers_of(Family.STATUS_LOG) == {
+        "accelerator-vcs::status_log_goldens",
+        "vcs-adapters::conflicts",
         "vcs-test-support::copy_fidelity",
         "vcs-test-support::status_log_parts",
         "vcs-test-support::status_log_states",
@@ -55,8 +57,47 @@ def test_the_capture_was_taken_with_the_pinned_nextest():
     )
 
 
-def test_every_consumer_matching_consumes_the_matrix():
-    assert _consumed_by(lambda _binary, _name: True) == {Family.MATRIX}
+def test_every_consumer_matching_consumes_both_families():
+    assert _consumed_by(lambda _binary, _name: True) == {
+        Family.MATRIX,
+        Family.STATUS_LOG,
+    }
+
+
+def test_a_private_set_test_in_a_consumer_binary_consumes_its_family():
+    consumed = _consumed_by(
+        lambda _binary, name: name == "the_log_is_capped_at_five_entries"
+    )
+
+    assert consumed == {Family.STATUS_LOG}
+
+
+def test_only_the_parity_binary_matching_consumes_nothing():
+    consumed = _consumed_by(
+        lambda binary, _name: binary == "accelerator-vcs::status_log_parity"
+    )
+
+    assert consumed == frozenset()
+
+
+def test_only_the_conflicts_binary_matching_consumes_the_status_log_set():
+    consumed = _consumed_by(
+        lambda binary, _name: binary == "vcs-adapters::conflicts"
+    )
+
+    assert consumed == {Family.STATUS_LOG}
+
+
+def test_a_classify_test_and_the_conflicts_binary_consume_both_families():
+    consumed = _consumed_by(
+        lambda binary, name: (
+            binary == "vcs-adapters::conflicts"
+            or name
+            == "a_broken_jj_store_pointer_fails_rather_than_misclassifies"
+        )
+    )
+
+    assert consumed == {Family.MATRIX, Family.STATUS_LOG}
 
 
 def test_only_a_non_consumer_matching_consumes_nothing():

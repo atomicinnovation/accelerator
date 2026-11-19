@@ -16,6 +16,7 @@ use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::masks;
 use vcs_test_support::masks::Mask;
 use vcs_test_support::status_log;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -126,16 +127,14 @@ fn assert_log_line_shape(
 fn status_and_log_render_in_the_same_shape_from_both_backends(
 ) -> Result<(), TestError> {
     let masks = masks::load(&masks_path())?;
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-parity-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_parity_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states = workbench.private_states(status_log::build_parity_states)?;
+    let env = workbench.hermetic();
     let git = states.get("parity-git").ok_or("parity-git missing")?;
     let jj = states.get("parity-jj").ok_or("parity-jj missing")?;
 
-    let git_changes = status_shape(&run_vcs(&env, "status", git)?);
-    let jj_changes = status_shape(&run_vcs(&env, "status", jj)?);
+    let git_changes = status_shape(&run_vcs(env, "status", git)?);
+    let jj_changes = status_shape(&run_vcs(env, "status", jj)?);
 
     let modified_tracked = ("modified".to_owned(), "tracked.txt".to_owned());
     assert!(
@@ -147,24 +146,22 @@ fn status_and_log_render_in_the_same_shape_from_both_backends(
         "jj must render the modified tracked file: {jj_changes:?}"
     );
 
-    assert_log_line_shape(&masks, &run_vcs(&env, "log", git)?)?;
-    assert_log_line_shape(&masks, &run_vcs(&env, "log", jj)?)?;
+    assert_log_line_shape(&masks, &run_vcs(env, "log", git)?)?;
+    assert_log_line_shape(&masks, &run_vcs(env, "log", jj)?)?;
     Ok(())
 }
 
 #[test]
 fn a_five_commit_log_carries_no_author_date_or_graph() -> Result<(), TestError>
 {
-    let work = tempfile::Builder::new()
-        .prefix("vcs-status-log-content-")
-        .tempdir()?;
-    let env = Hermetic::rooted_at(work.path())?;
-    let states = status_log::build_cap_states(work.path(), &env)?;
+    let workbench = Workbench::for_this_test()?;
+    let states = workbench.private_states(status_log::build_cap_states)?;
+    let env = workbench.hermetic();
     let git = states.get("cap-git").ok_or("cap-git missing")?;
 
     // Author/date must be checked on the raw render — a committed mask would
     // rewrite a leaked timestamp or email and pass falsely.
-    let raw = run_vcs(&env, "log", git)?;
+    let raw = run_vcs(env, "log", git)?;
     assert_eq!(raw.lines().count(), 5, "the log is five entries: {raw:?}");
     for line in raw.lines() {
         let (_id, subject) = line

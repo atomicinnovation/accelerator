@@ -53,7 +53,7 @@
     ],
     "target-platform": null
   },
-  "test-count": 28,
+  "test-count": 42,
   "rust-suites": {
     "vcs-adapters::classify": {
       "package-name": "vcs-adapters",
@@ -308,6 +308,156 @@
           }
         },
         "the_walk_finds_the_root_from_a_nested_directory": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "vcs-adapters::conflicts": {
+      "package-name": "vcs-adapters",
+      "binary-id": "vcs-adapters::conflicts",
+      "binary-name": "conflicts",
+      "package-id": "path+file:///workspace/cli/vcs-adapters#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/conflicts-06d34052a0f21896",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-adapters",
+      "status": "listed",
+      "testcases": {
+        "real_merge_conflicts_are_reported_conflicted": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "accelerator-vcs::status_log_goldens": {
+      "package-name": "accelerator-vcs",
+      "binary-id": "accelerator-vcs::status_log_goldens",
+      "binary-name": "status_log_goldens",
+      "package-id": "path+file:///workspace/cli/vcs-cli#accelerator-vcs@1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/status_log_goldens-cdfcc8784f3ce039",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-cli",
+      "status": "listed",
+      "testcases": {
+        "a_conflict_status_carries_the_conflicted_marker_and_path": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_forced_adapter_failure_emits_the_gix_token_to_stderr": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_jj_bookmark_header_lists_the_byte_sorted_bookmarks": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_malformed_accelerator_log_still_renders_and_exits_zero": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_rename_renders_as_deleted_old_plus_added_new": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "an_empty_history_renders_no_commits": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "fail_safe_has_no_effect_on_a_successful_status_or_log": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "status_and_log_match_every_captured_state": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_log_is_capped_at_five_entries": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "accelerator-vcs::status_log_parity": {
+      "package-name": "accelerator-vcs",
+      "binary-id": "accelerator-vcs::status_log_parity",
+      "binary-name": "status_log_parity",
+      "package-id": "path+file:///workspace/cli/vcs-cli#accelerator-vcs@1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/status_log_parity-b3f33473d0aca405",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-cli",
+      "status": "listed",
+      "testcases": {
+        "a_five_commit_log_carries_no_author_date_or_graph": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "status_and_log_render_in_the_same_shape_from_both_backends": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "vcs-test-support::status_log_states": {
+      "package-name": "vcs-test-support",
+      "binary-id": "vcs-test-support::status_log_states",
+      "binary-name": "status_log_states",
+      "package-id": "path+file:///workspace/cli/vcs-test-support#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/status_log_states-4e46696d0bab3d36",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-test-support",
+      "status": "listed",
+      "testcases": {
+        "every_status_log_state_is_built": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "no_state_names_the_directory_it_was_built_in": {
           "kind": "test",
           "ignored": false,
           "filter-match": {

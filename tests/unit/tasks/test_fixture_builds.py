@@ -2,8 +2,9 @@
 
 The compiler stops tests calling the shared families' builders directly. An
 explicit ``Workbench::with`` can still hide a test's builds from the run's
-fixture log, and a direct ``copy_part`` can copy a shared tree without the
-log recording it.
+fixture log, a direct ``copy_part`` can copy a shared tree without the log
+recording it, and a private set built by calling its builder never reaches
+the log's private-set count.
 """
 
 from pathlib import Path
@@ -29,6 +30,18 @@ GUARDED_CALLS = {
         "Workbench::writable_status_log_states()",
         frozenset({TESTS / "copies.rs", TESTS / "copy_fidelity.rs"}),
     ),
+    **{
+        f"{builder}(": (
+            "builds a private set the run's fixture log never sees; pass "
+            f"the builder to Workbench::private_states({builder})",
+            frozenset(),
+        )
+        for builder in (
+            "build_cap_states",
+            "build_bookmark_states",
+            "build_parity_states",
+        )
+    },
 }
 
 
@@ -106,6 +119,33 @@ def test_a_direct_copy_elsewhere_is_named_by_file_and_line(
         " shared tree without logging the copy; use"
         " Workbench::writable_status_log_states()"
     ]
+
+
+def test_a_private_set_builder_called_directly_is_named(
+    tmp_path: Path,
+) -> None:
+    _test_source(
+        tmp_path,
+        "cli/vcs-cli/tests/status_log_parity.rs",
+        "let states = status_log::build_cap_states(work, &env)?;\n",
+    )
+    assert violations(tmp_path) == [
+        "cli/vcs-cli/tests/status_log_parity.rs:1: build_cap_states( builds"
+        " a private set the run's fixture log never sees; pass the builder"
+        " to Workbench::private_states(build_cap_states)"
+    ]
+
+
+def test_a_private_set_builder_passed_to_the_workbench_passes(
+    tmp_path: Path,
+) -> None:
+    _test_source(
+        tmp_path,
+        "cli/vcs-cli/tests/status_log_parity.rs",
+        "let states = workbench.private_states(status_log::build_cap_states)?;"
+        "\n",
+    )
+    assert violations(tmp_path) == []
 
 
 def test_no_test_hides_a_fixture_build_from_the_log() -> None:

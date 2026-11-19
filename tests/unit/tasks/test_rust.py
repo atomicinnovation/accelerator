@@ -755,6 +755,27 @@ class TestTestUnitCli:
             tests == f"cargo nextest run {test_cli._MANIFEST} -E '{CLASSIFY}'"
         )
 
+    def test_a_filter_consuming_only_the_status_log_set_builds_only_it(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        self._filtered_to(
+            lane, lambda binary, _name: binary == "vcs-adapters::conflicts"
+        )
+
+        test_cli.run(lane, filter_="binary_id(vcs-adapters::conflicts)")
+
+        builder = self._builder_call(lane, build_dir).args[0]
+        [_executable, flag, tree] = shlex.split(builder)
+        assert flag == "--status-log"
+        assert Path(tree).name == "status-log"
+        handover = self._call(lane, "cargo nextest run").kwargs["env"]
+        assert handover[Family.STATUS_LOG.handover_variable] == tree
+        assert Family.MATRIX.handover_variable not in handover
+
     def test_the_listing_leaves_nextest_s_own_errors_on_the_terminal(
         self, lane: MagicMock
     ):

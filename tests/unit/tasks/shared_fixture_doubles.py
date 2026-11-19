@@ -17,11 +17,15 @@ BUILDER = "/workspace/cli/target/debug/shared-fixtures"
 CAPTURE = Path(__file__).parent / "fixtures/shared-fixtures"
 CAPTURED_BINARIES = frozenset(
     {
+        "accelerator-vcs::status_log_goldens",
+        "accelerator-vcs::status_log_parity",
         "vcs-adapters::classify",
+        "vcs-adapters::conflicts",
+        "vcs-adapters::detection",
         "vcs-adapters::queries",
         "vcs-adapters::scrub",
-        "vcs-adapters::detection",
         "vcs-test-support::matrix",
+        "vcs-test-support::status_log_states",
     }
 )
 
