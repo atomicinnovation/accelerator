@@ -490,14 +490,39 @@ class TestFailingTests:
     def test_carry_their_failure_and_skip_the_silent_consumer_check(
         self, harness: Harness
     ):
-        with pytest.raises(SharedFixturesError) as failure:
+        with pytest.raises(Exit) as failure:
             harness.run(_failing_cli_tests)
 
         assert str(failure.value) == "nextest: cli tests failed"
+        assert failure.value.code == 1
         assert [d["phase"] for d in harness.events("tree-digest")] == [
             "built",
             "removed",
         ]
+
+    def test_fail_the_run_even_without_a_message(self, harness: Harness):
+        def failing_silently(handover: Mapping[str, str]) -> None:
+            adopt_everywhere(handover)
+            raise Exit(code=1)
+
+        with pytest.raises(Exit) as failure:
+            harness.run(failing_silently)
+
+        assert failure.value.code == 1
+
+    def test_without_a_message_are_named_beside_a_problem(
+        self, harness: Harness
+    ):
+        def deleting_silently(handover: Mapping[str, str]) -> None:
+            shutil.rmtree(handover[Family.MATRIX.handover_variable])
+            raise Exit(code=1)
+
+        with pytest.raises(SharedFixturesError) as failure:
+            harness.run(deleting_silently)
+
+        [body, problem] = str(failure.value).splitlines()
+        assert body == repr(Exit(code=1))
+        assert "could not digest the matrix tree" in problem
 
     def test_that_deleted_a_tree_are_named_with_it(self, harness: Harness):
         def deleting(handover: Mapping[str, str]) -> None:

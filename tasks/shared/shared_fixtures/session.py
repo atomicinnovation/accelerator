@@ -162,10 +162,15 @@ class SharedFixtureSession:
         failure: Exception | None,
     ) -> None:
         with deferred_signals(UNWIND_SIGNALS):
-            outcome = RunOutcome(
-                body_failure=None if failure is None else str(failure),
-                problems=self._clean_up(progress, runs, filtered, failure),
-            )
+            problems = self._clean_up(progress, runs, filtered, failure)
+        if failure is not None and not problems:
+            raise failure
+        outcome = RunOutcome(
+            body_failure=None
+            if failure is None
+            else str(failure) or repr(failure),
+            problems=problems,
+        )
         message = outcome.failure()
         if message is None:
             return
