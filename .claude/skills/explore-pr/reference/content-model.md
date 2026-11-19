@@ -19,6 +19,7 @@ orchestrator, the reading passes and the page.
     accepted-risks.json   risks the plan or description accepts by name
     criteria.json         acceptance criteria to tests (scripts/criteria_map.py)
     modmap.json           module map: layers, nodes, edges
+    readiness.json        the recommended verdict and what would change it, written last
   data/diff.json          per-file diff (scripts/extract_diff.py)
   data/commits.json       per-commit hunks, traced onto the diff (scripts/extract_commits.py)
   views/*.js              PR-specific views (reference/custom-views.md)
@@ -363,6 +364,30 @@ abstractions or invariants by id and links each to its entry in Reference.
 `principles` and `extension` are drawn as tables in the Decisions
 catalogue; say what matters about them in the article.
 `examples/design-article.json` shows the standard expected.
+
+## `readiness.json`
+
+Written last, from the reconciled findings, the design assessment and CI.
+**Readiness**, the first view under Decide, shows it above the gates the page
+works out for itself (CI, design decisions, fit with the architecture,
+findings, high-risk files, invariants, criteria, breaking changes, accepted
+risks, the ledger and chapters, each `met`, `needs-you` or `not-met`) and the
+reviewer's own verdict.
+
+```jsonc
+{
+  "recommendation": "approve|request-changes|comment",
+  "summary": "md, ≤ 3 sentences: the assessment behind it",
+  "conditions": [{
+    "when": "before-merge|would-improve",
+    "text": "md: what has to happen",
+    "refs": ["R1-06", "claims-i1", "d-claim-heartbeat"]   // findings, invariants, decisions, stops or chapters
+  }]
+}
+```
+
+The build warns when the file is absent, and about a `ref` that names no
+finding, observation, declared item, stop or chapter.
 
 ## `overview.json`
 

@@ -663,6 +663,7 @@ function onStateChange() {
   renderMeters();
   renderRail();
   if (currentRoute === 'notes') refreshNotes();
+  if (currentRoute === 'readiness') refreshReadiness();
 }
 
 function renderBanner() {
@@ -1089,7 +1090,7 @@ function render() {
   [currentRoute, currentSub] = parseHash();
   renderRail();
   const main = $('#main');
-  const views = { overview: vOverview, design: vDesign, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, decisions: vDecisions, abstractions: vAbstractions, invariants: vInvariants, tests: vTests, files: vFiles, terms: vTerms, notes: vNotes };
+  const views = { overview: vOverview, design: vDesign, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, readiness: vReadiness, decisions: vDecisions, abstractions: vAbstractions, invariants: vInvariants, tests: vTests, files: vFiles, terms: vTerms, notes: vNotes };
   customViews.forEach(v => { views[v.id] = () => v.render(api()); after[v.id] = () => v.mount && v.mount($('#main'), api()); });
   main.innerHTML = `<div class="view"><div class="banner" id="store-banner" hidden></div>${views[currentRoute]()}</div>`;
   renderBanner();
@@ -1286,11 +1287,6 @@ after.design = () => { if (D) fillPendingSlices(); };
 function vOverview() {
   const pr = C.pr, o = C.overview || {};
   const t = totals();
-  const blocks = [];
-  ((C.ci || {}).checks || []).filter(c => c.status === 'fail').forEach(c => blocks.push(`<li><span class="chip c-fail">CI</span> ${esc(c.name)}: ${md(c.cause, true)}</li>`));
-  C.findings.filter(f => Store.get('finding:' + f.id).status === 'block').forEach(f => blocks.push(`<li><span class="chip c-block">you</span> <b>${f.id}</b> ${md(f.summary, true)}</li>`));
-  C.chapters.filter(c => Store.get('chapter:' + c.id).status === 'blocking').forEach(c => blocks.push(`<li><span class="chip c-blocking">chapter</span> ${esc(c.title)}</li>`));
-  const forkBlocks = C.findings.filter(f => (C.findingCheck[f.id] || {}).triage === 'block' && !Store.get('finding:' + f.id).status);
   const breaking = (C.breaking || []).map(b => `<div class="ba-aspect">${md(b.title, true)} <span class="muted small" style="font-weight:400">· ${esc(b.affects || '')}</span></div><div><div class="eyebrow">Before</div><div class="md small">${md(b.before)}</div></div><div><div class="eyebrow">After</div><div class="md small">${md(b.after)}</div><div class="small" style="margin-top:6px">${whereBtn(b.where)} ${b.changelog ? '· ' + whereBtn(b.changelog) : ''}</div></div>`).join('');
   const ci = ((C.ci || {}).checks || []);
   const ciRows = ci.filter(c => c.status !== 'skipped').map(c => `<tr><td><span class="chip c-${c.status === 'pass' ? 'pass' : c.status}">${c.status}</span></td><td>${esc(c.name)}</td><td class="small">${md(c.cause || '', true)}${c.fix ? `<div><b>Fix:</b> ${md(c.fix, true)}</div>` : ''}</td></tr>`).join('');
@@ -1316,15 +1312,7 @@ function vOverview() {
   ${hasDesign() ? `<section class="section"><h2>The design</h2><div class="panel stack">${(C.design || {}).summary ? `<div class="md">${md(C.design.summary)}</div>` : ''}<div class="small"><a href="#design">Read how the change is designed →</a></div></div></section>` : ''}
 
   <div class="grid-2">
-    <section class="panel stack">
-      <div class="eyebrow">Your verdict</div>
-      ${ctl('decision', 'decision', { label: `Overall verdict on PR ${pr.number}` }, { noteOpen: true })}
-      <div class="stack small">
-        <div class="eyebrow">What stands in the way</div>
-        ${blocks.length ? `<ul class="prose" style="margin:0">${blocks.join('')}</ul>` : '<span class="muted">Nothing marked blocking yet.</span>'}
-        ${forkBlocks.length ? `<div class="muted">The code-reading pass recommends blocking on ${forkBlocks.map(f => findingLink(f.id)).join(', ')}. You have not triaged ${forkBlocks.length === 1 ? 'it' : 'them'} yet.</div>` : ''}
-      </div>
-    </section>
+    ${readinessStrip()}
     <section class="panel stack">
       <div class="eyebrow">Where you are</div>
       <table class="data small"><tbody>
@@ -1366,6 +1354,82 @@ const BLANK_FILTERS = {
 const filters = Object.fromEntries(Object.entries(BLANK_FILTERS).map(([route, blank]) => [route, { ...blank }]));
 const jumpLink = (route, filter, label, attrs = '') => `<a href="#${route}" data-jump="${route}" data-filter="${esc(JSON.stringify(filter))}"${attrs}>${label}</a>`;
 const findingLink = (id, label = id, attrs = '') => jumpLink('findings', { q: id }, esc(label), attrs);
+/* Readiness */
+const GATE_CHIP = { met: ['c-ok', 'met'], 'needs-you': ['c-warn', 'needs you'], 'not-met': ['c-bad', 'not met'] };
+const RECOMMENDATION = { approve: ['c-ok', 'Approve'], 'request-changes': ['c-bad', 'Request changes'], comment: ['c-warn', 'Comment'] };
+const MOST_OUTSTANDING_LISTED = 5;
+function readinessGates() {
+  return Readiness.gates(C, target => Store.get(target), path => coverageOf(path));
+}
+function gateCard(gate) {
+  const [tone, said] = GATE_CHIP[gate.state];
+  const listed = gate.outstanding.slice(0, MOST_OUTSTANDING_LISTED).map(item => `<li>${esc(item.label)}</li>`).join('');
+  const more = gate.outstanding.length - MOST_OUTSTANDING_LISTED;
+  return `<article class="finding gate" data-gate="${esc(gate.id)}" data-state="${gate.state}">
+    <div class="finding-head"><b style="flex:1;min-width:0">${esc(gate.title)}</b><span class="chip ${tone}">${said}</span></div>
+    <div class="small">${esc(gate.detail)}</div>
+    ${listed ? `<ul class="prose small" style="margin:0">${listed}${more > 0 ? `<li class="muted">and ${more} more</li>` : ''}</ul>` : ''}
+    ${gate.outstanding.length ? `<div class="small">${jumpLink(gate.jump.route, gate.jump.filter, 'Open the outstanding items')}</div>` : ''}
+    ${gate.id === 'architecture' ? `<details><summary>The principles</summary>${principlesTable(CATALOGUE.principles)}</details>` : ''}
+  </article>`;
+}
+function refLink(id) {
+  if (F[id]) return findingLink(id);
+  const declared = EVIDENCE.declared(id);
+  if (declared) {
+    const [, prefix, route] = CARRIED[declared.kind];
+    return jumpLink(route, {}, esc(id), ` data-scroll-to="${esc(prefix + id)}" title="${esc(plain(declared.label))}"`);
+  }
+  if (STOP_CHAPTER[id]) return `<a href="#tour-${esc(STOP_CHAPTER[id])}" data-scroll-stop="${esc(id)}">${esc(id)}</a>`;
+  return chapterLink(id) || `<code>${esc(id)}</code>`;
+}
+function readinessAssessment() {
+  const r = C.readiness || {};
+  if (!r.recommendation && !r.summary) return '';
+  const [tone, said] = RECOMMENDATION[r.recommendation] || ['c-none', 'No recommendation'];
+  const conditions = [['before-merge', 'Before merge'], ['would-improve', 'Would improve it']].map(([when, heading]) => {
+    const listed = (r.conditions || []).filter(c => c.when === when);
+    return listed.length ? `<div class="stack"><div class="eyebrow">${heading}</div><ul class="prose" style="margin:0">${listed.map(c => `<li>${md(c.text, true)}${(c.refs || []).length ? ` <span class="small">${c.refs.map(refLink).join(' ')}</span>` : ''}</li>`).join('')}</ul></div>` : '';
+  }).join('');
+  return `<section class="panel stack"><div class="row"><span class="eyebrow">The skill recommends</span><span class="chip ${tone}">${esc(said)}</span></div>${r.summary ? `<div class="md">${md(r.summary)}</div>` : ''}${conditions}</section>`;
+}
+function standsInTheWay() {
+  const blocks = [];
+  ((C.ci || {}).checks || []).filter(c => c.status === 'fail').forEach(c => blocks.push(`<li><span class="chip c-fail">CI</span> ${esc(c.name)}: ${md(c.cause, true)}</li>`));
+  C.findings.filter(f => Store.get('finding:' + f.id).status === 'block').forEach(f => blocks.push(`<li><span class="chip c-block">you</span> <b>${f.id}</b> ${md(f.summary, true)}</li>`));
+  C.chapters.filter(c => Store.get('chapter:' + c.id).status === 'blocking').forEach(c => blocks.push(`<li><span class="chip c-blocking">chapter</span> ${esc(c.title)}</li>`));
+  const forkBlocks = C.findings.filter(f => (C.findingCheck[f.id] || {}).triage === 'block' && !Store.get('finding:' + f.id).status);
+  return `${blocks.length ? `<ul class="prose" style="margin:0">${blocks.join('')}</ul>` : '<span class="muted">Nothing marked blocking yet.</span>'}
+    ${forkBlocks.length ? `<div class="muted">The code-reading pass recommends blocking on ${forkBlocks.map(f => findingLink(f.id)).join(', ')}. You have not triaged ${forkBlocks.length === 1 ? 'it' : 'them'} yet.</div>` : ''}`;
+}
+const gatesHtml = () => readinessGates().map(gateCard).join('');
+let shownGates = '';
+function vReadiness() {
+  const assessment = readinessAssessment();
+  shownGates = gatesHtml();
+  return `<div class="view-head"><div class="eyebrow">Decide</div><h1>Is it ready to merge?</h1>
+    <p class="lede">The skill's recommendation and what would change it; then the gates the page works out from the content and from what you have recorded; then your own verdict.</p></div>
+    ${assessment}
+    <section class="section"><h2>Gates</h2><div class="grid-2" id="gates">${shownGates}</div></section>
+    <section class="panel stack"><div class="eyebrow">Your verdict</div>
+      ${ctl('decision', 'decision', { label: `Overall verdict on PR ${C.pr.number}` }, { noteOpen: true })}
+      <div class="stack small"><div class="eyebrow">What stands in the way</div><div class="stack" id="in-the-way">${standsInTheWay()}</div></div>
+    </section>`;
+}
+function refreshReadiness() {
+  const gates = gatesHtml();
+  if (gates !== shownGates) { $('#gates').innerHTML = gates; shownGates = gates; }
+  $('#in-the-way').innerHTML = standsInTheWay();
+}
+function readinessStrip() {
+  const gates = readinessGates();
+  const counts = ['not-met', 'needs-you', 'met'].map(state => [state, gates.filter(gate => gate.state === state).length]).filter(([, n]) => n);
+  const [tone, said] = RECOMMENDATION[(C.readiness || {}).recommendation] || [];
+  return `<section class="panel stack"><div class="eyebrow">Readiness</div>
+    ${said ? `<div class="row"><span class="muted small">The skill recommends</span><span class="chip ${tone}">${esc(said)}</span></div>` : ''}
+    <div class="count-row">${counts.map(([state, n]) => `<span class="chip ${GATE_CHIP[state][0]}">${n} ${GATE_CHIP[state][1]}</span>`).join('')}</div>
+    <div class="small"><a href="#readiness">Check readiness and give your verdict →</a></div></section>`;
+}
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-jump]');
   if (!a) return;
@@ -1373,6 +1437,7 @@ document.addEventListener('click', e => {
   const route = a.dataset.jump, filter = JSON.parse(a.dataset.filter || '{}');
   if (route === 'findings' && (C.findingAliases || {})[filter.q]) filter.q = C.findingAliases[filter.q];
   if (BLANK_FILTERS[route]) filters[route] = { ...BLANK_FILTERS[route], ...filter };
+  if (route === 'ledger') ledgerFilter = { facets: {}, concern: '', status: '', ...filter };
   if (location.hash !== '#' + route) location.hash = route; else render();
 });
 function filterSelect(route, key, options) {
@@ -2049,7 +2114,7 @@ after.notes = () => {
 
 /* ---------- Extension API ---------- */
 const source = () => (C.findingsMeta || {}).source || 'the earlier review';
-const api = () => ({ content: C, diff: D, commits: COMMIT, md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
+const api = () => ({ content: C, diff: D, commits: COMMIT, coverageOf: path => coverageOf(path), md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
 window.ExplorePR = {
   registerView(view) {
     if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);

@@ -269,14 +269,16 @@ where they disagree, reading the code; join one thing's observations with
   parts toned `new` and linked to their chapters. Someone who reads only this
   figure should know what the PR does.
 - `lede`: what the PR does, then the headline assessment, design first:
-  whether the design is sound and any decision that is questionable, then
-  what blocks merge, what should be fixed in the PR, and what the reading
-  passes disputed.
+  whether the design is sound and any questionable decision, then what blocks
+  merge, what to fix in the PR, and what the reading passes disputed.
 - `whatChanges`: one bullet per concept.
 - `paths`: two or three ways through the page sized to the agreed goal,
-  each with an honest time and numbered steps that name the views. The first
-  is always **understand the design**: Design, then each chapter's figures
-  and the decisions its stops set out, in about half an hour.
+  each with an honest time and numbered steps that name the views, ending at
+  Readiness where it helps. The first is always **understand the design**:
+  Design, then each chapter's figures and its stops' decisions, half an hour.
+
+Write `content/readiness.json` last (content model): your recommendation and
+the conditions that would change it, from the reconciled findings and CI.
 
 ### 9. Build and verify
 
@@ -344,12 +346,10 @@ written, follow `{skill dir}/reference/re-running.md`.
 
 ## Report
 
-- Where the page is: the link, the file path, or both, and how many figures
-  and interactive views it carries.
-- The design in two sentences, and the design assessment: any decision the
-  passes judged questionable or unsound, and any architectural principle the
-  change strains or breaks.
-- What else the reader should know before opening it: what blocks the merge,
+- Where the page is (link, file or both) and its figures and interactive views.
+- The design in two sentences and its assessment: any questionable or unsound
+  decision, and any architectural principle the change strains or breaks.
+- The recommendation, and what else to know before opening it: what blocks,
   what should be fixed in the PR, which prior findings were disputed or
   re-raise accepted risks.
 - What was verified and how: build warnings, the smoke check, model tests,

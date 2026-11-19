@@ -984,9 +984,9 @@ store code. `KINDS` is unchanged.
 
 #### Automated Verification
 
-- [ ] The readiness model and content tests fail first, then pass.
-- [ ] Every shared verification command passes.
-- [ ] `mise run` exits 0.
+- [x] The readiness model and content tests fail first, then pass.
+- [x] Every shared verification command passes.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 

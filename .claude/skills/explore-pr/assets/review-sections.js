@@ -28,6 +28,7 @@
       ['Read', 'tour', 'Guided tour', chaptersOf(content).length > 0],
       ['Read', 'commits', 'By commit', listed(content, 'commits')],
       ['Read', 'files', 'All files', true],
+      ['Decide', 'readiness', 'Readiness', true],
       ['Decide', 'notes', 'Your notes', true],
       ['Reference', 'findings', 'Findings', listed(content, 'findings')],
       ['Reference', 'decisions', 'Decisions', hasDecisions(content)],

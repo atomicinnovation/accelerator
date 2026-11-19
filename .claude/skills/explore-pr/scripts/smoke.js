@@ -26,7 +26,9 @@
 // decision there shows at the stop that first carries it. The design reads as
 // its article: every section drawn, every excerpt's code resolved, the sign-off
 // at the end and no catalogue of cards. Findings lists every observation, its
-// source filter narrows the list, and a chapter's finding opens in Findings. Your
+// source filter narrows the list, and a chapter's finding opens in Findings.
+// Readiness draws the gates its model works out, turns the design gate when a
+// decision is disagreed with, and its verdict control drives the top bar. Your
 // notes saves what is typed in its freeform box and in a card's note, puts the
 // freeform notes first in the export, and keeps the focus while it saves.
 // A view with figures is captured at full height, in tiles 5,000 px tall when it
@@ -234,6 +236,29 @@ const EVIDENCE_PROBE = `(async () => {
   const target = document.getElementById(again[0].dataset.scrollTo);
   const top = target ? target.getBoundingClientRect().top : null;
   return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight, decisionsMetOnce, misplaced, stripMissing, gridKept };
+})()`;
+
+const READINESS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api, store = api.store, content = api.content;
+  const drawnGates = () => [...document.querySelectorAll('#gates [data-gate]')].map(gate => gate.dataset.gate + ':' + gate.dataset.state);
+  location.hash = 'readiness'; await settle();
+  const expected = window.Readiness.gates(content, target => store.get(target), path => api.coverageOf(path)).map(gate => gate.id + ':' + gate.state);
+  const gatesMatch = JSON.stringify(drawnGates()) === JSON.stringify(expected);
+  const decision = window.Catalogue.of(content).decisions.find(each => each.item.id);
+  let designTurns = null;
+  if (decision) {
+    const target = 'design:' + decision.item.id, kept = store.get(target);
+    store.put(target, 'design', { status: 'disagree' }, {}); await settle();
+    designTurns = drawnGates().includes('design:not-met');
+    store.put(target, 'design', { status: kept.status || '' }, {}); await settle();
+  }
+  const approve = () => document.querySelector('#main .ctl[data-ctl="decision"] button[data-v="approve"]');
+  const before = store.get('decision').status || '';
+  approve().click(); await settle();
+  const chipFollows = document.getElementById('decision-chip').textContent === 'Approve';
+  store.put('decision', 'decision', { status: before }, {});
+  return { gatesMatch, designTurns, chipFollows };
 })()`;
 
 const FINDINGS_PROBE = `(async () => {
@@ -467,6 +492,7 @@ async function main() {
     report.notes = await cdp.evaluate(NOTES_PROBE);
     report.design = await cdp.evaluate(DESIGN_PROBE);
     report.findings = await cdp.evaluate(FINDINGS_PROBE);
+    report.readiness = await cdp.evaluate(READINESS_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
     report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
@@ -505,10 +531,12 @@ async function main() {
   const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
+  const readiness = report.readiness || {};
+  const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

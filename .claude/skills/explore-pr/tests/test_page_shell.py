@@ -450,3 +450,28 @@ def test_verdicts_on_renamed_targets_are_carried_over_with_their_head():
     assert "TargetRenames.pending(" in renderer("carryOverRenames")
     assert "preserveHead: true" in renderer("carryOverRenames")
     assert "opts.preserveHead" in shell[shell.index("  put(target") :][:600]
+
+
+def test_readiness_gives_the_assessment_then_the_gates_then_your_verdict():
+    readiness = renderer("vReadiness")
+    layout = readiness[readiness.index("return `") :]
+
+    parts = ("${assessment}", 'id="gates"', "ctl('decision'")
+    order = [layout.index(part) for part in parts]
+    assert order == sorted(order)
+    assert "What stands in the way" in layout
+
+
+def test_the_gates_come_from_the_readiness_model_and_refresh_in_place():
+    assert "Readiness.gates(C" in renderer("readinessGates")
+    assert "refreshReadiness()" in renderer("onStateChange")
+    assert "principlesTable(" in renderer("gateCard")
+    assert "jumpLink(" in renderer("gateCard")
+
+
+def test_the_overview_keeps_a_readiness_strip_and_gives_up_the_verdict():
+    overview = renderer("vOverview")
+
+    assert "ctl('decision'" not in overview
+    assert "readinessStrip()" in overview
+    assert 'href="#readiness"' in renderer("readinessStrip")

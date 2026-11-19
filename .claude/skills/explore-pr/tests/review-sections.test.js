@@ -51,8 +51,8 @@ test('read holds the tour, the commits and every file, in that order', () => {
   assert.deepEqual(routesIn({}, 'Read'), ['files']);
 });
 
-test('decide holds your notes', () => {
-  assert.deepEqual(routesIn({}, 'Decide'), ['notes']);
+test('decide opens with readiness, then your notes', () => {
+  assert.deepEqual(routesIn({}, 'Decide'), ['readiness', 'notes']);
 });
 
 test('reference holds each catalogue whose content exists, the ledger last', () => {
