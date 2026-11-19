@@ -24,6 +24,8 @@ from tasks.shared.shared_fixtures.families import (
 from tasks.shared.shared_fixtures.runs import (
     FixtureRuns,
     HoldPoint,
+    remove_leftover,
+    seal,
     shared_fixtures_root,
 )
 
@@ -525,6 +527,58 @@ class TestSweepingAbandonedRuns:
         out = capsys.readouterr().out
         assert str(root / RUN_ID) in out
         assert "remove it by hand if no run is using it" in out
+
+
+def _writable(path: Path) -> bool:
+    return bool(path.lstat().st_mode & 0o222)
+
+
+class TestSealingATree:
+    @pytest.fixture(autouse=True)
+    def removed_afterwards(self, tmp_path: Path) -> Iterator[None]:
+        yield
+        remove_leftover(tmp_path / "matrix")
+
+    def test_leaves_nothing_in_it_writable(self, tmp_path: Path):
+        tree = tmp_path / "matrix"
+        (tree / "PG" / ".git").mkdir(parents=True)
+        (tree / "PG" / ".git" / "config").write_text("x")
+
+        seal(tree)
+
+        assert [
+            path for path in [tree, *tree.rglob("*")] if _writable(path)
+        ] == []
+
+    def test_follows_no_link(self, tmp_path: Path):
+        outside = tmp_path / "outside"
+        outside.write_text("x")
+        tree = tmp_path / "matrix"
+        tree.mkdir()
+        (tree / "link").symlink_to(outside)
+
+        seal(tree)
+
+        assert _writable(outside)
+
+    @no_permission_stops_root
+    def test_refuses_a_write_into_it(self, tmp_path: Path):
+        tree = tmp_path / "matrix"
+        tree.mkdir()
+
+        seal(tree)
+
+        with pytest.raises(PermissionError):
+            (tree / "poison.gitconfig").write_text("x")
+
+    def test_leaves_it_removable(self, tmp_path: Path):
+        tree = tmp_path / "matrix"
+        (tree / "PG").mkdir(parents=True)
+        (tree / "PG" / "file").write_text("x")
+        seal(tree)
+
+        assert remove_leftover(tree)
+        assert not tree.exists()
 
 
 class TestLiveRunIds:

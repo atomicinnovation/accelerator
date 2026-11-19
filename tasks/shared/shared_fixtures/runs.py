@@ -105,6 +105,9 @@ class FixtureRun:
             )
 
 
+_ANY_WRITE = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+
+
 class _Liveness(enum.Enum):
     LIVE = enum.auto()
     ABANDONED = enum.auto()
@@ -351,6 +354,25 @@ def remove_leftover(directory: Path, rmtree: Rmtree = shutil.rmtree) -> bool:
             except OSError:
                 return not directory.exists()
     return True
+
+
+def seal(tree: Path) -> None:
+    """Take every write permission from ``tree``, following no link.
+
+    A test that writes into a shared tree then fails at the write, rather
+    than only when the tree is digested again after every test has run.
+    """
+    for directory, _, files in os.walk(tree, topdown=False):
+        for name in files:
+            _without_write(Path(directory, name))
+        _without_write(Path(directory))
+
+
+def _without_write(path: Path) -> None:
+    status = path.lstat()
+    if stat.S_ISLNK(status.st_mode):
+        return
+    path.chmod(stat.S_IMODE(status.st_mode) & ~_ANY_WRITE)
 
 
 def _make_writable(directory: Path) -> None:

@@ -23,7 +23,12 @@ from tasks.shared.shared_fixtures.log import (
     FixtureLogs,
     TreeDigests,
 )
-from tasks.shared.shared_fixtures.runs import FixtureRun, FixtureRuns, HoldPoint
+from tasks.shared.shared_fixtures.runs import (
+    FixtureRun,
+    FixtureRuns,
+    HoldPoint,
+    seal,
+)
 from tasks.shared.signals import UNWIND_SIGNALS, deferred_signals
 
 _LOGS_KEPT = 20
@@ -135,6 +140,7 @@ class SharedFixtureSession:
             raise SharedBuildError(*error.problems) from error
         built = time.monotonic()
         for family, tree in trees.items():
+            seal(tree)
             progress.built[family] = self._digest(tree)
             progress.trees[family] = tree
             log.record_digest(

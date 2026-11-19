@@ -2,7 +2,6 @@ import io
 import json
 import os
 import re
-import shutil
 import signal
 import threading
 import time
@@ -24,7 +23,11 @@ from tasks.shared.shared_fixtures.families import (
     Family,
 )
 from tasks.shared.shared_fixtures.log import FixtureLogs
-from tasks.shared.shared_fixtures.runs import FixtureRuns, HoldPoint
+from tasks.shared.shared_fixtures.runs import (
+    FixtureRuns,
+    HoldPoint,
+    remove_leftover,
+)
 from tasks.shared.shared_fixtures.session import (
     SharedBuildError,
     SharedFixtureSession,
@@ -129,6 +132,7 @@ def harness(tmp_path: Path) -> Harness:
 def _write_into_the_tree(handover: Mapping[str, str]) -> None:
     adopt_everywhere(handover)
     tree = Path(handover[Family.MATRIX.handover_variable])
+    tree.chmod(0o755)
     (tree / "poison.gitconfig").write_text("x")
 
 
@@ -521,7 +525,7 @@ class TestFailingTests:
         self, harness: Harness
     ):
         def deleting_silently(handover: Mapping[str, str]) -> None:
-            shutil.rmtree(handover[Family.MATRIX.handover_variable])
+            remove_leftover(Path(handover[Family.MATRIX.handover_variable]))
             raise Exit(code=1)
 
         with pytest.raises(SharedFixturesError) as failure:
@@ -533,7 +537,7 @@ class TestFailingTests:
 
     def test_that_deleted_a_tree_are_named_with_it(self, harness: Harness):
         def deleting(handover: Mapping[str, str]) -> None:
-            shutil.rmtree(handover[Family.MATRIX.handover_variable])
+            remove_leftover(Path(handover[Family.MATRIX.handover_variable]))
             _failing_cli_tests(handover)
 
         with pytest.raises(SharedFixturesError) as failure:
@@ -544,6 +548,25 @@ class TestFailingTests:
         assert "could not digest the matrix tree" in problem
         assert harness.run_directories() == []
         assert "Shared VCS fixtures (log:" in harness.printed()
+
+
+no_permission_stops_root = pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="no permission stops root",
+)
+
+
+class TestASealedTree:
+    @no_permission_stops_root
+    def test_a_test_writing_into_it_fails_at_the_write(self, harness: Harness):
+        def writing(handover: Mapping[str, str]) -> None:
+            tree = Path(handover[Family.MATRIX.handover_variable])
+            (tree / "poison.gitconfig").write_text("x")
+
+        with pytest.raises(PermissionError):
+            harness.run(writing)
+
+        assert harness.run_directories() == []
 
 
 class TestAChangedTree:
