@@ -1323,9 +1323,10 @@
   the sync baselines of the items it repairs. It leaves alone, and names
   with the fix each needs, any file that is not UTF-8, whose frontmatter
   doesn't parse, whose `tags` key is spelled unusually (such as
-  `"tags":`), or whose repair would change another value. Upgrade
-  everyone who writes work items before running it. To repair items
-  written without `tags` afterwards, run
+  `"tags":`), or whose repair would change another value. A `paths.work`
+  outside the repository is left alone with a warning; add `tags: []` to
+  the items there by hand. Upgrade everyone who writes work items before
+  running it. To repair items written without `tags` afterwards, run
   `accelerator migrate --unapply 0012-backfill-work-item-tags`, then
   `/accelerator:migrate`.
 - **A `work.id_pattern` the grammar now refuses must be edited.** Literal
