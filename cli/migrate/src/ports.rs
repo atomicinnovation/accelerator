@@ -340,14 +340,13 @@ pub trait MigrationContext {
     }
 
     /// Recomputes the `/sync-work-items` change-detection baseline for every
-    /// tracked item that was `Synced` before this run, so a whole-corpus
-    /// re-render does not spuriously reclassify content-identical items as
-    /// locally modified. `pre_migration` carries each rewritten `meta/` file's
-    /// pre-render bytes, so an entry's pre-migration digest can still be
-    /// computed after the files on disk have been re-rendered. A pre-run
+    /// tracked item that was `Synced` before this run, so a migration that
+    /// rewrites work items does not reclassify items that were in sync before
+    /// it as locally modified. `pre_migration` carries each rewritten file's
+    /// pre-migration bytes, so an entry's pre-migration digest can still be
+    /// computed after the files on disk have been rewritten. A pre-run
     /// diverged entry keeps its baseline, so its pending push survives.
-    /// Returns the number of realigned baselines. Only migration 0008 calls
-    /// it.
+    /// Returns the number of realigned baselines.
     ///
     /// # Errors
     /// [`MigrationError`] when a baseline file cannot be read or written.
@@ -474,10 +473,10 @@ pub trait ManifestStore {
 }
 
 /// Realigns every integration's sync baseline under one integrations root
-/// after a whole-corpus re-render.
+/// after a migration rewrites work items.
 pub trait SyncBaselines {
-    /// `pre_migration` carries each re-rendered `meta/` file's original
-    /// content. Returns the number of realigned entries.
+    /// `pre_migration` carries each rewritten file's pre-migration content.
+    /// Returns the number of realigned entries.
     ///
     /// # Errors
     /// [`MigrationError`] when the root cannot be listed or a baseline cannot
