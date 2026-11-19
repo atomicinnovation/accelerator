@@ -84,6 +84,13 @@ impl VersionControl {
     }
 }
 
+/// A file's text, or the fact that its bytes are not UTF-8.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextFile {
+    Utf8(String),
+    NotUtf8,
+}
+
 /// Which version control encloses a directory, and which files under it
 /// that version control tracks.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -170,12 +177,30 @@ pub trait MigrationContext {
         None
     }
 
-    /// `Ok(None)` when `path` does not exist.
+    /// `Ok(None)` when `path` does not exist. Decodes lossily, replacing
+    /// invalid UTF-8 with U+FFFD; use [`read_text`](Self::read_text) when the
+    /// content may be written back.
     ///
     /// # Errors
     /// [`MigrationError`] when a present file cannot be read.
     fn read(&self, _path: &Path) -> Result<Option<String>, MigrationError> {
         Ok(None)
+    }
+
+    /// `Ok(None)` when `path` does not exist. Unlike [`read`](Self::read),
+    /// never decodes lossily, so a migration can leave a file that is not
+    /// UTF-8 byte-identical.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when a present file cannot be read, or when this
+    /// context does not implement strict reads.
+    fn read_text(
+        &self,
+        _path: &Path,
+    ) -> Result<Option<TextFile>, MigrationError> {
+        Err(MigrationError::new(
+            "read_text is not implemented by this context",
+        ))
     }
 
     /// Whether `path` exists and is a directory.
@@ -270,8 +295,7 @@ pub trait MigrationContext {
     }
 
     /// The value of `content`'s frontmatter, whatever its root; unfenced or
-    /// empty frontmatter is an empty mapping. Only migrations 0001 and 0008
-    /// call this.
+    /// empty frontmatter is an empty mapping.
     ///
     /// # Errors
     /// [`MigrationError`] for an unterminated fence, invalid YAML or a tagged
