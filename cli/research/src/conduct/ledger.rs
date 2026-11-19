@@ -259,8 +259,8 @@ mod tests {
     use crate::conduct::observed::Observed;
     use crate::conduct::offered_nodes::NodeContext;
     use crate::conduct::search_budget::SearchBudgets;
-    use crate::conduct::search_budget::UNSIZED_NODE_BUDGET;
     use crate::conduct::search_budget::SearchCap;
+    use crate::conduct::search_budget::UNSIZED_NODE_BUDGET;
     use crate::conduct::spawn::SpawnRef;
     use crate::conduct::window::test_support::missing;
     use crate::conduct::window::test_support::of_profile;

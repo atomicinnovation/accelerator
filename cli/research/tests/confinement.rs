@@ -27,6 +27,7 @@ use research::confinement::DEFAULT_RESEARCHER;
 use research::confinement::FETCH;
 use research::confinement::FINDING_TEMPLATE;
 use research::confinement::LEVEL_NOTE_TEMPLATE;
+use research::confinement::NODE_QUERY;
 use research::confinement::STRICTER_THAN_MEASURED;
 
 const MEASURED_PREFIX: &str = "./probe";
@@ -88,6 +89,17 @@ fn fetch_prefix() -> &'static str {
         PermittedCommand::Prefixed(prefix) => prefix,
         PermittedCommand::Exactly(_) => panic!("the fetch takes arguments"),
     }
+}
+
+fn prefixes() -> Vec<&'static str> {
+    Role::Researcher
+        .permitted_commands()
+        .iter()
+        .filter_map(|command| match command {
+            PermittedCommand::Prefixed(prefix) => Some(*prefix),
+            PermittedCommand::Exactly(_) => None,
+        })
+        .collect()
 }
 
 fn exact_text(command: PermittedCommand) -> &'static str {
@@ -240,15 +252,16 @@ fn each_construct_is_named_by_what_blocked_it() {
         ("> a", Construct::OutputRedirection),
         ("&> a", Construct::OutputRedirection),
     ];
-    for (rest, construct) in cases {
-        assert_eq!(
-            command_decision(
-                Role::Researcher,
-                &format!("{}{rest}", fetch_prefix())
-            ),
-            Decision::Block(Block::Syntax(construct)),
-            "{rest:?}"
-        );
+    let prefixes = prefixes();
+    assert_eq!(prefixes.len(), 2);
+    for prefix in prefixes {
+        for (rest, construct) in cases {
+            assert_eq!(
+                command_decision(Role::Researcher, &format!("{prefix}{rest}")),
+                Decision::Block(Block::Syntax(construct)),
+                "{prefix}{rest:?}"
+            );
+        }
     }
 }
 
@@ -317,12 +330,61 @@ fn a_template_command_must_match_exactly() {
 }
 
 #[test]
-fn the_researcher_is_permitted_the_fetch_and_both_template_commands() {
+fn the_researcher_is_permitted_the_fetch_the_node_query_and_both_templates() {
     assert_eq!(
         Role::Researcher.permitted_commands(),
-        [FETCH, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE]
+        [FETCH, NODE_QUERY, FINDING_TEMPLATE, LEVEL_NOTE_TEMPLATE]
     );
     assert_eq!(Role::Composer.permitted_commands(), []);
+}
+
+const A_NODE_QUERY: &str =
+    "accelerator research topic node s --run r1 --node 01-a-web:2-1";
+
+#[test]
+fn the_node_query_is_permitted() {
+    assert_eq!(command(A_NODE_QUERY), Decision::Pass);
+}
+
+#[test]
+fn every_other_topic_subcommand_stays_blocked() {
+    for text in [
+        "accelerator research topic outstanding s --profiles-dir p",
+        "accelerator research topic outstanding s --start",
+        "accelerator research topic outstanding s --run r1 --spawned 0",
+        "accelerator research topic end-run s --run r1",
+        "accelerator research topic report-path s q",
+        "accelerator research topic counts s",
+        "accelerator research topic consultable s --profiles-dir p",
+        "accelerator research topic nodex s --run r1 --node x",
+        "accelerator research topic node",
+    ] {
+        assert_eq!(
+            command(text),
+            Decision::Block(Block::WrongCommand),
+            "{text:?}"
+        );
+    }
+}
+
+#[test]
+fn a_chained_node_query_is_blocked() {
+    assert_eq!(
+        command(&format!("{A_NODE_QUERY}; rm -rf .")),
+        Decision::Block(Block::Syntax(Construct::Separator))
+    );
+}
+
+#[test]
+fn the_composer_may_not_run_the_node_query() {
+    assert_eq!(
+        decide(
+            &Action::Command(A_NODE_QUERY.to_owned()),
+            &composer(),
+            &Layout(Some(TopicFile::Finding))
+        ),
+        Decision::Block(Block::NoCommands)
+    );
 }
 
 #[test]
@@ -469,9 +531,9 @@ fn refusals_carry_a_coded_cause_specific_reason() {
     assert_eq!(
         refusal(&researcher, &Block::WrongCommand),
         "E_RESEARCH_GUARD_COMMAND: accelerator:researcher may run only \
-         'accelerator research fetch …', 'accelerator config template \
-         topic-research --kind finding' or 'accelerator config template \
-         topic-research --kind level-note'"
+         'accelerator research fetch …', 'accelerator research topic node …', \
+         'accelerator config template topic-research --kind finding' or \
+         'accelerator config template topic-research --kind level-note'"
     );
     assert_eq!(
         refusal(&researcher, &Block::Syntax(Construct::Separator)),
@@ -500,9 +562,10 @@ fn a_configured_agent_is_named_with_its_key() {
             &Block::WrongCommand
         ),
         "E_RESEARCH_GUARD_COMMAND: custom:researcher (agents.researcher) may \
-         run only 'accelerator research fetch …', 'accelerator config \
-         template topic-research --kind finding' or 'accelerator config \
-         template topic-research --kind level-note'"
+         run only 'accelerator research fetch …', 'accelerator research topic \
+         node …', 'accelerator config template topic-research --kind \
+         finding' or 'accelerator config template topic-research --kind \
+         level-note'"
     );
     assert_eq!(
         refusal(

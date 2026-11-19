@@ -879,6 +879,15 @@
   `accelerator config template topic-research --kind level-note`, with
   nothing before or after them. The composer still runs no command.
 
+- **`accelerator research topic node` answers an offered node's context.**
+  `accelerator research topic node SLUG --run RUN --node STEM:LINEAGE` prints
+  the question, lineage, level, follow-up cap, known questions, id and path a
+  `conduct` run offered one node with, plus its search budget for a `web`
+  node. It answers only for the run's current offered batch, from the
+  snapshot the run's ledger took at the offer, and writes nothing. The
+  research guard permits it to the researcher, and keeps every other
+  `research topic` subcommand blocked.
+
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
   and a composer per (focus area, profile) after upgrading. A configured

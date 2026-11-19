@@ -170,9 +170,9 @@ fn the_researcher_may_run_the_fetch() {
 fn the_researcher_may_run_nothing_else() {
     bash(&Project::new(), Some(RESEARCHER), "ls").assert_blocks(
         "E_RESEARCH_GUARD_COMMAND: accelerator:researcher may run only \
-         'accelerator research fetch …', 'accelerator config template \
-         topic-research --kind finding' or 'accelerator config template \
-         topic-research --kind level-note'",
+         'accelerator research fetch …', 'accelerator research topic node …', \
+         'accelerator config template topic-research --kind finding' or \
+         'accelerator config template topic-research --kind level-note'",
     );
 }
 
@@ -209,6 +209,50 @@ fn the_composer_may_run_no_template_command() {
         "accelerator config template topic-research --kind finding",
     )
     .assert_blocks(
+        "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no commands",
+    );
+}
+
+const NODE_QUERY: &str =
+    "accelerator research topic node s --run r1 --node 03-a-web:2-1";
+
+#[test]
+fn the_node_query_is_permitted() {
+    bash(&Project::new(), Some(RESEARCHER), NODE_QUERY)
+        .assert_passes_silently();
+}
+
+#[test]
+fn every_other_topic_subcommand_stays_blocked() {
+    for command in [
+        "accelerator research topic outstanding s --profiles-dir p",
+        "accelerator research topic outstanding s --start",
+        "accelerator research topic outstanding s --run r1 --spawned 0",
+        "accelerator research topic end-run s --run r1",
+        "accelerator research topic report-path s q",
+        "accelerator research topic counts s",
+        "accelerator research topic consultable s --profiles-dir p",
+        "accelerator research topic nodex s",
+        "accelerator research topic node",
+    ] {
+        bash(&Project::new(), Some(RESEARCHER), command)
+            .assert_blocks("E_RESEARCH_GUARD_COMMAND");
+    }
+}
+
+#[test]
+fn a_chained_node_query_is_blocked() {
+    bash(
+        &Project::new(),
+        Some(RESEARCHER),
+        &format!("{NODE_QUERY}; rm -rf ."),
+    )
+    .assert_blocks("E_RESEARCH_GUARD_SYNTAX: command contains a ';'");
+}
+
+#[test]
+fn the_composer_may_not_run_the_node_query() {
+    bash(&Project::new(), Some(COMPOSER), NODE_QUERY).assert_blocks(
         "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no commands",
     );
 }

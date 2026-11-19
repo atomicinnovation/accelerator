@@ -42,8 +42,12 @@ GUARD = Path(
 )
 
 _FETCH = permitted_command("FETCH")
-assert _FETCH.form == "Prefixed", "the fetch no longer takes arguments"
+_NODE_QUERY = permitted_command("NODE_QUERY")
+assert all(command.form == "Prefixed" for command in (_FETCH, _NODE_QUERY)), (
+    "a prefixed command no longer takes arguments"
+)
 PREFIX = _FETCH.text
+PREFIXES = (_FETCH.text, _NODE_QUERY.text)
 MEASURED_PREFIX = "./probe"
 PORT = "{port}"
 ESCAPES = {
@@ -109,24 +113,37 @@ def _rows(name: str) -> list[list[str]]:
 
 def _baseline() -> list[str]:
     return [
-        row[0].replace(MEASURED_PREFIX, PREFIX.rstrip(), 1)
+        row[0].replace(MEASURED_PREFIX, prefix.rstrip(), 1)
+        for prefix in PREFIXES
         for row in _rows("claude-bash-baseline.tsv")
     ]
 
 
+def _under_each_prefix(row: str) -> list[str]:
+    if not row.startswith(PREFIX):
+        return [row]
+    return [prefix + row[len(PREFIX) :] for prefix in PREFIXES]
+
+
 def _boundary() -> list[str]:
-    return [row[0] for row in _rows("guard-boundary.tsv")]
+    rows = [row[0] for row in _rows("guard-boundary.tsv")]
+    return [emitted for row in rows for emitted in _under_each_prefix(row)]
+
+
+def _prefix_of(row: str) -> str | None:
+    return next((prefix for prefix in PREFIXES if row.startswith(prefix)), None)
 
 
 def _mutants(rows: list[str], seed: int, exhaustive: bool) -> list[str]:
     generator = random.Random(seed)
     mutants: list[str] = []
     for row in rows:
-        if not row.startswith(PREFIX):
+        prefix = _prefix_of(row)
+        if prefix is None:
             continue
         splices = [
             (position, unit)
-            for position in range(len(PREFIX), len(row) + 1)
+            for position in range(len(prefix), len(row) + 1)
             for unit in ALPHABET
         ]
         if not exhaustive:
