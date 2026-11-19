@@ -3,6 +3,7 @@
 //! 0012 is the sole pending migration.
 
 use std::fs;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 use std::process::Command;
 use std::process::Output;
@@ -252,6 +253,42 @@ fn applies_when_the_work_path_is_a_file() -> Result<(), TestError> {
         "{stderr}"
     );
     assert_eq!(read(root, "meta/work")?, "not a directory\n");
+    assert!(applied(root)?.contains(MIGRATION));
+    Ok(())
+}
+
+#[test]
+fn leaves_a_work_directory_outside_the_repository_for_a_manual_fix(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+    let outside = TempDir::new()?;
+    let work = outside.path().display().to_string();
+    write(outside.path(), "0001-untagged.md", UNTAGGED)?;
+    write(
+        root,
+        ".accelerator/config.local.md",
+        &format!("---\npaths:\n  work: {work}\n---\n"),
+    )?;
+    fs::set_permissions(
+        root.join(".accelerator/config.local.md"),
+        fs::Permissions::from_mode(0o600),
+    )?;
+    already_applied_except_0012(root)?;
+
+    let stderr = succeeded(root)?;
+
+    assert!(
+        stderr.contains(&format!(
+            "Warning: 0012: not backfilling paths.work value {work}"
+        )),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("add `tags: []` by hand to each work item"),
+        "{stderr}"
+    );
+    assert_eq!(read(outside.path(), "0001-untagged.md")?, UNTAGGED);
     assert!(applied(root)?.contains(MIGRATION));
     Ok(())
 }

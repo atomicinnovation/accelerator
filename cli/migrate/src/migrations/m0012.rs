@@ -48,7 +48,9 @@ impl Migration for Migration0012 {
         &self,
         ctx: &dyn MigrationContext,
     ) -> Result<ApplyOutcome, MigrationError> {
-        let configured = configured_work_dir(ctx)?;
+        let Some(configured) = backfillable_work_dir(ctx)? else {
+            return Ok(ApplyOutcome::Applied);
+        };
         let work_dir = ctx.root().join(&configured);
         if !ctx.dir_exists(&work_dir) {
             eprintln!("Warning: 0012: no work directory at {configured}");
@@ -75,9 +77,9 @@ impl Migration for Migration0012 {
     }
 }
 
-fn configured_work_dir(
+fn backfillable_work_dir(
     ctx: &dyn MigrationContext,
-) -> Result<String, MigrationError> {
+) -> Result<Option<String>, MigrationError> {
     let configured = ctx.config_value("paths.work")?.unwrap_or_default();
     if configured.is_empty() {
         return Err(MigrationError::new(
@@ -85,11 +87,14 @@ fn configured_work_dir(
         ));
     }
     if is_dangerous_path(&configured) {
-        return Err(MigrationError::new(format!(
-            "0012: refusing dangerous paths.work value: {configured}"
-        )));
+        eprintln!(
+            "Warning: 0012: not backfilling paths.work value {configured}, \
+             which is not a plain path inside the repository; add `tags: []` \
+             by hand to each work item there that lacks it"
+        );
+        return Ok(None);
     }
-    Ok(configured)
+    Ok(Some(configured))
 }
 
 fn is_dangerous_path(path: &str) -> bool {
@@ -854,15 +859,20 @@ mod tests {
     }
 
     #[test]
-    fn refuses_a_work_path_outside_the_project() {
+    fn applies_without_touching_a_work_path_outside_the_project() -> TestResult
+    {
         let ctx = Context {
             work: "../elsewhere".to_owned(),
             ..Context::new()
-        };
+        }
+        .holding("../elsewhere/0001-x.md", &untagged("X"));
 
-        let message = failure_of(&ctx);
+        let outcome = Migration0012.apply(&ctx)?;
 
-        assert!(message.contains("../elsewhere"), "{message}");
+        assert!(matches!(outcome, ApplyOutcome::Applied));
+        assert!(ctx.writes.borrow().is_empty());
+        assert_eq!(*ctx.realigned.borrow(), None);
+        Ok(())
     }
 
     #[test]
