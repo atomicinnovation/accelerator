@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-867", "work-item:PP-889", "work-item:PP-890", "work-i
 tags: ["research", "deep-research", "conduct", "cli", "run-ledger", "research-guard", "config-template"]
 revision: "d5a62f06c836dbf06c2de86555017ed876634a46"
 repository: "accelerator"
-last_updated: "2026-11-19T09:00:00+00:00"
+last_updated: "2026-11-19T16:19:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1114,8 +1114,11 @@ only Read and Write" stays as it is.
   of the prompt `tasks/eval/citing_once/sessions.py` builds equal the
   `compose` bullet's `_injected_items` labels, the finding template
   included.
-- Rewrite `test_research_topic_loads_the_level_note_template` (`:685`) to
-  assert the level-note outputter's command.
+- Rewrite `test_research_topic_loads_the_level_note_template` (`:685`) as
+  `test_node_spawns_load_the_level_note_template_through_their_outputter`,
+  asserting the level-note outputter's command.
+- `test_research_topic_loads_the_report_template` asserts "The five artifact
+  templates" in place of seven.
 - Rewrite `test_research_topic_routes_compose_pairs_to_the_composer`
   (`:703`) wherever it pins the inlined template.
 
@@ -1179,6 +1182,24 @@ relayed by the orchestrator.
 - [x] With an override `.accelerator/templates/topic-research-level-note.md`
       made unreadable (`chmod 000`), `conduct` prints "template
       unavailable" with the I/O error and spawns nothing.
+
+Each check ran as a headless `claude -p` session over a throwaway outlined
+set, with `--plugin-dir` at the working tree and the `ACCELERATOR_*_BIN`
+variables pointing at `cli/target/debug`, beside a temporary
+`.accelerator-dev-launcher` marker. The sessions granted no Bash rule beyond
+those `research-topic` declares. The level-note check's final run was at
+depth 1, after the template-fallback change; two earlier depth-2 runs showed
+the level notes following the default template. Under the dev builds the
+launcher's "unverified launcher" line is one more stderr line, which the
+template check skips.
+
+A headless session can lose `research-topic`'s `allowed-tools` once the
+orchestrator's turn ends while background researchers still run: a re-plan
+after such a turn then needs approval. One level-note run stalled on it, so
+the re-runs granted `Bash(accelerator research topic *)` as well. That rule
+covers none of the template commands, so the checks still exercise their
+inherited grant. The lapse is unrelated to this plan and is to be raised as
+its own work item.
 
 ---
 
@@ -1397,6 +1418,12 @@ field list points at `research topic node` for the context it dropped.
 - [ ] Full suite green: `mise run`
 
 #### Manual Verification
+
+Until the `allowed-tools` lapse noted under phase 4 is fixed, a headless
+smoke run grants `Bash(accelerator research topic outstanding *)`, or a
+re-plan after a turn boundary stalls on approval. A broader
+`accelerator research topic` rule would also cover the node query and hide
+whether researchers inherit their grant for it.
 
 - [ ] **Smoke run**: `conduct <slug> --depth 2` over one web pair passes
       when:
