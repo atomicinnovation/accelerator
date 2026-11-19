@@ -81,6 +81,10 @@ impl Workbench {
 
     /// Opens a workbench with an explicit hand-over.
     ///
+    /// Tests use [`Self::for_this_test`]: a hand-over that did not come from
+    /// the run hides the workbench's builds from the run's fixture log, so a
+    /// guard permits this only in the files that test the workbench itself.
+    ///
     /// # Errors
     ///
     /// When the workbench cannot be created, or lies inside a repository.
