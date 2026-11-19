@@ -22,7 +22,7 @@
    single-source-of-truth contract — don't.
 
    Imported from src/main.tsx after global.css. See ADR-0026 §5 and
-   story meta/work/0076-code-block-syntax-highlight-palette.md. */
+   story meta/work/PP-98-code-block-syntax-highlight-palette.md. */
 
 .hljs {
   background: transparent;

@@ -5,7 +5,7 @@
  *
  * Exit codes:
  *   0 — max ΔE2000 < 5 across all changed pixels (AC5 threshold from
- *       meta/work/0073-atomic-brand-layer-palette.md)
+ *       meta/work/PP-95-atomic-brand-layer-palette.md)
  *   1 — at least one pixel exceeds the threshold
  *   2 — invalid input (missing file, decode error, etc.)
  *

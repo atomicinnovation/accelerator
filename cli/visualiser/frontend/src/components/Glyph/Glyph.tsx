@@ -19,7 +19,7 @@ import { ValidationsIcon } from "./icons/ValidationsIcon";
 import { WorkItemReviewsIcon } from "./icons/WorkItemReviewsIcon";
 import { WorkItemsIcon } from "./icons/WorkItemsIcon";
 
-// Ordering mirrors the Colour Token Table in meta/work/0037-glyph-component.md.
+// Ordering mirrors the Colour Token Table in meta/work/PP-59-glyph-component.md.
 // `Record<GlyphDocType, ...>` constraint enforces exhaustiveness at compile
 // time across every server doc-type key (including the virtual `templates`
 // key) plus any glyph-only keys (none today — see Glyph.constants).
@@ -130,7 +130,7 @@ export function Glyph({
     );
   }
 
-  // viewBox 0 0 24 24 — see meta/work/0037-glyph-component.md (Colour Token
+  // viewBox 0 0 24 24 — see meta/work/PP-59-glyph-component.md (Colour Token
   // Table). Theme contract: `color: var(--ac-doc-<key>)` on this <svg> +
   // `fill="currentColor"` on children. Any child overriding `fill` fails
   // loudly visually rather than silently breaking the theme contract.

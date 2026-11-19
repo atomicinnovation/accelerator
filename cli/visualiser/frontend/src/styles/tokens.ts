@@ -349,7 +349,7 @@ export const BRAND_ALIAS_PAIRS: ReadonlyArray<
 // design-inventories/2026-05-21-015231-claude-design-prototype/
 // prototype-standalone.html). Same values resolve in both light and
 // dark themes (declared only in `:root`). See ADR-0026 §5 and story
-// meta/work/0076-code-block-syntax-highlight-palette.md.
+// meta/work/PP-98-code-block-syntax-highlight-palette.md.
 export const CODE_SURFACE_TOKENS = {
   "code-bg": "#0e1320",
   "code-bg-head": "#161b2c",

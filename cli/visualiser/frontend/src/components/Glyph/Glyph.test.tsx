@@ -194,7 +194,7 @@ describe("Glyph: source-level no-state-hooks guard", () => {
 // AC #4 ("getComputedStyle(svg).fill resolves to a hex") is verified end-to-end
 // by Playwright (tests/visual-regression/glyph-resolved-fill.spec.ts). JSDOM
 // does not reliably substitute `var()` in SVG presentation attributes — see
-// the Resolved Decision in meta/work/0037-glyph-component.md.
+// the Resolved Decision in meta/work/PP-59-glyph-component.md.
 
 // One (docType, size) combination per `DocTypeKey` × size. Each case is named
 // so a regression points directly at the failing combination.
