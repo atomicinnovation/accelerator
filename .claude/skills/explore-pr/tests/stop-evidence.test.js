@@ -79,3 +79,45 @@ test('something no stop carries is shown nowhere', () => {
 test('content with no design and no chapters carries nothing', () => {
   assert.deepEqual(StopEvidence.index({}).shownAt('d-top'), []);
 });
+
+const LINKED = {
+  design: {
+    decisions: [{ id: 'd-top', decision: 'One root', carriedBy: ['claims-s2', 'identity-s1', 'nowhere-s9'] }],
+    abstractions: [{ id: 'a-root', name: 'Root', carriedBy: ['claims-s1'] }],
+  },
+  chapters: [
+    { id: 'identity', stops: [{ id: 'identity-s1' }, { id: 'identity-s2', carries: ['d-top'] }] },
+    {
+      id: 'claims',
+      decisions: [{ id: 'd-claims', decision: 'Claim by heartbeat' }],
+      abstractions: [{ id: 'a-fresh', name: 'Fresh' }],
+      invariants: [{ id: 'claims-i1', text: 'Holds.' }],
+      stops: [
+        { id: 'claims-s1', carries: ['claims-i1', 'a-fresh'] },
+        { id: 'claims-s2', carries: ['d-claims', 'a-fresh'] },
+      ],
+    },
+  ],
+};
+const linked = StopEvidence.index(LINKED);
+const linkedStop = id => LINKED.chapters.flatMap(chapter => chapter.stops).find(each => each.id === id);
+
+test('an item that names the stops carrying it is shown at them as if they carried it', () => {
+  assert.deepEqual(linked.carriedBy(linkedStop('identity-s1')).map(each => each.id), ['d-top']);
+  assert.deepEqual(linked.carriedBy(linkedStop('claims-s1')).map(each => each.id), ['claims-i1', 'a-fresh', 'a-root']);
+});
+
+test('the stops that show an item merge both directions, once each, in tour order', () => {
+  assert.deepEqual(linked.shownAt('d-top'), ['identity-s1', 'identity-s2', 'claims-s2']);
+});
+
+test('a stop an item names but the tour does not have is ignored', () => {
+  assert.ok(!linked.shownAt('d-top').includes('nowhere-s9'));
+});
+
+test('a decision or abstraction is introduced at the first stop that shows it', () => {
+  assert.deepEqual(linked.introducedAt(linkedStop('identity-s1')).map(each => each.id), ['d-top']);
+  assert.deepEqual(linked.introducedAt(linkedStop('claims-s1')).map(each => each.id), ['a-root', 'a-fresh']);
+  assert.deepEqual(linked.introducedAt(linkedStop('claims-s2')).map(each => each.id), ['d-claims']);
+  assert.deepEqual(linked.introducedAt(linkedStop('identity-s2')), []);
+});

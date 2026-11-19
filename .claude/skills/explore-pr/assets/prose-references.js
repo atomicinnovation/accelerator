@@ -12,6 +12,17 @@
   const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const tagName = token => (token.match(/^<\/?\s*([A-Za-z0-9]+)/) || [])[1]?.toLowerCase();
   const isClosing = token => token.startsWith('</');
+  const ENTRIES = { decision: ['#decisions', 'dec-'], abstraction: ['#abstractions', 'abs-'], invariant: ['#invariants', 'inv-'] };
+
+  function entryLinks(declared, except) {
+    const links = new Map();
+    (declared || []).filter(item => ENTRIES[item.kind] && item.id !== except).forEach(item => {
+      const [route, prefix] = ENTRIES[item.kind];
+      const label = escapeHtml(String(item.label || item.id).replace(/`/g, ''));
+      links.set(item.id, `<a class="ref" href="${route}" data-scroll-to="${prefix}${escapeHtml(item.id)}">${label}</a>`);
+    });
+    return links;
+  }
 
   function targets(chapters) {
     const chapterLinks = new Map(), stopLinks = new Map();
@@ -26,17 +37,18 @@
     return { chapterLinks, stopLinks };
   }
 
-  function bareStopLinker(stopLinks) {
-    const ids = [...stopLinks.keys()].filter(id => id.includes('-')).sort((a, b) => b.length - a.length);
+  function bareLinker(links) {
+    const ids = [...links.keys()].filter(id => id.includes('-')).sort((a, b) => b.length - a.length);
     if (!ids.length) return text => text;
     const bare = new RegExp(`(^|[^${TOKEN_CHARACTER.slice(1)})(${ids.map(escapeRegExp).join('|')})(?!${TOKEN_CHARACTER})`, 'g');
-    return text => text.replace(bare, (_, before, id) => before + stopLinks.get(id));
+    return text => text.replace(bare, (_, before, id) => before + links.get(id));
   }
 
-  function link(html, chapters) {
-    if (!html || !chapters || !chapters.length) return html;
-    const { chapterLinks, stopLinks } = targets(chapters);
-    const linkBareStops = bareStopLinker(stopLinks);
+  function link(html, chapters, declared, except) {
+    if (!html || !((chapters || []).length || (declared || []).length)) return html;
+    const { chapterLinks, stopLinks } = targets(chapters || []);
+    const itemLinks = entryLinks(declared, except);
+    const linkBare = bareLinker(new Map([...stopLinks, ...itemLinks]));
     const tokens = String(html).match(TOKEN) || [];
     const out = [];
     let shielded = 0, inCode = 0, inChapterRun = false;
@@ -44,7 +56,7 @@
       const token = tokens[i];
       if (!token.startsWith('<')) {
         if (shielded || inCode) { out.push(token); continue; }
-        out.push(linkBareStops(token));
+        out.push(linkBare(token));
         inChapterRun = (inChapterRun && JOINS_CHAPTERS.test(token)) || INTRODUCES_CHAPTERS.test(token);
         continue;
       }
@@ -56,6 +68,7 @@
       if (shielded || !wholeCode) { inCode += isClosing(token) ? -1 : 1; out.push(token); continue; }
       const namesChapter = chapterLinks.has(id) && (inChapterRun || NAMES_A_CHAPTER.test(tokens[i + 3] || ''));
       if (stopLinks.has(id)) out.push(stopLinks.get(id));
+      else if (itemLinks.has(id)) out.push(itemLinks.get(id));
       else if (namesChapter) out.push(chapterLinks.get(id));
       else out.push(token, id, tokens[i + 2]);
       inChapterRun = namesChapter;
