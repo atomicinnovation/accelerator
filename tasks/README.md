@@ -218,6 +218,60 @@ What enforces the port's invariants continuously is each provider client's
 against a mock server in the default profile. This lane is the live-tenant
 assurance beside it, and what proves it ran is the committed evidence file.
 
+### Shared VCS fixtures
+
+`test:unit:cli` builds the VCS fixture matrix once per run and hands it to
+every test that needs it, rather than letting each test build its own. Before
+nextest's test phase it compiles the workspace tests with the same arguments
+nextest uses (so nextest compiles nothing afterwards, and the task fails if
+it does), finds the `shared-fixtures` bin in that build's unit listing and
+runs it once. Under coverage the bin runs in the instrumented environment, so
+the builder code it exercises still counts towards the floor.
+
+The trees live under one root per user,
+`<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
+is the resolved system temp directory: `<run-id>.lock` beside
+`<run-id>/{matrix,workbenches}/`. A run holds an `flock` on its lock for its
+lifetime, and each run starts by sweeping the directories of runs whose lock
+nobody holds, so a killed run's leftovers go on the next run. The root is
+refused if it is a symlink, not a directory, owned by someone else, writable
+by group or world, or inside a checkout; move it aside and the next run
+recreates it.
+
+The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`, the
+directory tests open their workbenches under through
+`ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
+`ACCELERATOR_FIXTURE_LOG`. The task owns all three: never export them, and an
+exported value never reaches the run. Every build, adoption and private
+build is logged to `cli/target/vcs-fixture-logs/<run-id>.jsonl`, which
+outlives the run (the newest 20 are kept). When the run ends, pass or fail,
+the task digests each tree again, removes the run's directory and prints the
+fixture summary, which names the log and the resolved root.
+
+The run fails when a shared tree changed during the run, when a test built a
+shared family privately, or when the log disagrees with the consumer list in
+`tasks/shared/shared_fixtures/consumers.py`. A test acquires a shared family
+only through `Workbench::for_this_test()`; a new consumer binary goes in that
+list.
+
+A failing shared build stops the lane before any test runs. Fixture builds
+are deterministic and the builder's error names the family and its cause, so
+running the rest of the suite would add a partial flow for little gain. To
+see the other tests while diagnosing, run `cargo nextest run` directly: with
+nothing handed over, each test builds its own fixtures and logs nothing.
+
+A nextest bump must re-check that nextest still sets `NEXTEST_BINARY_ID` and
+`NEXTEST_TEST_NAME` for every test, because every event's test and binary
+come from them.
+
+Two switches exist only as fault injection for checking the build step by
+hand. Neither is for CI.
+
+| Variable | Effect |
+|---|---|
+| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix`) without building it; any other value is refused. |
+| `ACCELERATOR_SHARED_FIXTURES_HOLD` | A directory: after the build step the task writes `held` there and waits up to 30 minutes for `release`. Refused when `CI` is set. |
+
 ### The gix/jj-lib link-ratio guard
 
 `build:cli:fixture-size` catches a linker-drop regression. The host-native VCS
