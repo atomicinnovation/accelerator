@@ -1,0 +1,58 @@
+---
+type: "work-item"
+id: "PP-779"
+title: "Richer Document Model Crate"
+date: "2026-08-31T12:11:13+00:00"
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "task"
+priority: "medium"
+parent: "work-item:PP-860"
+tags: ["corpus", "crates", "refactor"]
+last_updated: "2026-09-05T00:00:00+00:00"
+last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
+schema_version: 1
+external_id: "PP-779"
+aliases: ["0249"]
+---
+
+# PP-779: Richer Document Model Crate
+
+**Kind**: Task
+**Status**: Draft
+**Priority**: Medium
+**Author**: Toby Clemson
+
+## Summary
+
+Build a richer document model and consolidate all document handling onto a
+single crate, so document parsing, frontmatter, and rendering share one
+domain model.
+
+## Context
+
+Captured in the further-ideas backlog. Document handling is spread across
+call sites; a consolidated model would reduce duplication and drift.
+
+## Requirements
+
+- Define a richer document domain model.
+- Route all document handling through the consolidating crate.
+
+## Acceptance Criteria
+
+- [ ] Document handling is served by one crate with a shared model.
+- [ ] Duplicated ad-hoc document parsing is removed.
+
+## Drafting Notes
+
+- Extracted from source documents without interactive enrichment.
+  Acceptance criteria, dependencies, and kind may need refinement before
+  promoting from `draft` to `ready`.
+- Large scope; may be an epic once refined.
+
+## References
+
+- Source: `meta/notes/2026-06-23-further-ideas-backlog.md`

@@ -6,9 +6,9 @@ date: "2026-10-06T22:42:40+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0295"
-parent: "work-item:0295"
-relates_to: ["work-item:0283", "work-item:0300", "work-item:0301"]
+work_item_id: "PP-882"
+parent: "work-item:PP-882"
+relates_to: ["work-item:PP-867", "work-item:PP-884", "work-item:PP-888"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/148"
 pr_number: 148
 tags: ["research", "arxiv", "pacing", "fetch"]
@@ -94,17 +94,17 @@ is delayed rather than lost.
 
 ## Context
 
-- Work item: `meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`.
+- Work item: `meta/work/PP-882-per-profile-batch-cap-for-arxiv-researchers.md`.
   0295 was rescoped from a per-profile batch cap to this fair queue.
-- Research: `meta/research/codebase/2026-10-06-0295-fair-arxiv-fetch-queue.md`
-- Plan: `meta/plans/2026-10-06-0295-fair-arxiv-fetch-queue.md`, with a
+- Research: `meta/research/codebase/2026-10-06-PP-882-fair-arxiv-fetch-queue.md`
+- Plan: `meta/plans/2026-10-06-PP-882-fair-arxiv-fetch-queue.md`, with a
   four-pass review in `meta/reviews/plans/`
 - Validation:
-  `meta/validations/2026-10-06-0295-fair-arxiv-fetch-queue-validation.md`
+  `meta/validations/2026-10-06-PP-882-fair-arxiv-fetch-queue-validation.md`
   (result: pass)
 - PR review: `meta/reviews/prs/148-review-1.md` (verdict: comment). Its
   deferred findings are in
-  `meta/work/0301-fair-arxiv-queue-follow-ups-from-the-pr-148-review.md`.
+  `meta/work/PP-888-fair-arxiv-queue-follow-ups-from-the-pr-148-review.md`.
 - Follows up 0283 (recursive finding deepening), whose step 17 run lost
   nodes to arXiv lock contention.
 

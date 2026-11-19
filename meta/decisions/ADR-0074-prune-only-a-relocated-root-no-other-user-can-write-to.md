@@ -6,8 +6,8 @@ date: "2026-11-09T13:15:48+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-parent: "work-item:0218"
-relates_to: ["adr:ADR-0072", "work-item:0340", "work-item:0341", "work-item:0342"]
+parent: "work-item:PP-747"
+relates_to: ["adr:ADR-0072", "work-item:PP-944", "work-item:PP-945", "work-item:PP-946"]
 tags: ["architecture", "cache", "launcher", "retention", "security"]
 last_updated: "2026-11-09T13:15:48+00:00"
 last_updated_by: "Toby Clemson"
@@ -161,9 +161,9 @@ removal around directory handles.
 
 - `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
   — The prune whose multi-user exposure this closes
-- `meta/work/0218-bound-cache-root-growth.md` — The work item that built it
-- `meta/plans/2026-10-19-0218-bound-cache-root-growth.md` — The plan
-- `meta/work/0340-shared-cache-roots-on-multi-user-systems.md` — The epic for
+- `meta/work/PP-747-bound-cache-root-growth.md` — The work item that built it
+- `meta/plans/2026-10-19-PP-747-bound-cache-root-growth.md` — The plan
+- `meta/work/PP-944-shared-cache-roots-on-multi-user-systems.md` — The epic for
   making a shared root usable and prunable
-- `meta/work/0341-use-a-group-shared-cache-root-safely.md` and
-  `meta/work/0342-prune-a-group-shared-cache-root.md` — Its stories
+- `meta/work/PP-945-use-a-group-shared-cache-root-safely.md` and
+  `meta/work/PP-946-prune-a-group-shared-cache-root.md` — Its stories

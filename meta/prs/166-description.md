@@ -6,9 +6,9 @@ date: "2026-10-17T17:38:52+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0304"
-parent: "work-item:0304"
-relates_to: ["work-item:0303", "work-item:0307", "work-item:0309", "work-item:0310"]
+work_item_id: "PP-890"
+parent: "work-item:PP-890"
+relates_to: ["work-item:PP-889", "work-item:PP-893", "work-item:PP-895", "work-item:PP-896"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/166"
 pr_number: 166
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
@@ -118,9 +118,9 @@ silently.
 
 ## Context
 
-- Work item: `meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`
-- Plan: `meta/plans/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`
-- Validation: `meta/validations/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion-validation.md`
+- Work item: `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`
+- Plan: `meta/plans/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion.md`
+- Validation: `meta/validations/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion-validation.md`
 - ADR: `meta/decisions/ADR-0073-admit-the-session-search-cap-as-an-optional-harness-variable.md`
 - PR review: `meta/reviews/prs/166-review-1.md`
 

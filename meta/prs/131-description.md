@@ -6,8 +6,8 @@ date: "2026-09-22T18:33:33+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0286"
-parent: "work-item:0286"
+work_item_id: "PP-872"
+parent: "work-item:PP-872"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/131"
 pr_number: 131
 tags: ["vcs", "skills", "cli"]
@@ -88,12 +88,12 @@ should defer to the session VCS. Two new lint guards keep it that way.
 
 ## Context
 
-- Work item: `meta/work/0286-eradicate-direct-git-calls-from-skills.md`
+- Work item: `meta/work/PP-872-eradicate-direct-git-calls-from-skills.md`
   (parent 0136; spawned by spike 0200, which kept `log`/`diff` in the guard
   blocklist and located the real failure in the skills' raw git calls).
-- Plan: `meta/plans/2026-09-20-0286-eradicate-direct-git-calls-from-skills.md`
+- Plan: `meta/plans/2026-09-20-PP-872-eradicate-direct-git-calls-from-skills.md`
 - Validation:
-  `meta/validations/2026-09-20-0286-eradicate-direct-git-calls-from-skills-validation.md`
+  `meta/validations/2026-09-20-PP-872-eradicate-direct-git-calls-from-skills-validation.md`
 
 ## Testing
 

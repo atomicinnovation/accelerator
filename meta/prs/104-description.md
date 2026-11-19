@@ -6,8 +6,8 @@ date: "2026-09-06T23:14:15+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0245"
-parent: "work-item:0245"
+work_item_id: "PP-775"
+parent: "work-item:PP-775"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/104"
 pr_number: 104
 tags: ["work-item"]
@@ -33,7 +33,7 @@ merged via PR #103.
 
 ## Context
 
-- Work item: `meta/work/0245-invoke-accelerator-directly-in-skills.md`.
+- Work item: `meta/work/PP-775-invoke-accelerator-directly-in-skills.md`.
 - Implementation and validation landed in PR #103 (merged); the plan
   (`meta/plans/2026-09-06-0245-…`) and its validation
   (`meta/validations/2026-09-06-0245-…-validation.md`, result `pass`) are
@@ -41,7 +41,7 @@ merged via PR #103.
 
 ## Testing
 
-- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0245-invoke-accelerator-directly-in-skills.md`.
+- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/PP-775-invoke-accelerator-directly-in-skills.md`.
 - [x] Diff is exactly the two intended lines (frontmatter `status` and the body `**Status**:` label); no other fields touched.
 
 ## Notes for Reviewers

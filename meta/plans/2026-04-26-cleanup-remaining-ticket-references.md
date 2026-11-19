@@ -55,7 +55,7 @@ grep -rn --include="*.sh" --include="*.md" --include="*.json" \
   skills/work/review-work-item/SKILL.md \
   skills/work/update-work-item/evals/ \
   skills/work/scripts/ \
-  meta/work/0026-init-skill-for-repo-bootstrap.md
+  meta/work/PP-48-init-skill-for-repo-bootstrap.md
 ```
 
 All existing test suites continue to pass: `mise run test`.
@@ -455,9 +455,9 @@ Line 63 — rename eval assertion:
 +          "name": "handles_legacy_work_item",
 ```
 
-#### 4. `meta/work/0026-init-skill-for-repo-bootstrap.md`
+#### 4. `meta/work/PP-48-init-skill-for-repo-bootstrap.md`
 
-**File**: `meta/work/0026-init-skill-for-repo-bootstrap.md`
+**File**: `meta/work/PP-48-init-skill-for-repo-bootstrap.md`
 
 Line 107 — update directory name in body text:
 
@@ -478,7 +478,7 @@ Line 107 — update directory name in body text:
     skills/work/review-work-item/SKILL.md \
     skills/work/update-work-item/evals/ \
     skills/work/scripts/ \
-    meta/work/0026-init-skill-for-repo-bootstrap.md
+    meta/work/PP-48-init-skill-for-repo-bootstrap.md
   ```
 - [x] Tests pass: `mise run test`
 

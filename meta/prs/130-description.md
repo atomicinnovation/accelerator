@@ -6,8 +6,8 @@ date: "2026-09-22T15:48:03+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0282"
-parent: "work-item:0282"
+work_item_id: "PP-866"
+parent: "work-item:PP-866"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/130"
 pr_number: 130
 tags: ["research", "config", "skills"]
@@ -79,10 +79,10 @@ breaking change to the CLI grammar.
 
 ## Context
 
-- Implements work item 0282, `meta/work/0282-tunable-depth-and-breadth.md`
+- Implements work item 0282, `meta/work/PP-866-tunable-depth-and-breadth.md`
   (child of epic 0121, high priority).
-- Plan: `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`. Validation:
-  `meta/validations/2026-09-20-0282-tunable-depth-and-breadth-validation.md`.
+- Plan: `meta/plans/2026-09-20-PP-866-tunable-depth-and-breadth.md`. Validation:
+  `meta/validations/2026-09-20-PP-866-tunable-depth-and-breadth-validation.md`.
 - `depth` lands dormant ahead of the sibling recursion engine, work item 0283,
   which 0282 blocks.
 

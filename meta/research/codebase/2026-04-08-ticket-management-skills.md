@@ -175,7 +175,7 @@ status: draft
 ---
 ```
 
-Reference: `meta/tickets/0022-artifact-metadata-and-lifecycle.md`
+Reference: `meta/tickets/PP-44-artifact-metadata-and-lifecycle.md`
 
 #### 1.8 Per-Skill Customisation
 
@@ -234,8 +234,8 @@ This format is specific to `adr-creation-task` tickets. A general-purpose
 ticket template needs to support broader use cases: features, bugs, technical
 debt, spikes, etc.
 
-Reference: `meta/tickets/0001-three-layer-review-system-architecture.md` through
-`meta/tickets/0025-configuration-extension-points.md`
+Reference: `meta/tickets/PP-23-three-layer-review-system-architecture.md` through
+`meta/tickets/PP-47-configuration-extension-points.md`
 
 ### 3. Parallel With the Decisions Category
 
@@ -837,7 +837,7 @@ stress-tested, or refined).
 - `scripts/config-read-path.sh` — Path configuration (tickets already
   registered)
 - `templates/adr.md` — Template structure pattern
-- `meta/tickets/0001-three-layer-review-system-architecture.md` — Existing
+- `meta/tickets/PP-23-three-layer-review-system-architecture.md` — Existing
   ticket format example
 
 ## Architecture Insights

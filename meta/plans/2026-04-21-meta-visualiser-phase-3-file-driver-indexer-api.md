@@ -971,8 +971,8 @@ mod tests {
     #[test]
     fn tickets_strip_numeric_prefix() {
         let cases = &[
-            ("0001-three-layer-review-system-architecture.md", Some("three-layer-review-system-architecture")),
-            ("0029-template-management-subcommand-surface.md", Some("template-management-subcommand-surface")),
+            ("PP-23-three-layer-review-system-architecture.md", Some("three-layer-review-system-architecture")),
+            ("PP-51-template-management-subcommand-surface.md", Some("template-management-subcommand-surface")),
             ("1-short.md", Some("short")),
             // Missing digits.
             ("abc-foo.md", None),

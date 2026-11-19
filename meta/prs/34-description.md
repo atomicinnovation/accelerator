@@ -6,7 +6,7 @@ date: "2026-08-02T18:50:13+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0136", "work-item:0169", "work-item:0185", "work-item:0186", "work-item:0187", "work-item:0188", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
+relates_to: ["work-item:PP-157", "work-item:PP-190", "work-item:PP-715", "work-item:PP-716", "work-item:PP-717", "work-item:PP-718", "codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/34"
 pr_number: 34
 tags: ["work-items", "planning", "vcs", "hooks", "rust", "cli", "migration"]
@@ -36,8 +36,8 @@ Documentation only — no code, no build-system changes.
 
 ## Context
 
-- Splits `meta/work/0169-vcs-subdomain-and-hooks-migration.md`, a child of epic 0136 (Migrate Shell Scripts into a Rust CLI).
-- Driven by `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`, added here. Its four substantive findings are what forced the split: the `hooks.json` `${CLAUDE_PLUGIN_ROOT}` probe resolved in the story's favour; the PreToolUse envelope the story pinned as its golden fixture turned out to be the deprecated shape; the ~108 ms per-Bash-call cost was localised to `probe_dir` in the bootstrap rather than to the sub-binary choice; and the token `vcs` collides with the existing domain crate in both `tasks/manifest.py` and cargo-pup.
+- Splits `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`, a child of epic 0136 (Migrate Shell Scripts into a Rust CLI).
+- Driven by `meta/research/codebase/2026-07-29-PP-190-vcs-subdomain-and-hooks-migration.md`, added here. Its four substantive findings are what forced the split: the `hooks.json` `${CLAUDE_PLUGIN_ROOT}` probe resolved in the story's favour; the PreToolUse envelope the story pinned as its golden fixture turned out to be the deprecated shape; the ~108 ms per-Bash-call cost was localised to `probe_dir` in the bootstrap rather than to the sub-binary choice; and the token `vcs` collides with the existing domain crate in both `tasks/manifest.py` and cargo-pup.
 - The `gix`/`jj-lib` feasibility risk was retired empirically in that research (§9) — the combined tree passes `bans`, `advisories` and `sources` against a verbatim copy of `cli/deny.toml`, with `uluru` (MPL-2.0) the sole licence rejection, and a binary calling both cross-compiles to a static musl ELF that `_assert_static_elf` accepts.
 
 ## Testing

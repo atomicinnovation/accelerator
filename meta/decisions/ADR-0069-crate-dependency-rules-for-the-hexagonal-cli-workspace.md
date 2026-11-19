@@ -189,9 +189,9 @@ independent shipping.
   — Crate split and the launcher clause partially superseded here
 - `meta/decisions/ADR-0039-border-radius-consumption-rule.md` — Precedent for
   recording a partial supersession
-- `meta/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- `meta/plans/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
   — Origin of `consent-adapters`
-- `meta/plans/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs.md`
+- `meta/plans/2026-08-10-PP-715-converge-corpus-adapters-on-library-backed-vcs.md`
   — Origin of the first adapter → adapter edge
-- `meta/work/0299-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
+- `meta/work/PP-881-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
   — Brings the existing edges into line with these rules

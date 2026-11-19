@@ -6,9 +6,9 @@ date: "2026-10-13T23:16:43+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0310"
-parent: "work-item:0310"
-relates_to: ["work-item:0304", "work-item:0307", "work-item:0308"]
+work_item_id: "PP-896"
+parent: "work-item:PP-896"
+relates_to: ["work-item:PP-890", "work-item:PP-893", "work-item:PP-894"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/163"
 pr_number: 163
 tags: ["research", "conduct", "recovery"]
@@ -101,11 +101,11 @@ run that did not end cannot halt or summarise itself.
 
 ## Context
 
-- Work item: `meta/work/0310-recovering-from-an-interrupted-conduct-run.md`
+- Work item: `meta/work/PP-896-recovering-from-an-interrupted-conduct-run.md`
   (source: #147)
-- Plan: `meta/plans/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`
-- Research: `meta/research/codebase/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`
-- Validation: `meta/validations/2026-10-13-0310-recovering-from-an-interrupted-conduct-run-validation.md`
+- Plan: `meta/plans/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`
+- Research: `meta/research/codebase/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`
+- Validation: `meta/validations/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run-validation.md`
 - Review: `meta/reviews/prs/163-review-1.md`; every finding is addressed on
   the PR
 

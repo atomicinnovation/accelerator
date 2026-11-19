@@ -6,9 +6,9 @@ date: "2026-08-30T23:40:08+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0125"
-parent: "work-item:0125"
-relates_to: ["work-item:0199", "work-item:0188", "work-item:0169", "work-item:0174"]
+work_item_id: "PP-146"
+parent: "work-item:PP-146"
+relates_to: ["work-item:PP-729", "work-item:PP-718", "work-item:PP-190", "work-item:PP-195"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/89"
 pr_number: 89
 tags: []
@@ -27,7 +27,7 @@ Closes work item 0125 ("Converge legacy lexical VCS detection on the 0058 probe 
 
 ## Changes
 
-- Transitions `meta/work/0125-converge-vcs-detection-on-probe-layer.md` from `draft` to `done` in both frontmatter and the body status line.
+- Transitions `meta/work/PP-146-converge-vcs-detection-on-probe-layer.md` from `draft` to `done` in both frontmatter and the body status line.
 - Adds a closing note attributing completion to `0188` (library-backed in-process VCS adapter), `0169` (hooks migration), `0199` (residue retirement), and `0174` (`scripts/` deletion), and records that residual `find_repo_root`/`vcs-common` mentions in `tasks/measure.py` and doc comments are historical only.
 - Canonicalises the frontmatter quoting to the current standard: unquotes `date`/`last_updated`/`relates_to` scalars and folds the long `title` as a block scalar.
 

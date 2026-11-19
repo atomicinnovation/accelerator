@@ -9,7 +9,7 @@ title: "ADR-0030: ADR template"
 schema_version: 1
 last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0028", "adr:ADR-0029", "adr:ADR-0031", "adr:ADR-0032", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:0023"]
+relates_to: ["adr:ADR-0028", "adr:ADR-0029", "adr:ADR-0031", "adr:ADR-0032", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:PP-45"]
 ---
 
 # ADR-0030: ADR template
@@ -121,4 +121,4 @@ The `create-adr` skill is the sole authority for the template;
 - `meta/research/codebase/2026-03-18-adr-support-strategy.md` — template
   research
 - `meta/plans/2026-03-18-adr-skills.md` — implementation plan
-- `meta/work/0023-adr-system-design.md` — source work item
+- `meta/work/PP-45-adr-system-design.md` — source work item

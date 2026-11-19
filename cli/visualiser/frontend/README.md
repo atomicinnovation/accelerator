@@ -59,7 +59,7 @@ markdown, code blocks, frontmatter, empty/banners, toasts, topbar) across light 
 dark, and is the page under test for the visual-regression specs. It is **not** part
 of the user-facing navigation. (It replaced the five retired `*-showcase` routes —
 their VR coverage was migrated onto `/dev#<section>` in story
-[`0083`](../../../../meta/work/0083-dev-design-system-reference-page.md).)
+[`PP-105`](../../../../meta/work/PP-105-dev-design-system-reference-page.md).)
 
 Activate it via any of **three triggers**:
 

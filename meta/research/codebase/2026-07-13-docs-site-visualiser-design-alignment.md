@@ -203,21 +203,21 @@ theming — the one area needing more than variable overrides.
 - `meta/decisions/ADR-0056-astro-starlight-for-documentation-site.md`
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
   (+ `ADR-0035-brand-layer-indirection-supplement-to-adr-0026.md`)
-- `meta/research/codebase/2026-05-23-0073-atomic-brand-layer-palette.md`
-- `meta/research/codebase/2026-07-10-0193-make-the-docs-amazing.md` and
-  `meta/plans/2026-07-10-0193-make-the-docs-amazing.md` — active docs
+- `meta/research/codebase/2026-05-23-PP-95-atomic-brand-layer-palette.md`
+- `meta/research/codebase/2026-07-10-PP-723-make-the-docs-amazing.md` and
+  `meta/plans/2026-07-10-PP-723-make-the-docs-amazing.md` — active docs
   polish work; theming deliberately not included
-- `meta/research/codebase/2026-05-06-0033-design-token-system.md`,
-  `2026-05-08-0034-theme-and-font-mode-toggles.md`,
-  `2026-05-31-0077-shadow-and-dark-accent-token-audit.md`,
-  `2026-05-21-0076-code-block-syntax-highlight-palette.md` — token
+- `meta/research/codebase/2026-05-06-PP-55-design-token-system.md`,
+  `2026-05-08-PP-56-theme-and-font-mode-toggles.md`,
+  `2026-05-31-PP-99-shadow-and-dark-accent-token-audit.md`,
+  `2026-05-21-PP-98-code-block-syntax-highlight-palette.md` — token
   system evolution
 
 ## Related Research
 
-- `meta/research/codebase/2026-07-10-0177-documentation-site-for-docs-tree.md`
-- `meta/research/codebase/2026-06-29-0175-slim-readme-split-docs-tree.md`
-- `meta/research/codebase/2026-06-12-0083-dev-design-system-reference-page.md`
+- `meta/research/codebase/2026-07-10-PP-699-documentation-site-for-docs-tree.md`
+- `meta/research/codebase/2026-06-29-PP-697-slim-readme-split-docs-tree.md`
+- `meta/research/codebase/2026-06-12-PP-105-dev-design-system-reference-page.md`
 
 ## Open Questions
 
@@ -241,7 +241,7 @@ The five open questions were reviewed with the user and resolved:
   `frontend/src/styles/fixtures/prototype-tokens.json`; skip the
   supplementary ADR for now.
 - **Work item — new phase in the 0193 plan**
-  (`meta/plans/2026-07-10-0193-make-the-docs-amazing.md`), continuing
+  (`meta/plans/2026-07-10-PP-723-make-the-docs-amazing.md`), continuing
   on the current `docs/0179-docs-polish` branch.
 - **Fonts — trimmed set.** Self-host Inter 400/600/700, Sora 600/700,
   Fira Code 400 as woff2 in `docs-site/public/fonts/` (copied from the

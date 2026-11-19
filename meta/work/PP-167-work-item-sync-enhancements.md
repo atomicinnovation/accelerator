@@ -1,0 +1,357 @@
+---
+type: "work-item"
+id: "PP-167"
+title: "Work Item Synchronisation Enhancements"
+date: "2026-06-22T23:41:03+00:00"
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "in-progress"
+kind: "epic"
+priority: "medium"
+source: "note:2026-06-22-ideas-backlog"
+relates_to: ["work-item:PP-192", "work-item:PP-963"]
+tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
+last_updated: "2026-10-27T13:57:08+00:00"
+last_updated_by: "Toby Clemson"
+schema_version: 1
+external_id: "PP-167"
+aliases: ["0146"]
+---
+
+# PP-167: Work Item Synchronisation Enhancements
+
+**Kind**: Epic
+**Status**: In Progress
+**Priority**: Medium
+**Author**: Toby Clemson
+
+## Summary
+
+Enhance work item synchronisation with remote trackers (Jira/Linear) with richer
+field mapping, relationship handling, and — the theme that now dominates this
+epic — a corrected scope-and-configuration model. Discovery, creation, and pulls
+must be bounded by an explicit, tracker-appropriate scope, configured once and
+validated at config time, rather than by a Jira-shaped assumption hard-coded into
+tracker-agnostic engine code.
+
+## Context
+
+Extracted originally from the ideas backlog note
+(`meta/notes/2026-06-22-ideas-backlog.md`) as a thin set of mapping/relationship
+candidates. The concrete driver for the scoping work is bug 0220: untracked-remote
+discovery is silently skipped on Linear because the discovery gate demands
+`scope.project`, which only Jira genuinely needs. Investigating that bug surfaced
+a deeper design problem in how tracker scope and the work-item key are modelled
+and configured.
+
+Three structural findings frame the scoping work:
+
+- **The gate encodes one tracker's semantics for all.** `discovery_enabled =
+  scope.project.is_some() || scope.all_projects` (`cli/work-adapters/src/sync/run.rs`)
+  is Jira's `E_JQL_NO_PROJECT` constraint (`cli/jira-client/src/jql.rs`) hoisted
+  into tracker-agnostic code. Linear's client self-bounds to a team, so the gate
+  suppresses a search that was never at risk of flooding.
+- **`default_project_code` is misnamed and overloaded.** Its real job is the key a
+  tracker stamps on issue identifiers — a Jira *project* key, a Linear *team* key —
+  i.e. the key of the entity that owns the issue-number sequence. It is not a
+  "project", and its second, accidental role as the sync scope is what let the bug
+  hide.
+- **The key concept and the integration concept live at different layers.** The
+  tracker-native key (`linear.team_key` / `jira.project_key`) is the integration-owned
+  *scope key*, meaningful to the standalone integration skills with no work-management
+  framework present; the work-item prefix (`work.key`) is a distinct, independently-set
+  value that never derives from it. The dependency must run work → integration,
+  never the reverse, so integration skills can be packaged independently in future.
+
+## Requirements
+
+### Field mapping and relationships
+
+- Map **status**, **kind**, and **priority** on work item synchronisation —
+  realised by 0290 (per-tracker mapping tables, last-writer-wins, skip-and-warn on
+  unmappable values).
+- Establish **parent-child relationships** between work items on synchronisation —
+  realised by 0291 (single parent edge, parents-before-children ordering).
+- **Restrict** work item sync based on configured labels or projects — realised by
+  the per-tracker pull-scope child (0229).
+
+### Scope-and-configuration redesign (children)
+
+- **Tracker-aware discovery gate** — replace the `scope.project.is_some()` gate
+  with a tracker capability so a self-bounding client (Linear) enables discovery,
+  while a project-requiring client (Jira) still refuses an unbounded search.
+  Bound Linear discovery to the configured key's team and require the key; a loud
+  error replaces the silent zero-pulls. This is the fix for **0220** and the first
+  child to ship.
+- **Configuration key model** — rename `work.default_project_code` → `work.key`
+  and the `id_pattern` placeholder `{project}` → `{key}`. Separate the two concepts
+  the old field conflated: `linear.team_key` / `jira.project_key` is the canonical,
+  integration-owned *scope key*; `work.key` is the *local ID prefix*, set explicitly
+  and independent of the scope key — it never derives from it, and `{key}` in
+  `id_pattern` requires an explicit `work.key` (local IDs stay independent of remote,
+  joined on `external_id`). Provide a tracker-aware migration / read-time alias.
+  `init-linear` / `init-jira` write the key they discover. See 0228.
+- **Per-tracker pull scope** — a per-tracker `pull` block: `additional_teams` /
+  `additional_projects` (broaden beyond the creation entity), `all_teams` /
+  `all_projects` (whole accessible workspace, mutually exclusive with the
+  `additional_*` list), and a generic `filters` bag (with the config-catalogue
+  extension to structured values it requires). Each tracker declares a filter
+  schema validated at config time. The block also carries configurable
+  `max_items` / `max_pages` ceilings (promoting today's silent truncation to a
+  hard error), and the broadened discovery deduplicates and reconciles in stable
+  order. See 0229.
+- **Tracker-owned ID generation** — optionally let a configured tracker mint the
+  work-item ID (create the remote issue first and adopt its key locally so
+  `id == external_id`); write offline creations as random `draft-` items that
+  sync promotes; retire replaced IDs into `aliases`; follow keys the tracker
+  changes. Codify the `id`-immutability boundary: immutable once synced
+  except when the tracker itself changes the key (the old key kept in
+  `aliases`), provisional-and-rewritable before first push. The largest and least urgent
+  child. See 0230.
+
+### Work-item ID model (children)
+
+- **Tracker-owned IDs and drafts** — as above; see 0230.
+- **Re-keying** — converge existing IDs onto the current `work.id_pattern`,
+  retiring old IDs into `aliases`. See 0302, with alias normalisation in 0343.
+- **Explicit IDs on create** — let a caller name the ID `work create` writes,
+  refusing taken, mismatched, draft-form and `{tracker}` IDs. See 0319, with
+  general dry-run validation in 0390.
+
+## Design
+
+The target scope-and-configuration model, common to both trackers.
+
+**Two distinct concepts, separated.** The *creation home* is the single entity new
+items are minted into (one Jira project / one Linear team); it also sets those
+items' key. The *pull scope* is the set of entities discovery enumerates; it always
+includes the creation home and may be broader. The old field conflated them.
+
+**The scope key resolves the tracker entity; the prefix is set independently.** The
+integration-owned scope key resolves the creation home: Jira by identity (the key
+*is* the project key), Linear by catalogue lookup (team key → team UUID). `work.key`
+is the local ID prefix — it exists even with no tracker and never derives from the
+scope key; `{key}` in `id_pattern` requires an explicit `work.key`. A divergent prefix
+cannot mis-scope discovery, since scope reads only the integration key.
+
+**Scope comes from the key; the credential is access control.** Linear discovery is
+bounded to the keyed team and requires the key, exactly as Jira requires a project.
+The credentialed team from `catalogue.json` provides the key → UUID resolution table
+and the access-control boundary (which teams are reachable) — never the scope.
+
+**Unbounded is always opt-in and loud.** With the key always contributing the
+creation entity to scope, the "no project" condition that produced 0220 becomes
+unreachable through config. The only route to a whole-workspace search is an
+explicit `all_projects` / `all_teams`, backstopped by `max_pulls`.
+
+Config shape:
+
+```yaml
+# Linear-backed repo
+work:
+  id_pattern: "{key}-{number:04d}"   # {key} resolves from linear.team_key
+linear:
+  team_key: "PP"                     # canonical, required; resolves to UUID via catalogue
+  pull:
+    additional_teams: ["XX"]
+    all_teams: false
+    filters: { label: "sync" }
+
+# Jira-backed repo
+work:
+  id_pattern: "{key}-{number:04d}"
+jira:
+  project_key: "PROJ"                # canonical, required; satisfies the JQL project requirement
+  pull:
+    additional_projects: ["OTHER"]
+    all_projects: false
+    filters: { label: "sync" }
+
+# Tracker-less repo
+work:
+  key: "PROJ"
+  id_pattern: "{key}-{number:04d}"
+```
+
+`all_projects` / `all_teams` semantics: Jira omits the JQL `project =` clause,
+searching every accessible project; Linear drops the team filter and suppresses the
+credentialed-team fallback, searching every accessible team. Internally the port
+carries one entity-neutral boolean; each adapter interprets it, and the config
+surface uses each tracker's vocabulary.
+
+## Acceptance Criteria
+
+- [ ] Status, kind, and priority are mapped bidirectionally during sync.
+- [ ] Parent-child relationships are established/maintained on sync.
+- [ ] Discovery is bounded by an explicit tracker-appropriate scope derived from the
+      configured key, and never by a hard-coded per-tracker assumption in engine
+      code.
+- [ ] With no configured scope, a self-bounding tracker (Linear) still runs
+      discovery bounded to the keyed entity; a project-requiring tracker (Jira)
+      reports a config error rather than an unbounded or silently-empty search.
+- [ ] A whole-workspace search happens only when `all_projects` / `all_teams` is
+      explicitly set; the default is bounded.
+- [ ] The tracker-native scope key (`linear.team_key` / `jira.project_key`) is usable
+      by the integration skills with no `work.*` present; `work.key`, the local ID
+      prefix, is set independently and never derives from it (`{key}` in `id_pattern`
+      requires an explicit `work.key`).
+- [ ] Pulls can be broadened by configured `additional_*` entities, `filters`, or a
+      whole-workspace flag, each validated per tracker at config time.
+- [ ] Existing IDs can be converged onto the current `work.id_pattern`, with each
+      retired ID kept in `aliases`.
+- [ ] No two work items share an ID across `id`, `aliases` and `external_id`,
+      whichever path assigned it: allocation, the tracker, a re-key or an explicit
+      `--id`.
+
+## Open Questions
+
+- What is the conflict-resolution policy when local and remote values diverge on a
+  mapped field (status/kind/priority)?
+
+Resolved during review of 0230 (2026-09-25):
+
+- *Under tracker-owned ID generation, how is offline / tracker-unreachable
+  creation handled?* — neither blocked nor `key`-prefixed: the item is written
+  as a `draft-` item with a random six-character suffix, which sync promotes
+  to its tracker ID, retiring the draft ID into `aliases` (0230).
+
+Resolved during refinement (2026-08-30):
+
+- *How are scope/mappings configured per tracker?* — via per-tracker `pull` blocks
+  with a per-tracker filter schema; the base key is the integration-owned
+  `<tracker>.<entity>_key`, from which `work.key` derives.
+
+## Dependencies
+
+- Blocked by: none.
+- Blocks: none.
+
+## Assumptions
+
+- Builds on the existing `/sync-work-items` engine and the `external_id`
+  remote-key convention.
+- The key configured for a tracker names an entity the credential can write to;
+  a mismatch is an authz/config error, not a silent fallback.
+
+## Technical Notes
+
+- The port already models arbitrary filters (`SearchScope.filters:
+  Vec<(String, String)>` in `cli/tracker/src/lib.rs`) — promote it to the primary
+  scoping mechanism and demote `project` to one filter among many.
+- Linear already resolves a team key → UUID via the catalogue
+  (`cli/linear-client/src/auth.rs`), and already falls back to the credentialed
+  team at search time (`cli/linear-client/src/client.rs`); the scoping child routes
+  the configured key through the existing resolver rather than building new
+  machinery.
+- Only Jira and Linear are wired trackers today
+  (`cli/work-cli/src/tracker_registry.rs`); Trello and GitHub Issues are `0181`.
+  A future self-scoping adapter (e.g. single-repo GitHub Issues) would hit the same
+  gate defect the tracker-aware gate prevents.
+
+## Stories
+
+- 0220 — Tracker-aware discovery gate (fixes silent Linear untracked pulls);
+  reparented here.
+- 0228 — Configuration key model (`work.key` rename + scope-key / local-prefix
+  separation + tracker-aware migration).
+- 0229 — Per-tracker pull scope (`additional_*`, `all_*`, `filters` + catalogue
+  structured-value extension, config-time schema, `max_items` / `max_pages`
+  ceilings with truncation-to-hard-error, dedup + stable ordering).
+- 0230 — Tracker-owned work-item ID generation (stub-mint; `id`-immutability
+  boundary).
+- 0257 — Sync specific work items (reconcile one or more named items without a
+  full sync's cost and blast radius).
+- 0285 — Targeted pull of remote-only work items (`work sync --target` imports a
+  named remote issue absent locally; normalises targeted local/remote resolution
+  and collision behaviour via shared `resolve_targets`).
+- 0290 — Bidirectional field mapping (status / kind / priority / title via
+  per-tracker mapping tables, last-writer-wins, skip-and-warn on unmappable
+  values); closes the field-mapping acceptance criteria.
+- 0291 — Parent-child relationship synchronisation (push/pull the single parent
+  edge, parents-before-children ordering, last-writer-wins); closes the
+  parent-child acceptance criterion.
+- 0292 — Linear pull filters via catalogue-resolved ids (splits 0229's shared
+  filter schema per-tracker; adds a Linear `project` filter and converts
+  `label` / `assignee` to catalogue-resolved ids, lowering to `project.id`,
+  `labels.id`, and `assignee.id` so every Linear filter is id-keyed).
+- 0293 — Negated pull filters (`not_in` / not-equal across Jira and Linear;
+  promotes Jira's dormant `NOT IN` seam and adds Linear `nin` / `every`
+  lowering, bounded to set-membership negation as Linear has no top-level `not`).
+- 0294 — Remove the legacy Linear catalogue projections (drop the `team` /
+  `workflowStates` keys 0292 keeps writing for one release; blocked by 0292).
+- 0296 — Sync round-trip defects between local work items and the tracker
+  (body equivalence, title-line stripping, corpus recovery, digest-recipe
+  migration); lands before 0320 and 0290.
+- 0320 — Linear push corrupts markdown content (push-side fixes for the three
+  meaning-changing rewrites); blocked by 0296.
+- 0321 — Sync authority model between local work items and the tracker (ADR
+  ratifying or revising 0296's representation rule).
+- 0335 — Remove the legacy sync digest recipe (once no unmarked
+  `last-sync.json` entry remains; blocked by 0296, classification set by
+  0290's recipe bump).
+- 0302 — Work item re-key command (`work rekey` converges existing IDs onto
+  the current `work.id_pattern`; blocked by 0230).
+- 0343 — Alias normalisation for re-keyed work items (split out of 0302).
+- 0345 — Bare-number review during alias normalisation (blocked by 0343 and
+  0344).
+- 0346 — Remove deprecated `ACCELERATOR_MIGRATE_FORCE` (blocked by 0302).
+- 0300 — Sync pulls of tracked work items fail silently (every pull into an
+  already-tracked item fails, reported as a bare `failed` row with exit 0).
+- 0319 — Explicit work item ID on `accelerator work create` (`--id`
+  refuses taken, mismatched, draft-form and `{tracker}` IDs).
+- 0336 — Linear init cannot bootstrap a fresh repository (resolve the team
+  from `linear.team_key` before a catalogue exists; coordinates with 0294).
+- 0338 — Linear update overwrites fields it was not given (`accelerator
+  linear update` sends empty title / description and drops named flags; sync
+  is unaffected).
+- 0390 — Invocation validation on `accelerator work create --dry-run`
+  (parity with the real create's checks; blocked by 0319).
+- 0333 — Work item writers omit the required tags field (`work create`, its
+  batch mode and the sync importer drop `tags` when empty, failing frontmatter
+  validation).
+
+### Future candidates (deferred from 0229 refinement)
+
+Out of scope for the shipping children above; captured here to track potential
+follow-on work.
+
+- **Nested AND/OR filters** — promote the reserved `all` / `any` grouping keys in
+  0229's flat filter model to full boolean nesting (`(A AND B) OR (C AND D)`). 0229
+  reserves the keys so this lands with no config migration.
+- **Raw filter escape hatch** — a per-tracker raw query fragment (JQL / Linear
+  `IssueFilter`) for tracker-specific operators the normalised bag cannot express
+  (Jira `WAS` / `CHANGED`, custom fields; Linear `every`). Deferred to preserve
+  0229's config-time validation guarantee.
+- **Named pull scopes** — multiple named `pull` blocks per tracker selectable at
+  sync time (a narrow daily scope vs a wide release-time sweep), rather than the
+  single block per tracker 0229 ships.
+- **Remote-existence scope validation** — verify configured `additional_*` entities
+  and filter values against the remote, surfacing typos at validation time. 0229
+  validates structure only; this coordinates with 0227's `config validate` command.
+
+## Drafting Notes
+
+- Enriched 2026-08-30 from an interactive design session driven by bug 0220. The
+  epic was previously a thin extract; the scope-and-configuration model, the config
+  shape, and the child breakdown are new.
+- Key naming settled on `work.key` (not `default_project_code` / `id_key`) because
+  the value identifies the tracker entity, of which the ID prefix is one
+  consequence.
+- Ownership inverted relative to the first proposal: the integration section owns
+  the canonical scope key and `work.key` (the local ID prefix) is a separate,
+  independently-set value, so integration skills never depend on `work.*` and can be
+  packaged independently. `work.key` never derives from the scope key — the two were
+  the pair `default_project_code` wrongly conflated; `{key}` in `id_pattern` requires
+  an explicit `work.key`, and a silent default to the scope key was rejected because it
+  would give local IDs the tracker prefix over an independent number sequence, falsely
+  implying they correspond to remote issues (2026-09-10).
+- Linear scope required and taken from the key, with the credential reframed as
+  access control — a deliberate departure from defaulting scope to the credentialed
+  team.
+- 2026-09-09: captured four future candidates (nested filters, raw escape hatch,
+  named scopes, remote-existence validation) deferred during 0229's refinement.
+
+## References
+
+- Source: `meta/notes/2026-06-22-ideas-backlog.md`
+- Related: 0171, 0220, 0372

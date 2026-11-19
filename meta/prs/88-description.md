@@ -6,9 +6,9 @@ date: "2026-08-30T23:33:36+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0220"
-parent: "work-item:0220"
-relates_to: ["work-item:0146"]
+work_item_id: "work-item:PP-749"
+parent: "work-item:PP-749"
+relates_to: ["work-item:PP-167"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/88"
 pr_number: 88
 tags: ["sync", "linear", "jira", "tracker", "discovery"]
@@ -37,11 +37,11 @@ Untracked-remote discovery returned zero pulls on Linear for two independent rea
 
 ## Context
 
-- Work item: `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md`
-- Plan: `meta/plans/2026-08-30-0220-untracked-remote-discovery-on-linear.md`
-- Research: `meta/research/codebase/2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear.md`
-- Validation: `meta/validations/2026-08-30-0220-untracked-remote-discovery-on-linear-validation.md`
-- Parent epic: `meta/work/0146-work-item-sync-enhancements.md`
+- Work item: `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md`
+- Plan: `meta/plans/2026-08-30-PP-749-untracked-remote-discovery-on-linear.md`
+- Research: `meta/research/codebase/2026-08-30-PP-749-untracked-remote-discovery-never-runs-on-linear.md`
+- Validation: `meta/validations/2026-08-30-PP-749-untracked-remote-discovery-on-linear-validation.md`
+- Parent epic: `meta/work/PP-167-work-item-sync-enhancements.md`
 
 ## Testing
 

@@ -6,7 +6,7 @@ date: "2026-09-10T11:50:17+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-parent: "work-item:0209"
+parent: "work-item:PP-739"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/113"
 pr_number: 113
 tags: ["design", "security", "playwright", "auth"]

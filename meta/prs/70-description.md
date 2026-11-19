@@ -6,9 +6,9 @@ date: "2026-08-19T00:30:47+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0210"
-parent: "work-item:0210"
-relates_to: ["work-item:0171", "work-item:0211", "work-item:0212"]
+work_item_id: "work-item:PP-740"
+parent: "work-item:PP-740"
+relates_to: ["work-item:PP-192", "work-item:PP-741", "work-item:PP-742"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/70"
 pr_number: 70
 tags: ["rust", "jira", "linear", "integrations", "reqwest", "tracker", "adf", "graphql"]
@@ -39,10 +39,10 @@ No skill changes when this merges — the jira, linear and work skills all still
 
 ## Context
 
-- Work item: `meta/work/0210-provider-client-crates-over-the-tracker-port.md`
-- Parent epic: `meta/work/0171-jira-and-linear-integrations.md` (carries the D1–D16 decision register and the copyleft answer)
-- Plan: `meta/plans/2026-08-17-0210-provider-client-crates-over-the-tracker-port.md` (status `done`)
-- Validation: `meta/validations/2026-08-17-0210-provider-client-crates-over-the-tracker-port-validation.md`
+- Work item: `meta/work/PP-740-provider-client-crates-over-the-tracker-port.md`
+- Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md` (carries the D1–D16 decision register and the copyleft answer)
+- Plan: `meta/plans/2026-08-17-PP-740-provider-client-crates-over-the-tracker-port.md` (status `done`)
+- Validation: `meta/validations/2026-08-17-PP-740-provider-client-crates-over-the-tracker-port-validation.md`
 - Follow-ons: 0211 (integration-binary and bash-cluster retirement), 0212 (deletes the oracle scripts and the differential tests they drive)
 
 ## Testing

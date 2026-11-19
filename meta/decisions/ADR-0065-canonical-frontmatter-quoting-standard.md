@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 decision_makers: ["Toby Clemson"]
-parent: "work-item:0221"
+parent: "work-item:PP-750"
 relates_to: ["adr:ADR-0033", "adr:ADR-0034"]
 tags: ["frontmatter", "yaml", "corpus", "config"]
 last_updated: "2026-08-30T01:06:43+00:00"
@@ -152,12 +152,12 @@ either parent can find what changed.
 
 ## References
 
-- `work-item:0221` — Canonical Quoting Standard for All Frontmatter (owning work
+- `work-item:PP-750` — Canonical Quoting Standard for All Frontmatter (owning work
   item; implements this decision)
 - `adr:ADR-0033` — Unified base frontmatter schema (identity-value shape clause
   overridden here)
 - `adr:ADR-0034` — Typed linkage vocabulary (linkage-quoting clause subsumed here)
-- `work-item:0227` — accelerator config validate (enforces this standard over
+- `work-item:PP-757` — accelerator config validate (enforces this standard over
   config)
 - PR #76 — the reverted 37-file write-back churn that motivated a deterministic
   style

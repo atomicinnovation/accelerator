@@ -6,9 +6,9 @@ date: "2026-08-08T08:40:36+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0170"
-parent: "work-item:0170"
-relates_to: ["work-item:0194"]
+work_item_id: "PP-191"
+parent: "work-item:PP-191"
+relates_to: ["work-item:PP-724"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/55"
 pr_number: 55
 tags: []
@@ -38,9 +38,9 @@ Replaces the bash work-item lifecycle scripts with a typed, characterization-tes
 
 ## Context
 
-Split on 2026-08-05 from the original combined story (lifecycle CRUD + the `tracker` crate + the remote sync engine), following a work item review that found the two halves independently deliverable — see `meta/work/0170-work-item-subdomain-and-sync-engine.md`. The sync engine and `--push` wiring move to 0194, which will layer a `--push` flag onto this story's `create`/`update` commands once they exist; every command in this PR is local-only with zero dependency on 0194's `RemoteTracker` port.
+Split on 2026-08-05 from the original combined story (lifecycle CRUD + the `tracker` crate + the remote sync engine), following a work item review that found the two halves independently deliverable — see `meta/work/PP-191-work-item-subdomain-and-sync-engine.md`. The sync engine and `--push` wiring move to 0194, which will layer a `--push` flag onto this story's `create`/`update` commands once they exist; every command in this PR is local-only with zero dependency on 0194's `RemoteTracker` port.
 
-Full research, plan, review, and validation trail: `meta/research/codebase/2026-08-06-0170-work-item-lifecycle-subdomain.md`, `meta/plans/2026-08-06-0170-work-item-lifecycle-subdomain.md`, `meta/reviews/plans/2026-08-06-0170-work-item-lifecycle-subdomain-review-1.md`, `meta/validations/2026-08-06-0170-work-item-lifecycle-subdomain-validation.md`.
+Full research, plan, review, and validation trail: `meta/research/codebase/2026-08-06-PP-191-work-item-lifecycle-subdomain.md`, `meta/plans/2026-08-06-PP-191-work-item-lifecycle-subdomain.md`, `meta/reviews/plans/2026-08-06-PP-191-work-item-lifecycle-subdomain-review-1.md`, `meta/validations/2026-08-06-PP-191-work-item-lifecycle-subdomain-validation.md`.
 
 ## Testing
 

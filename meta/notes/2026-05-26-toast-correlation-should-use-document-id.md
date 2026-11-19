@@ -13,7 +13,7 @@ repository: "ticket-management"
 last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0039"]
+relates_to: ["work-item:PP-61"]
 ---
 
 # Future: switch external-edit correlation/display from relPath to a document ID
@@ -65,7 +65,7 @@ landing first.
 
 ## References
 
-- Work item: `meta/work/0039-toaster-and-external-edit-notifications.md`
+- Work item: `meta/work/PP-61-toaster-and-external-edit-notifications.md`
   (see Drafting Notes — "Future work: switch the toast ... to a real
   document ID")
 - `frontend/src/api/types.ts` (`SseEvent`, `IndexEntry.workItemId`)

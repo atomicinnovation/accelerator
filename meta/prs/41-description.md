@@ -6,9 +6,9 @@ date: "2026-08-03T12:29:40+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0186"
-parent: "work-item:0186"
-relates_to: ["work-item:0169", "work-item:0182", "work-item:0189", "work-item:0190", "work-item:0191"]
+work_item_id: "PP-716"
+parent: "work-item:PP-716"
+relates_to: ["work-item:PP-190", "work-item:PP-712", "work-item:PP-719", "work-item:PP-720", "work-item:PP-721"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/41"
 pr_number: 41
 tags: ["shell", "performance", "bootstrap", "bash-3.2", "testing"]
@@ -39,7 +39,7 @@ Production surface is small: `bin/accelerator` (+82/-…), `docs/internals.md`, 
 
 ## Context
 
-Work item [`0186`](../work/0186-remove-exec-probe-from-bootstrap-warm-path.md), under epic 0136, unblocked by 0182 and blocking [`0169`](../work/0169-vcs-subdomain-and-hooks-migration.md). Plan and its review are in `meta/plans/` and `meta/reviews/plans/`; the validation report is `meta/validations/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path-validation.md`.
+Work item [`0186`](../work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md), under epic 0136, unblocked by 0182 and blocking [`0169`](../work/PP-190-vcs-subdomain-and-hooks-migration.md). Plan and its review are in `meta/plans/` and `meta/reviews/plans/`; the validation report is `meta/validations/2026-08-02-PP-716-remove-exec-probe-from-bootstrap-warm-path-validation.md`.
 
 ### Why two call sites
 

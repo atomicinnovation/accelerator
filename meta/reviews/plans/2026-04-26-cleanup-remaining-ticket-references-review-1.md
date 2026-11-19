@@ -76,7 +76,7 @@ The plan is well-researched, clearly scoped, and correctly orders changes by use
   The References section cites `meta/decisions/ADR-0022-work-item-as-canonical-term.md`, but no file exists at that path. The ADR may use a different path or may not yet exist.
 
 - 🔵 **Correctness**: Line number discrepancy between plan and research for `0026` change
-  **Location**: Phase 4 — `meta/work/0026-init-skill-for-repo-bootstrap.md`
+  **Location**: Phase 4 — `meta/work/PP-48-init-skill-for-repo-bootstrap.md`
   The plan specifies line 107 but the research document cites line 108 for the same reference. The text is unique enough to locate visually but indicates the line numbers were not re-verified.
 
 #### Suggestions
@@ -157,7 +157,7 @@ Location: Phase 2, Changes Required: agents/documents-locator.md line 25 diff
 The line 25 replacement uses `Work items` (sentence case) while the line 74 heading replacement uses `### Work Items` (title case). These are different capitalisation choices for the same concept in the same file, producing an inconsistency after the plan is applied.
 
 **[Minor/Medium]** Line number discrepancy between plan and research for 0026 change
-Location: Phase 4, Changes Required: meta/work/0026-init-skill-for-repo-bootstrap.md line number
+Location: Phase 4, Changes Required: meta/work/PP-48-init-skill-for-repo-bootstrap.md line number
 The plan specifies line 107 but the research document cites line 108. The text is unique enough to locate visually, but indicates the line numbers were not re-verified.
 
 ---

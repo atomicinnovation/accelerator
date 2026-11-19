@@ -6,9 +6,9 @@ date: "2026-09-09T20:23:48+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0264"
-parent: "work-item:0264"
-relates_to: ["work-item:0136"]
+work_item_id: "work-item:PP-794"
+parent: "work-item:PP-794"
+relates_to: ["work-item:PP-157"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/110"
 pr_number: 110
 tags: ["testing", "cleanup", "bash-parity", "migration"]
@@ -58,9 +58,9 @@ survives.
 
 ## Context
 
-- Work item: `meta/work/0264-remove-bash-migration-negative-assertion-tests.md`
-- Plan: `meta/plans/2026-09-08-0264-remove-bash-migration-negative-assertion-tests.md`
-- Validation: `meta/validations/2026-09-08-0264-remove-bash-migration-negative-assertion-tests-validation.md` (result: pass)
+- Work item: `meta/work/PP-794-remove-bash-migration-negative-assertion-tests.md`
+- Plan: `meta/plans/2026-09-08-PP-794-remove-bash-migration-negative-assertion-tests.md`
+- Validation: `meta/validations/2026-09-08-PP-794-remove-bash-migration-negative-assertion-tests-validation.md` (result: pass)
 - Parent epic: 0136 (shell-to-Rust migration)
 
 The plan's "Coverage Retired (Accepted)" section records the regression classes

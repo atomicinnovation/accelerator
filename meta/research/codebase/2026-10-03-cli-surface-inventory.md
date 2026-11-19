@@ -763,22 +763,22 @@ Non-key config files:
 - `meta/decisions/ADR-0061-signed-content-addressed-tree-generations.md`, `ADR-0063-plugin-version-scoped-artifact-cache.md`, `ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md` - tree artifacts and cache.
 - `meta/decisions/ADR-0047-multi-level-userspace-configuration-model.md` - team and personal levels.
 - `meta/decisions/ADR-0021-template-management-subcommands.md` - `config templates`.
-- `meta/work/0251-env-var-overrides-in-config-crates.md` - env-over-config precedence.
-- `meta/work/0258-help-show-subcommands.md` - help behaviour.
-- `meta/work/0269-remove-bash-references-from-jira-linear-clients.md` - exit-code vocabulary.
-- `meta/work/0226-unify-the-trust-barrier-for-consent-config-keys.md` - consent keys.
+- `meta/work/PP-781-env-var-overrides-in-config-crates.md` - env-over-config precedence.
+- `meta/work/PP-788-help-show-subcommands.md` - help behaviour.
+- `meta/work/PP-799-remove-bash-references-from-jira-linear-clients.md` - exit-code vocabulary.
+- `meta/work/PP-756-unify-the-trust-barrier-for-consent-config-keys.md` - consent keys.
 - `docs-site/src/content/docs/configuration.md`, `internals.md` - user-facing reference that this document cross-checks.
 
 ## Related Research
 
-- `meta/research/codebase/2026-07-03-0164-launcher-and-git-style-dispatch.md`
-- `meta/research/codebase/2026-08-02-0187-generalise-sub-binary-registration-surface.md`
-- `meta/research/codebase/2026-09-05-0258-help-show-subcommands.md`
-- `meta/research/codebase/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
-- `meta/research/codebase/2026-09-10-0228-layered-configuration-key-model.md`
-- `meta/research/codebase/2026-08-06-0195-accelerator-corpus-cli-implementation-surface.md`
-- `meta/research/codebase/2026-08-11-0196-design-cli-implementation-surface.md`
-- `meta/research/codebase/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md`
+- `meta/research/codebase/2026-07-03-PP-185-launcher-and-git-style-dispatch.md`
+- `meta/research/codebase/2026-08-02-PP-717-generalise-sub-binary-registration-surface.md`
+- `meta/research/codebase/2026-09-05-PP-788-help-show-subcommands.md`
+- `meta/research/codebase/2026-09-06-PP-799-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
+- `meta/research/codebase/2026-09-10-PP-758-layered-configuration-key-model.md`
+- `meta/research/codebase/2026-08-06-PP-725-accelerator-corpus-cli-implementation-surface.md`
+- `meta/research/codebase/2026-08-11-PP-726-design-cli-implementation-surface.md`
+- `meta/research/codebase/2026-08-08-PP-727-accelerator-collaboration-pr-helper-cli.md`
 
 ## Open Questions
 

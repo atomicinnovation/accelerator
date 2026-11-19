@@ -6,9 +6,9 @@ date: "2026-10-29T10:12:44+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0306"
-parent: "work-item:0306"
-relates_to: ["work-item:0348", "work-item:0281", "work-item:0349", "work-item:0305", "work-item:0311", "work-item:0280", "work-item:0283", "work-item:0284"]
+work_item_id: "PP-892"
+parent: "work-item:PP-892"
+relates_to: ["work-item:PP-936", "work-item:PP-865", "work-item:PP-924", "work-item:PP-891", "work-item:PP-897", "work-item:PP-864", "work-item:PP-867", "work-item:PP-868"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/173"
 pr_number: 173
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
@@ -149,11 +149,11 @@ that 0348 adds, so #171 merges first.
 
 ## Context
 
-- Work item: `meta/work/0306-deterministic-rule-for-citing-a-source-once.md`
-- Plan: `meta/plans/2026-10-28-0306-deterministic-rule-for-citing-a-source-once.md`
-- Research: `meta/research/codebase/2026-10-28-0306-deterministic-rule-for-citing-a-source-once.md`
-- Plan review: `meta/reviews/plans/2026-10-28-0306-deterministic-rule-for-citing-a-source-once-review-1.md`
-- Validation: `meta/validations/2026-10-28-0306-deterministic-rule-for-citing-a-source-once-validation.md`
+- Work item: `meta/work/PP-892-deterministic-rule-for-citing-a-source-once.md`
+- Plan: `meta/plans/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once.md`
+- Research: `meta/research/codebase/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once.md`
+- Plan review: `meta/reviews/plans/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once-review-1.md`
+- Validation: `meta/validations/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once-validation.md`
   (result `pass`)
 - PR review: `meta/reviews/prs/173-review-1.md`, and the replies on this PR
 

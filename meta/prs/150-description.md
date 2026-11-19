@@ -6,7 +6,7 @@ date: "2026-10-08T11:48:28+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0121", "work-item:0146", "work-item:0207", "work-item:0215", "work-item:0217", "work-item:0226", "work-item:0230", "work-item:0241", "work-item:0277", "work-item:0278", "work-item:0280", "work-item:0283", "work-item:0286", "work-item:0295"]
+relates_to: ["work-item:PP-22", "work-item:PP-167", "work-item:PP-737", "work-item:PP-744", "work-item:PP-746", "work-item:PP-756", "work-item:PP-760", "work-item:PP-771", "work-item:PP-861", "work-item:PP-862", "work-item:PP-864", "work-item:PP-867", "work-item:PP-872", "work-item:PP-882"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/150"
 pr_number: 150
 tags: ["meta", "work-items", "housekeeping", "research", "cli"]

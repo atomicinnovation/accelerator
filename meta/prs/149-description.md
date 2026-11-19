@@ -6,9 +6,9 @@ date: "2026-10-07T23:20:45+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0299"
-parent: "work-item:0299"
-relates_to: ["work-item:0226"]
+work_item_id: "PP-881"
+parent: "work-item:PP-881"
+relates_to: ["work-item:PP-756"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/149"
 pr_number: 149
 tags: ["cli", "architecture", "dependencies", "refactor"]
@@ -126,13 +126,13 @@ are now crate tests.
 
 ## Context
 
-- Work item: `meta/work/0299-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
+- Work item: `meta/work/PP-881-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
 - ADR: `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
   (accepted in this PR)
-- Plan: `meta/plans/2026-10-06-0299-crate-dependencies-adr-0069.md`. Its
+- Plan: `meta/plans/2026-10-06-PP-881-crate-dependencies-adr-0069.md`. Its
   Implementation Notes record every phase's deviations, the rule 3 outcomes,
   and the before/after figures.
-- Research: `meta/research/codebase/2026-10-06-0299-crate-dependencies-adr-0069.md`
+- Research: `meta/research/codebase/2026-10-06-PP-881-crate-dependencies-adr-0069.md`
 
 ## Testing
 

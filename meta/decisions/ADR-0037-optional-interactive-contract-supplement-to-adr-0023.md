@@ -9,7 +9,7 @@ title: "ADR-0037: Optional interactive contract for the migration framework — 
 schema_version: 1
 last_updated: "2026-05-26T15:07:14+01:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:0062", "adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0035", "adr:ADR-0026", "adr:ADR-0030", "work-item:0057", "work-item:0068", "work-item:0069", "work-item:0070", "work-item:0092", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"]
+relates_to: ["work-item:PP-84", "adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0035", "adr:ADR-0026", "adr:ADR-0030", "work-item:PP-79", "work-item:PP-90", "work-item:PP-91", "work-item:PP-92", "work-item:PP-114", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy", "codebase-research:2026-05-26-PP-114-adr-optional-interactive-contract-for-migration-framework"]
 ---
 
 # ADR-0037: Optional interactive contract for the migration framework — supplement to ADR-0023
@@ -133,13 +133,13 @@ Once this ADR is `accepted` it too becomes immutable, and a further extension to
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — prior precedent for the supplement pattern (supplements ADR-0028)
 - `meta/decisions/ADR-0035-brand-layer-indirection-supplement-to-adr-0026.md` — prior precedent for the supplement pattern (supplements ADR-0026)
 - `meta/decisions/ADR-0030-adr-template.md` — template authority
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic framing the extension as a deliberate departure from ADR-0023's mechanical contract
-- `meta/work/0062-adr-corpus-migration-strategy.md` — sibling ADR-task; parameterises this contract for the unified-schema migration's linkage validation
-- `meta/work/0068-spike-related-documents-inference-accuracy.md` — spike whose verdict motivates the contract; status done
-- `meta/work/0069-migration-framework-interactive-validation-hooks.md` — runner-implementation story; implements this contract
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — downstream consumer (via 0062 and 0069)
-- `meta/work/0092-adr-optional-interactive-contract-for-migration-framework.md` — work item this ADR satisfies
-- `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md` — spike findings and verdict
-- `meta/research/codebase/2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework.md` — ADR drafting research
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic framing the extension as a deliberate departure from ADR-0023's mechanical contract
+- `meta/work/PP-84-adr-corpus-migration-strategy.md` — sibling ADR-task; parameterises this contract for the unified-schema migration's linkage validation
+- `meta/work/PP-90-spike-related-documents-inference-accuracy.md` — spike whose verdict motivates the contract; status done
+- `meta/work/PP-91-migration-framework-interactive-validation-hooks.md` — runner-implementation story; implements this contract
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — downstream consumer (via 0062 and 0069)
+- `meta/work/PP-114-adr-optional-interactive-contract-for-migration-framework.md` — work item this ADR satisfies
+- `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md` — spike findings and verdict
+- `meta/research/codebase/2026-05-26-PP-114-adr-optional-interactive-contract-for-migration-framework.md` — ADR drafting research
 - `skills/config/migrate/SKILL.md` — current user-facing migration framework contract
 - `skills/config/migrate/scripts/run-migrations.sh` — current migration runner

@@ -18,7 +18,7 @@ schema_version: 1
 # Top-level `.accelerator/` reorganisation
 
 **Status**: Implemented in
-`meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`.
+`meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`.
 Retained for historical context.
 
 ## Problem

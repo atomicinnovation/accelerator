@@ -6,8 +6,8 @@ date: "2026-09-08T17:30:08+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0121"
-parent: "work-item:0121"
+work_item_id: "PP-22"
+parent: "work-item:PP-22"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/108"
 pr_number: 108
 tags: ["research", "skills", "epic-breakdown"]
@@ -37,7 +37,7 @@ meta artifacts only — work items and review records — with no product code.
   Together they drove the epic's revisions — the seven-subcommand workflow, the
   reputation-tier terminology, and the field-name-level artifact contract.
 
-**Epic promoted and rewritten** (`meta/work/0121-topic-research-skillset.md`):
+**Epic promoted and rewritten** (`meta/work/PP-22-topic-research-skillset.md`):
 
 - Status `draft` → `ready`, priority `medium` → `high`.
 - Workflow reworked to seven subcommands in two groups — build

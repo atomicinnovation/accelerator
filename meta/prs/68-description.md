@@ -6,9 +6,9 @@ date: "2026-08-17T13:08:08+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0171"
-parent: "work-item:0171"
-relates_to: ["work-item:0210", "work-item:0211", "work-item:0212", "work-item:0213", "work-item:0174"]
+work_item_id: "PP-192"
+parent: "work-item:PP-192"
+relates_to: ["work-item:PP-740", "work-item:PP-741", "work-item:PP-742", "work-item:PP-743", "work-item:PP-195"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/68"
 pr_number: 68
 tags: ["work-items", "reviews", "decomposition", "jira", "linear"]
@@ -38,7 +38,7 @@ The substantive outcome is not the reshuffling: it is that reviewing the childre
 
 ## Context
 
-Work item: [0171](../work/0171-jira-and-linear-integrations.md), under epic [0136](../work/0136-migrate-shell-scripts-to-rust-cli.md). Children: [0210](../work/0210-provider-client-crates-over-the-tracker-port.md), [0211](../work/0211-integration-binaries-and-bash-cluster-retirement.md), [0212](../work/0212-work-item-script-cutover.md), [0213](../work/0213-conversational-conflict-resolution-flow.md).
+Work item: [0171](../work/PP-192-jira-and-linear-integrations.md), under epic [0136](../work/PP-157-migrate-shell-scripts-to-rust-cli.md). Children: [0210](../work/PP-740-provider-client-crates-over-the-tracker-port.md), [0211](../work/PP-741-integration-binaries-and-bash-cluster-retirement.md), [0212](../work/PP-742-work-item-script-cutover.md), [0213](../work/PP-743-conversational-conflict-resolution-flow.md).
 
 Two findings from the review passes are worth reading in full, because both were latent defects rather than presentation problems.
 

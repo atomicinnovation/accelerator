@@ -6,9 +6,9 @@ date: "2026-09-11T16:31:43+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0277"
-parent: "work-item:0277"
-relates_to: ["work-item:0278"]
+work_item_id: "PP-861"
+parent: "work-item:PP-861"
+relates_to: ["work-item:PP-862"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/117"
 pr_number: 117
 tags: []
@@ -67,8 +67,8 @@ is only browsable once 0278 lands.
 
 ## Context
 
-- Implements work item `work-item:0277`, under epic `work-item:0121`.
-- Base of a stack: PR #118 (`work-item:0278`) targets this branch. The engine
+- Implements work item `work-item:PP-861`, under epic `work-item:PP-22`.
+- Base of a stack: PR #118 (`work-item:PP-862`) targets this branch. The engine
   writes conforming artifacts to disk; 0278 makes them browsable, so the
   vertical demo lands whole only with both.
 - Output quality is judged later by the Slice 3 gate (work item 0280); this PR

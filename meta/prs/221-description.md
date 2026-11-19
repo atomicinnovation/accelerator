@@ -6,9 +6,9 @@ date: "2026-11-16T00:26:57+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0364"
-parent: "work-item:0364"
-relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
+work_item_id: "PP-956"
+parent: "work-item:PP-956"
+relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/221"
 pr_number: 221
 tags: ["build-system", "testing", "pytest", "dev-task", "performance"]
@@ -64,8 +64,8 @@ No production code changes: `tasks/shared/dev` is untouched.
 
 ## Context
 
-- Work item: `meta/work/0364-parallelise-the-serial-test-suites.md`
-- Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
+- Plan: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 2)
 - Base: #220 (Phase 1), which this PR must merge after.
 

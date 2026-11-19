@@ -6,9 +6,9 @@ date: "2026-07-06T17:37:11+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0165-multi-binary-distribution-and-release-pipeline"
-parent: "work-item:0165"
-relates_to: ["work-item:0164", "work-item:0168"]
+work_item_id: "PP-186-multi-binary-distribution-and-release-pipeline"
+parent: "work-item:PP-186"
+relates_to: ["work-item:PP-185", "work-item:PP-189"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/14"
 pr_number: 14
 tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
@@ -76,10 +76,10 @@ commit, and the launcher track wires in live only in the final commit.
 
 ## Context
 
-- Work item: `meta/work/0165-multi-binary-distribution-and-release-pipeline.md`
-- Plan: `meta/plans/2026-07-06-0165-multi-binary-distribution-and-release-pipeline.md`
+- Work item: `meta/work/PP-186-multi-binary-distribution-and-release-pipeline.md`
+- Plan: `meta/plans/2026-07-06-PP-186-multi-binary-distribution-and-release-pipeline.md`
   (status `done`)
-- Validation: `meta/validations/2026-07-06-0165-multi-binary-distribution-and-release-pipeline-validation.md`
+- Validation: `meta/validations/2026-07-06-PP-186-multi-binary-distribution-and-release-pipeline-validation.md`
   (result `pass`)
 - Frozen consumer contract delivered by 0164; 0168 will populate the manifest
   with the visualiser sub-binary and remove `bin/checksums.json`.

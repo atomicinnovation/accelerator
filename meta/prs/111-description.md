@@ -6,8 +6,8 @@ date: "2026-09-10T00:47:43+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0184"
-parent: "work-item:0184"
+work_item_id: "PP-714"
+parent: "work-item:PP-714"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/111"
 pr_number: 111
 tags: ["cli", "config", "templates", "plugin-root", "visualiser"]
@@ -59,10 +59,10 @@ closed even under `--fail-safe`.
 
 ## Context
 
-- Work item: `meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`
-- Plan: `meta/plans/2026-09-09-0184-template-resolution-wrong-plugin-root.md`
-- Research: `meta/research/codebase/2026-09-08-0184-template-resolution-wrong-plugin-root.md`
-- Validation: `meta/validations/2026-09-09-0184-template-resolution-wrong-plugin-root-validation.md`
+- Work item: `meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`
+- Plan: `meta/plans/2026-09-09-PP-714-template-resolution-wrong-plugin-root.md`
+- Research: `meta/research/codebase/2026-09-08-PP-714-template-resolution-wrong-plugin-root.md`
+- Validation: `meta/validations/2026-09-09-PP-714-template-resolution-wrong-plugin-root-validation.md`
 - Builds on 0182 (CLI derives plugin root from its own location).
 
 ## Testing

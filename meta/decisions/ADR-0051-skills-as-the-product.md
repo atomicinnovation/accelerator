@@ -142,6 +142,6 @@ ADR-0045; that is a complement, not a replacement, for the skill layer.)
   decision on what work lives in skills vs. the CLI.
 - `meta/decisions/ADR-0052-filesystem-as-message-bus-and-knowledge-corpus.md` —
   The filesystem-as-message-bus mechanism this decision defers to.
-- `meta/work/0159-skill-evaluation-framework-selection.md` — The skill-evaluation
+- `meta/work/PP-182-skill-evaluation-framework-selection.md` — The skill-evaluation
   spike motivated by skills being the product.
 </content>

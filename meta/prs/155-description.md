@@ -6,9 +6,9 @@ date: "2026-10-10T20:53:32+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0303"
-parent: "work-item:0303"
-relates_to: ["work-item:0304", "work-item:0307", "work-item:0310"]
+work_item_id: "PP-889"
+parent: "work-item:PP-889"
+relates_to: ["work-item:PP-890", "work-item:PP-893", "work-item:PP-896"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/155"
 pr_number: 155
 tags: []
@@ -61,10 +61,10 @@ to COMMENT, and it is ready for planning.
 
 ## Context
 
-- Work item: `meta/work/0303-research-concurrency-exceeds-subagent-limit.md`
+- Work item: `meta/work/PP-889-research-concurrency-exceeds-subagent-limit.md`
 - Source issue: https://github.com/atomicinnovation/accelerator/issues/140
-- Review: `meta/reviews/work/0303-research-concurrency-exceeds-subagent-limit-review-1.md`
-- Orchestration vocabulary: `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
+- Review: `meta/reviews/work/PP-889-research-concurrency-exceeds-subagent-limit-review-1.md`
+- Orchestration vocabulary: `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md`
 
 ## Testing
 

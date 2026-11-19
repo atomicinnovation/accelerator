@@ -6,9 +6,9 @@ date: "2026-11-14T14:00:45+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0363"
-parent: "work-item:0363"
-relates_to: ["plan:2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes"]
+work_item_id: "PP-955"
+parent: "work-item:PP-955"
+relates_to: ["plan:2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/216"
 pr_number: 216
 tags: ["build-system", "testing", "rust", "coverage"]
@@ -164,11 +164,11 @@ plan.
 
 ## Context
 
-- Work item: `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md`
-- Plan: `meta/plans/2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes.md`
-- Research: `meta/research/codebase/2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes.md`
+- Work item: `meta/work/PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
+- Plan: `meta/plans/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
+- Research: `meta/research/codebase/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
 - Reversed decision: "No coverage gating" in
-  `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`
+  `meta/plans/2026-07-02-PP-183-rust-toolchain-guard-rails.md`
 
 ## Testing
 

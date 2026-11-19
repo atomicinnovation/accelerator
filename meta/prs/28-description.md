@@ -6,9 +6,9 @@ date: "2026-07-28T22:04:16+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0182"
-parent: "work-item:0182"
-relates_to: ["work-item:0183", "work-item:0164", "work-item:0167", "work-item:0136"]
+work_item_id: "PP-712"
+parent: "work-item:PP-712"
+relates_to: ["work-item:PP-713", "work-item:PP-185", "work-item:PP-188", "work-item:PP-157"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/28"
 pr_number: 28
 tags: ["bug", "cli", "launcher", "bootstrap", "plugin-root", "symlinks", "fail-safe", "test-flakes"]
@@ -64,7 +64,7 @@ Surfaced but not caused by this work — three consecutive full runs each failed
 
 ## Context
 
-- Implements work item **0182** (this PR's parent), Phases 0 and 1a of `meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md`. The plan is included in the diff along with its review, the codebase research and the issue research.
+- Implements work item **0182** (this PR's parent), Phases 0 and 1a of `meta/plans/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename.md`. The plan is included in the diff along with its review, the codebase research and the issue research.
 - Raises **0183** for the discarded `SessionStart` stderr advisory.
 - Related: **0164** (introduced the bootstrap), **0167** (routed the skills through it), **0136** (the parent Rust CLI migration epic).
 - **Blocks the next prerelease** — the plugin is substantially unusable as shipped in `1.24.0-pre.16` for any consumer who has not manually exported the variable.

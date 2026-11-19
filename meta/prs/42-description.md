@@ -6,9 +6,9 @@ date: "2026-08-03T13:46:38+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0187"
-parent: "work-item:0187"
-relates_to: ["work-item:0136", "work-item:0168"]
+work_item_id: "PP-717"
+parent: "work-item:PP-717"
+relates_to: ["work-item:PP-157", "work-item:PP-189"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/42"
 pr_number: 42
 tags: ["build-system", "distribution", "release", "rust", "docs"]
@@ -51,12 +51,12 @@ Five phases, one commit each, each green on top of its predecessors.
 
 ## Context
 
-- Work item: `meta/work/0187-generalise-sub-binary-registration-surface.md`
-- Plan: `meta/plans/2026-08-02-0187-generalise-sub-binary-registration-surface.md` (now `status: done`)
-- Research: `meta/research/codebase/2026-08-02-0187-generalise-sub-binary-registration-surface.md`
+- Work item: `meta/work/PP-717-generalise-sub-binary-registration-surface.md`
+- Plan: `meta/plans/2026-08-02-PP-717-generalise-sub-binary-registration-surface.md` (now `status: done`)
+- Research: `meta/research/codebase/2026-08-02-PP-717-generalise-sub-binary-registration-surface.md`
 - Reviews: `meta/reviews/plans/2026-08-03-0187-…-review-1.md`
 - Validation: `meta/validations/2026-08-02-0187-…-validation.md`
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Governing decision: ADR-0054 (git-style modular CLI of on-demand static binaries)
 - Blocker **discharged**: 0168 (fold visualiser into the cli workspace) is `done`, so `_SUBBINARY_MANIFESTS`' visualiser entry is stable.
 - Unblocks 0169–0173, the five stories that each ship a sub-binary.

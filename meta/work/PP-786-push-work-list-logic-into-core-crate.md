@@ -1,0 +1,55 @@
+---
+type: "work-item"
+id: "PP-786"
+title: "Push Work-List Logic Into Core Crate"
+date: "2026-08-31T12:11:13+00:00"
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "task"
+priority: "medium"
+parent: "work-item:PP-860"
+tags: ["work", "crates", "refactor"]
+last_updated: "2026-09-05T00:00:00+00:00"
+last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
+schema_version: 1
+external_id: "PP-786"
+aliases: ["0256"]
+---
+
+# PP-786: Push Work-List Logic Into Core Crate
+
+**Kind**: Task
+**Status**: Draft
+**Priority**: Medium
+**Author**: Toby Clemson
+
+## Summary
+
+Move the work-list logic (filtering, sorting, hierarchy) down into a core
+crate so it is reusable and tested independently of the command layer.
+
+## Context
+
+Captured in the further-ideas backlog. Work-list logic sits in the command
+surface rather than a shared crate.
+
+## Requirements
+
+- Extract work-list logic into a core crate with its own tests.
+
+## Acceptance Criteria
+
+- [ ] Work-list filtering and hierarchy logic lives in a core crate.
+- [ ] The list command delegates to that crate.
+
+## Drafting Notes
+
+- Extracted from source documents without interactive enrichment.
+  Acceptance criteria, dependencies, and kind may need refinement before
+  promoting from `draft` to `ready`.
+
+## References
+
+- Source: `meta/notes/2026-06-23-further-ideas-backlog.md`

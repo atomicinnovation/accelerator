@@ -6,9 +6,9 @@ date: "2026-09-06T22:40:20+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0245"
-parent: "work-item:0245"
-relates_to: ["work-item:0107"]
+work_item_id: "PP-775"
+parent: "work-item:PP-775"
+relates_to: ["work-item:PP-129"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/103"
 pr_number: 103
 tags: ["skills", "cli", "lint"]
@@ -55,9 +55,9 @@ read, and maintain.
 
 ## Context
 
-- Work item: `meta/work/0245-invoke-accelerator-directly-in-skills.md` (under
+- Work item: `meta/work/PP-775-invoke-accelerator-directly-in-skills.md` (under
   epic 0136, single-call-form convergence).
-- Plan: `meta/plans/2026-09-06-0245-invoke-accelerator-directly-in-skills.md`
+- Plan: `meta/plans/2026-09-06-PP-775-invoke-accelerator-directly-in-skills.md`
   (status `done`).
 - Validation: `meta/validations/2026-09-06-0245-…-validation.md` (result
   `pass`).

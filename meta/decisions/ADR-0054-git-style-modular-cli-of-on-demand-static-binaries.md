@@ -9,7 +9,7 @@ title: "ADR-0054: Git-Style Modular CLI of On-Demand Static Binaries"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0053", "work-item:0158"]
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0053", "work-item:PP-181"]
 ---
 
 # ADR-0054: Git-Style Modular CLI of On-Demand Static Binaries
@@ -210,12 +210,12 @@ land in the shared closure and bleed into every binary, defeating the lean goal.
 ## References
 
 - **Feeding spike (primary provenance)**:
-  `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+  `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — Recommendation §1 (crate split), §2 (dispatch), and §3 (launcher) are the
   source of this decision.
 - **Ported from luminosity** — original decision (lum ADR-0010):
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0010-git-style-modular-cli-of-on-demand-static-binaries.md
-- `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
   — Rust-CLI migration direction; `accelerator` is the settled command name.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — Establishes the
   CLI exists.

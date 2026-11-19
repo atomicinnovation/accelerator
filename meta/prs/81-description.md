@@ -6,9 +6,9 @@ date: "2026-08-24T23:03:59+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0191"
-parent: "work-item:0191"
-relates_to: ["work-item:0186", "work-item:0189", "work-item:0205", "work-item:0169"]
+work_item_id: "work-item:PP-721"
+parent: "work-item:PP-721"
+relates_to: ["work-item:PP-716", "work-item:PP-719", "work-item:PP-735", "work-item:PP-190"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/81"
 pr_number: 81
 tags: ["shell", "performance", "bootstrap", "bash-3.2", "sha256"]
@@ -35,7 +35,7 @@ The `bin/accelerator` bootstrap hashed the verify-shim source and its staged cop
 
 ## Context
 
-Implements work item [0191](../work/0191-batch-the-two-shim-hashes-into-one-invocation.md) via plan [2026-08-22-0191-batch-shim-hashes](../plans/2026-08-22-0191-batch-shim-hashes.md). Follows the bootstrap fork-count work in 0186 and 0205; the warm-dispatch ratio drop is evidence for tightening 0189's C5 threshold. Validation report: [2026-08-22-0191-batch-shim-hashes-validation](../validations/2026-08-22-0191-batch-shim-hashes-validation.md).
+Implements work item [0191](../work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md) via plan [2026-08-22-PP-721-batch-shim-hashes](../plans/2026-08-22-PP-721-batch-shim-hashes.md). Follows the bootstrap fork-count work in 0186 and 0205; the warm-dispatch ratio drop is evidence for tightening 0189's C5 threshold. Validation report: [2026-08-22-PP-721-batch-shim-hashes-validation](../validations/2026-08-22-PP-721-batch-shim-hashes-validation.md).
 
 ## Testing
 

@@ -6,7 +6,7 @@ date: "2026-08-02T18:57:09+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0136", "work-item:0167", "work-item:0168", "work-item:0182", "work-item:0169", "work-item:0186", "work-item:0187"]
+relates_to: ["work-item:PP-157", "work-item:PP-188", "work-item:PP-189", "work-item:PP-712", "work-item:PP-190", "work-item:PP-716", "work-item:PP-717"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/36"
 pr_number: 36
 tags: ["work-items", "bookkeeping", "status"]
@@ -35,7 +35,7 @@ Three one-line frontmatter edits, `status: ready` → `status: done`:
 
 Each item's code is verifiable on `main` today:
 
-- **0167** — both of its plans are fully executed (`2026-07-22-0167-config-command-refactoring.md` has 62/62 checked). Its remaining unchecked items are manual or release-gated: `--help` snapshot review, live-session skill invocations, and cold-start latency measurement. 0169's Dependencies section explicitly asks for this closeout *before* that story starts, rather than at its acceptance, "or the edge stays stale throughout".
+- **0167** — both of its plans are fully executed (`2026-07-22-PP-188-config-command-refactoring.md` has 62/62 checked). Its remaining unchecked items are manual or release-gated: `--help` snapshot review, live-session skill invocations, and cold-start latency measurement. 0169's Dependencies section explicitly asks for this closeout *before* that story starts, rather than at its acceptance, "or the edge stays stale throughout".
 - **0168** — `cli/visualiser/{frontend,server}` exists in the workspace and the plan is already marked `status: done`. Its nine unchecked items are E2E, visual and release-gated checks.
 - **0182** — `bin/accelerator` exports `ACCELERATOR_PLUGIN_ROOT`; 104 of 109 plan items are checked and the five outstanding are manual pre-release checks against a clean install of a signed artifact.
 

@@ -594,10 +594,10 @@ exit 1
       `test -x skills/tickets/scripts/ticket-read-status.sh`
       `test -x skills/tickets/scripts/ticket-read-field.sh`
 - [ ] `ticket-read-status.sh` reads status from an existing ticket:
-      `bash skills/tickets/scripts/ticket-read-status.sh meta/tickets/0001-three-layer-review-system-architecture.md`
+      `bash skills/tickets/scripts/ticket-read-status.sh meta/tickets/PP-23-three-layer-review-system-architecture.md`
       (should output `todo`)
 - [ ] `ticket-read-field.sh` reads type from an existing ticket:
-      `bash skills/tickets/scripts/ticket-read-field.sh type meta/tickets/0001-three-layer-review-system-architecture.md`
+      `bash skills/tickets/scripts/ticket-read-field.sh type meta/tickets/PP-23-three-layer-review-system-architecture.md`
       (should output `adr-creation-task`)
 
 ---

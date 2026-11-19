@@ -12,7 +12,7 @@ repository: "accelerator"
 last_updated: "2026-06-02T00:45:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "work-item:0057", "work-item:0040"]
+relates_to: ["codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "work-item:PP-79", "work-item:PP-62"]
 ---
 
 # Lifecycle Clustering Composite Key Implementation Plan
@@ -133,7 +133,7 @@ After this plan completes:
   item — being `null`.
 - **The lifecycle cluster view** shows a small "clustered via" tag on
   each entry exposing the typed-linkage chain (e.g.
-  `parent → work-item:0040`) so users can debug clustering decisions
+  `parent → work-item:PP-62`) so users can debug clustering decisions
   during the epic-0057 migration window.
 - **`/api/related/*` and `/api/lifecycle` agree on cluster membership.**
   `related::resolve_related` looks up inferred-cluster siblings via
@@ -266,9 +266,9 @@ fn dated_types_strip_optional_work_item_id_after_date() {
     ] {
         let cases = &[
             // ID present: stripped
-            ("2026-05-31-0040-pipeline-visualisation-overhaul.md",
+            ("2026-05-31-PP-62-pipeline-visualisation-overhaul.md",
              Some("pipeline-visualisation-overhaul")),
-            ("2026-05-05-0031-consolidate-accelerator-owned-files.md",
+            ("2026-05-05-PP-53-consolidate-accelerator-owned-files.md",
              Some("consolidate-accelerator-owned-files")),
             // ID absent: descriptive slug preserved (legacy shape)
             ("2026-02-22-pr-review-agents.md", Some("pr-review-agents")),
@@ -309,7 +309,7 @@ fn dated_types_strip_project_prefixed_work_item_id_after_date() {
 fn plan_reviews_strip_optional_work_item_id_after_date() {
     let cfg = WorkItemConfig::default();
     let cases = &[
-        ("2026-05-05-0031-consolidate-accelerator-owned-files-review-1.md",
+        ("2026-05-05-PP-53-consolidate-accelerator-owned-files-review-1.md",
          Some("consolidate-accelerator-owned-files")),
         // ID-less legacy shape still works
         ("2026-04-18-foo-review-1.md", Some("foo")),
@@ -328,7 +328,7 @@ fn work_item_reviews_accept_no_date_id_prefixed_shape() {
     let cfg = WorkItemConfig::default();
     // The shape every file under meta/reviews/work/ uses today.
     let cases = &[
-        ("0030-centralise-path-defaults-review-1.md",
+        ("PP-52-centralise-path-defaults-review-1.md",
          Some("centralise-path-defaults")),
         ("0061-adr-typed-linkage-vocabulary-review-2.md",
          Some("adr-typed-linkage-vocabulary")),
@@ -373,12 +373,12 @@ fn phase_1_id_prefixed_and_bare_slugs_now_cluster_into_one_bucket() {
     let cfg = WorkItemConfig::default();
     let plan = entry_for_test_with_filename(
         DocTypeKey::Plans,
-        "2026-05-31-0040-pipeline-visualisation-overhaul.md",
+        "2026-05-31-PP-62-pipeline-visualisation-overhaul.md",
         &cfg,
     );
     let wi = entry_for_test_with_filename(
         DocTypeKey::WorkItems,
-        "0040-pipeline-visualisation-overhaul.md",
+        "PP-62-pipeline-visualisation-overhaul.md",
         &cfg,
     );
     let (clusters, _, _) = compute_clusters_with_backfill(&[plan, wi]);
@@ -700,7 +700,7 @@ mod tests {
 
     #[test]
     fn parses_work_item_prefix() {
-        assert_eq!(parse_typed_ref("work-item:0042"),
+        assert_eq!(parse_typed_ref("work-item:PP-64"),
                    Some(TypedRef::WorkItem("0042".into())));
         assert_eq!(parse_typed_ref("work-item:PROJ-0042"),
                    Some(TypedRef::WorkItem("PROJ-0042".into())));
@@ -761,7 +761,7 @@ mod tests {
 
     #[test]
     fn whitespace_is_trimmed() {
-        assert_eq!(parse_typed_ref("  work-item:0042  "),
+        assert_eq!(parse_typed_ref("  work-item:PP-64  "),
                    Some(TypedRef::WorkItem("0042".into())));
     }
 }
@@ -868,7 +868,7 @@ mod target_path_resolution_tests {
     fn work_item_review_with_path_target_resolves_to_work_item_path() {
         let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
-            "target": "meta/work/0033-design-token-system.md"
+            "target": "meta/work/PP-55-design-token-system.md"
         });
         let root = PathBuf::from("/repo");
         let resolved = target_path_from_entry(
@@ -876,7 +876,7 @@ mod target_path_resolution_tests {
             &plans_by_id_with("ignored", PathBuf::from("/repo/meta/plans/x.md")),
             &root,
         );
-        assert_eq!(resolved, Some(PathBuf::from("/repo/meta/work/0033-design-token-system.md")));
+        assert_eq!(resolved, Some(PathBuf::from("/repo/meta/work/PP-55-design-token-system.md")));
     }
 
     #[test]
@@ -956,7 +956,7 @@ mod target_path_resolution_tests {
         // contract so the Phase 3/Phase 4 division of labour can't
         // drift silently.
         let mut entry = entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
-        entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
+        entry.frontmatter = serde_json::json!({ "target": "work-item:PP-64" });
         assert_eq!(
             target_path_from_entry(&entry, &HashMap::new(), &PathBuf::from("/repo")),
             None,
@@ -1360,7 +1360,7 @@ existing multi-input callers.
 Tests under `#[cfg(test)] mod tests` should cover (one test per case):
 
 1. WorkItem returns its own `work_item_id`.
-2. Plan with `parent: "work-item:0042"` resolves to `"0042"`.
+2. Plan with `parent: "work-item:PP-64"` resolves to `"0042"`.
 3. Plan with `parent: "0042"` resolves to `"0042"`.
 4. Plan with `work_item_id: "0042"` (no parent) resolves to `"0042"`.
 5. Plan with path-shape `work_item_id: "meta/work/0033-foo.md"`
@@ -1403,7 +1403,7 @@ Tests under `#[cfg(test)] mod tests` should cover (one test per case):
     fn plan_parent_resolves_to_canonical_id_even_when_work_item_missing() {
         let cfg = WorkItemConfig::default();
         let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 1, "P");
-        plan.frontmatter = json!({ "parent": "work-item:0099" });
+        plan.frontmatter = json!({ "parent": "work-item:PP-121" });
         // Note: empty work_item_by_id — no entry registered for 0099.
         let resolved = resolve_cluster_key(
             &plan,
@@ -1695,9 +1695,9 @@ async fn apply_cluster_key_backfill_is_atomic_under_single_writer_lock() {
         proceed: proceed_rx,
     }).await;
 
-    // Writer: edit plan to add `parent: work-item:0040`, then
+    // Writer: edit plan to add `parent: work-item:PP-62`, then
     // refresh_one. The cluster_key for the plan migrates None → "0040".
-    std::fs::write(&plan_path, "---\nparent: \"work-item:0040\"\n---\n").unwrap();
+    std::fs::write(&plan_path, "---\nparent: \"work-item:PP-62\"\n---\n").unwrap();
     let writer_idx = idx.clone();
     let writer_plan = canonical_plan.clone();
     let writer = tokio::spawn(async move {
@@ -1821,7 +1821,7 @@ fn plan_with_parent_work_item_id_clusters_with_the_work_item() {
     wi.path = PathBuf::from("/repo/meta/work/0040-pipeline.md");
     let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
     plan.path = PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
-    plan.frontmatter = json!({ "parent": "work-item:0040" });
+    plan.frontmatter = json!({ "parent": "work-item:PP-62" });
     let (clusters, _, cluster_key_by_path) = run_clusters(&[wi.clone(), plan.clone()], &cfg);
     assert_eq!(clusters.len(), 1);
     assert_eq!(clusters[0].cluster_key.as_deref(), Some("0040"));
@@ -1842,7 +1842,7 @@ fn validation_with_target_path_clusters_via_plan_parent() {
     let plan_path = PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md");
     let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
     plan.path = plan_path.clone();
-    plan.frontmatter = json!({ "parent": "work-item:0040" });
+    plan.frontmatter = json!({ "parent": "work-item:PP-62" });
     let mut val = entry_for_test(DocTypeKey::Validations, "pipeline", 3, "Val");
     val.path = PathBuf::from("/repo/meta/validations/2026-05-31-pipeline-validation.md");
     val.frontmatter = json!({ "target": "meta/plans/2026-05-31-0040-pipeline.md" });
@@ -1858,10 +1858,10 @@ fn work_item_review_no_date_filename_clusters_via_target() {
     let cfg = WorkItemConfig::default();
     let mut wi = entry_for_test(DocTypeKey::WorkItems, "design-token-system", 1, "WI");
     wi.work_item_id = Some("0033".into());
-    wi.path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
+    wi.path = PathBuf::from("/repo/meta/work/PP-55-design-token-system.md");
     let mut review = entry_for_test(DocTypeKey::WorkItemReviews, "design-token-system", 2, "R");
-    review.path = PathBuf::from("/repo/meta/reviews/work/0033-design-token-system-review-1.md");
-    review.frontmatter = json!({ "target": "meta/work/0033-design-token-system.md" });
+    review.path = PathBuf::from("/repo/meta/reviews/work/PP-55-design-token-system-review-1.md");
+    review.frontmatter = json!({ "target": "meta/work/PP-55-design-token-system.md" });
     let (clusters, _, _) = run_clusters(&[wi.clone(), review.clone()], &cfg);
     assert_eq!(clusters.len(), 1);
     assert_eq!(clusters[0].cluster_key.as_deref(), Some("0033"));
@@ -1885,9 +1885,9 @@ fn legacy_work_item_id_path_shape_resolves_to_work_item_cluster() {
     let cfg = WorkItemConfig::default();
     let mut wi = entry_for_test(DocTypeKey::WorkItems, "design-token-system", 1, "WI");
     wi.work_item_id = Some("0033".into());
-    wi.path = PathBuf::from("/repo/meta/work/0033-design-token-system.md");
+    wi.path = PathBuf::from("/repo/meta/work/PP-55-design-token-system.md");
     let mut plan = entry_for_test(DocTypeKey::Plans, "tokens", 2, "Plan");
-    plan.frontmatter = json!({ "work_item_id": "meta/work/0033-design-token-system.md" });
+    plan.frontmatter = json!({ "work_item_id": "meta/work/PP-55-design-token-system.md" });
     let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
     assert_eq!(clusters.len(), 1);
     assert_eq!(clusters[0].cluster_key.as_deref(), Some("0033"));
@@ -1955,7 +1955,7 @@ fn cluster_key_is_backfilled_onto_every_clustered_entry() {
     let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
     wi.work_item_id = Some("0040".into());
     let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
-    plan.frontmatter = json!({ "parent": "work-item:0040" });
+    plan.frontmatter = json!({ "parent": "work-item:PP-62" });
     let (_, _, cluster_key_by_path) = run_clusters(&[wi.clone(), plan.clone()], &cfg);
     assert_eq!(cluster_key_by_path[&wi.path].as_deref(), Some("0040"));
     assert_eq!(cluster_key_by_path[&plan.path].as_deref(), Some("0040"));
@@ -1971,8 +1971,8 @@ fn cluster_without_work_item_uses_alphabetically_first_slug() {
     let mut b = entry_for_test(DocTypeKey::Research, "alpha-slug", 2, "B");
     b.path = PathBuf::from("/repo/meta/research/b.md");
     // Both carry the same parent, forming one cluster.
-    a.frontmatter = json!({ "parent": "work-item:0040" });
-    b.frontmatter = json!({ "parent": "work-item:0040" });
+    a.frontmatter = json!({ "parent": "work-item:PP-62" });
+    b.frontmatter = json!({ "parent": "work-item:PP-62" });
     let (clusters, _, _) = run_clusters(&[a, b], &cfg);
     assert_eq!(clusters.len(), 1);
     // Alphabetically first by path is /repo/meta/plans/a.md → slug "beta-slug".
@@ -2066,7 +2066,7 @@ motivating bug.
   appears in the same cluster as its target plan and that plan's work
   item.
 - [ ] Pick a work-item review in `meta/reviews/work/` (e.g.
-  `0033-design-token-system-review-1.md`) and confirm it appears in
+  `PP-55-design-token-system-review-1.md`) and confirm it appears in
   the `design-token-system` cluster (was previously orphaned).
 - [ ] Confirm no cluster shows two duplicate work-item cards (would
   indicate the representative-slug picker is wrong).
@@ -2113,7 +2113,7 @@ fn cluster_key_field_serialises_as_camelcase_on_wire() {
     let mut wi = entry_for_test(DocTypeKey::WorkItems, "pipeline", 1, "WI");
     wi.work_item_id = Some("0042".into());
     let mut plan = entry_for_test(DocTypeKey::Plans, "pipeline", 2, "Plan");
-    plan.frontmatter = json!({ "parent": "work-item:0042" });
+    plan.frontmatter = json!({ "parent": "work-item:PP-64" });
     let (clusters, _, _) = run_clusters(&[wi, plan], &cfg);
     let cluster = clusters.into_iter().next().expect("one cluster");
     let json = serde_json::to_value(&cluster).unwrap();
@@ -2241,11 +2241,11 @@ const cases: Array<[
     { entryKey: string | null; clusterKey: string | null },
     string
 ]> = [
-    ['plans',              { entryKey: '0040', clusterKey: '0040' }, 'clustered via: parent → work-item:0040'],
-    ['research',           { entryKey: '0040', clusterKey: '0040' }, 'clustered via: parent → work-item:0040'],
+    ['plans',              { entryKey: '0040', clusterKey: '0040' }, 'clustered via: parent → work-item:PP-62'],
+    ['research',           { entryKey: '0040', clusterKey: '0040' }, 'clustered via: parent → work-item:PP-62'],
     ['validations',        { entryKey: '0040', clusterKey: '0040' }, 'clustered via: target → plan → parent'],
     ['plan-reviews',       { entryKey: '0040', clusterKey: '0040' }, 'clustered via: target → plan → parent'],
-    ['work-item-reviews',  { entryKey: '0040', clusterKey: '0040' }, 'clustered via: target → work-item:0040'],
+    ['work-item-reviews',  { entryKey: '0040', clusterKey: '0040' }, 'clustered via: target → work-item:PP-62'],
     ['pr-reviews',         { entryKey: '0040', clusterKey: '0040' }, 'clustered via: target → pr-description → parent'],
     // Slug-fallback cluster: cluster.clusterKey is null.
     ['notes',              { entryKey: null,   clusterKey: null   }, 'clustered via: slug'],
@@ -2273,7 +2273,7 @@ test('TimelineStep renders the clusterVia debug tag from clusterViaLabel', () =>
     const cluster = makeClusterFixture({ clusterKey: '0040' });
     const entry = makeEntryFixture({ type: 'plans', clusterKey: '0040' });
     render(<TimelineStep cluster={cluster} entry={entry} />);
-    expect(screen.getByText('clustered via: parent → work-item:0040'))
+    expect(screen.getByText('clustered via: parent → work-item:PP-62'))
         .toBeInTheDocument();
 });
 ```
@@ -2424,8 +2424,8 @@ into a single card.
 - ADR-0033 unified base frontmatter schema: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
 - ADR-0034 typed linkage vocabulary: `meta/decisions/ADR-0034-typed-linkage-vocabulary.md`
 - ADR-0025 work-item cross-ref aggregation: `meta/decisions/ADR-0025-work-item-cross-ref-aggregation.md`
-- Epic 0057 unified-artifact-frontmatter migration: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
-- Work-item 0040 (motivating bug): `meta/work/0040-pipeline-visualisation-overhaul.md`
+- Epic 0057 unified-artifact-frontmatter migration: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Work-item 0040 (motivating bug): `meta/work/PP-62-pipeline-visualisation-overhaul.md`
 - Slug rule: `skills/visualisation/visualise/server/src/slug.rs:14-86`
 - Clustering: `skills/visualisation/visualise/server/src/clusters.rs:53-103`
 - Build-entry slug branch: `skills/visualisation/visualise/server/src/indexer.rs:1156-1187`

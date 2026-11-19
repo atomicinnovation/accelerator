@@ -6,8 +6,8 @@ date: "2026-09-08T16:54:52+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0257"
-parent: "work-item:0257"
+work_item_id: "PP-787"
+parent: "work-item:PP-787"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/107"
 pr_number: 107
 tags: ["sync", "cli", "work-sync", "targeting"]
@@ -69,10 +69,10 @@ reconciled).
 
 ## Context
 
-- Work item: `meta/work/0257-sync-specific-work-items.md`
-- Plan: `meta/plans/2026-09-06-0257-sync-specific-work-items.md`
-- Research: `meta/research/codebase/2026-09-06-0257-sync-specific-work-items.md`
-- Validation: `meta/validations/2026-09-06-0257-sync-specific-work-items-validation.md`
+- Work item: `meta/work/PP-787-sync-specific-work-items.md`
+- Plan: `meta/plans/2026-09-06-PP-787-sync-specific-work-items.md`
+- Research: `meta/research/codebase/2026-09-06-PP-787-sync-specific-work-items.md`
+- Validation: `meta/validations/2026-09-06-PP-787-sync-specific-work-items-validation.md`
 
 ## Testing
 

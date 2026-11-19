@@ -6,7 +6,7 @@ date: "2026-08-30T23:05:20+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-parent: "work-item:0198"
+parent: "work-item:PP-728"
 relates_to: ["adr:ADR-0053", "adr:ADR-0054"]
 tags: ["vcs", "cli", "gix", "jj-lib", "status", "log"]
 last_updated: "2026-08-30T23:20:16+00:00"
@@ -158,8 +158,8 @@ Branch: <name>
 
 ## References
 
-- `meta/work/0198-vcs-agnostic-status-log-renderer.md` — the owning work item
-- `meta/research/codebase/2026-08-30-0198-vcs-agnostic-status-log-renderer.md` — grounding research
+- `meta/work/PP-728-vcs-agnostic-status-log-renderer.md` — the owning work item
+- `meta/research/codebase/2026-08-30-PP-728-vcs-agnostic-status-log-renderer.md` — grounding research
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md` — the adapter pattern
 - `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md` — the CLI shape
-- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — the original subprocess choice this revisits
+- `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — the original subprocess choice this revisits

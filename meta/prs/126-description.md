@@ -6,7 +6,7 @@ date: "2026-09-20T19:29:50+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0146", "work-item:0258", "work-item:0290", "work-item:0291"]
+relates_to: ["work-item:PP-167", "work-item:PP-788", "work-item:PP-876", "work-item:PP-877"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/126"
 pr_number: 126
 tags: ["work-item", "epic-0146", "sync", "backlog"]
@@ -29,7 +29,7 @@ acceptance criteria, and add one item to the ideas backlog. No code changes.
 ## Changes
 
 - Mark 0258 done: flip `status` from `ready` to `done` in both the frontmatter
-  and the body header of `meta/work/0258-help-show-subcommands.md`.
+  and the body header of `meta/work/PP-788-help-show-subcommands.md`.
 - Extract 0290 (*Bidirectional Field Mapping for Work Item Sync*): a new draft
   story under epic 0146 for synchronising status, kind, and priority
   bidirectionally across Jira and Linear via per-tracker mapping tables, with
@@ -43,7 +43,7 @@ acceptance criteria, and add one item to the ideas backlog. No code changes.
 
 0290 and 0291 decompose the remaining field-mapping and parent-child
 acceptance criteria of epic 0146
-(`meta/work/0146-work-item-sync-enhancements.md`) into independently trackable
+(`meta/work/PP-167-work-item-sync-enhancements.md`) into independently trackable
 stories; both are siblings of 0228 (done) and 0229 (ready). 0258 is closed as
 done under parent 0276.
 

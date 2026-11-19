@@ -6,9 +6,9 @@ date: "2026-11-15T23:34:08+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0364"
-parent: "work-item:0364"
-relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites", "work-item:0371"]
+work_item_id: "PP-956"
+parent: "work-item:PP-956"
+relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites", "work-item:PP-942"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/220"
 pr_number: 220
 tags: ["build-system", "testing", "pytest", "dev-task", "flakiness"]
@@ -149,11 +149,11 @@ Both are raised as **0371** (Linear PP-942), which does not block 0364:
 
 ## Context
 
-- Work item: `meta/work/0364-parallelise-the-serial-test-suites.md`
-- Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
+- Plan: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 1)
-- Research: `meta/research/codebase/2026-11-15-0364-parallelise-the-serial-test-suites.md`
-- Follow-up: `meta/work/0371-dev-stack-teardown-orphans-watcher-children.md`
+- Research: `meta/research/codebase/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
+- Follow-up: `meta/work/PP-942-dev-stack-teardown-orphans-watcher-children.md`
 
 Besides Phase 1, this branch carries the commits that lead up to it:
 

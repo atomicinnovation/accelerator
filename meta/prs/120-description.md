@@ -6,9 +6,9 @@ date: "2026-09-12T23:45:44+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0216"
-parent: "work-item:0216"
-relates_to: ["work-item:0215", "work-item:0217"]
+work_item_id: "PP-745"
+parent: "work-item:PP-745"
+relates_to: ["work-item:PP-744", "work-item:PP-746"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/120"
 pr_number: 120
 tags: ["cli", "launcher", "performance"]
@@ -65,9 +65,9 @@ clean-comments skill, not part of 0216 (see Notes for Reviewers).
 
 ## Context
 
-- Work item: `meta/work/0216-close-the-sha2-hardware-intrinsics-gap.md`
-- Plan: `meta/plans/2026-09-11-0216-close-the-sha2-hardware-intrinsics-gap.md`
-- Validation: `meta/validations/2026-09-11-0216-close-the-sha2-hardware-intrinsics-gap-validation.md` (result: pass)
+- Work item: `meta/work/PP-745-close-the-sha2-hardware-intrinsics-gap.md`
+- Plan: `meta/plans/2026-09-11-PP-745-close-the-sha2-hardware-intrinsics-gap.md`
+- Validation: `meta/validations/2026-09-11-PP-745-close-the-sha2-hardware-intrinsics-gap-validation.md` (result: pass)
 - Follow-on: 0217 (aarch64-musl throughput), 0215 (cache-hit sha256 fallback)
 
 ## Testing

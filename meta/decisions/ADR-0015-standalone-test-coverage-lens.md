@@ -9,7 +9,7 @@ title: "ADR-0015: Standalone Test-Coverage Lens"
 schema_version: 1
 last_updated: "2026-04-17T16:33:16+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0013", "work-item:0012", "adr:ADR-0002", "adr:ADR-0004", "adr:ADR-0005", "adr:ADR-0006", "adr:ADR-0011", "adr:ADR-0014", "plan:2026-02-22-review-plan-alignment", "codebase-research:2026-02-22-review-plan-pr-alignment"]
+relates_to: ["adr:ADR-0013", "work-item:PP-34", "adr:ADR-0002", "adr:ADR-0004", "adr:ADR-0005", "adr:ADR-0006", "adr:ADR-0011", "adr:ADR-0014", "plan:2026-02-22-review-plan-alignment", "codebase-research:2026-02-22-review-plan-pr-alignment"]
 ---
 
 # ADR-0015: Standalone Test-Coverage Lens
@@ -156,7 +156,7 @@ a plan's prose alone.
 
 ## References
 
-- `meta/work/0012-test-coverage-as-plan-review-lens.md` — Source work item for
+- `meta/work/PP-34-test-coverage-as-plan-review-lens.md` — Source work item for
   this ADR
 - `meta/decisions/ADR-0002-three-layer-review-architecture.md` — Three-layer
   review system (orchestrator / specialist / knowledge)

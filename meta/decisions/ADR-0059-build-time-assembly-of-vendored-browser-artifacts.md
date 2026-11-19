@@ -6,7 +6,7 @@ date: "2026-08-10T16:58:36+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0058", "work-item:0164", "work-item:0165", "work-item:0196"]
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0058", "work-item:PP-185", "work-item:PP-186", "work-item:PP-726"]
 tags: ["architecture", "distribution", "provenance", "supply-chain", "playwright", "browser", "design"]
 last_updated: "2026-08-10T17:23:38+00:00"
 last_updated_by: "Toby Clemson"
@@ -30,9 +30,9 @@ turns out to be the same question — how the browser itself is acquired.
 Today `ensure-playwright.sh` runs `npm ci` and `npx playwright install
 chromium` on the user's machine at first use. That requires system Node and
 npm, which ADR-0046 forbids, and it means every user independently fetches
-bytes from hosts we do not control. Work-item:0196 replaces it. The CLI has
+bytes from hosts we do not control. work-item:PP-726 replaces it. The CLI has
 exactly one artifact-verification mechanism to replace it with: the
-`manifest.json` plus minisign contract frozen by work-item:0164, verified
+`manifest.json` plus minisign contract frozen by work-item:PP-185, verified
 against a public key embedded in the launcher.
 
 The original plan was to vendor Microsoft's prebuilt Playwright driver bundle
@@ -143,7 +143,7 @@ pinning a reviewed artifact is the property we are after.
 ### Positive
 
 - The CLI keeps exactly one artifact trust primitive, on the one path
-  work-item:0164 froze and work-item:0165 produces.
+  work-item:PP-185 froze and work-item:PP-186 produces.
 - Two of the three inputs are verified against signatures their publishers
   actually make. The prebuilt bundle offers none, so this is a gain over both
   the original plan and the status quo.
@@ -152,7 +152,7 @@ pinning a reviewed artifact is the property we are after.
 - Both version pairings become structural rather than tested. The browser
   revision is derived from the vendored `playwright-core`, and that core is the
   exact version the automation declares — so the compatibility criterion on
-  work-item:0196 is satisfied by construction rather than by a check that could
+  work-item:PP-726 is satisfied by construction rather than by a check that could
   fail late.
 - A user's first run touches only our release host, preserving the air-gapped
   and proxy-mirror stories.
@@ -164,10 +164,10 @@ pinning a reviewed artifact is the property we are after.
 - Per-release artifact weight grows substantially — a driver bundle already
   around 117–118MB per platform, plus a browser of comparable order, across
   four platforms. This makes the release-hosting capacity coupling already
-  recorded on work-item:0196 load-bearing rather than a formality, and
+  recorded on work-item:PP-726 load-bearing rather than a formality, and
   lengthens the user's first run.
 - We take on redistribution obligations for Node, `playwright-core` and
-  Chromium, which the licensing assumption open on work-item:0196 must now
+  Chromium, which the licensing assumption open on work-item:PP-726 must now
   actually resolve.
 - The release pipeline gains multi-source assembly with GPG and npm
   verification — new surface that must keep working, and that fails releases
@@ -194,7 +194,7 @@ pinning a reviewed artifact is the property we are after.
   and is smaller; what this ADR fixes is that whichever ships is fetched and
   pinned at build time at the revision the vendored driver names.
 - The separate-artifact shape bears on the manifest schema question open on
-  work-item:0196: the manifest must address several artifacts of differing
+  work-item:PP-726: the manifest must address several artifacts of differing
   kinds, not one binary per platform.
 
 ## References
@@ -202,11 +202,11 @@ pinning a reviewed artifact is the property we are after.
 - ADR-0046 (zero-setup static binary distribution), ADR-0054 (git-style modular
   CLI), ADR-0057 (browser automation as a glibc-only capability), ADR-0058
   (shell-free CLI-to-Node delegation)
-- `meta/work/0164-launcher-and-git-style-dispatch.md` — froze the
+- `meta/work/PP-185-launcher-and-git-style-dispatch.md` — froze the
   `manifest.json` and minisign contract this decision reuses
-- `meta/work/0165-multi-binary-distribution-and-release-pipeline.md` — the
+- `meta/work/PP-186-multi-binary-distribution-and-release-pipeline.md` — the
   producer side that would perform the assembly
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - Driver bundle assembly, unverified:
   https://github.com/microsoft/playwright-python/blob/main/scripts/build_driver.py
 - `playwright-core` npm provenance: https://registry.npmjs.org/playwright-core

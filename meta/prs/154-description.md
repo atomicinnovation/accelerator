@@ -6,9 +6,9 @@ date: "2026-10-10T19:05:24+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0219"
-parent: "work-item:0219"
-relates_to: ["work-item:0136", "work-item:0205", "work-item:0217", "work-item:0225", "work-item:0299"]
+work_item_id: "PP-748"
+parent: "work-item:PP-748"
+relates_to: ["work-item:PP-157", "work-item:PP-735", "work-item:PP-746", "work-item:PP-755", "work-item:PP-881"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/154"
 pr_number: 154
 tags: []
@@ -34,7 +34,7 @@ also moves the earlier measurement items, 0205 and 0217, under the epic, out of
 ## Changes
 
 - **0219 becomes an epic.**
-  - `kind` changes from `task` to `epic`. `parent: work-item:0136` is replaced
+  - `kind` changes from `task` to `epic`. `parent: work-item:PP-157` is replaced
     by a `relates_to` link to 0136, following the 0312 precedent.
   - Context, Vocabulary, the platform table and the per-platform versus
     per-platform-backend granularity stay on the epic as its shared glossary.
@@ -70,17 +70,17 @@ also moves the earlier measurement items, 0205 and 0217, under the epic, out of
 - **Cross-links from the review revision.** 0225 now relates to 0219, whose
   open-or-comment issue step 0225 can reuse. 0299 now relates to 0219: it
   takes its before-and-after figures on the same harness revision as 0219.
-- **Review artefact.** `meta/reviews/work/0219-own-the-recurring-absolute-budget-check-review-1.md`
+- **Review artefact.** `meta/reviews/work/PP-748-own-the-recurring-absolute-budget-check-review-1.md`
   records the three-pass, five-lens review this revision answers.
 
 ## Context
 
-- Epic: `meta/work/0219-own-the-recurring-absolute-budget-check.md`
-- Former parent: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Epic: `meta/work/PP-748-own-the-recurring-absolute-budget-check.md`
+- Former parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Precedent for a standalone epic split out of 0136:
-  `meta/work/0312-migration-engine-improvements.md`
+  `meta/work/PP-898-migration-engine-improvements.md`
 - Harness plan the original task derived from:
-  `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`
+  `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md`
 
 Codebase analysis during decomposition found four things the original task
 did not account for, and they shaped the split:

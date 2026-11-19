@@ -6,7 +6,7 @@ date: "2026-08-02T18:55:44+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0136", "work-item:0188"]
+relates_to: ["work-item:PP-157", "work-item:PP-718"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/35"
 pr_number: 35
 tags: ["toolchain", "mise", "jj", "vcs", "dependencies"]
@@ -26,11 +26,11 @@ schema_version: 1
 ## Changes
 
 - `mise.toml`: `jj = "0.36.0"` → `jj = "0.43.0"`.
-- A four-line comment above the pin recording *why* it is not free to float independently — that the library-backed adapter reads repositories the CLI writes, that a skew between them is a format-coherence risk, and that the two must be bumped together. It points at `meta/work/0188-library-backed-vcs-adapter.md`.
+- A four-line comment above the pin recording *why* it is not free to float independently — that the library-backed adapter reads repositories the CLI writes, that a skew between them is a format-coherence risk, and that the two must be bumped together. It points at `meta/work/PP-718-library-backed-vcs-adapter.md`.
 
 ## Context
 
-- Prepares `meta/work/0188-library-backed-vcs-adapter.md`, under epic 0136.
+- Prepares `meta/work/PP-718-library-backed-vcs-adapter.md`, under epic 0136.
 - The coupling is really a **three**-pin one: `jj-lib` 0.43 requires Rust 1.89 and `gix` 0.85 requires 1.85, against the repo's pinned 1.90.0. `jj-lib`'s MSRV has moved 1.85 → 1.88 → 1.89 across eight releases, so a future `jj-lib` bump will likely drag both `gix` and the Rust toolchain with it.
 - Landing this separately from 0188 is deliberate. A skew between the CLI and the library fails in a way that reads as an adapter defect rather than a pin mismatch, so it is worth discovering on a one-line PR rather than inside the story that adds two dependency trees, a licence exception and a pre-1.0 API bet.
 

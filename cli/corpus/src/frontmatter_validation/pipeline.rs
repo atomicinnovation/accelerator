@@ -253,9 +253,9 @@ pub fn validate_targets(
 /// The work items whose `## Schema Reference` tables must agree with
 /// [`schema::SCHEMA`].
 const SCHEMA_REFERENCE_WORK_ITEMS: [&str; 3] = [
-    "meta/work/0065-update-artifact-templates-to-unified-schema.md",
-    "meta/work/0066-update-review-skills-inline-frontmatter.md",
-    "meta/work/0067-create-note-skill.md",
+    "meta/work/PP-87-update-artifact-templates-to-unified-schema.md",
+    "meta/work/PP-88-update-review-skills-inline-frontmatter.md",
+    "meta/work/PP-89-create-note-skill.md",
 ];
 
 /// Validates every `templates/*.md` skeleton against its [`schema::SCHEMA`]
@@ -312,7 +312,7 @@ mod tests {
 
     use super::{
         build_index, corpus_files, validate_path, validate_targets, Checks,
-        TargetOutcome,
+        TargetOutcome, SCHEMA_REFERENCE_WORK_ITEMS,
     };
     use crate::frontmatter::FrontmatterError;
     use crate::frontmatter::FrontmatterParser;
@@ -672,5 +672,19 @@ mod tests {
             .iter()
             .any(|v| matches!(v, Violation::DuplicateId { .. })));
         Ok(())
+    }
+
+    #[test]
+    fn every_schema_reference_work_item_is_in_the_repository() {
+        let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let missing: Vec<&str> = SCHEMA_REFERENCE_WORK_ITEMS
+            .into_iter()
+            .filter(|work_item| !repository.join(work_item).is_file())
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "the Schema Reference cross-check silently skips work items it \
+             cannot find, so each must be in the repository: {missing:?}"
+        );
     }
 }

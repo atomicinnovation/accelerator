@@ -6,7 +6,7 @@ date: "2026-08-01T13:18:04+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0172"]
+relates_to: ["work-item:PP-193"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/31"
 pr_number: 31
 tags: ["work-item", "review", "migrate", "rust", "planning"]
@@ -84,7 +84,7 @@ procedure — is deliberately deferred to `/create-plan`, following the preceden
 ## Review
 
 Four passes are recorded in
-`meta/reviews/work/0172-migration-engine-subdomain-review-1.md`. The verdict is
+`meta/reviews/work/PP-193-migration-engine-subdomain-review-1.md`. The verdict is
 APPROVE, set by the author after a bounded close-out following pass 4; the
 document records that explicitly, since no fifth lens pass ran against the
 closed-out state.

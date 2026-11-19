@@ -6,9 +6,9 @@ date: "2026-09-30T00:28:58+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0230"
-parent: "work-item:0230"
-relates_to: ["work-item:0302", "work-item:0296", "work-item:0297", "work-item:0227", "work-item:0291", "work-item:0146"]
+work_item_id: "PP-760"
+parent: "work-item:PP-760"
+relates_to: ["work-item:PP-879", "work-item:PP-880", "work-item:PP-887", "work-item:PP-757", "work-item:PP-877", "work-item:PP-167"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/137"
 pr_number: 137
 tags: []
@@ -89,14 +89,14 @@ later. ADR-0070 records the decision and supersedes ADR-0044.
 
 ## Context
 
-- Work item: `meta/work/0230-tracker-owned-work-item-id-generation.md`
+- Work item: `meta/work/PP-760-tracker-owned-work-item-id-generation.md`
 - Decision: `meta/decisions/ADR-0070-tracker-owned-work-item-identity.md`
   (supersedes ADR-0044)
 - Research:
-  `meta/research/codebase/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
-- Plan: `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
+  `meta/research/codebase/2026-09-26-PP-760-tracker-owned-work-item-id-generation.md`
+- Plan: `meta/plans/2026-09-26-PP-760-tracker-owned-work-item-id-generation.md`
 - Validation:
-  `meta/validations/2026-09-26-0230-tracker-owned-work-item-id-generation-validation.md`
+  `meta/validations/2026-09-26-PP-760-tracker-owned-work-item-id-generation-validation.md`
 - Also on this branch: re-keying split out as 0302, the sync round-trip bugs
   as 0296, and qualified prose references as 0297. 0146, 0227 and 0291 are
   realigned to match.

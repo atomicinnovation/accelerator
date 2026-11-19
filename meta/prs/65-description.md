@@ -6,9 +6,9 @@ date: "2026-08-13T19:46:29+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0194"
-parent: "work-item:0194"
-relates_to: ["work-item:0170", "work-item:0171", "work-item:0174", "work-item:0204"]
+work_item_id: "PP-724"
+parent: "work-item:PP-724"
+relates_to: ["work-item:PP-191", "work-item:PP-192", "work-item:PP-195", "work-item:PP-734"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/65"
 pr_number: 65
 tags: ["rust", "work-items", "sync", "tracker", "nextest", "cargo-pup"]
@@ -49,11 +49,11 @@ One consequence is worth stating up front: no provider client exists yet, so `wo
 
 ## Context
 
-- Work item: `meta/work/0194-tracker-crate-and-remote-sync-engine.md`
-- Plan: `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md`
-- Plan review: `meta/reviews/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1.md`
-- Research: `meta/research/codebase/2026-08-12-0194-tracker-crate-and-remote-sync-engine.md`
-- Validation: `meta/validations/2026-08-13-0194-tracker-crate-and-remote-sync-engine-validation.md`
+- Work item: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`
+- Plan: `meta/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine.md`
+- Plan review: `meta/reviews/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine-review-1.md`
+- Research: `meta/research/codebase/2026-08-12-PP-724-tracker-crate-and-remote-sync-engine.md`
+- Validation: `meta/validations/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine-validation.md`
 - Depends on the port frozen in #62 (0204). The cutover — removing the nine migrated scripts and repointing the skills — is 0171's.
 
 ## Testing

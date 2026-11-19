@@ -6,8 +6,8 @@ date: "2026-08-30T23:05:30+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0199"
-parent: "work-item:0199"
+work_item_id: "PP-729"
+parent: "work-item:PP-729"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/86"
 pr_number: 86
 tags: []
@@ -34,7 +34,7 @@ Closes work item 0199 (retire `scripts/vcs-common.sh`'s residual shell callers a
 
 The `scripts/` shell surface 0199 targeted was removed wholesale by 0174: `scripts/vcs-common.sh` (with its `classify_checkout`, `find_repo_root`, and `vcs_mode`) and `scripts/test-vcs-common.sh` no longer exist. That dissolves the caller-inventory, `classify_checkout`-fate, and test-repoint requirements — there are no surviving `find_repo_root`/`vcs_mode` shell callers to inventory, and `classify_checkout` is deleted along with its file. The fourth requirement — `hooks/launcher-link-refresh.sh`'s fate — is settled the other way: it was deliberately retained as bash-3.2 shell, one of the two entries in `SURVIVING_SHELL_SOURCES` (`tasks/shared/sources.py`) and documented under "Surviving thin shell" in `tasks/README.md`.
 
-Implements: work-item:0199.
+Implements: work-item:PP-729.
 
 ## Testing
 

@@ -6,9 +6,9 @@ date: "2026-09-11T16:35:27+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0278"
-parent: "work-item:0278"
-relates_to: ["work-item:0277"]
+work_item_id: "PP-862"
+parent: "work-item:PP-862"
+relates_to: ["work-item:PP-861"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/118"
 pr_number: 118
 tags: []
@@ -86,8 +86,8 @@ are reader-observable only once this lands. Stacked on #117.
 
 ## Context
 
-- Implements work item `work-item:0278`, under epic `work-item:0121`.
-- Stacked on PR #117 (`work-item:0277`, the engine). The vertical demo — build
+- Implements work item `work-item:PP-862`, under epic `work-item:PP-22`.
+- Stacked on PR #117 (`work-item:PP-861`, the engine). The vertical demo — build
   a set, browse it — lands whole only with both; review and merge #117 first.
 - Sub-document navigation within a set is 0284; output-quality judgement is
   0280.

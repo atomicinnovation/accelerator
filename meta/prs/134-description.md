@@ -6,9 +6,9 @@ date: "2026-09-24T22:52:35+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0280"
-parent: "work-item:0280"
-relates_to: ["work-item:0121", "work-item:0282", "work-item:0283", "work-item:0284"]
+work_item_id: "PP-864"
+parent: "work-item:PP-864"
+relates_to: ["work-item:PP-22", "work-item:PP-866", "work-item:PP-867", "work-item:PP-868"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/134"
 pr_number: 134
 tags: ["research", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
@@ -140,10 +140,10 @@ finding per (focus area, profile), allocated by a new
 
 ## Context
 
-- Work item: `meta/work/0280-academic-source-profiles.md`
-- Research: `meta/research/codebase/2026-09-23-0280-academic-source-profiles.md`
-- Plan: `meta/plans/2026-09-23-0280-academic-source-profiles.md`
-- Validation: `meta/validations/2026-09-23-0280-academic-source-profiles-validation.md`
+- Work item: `meta/work/PP-864-academic-source-profiles.md`
+- Research: `meta/research/codebase/2026-09-23-PP-864-academic-source-profiles.md`
+- Plan: `meta/plans/2026-09-23-PP-864-academic-source-profiles.md`
+- Validation: `meta/validations/2026-09-23-PP-864-academic-source-profiles-validation.md`
   (result `partial`: phases 1–9 implemented, the phase 10 quality gate not yet
   run)
 

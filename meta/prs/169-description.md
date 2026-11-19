@@ -6,9 +6,9 @@ date: "2026-10-24T18:45:07+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0300"
-parent: "work-item:0300"
-relates_to: ["work-item:0296", "work-item:0257", "work-item:0285", "work-item:0351", "work-item:0352", "work-item:0353", "work-item:0354"]
+work_item_id: "PP-884"
+parent: "work-item:PP-884"
+relates_to: ["work-item:PP-880", "work-item:PP-787", "work-item:PP-871", "work-item:PP-926", "work-item:PP-927", "work-item:PP-928", "work-item:PP-929"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/169"
 pr_number: 169
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
@@ -203,10 +203,10 @@ identity-run lock.
 
 ## Context
 
-- Work item: `meta/work/0300-sync-pulls-of-tracked-work-items-fail-silently.md`
-- Plan: `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
-- Plan reviews: `meta/reviews/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently-review-{1,2}.md`
-- Validation: `meta/validations/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently-validation.md`
+- Work item: `meta/work/PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Plan: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Plan reviews: `meta/reviews/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently-review-{1,2}.md`
+- Validation: `meta/validations/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently-validation.md`
 - PR review: `meta/reviews/prs/169-review-1.md`; every inline thread is
   answered and resolved on GitHub.
 - Builds on 0296 (#159, merged): body equivalence, `ItemSnapshot`, and the

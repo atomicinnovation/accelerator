@@ -6,9 +6,9 @@ date: "2026-09-28T08:57:26+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0226"
-parent: "work-item:0226"
-relates_to: ["work-item:0280", "work-item:0298"]
+work_item_id: "PP-756"
+parent: "work-item:PP-756"
+relates_to: ["work-item:PP-864", "work-item:PP-883"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/135"
 pr_number: 135
 tags: ["security", "config", "consent", "credentials", "session-start"]
@@ -152,15 +152,15 @@ is authoritative. The changes most likely to break someone:
 
 ## Context
 
-- Work item: `meta/work/0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- Work item: `meta/work/PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
   (PP-756). It replaces the narrower
   `0226-audit-repo-settable-config-keys-for-executable-path-injection.md`,
   which is deleted.
-- Research: `meta/research/codebase/2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- Research: `meta/research/codebase/2026-09-24-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Plan (7 phases, reviewed over six passes):
-  `meta/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+  `meta/plans/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Validation (pass):
-  `meta/validations/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys-validation.md`
+  `meta/validations/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys-validation.md`
 - Adds work item 0298, which consolidates the `SessionStart` hooks behind
   `accelerator hooks session-start`. It is filed as follow-up work, not
   implemented here.

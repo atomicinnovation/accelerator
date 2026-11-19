@@ -337,6 +337,6 @@ accelerator migrate
 - `meta/decisions/ADR-0023-meta-directory-migration-framework.md` — framework design rationale
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md` — optional interactive contract
 - `meta/decisions/ADR-0038-interactive-validation-parameters-for-unified-schema-linkage-migration.md` — first consumer's parameterisation
-- `meta/work/0116-structured-stall-on-no-decision-input.md` — the structured stall (`MIGRATION STALLED: no decision input available`) the invoker contract defers to when no decision input is available
+- `meta/work/PP-138-structured-stall-on-no-decision-input.md` — the structured stall (`MIGRATION STALLED: no decision input available`) the invoker contract defers to when no decision input is available
 - `skills/config/init/SKILL.md` — `init` bootstraps fresh repos; `migrate` upgrades existing ones
 - `skills/config/configure/SKILL.md` — configuration reference

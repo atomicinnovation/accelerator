@@ -6,9 +6,9 @@ date: "2026-08-23T22:54:57+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
-relates_to: ["work-item:0171", "work-item:0210", "work-item:0212"]
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
+relates_to: ["work-item:PP-192", "work-item:PP-740", "work-item:PP-742"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/78"
 pr_number: 78
 tags: ["rust", "jira", "integrations", "cli", "cutover", "exit-codes", "registration"]
@@ -38,7 +38,7 @@ Ships `accelerator-jira` as a thin dispatched CLI adapter over the `jira-client`
 
 ## Context
 
-Implements the Jira half of `work-item:0211` per `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md` (Phases 3–4). Parent epic `work-item:0171`; unblocked by 0210 (the client crates) and 0212 (the work-item cutover). Stacked on the Linear cutover PR #77 — the Jira track depends on the Phase 0 ADF-oracle freeze and the `cli-test-support` crate that live on the Linear branch.
+Implements the Jira half of `work-item:PP-741` per `meta/plans/2026-08-19-PP-741-integration-binaries-and-bash-cluster-retirement.md` (Phases 3–4). Parent epic `work-item:PP-192`; unblocked by 0210 (the client crates) and 0212 (the work-item cutover). Stacked on the Linear cutover PR #77 — the Jira track depends on the Phase 0 ADF-oracle freeze and the `cli-test-support` crate that live on the Linear branch.
 
 ## Testing
 
@@ -51,5 +51,5 @@ Implements the Jira half of `work-item:0211` per `meta/plans/2026-08-19-0211-int
 ## Notes for Reviewers
 
 - **Stacked PR** — base is `0211-linear-integration-binary-and-cutover` (#77), not `main`; review #77 first. The residue-retirement PR is stacked on top of this one and completes 0211. GitHub reports a large diff dominated by the bash-cluster deletion (`gh pr diff 78` may 406 as too-large — use `gh pr view 78 --json changedFiles,additions,deletions`).
-- **Deliberate surface widening** — Phase 3 shipped a thin `create`/`update`; the surface was widened back to bash parity before repointing so the skills keep their capability. This does not re-open the mutation compose seam for the sync port — resolution is binary-side, the port stays minimal. Recorded as an amendment in `meta/inventories/0211-divergences.md`.
+- **Deliberate surface widening** — Phase 3 shipped a thin `create`/`update`; the surface was widened back to bash parity before repointing so the skills keep their capability. This does not re-open the mutation compose seam for the sync port — resolution is binary-side, the port stays minimal. Recorded as an amendment in `meta/inventories/PP-741-divergences.md`.
 - **Recorded divergences worth a look** — `comment` drops `--render-adf`/`--no-editor`; an ambiguous `transition` directs to `--transition-id` rather than printing a candidate table; `create` defaults a missing type to `Task` rather than refusing; `resolve-fields` and `work create --push --dry-run` share only the project source. All are in the divergences ledger, each naming a passing test.

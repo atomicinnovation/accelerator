@@ -6,8 +6,8 @@ date: "2026-08-22T19:56:17+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0190"
-parent: "work-item:0190"
+work_item_id: "work-item:PP-720"
+parent: "work-item:PP-720"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/75"
 pr_number: 75
 tags: ["work-item", "status", "housekeeping"]
@@ -26,14 +26,14 @@ Closes the lifecycle of work item 0190 by transitioning its status to `done`, no
 
 ## Changes
 
-- Set `status: draft → done` in the frontmatter of `meta/work/0190-acquire-lock-cannot-classify-mkdir-failures.md`.
+- Set `status: draft → done` in the frontmatter of `meta/work/PP-720-acquire-lock-cannot-classify-mkdir-failures.md`.
 - Sync the `**Status**:` body label from `Draft` to `Done` to match.
 
 ## Context
 
-- Work item: `meta/work/0190-acquire-lock-cannot-classify-mkdir-failures.md`
+- Work item: `meta/work/PP-720-acquire-lock-cannot-classify-mkdir-failures.md`
 - Implementation and validation merged separately; `main` already carries the fix through commit `e3ee966e` (the 0190 bookmark's tip).
-- Validation: `meta/validations/2026-08-21-0190-classify-lock-mkdir-failures-validation.md` (result: pass).
+- Validation: `meta/validations/2026-08-21-PP-720-classify-lock-mkdir-failures-validation.md` (result: pass).
 
 ## Testing
 

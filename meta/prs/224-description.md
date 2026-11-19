@@ -6,9 +6,9 @@ date: "2026-11-16T11:30:05+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0372"
-parent: "work-item:0372"
-relates_to: ["work-item:0352", "work-item:0146"]
+work_item_id: "PP-963"
+parent: "work-item:PP-963"
+relates_to: ["work-item:PP-927", "work-item:PP-167"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/224"
 pr_number: 224
 tags: ["sync", "architecture", "work-items"]
@@ -59,7 +59,7 @@ Eighteen new files under `meta/work/`, all in `draft` status.
 
 ## Context
 
-- Epic: `meta/work/0372-sync-run-as-a-typed-pipeline-over-one-entry-per-subject.md`,
+- Epic: `meta/work/PP-963-sync-run-as-a-typed-pipeline-over-one-entry-per-subject.md`,
   under 0146.
 - Origin: the review of PR #188 (0352), whose fix keeps "an item is in the
   plan or in the creates, never both" as a rule held by two functions and

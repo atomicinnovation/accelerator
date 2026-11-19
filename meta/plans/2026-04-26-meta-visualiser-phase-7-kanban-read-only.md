@@ -1202,7 +1202,7 @@ describe('TicketCard', () => {
   it('links to the library detail page using the canonical typed-route form', () => {
     const entry = makeIndexEntry({
       type: 'tickets',
-      relPath: 'meta/tickets/0001-three-layer-review-system-architecture.md',
+      relPath: 'meta/tickets/PP-23-three-layer-review-system-architecture.md',
       title: 'Three-layer review system architecture',
       frontmatter: { type: 'adr-creation-task', status: 'todo' },
     })
@@ -1774,7 +1774,7 @@ describe('KanbanBoard', () => {
   it('links cards to their library detail pages via the canonical typed-route form', async () => {
     const ticket = makeIndexEntry({
       type: 'tickets',
-      relPath: 'meta/tickets/0029-template-management-subcommand-surface.md',
+      relPath: 'meta/tickets/PP-51-template-management-subcommand-surface.md',
       title: 'Template management',
       frontmatter: { type: 'adr-creation-task', status: 'done' },
     })

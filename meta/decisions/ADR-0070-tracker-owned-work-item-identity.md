@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 decision_makers: ["Toby Clemson"]
-parent: "work-item:0230"
+parent: "work-item:PP-760"
 supersedes: ["adr:ADR-0044"]
 relates_to: ["adr:ADR-0034", "adr:ADR-0033"]
 tags: ["work-management", "integrations", "identity", "sync", "tracker", "drafts"]
@@ -129,9 +129,9 @@ still carry the local `id`, so developers still meet both.
 
 ## References
 
-- `meta/work/0230-tracker-owned-work-item-id-generation.md` — work item that
+- `meta/work/PP-760-tracker-owned-work-item-id-generation.md` — work item that
   forced the decision
-- `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md` —
+- `meta/plans/2026-09-26-PP-760-tracker-owned-work-item-id-generation.md` —
   implementing plan
 - `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md` —
   superseded decision

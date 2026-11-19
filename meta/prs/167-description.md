@@ -6,9 +6,9 @@ date: "2026-10-17T21:44:26+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0339"
-parent: "work-item:0339"
-relates_to: ["work-item:0218", "work-item:0222", "work-item:0334", "adr:ADR-0072"]
+work_item_id: "PP-922"
+parent: "work-item:PP-922"
+relates_to: ["work-item:PP-747", "work-item:PP-752", "work-item:PP-930", "adr:ADR-0072"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/167"
 pr_number: 167
 tags: ["cli", "launcher", "cache", "tree", "concurrency"]
@@ -137,10 +137,10 @@ versions.
 
 ## Context
 
-- Work item: `meta/work/0339-tree-reap-deletes-another-artifact-s-in-progress-materialise.md`
+- Work item: `meta/work/PP-922-tree-reap-deletes-another-artifact-s-in-progress-materialise.md`
   (Linear PP-922)
-- Plan: `meta/plans/2026-10-16-0339-tree-reap-cross-artifact-lock-probe.md`
-- Validation: `meta/validations/2026-10-16-0339-tree-reap-cross-artifact-lock-probe-validation.md`
+- Plan: `meta/plans/2026-10-16-PP-922-tree-reap-cross-artifact-lock-probe.md`
+- Validation: `meta/validations/2026-10-16-PP-922-tree-reap-cross-artifact-lock-probe-validation.md`
   (pass)
 - Review: `meta/reviews/prs/167-review-1.md` (COMMENT, no blocking defect).
   The commits after it act on its three themes:

@@ -9,7 +9,7 @@ title: "ADR-0029: Sequential ADR identifiers"
 schema_version: 1
 last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0032", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:0023"]
+relates_to: ["adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0032", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:PP-45"]
 ---
 
 # ADR-0029: Sequential ADR identifiers
@@ -96,4 +96,4 @@ in the filename.
   enforcement
 - `meta/plans/2026-03-18-adr-skills.md` — implementation plan for the
   three ADR skills
-- `meta/work/0023-adr-system-design.md` — source work item
+- `meta/work/PP-45-adr-system-design.md` — source work item

@@ -6,9 +6,9 @@ date: "2026-10-09T18:08:29+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0202"
-parent: "work-item:0202"
-relates_to: ["work-item:0312", "work-item:0313", "work-item:0314", "work-item:0315", "work-item:0316", "work-item:0317", "work-item:0318", "work-item:0319", "work-item:0136"]
+work_item_id: "PP-732"
+parent: "work-item:PP-732"
+relates_to: ["work-item:PP-898", "work-item:PP-899", "work-item:PP-900", "work-item:PP-901", "work-item:PP-902", "work-item:PP-903", "work-item:PP-904", "work-item:PP-905", "work-item:PP-157"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/151"
 pr_number: 151
 tags: ["migration-engine", "adr", "research", "work-items"]
@@ -54,8 +54,8 @@ under it. It changes documents only; no code is touched.
 
 ## Context
 
-- Work item: `meta/work/0202-reconcile-migration-engine-adrs-against-the-rust-port.md`
-- Research: `meta/research/codebase/2026-10-09-0202-reconcile-migration-engine-adrs-against-the-rust-port.md`
+- Work item: `meta/work/PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`
+- Research: `meta/research/codebase/2026-10-09-PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`
 - Work items in this PR are numbered from 0312 to avoid collisions with
   items in flight on other branches. That collision risk is also why 0319
   exists: today `work create` always allocates max+1 locally.

@@ -6,8 +6,8 @@ date: "2026-07-13T21:54:19+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0179"
-parent: "work-item:0179"
+work_item_id: "PP-703"
+parent: "work-item:PP-703"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/21"
 pr_number: 21
 tags: ["rust", "corpus", "document", "vcs", "crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "parity"]
@@ -62,10 +62,10 @@ The port read the bash surfaces closely enough to find four bugs, all with a gre
 
 ## Context
 
-- Work item: `meta/work/0179-corpus-crates-parsing-conventions.md` (child of 0166 — Shared config, corpus, and store crates)
-- Plan: `meta/plans/2026-07-11-0179-corpus-crates-parsing-conventions.md`
-- Research: `meta/research/codebase/2026-07-11-0179-corpus-crates-parsing-conventions.md`
-- Validation: `meta/validations/2026-07-11-0179-corpus-crates-parsing-conventions-validation.md` (result: pass)
+- Work item: `meta/work/PP-703-corpus-crates-parsing-conventions.md` (child of 0166 — Shared config, corpus, and store crates)
+- Plan: `meta/plans/2026-07-11-PP-703-corpus-crates-parsing-conventions.md`
+- Research: `meta/research/codebase/2026-07-11-PP-703-corpus-crates-parsing-conventions.md`
+- Validation: `meta/validations/2026-07-11-PP-703-corpus-crates-parsing-conventions-validation.md` (result: pass)
 - Bash inconsistencies note: `meta/notes/2026-07-13-bash-corpus-script-inconsistencies.md`
 - Conventions: ADR-0034 (typed-linkage), ADR-0045 (bash/Rust duplication)
 

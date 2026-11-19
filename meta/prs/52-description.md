@@ -6,8 +6,8 @@ date: "2026-08-06T01:34:44+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-parent: "work-item:0136"
-relates_to: ["work-item:0173", "work-item:0195", "work-item:0196", "work-item:0197"]
+parent: "work-item:PP-157"
+relates_to: ["work-item:PP-194", "work-item:PP-725", "work-item:PP-726", "work-item:PP-727"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/52"
 pr_number: 52
 tags: []
@@ -26,14 +26,14 @@ Work-item 0173 bundled three functionally independent efforts — `accelerator-c
 
 ## Changes
 
-- Abandon work-item:0173 (`status: abandoned`), record the split rationale in its Drafting Notes, and link forward to its three successors via `relates_to` and a new "Superseded by" reference.
-- Add work-item:0195 (`accelerator-corpus`: ADR, metadata, frontmatter validation, and linkage CLI), work-item:0196 (`accelerator-design`: design inventory and gap tooling CLI), and work-item:0197 (`accelerator-collaboration`: PR helper CLI), each carrying forward its slice of 0173's Requirements/Acceptance Criteria/Dependencies with that review's gaps fixed, and each set to `status: ready`.
-- Review 0173, 0195, 0196, and 0197 through the clarity, completeness, dependency, scope, and testability lenses; record each review under `meta/reviews/work/`. 0173's review-1 (verdict REVISE) is the scope finding that motivated the split. 0195 and 0196 land at verdict APPROVE. 0197 goes through two review passes: pass 1 (verdict COMMENT) surfaces a cross-cutting finding that 0197 inconsistently characterised work-item:0150's completion status across its Summary, Context, and Dependencies sections, plus several precision gaps (glob-shaped scope language, Requirements missing two AC-gated obligations, an ambiguous AC1 verification method); pass 2, after those edits, surfaces one new major finding — 0197 didn't reciprocate a sibling-coordination note that 0196 already carries about concurrent sub-binary registration touching shared state — which is then also addressed, bringing 0197 to verdict APPROVE.
-- Update work-item:0136 (the epic)'s phase list and Drafting Notes to reflect the split, and update work-item:0174's `blocked_by` and work-item:0179's `blocks`/cross-references to point at 0195/0196/0197 instead of the now-abandoned 0173.
+- Abandon work-item:PP-194 (`status: abandoned`), record the split rationale in its Drafting Notes, and link forward to its three successors via `relates_to` and a new "Superseded by" reference.
+- Add work-item:PP-725 (`accelerator-corpus`: ADR, metadata, frontmatter validation, and linkage CLI), work-item:PP-726 (`accelerator-design`: design inventory and gap tooling CLI), and work-item:PP-727 (`accelerator-collaboration`: PR helper CLI), each carrying forward its slice of 0173's Requirements/Acceptance Criteria/Dependencies with that review's gaps fixed, and each set to `status: ready`.
+- Review 0173, 0195, 0196, and 0197 through the clarity, completeness, dependency, scope, and testability lenses; record each review under `meta/reviews/work/`. 0173's review-1 (verdict REVISE) is the scope finding that motivated the split. 0195 and 0196 land at verdict APPROVE. 0197 goes through two review passes: pass 1 (verdict COMMENT) surfaces a cross-cutting finding that 0197 inconsistently characterised work-item:PP-171's completion status across its Summary, Context, and Dependencies sections, plus several precision gaps (glob-shaped scope language, Requirements missing two AC-gated obligations, an ambiguous AC1 verification method); pass 2, after those edits, surfaces one new major finding — 0197 didn't reciprocate a sibling-coordination note that 0196 already carries about concurrent sub-binary registration touching shared state — which is then also addressed, bringing 0197 to verdict APPROVE.
+- Update work-item:PP-157 (the epic)'s phase list and Drafting Notes to reflect the split, and update work-item:PP-195's `blocked_by` and work-item:PP-703's `blocks`/cross-references to point at 0195/0196/0197 instead of the now-abandoned 0173.
 
 ## Context
 
-Part of the ongoing shell-to-Rust CLI migration epic (work-item:0136). 0173 was originally extracted from `codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture` as a single grouped story for the three remaining sub-binary domains; its review-1 found the grouping risked partial-completion ambiguity and an oversized PR, since the three sub-binaries share no functional relationship beyond the sub-binary registration pattern (work-item:0187).
+Part of the ongoing shell-to-Rust CLI migration epic (work-item:PP-157). 0173 was originally extracted from `codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture` as a single grouped story for the three remaining sub-binary domains; its review-1 found the grouping risked partial-completion ambiguity and an oversized PR, since the three sub-binaries share no functional relationship beyond the sub-binary registration pattern (work-item:PP-717).
 
 ## Testing
 
@@ -45,4 +45,4 @@ Part of the ongoing shell-to-Rust CLI migration epic (work-item:0136). 0173 was 
 
 This is a documentation/work-item-management PR only; it reshapes planning artifacts ahead of implementation, not application behaviour. Actual implementation of 0195/0196/0197 (the three Rust sub-binaries themselves) is follow-up work, not part of this PR.
 
-One known gap, left out of scope deliberately rather than fixed here: five already-completed/merged items (work-item:0166, 0167, 0169, 0172, 0187) still carry a `blocks: [..., "work-item:0173"]` frontmatter edge from before the split. Since 0173 is now abandoned rather than progressing, those edges are stale — they should arguably be retargeted at 0195/0196/0197 (mirroring what this PR already did for 0174 and 0179), but touching five unrelated, already-shipped items felt like scope creep for a PR whose job is the split itself. Flagging for a reviewer call on whether that cleanup belongs here, in a quick follow-up, or is fine left as historical record.
+One known gap, left out of scope deliberately rather than fixed here: five already-completed/merged items (work-item:PP-187, 0167, 0169, 0172, 0187) still carry a `blocks: [..., "work-item:PP-194"]` frontmatter edge from before the split. Since 0173 is now abandoned rather than progressing, those edges are stale — they should arguably be retargeted at 0195/0196/0197 (mirroring what this PR already did for 0174 and 0179), but touching five unrelated, already-shipped items felt like scope creep for a PR whose job is the split itself. Flagging for a reviewer call on whether that cleanup belongs here, in a quick follow-up, or is fine left as historical record.

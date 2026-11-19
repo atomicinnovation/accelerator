@@ -6,9 +6,9 @@ date: "2026-10-01T09:58:15+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0217"
-parent: "work-item:0217"
-relates_to: ["work-item:0216", "work-item:0219", "plan:2026-09-20-0217-measure-warm-dispatch-on-linux"]
+work_item_id: "PP-746"
+parent: "work-item:PP-746"
+relates_to: ["work-item:PP-745", "work-item:PP-748", "plan:2026-09-20-PP-746-measure-warm-dispatch-on-linux"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/138"
 pr_number: 138
 tags: ["cli", "launcher", "performance", "measurement", "calibration"]
@@ -58,10 +58,10 @@ unchanged for darwin; this entry is the calibration source 0219 builds on.
 
 ## Context
 
-- Work item: `meta/work/0217-measure-warm-dispatch-on-linux.md` (parent 0136;
+- Work item: `meta/work/PP-746-measure-warm-dispatch-on-linux.md` (parent 0136;
   was blocked by 0216; blocks 0219).
-- Plan: `meta/plans/2026-09-20-0217-measure-warm-dispatch-on-linux.md`;
-  validation: `meta/validations/2026-09-20-0217-measure-warm-dispatch-on-linux-validation.md`
+- Plan: `meta/plans/2026-09-20-PP-746-measure-warm-dispatch-on-linux.md`;
+  validation: `meta/validations/2026-09-20-PP-746-measure-warm-dispatch-on-linux-validation.md`
   (pass).
 - Criterion and darwin figures: work item 0189.
 

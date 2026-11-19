@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "superseded"
 superseded_by: "ADR-0061"
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059", "work-item:0164", "work-item:0186", "work-item:0196"]
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059", "work-item:PP-185", "work-item:PP-716", "work-item:PP-726"]
 tags: ["architecture", "distribution", "integrity", "manifest", "launcher", "cache", "design"]
 last_updated: "2026-08-11T10:58:31+00:00"
 last_updated_by: "Toby Clemson"
@@ -49,7 +49,7 @@ A crawl is bounded at 50 routes and 5 minutes, and each route costs several
 executor invocations, so a crawl makes on the order of 100–200 of them.
 Re-verifying the driver and the browser on each would spend 16–33 seconds per
 crawl re-hashing bytes that cannot have changed — 5–11% of the crawl's whole
-budget, and roughly six times work-item:0186's ~30ms warm-bootstrap target on
+budget, and roughly six times work-item:PP-716's ~30ms warm-bootstrap target on
 every single invocation.
 
 The threat model bounds what that spending buys. The cache lives under the
@@ -75,7 +75,7 @@ fields.
   this one.
 - **One key holder, one verify path** — ADR-0059 turns on the CLI having a
   single artifact trust primitive.
-- **Per-invocation cost must fit the warm path** — work-item:0186 spent real
+- **Per-invocation cost must fit the warm path** — work-item:PP-716 spent real
   effort getting there; a browser command should not undo it.
 - **Claim only what the check delivers** — an integrity guarantee that a
   same-uid attacker can bypass should be described as what it is.
@@ -196,8 +196,8 @@ stated boundary than two partial ones.
 - `cli/launcher/src/launch/outbound/resolve/` — the resolver this extends;
   `mod.rs:196` is the per-exec re-verify this exempts trees from, and
   `manifest.rs:1` the additive-fields contract it relies on
-- `meta/work/0164-launcher-and-git-style-dispatch.md` — froze re-verification
+- `meta/work/PP-185-launcher-and-git-style-dispatch.md` — froze re-verification
   before every exec, which this narrows to single-file artifacts
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — established
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — established
   the warm-path budget
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`

@@ -9,7 +9,7 @@ title: "ADR-0032: ADR skill decomposition"
 schema_version: 1
 last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0029", "adr:ADR-0030", "adr:ADR-0031", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:0023"]
+relates_to: ["adr:ADR-0029", "adr:ADR-0030", "adr:ADR-0031", "codebase-research:2026-03-18-adr-support-strategy", "plan:2026-03-18-adr-skills", "work-item:PP-45"]
 ---
 
 # ADR-0032: ADR skill decomposition
@@ -121,4 +121,4 @@ flows to dominate the prompt's shape.
 - `meta/research/codebase/2026-03-18-adr-support-strategy.md` — skill
   decomposition research
 - `meta/plans/2026-03-18-adr-skills.md` — implementation plan
-- `meta/work/0023-adr-system-design.md` — source work item
+- `meta/work/PP-45-adr-system-design.md` — source work item

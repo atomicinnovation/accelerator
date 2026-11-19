@@ -6,9 +6,9 @@ date: "2026-06-30T07:57:19+00:00"
 author: "Phil Helm"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0176"
-parent: "work-item:0176"
-relates_to: ["plan:2026-06-29-0176-skill-reference-index-and-subsections"]
+work_item_id: "PP-698"
+parent: "work-item:PP-698"
+relates_to: ["plan:2026-06-29-PP-698-skill-reference-index-and-subsections"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/12"
 pr_number: 12
 tags: ["docs", "skills", "documentation"]
@@ -85,9 +85,9 @@ floor in `tasks/test/integration.py` is bumped 19 → 21.
 
 ## Context
 
-- Work item: `meta/work/0176-per-skill-family-reference-docs.md`
-- Plan: `meta/plans/2026-06-29-0176-skill-reference-index-and-subsections.md`
-- Plan review: `meta/reviews/plans/2026-06-29-0176-skill-reference-index-and-subsections-review-1.md`
+- Work item: `meta/work/PP-698-per-skill-family-reference-docs.md`
+- Plan: `meta/plans/2026-06-29-PP-698-skill-reference-index-and-subsections.md`
+- Plan review: `meta/reviews/plans/2026-06-29-PP-698-skill-reference-index-and-subsections-review-1.md`
 - Sibling (base branch): 0175 — slim the README and split into a `docs/` tree.
 
 ## Testing

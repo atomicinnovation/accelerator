@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 decision_makers: ["Toby Clemson"]
-parent: "work-item:0277"
+parent: "work-item:PP-861"
 relates_to: ["adr:ADR-0068", "adr:ADR-0033"]
 tags: ["corpus", "frontmatter", "templates", "schema", "topic-research"]
 last_updated: "2026-09-09T14:45:59+00:00"
@@ -99,8 +99,8 @@ templates (`work-item` + `story`/`epic`/…, `work-item-<kind>` → `work-item`)
 
 ## References
 
-- `meta/research/codebase/2026-09-08-0277-single-round-web-research-engine.md` — resolving research
-- `meta/work/0121-topic-research-skillset.md` — artifact contract + umbrella doc type
-- `meta/work/0277-single-round-web-research-engine.md` — first implementer
+- `meta/research/codebase/2026-09-08-PP-861-single-round-web-research-engine.md` — resolving research
+- `meta/work/PP-22-topic-research-skillset.md` — artifact contract + umbrella doc type
+- `meta/work/PP-861-single-round-web-research-engine.md` — first implementer
 - `meta/decisions/ADR-0068-general-slug-resolution-in-the-corpus-cli.md` — sibling decision
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — the unified schema this extends; defines `kind` as a work-item extra

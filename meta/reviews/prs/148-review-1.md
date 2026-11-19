@@ -75,7 +75,7 @@ The queue is well built. Its rules are a pure domain model behind narrow ports, 
 - 🔵 `cli/research-adapters/src/queue.rs:255` — future-`schema_version` records deleted by older binaries (compatibility)
 - 🔵 `docs-site/src/content/docs/research.md:204` — "Killed calls" bullet says the ticket both loses and keeps its place (documentation)
 - 🔵 `docs-site/src/content/docs/research.md:116` — mismatch row says "each issued value" (documentation)
-- 🔵 `meta/plans/2026-09-26-0283-recursive-finding-deepening.md:169` — rescope sentence repeated 8 times, with no link to the 0295 artefacts (documentation)
+- 🔵 `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md:169` — rescope sentence repeated 8 times, with no link to the 0295 artefacts (documentation)
 - 🔵 `skills/research/profiles/arxiv-profile/SKILL.md:85` — `E_ARXIV_TICKET_LIVE` guidance split, with a branch that cannot happen (usability)
 - 🔵 `cli/research-adapters/src/pacing.rs:255` — no test reads a legacy pacing state without `last_sent_ms` (test-coverage)
 - 🔵 `cli/research-adapters/tests/queue.rs:605` — `own()`-patience tests depend on wall-clock timing (test-coverage)
@@ -337,7 +337,7 @@ Only the single `query '…'` branch is tested. The `verb`/`id`/`--limit` branch
 - 🔵 minor/medium `cli/research-cli/src/cli.rs:22-30` — The help puts the fallback rule before `waiting` (the profile does the same).
 - 🔵 minor/medium `docs-site/src/content/docs/research.md:204-205` — The "Killed calls" bullet says the ticket both loses and keeps its place.
 - 🔵 minor/high `docs-site/src/content/docs/research.md:116` — The mismatch row says "each issued value", but only differing ones are named.
-- 🔵 minor/high `meta/plans/2026-09-26-0283-recursive-finding-deepening.md:169-170` — The rescope sentence is repeated 8 times with no link to the 0295 artefacts.
+- 🔵 minor/high `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md:169-170` — The rescope sentence is repeated 8 times with no link to the 0295 artefacts.
 - 🔵 suggestion/low `cli/research/src/sources/queue.rs:400-402` — Some port doc comments restate signatures or make placement claims.
 
 **General Findings**:

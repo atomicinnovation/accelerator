@@ -6,9 +6,9 @@ date: "2026-10-31T19:03:13+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0368"
-parent: "work-item:0368"
-relates_to: ["work-item:0361", "work-item:0362", "work-item:0363", "work-item:0364", "work-item:0365", "work-item:0366", "work-item:0367", "work-item:0369"]
+work_item_id: "PP-960"
+parent: "work-item:PP-960"
+relates_to: ["work-item:PP-953", "work-item:PP-954", "work-item:PP-955", "work-item:PP-956", "work-item:PP-957", "work-item:PP-958", "work-item:PP-959", "work-item:PP-961"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/175"
 pr_number: 175
 tags: ["build-system", "measurement", "performance", "mise", "macos"]
@@ -89,12 +89,12 @@ host guidance follow in later phases.
 
 ## Context
 
-- Work item: `meta/work/0368-build-performance-measurement-and-host-guidance.md`
-  (parent epic `meta/work/0361-speed-up-the-full-build-without-losing-confidence.md`)
-- Plan: `meta/plans/2026-10-30-0368-build-performance-measurement-harness.md`,
+- Work item: `meta/work/PP-960-build-performance-measurement-and-host-guidance.md`
+  (parent epic `meta/work/PP-953-speed-up-the-full-build-without-losing-confidence.md`)
+- Plan: `meta/plans/2026-10-30-PP-960-build-performance-measurement-harness.md`,
   with phases 1–4 implemented here
 - Research: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`,
-  `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
+  `meta/research/codebase/2026-10-30-PP-960-build-performance-measurement-harness.md`
 
 ## Testing
 

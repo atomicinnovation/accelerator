@@ -6,9 +6,9 @@ date: "2026-07-09T18:25:01+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0178"
-parent: "work-item:0178"
-relates_to: ["work-item:0166"]
+work_item_id: "PP-702"
+parent: "work-item:PP-702"
+relates_to: ["work-item:PP-187"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/16"
 pr_number: 16
 tags: ["rust", "config", "crates", "yaml", "catalogue"]
@@ -38,7 +38,7 @@ Builds the native Rust configuration reader that replaces the bash two-level awk
 
 ## Context
 
-Implements work item [0178](../work/0178-config-crates-native-yaml-reader.md) — child of [0166 Shared config/corpus/store crates](../work/0166-shared-config-corpus-store-crates.md). ADR-0047 makes the CLI the native config reader. See the plan at `meta/plans/2026-07-07-0178-config-crates-native-yaml-reader.md` and its codebase research/review companions under `meta/research/` and `meta/reviews/`.
+Implements work item [0178](../work/PP-702-config-crates-native-yaml-reader.md) — child of [0166 Shared config/corpus/store crates](../work/PP-187-shared-config-corpus-store-crates.md). ADR-0047 makes the CLI the native config reader. See the plan at `meta/plans/2026-07-07-PP-702-config-crates-native-yaml-reader.md` and its codebase research/review companions under `meta/research/` and `meta/reviews/`.
 
 ## Testing
 

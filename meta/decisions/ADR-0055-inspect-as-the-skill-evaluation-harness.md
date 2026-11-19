@@ -9,7 +9,7 @@ title: "ADR-0055: Inspect as the Skill-Evaluation Harness"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0048", "adr:ADR-0050", "adr:ADR-0051", "adr:ADR-0052", "work-item:0159"]
+relates_to: ["adr:ADR-0048", "adr:ADR-0050", "adr:ADR-0051", "adr:ADR-0052", "work-item:PP-182"]
 ---
 
 # ADR-0055: Inspect as the Skill-Evaluation Harness
@@ -182,7 +182,7 @@ lacking native variance/repeat and its small-company longevity risk.
 ## References
 
 - **Feeding spike (primary provenance)**:
-  `meta/work/0159-skill-evaluation-framework-selection.md` — its Recommendation is
+  `meta/work/PP-182-skill-evaluation-framework-selection.md` — its Recommendation is
   the source of this decision.
 - **Ported from luminosity** — original decision (lum ADR-0011, whose reasoning
   leaned on a toolchain-count argument; this ADR argues Inspect on its merits, as

@@ -6,9 +6,9 @@ date: "2026-08-23T23:13:11+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
-relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:0174"]
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
+relates_to: ["work-item:PP-192", "work-item:PP-740", "work-item:PP-742", "work-item:PP-195"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/80"
 pr_number: 80
 tags: ["jira", "linear", "integrations", "cli", "cutover", "residue"]
@@ -31,13 +31,13 @@ Retires the last bash that only dies once both integration clusters are gone, la
 - **`test:integration:work` husk retired** — it discovered zero suites and passed green over nothing; removed with its task, `mise` leaf, roll-up member and launcher-dependent partition mirror.
 - **`cli/tracker-support` dead bash helpers removed** — `run_bash` and its sole caller `repo_root`, unused since the mapper differential was retired; the stale module doc (which still named the deleted `mapper_differential.rs`) is rewritten.
 - **Whole-repository assertions** — `grep "Bash(jq\|Bash(curl" skills/` returns nothing; the shared-asset sweep's residual set is empty under its declared exclusions; no Python remains in the `cli/` test lane. The results are recorded in 0171's decision register.
-- **Records finalised** — the `0211-reconciliation.md` jira flow-coverage section; all twenty-one plan decisions mirrored into 0171 (with the surface-widening amendment) and the six 0211-owned `pending`/`open` decision entries closed; 0171's stale attribution of the whole-repository `jq`/`curl` equality to 0212 corrected; 0211's own criteria corrected on seven points (dispatch band `70`–`74`, deletion 263 files / 21,422 lines, 21/6 dispatch modes, `public_api` classification, the Jira-only TTY policy, the additive search op, and the read-compatible init cache).
+- **Records finalised** — the `PP-741-reconciliation.md` jira flow-coverage section; all twenty-one plan decisions mirrored into 0171 (with the surface-widening amendment) and the six 0211-owned `pending`/`open` decision entries closed; 0171's stale attribution of the whole-repository `jq`/`curl` equality to 0212 corrected; 0211's own criteria corrected on seven points (dispatch band `70`–`74`, deletion 263 files / 21,422 lines, 21/6 dispatch modes, `public_api` classification, the Jira-only TTY policy, the additive search op, and the read-compatible init cache).
 - **Two stale strings swept** — the `cli/{jira,linear}-client/tests/evidence/README.md` "not committed yet" lines beside committed data, and `create-work-item`'s reference to the 0212-deleted `config-read-work.sh`.
 - **Plan marked complete** — Phase 4/5 criteria checked and the plan status set to `done` after the green merge-boundary run.
 
 ## Context
 
-Completes `work-item:0211` per `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md` (Phase 5). Parent epic `work-item:0171`; unblocks `work-item:0174` (the retired `integrations` floor and the cluster `SHELL_LIBRARIES` entries).
+Completes `work-item:PP-741` per `meta/plans/2026-08-19-PP-741-integration-binaries-and-bash-cluster-retirement.md` (Phase 5). Parent epic `work-item:PP-192`; unblocks `work-item:PP-195` (the retired `integrations` floor and the cluster `SHELL_LIBRARIES` entries).
 
 ## Testing
 

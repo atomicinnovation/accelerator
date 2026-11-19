@@ -6,9 +6,9 @@ date: "2026-10-25T08:07:18+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0218"
-parent: "work-item:0218"
-relates_to: ["work-item:0334", "work-item:0339", "work-item:0340", "work-item:0341", "work-item:0342"]
+work_item_id: "PP-747"
+parent: "work-item:PP-747"
+relates_to: ["work-item:PP-930", "work-item:PP-922", "work-item:PP-944", "work-item:PP-945", "work-item:PP-946"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/170"
 pr_number: 170
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
@@ -149,11 +149,11 @@ made before, pinned by a test.
 
 ## Context
 
-- Work item: `meta/work/0218-bound-cache-root-growth.md` (PP-747)
+- Work item: `meta/work/PP-747-bound-cache-root-growth.md` (PP-747)
 - Decision: `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
-- Plan: `meta/plans/2026-10-19-0218-bound-cache-root-growth.md`
-- Research: `meta/research/codebase/2026-10-18-0218-bound-cache-root-growth.md`
-- Validation: `meta/validations/2026-10-19-0218-bound-cache-root-growth-validation.md`
+- Plan: `meta/plans/2026-10-19-PP-747-bound-cache-root-growth.md`
+- Research: `meta/research/codebase/2026-10-18-PP-747-bound-cache-root-growth.md`
+- Validation: `meta/validations/2026-10-19-PP-747-bound-cache-root-growth-validation.md`
 - Builds on 0334 (tree leases on the cold path) and 0339 (the cross-artifact
   lock probe and inode confirmation).
 

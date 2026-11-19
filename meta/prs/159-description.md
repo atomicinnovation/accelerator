@@ -6,9 +6,9 @@ date: "2026-10-12T23:39:40+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0296"
-parent: "work-item:0296"
-relates_to: ["work-item:0300", "work-item:0320", "work-item:0337", "work-item:0335"]
+work_item_id: "PP-880"
+parent: "work-item:PP-880"
+relates_to: ["work-item:PP-884", "work-item:PP-906", "work-item:PP-918", "work-item:PP-919"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/159"
 pr_number: 159
 tags: ["sync", "jira", "linear", "adf", "tracker", "equivalence", "baseline"]
@@ -213,12 +213,12 @@ From the PR #159 review (`meta/reviews/prs/159-review-1.md`), in two rounds.
 
 ## Context
 
-- Work item: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
-- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md` (status
+- Work item: `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
+- Plan: `meta/plans/2026-10-10-PP-880-sync-round-trip-defects.md` (status
   `done`)
-- Validation: `meta/validations/2026-10-10-0296-sync-round-trip-defects-validation.md`
+- Validation: `meta/validations/2026-10-10-PP-880-sync-round-trip-defects-validation.md`
   (`pass`)
-- Research: `meta/research/codebase/2026-10-10-0296-sync-round-trip-defects.md`
+- Research: `meta/research/codebase/2026-10-10-PP-880-sync-round-trip-defects.md`
 - Review PR: #156
 
 ## Testing

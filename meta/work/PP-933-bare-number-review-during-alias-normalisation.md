@@ -1,0 +1,144 @@
+---
+type: "work-item"
+id: "PP-933"
+title: "Bare-Number Review During Alias Normalisation"
+date: "2026-10-15T18:23:22+00:00"
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "story"
+priority: "low"
+parent: "work-item:PP-167"
+blocked_by: ["work-item:PP-931", "work-item:PP-932", "work-item:PP-981"]
+relates_to: ["work-item:PP-887"]
+tags: ["rekey", "aliases", "references", "interactive"]
+last_updated: "2026-11-19T08:39:00+00:00"
+last_updated_by: "Toby Clemson"
+schema_version: 1
+external_id: "PP-933"
+aliases: ["0345"]
+---
+# PP-933: Bare-Number Review During Alias Normalisation
+
+**Kind**: Story
+**Status**: Draft
+**Priority**: Low
+**Author**: Toby Clemson
+
+## Summary
+
+As a developer normalising a re-keyed corpus, I want each bare number that
+could name a work item, in prose, in a work item's title, or in a file name's
+slug, put to me with its surrounding context, so that I can decide which ones
+are references and have them rewritten to the item's current ID, rather than
+leaving every bare numeric reference stale after a re-key.
+
+## Context
+
+Alias normalisation (work-item:PP-931) rewrites distinctive aliases in prose,
+but a bare number such as `0042` cannot be told apart from an ordinary number,
+so it never rewrites one. After a numeric corpus is re-keyed, prose mentions
+of the old numbers stay behind, resolvable only through `aliases`.
+
+work-item:PP-887 plans a migration that reports such candidates with file and
+line without rewriting them. This story is the interactive counterpart: it
+asks, through the decision engine extracted in work-item:PP-932, and rewrites
+what the user confirms.
+
+Old numbers also survive outside prose. Re-keying this repository left
+PP-980 titled "Run 0352's Outstanding Manual Sync Checks" at
+`PP-980-run-0352-s-outstanding-manual-sync-checks.md`, with `0352` re-keyed
+to PP-927; the title, H1 and slug were fixed by hand. Titles and slugs need
+the same judgement as prose, so they are reviewed in the same pass.
+
+## Requirements
+
+- Under `work rekey --normalise-aliases`, a bare number in prose is a
+  candidate only when, as a whole token, it equals some item's current `id`
+  or one of its aliases.
+- Numbers inside code spans and fenced code blocks are never candidates.
+- Each candidate is presented through the work-item:PP-932 engine with its
+  surrounding lines and the item it would name. The choices are: accept
+  (promote to `work-item:<current id>`), skip, or edit.
+- Decisions are recorded, so a re-run does not ask again about an unchanged,
+  already-decided occurrence.
+- With no TTY and no decisions file, the run stalls and lists its candidates,
+  per the engine's contract.
+- A number in a work item's `title` is a candidate on the same terms. Its
+  title and H1 are one occurrence: accepting it replaces the number in both
+  with the item's current `id` as plain text, not a typed link.
+- A whole hyphen-delimited token in a file name's slug is a candidate on the
+  same terms, unless it sits in the ID position the document type declares
+  (work-item:PP-981). Accepting it renames the file with the current `id` in
+  the token's place, and references to the file follow, as in a re-key's
+  document renames. A work item's own `id` never changes.
+
+**Out of scope**
+
+- Numbers that name no item's `id` or alias.
+- Qualifying references to other artifact types (work-item:PP-887).
+
+## Acceptance Criteria
+
+- [ ] Given item `ACC-0042` with `aliases: ["0042"]` and prose
+      `see 0042`, when the candidate is accepted, then the prose reads
+      `see work-item:ACC-0042`.
+- [ ] Given prose holding `2026` and `8080` and no item whose `id` or alias
+      is either, when the pass runs, then neither is offered.
+- [ ] Given `0042` inside a code span or fenced block, when the pass runs,
+      then it is not offered.
+- [ ] Given a skipped candidate, when the pass runs again on an unchanged
+      file, then it is not offered again and the text is unchanged.
+- [ ] Given no TTY and no decisions file, when the pass runs, then it stalls
+      listing each candidate with its context, and resuming with a decisions
+      file applies the decisions.
+- [ ] Given PP-980 titled "Run 0352's Outstanding Manual Sync Checks" with a
+      matching H1, and PP-927 with `aliases: ["0352"]`, when the candidate is
+      accepted, then the title and H1 both read "Run PP-927's Outstanding
+      Manual Sync Checks", after one decision.
+- [ ] Given `meta/work/PP-980-run-0352-s-outstanding-manual-sync-checks.md`,
+      when the slug candidate `0352` is accepted, then the file is
+      `meta/work/PP-980-run-PP-927-s-outstanding-manual-sync-checks.md`, every
+      path reference to it follows, and its `id` is still `PP-980`.
+- [ ] Given a document whose declared ID position holds `PP-980`, when the
+      pass runs, then that token is never offered as a candidate.
+
+## Open Questions
+
+- If work-item:PP-887's migration ships first, should its report feed these
+  candidates instead of a fresh scan?
+
+## Dependencies
+
+- Blocked by: work-item:PP-931 — the normalisation pass this extends.
+- Blocked by: work-item:PP-932 — the decision engine that presents candidates.
+- Blocked by: work-item:PP-981 — the declared ID positions, and the document
+  renames whose references follow, that slug candidates reuse.
+- Related: work-item:PP-887 — reports the same candidates without deciding
+  them.
+
+## Assumptions
+
+- Restricting candidates to numbers equal to some item's `id` or alias keeps
+  the prompt count proportionate; years, ports and counts rarely match a
+  four-digit work-item number.
+
+## Technical Notes
+
+- `work::identity::resolve_identity` answers whether a token names an item's
+  `id` or alias.
+- A candidate's decision key should identify the occurrence by file and
+  surrounding text, not by line number alone, so edits elsewhere in the file
+  do not invalidate recorded decisions.
+
+## Drafting Notes
+
+- Priority is low because unrewritten bare numbers still resolve through
+  `aliases`; the cost of leaving them is inconsistency, not breakage.
+- Parented under work-item:PP-167 alongside work-item:PP-931, since it extends
+  the same re-key pass.
+
+## References
+
+- Source: work-item:PP-879 — Work Item Re-Key Command (stress test)
+- Related: work-item:PP-887 — Fully Qualified Artifact References in Prose

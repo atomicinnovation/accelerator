@@ -6,9 +6,9 @@ date: "2026-09-05T11:09:59+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0206"
-parent: "work-item:0206"
-relates_to: ["work-item:0209"]
+work_item_id: "PP-736"
+parent: "work-item:PP-736"
+relates_to: ["work-item:PP-739"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/99"
 pr_number: 99
 tags: ["design", "security", "ssrf", "playwright", "executor", "access-policy"]
@@ -70,9 +70,9 @@ single language-neutral vector corpus — either side diverging fails CI.
 
 ## Context
 
-- Work item: `meta/work/0206-classify-navigation-urls-not-only-the-initial-location.md`
-- Plan: `meta/plans/2026-08-31-0206-classify-navigation-urls.md`
-- Research: `meta/research/codebase/2026-08-31-0206-classify-navigation-urls.md`
+- Work item: `meta/work/PP-736-classify-navigation-urls-not-only-the-initial-location.md`
+- Plan: `meta/plans/2026-08-31-PP-736-classify-navigation-urls.md`
+- Research: `meta/research/codebase/2026-08-31-PP-736-classify-navigation-urls.md`
 - Coordinating story: 0209 (cross-origin auth-header stripping) extends the same
   route seam this PR installs.
 

@@ -6,9 +6,9 @@ date: "2026-11-12T20:19:49+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0362"
-parent: "work-item:0362"
-relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
+work_item_id: "PP-954"
+parent: "work-item:PP-954"
+relates_to: ["work-item:PP-953", "work-item:PP-958", "work-item:PP-962"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/214"
 pr_number: 214
 tags: ["build-system", "testing", "bootstrap", "hooks", "minisign", "hermetic"]
@@ -126,11 +126,11 @@ network-bound smoke test, and nothing is stored or migrated.
 
 ## Context
 
-- Work item: `meta/work/0362-make-the-bootstrap-test-suites-fast-and-hermetic.md`
-- Plan: `meta/plans/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic.md`
+- Work item: `meta/work/PP-954-make-the-bootstrap-test-suites-fast-and-hermetic.md`
+- Plan: `meta/plans/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic.md`
   (Phases 3–5)
 - Validation:
-  `meta/validations/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic-validation.md`
+  `meta/validations/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic-validation.md`
 - Stacked on #212 (shared installation fixtures), which is stacked on #210
   (`minisign-verify` at `opt-level = 3` in dev builds)
 

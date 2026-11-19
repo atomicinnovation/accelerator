@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 supersedes: ["adr:ADR-0061"]
-relates_to: ["adr:ADR-0059", "adr:ADR-0060", "adr:ADR-0063", "work-item:0196", "work-item:0214"]
+relates_to: ["adr:ADR-0059", "adr:ADR-0060", "adr:ADR-0063", "work-item:PP-726", "work-item:PP-751"]
 tags: ["architecture", "distribution", "integrity", "manifest", "launcher", "cache", "design"]
 last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -54,7 +54,7 @@ one entry per plugin version on a shared root (so `prune` reclaims nothing),
 forces a manifest load before the reuse scan can find an already-present tree (so
 a zero-byte upgrade fails offline), and needs a field the producer cannot supply.
 
-Work-item:0214 settled the tree-artifact mechanisms against prototypes; this ADR
+work-item:PP-751 settled the tree-artifact mechanisms against prototypes; this ADR
 records the attestation and pointer shapes that survived building them.
 
 ## Decision Drivers
@@ -174,7 +174,7 @@ generation's document would name the older version.
 - ADR-0059 (build-time assembly of vendored browser artifacts), ADR-0060
   (launcher-resolved tree artifacts), ADR-0063 (plugin-version-scoped artifact
   cache)
-- `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
+- `meta/work/PP-751-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
   settled the attestation and pointer shapes against prototypes
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md` — the tooling
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md` — the tooling
   work these artifacts serve

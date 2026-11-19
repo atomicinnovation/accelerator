@@ -6,9 +6,9 @@ date: "2026-11-02T18:35:08+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0319"
-parent: "work-item:0319"
-relates_to: ["work-item:0146", "work-item:0390", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
+work_item_id: "PP-905"
+parent: "work-item:PP-905"
+relates_to: ["work-item:PP-167", "work-item:PP-935", "work-item:PP-879", "work-item:PP-931", "work-item:PP-758", "work-item:PP-760"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
@@ -373,14 +373,14 @@ notice:
 
 ## Context
 
-- Work item: `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`
+- Work item: `meta/work/PP-905-explicit-work-item-id-on-accelerator-work-create.md`
   (Linear PP-905), a child of 0146.
-- Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
-- Plan: `meta/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
+- Research: `meta/research/codebase/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create.md`
+- Plan: `meta/plans/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create.md`
   (11 phases), with its review in `meta/reviews/plans/` and the work item's
   review in `meta/reviews/work/`. Its Implementation Notes record where the
   code departs from it after review.
-- Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
+- Validation: `meta/validations/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create-validation.md`
   (result `pass`, against the plan before the review response).
 - Reviews: `meta/reviews/prs/178-review-1.md`, `178-review-2.md` and
   `178-review-3.md`; every inline thread is answered and resolved. The
