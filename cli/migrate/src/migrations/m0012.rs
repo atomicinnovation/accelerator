@@ -7,12 +7,10 @@
 //! deliberately come from the live `corpus::frontmatter_validation` parser,
 //! as in m0007, so the migration repairs what `MISSING-BASE-FIELD` reports.
 //! That parser only reads bare column-0 keys, so each repair is also checked
-//! with a YAML parse: the original must not hold a `"tags":` key the scanner
-//! can't see, and the result must read as the original plus `tags: []`, so
-//! YAML readers never meet a duplicate key or a changed value. A failed
-//! write or realignment restores the items already repaired, because once
-//! an item holds `tags` a re-run could never see its original to realign
-//! its sync baseline.
+//! with a YAML parse, which keeps YAML readers from meeting a duplicate key
+//! or a changed value. A failed write or realignment restores the items
+//! already repaired, because once an item holds `tags` a re-run could never
+//! see its original to realign its sync baseline.
 
 use std::iter;
 use std::path::Path;

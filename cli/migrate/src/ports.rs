@@ -51,22 +51,6 @@ pub trait CorpusIndex {
     fn target_exists(&self, target_type: &str, target_id: &str) -> bool;
 }
 
-/// The capabilities every migration's `apply()`/`apply_decision()`
-/// implementation receives.
-///
-/// `write` is the only *content-mutation* path available to a migration —
-/// routing every write through one method is what lets the path manifest be
-/// recorded as a side effect of the call itself, rather than as a discipline
-/// each migration author must remember. `merge_move` is the one other
-/// mutation primitive (whole-file/whole-directory relocation, needed by the
-/// directory-rename and state-relocation migrations); it is not
-/// content-writing, so it is not manifest-tracked the same way — the
-/// migrations that use it own their own idempotency self-check instead.
-///
-/// `read`/`list_md_files`/`config_value` default to the empty/absent case so
-/// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
-/// `engine.rs`), which never exercise a real migration, do not need updating
-/// every time a migration's own needs grow this trait.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VersionControl {
     Git,
@@ -84,12 +68,6 @@ impl VersionControl {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TextFile {
-    Utf8(String),
-    NotUtf8,
-}
-
 /// Which version control encloses a directory, and which files under it
 /// that version control tracks.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,6 +76,30 @@ pub struct TrackedState {
     pub tracked: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextFile {
+    Utf8(String),
+    NotUtf8,
+}
+
+/// The capabilities every migration's `apply()`/`apply_decision()`
+/// implementation receives.
+///
+/// `write` is the only *content-mutation* path available to a migration —
+/// routing every write through one method is what lets the path manifest be
+/// recorded as a side effect of the call itself, rather than as a discipline
+/// each migration author must remember. `merge_move` is the one other
+/// mutation primitive (whole-file/whole-directory relocation, needed by the
+/// directory-rename and state-relocation migrations); it is not
+/// content-writing, so it is not manifest-tracked the same way — the
+/// migrations that use it own their own idempotency self-check instead.
+///
+/// `read`/`list_md_files`/`config_value` default to the empty/absent case so
+/// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
+/// `engine.rs`), which never exercise a real migration, do not need updating
+/// every time a migration's own needs grow this trait. `read_text` is the
+/// exception: its default errors, because an absent answer would let a
+/// migration mistake a context that cannot read strictly for a missing file.
 pub trait MigrationContext {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir>;
     fn corpus_index(&self) -> &dyn CorpusIndex;
