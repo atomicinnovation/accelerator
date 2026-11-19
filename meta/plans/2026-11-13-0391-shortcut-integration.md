@@ -8,7 +8,7 @@ producer: "create-plan"
 status: "draft"
 work_item_id: "work-item:PP-990"
 parent: "work-item:PP-990"
-relates_to: ["work-item:0181", "work-item:0171", "work-item:0290", "plan-review:2026-11-13-0391-shortcut-integration-review-1"]
+relates_to: ["work-item:PP-701", "work-item:PP-192", "work-item:PP-876", "plan-review:2026-11-13-0391-shortcut-integration-review-1"]
 tags: ["integrations", "shortcut", "tracker"]
 revision: "654a72f616fcebe9e253fdc9834d75a6b227a061"
 repository: "accelerator"

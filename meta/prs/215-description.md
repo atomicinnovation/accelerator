@@ -48,7 +48,7 @@ the Jira and Linear connectors.
   story type. An `epic` item becomes a Shortcut epic.
 - **Shortcut keys can own work item IDs.** Under `work.id_pattern:
   "{tracker}"`, a pushed story takes its `sc-<n>` key as its `id` and an
-  epic takes `epic-<n>`. ADR-0075 records the decision. ADR-0070's rules
+  epic takes `epic-<n>`. ADR-0076 records the decision. ADR-0070's rules
   for drafts, promotion and ID retirement apply unchanged.
 - **`ACCELERATOR_LOG` reaches the work and Shortcut binaries**, so a sync
   can trace each Shortcut request. The trace never includes the token.
@@ -64,7 +64,7 @@ the Jira and Linear connectors.
 - Work item: `meta/work/PP-990-shortcut-integration.md`
 - Plan: `meta/plans/2026-11-13-0391-shortcut-integration.md`. Each phase has
   implementation notes that record where the code departs from the plan.
-- Decision: `meta/decisions/ADR-0075-shortcut-keys-as-tracker-owned-work-item-ids.md`
+- Decision: `meta/decisions/ADR-0076-shortcut-keys-as-tracker-owned-work-item-ids.md`
 
 ## Testing
 

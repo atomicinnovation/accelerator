@@ -1,6 +1,6 @@
 ---
 type: "adr"
-id: "ADR-0075"
+id: "ADR-0076"
 title: "Shortcut Keys as Tracker-Owned Work Item IDs"
 date: "2026-11-17T14:55:18+00:00"
 author: "Tom Scott"
@@ -15,7 +15,7 @@ last_updated_by: "Tom Scott"
 schema_version: 1
 ---
 
-# ADR-0075: Shortcut Keys as Tracker-Owned Work Item IDs
+# ADR-0076: Shortcut Keys as Tracker-Owned Work Item IDs
 
 **Date**: 2026-11-17
 **Status**: Accepted
