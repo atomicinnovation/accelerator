@@ -114,6 +114,27 @@ class SharedFixtureSession:
         hold = self._hold_point(self._environ)
         log = self._logs_store(self._logs).create(progress.run.run_id)
         progress.log = log
+        if families:
+            self._build(progress, log, families, build)
+        else:
+            self._say(
+                "building nothing (no selected test consumes a shared family)"
+            )
+        if hold is not None:
+            self._say(
+                f"held by {HOLD_VARIABLE}; touch {hold.directory}/release to "
+                f"continue (run directory: {progress.run.directory})"
+            )
+            hold.wait(progress.run.directory)
+        return progress.run.handover(families, log.path)
+
+    def _build(
+        self,
+        progress: _Progress,
+        log: FixtureLog,
+        families: Collection[Family],
+        build: Build,
+    ) -> None:
         self._say(f"building {' and '.join(families)}")
         started = time.monotonic()
         trees = {family: progress.run.tree(family) for family in families}
@@ -132,13 +153,6 @@ class SharedFixtureSession:
             f"built in {built - started:.1f} s, "
             f"digested in {time.monotonic() - built:.1f} s"
         )
-        if hold is not None:
-            self._say(
-                f"held by {HOLD_VARIABLE}; touch {hold.directory}/release to "
-                f"continue (run directory: {progress.run.directory})"
-            )
-            hold.wait(progress.run.directory)
-        return progress.run.handover(families, log.path)
 
     def _finish(
         self,

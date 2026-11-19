@@ -6,7 +6,7 @@ import shutil
 import signal
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from pathlib import Path
 
 import pytest
@@ -94,11 +94,12 @@ class Harness:
         self,
         body: Callable[[Mapping[str, str]], None] = adopt_everywhere,
         *,
+        families: Collection[Family] = SHARED_FAMILIES,
         filtered: bool = False,
         **collaborators,
     ) -> Mapping[str, str]:
         with self.session(**collaborators).open(
-            SHARED_FAMILIES, self.build, filtered=filtered
+            families, self.build, filtered=filtered
         ) as handover:
             body(handover)
         return handover
@@ -218,6 +219,45 @@ class TestACleanRun:
         for line in lines:
             assert not timeline._NEXTEST_SUMMARY.match(line)
             assert not timeline._FINISHED_IN.fullmatch(line)
+
+
+class TestNothingToShare:
+    def _run(self, harness: Harness) -> Mapping[str, str]:
+        return harness.run(lambda _handover: None, families=(), filtered=True)
+
+    def test_runs_no_build(self, harness: Harness):
+        def build(_trees: Mapping[Family, Path], _log: Path) -> None:
+            raise AssertionError("nothing should be built")
+
+        harness.build = build
+
+        self._run(harness)
+
+    def test_hands_over_only_the_workbenches_and_the_log(
+        self, harness: Harness
+    ):
+        assert set(self._run(harness)) == {
+            WORKBENCHES_VARIABLE,
+            FIXTURE_LOG_VARIABLE,
+        }
+
+    def test_says_it_builds_nothing(self, harness: Harness):
+        self._run(harness)
+
+        lines = harness.printed().splitlines()
+        assert (
+            "shared VCS fixtures: building nothing (no selected test "
+            "consumes a shared family)"
+        ) in lines
+        assert not any(
+            line.startswith("shared VCS fixtures: built") for line in lines
+        )
+
+    def test_cleans_up_and_prints_the_summary(self, harness: Harness):
+        self._run(harness)
+
+        assert list(harness.root.iterdir()) == []
+        assert "  matrix: 0 shared builds" in harness.printed()
 
 
 class TestRunOutcome:
