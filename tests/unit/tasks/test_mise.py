@@ -444,6 +444,11 @@ def test_the_cli_lane_declares_filter_with_the_invoke_task_s_help(mise):
     assert flag["help"] == test_cli._FILTER_HELP
 
 
+def test_the_cli_lane_s_filter_help_names_both_selectors():
+    assert "test() matches test names" in test_cli._FILTER_HELP
+    assert "binary_id() matches test binaries" in test_cli._FILTER_HELP
+
+
 def test_the_cli_lane_forwards_filter_only_when_it_is_given(mise):
     assert mise["tasks"]["test:unit:cli"]["run"] == (
         f"invoke test.cli.run {_FORWARDS_FILTER}"

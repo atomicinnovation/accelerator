@@ -341,7 +341,7 @@ run = "uv run pytest tests/unit/vcs -v"
 description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts, fails below COVERAGE_FLOOR; ACCELERATOR_COVERAGE=off drops to plain nextest)"
 depends = ["deps:install:rust-components"]
 usage = '''
-flag "--filter <filterset>" help="nextest filterset selecting the tests to run, e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips the coverage report, sweep and floor"
+flag "--filter <filterset>" help="nextest filterset selecting the tests to run (test() matches test names; binary_id() matches test binaries), e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips the coverage report, sweep and floor"
 '''
 run = 'invoke test.cli.run ${usage_filter+--filter "$usage_filter"}'
 

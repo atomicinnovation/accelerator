@@ -69,9 +69,9 @@ _NEXTEST_FILTER_SYNTAX = (
     "test() matches test names; binary_id() matches test binaries"
 )
 _FILTER_HELP = (
-    "nextest filterset selecting the tests to run, "
-    "e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips "
-    "the coverage report, sweep and floor"
+    f"nextest filterset selecting the tests to run ({_NEXTEST_FILTER_SYNTAX}),"
+    " e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips the "
+    "coverage report, sweep and floor"
 )
 _RUN_DIRECTLY = (
     "no cli tests ran; to run them while diagnosing, use "
