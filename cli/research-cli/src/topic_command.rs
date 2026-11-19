@@ -936,11 +936,9 @@ impl PlanOutput<'_> {
         let mut rendered = json!({
             "lineage": node.lineage.to_string(),
             "level": node.lineage.level(),
-            "question": node.question,
             "cap": node.cap(),
             "id": address.id(&set_slug(self.set_root)),
             "path": self.absolute(&address.path()),
-            "known_questions": node.known_questions,
             "spawn": SpawnRef::Node(address).to_string(),
         });
         if let Some(rejected) = &node.rejected {
