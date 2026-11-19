@@ -216,9 +216,10 @@ Fixture families, as this item uses the terms:
 15. The item lands in three increments, each when every criterion tagged
     for it passes:
     - **matrix**: matrix sharing, with the build step, `test:unit:cli`'s
-      `--filter`, the hash and path guards, the test-only switches, cleanup
-      and the fixture log;
-    - **status-log**: status-log sharing, after the matrix increment;
+      `--filter`, the hash guard, the test-only switches, cleanup and the
+      fixture log;
+    - **status-log**: status-log sharing, with the path scan and the copy
+      helper, after the matrix increment;
     - **filters**: the other tasks' `--filter` options and the guidance,
       after the matrix increment.
 
@@ -235,10 +236,10 @@ Mutation audit of today's consumers:
 | `vcs-adapters::classify` | 6 | matrix | read-only, through `InProcessProbe` | adopting |
 | `vcs-adapters::queries` | 5 | matrix | read-only; one test changes the process's working directory | adopting |
 | `vcs-test-support::matrix` | 6 | matrix | read-only structural checks | adopting |
-| `vcs-adapters::scrub` | 2 | matrix | writes `poison.gitconfig` into the matrix's base directory | adopting if it can stop writing, otherwise a copy |
-| `accelerator-vcs::status_log_goldens` (full set and plain-git subset) | 6 | status-log set | runs the binary; `jj status` takes the working-copy lock and writes store objects but commits no operation | a copy |
-| `vcs-adapters::conflicts` | 1 | status-log set | `jj resolve --list` snapshots and records an operation | adopting if it can stop snapshotting, otherwise a copy |
-| `vcs-test-support::status_log_states` | 1 | status-log set plus adversarial state | reads the full set; builds an adversarial state | adopting if it builds that state outside the shared tree, otherwise a copy |
+| `vcs-adapters::scrub` | 2 | matrix | writes `poison.gitconfig` into the matrix's base directory | adopting, with `poison.gitconfig` written to the test's own workbench |
+| `accelerator-vcs::status_log_goldens` (full set and plain-git subset) | 6 | status-log set | runs the binary; `jj status` takes the working-copy lock and writes store objects but commits no operation | a copy (full set, or the plain-git part for the two subset tests) |
+| `vcs-adapters::conflicts` | 1 | status-log set | `jj resolve --list` snapshots and records an operation | a copy of `conflict-git` and `conflict-jj` (the in-process jj snapshot writes store objects) |
+| `vcs-test-support::status_log_states` | 1 | status-log set plus adversarial state | reads the full set; builds an adversarial state | adopting (`adversarial-git` is already part of the shared build) |
 | `accelerator-vcs::status_log_goldens` (cap, bookmark), `status_log_parity` | 4 | private sets | read-only | private build; out of scope |
 
 ## Acceptance Criteria
@@ -259,7 +260,9 @@ Mutation audit of today's consumers:
       tree and a clean path scan for each of its copies. Given a test made
       to write into the shared tree, the run fails and names the tree.
       Given a copy with the shared tree's absolute path planted in its VCS
-      metadata, the scan fails the run and names the copy.
+      metadata, the scan fails the run and names the copy. The matrix
+      meets the copy clauses by making no copies: every matrix consumer
+      adopts.
 - [ ] [each family] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows a distinct hermetic root for each test
       using the family's shared build, none inside a shared tree.
@@ -267,12 +270,16 @@ Mutation audit of today's consumers:
       build of the same family, when they are compared, then every file's
       modification time in the copy matches its source, and
       `git status --porcelain` and `jj status --ignore-working-copy` give
-      the same output in both.
+      the same output in both. The matrix meets this by making no copies.
 - [ ] [each family] Given every consumer in the audit table whose test
       code changes, when it is compared with `287b6279`, then its golden
       files are byte-identical, it keeps the same test names and count, and
       every assertion and golden comparison it made there is still made,
       as shown by the plan's mapping of each assertion to its new place.
+      `status_log_states` alone gains one test,
+      `no_state_names_the_directory_it_was_built_in`, which guards the
+      path-freedom the status-log copies depend on; its other test keeps
+      its name and assertions.
 - [ ] [matrix] Given `mise run test:unit:cli --filter 'test(classify)'`,
       when it runs, then the matrix alone is built, the `classify` tests
       adopt it, and they pass. Given a malformed filter or an undeclared
