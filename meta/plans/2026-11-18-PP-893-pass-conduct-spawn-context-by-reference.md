@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-867", "work-item:PP-889", "work-item:PP-890", "work-i
 tags: ["research", "deep-research", "conduct", "cli", "run-ledger", "research-guard", "config-template"]
 revision: "d5a62f06c836dbf06c2de86555017ed876634a46"
 repository: "accelerator"
-last_updated: "2026-11-19T16:19:34+00:00"
+last_updated: "2026-11-19T16:33:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1413,9 +1413,9 @@ field list points at `research topic node` for the context it dropped.
 
 #### Automated Verification
 
-- [ ] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Full suite green: `mise run`
+- [x] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification
 
