@@ -3505,3 +3505,24 @@ fn a_fallback_of_a_template_conduct_does_not_use_goes_unreported(
     assert_eq!(plan["warnings"], json!([]), "{plan}");
     Ok(())
 }
+
+#[test]
+fn a_template_conduct_cannot_resolve_still_starts_without_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-finding", "missing/finding.md")],
+    )?;
+    let empty_plugin = project.root.join("empty-plugin");
+    fs::create_dir_all(&empty_plugin)?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, empty_plugin.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(stderr.is_empty(), "{stderr}");
+    Ok(())
+}
