@@ -23,6 +23,13 @@ const FLAGS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/contract/flags.json");
 
 const KINDS_THE_TASK_WRITES: [&str; 2] = ["tree-digest", "tree-changes"];
 
+fn goldens_test() -> TestName {
+    TestName::from_variables(
+        Some("accelerator-vcs::status_log_goldens"),
+        Some("status_and_log_match_every_captured_state"),
+    )
+}
+
 fn classify_test() -> TestName {
     TestName::from_variables(
         Some("vcs-adapters::classify"),
@@ -162,6 +169,11 @@ fn the_private_sets_are_logged_under_their_own_name() {
 #[test]
 fn every_event_matches_the_shared_log_format() -> Result<(), TestError> {
     let test = classify_test();
+    let goldens = goldens_test();
+    let copy = Path::new(
+        "/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c",
+    );
+    let named_by = [copy.join("conflict-git/.git/config")];
     let events = [
         Event::SharedBuild {
             family: Family::Matrix,
@@ -180,6 +192,13 @@ fn every_event_matches_the_shared_log_format() -> Result<(), TestError> {
             fixtures: BuiltFixtures::Shared(Family::Matrix),
             test: &test,
             hermetic_root: Path::new("/tmp/vcs-workbench-b"),
+        },
+        Event::Copy {
+            family: Family::StatusLog,
+            test: &goldens,
+            hermetic_root: copy,
+            copy,
+            named_by: &named_by,
         },
     ];
     let serialised = events

@@ -1,5 +1,6 @@
 {"event":"shared-build","family":"matrix","tree":"/tmp/accelerator-shared-fixtures-501/run/matrix","git":"git version 2.50.1","jj":"jj 0.43.0"}
 {"event":"adoption","family":"matrix","binary":"vcs-adapters::classify","test":"every_fixture_classifies_as_expected","hermetic-root":"/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-a"}
 {"event":"private-build","fixtures":"matrix","binary":"vcs-adapters::classify","test":"every_fixture_classifies_as_expected","hermetic-root":"/tmp/vcs-workbench-b"}
+{"event":"copy","family":"status-log","binary":"accelerator-vcs::status_log_goldens","test":"status_and_log_match_every_captured_state","hermetic-root":"/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c","copy":"/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c","named-by":["/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c/conflict-git/.git/config"]}
 {"event":"tree-digest","family":"matrix","tree":"/tmp/accelerator-shared-fixtures-501/run/matrix","phase":"built","value":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
 {"event":"tree-changes","family":"matrix","tree":"/tmp/accelerator-shared-fixtures-501/run/matrix","added":["poison.gitconfig"],"removed":[],"modified":["PG/.git/index"]}
