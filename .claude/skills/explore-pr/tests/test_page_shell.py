@@ -410,3 +410,43 @@ def test_the_overview_sends_the_reader_to_the_design_article():
 
     assert "Read how the change is designed" in overview
     assert "decisionEntries()" not in overview
+
+
+def test_a_finding_says_where_it_came_from_and_what_it_builds_on():
+    row = renderer("findingRow")
+
+    for part in ("sourceChip(f)", "f.extends", "f.alsoRaisedIn", "f.chapter"):
+        assert part in row, part
+
+
+def test_findings_can_be_narrowed_and_counted_by_source():
+    findings = renderer("vFindings")
+
+    assert "sel('source'" in findings
+    assert "bySource" in findings
+
+
+def test_a_jump_to_a_merged_finding_opens_the_finding_it_joined():
+    assert (
+        "C.findingAliases"
+        in SHELL.read_text()[
+            SHELL.read_text().index("closest('[data-jump]')") :
+        ][:600]
+    )
+
+
+def test_a_chapter_lists_its_findings_once_and_compactly():
+    chapter = renderer("vChapter")
+
+    assert "New observations" not in chapter
+    assert "Prior findings here" not in chapter
+    assert "Findings here" in chapter
+    assert "findingsHere(ch)" in chapter
+
+
+def test_verdicts_on_renamed_targets_are_carried_over_with_their_head():
+    shell = SHELL.read_text()
+
+    assert "TargetRenames.pending(" in renderer("carryOverRenames")
+    assert "preserveHead: true" in renderer("carryOverRenames")
+    assert "opts.preserveHead" in shell[shell.index("  put(target") :][:600]

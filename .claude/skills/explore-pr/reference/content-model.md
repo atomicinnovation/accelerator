@@ -113,7 +113,7 @@ about.
 **Where the why comes from.** The PR description, commit messages, ADRs,
 the plan or work item, prior review findings, and the base copy of the
 file. A why that none of them states and the code does not make evident
-is not known: write it as a `question` in `ownNotes`, never as a reason
+is not known: raise it as a `question` in `observations`, never as a reason
 you inferred.
 
 The build warns about a stop with no `why`, one that carries nothing or
@@ -219,7 +219,23 @@ Every citation must open something. `scripts/build.py` warns about:
   abstraction or a decision that names no chapter;
 - prose that names a stop or chapter that does not exist, or a backticked
   decision or abstraction id (`d-…`, `a-…`) that nothing declares;
-- a `carriedBy` that names a stop the tour does not have.
+- a `carriedBy` that names a stop the tour does not have;
+- an observation's `sameAs`, `extends` or `distinctFrom` that names no
+  finding, or a `sameAs` that names a prior finding: a repeat of a prior
+  finding goes in that finding's `findingChecks` note, never in
+  `observations`;
+- two findings, at least one of them an observation, that cite overlapping
+  lines of one file without being linked by `sameAs`, `extends` or
+  `distinctFrom`.
+
+**One findings set.** The page shows the prior findings, the reading passes'
+observations and the design pass's as one set in **Findings**, each with its
+source. A `sameAs` group is shown once, as the first in tour order, with the
+chapters that also raised it, and the others' ids still lead to it. An
+observation id may be cited wherever a finding id may: a stop's `findings`,
+a risk's `refs`, a ledger row's `findings`. A chapter's old `ownNotes` are
+still read, each as a finding `N-<chapter>-<n>`, with a note that
+`observations` is the new name.
 
 Prose that names a declared decision, abstraction or invariant id, bare or
 in backticks, links to its entry in Reference, named by what it says.
@@ -330,6 +346,7 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "extension": [{                               // for owning it: where the next change goes
     "change": "Support a group-shared root", "where": "path:line", "how": "md, ≤ 2 sentences"
   }],
+  "observations": [ /* the design pass's own findings, ids D-NN; same shape as a chapter's */ ],
   "signOff": "md: the question to answer about the design as a whole"
 }
 ```
@@ -427,7 +444,17 @@ catalogue; say what matters about them in the article.
     "triage": "block|fix-now|follow-up|drop", // a recommendation; the reviewer decides
     "level": "design|implementation"          // design: shape, boundaries, dependencies, decisions
   }],
-  "ownNotes": [{ "level": "major|minor|question", "text": "md", "where": "path:line" }],
+  "observations": [{                         // what this pass found that no prior finding says
+    "id": "P-claims-01",                      // P-<chapter>-NN; the design pass writes D-NN
+    "severity": "critical|major|minor|suggestion|question",
+    "level": "design|implementation",
+    "title": "≤ 12 words",
+    "summary": "md, ≤ 3 sentences",
+    "where": "path:line or path:start-end",   // optional; without it the finding is general
+    "extends": "R1-06",                       // optional: adds to that finding without repeating it
+    "sameAs": ["P-store-02"],                 // optional: another pass's observation of the same thing
+    "distinctFrom": ["R1-07"]                 // optional: a finding at overlapping lines that is different
+  }],
   "signOff": "md, 1–2 sentences: the question to answer before signing this chapter off"
 }
 ```
@@ -565,7 +592,7 @@ are the kinds in the table above that say "drawn by the diagram kit".
   a decision with nothing to decide by, a question whose answers all lead
   to one outcome, a reference into an aggregate past its root) is either a
   mistake in the figure or a finding about the code: settle which against
-  the code, and raise a finding in `ownNotes` if it is true.
+  the code, and raise it in `observations` if it is true.
 
 The build writes two diagrams for you. The Abstractions catalogue's diagram
 of how the abstractions work together is a class diagram drawn from their
@@ -677,11 +704,14 @@ can be mapped to the same shape:
 
 Every review control writes one record keyed by its target: `decision` (the
 overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
-`stop:<id>`, `inv:<id>`, `finding:<id>`, `own:<chapter>-<n>`,
+`stop:<id>`, `inv:<id>`, `finding:<id>` (an observation's id included),
 `ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
 lines marked one at a time (its `lines` field lists them as `new:12-15` or
 `old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). The
-freeform box at the top of **Your notes** writes `notes:general`, of kind
+page renames an old `own:<chapter>-<n>` record to `finding:N-<chapter>-<n>`
+when it loads, copying its verdict, note and head once and leaving the old
+record in place, ignored. The freeform box at the top of **Your notes**
+writes `notes:general`, of kind
 `notes`, with only a `note`; the Markdown export opens with it. Each
 record carries `target`, `kind`, `status`, `note`, `label`, `where`,
 `updatedAt`, the `head` its verdict was given at and, for a stop, ledger row

@@ -260,9 +260,9 @@ template.
 ### 8. Write the overview
 
 When the passes are done, read their summaries, `design.json`, and the
-chapters' decisions and `findingChecks`. Reconcile the design pass with the
-chapter passes where they disagree about a decision, reading the code to
-settle it. Then write `content/overview.json`:
+chapters' decisions, `findingChecks` and `observations`. Reconcile the passes
+where they disagree, reading the code; join one thing's observations with
+`sameAs` (the build flags overlaps). Then write `content/overview.json`:
 
 - `figures`: the change at a glance, first and foremost. Usually a `compare`
   of the part of the system the PR reshapes, before and after, with the new

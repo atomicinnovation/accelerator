@@ -59,7 +59,7 @@ for each stop:
 Apply the deletion test to every sentence: could the reviewer have written
 it from the lines shown? Then delete it. Take each why from a source (the PR
 description, commit messages, ADRs, the plan, prior findings, the base
-copy), and where none gives one, ask it as a `question` in `ownNotes` rather
+copy), and where none gives one, ask it as a `question` in `observations` rather
 than inferring a reason.
 
 **Draw first, write second** (contract, "Pictures first"). For each chapter,
@@ -113,8 +113,18 @@ the chapter it belongs to. Be adversarial: try to refute each finding against
 the code before you agree with it, say exactly what the code shows, and
 recommend a triage. Set its `level`: `design` when it concerns shape,
 boundaries, responsibilities, dependencies or a decision, and `implementation`
-when a line is wrong. Raise design concerns of your own in `ownNotes`. Matter most: {ids that bear on the merge decision, and the
-precise question for each}.
+when a line is wrong. Matter most: {ids that bear on the merge decision, and
+the precise question for each}.
+
+**Every prior finding**, in your area or not: {each id, title and location}.
+Raise what you find yourself in `observations` (contract, chapter schema),
+ids `P-<chapter>-NN`, including any unknown why as a `question`. Before you
+raise one, check it against this list and against your finding checks: a
+repeat of a prior finding is never an observation, it goes in that
+finding's `findingChecks` note; something that adds to a prior finding is
+an observation with `extends` naming it; and one at the same lines as a
+prior finding but about something else names it in `distinctFrom`. The
+build warns about two findings at overlapping lines that are not linked.
 
 **Figures**: follow the contract's Figures section, including what makes a
 figure worth its space. Choose each figure by the question it answers, from

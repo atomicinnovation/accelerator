@@ -275,6 +275,8 @@ kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4p
 .design-strip { display: flex; flex-wrap: wrap; gap: 6px; }
 .design-strip .carried { max-width: 100%; }
 .introduced { gap: 8px; }
+.finding-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.finding-list .finding-title { flex: 1; min-width: 0; }
 .excerpt { margin: 0; display: grid; gap: 6px; min-width: 0; }
 .article-aside { border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 8px 8px 0; padding: 8px 12px; display: grid; gap: 6px; }
 .aside-ref { display: flex; gap: 8px; align-items: center; min-width: 0; }
@@ -512,20 +514,22 @@ const Store = {
         for (const [t, v] of this.pending) next.set(t, { ...(next.get(t) || {}), ...v });
         this.docs = next;
         this.version++;
+        carryOverRenames();
         onStateChange();
       }, err => { clearTimeout(timer); this.reachable = false; renderBanner(); });
     } else {
       this.mode = 'local';
       try { const raw = localStorage.getItem(this.key); if (raw) this.docs = new Map(Object.entries(JSON.parse(raw))); } catch (e) { /* storage unavailable */ }
+      carryOverRenames();
     }
     this.version++;
     renderBanner();
     onStateChange();
   },
-  put(target, kind, patch, meta) {
+  put(target, kind, patch, meta, opts = {}) {
     if (!this.canWrite) return;
     const cur = this.get(target);
-    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, ...headOfVerdict(target, cur, patch), updatedAt: new Date().toISOString() };
+    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, ...(opts.preserveHead ? {} : headOfVerdict(target, cur, patch)), updatedAt: new Date().toISOString() };
     this.docs.set(target, doc);
     this.version++;
     if (this.mode === 'db') { this.pending.set(target, doc); this.flush(target); }
@@ -554,6 +558,10 @@ const Store = {
   },
 };
 
+function carryOverRenames() {
+  TargetRenames.pending([...Store.docs.values()], C.targetRenames).forEach(copy => Store.put(copy.target, copy.kind,
+    { status: copy.status, note: copy.note, head: copy.head, claimed: copy.claimed }, copy.meta, { preserveHead: true }));
+}
 function headOfVerdict(target, cur, patch) {
   if (!('status' in patch) && !('lines' in patch) && cur.head) return { head: cur.head, claimed: cur.claimed || [] };
   const claim = READING_CLAIM[target];
@@ -789,6 +797,7 @@ let F = {}, CH = {}, FILE = {}, LEDGER = {}, EVIDENCE = null, CATALOGUE = null, 
 function index() {
   for (const [k, v] of Object.entries({ commits: [], chapters: [], ledger: [], findings: [], files: [], acs: [], acceptedRisks: [], breaking: [], layers: [], pathAliases: [], ledgerMeta: {}, findingsMeta: {}, tourMeta: {}, design: {}, overview: {} })) if (C[k] == null) C[k] = v;
   F = Object.fromEntries(C.findings.map(f => [f.id, f]));
+  Object.entries(C.findingAliases || {}).forEach(([alias, id]) => { F[alias] = F[id]; });
   CH = Object.fromEntries(C.chapters.map(c => [c.id, c]));
   FILE = Object.fromEntries(C.files.map(f => [f.path, f]));
   LEDGER = Object.fromEntries(C.ledger.map(l => [l.id, l]));
@@ -1289,7 +1298,7 @@ function vOverview() {
   const chRows = C.chapters.map((c, i) => {
     const s = Store.get('chapter:' + c.id).status;
     const fc = (c.findingChecks || []);
-    const own = (c.ownNotes || []).filter(n => n.level === 'major').length;
+    const own = C.findings.filter(f => f.chapter === c.id && ['critical', 'major'].includes(f.severity)).length;
     return `<tr><td class="tnum">${i + 1}</td><td><a href="#tour-${c.id}">${esc(c.title)}</a><div class="small muted">${md(c.oneLiner, true)}</div></td><td class="tnum">${(c.stops || []).length}</td><td class="tnum">${fc.length}</td><td class="tnum">${own || ''}</td><td>${s ? `<span class="chip c-${s}">${KINDS.chapter.opts.find(x => x[0] === s)[1]}</span>` : '<span class="muted small">not yet</span>'}</td></tr>`;
   }).join('');
   const ar = (C.acceptedRisks || []);
@@ -1349,7 +1358,7 @@ function vOverview() {
   ${ci.length ? `<section class="section"><h2>CI at head <span class="muted small" style="font-family:var(--f-body);font-weight:400">${passN} passing</span></h2><div class="table-wrap"><table class="data"><tbody>${ciRows}</tbody></table></div></section>` : ''}`;
 }
 const BLANK_FILTERS = {
-  findings: { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: '' },
+  findings: { source: '', sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: '' },
   decisions: { assessment: '', chapter: '', verdict: '' },
   abstractions: { status: '', chapter: '' },
   invariants: { holds: '', pinned: '', chapter: '', verdict: '' },
@@ -1361,8 +1370,9 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-jump]');
   if (!a) return;
   e.preventDefault();
-  const route = a.dataset.jump;
-  if (BLANK_FILTERS[route]) filters[route] = { ...BLANK_FILTERS[route], ...JSON.parse(a.dataset.filter || '{}') };
+  const route = a.dataset.jump, filter = JSON.parse(a.dataset.filter || '{}');
+  if (route === 'findings' && (C.findingAliases || {})[filter.q]) filter.q = C.findingAliases[filter.q];
+  if (BLANK_FILTERS[route]) filters[route] = { ...BLANK_FILTERS[route], ...filter };
   if (location.hash !== '#' + route) location.hash = route; else render();
 });
 function filterSelect(route, key, options) {
@@ -1512,8 +1522,7 @@ function vChapter(ch) {
   const ba = (ch.beforeAfter || []).length ? `<section class="section"><h2>Before and after</h2><div class="ba">${ch.beforeAfter.map(b => `<div class="ba-aspect">${md(b.aspect, true)}</div><div><div class="eyebrow">Before</div><div class="md small">${md(b.before)}</div></div><div><div class="eyebrow">After</div><div class="md small">${md(b.after)}</div></div>`).join('')}</div></section>` : '';
   const inv = (ch.invariants || []).map(item => invariantRow({ item, chapter: ch.id })).join('');
   const risks = (ch.risks || []).map(item => riskRow({ item, chapter: ch.id })).join('');
-  const fcs = (ch.findingChecks || []).map(fc => findingRow(F[fc.id], fc)).join('');
-  const own = (ch.ownNotes || []).map((n, k) => `<div class="finding"><div class="finding-head">${sevChip(n.level)}<span class="finding-id">N-${esc(ch.id)}-${k + 1}</span>${whereBtn(n.where)}</div><div class="md">${md(n.text)}</div>${ctl(`own:${ch.id}-${k + 1}`, 'finding', { label: `New observation in ${ch.title}`, where: n.where, text: n.text })}</div>`).join('');
+  const here = findingsHere(ch);
   const tests = (ch.tests || []).map(t => `<tr><td>${testRef(t)}</td><td class="small">${md(t.proves, true)}</td></tr>`).join('');
   const terms = (ch.domain || []).map(d => `<div class="term"><b>${esc(d.term)}</b><div class="small">${md(d.meaning, true)}</div>${d.code ? `<code class="small">${esc(d.code)}</code>` : ''}</div>`).join('');
   return `<div class="view-head"><div class="eyebrow">Chapter ${i + 1} of ${C.chapters.length} · ${(ch.stops || []).length} stops · ${fmt(linesOf(ch))} lines of code</div><h1>${esc(ch.title)}</h1><p class="lede">${md(ch.oneLiner, true)}</p></div>
@@ -1526,13 +1535,19 @@ function vChapter(ch) {
     <section class="section"><h2>Where it lives in the code</h2><p class="small muted">The stops below are the evidence for the design: each decision and abstraction is set out at the first stop that shows it.</p><div>${stops}</div></section>
     ${inv ? `<section class="section"><h2>Invariants</h2><p class="small muted">What must always hold. The reading pass's view is shown; record your own.</p><div class="panel" style="padding-block:4px">${inv}</div></section>` : ''}
     ${risks ? `<section class="section"><h2>Risks</h2><div class="table-wrap"><table class="data"><tbody>${risks}</tbody></table></div></section>` : ''}
-    ${own ? `<section class="section"><h2>New observations</h2><p class="small muted">Found by the code-reading pass; not in ${esc(source())}.</p><div class="stack">${own}</div></section>` : ''}
-    ${fcs ? `<section class="section"><h2>Prior findings here</h2><div class="stack">${fcs}</div></section>` : ''}
+    ${here ? `<section class="section"><h2>Findings here</h2><ul class="finding-list">${here}</ul><p class="small muted">Read and triage each one in <a href="#findings">Findings</a>.</p></section>` : ''}
     ${tests ? `<section class="section"><h2>Tests that pin it</h2><div class="table-wrap"><table class="data"><tbody>${tests}</tbody></table></div></section>` : ''}
     <section class="panel stack"><div class="eyebrow">Sign off this chapter</div><div class="md" style="font-size:16px">${md(ch.signOff)}</div>${ctl('chapter:' + ch.id, 'chapter', { label: `Chapter: ${ch.title}` }, { noteOpen: true })}</section>
     <div class="pager">${prev ? `<a href="#tour-${prev.id}"><span class="eyebrow">← Chapter ${i}</span><span>${esc(prev.title)}</span></a>` : '<span></span>'}${next ? `<a href="#tour-${next.id}" style="text-align:right"><span class="eyebrow">Chapter ${i + 2} →</span><span>${esc(next.title)}</span></a>` : '<span></span>'}</div>`;
 }
 after.tour = () => { if (D) fillPendingSlices(); };
+function findingsHere(ch) {
+  const here = C.findings.filter(f => C.findingChapter[f.id] === ch.id || f.chapter === ch.id || (f.alsoRaisedIn || []).includes(ch.id));
+  return here.map(f => {
+    const fc = C.findingCheck[f.id];
+    return `<li class="row small">${findingLink(f.id)}${sevChip(f.severity)}<span class="finding-title">${md(f.title || f.summary, true)}</span>${fc ? `<span class="chip c-${esc(fc.verdict)}">${esc(fc.verdict)}</span>` : sourceChip(f)}</li>`;
+  }).join('');
+}
 const chapterLink = id => (CH[id] ? `<a href="#tour-${esc(id)}">${esc(CH[id].title)}</a>` : '');
 function invariantRow({ item: v, chapter }, opts = {}) {
   const ch = CH[chapter] || { title: chapter };
@@ -1545,14 +1560,21 @@ function riskRow({ item: r, chapter }, opts = {}) {
   return `<tr id="risk-${esc(r.id || '')}"><td>${sevChip(r.level)}</td><td class="md small">${md(r.text)}</td><td class="small">${whereBtn(r.where)}</td><td class="small">${(r.refs || []).map(id => findingLink(id)).join(' ')}</td>${opts.withChapter ? `<td class="small">${chapterLink(chapter)}</td>` : ''}</tr>`;
 }
 
+const FINDING_SOURCES = { 'reading-pass': 'reading pass', 'design-pass': 'design pass' };
+const sourceChip = f => `<span class="chip plain ${FINDING_SOURCES[f.source] ? 'c-info' : 'c-none'}">${esc(FINDING_SOURCES[f.source] || 'prior review')}</span>`;
+const raisedIn = id => (id === 'design' ? '<a href="#design">the design</a>' : chapterLink(id));
 function findingRow(f, fc) {
   if (!f) return '';
   fc = fc || C.findingCheck[f.id];
   const ar = C.arByFinding[f.id];
   const ch = C.findingChapter[f.id];
+  const level = (fc && fc.level) || f.level;
+  const titled = f.title && (f.kind === 'inline' || f.source !== 'review');
   return `<article class="finding" id="f-${f.id}">
-    <div class="finding-head"><span class="finding-id">${f.id}</span>${sevChip(f.severity)}${fc && fc.level ? `<span class="chip plain ${fc.level === 'design' ? 'c-info' : 'c-none'}">${esc(fc.level)}</span>` : ''}<span class="lens">${esc((f.lenses || []).join(' · '))}</span><span class="spacer"></span>${f.file ? locBtn(f.file, f.start) : '<span class="muted small">general</span>'}</div>
-    <div class="md">${md(f.title && f.kind === 'inline' ? `**${f.title}.** ${f.summary !== f.title ? f.summary : ''}` : f.summary)}</div>
+    <div class="finding-head"><span class="finding-id">${f.id}</span>${sevChip(f.severity)}${sourceChip(f)}${level ? `<span class="chip plain ${level === 'design' ? 'c-info' : 'c-none'}">${esc(level)}</span>` : ''}<span class="lens">${esc((f.lenses || []).join(' · '))}</span>${f.chapter && currentSub !== f.chapter ? chapterLink(f.chapter) : ''}<span class="spacer"></span>${f.file ? locBtn(f.file, f.start) : '<span class="muted small">general</span>'}</div>
+    <div class="md">${md(titled ? `**${f.title}.** ${f.summary !== f.title ? f.summary : ''}` : f.summary)}</div>
+    ${f.extends ? `<div class="small"><span class="muted">Builds on</span> ${findingLink(f.extends)}${F[f.extends] ? ` ${esc(plain(F[f.extends].title || F[f.extends].summary))}` : ''}</div>` : ''}
+    ${(f.alsoRaisedIn || []).length ? `<div class="small muted">Also raised in ${f.alsoRaisedIn.map(raisedIn).join(', ')}</div>` : ''}
     ${ar ? `<div class="small"><span class="chip c-info">accepted risk</span> The plan accepts this by name: <b>${esc(ar.title)}</b>.</div>` : ''}
     ${fc ? `<div class="verdict-box"><div class="row"><span class="eyebrow">Code-reading pass</span><span class="chip c-${esc(fc.verdict)}">${esc(fc.verdict)}</span>${fc.triage ? `<span class="small muted">recommends</span><span class="chip c-${esc(fc.triage)}">${esc(KINDS.finding.opts.find(o => o[0] === fc.triage)?.[1] || fc.triage)}</span>` : ''}${ch && currentSub !== ch ? `<span class="spacer"></span><a class="small" href="#tour-${ch}">${esc(CH[ch].title)}</a>` : ''}</div><div class="md small">${md(fc.note)}</div></div>` : ''}
     ${f.body ? `<details><summary>The original comment</summary><div class="md small">${md(f.body)}</div></details>` : ''}
@@ -1617,28 +1639,33 @@ function vFindings() {
     const fc = C.findingCheck[f.id] || {};
     const st = Store.get('finding:' + f.id).status || '';
     if (ff.q && !(`${f.id} ${f.summary} ${f.file || ''}`.toLowerCase().includes(ff.q.toLowerCase()))) return false;
+    if (ff.source && (f.source || 'review') !== ff.source) return false;
     if (ff.sev && f.severity !== ff.sev) return false;
     if (ff.lens && !(f.lenses || []).includes(ff.lens)) return false;
     if (ff.verdict && (fc.verdict || 'unchecked') !== ff.verdict) return false;
     if (ff.triage && (ff.triage === 'none' ? st : st !== ff.triage)) return false;
-    if (ff.chapter && C.findingChapter[f.id] !== ff.chapter) return false;
-    if (ff.level && (fc.level || 'unclassified') !== ff.level) return false;
+    if (ff.chapter && (C.findingChapter[f.id] || f.chapter) !== ff.chapter) return false;
+    if (ff.level && (fc.level || f.level || 'unclassified') !== ff.level) return false;
     return true;
   });
   const count = (fn) => C.findings.filter(fn).length;
+  const bySource = [['review', source()], ['reading-pass', 'the reading passes'], ['design-pass', 'the design pass']]
+    .map(([key, label]) => [count(f => (f.source || 'review') === key), label]).filter(([n]) => n)
+    .map(([n, label]) => `${n} from ${esc(label)}`).join(', ');
   const verdicts = ['confirmed', 'partly', 'disputed', 'unverified'];
   const sel = (k, opts) => `<select data-ff="${k}">${opts.map(([v, l]) => `<option value="${v}" ${ff[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
-  return `<div class="view-head"><div class="eyebrow">Findings</div><h1>${esc((C.findingsMeta || {}).title || 'Prior findings, re-checked against the code')}</h1>
-    <p class="lede">${C.findings.length} findings from ${esc(source())}: ${count(f => f.severity === 'critical') ? count(f => f.severity === 'critical') + ' critical, ' : ''}${count(f => f.severity === 'major')} major, ${count(f => f.severity === 'minor')} minor, ${count(f => f.severity === 'suggestion')} suggestions. The code-reading pass for this page tried to refute each one; its verdict and recommended triage sit under the finding. The triage is yours.</p>
+  return `<div class="view-head"><div class="eyebrow">Findings</div><h1>${esc((C.findingsMeta || {}).title || 'Every finding, checked against the code')}</h1>
+    <p class="lede">${plural(C.findings.length, 'finding')}: ${bySource}. ${count(f => f.severity === 'critical') ? count(f => f.severity === 'critical') + ' critical, ' : ''}${count(f => f.severity === 'major')} major, ${count(f => f.severity === 'minor')} minor, ${count(f => f.severity === 'suggestion')} suggestions${count(f => f.severity === 'question') ? `, ${count(f => f.severity === 'question')} questions` : ''}. The code-reading pass for this page tried to refute each prior finding; its verdict and recommended triage sit under the finding. The triage is yours.</p>
     <div class="count-row">${verdicts.map(v => `<span class="chip c-${v}">${count(f => (C.findingCheck[f.id] || {}).verdict === v)} ${v}</span>`).join('')}<span class="chip c-info">${count(f => C.arByFinding[f.id])} accepted risks</span></div></div>
     <div class="filters">
       <label>Search <input type="search" data-ff="q" value="${esc(ff.q)}" placeholder="R1-06, lstat…"></label>
-      <label>Severity ${sel('sev', [['', 'any'], ['critical', 'critical'], ['major', 'major'], ['minor', 'minor'], ['suggestion', 'suggestion']])}</label>
+      ${C.findings.some(f => f.source && f.source !== 'review') ? `<label>Source ${sel('source', [['', 'any'], ['review', 'prior review'], ['reading-pass', 'reading passes'], ['design-pass', 'design pass']])}</label>` : ''}
+      <label>Severity ${sel('sev', [['', 'any'], ['critical', 'critical'], ['major', 'major'], ['minor', 'minor'], ['suggestion', 'suggestion'], ['question', 'question']])}</label>
       <label>Lens ${sel('lens', [['', 'any'], ...lenses.map(l => [l, l])])}</label>
       <label>Reading pass ${sel('verdict', [['', 'any'], ...verdicts.map(v => [v, v]), ['unchecked', 'unchecked']])}</label>
       <label>Your triage ${sel('triage', [['', 'any'], ['none', 'not yet'], ...KINDS.finding.opts.map(o => [o[0], o[1]])])}</label>
       <label>Chapter ${sel('chapter', [['', 'any'], ...C.chapters.map(c => [c.id, c.title])])}</label>
-      ${Object.values(C.findingCheck).some(fc => fc.level) ? `<label>Level ${sel('level', [['', 'any'], ['design', 'design'], ['implementation', 'implementation'], ['unclassified', 'unclassified']])}</label>` : ''}
+      ${Object.values(C.findingCheck).some(fc => fc.level) || C.findings.some(f => f.level) ? `<label>Level ${sel('level', [['', 'any'], ['design', 'design'], ['implementation', 'implementation'], ['unclassified', 'unclassified']])}</label>` : ''}
       <span class="small muted">${rows.length} shown</span>
     </div>
     <div class="stack">${rows.map(f => findingRow(f)).join('') || '<div class="empty">No findings match these filters.</div>'}</div>`;

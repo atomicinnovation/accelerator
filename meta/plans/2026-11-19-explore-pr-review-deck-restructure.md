@@ -858,14 +858,14 @@ chapter's "Findings here" links open the matching finding.
 
 #### Automated Verification
 
-- [ ] The new register and rename tests fail first, then pass.
-- [ ] Every shared verification command passes.
+- [x] The new register and rename tests fail first, then pass.
+- [x] Every shared verification command passes.
 
 #### Manual Verification
 
-- [ ] A workspace built before this phase, with `ownNotes` and verdicts on
+- [x] A workspace built before this phase, with `ownNotes` and verdicts on
       them, rebuilds.
-- [ ] Its verdicts appear on `N-…` findings, and nothing is listed twice in
+- [x] Its verdicts appear on `N-…` findings, and nothing is listed twice in
       Your notes.
 - [ ] On a new run, no issue appears twice in Findings.
 

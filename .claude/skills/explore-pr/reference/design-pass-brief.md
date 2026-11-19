@@ -88,6 +88,11 @@ abstraction needs a stop that carries it, and you cannot add stops.
 **Before you finish**, validate the JSON with `python3 -m json.tool`, and check
 every `where` against the `head/` copies.
 
+**Your own findings** go in `observations` (contract, chapter schema), ids
+`D-NN`. You have the chapters' observations and their finding checks: never
+restate one. When you see what a chapter's observation says, name it in
+`sameAs` instead, and add only what is new at the level of the whole design.
+
 **Your final message** (at most 150 words): the design in two sentences, the
 decisions you reused and any you disagree with a chapter about, any decision
 you assessed as questionable or unsound, any principle the change strains or
