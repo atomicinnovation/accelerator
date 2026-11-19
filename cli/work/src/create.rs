@@ -72,9 +72,6 @@ pub const KNOWN_FRONTMATTER_KEYS: &[&str] = &[
 ];
 
 /// Builds the new item's field list, in template order.
-///
-/// `tags` is a required base field and is always written, as `[]` when
-/// there are none.
 #[must_use]
 pub fn compose_frontmatter(
     inputs: &CreateInputs<'_>,
