@@ -1,13 +1,13 @@
 ---
 type: "codebase-research"
-id: "2026-11-18-0333-work-item-writers-omit-the-required-tags-field"
+id: "2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field"
 title: "Work Item Writers Omit the Required Tags Field"
 date: "2026-11-18T18:05:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0333"
-parent: "work-item:0333"
+parent: "work-item:PP-886"
 topic: "Work Item Writers Omit the Required Tags Field"
 tags: ["research", "codebase", "work", "work-cli", "migrate", "corpus", "frontmatter"]
 revision: "bc6a2d29ee89cce2e19ebc3a9a4ae74848055d91"
@@ -456,30 +456,30 @@ byte-preserving backfill migration be built and registered?
   - **Still applies:** self-detected idempotency, atomic writes, no partial
     ledger writes, no rollback beyond VCS.
   - **Stale:** its shell-script mechanism. Use the m0011 example in
-    `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
+    `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
     as the worked example instead. Its gotcha at ~1441-1442 says every
     migrate-cli suite seeding the ledger needed the new ID.
-- `meta/plans/2026-08-06-0170-work-item-lifecycle-subdomain.md:1520-1525, 1701, 1714-1717`:
+- `meta/plans/2026-08-06-PP-191-work-item-lifecycle-subdomain.md:1520-1525, 1701, 1714-1717`:
   - This is where `tags` was grouped with the omit-when-empty fields. It
     misread the template, and no rationale is recorded.
   - It also built the misclassification into the tests.
-- `meta/reviews/work/0333-work-item-writers-omit-the-required-tags-field-review-1.md`:
+- `meta/reviews/work/PP-886-work-item-writers-omit-the-required-tags-field-review-1.md`:
   - Pass 1 brought the backfill migration into scope.
   - Pass 2 added byte preservation, the edge cases, migration ordering and
     numbering.
   - Final verdict: APPROVE.
 - `meta/prs/161-description.md:36`: where the defect was first recorded. 0332
   and 0333 themselves needed `tags: []` added by hand.
-- `meta/work/0317-guard-migration-registry-order-and-id-uniqueness.md`: still
+- `meta/work/PP-903-guard-migration-registry-order-and-id-uniqueness.md`: still
   a draft, so duplicate or misordered IDs are not guarded.
 
 ## Related Research
 
-- `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md` - `work create`, `compose_frontmatter`, `sync_author`
-- `meta/research/codebase/2026-08-06-0170-work-item-lifecycle-subdomain.md` - origin of the work CLI and `compose_frontmatter`
-- `meta/research/codebase/2026-08-06-0172-migration-engine-implementation-research.md` - the Rust migration engine
-- `meta/research/codebase/2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator.md` - m0007 backfill against the validator
-- `meta/research/codebase/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md` - context for m0011
+- `meta/research/codebase/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create.md` - `work create`, `compose_frontmatter`, `sync_author`
+- `meta/research/codebase/2026-08-06-PP-191-work-item-lifecycle-subdomain.md` - origin of the work CLI and `compose_frontmatter`
+- `meta/research/codebase/2026-08-06-PP-193-migration-engine-implementation-research.md` - the Rust migration engine
+- `meta/research/codebase/2026-06-20-PP-140-reconcile-0007-backfill-sentinel-with-validator.md` - m0007 backfill against the validator
+- `meta/research/codebase/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md` - context for m0011
 
 ## Open Questions
 

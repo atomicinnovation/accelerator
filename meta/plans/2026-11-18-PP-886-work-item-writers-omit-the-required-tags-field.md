@@ -1,15 +1,15 @@
 ---
 type: "plan"
-id: "2026-11-18-0333-work-item-writers-omit-the-required-tags-field"
+id: "2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field"
 title: "Work Item Writers Omit the Required Tags Field Implementation Plan"
 date: "2026-11-18T18:37:06+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0333"
-parent: "work-item:0333"
-derived_from: ["codebase-research:2026-11-18-0333-work-item-writers-omit-the-required-tags-field"]
-relates_to: ["work-item:0332"]
+work_item_id: "work-item:PP-886"
+parent: "work-item:PP-886"
+derived_from: ["codebase-research:2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field"]
+relates_to: ["work-item:PP-885"]
 tags: ["work", "work-cli", "migrate", "frontmatter", "create-work-item", "extract-work-items", "sync-work-items"]
 revision: "d0e5bf7340d9fd4798b94938b2bf2ce1dfce8f9f"
 repository: "accelerator"
@@ -1478,9 +1478,9 @@ number of repairs, not with the size of the work directory.
 
 ## References
 
-- Original work item: `meta/work/0333-work-item-writers-omit-the-required-tags-field.md`
-- Work item review: `meta/reviews/work/0333-work-item-writers-omit-the-required-tags-field-review-1.md`
-- Codebase research: `meta/research/codebase/2026-11-18-0333-work-item-writers-omit-the-required-tags-field.md`
+- Original work item: `meta/work/PP-886-work-item-writers-omit-the-required-tags-field.md`
+- Work item review: `meta/reviews/work/PP-886-work-item-writers-omit-the-required-tags-field-review-1.md`
+- Codebase research: `meta/research/codebase/2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field.md`
 - Decisions: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`,
   `meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md`
 - Migration precedents: `cli/migrate/src/migrations/m0005.rs:33-108`
@@ -1488,4 +1488,4 @@ number of repairs, not with the size of the work directory.
   (context double), `cli/migrate-cli/tests/migration_0010.rs` (end-to-end
   pattern)
 - Worked migration plan:
-  `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
+  `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`

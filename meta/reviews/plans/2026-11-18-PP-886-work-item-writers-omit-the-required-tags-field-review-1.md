@@ -1,12 +1,12 @@
 ---
 type: "plan-review"
-id: "2026-11-18-0333-work-item-writers-omit-the-required-tags-field-review-1"
+id: "2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field-review-1"
 title: "Plan Review: Work Item Writers Omit the Required Tags Field Implementation Plan"
 date: "2026-11-18T18:53:33+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-11-18-0333-work-item-writers-omit-the-required-tags-field"
+target: "plan:2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "compatibility", "documentation"]
