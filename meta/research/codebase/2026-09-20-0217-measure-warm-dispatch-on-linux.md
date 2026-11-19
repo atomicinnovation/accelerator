@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0217"
-parent: "work-item:0217"
+parent: "work-item:PP-746"
 topic: "Measuring warm dispatch on linux (work item 0217)"
 tags: ["research", "codebase", "cli", "launcher", "measurement", "performance", "sha2", "calibration"]
 revision: "50a9aa5e4034b0e0c4dde17b03d123f89e944e4b"
@@ -163,7 +163,7 @@ Where the numbers act:
 ### The criterion: G, B, the six cells, the seven branches
 
 0217 inherits 0189's criterion **unchanged** (`0217:44-45`). 0189
-(`meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`, status done)
+(`meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`, status done)
 is authoritative for the text; `PLATFORM_TABLE` is authoritative for the numbers.
 
 `G` = the full warm dispatch of the Rust guard
@@ -419,19 +419,19 @@ Adding `("Linux", "aarch64")` therefore touches, in one change:
 
 ## Historical Context
 
-- `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md` — authoritative
+- `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md` — authoritative
   for the criterion text (G, B, C1–C6, seven branches) and the darwin validation
   results; inherited unchanged by 0217. Status done.
 - `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — the harness
   design: PLATFORM_TABLE as data (`:1262-1289`), ceiling/floor derivation
   (`:70-96`, `:1769-1784`), portable quietness (`:1754-1767`), and the named
   linux power probes (`:1785-1790`).
-- `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — established
+- `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — established
   non-transferability: the sha256-vs-BLAKE2b inversion (`sha256_hex` 4.4895 ms →
   555 MB/s software; BLAKE2b 1.7184 ms → 1451 MB/s) is a property of that chip
   and crate build. "Per-platform figures must be recorded against (architecture,
   SHA-extension support, libc)." Status done.
-- `meta/work/0216-close-the-sha2-hardware-intrinsics-gap.md` — shipped `sha2`
+- `meta/work/PP-745-close-the-sha2-hardware-intrinsics-gap.md` — shipped `sha2`
   0.11 across four targets, measured darwin-arm64 before/after, and deferred the
   aarch64-musl throughput to 0217 as an explicit obligation (reciprocal edge,
   SHA-extension-keyed criterion, `asset_bytes` prerequisite). Status done.
@@ -440,10 +440,10 @@ Adding `("Linux", "aarch64")` therefore touches, in one change:
 - `meta/measurements/warm-dispatch-{1,2,3,4}.json` — the darwin sessions;
   `warm-dispatch-3.json` is 0189's valid record (attempts 1–2 invalidated on
   drift).
-- `meta/work/0219-own-the-recurring-absolute-budget-check.md` — the recurring
+- `meta/work/PP-748-own-the-recurring-absolute-budget-check.md` — the recurring
   lane that consumes 0217's calibrated linux entry as its calibration source
   (0217 `blocks` 0219). Status draft.
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` — parent epic; the
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` — parent epic; the
   release cut 0217 depends on is owned by "whoever performs epic-0136 releases"
   (0165 owns the release pipeline).
 - `meta/reviews/work/0217-measure-warm-dispatch-on-linux-review-1.md` — an

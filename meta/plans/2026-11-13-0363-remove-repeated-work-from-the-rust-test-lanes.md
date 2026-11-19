@@ -6,8 +6,8 @@ date: "2026-11-13T17:25:00+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0363"
-parent: "work-item:0363"
+work_item_id: "work-item:PP-955"
+parent: "work-item:PP-955"
 derived_from: ["codebase-research:2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes"]
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 tags: ["build-system", "performance", "testing", "rust", "coverage"]
@@ -733,7 +733,7 @@ off-path wording.
 cargo-llvm-cov (see `test:unit:cli`)", so it no longer restates the lane's
 steps.
 
-**File**: `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md`:
+**File**: `meta/work/PP-955-remove-repeated-work-from-the-rust-test-lanes.md`:
 correct the Technical Note on the export shape. The totals sit at
 `data[0].totals`, beside per-file summaries.
 
@@ -1184,7 +1184,7 @@ superseded artefacts" after "prints a totals line".
 **File**: `tasks/README.md:778`: add "then a sweep of superseded
 artefacts" after "then a totals line".
 
-**File**: `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md`:
+**File**: `meta/work/PP-955-remove-repeated-work-from-the-rust-test-lanes.md`:
 add a note that the sweep was added beyond the item's original scope, at
 the user's request, to bound the disk growth that skipping the full clean
 causes.
@@ -1448,7 +1448,7 @@ The `ACCELERATOR_COVERAGE` row stays about the switch.
 **File**: `mise.toml`: add "fails below COVERAGE_FLOOR" to the
 `test:unit:cli` description.
 
-**File**: `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md`:
+**File**: `meta/work/PP-955-remove-repeated-work-from-the-rust-test-lanes.md`:
 add a note that the coverage floor was added beyond the item's original
 scope, at the user's request. It reverses the "No coverage gating" decision
 in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
@@ -1574,7 +1574,7 @@ in `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`.
 
 ## References
 
-- Original work item: `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md`
+- Original work item: `meta/work/PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
 - Codebase research: `meta/research/codebase/2026-11-13-0363-remove-repeated-work-from-the-rust-test-lanes.md`
 - Source research: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
 - Baseline: `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`

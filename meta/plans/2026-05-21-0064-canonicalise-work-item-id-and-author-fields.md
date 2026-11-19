@@ -2,7 +2,7 @@
 date: "2026-05-21T20:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0064-canonicalise-work-item-id-and-author-fields.md"
+work_item_id: "meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md"
 status: "done"
 id: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields"
 title: "Canonicalise `work_item_id` and `author` Frontmatter Field Names — Implementation Plan"
@@ -13,8 +13,8 @@ last_updated: "2026-05-21T20:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "620bda26c4ff"
 repository: "ticket-management"
-parent: "work-item:0064"
-relates_to: ["work-item:0063", "plan:2026-05-20-0063-rename-work-item-type-to-kind", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "work-item:0057", "adr:ADR-0033", "adr:ADR-0023", "work-item:0065", "work-item:0070"]
+parent: "work-item:PP-86"
+relates_to: ["work-item:PP-85", "plan:2026-05-20-0063-rename-work-item-type-to-kind", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "work-item:PP-79", "adr:ADR-0033", "adr:ADR-0023", "work-item:PP-87", "work-item:PP-92"]
 ---
 
 # Canonicalise `work_item_id` and `author` Frontmatter Field Names — Implementation Plan
@@ -145,7 +145,7 @@ After this plan is complete:
    `m.get("work_item_id")`. Inline and on-disk YAML test fixtures
    under `server/src/` and `server/tests/fixtures/` use
    `work_item_id:`. `cargo test` exits 0.
-5. `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+5. `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`
    stops listing these two renames in Requirements/AC (0064 owns them
    now; 0070 must not duplicate).
 6. The two AC verification greps (story 0064 AC #1 and AC #2) return
@@ -304,7 +304,7 @@ directories:
   `work_item_id: "0042"` (re-wrapped as double-quoted; single quotes
   stripped).
 
-- `no-whitespace-work-item/` — plan with `work-item:0042`
+- `no-whitespace-work-item/` — plan with `work-item:PP-64`
   (no whitespace between colon and value). Asserts post-migration
   shape is `work_item_id: "0042"`. Locks in the awk regex's
   no-whitespace handling.
@@ -1681,7 +1681,7 @@ steps. Mirrors the equivalent housekeeping that 0063 performed on
 
 ### Changes Required
 
-**File**: `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+**File**: `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`
 **Changes**: Remove from the Requirements section the two lines that
 specify renaming `work-item:` → `work_item_id:` and `researcher:` →
 `author:`. Remove the corresponding lines from the Acceptance Criteria
@@ -1694,7 +1694,7 @@ has evolved since the research snapshot and the line numbers may have
 drifted. Verify after editing:
 
 ```bash
-rg -n 'work-item:|researcher:' meta/work/0070-ship-meta-corpus-unified-schema-migration.md
+rg -n 'work-item:|researcher:' meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md
 # Expect: zero hits, or only references to "0064 (canonicalise work_item_id and author)".
 ```
 
@@ -1706,7 +1706,7 @@ rg -n 'work-item:|researcher:' meta/work/0070-ship-meta-corpus-unified-schema-mi
 # document why it must remain as-is (historical reference, quoted past
 # prose).
 rg -n 'work-item:|researcher:|\*\*Researcher\*\*:' meta/work/ \
-  | rg -v '0070-ship-meta-corpus-unified-schema-migration.md'
+  | rg -v 'PP-92-ship-meta-corpus-unified-schema-migration.md'
 ```
 
 Acceptable hits: references in the form `"0064 (canonicalise
@@ -2060,16 +2060,16 @@ must call out:
 
 ## References
 
-- Source: `meta/work/0064-canonicalise-work-item-id-and-author-fields.md`
+- Source: `meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md`
 - Research: `meta/research/codebase/2026-05-21-0064-canonicalise-work-item-id-and-author-fields.md`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Base schema ADR: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
 - Migration framework: `meta/decisions/ADR-0023-meta-directory-migration-framework.md`
 - Migration precedent: `skills/config/migrate/migrations/0005-rename-work-item-type-to-kind.sh`
 - Template-rename precedent (file-path only): `skills/config/migrate/migrations/0004-restructure-meta-research-into-subject-subcategories.sh:419-430`
-- Sibling rename: `meta/work/0063-rename-work-item-type-to-kind.md` (plan: `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`)
-- Blocked successor: `meta/work/0065-update-artifact-templates-to-unified-schema.md`
-- Broader workstream (housekeeping target in Phase 5): `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+- Sibling rename: `meta/work/PP-85-rename-work-item-type-to-kind.md` (plan: `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`)
+- Blocked successor: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`
+- Broader workstream (housekeeping target in Phase 5): `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`
 - Visualiser read site: `skills/visualisation/visualise/server/src/frontmatter.rs:326`
 - Atomic rewrite helper: `scripts/atomic-common.sh:16-32` (`atomic_write`)
 - Config-path resolver: `scripts/config-read-path.sh`

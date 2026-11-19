@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0352"
-parent: "work-item:0352"
+parent: "work-item:PP-927"
 relates_to: ["codebase-research:2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently", "codebase-research:2026-10-10-0296-sync-round-trip-defects"]
 topic: "Sync Reports Every Unsynced Item Twice"
 tags: ["research", "codebase", "sync", "report", "work-adapters", "baseline", "sync-work-items"]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-Check work item 0352 (`meta/work/0352-sync-reports-every-unsynced-item-twice.md`)
+Check work item 0352 (`meta/work/PP-927-sync-reports-every-unsynced-item-twice.md`)
 and the open findings of its review
 (`meta/reviews/work/0352-sync-reports-every-unsynced-item-twice-review-1.md`,
 pass 3) against the live code. The aim is to settle the findings that turn on
@@ -533,14 +533,14 @@ documents the duplicate row, so the work item's Assumption holds.
 
 ## Historical Context
 
-- `meta/work/0300-sync-pulls-of-tracked-work-items-fail-silently.md` (done) and
+- `meta/work/PP-884-sync-pulls-of-tracked-work-items-fail-silently.md` (done) and
   its plan `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`:
   - Lines 2219-2237 introduced `unsynced_creates`, `create_report` and the
     `order-refused` line.
   - Phase 7 (from line 3596) does not mention the duplicate `noop` row.
   - Line 4158 records that 0351-0354 came from its manual checks.
   - 0300 shipped with 0296 as one change.
-- `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
+- `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
   (done) explains why 0352 relates to 0296:
   - it defines the baseline `Entry` with `local_synced_at` (line 592);
   - it owns the `finalise_baseline` / `BaselineStore::finalise_run` behaviour;
@@ -551,7 +551,7 @@ documents the duplicate row, so the work item's Assumption holds.
   Suggested Dependencies line: "Related: 0296 (done) — defines the baseline
   entry (`local_synced_at`) and the `finalise_baseline` behaviour this item
   changes; shipped with 0300."
-- `meta/work/0351-sync-preview-hides-pending-push-refusals.md` (draft) has the
+- `meta/work/PP-926-sync-preview-hides-pending-push-refusals.md` (draft) has the
   same `relates_to` as 0352 but never mentions 0352. The branch name
   `t3/pick-next-task-0351-0352` pairs them.
   - Its AC1 says "the item's row" (singular), which assumes 0352 has landed.
@@ -564,7 +564,7 @@ documents the duplicate row, so the work item's Assumption holds.
     0352 lands first, 0351 asserts single rows."
   - 0351's open question about giving a reused `Created` marker its own action
     word would add a surviving row that 0352's AC1 does not list.
-- `meta/work/0353-sync-work-items-skill-ignores-the-summary-record.md` (done)
+- `meta/work/PP-928-sync-work-items-skill-ignores-the-summary-record.md` (done)
   touched the same files 0352 changes, in neighbouring places:
   - the summary-record membership row at `SKILL.md:462`, four lines above
     0352's interim row at 466;
@@ -573,7 +573,7 @@ documents the duplicate row, so the work item's Assumption holds.
 
   There is no conflict. The summary record counts `synced` rows, so removing an
   `unsynced` `noop` row cannot change it.
-- `meta/work/0354-kept-edits-note-ignores-singular-counts.md` (done) only
+- `meta/work/PP-929-kept-edits-note-ignores-singular-counts.md` (done) only
   changes `earlier_copies_note` wording, so it does not overlap.
 - `bin/accelerator` ties the launcher to the plugin version:
   - it reads the version from `.claude-plugin/plugin.json` (lines 139-144);

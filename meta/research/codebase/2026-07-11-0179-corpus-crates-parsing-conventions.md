@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0179"
-parent: "work-item:0179"
+parent: "work-item:PP-703"
 topic: "corpus and corpus-adapters crate extraction — parsing, conventions, and artifact-metadata"
 tags: ["research", "codebase", "corpus", "config-crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "slug", "work-item-id", "vcs-detection", "cargo-pup"]
 revision: "aa8adbc7216fad416d6d3531cfc74026c7b4c685"
@@ -302,7 +302,7 @@ wire, `prs` on disk). The full mapping table is in the report body below.
 `source_type<TAB>key<TAB>target_ref<TAB>anchor<TAB>band`. Only five H2 sections
 qualify (`## References`, `## Dependencies`, `## Historical Context`,
 `## Related Research`, `## Source References`). Target refs built as
-`<type>:<id>` (e.g. `work-item:0042`, `adr:ADR-0001`). Backed by
+`<type>:<id>` (e.g. `work-item:PP-64`, `adr:ADR-0001`). Backed by
 `scripts/linkage-type-pairs.tsv` (14 rows of valid ADR-0034 pairings). Band is
 `resolved` (explicit hint + table-backed pair or universally-valid key) or
 `ambiguous`. Deliberately avoids `\b` (BSD awk/grep) — the test suite
@@ -525,7 +525,7 @@ from* the crate's `DocTypeKey` source. The awk additionally hardcodes adjacent
 
 ## Historical Context
 
-- `meta/work/0166-shared-config-corpus-store-crates.md` — parent epic; updated
+- `meta/work/PP-187-shared-config-corpus-store-crates.md` — parent epic; updated
   for the fifth (document-format) crate (`:53-59,146-147,208-212`).
 - `meta/plans/2026-07-07-0178-config-crates-native-yaml-reader.md:544-556,785-793`
   — parser-choice rationale + bounded-time adversarial guard (the pattern to

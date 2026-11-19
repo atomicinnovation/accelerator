@@ -6,8 +6,8 @@ date: "2026-08-06T00:51:57+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0197"
-work_item_id: "0197"
+target: "work-item:PP-727"
+work_item_id: "PP-727"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -28,7 +28,7 @@ Work item is acceptable but could be improved — see the major finding below.
 migration: Dependencies are unusually thorough, Acceptance Criteria are
 mostly concrete and verifiable, and the item is appropriately sized as a
 single-team story. The dominant issue, raised independently by three lenses,
-is an unresolved contradiction over whether work-item:0150 (the
+is an unresolved contradiction over whether work-item:PP-171 (the
 github→collaboration directory rename) is actually complete — the item's own
 Summary and Dependencies sections disagree with its Context section on this
 point. A handful of minor precision gaps (glob-shaped AC scoping, Requirements
@@ -37,7 +37,7 @@ round out the findings.
 
 ### Cross-Cutting Themes
 
-- **work-item:0150's completion status is inconsistently characterised**
+- **work-item:PP-171's completion status is inconsistently characterised**
   (flagged by: clarity, dependency, scope) — Dependencies lists 0150 among
   "resolved" prior blockers, but 0150's own frontmatter is `status: draft`
   with an unchecked AC. Context separately calls the github→collaboration
@@ -58,10 +58,10 @@ round out the findings.
 
 #### Major
 
-- 🟡 **Clarity / Dependency**: "Resolved" status of work-item:0150 contradicts
+- 🟡 **Clarity / Dependency**: "Resolved" status of work-item:PP-171 contradicts
   its own draft status and the Context section's "in-progress" framing
   **Location**: Dependencies
-  Dependencies groups work-item:0150 with three genuinely completed items
+  Dependencies groups work-item:PP-171 with three genuinely completed items
   under "Prior blockers are resolved," but 0150's frontmatter shows
   `status: draft` with an unchecked AC, and Context calls the same rename
   "in-progress." A reader cannot tell whether 0150 must land first, is
@@ -76,7 +76,7 @@ round out the findings.
   Summary says this item is "completing the github→collaboration domain
   rename for this cluster," but the skill directory stays named `github`
   after this item ships (per AC2/Technical Notes) — the actual rename is
-  work-item:0150's, still in draft.
+  work-item:PP-171's, still in draft.
 - 🔵 **Scope**: Requirements scope call-site rewiring more broadly than
   Acceptance Criteria
   **Location**: Requirements
@@ -106,13 +106,13 @@ round out the findings.
 - 🔵 **Testability**: Suite-floor decrement in AC3 has no self-contained
   target value
   **Location**: Acceptance Criteria
-  AC3 requires floors "decremented in lockstep (see work-item:0174)" without
+  AC3 requires floors "decremented in lockstep (see work-item:PP-195)" without
   naming which suite(s) or by how much within this item, so verification
   depends entirely on 0174 being finalised and aligned at implementation time.
 - 🔵 **Clarity**: "Repointed suites" is unglossed jargon
   **Location**: Acceptance Criteria
   The migration-specific term "repointed" is used without definition or a
-  link to where the convention is established (e.g. work-item:0167).
+  link to where the convention is established (e.g. work-item:PP-188).
 - 🔵 **Dependency**: Possible uncaptured CI credential coupling for `gh`-CLI
   verification
   **Location**: Acceptance Criteria
@@ -160,7 +160,7 @@ round out the findings.
 
 ### Recommended Changes
 
-1. **Reconcile work-item:0150's status across Summary, Context, and
+1. **Reconcile work-item:PP-171's status across Summary, Context, and
    Dependencies** (addresses: the cross-cutting theme; both major findings).
    State once, consistently, whether 0150 is a completed naming precedent
    this item builds on, or a still-open rename this item's paths will need
@@ -187,7 +187,7 @@ round out the findings.
 the two PR-helper scripts, and the skill paths remain stable across
 Summary, Context, Requirements, and Acceptance Criteria, and the Acceptance
 Criteria describe observable outcomes rather than vague properties. The main
-clarity problem is a genuine internal contradiction in how work-item:0150's
+clarity problem is a genuine internal contradiction in how work-item:PP-171's
 status is characterised — Context calls the github→collaboration rename an
 "in-progress initiative" while Dependencies lists 0150 among "prior blockers
 [that] are resolved," leaving the reader unable to tell whether 0150 must
@@ -208,9 +208,9 @@ complete before this item proceeds. A couple of unglossed process terms
 
 **Findings**:
 - 🟡 **Major** (confidence: high) — Location: Dependencies. "Resolved"
-  status of work-item:0150 contradicts Context's "in-progress" framing.
+  status of work-item:PP-171 contradicts Context's "in-progress" framing.
   Dependencies states "Prior blockers are resolved" and then lists
-  `work-item:0150 (github→collaboration rename precedent)` alongside three
+  `work-item:PP-171 (github→collaboration rename precedent)` alongside three
   items explicitly marked done/merged. But Context describes the rename as
   "an in-progress initiative across the codebase," and the parenthetical for
   0150 conspicuously omits the word "done" the other three entries carry.
@@ -267,7 +267,7 @@ migration.
 story: it names three resolved technical blockers with concrete evidence, an
 external `gh` CLI coupling carried forward from the source bash, a
 correctly-named downstream Blocks entry (0174) tied to a specific AC bullet,
-and the parent epic. The one significant gap is that work-item:0150 (the
+and the parent epic. The one significant gap is that work-item:PP-171 (the
 actual github→collaboration skill-directory rename) is listed among
 "resolved" prior blockers despite its own frontmatter showing `status: draft`
 and an unchecked AC — an uncaptured ordering ambiguity between this item's
@@ -275,7 +275,7 @@ path-based Requirements/AC and 0150's still-pending rename of the very
 directory they reference.
 
 **Strengths**:
-- Downstream consumer is explicitly captured: work-item:0174 is named as a
+- Downstream consumer is explicitly captured: work-item:PP-195 is named as a
   Blocks entry and tied to the specific AC bullet.
 - The external `gh` CLI dependency is named with its install/authentication
   precondition and explicitly flagged as a pre-existing coupling.
@@ -283,7 +283,7 @@ directory they reference.
   completion evidence rather than a bare assertion.
 
 **Findings**:
-- 🟡 **Major** (confidence: high) — Location: Dependencies. work-item:0150
+- 🟡 **Major** (confidence: high) — Location: Dependencies. work-item:PP-171
   listed as a resolved prior blocker despite still being in draft/unstarted
   status. Unlike the other three entries, 0150 is annotated only as a naming
   precedent, not resolution evidence, and this item's Requirements/Technical
@@ -323,7 +323,7 @@ delivery-risk concern.
 - 🔵 **Minor** (confidence: medium) — Location: Summary. Summary claims the
   domain rename is completed, but no requirement renames the skill
   directory — the actual directory-level rename is tracked separately in
-  work-item:0150, still in draft. Suggestion: narrow the Summary to describe
+  work-item:PP-171, still in draft. Suggestion: narrow the Summary to describe
   adopting the `collaboration` name for this binary specifically, ahead of
   the full rename tracked in 0150.
 
@@ -368,7 +368,7 @@ cross-referencing other documents rather than stating a self-contained check.
 
 ### Previously Identified Issues
 
-- 🟡 **Clarity/Dependency**: "Resolved" status of work-item:0150 contradicts
+- 🟡 **Clarity/Dependency**: "Resolved" status of work-item:PP-171 contradicts
   its draft status and Context's "in-progress" framing — Resolved.
   Dependencies now explicitly separates 0150 into a "Not a blocker" entry;
   both lenses cite the distinction as a strength on re-review.
@@ -386,7 +386,7 @@ cross-referencing other documents rather than stating a self-contained check.
   Resolved as stated (now "supplemented by"), though a narrower framing of
   the same underlying concern resurfaced (see new issues below).
 - 🔵 **Testability**: AC3's suite-floor decrement has no named target — Still
-  present; left open pending work-item:0174 as before (deliberately not
+  present; left open pending work-item:PP-195 as before (deliberately not
   addressed — no fabricated suite names).
 - 🔵 **Clarity**: "Repointed suites" is unglossed jargon — Resolved for this
   specific term (now defined inline); two adjacent terms remain unglossed
@@ -403,8 +403,8 @@ cross-referencing other documents rather than stating a self-contained check.
 
 ### New Issues Introduced
 
-- 🟡 **Dependency** (major): Sibling work-item:0196 (accelerator-design)
-  carries an explicit Coordination note naming this item and work-item:0195
+- 🟡 **Dependency** (major): Sibling work-item:PP-726 (accelerator-design)
+  carries an explicit Coordination note naming this item and work-item:PP-725
   as siblings registering sub-binaries via the same checklist around the
   same time, flagging a shared-state (dispatch manifest / CI floor config)
   merge-contention risk — but this item does not reciprocate that note, so
@@ -428,11 +428,11 @@ cross-referencing other documents rather than stating a self-contained check.
 
 ### Assessment
 
-The major cross-cutting issue from pass 1 (work-item:0150's status) is
+The major cross-cutting issue from pass 1 (work-item:PP-171's status) is
 fully resolved, along with every other pass-1 finding except the
 deliberately-deferred suite-floor naming. One new major finding surfaced
 during re-review: this item doesn't reciprocate a sibling coordination note
-that work-item:0196 already carries about concurrent sub-binary
+that work-item:PP-726 already carries about concurrent sub-binary
 registration. It's a quick, low-risk addition (a single Dependencies
 bullet) and worth adding before implementation, even though it doesn't by
 itself cross the REVISE threshold. With that addition, the item is ready
@@ -442,8 +442,8 @@ for planning.
 
 **Verdict:** APPROVE
 
-The reciprocal Coordination note (naming siblings work-item:0195 and
-work-item:0196) has been added to Dependencies, closing out the sole new
+The reciprocal Coordination note (naming siblings work-item:PP-725 and
+work-item:PP-726) has been added to Dependencies, closing out the sole new
 finding from Pass 2. All findings across both passes are now resolved or
 deliberately deferred with reasoning recorded. Verdict updated to APPROVE.
 

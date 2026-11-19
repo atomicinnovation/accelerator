@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0190"
+parent: "work-item:PP-720"
 target: "plan:2026-08-21-0190-classify-lock-mkdir-failures"
 tags: ["bug", "shell", "bootstrap", "bash-3.2", "locking"]
 last_updated: "2026-08-22T19:11:26+00:00"

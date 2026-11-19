@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0296"
-parent: "work-item:0296"
-relates_to: ["work-item:0146", "work-item:0230", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
+parent: "work-item:PP-880"
+relates_to: ["work-item:PP-167", "work-item:PP-760", "work-item:PP-876", "work-item:PP-877", "work-item:PP-906", "work-item:PP-907"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/156"
 pr_number: 156
 tags: ["sync", "work-item-review", "linear", "jira"]
@@ -72,9 +72,9 @@ deliberately leaves out.
 
 ## Context
 
-- Work item: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
+- Work item: `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
 - Review: `meta/reviews/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker-review-1.md`
-- Parent epic: `meta/work/0146-work-item-sync-enhancements.md`
+- Parent epic: `meta/work/PP-167-work-item-sync-enhancements.md`
 
 The rewrite table and the list of conflicted items come from a scan of the
 2026-10-10 conflict dossiers in

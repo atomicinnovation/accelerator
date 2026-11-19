@@ -6,8 +6,8 @@ date: "2026-09-06T22:28:38+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0121"
-work_item_id: "0121"
+target: "work-item:PP-22"
+work_item_id: "PP-22"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "scope"]
@@ -656,7 +656,7 @@ provenance rather than the motivating problem.
   work items, and Slice 5's status is unresolved* — Location: Requirements:
   Initial stories (vertical slices). Epic 0121 decomposes into five named slices
   in prose, but no slice is linked to a child work item, the frontmatter carries
-  no child references (only `relates_to: work-item:0056`), and the work item
+  no child references (only `relates_to: work-item:PP-78`), and the work item
   never says whether the slices will be split out or worked directly from this
   document. Slice 5 compounds this by describing itself as a "Candidate for
   extraction as its own work item" — an unresolved in-or-out-of-this-epic

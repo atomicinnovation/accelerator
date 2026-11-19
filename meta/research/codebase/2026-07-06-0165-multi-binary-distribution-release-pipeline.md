@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0165"
-parent: "work-item:0165"
+parent: "work-item:PP-186"
 relates_to: ["codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "How to build the producer half of the static-binary release pipeline that satisfies the launcher's frozen manifest.json + minisign contract"
 tags: ["research", "codebase", "distribution", "release", "minisign", "cross-compile", "rust", "version-coherence"]
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For work item [0165](../../work/0165-multi-binary-distribution-and-release-pipeline.md):
+For work item [0165](../../work/PP-186-multi-binary-distribution-and-release-pipeline.md):
 what does the codebase look like today, and what must change, to build the
 **producer half** of on-demand static-binary distribution — a release pipeline
 that cross-compiles every workspace binary, emits a signed `manifest.json` that

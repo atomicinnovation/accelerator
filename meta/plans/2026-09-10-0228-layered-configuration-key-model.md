@@ -6,8 +6,8 @@ date: "2026-09-10T09:26:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0228"
-parent: "work-item:0228"
+work_item_id: "work-item:PP-758"
+parent: "work-item:PP-758"
 derived_from: ["codebase-research:2026-09-10-0228-layered-configuration-key-model"]
 tags: ["configuration", "work-management", "migration", "tracker"]
 revision: "2ea8ee94974a1449605702726016c9a8e0944dde"
@@ -92,7 +92,7 @@ with no silent fallback to the scope key. Existing `work.default_project_code`
 / `{project}` configs resolve unchanged through the deprecation window, emit a
 warning naming 1.25.0, and are materialised on disk by `m0009` at the config
 level they were read from. Verification: every acceptance criterion in
-`meta/work/0228-layered-configuration-key-model.md` passes, and
+`meta/work/PP-758-layered-configuration-key-model.md` passes, and
 `mise run` exits 0 end-to-end.
 
 ## What We're NOT Doing
@@ -924,7 +924,7 @@ and `hooks.json` need no change (lexicographic `.max()` over registry ids).
 ### AC Traceability:
 
 Each work-item acceptance criterion (numbered per
-`meta/work/0228-layered-configuration-key-model.md`) maps to a named test:
+`meta/work/PP-758-layered-configuration-key-model.md`) maps to a named test:
 
 | AC | Covered by |
 |----|------------|
@@ -987,7 +987,7 @@ extend to cover them.
 
 ## References
 
-- Work item: `meta/work/0228-layered-configuration-key-model.md`
+- Work item: `meta/work/PP-758-layered-configuration-key-model.md`
 - Research: `meta/research/codebase/2026-09-10-0228-layered-configuration-key-model.md`
 - ADR-0044 (remote identity in `external_id`):
   `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md`

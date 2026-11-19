@@ -6,9 +6,9 @@ date: "2026-08-19T11:57:53+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0213"
-parent: "work-item:0213"
-relates_to: ["work-item:0171", "work-item:0212", "work-item:0194"]
+work_item_id: "work-item:PP-743"
+parent: "work-item:PP-743"
+relates_to: ["work-item:PP-192", "work-item:PP-742", "work-item:PP-724"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/71"
 pr_number: 71
 tags: ["skills", "sync", "work-items", "conflicts", "cli", "rust"]
@@ -36,10 +36,10 @@ This lands Phases 1–4 of the plan. Phase 5 (the eval suite, its committed evid
 
 ## Context
 
-- Work item: `meta/work/0213-conversational-conflict-resolution-flow.md`
+- Work item: `meta/work/PP-743-conversational-conflict-resolution-flow.md`
 - Plan: `meta/plans/2026-08-19-0213-conversational-conflict-resolution-flow.md` (with its research, plan review, and validation report in `meta/`)
-- Parent epic: `meta/work/0171-jira-and-linear-integrations.md`
-- Coupled child (repoints the same skill file): `meta/work/0212-work-item-script-cutover.md`
+- Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md`
+- Coupled child (repoints the same skill file): `meta/work/PP-742-work-item-script-cutover.md`
 
 ## Testing
 

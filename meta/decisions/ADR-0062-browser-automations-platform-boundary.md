@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 supersedes: ["adr:ADR-0057"]
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054", "adr:ADR-0058", "adr:ADR-0061", "work-item:0196", "work-item:0214"]
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054", "adr:ADR-0058", "adr:ADR-0061", "work-item:PP-726", "work-item:PP-751"]
 tags: ["architecture", "distribution", "playwright", "browser", "platform-support", "glibc", "musl", "design"]
 last_updated: "2026-08-17T11:00:25+00:00"
 last_updated_by: "Toby Clemson"
@@ -26,7 +26,7 @@ ADR-0057 scoped browser automation to glibc hosts, by reference to Playwright's
 own support matrix, and recorded the code-only downgrade and the
 `design.browser_path` escape hatch. Its decisions hold and are restated here.
 What does not hold is the boundary itself: the capability is not glibc-only, and
-work-item:0214 established that against prototypes on six hosts.
+work-item:PP-751 established that against prototypes on six hosts.
 
 **Glibc is necessary but not sufficient.** A real glibc-linked aarch64 binary
 whose program interpreter is `/lib/ld-linux-aarch64.so.1` exits 0 on Debian 12
@@ -173,10 +173,10 @@ host.
   binary distribution), ADR-0048 (four-toolchain split), ADR-0054 (git-style
   modular CLI), ADR-0058 (shell-free CLI-to-Node delegation), ADR-0061 (signed
   content-addressed tree generations)
-- `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
+- `meta/work/PP-751-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
   established the boundary against prototypes on six hosts; carries the
   per-host observations
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - Playwright system requirements (Debian/Ubuntu only):
   https://playwright.dev/docs/intro
 - Playwright Docker/Alpine guidance: https://playwright.dev/docs/docker

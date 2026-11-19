@@ -12,7 +12,7 @@ last_updated: "2026-05-19T08:36:10Z"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["codebase-research:2026-05-19-inventory-design-and-browser-agent-fixes", "note:2026-05-19-browser-agents-self-discover-playwright-executor", "note:2026-05-19-browser-locator-cannot-enumerate-routes", "note:2026-05-19-config-read-path-missing-design-keys", "note:2026-05-19-playwright-daemon-owner-pid-ephemeral-shell", "work-item:0052"]
+relates_to: ["codebase-research:2026-05-19-inventory-design-and-browser-agent-fixes", "note:2026-05-19-browser-agents-self-discover-playwright-executor", "note:2026-05-19-browser-locator-cannot-enumerate-routes", "note:2026-05-19-config-read-path-missing-design-keys", "note:2026-05-19-playwright-daemon-owner-pid-ephemeral-shell", "work-item:PP-74"]
 ---
 
 # Inventory-Design and Browser-Agent Fixes Implementation Plan
@@ -1623,7 +1623,7 @@ asserted by Phase 5 Success Criteria.
   - `meta/notes/2026-05-19-config-read-path-missing-design-keys.md`
   - `meta/notes/2026-05-19-playwright-daemon-owner-pid-ephemeral-shell.md`
 - Precedent work item (preloaded-skill mechanism):
-  `meta/work/0052-make-documents-locator-paths-config-driven.md`
+  `meta/work/PP-74-make-documents-locator-paths-config-driven.md`
 - Migration that renamed the design path keys:
   `skills/config/migrate/migrations/0004-restructure-meta-research-into-subject-subcategories.sh:414-415`
 - Existing `paths` preloaded skill (shape to mirror):

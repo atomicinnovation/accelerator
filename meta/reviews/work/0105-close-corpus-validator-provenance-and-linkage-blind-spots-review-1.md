@@ -6,14 +6,14 @@ date: "2026-06-15T00:38:36+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0057"
-target: "work-item:0105"
+parent: "work-item:PP-79"
+target: "work-item:PP-127"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-work_item_id: "0105"
+work_item_id: "PP-127"
 tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 last_updated: "2026-06-15T07:41:38+00:00"
 last_updated_by: "Toby Clemson"
@@ -164,7 +164,7 @@ _None._
    without inline gloss")
    List the concrete inputs the rule must reject (bare scalar `parent: 0042`,
    path-shaped `parent: docs/x.md`, bracketed-unquoted `[plan:0042]`) and at
-   least one it must still accept (quoted `parent: "work-item:0042"`,
+   least one it must still accept (quoted `parent: "work-item:PP-64"`,
    omitted/empty). A one-line gloss of `FM_TYPED_REF_RE` (the regex matching a
    quoted `"doc-type:id"` token) closes the clarity half of the same gap.
 
@@ -426,7 +426,7 @@ recommended.
   typed frontmatter linkage — the Dependencies prose now says the two items
   "should be merge-ordered rather than landed blind in parallel", but the
   frontmatter carries only `blocked_by` and `parent`, so tooling reading the
-  typed graph sees no edge to 0104. Fix: add `relates_to: ["work-item:0104"]`
+  typed graph sees no edge to 0104. Fix: add `relates_to: ["work-item:PP-126"]`
   (optionally also 0070 and the ADRs) to the frontmatter.
 - 🔵 **Testability**: AC3 linkage-diagnostic assertion is only conditionally
   specified (deferred to the Open Question) — minor; resolvable by recording the
@@ -453,7 +453,7 @@ addressed in the work item, so the verdict advances to APPROVE.
 
 ### Previously Identified Issues
 - 🟡 **Dependency**: 0104 merge-ordering coupling absent from typed linkage —
-  **Resolved** (`relates_to: ["work-item:0104", "work-item:0070", "adr:ADR-0033",
+  **Resolved** (`relates_to: ["work-item:PP-126", "work-item:PP-92", "adr:ADR-0033",
   "adr:ADR-0034", "adr:ADR-0040"]` added to the work item frontmatter).
 - 🔵 **Testability**: AC3 linkage-diagnostic only conditionally specified —
   **Resolved** (the linkage Open Question is settled — reuse `BAD-LINKAGE-SHAPE`

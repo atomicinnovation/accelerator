@@ -6,8 +6,8 @@ date: "2026-07-02T23:00:23+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0163"
-parent: "work-item:0163"
+work_item_id: "work-item:PP-184"
+parent: "work-item:PP-184"
 derived_from: ["codebase-research:2026-07-02-0163-cli-workspace-version-subcommand-scaffold"]
 tags: ["rust", "cli", "hexagonal", "scaffold", "workspace", "version", "kernel"]
 revision: "a0a3b3bcba66b9eddd787a1a571c14b32f3db1ae"
@@ -861,12 +861,12 @@ time and binary size marginally and is justified by the cross-cutting kernel rol
 
 ## References
 
-- Original work item: `meta/work/0163-scaffold-cli-workspace-version-subcommand.md`
+- Original work item: `meta/work/PP-184-scaffold-cli-workspace-version-subcommand.md`
 - Research: `meta/research/codebase/2026-07-02-0163-cli-workspace-version-subcommand-scaffold.md`
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`,
   `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md`
-- Spike: `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+- Spike: `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
 - Luminosity blueprint: `../luminosity/cli/` — root `Cargo.toml`,
   `launcher/build.rs`, `launcher/src/version/**`, `launcher/tests/version.rs`,
   `pup.ron`, `kernel/src/lib.rs`

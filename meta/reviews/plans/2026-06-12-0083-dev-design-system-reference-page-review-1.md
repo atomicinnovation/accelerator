@@ -969,7 +969,7 @@ persistence and the README "Glyph showcase specs" block — see new issues.
   has no asserted test; focus-restore-on-exit isn't asserted across all three exit
   paths.
 - 🔵 **Minor — Documentation**: Phase 11 §3 should also fix the README's stale
-  `0037-glyph-component.md` doc-link (→ 0083) and the now-false "3 supported sizes
+  `PP-59-glyph-component.md` doc-link (→ 0083) and the now-false "3 supported sizes
   (16/24/32)" glyph claim; and state the Overview deviations aside is the union of
   all per-section notes.
 

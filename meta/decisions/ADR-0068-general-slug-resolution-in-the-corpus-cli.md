@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 decision_makers: ["Toby Clemson"]
-parent: "work-item:0277"
+parent: "work-item:PP-861"
 relates_to: ["adr:ADR-0067"]
 tags: ["corpus", "cli", "slug", "resolution", "topic-research"]
 last_updated: "2026-09-09T12:36:29+00:00"

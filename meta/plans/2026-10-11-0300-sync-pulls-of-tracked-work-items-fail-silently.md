@@ -6,10 +6,10 @@ date: "2026-10-11T00:00:33+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0300"
-parent: "work-item:0300"
+work_item_id: "work-item:PP-884"
+parent: "work-item:PP-884"
 derived_from: ["codebase-research:2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently"]
-relates_to: ["work-item:0296", "work-item:0257", "work-item:0285"]
+relates_to: ["work-item:PP-880", "work-item:PP-787", "work-item:PP-871"]
 tags: ["sync", "work-cli", "work-adapters", "store", "sync-work-items"]
 revision: "5c4dd5ed0407e7bdbfb7ebfa049bbfefc7de0ef6"
 repository: "accelerator"
@@ -4267,7 +4267,7 @@ lists one directory.
 
 ## References
 
-- Original work item: `meta/work/0300-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Original work item: `meta/work/PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
 - Codebase research: `meta/research/codebase/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
   (predates 0296; the Current State Analysis above supersedes it)
 - Work item review: `meta/reviews/work/0300-sync-pulls-of-tracked-work-items-fail-silently-review-1.md`

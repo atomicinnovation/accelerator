@@ -13,7 +13,7 @@ last_updated: "2026-05-15T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0038", "codebase-research:2026-05-14-0038-generic-chip-component", "plan:2026-05-12-0037-glyph-component", "work-item:0033", "adr:ADR-0026"]
+relates_to: ["work-item:PP-60", "codebase-research:2026-05-14-0038-generic-chip-component", "plan:2026-05-12-0037-glyph-component", "work-item:PP-55", "adr:ADR-0026"]
 ---
 
 # 0038 — Generic Chip Component Implementation Plan
@@ -1477,7 +1477,7 @@ it('does not render the "live" chip in the loading branch', () => {
 
 #### Work-item update
 
-This is an introduction, not a replacement, so update `meta/work/0038-generic-chip-component.md` to acknowledge the kanban "live" chip (and the shared `PageSubtitle` extraction) as in-scope additions alongside AC1–AC4. The change is captured in the Migration Notes section of this plan.
+This is an introduction, not a replacement, so update `meta/work/PP-60-generic-chip-component.md` to acknowledge the kanban "live" chip (and the shared `PageSubtitle` extraction) as in-scope additions alongside AC1–AC4. The change is captured in the Migration Notes section of this plan.
 
 ### Success Criteria
 
@@ -1733,10 +1733,10 @@ These notes capture deviations from work item 0038 that this plan introduces. Th
 
 ## References
 
-- Work item: `meta/work/0038-generic-chip-component.md`
+- Work item: `meta/work/PP-60-generic-chip-component.md`
 - Research: `meta/research/codebase/2026-05-14-0038-generic-chip-component.md`
 - Structural template: `meta/plans/2026-05-12-0037-glyph-component.md`
-- Blocker (shipped): `meta/work/0033-design-token-system.md`
+- Blocker (shipped): `meta/work/PP-55-design-token-system.md`
 - ADR-0026 (token application conventions): `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
 - Canonical pattern reference: `skills/visualisation/visualise/frontend/src/components/SseIndicator/SseIndicator.tsx` (variant via `data-*`) and `SseIndicator.test.tsx` (CSS source assertion pattern)
 - Canonical pill reference: `skills/visualisation/visualise/frontend/src/components/OriginPill/OriginPill.module.css` (pill geometry + `prefers-reduced-motion`)

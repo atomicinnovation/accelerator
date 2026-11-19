@@ -6,10 +6,10 @@ date: "2026-08-19T11:18:42+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0212"
-parent: "work-item:0212"
+work_item_id: "work-item:PP-742"
+parent: "work-item:PP-742"
 derived_from: ["codebase-research:2026-08-19-0212-work-item-script-cutover"]
-relates_to: ["work-item:0213", "work-item:0211", "work-item:0171"]
+relates_to: ["work-item:PP-743", "work-item:PP-741", "work-item:PP-192"]
 tags: ["rust", "cutover", "work-items", "fixtures", "cli", "tracker"]
 revision: "792cb868f0b365c43d7f91680a221920c02e92d4"
 repository: "accelerator"
@@ -448,7 +448,7 @@ their derived impls) — no other new `pub` item. An accidentally-`pub` helper o
 the extracted compose block or a leaked `SurfaceError` shim type slipping into
 the surface is a regression the guard exists to catch.
 
-Record in `meta/work/0171-jira-and-linear-integrations.md` `## Decisions`: the
+Record in `meta/work/PP-192-jira-and-linear-integrations.md` `## Decisions`: the
 frozen-port override naming 0212, the seven-method port recorded as a deliberate
 single-seam choice (sub-trait split considered and rejected), and each of the
 three capability fates as "re-sited above the port via new operation `<name>`".
@@ -1542,11 +1542,11 @@ but does not block Phases 1–6.
 
 ## References
 
-- Work item: `meta/work/0212-work-item-script-cutover.md`
+- Work item: `meta/work/PP-742-work-item-script-cutover.md`
 - Research: `meta/research/codebase/2026-08-19-0212-work-item-script-cutover.md`
-- Parent: `meta/work/0171-jira-and-linear-integrations.md`
-- Blocked by: `meta/work/0210-provider-client-crates-over-the-tracker-port.md`
-- Blocks: `meta/work/0211-integration-binaries-and-bash-cluster-retirement.md`,
+- Parent: `meta/work/PP-192-jira-and-linear-integrations.md`
+- Blocked by: `meta/work/PP-740-provider-client-crates-over-the-tracker-port.md`
+- Blocks: `meta/work/PP-741-integration-binaries-and-bash-cluster-retirement.md`,
   `meta/work/0174-*.md`
 - Shares `sync-work-items/SKILL.md` with: `meta/work/0213-*.md`
 - Port trait: `cli/tracker/src/lib.rs:238-342`

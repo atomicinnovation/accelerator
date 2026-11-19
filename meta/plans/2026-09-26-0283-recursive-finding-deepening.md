@@ -6,8 +6,8 @@ date: "2026-09-26T16:57:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0283"
-parent: "work-item:0283"
+work_item_id: "work-item:PP-867"
+parent: "work-item:PP-867"
 derived_from: ["codebase-research:2026-09-26-0283-recursive-finding-deepening"]
 relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0282-tunable-depth-and-breadth"]
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
@@ -76,7 +76,7 @@ batch of spawns is capped by `concurrency`. At `depth: 1`, a pair with no
   - the templates themselves (`template_shape::check_extras` requires every
     TSV extra);
   - the 0065 Schema Reference table
-    (`meta/work/0065-update-artifact-templates-to-unified-schema.md:74-87`);
+    (`meta/work/PP-87-update-artifact-templates-to-unified-schema.md:74-87`);
   - `test_the_finding_template_declares_exactly_its_schema_row`, which checks
     exact set equality against the TSV row
     (`tests/integration/conformance/test_conformance.py:492-516`).
@@ -554,7 +554,7 @@ required and optional extras, plus the linkage slots.
 
 #### 6. Lockstep documentation
 
-- `meta/work/0065-update-artifact-templates-to-unified-schema.md`: add a
+- `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`: add a
   `topic-research-level-note.md` row to the topic-research sub-table, list
   `depth` as optional on the finding row, and drop the sub-table's "five" and
   "schema-TSV" wording.
@@ -2063,7 +2063,7 @@ many agents `conduct` spawns at once (default 24).
 
 #### 5. Work item alignment
 
-**File**: `meta/work/0283-recursive-finding-deepening.md`
+**File**: `meta/work/PP-867-recursive-finding-deepening.md`
 **Changes**:
 - The Concurrency requirement and its acceptance criterion change "rejected
   as a misplaced flag" to "ignored with a one-line note, as the other
@@ -2686,9 +2686,9 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 
 ## References
 
-- Original work item: `meta/work/0283-recursive-finding-deepening.md`
+- Original work item: `meta/work/PP-867-recursive-finding-deepening.md`
 - Validation: `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`
-- Follow-up: `meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`,
+- Follow-up: `meta/work/PP-882-per-profile-batch-cap-for-arxiv-researchers.md`,
   rescoped from a per-profile batch cap to a fair arXiv fetch queue. Plan:
   `meta/plans/2026-10-06-0295-fair-arxiv-fetch-queue.md`; research:
   `meta/research/codebase/2026-10-06-0295-fair-arxiv-fetch-queue.md`.

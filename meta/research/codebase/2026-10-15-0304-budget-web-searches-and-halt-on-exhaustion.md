@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0304"
-parent: "work-item:0304"
+parent: "work-item:PP-890"
 relates_to: ["codebase-research:2026-10-10-0303-research-concurrency-subagent-limit", "codebase-research:2026-10-13-0310-recovering-from-an-interrupted-conduct-run", "codebase-research:2026-09-26-0283-recursive-finding-deepening"]
 topic: "Codebase seams for 0304: budget web searches and halt on exhaustion"
 tags: ["research", "codebase", "research-topic", "conduct", "web-profile", "research-cli", "run-ledger", "topic-tree", "frontmatter-schema"]
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 Where and how does the codebase need to change to implement work item 0304
-(`meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`)? The item
+(`meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`)? The item
 covers per-level `WebSearch` budgets sized from
 `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and stored in the run ledger, their
 delivery to web spawns and level notes, a Quota exhausted outcome in the web

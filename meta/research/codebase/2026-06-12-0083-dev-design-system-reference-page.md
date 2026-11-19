@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0083"
-parent: "work-item:0083"
+parent: "work-item:PP-105"
 topic: "DevDesignSystem Reference Page (0083)"
 tags: ["research", "codebase", "visualiser", "design-system", "dev-tools", "router", "visual-regression", "theming", "scroll-spy", "keybind"]
 revision: "442b08ff4f2d54a55395f5b53b76d7f378c317c1"
@@ -443,7 +443,7 @@ Migration constraints:
 
 ## Historical Context
 
-- `meta/work/0083-dev-design-system-reference-page.md` — the work item
+- `meta/work/PP-105-dev-design-system-reference-page.md` — the work item
   itself (status `ready`); all distinctive topics (scroll-spy, keychord,
   `#dev`, VR migration) are specified in-line. No separate plan/decision
   exists yet.

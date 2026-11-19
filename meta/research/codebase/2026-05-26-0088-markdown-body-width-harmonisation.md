@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-26-0088-markdown-body-width-harmonisation"
 title: "0088 Markdown Body Width Harmonisation"
 schema_version: 1
-relates_to: ["work-item:0033", "work-item:0075", "work-item:0076", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
+relates_to: ["work-item:PP-55", "work-item:PP-97", "work-item:PP-98", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 derived_from: ["design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
@@ -378,17 +378,17 @@ Refresh command (no dedicated npm script):
 
 ## Historical Context
 
-- `meta/work/0033-design-token-system.md` (status: done) —
+- `meta/work/PP-55-design-token-system.md` (status: done) —
   established the `--size-*` scale, the `--ac-content-max-width{,-narrow}`
   family, and the two-mirror token discipline this story builds
   on.
-- `meta/work/0075-typography-size-scale-consumption.md` (status:
+- `meta/work/PP-97-typography-size-scale-consumption.md` (status:
   done) — added the vitest font-size enforcement layer in
   `migration.test.ts` that the story's "no literal px font-size"
   AC depends on. Confirmed alive in the current commit (most
   recent merged: `77dcc312c Land vitest font-size enforcement
   and mark plan/ACs complete`).
-- `meta/work/0076-code-block-syntax-highlight-palette.md`
+- `meta/work/PP-98-code-block-syntax-highlight-palette.md`
   (status: done) — recent work on the same
   `MarkdownRenderer.module.css` file. Inspection of the current
   file shows token-based colour rules (`var(--ac-fg-strong)`,

@@ -6,8 +6,8 @@ date: "2026-08-08T16:10:01+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0197"
-parent: "work-item:0197"
+work_item_id: "work-item:PP-727"
+parent: "work-item:PP-727"
 derived_from: ["codebase-research:2026-08-08-0197-accelerator-collaboration-pr-helper-cli"]
 tags: ["rust", "collaboration", "cli", "github", "gh", "octocrab"]
 revision: "32ea3631c3796388be454a7eceeecf9c0d9c26be"
@@ -190,9 +190,9 @@ skills' `!`-preprocessor sites resolve without error.
 ## What We're NOT Doing
 
 - Renaming the `skills/github/**` directory to `skills/collaboration/**` —
-  that is work-item:0150's separate, still-in-progress initiative. This
+  that is work-item:PP-171's separate, still-in-progress initiative. This
   binary is named `collaboration`; the skill directory stays `github/`.
-- Adding a `RemoteTracker`-shaped port for work-item:0194 — `github-issues`
+- Adding a `RemoteTracker`-shaped port for work-item:PP-724 — `github-issues`
   already being a listed `work.integration` value is a future signal, not
   something this item builds toward.
 - Building a general-purpose GitHub API client — only the two operations
@@ -202,13 +202,13 @@ skills' `!`-preprocessor sites resolve without error.
   binary is an in-process HTTP client library, not a shelled `curl`
   invocation, so token content never crosses a shell boundary.
 - Porting `test-pr-base-repo-real-gh.sh` (the real-`gh` smoke test guarding
-  work-item:0071's regression) — it exists only to probe `gh`'s `--json`
+  work-item:PP-93's regression) — it exists only to probe `gh`'s `--json`
   field allowlist, which is moot once no `gh --json` call remains.
 - Retrofitting `vcs`'s existing `bash-parity`/`Matrix` fixture machinery for
   the new `OriginRemote` port — the AC only requires unit-level coverage of
   the four URL forms; a lighter, purpose-built fixture set is used instead
   (see Phase 2).
-- Changing `work-item:0169`/`work-item:0188`'s own in-flight `vcs`/
+- Changing `work-item:PP-190`/`work-item:PP-718`'s own in-flight `vcs`/
   `vcs-adapters` work — this item only adds one small, narrowly-scoped
   port alongside the existing ones.
 
@@ -1455,7 +1455,7 @@ stage failed.
 
 With no remaining call site referencing the bash scripts (Phase 6 complete
 and merged), delete them and their test suites, and decrement the CI floor.
-Coordinated in lockstep with work-item:0174 per the work item's Dependencies
+Coordinated in lockstep with work-item:PP-195 per the work item's Dependencies
 section.
 
 The two bash suites (`test-pr-base-repo-scripts.sh`, 15 cases;
@@ -1694,8 +1694,8 @@ No data migration for the collaboration binary itself. The two bash
 scripts' skill call sites are the only consumers (confirmed by a
 whole-repo grep in the research); once Phase 6 lands, Phase 7's removal is
 safe with no transition window needed beyond normal PR review/merge
-sequencing. Coordinate Phase 7's floor decrement with work-item:0174 per
-the work item's Dependencies section, and be aware work-item:0195/0196
+sequencing. Coordinate Phase 7's floor decrement with work-item:PP-195 per
+the work item's Dependencies section, and be aware work-item:PP-725/0196
 decrement their own independent floor constants in the same shared
 `tasks/test/integration.py` file around the same time — ordinary merge
 contention, not a logical conflict.
@@ -1717,7 +1717,7 @@ facing documentation this requires.
 
 ## References
 
-- Original work item: `meta/work/0197-accelerator-collaboration-pr-helper-cli.md`
+- Original work item: `meta/work/PP-727-accelerator-collaboration-pr-helper-cli.md`
 - Related research: `meta/research/codebase/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md`
 - Similar implementation: `cli/vcs/src/lib.rs:42-120`, `cli/vcs/src/classify.rs:46-76`,
   `cli/vcs-cli/src/main.rs`, `cli/work-cli/src/main.rs`, `cli/work-cli/src/config.rs`

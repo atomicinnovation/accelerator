@@ -6,8 +6,8 @@ date: "2026-10-19T18:27:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0218"
-parent: "work-item:0218"
+work_item_id: "work-item:PP-747"
+parent: "work-item:PP-747"
 derived_from: ["codebase-research:2026-10-18-0218-bound-cache-root-growth"]
 relates_to: ["plan:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness", "adr:ADR-0072", "adr:ADR-0063", "adr:ADR-0064"]
 tags: ["cli", "launcher", "cache", "tree", "prune", "claims", "retention"]
@@ -89,7 +89,7 @@ item lists. In the default root, a warm dispatch performs exactly the
 filesystem calls it performs today.
 
 Verification: every acceptance criterion in
-`meta/work/0218-bound-cache-root-growth.md` maps to a named test (see Testing
+`meta/work/PP-747-bound-cache-root-growth.md` maps to a named test (see Testing
 Strategy), and `mise run` exits 0.
 
 ### Key Discoveries:
@@ -3447,7 +3447,7 @@ risks are listed under Accepted Risks.
 
 ## References
 
-- Original work item: `meta/work/0218-bound-cache-root-growth.md`
+- Original work item: `meta/work/PP-747-bound-cache-root-growth.md`
 - Codebase research:
   `meta/research/codebase/2026-10-18-0218-bound-cache-root-growth.md`
 - Decision:

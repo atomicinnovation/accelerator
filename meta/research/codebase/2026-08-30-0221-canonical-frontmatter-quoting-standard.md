@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0221"
-parent: "work-item:0221"
-relates_to: ["adr:ADR-0065", "adr:ADR-0033", "adr:ADR-0034", "work-item:0220", "work-item:0227"]
+parent: "work-item:PP-750"
+relates_to: ["adr:ADR-0065", "adr:ADR-0033", "adr:ADR-0034", "work-item:PP-749", "work-item:PP-757"]
 topic: "Canonical Quoting Standard for All Frontmatter"
 tags: ["research", "codebase", "frontmatter", "corpus", "document", "validator", "migration"]
 revision: "8b872872cbe2a523a90c7cfe20ba60210b8db06a"
@@ -447,9 +447,9 @@ Broad, mechanical regeneration (general goldens, not field-specific pins):
   producer set, a deterministic validator signal, the config-conforms-but-
   not-validated seam to 0227, byte-identical anti-churn, and a red-state
   regression test (AC #9).
-- `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md` — the
+- `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md` — the
   originating linkage defect (three `BAD-LINKAGE-SHAPE` violations).
-- `meta/work/0227-accelerator-config-validate-command.md` — the consumer that
+- `meta/work/PP-757-accelerator-config-validate-command.md` — the consumer that
   reuses this standard's predicate over config.
 - `meta/prs/76-description.md` — the 37-file minimal-quoting churn that motivated
   a deterministic style.

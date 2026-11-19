@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0106"
-parent: "work-item:0106"
+parent: "work-item:PP-128"
 topic: "Which SKILL.md passages invoke artifact-*/config-* plugin scripts, how each is shaped, and whether the work item's acceptance criteria are satisfiable"
 tags: ["research", "codebase", "permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 revision: "3b82e5d1b902b6e57db51ac345df5e72105c5455"
@@ -275,7 +275,7 @@ In a representative skill (`research/research-codebase/SKILL.md`):
   the `config-*` residual in §4 is beyond what it evidences. Its "Recommended Fix"
   blockquote names only `bash`/`sh`; 0106 standardises the three-wrapper `bash`/`sh`/`env`
   form. Its Prevention section is the origin of both 0106 and 0107.
-- `meta/work/0107-lint-skill-body-script-invocations.md` — the automated guardrail
+- `meta/work/PP-129-lint-skill-body-script-invocations.md` — the automated guardrail
   (`blocked_by: 0106`). Extracts each body invocation, expands `${CLAUDE_PLUGIN_ROOT}`,
   and asserts each invocation shape is covered by an `allowed-tools` prefix; flags three
   violation classes (wrapper-prefixed, bare-fenced path, uncovered shape) and **reuses

@@ -6,10 +6,10 @@ date: "2026-06-20T16:08:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0116"
-parent: "work-item:0116"
+work_item_id: "work-item:PP-138"
+parent: "work-item:PP-138"
 derived_from: ["codebase-research:2026-06-20-0116-structured-stall-on-no-decision-input"]
-relates_to: ["work-item:0117", "work-item:0119", "work-item:0120"]
+relates_to: ["work-item:PP-139", "work-item:PP-141", "work-item:PP-142"]
 tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 revision: "1466496a6b385c4fffe419c8f63ff2858b985032"
 repository: "accelerator"
@@ -712,7 +712,7 @@ surface.
 
 ## References
 
-- Original work item: `meta/work/0116-structured-stall-on-no-decision-input.md`
+- Original work item: `meta/work/PP-138-structured-stall-on-no-decision-input.md`
 - Research: `meta/research/codebase/2026-06-20-0116-structured-stall-on-no-decision-input.md`
 - Emit sites: `skills/config/migrate/scripts/interactive-lib.sh:449-453`, `:484-488`
 - No-input branch: `skills/config/migrate/scripts/interactive-lib.sh:262`

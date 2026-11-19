@@ -445,8 +445,8 @@ high bands):
   rules; reason `reviews/` is nested.
 - `meta/plans/2026-03-22-validation-crossref-frontmatter.md` — proposed
   cross-ref frontmatter (not yet implemented).
-- `meta/tickets/0021-artifact-persistence-lifecycle.md` +
-  `0022-artifact-metadata-and-lifecycle.md` — open ADR-creation tasks on
+- `meta/tickets/PP-43-artifact-persistence-lifecycle.md` +
+  `PP-44-artifact-metadata-and-lifecycle.md` — open ADR-creation tasks on
   lifecycle model; relevant if we later surface declared links.
 - `meta/decisions/ADR-0008-shared-temp-directory-for-pr-diff-delivery.md` —
   `meta/tmp` convention.

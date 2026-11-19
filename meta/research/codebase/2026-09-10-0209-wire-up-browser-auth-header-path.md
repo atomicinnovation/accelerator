@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0209"
-parent: "work-item:0209"
+parent: "work-item:PP-739"
 topic: "Wiring up the browser auth-header path in design skills"
 tags: ["research", "codebase", "design", "auth", "playwright", "browser", "security"]
 revision: "41f2e7f60b5432724959087e62f7717d3ec62064"
@@ -291,7 +291,7 @@ name-alone-no-false-positive cases).
 - `meta/research/codebase/2026-08-31-0206-classify-navigation-urls.md` —
   "Sequencing 0206 first establishes the route-interception plumbing 0209 then
   extends."
-- `meta/work/0243-browser-auth-header-support-in-design-skills.md` — **status
+- `meta/work/PP-773-browser-auth-header-support-in-design-skills.md` — **status
   `abandoned`** (PP-773); the thin, single-AC capability 0209 supersedes. Names
   no dependants beyond its backlog-note source; says nothing about single- vs
   dual-origin.

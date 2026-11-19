@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0228"
-parent: "work-item:0228"
+parent: "work-item:PP-758"
 relates_to: ["codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear"]
 topic: "Layered Configuration Key Model"
 tags: ["research", "codebase", "configuration", "tracker", "migration", "id-pattern", "sync"]
@@ -310,7 +310,7 @@ in `cli/work/src/sync/push_precondition.rs:28`, presence-based classification in
   identity is `external_id`, sync classification is presence-based, and the sync
   signal "must not depend on the shape of the local `id`". This is the direct
   reason `work.key` must not derive from the scope key.
-- `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md` +
+- `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md` +
   `meta/research/codebase/2026-08-30-0220-...md` — 0220 promoted
   `work.default_project_code` to the *required* Linear discovery scope authority
   and fixed the gate at `run.rs:707`. It deliberately kept the old field name and

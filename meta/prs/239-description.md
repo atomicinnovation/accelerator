@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
-parent: "work-item:0364"
+parent: "work-item:PP-956"
 relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/239"
 pr_number: 239

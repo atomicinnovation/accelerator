@@ -131,7 +131,7 @@ for non-`brief` slug resolution:
 - ⚠️ Two aggregate reds are orthogonal to 0277 and not its to fix: the
   `RUSTSEC-2026-0285` `rustls 0.23.41` advisory (`deny:check`, newly disclosed;
   fix by `cargo update -p rustls` to ≥ 0.23.45) and the pre-existing
-  `work-item:0286` DUPLICATE-ID in `this_repositorys_own_corpus_is_clean` (two
+  `work-item:PP-872` DUPLICATE-ID in `this_repositorys_own_corpus_is_clean` (two
   `meta/work/0286-*.md` files claim `id: "0286"`).
 - Run the live-web loop manually at the co-land to close Phase 7 before promoting
   the work item past its acceptance gate.
@@ -149,5 +149,5 @@ origin layers rather than in this PR:
   repointed to the `topic-research-finding` template (the field contract under
   delegation); `rustls` pinned `=0.23.45` to clear `RUSTSEC-2026-0285`.
 - #118 (0278 visualiser) — `resolve_goldens` exit-4 case repointed to an
-  unregistered type; the duplicate `work-item:0286` (the inventory-design bug)
+  unregistered type; the duplicate `work-item:PP-872` (the inventory-design bug)
   renumbered to `0289`.

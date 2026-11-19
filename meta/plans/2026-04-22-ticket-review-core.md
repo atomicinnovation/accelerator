@@ -1033,8 +1033,8 @@ Changes`, footer, `## Per-Lens Results`. Re-reviews append
 Not a code change — documented here so the implementer runs it:
 
 - Pick a populated real ticket (e.g.,
-  `meta/tickets/0026-init-skill-for-repo-bootstrap.md`).
-- Run `/review-ticket meta/tickets/0026-init-skill-for-repo-bootstrap.md`.
+  `meta/tickets/PP-48-init-skill-for-repo-bootstrap.md`).
+- Run `/review-ticket meta/tickets/PP-48-init-skill-for-repo-bootstrap.md`.
 - Confirm three agents are spawned in parallel.
 - Confirm the resulting file is written at
   `meta/reviews/tickets/0026-init-skill-for-repo-bootstrap-review-1.md`

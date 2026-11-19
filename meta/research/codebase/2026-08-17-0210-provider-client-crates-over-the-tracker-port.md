@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0210"
-parent: "work-item:0210"
+parent: "work-item:PP-740"
 relates_to: ["codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
 topic: "Implementation ground for jira-client and linear-client, and whether any existing crate simplifies the effort"
 tags: ["research", "codebase", "jira", "linear", "tracker", "reqwest", "graphql", "adf", "build-vs-buy"]

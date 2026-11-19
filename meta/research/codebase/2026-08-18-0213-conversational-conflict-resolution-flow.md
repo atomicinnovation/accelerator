@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0213"
-parent: "work-item:0213"
+parent: "work-item:PP-743"
 relates_to: ["codebase-research:2026-08-12-0194-tracker-crate-and-remote-sync-engine", "codebase-research:2026-08-11-0204-remote-tracker-port", "codebase-research:2026-06-18-0051-sync-work-items-skill"]
 topic: "Conversational conflict resolution flow for /sync-work-items"
 tags: ["research", "codebase", "skills", "sync", "work-items", "conflicts", "tracker"]
@@ -29,7 +29,7 @@ schema_version: 1
 
 ## Research Question
 
-What is the implementation ground for `meta/work/0213-conversational-conflict-resolution-flow.md` — adding the conversational half of 0194's two-invocation conflict flow to `skills/work/sync-work-items/SKILL.md`?
+What is the implementation ground for `meta/work/PP-743-conversational-conflict-resolution-flow.md` — adding the conversational half of 0194's two-invocation conflict flow to `skills/work/sync-work-items/SKILL.md`?
 
 ## Summary
 
@@ -50,7 +50,7 @@ Four findings drive everything else.
 
 **The conversational flow already exists in the SKILL and already renders those fields — against the bash cluster, not the Rust binary.** `skills/work/sync-work-items/SKILL.md:193-237` is a complete conflict loop: a section-grouped `accelerator work diff <local-file> <remote-reconstructed-file>` render, a pinned typed-token `[remote/local/skip]` prompt with no Enter default, and all three resolution branches. So 0213 is not "add the conversational half" — it is "re-point an existing conversational half at a binary that can no longer feed it", and the thing that must be built is the missing data path, not the prompt.
 
-**The premise "this is live, user-visible degradation" is false today.** 0171 itself records that "The bash path stays the production path until this story lands" (`meta/work/0171-jira-and-linear-integrations.md:69-70`) while simultaneously claiming `/sync-work-items` "can detect a conflict but cannot resolve one" (`:53-55`). The second claim is true only of the Rust path. The regression 0213 fixes is one **0212 would introduce**, which couples 0213 to 0212 and destroys its stated independence.
+**The premise "this is live, user-visible degradation" is false today.** 0171 itself records that "The bash path stays the production path until this story lands" (`meta/work/PP-192-jira-and-linear-integrations.md:69-70`) while simultaneously claiming `/sync-work-items` "can detect a conflict but cannot resolve one" (`:53-55`). The second claim is true only of the Rust path. The regression 0213 fixes is one **0212 would introduce**, which couples 0213 to 0212 and destroys its stated independence.
 
 **The flow can never be exercised end-to-end today.** `ConfiguredTrackers` has no client for any provider (`cli/work-cli/src/tracker_registry.rs:42-64`), so every real `work sync` exits 72 before the run engine is reached and the report is never printed in production. Verified empirically below.
 
@@ -173,7 +173,7 @@ Two smaller consequences of the same gap:
 
 **Suite discovery.** Any executable `test-*.sh` anywhere under `skills/work/**` is auto-enrolled into `mise run test:integration:work` (`tasks/test/helpers.py:96-102`). The exec bit is the enrolment mechanism and `lint:scripts:exec-bits:check` enforces its inverse, so a new harness must be `0755` and absent from `SHELL_LIBRARIES`. Floors are at-least (`_EXPECTED_WORK_SUITES = 5`, `tasks/test/integration.py:51`), so adding a suite is safe — but 0212 removes that floor outright along with all five suites.
 
-**Fixture location.** The repo convention is `<subtree>/scripts/test-fixtures/`, not `<skill>/test-fixtures/`. ⚠️ `skills/work/scripts/test-fixtures/` — the nearest precedent, holding the goldens shared with `cli/work/tests/` — is **deleted wholesale by 0212**, which relocates every fixture into the Rust test tree (`meta/work/0212-work-item-script-cutover.md:81-88`). Siting new fixtures under `skills/` while a sibling is emptying that tree needs a deliberate justification. `test-fixtures/` is at least pruned from SKILL.md discovery walks (`tests/conftest.py:67`).
+**Fixture location.** The repo convention is `<subtree>/scripts/test-fixtures/`, not `<skill>/test-fixtures/`. ⚠️ `skills/work/scripts/test-fixtures/` — the nearest precedent, holding the goldens shared with `cli/work/tests/` — is **deleted wholesale by 0212**, which relocates every fixture into the Rust test tree (`meta/work/PP-742-work-item-script-cutover.md:81-88`). Siting new fixtures under `skills/` while a sibling is emptying that tree needs a deliberate justification. `test-fixtures/` is at least pruned from SKILL.md discovery walks (`tests/conftest.py:67`).
 
 **Evidence artefacts.** No `evidence/`, `walkthrough/` or `transcripts/` directory exists anywhere in the repo. The only committed machine-captured evidence precedent is `meta/research/design-inventories/<timestamp>-<name>/screenshots/`. 0171 holds two `pending` Decisions entries for this evidence — one attributed to 0213 (`:230-231`) and a bare duplicate (`:240`); one of them is redundant.
 
@@ -222,13 +222,13 @@ The realistic sequence is **0210 → 0194-follow-up (expose the remote side) →
 ## Historical Context
 
 - `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md:374-390` — the report contract as designed: fixed arity, `<id>\t<action>\t<state>`, failure class as a fourth field. Never intended to carry title, values or timestamps.
-- `meta/work/0171-jira-and-linear-integrations.md:53-70` — the degradation claim and the "bash path stays the production path" statement, in tension.
-- `meta/work/0171-jira-and-linear-integrations.md:433-435` — the `0, 4, 71` claim, corrected against `cli.rs`; 70 was missed.
-- `meta/work/0212-work-item-script-cutover.md:66-88` — repoints the same SKILL.md and deletes `skills/work/scripts/test-fixtures/` entirely.
+- `meta/work/PP-192-jira-and-linear-integrations.md:53-70` — the degradation claim and the "bash path stays the production path" statement, in tension.
+- `meta/work/PP-192-jira-and-linear-integrations.md:433-435` — the `0, 4, 71` claim, corrected against `cli.rs`; 70 was missed.
+- `meta/work/PP-742-work-item-script-cutover.md:66-88` — repoints the same SKILL.md and deletes `skills/work/scripts/test-fixtures/` entirely.
 - `meta/reviews/work/0213-conversational-conflict-resolution-flow-review-1.md:70-79` — the review raised the six-field assumption as a major and predicted exactly this outcome; it was **accepted rather than resolved** (`:240-266`), along with the finding that the stub-on-`PATH` seam defeats the malformed-template predicate.
 - `meta/validations/2026-08-13-0194-tracker-crate-and-remote-sync-engine-validation.md` — `result: partial`; Phase 4/5 test deliverables absent, the conflict loop and report rendering uncovered.
 - `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md` — "What We're NOT Doing" defers the conversational flow to 0171 and declines `--only <id>`.
-- ⚠️ `meta/work/0171-jira-and-linear-integrations.md` Drafting Notes still record the **refuted** ordering (0210 → 0211 → 0212, on the sync-label rationale disproved on 2026-08-17). Decomposition carries the corrected 0210 → 0212 → 0211. A reader starting at the notes gets the wrong order; 0213 is free in both.
+- ⚠️ `meta/work/PP-192-jira-and-linear-integrations.md` Drafting Notes still record the **refuted** ordering (0210 → 0211 → 0212, on the sync-label rationale disproved on 2026-08-17). Decomposition carries the corrected 0210 → 0212 → 0211. A reader starting at the notes gets the wrong order; 0213 is free in both.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md:69-75` — the skills-versus-CLI rule.
 - `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md` — `external_id` as the join key any conflict render must display.
 

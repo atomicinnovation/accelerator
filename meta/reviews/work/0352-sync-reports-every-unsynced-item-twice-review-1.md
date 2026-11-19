@@ -6,9 +6,9 @@ date: "2026-11-10T09:43:10+00:00"
 author: "Phil Helm"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0146"
-target: "work-item:0352"
-work_item_id: "0352"
+parent: "work-item:PP-167"
+target: "work-item:PP-927"
+work_item_id: "PP-927"
 reviewer: "Phil Helm"
 verdict: "COMMENT"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -169,7 +169,7 @@ watermark — and the row-count criteria do not say which row must survive.
    rejection).
 6. **Tidy Dependencies and relationships** (addresses: 0300 dependency; 0351
    ordering; relates_to mismatch)
-   Note 0300 is done, so nothing blocks; add `work-item:0351` to `relates_to`
+   Note 0300 is done, so nothing blocks; add `work-item:PP-926` to `relates_to`
    (a frontmatter edit, via `/update-work-item`); say what 0296 contributes.
 7. **Refresh Context line ranges and drop the drift note** (addresses: Context
    line ranges)

@@ -14,7 +14,7 @@ repository: "visualisation-system"
 last_updated: "2026-06-05T21:43:50+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0079", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0040", "plan:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "plan:2026-06-01-lifecycle-clustering-composite-key", "adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0036", "work-item:0074"]
+relates_to: ["work-item:PP-101", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:PP-62", "plan:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "plan:2026-06-01-lifecycle-clustering-composite-key", "adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0036", "work-item:PP-96"]
 derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
 ---
 
@@ -185,7 +185,7 @@ correct.**
 
 - `src/routes/lifecycle/cluster-via-label.ts` exports a single function
   `clusterViaLabel(entry, cluster)` (`cluster-via-label.ts:9-31`) that returns a
-  plain **`string`** like `"clustered via: parent → work-item:0040"` or
+  plain **`string`** like `"clustered via: parent → work-item:PP-62"` or
   `"clustered via: slug"`. It is a presentational debug-tag helper used in the
   cluster timeline (`LifecycleClusterView.tsx:227-232`). It exposes **none** of
   title / count / updated, and it does no fetching.
@@ -326,7 +326,7 @@ divergent surface.
 
 ## Historical Context
 
-- `meta/work/0079-aside-region-redesign.md` — the work item; already reconciled
+- `meta/work/PP-101-aside-region-redesign.md` — the work item; already reconciled
   through two review passes (Option B chosen, eyebrow rule = existing page
   eyebrow).
 - `meta/reviews/work/0079-aside-region-redesign-review-1.md` — flags that
@@ -341,7 +341,7 @@ divergent surface.
   — `prototype-standalone.html` carries the flat `.ac-related` list with
   `.ac-related__tag.is-declared` accent modifier (the structure Option B
   follows) and the Fira Code mono eyebrow labels.
-- `meta/work/0040-pipeline-visualisation-overhaul.md` +
+- `meta/work/PP-62-pipeline-visualisation-overhaul.md` +
   `meta/plans/2026-05-31-0040-pipeline-visualisation-overhaul.md` +
   `meta/research/codebase/2026-05-31-0040-pipeline-visualisation-overhaul.md` —
   owns the lifecycle clusters, `/lifecycle/<slug>` routes, `cluster-via-label.ts`,
@@ -354,8 +354,8 @@ divergent surface.
   aggregated/vocabularised (the `(declared)` rows).
 - `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md` — governs
   the eyebrow/label type sizing the unification must respect.
-- `meta/work/0074-per-doc-type-hues-on-detail-page.md`,
-  `0075-typography-size-scale-consumption.md` — adjacent eyebrow icon/size work;
+- `meta/work/PP-96-per-doc-type-hues-on-detail-page.md`,
+  `PP-97-typography-size-scale-consumption.md` — adjacent eyebrow icon/size work;
   coordinate so 0079's rule consolidation lands first.
 
 ## Related Research

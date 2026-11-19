@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
 work_item_id: "0093"
-parent: "work-item:0093"
+parent: "work-item:PP-115"
 reviewer: "review-plan (3 passes, APPROVE)"
 tags: ["templates", "frontmatter", "schema", "linkage", "adr-0034", "emission"]
 revision: "2121d6cd6f4472d3c48e156116c469694876f9c5"
@@ -15,7 +15,7 @@ repository: "build-system"
 last_updated: "2026-06-04T15:50:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0093", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "adr:ADR-0034", "adr:ADR-0033", "adr:ADR-0040", "work-item:0065", "work-item:0066", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"]
+relates_to: ["work-item:PP-115", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "adr:ADR-0034", "adr:ADR-0033", "adr:ADR-0040", "work-item:PP-87", "work-item:PP-88", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"]
 ---
 
 # Extend Templates With Typed-Linkage Slots Implementation Plan
@@ -84,7 +84,7 @@ implementation-relevant state is:
 - The visualiser server's typed-linkage parser
   (`skills/visualisation/visualise/server/src/typed_ref.rs:26` +
   `cluster_key.rs:138-152`) tolerates both typed-linkage form
-  (`"work-item:0001"`) and bare-id form (`"0001"`) for work-item
+  (`"work-item:PP-23"`) and bare-id form (`"0001"`) for work-item
   references, and treats empty `""`/`[]` and absent keys identically as
   absent edges.
 - The full test suite is invoked via `mise run test`; the template
@@ -1451,7 +1451,7 @@ a. Add an explicit `#`-prefixed `#### Populate frontmatter` heading
    frontmatter — not under the new heading.
 
 b. Change the `parent:` emit from bare-id (`"0001"`) to typed-linkage
-   form (`"work-item:0001"`). The bullet wording becomes:
+   form (`"work-item:PP-23"`). The bullet wording becomes:
 
 ```markdown
 - `parent:` ← the parent work item's ID as a typed-linkage ref
@@ -1628,11 +1628,11 @@ adding it (absent keys short-circuit before `parse_typed_ref`).
 
 ## References
 
-- Work item: `meta/work/0093-extend-templates-with-typed-linkage-slots.md`
+- Work item: `meta/work/PP-115-extend-templates-with-typed-linkage-slots.md`
 - Research: `meta/research/codebase/2026-06-02-0093-extend-templates-with-typed-linkage-slots.md`
 - Authoritative ADRs: `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` (linkage vocabulary), `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` (base schema / field presence)
 - New ADR (Phase 0): `meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md`
-- Predecessor work: `meta/work/0065-update-artifact-templates-to-unified-schema.md`, `meta/work/0066-update-review-skills-inline-frontmatter.md`
+- Predecessor work: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`, `meta/work/PP-88-update-review-skills-inline-frontmatter.md`
 - Downstream consumer (no edits): `skills/visualisation/visualise/server/src/typed_ref.rs`, `cluster_key.rs:138-152`, `frontmatter.rs:305-368`, `indexer.rs:869-887`
 - Canonical Populate-frontmatter snippet (referenced verbatim): `meta/plans/2026-05-30-0065-update-artifact-templates-to-unified-schema.md:198-236`
 - Work-item review (Pass 3 APPROVE, polish items): `meta/reviews/work/0093-extend-templates-with-typed-linkage-slots-review-1.md:273-289`

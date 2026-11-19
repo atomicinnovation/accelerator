@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0108"
-parent: "work-item:0108"
+parent: "work-item:PP-130"
 topic: "Local Docker-Based Visual Regression Baseline Generation"
 tags: ["research", "codebase", "visual-regression", "playwright", "docker", "ci", "baselines", "testing"]
 revision: "3234a3a815601552d5e3c81a0b41c5d232d87c50"
@@ -297,15 +297,15 @@ inconsistently — the work item calls for picking one flavour matching CI.
 
 ## Historical Context
 
-- `meta/work/0037-glyph-component.md` + `meta/plans/2026-05-12-0037-glyph-component.md`
+- `meta/work/PP-59-glyph-component.md` + `meta/plans/2026-05-12-0037-glyph-component.md`
   — established the dual-platform baseline convention and `maxDiffPixelRatio: 0.05`;
   the plan already contains an `mcr.microsoft.com/playwright:v<version>-jammy`
   invocation — the closest prior art and likely origin of the glyph carve-out.
-- `meta/work/0033-design-token-system.md` (+ plan/research) — origin of the
+- `meta/work/PP-55-design-token-system.md` (+ plan/research) — origin of the
   `tokens.spec.ts` VR convention and the 0.05 threshold.
 - `meta/work/0095-...checkboxes....md` — the item whose context records that
   Linux baselines lag darwin (the pain 0108 fixes); uses the tighter 0.01.
-- `meta/work/0082-big-glyph-hero-illustrations.md` — the only outstanding
+- `meta/work/PP-104-big-glyph-hero-illustrations.md` — the only outstanding
   (non-`done`) item that captures new visual baselines; 0108 declares a soft
   sequencing edge over it.
 - `meta/reviews/work/0108-local-docker-visual-regression-baselines-review-1.md`

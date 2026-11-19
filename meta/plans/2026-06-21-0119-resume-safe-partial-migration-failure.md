@@ -6,10 +6,10 @@ date: "2026-06-21T08:06:03+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0119"
-parent: "work-item:0119"
+work_item_id: "work-item:PP-141"
+parent: "work-item:PP-141"
 derived_from: ["codebase-research:2026-06-21-0119-resume-safe-partial-migration-failure"]
-relates_to: ["work-item:0115", "work-item:0116", "work-item:0118", "work-item:0069", "work-item:0120"]
+relates_to: ["work-item:PP-137", "work-item:PP-138", "work-item:PP-140", "work-item:PP-91", "work-item:PP-142"]
 tags: ["migrate", "interactive-migration", "agent-invocation", "tooling", "manifest"]
 revision: "17a2ffbc90a5fa9c48f2621ab6a79e1ff451fc23"
 repository: "build-system"
@@ -1147,11 +1147,11 @@ leftover manifest from any failed run is reset on the next clean-tree start.
 
 ## References
 
-- Original work item: `meta/work/0119-resume-safe-partial-migration-failure.md`
+- Original work item: `meta/work/PP-141-resume-safe-partial-migration-failure.md`
 - Research: `meta/research/codebase/2026-06-21-0119-resume-safe-partial-migration-failure.md`
 - Source issue research:
   `meta/research/issues/2026-06-19-interactive-migration-unsatisfiable-under-agent-invocation.md`
-- Parent epic: `meta/work/0115-make-interactive-migrations-satisfiable-under-agent-invocation.md`
+- Parent epic: `meta/work/PP-137-make-interactive-migrations-satisfiable-under-agent-invocation.md`
 - Apply loop / pre-flight: `skills/config/migrate/scripts/run-migrations.sh:94-168,281-324`
 - Recording precedents: `scripts/atomic-common.sh:16-61`,
   `0003-relocate-accelerator-state.sh:120,196-218`

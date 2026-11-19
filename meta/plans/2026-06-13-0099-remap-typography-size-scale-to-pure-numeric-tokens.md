@@ -6,10 +6,10 @@ date: "2026-06-13T10:21:57+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0099"
-parent: "work-item:0099"
+work_item_id: "work-item:PP-121"
+parent: "work-item:PP-121"
 derived_from: ["codebase-research:2026-06-13-0099-remap-typography-size-scale-to-pure-numeric-tokens"]
-relates_to: ["work-item:0091", "adr:ADR-0036", "plan:2026-06-02-0090-radius-tokens-consumption"]
+relates_to: ["work-item:PP-113", "adr:ADR-0036", "plan:2026-06-02-0090-radius-tokens-consumption"]
 tags: ["visualiser", "design-tokens", "typography", "refactor", "adr"]
 revision: "3817958f5589153365d2975b3052985f00872411"
 repository: "visualisation-system"
@@ -29,7 +29,7 @@ tweens) to a single **pure-numeric `px×10`** scheme — `--size-110` = 11px,
 preserved exactly, so the change is visually inert; it is a value-preserving
 rename of all 19 tokens plus their ~130 consumers. A same-PR **successor ADR
 (ADR-0043)** fully supersedes ADR-0036, carrying forward the font-size
-consumption rule, the px-anchoring stance (linking work-item:0091), and a
+consumption rule, the px-anchoring stance (linking work-item:PP-113), and a
 scale-extension policy adapted to the numeric scheme.
 
 ## Current State Analysis
@@ -92,7 +92,7 @@ pure-numeric `--size-<px×10>` scheme; the retired names exist nowhere as
 references ADR-0043. ADR-0043 is accepted and fully supersedes ADR-0036
 (`status: superseded`, `superseded_by: adr:ADR-0043`), carrying forward the
 font-size consumption rule, the px-anchoring Neutral consequence linking
-work-item:0091, and a numeric scale-extension policy. The full vitest +
+work-item:PP-113, and a numeric scale-extension policy. The full vitest +
 Playwright suites pass; screenshot baselines are byte-identical because no px
 value changes.
 
@@ -127,7 +127,7 @@ ADR-0036's frontmatter reflect the supersession.
   names.
 - **No value changes.** Pure rename; every computed px is preserved. No new
   tokens, no removed values.
-- **No unit change.** px-vs-rem is work-item:0091's axis; this changes names
+- **No unit change.** px-vs-rem is work-item:PP-113's axis; this changes names
   only. The px-anchoring trade-off is *carried forward* in ADR-0043, not
   re-decided.
 - **No per-surface Playwright regression spec** of the kind 0090 added for its
@@ -249,16 +249,16 @@ ADR-0043 must contain:
   picked "the nearest token"), reframing the change as removing a *false* signal
   (mirroring ADR-0039's `--radius-block` analysis).
 - **Consequences → Neutral (AC7)**: restate ADR-0036's px-anchoring stance as
-  **still-open**, linking `work-item:0091` — the px-vs-rem trade-off survives
-  the rename rather than being silently re-decided. work-item:0091 will later
+  **still-open**, linking `work-item:PP-113` — the px-vs-rem trade-off survives
+  the rename rather than being silently re-decided. work-item:PP-113 will later
   resolve the unit axis, likely by *superseding* ADR-0043 with a further
   successor ADR (**not** amending it — per ADR-0031 an accepted ADR is immutable
   and can only be superseded, so the unit decision re-states the consumption
   rule in its successor).
 - **Frontmatter**: `supersedes: ["adr:ADR-0036"]`; `relates_to` to include
   `adr:ADR-0026` (a first-class live-node edge for the typography-clause
-  provenance — see Scope of supersession), `work-item:0099`, `work-item:0075`,
-  `work-item:0091` (and ADR-0030/0031/0034 per template convention). `create-adr`
+  provenance — see Scope of supersession), `work-item:PP-121`, `work-item:PP-97`,
+  `work-item:PP-113` (and ADR-0030/0031/0034 per template convention). `create-adr`
   writes the frontmatter; when hand-verifying, check against the on-disk `id:` /
   `supersedes:` / `relates_to:` shape used by ADR-0036/0039, not ADR-0030's prose
   field names.
@@ -302,7 +302,7 @@ token-name-agnostic; the in-same-commit re-derivation obligation at `:1915` is
 - [x] AC6: ADR-0036 marked superseded per the lifecycle; ADR-0043 owns the
       `supersedes` edge; ADR-0036's body is unedited.
 - [x] AC7: ADR-0043's Neutral consequence restates px-anchoring as still-open
-      and links `work-item:0091`.
+      and links `work-item:PP-113`.
 - [x] ADR-0043 carries forward the font-size consumption rule and a numeric
       scale-extension policy (not silently dropped).
 
@@ -450,7 +450,7 @@ the mapping. **Anchor each replacement on its closing `)`** — e.g. find
 *either* order. This anchored form is **mandatory**, not one option among
 several — an un-anchored shorter-first replace would corrupt `--size-3xs-lg`
 into `--size-100-lg`. The per-token consumer counts below are
-**non-authoritative orientation only** (they predate work-item:0095 and read
+**non-authoritative orientation only** (they predate work-item:PP-117 and read
 like a checklist but are not one) — re-count at implementation time, and treat
 the green `var()`-resolves oracle plus the src-wide retired-name grep as the
 sole completeness evidence:
@@ -634,7 +634,7 @@ None. A token rename has no runtime cost; the computed CSS is identical.
 - **Same-PR coupling**: Phases 1 and 2 ship together (work item Dependencies),
   Phase 1 first so the ADR-0043 id exists for the `global.css` comment.
 - **Recovery**: jj/VCS revert of the PR is the rollback path; no data migration.
-- **Downstream**: after this lands, the names work-item:0091 cites
+- **Downstream**: after this lands, the names work-item:PP-113 cites
   (`--size-h3`, `--size-prose`, `--size-body`) are stale — 0091 must refresh by
   value or new name. 0091 **already self-documents** this in its own Technical
   Notes (it defers the refresh to itself), so this PR is **not** expected to edit
@@ -646,7 +646,7 @@ None. A token rename has no runtime cost; the computed CSS is identical.
 
 ## References
 
-- Work item: `meta/work/0099-remap-typography-size-scale-to-pure-numeric-tokens.md`
+- Work item: `meta/work/PP-121-remap-typography-size-scale-to-pure-numeric-tokens.md`
 - Research: `meta/research/codebase/2026-06-13-0099-remap-typography-size-scale-to-pure-numeric-tokens.md`
 - ADR to supersede: `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
 - Structural model for ADR-0043: `meta/decisions/ADR-0039-border-radius-consumption-rule.md`
@@ -656,4 +656,4 @@ None. A token rename has no runtime cost; the computed CSS is identical.
   `…/src/styles/tokens.ts:179-208`
 - Guardrails: `…/src/styles/migration.test.ts:1649-1722,1905-2006`,
   `…/src/styles/global.test.ts:104-119`
-- Unit-axis sibling: `meta/work/0091-typography-rem-vs-px-stance.md`
+- Unit-axis sibling: `meta/work/PP-113-typography-rem-vs-px-stance.md`

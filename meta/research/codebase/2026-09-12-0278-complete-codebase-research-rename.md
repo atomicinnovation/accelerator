@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0278"
-parent: "work-item:0278"
+parent: "work-item:PP-862"
 relates_to: ["codebase-research:2026-09-08-0277-single-round-web-research-engine", "codebase-research:2026-09-10-0278-topic-research-visualiser-doc-type-indexer"]
 topic: "Completing the bare-research to codebase-research rename"
 tags: ["research", "codebase", "rename", "doc-type", "visualiser", "corpus"]

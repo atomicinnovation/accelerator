@@ -14,7 +14,7 @@ repository: "visualisation-system"
 last_updated: "2026-06-03T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0090", "codebase-research:2026-06-02-0090-radius-tokens-consumption", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:0033", "adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0031"]
+relates_to: ["work-item:PP-112", "codebase-research:2026-06-02-0090-radius-tokens-consumption", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:PP-55", "adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0031"]
 ---
 
 # Radius Tokens Consumption Implementation Plan
@@ -949,10 +949,10 @@ None — token indirection has no runtime cost; computed values are identical.
 
 ## References
 
-- Work item: `meta/work/0090-radius-tokens-consumption.md`
+- Work item: `meta/work/PP-112-radius-tokens-consumption.md`
 - Research: `meta/research/codebase/2026-06-02-0090-radius-tokens-consumption.md`
 - Pattern precedent: `meta/plans/2026-05-23-0075-typography-size-scale-consumption.md`
-- Scale origin: `meta/work/0033-design-token-system.md`
+- Scale origin: `meta/work/PP-55-design-token-system.md`
 - ADR template: `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
 - ADR superseded (not edited): `meta/decisions/ADR-0026-css-design-token-application-conventions.md` (§3, `:127` — the radius row, left in place per ADR-0031)
 - Immutability rule: `meta/decisions/ADR-0031-skill-level-adr-immutability.md`

@@ -6,7 +6,7 @@ date: "2026-08-10T16:19:07+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0049", "adr:ADR-0053", "adr:ADR-0057", "work-item:0196"]
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0049", "adr:ADR-0053", "adr:ADR-0057", "work-item:PP-726"]
 tags: ["architecture", "cli", "shell", "node", "process-supervision", "playwright", "design"]
 last_updated: "2026-08-10T16:45:46+00:00"
 last_updated_by: "Toby Clemson"
@@ -36,7 +36,7 @@ That final `exec` starts a short-lived Node client, which reads the daemon's
 (`lib/client.js`, 52 lines). A Node process therefore starts on every browser
 command, whether or not the daemon was reused.
 
-Work-item:0196 moves this tooling into an `accelerator-design` sub-binary,
+work-item:PP-726 moves this tooling into an `accelerator-design` sub-binary,
 which forces a decision about the launcher: after the move, a Rust binary is
 the caller, so the shell layer is either reproduced, retained, or relocated.
 
@@ -53,7 +53,7 @@ One further detail bears on the choice. `run.sh` shells out to the
 this becomes a process invoking itself re-entrantly to obtain data it already
 holds.
 
-A prior re-scope of work-item:0196 (2026-08-08) had disposed of `run.sh` as a
+A prior re-scope of work-item:PP-726 (2026-08-08) had disposed of `run.sh` as a
 thin wrapper to retain. This ADR records the decision that replaced it.
 
 ## Decision Drivers
@@ -163,7 +163,7 @@ later, once the launcher port has settled.
 ### Neutral
 
 - This supersedes the 2026-08-08 thin-wrapper disposition recorded in
-  work-item:0196's drafting notes, not any accepted ADR.
+  work-item:PP-726's drafting notes, not any accepted ADR.
 - The per-command Node start survives this change untouched. Removing it means
   reproducing the client as well, which is option 4's territory and a decision
   for another day.
@@ -179,7 +179,7 @@ later, once the launcher port has settled.
   binary distribution), ADR-0048 (four-toolchain split), ADR-0049 (bash 3.2
   compatibility floor), ADR-0053 (thin CLI over a hexagonal core), ADR-0057
   (browser automation as a glibc-only capability)
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - `meta/research/codebase/2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli.md`
 - `skills/design/inventory-design/scripts/playwright/run.sh` — the launcher
   being reproduced

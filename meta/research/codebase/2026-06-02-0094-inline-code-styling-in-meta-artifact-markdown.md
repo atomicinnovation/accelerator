@@ -14,7 +14,7 @@ repository: "ticket-management"
 last_updated: "2026-06-02T14:30:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0095", "work-item:0076", "work-item:0088", "work-item:0089", "adr:ADR-0026", "adr:ADR-0036", "adr:ADR-0035", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-05-06-0033-design-token-system"]
+relates_to: ["work-item:PP-117", "work-item:PP-98", "work-item:PP-110", "work-item:PP-111", "adr:ADR-0026", "adr:ADR-0036", "adr:ADR-0035", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-05-06-0033-design-token-system"]
 derived_from: ["codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
@@ -243,15 +243,15 @@ Table-cell override:
 
 ## Historical Context
 
-- `meta/work/0076-code-block-syntax-highlight-palette.md` + its plan/research
+- `meta/work/PP-98-code-block-syntax-highlight-palette.md` + its plan/research
   (`meta/plans/2026-05-21-0076-…`, `meta/research/codebase/2026-05-21-0076-…`) —
   the precedent for tokenising code surfaces and adopting tokens in this exact
   renderer; the closest pattern to follow for any new tokens 0094 might need.
-- `meta/work/0088-markdown-body-width-harmonisation.md` + plan/research — prior
+- `meta/work/PP-110-markdown-body-width-harmonisation.md` + plan/research — prior
   surgical change to the same MarkdownRenderer CSS module.
-- `meta/work/0089-templates-preview-whitespace-fix.md` — adjacent Fira Code /
+- `meta/work/PP-111-templates-preview-whitespace-fix.md` — adjacent Fira Code /
   monospace surface work.
-- `meta/work/0095-markdown-checkboxes-always-dark-mode-styled.md` — sibling
+- `meta/work/PP-117-markdown-checkboxes-always-dark-mode-styled.md` — sibling
   theme-token bug in the same renderer (the "always dark" failure mode is a
   cautionary analogue: ensure the inline-code fix resolves correctly in *both*
   themes, not just dark).

@@ -6,8 +6,8 @@ date: "2026-06-09T21:10:24+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0080"
-parent: "work-item:0080"
+work_item_id: "work-item:PP-102"
+parent: "work-item:PP-102"
 derived_from: ["codebase-research:2026-06-09-0080-detail-page-header-actions"]
 tags: ["design", "frontend", "detail-page", "config", "editor-deeplink", "clipboard"]
 revision: "d6c9d9734f3e62cd207ad3216924ebfb4acafa81"
@@ -98,7 +98,7 @@ On a resolved `LibraryDocView` route, the page header shows two icon buttons:
    `<button>` with a `visualiser.editor`-naming tooltip when not.
 
 Verification: the full Acceptance Criteria list in
-`meta/work/0080-detail-page-header-actions.md` passes; automated suites (frontend
+`meta/work/PP-102-detail-page-header-actions.md` passes; automated suites (frontend
 vitest, Rust `cargo test`, shell config tests) are green; manual checks confirm
 clipboard, deep-link navigation, and the disabled state.
 
@@ -618,7 +618,7 @@ return (
 #### Manual Verification:
 
 - [ ] `Copy path` appears bottom-right of the detail header, aligned with the title
-- [ ] Clicking copies `meta/work/0080-detail-page-header-actions.md` (raw) and a
+- [ ] Clicking copies `meta/work/PP-102-detail-page-header-actions.md` (raw) and a
   Toaster confirmation appears
 - [ ] Button colours/glyph match the `TopbarIconButton` precedent in both themes
 
@@ -959,12 +959,12 @@ the shell writer and Rust struct to land together (single phase).
 
 ## References
 
-- Original work item: `meta/work/0080-detail-page-header-actions.md`
+- Original work item: `meta/work/PP-102-detail-page-header-actions.md`
 - Research: `meta/research/codebase/2026-06-09-0080-detail-page-header-actions.md`
 - Config template (idle_timeout): `meta/plans/2026-06-06-0100-configurable-visualiser-auto-shutdown.md`
-- Page.actions origin: `meta/work/0041-library-page-wrapper-and-overview-hub.md`
-- TopbarIconButton precedent: `meta/work/0035-topbar-component.md`
-- Toaster: `meta/work/0039-toaster-and-external-edit-notifications.md`
+- Page.actions origin: `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`
+- TopbarIconButton precedent: `meta/work/PP-57-topbar-component.md`
+- Toaster: `meta/work/PP-61-toaster-and-external-edit-notifications.md`
 - Config endpoint pattern: `skills/visualisation/visualise/server/src/api/kanban_config.rs:8-28`
 - Frontend config-fetch pattern: `skills/visualisation/visualise/frontend/src/api/use-kanban-config.ts:5-21`
 - Governance ADRs: ADR-0016/0017 (config model/extension points), ADR-0024

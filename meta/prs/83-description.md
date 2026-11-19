@@ -6,8 +6,8 @@ date: "2026-08-27T22:49:42+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-parent: "work-item:0171"
-relates_to: ["work-item:0196", "work-item:0211", "work-item:0212"]
+parent: "work-item:PP-192"
+relates_to: ["work-item:PP-726", "work-item:PP-741", "work-item:PP-742"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/83"
 pr_number: 83
 tags: ["work-items", "status", "jira", "linear", "integrations"]
@@ -32,7 +32,7 @@ Flips four work items to `done`: the 0171 Jira and Linear integrations epic and 
 
 ## Context
 
-Closes the 0171 epic (`meta/work/0171-jira-and-linear-integrations.md`, remote `PP-192`) under the 0136 Rust CLI migration. The integrations work — provider client crates (0210), the two dispatched binaries and bash-cluster retirement (0211), the work-item script cutover (0212) and the conversational conflict flow (0213) — is in production. 0196 is a 0136 sibling (design-inventory CLI) bundled into the same status sweep.
+Closes the 0171 epic (`meta/work/PP-192-jira-and-linear-integrations.md`, remote `PP-192`) under the 0136 Rust CLI migration. The integrations work — provider client crates (0210), the two dispatched binaries and bash-cluster retirement (0211), the work-item script cutover (0212) and the conversational conflict flow (0213) — is in production. 0196 is a 0136 sibling (design-inventory CLI) bundled into the same status sweep.
 
 ## Testing
 

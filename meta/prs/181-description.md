@@ -7,8 +7,8 @@ author: "Phil Helm"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0338"
-parent: "work-item:0338"
-relates_to: ["work-item:0146", "work-item:0048", "work-item:0296"]
+parent: "work-item:PP-921"
+relates_to: ["work-item:PP-167", "work-item:PP-70", "work-item:PP-880"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/181"
 pr_number: 181
 tags: ["linear", "cli", "update"]
@@ -167,7 +167,7 @@ state refusals, none of which change.
 
 ## Context
 
-- Work item: `meta/work/0338-linear-update-overwrites-fields-it-was-not-given.md`
+- Work item: `meta/work/PP-921-linear-update-overwrites-fields-it-was-not-given.md`
   (PP-921)
 - Research:
   `meta/research/codebase/2026-11-05-0338-linear-update-overwrites-unspecified-fields.md`

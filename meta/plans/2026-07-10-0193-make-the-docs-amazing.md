@@ -6,8 +6,8 @@ date: "2026-07-10T20:08:08+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0193"
-parent: "work-item:0193"
+work_item_id: "work-item:PP-723"
+parent: "work-item:PP-723"
 derived_from: ["codebase-research:2026-07-10-0193-make-the-docs-amazing", "codebase-research:2026-07-13-docs-site-visualiser-design-alignment"]
 tags: ["docs", "docs-site", "starlight", "generation", "ci", "design-tokens", "theming"]
 revision: "150f34d0b4e921942076d43ba726b137607ace1b"
@@ -1005,7 +1005,7 @@ treatment.
 
 ## References
 
-- Original work item: `meta/work/0193-make-the-docs-amazing.md`
+- Original work item: `meta/work/PP-723-make-the-docs-amazing.md`
 - Research: `meta/research/codebase/2026-07-10-0193-make-the-docs-amazing.md`
 - Theming research: `meta/research/codebase/2026-07-13-docs-site-visualiser-design-alignment.md`
 - Canonical token sheet: `skills/visualisation/visualise/frontend/src/styles/global.css`

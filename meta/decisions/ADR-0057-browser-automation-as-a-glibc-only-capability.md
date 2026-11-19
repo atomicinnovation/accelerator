@@ -10,7 +10,7 @@ title: "ADR-0057: Browser Automation as a Glibc-Only Capability"
 schema_version: 1
 last_updated: "2026-08-10T16:29:22+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054", "adr:ADR-0058", "work-item:0196"]
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054", "adr:ADR-0058", "work-item:PP-726"]
 ---
 
 # ADR-0057: Browser Automation as a Glibc-Only Capability
@@ -32,7 +32,7 @@ full static linking, so today's four binaries run on glibc and musl hosts
 alike.
 
 The `inventory-design` skill drives a real browser to capture design
-inventories. Work-item:0196 migrates that tooling into an
+inventories. work-item:PP-726 migrates that tooling into an
 `accelerator-design` sub-binary and, to remove the current system Node.js ≥20
 and `npm`/`npx` prerequisites, vendors Microsoft's official per-platform
 Playwright driver bundle (a prebuilt Node.js binary plus `playwright-core`)
@@ -59,7 +59,7 @@ framing is wrong in an important way:
   The design tooling cannot run its Playwright path on a musl host now, before
   any bundling.
 
-So work-item:0196 does not introduce a musl gap — it inherits one that is
+So work-item:PP-726 does not introduce a musl gap — it inherits one that is
 inherent to depending on Playwright at all. What it does change is that a
 glibc-linked artifact begins flowing through the distribution mechanism whose
 governing ADR says "fully static, dependency-free". That narrower tension is
@@ -233,7 +233,7 @@ platform reach is a smaller loss than deleting it.
 - ADR-0045 (skills vs CLI division of labour), ADR-0046 (zero-setup static
   binary distribution), ADR-0048 (four-toolchain split), ADR-0054 (git-style
   modular CLI), ADR-0058 (shell-free CLI-to-Node delegation)
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - `meta/research/codebase/2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli.md`
 - Playwright system requirements (Debian/Ubuntu only):
   https://playwright.dev/docs/intro

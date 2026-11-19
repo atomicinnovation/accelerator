@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
 target: "plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
-relates_to: ["work-item:0182"]
+relates_to: ["work-item:PP-712"]
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["correctness", "portability", "test-coverage", "architecture", "compatibility", "security", "code-quality", "standards"]

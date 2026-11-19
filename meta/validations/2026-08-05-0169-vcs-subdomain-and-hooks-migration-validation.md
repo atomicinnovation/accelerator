@@ -237,7 +237,7 @@ c50b5e4e8414 Record 0169 hand-offs, spin off two follow-up work items, fix a lau
   scoped out of its own code changes, not implementation gaps — they should
   be tracked to closure separately (the work item's Dependencies section
   already names the release owner) rather than reopening this plan.
-- Sync `meta/work/0169-vcs-subdomain-and-hooks-migration.md`'s Acceptance
+- Sync `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`'s Acceptance
   Criteria checkboxes to reflect the automated-verification-complete state,
   leaving only the three genuinely-pending items unchecked, so the work item
   and plan agree.

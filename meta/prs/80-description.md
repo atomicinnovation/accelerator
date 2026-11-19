@@ -6,9 +6,9 @@ date: "2026-08-23T23:13:11+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
-relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:0174"]
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
+relates_to: ["work-item:PP-192", "work-item:PP-740", "work-item:PP-742", "work-item:PP-195"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/80"
 pr_number: 80
 tags: ["jira", "linear", "integrations", "cli", "cutover", "residue"]
@@ -37,7 +37,7 @@ Retires the last bash that only dies once both integration clusters are gone, la
 
 ## Context
 
-Completes `work-item:0211` per `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md` (Phase 5). Parent epic `work-item:0171`; unblocks `work-item:0174` (the retired `integrations` floor and the cluster `SHELL_LIBRARIES` entries).
+Completes `work-item:PP-741` per `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md` (Phase 5). Parent epic `work-item:PP-192`; unblocks `work-item:PP-195` (the retired `integrations` floor and the cluster `SHELL_LIBRARIES` entries).
 
 ## Testing
 

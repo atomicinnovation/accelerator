@@ -9,7 +9,7 @@ title: "ADR-0019: Ephemeral File Separation via paths.tmp"
 schema_version: 1
 last_updated: "2026-04-18T13:46:13+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:0027", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "plan:2026-03-28-initialise-skill-and-review-pr-ephemeral-migration", "adr:ADR-0008", "adr:ADR-0016", "adr:ADR-0018"]
+relates_to: ["work-item:PP-49", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "plan:2026-03-28-initialise-skill-and-review-pr-ephemeral-migration", "adr:ADR-0008", "adr:ADR-0016", "adr:ADR-0018"]
 ---
 
 # ADR-0019: Ephemeral File Separation via paths.tmp
@@ -138,7 +138,7 @@ clones.
 
 ## References
 
-- `meta/work/0027-ephemeral-file-separation-via-paths-tmp.md` — Work item
+- `meta/work/PP-49-ephemeral-file-separation-via-paths-tmp.md` — Work item
   driving this ADR
 - `meta/research/codebase/2026-04-07-pr-review-tmp-directory-usage.md` — Research
   identifying the co-location problem and the conflict between root-level

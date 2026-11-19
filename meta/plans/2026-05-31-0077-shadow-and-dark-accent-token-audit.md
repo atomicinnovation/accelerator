@@ -14,7 +14,7 @@ repository: "build-system"
 last_updated: "2026-06-01T01:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0077", "codebase-research:2026-05-31-0077-shadow-and-dark-accent-token-audit", "work-item:0033", "work-item:0034", "design-inventory:2026-05-21-015231-claude-design-prototype"]
+relates_to: ["work-item:PP-99", "codebase-research:2026-05-31-0077-shadow-and-dark-accent-token-audit", "work-item:PP-55", "work-item:PP-56", "design-inventory:2026-05-21-015231-claude-design-prototype"]
 ---
 
 # Shadow and Dark-Accent Token Audit Implementation Plan
@@ -557,7 +557,7 @@ section for the negative-scope enumeration rather than restating it.
 > **Vehicle change.** This repository does not use pull requests, so the
 > "PR description" wording below was discharged by appending a
 > `## Findings` section to the work item itself
-> ([`meta/work/0077-shadow-and-dark-accent-token-audit.md`](../work/0077-shadow-and-dark-accent-token-audit.md#findings)).
+> ([`meta/work/PP-99-shadow-and-dark-accent-token-audit.md`](../work/PP-99-shadow-and-dark-accent-token-audit.md#findings)).
 > The success criteria below are ticked against that section.
 
 - [x] Work item §1 contains all four shadow declarations (light and dark, current and prototype) quoted verbatim with file:line references.
@@ -565,7 +565,7 @@ section for the negative-scope enumeration rather than restating it.
 - [x] Work item §3 records the dark `--ac-accent` and `--ac-accent-2` computed values harvested from `tokens.ts` (equivalent to Phase 1's spec output by the spec's own assertion), normalised to `rgb()`, with the expected-equality confirmation (AC#3).
 - [x] Work item §4 includes the consumer enumeration table plus the AC#4 spirit-reading paragraph naming the no-follow-up outcome (AC#4).
 - [x] Work item §5 notes that the only code change is `root-resolved-tokens.spec.ts`.
-- [x] All four acceptance-criteria checkboxes in `meta/work/0077-shadow-and-dark-accent-token-audit.md` are ticked, each cross-linking to the §-numbered Findings subsection that discharges it.
+- [x] All four acceptance-criteria checkboxes in `meta/work/PP-99-shadow-and-dark-accent-token-audit.md` are ticked, each cross-linking to the §-numbered Findings subsection that discharges it.
 
 ---
 
@@ -598,12 +598,12 @@ migration. Existing baselines (light and dark) remain untouched.
 
 ## References
 
-- Original work item: [`meta/work/0077-shadow-and-dark-accent-token-audit.md`](../work/0077-shadow-and-dark-accent-token-audit.md)
+- Original work item: [`meta/work/PP-99-shadow-and-dark-accent-token-audit.md`](../work/PP-99-shadow-and-dark-accent-token-audit.md)
 - Companion research: [`meta/research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md`](../research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md)
 - Work-item review: [`meta/reviews/work/0077-shadow-and-dark-accent-token-audit-review-1.md`](../reviews/work/0077-shadow-and-dark-accent-token-audit-review-1.md)
 - Related work items:
-  - [`meta/work/0033-design-token-system.md`](../work/0033-design-token-system.md) — introduced the per-theme shadow split and dark accent remap.
-  - [`meta/work/0034-theme-and-font-mode-toggles.md`](../work/0034-theme-and-font-mode-toggles.md) — established the `setTheme`/`applyTheme` Playwright helpers this plan reuses.
+  - [`meta/work/PP-55-design-token-system.md`](../work/PP-55-design-token-system.md) — introduced the per-theme shadow split and dark accent remap.
+  - [`meta/work/PP-56-theme-and-font-mode-toggles.md`](../work/PP-56-theme-and-font-mode-toggles.md) — established the `setTheme`/`applyTheme` Playwright helpers this plan reuses.
 - Source-of-truth declarations: `skills/visualisation/visualise/frontend/src/styles/global.css:201–202, 329–330, 364–365, 391–392, 422–423` and `skills/visualisation/visualise/frontend/src/styles/tokens.ts:82–83, 177–189`.
 - Reusable test primitives: `skills/visualisation/visualise/frontend/tests/visual-regression/lib/expected-colours.ts:73` (`setTheme(page, theme)`), `:11` (`hexToRgb(hex)`).
 - Prototype declarations (for verbatim quotation): `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/inventory.md:101–102, 129–130, 293–294` (tabulated light/dark accents and light shadows) and `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html` (canonical embedded CSS — dark shadow values recoverable by in-file search).

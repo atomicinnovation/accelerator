@@ -13,7 +13,7 @@ id: "2026-05-21-0078-detail-page-frontmatter-table"
 title: "Detail-Page Frontmatter Table (0078)"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["adr:ADR-0026", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "plan:2026-05-06-0033-design-token-system", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0078"]
+relates_to: ["adr:ADR-0026", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "plan:2026-05-06-0033-design-token-system", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:PP-100"]
 derived_from: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
@@ -304,21 +304,21 @@ match by setting the same literal (acknowledging the duplication).
   slot, actions, content). `LibraryDocView` already uses it. The
   "between page header and markdown body" slot the table targets is
   inside `Page`'s content (i.e. inside the article grid).
-  File: `meta/work/0041-library-page-wrapper-and-overview-hub.md`.
+  File: `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`.
 - **0084 (draft)** — Caps the chip strip to four canonical keys
   (`status`, `verdict`, `date`, `author`); explicitly defers everything
   else to 0078's table. Confirms the story's pairing logic.
-  File: `meta/work/0084-detail-page-chip-strip-cap.md`.
+  File: `meta/work/PP-106-detail-page-chip-strip-cap.md`.
 - **0085 (draft)** — Humanises the H1 via `frontmatter.title` ||
   humanised slug. The H1 sits directly above the table in the page
   layout. No data dependency.
-  File: `meta/work/0085-humanise-detail-page-h1.md`.
+  File: `meta/work/PP-107-humanise-detail-page-h1.md`.
 - **0088 (draft)** — Markdown body width and text-size
   harmonisation. Decides canonical width and exposes it via CSS
   variable so every markdown surface (including the new table) reads
   the same value. Until 0088 ships the table mirrors the current 720px
   literal.
-  File: `meta/work/0088-markdown-body-width-harmonisation.md`.
+  File: `meta/work/PP-110-markdown-body-width-harmonisation.md`.
 
 ### Component-folder convention summary (for the new FrontmatterTable)
 

@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-18-0042-templates-view-redesign"
 title: "Templates View Redesign (work item 0042)"
 schema_version: 1
-relates_to: ["work-item:0029", "work-item:0033", "work-item:0037", "work-item:0038", "work-item:0041", "work-item:0055", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-140608-claude-design-prototype", "work-item:0042"]
+relates_to: ["work-item:PP-51", "work-item:PP-55", "work-item:PP-59", "work-item:PP-60", "work-item:PP-63", "work-item:PP-77", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-140608-claude-design-prototype", "work-item:PP-64"]
 derived_from: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-03-29-template-management-subcommands"]
 ---
 
@@ -379,7 +379,7 @@ The redesign needs:
 
 ### Acceptance-criteria mapping
 
-For each AC in `meta/work/0042-templates-view-redesign.md:101-160`:
+For each AC in `meta/work/PP-64-templates-view-redesign.md:101-160`:
 
 - **AC1 (per-tier presence row on index in fixed order)** —
   LibraryTemplatesIndex.tsx must render
@@ -536,19 +536,19 @@ during planning/implementation:
 
 ## Historical Context
 
-- `meta/work/0029-template-management-subcommand-surface.md` — earlier
+- `meta/work/PP-51-template-management-subcommand-surface.md` — earlier
   templates work item that established the resolution model and CLI
   surface.
-- `meta/work/0033-design-token-system.md` — design tokens used here
+- `meta/work/PP-55-design-token-system.md` — design tokens used here
   (Sora display font, Inter body, Fira Code mono, `--ac-*` palette).
-- `meta/work/0037-glyph-component.md` — Glyph component; intentionally
+- `meta/work/PP-59-glyph-component.md` — Glyph component; intentionally
   has no `templates` doc-type icon.
-- `meta/work/0038-generic-chip-component.md` — Chip palette including
+- `meta/work/PP-60-generic-chip-component.md` — Chip palette including
   `neutral`, `indigo`, `green` variants the redesign relies on.
-- `meta/work/0041-library-page-wrapper-and-overview-hub.md` — Page
+- `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` — Page
   wrapper contract and the rule that `Page` owns horizontal padding
   (so the library templates routes must remain `Page`-wrapped).
-- `meta/work/0055-sidebar-activity-feed.md` — established the
+- `meta/work/PP-77-sidebar-activity-feed.md` — established the
   `/api/events` SSE channel patterns and the `Option<String>` etag
   pattern that 0042 extends. Note: 0055 was historically classified
   as "assumed delivered" but functions as a hard infrastructural

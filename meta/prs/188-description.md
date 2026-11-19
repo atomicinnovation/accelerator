@@ -7,8 +7,8 @@ author: "Phil Helm"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0352"
-parent: "work-item:0352"
-relates_to: ["work-item:0351"]
+parent: "work-item:PP-927"
+relates_to: ["work-item:PP-926"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/188"
 pr_number: 188
 tags: ["sync", "report", "work-adapters", "baseline", "sync-work-items"]
@@ -149,7 +149,7 @@ dossiers are read and written as before. Reverting restores the old output.
 
 ## Context
 
-- Work item: `meta/work/0352-sync-reports-every-unsynced-item-twice.md`
+- Work item: `meta/work/PP-927-sync-reports-every-unsynced-item-twice.md`
 - Plan: `meta/plans/2026-11-11-0352-sync-reports-every-unsynced-item-twice.md`
 - Research:
   `meta/research/codebase/2026-11-10-0352-sync-reports-every-unsynced-item-twice.md`

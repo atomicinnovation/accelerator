@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0047"
-parent: "work-item:0047"
+parent: "work-item:PP-69"
 relates_to: ["codebase-research:2026-06-14-0048-linear-integration-apis", "codebase-research:2026-05-08-0046-work-management-system-configuration"]
 topic: "Core Skills Sync Integration"
 tags: ["research", "codebase", "work-management", "integrations", "sync", "list-work-items", "create-work-item"]
@@ -253,7 +253,7 @@ the file isn't written until after the push anyway).
 
 ### The 0051 seam (what this story must leave behind)
 
-`meta/work/0051-sync-work-items-skill.md` (`blocked_by: 0046, 0047`) places
+`meta/work/PP-73-sync-work-items-skill.md` (`blocked_by: 0046, 0047`) places
 `last-sync.json` under the configured integrations path
 (`.accelerator/state/integrations/<system>/last-sync.json`, `:262-264`) with
 schema `{ timestamp, items: { <work_item_id>: { remote_updated_at, local_hash }}}`
@@ -326,20 +326,20 @@ classification rule and `/create-work-item` confirmation UX style.
 
 ## Historical Context
 
-- `meta/work/0046-work-management-system-configuration.md` (**done**) — defines
+- `meta/work/PP-68-work-management-system-configuration.md` (**done**) — defines
   the `work.integration` single-string key, values `jira|linear|trello|
   github-issues`; declares the key only, provides no create path.
-- `meta/work/0048-linear-integration.md` (**done**) — the concrete create
+- `meta/work/PP-70-linear-integration.md` (**done**) — the concrete create
   capability 0047's push-on-accept invokes; originates the `work_item_id`
   writeback (no Jira skill writes the key back). Intentionally not `blocked_by`
   0047.
-- `meta/work/0051-sync-work-items-skill.md` — owns `last-sync.json` and the three
+- `meta/work/PP-73-sync-work-items-skill.md` — owns `last-sync.json` and the three
   baseline-dependent states; consumes 0047's status slot and classification rule.
 - `meta/reviews/work/0047-core-skills-sync-integration-review-1.md` — **APPROVE**;
   drove the scope decision to synced/unsynced-only, the presumed-synced framing,
   and the acyclic forward-data-dependency on 0051. Suggests verifiable phrasings
   for the status-slot AC and the colour requirement.
-- `meta/work/0064-canonicalise-work-item-id-and-author-fields.md` — relevant to
+- `meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md` — relevant to
   the `work_item_id`/`id` key canonicalisation tension.
 - Jira integration plans/validations (2026-04-29 → 05-03) — sibling create-path
   prior art.

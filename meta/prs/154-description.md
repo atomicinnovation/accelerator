@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0219"
-parent: "work-item:0219"
-relates_to: ["work-item:0136", "work-item:0205", "work-item:0217", "work-item:0225", "work-item:0299"]
+parent: "work-item:PP-748"
+relates_to: ["work-item:PP-157", "work-item:PP-735", "work-item:PP-746", "work-item:PP-755", "work-item:PP-881"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/154"
 pr_number: 154
 tags: []
@@ -34,7 +34,7 @@ also moves the earlier measurement items, 0205 and 0217, under the epic, out of
 ## Changes
 
 - **0219 becomes an epic.**
-  - `kind` changes from `task` to `epic`. `parent: work-item:0136` is replaced
+  - `kind` changes from `task` to `epic`. `parent: work-item:PP-157` is replaced
     by a `relates_to` link to 0136, following the 0312 precedent.
   - Context, Vocabulary, the platform table and the per-platform versus
     per-platform-backend granularity stay on the epic as its shared glossary.
@@ -75,10 +75,10 @@ also moves the earlier measurement items, 0205 and 0217, under the epic, out of
 
 ## Context
 
-- Epic: `meta/work/0219-own-the-recurring-absolute-budget-check.md`
-- Former parent: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Epic: `meta/work/PP-748-own-the-recurring-absolute-budget-check.md`
+- Former parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Precedent for a standalone epic split out of 0136:
-  `meta/work/0312-migration-engine-improvements.md`
+  `meta/work/PP-898-migration-engine-improvements.md`
 - Harness plan the original task derived from:
   `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`
 

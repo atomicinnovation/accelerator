@@ -6,9 +6,9 @@ date: "2026-11-03T19:26:49+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0362"
+target: "work-item:PP-954"
 relates_to: ["work-item-review:0362-make-the-bootstrap-test-suites-fast-and-hermetic-review-1"]
-work_item_id: "0362"
+work_item_id: "PP-954"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -154,7 +154,7 @@ evidence) hold up. What remains is precision work:
    For example: "either under 422 s, or the measured duration is recorded
    and a follow-up item owning the CI criterion is linked". Hedge the
    Summary's CI claim to "and is expected to on CI".
-2. **Add `work-item:0368` to `relates_to`** (addresses: `relates_to` omits
+2. **Add `work-item:PP-960` to `relates_to`** (addresses: `relates_to` omits
    0368; "Blocked by" bullet)
    In the same bullet, add one clause saying why the baseline had to exist
    before this item merged.
@@ -241,7 +241,7 @@ frontmatter relationship fields don't match References and Dependencies.
 **Findings**:
 - 🔵 minor (medium), Frontmatter: `relates_to`: 0368 appears in the prose
   but in none of the frontmatter relationship fields. Add
-  `work-item:0368`.
+  `work-item:PP-960`.
 
 ### Dependency
 

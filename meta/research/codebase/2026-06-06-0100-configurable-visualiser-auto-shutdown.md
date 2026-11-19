@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0100"
-parent: "work-item:0100"
+parent: "work-item:PP-122"
 topic: "Configurable Visualiser Auto-Shutdown"
 tags: ["research", "codebase", "visualiser", "server", "lifecycle", "configuration", "idle-timeout"]
 revision: "719910e7852565ad829715320048523384599d53"
@@ -15,7 +15,7 @@ repository: "accelerator"
 last_updated: "2026-06-06T13:06:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0055", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "adr:ADR-0024", "adr:ADR-0016", "adr:ADR-0017"]
+relates_to: ["work-item:PP-77", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "adr:ADR-0024", "adr:ADR-0016", "adr:ADR-0017"]
 derived_from: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-06-04-changelog-1.21.0-cleanup"]
 ---
 
@@ -29,7 +29,7 @@ derived_from: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codeb
 
 ## Research Question
 
-For work item 0100 (`meta/work/0100-configurable-visualiser-auto-shutdown.md`):
+For work item 0100 (`meta/work/PP-122-configurable-visualiser-auto-shutdown.md`):
 how does the visualiser server's idle auto-shutdown work today, how is the
 existing `visualiser:` config (`visualiser.binary` / `ACCELERATOR_VISUALISER_BIN`)
 plumbed through to the server, what testing seams exist for verifying timeout
@@ -354,7 +354,7 @@ Test wiring:
 
 ## Historical Context
 
-- `meta/work/0055-sidebar-activity-feed.md` and
+- `meta/work/PP-77-sidebar-activity-feed.md` and
   `meta/research/codebase/2026-05-13-0055-sidebar-activity-feed.md:148` — located
   the HTTP-activity idle-timeout tracker at `server/src/activity.rs` (the seam
   0100 builds on).

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0348"
-parent: "work-item:0348"
+parent: "work-item:PP-936"
 relates_to: ["codebase-research:2026-09-23-0280-academic-source-profiles", "codebase-research:2026-09-26-0283-recursive-finding-deepening", "codebase-research:2026-09-08-0277-single-round-web-research-engine"]
 topic: "Structured Source Metadata (0348): current pipeline and implementation surface"
 tags: ["research", "codebase", "research-cli", "research-adapters", "sources", "metadata", "web-profile", "confinement"]
@@ -410,15 +410,15 @@ crate. Classifying resolved addresses, not just literals, is new either way.
 - `meta/reviews/work/0306-deterministic-rule-for-citing-a-source-once-review-1.md`
   — origin of 0348 (pass 2). 0306 declined an uppercase-DOI criterion
   because 0348 lowercases, and relies on `accessed` sorting lexically.
-- `meta/work/0306-deterministic-rule-for-citing-a-source-once.md` — merges
+- `meta/work/PP-892-deterministic-rule-for-citing-a-source-once.md` — merges
   blocks key-by-key from the first citation and orders "as 0348 orders a
   metadata block"; 0348's order rule is 0306's merge order.
-- `meta/work/0349-fill-bibliographic-source-metadata.md` — extends the web
+- `meta/work/PP-924-fill-bibliographic-source-metadata.md` — extends the web
   command and normalisers; needs extensible per-scheme field lists, Highwire
   `@type` inference and nested JSON-LD objects later.
-- `meta/work/0305-tier-doi-links-by-venue-not-resolver.md` — keeps `doi`;
+- `meta/work/PP-891-tier-doi-links-by-venue-not-resolver.md` — keeps `doi`;
   its venue-discovery question stays open, since 0348 emits no venue.
-- `meta/work/0121-topic-research-skillset.md:78, 87-89, 100` — additions
+- `meta/work/PP-22-topic-research-skillset.md:78, 87-89, 100` — additions
   must be backward-compatible because findings are immutable; Sources of
   syntheses are derived, never authored. 0348 must add the optional block
   to its Sources contract.

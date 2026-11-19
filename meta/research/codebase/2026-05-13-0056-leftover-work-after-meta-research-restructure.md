@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-13-0056-leftover-work-after-meta-research-restructure"
 title: "Leftover work / issues after meta directory restructure (0056)"
 schema_version: 1
-relates_to: ["plan:2026-05-12-0056-restructure-meta-research-into-subject-subcategories", "work-item:0056", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories"]
+relates_to: ["plan:2026-05-12-0056-restructure-meta-research-into-subject-subcategories", "work-item:PP-78", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories"]
 derived_from: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-05-08-0052-documents-locator-config-driven-paths"]
 ---
 
@@ -245,7 +245,7 @@ verified PASS aside from the leftover above:
 ## Historical Context
 
 - `meta/plans/2026-05-12-0056-restructure-meta-research-into-subject-subcategories.md` — the plan being verified
-- `meta/work/0056-restructure-meta-research-into-subject-subcategories.md` — the source work item
+- `meta/work/PP-78-restructure-meta-research-into-subject-subcategories.md` — the source work item
 - `meta/research/codebase/2026-05-11-0056-restructure-meta-research-into-subject-subcategories.md` — source research
 - `meta/reviews/plans/2026-05-12-0056-restructure-meta-research-into-subject-subcategories-review-1.md` — plan review 1 (D1–D4 design decisions)
 

@@ -14,7 +14,7 @@ repository: "visualisation-system"
 last_updated: "2026-06-02T15:45:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0075", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:0033", "adr:ADR-0036", "adr:ADR-0026"]
+relates_to: ["work-item:PP-97", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:PP-55", "adr:ADR-0036", "adr:ADR-0026"]
 derived_from: ["codebase-research:2026-05-23-0075-typography-size-scale-consumption"]
 ---
 
@@ -29,7 +29,7 @@ derived_from: ["codebase-research:2026-05-23-0075-typography-size-scale-consumpt
 ## Research Question
 
 This is the **pre-implementation codebase research** that work item
-`meta/work/0090-radius-tokens-consumption.md` names as a hard upstream
+`meta/work/PP-112-radius-tokens-consumption.md` names as a hard upstream
 dependency. It must:
 
 1. Enumerate the **full current-app `border-radius` inventory** (every
@@ -492,7 +492,7 @@ or must become `--radius-none`).
 
 ## Historical Context
 
-- `meta/work/0075-typography-size-scale-consumption.md` (done) — the direct
+- `meta/work/PP-97-typography-size-scale-consumption.md` (done) — the direct
   pattern precedent. Its inventory ballooned 4→35 declarations across 9
   files yet stayed a **single atomic PR**; epic-split was a documented
   contingency only (triggered if the diff is "genuinely unreviewable" or
@@ -504,7 +504,7 @@ or must become `--radius-none`).
   throughout).
 - `meta/plans/2026-05-23-0075-typography-size-scale-consumption.md` — the
   8-phase plan to mirror for structure.
-- `meta/work/0033-design-token-system.md` (done) — defined the four-step
+- `meta/work/PP-55-design-token-system.md` (done) — defined the four-step
   `--radius-*` scale with no per-step rationale and a ±1px radius migration
   tolerance; collapsed a `9999px` pill literal to `999px`.
 - `meta/decisions/ADR-0036` + the ADR-0026 amendment — the ADR pairing

@@ -267,7 +267,7 @@ and over-broad on `skip-tree`.
 
 - 🔵 **Architecture**: the cross-work-item reciprocal-edge guarantee rests on a one-time manual check
   **Location**: Phase 3, step 8; What We're NOT Doing
-  0217 currently carries the reciprocal `work-item:0216` edge (verified), but the
+  0217 currently carries the reciprocal `work-item:PP-745` edge (verified), but the
   repo has no referential-integrity check, so a later edit to 0217 silently
   breaks the deferred-evidence chain. Record the confirmation as a dated evidence
   note on both items.

@@ -50,11 +50,11 @@ anything this plan touched.
 - ✅ `mise run frontend:check` — exit 0 (display-copy + template-index tests).
 - ✅ Migration applied on the live repo; ledger shows `0010` (a re-run would be
   a no-op). `grep 'title: "Research: ' meta/research/codebase/` matches only two
-  in-body template examples (`…0067-create-note-skill.md:162`, this plan's
+  in-body template examples (`…PP-89-create-note-skill.md:162`, this plan's
   driving doc); `grep '^# Research: '` returns nothing.
 - ❌ `mise run check` — exit 1, on `deny:check` `RUSTSEC-2026-0285` only. The
   aggregate `check` is red for a reason wholly outside this plan.
-- ❌ `mise run test` — exit 1, on the pre-existing `work-item:0286` DUPLICATE-ID
+- ❌ `mise run test` — exit 1, on the pre-existing `work-item:PP-872` DUPLICATE-ID
   and the 0277 conformance count. No rename-owned test fails.
 
 ### Code Review Findings
@@ -97,5 +97,5 @@ three remaining items are visual confirmations in the running visualiser:
   automated and data-side verification is complete and green in its own scope.
 - ⚠️ The two aggregate reds are shared, orthogonal blockers, not rename defects:
   `RUSTSEC-2026-0285` (`rustls`, `cargo update -p rustls` to ≥ 0.23.45) and the
-  `work-item:0286` DUPLICATE-ID (renumber one of the two `meta/work/0286-*.md`
+  `work-item:PP-872` DUPLICATE-ID (renumber one of the two `meta/work/0286-*.md`
   files). Clearing both restores a green `mise run`.

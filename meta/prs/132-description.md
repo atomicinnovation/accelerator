@@ -6,9 +6,9 @@ date: "2026-09-24T10:33:00+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0241"
-parent: "work-item:0241"
-relates_to: ["work-item:0263", "work-item:0286"]
+work_item_id: "work-item:PP-771"
+parent: "work-item:PP-771"
+relates_to: ["work-item:PP-793", "work-item:PP-872"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/132"
 pr_number: 132
 tags: ["migration", "vcs", "jj", "preflight"]
@@ -112,8 +112,8 @@ this computation.
 
 ## Context
 
-- **Work item**: `meta/work/0241-migrate-false-dirty-tree-detection.md`,
-  which also closes 0263 (`meta/work/0263-rename-foreigndirt.md`).
+- **Work item**: `meta/work/PP-771-migrate-false-dirty-tree-detection.md`,
+  which also closes 0263 (`meta/work/PP-793-rename-foreigndirt.md`).
 - **Research**:
   `meta/research/codebase/2026-09-23-0241-migrate-false-dirty-tree-detection.md`
 - **Plan**: `meta/plans/2026-09-23-0241-migrate-false-dirty-tree-detection.md`,

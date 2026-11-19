@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0136"
-parent: "work-item:0136"
+parent: "work-item:PP-157"
 topic: "Shell-script feature & test-suite surface for the Rust CLI migration"
 tags: ["research", "codebase", "shell", "rust-cli", "migration", "tooling", "vcs", "config", "frontmatter"]
 revision: "d1f2186bfeb1d753a1b844e9f0d238a538e76e98"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-To educate epic [0136 — Migrate Shell Scripts into a Rust CLI](../../work/0136-migrate-shell-scripts-to-rust-cli.md):
+To educate epic [0136 — Migrate Shell Scripts into a Rust CLI](../../work/PP-157-migrate-shell-scripts-to-rust-cli.md):
 we want to perform the migration **in stages**, so we need to understand the
 **full extent of features and test suites currently implemented in shell** in
 order to phase the delivery of the Rust-based CLI replacement.
@@ -344,7 +344,7 @@ rustfmt, cargo test).
 
 ## Historical Context
 
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` — the epic (this
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` — the epic (this
   research's parent). Open questions: which scripts migrate first; how the CLI
   is distributed.
 - `meta/notes/2026-06-22-ideas-backlog.md` — single-line origin ("Migrate shell
@@ -360,8 +360,8 @@ rustfmt, cargo test).
     — GitHub Releases pipeline + checksum manifest + `launch-server.sh` download
     path.
 - **Invocation-contract precedent**:
-  - `meta/work/0106-invoke-plugin-scripts-by-bare-path.md` — the bare-path rule.
-  - `meta/work/0107-lint-skill-body-script-invocations.md` — the lint guard that
+  - `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md` — the bare-path rule.
+  - `meta/work/PP-129-lint-skill-body-script-invocations.md` — the lint guard that
     encodes the contract (must update alongside any path/shape change).
   - `meta/research/issues/2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission.md`
     — RCA proving `bash`-prefix breaks the permission match.
@@ -371,11 +371,11 @@ rustfmt, cargo test).
   - `meta/research/codebase/2026-06-09-0098-repo-wide-linting-formatting-static-analysis.md`
     — prior inventory of ~160 `.sh` scripts + the shellcheck/shfmt/bashisms
     tooling. The baseline this research extends.
-  - `meta/work/0098-repo-wide-linting-formatting-static-analysis.md`.
+  - `meta/work/PP-120-repo-wide-linting-formatting-static-analysis.md`.
 - **Subsystem ADRs / tickets**: `meta/decisions/ADR-0016-userspace-configuration-model.md`,
   `ADR-0017-configuration-extension-points.md`,
-  `meta/work/0020-vcs-abstraction-layer.md`, `0024-configuration-system-architecture.md`,
-  `0016-plugin-packaging-and-scope.md`.
+  `meta/work/PP-42-vcs-abstraction-layer.md`, `PP-46-configuration-system-architecture.md`,
+  `PP-38-plugin-packaging-and-scope.md`.
 - **Concurrency-flake history** (relevant to porting the lock):
   the atomic-jsonl PID-owner reclaim fixed CI flakes under parallel load — the
   lock semantics are load-bearing, not incidental.

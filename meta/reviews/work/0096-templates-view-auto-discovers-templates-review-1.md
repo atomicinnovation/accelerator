@@ -6,8 +6,8 @@ date: "2026-06-11T13:04:17+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0096"
-work_item_id: "0096"
+target: "work-item:PP-118"
+work_item_id: "PP-118"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -190,7 +190,7 @@ _None._
 2. **Surface 0037 in the dependency surfaces** (addresses: 0037 glyph follow-on
    absent from Dependencies; `relates_to` omits 0037)
    Add a line to the Dependencies section noting 0037 as the follow-on home for
-   the `rca` glyph stem entry, and add `work-item:0037` to the `relates_to`
+   the `rca` glyph stem entry, and add `work-item:PP-59` to the `relates_to`
    frontmatter so prose and metadata agree.
 
 3. **Resolve the Open Question inline before leaving draft** (addresses: Single
@@ -323,7 +323,7 @@ cross-team actions left uncaptured.
   independence (or ordering) note.
 - 🔵 suggestion / low — **`relates_to` frontmatter omits 0037 named throughout
   the body** (Frontmatter: relates_to): relation-graph tooling won't surface the
-  0096↔0037 link. Suggestion: add `work-item:0037` to `relates_to`.
+  0096↔0037 link. Suggestion: add `work-item:PP-59` to `relates_to`.
 
 ### Scope
 
@@ -418,7 +418,7 @@ plus one tier-naming consistency point surfaced (not introduced) by the edits.
   (Follow-on line added; dependency lens returned zero findings this pass).
 - 🔵 **Dependency**: 0089 coordination not characterised — **Resolved**
   (Coordination line states the two are independent, no ordering).
-- 🔵 **Dependency**: `relates_to` omits 0037 — **Resolved** (`work-item:0037`
+- 🔵 **Dependency**: `relates_to` omits 0037 — **Resolved** (`work-item:PP-59`
   added to frontmatter).
 - 🔵 **Completeness**: Open Question unresolved — **Resolved** (marked
   _(Resolved)_; bare `*.md` glob confirmed, no filter needed).

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0196"
-parent: "work-item:0196"
+parent: "work-item:PP-726"
 topic: "Implementation surface for the accelerator-design sub-binary, tree artifacts, and the release-pipeline assembly step"
 tags: ["research", "codebase", "design", "cli", "playwright", "launcher", "release-pipeline", "tree-artifacts"]
 revision: "14c96c74fc3821dbc37e68a4df9be6939fc8ea41"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-What does the codebase actually look like where work-item:0196 lands, so an
+What does the codebase actually look like where work-item:PP-726 lands, so an
 implementation plan can be written against evidence rather than against the
 work item's prose?
 

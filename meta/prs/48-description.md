@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0188"
-parent: "work-item:0188"
-relates_to: ["work-item:0125", "work-item:0169", "work-item:0185"]
+parent: "work-item:PP-718"
+relates_to: ["work-item:PP-146", "work-item:PP-190", "work-item:PP-715"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/48"
 pr_number: 48
 tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
@@ -60,7 +60,7 @@ Adds `InProcessProbe` — an implementation of `cli/vcs`'s `RepoRoot` and `VcsPr
 
 ## Context
 
-- Work item: `meta/work/0188-library-backed-vcs-adapter.md`
+- Work item: `meta/work/PP-718-library-backed-vcs-adapter.md`
 - Plan: `meta/plans/2026-08-03-0188-library-backed-vcs-adapter.md`, carrying the full oracle mapping — every query against every fixture, with the shell implementation in `scripts/vcs-common.sh` as the behavioural oracle
 - Research: `meta/research/codebase/2026-08-02-0188-library-backed-vcs-adapter.md`
 - Plan review: `meta/reviews/plans/2026-08-03-0188-library-backed-vcs-adapter-review-1.md`

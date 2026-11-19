@@ -26,7 +26,7 @@ derived_from: ["codebase-research:2026-04-28-configurable-work-item-id-pattern",
 
 ## Research Question
 
-Educate the implementation of `meta/work/0046-work-management-system-configuration.md`,
+Educate the implementation of `meta/work/PP-68-work-management-system-configuration.md`,
 which adds a new `work.integration` config key (allowed values
 `jira | linear | trello | github-issues`). The story is the activation gate
 for the entire work-management integration epic (0045) — when set, integration
@@ -374,8 +374,8 @@ Recent precedent for centralisation:
   `work.default_project_code`)
 - `skills/integrations/jira/scripts/EXIT_CODES.md` — stable error-code
   registry
-- `meta/work/0045-work-management-integration.md` — parent epic
-- `meta/work/0046-work-management-system-configuration.md` — the work item
+- `meta/work/PP-67-work-management-integration.md` — parent epic
+- `meta/work/PP-68-work-management-system-configuration.md` — the work item
 
 ## Architecture Insights
 

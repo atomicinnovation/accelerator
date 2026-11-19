@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0286"
-parent: "work-item:0286"
+parent: "work-item:PP-872"
 topic: "Make Accelerator skills VCS-agnostic by eradicating direct git calls"
 tags: ["research", "codebase", "vcs", "skills", "cli", "guard", "jj"]
 revision: "f418ac31ce06d1088ccb3b4546132108cc963ce4"
@@ -329,21 +329,21 @@ is exactly 0286's approach.
   extension. It also fixed AC4 to spell the jj revset and left the land-order
   (reference + `vcs root` before the skill rewrites) as prose-only unless the
   bundle is split.
-- `meta/work/0200-decide-vcs-guard-log-diff-blocklist-membership.md` (done) —
+- `meta/work/PP-730-decide-vcs-guard-log-diff-blocklist-membership.md` (done) —
   spawned 0286; decided keep-both; framed the pure-jj `.git`-absent breakage as
   distinct from guard denial. Notably it *recommended* a broad `accelerator vcs
   diff`, which 0286 review 1 then rejected in favour of a model-driven diff plus
   the narrow `vcs root`.
-- `meta/work/0198-vcs-agnostic-status-log-renderer.md` (done) — built the
+- `meta/work/PP-728-vcs-agnostic-status-log-renderer.md` (done) — built the
   in-process renderer and the session-VCS precedent; deleted the
   `vcs_adapters::subprocess` shell-out module.
-- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` (done) — ported the
+- `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` (done) — ported the
   13-subcommand blocklist verbatim and built the `vcs detect|status|log|guard`
   subdomain + hook wiring; deliberately declined to change blocklist membership.
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` (epic) — parent; migrate
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` (epic) — parent; migrate
   shell into a typed Rust CLI. 0286 is a VCS-residual child.
-- `meta/work/0188-library-backed-vcs-adapter.md` (done) — delivered the
-  `vcs-adapters` crate. `meta/work/0267-move-vcs-kind-detection-into-vcs-crates.md`
+- `meta/work/PP-718-library-backed-vcs-adapter.md` (done) — delivered the
+  `vcs-adapters` crate. `meta/work/PP-797-move-vcs-kind-detection-into-vcs-crates.md`
   (draft) is the closest open follow-on.
 
 ## Related Research

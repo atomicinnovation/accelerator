@@ -6,8 +6,8 @@ date: "2026-09-11T16:27:02+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0229"
-parent: "work-item:0229"
+work_item_id: "work-item:PP-759"
+parent: "work-item:PP-759"
 derived_from: ["codebase-research:2026-09-11-0229-per-tracker-pull-scope-configuration"]
 tags: ["sync", "scoping", "tracker", "configuration", "discovery", "jira", "linear"]
 revision: "60e8f0c5188d4219c128d2af9f6dcef934ae65b1"
@@ -1233,7 +1233,7 @@ during the relevant phase, not before:
 
 ## References
 
-- Work item: `meta/work/0229-per-tracker-pull-scope-configuration.md`
+- Work item: `meta/work/PP-759-per-tracker-pull-scope-configuration.md`
 - Research: `meta/research/codebase/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
 - Base-scope dependency (done):
   `meta/plans/2026-09-10-0228-layered-configuration-key-model.md`

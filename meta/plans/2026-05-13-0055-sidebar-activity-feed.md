@@ -13,7 +13,7 @@ last_updated: "2026-05-13T10:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0053", "work-item:0055", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "work-item:0036"]
+relates_to: ["work-item:PP-75", "work-item:PP-77", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "work-item:PP-58"]
 ---
 
 # 0055 — Sidebar Activity Feed and SSE Action Discriminator: Implementation Plan
@@ -126,7 +126,7 @@ When this plan is complete:
 - Frontend typecheck passes:
   `npm --prefix skills/visualisation/visualise/frontend run typecheck`.
 - Frontend lint clean: project's standard lint command.
-- All acceptance criteria AC1–AC13 in `meta/work/0055-sidebar-activity-feed.md`
+- All acceptance criteria AC1–AC13 in `meta/work/PP-77-sidebar-activity-feed.md`
   map to at least one automated test.
 - Manual smoke: `/accelerator:visualise`, edit/create/delete a file under
   `meta/plans/`, see a row appear at the top of the Activity feed within ~1
@@ -2159,10 +2159,10 @@ Mock `useDocEventsContext`, `fetchActivity`, `useUnseenDocTypesContext`. Render
 
 ## References
 
-- Work item: `meta/work/0055-sidebar-activity-feed.md`
+- Work item: `meta/work/PP-77-sidebar-activity-feed.md`
 - Research: `meta/research/codebase/2026-05-13-0055-sidebar-activity-feed.md`
-- Parent epic: `meta/work/0036-sidebar-redesign.md`
-- Sibling: `meta/work/0053-sidebar-nav-and-unseen-tracker.md` (Provider already
+- Parent epic: `meta/work/PP-58-sidebar-redesign.md`
+- Sibling: `meta/work/PP-75-sidebar-nav-and-unseen-tracker.md` (Provider already
   mounted at `RootLayout.tsx:33`)
 - Glyph (already shipped): `frontend/src/components/Glyph/Glyph.tsx`
 - Server SSE hub: `server/src/sse_hub.rs:6-40`

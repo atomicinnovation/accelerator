@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0258"
-parent: "work-item:0258"
+parent: "work-item:PP-788"
 topic: "Launcher help divergence: help, bare, and --help entry points"
 tags: ["research", "codebase", "launcher", "cli", "help", "dispatch", "manifest"]
 revision: "4a18db85a476d4250e294bf895458344ef90bfaf"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For the bug at `meta/work/0258-help-show-subcommands.md`: why do `accelerator
+For the bug at `meta/work/PP-788-help-show-subcommands.md`: why do `accelerator
 help`, bare `accelerator`, and `accelerator --help` diverge in the command list
 they print, where does the divergence originate, what drives the sub-binary
 listing and its descriptions, and what must change — across launcher source,
@@ -291,10 +291,10 @@ load-bearing for AC-6.
 
 ## Historical Context
 
-- `meta/work/0164-launcher-and-git-style-dispatch.md` (done) — scoped the
+- `meta/work/PP-185-launcher-and-git-style-dispatch.md` (done) — scoped the
   manifest-driven listing to `--help` and unknown-subcommand only; the
   deliberate decision 0258 reverses.
-- `meta/work/0187-generalise-sub-binary-registration-surface.md` (done) — the
+- `meta/work/PP-717-generalise-sub-binary-registration-surface.md` (done) — the
   generalised registration surface and thirteen-point checklist the listing
   enumerates from.
 - `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md`

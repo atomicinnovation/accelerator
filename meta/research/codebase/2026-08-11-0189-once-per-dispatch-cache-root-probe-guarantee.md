@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0189"
-parent: "work-item:0189"
+parent: "work-item:PP-719"
 relates_to: ["codebase-research:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path", "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch", "codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
 topic: "Implementation surface for 0189's at-most-once cache-root probe guarantee"
 tags: ["research", "codebase", "cli", "launcher", "cache-root", "probe", "testability", "latency"]
@@ -512,7 +512,7 @@ Separately, two **shipped** files carry the stale `docs/internals.md` path —
 
 ## Historical Context
 
-- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — closed `done`, with
+- `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — closed `done`, with
   its Phase 10 latency criterion unchecked and B, G, ratio, payload, fixture and
   host all recorded as `_pending_`. Its 2026-08-11 retraction confirms 0189 now
   carries only the regression guard plus this measurement.
@@ -524,7 +524,7 @@ Separately, two **shipped** files carry the stale `docs/internals.md` path —
 - `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
   the measurement harness (`:1073-1135`), the composition-budget discipline, and
   the mutation-recording pattern. The single most reusable prior artefact.
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — the measured
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — the measured
   figures: before 125.35 ms, after 29.92 ms, ratio 0.239; probe cost 131.97 ms
   in the repo's `bin/` against a 3.72 ms re-exec; sha256 backend figures.
 - `meta/reviews/work/0189-once-per-dispatch-cache-root-probe-guarantee-review-1.md`
@@ -532,7 +532,7 @@ Separately, two **shipped** files carry the stale `docs/internals.md` path —
   and **not re-reviewed**, so the ordering rationale, the isolation precondition
   and AC5's fixture precondition are live design decisions rather than settled
   inputs.
-- `meta/work/0191-batch-the-two-shim-hashes-into-one-invocation.md` — the
+- `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md` — the
   ~2.5 ms co-requisite, still `draft`.
 - `meta/decisions/ADR-0054`, `ADR-0046` — the dispatch and distribution
   decisions any change here must stay inside.

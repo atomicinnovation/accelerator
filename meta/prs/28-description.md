@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0182"
-parent: "work-item:0182"
-relates_to: ["work-item:0183", "work-item:0164", "work-item:0167", "work-item:0136"]
+parent: "work-item:PP-712"
+relates_to: ["work-item:PP-713", "work-item:PP-185", "work-item:PP-188", "work-item:PP-157"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/28"
 pr_number: 28
 tags: ["bug", "cli", "launcher", "bootstrap", "plugin-root", "symlinks", "fail-safe", "test-flakes"]

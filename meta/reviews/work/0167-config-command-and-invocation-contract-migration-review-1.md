@@ -6,9 +6,9 @@ date: "2026-07-18T20:29:30+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0167"
-work_item_id: "0167"
+parent: "work-item:PP-157"
+target: "work-item:PP-188"
+work_item_id: "PP-188"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -154,7 +154,7 @@ or the whole plugin, and whether the exit-code taxonomy is settled or open.
   **Location**: Frontmatter
   Dependencies names 0166 and 0164 as blockers; the frontmatter has no
   `blocked_by` field. Siblings do record it (0166, 0169). 0174 declares
-  `blocked_by: ["work-item:0167", …]` while 0167's `blocks` omits 0174. Any
+  `blocked_by: ["work-item:PP-188", …]` while 0167's `blocks` omits 0174. Any
   scheduling or sync that reads the graph sees the epic's highest-blast-radius
   story as unblocked.
 
@@ -170,7 +170,7 @@ or the whole plugin, and whether the exit-code taxonomy is settled or open.
   dependency
   **Location**: Open Questions / Dependencies
   If "build-then-migrate" is chosen, 0107 becomes an upstream blocker — and 0107
-  itself declares `blocked_by: ["work-item:0106"]`, so 0167 inherits the chain.
+  itself declares `blocked_by: ["work-item:PP-128"]`, so 0167 inherits the chain.
   Neither item records this from either side.
 
 - 🟡 **Completeness**: The browser-executor glob re-homing is noted but never
@@ -383,8 +383,8 @@ or the whole plugin, and whether the exit-code taxonomy is settled or open.
 
 7. **Reconcile the frontmatter dependency graph with the prose** (addresses:
    missing `blocked_by`; `blocks` omits 0174; 0165 unlisted; 0166 too coarse)
-   Add `blocked_by: ["work-item:0164", "work-item:0166"]`, extend `blocks` with
-   `work-item:0174`, name the concrete gating children of 0166 (0178/0179), and
+   Add `blocked_by: ["work-item:PP-185", "work-item:PP-187"]`, extend `blocks` with
+   `work-item:PP-195`, name the concrete gating children of 0166 (0178/0179), and
    either add 0165 to Blocked by or state why the migration only needs a locally
    built binary until release.
 

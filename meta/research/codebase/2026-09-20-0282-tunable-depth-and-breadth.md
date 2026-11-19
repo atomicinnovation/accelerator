@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0282"
-parent: "work-item:0282"
+parent: "work-item:PP-866"
 relates_to: ["codebase-research:2026-09-10-0228-layered-configuration-key-model", "codebase-research:2026-09-08-0277-single-round-web-research-engine"]
 topic: "Tunable Depth and Breadth"
 tags: ["research", "codebase", "config", "catalogue", "research-topic", "skills"]
@@ -245,7 +245,7 @@ The hardcoded values sit in three places:
 ⚠️ **The effort-scaling rubric with a `10+` band is not in this file.** The only
 sizing guidance is the single sentence at 145-147; the word "effort-scaled"
 appears only in the heading and description. The `1 / 2–4 / 10+` bands exist only
-in `meta/work/0121-topic-research-skillset.md` and its review. So the work item's
+in `meta/work/PP-22-topic-research-skillset.md` and its review. So the work item's
 "the effort-scaling rubric may reduce beneath N but never raise above it" (AC:
 Breadth ceiling) describes model judgement bounded by the 145-147 sentence, not a
 rubric block to edit.
@@ -379,10 +379,10 @@ block, with no key-enumeration code path to update here.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — the seam that
   makes prose-resolved knobs a legitimate choice against the Rust `review.*`
   precedent.
-- `meta/work/0121-topic-research-skillset.md` — the parent epic; Slice 5 is the
+- `meta/work/PP-22-topic-research-skillset.md` — the parent epic; Slice 5 is the
   origin of the breadth/depth knob half, and the *only* home of the `1 / 2–4 /
   10+` effort-scaling rubric (which is not in the shipped SKILL.md).
-- `meta/work/0277-single-round-web-research-engine.md` +
+- `meta/work/PP-861-single-round-web-research-engine.md` +
   `meta/research/codebase/2026-09-08-0277-single-round-web-research-engine.md` —
   Slice 1, which authored the `outline` breadth ceiling and the hardcoded
   `breadth: 8`/`depth: 1` prose that 0282 replaces (transitively upstream via the

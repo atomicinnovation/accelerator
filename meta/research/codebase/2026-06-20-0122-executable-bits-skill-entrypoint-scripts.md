@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0122"
-parent: "work-item:0122"
-relates_to: ["work-item:0106", "work-item:0098", "work-item:0107"]
+parent: "work-item:PP-143"
+relates_to: ["work-item:PP-128", "work-item:PP-120", "work-item:PP-129"]
 topic: "Audit and correct missing executable bits on skill entrypoint scripts; library-list guard"
 tags: ["research", "codebase", "scripts", "permissions", "executable-bit", "lint", "shell", "ci"]
 revision: "aa8c4ad505f7a69d44aab9df13ce5b8295122d56"
@@ -337,16 +337,16 @@ Conventions (`pyproject.toml`): importlib mode + `pythonpath=["."]` (`:40-42`); 
 
 ## Historical Context
 
-- `meta/work/0106-invoke-plugin-scripts-by-bare-path.md` (**done**, validated) —
+- `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md` (**done**, validated) —
   establishes "scripts self-execute (shebang + execute bit)" and "invoke by bare
   path, never `bash`/`sh`/`env` (which escapes `allowed-tools`)". The reason the
   exec bit matters. No `allowed-tools` changes were made; it relies entirely on the
   shebang + exec bit.
-- `meta/work/0098-repo-wide-linting-formatting-static-analysis.md` (**done**) +
+- `meta/work/PP-120-repo-wide-linting-formatting-static-analysis.md` (**done**) +
   `meta/plans/2026-06-10-0098-…md` — built `lint:scripts:*` (shellcheck/bashisms/shfmt),
   `.shellcheckrc`, the bash-3.2 bashisms linter, the `scripts` check component, and
   `shell_sources()` (the jj-workspace-safe walk that replaced `git ls-files`).
-- `meta/work/0107-lint-skill-body-script-invocations.md` (**draft, no plan,
+- `meta/work/PP-129-lint-skill-body-script-invocations.md` (**draft, no plan,
   blocked_by 0106**) — companion lint sharing the `tasks/lint/scripts.py` extension
   point. 0122 will land first; 0107 rebases against 0122's wiring.
 - `meta/research/issues/2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission.md`

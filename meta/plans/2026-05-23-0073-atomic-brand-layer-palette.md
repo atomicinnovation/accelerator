@@ -13,7 +13,7 @@ last_updated: "2026-05-23T16:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "5b07c7da3f63"
 repository: "ticket-management"
-relates_to: ["work-item:0073", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "adr:ADR-0026", "work-item:0033", "work-item:0076", "work-item:0082", "work-item:0077"]
+relates_to: ["work-item:PP-95", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "adr:ADR-0026", "work-item:PP-55", "work-item:PP-98", "work-item:PP-104", "work-item:PP-99"]
 ---
 
 # 0073 Atomic Brand-Layer Palette — Implementation Plan
@@ -35,7 +35,7 @@ The visualiser frontend lives under
 `skills/visualisation/visualise/frontend/`. The `--ac-*` semantic
 layer was delivered by story 0033, which **explicitly excluded** the
 `--atomic-*` brand palette
-(`meta/work/0033-design-token-system.md:113-117`). Today's situation:
+(`meta/work/PP-55-design-token-system.md:113-117`). Today's situation:
 
 - `src/styles/global.css:69-228` declares `:root` with 53 `--ac-*` and
   related tokens, every colour stored as a hex/rgba literal.
@@ -1200,7 +1200,7 @@ the `scan-css-literals.ts` convention:
  *
  * Exit codes:
  *   0 — max ΔE2000 < 5 across all changed pixels (AC5 threshold from
- *       meta/work/0073-atomic-brand-layer-palette.md)
+ *       meta/work/PP-95-atomic-brand-layer-palette.md)
  *   1 — at least one pixel exceeds the threshold
  *   2 — invalid input (missing file, decode error, etc.)
  *
@@ -1438,7 +1438,7 @@ Rationale:
 
 ### References
 
-- Introducing story: `meta/work/0073-atomic-brand-layer-palette.md`
+- Introducing story: `meta/work/PP-95-atomic-brand-layer-palette.md`
 - Implementation plan:
   `meta/plans/2026-05-23-0073-atomic-brand-layer-palette.md`
 - Shared canonicaliser:
@@ -1450,7 +1450,7 @@ Rationale:
 - CSS↔TS parity:
   `skills/visualisation/visualise/frontend/src/styles/global.test.ts`
 - Foundation story:
-  `meta/work/0033-design-token-system.md`
+  `meta/work/PP-55-design-token-system.md`
 ```
 
 #### 4.3 Update Appendix colour reference (single-sentence note)
@@ -1603,7 +1603,7 @@ no backwards compatibility shims.
 
 ## References
 
-- Original work item: `meta/work/0073-atomic-brand-layer-palette.md`
+- Original work item: `meta/work/PP-95-atomic-brand-layer-palette.md`
 - Research: `meta/research/codebase/2026-05-23-0073-atomic-brand-layer-palette.md`
 - Pass-1 review: `meta/reviews/work/0073-atomic-brand-layer-palette-review-1.md`
 - Source-of-truth artefact:
@@ -1611,13 +1611,13 @@ no backwards compatibility shims.
 - ADR being amended:
   `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
 - Foundation story:
-  `meta/work/0033-design-token-system.md`
+  `meta/work/PP-55-design-token-system.md`
 - Closest precedent (`--code-*` / `--tk-*` rollout):
-  `meta/work/0076-code-block-syntax-highlight-palette.md`
+  `meta/work/PP-98-code-block-syntax-highlight-palette.md`
 - Downstream consumer:
   `meta/work/0082-bigglyph-hero-illustrations.md`
 - Related parallel story:
-  `meta/work/0077-shadow-and-dark-accent-token-audit.md`
+  `meta/work/PP-99-shadow-and-dark-accent-token-audit.md`
 - Implementation surface (files):
   - `skills/visualisation/visualise/frontend/src/styles/global.css`
   - `skills/visualisation/visualise/frontend/src/styles/tokens.ts`

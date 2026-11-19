@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0362"
-parent: "work-item:0362"
+parent: "work-item:PP-954"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 topic: "Making the bootstrap test suites fast and hermetic (0362)"
 tags: ["research", "codebase", "build-system", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
@@ -638,7 +638,7 @@ The `bin/accelerator` line references in the work item (`:51-54`, `:61-71`,
   failures that motivated `claim_artefact`.
 - `meta/plans/2026-10-19-0218-bound-cache-root-growth.md` - the
   `.invalid`/loopback rule in `assert_hermetic` and its funnel test.
-- `meta/work/0366-cut-rust-compile-cost.md:100-109` - expects 0362 to add a
+- `meta/work/PP-958-cut-rust-compile-cost.md:100-109` - expects 0362 to add a
   `build_shim()` to the hooks suite and to own the `minisign-verify`
   override.
 - `meta/work/0368-*:116-121` - the baseline commit's hooks test depends on

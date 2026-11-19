@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0178"
-parent: "work-item:0178"
+parent: "work-item:PP-702"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "config and config-adapters Crates with Native YAML Reader"
 tags: ["research", "codebase", "config", "config-adapters", "rust", "hexagonal", "serde", "yaml", "cargo-deny", "cargo-pup", "luminosity"]
@@ -528,7 +528,7 @@ maps directly onto the bash team→local last-writer-wins model (luminosity's
   boundaries are "initially inert" and cargo-pup is sole enforcer until a
   subdomain splits into crates — 0178 is that split for config. Ported from
   luminosity ADR-0009.
-- `meta/work/0166-shared-config-corpus-store-crates.md` — parent story. Confirms:
+- `meta/work/PP-187-shared-config-corpus-store-crates.md` — parent story. Confirms:
   visualiser `config.rs` is *not* the native reader (only `WorkItemConfig` is
   reusable, and that's corpus/0179); `ACCELERATOR_MIGRATION_MODE` fallback
   deliberately not ported (deferred to 0172); Model 1 = each sub-binary wires its

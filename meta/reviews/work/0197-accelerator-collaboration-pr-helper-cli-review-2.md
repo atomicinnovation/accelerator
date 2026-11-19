@@ -6,8 +6,8 @@ date: "2026-08-08T13:50:33+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0197"
-work_item_id: "0197"
+target: "work-item:PP-727"
+work_item_id: "PP-727"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -26,7 +26,7 @@ schema_version: 1
 This work item is still exceptionally well-specified — concrete REST
 endpoints, config keys, named scripts, and a thoroughly decomposed
 Dependencies section give it far more precision than a typical story — and
-review-1's cross-cutting contradiction over work-item:0150's status remains
+review-1's cross-cutting contradiction over work-item:PP-171's status remains
 resolved with no regression. This fresh pass, run with the same five lenses
 against an unchanged artifact, surfaced two new major findings review-1 did
 not catch: an acceptance-criterion assumption that `vcs`/`vcs-adapters`
@@ -44,7 +44,7 @@ independently.
   decrement has no self-contained target value (which suite, by how much),
   and the term "suite floors" itself is used three times without an inline
   gloss. This is the same gap review-1 identified and deliberately left open
-  pending work-item:0174 (see that review's Pass 2 notes) — it remains a
+  pending work-item:PP-195 (see that review's Pass 2 notes) — it remains a
   reasonable, explicitly-deferred gap rather than a new regression, but two
   independent lenses converging on it in this pass reinforces that it's
   worth a one-line fix now rather than continuing to defer it.
@@ -85,14 +85,14 @@ independently.
   target value
   **Location**: Acceptance Criteria
   No suite(s) or amount are named within this item; verification depends
-  entirely on work-item:0174 being finalised. (See Cross-Cutting Themes —
+  entirely on work-item:PP-195 being finalised. (See Cross-Cutting Themes —
   this is a knowingly-deferred gap from review-1, resurfaced here.)
 - 🔵 **Scope**: Self-flagged coordination risk with sibling stories could
   reintroduce the coupling the 0173 split was meant to eliminate
   **Location**: Dependencies
   If the sub-binary registration checklist turns out to touch shared state
   rather than being purely additive per-binary, this item's independence
-  from siblings work-item:0195/0196 weakens — a hypothesis the item itself
+  from siblings work-item:PP-725/0196 weakens — a hypothesis the item itself
   has not confirmed either way.
 
 #### Suggestions
@@ -103,14 +103,14 @@ independently.
   Base-repo resolution, local-repo resolution, PR-body-update behaviour,
   auth precedence, env-var fallback, and the test-conversion strategy are
   all folded into a single pass/fail checkbox.
-- 🔵 **Clarity**: Ambiguous "its" in the work-item:0174 blocking note
+- 🔵 **Clarity**: Ambiguous "its" in the work-item:PP-195 blocking note
   **Location**: Dependencies
   "...feed its lockstep requirement" has two grammatically available
   antecedents in the same clause.
 - 🔵 **Clarity**: "Suite floors" used repeatedly without an inline definition
   **Location**: Requirements / Acceptance Criteria / Dependencies
   The term appears three times with its meaning only implicitly available by
-  chasing the linked work-item:0174.
+  chasing the linked work-item:PP-195.
 - 🔵 **Scope**: Fixed per-binary registration overhead is asymmetric relative
   to this story's narrow behavioural surface
   **Location**: Requirements
@@ -128,7 +128,7 @@ independently.
   Criteria remain in exact 1:1 correspondence.
 - ✅ Dependencies is thoroughly decomposed (blocked-by, not-a-blocker,
   coordination, blocks, external, parent), with resolved prior blockers
-  traced to concrete evidence and the non-dependency on work-item:0150
+  traced to concrete evidence and the non-dependency on work-item:PP-171
   explained rather than left implicit — review-1's major finding on this
   point remains resolved with no regression.
 - ✅ Technical Notes and Acceptance Criteria give concrete, unambiguous
@@ -162,7 +162,7 @@ independently.
 5. **Name a suite-floor target within this item, and gloss the term on first
    use** (addresses: the cross-cutting theme; both testability and clarity
    findings on suite floors) — even a placeholder value pending
-   work-item:0174 gives verifiers something self-contained to check.
+   work-item:PP-195 gives verifiers something self-contained to check.
 
 ## Per-Lens Results
 
@@ -204,7 +204,7 @@ never-glossed term "suite floors".
   replaced `gh pr view <pr> --json url` command actually surfaces. Suggestion:
   replace the pronoun with the explicit field path.
 - 🔵 **Suggestion** (confidence: low) — Location: Dependencies. Ambiguous
-  "its" in the work-item:0174 blocking note. "...feed its lockstep
+  "its" in the work-item:PP-195 blocking note. "...feed its lockstep
   requirement" has two grammatically available antecedents in the same
   clause. Suggestion: replace the pronoun with the explicit subject.
 - 🔵 **Suggestion** (confidence: low) — Location: Requirements / Acceptance
@@ -224,7 +224,7 @@ refinement history this may genuinely reflect that none remain.
 
 **Strengths**:
 - Context section clearly traces the motivation (split from
-  work-item:0173's review-1 scope finding) and explains the
+  work-item:PP-194's review-1 scope finding) and explains the
   collaboration/github naming decision with precedent, giving a reader full
   background without needing to consult other tickets.
 - Requirements and Acceptance Criteria are unusually concrete for a story:
@@ -263,13 +263,13 @@ API's availability and rate limits by labelling it "none."
 - Dependencies explicitly names and traces the three prior blockers (0166,
   0167, 0187) as resolved rather than leaving Blocked-by ambiguous,
   including the PR that merged 0187.
-- The relationship to work-item:0150 is disambiguated rather than left as an
+- The relationship to work-item:PP-171 is disambiguated rather than left as an
   implicit assumption — the item states precisely why it is not blocked by
   0150 despite following its naming precedent.
-- The downstream consumer of this item's script removals (work-item:0174,
+- The downstream consumer of this item's script removals (work-item:PP-195,
   the shell/CI-guard retirement) is captured as an explicit Blocks entry
   with the causal link spelled out.
-- Sibling coordination risk with work-item:0195 and work-item:0196 (shared
+- Sibling coordination risk with work-item:PP-725 and work-item:PP-726 (shared
   registration-checklist state causing merge contention) is proactively
   named even though it is not a hard ordering dependency.
 
@@ -287,7 +287,7 @@ API's availability and rate limits by labelling it "none."
 - 🔵 **Minor** (confidence: high) — Location: Dependencies. "External: none"
   understates the runtime coupling to the GitHub REST API's availability and
   rate limits. No SLA, rate-limit, or degraded-availability behaviour is
-  specified for production use — contrast with sibling work-item:0169, which
+  specified for production use — contrast with sibling work-item:PP-190, which
   explicitly designs fail-open behaviour for its external dependency.
   Suggestion: relabel the entry to name the GitHub REST API as an external
   dependency and note intended failure/degradation behaviour.
@@ -310,9 +310,9 @@ coordination note rather than leaving implicit.
 - Requirements and Acceptance Criteria are tightly matched in scope, which
   is exactly the coherence signal the scope lens looks for.
 - Context and Dependencies proactively draw an explicit boundary against
-  work-item:0150 — good scope hygiene that prevents a natural adjacent
+  work-item:PP-171 — good scope hygiene that prevents a natural adjacent
   concern from bleeding in.
-- The split lineage from work-item:0173 is well documented and the
+- The split lineage from work-item:PP-194 is well documented and the
   resulting scope is now a single functionally independent effort.
 - The item mirrors an established structural precedent (`vcs-cli`,
   `work-cli`) for what constitutes one atomic sub-binary migration unit.
@@ -368,7 +368,7 @@ pulling in an as-yet-undefined sibling work item.
 - 🔵 **Minor** (confidence: medium) — Location: Acceptance Criteria.
   "Decremented in lockstep" (AC3) is not independently verifiable from this
   item. The target delta (which floor file, by how much) is deferred
-  entirely to work-item:0174. Suggestion: state the expected floor delta
+  entirely to work-item:PP-195. Suggestion: state the expected floor delta
   directly in this item, even if 0174 handles the mechanics elsewhere.
 - 🔵 **Suggestion** (confidence: medium) — Location: Acceptance Criteria. AC1
   bundles roughly six independently-testable facts into one checkbox
@@ -534,7 +534,7 @@ more small edit pass before implementation.
 - 🔵 **Clarity** (minor): Ambiguous "it" introduced by Pass 2's own Summary
   edit.
 - 🔵 **Dependency** (minor ×2): No coordination note for concurrent
-  `vcs`/`vcs-adapters` modification by siblings work-item:0169/0188; CI
+  `vcs`/`vcs-adapters` modification by siblings work-item:PP-190/0188; CI
   floor-guard file coordination named only for the registration checklist,
   not the floor-constant edits themselves.
 - 🔵 **Testability** (minor): Fail-fast REST-error surfacing had no defined

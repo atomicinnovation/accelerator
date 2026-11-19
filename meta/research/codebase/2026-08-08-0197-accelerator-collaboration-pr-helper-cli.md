@@ -6,7 +6,7 @@ date: "2026-08-08T15:50:29+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-parent: "work-item:0197"
+parent: "work-item:PP-727"
 topic: "Implementation surface for the accelerator-collaboration PR Helper CLI"
 tags: ["research", "codebase", "cli", "collaboration", "vcs", "config", "github", "octocrab", "rust"]
 revision: "2b3b86f028048fc96ca382113794db546a0ae8a6"
@@ -586,10 +586,10 @@ URI at `mock_server.base_url()`, register routes/fixtures per test, assert on
 
 ## Historical Context
 
-- `meta/work/0173-remaining-subdomains-corpus-design-collaboration.md` (abandoned) —
+- `meta/work/PP-194-remaining-subdomains-corpus-design-collaboration.md` (abandoned) —
   0197 was split out of this item on 2026-08-05 after review-1 flagged that bundling
   three independent sub-binaries risked partial-completion ambiguity.
-- `meta/work/0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md` and its
+- `meta/work/PP-93-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md` and its
   linked review/research/plan documents — the origin of the URL-shape regex hardening
   and the legacy `--json baseRepository` regression guard now present in
   `test-pr-base-repo-scripts.sh` (tests 4b-4e, 24) but not reflected in the work item's

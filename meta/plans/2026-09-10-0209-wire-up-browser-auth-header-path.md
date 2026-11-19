@@ -6,8 +6,8 @@ date: "2026-09-10T00:43:40+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0209"
-parent: "work-item:0209"
+work_item_id: "work-item:PP-739"
+parent: "work-item:PP-739"
 derived_from: ["codebase-research:2026-09-10-0209-wire-up-browser-auth-header-path"]
 tags: ["design", "security", "playwright", "auth"]
 revision: "cd20b7799b9af0f0c9dc3e607fcc42803a696c29"
@@ -820,7 +820,7 @@ records the capability going live.
 
 ## References
 
-- Original work item: `meta/work/0209-wire-up-or-retire-the-header-auth-path.md`
+- Original work item: `meta/work/PP-739-wire-up-or-retire-the-header-auth-path.md`
 - Related research: `meta/research/codebase/2026-09-10-0209-wire-up-browser-auth-header-path.md`
 - Dead handler and wire-up seam: `skills/design/inventory-design/scripts/playwright/lib/auth-header.js:5-59`, `daemon.js:13,173-214,279-292`
 - Classifier seam: `skills/design/inventory-design/scripts/playwright/lib/access-policy.js:318-324`

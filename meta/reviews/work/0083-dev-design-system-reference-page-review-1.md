@@ -6,8 +6,8 @@ date: "2026-06-12T16:57:17+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0083"
-work_item_id: "0083"
+target: "work-item:PP-105"
+work_item_id: "PP-105"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -120,7 +120,7 @@ _None._
 ### Recommended Changes
 
 1. **Reconcile `blocked_by` frontmatter with the Dependencies prose** (addresses: "blocked_by contradicts Dependencies prose"; "Conditional missing-primitive blocker absent from Dependencies")
-   Decide whether `0035`, `0039`, `0040`, `0041` are true blockers. If so, add `work-item:0035`, `work-item:0039`, `work-item:0040`, `work-item:0041` to frontmatter `blocked_by` (the IDs are stated, so the "once confirmed" caveat is satisfied) and drop the hedge from the prose. If not, state in Dependencies that they are References-only, not prerequisites. Also add a Dependencies note that content fidelity is contingent on every prototype primitive already existing in the live app, so a discovered gap surfaces a tracked blocker.
+   Decide whether `0035`, `0039`, `0040`, `0041` are true blockers. If so, add `work-item:PP-57`, `work-item:PP-61`, `work-item:PP-62`, `work-item:PP-63` to frontmatter `blocked_by` (the IDs are stated, so the "once confirmed" caveat is satisfied) and drop the hedge from the prose. If not, state in Dependencies that they are References-only, not prerequisites. Also add a Dependencies note that content fidelity is contingent on every prototype primitive already existing in the live app, so a discovered gap surfaces a tracked blocker.
 
 2. **Settle the scope / sizing / kind question and record it in Open Questions** (addresses: "Story bundles independently-deliverable concerns"; "Self-flagged scope expansion"; "Declared kind arguably a task"; "kind/priority/sizing not surfaced as an Open Question"; "Delivery depends on parallel primitive stories")
    Either (a) decompose into an epic with cohesive child stories — e.g. the reference page + theme coverage as the core, activation triggers as a second, route retirement + VR migration as a third — or (b) keep it as one story with an explicit indivisibility rationale (the VR migration depends on the page sections existing). Whichever way, settle `kind` and revisit `priority: low`, and move the live decisions from Drafting Notes into Open Questions (or mark them resolved) so they are visible where refiners look.

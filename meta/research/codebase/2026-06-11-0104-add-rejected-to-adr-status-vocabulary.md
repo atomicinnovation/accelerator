@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0104"
-parent: "work-item:0104"
+parent: "work-item:PP-126"
 relates_to: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
 topic: "Add rejected to the ADR Status Vocabulary in the Unified Schema"
 tags: ["research", "codebase", "frontmatter", "schema", "adr", "status", "validator"]
@@ -114,7 +114,7 @@ re-encodes it.
   (`:56,64-68`). This is the authoritative lifecycle definition `review-adr`
   implements.
 - **ADR-0042** (`meta/decisions/ADR-0042-reconciling-pre-schema-status-values.md`,
-  **accepted**, 2026-06-08, parent `work-item:0070`): the document that widened
+  **accepted**, 2026-06-08, parent `work-item:PP-92`): the document that widened
   per-type vocabularies during the 0070 migration. It **never mentions
   `rejected`** and its scope is only four legacy types that carried
   nonconforming values — **plan, plan-review, design-gap, design-inventory**
@@ -302,7 +302,7 @@ green-ness with them present is genuine coverage.
 
 ## Historical Context
 
-- `meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md` —
+- `meta/work/PP-125-audit-skill-frontmatter-emission-against-unified-schema.md` —
   the audit that surfaced this divergence and left the `skip_test` keyed to 0104.
 - `meta/research/codebase/2026-06-09-0103-skill-frontmatter-emission-audit.md` —
   the 0103 codebase research.
@@ -310,9 +310,9 @@ green-ness with them present is genuine coverage.
   the schema-source-vs-producer triage and the deferred `skip_test`.
 - `meta/validations/2026-06-09-0103-audit-skill-frontmatter-emission-validation.md`
   — records the triage raising 0104/0105 and the `skip_test` location.
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` —
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` —
   parent epic.
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` and
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` and
   `meta/decisions/ADR-0042-reconciling-pre-schema-status-values.md` — the
   migration and vocab-reconciliation ADR that did not carry `rejected` into the
   adr vocab.

@@ -6,10 +6,10 @@ date: "2026-10-10T21:43:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0296"
-parent: "work-item:0296"
+work_item_id: "work-item:PP-880"
+parent: "work-item:PP-880"
 derived_from: ["codebase-research:2026-10-10-0296-sync-round-trip-defects"]
-relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:0230", "work-item:0285", "work-item:0337", "work-item:0335"]
+relates_to: ["work-item:PP-906", "work-item:PP-876", "work-item:PP-877", "work-item:PP-760", "work-item:PP-871", "work-item:PP-918", "work-item:PP-919"]
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
@@ -2954,12 +2954,12 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 
 ## References
 
-- Original work item: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
+- Original work item: `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
 - Related codebase research: `meta/research/codebase/2026-10-10-0296-sync-round-trip-defects.md`
 - Review: `meta/reviews/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker-review-1.md`
 - PR: `meta/prs/156-description.md`
 - ADR-0069: `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
-- Follow-ups: `meta/work/0337-rich-document-model-for-corpus-documents.md`,
-  `meta/work/0335-remove-the-legacy-sync-digest-recipe.md`
+- Follow-ups: `meta/work/PP-918-rich-document-model-for-corpus-documents.md`,
+  `meta/work/PP-919-remove-the-legacy-sync-digest-recipe.md`
 - Frontmatter port precedent: `cli/corpus-adapters/src/document.rs:20`
 - Lock-version guard precedent: `cli/vcs-adapters/tests/queries.rs:611-633`

@@ -6,8 +6,8 @@ date: "2026-09-20T20:02:53+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0279"
-parent: "work-item:0279"
+work_item_id: "work-item:PP-863"
+parent: "work-item:PP-863"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/127"
 pr_number: 127
 tags: ["topic-research", "skills", "lifecycle", "finalise"]
@@ -81,10 +81,10 @@ work-item review, and the validation report — with the plan marked `done`.
 
 ## Context
 
-- Work item: `meta/work/0279-iterative-accretion-and-finalise.md`
+- Work item: `meta/work/PP-863-iterative-accretion-and-finalise.md`
 - Plan: `meta/plans/2026-09-19-0279-iterative-accretion-and-finalise.md`
 - Validation: `meta/validations/2026-09-19-0279-iterative-accretion-and-finalise-validation.md`
-- Parent epic: `meta/work/0121-topic-research-skillset.md`
+- Parent epic: `meta/work/PP-22-topic-research-skillset.md`
 - Predecessor slice (single-round engine): 0277; frontmatter contract: 0278
 
 ## Testing

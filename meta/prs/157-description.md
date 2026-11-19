@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0225"
-parent: "work-item:0225"
+parent: "work-item:PP-755"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/157"
 pr_number: 157
 tags: []
@@ -104,7 +104,7 @@ along the way.
 
 ## Context
 
-- Work item: `meta/work/0225-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins.md`,
+- Work item: `meta/work/PP-755-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins.md`,
   plus its review under `meta/reviews/work/`
 - Research: `meta/research/codebase/2026-10-09-0225-scheduled-advisory-and-age-guards.md`
 - Plan, seven phases: `meta/plans/2026-10-09-0225-scheduled-advisory-and-age-guards.md`,

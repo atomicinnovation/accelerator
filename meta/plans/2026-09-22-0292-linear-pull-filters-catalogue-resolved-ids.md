@@ -6,8 +6,8 @@ date: "2026-09-22T11:02:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0292"
-parent: "work-item:0292"
+work_item_id: "work-item:PP-869"
+parent: "work-item:PP-869"
 derived_from: ["codebase-research:2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids"]
 tags: ["linear", "pull-filters", "catalogue", "discovery", "filter-lowering", "assignee", "project", "sync"]
 revision: "634e2aa521ccf1411e9327a64cf166fd543525ea"
@@ -2437,14 +2437,14 @@ Behaviour after the change:
 
 ## References
 
-- Original work item: `meta/work/0292-linear-project-pull-filter.md`
+- Original work item: `meta/work/PP-869-linear-project-pull-filter.md`
 - Research: `meta/research/codebase/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids.md`
 - Review: `meta/reviews/plans/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids-review-1.md`
 - Review: `meta/reviews/plans/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids-review-2.md`
-- Prior art: `meta/plans/2026-09-11-0229-per-tracker-pull-scope-configuration.md`, `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md`
-- Downstream: `meta/work/0227-accelerator-config-validate-command.md`, `meta/work/0293-negated-pull-filters.md`
+- Prior art: `meta/plans/2026-09-11-0229-per-tracker-pull-scope-configuration.md`, `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md`
+- Downstream: `meta/work/PP-757-accelerator-config-validate-command.md`, `meta/work/PP-870-negated-pull-filters.md`
 - Follow-up: correct the Stories entry in parent `0146`.
-- Follow-up: `meta/work/0294-remove-the-legacy-linear-catalogue-projections.md`
+- Follow-up: `meta/work/PP-878-remove-the-legacy-linear-catalogue-projections.md`
   removes the `team` and `workflowStates` projections and the legacy read one
   minor release after this ships.
 - Key code:

@@ -2,7 +2,7 @@
 date: "2026-05-18T18:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0072-playwright-daemon-cjs-import-bug.md"
+work_item_id: "meta/work/PP-94-playwright-daemon-cjs-import-bug.md"
 status: "ready"
 id: "2026-05-18-0072-playwright-daemon-cjs-import-bug"
 title: "0072 — Playwright daemon CJS-import bug: implementation plan"
@@ -13,7 +13,7 @@ last_updated: "2026-05-18T18:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0072", "codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
+relates_to: ["work-item:PP-94", "codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
 ---
 
 # 0072 — Playwright daemon CJS-import bug: implementation plan
@@ -704,7 +704,7 @@ universally API-stable.
 
 ## References
 
-- Work item: `meta/work/0072-playwright-daemon-cjs-import-bug.md`
+- Work item: `meta/work/PP-94-playwright-daemon-cjs-import-bug.md`
 - Research: `meta/research/codebase/2026-05-18-0072-playwright-daemon-cjs-import-bug.md`
 - Background research:
   `meta/research/codebase/2026-05-06-design-skill-localhost-and-mcp-issues.md`

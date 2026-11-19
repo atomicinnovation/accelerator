@@ -6,10 +6,10 @@ date: "2026-08-22T23:01:48+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0191"
-parent: "work-item:0191"
+work_item_id: "work-item:PP-721"
+parent: "work-item:PP-721"
 derived_from: ["codebase-research:2026-08-22-0191-batch-shim-hashes"]
-relates_to: ["work-item:0186", "work-item:0189", "work-item:0205", "work-item:0169"]
+relates_to: ["work-item:PP-716", "work-item:PP-719", "work-item:PP-735", "work-item:PP-190"]
 tags: ["shell", "performance", "bootstrap", "bash-3.2", "sha256"]
 revision: "05965018b8090c6c8da5220313f2226f103145cc"
 repository: "accelerator"
@@ -507,7 +507,7 @@ named. Records-only; no production code.
 
 #### 1. Digest-bracket before/after (AC-6)
 
-**File**: `meta/work/0191-batch-the-two-shim-hashes-into-one-invocation.md` (or a
+**File**: `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md` (or a
 measurement note under `meta/measurements/`)
 **Changes**: Run the digest-bracket microbenchmark on the pre-change baseline and
 on the post-change tree in the same session, **interleaving** before/after
@@ -666,7 +666,7 @@ read and write the same `accelerator-verify-${platform}-${digest}` files.
 ## References
 
 - Original work item:
-  `meta/work/0191-batch-the-two-shim-hashes-into-one-invocation.md`
+  `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md`
 - Related research:
   `meta/research/codebase/2026-08-22-0191-batch-shim-hashes.md`
 - The two call sites and short-circuit: `bin/accelerator:273-279,292-312`

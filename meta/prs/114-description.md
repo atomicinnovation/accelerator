@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0200"
-parent: "work-item:0200"
-relates_to: ["work-item:0286"]
+parent: "work-item:PP-730"
+relates_to: ["work-item:PP-872"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/114"
 pr_number: 114
 tags: ["vcs", "guard", "spike"]

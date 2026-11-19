@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
-parent: "work-item:0364"
+parent: "work-item:PP-956"
 relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/222"
 pr_number: 222
@@ -53,7 +53,7 @@ parallel load fail a test instead of passing unnoticed.
 
 ## Context
 
-- Work item: `meta/work/0364-parallelise-the-serial-test-suites.md`
+- Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
 - Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
   (Phase 3)
 - Base: #221 (Phase 2), stacked on #220 (Phase 1). This PR must merge

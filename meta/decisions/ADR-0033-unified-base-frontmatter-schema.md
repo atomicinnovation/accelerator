@@ -9,7 +9,7 @@ title: "ADR-0033: Unified base frontmatter schema for meta/ artifacts"
 schema_version: 1
 last_updated: "2026-05-19T08:17:35+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:0061", "work-item:0060", "work-item:0057", "adr:ADR-0027", "adr:ADR-0028", "work-item:0021", "work-item:0022", "work-item:0023", "work-item:0045"]
+relates_to: ["work-item:PP-83", "work-item:PP-82", "work-item:PP-79", "adr:ADR-0027", "adr:ADR-0028", "work-item:PP-43", "work-item:PP-44", "work-item:PP-45", "work-item:PP-67"]
 ---
 
 # ADR-0033: Unified base frontmatter schema for meta/ artifacts
@@ -290,22 +290,22 @@ decision; the cost of the sync surface is not justified today.
 
 ## References
 
-- `meta/work/0060-adr-unified-base-frontmatter-schema.md` — Source
+- `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` — Source
   task for this ADR
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` —
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` —
   Parent epic
 - `meta/decisions/ADR-0027-persist-structured-skill-outputs-to-meta.md` —
   Establishes that structured outputs persist to `meta/`
 - `meta/decisions/ADR-0028-common-frontmatter-schema-for-meta-artifacts.md` —
   Defines the prior minimal base schema this ADR supplements and
   partially overrides
-- `meta/work/0021-artifact-persistence-lifecycle.md` — Supplemented
-- `meta/work/0022-artifact-metadata-and-lifecycle.md` — Supplemented
-- `meta/work/0023-adr-system-design.md` — Supplemented
-- `meta/work/0061-adr-typed-linkage-vocabulary.md` — Sibling ADR
+- `meta/work/PP-43-artifact-persistence-lifecycle.md` — Supplemented
+- `meta/work/PP-44-artifact-metadata-and-lifecycle.md` — Supplemented
+- `meta/work/PP-45-adr-system-design.md` — Supplemented
+- `meta/work/PP-83-adr-typed-linkage-vocabulary.md` — Sibling ADR
   task defining the typed cross-linkage vocabulary (decided
   independently)
-- `meta/work/0045-work-management-integration.md` — Defines
+- `meta/work/PP-67-work-management-integration.md` — Defines
   `external_id` conventions referenced under work-item extras
 - `skills/config/configure/SKILL.md` — Identity-value quoting
   contract that this ADR generalises

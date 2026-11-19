@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0123"
-parent: "work-item:0123"
+parent: "work-item:PP-144"
 relates_to: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
 topic: "User-facing CHANGELOG and README update for 1.23.0"
 tags: ["research", "codebase", "changelog", "readme", "release", "migrations", "sync-work-items", "worktree"]
@@ -374,7 +374,7 @@ release/tag/publish.
 
 Provenance for the user-facing items (per `documents-locator`):
 
-- **sync-work-items**: `meta/work/0051-sync-work-items-skill.md`;
+- **sync-work-items**: `meta/work/PP-73-sync-work-items-skill.md`;
   `meta/research/codebase/2026-06-18-0051-sync-work-items-skill.md`;
   `meta/plans/2026-06-18-0051-sync-work-items-skill.md`;
   `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md`. Core
@@ -387,7 +387,7 @@ Provenance for the user-facing items (per `documents-locator`):
   `0116-…`, `0117-…`, `0120-…`;
   `meta/research/issues/2026-06-19-interactive-migration-unsatisfiable-under-agent-invocation.md`;
   `meta/decisions/ADR-0037-…`, `ADR-0023-meta-directory-migration-framework.md`.
-- **Git worktree fix**: `meta/work/0124-find-repo-root-fails-in-git-worktrees.md`;
+- **Git worktree fix**: `meta/work/PP-145-find-repo-root-fails-in-git-worktrees.md`;
   `meta/research/codebase/2026-06-22-0124-…`; `meta/plans/2026-06-22-0124-…`;
   antecedent 0058 (workspace/worktree boundary). 0125 (probe-layer convergence)
   is a deferred follow-up, **not** in this cycle's user-facing surface.

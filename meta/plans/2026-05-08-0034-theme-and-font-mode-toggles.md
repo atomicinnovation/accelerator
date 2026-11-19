@@ -2,7 +2,7 @@
 date: "2026-05-08T19:00:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0034-theme-and-font-mode-toggles.md"
+work_item_id: "meta/work/PP-56-theme-and-font-mode-toggles.md"
 status: "draft"
 id: "2026-05-08-0034-theme-and-font-mode-toggles"
 title: "0034 Theme and Font-Mode Toggles Implementation Plan"
@@ -13,7 +13,7 @@ last_updated: "2026-05-08T19:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0034", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "plan:2026-05-06-0033-design-token-system", "plan:2026-05-08-0035-topbar-component", "adr:ADR-0026"]
+relates_to: ["work-item:PP-56", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "plan:2026-05-06-0033-design-token-system", "plan:2026-05-08-0035-topbar-component", "adr:ADR-0026"]
 ---
 
 # 0034 Theme and Font-Mode Toggles Implementation Plan
@@ -244,7 +244,7 @@ set return value per test.
   assertions.
 - `tests/visual-regression/__screenshots__/tokens.spec.ts-snapshots/
   *-dark-*.png` — re-capture (Phase 9, manual).
-- `meta/work/0034-theme-and-font-mode-toggles.md` — `default` →
+- `meta/work/PP-56-theme-and-font-mode-toggles.md` — `default` →
   `display` AC reconciliation (Phase 10).
 
 ## Desired End State
@@ -2604,14 +2604,14 @@ All tests green.
 
 ### Overview
 
-The work item at `meta/work/0034-theme-and-font-mode-toggles.md` says
+The work item at `meta/work/PP-56-theme-and-font-mode-toggles.md` says
 `data-font="default"` (line 35, line 69). This plan and the prototype
 inventory use `data-font="display"`. Update the work item so its AC
 matches what shipped.
 
 ### Changes Required
 
-**File**: `meta/work/0034-theme-and-font-mode-toggles.md`
+**File**: `meta/work/PP-56-theme-and-font-mode-toggles.md`
 
 Replace `default` with `display` in the Requirements bullet (line 44)
 and the Acceptance Criterion (line 68-69):
@@ -2762,7 +2762,7 @@ instead of `display`) will fall through the type-guard and revert to
 
 ## References
 
-- Original work item: `meta/work/0034-theme-and-font-mode-toggles.md`
+- Original work item: `meta/work/PP-56-theme-and-font-mode-toggles.md`
 - Research: `meta/research/codebase/2026-05-08-0034-theme-and-font-mode-toggles.md`
 - Prerequisite plans: `meta/plans/2026-05-06-0033-design-token-system.md`,
   `meta/plans/2026-05-08-0035-topbar-component.md`

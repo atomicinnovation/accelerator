@@ -6,9 +6,9 @@ date: "2026-10-12T02:54:28+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0303"
-parent: "work-item:0303"
-relates_to: ["work-item:0330", "work-item:0331", "work-item:0310", "work-item:0307"]
+work_item_id: "work-item:PP-889"
+parent: "work-item:PP-889"
+relates_to: ["work-item:PP-916", "work-item:PP-917", "work-item:PP-896", "work-item:PP-893"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/158"
 pr_number: 158
 tags: ["research", "research-topic", "conduct", "concurrency"]
@@ -103,7 +103,7 @@ which clamps the value to the harness's subagent cap. It also teaches
 
 ## Context
 
-- Work item: `meta/work/0303-research-concurrency-exceeds-subagent-limit.md`
+- Work item: `meta/work/PP-889-research-concurrency-exceeds-subagent-limit.md`
 - Plan: `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md`,
   with its review under `meta/reviews/plans/`
 - Codebase research: `meta/research/codebase/2026-10-10-0303-research-concurrency-subagent-limit.md`

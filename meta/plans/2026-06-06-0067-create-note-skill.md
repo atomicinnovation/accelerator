@@ -6,8 +6,8 @@ date: "2026-06-06T10:39:57+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0067"
-parent: "work-item:0067"
+work_item_id: "work-item:PP-89"
+parent: "work-item:PP-89"
 derived_from: ["codebase-research:2026-06-06-0067-create-note-skill"]
 tags: ["skills", "notes", "templates", "frontmatter", "typed-linkage"]
 revision: "f3db668eceb7fcba192290da762578e235859884"
@@ -15,7 +15,7 @@ repository: "ticket-management"
 last_updated: "2026-06-06T12:35:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0067", "codebase-research:2026-06-06-0067-create-note-skill", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0040"]
+relates_to: ["work-item:PP-89", "codebase-research:2026-06-06-0067-create-note-skill", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0040"]
 ---
 
 # Create create-note Skill Implementation Plan
@@ -196,7 +196,7 @@ failure during the red phase. After appending, sanity-check with
 
 #### 2. 0067 Schema Reference table (satisfies the cross-check)
 
-**File**: `meta/work/0067-create-note-skill.md`
+**File**: `meta/work/PP-89-create-note-skill.md`
 **Changes**: Append a `## Schema Reference` section (body-only; frontmatter
 untouched) carrying a markdown table whose single template row matches the
 awk extractor in `test-template-frontmatter.sh` (row shape
@@ -234,9 +234,9 @@ its Schema Reference table joins the authoritative union:
 
 ```bash
 WORK_ITEM_MDS=(
-  "meta/work/0065-update-artifact-templates-to-unified-schema.md"
-  "meta/work/0066-update-review-skills-inline-frontmatter.md"
-  "meta/work/0067-create-note-skill.md"
+  "meta/work/PP-87-update-artifact-templates-to-unified-schema.md"
+  "meta/work/PP-88-update-review-skills-inline-frontmatter.md"
+  "meta/work/PP-89-create-note-skill.md"
 )
 ```
 
@@ -736,7 +736,7 @@ notes created by `create-note` going forward.
 
 ## References
 
-- Original work item: `meta/work/0067-create-note-skill.md`
+- Original work item: `meta/work/PP-89-create-note-skill.md`
 - Related research: `meta/research/codebase/2026-06-06-0067-create-note-skill.md`
 - Template exemplar: `templates/codebase-research.md:1-20`
 - Skill precedent: `skills/work/create-work-item/SKILL.md` (frontmatter

@@ -6,9 +6,9 @@ date: "2026-07-31T11:19:09+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0186"
-work_item_id: "0186"
+parent: "work-item:PP-157"
+target: "work-item:PP-716"
+work_item_id: "PP-716"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -575,8 +575,8 @@ presuppose.
   root; manual-check fallback recorded rather than silently skipped).
 - Frontmatter is complete and internally coherent — `kind: task`,
   `status: ready`, `priority: high`, plus typed linkage
-  (`parent: work-item:0136`, `blocks: work-item:0169`,
-  `relates_to: work-item:0182`) that matches 0169's `blocked_by` list; empty
+  (`parent: work-item:PP-157`, `blocks: work-item:PP-190`,
+  `relates_to: work-item:PP-712`) that matches 0169's `blocked_by` list; empty
   template slots are correctly omitted.
 - Validation Results pre-declares exactly the three artefacts the Acceptance
   Criteria demand (before/after medians with host and OS, cold-path check mode,
@@ -706,7 +706,7 @@ test-harness prerequisite that 0169 — the downstream item — currently owns.
   Dependencies states that 0182 (in-progress) also edits `bin/accelerator` and
   that "they must be sequenced rather than developed concurrently" — a hard
   ordering constraint — yet it is captured only as
-  `relates_to: ["work-item:0182"]` with `blocked_by` empty and no statement of
+  `relates_to: ["work-item:PP-712"]` with `blocked_by` empty and no statement of
   which goes first. The constraint is also invisible from the other side and
   from above: 0182's frontmatter does not list 0186 in its `relates_to`, and
   parent epic 0136 annotates this task as "0186 — Remove the Exec Probe from the
@@ -1061,7 +1061,7 @@ Majors:
   to `0169`'s Dependencies.
 - 🟡 **Dependency**: 0182 sequencing only "Related" — **Resolved.** `blocked_by`
   edge with stated direction, epic annotation corrected, and pass 2 added the
-  reciprocal `blocks: ["work-item:0186"]` on 0182 plus the second shared
+  reciprocal `blocks: ["work-item:PP-716"]` on 0182 plus the second shared
   artefact (the entrypoint suite).
 - 🟡 **Clarity/Testability**: AC1 precondition under-specified — **Resolved**,
   though the rewrite over-claimed what AC1 proves; corrected in pass 2.
@@ -1145,7 +1145,7 @@ judgement that it is unready. Every pass-2 major is now fixed in the document.
 Two substantive things changed in the underlying record beyond 0186 itself:
 0169 carries a dated hand-off note that its `G ≤ 1.1 × B` gate may be
 unreachable and must be relaxed or justified before acceptance, and 0182 now
-declares `blocks: ["work-item:0186"]`. Epic 0136's annotation was corrected in
+declares `blocks: ["work-item:PP-716"]`. Epic 0136's annotation was corrected in
 pass 1.
 
 Two acknowledged residuals, both deliberate and recorded rather than closed: the

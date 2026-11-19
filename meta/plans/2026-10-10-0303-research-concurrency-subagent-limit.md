@@ -6,10 +6,10 @@ date: "2026-10-10T21:22:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0303"
-parent: "work-item:0303"
+work_item_id: "work-item:PP-889"
+parent: "work-item:PP-889"
 derived_from: ["codebase-research:2026-10-10-0303-research-concurrency-subagent-limit"]
-relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-20-0282-tunable-depth-and-breadth", "work-item:0330", "work-item:0331"]
+relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-20-0282-tunable-depth-and-breadth", "work-item:PP-916", "work-item:PP-917"]
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
@@ -1584,14 +1584,14 @@ change to the harness cap forces a decision about the default.
 
 ## References
 
-- Original work item: `meta/work/0303-research-concurrency-exceeds-subagent-limit.md`
+- Original work item: `meta/work/PP-889-research-concurrency-exceeds-subagent-limit.md`
 - Codebase research: `meta/research/codebase/2026-10-10-0303-research-concurrency-subagent-limit.md`
 - Run ledger and `--limit`: `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
 - Knob rule: `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`
 - Coupling guard: `tasks/lint/claude_coupling.py`; the decision to admit
   optional harness variables: ADR-0071 (Phase 4)
 - Follow-ups found during Phase 5's manual runs:
-  `meta/work/0330-skill-command-grants-that-survive-across-queries.md` and
-  `meta/work/0331-exact-match-skill-grants-that-never-cover-their-commands.md`
+  `meta/work/PP-916-skill-command-grants-that-survive-across-queries.md` and
+  `meta/work/PP-917-exact-match-skill-grants-that-never-cover-their-commands.md`
 - Models: `cli/research/src/topic/tree.rs:19-43` (`Depth`),
   `topic_command.rs:225-228` (`--start`-only notice)

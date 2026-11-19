@@ -13,7 +13,7 @@ last_updated: "2026-05-23T13:42:51Z"
 last_updated_by: "Toby Clemson"
 revision: "77dcc312cc6a"
 repository: "ticket-management"
-relates_to: ["work-item:0075", "work-item:0091", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0031"]
+relates_to: ["work-item:PP-97", "work-item:PP-113", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0031"]
 ---
 
 # 0075 Typography Size-Scale Consumption Reconciliation — Implementation Plan
@@ -490,9 +490,9 @@ References):
     linkage shape.
   - `meta/research/codebase/2026-05-23-0075-typography-size-scale-consumption.md`
     — codebase audit that motivated this ADR.
-  - `meta/work/0075-typography-size-scale-consumption.md` — work item
+  - `meta/work/PP-97-typography-size-scale-consumption.md` — work item
     that landed the rule.
-  - `meta/work/0091-typography-rem-vs-px-stance.md` — follow-up review
+  - `meta/work/PP-113-typography-rem-vs-px-stance.md` — follow-up review
     of the px-anchored stance.
 
 **Why "0075" doesn't appear in the ADR body**: ADRs are durable
@@ -674,7 +674,7 @@ reviewer can verify the baseline came from a pristine checkout.
 
 The plan's structural changes (ADR-0036 supersession of ADR-0026
 typography clauses; chip rename) obsolete several work item ACs as
-originally drafted. Update `meta/work/0075-typography-size-scale-consumption.md`
+originally drafted. Update `meta/work/PP-97-typography-size-scale-consumption.md`
 in the same PR so the merged state has work item, plan, and code
 aligned. Concrete edits:
 
@@ -713,15 +713,15 @@ aligned. Concrete edits:
   font-size; ADR-0036 documents the px-anchored stance).
 - **References** → add ADR-0036 and follow-up work item 0091.
 
-Verify after editing: `rg -n 'ADR-0026 \(as amended by 0075\)' meta/work/0075-typography-size-scale-consumption.md` returns 0 matches; `rg -n 'amended in place' meta/work/0075-typography-size-scale-consumption.md` returns 0 matches.
+Verify after editing: `rg -n 'ADR-0026 \(as amended by 0075\)' meta/work/PP-97-typography-size-scale-consumption.md` returns 0 matches; `rg -n 'amended in place' meta/work/PP-97-typography-size-scale-consumption.md` returns 0 matches.
 
 #### 1.7 — Scaffold follow-up work item 0091
 
 ADR-0036 References and Phase 1.6 References both point at
-`meta/work/0091-typography-rem-vs-px-stance.md`. The stub is created
+`meta/work/PP-113-typography-rem-vs-px-stance.md`. The stub is created
 as part of this PR so the references resolve.
 
-**File** (new): `meta/work/0091-typography-rem-vs-px-stance.md`
+**File** (new): `meta/work/PP-113-typography-rem-vs-px-stance.md`
 
 Frontmatter (mirror the project's work-item convention from
 0075/0090):
@@ -778,8 +778,8 @@ happens when the spike is picked up.
 - [x] ADR-0026 §2 Typography subsection is a single "see ADR-0036" pointer; §3 no longer references "em-relative" or "Heading font-sizes" rows; Consequences no longer mentions the heading-token deferral as open.
 - [x] Playwright spec compiles; every CASES entry has its `{route, setup?, selector, expected}` quadruple resolved (no `<placeholder>` strings remain).
 - [x] Baseline verification working note records observed-vs-EXCEPTIONS counts for every literal to be decremented in Phases 2-7.
-- [x] Work item 0075 updated per Phase 1.6: `rg -n 'ADR-0026 \(as amended by 0075\)\|amended in place' meta/work/0075-typography-size-scale-consumption.md` returns 0 matches; AC5/AC6/Decisions/References reflect ADR-0036 + chip rename.
-- [x] Work item 0091 stub exists at `meta/work/0091-typography-rem-vs-px-stance.md` with `status: backlog`.
+- [x] Work item 0075 updated per Phase 1.6: `rg -n 'ADR-0026 \(as amended by 0075\)\|amended in place' meta/work/PP-97-typography-size-scale-consumption.md` returns 0 matches; AC5/AC6/Decisions/References reflect ADR-0036 + chip rename.
+- [x] Work item 0091 stub exists at `meta/work/PP-113-typography-rem-vs-px-stance.md` with `status: backlog`.
 
 ---
 
@@ -1823,8 +1823,8 @@ None. Tokens resolve at CSS parse time; no runtime cost.
 
 ## References
 
-- Work item: `meta/work/0075-typography-size-scale-consumption.md`
-- Follow-up work item: `meta/work/0091-typography-rem-vs-px-stance.md` (created alongside this plan)
+- Work item: `meta/work/PP-97-typography-size-scale-consumption.md`
+- Follow-up work item: `meta/work/PP-113-typography-rem-vs-px-stance.md` (created alongside this plan)
 - Codebase research: `meta/research/codebase/2026-05-23-0075-typography-size-scale-consumption.md`
 - New ADR (created by this PR): `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
 - Convention with typography clauses superseded by ADR-0036: `meta/decisions/ADR-0026-css-design-token-application-conventions.md`

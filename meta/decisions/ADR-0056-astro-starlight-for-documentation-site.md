@@ -6,7 +6,7 @@ date: "2026-07-10T13:05:52+00:00"
 author: "Phil Helm"
 producer: "create-adr"
 status: "accepted"
-parent: "work-item:0177"
+parent: "work-item:PP-699"
 tags: ["documentation", "tooling"]
 last_updated: "2026-07-10T13:05:52+00:00"
 last_updated_by: "Phil Helm"
@@ -112,6 +112,6 @@ plugin `mdbook-linkcheck` is semi-dormant (last release October 2024).
 
 ## References
 
-- `meta/work/0177-documentation-site-for-docs-tree.md` — owning work
+- `meta/work/PP-699-documentation-site-for-docs-tree.md` — owning work
   item; its Technical Notes carry the full candidate research
-- `meta/work/0145-documentation-improvements.md` — parent epic
+- `meta/work/PP-166-documentation-improvements.md` — parent epic

@@ -2,7 +2,7 @@
 date: "2026-05-05T07:17:16+00:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md"
+work_item_id: "meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md"
 status: "done"
 id: "2026-05-05-0031-consolidate-accelerator-owned-files"
 title: "0031: Consolidate Accelerator-Owned Files Under `.accelerator/` — Implementation Plan"
@@ -13,7 +13,7 @@ last_updated: "2026-05-05T07:17:16+00:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0031", "codebase-research:2026-05-05-0031-consolidate-accelerator-owned-files", "note:2026-04-29-accelerator-config-state-reorg", "adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0019", "adr:ADR-0020", "adr:ADR-0023"]
+relates_to: ["work-item:PP-53", "codebase-research:2026-05-05-0031-consolidate-accelerator-owned-files", "note:2026-04-29-accelerator-config-state-reorg", "adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0019", "adr:ADR-0020", "adr:ADR-0023"]
 ---
 
 # 0031: Consolidate Accelerator-Owned Files Under `.accelerator/` — Implementation Plan
@@ -1599,7 +1599,7 @@ record — do not rewrite the body, only add the status:
 
 ```markdown
 **Status**: Implemented in
-`meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`.
+`meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`.
 Retained for historical context.
 ```
 
@@ -1623,7 +1623,7 @@ Add a status note immediately under the ADR's status field:
 
 ```markdown
 **Status**: Active — file paths superseded in part by
-`meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+`meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`
 (`.accelerator/config*.md` replaces `.claude/accelerator*.md`). A
 full superseding ADR is forthcoming.
 ```
@@ -1830,7 +1830,7 @@ gain or lose work. Driver state-file location change is one syscall.
 
 ## References
 
-- Original work item: `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+- Original work item: `meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`
 - Research: `meta/research/codebase/2026-05-05-0031-consolidate-accelerator-owned-files.md`
 - Source proposal: `meta/notes/2026-04-29-accelerator-config-state-reorg.md`
 - Related: ADR-0016 (`meta/decisions/ADR-0016-userspace-configuration-model.md`)

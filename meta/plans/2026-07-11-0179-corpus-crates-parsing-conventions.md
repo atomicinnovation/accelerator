@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
 reviewer: "Toby Clemson"
-work_item_id: "work-item:0179"
-parent: "work-item:0179"
+work_item_id: "work-item:PP-703"
+parent: "work-item:PP-703"
 derived_from: ["codebase-research:2026-07-11-0179-corpus-crates-parsing-conventions"]
 tags: ["rust", "corpus", "config", "crates", "document", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "slug", "work-item-id", "vcs", "artifact-metadata"]
 revision: "83707a5ed6c23eaf40f7d1f39f5847dc1801c43f"
@@ -1249,9 +1249,9 @@ contract decision. No data migration. The 0166 epic is already updated to reflec
 
 ## References
 
-- Original work item: `meta/work/0179-corpus-crates-parsing-conventions.md`
+- Original work item: `meta/work/PP-703-corpus-crates-parsing-conventions.md`
 - Research: `meta/research/codebase/2026-07-11-0179-corpus-crates-parsing-conventions.md`
-- Parent epic: `meta/work/0166-shared-config-corpus-store-crates.md`
+- Parent epic: `meta/work/PP-187-shared-config-corpus-store-crates.md`
 - 0178 pattern + adversarial guard:
   `meta/plans/2026-07-07-0178-config-crates-native-yaml-reader.md:544-556,785-793`
 - Value model: `cli/config/src/node.rs:4-24`

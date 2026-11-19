@@ -6,10 +6,10 @@ date: "2026-06-11T15:24:40+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0096"
-parent: "work-item:0096"
+work_item_id: "work-item:PP-118"
+parent: "work-item:PP-118"
 derived_from: ["codebase-research:2026-06-11-0096-templates-view-auto-discovery"]
-relates_to: ["work-item:0042", "work-item:0089", "work-item:0029", "work-item:0037"]
+relates_to: ["work-item:PP-64", "work-item:PP-111", "work-item:PP-51", "work-item:PP-59"]
 tags: ["visualiser", "templates", "write-visualiser-config", "config-generation"]
 revision: "5db2e80bebd0a75326aa12b8849020591402bfae"
 repository: "visualisation-system"
@@ -569,7 +569,7 @@ empty-fold behaviour is verified by reading.
 
 ## References
 
-- Work item: `meta/work/0096-templates-view-auto-discovers-templates.md`
+- Work item: `meta/work/PP-118-templates-view-auto-discovers-templates.md`
 - Research: `meta/research/codebase/2026-06-11-0096-templates-view-auto-discovery.md`
 - Source of truth (to change): `skills/visualisation/visualise/scripts/write-visualiser-config.sh:121-128, 273-277, 303-309`
 - Discovery helper: `scripts/config-common.sh:139-149` (`config_enumerate_templates`)

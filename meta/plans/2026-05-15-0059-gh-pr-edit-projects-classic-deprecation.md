@@ -13,7 +13,7 @@ last_updated: "2026-05-15T16:50:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0059", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "adr:ADR-0010"]
+relates_to: ["work-item:PP-81", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "adr:ADR-0010"]
 ---
 
 # gh pr edit → REST PATCH Migration in describe-pr Implementation Plan
@@ -1546,7 +1546,7 @@ preflight and emit a clear remediation hint).
 
 ## References
 
-- Work item: `meta/work/0059-gh-pr-edit-fails-due-to-projects-classic-deprecation.md`
+- Work item: `meta/work/PP-81-gh-pr-edit-fails-due-to-projects-classic-deprecation.md`
 - Research: `meta/research/codebase/2026-05-15-0059-gh-pr-edit-projects-classic-deprecation.md`
 - Plan review: `meta/reviews/plans/2026-05-15-0059-gh-pr-edit-projects-classic-deprecation-review-1.md`
 - Edit site: `skills/github/describe-pr/SKILL.md:130`

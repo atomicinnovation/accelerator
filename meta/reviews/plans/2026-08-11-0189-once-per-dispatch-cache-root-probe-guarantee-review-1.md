@@ -231,7 +231,7 @@ unstated precondition breaks.
   Phase 5 instructs backfilling "0169's five `_pending_` slots … in
   `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md`". Verified:
   that file has no `## Validation Results` heading and zero `_pending_`
-  occurrences. The slots live in `meta/work/0169-vcs-subdomain-and-hooks-migration.md:700-701`.
+  occurrences. The slots live in `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md:700-701`.
   The step that exists to stop the obligation being orphaned a second time points
   at a document where it cannot be found.
 
@@ -1830,7 +1830,7 @@ assertions, which is worse than no guard.
 
 The plan was split, as this pass recommended. Phase 5 now lives in
 `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — a second plan
-against the same work item (`work_item_id`/`parent`: `work-item:0189`), following
+against the same work item (`work_item_id`/`parent`: `work-item:PP-719`), following
 the precedent 0167 set with two plans. The measurement plan opens with three
 Open Decisions (OD-1 decomposition route, OD-2 clock domain, OD-3 residual
 definition) recording the findings above as unresolved rather than re-answering

@@ -14,7 +14,7 @@ id: "2026-05-24-0068-related-documents-inference-accuracy"
 title: "Accuracy of inferring typed linkages from body sections in `meta/`"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0057"]
+relates_to: ["work-item:PP-79"]
 ---
 
 # Accuracy of inferring typed linkages from body sections in `meta/`
@@ -144,11 +144,11 @@ What *could* sensibly be calibrated for a follow-on study: stratifying the wrong
 - `/tmp/spike-0068/parser.py` — throwaway prototype (not committed)
 - `/tmp/spike-0068/sample.jsonl` — 150 classified candidates
 - `/tmp/spike-0068/verdicts.py` — verdict map + stats reporter
-- `meta/work/0068-spike-related-documents-inference-accuracy.md` — spike work item
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic defining the typed-linkage vocabulary used for inference
-- `meta/work/0062-adr-corpus-migration-strategy.md` — consumes this finding
-- `meta/work/0069-migration-framework-interactive-validation-hooks.md` — conditionally blocked; this spike's recommendation activates it
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — consumes the recommendation regardless of branch
+- `meta/work/PP-90-spike-related-documents-inference-accuracy.md` — spike work item
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic defining the typed-linkage vocabulary used for inference
+- `meta/work/PP-84-adr-corpus-migration-strategy.md` — consumes this finding
+- `meta/work/PP-91-migration-framework-interactive-validation-hooks.md` — conditionally blocked; this spike's recommendation activates it
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — consumes the recommendation regardless of branch
 
 ## Architecture Insights
 
@@ -160,7 +160,7 @@ What *could* sensibly be calibrated for a follow-on study: stratifying the wrong
 
 ## Historical Context
 
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` defines the typed-linkage vocabulary applied here (`parent`, `supersedes`/`superseded_by`, `blocks`/`blocked_by`, `target`, `derived_from`, `relates_to`, `source`). The vocabulary's open question 3 asked whether to commit to interactive-vs-non-interactive migration design before inference accuracy was known; this spike answers it.
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` defines the typed-linkage vocabulary applied here (`parent`, `supersedes`/`superseded_by`, `blocks`/`blocked_by`, `target`, `derived_from`, `relates_to`, `source`). The vocabulary's open question 3 asked whether to commit to interactive-vs-non-interactive migration design before inference accuracy was known; this spike answers it.
 - The spike's pre-committed rubric and the throwaway-prototype constraint are both products of the spike-design conversation captured in 0068's Drafting Notes.
 
 ## Related Research

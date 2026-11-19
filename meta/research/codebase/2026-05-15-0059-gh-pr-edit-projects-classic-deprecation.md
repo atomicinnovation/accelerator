@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-15-0059-gh-pr-edit-projects-classic-deprecation"
 title: "`gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns"
 schema_version: 1
-relates_to: ["adr:ADR-0010", "plan:2026-04-07-fix-tmp-directory-usage-in-pr-skills", "plan:2026-02-22-pr-review-inline-comments", "plan:2026-02-23-respond-to-pr-skill", "codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "work-item:0057"]
+relates_to: ["adr:ADR-0010", "plan:2026-04-07-fix-tmp-directory-usage-in-pr-skills", "plan:2026-02-22-pr-review-inline-comments", "plan:2026-02-23-respond-to-pr-skill", "codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "work-item:PP-79"]
 derived_from: ["codebase-research:2026-04-07-pr-review-tmp-directory-usage", "codebase-research:2026-02-22-pr-review-inline-comments", "codebase-research:2026-02-23-respond-to-pr-feedback-skill"]
 ---
 
@@ -26,7 +26,7 @@ derived_from: ["codebase-research:2026-04-07-pr-review-tmp-directory-usage", "co
 
 ## Research Question
 
-For the bug at `meta/work/0059-gh-pr-edit-fails-due-to-projects-classic-deprecation.md`: what is the exact shape of the edit site in `describe-pr`, what reference patterns already exist in sibling skills (`review-pr`, `respond-to-pr`) for owner/repo resolution and REST body posting, and what conventions does the fix need to introduce versus reuse?
+For the bug at `meta/work/PP-81-gh-pr-edit-fails-due-to-projects-classic-deprecation.md`: what is the exact shape of the edit site in `describe-pr`, what reference patterns already exist in sibling skills (`review-pr`, `respond-to-pr`) for owner/repo resolution and REST body posting, and what conventions does the fix need to introduce versus reuse?
 
 ## Summary
 

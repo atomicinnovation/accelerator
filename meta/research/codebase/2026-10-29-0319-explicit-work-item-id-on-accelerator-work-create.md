@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0319"
-parent: "work-item:0319"
+parent: "work-item:PP-905"
 relates_to: ["codebase-research:2026-10-15-0302-work-item-re-key-command", "codebase-research:2026-09-26-0230-tracker-owned-work-item-id-generation", "codebase-research:2026-09-10-0228-layered-configuration-key-model"]
 topic: "Explicit Work Item ID on accelerator work create: implementation surface"
 tags: ["research", "codebase", "work-cli", "work-adapters", "work", "corpus", "corpus-adapters", "create-work-item", "id-pattern", "allocation", "drafts", "identity"]
@@ -637,7 +637,7 @@ Every `E_` identifier `work create` can emit today:
   produced the five-check order, the distinct identifiers, dry-run parity, the
   skill's recovery rules and the key-and-number taken rule. The `E_` names were
   "deferred to planning by decision".
-- `meta/work/0390-invocation-validation-on-accelerator-work-create-dry-run.md`:
+- `meta/work/PP-935-invocation-validation-on-accelerator-work-create-dry-run.md`:
   moves `run_with`'s early return and folds in 0319's five checks. It needs a
   lock-free allocation path.
 - `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`: the

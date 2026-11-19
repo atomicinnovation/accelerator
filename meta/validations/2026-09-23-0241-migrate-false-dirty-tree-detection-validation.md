@@ -53,7 +53,7 @@ The remaining deviations are structural or improve on the plan.
   resolution disabled in `git_excludes::base_ignores`, both global-excludes
   consumer tests fail and both `info/exclude` tests pass. The source was
   then restored.
-✓ `meta/work/0263-rename-foreigndirt.md` is `done`.
+✓ `meta/work/PP-793-rename-foreigndirt.md` is `done`.
 
 ### Code Review Findings
 

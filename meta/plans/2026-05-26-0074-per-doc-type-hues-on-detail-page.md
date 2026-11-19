@@ -13,7 +13,7 @@ last_updated: "2026-05-26T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "86048379aecc"
 repository: "ticket-management"
-relates_to: ["work-item:0074", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
+relates_to: ["work-item:PP-96", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
 ---
 
 # 0074 — Per-Doc-Type Hues on Detail Page
@@ -1541,7 +1541,7 @@ fixtures) are infrastructure that §2 depends on.
 
 ### Out-of-band followups
 
-- [x] Update `meta/work/0074-per-doc-type-hues-on-detail-page.md`
+- [x] Update `meta/work/PP-96-per-doc-type-hues-on-detail-page.md`
   AC #2 wording to scope to "12 non-virtual doc types" and add a
   Drafting Note explaining the templates descope (backend never
   emits a templates row in any RelatedArtifacts response;
@@ -1747,7 +1747,7 @@ contract changes. The frontend renders a new icon on existing routes.
 
 ## References
 
-- Original work item: `meta/work/0074-per-doc-type-hues-on-detail-page.md`
+- Original work item: `meta/work/PP-96-per-doc-type-hues-on-detail-page.md`
 - Pre-implementation research:
   `meta/research/codebase/2026-05-24-0074-per-doc-type-hues-on-detail-page.md`
 - Plan review 1:

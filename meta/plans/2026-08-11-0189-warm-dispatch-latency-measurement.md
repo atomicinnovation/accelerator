@@ -6,10 +6,10 @@ date: "2026-08-11T19:43:42+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0189"
-parent: "work-item:0189"
+work_item_id: "work-item:PP-719"
+parent: "work-item:PP-719"
 derived_from: ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
-relates_to: ["plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee", "work-item:0205", "work-item:0169", "work-item:0186", "work-item:0188", "work-item:0191", "work-item:0199"]
+relates_to: ["plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee", "work-item:PP-735", "work-item:PP-190", "work-item:PP-716", "work-item:PP-718", "work-item:PP-721", "work-item:PP-729"]
 tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
 revision: "18042973ddd816622577925948c3db142852ffb9"
 repository: "accelerator"
@@ -612,7 +612,7 @@ what the sibling plan delivered; and close 0205. Documents only.
 
 #### 1. Replace 0189's latency criterion
 
-**File**: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+**File**: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 
 0189 carries **twelve** acceptance criteria. The latency criterion is the
 **tenth** (`:197-199`), the recording criterion the **eleventh** (`:200-202`)
@@ -726,7 +726,7 @@ existing notes in that document) — dated to the day the edit lands, so all
 retractions across the five documents this plan touches land in one shape rather
 than in a format each executor invents.
 
-0189's `blocked_by: ["work-item:0169"]` edge is already satisfied — 0169 is
+0189's `blocked_by: ["work-item:PP-190"]` edge is already satisfied — 0169 is
 `done`. The Dependencies bullet is replaced by a closure guard **keyed on the
 outcome, not on the recording**: 0189 may not close while the measured result
 falls in any branch of Phase 3's taxonomy other than Pass, absent a recorded,
@@ -756,7 +756,7 @@ frontmatter. Every work item in this corpus mirrors status in prose (`0189:23`
 reads `**Status**: In Progress`, per `templates/work-item.md:29`), and the
 corpus frontmatter gate cannot see the body — so editing frontmatter alone
 leaves the document internally contradictory. 0189's `blocked_by:
-["work-item:0169"]` edge is **retained** as a historical record of what gated
+["work-item:PP-190"]` edge is **retained** as a historical record of what gated
 the item, with a dated note recording that it is satisfied, rather than deleted.
 
 ⚠️ The sibling validation records one criterion-6 subtlety: the warm-hit test
@@ -774,7 +774,7 @@ dated note in the same pass.
 
 #### 4. Retract 0191's stale shortfall framing
 
-**File**: `meta/work/0191-batch-the-two-shim-hashes-into-one-invocation.md`
+**File**: `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md`
 
 Its Context (`:38-40`) states "~2.5 ms is essentially the whole of 0169's ~2.4
 ms shortfall". The measured shortfall against the inherited threshold was 5.98
@@ -820,7 +820,7 @@ note, and all three corrections appended. When Phase 1 runs, **verify** this
 rather than redoing it; the specification below is retained as the record of
 what was required.
 
-**File**: `meta/work/0205-close-the-warm-dispatch-measurement-method.md`
+**File**: `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md`
 
 `status: draft` → `done`, with the body `**Status**:` line (`:25`, currently
 `Draft`) updated in lockstep. Its Spike Outcome, Findings, Recommendation,
@@ -870,7 +870,7 @@ dated note on 0169's criterion states plainly that the decision was taken on
 is discoverable without reading both documents in full.
 
 ⚠️ The plan/0205 `derived_from` direction is already correct — this plan's
-frontmatter names the codebase-research document with `work-item:0205` in
+frontmatter names the codebase-research document with `work-item:PP-735` in
 `relates_to`, and 0205 retains its edge to the plan. Nothing to do (SD-19).
 
 ### Success Criteria:
@@ -2043,7 +2043,7 @@ orphaned a fourth time. (The line numbers in References are indicative only.)
 
 - Fill the five `_pending_` slots (B, G, ratio, payload + fixture, host + OS)
   under `## Validation Results` in
-  **`meta/work/0169-vcs-subdomain-and-hooks-migration.md`**, with a pointer
+  **`meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`**, with a pointer
   here.
 - Resolve the work item's own latency acceptance criterion — the one opening
   "Warm-call latency" — distinct from the Validation Results slots.
@@ -2078,7 +2078,7 @@ budget, and the per-backend split are all candidates.
 
 #### 2. Record 0189's figures and close the item
 
-**File**: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+**File**: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 
 - Add a `## Validation Results` section carrying the outcome: both medians with
   dispersion, all three ratios with their intervals and roles, **the branch
@@ -2132,7 +2132,7 @@ full `templates/work-item.md` frontmatter (`type`, `id`, `title`, `date`,
 `author`, `status`, `tags`, `producer`, `schema_version`, `last_updated`,
 `last_updated_by`) and the body `**Kind**/**Status**/**Priority**/**Author**`
 block. The executor sets only what the producer cannot infer: `kind`,
-`priority`, `parent: "work-item:0136"`, `derived_from` back to this plan, and
+`priority`, `parent: "work-item:PP-157"`, `derived_from` back to this plan, and
 `tags` (SD-38). Back-links are added on 0189 (all five), 0191 (the
 cache-hit-sha256 and `sha2` items) and epic 0136. Refer to each item by its
 title throughout.
@@ -2476,7 +2476,7 @@ under the reframed criterion at all.
 The release-cut blocker in Dependencies is replaced by an **outcome-keyed
 closure guard** — 0189 may not close while any applicable gating cell selects a
 branch other than 1, absent a recorded owner-named acceptance — and the
-`blocked_by: ["work-item:0169"]` edge is retained with a dated note recording it
+`blocked_by: ["work-item:PP-190"]` edge is retained with a dated note recording it
 satisfied.
 
 **0189's reconciled criteria.** Criteria 1-9 and 12 ticked, with a per-criterion
@@ -3391,9 +3391,9 @@ Both live in `tests/unit/tasks/` and run under `mise run test:unit:tasks`.
 
 ## References
 
-- Work item: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+- Work item: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 - **The spike that closed the method and ran it**:
-  `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — SQ-1 to SQ-5
+  `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — SQ-1 to SQ-5
   answered, its n = 300 gating run, the seven-branch taxonomy (5a/5b, 6a/6b),
   the `reverify` sub-operation figures, and the `B` cost-model correction this
   plan adopts
@@ -3409,13 +3409,13 @@ Both live in `tests/unit/tasks/` and run under `mise run test:unit:tasks`.
   respecification, the baseline relocation and the threshold rebuild, and whose
   pass-2 re-review drove The Criterion section, the two-block sampling design
   and the teardown manifest
-- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — five `_pending_` slots
+- `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — five `_pending_` slots
   at `:700-701`, and its own criterion at `:382-389`
 - `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` — Phase 10's
   criterion at `:1507`, the stale premise at `:1514-1518`
 - `meta/validations/2026-08-05-0169-vcs-subdomain-and-hooks-migration-validation.md`
   — the third record location at `:189-194`; stale premise at `:163-167`
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — the
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — the
   **delivered** figures: 29.92 ms warm bootstrap median (`:517`), the
   per-backend `sha256_file` pair 3.55 ms against 11.99 ms (`:553-563`), the
   quiet-session instrument floors, the 35.1 ms shell-guard row (`:66`) with its
@@ -3423,12 +3423,12 @@ Both live in `tests/unit/tasks/` and run under `mise run test:unit:tasks`.
   3.72 ms (`:577`), and the deviation-recording pattern (`:608-616`)
 - `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
   the harness shape (`:1073-1135`) the committed harness supersedes
-- `meta/work/0188-library-backed-vcs-adapter.md:1084-1085` — delivered
+- `meta/work/PP-718-library-backed-vcs-adapter.md:1084-1085` — delivered
   subprocess figures, retained as context now that `B` is known to spawn neither
   `jj` nor `git`
-- `meta/work/0191-batch-the-two-shim-hashes-into-one-invocation.md` — the stale
+- `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md` — the stale
   "~2.4 ms shortfall" framing at `:38-40`, and the item Phase 4 re-sizes
-- `meta/work/0199-retire-vcs-common-sh-residue-and-launcher-link-refresh.md` —
+- `meta/work/PP-729-retire-vcs-common-sh-residue-and-launcher-link-refresh.md` —
   scoped to decide whether `classify_checkout` leaves `scripts/vcs-common.sh`;
   inert for `B`, which calls `find_repo_root`
 - `scripts/vcs-common.sh:8-18` — `find_repo_root`, the pure-bash walk that is

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0198"
-parent: "work-item:0198"
+parent: "work-item:PP-728"
 relates_to: ["codebase-research:2026-08-30-0198-vcs-agnostic-status-log-renderer"]
 topic: "VCS-agnostic status/log renderer (0198)"
 tags: ["research", "codebase", "vcs", "gix", "jj-lib", "cli", "status", "log"]
@@ -123,7 +123,7 @@ adapter-failure fallback and must be kept distinct in the plan.
 ### The accepted format — ADR-0066
 
 `meta/decisions/ADR-0066-vcs-agnostic-status-log-output-format.md` is **accepted**
-(frontmatter + body line 21), `parent: work-item:0198`,
+(frontmatter + body line 21), `parent: work-item:PP-728`,
 `relates_to: [adr:ADR-0053, adr:ADR-0054]`. It selects one VCS-agnostic text
 format rendered identically from git and jj (Option 2; byte-parity and JSON
 rejected). AC1 is therefore satisfied ahead of planning.
@@ -419,7 +419,7 @@ is a hard requirement of the format.
 - `meta/plans/2026-08-03-0188-library-backed-vcs-adapter.md`,
   `meta/research/codebase/2026-08-02-0188-library-backed-vcs-adapter.md` — the
   gix/jj-lib in-process adapter this item extends.
-- `meta/work/0185-converge-corpus-adapters-on-library-backed-vcs.md` — removed
+- `meta/work/PP-715-converge-corpus-adapters-on-library-backed-vcs.md` — removed
   `CommandProbe`, leaving status/log as the subprocess module's only users; the
   source of the jj snapshot-on-read divergence note.
 - `meta/reviews/work/0198-vcs-agnostic-status-log-renderer-review-1.md` — the

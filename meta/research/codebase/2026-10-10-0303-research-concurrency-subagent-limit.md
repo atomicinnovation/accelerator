@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0303"
-parent: "work-item:0303"
+parent: "work-item:PP-889"
 relates_to: ["codebase-research:2026-09-26-0283-recursive-finding-deepening", "codebase-research:2026-10-06-0295-fair-arxiv-fetch-queue"]
 topic: "Default research concurrency exceeds the subagent limit (0303)"
 tags: ["research", "codebase", "research-topic", "conduct", "concurrency", "config-catalogue", "run-ledger"]
@@ -30,7 +30,7 @@ schema_version: 1
 ## Research Question
 
 What in the codebase does work item
-[0303](../../work/0303-research-concurrency-exceeds-subagent-limit.md)
+[0303](../../work/PP-889-research-concurrency-exceeds-subagent-limit.md)
 touch, how do those parts work today, and does the item's proposed fix
 (default 20, a cap clamp in skill prose, capacity-refusal retry rounds in
 step 4) fit the existing mechanisms?
@@ -323,13 +323,13 @@ concurrency-only carve-out as research-topic line 83. The example YAML
   the Requirements, no holder-exit detection, no fallback if holders prove
   infeasible, and an incomplete External dependency entry.
 - Siblings, all draft with no plan:
-  - `meta/work/0310-recovering-from-an-interrupted-conduct-run.md` - halting-failure class in
+  - `meta/work/PP-896-recovering-from-an-interrupted-conduct-run.md` - halting-failure class in
     step 5 and the table; whichever of 0303/0310 lands second adds "a halting
     failure stops retry rounds early" and fixes the reason for spawns left
     refused after such a stop.
-  - `meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md` - another
+  - `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md` - another
     table row; its `relates_to` omits 0303 (one-way link).
-  - `meta/work/0307-pass-conduct-spawn-context-by-reference.md` - owns making
+  - `meta/work/PP-893-pass-conduct-spawn-context-by-reference.md` - owns making
     its "current offered batch" node query answer for spawns re-issued in
     rounds.
 

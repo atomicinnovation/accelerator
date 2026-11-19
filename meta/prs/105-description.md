@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0269"
-parent: "work-item:0269"
-relates_to: ["work-item:0264", "work-item:0271", "work-item:0273"]
+parent: "work-item:PP-799"
+relates_to: ["work-item:PP-794", "work-item:PP-801", "work-item:PP-803"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/105"
 pr_number: 105
 tags: ["jira", "linear", "cleanup", "refactor", "exit-codes", "classification"]
@@ -60,7 +60,7 @@ preserved exactly — the parity fixtures are the frozen oracle.
 
 ## Context
 
-- Work item: `meta/work/0269-remove-bash-references-from-jira-linear-clients.md`
+- Work item: `meta/work/PP-799-remove-bash-references-from-jira-linear-clients.md`
 - Plan: `meta/plans/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
 - Research: `meta/research/codebase/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
 - Validation: `meta/validations/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification-validation.md`
@@ -105,6 +105,6 @@ collapse in place, re-expressed on `(Outcome, Operation)`.
   build error), and the client-crate `classify` table guards do use exhaustive
   matches. Recorded in the validation report.
 - **Rider commit:** this branch also carries `Mark work item 0240 as done` (a
-  two-line status flip on `0240-corpus-update-frontmatter-quote-roundtrip.md`),
+  two-line status flip on `PP-770-corpus-update-frontmatter-quote-roundtrip.md`),
   unrelated to 0269. It sits at the base of the chain and was kept in this PR
   deliberately rather than rebased out.

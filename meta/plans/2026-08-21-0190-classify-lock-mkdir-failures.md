@@ -6,8 +6,8 @@ date: "2026-08-21T15:21:54+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0190"
-parent: "work-item:0190"
+work_item_id: "work-item:PP-720"
+parent: "work-item:PP-720"
 derived_from: ["codebase-research:2026-08-21-0190-acquire-lock-mkdir-classification"]
 tags: ["bug", "shell", "bootstrap", "bash-3.2", "locking"]
 revision: "4390192c1d375fa7646436166b422a1268f6ea42"
@@ -525,7 +525,7 @@ lock format change — the `owner.<nonce>` / pid contract is untouched.
 
 ## References
 
-- Work item: `meta/work/0190-acquire-lock-cannot-classify-mkdir-failures.md`
+- Work item: `meta/work/PP-720-acquire-lock-cannot-classify-mkdir-failures.md`
 - Research: `meta/research/codebase/2026-08-21-0190-acquire-lock-mkdir-classification.md`
 - Defect site: `bin/accelerator:317-345`
 - 0186 gate and guard: `bin/accelerator:380-396`,

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0230"
-parent: "work-item:0230"
+parent: "work-item:PP-760"
 topic: "Tracker-Owned Work Item ID Generation: implementation surface"
 tags: ["research", "codebase", "work-cli", "work-adapters", "tracker", "sync", "corpus", "id-pattern", "drafts", "pending-push"]
 revision: "48b03a8c6bb4b6cc181f13a64be5ef0052b8e507"
@@ -424,19 +424,19 @@ are new capability. The load-bearing findings:
   APPROVE after four passes; last three majors fixed but not re-reviewed;
   open minors include orphaned `created` marker adoption, literal text around
   `{tracker}`, and the undefined "sync baseline".
-- `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
+- `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
   — high-priority draft bug: `execute_push` records no baseline, so every
   `{tracker}` create and promotion would show as a conflict on the next sync.
   No dependency edge to 0230.
-- `meta/work/0302-work-item-re-key-command.md` — expects batch-callable ID
+- `meta/work/PP-879-work-item-re-key-command.md` — expects batch-callable ID
   retirement, bidirectional `meta/work/` ↔ `drafts/` moves, and standalone
   key-change detection with a distinct "tracker unreachable" result.
-- `meta/work/0291-parent-child-relationship-sync.md` — defers edges to
+- `meta/work/PP-877-parent-child-relationship-sync.md` — defers edges to
   `draft-` parents; shares parents-first ordering and cycle detection.
-- `meta/work/0297-fully-qualified-artifact-references-in-prose.md` — relies
+- `meta/work/PP-887-fully-qualified-artifact-references-in-prose.md` — relies
   on the `work-item:<id>` matcher running over the whole file, not just
   frontmatter.
-- `meta/work/0227-accelerator-config-validate-command.md` — draft, blocked by
+- `meta/work/PP-757-accelerator-config-validate-command.md` — draft, blocked by
   0292; not shipped.
 
 ## Related Research

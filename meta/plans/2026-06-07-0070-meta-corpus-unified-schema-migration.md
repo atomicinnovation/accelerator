@@ -6,8 +6,8 @@ date: "2026-06-07T09:05:13+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0070"
-parent: "work-item:0070"
+work_item_id: "work-item:PP-92"
+parent: "work-item:PP-92"
 derived_from: ["codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration"]
 tags: ["migration", "frontmatter", "schema", "interactive", "visualiser", "linkage", "dogfood"]
 revision: "fd03c62147244115d0440905f91b5524f3ee5715"
@@ -15,7 +15,7 @@ repository: "ticket-management"
 last_updated: "2026-06-08T09:33:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0070", "codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0037", "adr:ADR-0038", "adr:ADR-0040", "adr:ADR-0042"]
+relates_to: ["work-item:PP-92", "codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0037", "adr:ADR-0038", "adr:ADR-0040", "adr:ADR-0042"]
 ---
 
 # Ship `meta/` Corpus Unified-Schema Migration Implementation Plan
@@ -110,7 +110,7 @@ producer-surface contract-test level). The validator reuses
   updates 0065/0066 already populated linkage frontmatter, but not in the typed
   form ADR-0034 / the validator require: **139 `target:` values are path-shape**
   (`"meta/work/0030-foo.md"`), **21** linkage values are bare-number (`"0030"`),
-  and only **48** are already typed (`"work-item:0030"`). The ~49 `reviews/work/`
+  and only **48** are already typed (`"work-item:PP-52"`). The ~49 `reviews/work/`
   artifacts carry both a path-shape `target:` *and* the redundant `work_item_id:`
   alias. Normalising these (path→typed, deterministic; strip the review alias;
   derive `parent:` from foreign `work_item_id:`; bare-number → hook) is a
@@ -567,7 +567,7 @@ would contain a duplicate**. That set is the **union of the awk-derived ids
 files** — driven off the same by-location backfill dispatch list §3 uses (the 31
 strictly fence-less files **plus the partial-fence note**), predicted read-only
 during this pass — so a backfilled note/plan whose stem would collide with an
-existing or another backfilled id is caught before any write, not mid-rewrite. **Known live instance**: `meta/work/0032-per-test-server-configuration-for-e2e-tests.md`
+existing or another backfilled id is caught before any write, not mid-rewrite. **Known live instance**: `meta/work/PP-54-per-test-server-configuration-for-e2e-tests.md`
 carries `work_item_id: "0031"` (its H1 also wrongly reads `# 0031:`), colliding
 with `0031-…`; the dogfood must correct this stray value before `0007` runs — the
 pre-pass turns this latent corpus bug into a loud REFUSE rather than a silent
@@ -704,7 +704,7 @@ catch-all `{ print }`; `cmp -s` + `atomic_write` gate; `grep -qE` fast-skip):
     doc-type** (this is the load-bearing detail): the directory gives the
     doc-type (location map); the id is then extracted per that doc-type's identity
     convention — **work-item/ADR targets → the bare number / `ADR-NNNN`**
-    (`meta/work/0030-foo.md` → `work-item:0030`), but **plan / research /
+    (`meta/work/0030-foo.md` → `work-item:PP-52`), but **plan / research /
     review / validation / note targets → the *full filename stem*** (the way
     those types' own `id:` is set), e.g.
     `meta/plans/2026-05-13-0055-sidebar-activity-feed.md` →
@@ -725,8 +725,8 @@ catch-all `{ print }`; `cmp -s` + `atomic_write` gate; `grep -qE` fast-skip):
   - **Derive `parent:` from a retained foreign `work_item_id:`** on
     plans/research/pr-description, **normalising the foreign value's three live
     shapes to a bare id first** — bare (`"0079"`), path-shape
-    (`"meta/work/0072-….md"`), already-typed (`"work-item:0101"`) — then emit
-    `parent: "work-item:<id>"` (never `work-item:work-item:0101` or
+    (`"meta/work/0072-….md"`), already-typed (`"work-item:PP-123"`) — then emit
+    `parent: "work-item:<id>"` (never `work-item:work-item:PP-123` or
     `work-item:meta/...`). **Existence-check** the derived target against the
     corpus index; if it resolves to zero or >1 work-items, emit `0007-DIVERGE` and
     skip the derivation (do not write a wrong-but-resolvable edge). **Precedence /
@@ -950,7 +950,7 @@ to their expected linkage and to `APPLIED_CONFIRM`. Plus, explicitly:
   `work_item_id:`) → `0007-REFUSE` and non-zero exit (from the read-only pre-pass,
   with **zero files mutated**), not a silent mis-rewrite.
 - **Frontmatter linkage normalisation** (covers the pass-3 criticals):
-  - path→typed **per target doc-type**: `meta/work/0030-foo.md` → `work-item:0030`
+  - path→typed **per target doc-type**: `meta/work/0030-foo.md` → `work-item:PP-52`
     (bare number) AND `meta/plans/2026-05-13-0055-…md` → `plan:2026-05-13-0055-…`
     (full stem, NOT `plan:0055`) — assert the emitted value equals the target
     file's actual `id:`, one fixture per target doc-type;
@@ -959,7 +959,7 @@ to their expected linkage and to `APPLIED_CONFIRM`. Plus, explicitly:
   - **body-region** path-shape/foreign-id occurrence (in a code block) → untouched
     (fence-vs-body separation);
   - parent-derivation from foreign `work_item_id:` in **all three shapes** (bare,
-    path-shape, already-typed `work-item:0101`) → correct `parent: "work-item:NNNN"`,
+    path-shape, already-typed `work-item:PP-123`) → correct `parent: "work-item:NNNN"`,
     no double-prefix; existence-check failure → `0007-DIVERGE`+skip; pre-existing
     `parent: ""` placeholder replaced; agreeing `parent:` no-op; disagreeing
     `parent:` kept + `0007-DIVERGE`;
@@ -1280,7 +1280,7 @@ closed by this release's mechanical `work_item_id:`→`parent:` derivation (Phas
       a simulated un-migrated corpus degrades gracefully with deprecation warnings,
       not broken edges
 - [x] The follow-on contract work item has been raised (with AC-12/AC-13 and the
-      migration-completion gate) — `meta/work/0102-remove-visualiser-legacy-linkage-fallback-arms.md`
+      migration-completion gate) — `meta/work/PP-124-remove-visualiser-legacy-linkage-fallback-arms.md`
 
 ---
 
@@ -1375,7 +1375,7 @@ temp-then-rename per mutation; session-log append under a `.lockdir` mutex.
 
 ## References
 
-- Original work item: `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+- Original work item: `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`
 - Related research:
   `meta/research/codebase/2026-06-07-0070-meta-corpus-unified-schema-migration.md`
 - Driving spike:

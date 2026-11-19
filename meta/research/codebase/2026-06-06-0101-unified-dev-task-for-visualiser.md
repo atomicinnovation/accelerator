@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0101"
-parent: "work-item:0101"
-relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "note:2026-05-19-playwright-daemon-owner-pid-ephemeral-shell", "work-item:0101", "work-item:0100", "adr:ADR-0019"]
+parent: "work-item:PP-123"
+relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap", "note:2026-05-19-playwright-daemon-owner-pid-ephemeral-shell", "work-item:PP-123", "work-item:PP-122", "adr:ADR-0019"]
 topic: "Unified mise run dev task supervising the visualiser API server and Vite frontend under circus"
 tags: ["research", "codebase", "visualiser", "dev-tooling", "mise", "invoke", "circus", "process-supervision", "lifecycle"]
 revision: "0bbab3114c0dbc1639ec4a2297e23cc4fec1ccf7"
@@ -29,7 +29,7 @@ derived_from: ["codebase-research:2026-06-06-0100-configurable-visualiser-auto-s
 
 ## Research Question
 
-For work item 0101 (`meta/work/0101-unified-dev-task-for-visualiser.md`): how does the
+For work item 0101 (`meta/work/PP-123-unified-dev-task-for-visualiser.md`): how does the
 current visualiser dev workflow work, and what existing patterns must a unified
 `mise run dev` task (plus `dev:stop` / `dev:restart` / `dev:status`) mirror when it
 adds a `circus` supervisor to manage both the Rust API server and the Vite frontend
@@ -341,7 +341,7 @@ covers dev tooling / process supervision / dependency selection (closest adjacen
   safer model to mirror.
 - `meta/reviews/work/0101-unified-dev-task-for-visualiser-review-1.md` — the binding spec
   (decisions + numeric contract above).
-- `meta/work/0100-configurable-visualiser-auto-shutdown.md` (+ its 2026-06-06 plan/research/
+- `meta/work/PP-122-configurable-visualiser-auto-shutdown.md` (+ its 2026-06-06 plan/research/
   review) — adjacent auto-shutdown work; **no ordering dependency** with 0101, only the
   shared `--owner-pid 0` mechanism.
 - `meta/decisions/ADR-0019-ephemeral-file-separation-via-paths-tmp.md` — `.accelerator/tmp/`

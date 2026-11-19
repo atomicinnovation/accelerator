@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0111"
-parent: "work-item:0111"
+parent: "work-item:PP-133"
 topic: "Visualiser Frontend Closeout Fixes (work item 0111)"
 tags: ["research", "codebase", "visualiser", "frontend", "markdown", "lifecycle", "sidebar", "design-tokens", "visual-regression"]
 revision: "656a1635e693f969f7d082b22204eafeb1756c75"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For the story at `meta/work/0111-visualiser-frontend-closeout-fixes.md`: research the
+For the story at `meta/work/PP-133-visualiser-frontend-closeout-fixes.md`: research the
 seven QA-discovered frontend fixes (M1 table parity, M2 code-block scrollbar, M3
 horizontal rules, L1 detail-page button wrap, L2 drop decisions from the lifecycle
 cluster, L3 lifecycle overview wording, L4 muted META/Templates nav) — confirm the
@@ -403,10 +403,10 @@ clip spec if M1/M3 should be VR-guarded.
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md` + `ADR-0035` (brand-layer indirection) — colour token rules relevant to M1/M2/M3 colours
 - `meta/decisions/ADR-0039-border-radius-consumption-rule.md` — radius-token rule relevant to M1 wrapper + M2 scrollbar `4px`
 - `meta/research/codebase/2026-05-31-0040-pipeline-visualisation-overhaul.md` + `meta/plans/2026-05-31-0040-pipeline-visualisation-overhaul.md` — the lifecycle pipeline-step model L2 touches
-- `meta/work/0108-local-docker-visual-regression-baselines.md` + `meta/research/codebase/2026-06-12-0108-local-docker-visual-regression-baselines.md` — the single-baseline Docker VR model (corrects the work item's VR dependency)
-- `meta/work/0110-surface-root-cause-analyses-in-visualiser.md` — RCAs were only just surfaced; relevant to the L2/RCA open question
+- `meta/work/PP-130-local-docker-visual-regression-baselines.md` + `meta/research/codebase/2026-06-12-0108-local-docker-visual-regression-baselines.md` — the single-baseline Docker VR model (corrects the work item's VR dependency)
+- `meta/work/PP-132-surface-root-cause-analyses-in-visualiser.md` — RCAs were only just surfaced; relevant to the L2/RCA open question
 - `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md` — prior gap analysis vs the same prototype snapshot
-- `meta/work/0076-code-block-syntax-highlight-palette.md`, `0094` (inline code), `0088` (markdown body width), `0095` (markdown checkboxes) — prior MarkdownRenderer work
+- `meta/work/PP-98-code-block-syntax-highlight-palette.md`, `0094` (inline code), `0088` (markdown body width), `0095` (markdown checkboxes) — prior MarkdownRenderer work
 
 ## Related Research
 

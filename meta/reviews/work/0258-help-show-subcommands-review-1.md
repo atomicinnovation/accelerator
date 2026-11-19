@@ -6,8 +6,8 @@ date: "2026-09-04T11:27:37+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0258"
-work_item_id: "0258"
+target: "work-item:PP-788"
+work_item_id: "PP-788"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -156,7 +156,7 @@ scoping decisions the item should settle before implementation.
    (currently nine), so the set reads as dynamic rather than hardcoded.
 
 5. **Mirror the built-on couplings into frontmatter** (addresses: `relates_to`
-   omits 0164 and 0187) Add `work-item:0164` and `work-item:0187` to `relates_to`
+   omits 0164 and 0187) Add `work-item:PP-185` and `work-item:PP-717` to `relates_to`
    so the mechanism dependencies the body already states are machine-visible.
 
 ## Per-Lens Results

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0198"
-parent: "work-item:0198"
+parent: "work-item:PP-728"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/93"
 pr_number: 93
 tags: ["rust", "vcs", "cli", "gix", "jj-lib", "status", "log"]
@@ -70,7 +70,7 @@ VCS facts/orientation path used by `/commit`.
 
 ## Context
 
-- Work item: `meta/work/0198-vcs-agnostic-status-log-renderer.md`
+- Work item: `meta/work/PP-728-vcs-agnostic-status-log-renderer.md`
 - Plan: `meta/plans/2026-08-31-0198-vcs-agnostic-status-log-renderer.md` (now `done`)
 - Validation: `meta/validations/2026-08-31-0198-vcs-agnostic-status-log-renderer-validation.md`
 - Format decision: `meta/decisions/ADR-0066-vcs-agnostic-status-log-output-format.md`

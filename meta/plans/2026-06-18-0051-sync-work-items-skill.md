@@ -6,8 +6,8 @@ date: "2026-06-18T12:58:12+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0051"
-parent: "work-item:0051"
+work_item_id: "work-item:PP-73"
+parent: "work-item:PP-73"
 tags: ["work-management", "integrations", "sync"]
 derived_from: ["codebase-research:2026-06-18-0051-sync-work-items-skill"]
 revision: "73cdbddec9bc53b0c84a1b780b3e143aa78ca773"
@@ -1578,7 +1578,7 @@ duplicates), never a per-item loop.
 
 ## References
 
-- Original work item: `meta/work/0051-sync-work-items-skill.md`
+- Original work item: `meta/work/PP-73-sync-work-items-skill.md`
 - Research: `meta/research/codebase/2026-06-18-0051-sync-work-items-skill.md`
 - Seam: `skills/work/scripts/work-item-sync-label.sh:24-27,41-63`
 - Render sites: `skills/work/list-work-items/SKILL.md:27-33,203-217,250-292,315-328`

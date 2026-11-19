@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0229"
-parent: "work-item:0229"
-relates_to: ["work-item:0146", "work-item:0228", "work-item:0292", "work-item:0293"]
+parent: "work-item:PP-759"
+relates_to: ["work-item:PP-167", "work-item:PP-758", "work-item:PP-869", "work-item:PP-870"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/128"
 pr_number: 128
 tags: ["sync", "scoping", "tracker", "configuration", "discovery"]
@@ -85,7 +85,7 @@ wired-but-unused `SearchScope.filters` seam to the primary discovery mechanism.
 
 ## Context
 
-- Implements **work item 0229** (`meta/work/0229-per-tracker-pull-scope-configuration.md`).
+- Implements **work item 0229** (`meta/work/PP-759-per-tracker-pull-scope-configuration.md`).
 - Plan: `meta/plans/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
   (all 8 phases, one commit each).
 - Validation: `meta/validations/2026-09-11-0229-per-tracker-pull-scope-configuration-validation.md`

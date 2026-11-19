@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-06-01-lifecycle-clustering-slug-mismatch"
 title: "lifecycle clustering breaks because slugs don't agree across doc types"
 schema_version: 1
-relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "adr:ADR-0028", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "work-item:0057", "work-item:0040"]
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "adr:ADR-0028", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "work-item:PP-79", "work-item:PP-62"]
 supersedes: ["adr:ADR-0034", "adr:ADR-0033"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul"]
 ---
@@ -28,7 +28,7 @@ derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-ac
 ## Research Question
 
 Lifecycle clusters in the visualiser group `IndexEntry`s by `slug`. For
-work item `0040` the work-item file `meta/work/0040-pipeline-visualisation-overhaul.md`
+work item `0040` the work-item file `meta/work/PP-62-pipeline-visualisation-overhaul.md`
 yields slug `pipeline-visualisation-overhaul`, but its plan
 `meta/plans/2026-05-31-0040-pipeline-visualisation-overhaul.md` yields
 slug `0040-pipeline-visualisation-overhaul`. The two slugs don't agree
@@ -110,7 +110,7 @@ Applied to representative filenames in the corpus today:
 
 | Filename | Doc type | Slug today | Notes |
 |---|---|---|---|
-| `meta/work/0040-pipeline-visualisation-overhaul.md` | WorkItems | `pipeline-visualisation-overhaul` | strip `NNNN-` (or `PROJ-NNNN-` via configured regex) |
+| `meta/work/PP-62-pipeline-visualisation-overhaul.md` | WorkItems | `pipeline-visualisation-overhaul` | strip `NNNN-` (or `PROJ-NNNN-` via configured regex) |
 | `meta/plans/2026-05-31-0040-pipeline-visualisation-overhaul.md` | Plans | `0040-pipeline-visualisation-overhaul` | strip date only; **ID retained** |
 | `meta/plans/2026-02-22-pr-review-agents.md` | Plans | `pr-review-agents` | strip date only; no ID present |
 | `meta/research/codebase/2026-05-05-0031-consolidate-accelerator-owned-files.md` | Research | `0031-consolidate-accelerator-owned-files` | strip date only; **ID retained** |
@@ -207,7 +207,7 @@ Clustering does not currently consume it.
   `blocks`/`blocked_by`, `source`. Per the type-pair table, an
   artifact's link back to its work item travels through the
   relationship-named keys:
-  - `plan` → work-item via `parent: "work-item:0042"`
+  - `plan` → work-item via `parent: "work-item:PP-64"`
   - `plan-review` / `work-item-review` → work-item via `target`
   - `validation` → plan via `target` (two-hop: validation → plan → work-item)
   - `research` clusters as `derived_from` by a plan; there is no
@@ -417,10 +417,10 @@ parents the moment their existing `target:` frontmatter is read.
 - `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
   — quantified the cost of body-prose link inference; recommendation
   reinforces frontmatter-based resolution.
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
   — epic tracking the corpus migration; in-progress, gates pure
   Option D.
-- `meta/work/0040-pipeline-visualisation-overhaul.md` — the work
+- `meta/work/PP-62-pipeline-visualisation-overhaul.md` — the work
   item this research grew out of; the visible clustering bug
   motivated the dig.
 
@@ -449,7 +449,7 @@ parents the moment their existing `target:` frontmatter is read.
    preserves the accidental behaviour; Option B drops them as
    orphans.
 2. **Multi-parent ambiguity**: if a plan carries `parent:
-   "work-item:0042"` AND its filename embeds `0040`, which wins?
+   "work-item:PP-64"` AND its filename embeds `0040`, which wins?
    Option B would prefer frontmatter (correct per ADR-0034) but
    Option A / current behaviour would surface a different cluster.
    We need to document precedence explicitly.

@@ -210,7 +210,7 @@ The plan is structurally strong — clean phase decomposition, TDD discipline, c
 1. **Resolve the work-item contract divergence** (addresses: bucket-ranking-AC mismatch, body_preview scope, ranking tests vs AC5)
    Pick one path explicitly in the plan:
    - **Path A**: Drop bucket 4 (body_preview), reduce to 3 buckets or to plain `mtime_ms desc + path asc`. Rewrite ranking tests against the AC's literal invariant. Document this as the v1 ranking; bucketing becomes follow-up work.
-   - **Path B**: Update `meta/work/0054-sidebar-search.md` to specify the 4-bucket strategy in AC5 and remove the Technical-Notes exclusion of `body_preview`. Note in the plan's Design Decisions that this resolves the Open Question.
+   - **Path B**: Update `meta/work/PP-76-sidebar-search.md` to specify the 4-bucket strategy in AC5 and remove the Technical-Notes exclusion of `body_preview`. Note in the plan's Design Decisions that this resolves the Open Question.
 
 2. **Pin the test-determinism gaps** (addresses: mtime seeding, retry config, dedup staleTime, framed Glyph, query-key introspection)
    - Choose the mtime seeding mechanism: add `filetime` to `[dev-dependencies]` (or use `std::fs::File::set_modified` if MSRV 1.85 suffices) and a `set_mtime_ms` helper in `tests/common/mod.rs`. Cite it in Phase 1.

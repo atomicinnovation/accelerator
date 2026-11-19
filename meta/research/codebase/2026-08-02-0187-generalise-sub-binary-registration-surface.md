@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0187"
-parent: "work-item:0187"
+parent: "work-item:PP-717"
 topic: "Generalising validate_dispatch_coherence over dispatch tokens, parameterising the release-stage builders, and documenting the sub-binary registration surface"
 tags: ["research", "codebase", "build-system", "distribution", "rust", "skills", "tasks"]
 revision: "4ccf888b9b6c29f4b8b752cf5ba6f76aeef2f610"
@@ -28,7 +28,7 @@ schema_version: 1
 ## Research Question
 
 What does the codebase actually look like for the work described in
-`meta/work/0187-generalise-sub-binary-registration-surface.md` — generalising
+`meta/work/PP-717-generalise-sub-binary-registration-surface.md` — generalising
 `validate_dispatch_coherence` over dispatch tokens, adding
 parameter-with-default seams to the three release-stage builders, renaming
 `_BARE_LAUNCHER`, and documenting a ten-point registration checklist in
@@ -427,17 +427,17 @@ call for the plan.
 
 ### 12. Blocker and hand-off state — all verified green
 
-- **0168 is `status: done`** (`meta/work/0168-fold-visualiser-into-cli-workspace.md:8`),
+- **0168 is `status: done`** (`meta/work/PP-189-fold-visualiser-into-cli-workspace.md:8`),
   closed by commit `abfaf60bd9`. The blocker's first discharge route is met, so
   the Open Question resolves and the "Visualiser manifest path re-verification"
   Validation Results slot is *not required*. The work item's Dependencies prose
   at `:382-383` ("its work item is still `ready`") is stale by one day.
   0168 also pinned `cli/visualiser/server` by acceptance criterion, and none of
   its three open questions can relocate the crate manifest.
-- **`blocked_by: work-item:0187`** present on 0170 (`:12`), 0171 (`:12`),
+- **`blocked_by: work-item:PP-717`** present on 0170 (`:12`), 0171 (`:12`),
   0172 (`:12`) and 0173 (`:12`); 0169 (`:12`) too.
-- **`blocks: ["work-item:0187"]`** present on 0168 (`:13`).
-- **Epic 0136's annotation** (`meta/work/0136-migrate-shell-scripts-to-rust-cli.md:65-70`)
+- **`blocks: ["work-item:PP-717"]`** present on 0168 (`:13`).
+- **Epic 0136's annotation** (`meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md:65-70`)
   reads exactly as the criterion requires, including 0172 in the unblocks list
   and the two 0168 discharge routes.
 
@@ -531,12 +531,12 @@ The acceptance-time grep re-verification passes today.
   `test_manifest.py:38` row is stale, and the item's correction is right.
 - `meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md:811-821`
   — the pass-4 decomposition that carved 0187 out as item 2 of four.
-- `meta/work/0165-multi-binary-distribution-and-release-pipeline.md` — delivered
+- `meta/work/PP-186-multi-binary-distribution-and-release-pipeline.md` — delivered
   the pipeline but **never names** `DISPATCHED_SUBBINARIES`,
   `validate_dispatch_coherence` or `_SUBBINARY_MANIFESTS`. The
   token-parameterisation 0187 builds on is emergent, never a stated contract —
   which is the strongest argument for discharging it by test.
-- `meta/work/0168-fold-visualiser-into-cli-workspace.md:181-193` — 0168's
+- `meta/work/PP-189-fold-visualiser-into-cli-workspace.md:181-193` — 0168's
   reciprocal bullet, including the post-landing contingency (if residual scope
   moves the crate path after 0187 lands, update `_SUBBINARY_MANIFESTS` and the
   README checklist in the same change).

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0169"
-parent: "work-item:0169"
+parent: "work-item:PP-190"
 relates_to: ["codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 topic: "VCS Subdomain and Hooks Migration (0169)"
 tags: ["research", "codebase", "vcs", "hooks", "rust-cli", "migration"]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-For the story at `meta/work/0169-vcs-subdomain-and-hooks-migration.md`: build a
+For the story at `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`: build a
 comprehensive picture of the codebase context needed to plan its
 implementation — the existing shell VCS detection/guard logic to be
 reproduced, the 0188 library-backed adapter crates it builds on, the 0187

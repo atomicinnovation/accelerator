@@ -6,8 +6,8 @@ date: "2026-09-06T19:19:57+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0257"
-parent: "work-item:0257"
+work_item_id: "work-item:PP-787"
+parent: "work-item:PP-787"
 derived_from: ["codebase-research:2026-09-06-0257-sync-specific-work-items"]
 tags: ["sync", "cli", "work-sync"]
 revision: "ff580f294b972f81af4f00252b4e8ab8bafe4ee7"
@@ -934,7 +934,7 @@ are additive. Full-sync behaviour is unchanged.
 
 ## References
 
-- Work item: `meta/work/0257-sync-specific-work-items.md`
+- Work item: `meta/work/PP-787-sync-specific-work-items.md`
 - Research: `meta/research/codebase/2026-09-06-0257-sync-specific-work-items.md`
 - Sync engine plan (byte-identical target): `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md`
 - Item-set seam: `cli/work-cli/src/sync.rs:96-132`, `:362-477`

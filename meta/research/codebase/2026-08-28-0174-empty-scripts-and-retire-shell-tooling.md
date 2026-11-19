@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0174"
-parent: "work-item:0174"
+parent: "work-item:PP-195"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 topic: "Empty scripts/ and retire shell tooling and CI guards"
 tags: ["research", "codebase", "shell", "tooling", "ci", "cleanup", "scripts", "bashisms"]
@@ -279,7 +279,7 @@ record, so dropping the entry is safe but must land with `test_measure.py` edits
 - `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md` and
   `2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md` — the epic-level surface this
   cleanup follows.
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` (in-progress) — parent epic; 0174 is
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` (in-progress) — parent epic; 0174 is
   its Phase 11 cleanup.
 - `meta/work/0211-*` and `0212-*` (both done) — already removed the integrations and work
   floors and delivered the `sync_author.rs` writeback; their plans

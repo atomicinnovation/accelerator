@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0051"
-parent: "work-item:0051"
+parent: "work-item:PP-73"
 relates_to: ["codebase-research:2026-06-15-0047-core-skills-sync-integration"]
 topic: "Implementing /sync-work-items: reconciliation engine, last-sync.json baseline, conflict UX, and the /list-work-items five-state extension"
 tags: ["research", "codebase", "work", "integrations", "sync", "jira", "last-sync"]
@@ -344,7 +344,7 @@ presence-based and owned entirely by one script.
   `meta/integrations/` path (correct path is `.accelerator/state/integrations`).
 - `meta/research/codebase/2026-06-14-0048-linear-integration-apis.md` — Linear
   create-then-writeback to `external_id`; mirror for the non-Jira sync path.
-- `meta/work/0045-work-management-integration.md` (parent epic);
+- `meta/work/PP-67-work-management-integration.md` (parent epic);
   `0046` (config gate), `0047` (this seam), `0048`/`0049`/`0050` (other
   integrations broadening sync coverage but not blockers).
 
@@ -360,7 +360,7 @@ presence-based and owned entirely by one script.
 ## Open Questions
 
 1. **`last-sync.json` key: `id` vs `external_id`?** A genuine conflict in the
-   source docs. The 0051 story (`meta/work/0051-sync-work-items-skill.md:266`,
+   source docs. The 0051 story (`meta/work/PP-73-sync-work-items-skill.md:266`,
    Technical Notes) says **key by the stable local `id`**, with the live file's
    `external_id` locating the remote counterpart. The 0047 plan References
    (`:931-933`) and ADR-0044 imply keying by `external_id`. The story's reasoning

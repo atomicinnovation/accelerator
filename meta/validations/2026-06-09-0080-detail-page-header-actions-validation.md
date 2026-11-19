@@ -77,7 +77,7 @@ These are improvements/clarifications, not regressions; the plan and work item w
 
 1. Clipboard / Copy path:
   - [ ] `Copy path` appears bottom-right of the detail header, aligned with the title; both buttons sit together and match the topbar pill style in both themes.
-  - [ ] Clicking copies `meta/work/0080-detail-page-header-actions.md` (raw relative path) and a Toaster confirmation appears.
+  - [ ] Clicking copies `meta/work/PP-102-detail-page-header-actions.md` (raw relative path) and a Toaster confirmation appears.
   - [ ] With `navigator.clipboard` disabled (or a non-secure context), the `execCommand('copy')` fallback still copies and confirms.
 
 2. Editor deep-link:

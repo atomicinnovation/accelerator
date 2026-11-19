@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0302"
-parent: "work-item:0302"
+parent: "work-item:PP-879"
 relates_to: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-generation", "codebase-research:2026-09-23-0241-migrate-false-dirty-tree-detection"]
 topic: "Work Item Re-Key Command: implementation surface"
 tags: ["research", "codebase", "work-cli", "work-adapters", "work", "tracker", "corpus", "migrate", "vcs", "retirement", "rekey", "id-pattern", "drafts"]
@@ -430,9 +430,9 @@ state machine and never rewrites the `aliases` region.
   fingerprint fields and body-only edits, undated items, prefixed IDs that
   differ from `external_id`, non-bulk strategy, preview line order, tracker
   rate limits, delivery order).
-- `meta/work/0343-alias-normalisation-for-re-keyed-work-items.md` — joins the
+- `meta/work/PP-931-alias-normalisation-for-re-keyed-work-items.md` — joins the
   run plan, preview binding and dirty-tree refusal 0302 introduces.
-- `meta/work/0346-remove-deprecated-accelerator-migrate-force.md` — removes the
+- `meta/work/PP-934-remove-deprecated-accelerator-migrate-force.md` — removes the
   alias this item introduces.
 
 ## Related Research

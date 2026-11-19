@@ -6,9 +6,9 @@ date: "2026-08-21T14:24:50+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0196"
-parent: "work-item:0196"
-relates_to: ["work-item:0205", "work-item:0208", "work-item:0214"]
+work_item_id: "work-item:PP-726"
+parent: "work-item:PP-726"
+relates_to: ["work-item:PP-735", "work-item:PP-738", "work-item:PP-751"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/72"
 pr_number: 72
 tags: ["rust", "design", "playwright", "launcher", "release-pipeline", "tree-artifacts", "distribution"]
@@ -23,7 +23,7 @@ schema_version: 1
 
 ## Summary
 
-Vendors the Playwright runtime so the design tooling stops depending on a system Node.js. The launcher gains the ability to resolve directory-tree artifacts alongside the single-file sub-binaries it already fetches; the release pipeline gains a build-time assembly step that constructs the driver bundle and a headless Chromium from verified upstream inputs and publishes them under the project's own signing key; and the executor swaps onto them. This delivers work-item:0196 across three phases plus a removal sweep, and provisions the real trust anchors — the whole verify-and-assemble pipeline now runs green end-to-end against real upstream artifacts.
+Vendors the Playwright runtime so the design tooling stops depending on a system Node.js. The launcher gains the ability to resolve directory-tree artifacts alongside the single-file sub-binaries it already fetches; the release pipeline gains a build-time assembly step that constructs the driver bundle and a headless Chromium from verified upstream inputs and publishes them under the project's own signing key; and the executor swaps onto them. This delivers work-item:PP-726 across three phases plus a removal sweep, and provisions the real trust anchors — the whole verify-and-assemble pipeline now runs green end-to-end against real upstream artifacts.
 
 ## Changes
 
@@ -64,7 +64,7 @@ The real anchors are committed and verified: the nine active Node release signer
 
 ## Context
 
-Implements work-item:0196, following `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`. Depends on the warm-dispatch measurement method from work-item:0205 and the tree-artifact mechanisms settled in work-item:0214; the container CI lane is owned by work-item:0208.
+Implements work-item:PP-726, following `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`. Depends on the warm-dispatch measurement method from work-item:PP-735 and the tree-artifact mechanisms settled in work-item:PP-751; the container CI lane is owned by work-item:PP-738.
 
 ## Testing
 
@@ -76,7 +76,7 @@ Implements work-item:0196, following `meta/plans/2026-08-11-0196-design-vendored
 
 ## Notes for Reviewers
 
-- This is the whole work-item:0196 epic (~100 commits). Reviewing per phase or per commit is more tractable than the squashed diff; commit messages are scoped to one concern each.
+- This is the whole work-item:PP-726 epic (~100 commits). Reviewing per phase or per commit is more tractable than the squashed diff; commit messages are scoped to one concern each.
 - The five assembly-pipeline fixes in the final section are the highest-value review target: the release/assembly path had never run against real upstream, and each fix corrects a real correctness defect (SLSA verification mechanism, Node signature handling and expiry policy, Chromium layout and licensing) rather than a fixture detail.
 - The publisher keys and pins are trust anchors: `keys/nodejs-release.asc`, `keys/npm-registry.pem`, and the `pins.toml`/`licenses/chromium.LICENSE` values warrant an out-of-band fingerprint check as part of review.
 - Known human/org-gated remainders, out of scope here: a criterion-3138 review-gate CI job (needs a named reviewer team, branch protection and an org-read token); a real release cut (the sign/upload/reverify path has not yet run against real artifacts); the container runtime harness (AC6/AC11/AC12); `timeout-minutes` from a measured double-pass; and a full third-party-credits (about:credits) legal review for Chromium.

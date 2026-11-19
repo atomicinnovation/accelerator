@@ -6,10 +6,10 @@ date: "2026-06-21T00:48:14+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0117"
-parent: "work-item:0117"
+work_item_id: "work-item:PP-139"
+parent: "work-item:PP-139"
 derived_from: ["codebase-research:2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"]
-relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
+relates_to: ["work-item:PP-137", "work-item:PP-138", "work-item:PP-140"]
 tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 revision: "8bebd60d03af8132c1efddc31c8c8f9fb0b834d8"
 repository: "accelerator"
@@ -638,13 +638,13 @@ source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
 migration_emit_transformations() {
   harness_emit_transformation key=relates_to \
     path=meta/work/0050-example-a.md anchor=body/relates_to \
-    proposed=work-item:0042 predicate_value=ambiguous
+    proposed=work-item:PP-64 predicate_value=ambiguous
   harness_emit_transformation key=parent \
     path=meta/work/0051-example-b.md anchor=body/parent \
-    proposed=work-item:0031 predicate_value=ambiguous
+    proposed=work-item:PP-53 predicate_value=ambiguous
   harness_emit_transformation key=relates_to \
     path=meta/work/0052-example-c.md anchor=body/relates_to \
-    proposed=work-item:0099 predicate_value=ambiguous
+    proposed=work-item:PP-121 predicate_value=ambiguous
 }
 
 migration_evaluate_predicate() { return 0; }      # all rows prompt
@@ -746,14 +746,14 @@ floor of 4 is unchanged).
   no mutation. Add a sub-case with a genuinely empty `pending_files` set to
   confirm the `--list` branch precedes the "No pending migrations." early exit.
 - **AC2** — seed the three corpus stubs + a decisions file `accept\nskip\nedit
-  work-item:0100\n`; run the fixture with `ACCELERATOR_MIGRATE_FORCE=1` +
+  work-item:PP-122\n`; run the fixture with `ACCELERATOR_MIGRATE_FORCE=1` +
   `ACCELERATOR_MIGRATE_DECISIONS_FILE`. **Primary oracle**: the
-  `.fixture/applied/log` sentinel shows `relates_to … accept work-item:0042`,
-  no `parent` record, and `relates_to … edit work-item:0100` (edit wins, not
-  `work-item:0099`). **Secondary**: `assert_contains` `0050-example-a.md` has
-  `relates_to: [work-item:0042]`; `assert_not_contains` `parent` in
+  `.fixture/applied/log` sentinel shows `relates_to … accept work-item:PP-64`,
+  no `parent` record, and `relates_to … edit work-item:PP-122` (edit wins, not
+  `work-item:PP-121`). **Secondary**: `assert_contains` `0050-example-a.md` has
+  `relates_to: [work-item:PP-64]`; `assert_not_contains` `parent` in
   `0051-example-b.md`; `assert_contains` `0052-example-c.md` has
-  `relates_to: [work-item:0100]`.
+  `relates_to: [work-item:PP-122]`.
 - **Resume-aware `--list`** — pre-seed a session log deciding `relates_to`
   (0050); `--list` then emits only positions for 0051/0052 (already-decided key
   excluded). Locks the resume filter.
@@ -1020,7 +1020,7 @@ grep-for-absence), and no session-log / applied entry under `.accelerator/state/
 - **Fork failure fails closed** — inject a `FAIL`/fork condition; the run exits
   non-zero with the corpus unmutated rather than proceeding to apply.
 - **Regression / AC2 through the gate** — the valid `accept\nskip\nedit
-  work-item:0100\n` file passes dry-apply and applies (re-assert the Phase 1 AC2
+  work-item:PP-122\n` file passes dry-apply and applies (re-assert the Phase 1 AC2
   outcomes via the sentinel log), proving the gate doesn't reject good input.
   Additionally assert the dry-apply protocol log's `DRY_OK`/`DRY_REJECT` sequence
   (three prompt routes) matches the live run's `PROMPT`/`RECORDED` sequence — this
@@ -1069,7 +1069,7 @@ confirmable by string search:
 - (b) the verb tokens `accept`, `skip`, `edit` and the phrase **"matched by
   emission order"**;
 - (c) a link to **0116** for the no-input/structured-stall outcome (reference
-  `meta/work/0116-structured-stall-on-no-decision-input.md` and the stable
+  `meta/work/PP-138-structured-stall-on-no-decision-input.md` and the stable
   marker `MIGRATION STALLED: no decision input available`);
 - (d) the literal **`ACCELERATOR_MIGRATE_DECISIONS_FILE`** with a pointer to
   where it is discoverable (**`--help`**);
@@ -1122,7 +1122,7 @@ stall/preview, not from `--list` output.
    `migrations-<id>-*` state files. For example:
 
    ```bash
-   printf 'accept\nskip\nedit work-item:0100\n' \
+   printf 'accept\nskip\nedit work-item:PP-122\n' \
      > .accelerator/state/migrations-<id>-decisions.txt
    ```
 4. **resume** — re-run with `--decisions-file <path>` (or the equivalent
@@ -1140,7 +1140,7 @@ stall/preview, not from `--list` output.
    guidance, confirm via `jj status`/`git status` that the dirty paths really are
    this migration's own, and only then add `ACCELERATOR_MIGRATE_FORCE=1`. (The
    guarded-resume behaviour is owned by
-   `meta/work/0119-resume-safe-partial-migration-failure.md`, now landed.)
+   `meta/work/PP-141-resume-safe-partial-migration-failure.md`, now landed.)
 
 The driver **validates the decisions file up front (a no-mutation dry-apply pass)
 and fails closed**: a rejected `edit` value, an unknown verb, or a count mismatch
@@ -1153,7 +1153,7 @@ output without `FORCE` when the base revision is unchanged.
 
 When no decision input is available at all, the run emits the structured stall
 (`MIGRATION STALLED: no decision input available`) and stops without further
-mutation — see `meta/work/0116-structured-stall-on-no-decision-input.md`.
+mutation — see `meta/work/PP-138-structured-stall-on-no-decision-input.md`.
 
 This contract is scoped to a single pending interactive migration (the realistic
 case); decisions files are consumed per migration.
@@ -1303,12 +1303,12 @@ exits non-zero (previously silently ignored) and that `--help` prints to stdout.
 
 ## References
 
-- Original work item: `meta/work/0117-agent-decisions-bridge-and-invoker-contract.md`
+- Original work item: `meta/work/PP-139-agent-decisions-bridge-and-invoker-contract.md`
 - Research: `meta/research/codebase/2026-06-21-0117-agent-decisions-bridge-and-invoker-contract.md`
-- Parent / siblings: `meta/work/0115-make-interactive-migrations-satisfiable-under-agent-invocation.md`,
-  `meta/work/0116-structured-stall-on-no-decision-input.md` (landed),
-  `meta/work/0118-reconcile-0007-backfill-sentinel-with-validator.md` (fix C; owns AC7),
-  `meta/work/0119-resume-safe-partial-migration-failure.md` (landed; owns the
+- Parent / siblings: `meta/work/PP-137-make-interactive-migrations-satisfiable-under-agent-invocation.md`,
+  `meta/work/PP-138-structured-stall-on-no-decision-input.md` (landed),
+  `meta/work/PP-140-reconcile-0007-backfill-sentinel-with-validator.md` (fix C; owns AC7),
+  `meta/work/PP-141-resume-safe-partial-migration-failure.md` (landed; owns the
   manifest-based guarded resume that lets a `--decisions-file` resume proceed over
   the run's own owned dirt without `FORCE`)
 - ADR: `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md`

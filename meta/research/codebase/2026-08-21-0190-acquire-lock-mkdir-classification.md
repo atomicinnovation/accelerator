@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0190"
-parent: "work-item:0190"
+parent: "work-item:PP-720"
 topic: "acquire_lock cannot classify an unusable lock directory and can spin unbounded on reclaim"
 tags: ["research", "codebase", "shell", "bootstrap", "bash-3.2", "locking", "acquire_lock"]
 revision: "8c5eebef10dd63b532d9113e13b37b572456147e"
@@ -207,12 +207,12 @@ fi
 
 ## Historical Context
 
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — removed the warm-path exec probe (warm median 125.35 → 29.92 ms, 0186 Validation Results). Added the cold-branch gate that masks the *reachable-today* instance of Defect 1 and recorded Defect 2 as an explicit follow-up it did not fix. Its Acceptance Criteria preamble (0186:135-146) is the permission-test rule the 0190 criteria now inherit: assert `id -u ≠ 0`, hard-fail under root, record a privilege check for any excluded lane. The `TIMEOUT after 31 iters, 3s` figure is 0190's own reduced-ceiling restatement, not a string in 0186; 0186 supplies the "~30 s spin" framing and PR #41 records the 27 ms fail-fast.
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — removed the warm-path exec probe (warm median 125.35 → 29.92 ms, 0186 Validation Results). Added the cold-branch gate that masks the *reachable-today* instance of Defect 1 and recorded Defect 2 as an explicit follow-up it did not fix. Its Acceptance Criteria preamble (0186:135-146) is the permission-test rule the 0190 criteria now inherit: assert `id -u ≠ 0`, hard-fail under root, record a privilege check for any excluded lane. The `TIMEOUT after 31 iters, 3s` figure is 0190's own reduced-ceiling restatement, not a string in 0186; 0186 supplies the "~30 s spin" framing and PR #41 records the 27 ms fail-fast.
 - `meta/prs/41-description.md:84` — "a tampered cached launcher in an unwritable cache dir fails in 27 ms with the cache-dir diagnostic, not after the ~30 s lock budget."
-- `meta/work/0164-launcher-and-git-style-dispatch.md` (+ its 2026-07-03 plan/research) — introduced the `bin/accelerator` bootstrap and the mkdir lock.
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` — the parent epic.
-- `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md` and `0205-close-the-warm-dispatch-measurement-method.md` — adjacent warm-path follow-ups; 0189's research is the nearest existing analysis of the bootstrap cache-root probe path (no dedicated `acquire_lock` research existed before this document).
-- `meta/work/0191-batch-the-two-shim-hashes-into-one-invocation.md` — edits a different region of `bin/accelerator` (the shim-staging block); no merge coupling with 0190, now cross-referenced in the work item.
+- `meta/work/PP-185-launcher-and-git-style-dispatch.md` (+ its 2026-07-03 plan/research) — introduced the `bin/accelerator` bootstrap and the mkdir lock.
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` — the parent epic.
+- `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md` and `PP-735-close-the-warm-dispatch-measurement-method.md` — adjacent warm-path follow-ups; 0189's research is the nearest existing analysis of the bootstrap cache-root probe path (no dedicated `acquire_lock` research existed before this document).
+- `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md` — edits a different region of `bin/accelerator` (the shim-staging block); no merge coupling with 0190, now cross-referenced in the work item.
 - No locking-specific ADR exists; the launcher/dispatch ADRs are 0046, 0053, 0054, 0059, 0060.
 
 ## Related Research

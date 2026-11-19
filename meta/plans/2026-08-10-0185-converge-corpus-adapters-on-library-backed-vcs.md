@@ -6,8 +6,8 @@ date: "2026-08-10T15:52:48+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0185"
-parent: "work-item:0185"
+work_item_id: "work-item:PP-715"
+parent: "work-item:PP-715"
 derived_from: ["codebase-research:2026-08-10-0185-converge-corpus-adapters-library-backed-vcs"]
 tags: ["rust", "vcs", "cleanup", "tech-debt"]
 revision: "1e785e44f25480111414fe805bf645510d028fef"
@@ -792,7 +792,7 @@ item's stated scope of re-running the check.
       measured against a pre-switch build, not inferred
 - [x] If any binary's closure is found reachable, a follow-up work item is
       filed for the attribution artefact rather than attempting it inline
-      here — `work-item:0203`
+      here — `work-item:PP-733`
 
 ---
 
@@ -867,11 +867,11 @@ but it is a real, if narrow, change to persisted data, not only to stdout.
 ## References
 
 - Original work item:
-  `meta/work/0185-converge-corpus-adapters-on-library-backed-vcs.md`
+  `meta/work/PP-715-converge-corpus-adapters-on-library-backed-vcs.md`
 - Related research:
   `meta/research/codebase/2026-08-10-0185-converge-corpus-adapters-library-backed-vcs.md`
 - Prior review (APPROVE):
   `meta/reviews/work/0185-converge-corpus-adapters-on-library-backed-vcs-review-1.md`
-- Adapter delivery: `meta/work/0188-library-backed-vcs-adapter.md`
+- Adapter delivery: `meta/work/PP-718-library-backed-vcs-adapter.md`
 - Boundary rationale:
   `meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md`

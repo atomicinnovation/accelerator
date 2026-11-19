@@ -6,8 +6,8 @@ date: "2026-08-31T20:44:29+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0203"
-parent: "work-item:0203"
+work_item_id: "work-item:PP-733"
+parent: "work-item:PP-733"
 derived_from: ["codebase-research:2026-08-31-0203-third-party-attribution-artefact"]
 tags: ["rust", "frontend", "licensing", "release", "vcs"]
 revision: "64587f966a0afa3b44eeb8184aa42cb3a43958b5"
@@ -790,7 +790,7 @@ Pure documentation.
 
 #### 1. Rationale note
 
-**File**: `meta/work/0203-ship-a-third-party-attribution-artefact-with-the-release.md`
+**File**: `meta/work/PP-733-ship-a-third-party-attribution-artefact-with-the-release.md`
 **Changes**: Add a section (or extend Drafting Notes) recording:
 
 - **Two generators** because the Cargo and npm graphs never meet.
@@ -830,7 +830,7 @@ Pure documentation.
 #### Automated Verification:
 
 - [x] Work-item frontmatter still validates:
-      `bin/accelerator corpus frontmatter validate --file meta/work/0203-ship-a-third-party-attribution-artefact-with-the-release.md`
+      `bin/accelerator corpus frontmatter validate --file meta/work/PP-733-ship-a-third-party-attribution-artefact-with-the-release.md`
 
 #### Manual Verification:
 
@@ -919,7 +919,7 @@ No data migration. Two toolchain-coupling risks, both covered in Phase 1:
 
 ## References
 
-- Original work item: `meta/work/0203-ship-a-third-party-attribution-artefact-with-the-release.md`
+- Original work item: `meta/work/PP-733-ship-a-third-party-attribution-artefact-with-the-release.md`
 - Related research: `meta/research/codebase/2026-08-31-0203-third-party-attribution-artefact.md`
 - Upload-set derivation: `tasks/github.py:258-277`
 - Single-file upload template: `tasks/shared/paths.py:22-24` (`RELEASE_MANIFEST`)

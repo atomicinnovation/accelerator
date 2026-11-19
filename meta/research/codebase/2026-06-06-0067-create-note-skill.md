@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0067"
-parent: "work-item:0067"
-relates_to: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "work-item:0057", "adr:ADR-0033", "adr:ADR-0034", "plan:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "adr:ADR-0038"]
+parent: "work-item:PP-89"
+relates_to: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "work-item:PP-79", "adr:ADR-0033", "adr:ADR-0034", "plan:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "adr:ADR-0038"]
 topic: "Implementing the create-note skill and templates/note.md"
 tags: ["research", "codebase", "skills", "notes", "templates", "frontmatter", "typed-linkage"]
 revision: "70e86d6dd86759a59677bba83c922c83b08300b5"
@@ -214,7 +214,7 @@ set (lines 46-56): `parent` (single, hierarchical owner), `supersedes`/
 external/non-meta extraction origin).
 
 **Ref shape** (lines 67-74): the canonical form is `doc-type:id`, e.g.
-`"work-item:0057"`, **as a single quoted YAML string** (`"plan:0042"`, never
+`"work-item:PP-79"`, **as a single quoted YAML string** (`"plan:0042"`, never
 `plan:"0042"`); lists are YAML arrays of such strings. A project-root-relative
 path (e.g. `"meta/notes/2026-01-15-pipeline-incident.md"`) is the alternate form
 when the target lacks a stable id. Since notes now get a real `id`, references
@@ -367,7 +367,7 @@ confirm the implementation target:
 
 ## Historical Context
 
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` —
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` —
   parent epic (in-progress); defines the sibling split where 0067 owns
   `templates/note.md`.
 - `meta/work/0060-...` (done) → produced ADR-0033; `meta/work/0061-...` (done) →

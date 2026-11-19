@@ -6,8 +6,8 @@ date: "2026-10-15T18:30:06+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0302"
-work_item_id: "0302"
+target: "work-item:PP-879"
+work_item_id: "PP-879"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -198,7 +198,7 @@ criteria that a weaker implementation would also pass.
    edit still causes a refusal.
 6. **Fix the frontmatter edges and the Dependencies prose** (addresses:
    frontmatter omissions)
-   Add `blocks: ["work-item:0343"]` and `blocked_by: ["work-item:0230"]`, and
+   Add `blocks: ["work-item:PP-931"]` and `blocked_by: ["work-item:PP-760"]`, and
    change "Blocked by" to name 0230 as done.
 7. **Record the remaining assumptions and ordering** (addresses: vendor
    reliance, sync ordering, deprecation owner)

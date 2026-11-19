@@ -6,7 +6,7 @@ date: "2026-08-11T22:39:16+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-parent: "work-item:0196"
+parent: "work-item:PP-726"
 target: "plan:2026-08-11-0196-design-cli-migration"
 relates_to: ["plan-review:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1"]
 reviewer: "Toby Clemson"
@@ -99,7 +99,7 @@ cannot be implemented in the order stated, because a child's environment is fixe
   effect is "not obvious in either direction" and gates on "no slower than today".
   Performance resolves it with numbers already in the repo: today's `run.sh` pays a
   *nested full `bin/accelerator` bootstrap* (`run.sh:77`, measured at 29.92ms median in
-  work-item:0186) on every invocation, against ~5–10ms for the added sub-binary resolve
+  work-item:PP-716) on every invocation, against ~5–10ms for the added sub-binary resolve
   and re-verify — so the port should land 20–45ms faster per call, 3–9s per crawl.
   **Recommendation**: state the expected direction and gate on a ratio, so failing to
   capture the win is visible rather than merely "not worse".
@@ -296,7 +296,7 @@ highest-impact clusters:
 - 🔵 **Compatibility / Safety**: `ACCELERATOR_LOCK_FORCE_MKDIR` is still honoured by the
   surviving `ensure-playwright.sh:90`, so dropping it leaves it half-honoured.
 - 🔵 **Safety**: Dropping the mkdir backend removes the only filesystem-agnostic exclusion,
-  against work-item:0196's own Technical Note, and it fails open.
+  against work-item:PP-726's own Technical Note, and it fails open.
 - 🔵 **Safety**: Further `run.sh` remediation strings survive in `client.js:13`,
   `daemon.js:155`, `run.js:33` and six `PROTOCOL.md` lines.
 - 🔵 **Safety**: `regenerate-notify-downgrade-fixtures.sh` and its fixtures have no owning
@@ -2566,7 +2566,7 @@ are neither measured nor bounded.
 §1 and Performance Considerations**
 
 Every executor invocation now goes through the launcher's fetch-verify-cache warm path, which
-work-item:0186 measured at **~29.92ms** (down from 125.35ms) — per invocation, on top of the Node
+work-item:PP-716 measured at **~29.92ms** (down from 125.35ms) — per invocation, on top of the Node
 client. At 100–200 invocations per crawl that is 3–6 seconds of pure dispatch overhead that
 `run.sh` (a direct bash exec) does not pay. The plan states no budget, no measurement, and no
 comparison against the shell baseline.

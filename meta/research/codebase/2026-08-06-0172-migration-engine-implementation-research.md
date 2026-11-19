@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0172"
-parent: "work-item:0172"
+parent: "work-item:PP-193"
 topic: "Migration Engine Subdomain (0172) implementation groundwork"
 tags: ["research", "codebase", "migration-engine", "rust-cli", "migrate", "concurrency", "interactive"]
 revision: "3eff062ce78e622016adc1f663ea4bbcbed17145"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-Educate an implementation plan for the story at `meta/work/0172-migration-engine-subdomain.md` — porting `skills/config/migrate/` (the bash meta-directory migration engine: driver, FIFO/fd interactive IPC, 7 numbered migrations, author-facing harness) into a native Rust `accelerator-migrate` sub-binary, over the already-landed `config`/`config-adapters`/`corpus`/`corpus-adapters`/`document`/`vcs`/`store` crates.
+Educate an implementation plan for the story at `meta/work/PP-193-migration-engine-subdomain.md` — porting `skills/config/migrate/` (the bash meta-directory migration engine: driver, FIFO/fd interactive IPC, 7 numbered migrations, author-facing harness) into a native Rust `accelerator-migrate` sub-binary, over the already-landed `config`/`config-adapters`/`corpus`/`corpus-adapters`/`document`/`vcs`/`store` crates.
 
 ## Summary
 
@@ -151,7 +151,7 @@ Two committed golden-capture mechanisms exist as direct templates for 0172's "ba
 | 0167 | `done` | Body still reads "Ready" (stale); corroborated done by merged PR `meta/prs/26-description.md` (pr #26, revision `4af9f104c3153a6801518e43a735c6177d16d47c`) — removal-set deletion, `check-inventory.sh`/`check-call-site-migration.sh`/`check-skill-permissions.sh` all green at merge. **0172's own Dependencies text ("blocked by 0167 (ready, not done)") is stale and should be updated.** |
 | 0169 | `ready` | Two open ACs remain (musl cross-compile verification, "release precedes rewrite" gate) but the hooks-migration deliverables 0172 needs are `[x]` complete. |
 | 0178, 0179, 0180 | `done` | Foundation crates fully landed. 0180 carries an explicit reciprocal `relates_to: [0172]` with a binding clean-cutover obligation (below). |
-| 0187 | `done` | Registration-surface generaliser; 0172 already correctly carries `blocked_by: work-item:0187`. |
+| 0187 | `done` | Registration-surface generaliser; 0172 already correctly carries `blocked_by: work-item:PP-717`. |
 | 0164 | `done` (frontmatter) | Body still says "In Progress," all body ACs unchecked — frontmatter is authoritative per 0172's own citation. |
 | 0116, 0119, 0115 | `done` | Contracts 0172 preserves; see §9 below for precision gaps. |
 | 0182 | `done` | Ships `hooks/launcher-link-refresh.sh` at index 3, **not** `hooks/shim-refresh.sh` as 0172:719-721 currently states. `0182`'s `relates_to` still omits 0172 (confirmed unchanged). |
@@ -159,7 +159,7 @@ Two committed golden-capture mechanisms exist as direct templates for 0172's "ba
 | **0173** | **`abandoned`** | **Split 2026-08-05 into 0195 (`accelerator-corpus`), 0196 (`accelerator-design`), 0197 (`accelerator-collaboration`)**. `scripts/validate-corpus-frontmatter.sh`'s deletion now lives in **0195** (confirmed present in `meta/work/0195-....md:67,83,94,125`), which has **zero mention of 0172 or the golden-capture ordering constraint** anywhere in its text. 0195 is `status: ready`, `last_updated` six minutes after 0172's own last update, with no blockers recorded against this concern — **the golden-capture race 0172's own AC is meant to prevent is currently live and unguarded** against an item 0172 doesn't reference. 0136 (the epic) already documents the 0173→0195/0196/0197 split; 0172 does not. |
 | 0136 | `in-progress` | Epic still lists 0172 in the same unchanged slot in its decomposition. |
 
-**Corrective actions this implies for planning**: retarget every reference to `work-item:0173` in 0172's Requirements/AC/Dependencies/References concerning the golden-capture ordering constraint to `work-item:0195`, and add the reciprocal edge to 0195 (not 0173, which is inert). Correct the `shim-refresh.sh`→`launcher-link-refresh.sh` naming. Update the "0167 (ready, not done)" framing.
+**Corrective actions this implies for planning**: retarget every reference to `work-item:PP-194` in 0172's Requirements/AC/Dependencies/References concerning the golden-capture ordering constraint to `work-item:PP-725`, and add the reciprocal edge to 0195 (not 0173, which is inert). Correct the `shim-refresh.sh`→`launcher-link-refresh.sh` naming. Update the "0167 (ready, not done)" framing.
 
 ### 9. Precision gaps between 0172's paraphrase and its source contracts (0187/0164/0116/0119/0115)
 

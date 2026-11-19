@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0228"
-parent: "work-item:0228"
-relates_to: ["work-item:0220", "work-item:0227", "work-item:0229", "work-item:0230"]
+parent: "work-item:PP-758"
+relates_to: ["work-item:PP-749", "work-item:PP-757", "work-item:PP-759", "work-item:PP-760"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/116"
 pr_number: 116
 tags: ["configuration", "work-management", "migration", "tracker"]
@@ -67,7 +67,7 @@ alias and the `{project}` token are removed in 1.25.0.
 
 ## Context
 
-- Work item: `meta/work/0228-layered-configuration-key-model.md`
+- Work item: `meta/work/PP-758-layered-configuration-key-model.md`
 - Plan: `meta/plans/2026-09-10-0228-layered-configuration-key-model.md` (done)
 - Validation: `meta/validations/2026-09-10-0228-layered-configuration-key-model-validation.md` (pass)
 - ADR-0044 (remote identity on `external_id`) and ADR-0047 (multi-level

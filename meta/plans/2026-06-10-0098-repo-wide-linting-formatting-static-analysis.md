@@ -6,8 +6,8 @@ date: "2026-06-10T14:04:25+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0098"
-parent: "work-item:0098"
+work_item_id: "work-item:PP-120"
+parent: "work-item:PP-120"
 derived_from: ["codebase-research:2026-06-09-0098-repo-wide-linting-formatting-static-analysis"]
 tags: ["tooling", "linting", "formatting", "static-analysis", "ci", "guardrails", "biome", "ruff", "pyrefly", "clippy", "shellcheck", "shfmt", "mise"]
 revision: "5f0375c3b5a285489fe8094a65f96a43511db100"
@@ -1604,7 +1604,7 @@ branch-protection required-check names match the renamed/added jobs.
 
 #### Manual Verification:
 - [x] The pyrefly `all`-preset follow-up work item exists and is linked
-  (`meta/work/0109-re-evaluate-pyrefly-all-preset.md`, relates_to work-item:0098).
+  (`meta/work/PP-131-re-evaluate-pyrefly-all-preset.md`, relates_to work-item:PP-120).
 - [ ] Main CI shows four separate blocking per-component jobs, no
   `continue-on-error`. **[CI/manual — wiring asserted in-repo: `check-scripts`,
   `check-build-system`, `check-server`, `check-frontend` all in `prerelease.needs`
@@ -1690,7 +1690,7 @@ no re-scope needed (this plan is already per-component).
 
 ## References
 
-- Original work item: `meta/work/0098-repo-wide-linting-formatting-static-analysis.md`
+- Original work item: `meta/work/PP-120-repo-wide-linting-formatting-static-analysis.md`
 - Research: `meta/research/codebase/2026-06-09-0098-repo-wide-linting-formatting-static-analysis.md`
 - Review: `meta/reviews/work/0098-repo-wide-linting-formatting-static-analysis-review-1.md`
 - Two-pass precedent: `tasks/test/unit.py:6-24`

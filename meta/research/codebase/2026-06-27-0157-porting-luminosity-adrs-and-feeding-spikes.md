@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0157"
-parent: "work-item:0157"
+parent: "work-item:PP-178"
 relates_to: ["codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 topic: "Porting luminosity ADRs and feeding spikes into Accelerator"
 tags: ["research", "codebase", "adr", "decisions", "porting", "luminosity", "rust-cli", "schema", "supersession"]
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 To prepare an implementation plan for work item
-[0157 — Port Luminosity ADRs and Feeding Spikes into Accelerator](../../work/0157-port-luminosity-adrs-and-feeding-spikes.md):
+[0157 — Port Luminosity ADRs and Feeding Spikes into Accelerator](../../work/PP-178-port-luminosity-adrs-and-feeding-spikes.md):
 what is the full content and structure of the eleven luminosity ADRs and two
 feeding spikes; what local Accelerator schema/convention they must conform to;
 where the candidate overlaps with existing local ADRs actually lie; and what
@@ -162,9 +162,9 @@ All eleven ADRs are `status: accepted`, `author: Toby Clemson`,
 `supersedes` or `superseded_by`.**
 
 **Parent / provenance grouping (important — neither parent is being ported):**
-- **lum ADR-0001…0008** → `parent: "work-item:0004"` (luminosity story "record
+- **lum ADR-0001…0008** → `parent: "work-item:PP-26"` (luminosity story "record
   existing implicit architecture decisions as ADRs").
-- **lum ADR-0009…0011** → `parent: "work-item:0005"` (luminosity story "record
+- **lum ADR-0009…0011** → `parent: "work-item:PP-27"` (luminosity story "record
   spike-dependent architecture decisions as ADRs").
 - Work items 0004 and 0005 are **not** in scope to port, so the ported ADRs'
   `parent` must be dropped or repointed (Open Question).
@@ -179,11 +179,11 @@ All eleven ADRs are `status: accepted`, `author: Toby Clemson`,
 **Feeding spikes (both `status: done`, `kind: spike`, research-only — no
 prototype):**
 - **lum 0002** "Modular Rust CLI Architecture & Hexagonal Workspace Layout"
-  (~373 lines; `parent: work-item:0001`, `blocks: [0005,0007,0008]`; **no
+  (~373 lines; `parent: work-item:PP-23`, `blocks: [0005,0007,0008]`; **no
   `external_id`, no `relates_to`**). Feeds **lum ADR-0009 (hexagon) and
   ADR-0010 (modular CLI/launcher)** — split of its Recommendation §1–§4.
 - **lum 0003** "Skill Evaluation Framework Selection" (~316 lines;
-  `parent: work-item:0001`, `blocks: [0005,0010]`; same key set). Feeds
+  `parent: work-item:PP-23`, `blocks: [0005,0010]`; same key set). Feeds
   **lum ADR-0011 (Inspect harness)**.
 - Both record outcomes **in the work item itself** (short `## Spike Outcome` +
   long `## Recommendation`). Their `parent`/`blocks` all point at luminosity
@@ -230,10 +230,10 @@ Spikes: **lum 0002 → local 0158**, **lum 0003 → local 0159** (allocate with
 `work-item-next-number.sh --count 2`; the script confirms 0158 is next). Repoint
 the spike-fed ADRs' provenance:
 - ADR-0053 (was lum 0009) and ADR-0054 (was lum 0010) → primary provenance
-  **work-item:0158**; luminosity original
+  **work-item:PP-181**; luminosity original
   `https://github.com/atomicinnovation/luminosity/blob/main/meta/work/0002-…`
   as secondary.
-- ADR-0055 (was lum 0011) → primary provenance **work-item:0159**; luminosity
+- ADR-0055 (was lum 0011) → primary provenance **work-item:PP-182**; luminosity
   `…/0003-…` as secondary.
 
 > **Critical rewrite caveat:** the +44 shift applies **only to luminosity's own
@@ -307,7 +307,7 @@ Because the luminosity ADRs are accelerator-derived, drift is small:
   frontmatter as authoritative).
 - `date` / `last_updated` → **porting context** (2026-06-27T…). `author` /
   `last_updated_by` → porting author.
-- `parent: "work-item:0004"|"work-item:0005"` → **drop or repoint** (targets not
+- `parent: "work-item:PP-26"|"work-item:PP-27"` → **drop or repoint** (targets not
   ported).
 - `relates_to` → **rewritten per §D map** (luminosity self-refs +44; Accelerator
   refs unchanged).
@@ -393,7 +393,7 @@ Because the luminosity ADRs are accelerator-derived, drift is small:
 - `meta/decisions/ADR-0016/0017/0020/0021` — Accelerator's *existing* config
   model and extension points, which luminosity ADR-0003 explicitly adopted and
   cites. Confirmed present locally with matching titles.
-- `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+- `meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`
   (referenced by ADR-0016) — the partial supersession of ADR-0016's file paths;
   the ported config superset (ADR-0047) completes it.
 
@@ -408,9 +408,9 @@ Because the luminosity ADRs are accelerator-derived, drift is small:
    carry `producer: create-adr`. Match the local corpus (omit), or set a porting
    marker? (Leaning: omit, to match the live local ADRs read by the corpus
    validator.)
-2. **`parent` on ported ADRs.** Luminosity parents (work-item:0004/0005) are not
+2. **`parent` on ported ADRs.** Luminosity parents (work-item:PP-26/0005) are not
    ported. Drop entirely (omit-when-empty), or repoint all ported ADRs' `parent`
-   at this porting work item (work-item:0157) as provenance? (Leaning: drop, and
+   at this porting work item (work-item:PP-178) as provenance? (Leaning: drop, and
    record luminosity origin in References as a full URL; spike-fed ADRs instead
    gain a `relates_to`/References pointer to the ported spike 0158/0159.)
 3. **ADR-0001 supersession.** Confirm ADR-0001 is *not* superseded by the ported

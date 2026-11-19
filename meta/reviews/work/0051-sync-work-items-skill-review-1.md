@@ -6,9 +6,9 @@ date: "2026-06-15T19:23:10+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0051"
+target: "work-item:PP-73"
 relates_to: ["work-item-review:0047-core-skills-sync-integration-review-1"]
-work_item_id: "0051"
+work_item_id: "PP-73"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

@@ -13,7 +13,7 @@ id: "2026-05-22-0081-status-badge-component"
 title: "Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0038", "work-item:0005", "adr:ADR-0007", "work-item:0066", "work-item:0084", "work-item:0078", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0081", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
+relates_to: ["work-item:PP-60", "work-item:PP-27", "adr:ADR-0007", "work-item:PP-88", "work-item:PP-106", "work-item:PP-100", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:PP-103", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 derived_from: ["codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "design-inventory:2026-05-21-004250-current-app"]
 ---
 
@@ -27,7 +27,7 @@ derived_from: ["codebase-research:2026-05-21-0078-detail-page-frontmatter-table"
 
 ## Research Question
 
-For work item `meta/work/0081-status-badge-component.md` (StatusBadge —
+For work item `meta/work/PP-103-status-badge-component.md` (StatusBadge —
 Decompose `FrontmatterChips` and Map Status + Verdict to Tone): what is
 the current shape of `FrontmatterChips`, its dependencies (`Chip` primitive,
 `statusToChipVariant`), every consumer/surface, and the upstream verdict
@@ -352,11 +352,11 @@ Three implementation hazards surfaced:
 
 ## Historical Context
 
-- `meta/work/0038-generic-chip-component.md` — Chip primitive work
+- `meta/work/PP-60-generic-chip-component.md` — Chip primitive work
   item that produced the six-variant `Chip`. Pass-2 reviewer of 0081
   mistakenly thought `red` was missing; the misread was corrected in
   pass 3 after re-reading 0038's Desired End State.
-- `meta/work/0005-plan-review-verdict-semantics.md` — defines
+- `meta/work/PP-27-plan-review-verdict-semantics.md` — defines
   plan-review verdict semantics; promoted from Coordinates-with to
   Blocked-by between 0081 review passes.
 - `meta/decisions/ADR-0007-divergent-verdict-semantics-for-plan-and-pr-reviews.md`
@@ -364,15 +364,15 @@ Three implementation hazards surfaced:
   while PR reviews use `APPROVE | REQUEST_CHANGES | COMMENT`. The work
   item appears to have collapsed both sets when listing the plan-review
   vocabulary.
-- `meta/work/0066-update-review-skills-inline-frontmatter.md` — ongoing
+- `meta/work/PP-88-update-review-skills-inline-frontmatter.md` — ongoing
   work on review-skill frontmatter format; review-skills already inline
   YAML today, so 0066 is likely format normalisation. The work item's
   ordering concern ("if 0066 lands a different vocabulary first…") is
   surfaced explicitly in Open Questions.
-- `meta/work/0084-detail-page-chip-strip-cap.md` — downstream consumer
+- `meta/work/PP-106-detail-page-chip-strip-cap.md` — downstream consumer
   blocked by 0081; will cap the chip strip at 4 chips (status, verdict,
   date, author).
-- `meta/work/0078-detail-page-frontmatter-table.md` — adjacent shipped
+- `meta/work/PP-100-detail-page-frontmatter-table.md` — adjacent shipped
   work that added `FrontmatterTable` next to `FrontmatterChips` in
   `LibraryDocView`. Open question for the planner: should the table's
   value cells consume the same per-key components?

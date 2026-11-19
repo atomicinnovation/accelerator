@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-14-0038-generic-chip-component"
 title: "Generic Chip Component (work item 0038)"
 schema_version: 1
-relates_to: ["codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "adr:ADR-0026", "codebase-research:2026-05-06-0033-design-token-system", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "work-item:0036"]
+relates_to: ["codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "adr:ADR-0026", "codebase-research:2026-05-06-0033-design-token-system", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "work-item:PP-58"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-07-0035-topbar-component"]
 ---
 
@@ -167,7 +167,7 @@ Surveyed canonical components (`OriginPill`, `SseIndicator`, `FrontmatterChips`,
 
 ### 6. Historical context: work items, ADRs, plans
 
-- **Blocker is satisfied**: `meta/work/0033-design-token-system.md` (status: done).
+- **Blocker is satisfied**: `meta/work/PP-55-design-token-system.md` (status: done).
 - **No plan yet exists for 0038**. The closest precedent is `meta/plans/2026-05-12-0037-glyph-component.md` (Glyph plan) — a sibling design-system component on the same phase. Reuse its plan structure.
 - **No ADR for status / chip semantics yet exists**, but ADR-0026 (CSS design-token application conventions, accepted 2026-05-07) sets the precedent for where chip token decisions live. If 0038 adds a semantic `--ac-status-*` namespace or dark overrides for `--ac-ok`/`--ac-warn`/`--ac-err`, that decision likely warrants a small ADR.
 - **0038 is not part of any epic**. The "frontmatter and linkage improvements" epic (0057) is unrelated. The design-system cluster around 0033/0034/0035/0036/0037/0038/0039/0040/0041/0042 stands as a loose group without a named epic.
@@ -222,7 +222,7 @@ Chip-relevant code in the visualiser frontend (all paths relative to the workspa
 - `meta/research/codebase/2026-05-12-0037-glyph-component.md` — Closest sibling research; Chip and Glyph are parallel design-system components on the same delivery phase. The Glyph plan at `meta/plans/2026-05-12-0037-glyph-component.md` is the structural template for a Chip plan.
 - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md:272-274` — The only repo-resident enumeration of `.ac-chip--*` variants.
 - `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md:35` — Restates the same five-variant list with the same labels; no extra detail.
-- `meta/work/0036-sidebar-redesign.md` — Marked as an epic but does NOT list 0038 as a child. 0038 is currently an independent story in the loose design-system cluster.
+- `meta/work/PP-58-sidebar-redesign.md` — Marked as an epic but does NOT list 0038 as a child. 0038 is currently an independent story in the loose design-system cluster.
 
 ## Related Research
 

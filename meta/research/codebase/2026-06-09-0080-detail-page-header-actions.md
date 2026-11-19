@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0080"
-parent: "work-item:0080"
+parent: "work-item:PP-102"
 topic: "Detail-page header actions: Open in editor and Copy path for LibraryDocView"
 tags: ["research", "codebase", "visualiser", "detail-page", "config", "editor-deeplink", "clipboard", "toaster"]
 revision: "450c4de8765ccbe351e838e419e2621a01f5c047"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For story `meta/work/0080-detail-page-header-actions.md`: how does the existing
+For story `meta/work/PP-102-detail-page-header-actions.md`: how does the existing
 codebase support wiring two right-aligned action buttons (`Open in editor`,
 `Copy path`) into the `Page.actions` slot on the `LibraryDocView` route? What
 already exists, and what is net-new? Specifically:
@@ -372,15 +372,15 @@ flag this in planning to drop that scope.
 
 ## Historical Context
 
-- `meta/work/0080-detail-page-header-actions.md` — the story under research; its review at
+- `meta/work/PP-102-detail-page-header-actions.md` — the story under research; its review at
   `meta/reviews/work/0080-detail-page-header-actions-review-1.md`. No plan or prior codebase
   research existed for 0080 before this document.
-- Dependencies: `meta/work/0039-toaster-and-external-edit-notifications.md` (Toaster, with
+- Dependencies: `meta/work/PP-61-toaster-and-external-edit-notifications.md` (Toaster, with
   `meta/research/codebase/2026-05-27-0039-…md`, `meta/plans/2026-05-27-0039-…md`);
-  `meta/work/0041-library-page-wrapper-and-overview-hub.md` (introduced `Page.actions`, with
+  `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` (introduced `Page.actions`, with
   `meta/research/codebase/2026-05-15-0041-…md` + supplementary + plan);
-  `meta/work/0035-topbar-component.md` (TopbarIconButton precedent, with research + plan).
-- Sibling config work: `meta/work/0100-configurable-visualiser-auto-shutdown.md` (idle_timeout —
+  `meta/work/PP-57-topbar-component.md` (TopbarIconButton precedent, with research + plan).
+- Sibling config work: `meta/work/PP-122-configurable-visualiser-auto-shutdown.md` (idle_timeout —
   the closest config template; `meta/research/codebase/2026-06-06-0100-…md`,
   `meta/plans/2026-06-06-0100-…md`, validation report). The richest source on
   `visualiser.binary` / `ACCELERATOR_VISUALISER_*` is

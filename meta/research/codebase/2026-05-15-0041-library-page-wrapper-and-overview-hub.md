@@ -13,7 +13,7 @@ type: "codebase-research"
 id: "2026-05-15-0041-library-page-wrapper-and-overview-hub"
 title: "Work Item 0041 — Library Page Wrapper, Overview Hub, and List Views"
 schema_version: 1
-relates_to: ["design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view", "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api", "plan:2026-05-05-add-missing-templates-to-visualiser", "adr:ADR-0024", "adr:ADR-0026", "adr:ADR-0025", "work-item:0041"]
+relates_to: ["design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view", "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api", "plan:2026-05-05-add-missing-templates-to-visualiser", "adr:ADR-0024", "adr:ADR-0026", "adr:ADR-0025", "work-item:PP-63"]
 derived_from: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-05-03-update-visualiser-for-work-item-terminology"]
 ---
 
@@ -27,7 +27,7 @@ derived_from: ["codebase-research:2026-04-17-meta-visualiser-implementation-cont
 
 ## Research Question
 
-For the work item at `meta/work/0041-library-page-wrapper-and-overview-hub.md`, surface the current-state codebase context needed to plan implementation: the existing list view, the `PageSubtitle` it will subsume, the router redirect being removed, the client-side `PHASE_DOC_TYPES` constant being retired, the design-system primitives the new components depend on (Glyph / Chip / tokens), the server's `describe_types` surface that will be extended, the indexer fields backing counts and "latest", facet data sources, and the (absent) popover/checkbox/search-input precedents.
+For the work item at `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`, surface the current-state codebase context needed to plan implementation: the existing list view, the `PageSubtitle` it will subsume, the router redirect being removed, the client-side `PHASE_DOC_TYPES` constant being retired, the design-system primitives the new components depend on (Glyph / Chip / tokens), the server's `describe_types` surface that will be extended, the indexer fields backing counts and "latest", facet data sources, and the (absent) popover/checkbox/search-input precedents.
 
 ## Summary
 
@@ -490,7 +490,7 @@ The kebab wire form `prs` round-trips via `#[serde(rename_all = "kebab-case")]` 
 
 ## Open Questions
 
-All eight open questions identified during research were resolved in a follow-up Q&A pass with the work-item author on 2026-05-15. Resolutions are captured in the work item's Drafting Notes (see `meta/work/0041-library-page-wrapper-and-overview-hub.md`) and the relevant Acceptance Criteria. Summary:
+All eight open questions identified during research were resolved in a follow-up Q&A pass with the work-item author on 2026-05-15. Resolutions are captured in the work item's Drafting Notes (see `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`) and the relevant Acceptance Criteria. Summary:
 
 1. **`--ac-content-max-width` token** — **resolved**: introduce the token now in `tokens.ts` (LAYOUT_TOKENS, theme-invariant) + all three light/dark mirror blocks in `global.css` + update `migration.test.ts` allowlist as routes migrate. Canonical value TBD per route during implementation.
 2. **Page wrapper / RootLayout padding** — **resolved**: `Page` owns both axes (horizontal + vertical padding + max-width). `RootLayout.main` drops its `padding: var(--sp-5) var(--sp-6)` rule. All five `<main>`-padded routes (`KanbanBoard`, `LifecycleIndex`, `LibraryDocView`, `LibraryTemplatesView`, `LibraryTemplatesIndex`) migrate to `Page` in this work item to preserve visual output.
@@ -503,7 +503,7 @@ All eight open questions identified during research were resolved in a follow-up
 
 ## References
 
-- Work item: `meta/work/0041-library-page-wrapper-and-overview-hub.md`
+- Work item: `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`
 - Source research: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`
 - Design inventory: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/`
 - Blocker work items: 0033 (Design Token System), 0037 (Glyph Component), 0038 (Generic Chip Component) — all `done`.

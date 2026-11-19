@@ -15,7 +15,7 @@ last_updated: "2026-06-02T16:07:06+00:00"
 last_updated_by: "Toby Clemson"
 last_updated_note: "Rebased on top of typed-linkage clustering rollout (commits xzkvrrlw..tntvnkpq); added Follow-up Research section covering the new typed_ref.rs / cluster_key.rs / widened indexer consumers and recording the Pass 3 APPROVE verdict on the 0093 work-item review."
 schema_version: 1
-relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0038", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "work-item:0093"]
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0038", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "work-item:PP-115"]
 derived_from: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter"]
 ---
 
@@ -30,7 +30,7 @@ derived_from: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-u
 ## Research Question
 
 What is the current state of the codebase that work item [0093 — Extend
-Templates With Typed-Linkage Slots](../../work/0093-extend-templates-with-typed-linkage-slots.md)
+Templates With Typed-Linkage Slots](../../work/PP-115-extend-templates-with-typed-linkage-slots.md)
 will modify, and what implementation-relevant constraints fall out of that
 state? Specifically:
 
@@ -66,7 +66,7 @@ implementation-relevant qualifications:
   vs reviewer) plus four real drift sites that 0093 will collide with:
   `refine-work-item` (no Populate-frontmatter heading; uses `—` not `←`;
   writes `parent` as a bare-id scalar `"0001"` not the typed-linkage
-  `"work-item:0001"` form), `create-plan` (writes `work_item_id` as a
+  `"work-item:PP-23"` form), `create-plan` (writes `work_item_id` as a
   bare-id scalar instead of a `target:`-shaped typed ref), `analyse-design-gaps`
   (writes `current_inventory`/`target_inventory` as filesystem paths not
   typed refs), and the four reviewer skills (no literal `Populate
@@ -291,11 +291,11 @@ slot set — those new slots must coexist with the existing inventory keys.
 field-population logic is inlined into the **decompose** operation
 (`skills/work/refine-work-item/SKILL.md:180-205`). Uses em-dash `—`
 separators instead of arrow `←`. Most critically: **writes `parent:` as
-a bare-id scalar (`"0001"` form), not as a typed-linkage `"work-item:0001"`
+a bare-id scalar (`"0001"` form), not as a typed-linkage `"work-item:PP-23"`
 ref.** This is a head-on conflict with 0093's Requirements §1 single-ref
 shape (`# typed-linkage ref: "<source-type>:NNNN" or ""`). The plan must
 either:
-- normalise refine-work-item to write `parent: "work-item:0001"` (which
+- normalise refine-work-item to write `parent: "work-item:PP-23"` (which
   also requires updating `create-work-item` since it currently emits
   `parent: ""` with the same legacy expectation), OR
 - explicitly carve out work-item `parent` as a special case where the
@@ -712,7 +712,7 @@ Frontmatter keys consumed:
 
 **Critical finding for Open Question #1 in the prior research.**
 `cluster_key.rs:138-152`'s `id_from_value` accepts BOTH typed-form
-(`"work-item:0001"`) AND bare-id (`"0001"`):
+(`"work-item:PP-23"`) AND bare-id (`"0001"`):
 
 ```rust
 // Adapted from cluster_key.rs:138-152

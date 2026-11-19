@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0169"
-parent: "work-item:0169"
-relates_to: ["work-item:0125", "work-item:0172", "work-item:0183", "work-item:0189", "work-item:0198", "work-item:0199", "work-item:0200"]
+parent: "work-item:PP-190"
+relates_to: ["work-item:PP-146", "work-item:PP-193", "work-item:PP-713", "work-item:PP-719", "work-item:PP-728", "work-item:PP-729", "work-item:PP-730"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/51"
 pr_number: 51
 tags: ["rust", "vcs", "hooks", "migration"]
@@ -48,7 +48,7 @@ Implements ADR-0048 for the VCS subsystem: builds `accelerator-vcs`, a new dispa
 
 ## Context
 
-- Work item: `meta/work/0169-vcs-subdomain-and-hooks-migration.md`
+- Work item: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - Plan: `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` (all 10 phases implemented; status `done`)
 - Validation: `meta/validations/2026-08-05-0169-vcs-subdomain-and-hooks-migration-validation.md` — result `pass`
 - ADR-0048 (hook logic lives in the CLI), ADR-0053 (thin CLI over a hexagonal ports-and-adapters core)

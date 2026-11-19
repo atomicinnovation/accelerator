@@ -6,10 +6,10 @@ date: "2026-07-31T02:03:11+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0169"
-parent: "work-item:0136"
+target: "work-item:PP-190"
+parent: "work-item:PP-157"
 relates_to: ["work-item-review:0169-vcs-subdomain-and-hooks-migration-review-1"]
-work_item_id: "0169"
+work_item_id: "PP-190"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

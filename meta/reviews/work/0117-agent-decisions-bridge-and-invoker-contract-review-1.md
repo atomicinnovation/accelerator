@@ -6,9 +6,9 @@ date: "2026-06-20T11:02:01+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0117"
-relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
-work_item_id: "0117"
+target: "work-item:PP-139"
+relates_to: ["work-item:PP-137", "work-item:PP-138", "work-item:PP-140"]
+work_item_id: "PP-139"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -582,7 +582,7 @@ The two pass-4 majors were applied in-story:
   (`<key>` / proposed-value / context / expected post-migration field), an
   explicit `<key>` definition, and the verbatim expected `--list` output block;
   AC1 now asserts that output byte-for-byte and AC2 binds position 3 to
-  `edit work-item:0100` with the exact resulting field value.
+  `edit work-item:PP-122` with the exact resulting field value.
 - **Malformed-file handling kept in 0117** — new AC6 verifies fail-closed
   behaviour for count-too-few, count-too-many, and unknown-verb (each exits
   non-zero naming the offending position, corpus unmutated). A matching

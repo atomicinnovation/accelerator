@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0283"
-parent: "work-item:0283"
-relates_to: ["work-item:0280", "work-item:0282", "work-item:0295"]
+parent: "work-item:PP-867"
+relates_to: ["work-item:PP-864", "work-item:PP-866", "work-item:PP-882"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/136"
 pr_number: 136
 tags: ["research", "skills", "deep-research"]
@@ -139,7 +139,7 @@ and each topic-research concept is modelled once.
 
 ## Context
 
-- Work item: `meta/work/0283-recursive-finding-deepening.md` (PP-867)
+- Work item: `meta/work/PP-867-recursive-finding-deepening.md` (PP-867)
 - Plan: `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
 - Research: `meta/research/codebase/2026-09-26-0283-recursive-finding-deepening.md`
 - Validation: `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`

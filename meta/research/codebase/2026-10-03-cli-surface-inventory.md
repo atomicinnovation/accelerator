@@ -763,10 +763,10 @@ Non-key config files:
 - `meta/decisions/ADR-0061-signed-content-addressed-tree-generations.md`, `ADR-0063-plugin-version-scoped-artifact-cache.md`, `ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md` - tree artifacts and cache.
 - `meta/decisions/ADR-0047-multi-level-userspace-configuration-model.md` - team and personal levels.
 - `meta/decisions/ADR-0021-template-management-subcommands.md` - `config templates`.
-- `meta/work/0251-env-var-overrides-in-config-crates.md` - env-over-config precedence.
-- `meta/work/0258-help-show-subcommands.md` - help behaviour.
-- `meta/work/0269-remove-bash-references-from-jira-linear-clients.md` - exit-code vocabulary.
-- `meta/work/0226-unify-the-trust-barrier-for-consent-config-keys.md` - consent keys.
+- `meta/work/PP-781-env-var-overrides-in-config-crates.md` - env-over-config precedence.
+- `meta/work/PP-788-help-show-subcommands.md` - help behaviour.
+- `meta/work/PP-799-remove-bash-references-from-jira-linear-clients.md` - exit-code vocabulary.
+- `meta/work/PP-756-unify-the-trust-barrier-for-consent-config-keys.md` - consent keys.
 - `docs-site/src/content/docs/configuration.md`, `internals.md` - user-facing reference that this document cross-checks.
 
 ## Related Research

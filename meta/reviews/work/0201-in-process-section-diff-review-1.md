@@ -6,8 +6,8 @@ date: "2026-08-30T01:08:22+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0201"
-work_item_id: "0201"
+target: "work-item:PP-731"
+work_item_id: "PP-731"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -98,7 +98,7 @@ None.
 
 - 🔵 **Scope**: Tentative parent linkage to epic 0174
   **Location**: Frontmatter: parent
-  The item declares `parent: work-item:0174`, but Drafting Notes concede 0174
+  The item declares `parent: work-item:PP-195`, but Drafting Notes concede 0174
   "doesn't literally scope this item today". If 0174's decomposition does not
   enumerate this migration, the linkage inflates the epic's child set with work
   its scope statement does not cover.
@@ -284,7 +284,7 @@ scope-relevant wrinkle is the tentative parent linkage to epic 0174.
 
 **Findings**:
 - 🔵 suggestion / low — **Tentative parent linkage to epic 0174** (Location:
-  Frontmatter: parent). The item declares `parent: work-item:0174`, but Drafting
+  Frontmatter: parent). The item declares `parent: work-item:PP-195`, but Drafting
   Notes concede 0174 "doesn't literally scope this item today" and asks to
   confirm or drop the linkage. Impact: a child the parent epic does not actually
   scope blurs the epic's decomposition boundary. Suggestion: either confirm

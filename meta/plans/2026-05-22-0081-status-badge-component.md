@@ -2,7 +2,7 @@
 date: "2026-05-23T09:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work-item: "meta/work/0081-status-badge-component.md"
+work-item: "meta/work/PP-103-status-badge-component.md"
 status: "done"
 id: "2026-05-22-0081-status-badge-component"
 title: "0081 — StatusBadge / VerdictBadge / ResultBadge Implementation Plan"
@@ -13,7 +13,7 @@ last_updated: "2026-05-23T09:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "0077b04e78a1"
 repository: "ticket-management"
-relates_to: ["work-item:0081", "codebase-research:2026-05-22-0081-status-badge-component", "adr:ADR-0007", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
+relates_to: ["work-item:PP-103", "codebase-research:2026-05-22-0081-status-badge-component", "adr:ADR-0007", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 ---
 
 # 0081 — StatusBadge / VerdictBadge / ResultBadge Implementation Plan
@@ -1676,7 +1676,7 @@ per-chip dispatch via a three-entry record lookup.
 
 ## References
 
-- Work item: `meta/work/0081-status-badge-component.md`
+- Work item: `meta/work/PP-103-status-badge-component.md`
 - Research: `meta/research/codebase/2026-05-22-0081-status-badge-component.md`
 - Related ADR: `meta/decisions/ADR-0007-divergent-verdict-semantics-for-plan-and-pr-reviews.md`
 - Prior research (Chip primitive): `meta/research/codebase/2026-05-15-0038-generic-chip-component.md`

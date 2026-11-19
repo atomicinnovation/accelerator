@@ -6,8 +6,8 @@ date: "2026-08-09T08:18:33+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0196"
-work_item_id: "0196"
+target: "work-item:PP-726"
+work_item_id: "PP-726"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -161,7 +161,7 @@ criteria currently unverifiable.
 - 🔵 **Dependency**: Merge-contention coordination with sibling sub-binary
   items lacks an ordering resolution
   **Location**: Dependencies
-  The Coordination bullet flags that work-item:0195 and work-item:0197
+  The Coordination bullet flags that work-item:PP-725 and work-item:PP-727
   register sub-binaries via the same checklist around the same time and
   warns of merge contention on the fetch-verify-cache mechanism, but does
   not state which item should land first or whether the shared `resolve/`
@@ -194,7 +194,7 @@ criteria currently unverifiable.
   `allowed-tools` rewrite across `skills/design/**`, a generalisation of
   shared CLI distribution infrastructure with unresolved design
   questions, a licensing-permission assumption, and a no-system-Node CI
-  verification path. The parent (work-item:0136) is already an epic,
+  verification path. The parent (work-item:PP-157) is already an epic,
   suggesting this could be restructured as a small epic with 2-3 child
   stories rather than a single story.
 
@@ -204,7 +204,7 @@ criteria currently unverifiable.
   Requirements ("following the invocation contract established in 0167")
   and Acceptance Criteria ("per the 0167 contract") both cite the ID bare,
   whereas every other cross-reference in the item uses the
-  "work-item:0167" form.
+  "work-item:PP-188" form.
 
 #### Suggestions
 
@@ -288,7 +288,7 @@ criteria currently unverifiable.
    explicit merge-ordering note for siblings 0195/0197, note the
    CDN-availability implication if that publishing path is chosen,
    reconsider "story" vs. a small epic given the current scope, switch
-   the bare "0167" references to "work-item:0167", and gloss "suite
+   the bare "0167" references to "work-item:PP-188", and gloss "suite
    floors"/"characterization tests" on first use.
 
 ## Per-Lens Results

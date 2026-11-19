@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0295"
-parent: "work-item:0295"
+parent: "work-item:PP-882"
 topic: "Codebase context for 0295: a fair arXiv fetch queue that waits across calls"
 tags: ["research", "codebase", "research-cli", "research-adapters", "pacing", "arxiv", "fetch", "researcher"]
 revision: "28eabf9e59fa2139cbe368c8e1dd7d3269420bb8"
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 What does the codebase look like today for everything work item 0295
-(`meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`) touches?
+(`meta/work/PP-882-per-profile-batch-cap-for-arxiv-researchers.md`) touches?
 That covers the arXiv pacing gate, the fetch and retry path, the
 `research fetch` CLI contract, the researcher and profile prompts, test
 infrastructure, and architecture constraints. Where does the existing code

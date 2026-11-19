@@ -6,8 +6,8 @@ date: "2026-08-31T12:07:44+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0198"
-parent: "work-item:0198"
+work_item_id: "work-item:PP-728"
+parent: "work-item:PP-728"
 derived_from: ["codebase-research:2026-08-31-0198-vcs-agnostic-status-log-renderer"]
 relates_to: ["adr:ADR-0066"]
 tags: ["rust", "vcs", "cli", "gix", "jj-lib", "status", "log"]
@@ -1155,7 +1155,7 @@ lock.
 
 ## References
 
-- Work item: `meta/work/0198-vcs-agnostic-status-log-renderer.md`
+- Work item: `meta/work/PP-728-vcs-agnostic-status-log-renderer.md`
 - Research: `meta/research/codebase/2026-08-31-0198-vcs-agnostic-status-log-renderer.md`
 - Format ADR: `meta/decisions/ADR-0066-vcs-agnostic-status-log-output-format.md`
 - Replaced code: `cli/vcs-adapters/src/subprocess.rs:36-113`

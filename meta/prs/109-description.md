@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0285"
-parent: "work-item:0285"
-relates_to: ["work-item:0257"]
+parent: "work-item:PP-871"
+relates_to: ["work-item:PP-787"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/109"
 pr_number: 109
 tags: ["work", "sync", "targeting", "pull", "tracker"]
@@ -65,7 +65,7 @@ suppressed-remote note.
 
 ## Context
 
-- Work item: `meta/work/0285-targeted-pull-of-remote-only-work-items.md`
+- Work item: `meta/work/PP-871-targeted-pull-of-remote-only-work-items.md`
 - Plan: `meta/plans/2026-09-08-0285-targeted-pull-of-remote-only-work-items.md`
 - Validation: `meta/validations/2026-09-08-0285-targeted-pull-of-remote-only-work-items-validation.md`
 - Builds on the `--target` targeting introduced by work item 0257 (PR #107).

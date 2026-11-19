@@ -6,8 +6,8 @@ date: "2026-10-27T18:20:57+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "proposed"
-parent: "work-item:0355"
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0063", "adr:ADR-0064", "adr:ADR-0072", "work-item:0340"]
+parent: "work-item:PP-947"
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0063", "adr:ADR-0064", "adr:ADR-0072", "work-item:PP-944"]
 tags: ["architecture", "distribution", "integrity", "launcher", "cache", "release-pipeline", "security"]
 last_updated: "2026-10-27T19:12:30+00:00"
 last_updated_by: "Toby Clemson"
@@ -204,7 +204,7 @@ substitution gap open.
 - `meta/decisions/ADR-0063-plugin-version-scoped-artifact-cache.md`
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`
 - `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
-- `meta/work/0355-pinned-seedable-runtime-cache.md` and its children 0356–0360,
-  0222; `meta/work/0340-shared-cache-roots-on-multi-user-systems.md`
+- `meta/work/PP-947-pinned-seedable-runtime-cache.md` and its children 0356–0360,
+  0222; `meta/work/PP-944-shared-cache-roots-on-multi-user-systems.md`
 - The Update Framework specification (https://theupdateframework.github.io/specification/latest/)
   for the threat list the options were compared against

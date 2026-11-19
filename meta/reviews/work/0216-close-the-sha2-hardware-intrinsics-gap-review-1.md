@@ -6,8 +6,8 @@ date: "2026-09-10T17:59:53+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0216"
-work_item_id: "0216"
+target: "work-item:PP-745"
+work_item_id: "PP-745"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -532,7 +532,7 @@ item (0215) plus a scheduling decision; it does not block implementation.
 ### New Issues Introduced
 
 - 🟡 **Clarity + Testability + Completeness**: Success throughput threshold stated inconsistently across Summary, AC 1, Technical Notes (~2,000+ MB/s), and Drafting Notes (~1,700 MB/s) — introduced by the pass-1 AC 1 edit. **Addressed this pass**: AC 1 names the ~1,390 MB/s floor as the single binding gate; the contradictory "achievable hardware band" clause is removed; Drafting Notes and Technical Notes relabel ~1,700 / ~2,000+ as expectation/context, not the gate.
-- 🟡 **Dependency**: The gating edge to 0215 is one-sided — 0215's own record encodes only a symmetric "relates to", omits the no-parallel-scheduling constraint, and still calls 0216 a spike. **Addressed by follow-up edit** — 0215 now records a reciprocal "gated by 0216" edge with the no-parallel constraint, adds `work-item:0216` to its `relates_to`, and drops the "spike" reference.
+- 🟡 **Dependency**: The gating edge to 0215 is one-sided — 0215's own record encodes only a symmetric "relates to", omits the no-parallel-scheduling constraint, and still calls 0216 a spike. **Addressed by follow-up edit** — 0215 now records a reciprocal "gated by 0216" edge with the no-parallel constraint, adds `work-item:PP-745` to its `relates_to`, and drops the "spike" reference.
 - 🔵 **Testability**: The musl runtime-detection mechanism had no defined verification procedure. **Addressed this pass**: AC 3 now names the config inspection (no `+sha2` forced, `sha2` 0.11 `aarch64-sha2` backend) as the check.
 - 🔵 **Scope**: The accepted-fallback fork (AC 6) leaves a mild task/spike hybrid character — whether hardware enablement is a hard requirement or a fallback-permitted outcome is not pinned. **Addressed by follow-up edit** — hardware enablement pinned as the committed outcome; the fallback fires only on a genuine musl block (Open Questions + AC 6).
 - 🔵 **Dependency**: The term-harness prerequisite is not attributed to the work item that lands `warm_terms.rs`. **Residual**.

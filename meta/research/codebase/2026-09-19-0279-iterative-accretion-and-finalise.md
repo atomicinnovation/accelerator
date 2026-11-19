@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0279"
-parent: "work-item:0279"
+parent: "work-item:PP-863"
 topic: "Implementing story 0279 — Iterative Accretion and Finalise"
 tags: ["research", "codebase", "topic-research", "research-topic", "lifecycle", "finalise"]
 revision: "f13d0e60ef0cfd42595d3947c3086c1d57878422"
@@ -336,13 +336,13 @@ later, separate change.
 
 ## Historical Context
 
-- `meta/work/0121-topic-research-skillset.md` — parent epic; the canonical
+- `meta/work/PP-22-topic-research-skillset.md` — parent epic; the canonical
   lifecycle table (`:103-112`), slice map, and terminology
   (`round`/`round_count`/`finding_count`/`rounds_covered`/`primary`, `:69-99`).
-- `meta/work/0277-single-round-web-research-engine.md` — Slice 1 engine;
+- `meta/work/PP-861-single-round-web-research-engine.md` — Slice 1 engine;
   establishes the four-state lifecycle and defers re-invocation tests to 0279
   (`:230-232`).
-- `meta/work/0278-topic-research-visualiser-doc-type.md` — the manifest-status
+- `meta/work/PP-862-topic-research-visualiser-doc-type.md` — the manifest-status
   collapse: `research_status` removed, five-state vocab provisioned, `complete`
   admitted for forward-compat (`:186-198`, `:384`).
 - `meta/plans/2026-09-09-0277-single-round-web-research-engine.md` — the

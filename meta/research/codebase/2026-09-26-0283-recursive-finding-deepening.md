@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0283"
-parent: "work-item:0283"
+parent: "work-item:PP-867"
 relates_to: ["codebase-research:2026-09-20-0282-tunable-depth-and-breadth", "codebase-research:2026-09-23-0280-academic-source-profiles"]
 topic: "Codebase seams for 0283 recursive finding deepening"
 tags: ["research", "codebase", "research-topic", "topic-research", "write-guard", "frontmatter-validation", "config", "agents"]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-For work item 0283 (`meta/work/0283-recursive-finding-deepening.md`): where
+For work item 0283 (`meta/work/PP-867-recursive-finding-deepening.md`): where
 does each requirement land in the code as merged through 0280, are the work
 item's Technical Notes references still accurate, and what existing
 constraints does the design collide with?
@@ -297,7 +297,7 @@ The other pieces:
   Each TSV row names a template that must exist. The template list is
   cross-checked against the Schema Reference tables of work items 0065, 0066
   and 0067. The topic-research rows are listed in
-  `meta/work/0065-update-artifact-templates-to-unified-schema.md:83-87`.
+  `meta/work/PP-87-update-artifact-templates-to-unified-schema.md:83-87`.
 - **Adding `level-note`** therefore touches:
   - the `SCHEMA` length (18 → 19) and the tests `eighteen_rows_are_present`
     and `topic_research_kinds_each_resolve_to_a_distinct_row`;
@@ -401,7 +401,7 @@ The other pieces:
   (~l.285-291, ~l.771) — flagged earlier that the scan assumes a flat
   `<nn>-*.md` layout, and that every finding at any depth needs a `round`
   stamp.
-- `meta/work/0280-academic-source-profiles.md` §Sibling contracts — recursion
+- `meta/work/PP-864-academic-source-profiles.md` §Sibling contracts — recursion
   carries `source_profile` into deeper levels, and the cost model includes
   the per-profile multiplier.
 

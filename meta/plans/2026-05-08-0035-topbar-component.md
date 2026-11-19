@@ -2,7 +2,7 @@
 date: "2026-05-08T00:00:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0035-topbar-component.md"
+work_item_id: "meta/work/PP-57-topbar-component.md"
 status: "ready"
 id: "2026-05-08-0035-topbar-component"
 title: "0035 Topbar Component Implementation Plan"
@@ -13,7 +13,7 @@ last_updated: "2026-05-08T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0035", "codebase-research:2026-05-07-0035-topbar-component", "work-item:0033", "work-item:0034", "work-item:0036", "work-item:0041", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
+relates_to: ["work-item:PP-57", "codebase-research:2026-05-07-0035-topbar-component", "work-item:PP-55", "work-item:PP-56", "work-item:PP-58", "work-item:PP-63", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # 0035 Topbar Component Implementation Plan
@@ -643,7 +643,7 @@ screen readers don't double-announce.
 
 **File**: `skills/visualisation/visualise/frontend/src/components/Brand/Brand.tsx` (new)
 **Changes**: Implement the component. SVG markup taken from the work
-item Technical Notes (`meta/work/0035-topbar-component.md:148-162`),
+item Technical Notes (`meta/work/PP-57-topbar-component.md:148-162`),
 with `var(--ac-accent)` / `var(--ac-accent-2)` references intact and
 `aria-hidden="true"` on the `<svg>` root. "Accelerator" rendered with
 `--ac-font-display`; "VISUALISER" with `--ac-font-body` +
@@ -1794,12 +1794,12 @@ for shipping its own `prefers-reduced-motion: reduce` override.
 
 ## References
 
-- Original work item: `meta/work/0035-topbar-component.md`
+- Original work item: `meta/work/PP-57-topbar-component.md`
 - Research: `meta/research/codebase/2026-05-07-0035-topbar-component.md`
-- Related work items: `meta/work/0033-design-token-system.md`
-  (shipped foundation), `meta/work/0034-theme-and-font-mode-toggles.md`
-  (consumes our slots), `meta/work/0036-sidebar-redesign.md`,
-  `meta/work/0041-library-page-wrapper-and-overview-hub.md`
+- Related work items: `meta/work/PP-55-design-token-system.md`
+  (shipped foundation), `meta/work/PP-56-theme-and-font-mode-toggles.md`
+  (consumes our slots), `meta/work/PP-58-sidebar-redesign.md`,
+  `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`
 - Pass-2 review of 0035:
   `meta/reviews/work/0035-topbar-component-review-1.md`
 - Design inventories:

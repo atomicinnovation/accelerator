@@ -17,7 +17,7 @@ relates_to: ["codebase-research:2026-03-22-skill-customisation-and-override-patt
 
 **Date**: 2026-04-17
 **Status**: Active — file paths superseded in part by
-`meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+`meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`
 (`.accelerator/config*.md` replaces `.claude/accelerator*.md`). A
 full superseding ADR is forthcoming.
 **Author**: Toby Clemson

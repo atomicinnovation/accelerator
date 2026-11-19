@@ -6,10 +6,10 @@ date: "2026-10-13T13:03:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0310"
-parent: "work-item:0310"
+work_item_id: "work-item:PP-896"
+parent: "work-item:PP-896"
 derived_from: ["codebase-research:2026-10-13-0310-recovering-from-an-interrupted-conduct-run"]
-relates_to: ["work-item:0304", "work-item:0307", "work-item:0308", "plan:2026-10-10-0303-research-concurrency-subagent-limit"]
+relates_to: ["work-item:PP-890", "work-item:PP-893", "work-item:PP-894", "plan:2026-10-10-0303-research-concurrency-subagent-limit"]
 tags: ["research", "conduct", "run-ledger", "outstanding", "recovery"]
 revision: "01e6fce34d8ad51297dc39e8197b98c20d4bf456"
 repository: "accelerator"
@@ -1500,7 +1500,7 @@ across it lose their owning pairs and report spawns as unasked.
 
 ## References
 
-- Original work item: `meta/work/0310-recovering-from-an-interrupted-conduct-run.md`
+- Original work item: `meta/work/PP-896-recovering-from-an-interrupted-conduct-run.md`
 - Codebase research: `meta/research/codebase/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`
 - Plan-field-plus-skill-row precedent: `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md` (Phase 5)
 - Conditional-key pattern: `cli/research-cli/src/topic_command.rs:515-524`

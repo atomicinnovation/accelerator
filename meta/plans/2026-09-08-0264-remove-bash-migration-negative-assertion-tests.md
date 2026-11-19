@@ -6,8 +6,8 @@ date: "2026-09-08T22:19:35+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0264"
-parent: "work-item:0264"
+work_item_id: "work-item:PP-794"
+parent: "work-item:PP-794"
 derived_from: ["codebase-research:2026-09-08-0264-remove-bash-migration-negative-assertion-tests"]
 tags: ["testing", "cleanup", "bash-parity", "migration"]
 revision: "7dfe3edcb6be71807f6e0938db464d29051f8653"
@@ -735,7 +735,7 @@ task definitions, and CI configuration.
 
 ## References
 
-- Original work item: `meta/work/0264-remove-bash-migration-negative-assertion-tests.md`
+- Original work item: `meta/work/PP-794-remove-bash-migration-negative-assertion-tests.md`
 - Related research: `meta/research/codebase/2026-09-08-0264-remove-bash-migration-negative-assertion-tests.md`
 - Work item review: `meta/reviews/work/0264-remove-bash-migration-negative-assertion-tests-review-1.md`
 - Fixture-size guard: `tasks/build.py:398` (`cli_fixture_size_check`), documented at `tasks/README.md:280` pre-change (Phase 4b step 8 rehomes it to a standalone subsection, e.g. "The gix/jj-lib link-ratio guard")

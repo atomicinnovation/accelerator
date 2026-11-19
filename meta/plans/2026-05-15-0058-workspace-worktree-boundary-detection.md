@@ -13,7 +13,7 @@ last_updated: "2026-05-15T15:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0058", "codebase-research:2026-05-15-0058-workspace-worktree-boundary-detection"]
+relates_to: ["work-item:PP-80", "codebase-research:2026-05-15-0058-workspace-worktree-boundary-detection"]
 ---
 
 # Workspace and Worktree Boundary Detection Implementation Plan
@@ -1888,7 +1888,7 @@ Per-phase coverage:
 
 ## References
 
-- Work item: `meta/work/0058-workspace-worktree-boundary-detection.md`
+- Work item: `meta/work/PP-80-workspace-worktree-boundary-detection.md`
 - Research: `meta/research/codebase/2026-05-15-0058-workspace-worktree-boundary-detection.md`
 - Review of work item:
   `meta/reviews/work/0058-workspace-worktree-boundary-detection-review-1.md`

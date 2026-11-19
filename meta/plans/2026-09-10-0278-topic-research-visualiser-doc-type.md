@@ -6,8 +6,8 @@ date: "2026-09-10T22:52:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0278"
-parent: "work-item:0278"
+work_item_id: "work-item:PP-862"
+parent: "work-item:PP-862"
 derived_from: ["codebase-research:2026-09-10-0278-topic-research-visualiser-doc-type-indexer"]
 tags: ["visualiser", "doc-type", "indexer", "rename", "topic-research"]
 revision: "68707d3329c9de8d656082780f1a109ca0d4932f"
@@ -562,7 +562,7 @@ two-set fixture validates clean, and a constant-id regression (two sets both usi
 - [x] Full read-only mirror passes: `mise run check`
 - [ ] Full suite passes: `mise run test` (blocked by a pre-existing corpus
       defect unrelated to 0278 — two `meta/work/` items both claim
-      `work-item:0286`, tripping `DUPLICATE-ID` in
+      `work-item:PP-872`, tripping `DUPLICATE-ID` in
       `this_repositorys_own_corpus_is_clean`; the Phase 2 goldens themselves all
       pass)
 
@@ -1000,7 +1000,7 @@ the specs capture.
       whole-corpus dangling-reference check
 - [x] Full read-only mirror passes: `mise run check`
 - [ ] Full suite passes: `mise run test` (blocked only by the same pre-existing,
-      unrelated `work-item:0286` `DUPLICATE-ID` in the repo's own `meta/work/`;
+      unrelated `work-item:PP-872` `DUPLICATE-ID` in the repo's own `meta/work/`;
       every 0278 test — registry, indexer, chips, dangling/DuplicateId,
       set-scoped ids — passes)
 - [ ] Docker VR compare passes with the 10 new baselines committed:
@@ -1120,7 +1120,7 @@ as checkbox tasks with file/line references, so a reviewer cannot close 0278 wit
 contradictory contracts still on disk:
 
 - [ ] 0277's acceptance criteria and artifact-shape spec move `research_status` →
-      base `status` (`meta/work/0277-single-round-web-research-engine.md:88,93,98,103`),
+      base `status` (`meta/work/PP-861-single-round-web-research-engine.md:88,93,98,103`),
       the "never infer set progress from base `status`" rule (`:219`) is retired,
       and the "manifest.md is complete once the file exists" claim (`:224`) is
       corrected to the `briefed`-at-birth lifecycle. 0277's writer sets the manifest
@@ -1130,7 +1130,7 @@ contradictory contracts still on disk:
       <slug>` manifest scheme and set-scoped sub-document ids are recorded in the
       0121 contract.
 - [ ] 0279's assertions move `research_status` → base `status`
-      (`meta/work/0279-iterative-accretion-and-finalise.md:32,52,57,73`).
+      (`meta/work/PP-863-iterative-accretion-and-finalise.md:32,52,57,73`).
 - [ ] Epic 0121: its live contract already reflects the status collapse
       (`:101-112`, drafting note `:214`); residuals are the historical
       `research_status` mentions in its append-only notes (`:204,209`) **and**
@@ -1153,11 +1153,11 @@ semantic scale, so a missed new site degrades silently for a future type.
 
 ## References
 
-- Work item: `meta/work/0278-topic-research-visualiser-doc-type.md`
+- Work item: `meta/work/PP-862-topic-research-visualiser-doc-type.md`
 - Research:
   `meta/research/codebase/2026-09-10-0278-topic-research-visualiser-doc-type-indexer.md`
-- Parent epic: `meta/work/0121-topic-research-skillset.md` (Slice 1, visualiser
-  half); engine sibling: `meta/work/0277-single-round-web-research-engine.md`
+- Parent epic: `meta/work/PP-22-topic-research-skillset.md` (Slice 1, visualiser
+  half); engine sibling: `meta/work/PP-861-single-round-web-research-engine.md`
 - Prototype:
   `meta/research/design-inventories/2026-09-10-174311-claude-design-prototype/prototype-full`
 - Design gap:

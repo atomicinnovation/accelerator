@@ -13,7 +13,7 @@ last_updated: "2026-05-30T11:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "6a4f780d5657"
 repository: "ticket-management"
-relates_to: ["work-item:0069", "codebase-research:2026-05-30-0069-migration-framework-interactive-validation-hooks", "adr:ADR-0037", "adr:ADR-0038", "adr:ADR-0023", "work-item:0070"]
+relates_to: ["work-item:PP-91", "codebase-research:2026-05-30-0069-migration-framework-interactive-validation-hooks", "adr:ADR-0037", "adr:ADR-0038", "adr:ADR-0023", "work-item:PP-92"]
 ---
 
 # 0069: Extend Migration Framework with Interactive Validation Hooks — Implementation Plan
@@ -1369,7 +1369,7 @@ Update `## Cross-references`:
 
 ## References
 
-- Original work item: `meta/work/0069-migration-framework-interactive-validation-hooks.md`
+- Original work item: `meta/work/PP-91-migration-framework-interactive-validation-hooks.md`
 - Codebase research: `meta/research/codebase/2026-05-30-0069-migration-framework-interactive-validation-hooks.md`
 - ADR-0037 (framework contract): `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md`
 - ADR-0038 (first consumer's parameterisation): `meta/decisions/ADR-0038-interactive-validation-parameters-for-unified-schema-linkage-migration.md`
@@ -1377,4 +1377,4 @@ Update `## Cross-references`:
 - Current runner: `skills/config/migrate/scripts/run-migrations.sh`
 - Atomic helpers: `scripts/atomic-common.sh`
 - Test harness: `skills/config/migrate/scripts/test-migrate.sh`
-- Downstream consumer: `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+- Downstream consumer: `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`

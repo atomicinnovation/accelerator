@@ -6,10 +6,10 @@ date: "2026-06-09T19:05:20+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0103"
-parent: "work-item:0103"
+work_item_id: "work-item:PP-125"
+parent: "work-item:PP-125"
 derived_from: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
-relates_to: ["work-item:0057", "work-item:0070"]
+relates_to: ["work-item:PP-79", "work-item:PP-92"]
 tags: ["frontmatter", "schema", "skills", "validation", "audit", "test-harness"]
 revision: "cae1eebdfc645a3ac158ee419b52b70c6ee1b780"
 repository: "ticket-management"
@@ -305,7 +305,7 @@ Each divergence is classified:
   ADR `rejected` — decide whether the `adr` vocab should gain `rejected` or
   `review-adr` should stop persisting it; record the decision and, if
   schema-source, draft the child work item via `create-work-item` with
-  `parent: "work-item:0057"`.
+  `parent: "work-item:PP-79"`.
 
 ### Success Criteria:
 
@@ -316,7 +316,7 @@ Each divergence is classified:
 - [x] Reconciliation holds — discovery minus the EXCLUDED allowlist equals the
       EMITTERS allowlist (`comm -23` against EMITTERS ∪ EXCLUDED is empty), and
       both status-axis-only mutators (`validate-plan`, `review-adr`) are present.
-- [x] The work item still validates: `bash scripts/validate-corpus-frontmatter.sh meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md`
+- [x] The work item still validates: `bash scripts/validate-corpus-frontmatter.sh meta/work/PP-125-audit-skill-frontmatter-emission-against-unified-schema.md`
 - [x] Any drafted child work items validate (0104, 0105). NB: the literal
       `validate-corpus-frontmatter.sh meta/work` runs *whole-corpus* mode against a
       subtree, so every cross-subtree ref (to `adr:`/`codebase-research:`/… in
@@ -324,7 +324,7 @@ Each divergence is classified:
       meaningful checks both pass: structural file-list validation of the new
       files, and a clean full-corpus run (`validate-corpus-frontmatter.sh meta`,
       rc=0). The new files add no dangling refs (they reference only
-      `work-item:0057` / `work-item:0103`, both under `meta/work`).
+      `work-item:PP-79` / `work-item:PP-125`, both under `meta/work`).
 
 #### Manual Verification:
 
@@ -680,9 +680,9 @@ items under 0057, not applied here.
 
 ## References
 
-- Original work item: `meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md`
+- Original work item: `meta/work/PP-125-audit-skill-frontmatter-emission-against-unified-schema.md`
 - Related research: `meta/research/codebase/2026-06-09-0103-skill-frontmatter-emission-audit.md`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - **Blind-spot consolidation (child of 0057, to be drafted in Phase 1)**: fold the
   two validator blind spots — non-anchored provenance over-emission and
   bare/unquoted typed-linkage shape — into `validate-corpus-frontmatter.sh` so the

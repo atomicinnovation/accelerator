@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0319"
-parent: "work-item:0319"
-relates_to: ["work-item:0146", "work-item:0390", "work-item:0302", "work-item:0343", "work-item:0228", "work-item:0230"]
+parent: "work-item:PP-905"
+relates_to: ["work-item:PP-167", "work-item:PP-935", "work-item:PP-879", "work-item:PP-931", "work-item:PP-758", "work-item:PP-760"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/178"
 pr_number: 178
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser", "rekey", "migrate"]
@@ -373,7 +373,7 @@ notice:
 
 ## Context
 
-- Work item: `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`
+- Work item: `meta/work/PP-905-explicit-work-item-id-on-accelerator-work-create.md`
   (Linear PP-905), a child of 0146.
 - Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
 - Plan: `meta/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`

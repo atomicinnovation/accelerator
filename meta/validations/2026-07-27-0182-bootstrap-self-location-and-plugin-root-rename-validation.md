@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "partial"
-parent: "work-item:0182"
+parent: "work-item:PP-712"
 target: "plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
 tags: ["validation", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards"]
 last_updated: "2026-07-29T15:21:21+00:00"

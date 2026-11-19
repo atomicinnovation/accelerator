@@ -6,10 +6,10 @@ date: "2026-06-12T22:02:45+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0087"
-parent: "work-item:0087"
+work_item_id: "work-item:PP-109"
+parent: "work-item:PP-109"
 derived_from: ["codebase-research:2026-06-12-0087-error-screen-affordances"]
-relates_to: ["work-item:0041", "work-item:0082", "work-item:0074", "work-item:0054"]
+relates_to: ["work-item:PP-63", "work-item:PP-104", "work-item:PP-96", "work-item:PP-76"]
 tags: ["design", "frontend", "error-states", "routing", "search", "suggestions"]
 revision: "6547fec39be919e1f9669d4c4ecac36fd2e41077"
 repository: "build-system"
@@ -948,7 +948,7 @@ rewire of existing branches.
 
 ## References
 
-- Original work item: `meta/work/0087-error-screen-affordances.md`
+- Original work item: `meta/work/PP-109-error-screen-affordances.md`
 - Related research: `meta/research/codebase/2026-06-12-0087-error-screen-affordances.md`
 - Work review: `meta/reviews/work/0087-error-screen-affordances-review-1.md`
 - Inline branches to replace: `skills/visualisation/visualise/frontend/src/routes/library/LibraryDocView.tsx:95-115`

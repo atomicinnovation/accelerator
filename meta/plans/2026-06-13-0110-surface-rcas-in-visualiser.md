@@ -6,8 +6,8 @@ date: "2026-06-13T21:15:56+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0110"
-parent: "work-item:0110"
+work_item_id: "work-item:PP-132"
+parent: "work-item:PP-132"
 derived_from: ["codebase-research:2026-06-13-0110-surface-rcas-in-visualiser-operate-category"]
 relates_to: ["plan:2026-05-26-0074-per-doc-type-hues-on-detail-page", "plan:2026-06-09-0082-big-glyph-hero-illustrations", "plan:2026-05-16-0041-library-page-wrapper-and-overview-hub", "plan:2026-06-01-0054-sidebar-search"]
 tags: ["visualiser", "rca", "doc-types", "library", "operate"]
@@ -782,7 +782,7 @@ required (the launcher already emits `research_issues`).
 
 ## References
 
-- Original work item: `meta/work/0110-surface-root-cause-analyses-in-visualiser.md`
+- Original work item: `meta/work/PP-132-surface-root-cause-analyses-in-visualiser.md`
 - Research: `meta/research/codebase/2026-06-13-0110-surface-rcas-in-visualiser-operate-category.md`
 - Authoritative design: `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full`
   (`src/data.jsx:18,25-32,54`, `src/ui.jsx:77-99,303`, `src/big-glyphs.jsx:349-397`)

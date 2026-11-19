@@ -57,7 +57,7 @@ Reintroduction guard exercised directly, not merely read:
 - **New lint** (`tasks/lint/bare_invocation.py`) exposes a pure `violations(root)` plus a thin `@task check`, matching the sibling-guard shape; derives `_PATHED_SUFFIX` from `FORBIDDEN_LAUNCHER` rather than re-typing the literal.
 - **Six-step wiring** complete: `lint/__init__.py`, `tasks/__init__.py`, the `mise.toml` façade, membership in `build-system:check` (`mise.toml:511`) and `lint:check` (`mise.toml:653`), and `_BUILD_SYSTEM_CHECK_GATES` in `test_mise.py`.
 - **Hooks boundary** recorded durably in a new `hooks/CLAUDE.md`; `hooks/hooks.json` correctly retains the pathed form (4 occurrences).
-- **0107 closed** to `status: done` with `relates_to` naming `work-item:0245` and a prose supersession note — `superseded` correctly avoided as an invalid work-item status.
+- **0107 closed** to `status: done` with `relates_to` naming `work-item:PP-775` and a prose supersession note — `superseded` correctly avoided as an invalid work-item status.
 
 #### Deviations from Plan
 

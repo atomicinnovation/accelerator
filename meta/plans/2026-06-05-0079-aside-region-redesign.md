@@ -14,7 +14,7 @@ repository: "visualisation-system"
 last_updated: "2026-06-06T01:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0079", "codebase-research:2026-06-05-0079-aside-region-redesign"]
+relates_to: ["work-item:PP-101", "codebase-research:2026-06-05-0079-aside-region-redesign"]
 ---
 
 # Detail-Page Aside Region Redesign Implementation Plan
@@ -855,7 +855,7 @@ None. No persisted data, schema, or API contract changes. The
 
 ## References
 
-- Original work item: `meta/work/0079-aside-region-redesign.md`
+- Original work item: `meta/work/PP-101-aside-region-redesign.md`
 - Research: `meta/research/codebase/2026-06-05-0079-aside-region-redesign.md`
 - Prototype structure: `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html`
   (`.ac-related` list + `.ac-related__tag.is-declared`)

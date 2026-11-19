@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0302"
-parent: "work-item:0302"
-relates_to: ["work-item:0146", "work-item:0230", "work-item:0343", "work-item:0344", "work-item:0345", "work-item:0346"]
+parent: "work-item:PP-879"
+relates_to: ["work-item:PP-167", "work-item:PP-760", "work-item:PP-931", "work-item:PP-932", "work-item:PP-933", "work-item:PP-934"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/168"
 pr_number: 168
 tags: []
@@ -100,7 +100,7 @@ then applies or discards.
 
 ## Context
 
-- Work item: `meta/work/0302-work-item-re-key-command.md` (parent 0146,
+- Work item: `meta/work/PP-879-work-item-re-key-command.md` (parent 0146,
   builds on 0230)
 - Research:
   `meta/research/codebase/2026-10-15-0302-work-item-re-key-command.md`

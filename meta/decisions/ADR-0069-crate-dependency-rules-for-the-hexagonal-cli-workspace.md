@@ -193,5 +193,5 @@ independent shipping.
   — Origin of `consent-adapters`
 - `meta/plans/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs.md`
   — Origin of the first adapter → adapter edge
-- `meta/work/0299-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
+- `meta/work/PP-881-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
   — Brings the existing edges into line with these rules

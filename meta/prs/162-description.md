@@ -6,9 +6,9 @@ date: "2026-10-13T16:32:45+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0334"
-parent: "work-item:0334"
-relates_to: ["work-item:0223", "work-item:0196", "work-item:0218"]
+work_item_id: "work-item:PP-930"
+parent: "work-item:PP-930"
+relates_to: ["work-item:PP-753", "work-item:PP-726", "work-item:PP-747"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/162"
 pr_number: 162
 tags: ["runtime", "cache", "lease", "prune", "design"]
@@ -126,14 +126,14 @@ and so are not inherited by a forked daemon, now probes as `Unknown`.
 
 ## Context
 
-- Work item: `meta/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`.
+- Work item: `meta/work/PP-930-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`.
   It was captured as 0330 during the 0223 spike, and renumbered because trunk
   had already assigned 0330.
 - Plan: `meta/plans/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`,
   with its review under `meta/reviews/plans/`
 - Codebase research: `meta/research/codebase/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`
 - Validation (result `pass`): `meta/validations/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness-validation.md`
-- Origin: the 0223 spike (`meta/work/0223-bounding-the-default-runtime-cache-root.md`),
+- Origin: the 0223 spike (`meta/work/PP-753-bounding-the-default-runtime-cache-root.md`),
   closed here with ADR-0063 standing
 - Decisions: ADR-0061, ADR-0064, ADR-0069
 

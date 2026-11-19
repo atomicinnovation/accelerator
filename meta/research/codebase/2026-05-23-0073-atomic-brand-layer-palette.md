@@ -13,7 +13,7 @@ id: "2026-05-23-0073-atomic-brand-layer-palette"
 title: "0073 Atomic Brand-Layer Palette — implementation surface"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["adr:ADR-0026", "work-item:0033", "work-item:0076", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
+relates_to: ["adr:ADR-0026", "work-item:PP-55", "work-item:PP-98", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
 # 0073 Atomic Brand-Layer Palette — implementation surface
@@ -367,7 +367,7 @@ to 0073:
 
 ### Related work items
 
-**0033 (Design Token System, status: done)** — `meta/work/0033-design-token-system.md:113-117`
+**0033 (Design Token System, status: done)** — `meta/work/PP-55-design-token-system.md:113-117`
 explicitly excludes the `--atomic-*` palette from scope: *"`Brand
 palette — --atomic-*` (raw brand colours not consumed by components)"*.
 0073 closes that gap directly. The infrastructure 0073 builds on
@@ -436,7 +436,7 @@ regression run is `npm run test:e2e`.
 - `skills/visualisation/visualise/frontend/tests/visual-regression/tokens.spec.ts:1-88` — visual regression spec
 - `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html:183` — single line containing all 37 `--atomic-*` declarations
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md:161-206` — §5 theme-invariant tokens (the eligibility test 0073 must pass)
-- `meta/work/0033-design-token-system.md:113-117` — verbatim brand-palette exclusion
+- `meta/work/PP-55-design-token-system.md:113-117` — verbatim brand-palette exclusion
 - `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md:44-54` — gap analysis verbatim
 
 ## Architecture Insights
@@ -521,10 +521,10 @@ regression run is `npm run test:e2e`.
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md` —
   the ADR 0073 references; §5 governs the theme-invariant family
   pattern the brand palette must qualify for.
-- `meta/work/0033-design-token-system.md` (status: done) — landed
+- `meta/work/PP-55-design-token-system.md` (status: done) — landed
   the semantic layer 0073 builds on; explicitly excluded the brand
   layer (lines 113-117). 0073 closes that gap.
-- `meta/work/0076-code-block-syntax-highlight-palette.md` (cited
+- `meta/work/PP-98-code-block-syntax-highlight-palette.md` (cited
   via `tokens.ts:186` and ADR-0026 §5) — established the
   `:root`-only + fixture-drift pattern that 0073 reuses for the
   brand palette. The `--code-*` / `--tk-*` rollout is the closest

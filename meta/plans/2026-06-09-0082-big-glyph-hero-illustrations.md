@@ -6,8 +6,8 @@ date: "2026-06-09T21:09:35+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0082"
-parent: "work-item:0082"
+work_item_id: "work-item:PP-104"
+parent: "work-item:PP-104"
 derived_from: ["codebase-research:2026-06-09-0082-big-glyph-hero-illustrations"]
 tags: ["design", "frontend", "components", "illustrations"]
 revision: "d6c16730a6ca97d048cba981d3bc8fd921c38bca"
@@ -771,7 +771,7 @@ linux) must be committed in the Phase 2 PR.
 
 ## References
 
-- Original work item: `meta/work/0082-big-glyph-hero-illustrations.md`
+- Original work item: `meta/work/PP-104-big-glyph-hero-illustrations.md`
 - Codebase research: `meta/research/codebase/2026-06-09-0082-big-glyph-hero-illustrations.md`
 - Work-item review (APPROVE): `meta/reviews/work/0082-big-glyph-hero-illustrations-review-1.md`
 - Prototype source: `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full/src/big-glyphs.jsx`

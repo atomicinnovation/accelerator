@@ -6,8 +6,8 @@ date: "2026-09-23T21:51:22+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0280"
-parent: "work-item:0280"
+work_item_id: "work-item:PP-864"
+parent: "work-item:PP-864"
 derived_from: ["codebase-research:2026-09-23-0280-academic-source-profiles"]
 relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026-09-19-0279-iterative-accretion-and-finalise", "plan:2026-09-20-0282-tunable-depth-and-breadth"]
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
@@ -232,7 +232,7 @@ tests against the true contract.
 
 ### Changes Required
 
-**File**: `meta/work/0280-academic-source-profiles.md`
+**File**: `meta/work/PP-864-academic-source-profiles.md`
 **Changes**: via `/accelerator:update-work-item` or a direct edit, bumping
 `last_updated`:
 
@@ -343,7 +343,7 @@ tests against the true contract.
 #### Automated Verification
 
 - [x] Frontmatter validates:
-      `accelerator corpus frontmatter validate --file meta/work/0280-academic-source-profiles.md`
+      `accelerator corpus frontmatter validate --file meta/work/PP-864-academic-source-profiles.md`
 
 #### Manual Verification
 
@@ -352,7 +352,7 @@ tests against the true contract.
       the superseded rule.
 - [ ] 0284 carries item 13; 0121, 0281, and 0283 still carry the Sibling
       contracts statements.
-- [x] `accelerator corpus frontmatter validate --file meta/work/0284-topic-research-set-detail-page.md`
+- [x] `accelerator corpus frontmatter validate --file meta/work/PP-868-topic-research-set-detail-page.md`
 
 ---
 
@@ -2245,7 +2245,7 @@ and 6; the guard latency measurement in phase 7.
 
 ## References
 
-- Work item: `meta/work/0280-academic-source-profiles.md`
+- Work item: `meta/work/PP-864-academic-source-profiles.md`
 - Research: `meta/research/codebase/2026-09-23-0280-academic-source-profiles.md`
 - Reviews: `meta/reviews/work/0280-academic-source-profiles-review-1.md`,
   `meta/reviews/plans/2026-09-23-0280-academic-source-profiles-review-1.md`

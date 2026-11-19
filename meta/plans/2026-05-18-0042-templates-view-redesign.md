@@ -13,7 +13,7 @@ last_updated: "2026-05-18T22:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "79428b45d940"
 repository: "ticket-management"
-relates_to: ["work-item:0042", "codebase-research:2026-05-18-0042-templates-view-redesign"]
+relates_to: ["work-item:PP-64", "codebase-research:2026-05-18-0042-templates-view-redesign"]
 ---
 
 # 0042 Templates View Redesign — Implementation Plan
@@ -2269,7 +2269,7 @@ rendered verbatim — no UI-side prepending).
 
 ## References
 
-- Work item: `meta/work/0042-templates-view-redesign.md`
+- Work item: `meta/work/PP-64-templates-view-redesign.md`
 - Research: `meta/research/codebase/2026-05-18-0042-templates-view-redesign.md`
 - Screenshots:
   `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/templates-view-dark.png`,

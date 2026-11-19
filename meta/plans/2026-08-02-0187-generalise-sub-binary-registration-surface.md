@@ -6,8 +6,8 @@ date: "2026-08-02T22:12:19+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0187"
-parent: "work-item:0187"
+work_item_id: "work-item:PP-717"
+parent: "work-item:PP-717"
 derived_from: ["codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"]
 relates_to: ["plan-review:2026-08-02-0187-generalise-sub-binary-registration-surface-review-1"]
 tags: ["build-system", "distribution", "rust"]
@@ -2104,11 +2104,11 @@ link — which only 0168 and 0170–0173 carry, not 0169 and not any later autho
 Verified green during planning at `d7b55d3`; re-verify at acceptance in case a
 sibling was rewritten in the interim:
 
-- `blocked_by: work-item:0187` on 0170, 0171, 0172, 0173 (all at `:12`), and
+- `blocked_by: work-item:PP-717` on 0170, 0171, 0172, 0173 (all at `:12`), and
   0169.
-- `blocks: ["work-item:0187"]` on 0168 (`:13`).
+- `blocks: ["work-item:PP-717"]` on 0168 (`:13`).
 - Epic 0136's 0187 annotation
-  (`meta/work/0136-migrate-shell-scripts-to-rust-cli.md:65-70`) includes 0172 in
+  (`meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md:65-70`) includes 0172 in
   the unblocks list and names the two 0168 discharge routes.
 
 The blocker is **discharged**: 0168 is `status: done`, closed by commit
@@ -2249,17 +2249,17 @@ Recorded here so validation does not read them as drift:
 ## References
 
 - Original work item:
-  `meta/work/0187-generalise-sub-binary-registration-surface.md`
+  `meta/work/PP-717-generalise-sub-binary-registration-surface.md`
 - Related research:
   `meta/research/codebase/2026-08-02-0187-generalise-sub-binary-registration-surface.md`
 - Work item review:
   `meta/reviews/work/0187-generalise-sub-binary-registration-surface-review-1.md`
 - Plan review:
   `meta/reviews/plans/2026-08-02-0187-generalise-sub-binary-registration-surface-review-1.md`
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Governing decision:
   `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md`
-- Blocker: `meta/work/0168-fold-visualiser-into-cli-workspace.md` (**done**)
+- Blocker: `meta/work/PP-189-fold-visualiser-into-cli-workspace.md` (**done**)
 - Parsing contract reused: `tasks/lint/skill_permissions.py:106-113`
   (`covered_by`), moved to `tasks/shared/skill_parsing.py` by Phase 1
 - Parameter-with-default precedent: `tasks/manifest.py:69` (`collect_entries`)

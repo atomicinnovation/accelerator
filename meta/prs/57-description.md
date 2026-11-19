@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0195"
-parent: "work-item:0195"
+parent: "work-item:PP-725"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/57"
 pr_number: 57
 tags: []
@@ -39,7 +39,7 @@ Builds `accelerator-corpus`, a new dispatched sub-binary exposing `accelerator c
 
 ## Context
 
-- Work item: `meta/work/0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md` (status: done)
+- Work item: `meta/work/PP-725-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md` (status: done)
 - Plan: `meta/plans/2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
 - Research: `meta/research/codebase/2026-08-06-0195-accelerator-corpus-cli-implementation-surface.md`
 - Validation: `meta/validations/2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli-validation.md`

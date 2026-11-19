@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0257"
-parent: "work-item:0257"
+parent: "work-item:PP-787"
 topic: "Targeted sync of specific work items"
 tags: ["research", "codebase", "work-sync", "sync-engine", "resolve", "external-id", "cli"]
 revision: "7812c9bc7550459c601892d83324314c49698d04"
@@ -323,21 +323,21 @@ without structural change.
 - `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md` — the
   plan that built the full-sync engine; holds the acceptance-test structure and
   golden-run fixtures 0257 must match byte-for-byte. Highest-priority prior art.
-- `meta/work/0194-tracker-crate-and-remote-sync-engine.md` (done) — built the
+- `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md` (done) — built the
   push/pull/discovery state machine over the `RemoteTracker` port.
-- `meta/work/0146-work-item-sync-enhancements.md` (epic) — parent; the
+- `meta/work/PP-167-work-item-sync-enhancements.md` (epic) — parent; the
   scope-and-configuration model bounding discovery/creation/pulls.
-- `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md` (done) +
+- `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md` (done) +
   its plan/research — directly relevant to discovery-path behaviour and the
   suppression 0257 needs.
-- `meta/work/0213-conversational-conflict-resolution-flow.md` (done) —
+- `meta/work/PP-743-conversational-conflict-resolution-flow.md` (done) —
   introduced the conflict dossier and `--resolve` that 0257 reuses.
 - `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md` — how
   remote identity lives in `external_id`; underpins remote-id targeting and the
   pushed-unsynced write-back.
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`
   — the architecture the target-set injection must respect.
-- `meta/work/0051-sync-work-items-skill.md` (done) — the original skill; the
+- `meta/work/PP-73-sync-work-items-skill.md` (done) — the original skill; the
   baseline behaviour 0257 narrows.
 - `meta/notes/2026-06-23-further-ideas-backlog.md:49` — the source idea.
 

@@ -6,10 +6,10 @@ date: "2026-11-11T08:08:16+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0352"
-parent: "work-item:0352"
+work_item_id: "work-item:PP-927"
+parent: "work-item:PP-927"
 derived_from: ["codebase-research:2026-11-10-0352-sync-reports-every-unsynced-item-twice"]
-relates_to: ["work-item:0351"]
+relates_to: ["work-item:PP-926"]
 tags: ["sync", "report", "work-adapters", "baseline", "sync-work-items"]
 revision: "c1b9cff9e11e6b32bedabeebd371d700191813de"
 repository: "accelerator-git"
@@ -575,7 +575,7 @@ entry says so.
 
 ## References
 
-- Original work item: `meta/work/0352-sync-reports-every-unsynced-item-twice.md`
+- Original work item: `meta/work/PP-927-sync-reports-every-unsynced-item-twice.md`
 - Related codebase research:
   `meta/research/codebase/2026-11-10-0352-sync-reports-every-unsynced-item-twice.md`
 - Work item review:

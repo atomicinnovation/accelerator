@@ -6,7 +6,7 @@ date: "2026-08-03T11:42:20+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-parent: "work-item:0188"
+parent: "work-item:PP-718"
 target: "plan:2026-08-03-0188-library-backed-vcs-adapter"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
@@ -1382,7 +1382,7 @@ unreachable by any query.
 ### Remaining before implementation
 
 **Blocking**: apply work-item amendments 5-8 to
-`meta/work/0188-library-backed-vcs-adapter.md`.
+`meta/work/PP-718-library-backed-vcs-adapter.md`.
 
 **Phase-scoped, not gaps**: `gix::open` on a linked-worktree gitdir (the one
 question `SM-wt` leaves); `RF`/`S256` library behaviour; the extended fixtures'

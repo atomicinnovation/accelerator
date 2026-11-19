@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0228"
-parent: "work-item:0228"
+parent: "work-item:PP-758"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/121"
 pr_number: 121
 tags: []
@@ -35,7 +35,7 @@ prefix, and the tracker-aware deprecation alias — shipped and merged in PR
 
 ## Context
 
-Closes the lifecycle of work item 0228 (`meta/work/0228-layered-configuration-key-model.md`),
+Closes the lifecycle of work item 0228 (`meta/work/PP-758-layered-configuration-key-model.md`),
 implemented by PR #116.
 
 ## Testing

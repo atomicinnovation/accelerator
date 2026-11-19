@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0226"
-parent: "work-item:0226"
-relates_to: ["work-item:0280", "work-item:0298"]
+parent: "work-item:PP-756"
+relates_to: ["work-item:PP-864", "work-item:PP-883"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/135"
 pr_number: 135
 tags: ["security", "config", "consent", "credentials", "session-start"]
@@ -152,7 +152,7 @@ is authoritative. The changes most likely to break someone:
 
 ## Context
 
-- Work item: `meta/work/0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- Work item: `meta/work/PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
   (PP-756). It replaces the narrower
   `0226-audit-repo-settable-config-keys-for-executable-path-injection.md`,
   which is deleted.

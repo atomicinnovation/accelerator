@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0179"
-parent: "work-item:0179"
+parent: "work-item:PP-703"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/22"
 pr_number: 22
 tags: []
@@ -33,7 +33,7 @@ No source, test, or build changes — this is a work-item metadata transition on
 
 ## Context
 
-- Work item: `meta/work/0179-corpus-crates-parsing-conventions.md` (parent epic 0136 — Migrate Shell Scripts into a Rust CLI; parent task 0166).
+- Work item: `meta/work/PP-703-corpus-crates-parsing-conventions.md` (parent epic 0136 — Migrate Shell Scripts into a Rust CLI; parent task 0166).
 - Implementation delivered in PR #21 (`0179-corpus-crates`); this PR is the follow-up bookkeeping that marks the item complete.
 
 ## Testing

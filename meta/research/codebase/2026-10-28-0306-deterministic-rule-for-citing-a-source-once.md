@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0306"
-parent: "work-item:0306"
+parent: "work-item:PP-892"
 relates_to: ["codebase-research:2026-10-24-0348-structured-source-metadata", "codebase-research:2026-09-26-0283-recursive-finding-deepening", "codebase-research:2026-09-23-0280-academic-source-profiles"]
 topic: "Deterministic Rule for Citing a Source Once (0306): current citation pipeline and implementation surface"
 tags: ["research", "codebase", "composer", "synthesise", "research-topic", "finding-outputter", "sources", "tiers", "metadata"]
@@ -32,7 +32,7 @@ schema_version: 1
 What does the codebase do today with citations, tier text and source metadata
 blocks when the composer writes a finding and `synthesise` writes a dossier,
 and what must change, and where, to implement 0306's citing-once rule
-(`meta/work/0306-deterministic-rule-for-citing-a-source-once.md`)?
+(`meta/work/PP-892-deterministic-rule-for-citing-a-source-once.md`)?
 
 ## Summary
 

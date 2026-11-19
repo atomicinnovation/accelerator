@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0186"
+parent: "work-item:PP-716"
 target: "plan:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"
 tags: ["shell", "performance", "bootstrap", "bash-3.2", "testing"]
 last_updated: "2026-08-03T15:00:23+00:00"

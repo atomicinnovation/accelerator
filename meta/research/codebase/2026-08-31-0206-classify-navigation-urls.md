@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0206"
-parent: "work-item:0206"
+parent: "work-item:PP-736"
 topic: "Carrying the AccessPolicy verdict (reachability + scheme) from validate-source through the executor into per-request navigate and links classification"
 tags: ["research", "codebase", "design", "security", "ssrf", "playwright", "executor", "access-policy"]
 revision: "9bce19ef9c82b2f80944e131090fa8bc46cc6b7e"
@@ -283,12 +283,12 @@ note points at.
 
 ## Historical Context
 
-- `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md` — parent;
+- `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md` — parent;
   delivered `validate-source`, `host_reach`, `access_policy`, and the executor
   port this work extends.
 - `meta/plans/2026-08-11-0196-design-cli-migration.md` — the plan 0206 derives
   from; the executor/daemon seam originates here.
-- `meta/work/0209-wire-up-or-retire-the-header-auth-path.md` — the coordinating
+- `meta/work/PP-739-wire-up-or-retire-the-header-auth-path.md` — the coordinating
   story; directly relevant because the dormant `makeAuthHeaderHandler`
   (imported, never installed) is 0209's subject and shares the exact
   `ensureBrowser` route seam 0206's redirect handler needs. Sequencing 0206

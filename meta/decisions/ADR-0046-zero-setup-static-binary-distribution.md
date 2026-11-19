@@ -9,7 +9,7 @@ title: "ADR-0046: Zero-Setup Static-Binary Distribution"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0045", "work-item:0158"]
+relates_to: ["adr:ADR-0045", "work-item:PP-181"]
 ---
 
 # ADR-0046: Zero-Setup Static-Binary Distribution
@@ -171,7 +171,7 @@ dispatch/resolution internals are a separate, spike-dependent decision (ADR-0054
 
 - **Ported from luminosity** — original decision (lum ADR-0002):
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0002-zero-setup-static-binary-distribution.md
-- `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+- `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — Architecture spike; §3 (on-demand launcher) and §4 (cross-compile &
   distribution) confirmed the choices recorded here. A contributing input; the
   primary basis is our existing visualiser distribution pipeline.

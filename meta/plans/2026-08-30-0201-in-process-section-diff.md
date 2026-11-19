@@ -6,10 +6,10 @@ date: "2026-08-30T13:34:43+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0201"
-parent: "work-item:0201"
+work_item_id: "work-item:PP-731"
+parent: "work-item:PP-731"
 derived_from: ["codebase-research:2026-08-30-0201-in-process-section-diff"]
-relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
+relates_to: ["work-item:PP-191", "work-item:PP-195", "work-item:PP-718", "work-item:PP-728"]
 tags: ["rust", "work-adapters", "diff", "tech-debt"]
 revision: "6e0cf31e384d6995030af9bf79a7b14b5ff5afc5"
 repository: "accelerator"
@@ -890,7 +890,7 @@ it parses the body, pin the format deliberately rather than inheriting whatever
 
 ## References
 
-- Original work item: `meta/work/0201-in-process-section-diff.md`
+- Original work item: `meta/work/PP-731-in-process-section-diff.md`
 - Research: `meta/research/codebase/2026-08-30-0201-in-process-section-diff.md`
 - Current implementation: `cli/work-adapters/src/diff_shellout.rs:33-102`
 - Consumers: `cli/work-cli/src/diff.rs:41-44`, `cli/work-adapters/src/sync/run.rs:258-277`, `cli/work-cli/src/sync.rs:285,318,480`

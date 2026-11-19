@@ -28,7 +28,7 @@ derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-ac
 
 Provide the codebase-grounded inputs the drafter of ADR-0062 ("Interactive Validation for Corpus Migration") needs in order to produce the ADR — covering the spike verdict it consumes, the framework contract it adopts (ADR-0037), the upstream ADRs it must conform to or supplement (ADR-0023 / 0030 / 0033 / 0034), the surrounding work items (0057, 0068, 0069, 0070, 0092), the current state of the migration framework in code, and the corpus precedents for the vocabulary gaps the ADR must resolve.
 
-The refined work item lives at `meta/work/0062-adr-corpus-migration-strategy.md` (workspace). The older draft variant — read for input comparison — lives at the parent repo's `meta/work/0062-adr-corpus-migration-strategy.md` and reflects the pre-2026-05-26 split, before ADR-task 0092 was extracted.
+The refined work item lives at `meta/work/PP-84-adr-corpus-migration-strategy.md` (workspace). The older draft variant — read for input comparison — lives at the parent repo's `meta/work/PP-84-adr-corpus-migration-strategy.md` and reflects the pre-2026-05-26 split, before ADR-task 0092 was extracted.
 
 ## Summary
 
@@ -206,7 +206,7 @@ The `target`-vs-`source`-vs-`derived_from`-vs-`documented-exception` framing in 
   - `meta/research/codebase/2026-05-21-0064-canonicalise-work-item-id-and-author-fields.md:607` → `meta/work/0070-...md`.
   - `meta/plans/2026-05-21-0064-canonicalise-work-item-id-and-author-fields.md:2061` → same target with annotation "(housekeeping target in Phase 5)".
   - Same research doc uses `### Broader workstream` as a section heading at :383 and :525.
-- **Structural convention**: `parent:` pointing at an epic ticket. Three artifacts declare `kind: epic` (`^kind:\s*epic`): `0045-work-management-integration.md`, `0036-sidebar-redesign.md`, `0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — the de facto workstream proxies. Epics are referenced as `parent:` by their child work items.
+- **Structural convention**: `parent:` pointing at an epic ticket. Three artifacts declare `kind: epic` (`^kind:\s*epic`): `PP-67-work-management-integration.md`, `PP-58-sidebar-redesign.md`, `PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — the de facto workstream proxies. Epics are referenced as `parent:` by their child work items.
 - The 0062 review at `meta/reviews/work/0062-adr-corpus-migration-strategy-review-1.md:42, 158, 222, 313` and the 0061 review at :240 ("visualiser-graph epic named as the headline downstream consumer but absent from `Blocks`") both flag the gap: an epic-as-workstream is sometimes the right target but isn't always the literal `parent`.
 
 Implication for the ADR drafter: the cleanest "documented limitation" framing is that **a multi-ticket workstream that doesn't have an epic ticket** is unsupported; readers who want to link to a workstream should create an epic and link via `parent:` (already a vocab-canonical pattern). If the ADR records a new vocab term, the candidates the corpus suggests are `workstream` or extending `relates_to` with a qualifier (the latter explicitly deferred by ADR-0034:54 — "flat (no qualifier in v1)"). Documented-limitation appears cheaper than adding a new vocab key, and consistent with ADR-0034's existing extensibility posture.

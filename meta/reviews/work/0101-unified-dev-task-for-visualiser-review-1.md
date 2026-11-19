@@ -6,8 +6,8 @@ date: "2026-06-06T13:32:59+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0101"
-relates_to: ["work-item:0100"]
+target: "work-item:PP-123"
+relates_to: ["work-item:PP-122"]
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

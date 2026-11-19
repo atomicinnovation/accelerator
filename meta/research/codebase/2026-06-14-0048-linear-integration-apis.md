@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0048"
-parent: "work-item:0048"
+parent: "work-item:PP-70"
 topic: "Linear Integration skills — Jira patterns and Linear GraphQL API (auth, rate limiting, pagination, mutations, attachments)"
 tags: ["research", "codebase", "integrations", "linear", "jira", "graphql", "authentication"]
 revision: "cefea6dd7267c4b4a5ebdaacf9ef1730d3827a7b"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For the story at `meta/work/0048-linear-integration.md`: build a deep
+For the story at `meta/work/PP-70-linear-integration.md`: build a deep
 understanding of (a) the existing Jira integration patterns this story must
 mirror, and (b) the Linear GraphQL API — especially authentication, rate
 limiting, pagination, the issue-lifecycle mutations, and attachments — through
@@ -540,7 +540,7 @@ Two shapes (the Linear skills map 1:1):
 ## Open Questions
 
 1. **Rate-limit figure in the work item is wrong (2,500 → 5,000 req/hr).** Update
-   `meta/work/0048-linear-integration.md` lines 154 and 214. (The complexity
+   `meta/work/PP-70-linear-integration.md` lines 154 and 214. (The complexity
    figure 3,000,000/hr and the 10,000/query cap are correct.)
 2. **Page-size assumption.** The work item's pagination AC fixture ("3 pages of
    50") is fine, but the implementation must not hard-code 50 as a max — there is

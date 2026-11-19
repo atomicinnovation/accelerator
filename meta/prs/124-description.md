@@ -6,7 +6,7 @@ date: "2026-09-15T15:27:00+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0277", "work-item:0278"]
+relates_to: ["work-item:PP-861", "work-item:PP-862"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/124"
 pr_number: 124
 tags: ["research", "topic-research", "validation", "testing"]
@@ -43,7 +43,7 @@ only the tip. Stacked on #123.
   `research_agent_contract` repointed to the `topic-research-finding` template,
   and `rustls` pinned `=0.23.45` to clear `RUSTSEC-2026-0285`; **#118** —
   `resolve_goldens` exit-4 case repointed to an unregistered type, the duplicate
-  `work-item:0286` renumbered to `0289`, a topic-research `ac2-coverage` E2E
+  `work-item:PP-872` renumbered to `0289`, a topic-research `ac2-coverage` E2E
   fixture, and the 10 regenerated topic-research VR baselines.
 
 ## Context

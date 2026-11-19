@@ -10,7 +10,7 @@ repository: "accelerator"
 last_updated: "2026-06-29T13:04:39+00:00"
 last_updated_by: "Phil Helm"
 schema_version: 1
-parent: "work-item:0175"
+parent: "work-item:PP-697"
 relates_to: ["codebase-research:2026-06-29-0175-slim-readme-split-docs-tree"]
 ---
 
@@ -370,9 +370,9 @@ finds it and Phase 6 reconciles it.
 
 ## References
 
-- Work item: `meta/work/0175-slim-readme-and-split-into-docs-tree.md`
+- Work item: `meta/work/PP-697-slim-readme-and-split-into-docs-tree.md`
 - Research: `meta/research/codebase/2026-06-29-0175-slim-readme-split-docs-tree.md`
-- Sibling: `meta/work/0176-per-skill-family-reference-docs.md` (page names + H1s)
-- Parent epic: `meta/work/0145-documentation-improvements.md` (agreed IA)
+- Sibling: `meta/work/PP-698-per-skill-family-reference-docs.md` (page names + H1s)
+- Parent epic: `meta/work/PP-166-documentation-improvements.md` (agreed IA)
 - Prior plan (superseded): `meta/plans/2026-03-15-readme-restructure.md`
-- Decision (ordering): `meta/work/0019-readme-structure.md`
+- Decision (ordering): `meta/work/PP-41-readme-structure.md`

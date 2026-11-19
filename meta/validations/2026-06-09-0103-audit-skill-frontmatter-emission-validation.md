@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 parent: "plan:2026-06-09-0103-audit-skill-frontmatter-emission"
 target: "plan:2026-06-09-0103-audit-skill-frontmatter-emission"
-relates_to: ["work-item:0103", "work-item:0104", "work-item:0105"]
+relates_to: ["work-item:PP-125", "work-item:PP-126", "work-item:PP-127"]
 tags: ["frontmatter", "schema", "skills", "validation", "audit", "test-harness"]
 last_updated: "2026-06-10T14:22:48+00:00"
 last_updated_by: "Toby Clemson"
@@ -49,7 +49,7 @@ All three phases land as their own commits in the intended dependency order:
 - **Phase 3 guard** — `scripts/test-skill-frontmatter-conformance.sh` exists, is executable, sources `frontmatter-emission-rules.sh` and reads `templates-schema.tsv` (no re-encoded contract, asserted in-suite). Covers composed-emission acceptance, both blind-spot axes (provenance over-emission, bare/unquoted linkage) with liveness + control cases, and the four-axis mutation self-test (type, status, extra, schema_version) each asserting its specific diagnostic.
 - **Fixture-helper refactor** — `emit_valid`/`assert_*` factored into `scripts/frontmatter-fixtures.sh`, sourced by **both** `test-validate-corpus-frontmatter.sh` and `test-skill-frontmatter-conformance.sh` (the two suites are peers sharing one fixture authority, as designed). The existing validator suite stays green.
 - **Phase 1 audit artifact** — the work item carries a complete "Discovery Pass Record" with the re-runnable discovery command, the `EMITTERS`(16)/`EXCLUDED`(1)/`STATUS_AXIS_ONLY`(2) reconciliation, and the per-(skill, type) conformance table.
-- **Divergence triage** — both schema-source items raised as child work items under epic 0057: `0104` (add `rejected` to ADR status vocab) and `0105` (close validator provenance/linkage blind spots). Both `parent: "work-item:0057"`, `relates_to: ["work-item:0103"]`, `status: draft` — recorded, not fixed here, per scope.
+- **Divergence triage** — both schema-source items raised as child work items under epic 0057: `0104` (add `rejected` to ADR status vocab) and `0105` (close validator provenance/linkage blind spots). Both `parent: "work-item:PP-79"`, `relates_to: ["work-item:PP-125"]`, `status: draft` — recorded, not fixed here, per scope.
 - **Deferred-divergence handling** — the guard represents the deferred ADR `rejected` axis as an explicit `skip_test` keyed to `0104` (`scripts/test-skill-frontmatter-conformance.sh:336`), which accounts for the single skip — visible in test output, flips to a live assertion when 0104 lands, exactly as the plan specified.
 
 #### Deviations from Plan:

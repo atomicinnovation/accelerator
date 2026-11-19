@@ -2,7 +2,7 @@
 date: "2026-05-20T22:45:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0063-rename-work-item-type-to-kind.md"
+work_item_id: "meta/work/PP-85-rename-work-item-type-to-kind.md"
 status: "ready"
 id: "2026-05-20-0063-rename-work-item-type-to-kind"
 title: "Rename work-item `type:` field to `kind:` — Implementation Plan"
@@ -13,8 +13,8 @@ last_updated: "2026-05-20T22:45:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-parent: "work-item:0063"
-relates_to: ["codebase-research:2026-05-20-0063-rename-work-item-type-to-kind", "work-item:0063", "adr:ADR-0023", "work-item:0057", "adr:ADR-0033", "work-item:0065", "work-item:0070"]
+parent: "work-item:PP-85"
+relates_to: ["codebase-research:2026-05-20-0063-rename-work-item-type-to-kind", "work-item:PP-85", "adr:ADR-0023", "work-item:PP-79", "adr:ADR-0033", "work-item:PP-87", "work-item:PP-92"]
 ---
 
 # Rename work-item `type:` field to `kind:` — Implementation Plan
@@ -576,9 +576,9 @@ jj status | grep 'meta/work/' && echo "FAIL: post-rerun changes" || echo "PASS: 
 #### Manual Verification
 
 - [x] Spot-check three representative files:
-  `meta/work/0063-rename-work-item-type-to-kind.md`,
-  `meta/work/0001-three-layer-review-system-architecture.md` (legacy
-  adr-creation-task shape), `meta/work/0072-playwright-daemon-cjs-import-bug.md`.
+  `meta/work/PP-85-rename-work-item-type-to-kind.md`,
+  `meta/work/PP-23-three-layer-review-system-architecture.md` (legacy
+  adr-creation-task shape), `meta/work/PP-94-playwright-daemon-cjs-import-bug.md`.
   All three have `^kind:` instead of `^type:`; the modern shapes also
   have `^\*\*Kind\*\*:` instead of `^\*\*Type\*\*:`; the legacy shape
   has no body label.
@@ -1241,7 +1241,7 @@ bash skills/config/migrate/scripts/test-migrate.sh
 1. Open the Kanban board in the visualiser dev server. Verify each
    card shows its kind label (story / epic / task / bug / spike /
    adr-creation-task).
-2. Open `meta/work/0063-rename-work-item-type-to-kind.md` in the
+2. Open `meta/work/PP-85-rename-work-item-type-to-kind.md` in the
    visualiser's library view; confirm the rendered frontmatter shows
    `kind: story`.
 3. Create a new work-item via `/accelerator:create-work-item`; confirm
@@ -1262,7 +1262,7 @@ property-key rename. No hot-path implications.
 
 This plan **is** the migration. The downstream story 0070 must drop
 its own `type:` → `kind:` rewrite step. As part of this PR, update
-`meta/work/0070-ship-meta-corpus-unified-schema-migration.md` to
+`meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` to
 remove the line `- Renames work-item type: → kind:.` from its
 Requirements section and the corresponding `kind:` mention from its
 Acceptance Criteria. Migration 0005 owns this rewrite once.
@@ -1308,7 +1308,7 @@ must call out:
 
 ## References
 
-- Source: `meta/work/0063-rename-work-item-type-to-kind.md`
+- Source: `meta/work/PP-85-rename-work-item-type-to-kind.md`
 - Research: `meta/research/codebase/2026-05-20-0063-rename-work-item-type-to-kind.md`
 - Approved review: `meta/reviews/work/0063-rename-work-item-type-to-kind-review-1.md` (verdict APPROVE on pass 4)
 - Migration framework: `meta/decisions/ADR-0023-meta-directory-migration-framework.md`
@@ -1318,6 +1318,6 @@ must call out:
 - Config-path resolver: `scripts/config-read-path.sh`
 - Test harness: `skills/config/migrate/scripts/test-migrate.sh`
 - Test helpers: `scripts/test-helpers.sh`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Unified-schema ADR (motivator): `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
-- Blocked stories: `meta/work/0065-update-artifact-templates-to-unified-schema.md`, `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+- Blocked stories: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`, `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`

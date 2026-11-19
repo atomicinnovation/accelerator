@@ -6,10 +6,10 @@ date: "2026-08-11T15:57:41+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0189"
-parent: "work-item:0189"
+work_item_id: "work-item:PP-719"
+parent: "work-item:PP-719"
 derived_from: ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
-relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement", "work-item:0169", "work-item:0186"]
+relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement", "work-item:PP-190", "work-item:PP-716"]
 tags: ["cli", "launcher", "bootstrap"]
 revision: "9fb90f8a26d91d640cf0f6ab8b272b6039d7bdbd"
 repository: "accelerator"
@@ -439,7 +439,7 @@ and recorded as such rather than implied by the absence of a mutation.
 
 #### 4. Correct the work item's counter definition
 
-**File**: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+**File**: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 **Changes**: The discrimination recorded in item 1 falsifies three passages, all
 of which are amended here rather than in the sibling measurement plan, because
 they are consequences of this phase:
@@ -1680,7 +1680,7 @@ the failure is diagnosable, and the remedy is one line: `tempfile` honours
 The counter adds one thread-local `Cell` increment per `verify_writable` call —
 no atomic, no memory ordering — against a call that already writes a file,
 chmods it, forks a process and unlinks the file. 0186's re-derived attribution
-(`meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md:569-589`,
+(`meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md:569-589`,
 measured 2026-08-03) puts the full write + chmod + exec + rm cycle at **107.15
 ms in `/tmp`**, against 3.72 ms to re-exec a pre-existing file and a 1.41 ms
 bare fork+exec floor — so ~103 ms of it is macOS's first-exec check. `/tmp` is
@@ -2132,13 +2132,13 @@ link to it.
 ## References
 
 - Original work item:
-  `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+  `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 - Related research:
   `meta/research/codebase/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`
 - `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — the
   sibling plan against this work item, carrying the deferred latency
   measurement, the 0169 backfill and the Dependencies retraction
-- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — delivered the probe
+- `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — delivered the probe
   split; closed with its Phase 10 latency gate unmeasured
 - `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` — Phase 5's
   split, which moved the probe off the warm path and is the reason the property

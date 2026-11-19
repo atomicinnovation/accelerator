@@ -14,7 +14,7 @@ repository: "build-system"
 last_updated: "2026-05-31T22:24:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["codebase-research:2026-05-06-0033-design-token-system", "work-item:0033", "plan:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:0077"]
+relates_to: ["codebase-research:2026-05-06-0033-design-token-system", "work-item:PP-55", "plan:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:PP-99"]
 ---
 
 # Shadow and Dark-Accent Token Audit (work item 0077)
@@ -26,7 +26,7 @@ relates_to: ["codebase-research:2026-05-06-0033-design-token-system", "work-item
 
 ## Research Question
 
-For work item [0077 Shadow and Dark-Accent Token Audit](../../work/0077-shadow-and-dark-accent-token-audit.md):
+For work item [0077 Shadow and Dark-Accent Token Audit](../../work/PP-99-shadow-and-dark-accent-token-audit.md):
 audit the current visualiser app's `--ac-shadow-soft` / `--ac-shadow-lift`
 values and the dark-theme `--ac-accent` / `--ac-accent-2` values against
 the claude-design-prototype, then either align them with the prototype or
@@ -277,7 +277,7 @@ description acknowledgement of the threshold and the no-op outcome.
 ### Existing Playwright theme-toggle plumbing
 
 The dark-theme verification machinery from
-[work item 0034](../../work/0034-theme-and-font-mode-toggles.md) is
+[work item 0034](../../work/PP-56-theme-and-font-mode-toggles.md) is
 ready to use:
 
 - **Theme setter**: [`tests/visual-regression/lib/expected-colours.ts`](../../../skills/visualisation/visualise/frontend/tests/visual-regression/lib/expected-colours.ts) exports `setTheme(page, 'light' | 'dark')` which flips `document.documentElement.dataset.theme` and waits for the attribute to land.
@@ -379,7 +379,7 @@ The shadow / dark-accent story has been visited multiple times:
 
 - [`meta/research/codebase/2026-05-06-0033-design-token-system.md`](2026-05-06-0033-design-token-system.md) — the original tour of the prototype's tokens (incl. `rgba(10,17,27, …)` light and `rgba(0,0,0, …)` dark shadows).
 - [`meta/reviews/plans/2026-05-06-0033-design-token-system-review-1.md`](../../reviews/plans/2026-05-06-0033-design-token-system-review-1.md) — review-1 of the 0033 plan flagged "Dark shadow overrides missed — `--ac-shadow-soft` / `--ac-shadow-lift` are theme-variant per inventory" as a major standards finding (lines 85–87, 252–254, 365). Resolved in the review-2 cycle (line 450).
-- [`meta/work/0033-design-token-system.md`](../../work/0033-design-token-system.md) — the work item that introduced the five elevation tokens including the per-theme `--ac-shadow-soft` / `--ac-shadow-lift` split (lines 16, 94–104).
+- [`meta/work/PP-55-design-token-system.md`](../../work/PP-55-design-token-system.md) — the work item that introduced the five elevation tokens including the per-theme `--ac-shadow-soft` / `--ac-shadow-lift` split (lines 16, 94–104).
 - [`meta/plans/2026-05-08-0034-theme-and-font-mode-toggles.md`](../../plans/2026-05-08-0034-theme-and-font-mode-toggles.md) — 0034 already asserts `#8A90E8` / `#E86A6B` resolve correctly under the theme toggle (lines 155, 165, 391).
 - [`meta/research/codebase/2026-05-23-0073-atomic-brand-layer-palette.md`](2026-05-23-0073-atomic-brand-layer-palette.md) — confirms `#8a90e8` and `#e86a6b` have no `--atomic-*` brand-token match (lines 145, 203–207, 379), so they remain as hex literals in the semantic layer.
 - [`meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`](../design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md) — the gap-analysis source that produced 0077 (lines 94–96, 100, 104). The gap document treats the parity as unverified rather than confirmed; this audit closes that uncertainty as confirmed parity.

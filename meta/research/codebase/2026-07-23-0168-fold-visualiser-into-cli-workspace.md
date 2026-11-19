@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0168"
-parent: "work-item:0168"
+parent: "work-item:PP-189"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "Folding the Visualiser into the cli/ Workspace (0168)"
 tags: ["research", "codebase", "rust", "visualiser", "cli", "launcher", "corpus", "distribution", "workspace"]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-For work item [0168 — Fold the Visualiser into the cli/ Workspace](../../work/0168-fold-visualiser-into-cli-workspace.md):
+For work item [0168 — Fold the Visualiser into the cli/ Workspace](../../work/PP-189-fold-visualiser-into-cli-workspace.md):
 map the live codebase reality behind every requirement and acceptance criterion —
 the visualiser crate as it stands, the shared `corpus`/`config`/`document` crates
 it must retire onto, the `cli/` workspace and unified launcher it joins, the shell

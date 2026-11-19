@@ -6,8 +6,8 @@ date: "2026-06-23T13:07:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0123"
-parent: "work-item:0123"
+work_item_id: "work-item:PP-144"
+parent: "work-item:PP-144"
 derived_from: ["codebase-research:2026-06-23-0123-changelog-readme-1.23.0-update"]
 relates_to: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
 tags: ["documentation", "release", "changelog", "readme"]
@@ -383,7 +383,7 @@ No code or data migration. The change *describes* a migration-framework fix
 
 ## References
 
-- Original work item: `meta/work/0123-changelog-readme-1-23-0-update.md`
+- Original work item: `meta/work/PP-144-changelog-readme-1-23-0-update.md`
 - Driving research: `meta/research/codebase/2026-06-23-0123-changelog-readme-1.23.0-update.md`
 - Prior-cycle precedent: `meta/research/codebase/2026-06-17-readme-changelog-1.22.0-refresh.md`
 - CHANGELOG model entry: `CHANGELOG.md:28-145` (1.22.0, incl. callout `:30-38`)

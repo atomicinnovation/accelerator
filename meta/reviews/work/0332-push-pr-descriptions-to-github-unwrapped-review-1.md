@@ -6,8 +6,8 @@ date: "2026-10-13T17:27:43+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0332"
-work_item_id: "0332"
+target: "work-item:PP-885"
+work_item_id: "PP-885"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -173,7 +173,7 @@ as undocumented parser behaviour. The other findings are bookkeeping
    exposes no unwrap option.
 6. **Fill in Dependencies and `relates_to`** (addresses: `relates_to`
    omissions; new crate; GitHub coupling; 0320 coordination)
-   Add `work-item:0071` and `work-item:0152` to `relates_to`. Add these
+   Add `work-item:PP-93` and `work-item:PP-173` to `relates_to`. Add these
    entries to Dependencies: External: `pulldown-cmark` (cargo-deny);
    External: GitHub PR-body rendering; and a note that 0320 reuses this
    story's crate.

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0269"
-parent: "work-item:0269"
+parent: "work-item:PP-799"
 topic: "Remove bash vocabulary and redesign exit-code classification in jira-client and linear-client"
 tags: ["research", "codebase", "jira-client", "linear-client", "exit-codes", "classification", "migration"]
 revision: "f54b4ad9741185e8f39d97a3c1fb508a66a2fdd7"
@@ -308,12 +308,12 @@ The AC permits these if they carry an inline justification comment.
 
 ## Historical Context
 
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` - parent epic; the
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` - parent epic; the
   bash vocabulary is its vestige.
-- `meta/work/0264-remove-bash-migration-negative-assertion-tests.md` -
+- `meta/work/PP-794-remove-bash-migration-negative-assertion-tests.md` -
   CLI-wide sibling cleanup, confirmed distinct (does not absorb 0269).
-- `meta/work/0271-unify-surface-remotetracker-client-interfaces.md`,
-  `meta/work/0273-domain-crate-for-linear-jira-subcommands.md` - both blocked
+- `meta/work/PP-801-unify-surface-remotetracker-client-interfaces.md`,
+  `meta/work/PP-803-domain-crate-for-linear-jira-subcommands.md` - both blocked
   by 0269; they reshape the same `classify`/`failure`/`client` files.
 - `meta/notes/2026-06-23-further-ideas-backlog.md` - source note for the
   026x/027x cluster.

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "superseded"
 superseded_by: "adr:ADR-0070"
-parent: "work-item:0047"
+parent: "work-item:PP-69"
 relates_to: ["adr:ADR-0033", "adr:ADR-0040", "adr:ADR-0025", "adr:ADR-0022"]
 tags: ["work-management", "integrations", "frontmatter", "identity", "sync"]
 last_updated: "2026-09-27T14:40:00+00:00"
@@ -137,12 +137,12 @@ owned by work item 0051.
 
 ## References
 
-- `meta/work/0047-core-skills-sync-integration.md` — work item that forced the decision
+- `meta/work/PP-69-core-skills-sync-integration.md` — work item that forced the decision
 - `meta/plans/2026-06-15-0047-core-skills-sync-integration.md` — implementing plan (flagged this ADR)
 - `meta/research/codebase/2026-06-15-0047-core-skills-sync-integration.md` — research enumerating the three `work_item_id` uses
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — defines `id`; first introduces `external_id`
 - `meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md` — omit-when-empty rule for `external_id`/`work_item_id`
 - `meta/decisions/ADR-0025-work-item-cross-ref-aggregation.md` — relies on `work_item_id` roles (A)/(B)
 - `meta/decisions/ADR-0022-work-item-terminology.md` — named the `work_item_id` field
-- `meta/work/0064-canonicalise-work-item-id-and-author-fields.md` — canonicalised the foreign-reference spelling (done)
-- `meta/work/0065-update-artifact-templates-to-unified-schema.md` / `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — own the work-item own-identity `work_item_id` → `id` canonicalisation
+- `meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md` — canonicalised the foreign-reference spelling (done)
+- `meta/work/PP-87-update-artifact-templates-to-unified-schema.md` / `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — own the work-item own-identity `work_item_id` → `id` canonicalisation

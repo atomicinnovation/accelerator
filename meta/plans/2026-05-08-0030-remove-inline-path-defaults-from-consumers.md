@@ -13,7 +13,7 @@ last_updated: "2026-05-08T00:00:00Z"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0030", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "work-item:0052"]
+relates_to: ["work-item:PP-52", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "work-item:PP-74"]
 ---
 
 # Remove Inline Path Defaults from Consumer Call Sites
@@ -627,10 +627,10 @@ unchanged.
 
 ## References
 
-- Originating work item: `meta/work/0030-centralise-path-defaults.md`
+- Originating work item: `meta/work/PP-52-centralise-path-defaults.md`
 - Implementation research:
   `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`
-- Dependent work item: `meta/work/0052-make-documents-locator-paths-config-driven.md`
+- Dependent work item: `meta/work/PP-74-make-documents-locator-paths-config-driven.md`
   (will source `config-defaults.sh` once this plan lands)
 - Definition site: `scripts/config-defaults.sh`
 - Consumer entry point: `scripts/config-read-path.sh`

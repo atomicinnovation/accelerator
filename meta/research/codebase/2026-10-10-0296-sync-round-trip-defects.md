@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0296"
-parent: "work-item:0296"
+parent: "work-item:PP-880"
 topic: "Sync round-trip defects between local work items and the tracker"
 tags: ["research", "codebase", "sync", "baseline", "digest", "projection", "dossier", "work-adapters", "remote-projection", "jira-client", "linear"]
 revision: "7cd9e74bbad6ca74adcfb95de719dcb231baf4f4"
@@ -469,9 +469,9 @@ flowchart LR
 - `meta/prs/102-description.md`: `last-sync.json` is committed as one line,
   so the migration produces one large diff. It records a push-only run
   refreshing `remote_hash` on unresolved entries; see Open Questions.
-- `meta/work/0320-linear-push-corrupts-markdown-content.md`: needs
+- `meta/work/PP-906-linear-push-corrupts-markdown-content.md`: needs
   equivalence as a callable comparison, not only a digest.
-- `meta/work/0290-bidirectional-field-mapping.md`: extends `Entry` and bumps
+- `meta/work/PP-876-bidirectional-field-mapping.md`: extends `Entry` and bumps
   the recipe. Per-field values supersede `local_frontmatter_hash`.
 
 ## Related Research

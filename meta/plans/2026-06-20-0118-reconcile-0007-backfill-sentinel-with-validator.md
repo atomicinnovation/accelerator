@@ -6,8 +6,8 @@ date: "2026-06-20T18:22:11+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0118"
-parent: "work-item:0118"
+work_item_id: "work-item:PP-140"
+parent: "work-item:PP-140"
 derived_from: ["codebase-research:2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"]
 tags: ["migrate", "migration-0007", "corpus-validator", "backfill", "sentinel"]
 revision: "71735c71d7dab85e8ce4f743c3edac2693d2c563"
@@ -807,7 +807,7 @@ branch alone cannot catch.
 ## References
 
 - Original work item:
-  `meta/work/0118-reconcile-0007-backfill-sentinel-with-validator.md`
+  `meta/work/PP-140-reconcile-0007-backfill-sentinel-with-validator.md`
 - Related research:
   `meta/research/codebase/2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator.md`
 - Source RCA:

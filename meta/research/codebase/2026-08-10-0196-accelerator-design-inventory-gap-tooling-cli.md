@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0196"
-parent: "work-item:0196"
+parent: "work-item:PP-726"
 relates_to: ["codebase-research:2026-08-06-0195-accelerator-corpus-cli-implementation-surface", "codebase-research:2026-08-08-0197-accelerator-collaboration-pr-helper-cli", "codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline", "codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"]
 topic: "Implementation surface for migrating design inventory/gap tooling into an accelerator-design sub-binary with a bundled Playwright driver"
 tags: ["research", "codebase", "design", "playwright", "cli", "distribution", "minisign", "sub-binary"]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-Educate a plan for work-item:0196 — migrate the design inventory/gap tooling
+Educate a plan for work-item:PP-726 — migrate the design inventory/gap tooling
 (`inventory-design`, `analyse-design-gaps`) into an `accelerator-design`
 sub-binary, and bundle Microsoft's per-platform Playwright driver (Node.js +
 `playwright-core`) as a distributed artifact fetched, verified, and cached via

@@ -6,8 +6,8 @@ date: "2026-10-24T05:11:44+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0306"
-work_item_id: "0306"
+target: "work-item:PP-892"
+work_item_id: "PP-892"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -441,7 +441,7 @@ clauses have no exercising criterion.
   invented tier, composer/synthesise docs).
 - 🔵 **Dependency**: 0284 not told about the combined retraction-and-`also`
   suffix forms.
-- 🔵 **Dependency**: `relates_to` omits `work-item:0280`.
+- 🔵 **Dependency**: `relates_to` omits `work-item:PP-864`.
 - 🔵 **Completeness**: Open Questions empty with no "None".
 - 🔵 **Scope**: Title frames the item around tier conflicts; scope now covers
   every same-source citation.

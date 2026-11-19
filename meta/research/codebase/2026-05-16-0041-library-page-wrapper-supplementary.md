@@ -13,7 +13,7 @@ type: "codebase-research"
 id: "2026-05-16-0041-library-page-wrapper-supplementary"
 title: "Work Item 0041 — Supplementary Findings"
 schema_version: 1
-relates_to: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "work-item:0041", "adr:ADR-0024", "adr:ADR-0026"]
+relates_to: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "work-item:PP-63", "adr:ADR-0024", "adr:ADR-0026"]
 derived_from: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component"]
 ---
 
@@ -480,7 +480,7 @@ When `LibraryTypeView` loses its `.sortButton` rules and column-header borders, 
 ## Historical Context
 
 - `meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overview-hub.md` — primary research; established eight resolved decisions, the surface of `LibraryTypeView`, `PageSubtitle`, the router redirect, `PHASE_DOC_TYPES`, design tokens, `describe_types` shape, and the absence of popover/checkbox primitives.
-- `meta/work/0041-library-page-wrapper-and-overview-hub.md` — work item, substantially rewritten after the 2026-05-15 research to incorporate all eight resolutions; expanded scope to five-route migration and PR-descriptions rename.
+- `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` — work item, substantially rewritten after the 2026-05-15 research to incorporate all eight resolutions; expanded scope to five-route migration and PR-descriptions rename.
 - `meta/decisions/ADR-0024-visualiser-kanban-column-config.md` — server-driven kanban column config; precedent shape for server-driven library structure.
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md` — token application conventions; binds `--ac-content-max-width` introduction to existing token discipline.
 - Blocker work items 0033 (Design Token System), 0037 (Glyph), 0038 (Chip) — all `done`.
@@ -507,7 +507,7 @@ The 2026-05-15 research closed all eight open questions. This pass surfaces thre
 
 ## References
 
-- Work item: `meta/work/0041-library-page-wrapper-and-overview-hub.md`
+- Work item: `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`
 - Primary research: `meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overview-hub.md`
 - Blocker work items: 0033 (Design Token System), 0037 (Glyph Component), 0038 (Generic Chip Component) — all `done`.
 - Sibling work items: 0042 (Templates View Redesign), 0044 (Spike: Confirm List-Screen Scope Decisions) — both `draft`.

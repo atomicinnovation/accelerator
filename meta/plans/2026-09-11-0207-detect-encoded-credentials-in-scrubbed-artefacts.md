@@ -6,8 +6,8 @@ date: "2026-09-10T23:15:45+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0207"
-parent: "work-item:0207"
+work_item_id: "work-item:PP-737"
+parent: "work-item:PP-737"
 derived_from: ["codebase-research:2026-09-10-0207-detect-encoded-credentials-in-scrubbed-artefacts"]
 tags: ["design", "security", "secrets"]
 revision: "85dbe129c9474f4caf719a36ffa71af9b7a638e6"
@@ -820,7 +820,7 @@ is meant to be active is a candidate for a future work item.
 
 ## References
 
-- Original work item: `meta/work/0207-detect-encoded-credentials-in-scrubbed-artefacts.md`
+- Original work item: `meta/work/PP-737-detect-encoded-credentials-in-scrubbed-artefacts.md`
 - Research: `meta/research/codebase/2026-09-10-0207-detect-encoded-credentials-in-scrubbed-artefacts.md`
 - Scanner core: `cli/design/src/leaked_credentials.rs:25-49`
 - Value-half source of truth: `cli/design-adapters/src/environment.rs:16-47`

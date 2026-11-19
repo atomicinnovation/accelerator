@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0167"
-parent: "work-item:0167"
-relates_to: ["work-item:0166", "work-item:0106", "work-item:0107", "work-item:0169", "work-item:0173", "work-item:0178"]
+parent: "work-item:PP-188"
+relates_to: ["work-item:PP-187", "work-item:PP-128", "work-item:PP-129", "work-item:PP-190", "work-item:PP-194", "work-item:PP-702"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/26"
 pr_number: 26
 tags: ["rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "store", "migration"]

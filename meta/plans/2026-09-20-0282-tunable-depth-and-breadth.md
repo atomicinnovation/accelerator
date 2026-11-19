@@ -6,8 +6,8 @@ date: "2026-09-20T22:45:46+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0282"
-parent: "work-item:0282"
+work_item_id: "work-item:PP-866"
+parent: "work-item:PP-866"
 derived_from: ["codebase-research:2026-09-20-0282-tunable-depth-and-breadth"]
 tags: ["research", "skills", "config"]
 revision: "c48d829a46e054520b2fdb153ad9765f256ff873"
@@ -937,7 +937,7 @@ other's key.
 
 ## References
 
-- Original work item: `meta/work/0282-tunable-depth-and-breadth.md`
+- Original work item: `meta/work/PP-866-tunable-depth-and-breadth.md`
 - Related research: `meta/research/codebase/2026-09-20-0282-tunable-depth-and-breadth.md`
 - Work item review: `meta/reviews/work/0282-tunable-depth-and-breadth-review-1.md`
 - Plan review: `meta/reviews/plans/2026-09-20-0282-tunable-depth-and-breadth-review-1.md`
@@ -950,4 +950,4 @@ other's key.
 - `config get` behaviour tests (to update): `cli/launcher/tests/config_read.rs:187,198,200,306,320`; `:424` stays unchanged (fail-safe not altered)
 - Callers to update: `skills/integrations/jira/init-jira/SKILL.md:64,71`; `cli/migrate/src/ports.rs:101-104` (port doc analogy)
 - Edit targets: `skills/research/research-topic/SKILL.md:51-52,145-147,155-206`; `skills/config/configure/SKILL.md` (help block, `### review` neighbourhood)
-- Blocks: `meta/work/0283-recursive-finding-deepening.md` (the recursion engine that consumes `depth`)
+- Blocks: `meta/work/PP-867-recursive-finding-deepening.md` (the recursion engine that consumes `depth`)

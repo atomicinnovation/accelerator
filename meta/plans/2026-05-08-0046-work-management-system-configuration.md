@@ -13,8 +13,8 @@ last_updated: "2026-05-08T22:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-parent: "work-item:0046"
-relates_to: ["codebase-research:2026-05-08-0046-work-management-system-configuration", "work-item:0045", "adr:ADR-0016", "adr:ADR-0017"]
+parent: "work-item:PP-68"
+relates_to: ["codebase-research:2026-05-08-0046-work-management-system-configuration", "work-item:PP-67", "adr:ADR-0016", "adr:ADR-0017"]
 ---
 
 # 0046 Work Management System Configuration — Implementation Plan
@@ -1272,9 +1272,9 @@ the two existing keys.
 
 ## References
 
-- Source: `meta/work/0046-work-management-system-configuration.md`
+- Source: `meta/work/PP-68-work-management-system-configuration.md`
 - Research: `meta/research/codebase/2026-05-08-0046-work-management-system-configuration.md`
-- Parent epic: `meta/work/0045-work-management-integration.md`
+- Parent epic: `meta/work/PP-67-work-management-integration.md`
 - Centralisation precedent: `scripts/config-defaults.sh` (post-0030 state),
   `scripts/config-read-path.sh:17-42` (thin-wrapper pattern)
 - Validation precedent (rejected — too lenient for AC4):
@@ -1294,6 +1294,6 @@ the two existing keys.
 
 Process bookkeeping (kept separate from the documentation phase):
 update the work item at
-`meta/work/0046-work-management-system-configuration.md` from
+`meta/work/PP-68-work-management-system-configuration.md` from
 `status: ready` to `status: in-progress` on plan adoption, then to
 `status: done` on completion. No content change.

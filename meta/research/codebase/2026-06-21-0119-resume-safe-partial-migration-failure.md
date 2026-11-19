@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0119"
-parent: "work-item:0119"
-relates_to: ["work-item:0115", "work-item:0116", "work-item:0118", "work-item:0069", "work-item:0120"]
+parent: "work-item:PP-141"
+relates_to: ["work-item:PP-137", "work-item:PP-138", "work-item:PP-140", "work-item:PP-91", "work-item:PP-142"]
 topic: "Resume-Safe Partial Migration Failure (work item 0119)"
 tags: ["research", "codebase", "migrate", "run-migrations", "interactive-migration", "manifest", "tooling"]
 revision: "8f2814b2f569f1f6174d736e525d9d27deb77317"
@@ -341,11 +341,11 @@ blocker.
 ## Historical Context
 
 - `meta/research/issues/2026-06-19-interactive-migration-unsatisfiable-under-agent-invocation.md` — source research; Fix E (Hypothesis 3) characterised as an amplifier/symptom, secondary to C/D.
-- `meta/work/0115-make-interactive-migrations-satisfiable-under-agent-invocation.md` — parent epic; adopted A, rejected D.
+- `meta/work/PP-137-make-interactive-migrations-satisfiable-under-agent-invocation.md` — parent epic; adopted A, rejected D.
 - `meta/work/0116-…md` + `meta/plans/2026-06-20-0116-structured-stall-on-no-decision-input.md` — done; the model for phased, TDD, line-anchored `run-migrations.sh` edits; reusable test harness (`setup_sandbox`, `0002-predicate` fixture, `</dev/null` no-input forcing).
 - `meta/work/0118-…md` — fix C (backfill sentinel); shares the 0007/completion surface.
-- `meta/work/0069-migration-framework-interactive-validation-hooks.md` — done; the resumability 0119 extends.
-- `meta/work/0120-prevention-tests-for-agent-invocation-path.md` — prevention tests; explicitly defers guarded-resume coverage to 0119.
+- `meta/work/PP-91-migration-framework-interactive-validation-hooks.md` — done; the resumability 0119 extends.
+- `meta/work/PP-142-prevention-tests-for-agent-invocation-path.md` — prevention tests; explicitly defers guarded-resume coverage to 0119.
 
 ## Related Research
 

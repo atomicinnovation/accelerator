@@ -6,10 +6,10 @@ date: "2026-08-10T17:04:12+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0204"
+parent: "work-item:PP-157"
+target: "work-item:PP-734"
 relates_to: ["work-item-review:0194-tracker-crate-and-remote-sync-engine-review-2"]
-work_item_id: "0204"
+work_item_id: "PP-734"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -414,7 +414,7 @@ the frozen surface to reopen after acceptance while Open Questions records
    Narrow the Blocks claim to 0171's client adapter crates, noting the cutover
    half remains blocked by 0194. Add 0204 to epic 0136's Decomposition and
    completion criterion, and rewrite 0194's decomposition entry so it no
-   longer claims to precede 0171's client adapters. Drop `work-item:0194` from
+   longer claims to precede 0171's client adapters. Drop `work-item:PP-724` from
    `relates_to`, and name the correct upstream for `kernel`.
 
 6. **Capture the couplings that pass through the port** (addresses:
@@ -588,8 +588,8 @@ to deliver: the frozen port contract.
 **Strengths**:
 - Every expected section is present and substantively populated, with no
   placeholder sections.
-- Frontmatter is complete and kind-appropriate, and the `blocks: work-item:0194`
-  edge is bidirectionally consistent with 0194's `blocked_by: work-item:0204`.
+- Frontmatter is complete and kind-appropriate, and the `blocks: work-item:PP-724`
+  edge is bidirectionally consistent with 0194's `blocked_by: work-item:PP-734`.
 - Requirements→Acceptance Criteria coverage is near-complete (six of seven),
   and the criteria are mechanised rather than left to inspection.
 - Each Requirements bullet carries its rationale rather than just an
@@ -668,7 +668,7 @@ to deliver: the frozen port contract.
   0194 itself lists 0204 under `blocked_by` only, reserving `relates_to` for
   items with no blocking edge.
   **Impact**: Ambiguous graph for traversing consumers; invites drift.
-  **Suggestion**: Drop `work-item:0194` from `relates_to`.
+  **Suggestion**: Drop `work-item:PP-724` from `relates_to`.
 
 - **suggestion / medium** — *Context explains why this is a separate item but
   not what the port ultimately serves* — **Location**: Context

@@ -13,7 +13,7 @@ last_updated: "2026-05-31T23:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "75809591931b"
 repository: "ticket-management"
-relates_to: ["work-item:0040", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "adr:ADR-0025", "adr:ADR-0033", "adr:ADR-0034"]
+relates_to: ["work-item:PP-62", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "adr:ADR-0025", "adr:ADR-0033", "adr:ADR-0034"]
 ---
 
 # Pipeline Visualisation Overhaul Implementation Plan
@@ -89,7 +89,7 @@ After this plan is complete:
 
 ### Verification
 
-- All twelve Acceptance Criteria in `meta/work/0040-pipeline-visualisation-overhaul.md`
+- All twelve Acceptance Criteria in `meta/work/PP-62-pipeline-visualisation-overhaul.md`
   pass against the implemented surfaces.
 - Server: `cargo test` passes; new tests cover `Completeness.present`
   derivation, per-entry `IndexEntry.completeness` backfill, the
@@ -1681,7 +1681,7 @@ reach all three surfaces) has a regression test.
 
 ## References
 
-- Work item: `meta/work/0040-pipeline-visualisation-overhaul.md`
+- Work item: `meta/work/PP-62-pipeline-visualisation-overhaul.md`
 - Review: `meta/reviews/work/0040-pipeline-visualisation-overhaul-review-1.md`
 - Codebase research: `meta/research/codebase/2026-05-31-0040-pipeline-visualisation-overhaul.md`
 - Design prototype (in-tree bundle):

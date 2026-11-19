@@ -6,8 +6,8 @@ date: "2026-06-27T12:23:42+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0157"
-parent: "work-item:0157"
+work_item_id: "work-item:PP-178"
+parent: "work-item:PP-178"
 derived_from: ["codebase-research:2026-06-27-0157-porting-luminosity-adrs-and-feeding-spikes"]
 tags: ["adr", "decisions", "porting", "luminosity", "rust-cli", "spikes", "supersession"]
 revision: "d88eba092cb9225c6e9727b8999181048c7104d6"
@@ -186,16 +186,16 @@ those references must be rewritten in the first person when the ADRs live
 | lum ADR | → local | rewritten `relates_to` (local refs) | Provenance / supersession |
 |---|---|---|---|
 | 0001 | **0045** | — | |
-| 0002 | **0046** | adr:ADR-0045 | `relates_to` spike work-item:0158 |
+| 0002 | **0046** | adr:ADR-0045 | `relates_to` spike work-item:PP-181 |
 | 0003 | **0047** | adr:ADR-0045, adr:ADR-0046 | **supersedes** local 0016, 0017 |
 | 0004 | **0048** | adr:ADR-0045, adr:ADR-0046 | |
 | 0005 | **0049** | adr:ADR-0048, 0046, 0047, 0045 | |
 | 0006 | **0050** | adr:ADR-0045, 0048, 0049 | |
 | 0007 | **0051** | adr:ADR-0045 | |
 | 0008 | **0052** | adr:ADR-0051, 0045 | **supersedes** local 0027; `relates_to` 0001 |
-| 0009 | **0053** | adr:ADR-0045, 0046, 0048 | `relates_to` spike work-item:0158 |
-| 0010 | **0054** | adr:ADR-0045, 0046, 0053 | `relates_to` spike work-item:0158 |
-| 0011 | **0055** | adr:ADR-0048, 0050, 0051, 0052 | `relates_to` spike work-item:0159 |
+| 0009 | **0053** | adr:ADR-0045, 0046, 0048 | `relates_to` spike work-item:PP-181 |
+| 0010 | **0054** | adr:ADR-0045, 0046, 0053 | `relates_to` spike work-item:PP-181 |
+| 0011 | **0055** | adr:ADR-0048, 0050, 0051, 0052 | `relates_to` spike work-item:PP-182 |
 
 > Embedded **Accelerator** references (ADR-0016/0017/0020/0021 in lum 0003's
 > prose) are already-correct local numbers — leave them. Only luminosity
@@ -261,7 +261,7 @@ Allocate via the script (do not hand-pick):
 bash skills/work/scripts/work-item-next-number.sh --count 2   # → 0158, 0159
 ```
 
-#### 2. Port lum 0002 → `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+#### 2. Port lum 0002 → `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
 
 **Source**: `../luminosity/meta/work/0002-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
 
@@ -281,7 +281,7 @@ bash skills/work/scripts/work-item-next-number.sh --count 2   # → 0158, 0159
 - Rewrite any luminosity self-paths/names to full URLs or first person; reframe
   product references to Accelerator.
 
-#### 3. Port lum 0003 → `meta/work/0159-skill-evaluation-framework-selection.md`
+#### 3. Port lum 0003 → `meta/work/PP-182-skill-evaluation-framework-selection.md`
 
 **Source**: `../luminosity/meta/work/0003-skill-evaluation-framework-selection.md`
 
@@ -388,7 +388,7 @@ universal edits.
 
 #### ADR-0046 ← lum 0002 — Zero-Setup Static-Binary Distribution *(Medium)*
 Names/paths. "Accelerator's distribution pipeline ported cleanly" → first
-person. `relates_to: ["adr:ADR-0045", "work-item:0158"]`. **Provenance wording**:
+person. `relates_to: ["adr:ADR-0045", "work-item:PP-181"]`. **Provenance wording**:
 the distribution decision's primary basis is Accelerator's *existing* binary
 distribution pipeline (the visualiser), with spike 0158 a contributing input —
 word the References note accordingly (don't overstate the Rust-CLI spike as the
@@ -448,21 +448,21 @@ Crate/command names → `accelerator` / `accelerator-<sub>`. Tooling
 command name aligns with the 0136 migration direction and is **provisional
 pending that work** — these ADRs are `proposed`, and 0136 still lists the CLI
 name as open; flag it rather than presenting it as settled.
-`relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "work-item:0158"]`;
+`relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "work-item:PP-181"]`;
 References: spike 0158 primary + lum ADR-0009 full URL.
 
 #### ADR-0054 ← lum 0010 — Git-Style Modular CLI of On-Demand Static Binaries *(Medium)*
 Command `accelerator`, git-style dispatch to on-demand `accelerator-<sub>`
 binaries; **fold the existing `accelerator-visualiser` in as
 `accelerator visualiser …`** (binary `accelerator-visualiser`). Replace all
-`luminosity` command/crate names. `relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0053", "work-item:0158"]`;
+`luminosity` command/crate names. `relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0053", "work-item:PP-181"]`;
 References: spike 0158 primary + lum ADR-0010 full URL.
 
 #### ADR-0055 ← lum 0011 — Inspect as the Skill-Evaluation Harness *(Medium)*
 **Rework the "no fourth language toolchain" argument** — Accelerator already has
 four toolchains, so argue Inspect on its own merits (Python-native, fits the
 existing build-system toolchain) rather than toolchain-count minimisation.
-`configure`-skill target stays. `relates_to: ["adr:ADR-0048", "adr:ADR-0050", "adr:ADR-0051", "adr:ADR-0052", "work-item:0159"]`;
+`configure`-skill target stays. `relates_to: ["adr:ADR-0048", "adr:ADR-0050", "adr:ADR-0051", "adr:ADR-0052", "work-item:PP-182"]`;
 References: spike 0159 primary + lum ADR-0011 full URL.
 
 ### Success Criteria:
@@ -616,7 +616,7 @@ point where the §D map intends.
 
 ## References
 
-- Work item: `meta/work/0157-port-luminosity-adrs-and-feeding-spikes.md`
+- Work item: `meta/work/PP-178-port-luminosity-adrs-and-feeding-spikes.md`
 - Research: `meta/research/codebase/2026-06-27-0157-porting-luminosity-adrs-and-feeding-spikes.md`
 - Related research: `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
 - Source ADRs: https://github.com/atomicinnovation/luminosity/tree/main/meta/decisions

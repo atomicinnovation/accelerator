@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0180"
-parent: "work-item:0180"
-relates_to: ["work-item:0166", "work-item:0179", "work-item:0172"]
+parent: "work-item:PP-704"
+relates_to: ["work-item:PP-187", "work-item:PP-703", "work-item:PP-193"]
 topic: "Porting the bash atomic-store primitives (atomic_write, mkdir-lock, canonical JSONL) into the corpus-adapters Rust crate"
 tags: ["research", "codebase", "rust", "corpus", "corpus-adapters", "atomic-store", "jsonl", "ports-and-adapters", "cargo-deny"]
 revision: "61e1b9d3905ec815be161d6c33a432143944573f"
@@ -375,15 +375,15 @@ byte-faithful port omits it; only the server fsyncs. Not gated by any 0180 AC.
 
 ## Historical Context
 
-- `meta/work/0166-shared-config-corpus-store-crates.md` — parent epic; locked
+- `meta/work/PP-187-shared-config-corpus-store-crates.md` — parent epic; locked
   "fold atomic-store into `corpus-adapters`, no standalone `store` crate."
-- `meta/work/0179-corpus-crates-parsing-conventions.md` +
+- `meta/work/PP-703-corpus-crates-parsing-conventions.md` +
   `meta/plans/2026-07-11-0179-corpus-crates-parsing-conventions.md` — the blocker
   that created `corpus`/`corpus-adapters`; the nearest crate-design precedent.
-- `meta/work/0178-config-crates-native-yaml-reader.md` +
+- `meta/work/PP-702-config-crates-native-yaml-reader.md` +
   `meta/plans/2026-07-07-0178-config-crates-native-yaml-reader.md` — the
   config/config-adapters pattern 0180 mirrors (and the fallible-port precedent).
-- `meta/work/0172-migration-engine-subdomain.md` — the clean-cutover consumer;
+- `meta/work/PP-193-migration-engine-subdomain.md` — the clean-cutover consumer;
   0180's byte-parity scope-out depends on 0172 never interleaving a bash and Rust
   writer against one session-log file.
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`

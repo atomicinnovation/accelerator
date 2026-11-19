@@ -13,7 +13,7 @@ last_updated: "2026-05-12T10:14:12Z"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["codebase-research:2026-05-07-0035-topbar-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "work-item:0037", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-06-0033-design-token-system", "adr:ADR-0026"]
+relates_to: ["codebase-research:2026-05-07-0035-topbar-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "work-item:PP-59", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-06-0033-design-token-system", "adr:ADR-0026"]
 ---
 
 # Glyph Component Implementation Plan
@@ -167,7 +167,7 @@ magick identify -format "%[hex:p{x,y}]" library-view-updated-dark.png
 Capture the 12 light hex + 12 dark hex values, the (x, y) coordinates used, and the alpha check outcome. Record in:
 
 - Commit message body (work item AC line 81)
-- A new `(x, y) sample` column added to the Colour Token Table in `meta/work/0037-glyph-component.md:47-60`
+- A new `(x, y) sample` column added to the Colour Token Table in `meta/work/PP-59-glyph-component.md:47-60`
 
 #### 3. WCAG 1.4.11 contrast check
 
@@ -783,7 +783,7 @@ npm run build
 
 The following routes exist solely to preview internal components and are not part of the user-facing navigation:
 
-- `/glyph-showcase` — renders all 12 doc-type Glyphs at all 3 supported sizes (16/24/32 px), viewable under both `data-theme="light"` and `data-theme="dark"` via dev-tools attribute toggling. See [`meta/work/0037-glyph-component.md`](../../../../meta/work/0037-glyph-component.md).
+- `/glyph-showcase` — renders all 12 doc-type Glyphs at all 3 supported sizes (16/24/32 px), viewable under both `data-theme="light"` and `data-theme="dark"` via dev-tools attribute toggling. See [`meta/work/PP-59-glyph-component.md`](../../../../meta/work/PP-59-glyph-component.md).
 
 ## Visual-Regression Baselines
 
@@ -812,7 +812,7 @@ If a Playwright test fails locally with a baseline mismatch on the opposite plat
 
 ### Update the work item Resolved Decisions
 
-**File**: `meta/work/0037-glyph-component.md`
+**File**: `meta/work/PP-59-glyph-component.md`
 **Changes**: Append a "Consumer Contract" entry to the Resolved Decisions section mirroring the five invariants from the Glyph TSDoc block. This is the durable anchor 8 downstream WIs (0036/0040/0041/0042/0043/0053/0054/0055) consult when planning their integration — they read the work item, not this plan. Use this content:
 
 ```markdown
@@ -833,12 +833,12 @@ Downstream consumers of Glyph MUST adhere to these invariants. The same list liv
 
 - [x] README exists: `test -f skills/visualisation/visualise/frontend/README.md`
 - [x] README mentions `/glyph-showcase` under a Developer Routes heading: `grep -E "Developer [Rr]outes" skills/visualisation/visualise/frontend/README.md && grep "/glyph-showcase" skills/visualisation/visualise/frontend/README.md`
-- [x] Work item Resolved Decisions contains the Consumer Contract: `grep "Consumer Contract" meta/work/0037-glyph-component.md`
+- [x] Work item Resolved Decisions contains the Consumer Contract: `grep "Consumer Contract" meta/work/PP-59-glyph-component.md`
 
 #### Manual Verification:
 
 - [ ] README renders cleanly in a Markdown viewer (no broken section headings)
-- [ ] The link to the work item resolves (`../../../../meta/work/0037-glyph-component.md` exists from the README's location)
+- [ ] The link to the work item resolves (`../../../../meta/work/PP-59-glyph-component.md` exists from the README's location)
 - [ ] A new contributor running `npm install && npm run dev` from the README's instructions succeeds without consulting other docs
 - [ ] The Visual-Regression Baselines section provides enough detail to regenerate both darwin and linux baselines
 
@@ -901,7 +901,7 @@ No data migration. No existing consumer of `--ac-doc-*` tokens (this plan introd
 
 ## References
 
-- Work item: `meta/work/0037-glyph-component.md` (Resolved Decisions section captures: `maxDiffPixelRatio: 0.05` per cell, `ariaLabel` prop name, per-cell clip strategy, `currentColor` fill pattern, viewBox measured grid)
+- Work item: `meta/work/PP-59-glyph-component.md` (Resolved Decisions section captures: `maxDiffPixelRatio: 0.05` per cell, `ariaLabel` prop name, per-cell clip strategy, `currentColor` fill pattern, viewBox measured grid)
 - Research: `meta/research/codebase/2026-05-12-0037-glyph-component.md`
 - Canonical screenshots:
   - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/library-view-updated-light.png`

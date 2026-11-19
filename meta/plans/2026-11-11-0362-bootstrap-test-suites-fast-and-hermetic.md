@@ -6,10 +6,10 @@ date: "2026-11-11T19:01:52+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0362"
-parent: "work-item:0362"
+work_item_id: "work-item:PP-954"
+parent: "work-item:PP-954"
 derived_from: ["codebase-research:2026-11-10-0362-bootstrap-test-suites-fast-and-hermetic"]
-relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
+relates_to: ["work-item:PP-953", "work-item:PP-958", "work-item:PP-962"]
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "hooks", "cargo-profile"]
 revision: "e28745b60fc6a1b1906d0546dec369bd21bbd9ac"
 repository: "accelerator"
@@ -1422,7 +1422,7 @@ skipped.
 
 ## References
 
-- Work item: `meta/work/0362-make-the-bootstrap-test-suites-fast-and-hermetic.md`
+- Work item: `meta/work/PP-954-make-the-bootstrap-test-suites-fast-and-hermetic.md`
 - Codebase research:
   `meta/research/codebase/2026-11-10-0362-bootstrap-test-suites-fast-and-hermetic.md`
 - Source research:

@@ -6,9 +6,9 @@ date: "2026-09-06T09:57:52+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0269"
-relates_to: ["work-item:0264", "work-item:0271", "work-item:0273"]
-work_item_id: "0269"
+target: "work-item:PP-799"
+relates_to: ["work-item:PP-794", "work-item:PP-801", "work-item:PP-803"]
+work_item_id: "PP-799"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

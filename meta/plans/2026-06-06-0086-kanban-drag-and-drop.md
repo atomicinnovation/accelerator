@@ -6,10 +6,10 @@ date: "2026-06-06T13:44:13+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0086"
-parent: "work-item:0086"
+work_item_id: "work-item:PP-108"
+parent: "work-item:PP-108"
 derived_from: ["codebase-research:2026-06-06-0086-kanban-drag-and-drop"]
-relates_to: ["work-item:0040", "work-item:0039", "work-item:0086", "codebase-research:2026-06-06-0086-kanban-drag-and-drop", "adr:ADR-0024"]
+relates_to: ["work-item:PP-62", "work-item:PP-61", "work-item:PP-108", "codebase-research:2026-06-06-0086-kanban-drag-and-drop", "adr:ADR-0024"]
 tags: ["design", "frontend", "kanban", "drag-and-drop", "dnd-kit", "toaster", "accessibility"]
 revision: "1142b697961a6827cc98770834ed9e1e0ea933b4"
 repository: "build-system"
@@ -1131,7 +1131,7 @@ See `meta/research/design-gaps/2026-06-06-0086-kanban-convergence-record.md`.
 
 ## References
 
-- Original work item: `meta/work/0086-kanban-drag-and-drop.md`
+- Original work item: `meta/work/PP-108-kanban-drag-and-drop.md`
 - Related research: `meta/research/codebase/2026-06-06-0086-kanban-drag-and-drop.md`
 - Design target (authoritative): `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full/src/view-kanban.jsx`
 - Prototype CSS: `.../prototype-full/src/app.css:961-965,1352-1361`

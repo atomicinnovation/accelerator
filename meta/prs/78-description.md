@@ -6,9 +6,9 @@ date: "2026-08-23T22:54:57+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
-relates_to: ["work-item:0171", "work-item:0210", "work-item:0212"]
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
+relates_to: ["work-item:PP-192", "work-item:PP-740", "work-item:PP-742"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/78"
 pr_number: 78
 tags: ["rust", "jira", "integrations", "cli", "cutover", "exit-codes", "registration"]
@@ -38,7 +38,7 @@ Ships `accelerator-jira` as a thin dispatched CLI adapter over the `jira-client`
 
 ## Context
 
-Implements the Jira half of `work-item:0211` per `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md` (Phases 3–4). Parent epic `work-item:0171`; unblocked by 0210 (the client crates) and 0212 (the work-item cutover). Stacked on the Linear cutover PR #77 — the Jira track depends on the Phase 0 ADF-oracle freeze and the `cli-test-support` crate that live on the Linear branch.
+Implements the Jira half of `work-item:PP-741` per `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md` (Phases 3–4). Parent epic `work-item:PP-192`; unblocked by 0210 (the client crates) and 0212 (the work-item cutover). Stacked on the Linear cutover PR #77 — the Jira track depends on the Phase 0 ADF-oracle freeze and the `cli-test-support` crate that live on the Linear branch.
 
 ## Testing
 

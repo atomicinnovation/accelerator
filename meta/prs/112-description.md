@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0184"
-parent: "work-item:0184"
+parent: "work-item:PP-714"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/112"
 pr_number: 112
 tags: ["work", "templates", "plugin-root"]
@@ -29,12 +29,12 @@ closure, which landed after that PR had already merged.
 ## Changes
 
 - Set `status: "ready"` → `"done"` in the frontmatter of
-  `meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`.
+  `meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`.
 - Synced the body `**Status**:` label from `Ready` to `Done`.
 
 ## Context
 
-- Work item: `meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`
+- Work item: `meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`
 - Implementation PR: #111 (merged) — refuses template resolution on a wrong plugin root.
 - Validation: `meta/validations/2026-09-09-0184-template-resolution-wrong-plugin-root-validation.md` (result: pass).
 

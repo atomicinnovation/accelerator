@@ -6,8 +6,8 @@ date: "2026-06-11T13:14:35+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0085"
-parent: "work-item:0085"
+work_item_id: "work-item:PP-107"
+parent: "work-item:PP-107"
 derived_from: ["codebase-research:2026-06-11-0085-humanise-detail-page-h1"]
 tags: ["backend", "detail-page", "indexer", "frontmatter", "humanise-slug"]
 revision: "520427700dfc40e685bf46b0dedc8119947bcea4"
@@ -595,7 +595,7 @@ from any regression is a VCS revert of the two-file diff.
 
 ## References
 
-- Original work item: `meta/work/0085-humanise-detail-page-h1.md`
+- Original work item: `meta/work/PP-107-humanise-detail-page-h1.md`
 - Related research: `meta/research/codebase/2026-06-11-0085-humanise-detail-page-h1.md`
   (and prior `meta/research/codebase/2026-05-31-0085-humanise-detail-page-h1-fallback.md`)
 - Cascade function to change: `skills/visualisation/visualise/server/src/frontmatter.rs:290-307`
@@ -612,4 +612,4 @@ from any regression is a VCS revert of the two-file diff.
   `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` (the invariant
   the primary cascade path relies on; note the work item's "ADR 0060" conflates
   work-item 0060 with ADR-0033)
-- Adjacent follow-up kept separate: `meta/work/0097-strip-redundant-doc-type-prefixes-from-titles.md`
+- Adjacent follow-up kept separate: `meta/work/PP-119-strip-redundant-doc-type-prefixes-from-titles.md`

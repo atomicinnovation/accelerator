@@ -6,8 +6,8 @@ date: "2026-10-15T22:00:14+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0304"
-parent: "work-item:0304"
+work_item_id: "work-item:PP-890"
+parent: "work-item:PP-890"
 derived_from: ["codebase-research:2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion"]
 relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2026-10-13-0310-recovering-from-an-interrupted-conduct-run"]
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
@@ -28,7 +28,7 @@ in the run ledger and hands each web spawn its node's budget. `conduct`
 fails a web node whose search returns the search-limit notice. It then
 halts web researcher spawns for the rest of the run, finishes the run's
 other work, and ends with a halt notice naming the recovery. Work item:
-`meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`.
+`meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`.
 
 ## Current State Analysis
 
@@ -1705,7 +1705,7 @@ per plan. Both costs are negligible beside reading the set.
 
 ## References
 
-- Work item: `meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`
+- Work item: `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`
 - Research: `meta/research/codebase/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`
 - Work item review: `meta/reviews/work/0304-fail-web-nodes-on-websearch-quota-exhaustion-review-1.md`
 - Cap precedent: `cli/research-cli/src/subagent_cap.rs`,

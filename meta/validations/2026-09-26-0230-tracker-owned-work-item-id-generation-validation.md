@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "partial"
-parent: "work-item:0230"
+parent: "work-item:PP-760"
 target: "plan:2026-09-26-0230-tracker-owned-work-item-id-generation"
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion"]
 last_updated: "2026-09-30T00:24:22+00:00"

@@ -6,9 +6,9 @@ date: "2026-06-15T22:59:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0102"
-parent: "work-item:0102"
-blocks: ["work-item:0057"]
+work_item_id: "work-item:PP-124"
+parent: "work-item:PP-124"
+blocks: ["work-item:PP-79"]
 derived_from: ["codebase-research:2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms"]
 relates_to: ["adr:ADR-0034", "adr:ADR-0033"]
 tags: ["migration", "visualiser", "frontmatter", "linkage", "cleanup", "contract"]
@@ -764,9 +764,9 @@ existing release tooling.
 
 ## References
 
-- Original work item: `meta/work/0102-remove-visualiser-legacy-linkage-fallback-arms.md`
+- Original work item: `meta/work/PP-124-remove-visualiser-legacy-linkage-fallback-arms.md`
 - Related research: `meta/research/codebase/2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms.md`
-- Originating work item / plan: `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`,
+- Originating work item / plan: `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`,
   `meta/plans/2026-06-07-0070-meta-corpus-unified-schema-migration.md` (Phase 5 §5)
 - ADRs: `meta/decisions/ADR-0034-typed-linkage-vocabulary.md`,
   `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`

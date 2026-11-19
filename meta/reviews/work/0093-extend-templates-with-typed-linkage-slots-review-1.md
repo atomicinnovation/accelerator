@@ -2,7 +2,7 @@
 date: "2026-06-02T11:15:00+00:00"
 type: "work-item-review"
 producer: "review-work-item"
-target: "work-item:0093"
+target: "work-item:PP-115"
 review_number: 1
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -255,7 +255,7 @@ All four major findings from Pass 1 are resolved. The Decisions Made section pin
 - 🔵 **Clarity**: Reference to "ADR-0034 §Design-gap inventory keys" may not resolve — **Resolved** (AC #4 now quotes the ADR-0034 line inline)
 - 🔵 **Clarity**: "Each consuming SKILL.md" has no enumerated set — **Mostly resolved** (Requirements §3 enumerates ~13 SKILL.md paths; design-inventory/design-gap producers remain conditional — flagged anew below)
 - 🔵 **Clarity**: TSV extension shape stated ambiguously — **Resolved** (seventh-column form is mandatory; extras-list alternative explicitly rejected)
-- 🔵 **Clarity**: Story 0070 reference truncated — **Resolved** (full filename `0070-ship-meta-corpus-unified-schema-migration.md`)
+- 🔵 **Clarity**: Story 0070 reference truncated — **Resolved** (full filename `PP-92-ship-meta-corpus-unified-schema-migration.md`)
 - 🔵 **Dependency**: Future visualiser-graph epic named as consumer but not in Blocks — **Resolved** (softened to "TBD, not yet tracked" in Summary and Dependencies)
 - 🔵 **Dependency**: ADR-0034 not surfaced as a structural dependency in its own right — **Resolved** (promoted to a first-class "External artefact" Dependencies entry with re-audit trigger)
 - 🔵 **Testability**: AC #3 lacks a concrete verification procedure — **Resolved** (grep-based check named explicitly; required tokens "fill" / "leave empty" specified)

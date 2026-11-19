@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0201"
-parent: "work-item:0201"
-relates_to: ["work-item:0170", "work-item:0188", "work-item:0198", "work-item:0174"]
+parent: "work-item:PP-731"
+relates_to: ["work-item:PP-191", "work-item:PP-718", "work-item:PP-728", "work-item:PP-195"]
 topic: "Replacing the subprocess diff -u section renderer with an in-process Rust implementation"
 tags: ["research", "codebase", "work-adapters", "diff", "cargo-pup", "cargo-deny"]
 revision: "804b2a5b972bd17669adf2ab60d150f490333f26"
@@ -293,7 +293,7 @@ on an existing crate, not a new binary.
   the only ADR touching cargo-deny and this boundary. No dedicated ADR exists
   for the `pup.ron` rules or the deny allow-list (documented in
   `tasks/README.md` per CLAUDE.md).
-- `meta/work/0170-work-item-subdomain-and-sync-engine.md` +
+- `meta/work/PP-191-work-item-subdomain-and-sync-engine.md` +
   `meta/plans/2026-08-06-0170-...md` — where `diff_shellout` and `work diff`
   were built; the source of the byte-parity requirement now being retired.
 - `meta/work/0188-...` / `meta/work/0198-...` — the VCS subprocess→library

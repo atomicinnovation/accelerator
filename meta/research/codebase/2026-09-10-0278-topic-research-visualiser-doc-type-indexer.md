@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0278"
-parent: "work-item:0278"
+parent: "work-item:PP-862"
 topic: "Topic-Research Visualiser Doc Type and Indexer"
 tags: ["research", "codebase", "visualiser", "doc-type", "indexer", "corpus", "rename"]
 revision: "8eb899d123da8998b50447fcb4a789c97eff3f2c"
@@ -28,7 +28,7 @@ schema_version: 1
 ## Research Question
 
 Research the codebase to support story 0278 —
-`meta/work/0278-topic-research-visualiser-doc-type.md` — which registers an
+`meta/work/PP-862-topic-research-visualiser-doc-type.md` — which registers an
 umbrella `topic-research` doc type in the visualiser, indexes each research set
 via its `manifest.md`, collapses the manifest's `research_status` onto base
 `status`, and renames the `research` doc-type **wire key** to
@@ -450,9 +450,9 @@ name:
   the umbrella-type-plus-`kind` model this registration follows.
 - `meta/decisions/ADR-0068-general-slug-resolution-in-the-corpus-cli.md` —
   directly relevant to the `slug.rs` derivation decision for the new type.
-- `meta/work/0277-single-round-web-research-engine.md` — the co-land engine that
+- `meta/work/PP-861-single-round-web-research-engine.md` — the co-land engine that
   landed the topic-research corpus/config scaffolding this story builds on.
-- `meta/work/0121-topic-research-skillset.md` — parent epic; its artifact
+- `meta/work/PP-22-topic-research-skillset.md` — parent epic; its artifact
   contract still asserts `research_status` and must move to base `status` in
   lockstep (recorded as a follow-up).
 - `meta/reviews/work/0278-topic-research-visualiser-doc-type-review-1.md`,

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0117"
-parent: "work-item:0117"
+parent: "work-item:PP-139"
 relates_to: ["codebase-research:2026-06-20-0116-structured-stall-on-no-decision-input"]
 topic: "Agent-Decisions Bridge: --list mode, decisions-file promotion, invoker contract"
 tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "run-migrations", "interactive-lib", "skill-md"]
@@ -252,7 +252,7 @@ record this call explicitly.
   applied with which values, and AC6 assert nothing was written.
 
 > **Note for the standalone fixture (AC1–AC6):** the work item pins concrete
-> literals (`relates_to`/`work-item:0042`, `meta/work/0050-example-a.md:body/
+> literals (`relates_to`/`work-item:PP-64`, `meta/work/0050-example-a.md:body/
 > relates_to`, etc.). The `0002-predicate` fixture is file-driven, so those
 > literals are just the `key|path|anchor|proposed|band` values seeded into
 > `.fixture/transformations`. AC1's byte-for-byte `--list` output and AC3's
@@ -327,7 +327,7 @@ record this call explicitly.
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md`
   — the contract (accept/edit/skip verbs, three display elements, resumability)
   and its recursive-supplement clause; neutral on invocation mechanics.
-- `meta/work/0118-reconcile-0007-backfill-sentinel-with-validator.md` — fix C.
+- `meta/work/PP-140-reconcile-0007-backfill-sentinel-with-validator.md` — fix C.
   Live 0007 hard-aborts in `self_validate_structural` (MISSING-EXTRA) before its
   interactive stage; the `unknown` sentinel (supersedes the research's `pending`)
   clears it. This is why **AC7 is gated on 0118 and out of scope for 0117**, and

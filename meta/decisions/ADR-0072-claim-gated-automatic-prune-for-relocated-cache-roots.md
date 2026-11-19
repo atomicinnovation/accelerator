@@ -6,8 +6,8 @@ date: "2026-10-15T22:19:18+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-parent: "work-item:0218"
-relates_to: ["adr:ADR-0063", "adr:ADR-0064", "work-item:0223", "work-item:0334"]
+parent: "work-item:PP-747"
+relates_to: ["adr:ADR-0063", "adr:ADR-0064", "work-item:PP-753", "work-item:PP-930"]
 tags: ["architecture", "cache", "launcher", "retention"]
 last_updated: "2026-10-15T22:19:18+00:00"
 last_updated_by: "Toby Clemson"
@@ -139,13 +139,13 @@ a fetch.
 
 ## References
 
-- `meta/work/0218-bound-cache-root-growth.md` — the work item implementing
+- `meta/work/PP-747-bound-cache-root-growth.md` — the work item implementing
   this decision
 - `meta/decisions/ADR-0063-plugin-version-scoped-artifact-cache.md` —
   amended for relocated roots
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`
   — lease and layout-version rules tree prune follows
-- `meta/work/0223-bounding-the-default-runtime-cache-root.md` — settled the
+- `meta/work/PP-753-bounding-the-default-runtime-cache-root.md` — settled the
   default root
-- `meta/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
+- `meta/work/PP-930-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
   — lease fixes this decision relies on

@@ -12,9 +12,9 @@ type: "codebase-research"
 id: "2026-05-31-0066-update-review-skills-inline-frontmatter"
 title: "0066 — Move review/validation skills' frontmatter into templates on the unified schema"
 schema_version: 1
-relates_to: ["work-item:0093", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "work-item:0057", "work-item:0060", "adr:ADR-0033", "work-item:0061", "adr:ADR-0034", "work-item:0064", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "work-item:0065", "work-item:0066"]
-blocks: ["work-item:0065"]
-blocked_by: ["work-item:0070"]
+relates_to: ["work-item:PP-115", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "work-item:PP-79", "work-item:PP-82", "adr:ADR-0033", "work-item:PP-83", "adr:ADR-0034", "work-item:PP-86", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "work-item:PP-87", "work-item:PP-88"]
+blocks: ["work-item:PP-87"]
+blocked_by: ["work-item:PP-92"]
 ---
 
 # 0066 — Move review/validation skills' frontmatter into templates on the unified schema
@@ -167,7 +167,7 @@ plan-review / work-item-review / pr-review:
 
 #### B.3 ADR-0034 typed-linkage `target` shape
 
-- `target` is a **single quoted string** in `"doc-type:id"` form (or project-root-relative path for external entities). Examples in the ADR: `"plan:0042"`, `"adr:ADR-0033"`, `"work-item:0061"`.
+- `target` is a **single quoted string** in `"doc-type:id"` form (or project-root-relative path for external entities). Examples in the ADR: `"plan:0042"`, `"adr:ADR-0033"`, `"work-item:PP-83"`.
 - **Type-pair table includes** `plan-review --target--> plan`, `work-item-review --target--> work-item`, `plan-validation --target--> plan`.
 - **`pr-review` row is missing.** Doc-type discriminator `pr` is not in the published vocabulary (ADR-0033 enumerates `pr-review`, `pr-description` but not `pr`). Per the ADR's "external entities use path form" guidance, the strictly-compliant emission for `pr-review` today is a path/URL string, not `"pr:<pr-number>"`. The work item knowingly diverges to keep the data model uniform and proposes a follow-up ADR-0034 amendment.
 
@@ -404,17 +404,17 @@ From `meta/reviews/work/0066-update-review-skills-inline-frontmatter-review-1.md
 
 ## Historical Context
 
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic; §79 lists per-type extras for review/validation; §94 names the four target skills; §149 lists template extraction as optional (0066 elevates to mandatory).
-- `meta/work/0060-adr-unified-base-frontmatter-schema.md` — produced ADR-0033.
-- `meta/work/0061-adr-typed-linkage-vocabulary.md` — produced ADR-0034.
-- `meta/work/0064-canonicalise-work-item-id-and-author-fields.md` — canonicalised `work_item_id` and `author` field names; shipped as migration 0006.
-- `meta/work/0065-update-artifact-templates-to-unified-schema.md` — direct predecessor; updates nine templates; adds frontmatter block to `templates/validation.md`.
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic; §79 lists per-type extras for review/validation; §94 names the four target skills; §149 lists template extraction as optional (0066 elevates to mandatory).
+- `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` — produced ADR-0033.
+- `meta/work/PP-83-adr-typed-linkage-vocabulary.md` — produced ADR-0034.
+- `meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md` — canonicalised `work_item_id` and `author` field names; shipped as migration 0006.
+- `meta/work/PP-87-update-artifact-templates-to-unified-schema.md` — direct predecessor; updates nine templates; adds frontmatter block to `templates/validation.md`.
 - `meta/plans/2026-05-30-0065-update-artifact-templates-to-unified-schema.md` — 11-phase TDD plan for 0065; **the structural template 0066's plan should mirror**.
 - `meta/research/codebase/2026-05-30-0065-update-artifact-templates-to-unified-schema.md` — 0065 research, captured the helper-pattern decisions 0066 inherits.
 - `meta/reviews/work/0065-update-artifact-templates-to-unified-schema-review-1.md` — 0065 review, surfaces process patterns 0066's plan should adopt.
 - `meta/reviews/work/0066-update-review-skills-inline-frontmatter-review-1.md` — review of 0066 itself; verdict APPROVE; lists 11 residual issues (§F above).
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — corpus migration; blocked by 0066.
-- `meta/work/0093-extend-templates-with-typed-linkage-slots.md` — sibling story; adds optional typed-linkage slots to every template (incl. the three new review templates); should land after 0066.
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — corpus migration; blocked by 0066.
+- `meta/work/PP-115-extend-templates-with-typed-linkage-slots.md` — sibling story; adds optional typed-linkage slots to every template (incl. the three new review templates); should land after 0066.
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — base-schema contract.
 - `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` — typed-linkage contract.
 

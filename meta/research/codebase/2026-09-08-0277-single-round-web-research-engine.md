@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0277"
-parent: "work-item:0277"
-relates_to: ["work-item:0121"]
+parent: "work-item:PP-861"
+relates_to: ["work-item:PP-22"]
 topic: "Single-Round Web Research Engine implementation seams"
 tags: ["research", "codebase", "research-topic", "skills", "corpus", "config", "templates"]
 revision: "2350de33d5625096f33e1cd498fe0eb779bd8aff"
@@ -444,7 +444,7 @@ test-only. **0277's `mise run check` passes in isolation.**
   direct precedent the `researcher` mirrors. Its three-file separation (lens
   skill / output-format / orchestrator prompt) maps onto (source-profile skill /
   finding contract / `conduct` prompt).
-- `meta/work/0121-topic-research-skillset.md` — parent epic. Carries the binding
+- `meta/work/PP-22-topic-research-skillset.md` — parent epic. Carries the binding
   six-document artifact contract (`§ Artifact contract`), the `research_status`
   five-state lifecycle, the depth/breadth semantics, and the Technical Notes that
   name every precedent (`configure`, `reviewer`, `work resolve`, nested-manifest

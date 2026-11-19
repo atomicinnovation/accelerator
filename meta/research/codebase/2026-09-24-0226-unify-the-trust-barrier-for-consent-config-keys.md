@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0226"
-parent: "work-item:0226"
+parent: "work-item:PP-756"
 topic: "Unify the trust barrier for consent config keys"
 tags: ["research", "codebase", "config", "config-adapters", "credentials", "research-cli", "openalex", "design", "playwright", "vcs-adapters", "launcher", "session-start", "security"]
 revision: "4210cb435cb4666c2f2ea5338540e30bb18b8adb"
@@ -645,7 +645,7 @@ These files are unchanged since the first revision.
   - Items still open: scope breadth; the phase-1-only `blocks` relation; no
     cleanup of existing markers; no follow-ups for out-of-scope hazards.
   - All of the review predates the rebase.
-- `meta/work/0227-accelerator-config-validate-command.md`:
+- `meta/work/PP-757-accelerator-config-validate-command.md`:
   - It cites `cli/tracker-support/src/credentials.rs` (`:69`) and 0226's old
     title (`:155-156`).
   - Its open question at `:148-149` is now answered by 0226.

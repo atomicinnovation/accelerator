@@ -6,10 +6,10 @@ date: "2026-10-29T14:30:08+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0319"
-parent: "work-item:0319"
+work_item_id: "work-item:PP-905"
+parent: "work-item:PP-905"
 derived_from: ["codebase-research:2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create"]
-relates_to: ["work-item:0390", "work-item:0302", "work-item:0230"]
+relates_to: ["work-item:PP-935", "work-item:PP-879", "work-item:PP-760"]
 tags: ["work", "cli", "allocation", "create-work-item", "corpus", "visualiser"]
 revision: "891045ba7d0f25bf29e26346a4f55e86f5ba89b3"
 repository: "accelerator"
@@ -2087,7 +2087,7 @@ identical members and `clusterKey`s, and 348 work items with identical
 `workItemId`s. No short references exist here to join. Only `linkedCount`
 differs, rising on 198 work items because typed `work-item:` references now
 count as inbound; `0136` goes from 6 to 75, the number of files naming
-`work-item:0136`.
+`work-item:PP-157`.
 
 ---
 
@@ -3953,7 +3953,7 @@ changelog says so.
 
 ## Required Work Item Amendment
 
-Edits to `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`:
+Edits to `meta/work/PP-905-explicit-work-item-id-on-accelerator-work-create.md`:
 
 - **Requirements**, a new bullet: group the ID verbs under `work id`.
   `work id canonicalise` and `work id next` replace `canonicalise-id` and
@@ -4270,14 +4270,14 @@ decisions it questioned changed as below.
 
 ## References
 
-- Work item: `meta/work/0319-explicit-work-item-id-on-accelerator-work-create.md`
+- Work item: `meta/work/PP-905-explicit-work-item-id-on-accelerator-work-create.md`
 - Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
 - Review: `meta/reviews/work/0319-explicit-work-item-id-on-accelerator-work-create-review-1.md`
 - Plan review: `meta/reviews/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-review-1.md`
 - Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
 - PR reviews: `meta/reviews/prs/178-review-1.md`, `178-review-2.md` and
   `178-review-3.md`
-- Follow-on: `meta/work/0390-invocation-validation-on-accelerator-work-create-dry-run.md`
+- Follow-on: `meta/work/PP-935-invocation-validation-on-accelerator-work-create-dry-run.md`
 - Precedent plans: `meta/plans/2026-10-15-0302-work-item-re-key-command.md`,
   `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
 - Collision seam: `cli/work-adapters/src/creation.rs:462-705`

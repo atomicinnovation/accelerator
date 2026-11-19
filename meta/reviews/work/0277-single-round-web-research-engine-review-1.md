@@ -6,8 +6,8 @@ date: "2026-09-08T19:36:01+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0277"
-work_item_id: "0277"
+target: "work-item:PP-861"
+work_item_id: "PP-861"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -79,7 +79,7 @@ _None._
 - 🟡 **Dependency**: Co-land constraint with 0278 encoded only as one-directional `blocks` + prose
   **Location**: Dependencies
   The 0277↔0278 relationship is a symmetric co-land, but the frontmatter records
-  only `blocks: ["work-item:0278", ...]` — a one-directional edge reading "0277
+  only `blocks: ["work-item:PP-862", ...]` — a one-directional edge reading "0277
   precedes 0278." The simultaneity lives solely in prose, so tooling reasoning
   from frontmatter could sequence the two or merge 0277 alone.
 
@@ -382,7 +382,7 @@ satisfiable before 0278 lands.
   one-directional blocks + prose* — Location: Dependencies
   The 0277↔0278 relationship is a symmetric co-land ("must merge together with 0278
   so the vertical demo is not lost"), but the machine-readable frontmatter records
-  only `blocks: ["work-item:0278", ...]` — a one-directional edge that reads as
+  only `blocks: ["work-item:PP-862", ...]` — a one-directional edge that reads as
   "0277 precedes 0278." The simultaneity ("merge together") lives solely in prose,
   with no incoming `blocked_by` or co-land marker on 0277. Impact: scheduling or
   planning tooling that reasons from frontmatter alone could sequence the two or

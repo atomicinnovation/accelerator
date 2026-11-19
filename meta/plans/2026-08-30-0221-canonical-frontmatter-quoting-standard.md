@@ -6,10 +6,10 @@ date: "2026-08-30T14:58:52+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0221"
-parent: "work-item:0221"
+work_item_id: "work-item:PP-750"
+parent: "work-item:PP-750"
 derived_from: ["codebase-research:2026-08-30-0221-canonical-frontmatter-quoting-standard"]
-relates_to: ["adr:ADR-0065", "work-item:0220", "work-item:0227"]
+relates_to: ["adr:ADR-0065", "work-item:PP-749", "work-item:PP-757"]
 tags: ["frontmatter", "corpus", "document", "emitter", "validator", "migration", "quoting"]
 revision: "9aa8a929a7780b654f44aaa906954495a61b5739"
 repository: "accelerator"
@@ -267,7 +267,7 @@ alter the `cli/work` public surface and require a snapshot regeneration.
 
 - Add the AC #9 regression test: drive a linkage-bearing and a
   plain-string-bearing document through `document::render` and assert quoted
-  output (`parent: "work-item:0171"`, `author: "Toby"`, `tags: ["a", "b"]`). It
+  output (`parent: "work-item:PP-192"`, `author: "Toby"`, `tags: ["a", "b"]`). It
   fails against the current emitter, passes after change 1.
 - Add a long-scalar anti-churn test: render a string value wider than 80 columns
   and assert single-line double-quoted output — no `>-`/`|` block scalar. This
@@ -303,7 +303,7 @@ alter the `cli/work` public surface and require a snapshot regeneration.
 
 #### Manual Verification
 
-- [ ] `accelerator work create "T" bug medium --parent "work-item:0171" --relates-to "work-item:0194"` on a scratch repo writes `parent`/`relates_to`/`tags` fully double-quoted with no `>-` refolds.
+- [ ] `accelerator work create "T" bug medium --parent "work-item:PP-192" --relates-to "work-item:PP-724"` on a scratch repo writes `parent`/`relates_to`/`tags` fully double-quoted with no `>-` refolds.
 
 ---
 
@@ -421,8 +421,8 @@ the per-test "all other migrations applied" isolation lists in
 - A bare-frontmatter fixture canonicalises to quoted output; a block-style
   sequence reflows to quoted flow.
 - A multi-element block linkage sequence with colon-bearing values (e.g.
-  `relates_to:\n  - work-item:0194\n  - adr:ADR-0034`) reflows to quoted flow
-  `["work-item:0194", "adr:ADR-0034"]` and passes the linkage-shape check — the
+  `relates_to:\n  - work-item:PP-724\n  - adr:ADR-0034`) reflows to quoted flow
+  `["work-item:PP-724", "adr:ADR-0034"]` and passes the linkage-shape check — the
   exact 0220 defect class, given a targeted regression rather than only the
   aggregate self-check.
 - Idempotence, effective: apply the transform twice to real-corpus-derived
@@ -733,7 +733,7 @@ Deviations recorded during implementation: the canonical-quoting predicate is ho
 
 - [x] `printf '...\nauthor: Toby\n...' > f.md && accelerator corpus frontmatter validate --file f.md` exits non-zero and prints `UNQUOTED-STRING` on stderr.
 - [x] A quoted value carrying ` #` (e.g. `last_updated_note: "… question #1 …"`) validates cleanly — the real corpus case the sketch broke.
-- [x] A hand-edited bare `parent: work-item:0001` still reports `BAD-LINKAGE-SHAPE` (linkage diagnostics preserved).
+- [x] A hand-edited bare `parent: work-item:PP-23` still reports `BAD-LINKAGE-SHAPE` (linkage diagnostics preserved).
 
 ---
 
@@ -1059,7 +1059,7 @@ full-corpus rewrite, is what makes it load-bearing here.
 
 ## References
 
-- Original work item: `meta/work/0221-canonical-quoting-standard-for-all-frontmatter.md`
+- Original work item: `meta/work/PP-750-canonical-quoting-standard-for-all-frontmatter.md`
 - Research: `meta/research/codebase/2026-08-30-0221-canonical-frontmatter-quoting-standard.md`
 - ADR-0065: `meta/decisions/ADR-0065-canonical-frontmatter-quoting-standard.md`
 - Emitter choke point: `cli/document/src/value.rs:173-175`

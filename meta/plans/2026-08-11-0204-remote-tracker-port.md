@@ -6,8 +6,8 @@ date: "2026-08-11T15:58:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0204"
-parent: "work-item:0204"
+work_item_id: "work-item:PP-734"
+parent: "work-item:PP-734"
 derived_from: ["codebase-research:2026-08-11-0204-remote-tracker-port"]
 tags: ["rust", "tracker", "sync", "port", "cargo-pup"]
 revision: "1b7e6583aacac3f08ea2b0c03635192f557290e1"
@@ -247,7 +247,7 @@ builds and runs `tracker/tests/`.
 ### Already reconciled into 0204
 
 Four deviations were settled during the first planning pass and are already
-carried by `meta/work/0204-remote-tracker-port.md`, whose Drafting Notes record
+carried by `meta/work/PP-734-remote-tracker-port.md`, whose Drafting Notes record
 the reopening. They are listed here so a reader of the plan alone knows what the
 frozen block says and why, not as outstanding work.
 
@@ -2691,7 +2691,7 @@ Obligations that leave this plan explicitly, so they are not silently dropped.
 
 - **0204 must be edited** to carry deviations 5, 6 and 7 (deviations 1-4 are
   already in it). **Confirmed already done before implementation began**:
-  `meta/work/0204-remote-tracker-port.md`'s Requirements, AC 1/9/10 and
+  `meta/work/PP-734-remote-tracker-port.md`'s Requirements, AC 1/9/10 and
   Drafting Notes were checked against this list line-by-line on 2026-08-12
   and already carried every deviation below, including the `const fn`
   empirical-check wording — no edit was needed. The places below are kept
@@ -2735,7 +2735,7 @@ Obligations that leave this plan explicitly, so they are not silently dropped.
   `FetchOutcome` two-tier read correctly — apparently reconciled in a prior
   pass this plan's own drafting never recorded. Only its Dependencies
   bullet's item count was actually stale (still "four value types",
-  omitting `FetchOutcome`); corrected, `blocked_by: [work-item:0204]`
+  omitting `FetchOutcome`); corrected, `blocked_by: [work-item:PP-734]`
   cleared now that 0204 is accepted, and a Drafting Notes entry added
   recording both the correction and the two obligations 0204 hands it
   (widening the `FetchOutcome` totality contract test to a `fetch_all`
@@ -2746,7 +2746,7 @@ Obligations that leave this plan explicitly, so they are not silently dropped.
   six-item signature, noted the consequent narrowing of each client's
   bulk-mode query (no `description`/body field needed, so Linear's
   selection set need not widen against its complexity cap), cleared
-  `work-item:0204` from `blocked_by`, and added a Drafting Notes entry
+  `work-item:PP-734` from `blocked_by`, and added a Drafting Notes entry
   recording the update and the same default-body gap.
 
 **0171 inherits**
@@ -2850,14 +2850,14 @@ Obligations that leave this plan explicitly, so they are not silently dropped.
 
 ## References
 
-- Original work item: `meta/work/0204-remote-tracker-port.md`
+- Original work item: `meta/work/PP-734-remote-tracker-port.md`
 - Plan review driving this revision:
   `meta/reviews/plans/2026-08-11-0204-remote-tracker-port-review-1.md`
 - Related research:
   `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
-- Split from: `meta/work/0194-tracker-crate-and-remote-sync-engine.md`
-- Consumer: `meta/work/0171-jira-and-linear-integrations.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
+- Split from: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`
+- Consumer: `meta/work/PP-192-jira-and-linear-integrations.md`
 - ADRs: ADR-0044, ADR-0045, ADR-0052, ADR-0053
 - Manifest to copy: `cli/vcs/Cargo.toml:1-18`
 - Error recipe with no `kernel` dependency: `cli/document/src/error.rs:1-42`

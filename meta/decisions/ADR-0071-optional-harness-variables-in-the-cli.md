@@ -6,7 +6,7 @@ date: "2026-10-11T14:00:00+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-parent: "work-item:0303"
+parent: "work-item:PP-889"
 tags: ["cli", "harness", "coupling", "research", "concurrency"]
 last_updated: "2026-10-13T09:40:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -112,8 +112,8 @@ the failure the guard exists to prevent.
 
 - `tasks/lint/claude_coupling.py` — the guard and its admission set
 - `cli/research-cli/src/subagent_cap.rs` — the cap reader
-- `meta/work/0303-research-concurrency-exceeds-subagent-limit.md`
-- `meta/work/0182-cli-derives-plugin-root-from-own-location.md` — the work
+- `meta/work/PP-889-research-concurrency-exceeds-subagent-limit.md`
+- `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md` — the work
   that introduced the guard
 - `meta/research/issues/2026-07-26-cli-requires-claude-plugin-root-env-var.md`
   — the breakage the guard prevents

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0204"
-parent: "work-item:0204"
-relates_to: ["work-item:0136", "work-item:0171", "work-item:0194"]
+parent: "work-item:PP-734"
+relates_to: ["work-item:PP-157", "work-item:PP-192", "work-item:PP-724"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/62"
 pr_number: 62
 tags: ["rust", "tracker", "sync", "port", "cargo-pup", "cargo-public-api"]
@@ -37,13 +37,13 @@ Remote-tracker sync exists today only in bash, under `skills/work/scripts/`. Bot
 - **CI gains a step, not a job.** `public-api:check` joins `check-architecture` — the sole nightly-consuming job — beside `pup:check` and `test:integration:pup`, because a job of its own would provision the same toolchain twice. It is wired into both the aggregate `check` and the bare `default` task, and `tests/unit/tasks/test_workflows.py`'s name-based isolation guard learns its markers.
 - **A cargo-pup rule for `tracker`, and probe pairs backfilled for four rules that had none.** The rule permits only `std`/`core`/`alloc` and `crate`, deliberately omitting the `^kernel::Error(::|$)` allowance its sibling domain rules carry — with no dependencies table such an import cannot compile, so the line would be inert and would misdescribe the crate. Phase 3 then backfills the missing probes for `corpus`, `vcs`, `work` and `migrate`, taking `tests/integration/pup/test_import_rule.py` from 16 to 39 cases: a violation, a compliant control, `kernel::Error`, each rule's own extra allowance, and cross-rejection of an allowance that belongs to a different rule.
 - **`tasks/README.md` gains a "Registering a library crate" checklist** — five points, with `cli/tracker/` as the worked example — alongside the existing thirteen-point sub-binary one, plus a rewritten nightly-lane section documenting the per-tool coupling and how to read a snapshot diff caused by a dependency bump rather than a first-party edit.
-- **Handoff edits to 0136, 0171, 0194 and 0203.** 0171's and 0194's descriptions of the port were stale in different ways (both understated the item count; 0171's end to end) and now name the real six-item signature; `blocked_by: work-item:0204` is cleared from both now that the port is accepted. 0171 also picks up the four exit-code mapping tables, the identifier-safety check and the four bridge capabilities left above the port. The epic's child list gains 0203 and 0204.
+- **Handoff edits to 0136, 0171, 0194 and 0203.** 0171's and 0194's descriptions of the port were stale in different ways (both understated the item count; 0171's end to end) and now name the real six-item signature; `blocked_by: work-item:PP-734` is cleared from both now that the port is accepted. 0171 also picks up the four exit-code mapping tables, the identifier-safety check and the four bridge capabilities left above the port. The epic's child list gains 0203 and 0204.
 
 ## Context
 
-Implements `work-item:0204` (RemoteTracker Port), split out of `work-item:0194` on 2026-08-10 so the contract could be reviewed without the sync engine attached. Researched in `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`, planned in `meta/plans/2026-08-11-0204-remote-tracker-port.md`, reviewed at work-item and plan level (`meta/reviews/work/0204-remote-tracker-port-review-1.md`, `meta/reviews/plans/2026-08-11-0204-remote-tracker-port-review-1.md`), and validated in `meta/validations/2026-08-11-0204-remote-tracker-port-validation.md` (result: pass, no undocumented deviations).
+Implements `work-item:PP-734` (RemoteTracker Port), split out of `work-item:PP-724` on 2026-08-10 so the contract could be reviewed without the sync engine attached. Researched in `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`, planned in `meta/plans/2026-08-11-0204-remote-tracker-port.md`, reviewed at work-item and plan level (`meta/reviews/work/0204-remote-tracker-port-review-1.md`, `meta/reviews/plans/2026-08-11-0204-remote-tracker-port-review-1.md`), and validated in `meta/validations/2026-08-11-0204-remote-tracker-port-validation.md` (result: pass, no undocumented deviations).
 
-Sits under the `work-item:0136` Rust CLI migration epic. Unblocks `work-item:0171` (Jira and Linear client adapters, plus the work-item cutover) and `work-item:0194` (sync engine) simultaneously — that simultaneity is the whole reason the split happened.
+Sits under the `work-item:PP-157` Rust CLI migration epic. Unblocks `work-item:PP-192` (Jira and Linear client adapters, plus the work-item cutover) and `work-item:PP-724` (sync engine) simultaneously — that simultaneity is the whole reason the split happened.
 
 Eight deviations from the work item's frozen block were settled across three planning passes, all recorded in the plan and reconciled into 0204 before implementation began. The two that changed the shipped signature: `fetch_all` gained `FetchOutcome` and a key argument, and `found` carries a timestamp rather than an issue. The reversal worth naming is deviation 8 — an earlier pass had rejected `cargo public-api` on the premise that it meant a third toolchain, which was wrong twice over.
 

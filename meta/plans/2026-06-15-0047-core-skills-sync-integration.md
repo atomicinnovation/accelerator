@@ -6,8 +6,8 @@ date: "2026-06-15T22:35:56+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0047"
-parent: "work-item:0047"
+work_item_id: "work-item:PP-69"
+parent: "work-item:PP-69"
 derived_from: ["codebase-research:2026-06-15-0047-core-skills-sync-integration"]
 tags: ["work-management", "integrations", "sync", "list-work-items", "create-work-item"]
 revision: "86a80de9ff33fe3e4b413d32f3f7d82cfa0b2097"
@@ -919,7 +919,7 @@ of items). Either way, no measurable impact.
 
 ## References
 
-- Work item: `meta/work/0047-core-skills-sync-integration.md` — **needs a
+- Work item: `meta/work/PP-69-core-skills-sync-integration.md` — **needs a
   follow-up `/update-work-item`** to reconcile: AC #4/#5 (drop the `^[0-9]+$`
   format rule for presence-based `external_id`); `work_item_id` wording →
   `external_id`; the "terminal ANSI colour output" wording (AC #3 / Assumptions)
@@ -928,7 +928,7 @@ of items). Either way, no measurable impact.
   later" → "push later via `/create-<tracker>-issue`", since `/sync-work-items`
   (0051) is unbuilt.
 - Research: `meta/research/codebase/2026-06-15-0047-core-skills-sync-integration.md`
-- Downstream: `meta/work/0051-sync-work-items-skill.md` — inherits the
+- Downstream: `meta/work/PP-73-sync-work-items-skill.md` — inherits the
   presence-based classification and the `status → {label, glyph}` slot; its
   `last-sync.json` will key by `external_id`.
 - Precedents: `skills/integrations/linear/scripts/linear-create-flow.sh:197-213`

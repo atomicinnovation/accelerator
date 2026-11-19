@@ -6,8 +6,8 @@ date: "2026-09-09T07:15:11+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0184"
-parent: "work-item:0184"
+work_item_id: "work-item:PP-714"
+parent: "work-item:PP-714"
 derived_from: ["codebase-research:2026-09-08-0184-template-resolution-wrong-plugin-root"]
 tags: ["cli", "config", "templates", "plugin-root", "visualiser"]
 revision: "48a9f5347c558bb678beff1be719c6d99d661b82"
@@ -694,9 +694,9 @@ by 0182's version-keyed cache.
 
 ## References
 
-- Original work item: `meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`
+- Original work item: `meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`
 - Related research: `meta/research/codebase/2026-09-08-0184-template-resolution-wrong-plugin-root.md`
-- Builds on: `meta/work/0182-cli-derives-plugin-root-from-own-location.md`,
+- Builds on: `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md`,
   `meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md` (Phase 5)
 - Store sites: `cli/config-adapters/src/store.rs:73,400,412,436,466,483,729`
 - Error taxonomy: `cli/config/src/error.rs` — variant list `:38-67`, `is_refusal`

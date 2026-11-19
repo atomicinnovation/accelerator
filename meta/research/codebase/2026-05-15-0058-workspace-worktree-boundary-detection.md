@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-15-0058-workspace-worktree-boundary-detection"
 title: "Workspace and worktree boundary detection at session start (work item 0058)"
 schema_version: 1
-relates_to: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "work-item:0020", "plan:2026-03-18-vcs-skill-improvements", "work-item:0058"]
+relates_to: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "work-item:PP-42", "plan:2026-03-18-vcs-skill-improvements", "work-item:PP-80"]
 derived_from: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "codebase-research:2026-03-18-adr-support-strategy", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
@@ -27,7 +27,7 @@ derived_from: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodet
 ## Research Question
 
 Gather all the codebase context needed to implement work item 0058
-(`meta/work/0058-workspace-worktree-boundary-detection.md`): extend the
+(`meta/work/PP-80-workspace-worktree-boundary-detection.md`): extend the
 existing `SessionStart` VCS-detection hook so that, when the session is
 started inside a jj secondary workspace or a git linked worktree, the model
 receives an `additionalContext` block describing the boundary and prohibiting
@@ -363,7 +363,7 @@ research did **not** consider workspace/worktree boundaries, file-vs-
 directory `.git`/`.jj/repo` markers, or cross-VCS nesting; 0058 is filling
 those explicit gaps.
 
-#### `meta/work/0020-vcs-abstraction-layer.md`
+#### `meta/work/PP-42-vcs-abstraction-layer.md`
 
 ADR-creation task summarising the three-layer decision (`:67-68`). It
 records the headline detection rule (`.jj/ + .git/ = colocated`, `.jj/`
@@ -467,7 +467,7 @@ The implementation plan that built `find_repo_root`, `vcs-detect.sh`, and
 - `meta/research/codebase/2026-03-16-jujutsu-integration-and-vcs-autodetection.md`
   — foundational research; established the SessionStart-injection contract
   but did not consider workspaces/worktrees.
-- `meta/work/0020-vcs-abstraction-layer.md` — ADR-creation task for the
+- `meta/work/PP-42-vcs-abstraction-layer.md` — ADR-creation task for the
   three-layer design; ADR not yet produced.
 - `meta/plans/2026-03-18-vcs-skill-improvements.md` — implementation plan
   that produced today's `vcs-detect.sh`, `vcs-common.sh`, and

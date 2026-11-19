@@ -6,15 +6,15 @@ date: "2026-08-07T09:08:23+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0172"
-parent: "work-item:0172"
+work_item_id: "work-item:PP-193"
+parent: "work-item:PP-193"
 derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementation-research"]
 tags: ["rust", "migration-engine", "concurrency", "interactive", "cli"]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
 last_updated: "2026-08-09T19:01:08+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "All ten phases (0-10) implemented and committed; re-validated 2026-08-09 (meta/validations/2026-08-07-0172-migration-engine-subdomain-validation.md, result: pass). Phases 0-8 completed across earlier sessions per the phase-by-phase notes preserved in each phase's own section below. Phase 9 (assertion inventory + suite coverage) closed via a 4-agent coverage audit rather than a mechanical 1:1 black-box rewrite (its own disclosed, reasoned deviation) — 1,010 assertions inventoried, 79/80 test-migrate.sh gaps and all 17 test-migrate-0007.sh gaps closed with new Rust tests, recorded in meta/inventories/0172-suite-audit.md. Phase 10 (retirement cutover) landed at commit 5f0c6e8a9e8c: every retiring bash/awk file, the six shell suites, and jsonl-common.sh deleted; call sites, guards, and suite floors rewritten; skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract; the ADR-reconciliation follow-up (work-item:0202) created and linked; cross-item records on 0180/0168/0182/0183/0167 confirmed or closed out. This pass's changes, made to close out the first validation's findings: (1) recorded the self-validation-obligation resolution on work-item:0195 itself, not just on 0172; (2) reconciled the Phase 9 deviation note, the Phase 10 overview, and the Phase 5 deviation note's stale \"still outstanding\"/\"not implemented\" language against the later, more detailed checkbox write-ups and commits that had already superseded them; (3) audited all 58 of work-item:0172's acceptance criteria against the live codebase and test suite and ticked the 53 genuinely satisfied, leaving 5 honestly unticked (see the work item's own last_updated_note for the list) rather than ticking by assertion; (4) transitioned work-item:0172 to status: done to match 0195's precedent, with its 5 open criteria disclosed rather than silently dropped."
+last_updated_note: "All ten phases (0-10) implemented and committed; re-validated 2026-08-09 (meta/validations/2026-08-07-0172-migration-engine-subdomain-validation.md, result: pass). Phases 0-8 completed across earlier sessions per the phase-by-phase notes preserved in each phase's own section below. Phase 9 (assertion inventory + suite coverage) closed via a 4-agent coverage audit rather than a mechanical 1:1 black-box rewrite (its own disclosed, reasoned deviation) — 1,010 assertions inventoried, 79/80 test-migrate.sh gaps and all 17 test-migrate-0007.sh gaps closed with new Rust tests, recorded in meta/inventories/0172-suite-audit.md. Phase 10 (retirement cutover) landed at commit 5f0c6e8a9e8c: every retiring bash/awk file, the six shell suites, and jsonl-common.sh deleted; call sites, guards, and suite floors rewritten; skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract; the ADR-reconciliation follow-up (work-item:PP-732) created and linked; cross-item records on 0180/0168/0182/0183/0167 confirmed or closed out. This pass's changes, made to close out the first validation's findings: (1) recorded the self-validation-obligation resolution on work-item:PP-725 itself, not just on 0172; (2) reconciled the Phase 9 deviation note, the Phase 10 overview, and the Phase 5 deviation note's stale \"still outstanding\"/\"not implemented\" language against the later, more detailed checkbox write-ups and commits that had already superseded them; (3) audited all 58 of work-item:PP-193's acceptance criteria against the live codebase and test suite and ticked the 53 genuinely satisfied, leaving 5 honestly unticked (see the work item's own last_updated_note for the list) rather than ticking by assertion; (4) transitioned work-item:PP-193 to status: done to match 0195's precedent, with its 5 open criteria disclosed rather than silently dropped."
 schema_version: 1
 ---
 
@@ -66,7 +66,7 @@ and mergeable now.
 
 - **The bash IPC exists only because the driver and each migration are
   separate processes.** Once migrations are ordinary in-process Rust
-  (`meta/work/0172-migration-engine-subdomain.md:88-91`), the TSV frame
+  (`meta/work/PP-193-migration-engine-subdomain.md:88-91`), the TSV frame
   protocol (`scripts/interactive-protocol.sh:9-59`), the two named FIFOs plus
   literal fds (`skills/config/migrate/scripts/interactive-lib.sh:736-753`),
   and the 30s SIGTERM→SIGKILL watchdog
@@ -1916,7 +1916,7 @@ where `advisory` is the same content bash printed to stderr
 behind the plugin (highest applied: {label}; highest available:
 {highest}). Run /accelerator:migrate to bring it up to date." — text
 unchanged, only the delivery channel moves from stderr to `systemMessage`).
-Update `meta/work/0183-session-start-hook-advisories-reach-nobody-on-stderr.md`:
+Update `meta/work/PP-713-session-start-hook-advisories-reach-nobody-on-stderr.md`:
 set `status: abandoned`, record the reciprocal note that its contract was
 absorbed into 0172, per the confirmed direction.
 
@@ -2214,8 +2214,8 @@ returns) before delegating to point 2's merge logic.
       pattern) and the compiled `accelerator-migrate` binary against
       identically-seeded copies, then diffed the resulting `meta/` trees:
       `diff -rq` clean — the resolved reference merged into
-      `blocks: ["work-item:0042"]` byte-identically in both, and the
-      unresolvable `work-item:0099` reference was silently dropped by both.
+      `blocks: ["work-item:PP-64"]` byte-identically in both, and the
+      unresolvable `work-item:PP-121` reference was silently dropped by both.
 
 **Deviations from the above, found during implementation:**
 
@@ -2794,12 +2794,12 @@ Full local CI mirror run, once, at the end of this commit.
 - [x] `mise run` exits 0 end-to-end (confirmed multiple times; see the
       Deviations note below for the two real bugs this run surfaced and fixed)
 - [x] The ADR-reconciliation follow-up work item exists
-      (`work-item:0202`, `meta/work/0202-reconcile-migration-engine-adrs-against-the-rust-port.md`,
+      (`work-item:PP-732`, `meta/work/PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`,
       status `draft`, saved locally unsynced — pushing to the configured
       Linear integration was not done automatically, since that is a
       user-visible external action this session did not have standing
       authorisation to take unprompted) and is linked from 0172
-      (`relates_to: ["work-item:0202", ...]`) and from itself back to 0172
+      (`relates_to: ["work-item:PP-732", ...]`) and from itself back to 0172
 - [x] `accelerator-migrate` fetch-and-verify test resolves the real signed
       manifest entry at a release-shaped fixture — already landed in Phase 1
       (`tasks/manifest.py`'s `_SUBBINARY_MANIFESTS["migrate"]`,
@@ -2933,7 +2933,7 @@ Full local CI mirror run, once, at the end of this commit.
   under full-`mise-run` parallel load and passed cleanly when re-run in
   isolation — consistent with this repo's own documented parallel-CI-load
   flakiness pattern for shell-lock suites, not a regression from this phase.
-- **The ADR-reconciliation follow-up work item (`work-item:0202`) was created
+- **The ADR-reconciliation follow-up work item (`work-item:PP-732`) was created
   and drafted directly** (via `Write`, following the `create-work-item`
   template) rather than through the fully interactive `create-work-item`
   skill's multi-turn Q&A flow — that flow is designed for a human author
@@ -3010,7 +3010,7 @@ session log transparently on first Rust read.
 
 ## References
 
-- Work item: `meta/work/0172-migration-engine-subdomain.md`
+- Work item: `meta/work/PP-193-migration-engine-subdomain.md`
 - Research: `meta/research/codebase/2026-08-06-0172-migration-engine-implementation-research.md`
 - Registration template: `cli/vcs-cli/`, `tasks/README.md#registering-a-dispatched-sub-binary`
 - Crate foundation: `cli/config/`, `cli/config-adapters/`, `cli/corpus/`,

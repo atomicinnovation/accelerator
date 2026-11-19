@@ -485,7 +485,7 @@ The author chose to resolve the naming concern at the root rather than locally:
   default-font-mode precondition.
 - **Scale remap spun out** — the systemic naming inconsistency (three schemes
   across the sub-14px band, ~100 consumers) is captured as **work item 0099**
-  (`meta/work/0099-remap-typography-size-scale-to-pure-numeric-tokens.md`),
+  (`meta/work/PP-121-remap-typography-size-scale-to-pure-numeric-tokens.md`),
   which will adopt a pure-numeric scheme (`--size-110` = 11px) and supersede
   ADR-0036 via its own ADR + plan. 0094 is decoupled and needs no rework when it
   lands.

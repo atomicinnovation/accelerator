@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0188"
-parent: "work-item:0188"
+parent: "work-item:PP-718"
 relates_to: ["codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 topic: "Library-backed VCS adapter over gix and jj-lib: enforcement surfaces, test apparatus, fixture matrix, CI capability and sibling hand-offs"
 tags: ["research", "codebase", "vcs", "vcs-adapters", "gix", "jj-lib", "cargo-deny", "cargo-pup", "ci", "fixtures"]
@@ -31,7 +31,7 @@ paths rather than permalinks
 ## Research Question
 
 Comprehensive codebase research for the story at
-`meta/work/0188-library-backed-vcs-adapter.md` — a library-backed
+`meta/work/PP-718-library-backed-vcs-adapter.md` — a library-backed
 implementation of the `vcs` crate's ports over `gix` and `jj-lib`, plus six
 inherent taxonomy queries and the test apparatus proving in-process reads.
 
@@ -505,7 +505,7 @@ to hook into — the runner, the timing loop and the results convention are all
 new.
 
 **`B ≈ 35 ms` is `35.1 ms`**, from 0186's table
-(`meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md:46-63`, also
+(`meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md:46-63`, also
 reproduced at research `2026-07-29-…:622-630`): darwin-arm64, warm cache, 20
 iterations, 2026-07-30. The same table gives `bin/accelerator version` at
 149.1 ms, launcher-direct at 3.0 ms, minisign verify of the 8 MB launcher at
@@ -575,9 +575,9 @@ Every claim 0188 makes about its siblings checks out, with three additions:
   Also, 0185's harness criterion (`:82-84`) describes *PATH stubs only* — the
   harness it inherits is 0188's strictly larger three-part strong form.
 - **0125 reciprocates no edges.** Its `relates_to` is
-  `["work-item:0124", "work-item:0058", "work-item:0020"]` (`:11`), while 0169
+  `["work-item:PP-145", "work-item:PP-80", "work-item:PP-42"]` (`:11`), while 0169
   (`:14`), 0185 (`:13`) and 0188 (`:14`) each already list it. Adding only
-  `work-item:0188` leaves 0169 and 0185 one-directional — a deliberate
+  `work-item:PP-718` leaves 0169 and 0185 one-directional — a deliberate
   decision, not an oversight, but worth making consciously. 0125 has a
   `## Dependencies` section at `:141-146` to append to, and no Validation
   Results or Open Questions sections.
@@ -699,7 +699,7 @@ only two.
   2 (an in-crate seam cannot see inside `gix`/`jj-lib`) → pass 3 (`PATH` stubs
   evaded by `/usr/bin/git`) — each rung reached only because the previous was
   found insufficient one pass later.
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md:46-63` — the
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md:46-63` — the
   measurement table that is the true provenance of `B = 35.1 ms`, and `:61-63`
   where the ~41 ms figure is derived rather than measured.
 - `meta/prs/35-description.md:52` — an unabsorbed correction to 0188's

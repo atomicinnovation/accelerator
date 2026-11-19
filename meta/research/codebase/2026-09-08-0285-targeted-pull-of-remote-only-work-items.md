@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0285"
-parent: "work-item:0285"
+parent: "work-item:PP-871"
 relates_to: ["codebase-research:2026-09-06-0257-sync-specific-work-items"]
 topic: "Targeted Pull of Remote-Only Work Items and Resolution Normalisation"
 tags: ["research", "codebase", "work-sync", "targeting", "resolve-targets", "tracker", "create-from-remote"]
@@ -303,7 +303,7 @@ TSV report as authoritative and re-expresses it. Four passages must change:
   `external_id` as remote identity; the basis for resolution and collision keys.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — why resolution
   and exit codes live in the CLI, not the skill.
-- `meta/work/0146-work-item-sync-enhancements.md` — parent epic; `0229` (pull
+- `meta/work/PP-167-work-item-sync-enhancements.md` — parent epic; `0229` (pull
   scope) and `0255` (chunk merge) touch the same engine path (work item lines
   146-150).
 

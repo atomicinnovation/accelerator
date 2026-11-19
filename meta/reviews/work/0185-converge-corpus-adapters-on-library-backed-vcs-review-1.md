@@ -6,8 +6,8 @@ date: "2026-08-10T00:55:56+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0185"
-work_item_id: "0185"
+target: "work-item:PP-715"
+work_item_id: "PP-715"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -46,7 +46,7 @@ Dependencies/AC sections could miss them entirely.
   instead of 0188), Requirements ("invisible to callers"), Technical Notes
   (stale `lib.rs` line references and a stale "0169 will need to alter this
   anyway" premise), References (a stale anchor into 0169), and frontmatter
-  (`blocked_by: ["work-item:0188"]` despite 0188 having landed) all retain
+  (`blocked_by: ["work-item:PP-718"]` despite 0188 having landed) all retain
   claims the item's own Amendment block says are wrong or stale. A reader who
   trusts the first read of any of these sections walks away with an
   incorrect picture, even though the correct information is present
@@ -183,7 +183,7 @@ Dependencies/AC sections could miss them entirely.
 - 🔵 **Completeness**: Frontmatter still shows draft/blocked despite the
   recorded blocker having landed
   **Location**: Frontmatter: status; blocked_by
-  Frontmatter records `status: draft` and `blocked_by: ["work-item:0188"]`,
+  Frontmatter records `status: draft` and `blocked_by: ["work-item:PP-718"]`,
   but the Amendment states plainly that "0188 has landed" and the adapter
   "exists and ships unwired."
 
@@ -295,7 +295,7 @@ Dependencies/AC sections could miss them entirely.
    this task).
 
 5. **Refresh stale frontmatter and cross-references**: clear or annotate
-   `blocked_by: ["work-item:0188"]` now that 0188 has landed, update the
+   `blocked_by: ["work-item:PP-718"]` now that 0188 has landed, update the
    `CommandProbe` file:line references to point at `subprocess.rs`, fix the
    "Four inheritances" count, reconcile the "0169 will need to alter this
    anyway" bullet in Technical Notes, and correct the stale References
@@ -492,7 +492,7 @@ caught by this pass and fixed in the same edit session before this write:
 - 🟡 **Dependency**: `blocked_by` was cleared to `[]` on the assumption that
   a landed blocker should be removed, contradicting the repo's own
   convention (confirmed against 0169, which retains completed blockers) —
-  Fixed (restored to `["work-item:0188"]`)
+  Fixed (restored to `["work-item:PP-718"]`)
 - 🔵 **Completeness/Dependency**: `relates_to` frontmatter was not updated
   to match the new 0168 Dependencies entry — Fixed (added, along with 0198)
 

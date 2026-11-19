@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0218"
-parent: "work-item:0218"
+parent: "work-item:PP-747"
 relates_to: ["codebase-research:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness", "codebase-research:2026-10-16-0339-tree-reap-cross-artifact-lock-probe", "codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
 topic: "Codebase surface for bounding a relocated cache root's growth (0218)"
 tags: ["research", "codebase", "launcher", "cache", "tree-cache", "claims", "prune", "bootstrap"]
@@ -488,7 +488,7 @@ Notes:
   - It left ownerless `.tmp-` entries and orphan-lock removal to 0218.
   - The PR #167 review suggests a test failing if any production path
     removes a `.tmp-*.lock` outside the holder discipline.
-- `meta/work/0223-bounding-the-default-runtime-cache-root.md` — established
+- `meta/work/PP-753-bounding-the-default-runtime-cache-root.md` — established
   that Claude Code's orphan sweep bounds the default root.
 - `meta/reviews/work/0218-bound-cache-root-growth-review-1.md` — approved
   after six passes. The pass-6 fixes (pre-claim `AGE_BACKSTOP` gate, suffix

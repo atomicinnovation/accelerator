@@ -58,7 +58,7 @@ Working copy is clean (`jj status`: no changes).
 - **`scripts/templates-schema.tsv`** carries the exact planned row
   (`note.md\tnote\tyes\ttopic\tcaptured\t-\tparent relates_to`), tab-separated
   into 7 columns.
-- **`meta/work/0067-create-note-skill.md`** carries the `## Schema Reference`
+- **`meta/work/PP-89-create-note-skill.md`** carries the `## Schema Reference`
   section with the `| \`note.md\` | … |` row in the load-bearing lexical form,
   satisfying the cross-check union.
 - **`scripts/test-template-frontmatter.sh`** adds the 0067 path to

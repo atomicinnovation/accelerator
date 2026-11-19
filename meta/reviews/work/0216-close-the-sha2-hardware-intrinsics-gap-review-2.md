@@ -6,8 +6,8 @@ date: "2026-09-10T23:02:10+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0216"
-work_item_id: "0216"
+target: "work-item:PP-745"
+work_item_id: "PP-745"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -101,7 +101,7 @@ _None._
   **Location**: Dependencies
   AC 3 defers all Linux/musl throughput verification to 0217, making 0217 the item that proves the
   deliverable on the musl statics. The backing research flagged that 0217 carried no reciprocal
-  `work-item:0216` edge or sha2-backend criterion. _(Note: this was landed on 0217 after the review
+  `work-item:PP-745` edge or sha2-backend criterion. _(Note: this was landed on 0217 after the review
   agents read the source — 0217 now carries the gated-by edge, the aarch64-musl `sha256_hex`
   criterion, and a run-after note. Recommend referencing that from 0216 so the coupling is visible
   here too.)_
@@ -203,7 +203,7 @@ _None._
    inspection; the 0217 reciprocal edge)
    Add a stronger inspection artefact for the musl backend (e.g. a linked-symbol probe of the
    runtime-detection path) or make the 0217 cross-reference binding inside AC 3, and reference the
-   now-landed `work-item:0216` edge on 0217.
+   now-landed `work-item:PP-745` edge on 0217.
 
 7. **Optional — settle AC 2's warning baseline** (addresses: AC 2's "no new warnings" has no captured
    baseline)
@@ -291,7 +291,7 @@ not yet landed.
   work-adapters, jira-client, design-adapters, remote-projection, server) are not all named as
   affected consumers; the shared-artefact blast radius is implied.
 - 🔵 minor (medium) — Dependencies: AC 3 defers musl verification to 0217, but the research flagged
-  0217 carried no reciprocal `work-item:0216` edge or sha2-backend criterion. _(Landed on 0217 after
+  0217 carried no reciprocal `work-item:PP-745` edge or sha2-backend criterion. _(Landed on 0217 after
   the agents read the source; recommend referencing it from 0216.)_
 - 🔵 suggestion (low) — Requirements: the duplicate-free collapse relies on transitive `rust-embed-utils`
   remaining the source of `sha2` 0.11.0; surface this coupling so a future divergence is visible.

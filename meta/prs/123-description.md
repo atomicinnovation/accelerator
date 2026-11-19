@@ -6,8 +6,8 @@ date: "2026-09-15T13:36:10+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0278"
-parent: "work-item:0278"
+work_item_id: "work-item:PP-862"
+parent: "work-item:PP-862"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/123"
 pr_number: 123
 tags: ["rename", "codebase-research", "doc-type", "migration"]
@@ -56,7 +56,7 @@ Stacked on `0278-topic-research-visualiser-doc-type` (PR #118).
 
 ## Context
 
-- Work item: `work-item:0278`
+- Work item: `work-item:PP-862`
 - Plan: `meta/plans/2026-09-13-0278-complete-codebase-research-rename.md`
 - Review: `meta/reviews/plans/2026-09-13-0278-complete-codebase-research-rename-review-1.md`
 - Migration precedent: `cli/migrate/src/migrations/m0006.rs`

@@ -6,8 +6,8 @@ date: "2026-06-12T16:54:30+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0108"
-parent: "work-item:0108"
+work_item_id: "work-item:PP-130"
+parent: "work-item:PP-130"
 derived_from: ["codebase-research:2026-06-12-0108-local-docker-visual-regression-baselines"]
 tags: ["visual-regression", "testing", "ci", "developer-experience", "docker", "playwright"]
 revision: "3e0bca8cd5bf31d93886fbf22369afd8eb87eaac"
@@ -1052,7 +1052,7 @@ prose), and cover:
 
 ## References
 
-- Original work item: `meta/work/0108-local-docker-visual-regression-baselines.md`
+- Original work item: `meta/work/PP-130-local-docker-visual-regression-baselines.md`
 - Research: `meta/research/codebase/2026-06-12-0108-local-docker-visual-regression-baselines.md`
 - Recommended follow-up (out of scope here): an ADR capturing "single canonical
   render environment as source of truth" for visual-regression baselines — no

@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-18-0071-describe-pr-base-repo-resolver-unsupported-gh-field"
 title: "`pr-base-repo.sh` `--json baseRepository` Defect on `gh 2.65.0` — Fix Scope and Test Strategy"
 schema_version: 1
-relates_to: ["work-item:0059", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "plan:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "work-item:0071", "adr:ADR-0010", "adr:ADR-0008", "plan:2026-04-07-fix-tmp-directory-usage-in-pr-skills"]
+relates_to: ["work-item:PP-81", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "plan:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "work-item:PP-93", "adr:ADR-0010", "adr:ADR-0008", "plan:2026-04-07-fix-tmp-directory-usage-in-pr-skills"]
 derived_from: ["codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "codebase-research:2026-02-23-respond-to-pr-feedback-skill", "codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-02-22-pr-review-inline-comments"]
 ---
 
@@ -26,7 +26,7 @@ derived_from: ["codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-de
 
 ## Research Question
 
-For the bug at `meta/work/0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md`: what is the precise blast radius of the `pr-base-repo.sh` resolver, what conventions and constraints does any fix have to honour, what does existing test coverage actually exercise (and therefore what does a real-`gh` smoke check need to add), and which of the three fix-path candidates listed in Open Questions sits most naturally on the codebase's existing patterns?
+For the bug at `meta/work/PP-93-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md`: what is the precise blast radius of the `pr-base-repo.sh` resolver, what conventions and constraints does any fix have to honour, what does existing test coverage actually exercise (and therefore what does a real-`gh` smoke check need to add), and which of the three fix-path candidates listed in Open Questions sits most naturally on the codebase's existing patterns?
 
 ## Summary
 
@@ -38,7 +38,7 @@ The defect is **a one-line bug at `skills/github/scripts/pr-base-repo.sh:48`** �
 
 **Fix-path candidate (a) — URL derivation — sits most naturally on the codebase.** The work item lists three candidates; (a) is the only one that (i) keeps the resolver self-contained, (ii) preserves the script's load-bearing cross-fork-safety guarantee (the PR `url` reflects the upstream repo, not the fork), (iii) keeps both null-guard and non-JSON-payload defences at `pr-base-repo.sh:63-76` working unchanged (the new payload is still JSON containing a `.url` string), and (iv) avoids re-introducing the `gh repo view`-style pitfall that prompted the resolver's existence (per header lines 15-18). Candidate (b) preserves the structured-field path at the cost of carrying two code paths forever; candidate (c) pushes the problem onto users on the floor `gh` version (2.40.0) and provides no protection if a future `gh` removes a different field.
 
-**Strongest precedent**: work item 0059 (`meta/work/0059-gh-pr-edit-fails-due-to-projects-classic-deprecation.md`) is the immediate prior `gh`-CLI-compatibility defect. Its research, plan, and review trio under `2026-05-15-0059-…` is the template — and ironically, the resolver introduced by that fix is the very script broken here. The 0059 plan introduced `pr-base-repo.sh`, `pr-update-body.sh`, and the `setup_gh_stub` machinery in a single phased landing; the present fix should reuse that machinery but add the missing real-`gh` smoke layer that the original plan deferred.
+**Strongest precedent**: work item 0059 (`meta/work/PP-81-gh-pr-edit-fails-due-to-projects-classic-deprecation.md`) is the immediate prior `gh`-CLI-compatibility defect. Its research, plan, and review trio under `2026-05-15-0059-…` is the template — and ironically, the resolver introduced by that fix is the very script broken here. The 0059 plan introduced `pr-base-repo.sh`, `pr-update-body.sh`, and the `setup_gh_stub` machinery in a single phased landing; the present fix should reuse that machinery but add the missing real-`gh` smoke layer that the original plan deferred.
 
 ## Detailed Findings
 
@@ -155,7 +155,7 @@ Candidate (c) is the least invasive code change but the worst operator UX. It al
 
 ### Strongest precedent: work item 0059 and its plan
 
-`meta/work/0059-gh-pr-edit-fails-due-to-projects-classic-deprecation.md` is the prior gh-CLI-compatibility defect, fixed in the same skill family, by the same plan that introduced the very file at the centre of 0071. Key inheritance points:
+`meta/work/PP-81-gh-pr-edit-fails-due-to-projects-classic-deprecation.md` is the prior gh-CLI-compatibility defect, fixed in the same skill family, by the same plan that introduced the very file at the centre of 0071. Key inheritance points:
 
 - **Resolver, body-poster, and the `setup_gh_stub` machinery** all landed together in the 0059 plan. The plan introduced `gh pr view --json baseRepository` as the cross-fork-safe replacement for `gh repo view --json owner,name`. This research is the first place to record that the replacement choice has its own allowlist-vulnerability against older `gh` versions — the 0059 plan implicitly assumed `gh ≥ <some version>` and that assumption broke on `2.65.0`.
 - **Phased landing** (the 0059 plan was phased 1-6 with PHASE env passthrough into the test harness, see `test-pr-base-repo-scripts.sh:25-29`). The 0071 fix is small enough to be a single phase, but the harness's PHASE machinery is preserved and useful for any future split.
@@ -204,7 +204,7 @@ The existing scripts already implement all the cleanup, error-replay, JSON-parse
 
 ## Historical Context
 
-- `meta/work/0059-gh-pr-edit-fails-due-to-projects-classic-deprecation.md` — prior gh-CLI-compat defect; its plan introduced the resolver now broken in 0071. Direct precedent for fix shape, test layout, and tree-state guard pattern.
+- `meta/work/PP-81-gh-pr-edit-fails-due-to-projects-classic-deprecation.md` — prior gh-CLI-compat defect; its plan introduced the resolver now broken in 0071. Direct precedent for fix shape, test layout, and tree-state guard pattern.
 - `meta/research/codebase/2026-05-15-0059-gh-pr-edit-projects-classic-deprecation.md` — research backing the 0059 plan. Notably flags at the bottom of "Architecture Insights" that *"the codebase's existing owner/repo resolution convention is broken for cross-fork PRs"* — the 0071 defect is the inverse: the replacement chosen there is broken on older `gh` allowlists.
 - `meta/plans/2026-05-15-0059-gh-pr-edit-projects-classic-deprecation.md` — the phased implementation plan that landed `pr-base-repo.sh`, `pr-update-body.sh`, `test-helpers.sh`, and the `setup_gh_stub` machinery. The 0071 fix builds directly on this scaffolding.
 - `meta/reviews/plans/2026-05-15-0059-gh-pr-edit-projects-classic-deprecation-review-1.md` — review of the 0059 plan; useful precedent for how the implementer documented gh-CLI-compat risk before landing.

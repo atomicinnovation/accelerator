@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0176"
-parent: "work-item:0176"
+parent: "work-item:PP-698"
 relates_to: ["codebase-research:2026-06-29-0175-slim-readme-split-docs-tree"]
 topic: "Skill-family page naming, a master user-invokable skill list, and per-skill reference pages"
 tags: ["research", "codebase", "docs", "skills", "information-architecture", "naming"]
@@ -228,19 +228,19 @@ would be ~46 pages.
 
 ## Historical Context
 
-- `meta/work/0145-documentation-improvements.md` — parent epic; holds the
+- `meta/work/PP-166-documentation-improvements.md` — parent epic; holds the
   authoritative "Target information architecture (agreed 2026-06-29)" with the
   full `docs/` + `docs/skills/` layout. The IA decision lives here inline; there
   is **no** standalone ADR for docs IA or skill-grouping terminology.
-- `meta/work/0175-slim-readme-and-split-into-docs-tree.md` — **done**;
+- `meta/work/PP-697-slim-readme-and-split-into-docs-tree.md` — **done**;
   established the `docs/` tree and README index.
-- `meta/work/0177-documentation-site-for-docs-tree.md` — **draft**; the docs-site
+- `meta/work/PP-699-documentation-site-for-docs-tree.md` — **draft**; the docs-site
   nav must expose every page 0176 produces. A master skill index would directly
   feed it.
 - `meta/research/codebase/2026-06-29-0175-slim-readme-split-docs-tree.md` —
   0175 research; section→destination line-range mapping (now stale vs the tree).
 - `meta/plans/2026-03-15-readme-restructure.md` and
-  `meta/work/0019-readme-structure.md` — earlier README-structure prior art.
+  `meta/work/PP-41-readme-structure.md` — earlier README-structure prior art.
 - `meta/notes/2026-06-22-ideas-backlog.md` — seed entries "Break up README" and
   "Build documentation site" (→ 0175, 0177).
 

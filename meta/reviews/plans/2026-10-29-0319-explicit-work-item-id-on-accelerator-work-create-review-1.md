@@ -1242,7 +1242,7 @@ Major:
 Minor:
 
 - 🔵 **Architecture + Code Quality + Test Coverage + Correctness**: The taken check's filename reading skips `holds`' legacy rule — `refuse_if_taken` reads filenames through `parse_prefix` and `same_id`, so a legacy `0400-x.md` with no frontmatter, or unreadable, never takes `PP-0400`, contradicting `a_legacy_number_takes_the_configured_keys_id`; allocation skips legacy holders too, and `an_unparseable_held_value_never_takes_a_requested_id` still lists `id: "0400"`.
-- 🔵 **Correctness**: Re-key's `linker_of_under` blocks re-keying this repository onto its tracker key — `0021-artifact-persistence-lifecycle.md` links `PP-43` beside `0043-*`, so `{key}-{number:04d}` with key `PP` refuses with a collision and no remedy.
+- 🔵 **Correctness**: Re-key's `linker_of_under` blocks re-keying this repository onto its tracker key — `PP-43-artifact-persistence-lifecycle.md` links `PP-43` beside `0043-*`, so `{key}-{number:04d}` with key `PP` refuses with a collision and no remedy.
 - 🔵 **Correctness**: `is_in_target_shape` "through `read_exact`" drops today's key check (`XYZ-0002` under `ACC` would be in shape) and makes literal case a rename (`V001` → `v001` aborts on a case-insensitive filesystem, `retirement.rs:312-313`).
 - 🔵 **Correctness**: `WithProject`'s example reads "the request's number", but no named reading reads a keyless `0400` under `{key}-{number:04d}`, contradicting the test's `XY-0400`.
 - 🔵 **Architecture**: Phase 10 now depends on Phase 8 (`refuse_if_requested_id_taken`), which the diagram does not show.

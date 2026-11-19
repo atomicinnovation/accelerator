@@ -6,10 +6,10 @@ date: "2026-09-10T23:48:29+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0216"
-parent: "work-item:0216"
+work_item_id: "work-item:PP-745"
+parent: "work-item:PP-745"
 derived_from: ["codebase-research:2026-09-10-0216-close-the-sha2-hardware-intrinsics-gap"]
-relates_to: ["work-item:0215", "work-item:0217"]
+relates_to: ["work-item:PP-744", "work-item:PP-746"]
 tags: ["cli", "launcher", "performance"]
 revision: "a6f0b5b95679de4218c3b924091ee1d609205f11"
 repository: "accelerator"
@@ -134,7 +134,7 @@ Verify by: `mise run cli:check`, `mise run build:cli-cross-compile`,
 ## What We're NOT Doing
 
 - Not measuring aarch64-musl throughput here — that is 0217's scope; this plan
-  confirms 0217 carries the reciprocal `work-item:0216` edge before closing.
+  confirms 0217 carries the reciprocal `work-item:PP-745` edge before closing.
 - Not executing on an aarch64 CPU lacking the SHA-2 extension — an accepted
   limitation resting on the upstream-tested 0.11 runtime-detection path.
 - Not the `asm` feature (removed in 0.11), a crate swap, or a vendored assembly
@@ -506,7 +506,7 @@ the three `{:x}` sites above are the only breakage found.
    leaving a single `sha2 0.11.0`, and note any newly-straddled RustCrypto
    substack crates for Phase 4.
 8. **0217 hand-off.** Confirm `meta/work/0217` carries the reciprocal
-   `work-item:0216` edge, its SHA-extension-keyed `verifier::sha256_hex`
+   `work-item:PP-745` edge, its SHA-extension-keyed `verifier::sha256_hex`
    criterion, and the inherited `measure.py` `asset_bytes` prerequisite; restore
    them if reverted. This edge is unverified by tooling (the repo has no
    cross-item referential check), and 0217 is the only conclusive net for the
@@ -604,7 +604,7 @@ failure condition.
 - [x] The lockfile duplication effect is recorded on the work item. (Recorded in
       the implementing change: `sha2 0.10.9` removed, single `0.11.0`; see the
       evidence file and the commit message.)
-- [x] 0217 carries the reciprocal `work-item:0216` edge and its criteria.
+- [x] 0217 carries the reciprocal `work-item:PP-745` edge and its criteria.
 
 ---
 
@@ -759,7 +759,7 @@ must add a justified skip or fail the cargo-deny gate.
 
 ## References
 
-- Work item: `meta/work/0216-close-the-sha2-hardware-intrinsics-gap.md`
+- Work item: `meta/work/PP-745-close-the-sha2-hardware-intrinsics-gap.md`
 - Research: `meta/research/codebase/2026-09-10-0216-close-the-sha2-hardware-intrinsics-gap.md`
 - `cli/launcher/src/launch/outbound/resolve/verifier.rs:14` — `sha256_hex`
 - `cli/launcher/tests/warm_terms.rs:139-151` — the timed term and `asset_bytes`
@@ -771,9 +771,9 @@ must add a justified skip or fail the cargo-deny gate.
 - `cli/deny.toml:11-17,110` — the five-target graph and the `bans` posture
 - `tasks/build.py:538` — `vendor_shim_marker_digest`
 - `tasks/lint/vendor_shims.py` — the vendor-shim drift guard
-- 0217 (`meta/work/0217-measure-warm-dispatch-on-linux.md`) — the aarch64-musl
+- 0217 (`meta/work/PP-746-measure-warm-dispatch-on-linux.md`) — the aarch64-musl
   throughput hand-off
-- 0215 (`meta/work/0215-remove-the-cache-hit-sha256-from-warm-dispatch.md`) — the
+- 0215 (`meta/work/PP-744-remove-the-cache-hit-sha256-from-warm-dispatch.md`) — the
   fallback route
 - RustCrypto `hashes` PR #490 and the `sha2` 0.11.0 CHANGELOG — the
   runtime-detected `aarch64-sha2` backend

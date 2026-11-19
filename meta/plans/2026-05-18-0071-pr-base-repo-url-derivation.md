@@ -13,7 +13,7 @@ last_updated: "2026-05-18T20:55:37+00:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0071", "codebase-research:2026-05-18-0071-describe-pr-base-repo-resolver-unsupported-gh-field", "plan:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "adr:ADR-0010"]
+relates_to: ["work-item:PP-93", "codebase-research:2026-05-18-0071-describe-pr-base-repo-resolver-unsupported-gh-field", "plan:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "codebase-research:2026-05-15-0059-gh-pr-edit-projects-classic-deprecation", "adr:ADR-0010"]
 ---
 
 # pr-base-repo.sh URL-Derivation Migration Implementation Plan
@@ -1215,7 +1215,7 @@ fail with an actionable diagnostic pointing at work item 0071.
 
 ## References
 
-- Work item: `meta/work/0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md`
+- Work item: `meta/work/PP-93-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md`
 - Research: `meta/research/codebase/2026-05-18-0071-describe-pr-base-repo-resolver-unsupported-gh-field.md`
 - Work item review: `meta/reviews/work/0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field-review-1.md`
 - Precedent plan (introduced the broken resolver): `meta/plans/2026-05-15-0059-gh-pr-edit-projects-classic-deprecation.md`

@@ -9,7 +9,7 @@ title: "ADR-0038: Interactive validation parameters for unified-schema linkage m
 schema_version: 1
 last_updated: "2026-05-26T17:09:45+01:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0037", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "work-item:0057", "work-item:0062", "work-item:0068", "work-item:0069", "work-item:0070"]
+relates_to: ["adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0037", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "work-item:PP-79", "work-item:PP-84", "work-item:PP-90", "work-item:PP-91", "work-item:PP-92"]
 ---
 
 # ADR-0038: Interactive validation parameters for unified-schema linkage migration
@@ -178,8 +178,8 @@ The unsupported input shape is a body-prose label like `Broader workstream: <fre
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md` — framework-level interactive contract this ADR parameterises
 - `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md` — spike findings, calibration data, failure-pattern catalogue
 - `meta/research/codebase/2026-05-26-0062-adr-interactive-validation-for-corpus-migration.md` — ADR drafting research
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic
-- `meta/work/0062-adr-corpus-migration-strategy.md` — work item this ADR satisfies
-- `meta/work/0068-spike-related-documents-inference-accuracy.md` — spike whose verdict this ADR consumes
-- `meta/work/0069-migration-framework-interactive-validation-hooks.md` — runner-implementation downstream
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — corpus-migration shipping downstream
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic
+- `meta/work/PP-84-adr-corpus-migration-strategy.md` — work item this ADR satisfies
+- `meta/work/PP-90-spike-related-documents-inference-accuracy.md` — spike whose verdict this ADR consumes
+- `meta/work/PP-91-migration-framework-interactive-validation-hooks.md` — runner-implementation downstream
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — corpus-migration shipping downstream

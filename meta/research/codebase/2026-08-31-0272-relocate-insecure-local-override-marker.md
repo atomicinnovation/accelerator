@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0272"
-parent: "work-item:0272"
+parent: "work-item:PP-802"
 topic: "Relocate insecure-local override marker to .accelerator"
 tags: ["research", "codebase", "credentials", "tracker-support", "security", "config"]
 revision: "39dd51d48f99dce20fd5c31a451dfcf52d58a878"
@@ -203,7 +203,7 @@ prose. Out of scope for 0272, but worth noting to whoever edits the line.
 - `meta/plans/2026-04-29-jira-integration-phase-1-foundation.md` — canonical origin design of the whole scheme (bash): `E_LOCAL_PERMS_INSECURE` exit 29, the 0600 fail-closed refusal, symlink rejection, and the dual-gate opt-out with a six-case test matrix.
 - `meta/plans/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md` — the Rust port; records that personal writes are clamped to 0600. ❓ It states the port has "no bypass gate", yet the live resolver clearly implements `insecure_override_allowed` — likely plan-vs-code drift where the override was reinstated after that plan; worth confirming the override is intended before release.
 - `meta/decisions/ADR-0047-multi-level-userspace-configuration-model.md` — establishes `.accelerator/` with `config.md` + `config.local.md`; the layout 0272 extends to the marker.
-- `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md` — the consolidation rationale 0272 completes.
+- `meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md` — the consolidation rationale 0272 completes.
 
 ## Related Research
 

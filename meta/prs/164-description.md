@@ -6,8 +6,8 @@ date: "2026-10-14T15:06:25+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0332"
-parent: "work-item:0332"
+work_item_id: "work-item:PP-885"
+parent: "work-item:PP-885"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/164"
 pr_number: 164
 tags: []
@@ -84,7 +84,7 @@ stack of every networked binary. Reverting it brings the advisories back.
 
 ## Context
 
-- Work item: `meta/work/0332-push-pr-descriptions-to-github-unwrapped.md`
+- Work item: `meta/work/PP-885-push-pr-descriptions-to-github-unwrapped.md`
   (PP-885)
 - Plan:
   `meta/plans/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped.md`

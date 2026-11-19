@@ -6,8 +6,8 @@ date: "2026-06-18T17:22:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0114"
-parent: "work-item:0114"
+work_item_id: "work-item:PP-136"
+parent: "work-item:PP-136"
 relates_to: ["plan:2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"]
 tags: ["validator", "frontmatter", "config", "doc-type-inference", "unified-schema", "allowlist"]
 revision: "3a696f4cddb00fce6fbad76b41e32e1cf32e292b"

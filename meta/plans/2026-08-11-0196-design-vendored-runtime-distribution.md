@@ -6,11 +6,11 @@ date: "2026-08-11T21:49:36+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0196"
-parent: "work-item:0196"
-blocked_by: ["work-item:0205"]
+work_item_id: "work-item:PP-726"
+parent: "work-item:PP-726"
+blocked_by: ["work-item:PP-735"]
 derived_from: ["codebase-research:2026-08-11-0196-design-cli-implementation-surface"]
-relates_to: ["plan:2026-08-11-0196-design-cli-migration", "work-item:0208", "plan-review:2026-08-11-0196-design-vendored-runtime-distribution-review-1"]
+relates_to: ["plan:2026-08-11-0196-design-cli-migration", "work-item:PP-738", "plan-review:2026-08-11-0196-design-vendored-runtime-distribution-review-1"]
 supersedes: ["plan:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"]
 tags: ["rust", "design", "playwright", "launcher", "release-pipeline", "tree-artifacts", "distribution"]
 revision: "2cd521542aea64abb6cd81dc104505d8c7609519"
@@ -31,7 +31,7 @@ build-time assembly step that constructs the driver bundle and the browser from
 verified upstream inputs and publishes them under the project's own signing key; and
 the executor swaps onto them.
 
-This is the second of two plans against work-item:0196. The first —
+This is the second of two plans against work-item:PP-726. The first —
 `plan:2026-08-11-0196-design-cli-migration` — **is implemented and merged** (thirteen
 commits, PR #64, validated *partial* on 2026-08-13). It created the
 `accelerator-design` sub-binary and ported `run.sh` to Rust, deliberately leaving
@@ -49,10 +49,10 @@ not left behind), the suite-floor arithmetic (off by one, in the direction that
 reddens CI), a `cli/Cargo.toml` comment quoted verbatim that does not exist, and three
 guards added after the plan was written that this plan's deletions now trip.
 
-**Phase 0 was lifted out into work-item:0214, which is now closed.** It carried four
+**Phase 0 was lifted out into work-item:PP-751, which is now closed.** It carried four
 questions that were answered wrongly on paper twice across three review passes, and its
 own deliverable was a spike rather than shipped behaviour, so it became a spike work item
-following the precedent work-item:0205 set for the warm-dispatch measurement method. All
+following the precedent work-item:PP-735 set for the warm-dispatch measurement method. All
 four are settled against prototypes on real hosts, and the sections they govern now
 specify a mechanism rather than a candidate. Every one of the four candidates the plan
 previously carried was falsified: the libc probe could not have worked at all
@@ -529,10 +529,10 @@ cutover. §2 (documentation: the design CLI docs page's runtime-and-cache sectio
 the nine live `notify-downgrade` reasons, `plugin.json` dropping `Node >= 20`,
 the changelog entry — the skill reference pages regenerate from SKILL.md and the
 lockhash env vars are gone). §3 (ADR-0064 supersedes ADR-0061's attestation and
-pointer; ADR-0061 → `superseded`; work-item:0196's addressing/prerequisite text
+pointer; ADR-0061 → `superseded`; work-item:PP-726's addressing/prerequisite text
 corrected). §5 (four follow-up work items raised: 0225 advisory-feed monitoring,
 0226 config-key executable-path audit, 0222 offline `cache ensure --from`, 0223
-default-cache-root bounding). §6 (work-item:0208 records the container lane as the
+default-cache-root bounding). §6 (work-item:PP-738 records the container lane as the
 CI-job owner, with its stale `mise.toml` citations fixed). What remains in Removal
 is gated: `docs:check` (network + Chromium), the clean-`git-status`-after-
 materialisation check, a full `mise run`, and the fresh-install manual run.
@@ -616,7 +616,7 @@ it.
 ### Three collisions with work that landed after this plan was written
 
 - 🔒 **The cache-root probe is now guarded against exactly what a tree path would do.**
-  Work-item:0189 narrowed `verify_writable` to `pub(super)`, made a thread-local
+  work-item:PP-719 narrowed `verify_writable` to `pub(super)`, made a thread-local
   `PROBE_ATTEMPTS` counter its first statement, and added
   `cli/launcher/tests/resolution.rs:590-654` — four `probes_during` tests pinning exact
   per-dispatch counts plus `each_of_two_cold_misses_probes_the_cache_root_once`, an
@@ -630,7 +630,7 @@ it.
   variant set is exactly `{"Version", "Config", "External"}`, so adding a `Cache`
   variant is a two-sided edit, not a frozenset entry.
 - **A `≤ 1.1 ×` warm-path gate is not a criterion one can simply write down.**
-  Work-item:0205 exists because that gate shape was specified three times in prose for
+  work-item:PP-735 exists because that gate shape was specified three times in prose for
   the 0189/0169 lane and found unsound each time — an instrumented launcher that could
   not reach the verified path, a budget whose terms closed by construction, a sample
   count inherited from a four-fold effect and applied to a ten-percent margin. This
@@ -727,7 +727,7 @@ path's envelopes), **AC3** (the bootstrap step's call site), **AC4**
   `bash-parity` (documented at `tasks/test/cli.py:26`). **Any non-default cargo feature
   added to a `cli/` crate is on during `mise run cli:check` and `mise run
   test:unit:cli`** — so the test trust root is a second `[[bin]]`, not a feature
-  (work-item:0214 SQ-4). `cli/vcs-adapters/Cargo.toml:27-33` is the precedent and states
+  (work-item:PP-751 SQ-4). `cli/vcs-adapters/Cargo.toml:27-33` is the precedent and states
   the reason; `cli/launcher/Cargo.toml:17-21` already carries the fixture-bin convention.
   A build-time environment variable was rejected: without
   `cargo:rerun-if-env-changed` — which appears nowhere in this repository — a binary once
@@ -771,7 +771,7 @@ path's envelopes), **AC3** (the bootstrap step's call site), **AC4**
   or bespoke cache eviction beyond a `prune` verb.
 - A formal legal review gate on the release.
 - Automated removal of the abandoned legacy Playwright cache on user machines.
-- Fixing work-item:0208. Wiring `test:integration:design-automation` into a CI job is
+- Fixing work-item:PP-738. Wiring `test:integration:design-automation` into a CI job is
   that item's, not this plan's — but this plan's container lane is the approach 0208
   names as a candidate, so the two are related explicitly rather than proposing the
   same job twice. See the Removal sweep.
@@ -781,7 +781,7 @@ path's envelopes), **AC3** (the bootstrap step's call site), **AC4**
 
 ## Implementation Approach
 
-Three phases plus a removal sweep. Work-item:0214 is closed, so nothing blocks Phase 1
+Three phases plus a removal sweep. work-item:PP-751 is closed, so nothing blocks Phase 1
 or Phase 2 from starting.
 
 ```
@@ -1225,14 +1225,14 @@ is:
 That is a rationale with no threshold, which makes the budget this plan must set a
 genuinely new decision rather than a restatement. The budget is expressed in time and
 converted to a size ceiling, and the per-MB slope is **measured, not back-derived**.
-Work-item:0186's figures cannot supply it: its ~2.3ms-for-8MB minisign number comes
+work-item:PP-716's figures cannot supply it: its ~2.3ms-for-8MB minisign number comes
 from a pre-change 20-run bash loop that 0186's own Validation Results declare "not
 method-comparable" to its interleaved medians, and its ~6.8ms composition figure
 bundles shim process startup with the read. Attributing all of it to size gives
 0.3ms/MB; attributing half gives ~0.45ms/MB and a ceiling nearer 2MB. Deriving a
 marginal cost from one point that includes fixed costs is not sound.
 
-So the slope is obtained directly, with the measurement method work-item:0205 owes (its
+So the slope is obtained directly, with the measurement method work-item:PP-735 owes (its
 SQ-4 is still open — see the warm-path criterion):
 verify two padded launchers of known differing size on the same host and take the
 difference. A 1ms budget then converts to a real ceiling.
@@ -1371,10 +1371,10 @@ directory fd for `trees/`, a symlink at that position is refused outright rather
 resolved, and the **pointer file's own uid and mode are checked** before its contents
 are used as a path. On the hit path this is a handful of extra `lstat`s, which the
 0.17% attestation accounting below shows is affordable; the resulting count is stated in
-the criteria so the work-item:0189 probe expectations stay derived rather than
+the criteria so the work-item:PP-719 probe expectations stay derived rather than
 discovered.
 
-**The attestation is signed**, settled by work-item:0214 SQ-2. Without it the checks
+**The attestation is signed**, settled by work-item:PP-751 SQ-2. Without it the checks
 below are all *local and self-referential* — an attestation whose digest matches the
 digest in its own directory name proves nothing about provenance. That is the hit path's
 only cryptographic anchor, and two things about it have to be right.
@@ -1488,7 +1488,7 @@ any mismatch as a miss.
 
 ⏱️ Measured cost is 51.7µs median cold-process (43.5µs warm in-loop, p99 58.5µs) for one
 Ed25519 verify over a 244-byte attestation in the shipped release profile: **0.17%** of
-work-item:0186's 29.92ms warm bootstrap, or 0.35% for both trees. The added fields do not
+work-item:PP-716's 29.92ms warm bootstrap, or 0.35% for both trees. The added fields do not
 move that — the document stays a few hundred bytes.
 
 The `0444`/`0555` seal is **not** an additional discriminator, and must not be described
@@ -1687,7 +1687,7 @@ and seal it — ~588MB of transfer and ~1.2GB of transient disk, one copy of whi
 then discarded. `cache::store` needs no such guard at ~8MB; at this size the
 duplication is the dominant cost of a first run.
 
-**The in-use signal is a shared `flock` lease**, settled by work-item:0214 SQ-3. The
+**The in-use signal is a shared `flock` lease**, settled by work-item:PP-751 SQ-3. The
 lease sidecar `<gen-name>.lease` is opened and held `LOCK_SH` with `FD_CLOEXEC` cleared,
 so the open file description is inherited through the `exec` into the design binary and
 on into the detached daemon. The reaper and `prune` probe with `LOCK_EX | LOCK_NB`;
@@ -2265,7 +2265,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       the running launcher's
 - [x] 🔒 A dispatch that resolves a tree via `acquire` leaves `probe_attempts()`
       unchanged, and a cold `materialise` adds exactly one — asserted with the
-      `probes_during` harness (`resolution.rs:199-213`) so work-item:0189's
+      `probes_during` harness (`resolution.rs:199-213`) so work-item:PP-719's
       once-per-dispatch guarantee is extended rather than broken. The hit path's exact
       read, `lstat`, verify and `flock` counts are asserted as stated numbers, so the
       added ownership and symlink checks are accounted for rather than discovered
@@ -3666,7 +3666,7 @@ without a probe an Alpine host fetches ~294MB of glibc-linked artifacts, seals t
 dies at `execve` with a bare `ENOENT` from the absent dynamic loader: the hard failure
 AC11 exists to prevent, at maximum cost.
 
-The mechanism, settled by work-item:0214 SQ-1 against prototypes on six hosts, is a
+The mechanism, settled by work-item:PP-751 SQ-1 against prototypes on six hosts, is a
 compile-time short-circuit plus **two** filesystem observations, classified musl-first:
 
 1. Non-Linux targets never reach the probe at all — the module is gated on
@@ -4019,7 +4019,7 @@ covered. This is what makes AC16's "reachable by a user without unpacking the ar
 hand" true; it lands here rather than in Phase 2 because the trees it reads do not exist
 on a user's machine until this phase.
 
-It is the seventh of the seven subcommands work-item:0196's Drafting Notes record, and
+It is the seventh of the seven subcommands work-item:PP-726's Drafting Notes record, and
 the only one the sibling did not deliver — `cli/design-cli/src/cli.rs:19-79` exposes six
 today. AC1's "at least one success and one failure path per subcommand" applies to it.
 
@@ -4219,7 +4219,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 ### Overview
 
 The residue this plan owns: the floor arithmetic, the acceptance of the two ADR
-supersessions work-item:0214 raised (ADR-0061 and ADR-0062), the documentation of the
+supersessions work-item:PP-751 raised (ADR-0061 and ADR-0062), the documentation of the
 removed prerequisite, the final no-`.sh` assertion, and the follow-up items this work
 surfaces.
 
@@ -4288,12 +4288,12 @@ Three further documentation items this plan's mechanisms create:
 
 #### 3. ADR and work-item amendments
 
-**Files**: `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+**Files**: `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 **Changes**: The ADR work this plan owed is **done** — two supersessions, one new
 decision (all three accepted), and now the superseding attestation ADR: **ADR-0064**
 (producer-signed tree attestation over a compiled-in digest) supersedes ADR-0061 on the
 attestation shape and the pointer key, ADR-0061 has transitioned to `superseded`, and
-work-item:0196's addressing/prerequisite text is corrected.
+work-item:PP-726's addressing/prerequisite text is corrected.
 
 - **ADR-0061** (signed content-addressed tree generations) supersedes ADR-0060. It
   records content-based addressing with a per-release pointer (which this plan supersedes
@@ -4335,7 +4335,7 @@ work-item:0196's addressing/prerequisite text is corrected.
   upgrade re-fetches, which is the accepted price of coupling an artifact's lifetime to
   the plugin version's.
 
-All three are accepted. Work-item:0196's Requirements bullet restating version+digest
+All three are accepted. work-item:PP-726's Requirements bullet restating version+digest
 addressing is corrected in step, and its `ensure-playwright.sh` and `Node >= 20`
 references retired.
 
@@ -4387,9 +4387,9 @@ than a note:
   and whether an upgrade should adopt the previous version's trees rather than
   re-materialising.
 
-#### 6. Relationship to work-item:0208
+#### 6. Relationship to work-item:PP-738
 
-**Changes**: No code. Work-item:0208 records that
+**Changes**: No code. work-item:PP-738 records that
 `test:integration:design-automation` runs in no build — it is deliberately absent from
 the `test:integration` roll-up (`mise.toml:270-276`), asserted as excluded-with-a-reason
 by `tests/unit/tasks/test_mise.py:179-193`, and six defects accumulated behind it — and
@@ -4428,14 +4428,14 @@ which now sits at `:270-273`.
 
 - [ ] The docs site builds and every design page's links resolve
 - [ ] A fresh plugin install with no system Node completes an inventory run
-- [x] work-item:0196 no longer describes a scheme the code does not implement (ADR-0061,
+- [x] work-item:PP-726 no longer describes a scheme the code does not implement (ADR-0061,
       ADR-0062 and ADR-0063 are already accepted; the attestation/pointer correction is
       ADR-0064)
 - [x] A superseding ADR records the attestation document's shape and the tuple it binds,
       replacing ADR-0061's "manifest signature over the archive digest" — **ADR-0064**,
       binding `{artifact, platform, archive_sha256, uncompressed_size, entry_count,
       table_sha256}`, digest-keyed pointer, compiled-in expected digest
-- [x] Work-item:0208 records which of the two lanes owns the CI job
+- [x] work-item:PP-738 records which of the two lanes owns the CI job
 
 ---
 
@@ -4488,7 +4488,7 @@ which now sits at `:270-273`.
   (`tests/common/mod.rs:30-32`) makes reachable and currently nothing uses.
 - Probe-count coverage extended rather than replaced: the `probes_during` harness
   (`resolution.rs:199-213`) gains a tree-`acquire` case asserting zero and a tree-
-  `materialise` case asserting one, so work-item:0189's guarantee still has teeth on the
+  `materialise` case asserting one, so work-item:PP-719's guarantee still has teeth on the
   new path. Concurrency tests must not rely on it across threads — `PROBE_ATTEMPTS` is a
   `thread_local!` (`cache_root.rs:74-75`).
 - The assembly path against a **miniature fixture triple** (a few-KB fake `node`, a fake
@@ -4523,7 +4523,7 @@ which now sits at `:270-273`.
 ### Manual Testing Steps
 
 1. Time a warm executor invocation before and after Phase 1 against a launcher built at
-   the merge base, using work-item:0205's interleaved-medians method at n = 300, and
+   the merge base, using work-item:PP-735's interleaved-medians method at n = 300, and
    confirm the Hodges–Lehmann shift's upper 95% bound is below 1.0ms.
 2. Corrupt a file in a sealed tree, run `accelerator cache verify`, then `repair`, and
    confirm a working crawl.
@@ -4539,7 +4539,7 @@ which now sits at `:270-273`.
 
 Three budgets are load-bearing.
 
-**The warm path.** Work-item:0186 took warm bootstrap from 125ms to ~30ms. Per-exec
+**The warm path.** work-item:PP-716 took warm bootstrap from 125ms to ~30ms. Per-exec
 re-verification of a 294MB artifact set would spend 16–33 seconds per crawl re-hashing
 immutable bytes, which is why ADR-0060 exempts trees. The hit path is therefore local
 reads plus `lstat`s, one Ed25519 verify and one `flock` per tree; it loads no manifest and
@@ -4567,7 +4567,7 @@ session.
 **Launcher binary size.** `cli/Cargo.toml:183-185` records that the bootstrap hashes the
 whole launcher on every invocation, so binary size is a per-call latency term and the
 cold-fetch payload. It sets no threshold, so Step 1b §1 derives one — from a **measured**
-per-MB slope, not from work-item:0186's non-method-comparable figure — and enforces the
+per-MB slope, not from work-item:PP-716's non-method-comparable figure — and enforces the
 *delta* in the PR lane rather than only an absolute per-target ceiling at release time.
 
 **First run.** ~294MB per platform, and resumable so a link slow enough to outlast one
@@ -4629,8 +4629,8 @@ sibling's validation added fires on any subset.
 
 ## References
 
-- Work item: `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
-- **Blocking spike**: `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md`
+- Work item: `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
+- **Blocking spike**: `meta/work/PP-751-settle-the-vendored-runtime-tree-artifact-mechanisms.md`
 - Sibling plan (implemented and merged):
   `meta/plans/2026-08-11-0196-design-cli-migration.md`
 - Sibling validation (the source of several corrections here):
@@ -4639,9 +4639,9 @@ sibling's validation added fires on any subset.
   `meta/plans/2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli.md`,
   `meta/reviews/plans/2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1.md`
 - Research: `meta/research/codebase/2026-08-11-0196-design-cli-implementation-surface.md`
-- Measurement method: `meta/work/0205-close-the-warm-dispatch-measurement-method.md`,
+- Measurement method: `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md`,
   `meta/migrations/0196-warm-path-measurement.md`
-- Related: `meta/work/0208-runtime-test-lane-absent-from-every-build.md`
+- Related: `meta/work/PP-738-runtime-test-lane-absent-from-every-build.md`
 - **ADR-0061** (signed content-addressed tree generations), **ADR-0062** (browser
   automation's platform boundary) and **ADR-0063** (plugin-version-scoped artifact
   cache) are the governing decisions, all three accepted; ADR-0059 (build-time assembly

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0187"
+parent: "work-item:PP-717"
 target: "plan:2026-08-02-0187-generalise-sub-binary-registration-surface"
 tags: ["build-system", "distribution", "rust"]
 last_updated: "2026-08-03T13:14:54+00:00"

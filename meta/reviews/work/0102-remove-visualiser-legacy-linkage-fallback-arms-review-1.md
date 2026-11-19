@@ -6,9 +6,9 @@ date: "2026-06-15T20:56:49+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0057"
-target: "work-item:0102"
-work_item_id: "0102"
+parent: "work-item:PP-79"
+target: "work-item:PP-124"
+work_item_id: "PP-124"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -477,7 +477,7 @@ implementation; they are worth a quick pass if convenient.
 Following the pass-2 COMMENT verdict, the reviewer applied the two structural
 follow-ups and the clarity polish from the new-issues list:
 
-- **Frontmatter** — added `blocks: ["work-item:0057"]`, mirroring the prose
+- **Frontmatter** — added `blocks: ["work-item:PP-79"]`, mirroring the prose
   downstream edge so tooling can see it.
 - **AC-2** — pinned the gate grep to a reproducible pattern anchored to the
   own-identity frontmatter key at line start, with MATCH / NO-MATCH examples

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0118"
-parent: "work-item:0118"
-relates_to: ["work-item:0114", "work-item:0115", "work-item:0120"]
+parent: "work-item:PP-140"
+relates_to: ["work-item:PP-136", "work-item:PP-137", "work-item:PP-142"]
 topic: "Reconcile 0007 Backfill Sentinel With Its Validator"
 tags: ["research", "codebase", "migrate", "migration-0007", "corpus-validator", "backfill", "sentinel"]
 revision: "6b9e9bba0648c707e6563e416b03c4203b38d736"
@@ -298,7 +298,7 @@ note `pr_url`/`merge_commit` are optional but `pr_number` is not.
   cross-checks 'what the backfill leaves absent' against 'what the validator
   requires' would catch this class." 0118 establishes the invariant; 0120
   asserts it.
-- `meta/work/0114-fix-migration-0007-incomplete-mechanical-normalisation.md`
+- `meta/work/PP-136-fix-migration-0007-incomplete-mechanical-normalisation.md`
   (status: ready) — broader 0007 backfill completeness. It shares the same
   backfill region but, per the work item's own note, did **not** touch the
   no-derivable-default branch, so there is no live conflict today.
@@ -310,9 +310,9 @@ note `pr_url`/`merge_commit` are optional but `pr_number` is not.
   (the in-body REVISE header is the earlier pass that flagged an under-specified
   sentinel/end-to-end test contract, now resolved in the current work item).
 - Older adjacent machinery:
-  `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` (the origin of
+  `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` (the origin of
   migration 0007) and
-  `meta/work/0105-close-corpus-validator-provenance-and-linkage-blind-spots.md`
+  `meta/work/PP-127-close-corpus-validator-provenance-and-linkage-blind-spots.md`
   (earlier validator work).
 
 ## Related Research

@@ -6,8 +6,8 @@ date: "2026-09-06T12:18:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0245"
-parent: "work-item:0245"
+work_item_id: "work-item:PP-775"
+parent: "work-item:PP-775"
 derived_from: ["codebase-research:2026-09-06-0245-invoke-accelerator-directly-in-skills"]
 tags: ["skills", "cli", "lint"]
 revision: "0bf2ab6cb58936ce319804389eab606d75e8f942"
@@ -514,7 +514,7 @@ doc-only, within `meta/`.
 
 #### 1. Supersede 0107
 
-**File**: `meta/work/0107-lint-skill-body-script-invocations.md`
+**File**: `meta/work/PP-129-lint-skill-body-script-invocations.md`
 **Changes**: Transition status to `done` (or `abandoned`) — `superseded` is
 **not** a valid work-item status (the vocabulary is `draft, ready, in-progress,
 review, done, blocked, abandoned`; `superseded` exists only for `plan` / `adr`
@@ -525,7 +525,7 @@ ADRs), noting the built rule lives in `tasks/lint/bare_invocation.py`.
 
 #### 2. Record ownership and the closed Open Question on 0245
 
-**File**: `meta/work/0245-invoke-accelerator-directly-in-skills.md`
+**File**: `meta/work/PP-775-invoke-accelerator-directly-in-skills.md`
 **Changes**: Note the lint-ownership in Dependencies; record the precondition
 gate's affirmative outcome (including the established version floor and the PATH
 precedence result), closing the PATH Open Question. Record bin-on-PATH as a
@@ -553,8 +553,8 @@ this plan.
 
 #### Automated Verification
 
-- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0107-lint-skill-body-script-invocations.md`
-- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0245-invoke-accelerator-directly-in-skills.md`
+- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/PP-129-lint-skill-body-script-invocations.md`
+- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/PP-775-invoke-accelerator-directly-in-skills.md`
 
 #### Manual Verification
 
@@ -620,9 +620,9 @@ one-time local observation, not a per-environment guarantee.
 
 ## References
 
-- Original work item: `meta/work/0245-invoke-accelerator-directly-in-skills.md`
+- Original work item: `meta/work/PP-775-invoke-accelerator-directly-in-skills.md`
 - Related research: `meta/research/codebase/2026-09-06-0245-invoke-accelerator-directly-in-skills.md`
-- Superseded item: `meta/work/0107-lint-skill-body-script-invocations.md`
+- Superseded item: `meta/work/PP-129-lint-skill-body-script-invocations.md`
 - Scan template: `tasks/lint/call_site_migration.py:26-82`
 - Coupled surfaces: `skills/visualisation/visualise/SKILL.md:7,13`
 - Recognition trap: `tasks/shared/skill_parsing.py:91-93`

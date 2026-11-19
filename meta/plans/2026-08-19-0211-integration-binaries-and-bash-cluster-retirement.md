@@ -6,10 +6,10 @@ date: "2026-08-19T02:05:51+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
 derived_from: ["codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
-relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:0174", "work-item:0165"]
+relates_to: ["work-item:PP-192", "work-item:PP-740", "work-item:PP-742", "work-item:PP-195", "work-item:PP-186"]
 tags: ["rust", "jira", "linear", "integrations", "cli", "cutover", "exit-codes", "registration"]
 revision: "45fe2827ec4eab9404ea4fb851de05fcbd9b87b3"
 repository: "accelerator"
@@ -1287,7 +1287,7 @@ files / 6,701 lines.
 `meta/inventories/0211-reconciliation.md`,
 `meta/inventories/0211-fixture-reconciliation.md` (linear rows),
 `meta/inventories/0211-divergences.md` (linear rows),
-`meta/work/0171-jira-and-linear-integrations.md` (`## Decisions`).
+`meta/work/PP-192-jira-and-linear-integrations.md` (`## Decisions`).
 
 Record the **Linear generator provenance here**, at this track's merge boundary
 (not deferred): the last-existing revision of `mock-linear-server.py` and the
@@ -1987,13 +1987,13 @@ thirteen repo-root entries rather than fourteen).
 ## References
 
 - Work item:
-  `meta/work/0211-integration-binaries-and-bash-cluster-retirement.md`
+  `meta/work/PP-741-integration-binaries-and-bash-cluster-retirement.md`
 - Research:
   `meta/research/codebase/2026-08-17-0211-integration-binaries-and-bash-cluster-retirement.md`
   (follow-up passes 2026-08-19 and 2026-08-22)
-- Parent epic: `meta/work/0171-jira-and-linear-integrations.md`
+- Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md`
 - Blockers, both merged: `meta/work/0210-…md` (PR #70),
-  `meta/work/0212-work-item-script-cutover.md` (PR #73)
+  `meta/work/PP-742-work-item-script-cutover.md` (PR #73)
 - Precedent: `meta/inventories/0167-{removal-set,suite-audit,divergences}.md`,
   `meta/validations/2026-07-19-0167-config-command-and-invocation-contract-migration-validation.md`
 - Registration checklist: `tasks/README.md:499-663`; library crate `:665-722`

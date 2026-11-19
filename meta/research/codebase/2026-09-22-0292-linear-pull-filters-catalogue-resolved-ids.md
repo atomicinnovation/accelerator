@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0292"
-parent: "work-item:0292"
+parent: "work-item:PP-869"
 topic: "Linear Pull Filters via Catalogue-Resolved Ids"
 tags: ["research", "codebase", "linear", "pull-filters", "catalogue", "filter-lowering", "discovery", "tracker-support"]
 revision: "15605264838ee2004161cef81988857d2c1858d1"
@@ -367,29 +367,29 @@ flowchart LR
 
 ## Historical Context
 
-- `meta/work/0229-per-tracker-pull-scope-configuration.md` (**done**) — the
+- `meta/work/PP-759-per-tracker-pull-scope-configuration.md` (**done**) — the
   direct predecessor that introduced `FilterSchema` / `validate` and the
   per-tracker scope split. Its full research→plan→review→validation→PR cluster
   is the closest prior art:
   - `meta/research/codebase/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
   - `meta/plans/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
   - `meta/prs/128-description.md`
-- `meta/work/0048-linear-integration.md` (**done**) +
+- `meta/work/PP-70-linear-integration.md` (**done**) +
   `meta/research/codebase/2026-06-14-0048-linear-integration-apis.md` — the
   primary Linear GraphQL / `IssueFilter` research (id-vs-name comparators).
-- `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md` (**done**)
+- `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md` (**done**)
   +
   `meta/research/codebase/2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear.md`
   — the catalogue-state discovery fix; where `catalogue.json` / `CatalogueStates`
   history lives (no standalone catalogue doc exists).
-- `meta/work/0211-integration-binaries-and-bash-cluster-retirement.md`
+- `meta/work/PP-741-integration-binaries-and-bash-cluster-retirement.md`
   (**done**) — migrated the Linear client into the `linear-client` Rust crate
   where lowering now lives.
-- `meta/work/0146-work-item-sync-enhancements.md` (**draft**, parent epic) — its
+- `meta/work/PP-167-work-item-sync-enhancements.md` (**draft**, parent epic) — its
   Stories entry still describes 0292 as `project.name` lowering and is stale
   (flagged in the work item's own drafting notes).
-- `meta/work/0227-accelerator-config-validate-command.md` (**draft**) and
-  `meta/work/0293-negated-pull-filters.md` (**draft**) — the downstream consumer
+- `meta/work/PP-757-accelerator-config-validate-command.md` (**draft**) and
+  `meta/work/PP-870-negated-pull-filters.md` (**draft**) — the downstream consumer
   and the follow-up that negates the id-keyed forms this story establishes.
 - `meta/reviews/work/0292-linear-project-pull-filter-review-1.md` — the sole
   review of 0292, verdict **APPROVE**.

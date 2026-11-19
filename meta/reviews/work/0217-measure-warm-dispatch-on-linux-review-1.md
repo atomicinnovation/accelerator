@@ -6,8 +6,8 @@ date: "2026-09-14T13:59:07+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0217"
-work_item_id: "0217"
+target: "work-item:PP-746"
+work_item_id: "PP-746"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -150,7 +150,7 @@ None.
    Name Linux/aarch64-musl as the required key and Linux/x86_64 as optional in Requirements/AC, so AC 2 and AC 6 unambiguously refer to the same platform.
 
 6. **Capture the release-cut prerequisite and the release-hosting coupling in Dependencies, and promote directed edges to frontmatter** (addresses: "Release cut carrying 0216 is an uncaptured prerequisite", "Release base URL / network egress named only in Requirements", "Directed edges live only in prose")
-   Add a Dependencies note that this item is blocked on a published, minisign-signed release whose version includes 0216's backend (naming the epic-0136 release owner), list the release base URL as an external availability coupling, and add `blocked_by: ["work-item:0216"]` plus a blocks edge to 0219.
+   Add a Dependencies note that this item is blocked on a published, minisign-signed release whose version includes 0216's backend (naming the epic-0136 release owner), list the release base URL as an external availability coupling, and add `blocked_by: ["work-item:PP-745"]` plus a blocks edge to 0219.
 
 7. **Add criteria for the mechanically-forced deliverables and tighten the soft criteria** (addresses: "Verifiable outcomes absent from AC", "README constants + lockstep test has no criterion", "'Completes a valid session' does not state its pass condition", "'Whether the darwin result transferred' has no threshold")
    Add criteria for the README constants + lockstep test passing and the load rung recording a real power state (not `unknown`); make AC 1's validity condition an explicit field read (e.g. `validity == VALID`, not branch 5); and give AC 4 a concrete transfer test with attribution allowed beyond the two named causes.

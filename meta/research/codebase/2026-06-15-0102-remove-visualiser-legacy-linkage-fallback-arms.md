@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0102"
-parent: "work-item:0102"
+parent: "work-item:PP-124"
 relates_to: ["codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration"]
 topic: "Removing the visualiser server's legacy linkage fallback arms (work-item:/ticket:/work_item_id:/filename) and adding a migration-completion gate"
 tags: ["research", "codebase", "visualiser", "frontmatter", "linkage", "migration", "cleanup"]
@@ -102,7 +102,7 @@ story").
   parent/related/empty/equivalence tests (`:548-553`, `:652-722`).
 
 **Trap**: `typed_ref.rs:38-46` recognises the `work-item:` *value prefix* inside
-a `target:` form (`target: "work-item:0042"`). That is unrelated to the
+a `target:` form (`target: "work-item:PP-64"`). That is unrelated to the
 `work-item:` *frontmatter key* arm and must NOT be touched.
 
 ### Site 2 — `cluster_key.rs:parent_or_legacy_id` (legacy `work_item_id:` branch + rename)
@@ -235,7 +235,7 @@ The gate is a recursive grep over this repo's `meta/` returning zero surviving
 legacy own-identity shapes, with **two clauses**: (a) `^\s*work_item_id:` (0070
 lineage) and (b) `^\s*ticket_id:` (migration `0001` lineage). Anchoring to the
 frontmatter key at line-start is what distinguishes legacy *own-identity* from
-canonical typed *references* (`parent: "work-item:0057"` etc.), which
+canonical typed *references* (`parent: "work-item:PP-79"` etc.), which
 legitimately carry the `work-item:` token and must NOT match.
 
 **Where it lives** (infrastructure that already exists to model on):
@@ -331,7 +331,7 @@ passes on a clean corpus.
 
 ## Historical Context
 
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` and its plan
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` and its plan
   `meta/plans/2026-06-07-0070-meta-corpus-unified-schema-migration.md` (Phase 5,
   §5 lines 1237-1253) — explicitly raised 0102 as the contract follow-on so the
   sequence "can't ossify in the expanded-but-never-contracted state". 0070's

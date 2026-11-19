@@ -13,7 +13,7 @@ id: "2026-05-30-0069-migration-framework-interactive-validation-hooks"
 title: "Migration framework interactive validation hooks — implementation surface for story 0069"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0037", "adr:ADR-0033", "adr:ADR-0035", "adr:ADR-0028", "adr:ADR-0026", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "work-item:0069"]
+relates_to: ["adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0037", "adr:ADR-0033", "adr:ADR-0035", "adr:ADR-0028", "adr:ADR-0026", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "work-item:PP-91"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "adr:ADR-0037", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "codebase-research:2026-05-05-0031-consolidate-accelerator-owned-files"]
 ---
 
@@ -29,7 +29,7 @@ derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-ac
 
 What is the current state of the Accelerator meta-directory migration framework, and what concrete implementation surface does story 0069 need to extend to implement ADR-0037's opt-in interactive contract (with ADR-0038's parameterisation as the first consumer)?
 
-The story (`meta/work/0069-migration-framework-interactive-validation-hooks.md`) names: the trigger-predicate plumbing, runner-surfaced display, accept/edit/skip controls, the resumability mechanism (session log + resume state), the transformation ordering invariant, the transformation key schema, source-drift behaviour, and SKILL.md documentation updates. This research maps each of those into specific lines, helpers, and conventions in the live codebase.
+The story (`meta/work/PP-91-migration-framework-interactive-validation-hooks.md`) names: the trigger-predicate plumbing, runner-surfaced display, accept/edit/skip controls, the resumability mechanism (session log + resume state), the transformation ordering invariant, the transformation key schema, source-drift behaviour, and SKILL.md documentation updates. This research maps each of those into specific lines, helpers, and conventions in the live codebase.
 
 ## Summary
 

@@ -6,8 +6,8 @@ date: "2026-08-05T15:35:17+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0169"
-parent: "work-item:0169"
+work_item_id: "work-item:PP-190"
+parent: "work-item:PP-190"
 derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
 tags: ["rust", "vcs", "hooks", "migration"]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
@@ -183,7 +183,7 @@ shell files are deleted, `skills/vcs/commit` invokes the new subcommands, and
 
 **Verification**: every phase below states its own automated and manual
 success criteria; the story-level acceptance criteria in
-`meta/work/0169-vcs-subdomain-and-hooks-migration.md` are the composite
+`meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` are the composite
 target and are cross-referenced per phase.
 
 ## What We're NOT Doing
@@ -1448,7 +1448,7 @@ two follow-up work items, and the two manual validation measurements.
 **Files**: `meta/work/0172-*.md`, `meta/work/0183-*.md`, `meta/work/0125-*.md`,
 `meta/work/0189-*.md`
 **Changes**: append a dated note to each Dependencies section per the work
-item's own wording (0172: proposed `blocked_by: work-item:0169` plus
+item's own wording (0172: proposed `blocked_by: work-item:PP-190` plus
 `hooks/migrate-discoverability.sh` in its source list; 0183: `accelerator vcs
 detect` as a new SessionStart audit site; 0125: the in-process adapter
 dissolves the lexical-fallback rationale; 0189: its cache-root write-probe
@@ -1490,8 +1490,8 @@ found.
       makes every call's path unique regardless of thread interleaving.
 - [x] The dated hand-off notes and both new work items exist and are
       cross-linked (grep-verified) — dated 2026-08-06 amendments landed on
-      0125, 0172, 0183, 0189; `work-item:0199` (vcs-common.sh residue +
-      `hooks/launcher-link-refresh.sh`) and `work-item:0200` (the guard's
+      0125, 0172, 0183, 0189; `work-item:PP-729` (vcs-common.sh residue +
+      `hooks/launcher-link-refresh.sh`) and `work-item:PP-730` (the guard's
       `log`/`diff` blocklist-membership decision) created and cross-linked
       from 0169's own Dependencies section
 
@@ -1615,7 +1615,7 @@ specific exit code on that failure class should be re-checked.
 
 ## References
 
-- Work item: `meta/work/0169-vcs-subdomain-and-hooks-migration.md`
+- Work item: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - Research: `meta/research/codebase/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md`
 - Prior research: `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`
 - 0187 checklist: `tasks/README.md:304-456`

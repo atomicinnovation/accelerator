@@ -6,10 +6,10 @@ date: "2026-08-19T02:05:23+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0213"
-parent: "work-item:0213"
+work_item_id: "work-item:PP-743"
+parent: "work-item:PP-743"
 derived_from: ["codebase-research:2026-08-18-0213-conversational-conflict-resolution-flow"]
-relates_to: ["work-item:0212", "work-item:0194"]
+relates_to: ["work-item:PP-742", "work-item:PP-724"]
 tags: ["skills", "sync", "work-items", "conflicts", "cli"]
 revision: "979cf97746ff7e5ee39e1bdb1debc3dd080c3f60"
 repository: "accelerator"
@@ -1042,7 +1042,7 @@ thereafter a deletion of the evidence reddens CI.
 
 #### 3. Reconcile 0171's Decisions entry
 
-**File**: `meta/work/0171-jira-and-linear-integrations.md`
+**File**: `meta/work/PP-192-jira-and-linear-integrations.md`
 **Changes**: Flip the conflict-flow walkthrough evidence entry (`:238-241`) from
 *pending (0213)* to *decided*, pointing at `skills/work/sync-work-items/evals/
 evidence/`. Confirm no duplicate entry remains.
@@ -1143,11 +1143,11 @@ and the repo-root `.gitignore` are updated together.
 
 ## References
 
-- Work item: `meta/work/0213-conversational-conflict-resolution-flow.md`
+- Work item: `meta/work/PP-743-conversational-conflict-resolution-flow.md`
 - Research: `meta/research/codebase/2026-08-18-0213-conversational-conflict-resolution-flow.md`
   (with its 2026-08-18 and 2026-08-19 follow-ups)
-- Parent epic: `meta/work/0171-jira-and-linear-integrations.md`
-- Coupled child: `meta/work/0212-work-item-script-cutover.md`
+- Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md`
+- Coupled child: `meta/work/PP-742-work-item-script-cutover.md`
 - Report contract as designed: `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md`
 - ADR-0045 (skills own probabilistic work, the CLI owns deterministic work):
   `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md`

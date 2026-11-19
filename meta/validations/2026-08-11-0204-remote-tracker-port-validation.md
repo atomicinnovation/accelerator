@@ -83,8 +83,8 @@ those notes is corroborated by `mise run check` here.
   cross-rejection family the plan specifies — 23 new cases, 39 total,
   confirmed by test count.
 - The 0204/0194/0171 handoff edits are all present: 0204's frontmatter shows
-  `status: done` and `blocks: ["work-item:0171", "work-item:0194"]`; 0171's
-  `blocked_by` no longer names `work-item:0204`; 0194 carries no
+  `status: done` and `blocks: ["work-item:PP-192", "work-item:PP-724"]`; 0171's
+  `blocked_by` no longer names `work-item:PP-734`; 0194 carries no
   `blocked_by` field at all (cleared per the plan's notes); the review
   document's `relates_to` now points at the correctly-named
   `work-item-review:0194-tracker-crate-and-remote-sync-engine-review-2`

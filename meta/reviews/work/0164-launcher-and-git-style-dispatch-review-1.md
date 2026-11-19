@@ -6,8 +6,8 @@ date: "2026-07-03T12:18:42+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0164"
-work_item_id: "0164"
+target: "work-item:PP-185"
+work_item_id: "PP-185"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -76,7 +76,7 @@ _None._
   **Location**: Frontmatter: blocked_by
   Dependencies says "Blocked by: 0163" but the frontmatter has no `blocked_by`
   field, though it populates `blocks`, `relates_to`, and `parent`. Every sibling
-  uses the convention (0163 itself declares `blocked_by: ["work-item:0162"]`),
+  uses the convention (0163 itself declares `blocked_by: ["work-item:PP-183"]`),
   so the blocker is invisible to structured tooling and Linear sync.
 
 - 🟡 **Dependency**: 0165 is a hard producer/consumer blocker mischaracterised as "Relates to"
@@ -201,7 +201,7 @@ _None._
    OpenSSL dependency (verified via `otool -L`/`ldd`)" and "the bash bootstrap
    passes `scripts/lint-bashisms.sh` and executes under bash 3.2".
 
-3. **Add `blocked_by: ["work-item:0163"]` to the frontmatter** (addresses:
+3. **Add `blocked_by: ["work-item:PP-184"]` to the frontmatter** (addresses:
    "0163 blocker … absent from frontmatter `blocked_by`") — Make the prose
    blocker machine-readable and consistent with the repo/sibling convention.
 
@@ -387,7 +387,7 @@ threshold (2) is met by the three new testability findings.
 
 - 🟡 **Testability**: Fifth criterion bundles two under-specified checks — **Resolved.** Split into two procedure-named criteria (no-dynamic-OpenSSL via `otool -L`/`ldd` across four targets; bootstrap passes `lint-bashisms.sh` under bash 3.2).
 - 🟡 **Testability**: Requirements behaviours (non-UTF-8 args, exit-code/signal) not covered — **Resolved.** Added exit-status-equals-child and non-UTF-8-forwarded-verbatim criteria.
-- 🟡 **Dependency**: 0163 blocker absent from frontmatter `blocked_by` — **Resolved.** `blocked_by: ["work-item:0163"]` added.
+- 🟡 **Dependency**: 0163 blocker absent from frontmatter `blocked_by` — **Resolved.** `blocked_by: ["work-item:PP-184"]` added.
 - 🟡 **Dependency**: 0165 mischaracterised as "Relates to" — **Resolved.** Reframed as an explicit producer/consumer coupling naming the consumed artefacts and a fixture-based independent-close strategy; both lenses now cite this as a strength.
 - 🔵 **Testability**: Env-override escape hatch unverified — **Resolved.** Added the `ACCELERATOR_<SUB>_BIN` no-fetch criterion.
 - 🔵 **Testability**: Verification-failure signal unspecified — **Partially resolved.** AC3 now requires non-zero exit + a message naming the failed check and sub-binary; the *cache post-condition* it added is itself now flagged as under-specified (see new findings).

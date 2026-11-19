@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0201"
-parent: "work-item:0201"
-relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
+parent: "work-item:PP-731"
+relates_to: ["work-item:PP-191", "work-item:PP-195", "work-item:PP-718", "work-item:PP-728"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/56"
 pr_number: 56
 tags: []
@@ -27,7 +27,7 @@ Adds work item 0201, capturing a follow-up to 0170: replace `cli/work-adapters/s
 
 ## Changes
 
-- **`meta/work/0201-in-process-section-diff.md`** — new `task`-kind work item, `status: draft`, `priority: medium`, parented under `work-item:0174` (the shell-tooling-retirement epic), relating to `work-item:0170` (where the subprocess diff was originally built), and `work-item:0188`/`work-item:0198` (the analogous subprocess-to-in-process migration pattern already applied on the VCS side).
+- **`meta/work/PP-731-in-process-section-diff.md`** — new `task`-kind work item, `status: draft`, `priority: medium`, parented under `work-item:PP-195` (the shell-tooling-retirement epic), relating to `work-item:PP-191` (where the subprocess diff was originally built), and `work-item:PP-718`/`work-item:PP-728` (the analogous subprocess-to-in-process migration pattern already applied on the VCS side).
 - Captures six Given/When/Then acceptance criteria covering: the diff renderer running fully in-process with no `std::process::Command`; the existing `=== name (- LOCAL / + REMOTE) ===` header/framing staying unchanged; empty-diff behaviour on identical sections; retiring or rewriting the `bash-parity` feature and `diff_shellout_parity.rs` suite (which currently assert byte-identical output against the real binary); removing or updating `cli/pup.ron`'s `work_adapters_filesystem_reads_in_process` rule (carved out solely to quarantine this one subprocess-spawning module); and a green `mise run` with no `diff` binary dependency left in the `work`/`work-adapters`/`work-cli` crates.
 - Names `similar` in Technical Notes as a researched (not mandated) default crate recommendation — dependency-free, provides `TextDiff::unified_diff()` directly, ~14.8M downloads/month — with `imara-diff` and `diffy` noted as alternatives.
 

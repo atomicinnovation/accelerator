@@ -6,8 +6,8 @@ date: "2026-08-11T15:52:23+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "superseded"
-work_item_id: "work-item:0196"
-parent: "work-item:0196"
+work_item_id: "work-item:PP-726"
+parent: "work-item:PP-726"
 derived_from: ["codebase-research:2026-08-11-0196-design-cli-implementation-surface"]
 tags: ["rust", "design", "cli", "playwright", "launcher", "release-pipeline", "tree-artifacts", "sub-binary"]
 revision: "ed12be49cd87192e74090cb0af1eb109df19e8cb"
@@ -223,7 +223,7 @@ Two sequencing constraints are load-bearing and easy to lose:
 - **Phases 4 and 5 touch surfaces two sibling work items are editing concurrently.**
   The work item requires owners to sync before merging any change to
   `cli/launcher/src/launch/outbound/resolve/` or `tasks/release.py`, naming
-  work-item:0195 (corpus) and work-item:0197 (collaboration), which register
+  work-item:PP-725 (corpus) and work-item:PP-727 (collaboration), which register
   sub-binaries through the same checklist in the same window. Those are exactly the
   files three items edit: the manifest schema, `build_manifest`,
   `_assert_staged_manifest_is_current` and the registration registry. An unsequenced
@@ -998,7 +998,7 @@ for exactly this class of regression.
 `cli/Cargo.toml:149-151` documents launcher binary size as a per-invocation latency
 term, because `bin/accelerator:352-354` minisign-verifies the whole launcher on
 every warm start. "Reconsider if it exceeds a few hundred KB" is not a gate — it has
-no number and no outcome — and it also weights the wrong axis. Work-item:0186
+no number and no outcome — and it also weights the wrong axis. work-item:PP-716
 measured shim exec plus verify of a 7.6MB launcher at ~6.8ms, with minisign alone at
 ~2.3ms for 8MB: roughly **0.3ms/MB**, so a few hundred KB is ~0.1ms, plausibly below
 the measurement noise floor. So the budget is expressed in time and converted to a
@@ -1348,7 +1348,7 @@ cannot drift. `cache` becomes permanently unavailable as a dispatch token.
 - [ ] Exactly **one** archive fetch occurs when two cold resolutions of the same
       tree race, asserted against the `MockServer`'s request count
 - [ ] The launcher binary size delta is within the stated per-target ceiling
-      (~3.3MB, derived from work-item:0186's ~0.3ms/MB verify rate and a 1ms
+      (~3.3MB, derived from work-item:PP-716's ~0.3ms/MB verify rate and a 1ms
       budget), asserted per target rather than recorded
 - [ ] A second resolution of the same tree issues **zero** HTTP requests,
       asserted against the `MockServer`'s request count
@@ -1406,7 +1406,7 @@ cannot drift. `cache` becomes permanently unavailable as a dispatch token.
 - [ ] A launcher built with `--features test-trust-root` verifies an artifact
       signed with the test key **and** one signed with the production key
 - [ ] A warm executor invocation satisfies `after ≤ 1.1 × before` against a
-      pre-Phase-4 launcher on the same host, measured with work-item:0186's method
+      pre-Phase-4 launcher on the same host, measured with work-item:PP-716's method
       (50 interleaved samples in one process, order alternated) rather than a
       bash loop, which 0186 records as not method-comparable
 - [ ] `mise run` exits 0
@@ -2455,7 +2455,7 @@ omitting these edits leaves `test:integration:config` red on merge.
 - [ ] The bootstrap log is truncated and `0600` before the daemon writes, under a
       `umask 077`
 - [ ] A warm executor invocation is no slower than today's `run.sh` path, measured
-      with work-item:0186's interleaved-sample method — the per-invocation cost of the
+      with work-item:PP-716's interleaved-sample method — the per-invocation cost of the
       path a crawl takes 100–200 times, which no criterion measured before
 - [ ] Launcher envelopes are byte-identical 3-key JSON on stderr, and daemon
       envelopes reach stdout at exit 0
@@ -2956,7 +2956,7 @@ describes the retired resolver.
 #### 3. ADR and work-item amendments
 
 **Files**: `meta/decisions/ADR-0060-launcher-resolved-tree-artifacts.md`,
-`meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+`meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 **Changes**: The plan states twice that ADR-0060 needs an amendment and no phase owned
 it, so it lands here. ADR-0060 says tree entries are "addressed by release version and
 digest"; Phase 4 addresses them by digest, platform and generation, with the version in
@@ -2966,7 +2966,7 @@ cross-version tree **adoption**, which is why the layout carries a format versio
 that the pointer is a deliberately-unsigned local indirection whose compromise sits
 inside the same-uid threat model the ADR already accepts.
 
-work-item:0196's Requirements bullet restating the version+digest addressing is
+work-item:PP-726's Requirements bullet restating the version+digest addressing is
 corrected in step, so the work item and the ADR do not describe a scheme the code does
 not implement. Per ADR immutability, an accepted ADR is amended by superseding note
 rather than edited in place — `/accelerator:review-adr` is the route.
@@ -3120,14 +3120,14 @@ premise is behaviour preservation. Raise them so they are carried rather than lo
 3. Repeat on a machine with no system Node after Phase 7.
 4. Corrupt a file in a sealed tree, confirm the failure mode, then repair it.
 5. Time a warm executor invocation before and after Phase 4 and confirm no
-   regression against work-item:0186's bootstrap target.
+   regression against work-item:PP-716's bootstrap target.
 
 ## Performance Considerations
 
 Two budgets are load-bearing and both are addressed by construction rather than
 by tuning.
 
-**The warm path.** Work-item:0186 took warm bootstrap from 125ms to ~30ms.
+**The warm path.** work-item:PP-716 took warm bootstrap from 125ms to ~30ms.
 Per-exec re-verification of a 294MB artifact set would spend 16–33 seconds per
 crawl re-hashing immutable bytes and put every invocation six times over that
 target, which is why ADR-0060 exempts trees. The hit path is therefore two small
@@ -3150,7 +3150,7 @@ readers and neither is on a hot path.
 launcher on every warm start, so the `tar` + `flate2` addition is a per-invocation
 latency term, not just disk — and it is charged to every sub-binary and every hook, not
 only to design. Step 4b §1 derives the budget and the asserted ceiling, including why
-the per-MB slope is measured rather than back-derived from work-item:0186's
+the per-MB slope is measured rather than back-derived from work-item:PP-716's
 non-method-comparable figure; it is not restated here.
 
 Every performance criterion in this plan is a gate with a stated method or threshold,
@@ -3196,7 +3196,7 @@ phase that deletes `run.sh`, and `chromium-not-found` stops naming
 
 ## References
 
-- Original work item: `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- Original work item: `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - Research: `meta/research/codebase/2026-08-11-0196-design-cli-implementation-surface.md`
 - Prior research: `meta/research/codebase/2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli.md`
 - ADR-0057 (browser automation as a glibc-only capability), ADR-0058 (shell-free

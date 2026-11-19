@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0184"
-parent: "work-item:0184"
+parent: "work-item:PP-714"
 topic: "Template resolution succeeds silently on a plugin root that is not an installation"
 tags: ["research", "codebase", "config", "templates", "plugin-root", "cli", "visualiser"]
 revision: "8da94dbf0ba9aa3ddaffb5823633a16cdec2189d"
@@ -296,7 +296,7 @@ not-an-installation signal.
 
 ## Historical Context
 
-- `meta/work/0182-cli-derives-plugin-root-from-own-location.md` — introduced
+- `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md` — introduced
   `PluginRootUnavailable` and `require_plugin_root` for the *absent* root, and
   Phase 5 §3 explicitly deferred the wrong-root case, raising it as 0184.
 - `meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md`

@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-13-0055-sidebar-activity-feed"
 title: "Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator"
 schema_version: 1
-relates_to: ["codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "work-item:0055", "work-item:0036", "work-item:0053", "work-item:0037", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
+relates_to: ["codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "work-item:PP-77", "work-item:PP-58", "work-item:PP-75", "work-item:PP-59", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 derived_from: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
@@ -26,7 +26,7 @@ derived_from: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-re
 
 ## Research Question
 
-What does an implementer of `meta/work/0055-sidebar-activity-feed.md` need to know about the current codebase before planning? Specifically: verify every file/line the work item cites, surface gotchas, identify silent prerequisites (deps, AppState plumbing, missing slots, claimed callback channels), and pin the test patterns and conventions the implementation must follow.
+What does an implementer of `meta/work/PP-77-sidebar-activity-feed.md` need to know about the current codebase before planning? Specifically: verify every file/line the work item cites, surface gotchas, identify silent prerequisites (deps, AppState plumbing, missing slots, claimed callback channels), and pin the test patterns and conventions the implementation must follow.
 
 ## Summary
 
@@ -449,9 +449,9 @@ Pattern (2) avoids any ordering race and matches React-Query's idiom (the cache 
 Reviews and prior plans relevant to this work:
 
 - `meta/reviews/work/0055-sidebar-activity-feed-review-1.md` — three review passes; verdict `COMMENT` (acceptable for implementation). Carry-over minors include: AC3 mixes observable outcome with the `setInterval` mechanism phrasing; AC1 doesn't pin filename derivation (basename vs full path); AC6 white-box clock is observer-defined; AC12/AC13 assume capacity exactly 50 while Requirements says "at least 50".
-- `meta/work/0036-sidebar-redesign.md` — parent epic; phase-to-doc-type table and overall sidebar design rationale.
-- `meta/work/0053-sidebar-nav-and-unseen-tracker.md` — sibling; defines the Sidebar layout + Provider mount (already shipped) + unseen-tracker (already shipped). The Sidebar Activity slot itself is **not** yet defined here — coordinate with whoever implements 0053's chrome.
-- `meta/work/0037-glyph-component.md` — already complete (component shipped at `Glyph.tsx`).
+- `meta/work/PP-58-sidebar-redesign.md` — parent epic; phase-to-doc-type table and overall sidebar design rationale.
+- `meta/work/PP-75-sidebar-nav-and-unseen-tracker.md` — sibling; defines the Sidebar layout + Provider mount (already shipped) + unseen-tracker (already shipped). The Sidebar Activity slot itself is **not** yet defined here — coordinate with whoever implements 0053's chrome.
+- `meta/work/PP-59-glyph-component.md` — already complete (component shipped at `Glyph.tsx`).
 - `meta/plans/2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher.md` — original SSE hub + notify watcher plan; design rationale for the `pre`/`post` comparison and the broadcast channel.
 - `meta/plans/2026-04-26-meta-visualiser-phase-8-kanban-write-path.md` — introduced `WriteCoordinator` and `self-cause.ts`; the basis for the AC11 self-cause behaviour.
 - `meta/research/codebase/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md` — research backing 0053; covers the existing `DocEventsContext` consumption surface.

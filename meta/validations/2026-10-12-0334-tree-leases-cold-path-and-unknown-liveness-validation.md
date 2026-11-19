@@ -44,7 +44,7 @@ Two earlier runs failed for reasons outside the implementation, and both are
 resolved:
 
 - The branch's work item first reused ID `0330`, which trunk already assigns
-  to `0330-skill-command-grants-that-survive-across-queries.md`, so
+  to `PP-916-skill-command-grants-that-survive-across-queries.md`, so
   `this_repositorys_own_corpus_is_clean` reported `DUPLICATE-ID`. The item
   and every reference to it were renumbered to 0334.
 - Ten `github::octocrab_client` tests failed with `Err("Other")` because

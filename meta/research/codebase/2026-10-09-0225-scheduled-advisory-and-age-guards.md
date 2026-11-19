@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0225"
-parent: "work-item:0225"
+parent: "work-item:PP-755"
 topic: "Codebase surface for the scheduled advisory and age guards on the vendored runtime pins"
 tags: ["research", "codebase", "tasks", "vendor", "pins", "keyring", "gpg", "github-actions", "advisories", "runtime-pin-guard"]
 revision: "d64bc1dbfef902d1c0a09fac9f993c303fbe9dc3"

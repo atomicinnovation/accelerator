@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0368"
-parent: "work-item:0368"
+parent: "work-item:PP-960"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "codebase-research:2026-10-09-0225-scheduled-advisory-and-age-guards", "plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 topic: "Implementation surface for 0368: the `measure:build` harness and host guidance"
 tags: ["research", "codebase", "build-system", "measurement", "mise", "jj", "macos", "tasks"]

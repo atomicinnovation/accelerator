@@ -6,8 +6,8 @@ date: "2026-09-08T20:35:43+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0285"
-parent: "work-item:0285"
+work_item_id: "work-item:PP-871"
+parent: "work-item:PP-871"
 derived_from: ["codebase-research:2026-09-08-0285-targeted-pull-of-remote-only-work-items"]
 tags: ["work", "sync", "targeting", "pull"]
 revision: "9c49306cdec8d222b253eac36d05cc769592f064"
@@ -662,7 +662,7 @@ shape as a discovery import.
 
 ## References
 
-- Original work item: `meta/work/0285-targeted-pull-of-remote-only-work-items.md`
+- Original work item: `meta/work/PP-871-targeted-pull-of-remote-only-work-items.md`
 - Research: `meta/research/codebase/2026-09-08-0285-targeted-pull-of-remote-only-work-items.md`
 - Predecessor plan: `meta/plans/2026-09-06-0257-sync-specific-work-items.md`
 - Resolution: `cli/work-cli/src/sync.rs:456` (`resolve_targets`)

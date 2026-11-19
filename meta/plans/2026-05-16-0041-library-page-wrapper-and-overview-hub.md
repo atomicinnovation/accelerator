@@ -13,7 +13,7 @@ last_updated: "2026-05-16T09:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0041", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "plan:2026-05-15-0038-generic-chip-component"]
+relates_to: ["work-item:PP-63", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "plan:2026-05-15-0038-generic-chip-component"]
 ---
 
 # 0041 — Library Page Wrapper, Overview Hub, and List Views Implementation Plan
@@ -1551,7 +1551,7 @@ return <Page title={title} subtitle={subtitle}>{content}</Page>
 
 ## References
 
-- Work item: `meta/work/0041-library-page-wrapper-and-overview-hub.md`
+- Work item: `meta/work/PP-63-library-page-wrapper-and-overview-hub.md`
 - Primary research: `meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overview-hub.md`
 - Supplementary research: `meta/research/codebase/2026-05-16-0041-library-page-wrapper-supplementary.md`
 - Source design gap: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`

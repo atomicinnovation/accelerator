@@ -13,7 +13,7 @@ last_updated: "2026-06-01T20:45:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "9233d4c5361d"
 repository: "ticket-management"
-relates_to: ["work-item:0054", "codebase-research:2026-06-01-0054-sidebar-search", "work-item:0036"]
+relates_to: ["work-item:PP-76", "codebase-research:2026-06-01-0054-sidebar-search", "work-item:PP-58"]
 ---
 
 # 0054 Sidebar Search Input and API Search Endpoint — Implementation Plan
@@ -1403,12 +1403,12 @@ endpoints.
 
 ## References
 
-- Work item: `meta/work/0054-sidebar-search.md`
+- Work item: `meta/work/PP-76-sidebar-search.md`
 - Research: `meta/research/codebase/2026-06-01-0054-sidebar-search.md`
   (the canonical source of file/line references and code excerpts;
   this plan deliberately points back to it rather than duplicating
   every reference)
-- Parent epic: `meta/work/0036-sidebar-redesign.md`
+- Parent epic: `meta/work/PP-58-sidebar-redesign.md`
 - Sibling deliverables: `meta/work/0053-*.md` (sidebar layout +
   search slot), `meta/work/0055-*.md` (activity feed),
   `meta/work/0037-*.md` (Glyph component)

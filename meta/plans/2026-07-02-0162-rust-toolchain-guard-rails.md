@@ -6,10 +6,10 @@ date: "2026-07-02T01:23:10+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0162"
-parent: "work-item:0162"
+work_item_id: "work-item:PP-183"
+parent: "work-item:PP-183"
 derived_from: ["codebase-research:2026-06-29-0162-rust-toolchain-guard-rails-wiring"]
-relates_to: ["work-item:0163", "work-item:0166"]
+relates_to: ["work-item:PP-184", "work-item:PP-187"]
 tags: ["rust", "tooling", "ci", "guard-rails", "architecture-enforcement"]
 revision: "76856fe0ae0a5e746df3bf86f238bb1404ca2f13"
 repository: "accelerator"
@@ -952,10 +952,10 @@ env-var table introduced in Phase 4, alongside `ACCELERATOR_PUP_MODE`, as one
 
 ## References
 
-- Original work item: `meta/work/0162-rust-toolchain-guard-rails.md`
+- Original work item: `meta/work/PP-183-rust-toolchain-guard-rails.md`
 - Related research: `meta/research/codebase/2026-06-29-0162-rust-toolchain-guard-rails-wiring.md`
-- Paired scaffold: `meta/work/0163-scaffold-cli-workspace-version-subcommand.md`
-- Infra-ban co-verification: `meta/work/0166-shared-config-corpus-store-crates.md`
+- Paired scaffold: `meta/work/PP-184-scaffold-cli-workspace-version-subcommand.md`
+- Infra-ban co-verification: `meta/work/PP-187-shared-config-corpus-store-crates.md`
 - ADRs: ADR-0046, ADR-0048, ADR-0053, ADR-0054
 - Reference implementation (luminosity 0006): `../luminosity/` — `mise.toml`,
   `Cargo.toml`, `deny.toml`, `pup.ron`, `tasks/deps.py`, `tasks/deny.py`,

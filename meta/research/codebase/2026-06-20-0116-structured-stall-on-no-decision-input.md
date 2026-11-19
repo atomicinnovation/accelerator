@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0116"
-parent: "work-item:0116"
+parent: "work-item:PP-138"
 topic: "Structured Stall on No Decision Input"
 tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "interactive-lib", "run-migrations"]
 revision: "1fd8ceeccfa2af3146dc8034973152919b3ad0c1"
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-For work item `meta/work/0116-structured-stall-on-no-decision-input.md`: replace
+For work item `meta/work/PP-138-structured-stall-on-no-decision-input.md`: replace
 the two opaque `read_decision()` failure aborts (`failed to obtain decision` /
 `failed to obtain re-decision`) with a structured, actionable stall that names
 the pending decision key(s) and prints an exact resume command. What is the
@@ -342,7 +342,7 @@ criterion and demotes all-keys to best-effort.
 
 ### What 0117 adds: the batch `list → decide → write → resume` flow
 
-0117 (`meta/work/0117-agent-decisions-bridge-and-invoker-contract.md`) is the
+0117 (`meta/work/PP-139-agent-decisions-bridge-and-invoker-contract.md`) is the
 net-new capability that makes all-findings-at-once possible. Its required model
 is the literal phrase `list → decide → write → resume` (AC5, `0117:142`):
 
@@ -481,13 +481,13 @@ need not change twice.
 ## Related Research
 
 - Sibling work items in the same fix set: `meta/work/0115-…` (parent),
-  `0117-agent-decisions-bridge-and-invoker-contract.md` (fix A — promotes the
+  `PP-139-agent-decisions-bridge-and-invoker-contract.md` (fix A — promotes the
   env var; same code region, intended to land *after* 0116),
-  `0118-reconcile-0007-backfill-sentinel-with-validator.md` (fix C — functional
+  `PP-140-reconcile-0007-backfill-sentinel-with-validator.md` (fix C — functional
   precondition for 0007 reaching the interactive phase),
-  `0119-resume-safe-partial-migration-failure.md` (fix E — owns the partial-run
+  `PP-141-resume-safe-partial-migration-failure.md` (fix E — owns the partial-run
   resume the stall's command is a breadcrumb for),
-  `0120-prevention-tests-for-agent-invocation-path.md` (asserts this stall;
+  `PP-142-prevention-tests-for-agent-invocation-path.md` (asserts this stall;
   must land after 0116).
 - No implementation plan exists yet for 0116 or any sibling (0115-0120).
 

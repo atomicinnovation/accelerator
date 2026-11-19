@@ -6,8 +6,8 @@ date: "2026-08-30T19:38:46+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0198"
-work_item_id: "0198"
+target: "work-item:PP-728"
+work_item_id: "PP-728"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -514,7 +514,7 @@ already solved. None is structural; the item is close to implementation-ready.
   bind-mounts; adopt or reference that strong form.
 - 🔵 **Clarity** + **Dependency** (cross-cutting, Frontmatter): The prose "Blocked
   by" 0169/0188 is not mirrored in a structured `blocked_by` frontmatter field
-  (siblings carry one). Add `blocked_by: ["work-item:0169", "work-item:0188"]`.
+  (siblings carry one). Add `blocked_by: ["work-item:PP-190", "work-item:PP-718"]`.
 - 🔵 **Clarity** (Acceptance Criteria): "the fixture matrix" is used with a
   definite article but never defined (same root as the testability major above).
 - 🔵 **Clarity** (Requirements): "never fail", "`--fail-safe`", and "fallback"

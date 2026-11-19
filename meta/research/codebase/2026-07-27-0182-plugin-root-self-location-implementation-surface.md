@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0182"
-parent: "work-item:0182"
+parent: "work-item:PP-712"
 relates_to: ["codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"]
 topic: "Implementation surface for 0182: verifying the rename set, the bootstrap's gate/argv structure, the R4 seam mechanism, the lint-guard and hook patterns, and the build-order dependency"
 tags: ["research", "codebase", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards", "build-system"]
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 Research the codebase for the bug at
-`meta/work/0182-cli-derives-plugin-root-from-own-location.md` — verify the work
+`meta/work/PP-712-cli-derives-plugin-root-from-own-location.md` — verify the work
 item's enumerated rename set, gate counts, and stated mechanisms against the
 live tree, and establish the patterns each of R1–R12 must follow.
 

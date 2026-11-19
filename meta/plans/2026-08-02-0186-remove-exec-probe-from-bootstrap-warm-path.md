@@ -6,10 +6,10 @@ date: "2026-08-02T22:01:31+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0186"
-parent: "work-item:0186"
+work_item_id: "work-item:PP-716"
+parent: "work-item:PP-716"
 derived_from: ["codebase-research:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"]
-relates_to: ["work-item:0169", "work-item:0182", "work-item:0164"]
+relates_to: ["work-item:PP-190", "work-item:PP-712", "work-item:PP-185"]
 tags: ["shell", "performance", "bootstrap", "bash-3.2", "testing"]
 revision: "4a68344cd2614f3bdd07223c8aeaf64583c036f0"
 repository: "accelerator"
@@ -1173,7 +1173,7 @@ without it and the extrapolation to the launcher-side probe does not transfer.
 
 #### 2. Validation Results
 
-**File**: `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md`
+**File**: `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md`
 **Changes**: Replace each _pending_ entry, naming the test function that
 discharges each behavioural criterion so the record traces to a permanent
 guard:
@@ -1261,7 +1261,7 @@ And record:
 
 #### 3. Correct the stale residual figures in 0186 itself
 
-**File**: `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md`
+**File**: `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md`
 **Changes**: The ~11.7 ms / ~23 ms figures appear three more times in this work
 item — Dependencies ("~11.7 ms for the second `sha256_file` alone, or ~23 ms if
 staging were skipped entirely"), Assumptions ("while the ~11.7 ms cost
@@ -1319,7 +1319,7 @@ Phase 4 finds a lane resolving the Perl fallback, reopen it.
 
 #### 5. 0169 hand-off note
 
-**File**: `meta/work/0169-vcs-subdomain-and-hooks-migration.md`
+**File**: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 **Changes**: Confirm the dated note in Dependencies still holds against the
 measured after-median. Correct the quoted residual — its figure derives from the
 Perl-`shasum` cost, not the backend the code uses on a host with
@@ -1331,7 +1331,7 @@ rationale** — that is 0169's own work.
 
 #### 6. Work item status
 
-**File**: `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md`
+**File**: `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md`
 **Changes**: Tick the discharged criteria and move `status` to `complete`.
 
 ### Success Criteria
@@ -1507,7 +1507,7 @@ and to every caller except in latency.
 ## References
 
 - Original work item:
-  `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md`
+  `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md`
 - Research:
   `meta/research/codebase/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md`
 - Measurements and attribution:
@@ -1517,12 +1517,12 @@ and to every caller except in latency.
   `meta/reviews/work/0186-remove-exec-probe-from-bootstrap-warm-path-review-1.md`
 - Plan review:
   `meta/reviews/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path-review-1.md`
-- Design being edited: `meta/work/0164-launcher-and-git-style-dispatch.md`
+- Design being edited: `meta/work/PP-185-launcher-and-git-style-dispatch.md`
 - Downstream consumer of the measurement:
-  `meta/work/0169-vcs-subdomain-and-hooks-migration.md`
+  `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - Rebase baseline:
-  `meta/work/0182-cli-derives-plugin-root-from-own-location.md`
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+  `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADR-0049 (bash 3.2 compatibility floor), ADR-0046 (static binary
   distribution)
 - Probe to split: `bin/accelerator:166-180`

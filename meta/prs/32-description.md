@@ -6,7 +6,7 @@ date: "2026-08-01T13:18:04+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0168"]
+relates_to: ["work-item:PP-189"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/32"
 pr_number: 32
 tags: ["build", "visualiser", "jj", "gitignore", "hygiene"]

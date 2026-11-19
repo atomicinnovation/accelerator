@@ -612,7 +612,7 @@ disambiguation, and the single stale ADR-0036 test reference is correctly
 identified and repointed. Two carry-forward gaps are worth tightening: the
 transitive ADR-0026 supersession lineage (which ADR-0039 treats as load-bearing)
 is not addressed, and ADR-0036's explicit EXCEPTIONS-vs-escape-valve rationale is
-not flagged for preservation. The downstream work-item:0091 staleness is
+not flagged for preservation. The downstream work-item:PP-113 staleness is
 correctly noted and 0091 already self-documents it.
 
 **Strengths**:

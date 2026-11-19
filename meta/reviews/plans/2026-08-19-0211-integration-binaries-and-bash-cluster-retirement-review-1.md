@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
 target: "plan:2026-08-19-0211-integration-binaries-and-bash-cluster-retirement"
-parent: "work-item:0211"
+parent: "work-item:PP-741"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "correctness", "test-coverage", "code-quality", "safety", "compatibility", "security"]

@@ -6,7 +6,7 @@ date: "2026-07-13T10:16:57+00:00"
 author: "Toby Clemson"
 producer: "create-note"
 status: "captured"
-relates_to: ["work-item:0179"]
+relates_to: ["work-item:PP-703"]
 topic: "Bash corpus script inconsistencies surfaced by the corpus crate port"
 tags: ["corpus", "linkage", "doc-types", "tech-debt", "rust-migration"]
 revision: "84a6b82ae0ee9964a036d54cd5e7a00db01bad11"
@@ -287,14 +287,14 @@ contracts** plus a display string, and each has a different consumer:
 | Vocabulary | Example | Consumer | Cost of changing |
 | --- | --- | --- | --- |
 | `config_path_key` | `paths.research_codebase` | `config-defaults.sh`, every user's `.accelerator/config.md` | breaks every user config |
-| `linkage_type_name` | `work-item:0046` | every typed ref in every document | breaks every corpus |
+| `linkage_type_name` | `work-item:PP-68` | every typed ref in every document | breaks every corpus |
 | `wire_str` | `work-items` | the visualiser HTTP API and the React frontend | breaks the API + frontend |
 | `label` | `Work items` | humans | — |
 
 Collapsing them means three simultaneous breaking migrations — config, corpus, and
 wire — and the result would be *worse*, because the three forms are idiomatic for
 their contexts on purpose: a config key naming a directory (`work`), a singular
-typed reference (`work-item:0046`), and a plural collection on the wire
+typed reference (`work-item:PP-68`), and a plural collection on the wire
 (`work-items`). Forcing one string would make at least two of them read wrong.
 
 The problem worth solving was never the plurality — it was **drift**. That is now

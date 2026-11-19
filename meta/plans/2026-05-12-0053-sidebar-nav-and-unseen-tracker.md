@@ -13,7 +13,7 @@ last_updated: "2026-05-12T20:28:19+00:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0053", "codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "work-item:0036", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
+relates_to: ["work-item:PP-75", "codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "work-item:PP-58", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
 # Sidebar Nav with Per-Type Change Indicators — Implementation Plan
@@ -1257,9 +1257,9 @@ way `/library/$type/$fileSlug` is registered today.
 
 ## References
 
-- Work item: `meta/work/0053-sidebar-nav-and-unseen-tracker.md`
+- Work item: `meta/work/PP-75-sidebar-nav-and-unseen-tracker.md`
 - Research: `meta/research/codebase/2026-05-12-0053-sidebar-nav-and-unseen-tracker.md`
-- Parent epic: `meta/work/0036-sidebar-redesign.md`
+- Parent epic: `meta/work/PP-58-sidebar-redesign.md`
 - Related work items: `0033`, `0034`, `0035`, `0037`, `0054`, `0055`
 - Review: `meta/reviews/work/0053-sidebar-nav-and-unseen-tracker-review-1.md`
 - Source design gap: `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md`

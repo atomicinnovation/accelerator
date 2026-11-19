@@ -6,8 +6,8 @@ date: "2026-08-06T00:35:37+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0196"
-work_item_id: "0196"
+target: "work-item:PP-726"
+work_item_id: "PP-726"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -338,7 +338,7 @@ enumerated.
   per subcommand) — a concrete, countable target rather than unbounded
   language.
 - AC4's floor-decrement requirement is made verifiable by explicit
-  cross-reference to work-item:0174.
+  cross-reference to work-item:PP-195.
 - The Open Question is scoped so it doesn't undermine testability of AC2,
   which already covers both outcomes ("run.sh or its folded equivalent").
 
@@ -398,7 +398,7 @@ enumerated.
   Location: Open Questions.
 - 🔵 **Completeness** (minor, high confidence): Context explains the
   item's split provenance but not the underlying migration motivation
-  (bash 3.2 floor removal, who benefits), unlike sibling work-item:0195.
+  (bash 3.2 floor removal, who benefits), unlike sibling work-item:PP-725.
   Location: Context.
 - 🔵 **Scope** (minor, medium confidence): The fold-in alternative for the
   Playwright executor has no stated re-scoping trigger — if confirmed, it's
@@ -409,7 +409,7 @@ enumerated.
   no AC step cross-checking the recorded mapping against delivered tests.
   Location: Acceptance Criteria.
 - 🔵 **Dependency** (suggestion, low confidence): The launcher/dispatch
-  scaffold reference could name work-item:0163/0164 explicitly, matching
+  scaffold reference could name work-item:PP-184/0164 explicitly, matching
   the naming discipline used for the other resolved blockers. Location:
   Dependencies.
 - 🔵 **Clarity** (suggestion, medium confidence): Context/Drafting Notes'

@@ -13,7 +13,7 @@ last_updated: "2026-05-08T09:02:26Z"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0030", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "adr:ADR-0023", "plan:2026-04-25-rename-tickets-to-work-items", "work-item:0052"]
+relates_to: ["work-item:PP-52", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "adr:ADR-0023", "plan:2026-04-25-rename-tickets-to-work-items", "work-item:PP-74"]
 ---
 
 # Centralise PATH and TEMPLATE Config Arrays Implementation Plan
@@ -540,7 +540,7 @@ No data migration. No behavioural change. Pure refactor. Rollback is
 
 ## References
 
-- Work item: `meta/work/0030-centralise-path-defaults.md`
+- Work item: `meta/work/PP-52-centralise-path-defaults.md`
 - Implementation research:
   `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`
 - Related ADR:
@@ -548,7 +548,7 @@ No data migration. No behavioural change. Pure refactor. Rollback is
 - Originating migration:
   `meta/plans/2026-04-25-rename-tickets-to-work-items.md`
 - Downstream consumer:
-  `meta/work/0052-make-documents-locator-paths-config-driven.md`
+  `meta/work/PP-74-make-documents-locator-paths-config-driven.md`
 - Definition site (current):
   - `scripts/config-dump.sh:175-187` (`PATH_KEYS`)
   - `scripts/config-dump.sh:189-201` (`PATH_DEFAULTS`)

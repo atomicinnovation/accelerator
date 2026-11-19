@@ -6,9 +6,9 @@ date: "2026-08-23T14:04:30+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0211"
-parent: "work-item:0211"
-relates_to: ["work-item:0171"]
+work_item_id: "work-item:PP-741"
+parent: "work-item:PP-741"
+relates_to: ["work-item:PP-192"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/77"
 pr_number: 77
 tags: ["rust", "linear", "integrations", "cli", "cutover", "exit-codes", "registration"]
@@ -70,9 +70,9 @@ across 380 files: more bash retired than Rust added.
 
 ## Context
 
-- Work item: `meta/work/0211-integration-binaries-and-bash-cluster-retirement.md`
+- Work item: `meta/work/PP-741-integration-binaries-and-bash-cluster-retirement.md`
 - Plan: `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md`
-- Parent epic: `meta/work/0171-jira-and-linear-integrations.md`
+- Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md`
 - Inventories: `meta/inventories/0211-{removal-set,suite-audit,reconciliation,divergences,fixture-reconciliation}.md`
 
 ## Testing

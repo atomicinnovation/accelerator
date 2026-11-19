@@ -8,7 +8,7 @@ producer: "validate-plan"
 status: "complete"
 result: "pass"
 target: "plan:2026-06-11-0106-invoke-plugin-scripts-by-bare-path"
-relates_to: ["work-item:0106", "work-item:0107"]
+relates_to: ["work-item:PP-128", "work-item:PP-129"]
 tags: ["permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 last_updated: "2026-06-11T19:33:35+00:00"
 last_updated_by: "Toby Clemson"

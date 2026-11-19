@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0114"
-parent: "work-item:0114"
+parent: "work-item:PP-136"
 relates_to: ["issue-research:2026-06-17-migration-0007-incomplete-mechanical-normalisation"]
 topic: "How migration 0007's mechanical passes diverge from its validator, and exactly where each of the six fixes must land"
 tags: ["research", "codebase", "migrate", "frontmatter", "validator", "unified-schema", "0007", "awk"]
@@ -265,7 +265,7 @@ hygiene, path-shape linkage, interactive linkage) — no per-case functions.
 ## Historical Context
 
 - `meta/research/issues/2026-06-17-migration-0007-incomplete-mechanical-normalisation.md` — the RCA this work item is based on; every line reference re-verified here.
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` + `meta/plans/2026-06-07-0070-…md` + `meta/research/codebase/2026-06-07-0070-…md` — built migration 0007.
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` + `meta/plans/2026-06-07-0070-…md` + `meta/research/codebase/2026-06-07-0070-…md` — built migration 0007.
 - `meta/validations/2026-06-09-0070-meta-corpus-migration-dogfood.md` — the dogfood validation run; the corpus it exercised lacked `meta/prs/`, `ticket:` notes, and `PR #N` linkage, which is why these shapes were never caught (RCA Contributing Factors).
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`, `ADR-0034-typed-linkage-vocabulary.md`, `ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md`, `ADR-0042-reconciling-pre-schema-status-values.md` — the schema/linkage/emission contracts the validator enforces.
 - `meta/work/0103-…md` (producer-side emission) and `meta/work/0105-…md` (validator blind-spots) — sibling, already-`done` efforts; deliberately out of scope here.

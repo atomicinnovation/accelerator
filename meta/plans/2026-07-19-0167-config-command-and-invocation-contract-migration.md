@@ -6,10 +6,10 @@ date: "2026-07-19T21:06:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0167"
-parent: "work-item:0167"
+work_item_id: "work-item:PP-188"
+parent: "work-item:PP-188"
 derived_from: ["codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-relates_to: ["work-item:0106", "work-item:0107", "work-item:0166", "work-item:0169", "work-item:0180"]
+relates_to: ["work-item:PP-128", "work-item:PP-129", "work-item:PP-187", "work-item:PP-190", "work-item:PP-704"]
 tags: ["rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "store", "migration"]
 revision: "b290d5d94322d663af947227f8c64e7a470b173f"
 repository: "build-system"
@@ -3326,7 +3326,7 @@ batching on the skills where it matters, which is now committed Phase 5 work.
 
 ## References
 
-- Work item: `meta/work/0167-config-command-and-invocation-contract-migration.md`
+- Work item: `meta/work/PP-188-config-command-and-invocation-contract-migration.md`
 - Research: `meta/research/codebase/2026-07-19-0167-config-command-and-invocation-contract-migration.md`
 - Source research: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
 - ADRs: ADR-0020, ADR-0021, ADR-0045, ADR-0047

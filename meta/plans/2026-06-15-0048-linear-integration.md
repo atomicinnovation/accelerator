@@ -6,8 +6,8 @@ date: "2026-06-14T23:37:32+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0048"
-parent: "work-item:0048"
+work_item_id: "work-item:PP-70"
+parent: "work-item:PP-70"
 derived_from: ["codebase-research:2026-06-14-0048-linear-integration-apis"]
 tags: ["work-management", "integrations", "linear", "graphql"]
 revision: "0df1144f5279aa68e84685405ea57e0f0de984e5"
@@ -107,7 +107,7 @@ skill handles Linear's HTTP-400 RATELIMITED and complexity-cap responses with
 distinct exit codes, and `linear-graphql.sh` transparently paginates Relay
 cursor connections. `mise run` (full local CI mirror) exits 0.
 
-Verification: every acceptance criterion in `meta/work/0048-linear-integration.md`
+Verification: every acceptance criterion in `meta/work/PP-70-linear-integration.md`
 is exercised by an automated bash test against the mock server, and a manual
 end-to-end pass against a real Linear workspace succeeds.
 
@@ -437,7 +437,7 @@ catalogue persisted. Standard `!` preprocessor injection + bare-path caveat.
 **Changes**: Add `"./skills/integrations/linear/"` immediately after the jira
 entry (line 16).
 
-**File**: `meta/work/0048-linear-integration.md`
+**File**: `meta/work/PP-70-linear-integration.md`
 **Changes**: (a) Patch the rate-limit figure `2,500` → `5,000` requests/hr at
 lines 154 and 214 (documentation correction; the figure is server-enforced and
 never appears in code). (b) Correct the stale references to a shared
@@ -559,7 +559,7 @@ byte-identical-remainder assertion (only the target line changes).
       `jq -e '.skills | index("./skills/integrations/linear/")' .claude-plugin/plugin.json`
 - [x] Shell checks pass: `mise run scripts:check`
 - [x] Work item shows `5,000` (not `2,500`):
-      `! grep -q "2,500" meta/work/0048-linear-integration.md`
+      `! grep -q "2,500" meta/work/PP-70-linear-integration.md`
 
 #### Manual Verification
 
@@ -999,7 +999,7 @@ scenarios:
 
 ## References
 
-- Original work item: `meta/work/0048-linear-integration.md`
+- Original work item: `meta/work/PP-70-linear-integration.md`
 - Research: `meta/research/codebase/2026-06-14-0048-linear-integration-apis.md`
 - Transport model: `skills/integrations/jira/scripts/jira-request.sh:322-432`
   (retry/backoff), `:330-333` (token-out-of-argv), `:348-428` (status dispatch)

@@ -6,8 +6,8 @@ date: "2026-10-28T21:34:11+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0362"
-work_item_id: "0362"
+target: "work-item:PP-954"
+work_item_id: "PP-954"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -201,7 +201,7 @@ major-count threshold.
 1. **Record the 0368 baseline ordering** (addresses: Ordering against
    0368's baseline; relates_to omits 0368; Dependencies section sparse)
    Add "Blocked by: 0368 (warm no-op `measure:build` baseline recorded
-   before A1 merges)" to Dependencies, add `work-item:0368` to `relates_to`,
+   before A1 merges)" to Dependencies, add `work-item:PP-960` to `relates_to`,
    and add a "Related" line naming 0366 and 0361's test-count criterion.
 2. **Give the CI criterion a bar that can fail** (addresses: CI criterion
    passes whatever the duration is)

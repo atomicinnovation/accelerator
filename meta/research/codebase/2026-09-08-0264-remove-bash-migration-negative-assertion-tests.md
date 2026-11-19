@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0264"
-parent: "work-item:0264"
+parent: "work-item:PP-794"
 topic: "Remove Bash-Migration Negative-Assertion Tests (0264)"
 tags: ["research", "codebase", "bash-parity", "cargo-pup", "lint", "migration", "cleanup"]
 revision: "fe3a860c450fd1cb9d6fe18fef9d46b5e6b35585"
@@ -209,9 +209,9 @@ Out-of-scope guards, all confirmed present and untouched:
 
 - `meta/decisions/ADR-0048-four-toolchain-split.md` — accepted; establishes the
   Python-as-guardrail-language role the removed guard depends on.
-- `meta/work/0136-migrate-shell-scripts-to-rust-cli.md` — parent epic
+- `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` — parent epic
   (`in-progress`); the migration these tests scaffolded.
-- `meta/work/0269-remove-bash-references-from-jira-linear-clients.md` — `done`;
+- `meta/work/PP-799-remove-bash-references-from-jira-linear-clients.md` — `done`;
   the sibling the work item flagged as unconfirmed.
 - `meta/reviews/work/0264-remove-bash-migration-negative-assertion-tests-review-1.md`
   — the approving review (pass 2, verdict now APPROVE).

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0221"
-parent: "work-item:0221"
-relates_to: ["adr:ADR-0065", "work-item:0220", "work-item:0227"]
+parent: "work-item:PP-750"
+relates_to: ["adr:ADR-0065", "work-item:PP-749", "work-item:PP-757"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/87"
 pr_number: 87
 tags: ["frontmatter", "corpus", "document", "emitter", "validator", "migration", "quoting"]
@@ -39,7 +39,7 @@ Post-review refinements on this branch: stale planning references (ADRs, ACs, wo
 
 ## Context
 
-- Work item: `meta/work/0221-canonical-quoting-standard-for-all-frontmatter.md`
+- Work item: `meta/work/PP-750-canonical-quoting-standard-for-all-frontmatter.md`
 - Decision: `meta/decisions/ADR-0065-canonical-frontmatter-quoting-standard.md`
 - Plan: `meta/plans/2026-08-30-0221-canonical-frontmatter-quoting-standard.md`
 - Validation: `meta/validations/2026-08-30-0221-canonical-frontmatter-quoting-standard-validation.md`

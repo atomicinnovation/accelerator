@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0189"
-parent: "work-item:0189"
-relates_to: ["work-item:0169", "work-item:0186", "work-item:0205"]
+parent: "work-item:PP-719"
+relates_to: ["work-item:PP-190", "work-item:PP-716", "work-item:PP-735"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/63"
 pr_number: 63
 tags: ["cli", "launcher", "bootstrap", "documentation"]
@@ -61,10 +61,10 @@ The property already held. The work was to prove that a regression would be noti
 
 ## Context
 
-- Work item: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+- Work item: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 - Research: `meta/research/codebase/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`
 - Plan and validation: `meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`, `meta/validations/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-validation.md`
-- Sibling plan (drafted, not implemented here): `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`, blocked on `meta/work/0205-close-the-warm-dispatch-measurement-method.md`
+- Sibling plan (drafted, not implemented here): `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`, blocked on `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md`
 - Upstream: 0169's Phase 5 delivered the split this PR guards; 0186 established the mutation-recording pattern Phase 2 follows
 
 ## Testing

@@ -13,7 +13,7 @@ last_updated: "2026-05-30T01:30:00+00:00"
 last_updated_by: "Toby Clemson"
 revision: "cf72bbdc6bea"
 repository: "ticket-management"
-relates_to: ["work-item:0065", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "adr:ADR-0034", "work-item:0057"]
+relates_to: ["work-item:PP-87", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "adr:ADR-0034", "work-item:PP-79"]
 ---
 
 # Update All Artifact Templates to Unified Schema Implementation Plan
@@ -53,7 +53,7 @@ After this plan is complete:
 
 - Each of the nine in-scope templates emits the unified base fields and (where
   applicable) the provenance bundle, per the Schema Reference table in
-  `meta/work/0065-update-artifact-templates-to-unified-schema.md`.
+  `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`.
 - The three metadata helper scripts emit ISO `+00:00` timestamps, a
   `REVISION` key (not `GIT_COMMIT`), and no `GIT_BRANCH`.
 - Each consuming SKILL.md instructs the model to populate every mandatory base
@@ -1448,7 +1448,7 @@ part of this phase.
 
 #### 1. Record discovery commands and outputs
 
-**File**: `meta/work/0065-update-artifact-templates-to-unified-schema.md`
+**File**: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`
 (append a "Discovery Pass Record" section at end, immediately before
 References — this is part of fulfilling AC6).
 
@@ -1633,11 +1633,11 @@ unchanged in cost.
 
 ## References
 
-- Original work item: `meta/work/0065-update-artifact-templates-to-unified-schema.md`
+- Original work item: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`
 - Related research: `meta/research/codebase/2026-05-30-0065-update-artifact-templates-to-unified-schema.md`
 - Authoritative schema ADR: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
 - Authoritative linkage ADR: `meta/decisions/ADR-0034-typed-linkage-vocabulary.md`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Blocked-by predecessors (all done): 0060, 0061, 0063, 0064
 - Blocks: 0066 (validation.md frontmatter handoff), 0070 (corpus migration)
 - Template-loader: `scripts/config-read-template.sh:53-60`

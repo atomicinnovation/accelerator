@@ -6,10 +6,10 @@ date: "2026-06-22T14:07:17+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0124"
-parent: "work-item:0124"
+work_item_id: "work-item:PP-145"
+parent: "work-item:PP-145"
 derived_from: ["codebase-research:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"]
-relates_to: ["work-item:0058", "work-item:0020", "work-item:0125"]
+relates_to: ["work-item:PP-80", "work-item:PP-42", "work-item:PP-146"]
 tags: ["plan", "scripts", "vcs", "git", "worktree", "conductor", "bug"]
 revision: "de38f5413b80f247fa8104ebebca0ed43d9a234b"
 repository: "accelerator"
@@ -392,7 +392,7 @@ This plan deliberately patches the legacy lexical detection strategy rather than
 converging it with the 0058 authoritative-probe layer. To stop that divergence
 becoming permanent-by-default (the exact failure mode that produced 0124):
 
-1. **Tracked as work item [`0125`](../work/0125-converge-vcs-detection-on-probe-layer.md)**
+1. **Tracked as work item [`0125`](../work/PP-146-converge-vcs-detection-on-probe-layer.md)**
    — "converge the legacy lexical helpers (`find_repo_root`, `vcs_mode`) on the
    0058 probe layer" — linked from this plan's `relates_to`. This is the tracked
    follow-up that 0058 failed to produce; it is what stops the divergence
@@ -412,11 +412,11 @@ becoming permanent-by-default (the exact failure mode that produced 0124):
 
 ## References
 
-- Original work item: [`meta/work/0124-find-repo-root-fails-in-git-worktrees.md`](../work/0124-find-repo-root-fails-in-git-worktrees.md)
+- Original work item: [`meta/work/PP-145-find-repo-root-fails-in-git-worktrees.md`](../work/PP-145-find-repo-root-fails-in-git-worktrees.md)
 - Research: [`meta/research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md)
 - `find_repo_root`: [`scripts/vcs-common.sh:8-18`](../../scripts/vcs-common.sh#L8-L18)
 - `vcs_mode`: [`scripts/vcs-common.sh:27-36`](../../scripts/vcs-common.sh#L27-L36)
 - Consistency precedent (`-e`): [`scripts/vcs-common.sh:45-62`](../../scripts/vcs-common.sh#L45-L62)
 - `vcs_mode` consumer: [`skills/work/scripts/work-item-file-dirty.sh:45,101-104`](../../skills/work/scripts/work-item-file-dirty.sh#L45)
 - Test fixture + regression block: [`hooks/test-vcs-detect.sh:86-94`](../../hooks/test-vcs-detect.sh#L86-L94), [`hooks/test-vcs-detect.sh:424-446`](../../hooks/test-vcs-detect.sh#L424-L446)
-- Predecessor work item: [`meta/work/0058-workspace-worktree-boundary-detection.md`](../work/0058-workspace-worktree-boundary-detection.md)
+- Predecessor work item: [`meta/work/PP-80-workspace-worktree-boundary-detection.md`](../work/PP-80-workspace-worktree-boundary-detection.md)

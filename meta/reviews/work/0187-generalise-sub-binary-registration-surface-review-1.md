@@ -6,9 +6,9 @@ date: "2026-08-01T13:00:40+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0187"
-work_item_id: "0187"
+parent: "work-item:PP-157"
+target: "work-item:PP-717"
+work_item_id: "PP-717"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -137,7 +137,7 @@ _None._
 - 🟡 **Dependency**: Three of the four declared downstream consumers do not
   record the reciprocal dependency, and nothing requires them to
   **Location**: Dependencies (Blocks) / Frontmatter: blocks
-  Only 0169 carries `blocked_by: work-item:0187`. 0170 and 0171 have no
+  Only 0169 carries `blocked_by: work-item:PP-717`. 0170 and 0171 have no
   `blocked_by` at all; 0173 lists only 0167. All three are `status: draft`.
   0187 has no requirement or acceptance criterion obliging the hand-off,
   unlike 0169 which has an explicit "the downstream hand-offs are raised"
@@ -342,7 +342,7 @@ _None._
 7. **Add an acceptance criterion for the downstream hand-off** (addresses:
    0170/0171/0173 missing reciprocal edges)
    Mirror 0169's hand-off criterion: require a dated note plus
-   `blocked_by: work-item:0187` on 0170, 0171 and 0173, each pointing at the
+   `blocked_by: work-item:PP-717` on 0170, 0171 and 0173, each pointing at the
    `tasks/README.md` checklist. Also confirm whether 0172 registers a dispatch
    token — if it does, add it to `blocks`; if not, say so in a clause.
 
@@ -593,7 +593,7 @@ acceptance criterion.
   Summary, Context, Requirements, Acceptance Criteria, Dependencies,
   Assumptions, Technical Notes and References; nothing is placeholder-only.
 - Frontmatter is complete and coherent for a ready task: `kind: task`,
-  `status: ready`, `priority: high`, `parent: work-item:0136`, and a `blocks`
+  `status: ready`, `priority: high`, `parent: work-item:PP-157`, and a `blocks`
   list naming all four consumer stories, matching the parent epic's own
   listing of 0187 as unblocked.
 - Context explains the forces behind the work (four sibling stories each
@@ -739,8 +739,8 @@ staging) is neither documented nor declared already-parameterised.
   0187 declares `blocks: [0169, 0170, 0171, 0173]` and stakes its whole
   rationale on those four stories not being "serialised behind whichever gets
   there first", but only 0169 records the reciprocal edge (`blocked_by: […
-  work-item:0187 …]`). 0170, 0171 and 0173 are all `status: draft` and carry
-  no `blocked_by: work-item:0187` — 0170 and 0171 have no `blocked_by` at all,
+  work-item:PP-717 …]`). 0170, 0171 and 0173 are all `status: draft` and carry
+  no `blocked_by: work-item:PP-717` — 0170 and 0171 have no `blocked_by` at all,
   and 0173 lists only 0167 — and 0187 contains no requirement or acceptance
   criterion obliging the implementer to append the hand-off, unlike its
   sibling 0169 which has an explicit "the downstream hand-offs are raised"
@@ -750,7 +750,7 @@ staging) is neither documented nor declared already-parameterised.
   registration surface exists — reproducing exactly the rediscovery-and-refight
   cost this task was extracted to eliminate.
   **Suggestion**: Add an acceptance criterion (mirroring 0169's hand-off
-  criterion) requiring a dated note plus `blocked_by: work-item:0187` to be
+  criterion) requiring a dated note plus `blocked_by: work-item:PP-717` to be
   recorded on 0170, 0171 and 0173, pointing each at the `tasks/README.md`
   checklist.
 
@@ -1523,8 +1523,8 @@ dependency edges were written into the five sibling documents. Pass 4 confirms
 the substance landed: the `covered_by` inversion is corrected, the
 "hardcoding is gone" criterion exists, the defaults are separately asserted,
 and dependency verified the sibling edges directly ("all four carry
-`blocked_by: work-item:0187` plus dated Dependencies bullets, and 0168 carries
-`blocks: work-item:0187`"). Its major count fell 4→1; scope held at zero for a
+`blocked_by: work-item:PP-717` plus dated Dependencies bullets, and 0168 carries
+`blocks: work-item:PP-717`"). Its major count fell 4→1; scope held at zero for a
 second pass.
 
 The pass-4 majors are almost entirely a new class: **internal consistency
@@ -1721,7 +1721,7 @@ two are boundary questions the edits surfaced rather than created.
 
 **Boundary questions the edits surfaced:**
 
-- 🟡 **Clarity**: `blocked_by: ["work-item:0168"]` versus a discharge condition
+- 🟡 **Clarity**: `blocked_by: ["work-item:PP-189"]` versus a discharge condition
   that ends "proceed anyway". No stated circumstance prevents pickup, so the
   machine-readable edge and the prose disagree — and 0187 blocks five stories,
   so a task the prose says is never blocked can present as serialising them.
@@ -1806,7 +1806,7 @@ quality rather than implementation risk:
   it, and `tasks/build.py` holds legitimate visualiser-specific material
   (cross-compile staging, the version-coherence check) that the scan must
   exclude.
-- `blocked_by: ["work-item:0168"]` versus a discharge condition ending "proceed
+- `blocked_by: ["work-item:PP-189"]` versus a discharge condition ending "proceed
   anyway" — a metadata convention question. The prose is the operative
   statement: this is a confirmation gate, not a wait.
 - The 0168 discharge condition covers the crate path but not the visualiser's

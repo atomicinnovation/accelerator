@@ -2,7 +2,7 @@
 date: "2026-05-06T18:00:00+01:00"
 type: "plan"
 producer: "create-plan"
-work_item_id: "meta/work/0033-design-token-system.md"
+work_item_id: "meta/work/PP-55-design-token-system.md"
 status: "draft"
 id: "2026-05-06-0033-design-token-system"
 title: "0033 Design Token System Implementation Plan"
@@ -13,7 +13,7 @@ last_updated: "2026-05-06T18:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0033", "codebase-research:2026-05-06-0033-design-token-system", "design-inventory:2026-05-06-140608-claude-design-prototype", "work-item:0034"]
+relates_to: ["work-item:PP-55", "codebase-research:2026-05-06-0033-design-token-system", "design-inventory:2026-05-06-140608-claude-design-prototype", "work-item:PP-56"]
 ---
 
 # 0033 Design Token System Implementation Plan
@@ -2172,7 +2172,7 @@ the percentage ladder (8% / 18% / 30%), the composition surface
 
 ## References
 
-- Work item: `meta/work/0033-design-token-system.md`
+- Work item: `meta/work/PP-55-design-token-system.md`
 - Research: `meta/research/codebase/2026-05-06-0033-design-token-system.md`
 - Token source: `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md`
   (sections "Active semantic layer — `--ac-*` (light)", "Active
@@ -2189,4 +2189,4 @@ the percentage ladder (8% / 18% / 30%), the composition surface
 - Playwright setup: `skills/visualisation/visualise/frontend/playwright.config.ts`
 - Plan-review artefact: `meta/reviews/plans/2026-05-06-0033-design-token-system-review-1.md`
 - Successor work item (toggle UI / persistence):
-  `meta/work/0034-theme-and-font-mode-toggles.md`
+  `meta/work/PP-56-theme-and-font-mode-toggles.md`

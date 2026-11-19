@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-19-inventory-design-and-browser-agent-fixes"
 title: "Fixes for the inventory-design skill and the browser-locator / browser-analyser agents"
 schema_version: 1
-relates_to: ["work-item:0052", "work-item:0030", "plan:2026-05-08-0030-remove-inline-path-defaults-from-consumers", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator", "work-item:0056", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "design-inventory:2026-05-06-135214-current-app"]
+relates_to: ["work-item:PP-74", "work-item:PP-52", "plan:2026-05-08-0030-remove-inline-path-defaults-from-consumers", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator", "work-item:PP-78", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "design-inventory:2026-05-06-135214-current-app"]
 derived_from: ["codebase-research:2026-05-08-0052-documents-locator-config-driven-paths", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "codebase-research:2026-05-02-design-convergence-workflow"]
 ---
 
@@ -128,7 +128,7 @@ The harness then bang-preprocesses `skills/config/paths/SKILL.md` and
 substitutes the output of `scripts/config-read-all-paths.sh` into the
 agent's context as a "## Configured Paths" block *before the agent
 acts* (work item rationale at
-`meta/work/0052-make-documents-locator-paths-config-driven.md:38-90`).
+`meta/work/PP-74-make-documents-locator-paths-config-driven.md:38-90`).
 
 `skills/config/paths/SKILL.md:1-22` is the preloaded shape that needs to
 be mirrored — note `user-invocable: false` (not
@@ -593,12 +593,12 @@ resolution).
 
 ## Historical Context
 
-- `meta/work/0052-make-documents-locator-paths-config-driven.md` —
+- `meta/work/PP-74-make-documents-locator-paths-config-driven.md` —
   the precedent. Done. Established the `skills:` agent-frontmatter
   mechanism (Requirement 9, lines 88-90 — the harness extension that
   made `skills:` honour-preload in agent definitions, not just
   SKILL.md files).
-- `meta/work/0030-centralise-path-defaults.md` and
+- `meta/work/PP-52-centralise-path-defaults.md` and
   `meta/plans/2026-05-08-0030-remove-inline-path-defaults-from-consumers.md`
   — established the centralised `config-defaults.sh` allow-list and
   removed inline defaults from consumers. The "no inline default at
@@ -612,7 +612,7 @@ resolution).
   keys were still not enumerated by documents-locator. Resolved by the
   research-restructure migration 0004 and the subsequent
   `research_design_*` keys.
-- `meta/work/0056-restructure-meta-research-into-subject-subcategories.md`
+- `meta/work/PP-78-restructure-meta-research-into-subject-subcategories.md`
   and `meta/plans/2026-05-12-…` — introduced the
   `research_design_inventories` / `research_design_gaps` keys.
 - `meta/research/codebase/2026-05-06-design-skill-localhost-and-mcp-issues.md`

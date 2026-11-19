@@ -6,8 +6,8 @@ date: "2026-09-09T21:11:19+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0277"
-parent: "work-item:0277"
+work_item_id: "work-item:PP-861"
+parent: "work-item:PP-861"
 derived_from: ["codebase-research:2026-09-08-0277-single-round-web-research-engine"]
 relates_to: ["adr:ADR-0067", "adr:ADR-0068"]
 tags: ["research", "skills", "deep-research", "corpus", "topic-research"]
@@ -718,7 +718,7 @@ template key by name, so `config_read` goes red without them.
 
 #### 5. Schema-Reference cross-check
 
-**File**: `meta/work/0065-update-artifact-templates-to-unified-schema.md`
+**File**: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`
 **Changes**: Add five `` | `topic-research-<kind>.md` | … | `` rows to the
 `## Schema Reference` table so `cross_check` sees the TSV set and the referenced
 set match. Only the filename cell is test-load-bearing.
@@ -1146,8 +1146,8 @@ apparently additive registry change.
 
 ## References
 
-- Work item: `meta/work/0277-single-round-web-research-engine.md`
-- Parent epic: `meta/work/0121-topic-research-skillset.md`
+- Work item: `meta/work/PP-861-single-round-web-research-engine.md`
+- Parent epic: `meta/work/PP-22-topic-research-skillset.md`
 - Research: `meta/research/codebase/2026-09-08-0277-single-round-web-research-engine.md`
 - ADR-0067 (kind-discriminated schema/templates): `meta/decisions/ADR-0067-kind-discriminated-corpus-schema-and-templates.md`
 - ADR-0068 (general slug resolution): `meta/decisions/ADR-0068-general-slug-resolution-in-the-corpus-cli.md`

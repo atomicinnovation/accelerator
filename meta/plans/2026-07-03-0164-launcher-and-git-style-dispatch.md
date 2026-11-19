@@ -6,10 +6,10 @@ date: "2026-07-03T18:56:45+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0164"
-parent: "work-item:0164"
+work_item_id: "work-item:PP-185"
+parent: "work-item:PP-185"
 derived_from: ["codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"]
-relates_to: ["work-item:0165", "work-item:0167", "work-item:0169"]
+relates_to: ["work-item:PP-186", "work-item:PP-188", "work-item:PP-190"]
 tags: ["rust", "launcher", "dispatch", "cli", "fetch-verify-cache-exec", "minisign", "reqwest", "bootstrap"]
 revision: "db6fa85e195bdcb2e17e7f7f9bc7449341bfaca7"
 repository: "accelerator"
@@ -1103,7 +1103,7 @@ reproducible byte-identity remain a 0165 deliverable (0164 builds the host shim)
 
 ## References
 
-- Work item: `meta/work/0164-launcher-and-git-style-dispatch.md`
+- Work item: `meta/work/PP-185-launcher-and-git-style-dispatch.md`
 - Research: `meta/research/codebase/2026-07-03-0164-launcher-and-git-style-dispatch.md`
 - Parent scope/architecture research:
   `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
@@ -1111,7 +1111,7 @@ reproducible byte-identity remain a 0165 deliverable (0164 builds the host shim)
   `meta/decisions/ADR-0046-zero-setup-static-binary-distribution.md`,
   `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`,
   `meta/decisions/ADR-0049-bash-3.2-compatibility-floor.md`
-- Spike: `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md` (§2 dispatch, §3 launcher)
+- Spike: `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md` (§2 dispatch, §3 launcher)
 - Reference spec (near-impl fidelity, not yet implemented):
   `../luminosity/meta/plans/2026-07-03-0008-static-binary-distribution-and-launcher.md`
 - Insertion points: `cli/launcher/src/version/inbound/cli.rs:17-21`;

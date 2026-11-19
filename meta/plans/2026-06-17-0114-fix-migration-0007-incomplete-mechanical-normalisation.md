@@ -6,8 +6,8 @@ date: "2026-06-17T22:43:39+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0114"
-parent: "work-item:0114"
+work_item_id: "work-item:PP-136"
+parent: "work-item:PP-136"
 derived_from: ["codebase-research:2026-06-17-0114-migration-0007-incomplete-mechanical-normalisation"]
 tags: ["migrate", "frontmatter", "validator", "unified-schema", "0007", "awk"]
 revision: "24cd0f82f087dfaa908d5d8bd59d5e9a3590c3d9"
@@ -1277,7 +1277,7 @@ should be surfaced in the migration's abort log line.
 
 ## References
 
-- Original work item: `meta/work/0114-fix-migration-0007-incomplete-mechanical-normalisation.md`
+- Original work item: `meta/work/PP-136-fix-migration-0007-incomplete-mechanical-normalisation.md`
 - Codebase research: `meta/research/codebase/2026-06-17-0114-migration-0007-incomplete-mechanical-normalisation.md`
 - RCA: `meta/research/issues/2026-06-17-migration-0007-incomplete-mechanical-normalisation.md`
 - Migration: `skills/config/migrate/migrations/0007-unify-meta-corpus-frontmatter.sh`

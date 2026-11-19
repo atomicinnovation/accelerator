@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0098"
-parent: "work-item:0098"
+parent: "work-item:PP-120"
 topic: "Codebase context for implementing work item 0098 — repo-wide linting, formatting, and static analysis guardrails"
 tags: ["research", "codebase", "linting", "formatting", "static-analysis", "tooling", "ci", "mise", "biome", "ruff", "pyrefly", "clippy", "shellcheck", "shfmt"]
 revision: "7d2dd42793f640752ec85594a8775f7a1163c6db"
@@ -454,7 +454,7 @@ from the repo — it lives in GitHub settings.
 - `meta/decisions/ADR-0026` / `ADR-0035` / `ADR-0036` — the CSS/typography
   convention family enforced by the test-based gates that coexist with
   Biome.
-- `meta/work/0090-radius-tokens-consumption.md` + its research/plan/
+- `meta/work/PP-112-radius-tokens-consumption.md` + its research/plan/
   validation chain (2026-06-02) — the precedent "standing gate" this item's
   Dependencies reference.
 - `meta/reviews/work/0098-repo-wide-linting-formatting-static-analysis-review-1.md`

@@ -6,7 +6,7 @@ date: "2026-10-16T00:06:28+00:00"
 author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
-parent: "work-item:0304"
+parent: "work-item:PP-890"
 relates_to: ["adr:ADR-0071"]
 tags: ["cli", "harness", "coupling", "research", "web-profile"]
 last_updated: "2026-10-22T09:31:06+00:00"
@@ -127,5 +127,5 @@ get budgets sized for 200, and a user who lowers it would halt early.
 - `tasks/lint/claude_coupling.py` — the guard and its admission set
 - `cli/research-cli/src/search_cap.rs` — the search cap reader
 - `cli/research-cli/src/harness_setting.rs` — the shared parse
-- `meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`
+- `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`
 - `meta/plans/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0146"
-parent: "work-item:0146"
-relates_to: ["work-item:0218", "work-item:0296", "work-item:0300", "work-item:0302", "work-item:0334", "work-item:0339", "work-item:0343", "work-item:0344", "work-item:0345", "work-item:0346", "work-item:0348"]
+parent: "work-item:PP-167"
+relates_to: ["work-item:PP-747", "work-item:PP-880", "work-item:PP-884", "work-item:PP-879", "work-item:PP-930", "work-item:PP-922", "work-item:PP-931", "work-item:PP-932", "work-item:PP-933", "work-item:PP-934", "work-item:PP-936"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/172"
 pr_number: 172
 tags: []

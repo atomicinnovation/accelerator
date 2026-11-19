@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0207"
-parent: "work-item:0207"
+parent: "work-item:PP-737"
 topic: "Extending the scrub-secrets credential-leak scanner to catch encoded, whitespace-reflowed, and truncated credentials"
 tags: ["research", "codebase", "design-cli", "scrub-secrets", "leaked-credentials", "security", "secrets"]
 revision: "ad8172ca94e09723373c645ff53ea97e7b78489f"

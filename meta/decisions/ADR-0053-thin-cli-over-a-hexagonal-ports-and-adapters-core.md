@@ -9,7 +9,7 @@ title: "ADR-0053: Thin CLI over a Hexagonal Ports-and-Adapters Core"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "work-item:0158"]
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "work-item:PP-181"]
 ---
 
 # ADR-0053: Thin CLI over a Hexagonal Ports-and-Adapters Core
@@ -167,7 +167,7 @@ survive the domain's expected growth.
 ## References
 
 - **Feeding spike (primary provenance)**:
-  `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+  `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — Recommendation §1 is the source of this decision.
 - **Ported from luminosity** — original decision (lum ADR-0009):
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0009-thin-cli-over-a-hexagonal-ports-and-adapters-core.md

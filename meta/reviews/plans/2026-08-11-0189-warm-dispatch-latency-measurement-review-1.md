@@ -6,7 +6,7 @@ date: "2026-08-12T08:58:06+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-parent: "work-item:0189"
+parent: "work-item:PP-719"
 target: "plan:2026-08-11-0189-warm-dispatch-latency-measurement"
 relates_to: ["plan-review:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-review-1"]
 reviewer: "Toby Clemson"
@@ -156,7 +156,7 @@ threefold. Seven criticals and thirty-six majors across seven lenses.
 - 🔴 **Architecture**: Retracting 0189's closure guard while this plan's figures
   are pending re-orphans the obligation
   **Location**: Phase 4, item 2; Desired End State
-  0189's `blocked_by: ["work-item:0169"]` edge is already satisfied (0169 is
+  0189's `blocked_by: ["work-item:PP-190"]` edge is already satisfied (0169 is
   `done`), so the Dependencies bullet "**This item cannot close before that
   release**" is its only structural guard. Phase 4 retracts it while the figures
   sit `_pending_` in a `draft` plan, and the sibling — `ready`, CI-closable —

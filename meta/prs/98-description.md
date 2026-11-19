@@ -6,8 +6,8 @@ date: "2026-09-05T11:08:43+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0203"
-parent: "work-item:0203"
+work_item_id: "work-item:PP-733"
+parent: "work-item:PP-733"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/98"
 pr_number: 98
 tags: ["licensing", "release", "rust", "frontend", "vcs"]
@@ -63,7 +63,7 @@ every MPL-2.0 component — a §3.2 corresponding-source statement.
 
 ## Context
 
-- Work item: `meta/work/0203-ship-a-third-party-attribution-artefact-with-the-release.md`
+- Work item: `meta/work/PP-733-ship-a-third-party-attribution-artefact-with-the-release.md`
 - Plan: `meta/plans/2026-08-31-0203-third-party-attribution-artefact.md` (status `done`)
 - Research: `meta/research/codebase/2026-08-31-0203-third-party-attribution-artefact.md`
 - Validation: `meta/validations/2026-08-31-0203-third-party-attribution-artefact-validation.md`

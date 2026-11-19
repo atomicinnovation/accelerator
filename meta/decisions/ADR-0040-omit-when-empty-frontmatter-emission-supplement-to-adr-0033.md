@@ -9,7 +9,7 @@ title: "ADR-0040: Omit-When-Empty Frontmatter Emission — supplement to ADR-003
 schema_version: 1
 last_updated: "2026-06-04T17:22:01+01:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0037", "adr:ADR-0030", "work-item:0093", "work-item:0070"]
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0037", "adr:ADR-0030", "work-item:PP-115", "work-item:PP-92"]
 ---
 
 # ADR-0040: Omit-When-Empty Frontmatter Emission — supplement to ADR-0033
@@ -193,5 +193,5 @@ elements they define), never as an in-place edit to this record.
 - `meta/decisions/ADR-0035-brand-layer-indirection-supplement-to-adr-0026.md` — prior precedent for the supplement filename convention
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md` — prior precedent for the supplement pattern
 - `meta/decisions/ADR-0030-adr-template.md` — template authority
-- `meta/work/0093-extend-templates-with-typed-linkage-slots.md` — work item this ADR supports
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — downstream consumer; its inferred-link writes follow this rule
+- `meta/work/PP-115-extend-templates-with-typed-linkage-slots.md` — work item this ADR supports
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — downstream consumer; its inferred-link writes follow this rule

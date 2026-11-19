@@ -316,7 +316,7 @@ contributing to the dark-mode bug.
 
 ### Source-document evidence
 
-#### `meta/work/0034-theme-and-font-mode-toggles.md` (the work item itself)
+#### `meta/work/PP-56-theme-and-font-mode-toggles.md` (the work item itself)
 
 Requirements (lines 33-39): theme context hook setting `data-theme`
 (`light`/`dark`); font-mode hook setting `data-font` (`default`/`mono`);

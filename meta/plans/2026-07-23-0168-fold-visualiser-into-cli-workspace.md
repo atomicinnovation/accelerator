@@ -6,10 +6,10 @@ date: "2026-07-23T08:41:19+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0168"
-parent: "work-item:0168"
+work_item_id: "work-item:PP-189"
+parent: "work-item:PP-189"
 derived_from: ["codebase-research:2026-07-23-0168-fold-visualiser-into-cli-workspace"]
-relates_to: ["work-item:0165"]
+relates_to: ["work-item:PP-186"]
 tags: ["rust", "visualiser", "cli", "launcher", "corpus", "workspace"]
 revision: "220cb821e3efd2e87acbd84600c02b36555e40e6"
 repository: "build-system"
@@ -1316,7 +1316,7 @@ this plan. `config.json` is retired.
 
 ## References
 
-- Work item: `meta/work/0168-fold-visualiser-into-cli-workspace.md`
+- Work item: `meta/work/PP-189-fold-visualiser-into-cli-workspace.md`
 - Research: `meta/research/codebase/2026-07-23-0168-fold-visualiser-into-cli-workspace.md`
 - ADRs: ADR-0045, ADR-0053, ADR-0054
 - Naming surfaces: `cli/launcher/src/launch/outbound/resolve/mod.rs:143-146`,

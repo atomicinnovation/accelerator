@@ -14,8 +14,8 @@ id: "2026-05-24-0074-per-doc-type-hues-on-detail-page"
 title: "Pre-implementation Context for 0074 — Per-Doc-Type Hues on Detail Page"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0037", "work-item:0041", "work-item:0073", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype"]
-blocked_by: ["work-item:0079", "work-item:0082"]
+relates_to: ["work-item:PP-59", "work-item:PP-63", "work-item:PP-95", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype"]
+blocked_by: ["work-item:PP-101", "work-item:PP-104"]
 derived_from: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "codebase-research:2026-05-23-0075-typography-size-scale-consumption"]
 ---
 
@@ -371,7 +371,7 @@ or 12 hardcoded `(docType, slug)` pairs.
 ### Historical context (work items, ADRs, prior research)
 
 **0037 — Glyph Component (done)**
-(`meta/work/0037-glyph-component.md`):
+(`meta/work/PP-59-glyph-component.md`):
 
 - Delivered: the `Glyph` component, 12 per-type `*Icon.tsx` files, the
   `--ac-doc-<key>` token namespace in all three theme blocks plus
@@ -389,7 +389,7 @@ or 12 hardcoded `(docType, slug)` pairs.
   is descriptive of what shipped, not a forbidden-list.
 
 **0041 — Library Page Wrapper (done)**
-(`meta/work/0041-library-page-wrapper-and-overview-hub.md`):
+(`meta/work/PP-63-library-page-wrapper-and-overview-hub.md`):
 
 - Established the `Page` wrapper with `[data-slot="eyebrow"]` slot
   mechanism.
@@ -401,7 +401,7 @@ or 12 hardcoded `(docType, slug)` pairs.
   precisely 0074's gap.
 
 **0073 — Atomic Brand-Layer Palette (ready)**
-(`meta/work/0073-atomic-brand-layer-palette.md`):
+(`meta/work/PP-95-atomic-brand-layer-palette.md`):
 
 - Introduces `--atomic-*` brand layer; only `--ac-*` tokens whose
   normalised hex *exactly* matches an `--atomic-*` value get rewritten via
@@ -413,7 +413,7 @@ or 12 hardcoded `(docType, slug)` pairs.
   `DARK_COLOR_TOKENS` keep resolved hex.
 
 **0079 — Aside Region Redesign (draft)**
-(`meta/work/0079-aside-region-redesign.md`):
+(`meta/work/PP-101-aside-region-redesign.md`):
 
 - Redesigns the aside structure (section vocabulary, declared/inferred
   grouping, adds a Cluster block).
@@ -422,7 +422,7 @@ or 12 hardcoded `(docType, slug)` pairs.
   changes" to minimise conflict (work item 0074 lines 70-72).
 
 **0082 — BigGlyph Hero Illustrations (draft)**
-(`meta/work/0082-big-glyph-hero-illustrations.md`):
+(`meta/work/PP-104-big-glyph-hero-illustrations.md`):
 
 - Ships per-doc-type hero illustrations via a 7-tone palette from a single
   hue per type (`bigPalette(hue)`).
@@ -577,14 +577,14 @@ discipline.
 
 ## Historical Context
 
-- `meta/work/0037-glyph-component.md` — token namespace and component
+- `meta/work/PP-59-glyph-component.md` — token namespace and component
   contract origin.
-- `meta/work/0041-library-page-wrapper-and-overview-hub.md` — eyebrow slot
+- `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` — eyebrow slot
   pattern.
-- `meta/work/0073-atomic-brand-layer-palette.md` — brand-layer rewrite
+- `meta/work/PP-95-atomic-brand-layer-palette.md` — brand-layer rewrite
   preserves resolved values; 0074 AC #3 is insulated.
-- `meta/work/0079-aside-region-redesign.md` — blocked by 0074.
-- `meta/work/0082-big-glyph-hero-illustrations.md` — blocked by 0074.
+- `meta/work/PP-101-aside-region-redesign.md` — blocked by 0074.
+- `meta/work/PP-104-big-glyph-hero-illustrations.md` — blocked by 0074.
 - `meta/decisions/0026-css-design-token-application-conventions.md` —
   token discipline governance.
 - `meta/decisions/0035-brand-layer-indirection.md` — confirms

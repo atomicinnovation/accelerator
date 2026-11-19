@@ -6,10 +6,10 @@ date: "2026-09-20T20:46:56+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0217"
-parent: "work-item:0217"
+work_item_id: "work-item:PP-746"
+parent: "work-item:PP-746"
 derived_from: ["codebase-research:2026-09-20-0217-measure-warm-dispatch-on-linux"]
-relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement", "work-item:0216", "work-item:0219", "work-item:0205"]
+relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement", "work-item:PP-745", "work-item:PP-748", "work-item:PP-735"]
 tags: ["cli", "launcher", "performance", "measurement", "calibration"]
 revision: "0f4ced25f0eb414b0b072aa9f054631943b929f8"
 repository: "accelerator"
@@ -965,10 +965,10 @@ resolves both digest backends.
 
 ## References
 
-- Original work item: `meta/work/0217-measure-warm-dispatch-on-linux.md`
+- Original work item: `meta/work/PP-746-measure-warm-dispatch-on-linux.md`
 - Research: `meta/research/codebase/2026-09-20-0217-measure-warm-dispatch-on-linux.md`
 - Criterion and darwin figures:
-  `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
+  `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 - Harness design and derivation rules:
   `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`
 - `PLATFORM_TABLE` and the entry dataclasses: `tasks/measure.py:148-199`,

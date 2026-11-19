@@ -6,8 +6,8 @@ date: "2026-09-10T01:28:32+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0228"
-work_item_id: "0228"
+target: "work-item:PP-758"
+work_item_id: "PP-758"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -415,7 +415,7 @@ one-line clarification before planning.
   "migration … editable value" pull in different directions (Requirements bullet 6,
   AC #8/#9).
 - 🔵 **Dependency** (minor, medium): The 0228→0230 Blocks edge is one-sided — 0230's
-  frontmatter carries no `blocked_by: ["work-item:0228"]`, unlike 0229.
+  frontmatter carries no `blocked_by: ["work-item:PP-758"]`, unlike 0229.
 - 🔵 **Dependency** (minor, medium): The 0227 coupling is directional (0227's
   work.key-validation portion depends on 0228) but recorded only as relates_to;
   sibling 0229 records the parallel case as a scoped Blocks.
@@ -446,7 +446,7 @@ already-passing criteria.
 **Verdict:** APPROVE (was COMMENT)
 
 Approved by Toby Clemson. The pass-2 dependency reciprocity items were closed after
-re-review — 0230 now carries `blocked_by: work-item:0228`, and 0228 records the 0227
+re-review — 0230 now carries `blocked_by: work-item:PP-758`, and 0228 records the 0227
 coupling as a scoped Blocks — and the tracker-less minting criterion gained its
 `id_pattern` precondition. The remaining open items (the alias-vs-migration
 persistence clarification and two testability refinements) are accepted as

@@ -6,8 +6,8 @@ date: "2026-08-31T20:42:23+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0272"
-parent: "work-item:0272"
+work_item_id: "work-item:PP-802"
+parent: "work-item:PP-802"
 derived_from: ["codebase-research:2026-08-31-0272-relocate-insecure-local-override-marker"]
 tags: ["security", "config", "cleanup"]
 revision: "793f8dbcd3bc0fb8b4cd151c76002757720c9b22"
@@ -424,9 +424,9 @@ hard cutover rests on a verified premise.
 
 ## References
 
-- Original work item: `meta/work/0272-relocate-insecure-local-override-marker.md`
+- Original work item: `meta/work/PP-802-relocate-insecure-local-override-marker.md`
 - Related research:
   `meta/research/codebase/2026-08-31-0272-relocate-insecure-local-override-marker.md`
 - Resolver seam: `cli/tracker-support/src/credentials.rs:135-143,378-428`
 - Consolidation rationale:
-  `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+  `meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`

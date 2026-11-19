@@ -6,8 +6,8 @@ date: "2026-10-30T17:19:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0368"
-parent: "work-item:0368"
+work_item_id: "work-item:PP-960"
+parent: "work-item:PP-960"
 derived_from: ["codebase-research:2026-10-30-0368-build-performance-measurement-harness", "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["build-system", "measurement", "performance", "mise", "jj", "macos", "tasks"]
@@ -2713,7 +2713,7 @@ Keep the five strings that `TestMeasureNamespaceDocs` pins.
 Extend the comment above `/.accelerator-measure/` to say it also holds
 `measure:build` run directories. The pattern itself is unchanged.
 
-**File**: `meta/work/0368-build-performance-measurement-and-host-guidance.md`
+**File**: `meta/work/PP-960-build-performance-measurement-and-host-guidance.md`
 
 Amend the `--keep` contract:
 - **Requirement 5.** `--keep` also writes the record under
@@ -2827,7 +2827,7 @@ hand.
 | Item | Frontmatter | Body |
 |---|---|---|
 | 0368 | Remove 0362, 0363, 0364 and 0367 from `blocks`; keep 0365 and 0366 | Dependencies: cite the baseline record path |
-| 0362, 0363, 0364, 0367 | Remove `work-item:0368` from `blocked_by` | Dependencies: replace the "remove the edge once the baseline is recorded" text with the baseline path |
+| 0362, 0363, 0364, 0367 | Remove `work-item:PP-960` from `blocked_by` | Dependencies: replace the "remove the edge once the baseline is recorded" text with the baseline path |
 | 0365 | Keep the edge | Dependencies: baseline recorded at `<path>`; the edge now waits for isolation mode only |
 | 0366 | Keep the edge | Dependencies: baseline recorded at `<path>`; the edge now waits for the cold state only |
 | 0361 | — | Technical Notes: name the baseline record its 200 s criterion compares against, and say the closing comparison runs `mise run measure:compare-builds -- <baseline> <final>`, whose first line must report no differing condition |
@@ -2956,7 +2956,7 @@ within each run.
 
 | Item | Frontmatter | Body |
 |---|---|---|
-| 0365 | Remove `work-item:0368` from `blocked_by` | Dependencies: replace "the edge now waits for isolation mode only" with the merged isolation mode and the baseline path |
+| 0365 | Remove `work-item:PP-960` from `blocked_by` | Dependencies: replace "the edge now waits for isolation mode only" with the merged isolation mode and the baseline path |
 | 0368 | Remove 0365 from `blocks` | Dependencies: say 0365's wait on Requirement 3 is discharged |
 
 ### Success Criteria:
@@ -3395,7 +3395,7 @@ than a `partial`, which ruff's RUF009 flags.
 
 | Item | Frontmatter | Body |
 |---|---|---|
-| 0366 | Remove `work-item:0368` from `blocked_by` | Dependencies: replace "the edge now waits for the cold state only" with the merged cold state and the baseline path |
+| 0366 | Remove `work-item:PP-960` from `blocked_by` | Dependencies: replace "the edge now waits for the cold state only" with the merged cold state and the baseline path |
 | 0368 | Remove 0366 from `blocks` | Dependencies: say 0366's wait on Requirement 4 is discharged |
 
 ### Success Criteria:
@@ -4183,7 +4183,7 @@ Where the phase departed from the plan:
   research's 247 s, and queueing 0.1 s from the invocation's start.
 - **Work-item edits.** Made before merging, at the operator's request,
   rather than after: 0365 no longer lists `blocked_by`, and 0368's
-  `blocks` is `["work-item:0366"]`. As in Phase 5, the emptied
+  `blocks` is `["work-item:PP-958"]`. As in Phase 5, the emptied
   `blocked_by: []` was deleted by hand. If this branch is abandoned, 0365's
   edge to 0368 should be restored.
 
@@ -4218,7 +4218,7 @@ Where the phase departed from the plan:
   the session hook; disabling the `prepare_timed_run` call fails three of
   them.
 - **Work-item edits.** Made before merging, at the operator's request,
-  rather than after: 0366's `blocked_by` is `["work-item:0362"]`, and
+  rather than after: 0366's `blocked_by` is `["work-item:PP-954"]`, and
   0368's emptied `blocks` was deleted by hand. 0366's Dependencies gain a
   "Measured with" bullet naming the cold command and the baseline. If this
   branch is abandoned, 0366's edge to 0368 should be restored.
@@ -4330,7 +4330,7 @@ them up. Each fits a later phase:
 
 ## References
 
-- Work item: `meta/work/0368-build-performance-measurement-and-host-guidance.md`
+- Work item: `meta/work/PP-960-build-performance-measurement-and-host-guidance.md`
 - Implementation research: `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
 - Source research and its harness appendix: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
 - Precedent plan: `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`

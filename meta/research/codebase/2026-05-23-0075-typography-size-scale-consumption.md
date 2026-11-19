@@ -14,7 +14,7 @@ id: "2026-05-23-0075-typography-size-scale-consumption"
 title: "0075 Typography Size-Scale Consumption Reconciliation"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["design-gap:2026-05-21-current-app-vs-claude-design-prototype", "adr:ADR-0026", "work-item:0033", "work-item:0090"]
+relates_to: ["design-gap:2026-05-21-current-app-vs-claude-design-prototype", "adr:ADR-0026", "work-item:PP-55", "work-item:PP-112"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "design-inventory:2026-05-21-015231-claude-design-prototype"]
 ---
 
@@ -370,12 +370,12 @@ ADR work:
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md` —
   Canonical token-application conventions (May 2026); 0075 supersedes
   parts of §2 and §3 for typography.
-- `meta/work/0033-design-token-system.md` (status: done) — Introduced the
+- `meta/work/PP-55-design-token-system.md` (status: done) — Introduced the
   full token system and `migration.test.ts`. Status note: 0033's
   acceptance was *"hardcoded literals replaced with tokens where a
   semantic match exists OR explicit EXCEPTIONS recorded"*, so the
   EXCEPTIONS-array approach is the current contract.
-- `meta/work/0090-radius-tokens-consumption.md` (status: draft) —
+- `meta/work/PP-112-radius-tokens-consumption.md` (status: draft) —
   Sibling pattern for radius; will share whatever scaffolding 0075
   introduces (e.g. `migration.test.ts` rule changes).
 

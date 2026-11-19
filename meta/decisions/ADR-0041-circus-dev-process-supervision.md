@@ -9,7 +9,7 @@ title: "ADR-0041: circus for dev process supervision"
 schema_version: 1
 last_updated: "2026-06-07T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:0101", "plan:2026-06-06-0101-unified-dev-task-for-visualiser", "adr:ADR-0030", "adr:ADR-0029", "adr:ADR-0031", "adr:ADR-0019"]
+relates_to: ["work-item:PP-123", "plan:2026-06-06-0101-unified-dev-task-for-visualiser", "adr:ADR-0030", "adr:ADR-0029", "adr:ADR-0031", "adr:ADR-0019"]
 ---
 
 # ADR-0041: circus for dev process supervision
@@ -152,7 +152,7 @@ needs documenting. (Windows is out of scope regardless.)
 
 ## References
 
-- `meta/work/0101-unified-dev-task-for-visualiser.md` — source work item
+- `meta/work/PP-123-unified-dev-task-for-visualiser.md` — source work item
 - `meta/plans/2026-06-06-0101-unified-dev-task-for-visualiser.md` —
   implementation plan
 - `meta/decisions/ADR-0030-adr-template.md` — template this ADR follows

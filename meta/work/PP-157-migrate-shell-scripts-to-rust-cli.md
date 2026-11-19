@@ -1,0 +1,288 @@
+---
+type: "work-item"
+id: "PP-157"
+title: "Migrate Shell Scripts into a Rust CLI"
+date: "2026-06-22T23:41:03+00:00"
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "epic"
+priority: "medium"
+source: "note:2026-06-22-ideas-backlog"
+relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
+tags: ["rust", "cli", "migration", "epic"]
+last_updated: "2026-10-10T12:00:00+00:00"
+last_updated_by: "Toby Clemson"
+schema_version: 1
+external_id: "PP-157"
+aliases: ["0136"]
+---
+
+# PP-157: Migrate Shell Scripts into a Rust CLI
+
+**Kind**: Epic
+**Status**: Done
+**Priority**: Medium
+**Author**: Toby Clemson
+
+## Summary
+
+Migrate the shell-script library that backs the skills into a Rust CLI,
+consolidating logic into a typed, testable, cross-platform binary.
+
+## Context
+
+Extracted from the ideas backlog note
+(`meta/notes/2026-06-22-ideas-backlog.md`). A large bash library (config
+reading, VCS detection, frontmatter parsing, migrations) currently backs the
+skills and is constrained by a bash 3.2 floor.
+
+## Requirements
+
+- Identify the shell scripts and shared library functions in scope for
+  migration. *(Done — see the surface research and the scope/architecture
+  research below.)*
+- Define the Rust CLI surface that replaces them, preserving the
+  `${CLAUDE_PLUGIN_ROOT}` invocation contract used by skills. *(Done — the
+  `accelerator` launcher + `accelerator-<sub>` binaries, crate split, and
+  subcommand surface are defined in the architecture research.)*
+- Plan an incremental migration that keeps skills working throughout. *(Done —
+  the 12-phase decomposition below, sequenced along the dependency spine.)*
+
+## Decomposition
+
+This epic is decomposed into the following child work items, ordered along the
+dependency spine; each keeps the plugin functional at its step. Statuses vary
+and are tracked on the items themselves. Grandchildren are listed indented
+beneath the parent that owns them and are covered transitively by that parent's
+completion. This list was reconciled against the real parent-linked child set on
+2026-08-31 (see Drafting Notes), and extended on 2026-09-05 with the
+post-migration remnants recovered from an audit of work items numbered above
+0136 (see the closing group).
+
+**Foundations (Phases 0–2):**
+- 0162 — Rust Toolchain Guard Rails in mise + CI
+- 0163 — Scaffold the cli/ Hexagonal Workspace with a version Subcommand
+- 0164 — Launcher and Git-Style Dispatch
+- 0165 — Multi-Binary Static Distribution and Release Pipeline with minisign
+- 0186 — Remove the Exec Probe from the Bootstrap Warm Path *(unblocked 0169)*
+- 0187 — Generalise the Sub-Binary Registration Surface *(unblocked
+  0169/0170/0171/0172/0173)*
+
+**Shared core + the contract cutover (Phases 3–4):**
+- 0166 — Shared config, corpus, and store Crates
+  - 0178 — config and config-adapters Crates with Native YAML Reader
+  - 0179 — corpus and corpus-adapters Crates for Parsing and Conventions
+  - 0180 — Atomic-Store Primitives in corpus-adapters
+- 0167 — Built-in config Command and Invocation-Contract Migration
+
+**Subdomain migrations (Phases 5–10):**
+- 0168 — Fold the Visualiser into the cli/ Workspace
+- 0188 — Library-Backed VCS Adapter over gix and jj-lib *(precedes 0169)*
+- 0169 — VCS Subdomain and Hooks Migration
+- 0198 — Replace vcs status/log with a VCS-agnostic library-backed renderer
+  *(revisits 0169's deliberate subprocess choice for `status`/`log`)*
+- 0200 — Decide whether git log/diff belong in vcs guard's blocked subcommand
+  set *(spike; reconsiders the blocklist 0169 carried over verbatim)*
+- 0204 — RemoteTracker Port *(split from 0194 on 2026-08-10; the frozen
+  port signature, which precedes both 0171's client adapters and 0194)*
+- 0194 — Tracker Crate and Remote Sync Engine *(split from 0170 on
+  2026-08-05; also wires `--push` onto 0170's `create`/`update` commands,
+  and precedes 0171's cutover half)*
+- 0170 — Work-Item Lifecycle Subdomain
+- 0171 — Jira and Linear Integrations
+  - 0210 — Provider Client Crates over the RemoteTracker Port
+  - 0211 — Integration Binaries and Bash Cluster Retirement
+  - 0212 — Work-Item Script Cutover
+  - 0213 — Conversational Conflict Resolution Flow for Sync
+- 0172 — Migration Engine Subdomain
+- 0173 — Remaining Subdomains: corpus, design, collaboration *(abandoned
+  2026-08-05 — split into 0195/0196/0197, see Drafting Notes)*
+- 0195 — accelerator-corpus: ADR, Metadata, Frontmatter Validation, and
+  Linkage CLI
+- 0196 — accelerator-design: Design Inventory and Gap Tooling CLI
+  - 0206 — Classify Navigation URLs, Not Only The Initial Location
+  - 0207 — Detect Encoded Credentials In Scrubbed Artefacts
+  - 0209 — Wire Up The Browser Auth-Header Path In Design Skills
+  - 0214 — Settle the vendored-runtime tree-artifact mechanisms
+- 0197 — accelerator-collaboration: PR Helper CLI
+
+**Cleanup (Phase 11):**
+- 0185 — Converge corpus-adapters on the Library-Backed VCS Adapter
+- 0199 — Retire `scripts/vcs-common.sh`'s residual shell callers and
+  `hooks/launcher-link-refresh.sh`
+- 0174 — Empty scripts/ and Retire Shell Tooling and CI Guards
+- 0221 — Canonical Quoting Standard for All Frontmatter
+- 0203 — Ship a Third-Party Attribution Artefact with the Release Uploads
+  *(filed 2026-08-10 from 0185's licensing finding; joins the release upload set
+  0165 owns, and the notice obligation predates 0185 for four of the five
+  affected binaries)*
+
+**Launcher hardening and warm-path performance:**
+- 0189 — At-Most-Once Guarantee for the Launcher's Cache-Root Probe
+- 0190 — acquire_lock misclassifies an unusable lock directory and can spin
+  unbounded on reclaim
+- 0191 — Batch the bootstrap's two shim hashes into one sha256 invocation
+- 0215 — Remove the cache-hit sha256 from warm dispatch *(filed 2026-08-17 from
+  0189's measurement; 6.05 ms of a 35.53 ms dispatch; must preserve the
+  name/version binding the signature does not carry)*
+- 0216 — Close the sha2 hardware-intrinsics gap *(spike: sha256 at ~550 MB/s
+  against openssl's 1,708, and BLAKE2b outruns it 2.6x; may make 0215 moot)*
+- 0218 — Bound cache-root growth *(`cache::find` scans a never-evicted directory
+  on every dispatch)*
+
+**Post-migration remnants (reconciled 2026-09-05):** recovered from an audit of
+work items numbered above 0136 that belonged to the migration or its shipped
+crates but had been left parentless. Post-migration *evolution* of the workspace
+(refactors, ergonomics, crate renames) is out of scope here and lives under the
+successor epic 0276.
+
+- 0158 — Modular Rust CLI Architecture & Hexagonal Workspace Layout *(the
+  foundational architecture spike, ported from luminosity, that feeds this
+  epic)*
+- 0182 — bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never
+  exported to skills) *(launcher bug)*
+- 0184 — Template resolution succeeds silently on a plugin root that is not an
+  installation *(bug in the shipped config-adapters crate)*
+- 0201 — In-Process Section Diff *(removes work-adapters' shell-out to `diff -u`)*
+- 0240 — Corpus Update Frontmatter Quote Roundtrip *(bug in the shipped corpus
+  crate; pairs with 0221)*
+- 0241 — False Dirty-Tree Detection on jj Repositories *(bug in the shipped
+  migrate crate)*
+- 0245 — Invoke Accelerator Directly In Skills *(completes the
+  invocation-contract cutover)*
+- 0264 — Remove Bash-Migration Negative-Assertion Tests *(retires migration
+  scaffolding)*
+- 0269 — Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira
+  And Linear Clients *(retires shell-to-Rust residue)*
+- 0223 — Bounding the Default Runtime Cache Root *(sibling of 0218)*
+- 0334 — Tree leases are not held on the cold path or honoured when liveness
+  is unknown *(blocks 0218)*
+- 0339 — Tree reap deletes another artifact's in-progress materialise
+  *(blocks 0218)*
+- 0225 — Advisory-Feed Monitoring for the Vendored Runtime Pins *(sibling of 0214)*
+- 0226 — Unify the Trust Barrier for Consent Config Keys *(hardens the shipped
+  config crates)*
+- 0286 — Make Accelerator skills VCS-agnostic by eradicating direct git calls
+  *(completes the skill-side half of the VCS subdomain)*
+
+The target architecture (git-style `accelerator` launcher dispatching to
+on-demand `accelerator-<sub>` static binaries, each a hexagonal crate; the
+visualiser folded in as the first sub-binary) is fixed by
+ADR-0045/0046/0047/0051/0052/0053/0054.
+
+## Acceptance Criteria
+
+- [x] Shell-script responsibilities are migrated into a Rust CLI without
+      regressing skill behaviour, with the migration sequenced so the plugin
+      stays functional at each step.
+- [x] Every work item in the Decomposition list above — direct children and the
+      grandchildren indented beneath their parents — reaches a terminal status
+      (done, or abandoned where superseded by a split).
+
+## Open Questions
+
+*(All resolved — see the architecture research's decision log. The two original
+questions are answered:)*
+
+- Which scripts migrate first, and which remain as shell? — Leaf/shared crates
+  and the launcher first, the migration engine last; a thin residual shell
+  surface (launcher bootstrap, hook wrapper, Playwright executor) remains under
+  the bash 3.2 floor (ADR-0048/0049).
+- How is the CLI distributed? — Zero-setup, fully static musl/darwin binaries
+  fetched, sha256+minisign-verified, and exec'd on demand, reusing the existing
+  visualiser release pipeline (ADR-0046).
+
+## Dependencies
+
+- Blocked by: None.
+- Blocks: None directly (the children carry the internal dependency spine).
+- Children (direct, parented to this epic): 0158, 0162–0174, 0182, 0184–0191,
+  0194–0201, 0203, 0204, 0215, 0216, 0218, 0221, 0223, 0225, 0226, 0240, 0241,
+  0245, 0264, 0269, 0286, 0334 and 0339.
+- Grandchildren (covered transitively by their parent's completion): 0178–0180
+  under 0166; 0210–0213 under 0171; 0206, 0207, 0209 and 0214 under 0196.
+- Outside this epic, blocked by its children: 0227 and 0298 (by 0226); 0271
+  and 0273 (by 0269). Closing this epic does not track them.
+
+## Assumptions
+
+- The Rust CLI is distributed similarly to the existing visualiser binary
+  (release artefact + checksum verification), confirmed and extended with
+  minisign by ADR-0046.
+
+## Technical Notes
+
+- Removes the bash 3.2 floor constraint for migrated functionality; a thin
+  residual shell surface remains and stays under the floor (ADR-0048/0049).
+- Must preserve bare-path invocation semantics expected by skill
+  `allowed-tools`; the cache lives under `${CLAUDE_PLUGIN_ROOT}` to keep
+  permission matches working (the contract cutover is 0167).
+
+## Drafting Notes
+
+- Treated as an epic per the user's instruction. Decomposed 2026-06-28 from the
+  scope/architecture research into children 0162–0174, with all open questions
+  resolved interactively; promoted from `draft` to `ready`.
+- **Extended 2026-07-31 with 0185–0188**, when 0169 was split. A four-pass
+  review measured that three editing passes had not reduced its major-finding
+  count (19 → 15 → 14 → 14), with most later findings being defects introduced
+  by the previous pass's fixes — the signature of one work item carrying more
+  than a single document can hold consistently. The extracted concerns are each
+  independently deliverable: 0186 (bootstrap exec-probe fix, ~108 ms per hook
+  invocation, benefits every SessionStart hook today), 0187 (sub-binary
+  registration surface, unblocks four sibling subdomain stories), 0188 (the
+  `gix`/`jj-lib` dependency adoption and its licence-policy change), and 0185
+  (converging the remaining `CommandProbe` consumer). 0169 retains the
+  subdomain, the hooks migration and the skill repoint — the parts that cannot
+  be separated, since the shell hooks cannot be deleted before their
+  replacements exist.
+- **Extended 2026-08-05 with 0195–0197, when 0173 was split.** A review-1 pass
+  on 0173 found it bundled three functionally independent efforts —
+  `accelerator-corpus`, `accelerator-design`, and `accelerator-collaboration` —
+  sharing no relationship beyond the registration pattern, each with its own
+  source scripts, target crate(s), skill domain, and test suite; the combined
+  scope was also judged undersized for a single `story`. 0173 is now
+  **abandoned**; 0195/0196/0197 each carry forward their slice of 0173's
+  Requirements/Acceptance Criteria (with the review's AC and Dependencies gaps
+  fixed) and are parented directly under this epic.
+- **Reconciled the decomposition list on 2026-08-31.** A transitive-closure walk
+  of parent-links (rather than this hand-maintained list) found the written
+  decomposition had drifted from the real child set: nine direct children were
+  missing — 0189, 0190, 0191 (launcher hardening), 0198, 0199, 0200 (VCS
+  residuals), 0202 (migration-engine ADR reconciliation), 0205 (warm-dispatch
+  measurement spike) and 0221 (canonical frontmatter quoting) — and every
+  grandchild under 0171 (0210–0213) and 0196 (0206, 0207, 0209, 0214) was
+  unlisted. The list, the Children line and the second Acceptance Criterion now
+  derive from the real closure; the criterion references the Decomposition list
+  itself rather than an ID range, which is the form that drifted.
+- **Moved the warm-dispatch measurement items out on 2026-10-10.** 0219 became
+  a standalone epic owning recurring latency measurement, and 0205 and 0217
+  moved under it. That work runs for at least 20 merges after the port is
+  complete, so it would otherwise hold this epic open. 0189 stays here, since
+  its subject is the launcher's at-most-once guarantee.
+- **Reconciled again on 2026-10-10.** A parent-link walk over all work items
+  found 0286 missing from the Decomposition list, and the Children line still
+  carrying the pre-2026-09-05 set — fourteen direct children (0158, 0182, 0184,
+  0201, 0222, 0223, 0225, 0226, 0240, 0241, 0245, 0264, 0269, 0286) were absent.
+  The body status also still read Ready against an in-progress frontmatter.
+  Decomposition titles now match each item's `title` verbatim; twenty had
+  drifted, nine in wording (0158, 0182, 0184, 0198, 0203, 0209, 0226, 0241,
+  0269).
+- **Closed on 2026-11-17.** The last open child, 0222, moved under the
+  runtime-cache epic 0355, whose seeding work it now belongs to. 0334 and
+  0339, parented here but missing from the Decomposition list and the
+  Children line, were added. Every listed item is terminal, so the epic is
+  done.
+
+## References
+
+- Source: `meta/notes/2026-06-22-ideas-backlog.md`
+- Research:
+  `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Research:
+  `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- Spike:
+  `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+- ADRs: ADR-0045, ADR-0046, ADR-0047, ADR-0048, ADR-0049, ADR-0051, ADR-0052,
+  ADR-0053, ADR-0054

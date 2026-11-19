@@ -6,9 +6,9 @@ date: "2026-09-07T21:39:26+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0121"
+target: "work-item:PP-22"
 relates_to: ["work-item-review:0121-topic-research-skillset-review-1"]
-work_item_id: "0121"
+work_item_id: "PP-22"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
 lenses: ["clarity", "completeness", "scope"]

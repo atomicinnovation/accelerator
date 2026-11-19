@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0332"
-parent: "work-item:0332"
+parent: "work-item:PP-885"
 topic: "Push PR Descriptions to GitHub Unwrapped"
 tags: ["research", "codebase", "collaboration", "collaboration-cli", "github", "describe-pr", "markdown", "pulldown-cmark"]
 revision: "d200d2ddea8da22508fb055f10190ded038c0c09"
@@ -371,23 +371,23 @@ CommonMark parser in the closure.
 
 ## Historical Context
 
-- `meta/work/0071-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md:84,92`
+- `meta/work/PP-93-describe-pr-base-repo-resolver-uses-unsupported-gh-field.md:84,92`
   – origin of the byte-for-byte body contract.
   - Its review (`meta/reviews/work/0071-…-review-1.md:250`) already noted
     that GitHub's line-ending normalisation risks false negatives. This is
     relevant to 0332's CRLF criteria and to the `POST /markdown` check.
-- `meta/work/0197-accelerator-collaboration-pr-helper-cli.md:133-136` and
+- `meta/work/PP-727-accelerator-collaboration-pr-helper-cli.md:133-136` and
   `meta/plans/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md`:
   - the payload is carried forward "unchanged" (133-136)
   - the domain crate is kernel-only (553-556)
   - file I/O is kept in the CLI (724-727)
-- `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`:
+- `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`:
   - It uses the same normalised event-stream equivalence (78-88).
   - It requires an exact parser pin (237-239, 353-358).
   - It leaves `pulldown-cmark` vs `comrak` open (415-416).
 
   0332 effectively decides the parser for it.
-- `meta/work/0320-linear-push-corrupts-markdown-content.md`: the unwrap
+- `meta/work/PP-906-linear-push-corrupts-markdown-content.md`: the unwrap
   fixes defect 1 only.
   - Defect 2 (autolinked dotted tokens) needs escaping.
   - Defect 3 (wrapped code span) needs code-span newlines collapsed, which

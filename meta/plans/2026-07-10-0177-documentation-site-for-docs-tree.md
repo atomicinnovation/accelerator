@@ -6,8 +6,8 @@ date: "2026-07-10T14:08:31+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0177"
-parent: "work-item:0177"
+work_item_id: "work-item:PP-699"
+parent: "work-item:PP-699"
 derived_from: ["codebase-research:2026-07-10-0177-documentation-site-for-docs-tree"]
 relates_to: ["adr:ADR-0056"]
 tags: ["docs", "starlight", "github-pages", "mise", "ci"]
@@ -602,7 +602,7 @@ e.g. `.../accelerator/skills/work-items/`); fix `README.md:44`
 
 ## References
 
-- Original work item: `meta/work/0177-documentation-site-for-docs-tree.md`
+- Original work item: `meta/work/PP-699-documentation-site-for-docs-tree.md`
 - Decision: `meta/decisions/ADR-0056-astro-starlight-for-documentation-site.md`
 - Research: `meta/research/codebase/2026-07-10-0177-documentation-site-for-docs-tree.md`
 - Job shape to mirror: `.github/workflows/main.yml:322-338`

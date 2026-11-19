@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0188"
+parent: "work-item:PP-718"
 target: "plan:2026-08-03-0188-library-backed-vcs-adapter"
 tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
 last_updated: "2026-08-03T18:05:57+00:00"
@@ -146,7 +146,7 @@ Potential Issues. Passes in isolation (54 passed) and passed in the green run.
   `_release_uploads()`.
 - Phase 5's three sibling amendments are all present as dated append-only
   blocks (`0125:149`, `0169:542`, `0185:146`), and 0125's `relates_to` carries
-  `work-item:0188`.
+  `work-item:PP-718`.
 - `tasks/README.md` gained both planned subsections (`Library-backed VCS
   dependency pins` at `:109`, `Zero-spawn strong form` at `:173`), the
   class-scoped break-glass, the licence-side failure mode, the cargo-pup ↔

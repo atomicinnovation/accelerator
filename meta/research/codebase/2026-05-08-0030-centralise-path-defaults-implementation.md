@@ -13,8 +13,8 @@ type: "codebase-research"
 id: "2026-05-08-0030-centralise-path-defaults-implementation"
 title: "Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays"
 schema_version: 1
-relates_to: ["plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "plan:2026-03-23-config-infrastructure", "plan:2026-03-23-template-and-path-customisation", "plan:2026-03-29-template-management-subcommands", "work-item:0024", "work-item:0025", "work-item:0027", "work-item:0029", "work-item:0031", "note:2026-04-26-agents-hardcode-default-directory-locations"]
-derived_from: ["plan:2026-04-25-rename-tickets-to-work-items", "work-item:0030"]
+relates_to: ["plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "plan:2026-03-23-config-infrastructure", "plan:2026-03-23-template-and-path-customisation", "plan:2026-03-29-template-management-subcommands", "work-item:PP-46", "work-item:PP-47", "work-item:PP-49", "work-item:PP-51", "work-item:PP-53", "note:2026-04-26-agents-hardcode-default-directory-locations"]
+derived_from: ["plan:2026-04-25-rename-tickets-to-work-items", "work-item:PP-52"]
 ---
 
 # Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays
@@ -28,7 +28,7 @@ derived_from: ["plan:2026-04-25-rename-tickets-to-work-items", "work-item:0030"]
 ## Research Question
 
 What does the codebase currently look like for the changes proposed in
-`meta/work/0030-centralise-path-defaults.md`, and what implementation approach
+`meta/work/PP-52-centralise-path-defaults.md`, and what implementation approach
 fits the existing source-graph and test harness?
 
 ## Important Premise: workspaces/ is not source code
@@ -287,7 +287,7 @@ With `workspaces/` correctly excluded, the implementation collapses to:
    and 212-219 (the array definitions). The arrays are then provided by
    the transitive source.
 
-4. **Update the work item** (`meta/work/0030-centralise-path-defaults.md`)
+4. **Update the work item** (`meta/work/PP-52-centralise-path-defaults.md`)
    to:
    - Replace "4 files" → "1 file" throughout (Summary, Context,
      Requirements, AC1, AC2, Assumptions, Technical Notes).
@@ -378,12 +378,12 @@ item's Open Questions defer `DIR_KEYS`.
   `config-read-path.sh` and the PATH key model.
 - `meta/plans/2026-03-29-template-management-subcommands.md` (status:
   complete) — introduced `TEMPLATE_KEYS` semantics.
-- `meta/work/0024-configuration-system-architecture.md` (done),
-  `meta/work/0025-configuration-extension-points.md` (done),
-  `meta/work/0027-ephemeral-file-separation-via-paths-tmp.md` (done),
-  `meta/work/0029-template-management-subcommand-surface.md` (done) —
+- `meta/work/PP-46-configuration-system-architecture.md` (done),
+  `meta/work/PP-47-configuration-extension-points.md` (done),
+  `meta/work/PP-49-ephemeral-file-separation-via-paths-tmp.md` (done),
+  `meta/work/PP-51-template-management-subcommand-surface.md` (done) —
   underlying work items.
-- `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md`
+- `meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md`
   (status: done) — sibling refactor that established
   `.accelerator/templates` as the canonical templates path.
 - `meta/notes/2026-04-26-agents-hardcode-default-directory-locations.md`
@@ -392,7 +392,7 @@ item's Open Questions defer `DIR_KEYS`.
 
 ## Related Work Items and Reviews
 
-- `meta/work/0052-make-documents-locator-paths-config-driven.md` (status:
+- `meta/work/PP-74-make-documents-locator-paths-config-driven.md` (status:
   draft) — explicit downstream consumer; will source `config-defaults.sh`
   once 0030 lands.
 - `meta/reviews/work/0030-centralise-path-defaults-review-1.md` — four

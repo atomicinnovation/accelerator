@@ -6,7 +6,7 @@ date: "2026-08-07T10:10:44+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0169", "work-item:0199", "work-item:0200"]
+relates_to: ["work-item:PP-190", "work-item:PP-729", "work-item:PP-730"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/54"
 pr_number: 54
 tags: ["meta", "work-items", "vcs"]
@@ -28,23 +28,23 @@ Corpus housekeeping in the wake of the VCS subdomain migration. The two follow-u
 **Resolve the ID collision (`0192` → `0199`, `0193` → `0200`)**
 
 - Renamed `meta/work/0192-retire-vcs-common-sh-residue-and-launcher-link-refresh.md` → `0199-…` and `meta/work/0193-decide-vcs-guard-log-diff-blocklist-membership.md` → `0200-…`, updating each file's `id:` and body H1 to match. `0199` and `0200` were the next free IDs — `0198` is the highest previously allocated work item.
-- Repointed the inbound references in `meta/work/0169-vcs-subdomain-and-hooks-migration.md`: the `relates_to:` list and the two resolution links in the Dependencies section that name the follow-ups by filename.
+- Repointed the inbound references in `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`: the `relates_to:` list and the two resolution links in the Dependencies section that name the follow-ups by filename.
 - Repointed the narrative references in the derived artifacts — the Phase 10 hand-off criterion in `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` and the Phase 10 verdict in `meta/validations/2026-08-05-0169-vcs-subdomain-and-hooks-migration-validation.md`.
 - Updated `meta/prs/51-description.md` — both its `relates_to:` list and the hand-offs bullet — so the merged PR's record points at the surviving IDs. This edits an already-merged PR's on-disk description; it is a record-keeping correction, not a change to what #51 shipped.
 
 **Close `0169`**
 
-- Flipped `status: ready` → `status: done` in the frontmatter and `**Status**: Ready` → `**Status**: Done` in the body of `meta/work/0169-vcs-subdomain-and-hooks-migration.md`.
+- Flipped `status: ready` → `status: done` in the frontmatter and `**Status**: Ready` → `**Status**: Done` in the body of `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`.
 
 ## Context
 
-- Work item `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — the story being closed; shipped by PR #51 (merged 2026-08-06, `3612820`).
-- Follow-ups `meta/work/0199-retire-vcs-common-sh-residue-and-launcher-link-refresh.md` (the `scripts/vcs-common.sh` residue plus `hooks/launcher-link-refresh.sh`) and `meta/work/0200-decide-vcs-guard-log-diff-blocklist-membership.md` (whether `log`/`diff` belong in the guard's blocked set), both still `draft`. The third hand-off, `0198`, was unaffected.
+- Work item `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — the story being closed; shipped by PR #51 (merged 2026-08-06, `3612820`).
+- Follow-ups `meta/work/PP-729-retire-vcs-common-sh-residue-and-launcher-link-refresh.md` (the `scripts/vcs-common.sh` residue plus `hooks/launcher-link-refresh.sh`) and `meta/work/PP-730-decide-vcs-guard-log-diff-blocklist-membership.md` (whether `log`/`diff` belong in the guard's blocked set), both still `draft`. The third hand-off, `0198`, was unaffected.
 - PR #49 is the direct precedent — it moved the documentation items off `0178`/`0179` and onto `0192`/`0193`, which is what made these IDs collide when `0169`'s follow-ups were created a month later.
 
 ## Testing
 
-- [x] `grep -rn -E '0192|0193' meta/` returns only the documentation epic `0192-documentation.md`, the story `0193-make-the-docs-amazing.md`, their derived plan and research documents, and PR #49's description — no stale references to the retired follow-up IDs survive.
+- [x] `grep -rn -E '0192|0193' meta/` returns only the documentation epic `PP-722-documentation.md`, the story `PP-723-make-the-docs-amazing.md`, their derived plan and research documents, and PR #49's description — no stale references to the retired follow-up IDs survive.
 - [x] `grep -rn -E '0199|0200' meta/` shows every inbound reference (from `0169`, its plan, its validation, and `51-description.md`) resolving to the renamed files.
 - [x] Both renamed files' `id:` and body H1 agree with their new filenames; their `parent:`, `relates_to:`, and `derived_from:` slots already pointed at `0136`/`0169`/the `0169` plan and needed no change.
 - [x] PR #51 confirmed merged via `gh pr view 51`, so `status: done` on `0169` reflects reality rather than anticipating it.

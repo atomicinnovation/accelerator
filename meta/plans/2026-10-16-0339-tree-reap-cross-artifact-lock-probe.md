@@ -6,8 +6,8 @@ date: "2026-10-16T15:56:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0339"
-parent: "work-item:0339"
+work_item_id: "work-item:PP-922"
+parent: "work-item:PP-922"
 derived_from: ["codebase-research:2026-10-16-0339-tree-reap-cross-artifact-lock-probe"]
 relates_to: ["plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["cli", "launcher", "cache", "tree", "reap", "concurrency"]
@@ -101,7 +101,7 @@ whose digest does not match is discarded.
   (`reap.rs:606-637`), and use it to test the `restart_backstop` warning
   (`:639-649`).
 - The 0218 work item accepts that removing a retired artifact's lock file
-  can race an older launcher (`meta/work/0218-bound-cache-root-growth.md:524-526`).
+  can race an older launcher (`meta/work/PP-747-bound-cache-root-growth.md:524-526`).
 
 ## Desired End State
 
@@ -1724,7 +1724,7 @@ the probe does.
 
 Make the matching correction to `prune`'s docstring.
 
-**File**: `meta/work/0218-bound-cache-root-growth.md`
+**File**: `meta/work/PP-747-bound-cache-root-growth.md`
 
 - **Dependencies**: add a line. Orphan-lock removal must unlink a lock
   file only while holding it. It is safe against concurrent materialises
@@ -1899,11 +1899,11 @@ launcher uses today's `.tmp-` names (`layout.rs` unchanged since
 
 ## References
 
-- Work item: `meta/work/0339-tree-reap-deletes-another-artifact-s-in-progress-materialise.md`
+- Work item: `meta/work/PP-922-tree-reap-deletes-another-artifact-s-in-progress-materialise.md`
 - Research: `meta/research/codebase/2026-10-16-0339-tree-reap-cross-artifact-lock-probe.md`
 - Prior plan: `meta/plans/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`
 - Review: `meta/reviews/plans/2026-10-16-0339-tree-reap-cross-artifact-lock-probe-review-1.md`
 - Decision: `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
-- Dependent: `meta/work/0218-bound-cache-root-growth.md`
+- Dependent: `meta/work/PP-747-bound-cache-root-growth.md`
 - Non-creating probe precedent: `cli/lease/src/lib.rs:225-241`
 - In-process lock holding: `cli/launcher/tests/tree_resolution.rs:620-647`

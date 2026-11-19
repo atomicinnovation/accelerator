@@ -13,7 +13,7 @@ last_updated: "2026-05-21T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "327941cbe7b8"
 repository: "ticket-management"
-relates_to: ["work-item:0078", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
+relates_to: ["work-item:PP-100", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 ---
 
 # Detail-Page Frontmatter Table Implementation Plan
@@ -1196,7 +1196,7 @@ it('linkifies a WORK-ITEM scalar value via the shared resolver (end-to-end)', as
   }
   const subject = {
     ...mockEntry,
-    relPath: 'meta/work/0078-detail-page-frontmatter-table.md',
+    relPath: 'meta/work/PP-100-detail-page-frontmatter-table.md',
     workItemId: '0078',
     frontmatter: { parent: 'WORK-ITEM-0041' },
     frontmatterState: 'parsed' as const,
@@ -1357,7 +1357,7 @@ gains a table; any frontmatter shape continues to render.
 
 ## References
 
-- Original work item: `meta/work/0078-detail-page-frontmatter-table.md`
+- Original work item: `meta/work/PP-100-detail-page-frontmatter-table.md`
 - Codebase research: `meta/research/codebase/2026-05-21-0078-detail-page-frontmatter-table.md`
 - Story review: `meta/reviews/work/0078-detail-page-frontmatter-table-review-1.md`
 - Parallel component (chips): `skills/visualisation/visualise/frontend/src/components/FrontmatterChips/FrontmatterChips.tsx`

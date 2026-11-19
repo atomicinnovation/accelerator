@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0280"
-parent: "work-item:0280"
+parent: "work-item:PP-864"
 topic: "Academic source profiles: codebase landing points and OpenAlex/arXiv API requirements"
 tags: ["research", "codebase", "research-topic", "openalex", "arxiv", "cli", "hooks", "credentials"]
 revision: "aabd6f05e7785051c371168fa453a362633e7783"
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-For work item 0280 (`meta/work/0280-academic-source-profiles.md`): where does
+For work item 0280 (`meta/work/PP-864-academic-source-profiles.md`): where does
 the change land in the codebase, and — through web research and live probes —
 what do the OpenAlex and arXiv APIs actually require of the
 `accelerator research fetch` CLI?

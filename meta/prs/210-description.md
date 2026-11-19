@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0362"
-parent: "work-item:0362"
-relates_to: ["work-item:0361", "work-item:0366", "work-item:0370"]
+parent: "work-item:PP-954"
+relates_to: ["work-item:PP-953", "work-item:PP-958", "work-item:PP-962"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/210"
 pr_number: 210
 tags: ["build-system", "performance", "testing", "bootstrap", "minisign", "cargo-profile"]
@@ -132,7 +132,7 @@ records Phase 1 as implemented.
 
 ## Context
 
-- Work item: `meta/work/0362-make-the-bootstrap-test-suites-fast-and-hermetic.md`
+- Work item: `meta/work/PP-954-make-the-bootstrap-test-suites-fast-and-hermetic.md`
 - Research:
   `meta/research/codebase/2026-11-10-0362-bootstrap-test-suites-fast-and-hermetic.md`
 - Plan: `meta/plans/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic.md`

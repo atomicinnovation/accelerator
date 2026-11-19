@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0103"
-parent: "work-item:0103"
+parent: "work-item:PP-125"
 topic: "How skills emit artifact frontmatter, what the unified-schema validator enforces, the known validate-plan divergence, and how to wire an automated producer-conformance guard"
 tags: ["research", "codebase", "frontmatter", "schema", "validator", "skills", "validate-plan", "test-harness", "mise"]
 revision: "dc9490fb6caadb129f9899e48d6e5e300ec2d663"
@@ -309,11 +309,11 @@ mechanical gotcha is the floor bump.
   — confirming 0103's premise. The producer-conformance gap is left open, not enumerated as a
   deferred item (the one explicit follow-on it does name is 0102, the visualiser fallback-arm
   contraction).
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` (epic, `in-progress`) —
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` (epic, `in-progress`) —
   parent of 0103. Producer updates are *in scope as a requirement* but the epic never enumerated a
   dedicated producer-*audit* child; 0103 fills that. The "raise follow-ons as children under 0057"
   plan has solid precedent — **0102 is the structurally identical sibling** (also
-  `parent: "work-item:0057"`).
+  `parent: "work-item:PP-79"`).
 - **No substantive contradictions** between these documents and the work item. The subtlety to
   hold: `plan-validation` "already conforms" refers to the migrated *corpus*; 0103's bug is at the
   *producer* (validate-plan's SKILL.md), never checked by 0070 — precisely the "conforming by
@@ -321,9 +321,9 @@ mechanical gotcha is the floor bump.
 
 ## Related Research
 
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` (parent epic)
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` (parent epic)
 - `meta/work/0070-*` / `meta/plans/2026-06-07-0070-meta-corpus-unified-schema-migration.md` (the migration that shipped the contract)
-- `meta/work/0102-remove-visualiser-legacy-linkage-fallback-arms.md` (sibling follow-on precedent under 0057)
+- `meta/work/PP-124-remove-visualiser-legacy-linkage-fallback-arms.md` (sibling follow-on precedent under 0057)
 - `meta/decisions/ADR-0042-reconciling-pre-schema-status-values.md`, `ADR-0034` (typed linkage), `ADR-0033` (base schema)
 
 ## Open Questions

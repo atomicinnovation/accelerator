@@ -6,8 +6,8 @@ date: "2026-08-11T21:49:36+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0196"
-parent: "work-item:0196"
+work_item_id: "work-item:PP-726"
+parent: "work-item:PP-726"
 derived_from: ["codebase-research:2026-08-11-0196-design-cli-implementation-surface"]
 relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 supersedes: ["plan:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"]
@@ -29,7 +29,7 @@ CLI → Node with no shell in between. The runtime still comes from where it com
 today: `ensure-playwright.sh` survives, the lockhash namespace survives, and a system
 Node.js is still required.
 
-This is one of two plans against work-item:0196. The other —
+This is one of two plans against work-item:PP-726. The other —
 `plan:2026-08-11-0196-design-vendored-runtime-distribution` — vendors the runtime so
 that prerequisite goes away. **This plan is deliberately independent of it**: nothing
 here touches the launcher's fetch-verify-cache mechanism, the release pipeline, or the
@@ -1874,7 +1874,7 @@ wholesale.** The paragraph above is about what `run.sh` port characterization is
       header configured, never contain the token value or the resolved credential
       value — the non-leakage property §3 states, checked rather than assumed
 - [x] A warm executor invocation is measured against today's `run.sh` path with
-      work-item:0186's interleaved-sample method, before `run.sh` is deleted (§8);
+      work-item:PP-716's interleaved-sample method, before `run.sh` is deleted (§8);
       the hard gate is the ratio (port ≤ shell), and the delta against the
       20–45ms-faster estimate is recorded as an observation, not a pass/fail
       threshold — the per-invocation cost of the path a crawl takes 100–200 times, which no
@@ -2171,7 +2171,7 @@ lockfile's actual size, well under a millisecond), `nohup`, and
 **The expected direction is faster, but the specific figure is a hypothesis to
 confirm, not a derived target.** Today's `run.sh` pays a *nested full
 `bin/accelerator` bootstrap* on every invocation (`run.sh:77`), measured at 29.92ms
-median in work-item:0186 — a figure that already includes the launcher's own
+median in work-item:PP-716 — a figure that already includes the launcher's own
 shim-verify and dispatch overhead, which the new path pays too, on top of the
 added sub-binary resolve and re-verify (roughly 5–10ms). So the two paths' shared
 overhead does not net out cleanly, and the real saving is the aggregate of the
@@ -2182,7 +2182,7 @@ shell — no regression), and the measured delta against the 20–45ms estimate 
 reported alongside it as an observation, so a smaller-but-real improvement passes
 the gate and is simply noted as smaller than hoped, rather than failing a
 criterion calibrated on an unreconciled estimate. Phase 6 measures the warm path
-against today's `run.sh` path with work-item:0186's interleaved-sample method,
+against today's `run.sh` path with work-item:PP-716's interleaved-sample method,
 before `run.sh` is deleted (§8), and records the result as a committed artefact —
 this is necessarily a one-time comparison, since the shell baseline disappears in
 the same phase, not a repeatable CI gate.
@@ -2213,7 +2213,7 @@ it. Nothing about the runtime's location or provenance changes in this plan.
 
 ## References
 
-- Work item: `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- Work item: `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - Sibling plan: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`
 - Superseded plan and its three-pass review:
   `meta/plans/2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli.md`,

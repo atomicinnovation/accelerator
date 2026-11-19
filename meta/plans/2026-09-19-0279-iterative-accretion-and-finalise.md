@@ -6,8 +6,8 @@ date: "2026-09-19T17:56:00+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0279"
-parent: "work-item:0279"
+work_item_id: "work-item:PP-863"
+parent: "work-item:PP-863"
 derived_from: ["codebase-research:2026-09-19-0279-iterative-accretion-and-finalise"]
 tags: ["topic-research", "skills", "lifecycle", "finalise"]
 revision: "9066185d6ea9091a1a393c962fd8f502f01899d6"
@@ -107,7 +107,7 @@ finalised; a later `outline` or `conduct` reopens the finalised set to
   sub-binary — the permission and dispatch-coherence lints stay green.
 - **0277 parked the re-invocation tests here.** Finding immutability and
   gap-detection were asserted but not exercised in Slice 1
-  (`meta/work/0277-single-round-web-research-engine.md:230-232`); 0279 owns
+  (`meta/work/PP-861-single-round-web-research-engine.md:230-232`); 0279 owns
   them.
 
 ## What We're NOT Doing
@@ -816,7 +816,7 @@ alter.
 
 ## References
 
-- Work item: `meta/work/0279-iterative-accretion-and-finalise.md`
+- Work item: `meta/work/PP-863-iterative-accretion-and-finalise.md`
 - Research: `meta/research/codebase/2026-09-19-0279-iterative-accretion-and-finalise.md`
 - Engine changed: `skills/research/research-topic/SKILL.md` (preconditions
   `:63-73`, transitions `:98-177`, validate-every-write `:204-217`, deferred
@@ -831,7 +831,7 @@ alter.
   idempotent supersede sweep `skills/design/inventory-design/SKILL.md:321-326`
 - Slice 1 test strategy to mirror:
   `meta/plans/2026-09-09-0277-single-round-web-research-engine.md:1077-1119`
-- Parent epic: `meta/work/0121-topic-research-skillset.md`
+- Parent epic: `meta/work/PP-22-topic-research-skillset.md`
 - Deferred eval-suite owner:
-  `meta/work/0161-roll-out-inspect-evals-across-remaining-skills.md` (authors the
+  `meta/work/PP-180-roll-out-inspect-evals-across-remaining-skills.md` (authors the
   `research-topic` Inspect suite post-epic; gates no slice)

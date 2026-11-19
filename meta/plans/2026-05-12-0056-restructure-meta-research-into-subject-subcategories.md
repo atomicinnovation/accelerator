@@ -13,7 +13,7 @@ last_updated: "2026-05-12T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
-relates_to: ["work-item:0056", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories", "note:2026-05-02-research-directory-subcategory-restructure", "work-item:0030", "work-item:0052", "adr:ADR-0023"]
+relates_to: ["work-item:PP-78", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories", "note:2026-05-02-research-directory-subcategory-restructure", "work-item:PP-52", "work-item:PP-74", "adr:ADR-0023"]
 ---
 
 # 0056 — Restructure `meta/research/codebase/` into Subject Subcategories — Implementation Plan
@@ -1843,7 +1843,7 @@ Take a named jj operation snapshot at entry so rollback is a single
   - [ ] `test -f meta/research/design-gaps/.gitkeep`
   - [ ] `test -f meta/research/issues/.gitkeep`
 - [ ] **Rewrite-correctness spot checks** (not just count/absence):
-  - [ ] `grep -F 'meta/research/codebase/2026-05-08-0052' meta/work/0052-make-documents-locator-paths-config-driven.md` returns at least one rewritten reference.
+  - [ ] `grep -F 'meta/research/codebase/2026-05-08-0052' meta/work/PP-74-make-documents-locator-paths-config-driven.md` returns at least one rewritten reference.
   - [ ] `grep -F 'meta/research/codebase/2026-05-11-0056' meta/plans/2026-05-12-0056-restructure-meta-research-into-subject-subcategories.md` returns the rewritten reference (this very plan's References section).
   - [ ] No file under `meta/` contains the bare prefix `meta/research/codebase/[0-9]` (every legacy file ref rewritten).
 - [ ] Broadened residue check:
@@ -2254,11 +2254,11 @@ recommended sequence (pull → migrate → resume).
 
 ## References
 
-- Original work item: `meta/work/0056-restructure-meta-research-into-subject-subcategories.md`
+- Original work item: `meta/work/PP-78-restructure-meta-research-into-subject-subcategories.md`
 - Source research: `meta/research/codebase/2026-05-11-0056-restructure-meta-research-into-subject-subcategories.md`
 - Source note: `meta/notes/2026-05-02-research-directory-subcategory-restructure.md`
-- Builds on: `meta/work/0030-centralise-path-defaults.md`,
-  `meta/work/0052-make-documents-locator-paths-config-driven.md`
+- Builds on: `meta/work/PP-52-centralise-path-defaults.md`,
+  `meta/work/PP-74-make-documents-locator-paths-config-driven.md`
 - Pattern sources:
   - `skills/config/migrate/migrations/0001-rename-tickets-to-work.sh:111-134` (config-key rewrite)
   - `skills/config/migrate/migrations/0002-rename-work-items-with-project-prefix.sh:113-313` (three-rewriter inbound rewrite)

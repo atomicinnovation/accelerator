@@ -6,8 +6,8 @@ date: "2026-09-06T15:33:26+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0269"
-parent: "work-item:0269"
+work_item_id: "work-item:PP-799"
+parent: "work-item:PP-799"
 derived_from: ["codebase-research:2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification"]
 tags: ["jira", "linear", "cleanup", "refactor", "exit-codes", "classification"]
 revision: "ee2b4e51bb328cf4a905599414bbb5c300972577"
@@ -900,7 +900,7 @@ external contract and are preserved exactly.
 
 ## References
 
-- Original work item: `meta/work/0269-remove-bash-references-from-jira-linear-clients.md`
+- Original work item: `meta/work/PP-799-remove-bash-references-from-jira-linear-clients.md`
 - Research: `meta/research/codebase/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
 - Contract oracle: `cli/tracker-support/tests/fixtures/bridge-exit-code-tables.txt`
 - Granular map today: `cli/jira-client/src/classify.rs:44-103`,

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0212"
-parent: "work-item:0212"
-relates_to: ["work-item:0211", "work-item:0213", "work-item:0171"]
+parent: "work-item:PP-742"
+relates_to: ["work-item:PP-741", "work-item:PP-743", "work-item:PP-192"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/73"
 pr_number: 73
 tags: ["rust", "cutover", "work-items", "cli", "tracker", "sync"]
@@ -35,7 +35,7 @@ Retires the eighteen `work-item-*.sh` / `test-work-item-*.sh` scripts and the bu
 
 ## Context
 
-Implements work item [0212](../work/0212-work-item-script-cutover.md) per the [script-cutover plan](../plans/2026-08-19-0212-work-item-script-cutover.md) and its [review](../reviews/plans/), grounded in the [cutover codebase research](../research/codebase/). Sits alongside 0211 (integration-binary decomposition) and 0213 (conflict-resolution flow); completes the work-item half of the Rust CLI migration begun in 0171.
+Implements work item [0212](../work/PP-742-work-item-script-cutover.md) per the [script-cutover plan](../plans/2026-08-19-0212-work-item-script-cutover.md) and its [review](../reviews/plans/), grounded in the [cutover codebase research](../research/codebase/). Sits alongside 0211 (integration-binary decomposition) and 0213 (conflict-resolution flow); completes the work-item half of the Rust CLI migration begun in 0171.
 
 ## Testing
 

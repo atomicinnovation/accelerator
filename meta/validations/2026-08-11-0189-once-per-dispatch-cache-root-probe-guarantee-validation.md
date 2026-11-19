@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0189"
+parent: "work-item:PP-719"
 target: "plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"
 tags: ["cli", "launcher", "bootstrap"]
 last_updated: "2026-08-12T13:43:58+00:00"

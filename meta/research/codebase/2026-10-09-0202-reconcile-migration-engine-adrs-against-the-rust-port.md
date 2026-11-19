@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0202"
-parent: "work-item:0202"
+parent: "work-item:PP-732"
 topic: "Superseding the migration-engine ADRs (0023, 0037, 0038) against the Rust port"
 tags: ["research", "codebase", "migrate", "migration-engine", "adr", "interactive-contract", "m0007"]
 revision: "e76a8a9bb860cad08c208932ae74c917a8ca88cf"
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-What does work-item:0202 need, from the live code and the three
+What does work-item:PP-732 need, from the live code and the three
 predecessor ADRs, to draft the ADR-0023, ADR-0037 and ADR-0038 successors?
 Do the gate checks pass, and which requirements does the shipped system
 not satisfy?
@@ -61,7 +61,7 @@ drafting:
    rewrites it (`skills/decisions/create-adr/SKILL.md:263-267`). The
    ADR-0057 precedent shows the change. 0202's AC allows only frontmatter
    `status`, `superseded_by` and timestamp changes.
-4. ⚠️ **work-item:0136's only citation is about the superseded design**:
+4. ⚠️ **work-item:PP-157's only citation is about the superseded design**:
    L98 reads "ADR-0038's shape drifted". Under 0202's own rule it should
    become `ADR-0038 (superseded by ADR-0072)`. 0202 says 0136 is
    "replaced rather than annotated".
@@ -264,7 +264,7 @@ Two locations are in scope:
   belt-and-suspenders requirement") and Cross-references L337-339. The
   section is titled "Optional interactive contract" (L103-164), not
   "Interactive contract".
-- **work-item:0136.** Status `in-progress`. L98: "0202 — … *(ADR-0038's
+- **work-item:PP-157.** Status `in-progress`. L98: "0202 — … *(ADR-0038's
   shape drifted when 0172 ported the engine to native Rust)*". This is
   about the superseded design (see Summary item 4).
 

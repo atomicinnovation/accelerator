@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0185"
+parent: "work-item:PP-715"
 target: "plan:2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
 tags: ["rust", "vcs", "cleanup", "tech-debt"]
 last_updated: "2026-08-11T09:24:20+00:00"

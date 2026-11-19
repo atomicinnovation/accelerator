@@ -6,8 +6,8 @@ date: "2026-06-09T00:26:40+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0095"
-parent: "work-item:0095"
+work_item_id: "work-item:PP-117"
+parent: "work-item:PP-117"
 derived_from: ["codebase-research:2026-06-09-0095-markdown-checkboxes-always-dark-mode-styled"]
 relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
 tags: ["visualiser", "markdown", "theme", "dark-mode", "checkbox", "design-tokens", "bug"]
@@ -1048,7 +1048,7 @@ prefers belt-and-braces, exact-pin via `overrides` in a separate change.
 
 ## References
 
-- Work item: `meta/work/0095-markdown-checkboxes-always-dark-mode-styled.md`
+- Work item: `meta/work/PP-117-markdown-checkboxes-always-dark-mode-styled.md`
 - Research: `meta/research/codebase/2026-06-09-0095-markdown-checkboxes-always-dark-mode-styled.md`
 - Sibling precedent (verification template):
   `meta/plans/2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown.md`

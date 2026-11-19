@@ -28,7 +28,7 @@ derived_from: ["codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker
 
 ## Research Question
 
-For work item [0054 Sidebar Search Input and API Search Endpoint](../../work/0054-sidebar-search.md):
+For work item [0054 Sidebar Search Input and API Search Endpoint](../../work/PP-76-sidebar-search.md):
 locate and analyse every part of the visualise codebase that the story
 touches — server route registration, the indexer snapshot path, the
 frontend fetch/queryKeys/hooks layer, the existing Sidebar search input

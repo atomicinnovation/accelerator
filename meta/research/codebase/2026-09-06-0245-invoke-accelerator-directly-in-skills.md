@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0245"
-parent: "work-item:0245"
+parent: "work-item:PP-775"
 relates_to: ["codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface", "codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration", "codebase-research:2026-08-19-0212-work-item-script-cutover", "codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"]
 topic: "Converting SKILL.md bodies to bare accelerator invocation"
 tags: ["research", "codebase", "skills", "cli", "lint", "plugin-root", "path"]
@@ -231,14 +231,14 @@ tautological because the PATH precondition is untested by any criterion.
 
 ## Historical Context
 
-- `meta/work/0106-invoke-plugin-scripts-by-bare-path.md` (done) - dropped the
+- `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md` (done) - dropped the
   `bash` wrapper only, kept the braced path; driven by the permission matcher
   stripping only `timeout`/`nice`/etc., not `bash`.
 - `meta/work/0167-…migration.md` (done) & `meta/plans/2026-07-19-0167-…md:142-145`
   - config cluster moved script→`bin/accelerator config`, **prefix retained**.
-- `meta/work/0212-work-item-script-cutover.md` (done) - work cluster
+- `meta/work/PP-742-work-item-script-cutover.md` (done) - work cluster
   script→`bin/accelerator work`, prefix retained.
-- `meta/work/0182-cli-derives-plugin-root-from-own-location.md` (done) &
+- `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md` (done) &
   `meta/research/issues/2026-07-26-cli-requires-claude-plugin-root-env-var.md` -
   the definitive env-contract evidence; established the invariant "no plugin
   entry point may require `CLAUDE_PLUGIN_ROOT` from its process environment".

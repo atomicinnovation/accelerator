@@ -2,7 +2,7 @@
 date: "2026-05-26T10:45:00Z"
 type: "work-item-review"
 producer: "review-work-item"
-target: "work-item:0062"
+target: "work-item:PP-84"
 review_number: 1
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -338,7 +338,7 @@ Recommended next pass: (1) split the Summary, (2) extend AC 4's co-location para
 
 **Verdict:** COMMENT
 
-Full structural rewrite: pass-3's recommendations applied plus a structural split — broad ADR-0023 amendment and framework-level contract primitives extracted into newly-created sibling work item 0092 (`meta/work/0092-adr-optional-interactive-contract-for-migration-framework.md`). The restructured 0062 owns linkage-application decisions only: confidence-band design, hybrid-vs-uniform application shape, parameterisation of 0092's framework contract, parser-fix routing, and vocab-gap resolutions.
+Full structural rewrite: pass-3's recommendations applied plus a structural split — broad ADR-0023 amendment and framework-level contract primitives extracted into newly-created sibling work item 0092 (`meta/work/PP-114-adr-optional-interactive-contract-for-migration-framework.md`). The restructured 0062 owns linkage-application decisions only: confidence-band design, hybrid-vs-uniform application shape, parameterisation of 0092's framework contract, parser-fix routing, and vocab-gap resolutions.
 
 Re-ran all five lenses fresh. **All previous majors resolved.** No critical or major findings in pass 4. 14 minor findings and 1 suggestion across clarity, dependency, scope, and testability — most are polish-level refinements that don't block implementation.
 

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0218"
-parent: "work-item:0218"
-relates_to: ["adr:ADR-0074", "adr:ADR-0072", "work-item:0340", "work-item:0341", "work-item:0342"]
+parent: "work-item:PP-747"
+relates_to: ["adr:ADR-0074", "adr:ADR-0072", "work-item:PP-944", "work-item:PP-945", "work-item:PP-946"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/226"
 pr_number: 226
 tags: ["adr", "cache", "launcher", "retention", "security"]
@@ -99,11 +99,11 @@ only the ADR, not the code.
 
 - ADR: `meta/decisions/ADR-0074-prune-only-a-relocated-root-no-other-user-can-write-to.md`
 - It narrows: `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
-- Work item: `meta/work/0218-bound-cache-root-growth.md`
+- Work item: `meta/work/PP-747-bound-cache-root-growth.md`
 - Implementation: #170 (merged)
-- Shared-root follow-up: `meta/work/0340-shared-cache-roots-on-multi-user-systems.md`,
-  `meta/work/0341-use-a-group-shared-cache-root-safely.md` and
-  `meta/work/0342-prune-a-group-shared-cache-root.md`
+- Shared-root follow-up: `meta/work/PP-944-shared-cache-roots-on-multi-user-systems.md`,
+  `meta/work/PP-945-use-a-group-shared-cache-root-safely.md` and
+  `meta/work/PP-946-prune-a-group-shared-cache-root.md`
 
 ## Testing
 

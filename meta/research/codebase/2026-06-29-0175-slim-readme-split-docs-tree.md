@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0175"
-parent: "work-item:0175"
+parent: "work-item:PP-697"
 topic: "Slim the README and split content into a docs/ tree"
 tags: ["research", "codebase", "readme", "docs", "documentation", "information-architecture"]
 revision: "a78e30e55a553b280a4c72de4de223144dbe41e0"
@@ -253,10 +253,10 @@ truth for these load-bearing details:
   873–882→unassigned)
 - `README.md:883-886` — License (stays as footer; only accurate row in 0175's table)
 - `CONTRIBUTING.md:1-3` — insertion point for new local-development H2
-- `meta/work/0175-slim-readme-and-split-into-docs-tree.md` — the work item
+- `meta/work/PP-697-slim-readme-and-split-into-docs-tree.md` — the work item
 - `meta/plans/2026-03-15-readme-restructure.md` — prior single-file plan (content
   source of truth; embeds literal README content lines 116–282)
-- `meta/work/0019-readme-structure.md` — ADR-form record of the philosophy-first
+- `meta/work/PP-41-readme-structure.md` — ADR-form record of the philosophy-first
   ordering decision
 
 ## Historical Context
@@ -268,27 +268,27 @@ truth for these load-bearing details:
   rewritten to scan the docs tree. Counts it asserts (9 skills, 7 lenses, 7
   agents) are **stale** — re-verify before reuse. Its "no tutorial/getting-
   started guide" scope exclusion may be in tension with a multi-page tree.
-- `meta/work/0019-readme-structure.md` — ADR-form decision capturing the
+- `meta/work/PP-41-readme-structure.md` — ADR-form decision capturing the
   ordering rationale (`external_id: PP-41`, `source: plan:2026-03-15-readme-
   restructure`). Treat its ordering/precedence decisions as constraints the new
   landing page must still satisfy; it never contemplated a multi-page split.
 - `meta/decisions/ADR-0019-ephemeral-file-separation-via-paths-tmp.md` — **NOT**
   about the README (it is about `paths.tmp`). The "decision 0019" referenced in
-  the work item's References is actually the work item `0019-readme-structure.md`.
+  the work item's References is actually the work item `PP-41-readme-structure.md`.
 - Related README/CHANGELOG work (different scope, useful precedent for README
-  editing): `meta/work/0123-changelog-readme-1-23-0-update.md`,
+  editing): `meta/work/PP-144-changelog-readme-1-23-0-update.md`,
   `meta/research/codebase/2026-06-23-0123-changelog-readme-1.23.0-update.md`,
   `meta/plans/2026-06-23-0123-changelog-readme-1.23.0-update.md`,
   `meta/research/codebase/2026-06-17-readme-changelog-1.22.0-refresh.md`.
 
 ## Related Research
 
-- `meta/work/0145-documentation-improvements.md` — parent epic.
-- `meta/work/0176-per-skill-family-reference-docs.md` — sibling; owns the
+- `meta/work/PP-166-documentation-improvements.md` — parent epic.
+- `meta/work/PP-698-per-skill-family-reference-docs.md` — sibling; owns the
   `docs/skills/` reference pages and the Development-Loop skill listings
   (88–105 → `docs/skills/planning.md`). Hard ordering dependency: 0176 needs the
   `docs/` tree from 0175 to exist.
-- `meta/work/0177-documentation-site-for-docs-tree.md` — sibling; documentation
+- `meta/work/PP-699-documentation-site-for-docs-tree.md` — sibling; documentation
   site over the `docs/` tree (no docs-site tooling exists today). Depends on 0175.
 
 ## Open Questions

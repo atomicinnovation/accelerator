@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0110"
-parent: "work-item:0110"
+parent: "work-item:PP-132"
 relates_to: ["codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page", "codebase-research:2026-06-09-0082-big-glyph-hero-illustrations", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-06-01-0054-sidebar-search", "codebase-research:2026-06-11-0096-templates-view-auto-discovery"]
 topic: "Surfacing Root Cause Analyses in the Visualiser under a new Operate category"
 tags: ["research", "codebase", "visualiser", "rca", "issue-research", "doc-types", "library", "operate"]
@@ -428,20 +428,20 @@ From `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype
 
 ## Historical Context
 
-- `meta/work/0096-templates-view-auto-discovers-templates.md` (in-progress) —
+- `meta/work/PP-118-templates-view-auto-discovers-templates.md` (in-progress) —
   landed the RCA small glyph + `STEM_TO_GLYPH` + glyph-only key + colour tokens;
   status lag noted by the author. This research confirms that groundwork is
   present and correct.
-- `meta/work/0074-per-doc-type-hues-on-detail-page.md` (done) +
+- `meta/work/PP-96-per-doc-type-hues-on-detail-page.md` (done) +
   `meta/plans/2026-05-26-0074-...` + `meta/research/codebase/2026-05-24-0074-...`
   — the per-doc-type hue/glyph registry and related-artifacts render path RCA
   extends.
-- `meta/work/0041-library-page-wrapper-and-overview-hub.md` (done) +
+- `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` (done) +
   `meta/plans/2026-05-16-0041-...` — server-driven library/hub/list semantics
   (count + latest preview).
-- `meta/work/0082-big-glyph-hero-illustrations.md` (done) +
+- `meta/work/PP-104-big-glyph-hero-illustrations.md` (done) +
   `meta/plans/2026-06-09-0082-...` — the BigGlyph set + draw-function convention.
-- `meta/work/0054-sidebar-search.md` (done) + `meta/plans/2026-06-01-0054-...` —
+- `meta/work/PP-76-sidebar-search.md` (done) + `meta/plans/2026-06-01-0054-...` —
   search endpoint + sidebar UI.
 - `meta/work/0057-...` (in-progress epic) + `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
   + `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` — the `issue-research`

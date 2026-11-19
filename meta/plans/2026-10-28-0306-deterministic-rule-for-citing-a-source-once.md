@@ -6,8 +6,8 @@ date: "2026-10-28T15:46:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0306"
-parent: "work-item:0306"
+work_item_id: "work-item:PP-892"
+parent: "work-item:PP-892"
 derived_from: ["codebase-research:2026-10-28-0306-deterministic-rule-for-citing-a-source-once"]
 tags: ["research", "deep-research", "composer", "synthesise", "tiers"]
 revision: "6ae94e865c9f2250d04af85adc3f253943ff2c3f"
@@ -1102,7 +1102,7 @@ shipped code parses tier text.
 
 ## References
 
-- Original work item: `meta/work/0306-deterministic-rule-for-citing-a-source-once.md`
+- Original work item: `meta/work/PP-892-deterministic-rule-for-citing-a-source-once.md`
 - Related codebase research: `meta/research/codebase/2026-10-28-0306-deterministic-rule-for-citing-a-source-once.md`
 - Prior carry-forward and validation method:
   `meta/plans/2026-10-24-0348-structured-source-metadata.md:1696-1749`

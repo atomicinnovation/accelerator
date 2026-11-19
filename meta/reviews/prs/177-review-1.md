@@ -73,8 +73,8 @@ A well-built extension of the `measure:build` harness. Isolation slots into the 
 - 🔵 `tasks/shared/build_measurement/cache_states.py:4` — The cache-state enum encodes the checkout's concrete layout (architecture)
 - 🔵 `tasks/measure.py:3791` — `compare-builds` exits 0 when conditions differ, so it cannot gate a script (usability)
 - 🔵 `tasks/README.md:415` — The README should say that `compare-builds` takes record file paths (documentation)
-- 🔵 `meta/work/0367-stop-rebuilding-unchanged-inputs.md:100` — Says cold deletes every `node_modules`, but it deletes only the frontend's (documentation)
-- 🔵 `meta/work/0368-build-performance-measurement-and-host-guidance.md:15` — `last_updated` predates the 0370 edge it carries (standards)
+- 🔵 `meta/work/PP-959-stop-rebuilding-unchanged-inputs.md:100` — Says cold deletes every `node_modules`, but it deletes only the frontend's (documentation)
+- 🔵 `meta/work/PP-960-build-performance-measurement-and-host-guidance.md:15` — `last_updated` predates the 0370 edge it carries (standards)
 - 🔵 `tasks/shared/build_measurement/errors.py:87` — `MissingTouchTargetError` also covers a target that is not a regular file (standards)
 - 🔵 `tasks/shared/build_measurement/timeline.py:150` — A conditional expression inside a dict comprehension is dense (code-quality)
 - 🔵 `tasks/shared/build_measurement/workspace.py:97` — Nothing checks for live consumers, such as the dev server or rust-analyzer, of the directories being deleted (safety)
@@ -158,16 +158,16 @@ This is a character-for-character copy of `reports._plural`. A change to how cou
 
 ---
 
-### `meta/work/0363-remove-repeated-work-from-the-rust-test-lanes.md:14` — Frontmatter edits miss `last_updated` and the usual key order
+### `meta/work/PP-955-remove-repeated-work-from-the-rust-test-lanes.md:14` — Frontmatter edits miss `last_updated` and the usual key order
 **Severity**: minor | **Confidence**: high | **Lens**: standards
 
-The PR swaps this item's `blocked_by` for `blocks: ["work-item:0370"]` and rewrites its Dependencies section. `last_updated` stays at 2026-10-29, and the new `blocks:` sits after `schema_version` rather than after `parent:`, where 0362 and the other items keep relationship keys. 0362 and 0364 also have stale `last_updated`, while 0365 and 0366 were bumped.
+The PR swaps this item's `blocked_by` for `blocks: ["work-item:PP-962"]` and rewrites its Dependencies section. `last_updated` stays at 2026-10-29, and the new `blocks:` sits after `schema_version` rather than after `parent:`, where 0362 and the other items keep relationship keys. 0362 and 0364 also have stale `last_updated`, while 0365 and 0366 were bumped.
 
 **Suggestion**: Move `blocks:` to just after `parent:`, and bump `last_updated` and `last_updated_by` on every edited sibling.
 
 ---
 
-### `meta/work/0367-stop-rebuilding-unchanged-inputs.md:17` — `blocks:` appended after `schema_version`, and `last_updated` not bumped
+### `meta/work/PP-959-stop-rebuilding-unchanged-inputs.md:17` — `blocks:` appended after `schema_version`, and `last_updated` not bumped
 **Severity**: minor | **Confidence**: high | **Lens**: standards, documentation
 
 This has the same misplacement as 0363: the new `blocks:` key belongs after `parent:`, where `blocked_by:` used to be. The frontmatter and the Dependencies section changed, but `last_updated` still reads 2026-10-30.

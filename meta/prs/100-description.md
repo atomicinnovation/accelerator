@@ -6,7 +6,7 @@ date: "2026-09-05T22:38:10+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0136", "work-item:0276"]
+relates_to: ["work-item:PP-157", "work-item:PP-860"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/100"
 pr_number: 100
 tags: ["work-items", "rust", "cli", "linear-sync"]

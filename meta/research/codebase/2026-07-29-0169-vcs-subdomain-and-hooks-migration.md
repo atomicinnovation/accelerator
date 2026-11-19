@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0169"
-parent: "work-item:0169"
+parent: "work-item:PP-190"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration", "codebase-research:2026-07-11-0179-corpus-crates-parsing-conventions", "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"]
 topic: "Implementation surface for the accelerator-vcs subdomain and the SessionStart/PreToolUse hooks migration"
 tags: ["research", "codebase", "vcs", "hooks", "rust", "cli", "migration", "gix", "jj-lib"]
@@ -787,21 +787,21 @@ every future CLI-backed hook, for free.
   twelve pass-1 findings dispositioned; finding #6 is the one that produced the
   golden-envelope AC, and its fix is what this research now shows needs
   re-examining. Left open deliberately: the bundling scope point (`:420-423`).
-- `meta/work/0125-converge-vcs-detection-on-probe-layer.md` — **open `draft`
+- `meta/work/PP-146-converge-vcs-detection-on-probe-layer.md` — **open `draft`
   debt, not subsumed by 0169.** Two binding constraints it states are *not*
   restated in 0169: `find_repo_root` ("where am I") must stay distinct from
   `find_git_main_worktree_root` (canonical main) — `:96-101`; and `vcs_mode` is a
   command-set selector, so any delegation to `classify_checkout` must map the
   topology verdict *back* to a jj/git selector — `:102-105`. It also asks for a
   cross-strategy characterisation test (`:131-133`) that 0169 has no AC for.
-- `meta/work/0183-session-start-hook-advisories-reach-nobody-on-stderr.md:49-55`
+- `meta/work/PP-713-session-start-hook-advisories-reach-nobody-on-stderr.md:49-55`
   — the one-JSON-object and stdout-is-context constraints; its audit AC
   (`:83-84`) requires every SessionStart hook to be converted or cleared.
-- `meta/work/0174-retire-shell-tooling-and-ci-guards.md:44,59,88` — removes
+- `meta/work/PP-195-retire-shell-tooling-and-ci-guards.md:44,59,88` — removes
   *tooling, not scripts*, and never names `vcs-common.sh` or any hook script. It
   expects the bootstrap, hook wrapper and Playwright executor to survive.
-- `meta/work/0058-workspace-worktree-boundary-detection.md` and
-  `meta/work/0124-find-repo-root-fails-in-git-worktrees.md` — the origin of
+- `meta/work/PP-80-workspace-worktree-boundary-detection.md` and
+  `meta/work/PP-145-find-repo-root-fails-in-git-worktrees.md` — the origin of
   `classify_checkout` and of the `-d`→`-e` fix in `find_repo_root`. Both are
   still recorded `draft` although 0124's fix has shipped.
 - `meta/prs/24-description.md:29,47` — the `gix`/`jj-lib` refinement record,

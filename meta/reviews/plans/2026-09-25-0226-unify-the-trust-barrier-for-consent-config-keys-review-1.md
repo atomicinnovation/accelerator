@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
 target: "plan:2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys"
-relates_to: ["work-item:0226", "work-item:0298"]
+relates_to: ["work-item:PP-756", "work-item:PP-883"]
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "correctness", "security", "test-coverage", "code-quality", "compatibility", "safety", "documentation"]
@@ -940,7 +940,7 @@ defaults. The majors were then walked through in four groups:
   cost and check coverage fall on the same rare session. The walk moves into
   `vcs_adapters::file_tracking`, and a pup rule bars `^config` from `vcs-cli`.
   Launcher tests use `accelerator-fixture`. **Work item 0298 raised**
-  (`meta/work/0298-consolidate-the-sessionstart-hooks-behind-accelerator-hooks.md`)
+  (`meta/work/PP-883-consolidate-the-sessionstart-hooks-behind-accelerator-hooks.md`)
   to consolidate the SessionStart hooks behind `accelerator hooks
   session-start`. Hook sequencing was kept out of 0226 (option 3).
 - **Group B (severity, error shape, plaintext channel).** The policy-owned

@@ -1,7 +1,7 @@
 ---
 date: "2026-06-06T22:35:00+00:00"
 type: "design-gap"
-work_item_id: "work-item:0086"
+work_item_id: "work-item:PP-108"
 target_inventory: "meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full/src/view-kanban.jsx"
 current_inventory: "meta/research/design-inventories/2026-05-21-004250-current-app/inventory.md"
 author: "Toby Clemson"

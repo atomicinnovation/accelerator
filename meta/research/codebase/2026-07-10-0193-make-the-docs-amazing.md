@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0193"
-parent: "work-item:0193"
+parent: "work-item:PP-723"
 relates_to: ["codebase-research:2026-07-10-0177-documentation-site-for-docs-tree"]
 topic: "Docs site overhaul: generated per-skill reference, tutorials, splash landing, sidebar restructure, drift guards"
 tags: ["research", "codebase", "docs-site", "starlight", "skills", "tasks", "ci"]
@@ -244,15 +244,15 @@ shell-only, so a YAML dependency (or minimal parser) is needed.
 - `meta/research/codebase/2026-07-10-0177-documentation-site-for-docs-tree.md`
   — anchor fragility in headings with raw `<img>`, Chromium ~150MB per
   CI run uncached (optimisation candidate as builds grow).
-- `meta/work/0176-per-skill-family-reference-docs.md` — the family-pages
+- `meta/work/PP-698-per-skill-family-reference-docs.md` — the family-pages
   model 0193 supersedes; its deferred open question (generate the index
   from frontmatter with a CI consistency check) is 0193's drift-guard
   mandate.
-- `meta/work/0192-documentation.md` — the audience framing; Diátaxis is
+- `meta/work/PP-722-documentation.md` — the audience framing; Diátaxis is
   an influence, not a mandate; prefers generation + drift guards over
   hand-maintained duplication. Unresolved: whether 0145's in-progress
   content is absorbed into 0192's children.
-- `meta/work/0145-documentation-improvements.md` — earlier docs epic;
+- `meta/work/PP-166-documentation-improvements.md` — earlier docs epic;
   its IA questions are effectively superseded by 0192/0193.
 
 ## Related Research

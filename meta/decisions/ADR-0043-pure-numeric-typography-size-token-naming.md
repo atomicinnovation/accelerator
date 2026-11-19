@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 supersedes: ["adr:ADR-0036"]
-relates_to: ["adr:ADR-0026", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0034", "adr:ADR-0036", "adr:ADR-0039", "work-item:0099", "work-item:0075", "work-item:0091"]
+relates_to: ["adr:ADR-0026", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0034", "adr:ADR-0036", "adr:ADR-0039", "work-item:PP-121", "work-item:PP-97", "work-item:PP-113"]
 tags: ["visualiser", "frontend", "css", "design-tokens", "typography"]
 last_updated: "2026-06-13T21:42:35+00:00"
 last_updated_by: "Toby Clemson"
@@ -213,7 +213,7 @@ silent.
   lose font-size-only scaling for typography. This rename changes token *names*
   only, not their *unit* — the px-vs-rem trade-off is **carried forward intact,
   not re-decided here**. A future review of the px-vs-rem stance remains open;
-  see work-item:0091. That review will likely resolve the unit axis by
+  see work-item:PP-113. That review will likely resolve the unit axis by
   *superseding* ADR-0043 with a further successor ADR (per ADR-0031 an accepted
   ADR is immutable and can only be superseded, so the unit decision will re-state
   the consumption rule in its successor rather than amending this one).
@@ -242,9 +242,9 @@ silent.
   only be superseded).
 - `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` — `supersedes` /
   `relates_to` linkage shape.
-- `meta/work/0099-remap-typography-size-scale-to-pure-numeric-tokens.md` — work
+- `meta/work/PP-121-remap-typography-size-scale-to-pure-numeric-tokens.md` — work
   item that landed this remap.
-- `meta/work/0075-typography-size-scale-consumption.md` — created ADR-0036 and
+- `meta/work/PP-97-typography-size-scale-consumption.md` — created ADR-0036 and
   introduced the mixed naming this remap fixes.
-- `meta/work/0091-typography-rem-vs-px-stance.md` — follow-up review of the
+- `meta/work/PP-113-typography-rem-vs-px-stance.md` — follow-up review of the
   px-anchored stance (the open unit-axis question).

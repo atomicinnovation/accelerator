@@ -6,10 +6,10 @@ date: "2026-06-11T13:38:03+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0106"
-parent: "work-item:0106"
+work_item_id: "work-item:PP-128"
+parent: "work-item:PP-128"
 derived_from: ["codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"]
-relates_to: ["work-item:0107"]
+relates_to: ["work-item:PP-129"]
 tags: ["permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 revision: "b2f3fafe9a2e381b039648f551640426cd6c915f"
 repository: "miscellaneous"
@@ -507,7 +507,7 @@ fence-state guard, and flag `0107` (which inherits the same regex) to adopt it.
 
 ### Changes Required
 
-#### 1. `meta/work/0106-invoke-plugin-scripts-by-bare-path.md` — AC3
+#### 1. `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md` — AC3
 
 Replace the third acceptance-criterion bullet (the `rg -U '```\n…'` regex) with a crisp,
 checkable gate that references the fence-state guard and re-establishes a real
@@ -534,7 +534,7 @@ the supersession discoverable from the work item itself, so a future author open
 does not copy the now-non-authoritative template. (Do not alter the template text or any
 acceptance criterion beyond AC3.)
 
-#### 2. `meta/work/0107-lint-skill-body-script-invocations.md`
+#### 2. `meta/work/PP-129-lint-skill-body-script-invocations.md`
 
 Add a note (to `0107`'s **Drafting Notes**) that the committed guard must **not** reuse
 0106's original regex (defective per research §5) and should build on the fence-state
@@ -561,11 +561,11 @@ Do not change `0107`'s status or dependencies.
 #### Automated Verification
 
 - [x] `0106` no longer contains the broken look-ahead regex:
-      `grep -F '(?:(?!```)' meta/work/0106-invoke-plugin-scripts-by-bare-path.md` → empty
+      `grep -F '(?:(?!```)' meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md` → empty
 - [x] `0106` AC3 references the fence-state guard:
-      `grep -n 'fence-state' meta/work/0106-invoke-plugin-scripts-by-bare-path.md` → ≥1
+      `grep -n 'fence-state' meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md` → ≥1
 - [x] `0107` carries the defect note:
-      `grep -n 'defective\|fence-state' meta/work/0107-lint-skill-body-script-invocations.md` → ≥1
+      `grep -n 'defective\|fence-state' meta/work/PP-129-lint-skill-body-script-invocations.md` → ≥1
 
 #### Manual Verification
 
@@ -736,10 +736,10 @@ path, since verification here is static and will not surface the regression on i
 
 ## References
 
-- Original work item: `meta/work/0106-invoke-plugin-scripts-by-bare-path.md`
+- Original work item: `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md`
 - Related research: `meta/research/codebase/2026-06-11-0106-bare-path-script-invocation-call-sites.md`
 - Source RCA: `meta/research/issues/2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission.md`
-- Coupled guardrail work item: `meta/work/0107-lint-skill-body-script-invocations.md`
+- Coupled guardrail work item: `meta/work/PP-129-lint-skill-body-script-invocations.md`
 - Bare fence to convert (create-adr): `skills/decisions/create-adr/SKILL.md:125-127`
 - Bare fence to convert (extract-adrs): `skills/decisions/extract-adrs/SKILL.md:121-123`
 - Hard-coded `bash`-prefix cluster: `skills/config/configure/SKILL.md:831-918`

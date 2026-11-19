@@ -13,7 +13,7 @@ type: "codebase-research"
 id: "2026-05-31-0085-humanise-detail-page-h1-fallback"
 title: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"
 schema_version: 1
-relates_to: ["work-item:0041", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
+relates_to: ["work-item:PP-63", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 derived_from: ["codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-04-08-ticket-management-skills"]
 ---
 

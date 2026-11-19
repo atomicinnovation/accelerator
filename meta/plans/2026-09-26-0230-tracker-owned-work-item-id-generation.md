@@ -6,8 +6,8 @@ date: "2026-09-26T01:21:14+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0230"
-parent: "work-item:0230"
+work_item_id: "work-item:PP-760"
+parent: "work-item:PP-760"
 derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
@@ -105,7 +105,7 @@ With `work.id_pattern: "{tracker}"` and `work.integration` of `jira` or
 - `extract-work-items` creates its batch through `work create-batch`.
 
 Legacy items keep their IDs. Verification: every acceptance criterion in
-`meta/work/0230-tracker-owned-work-item-id-generation.md` maps to at least
+`meta/work/PP-760-tracker-owned-work-item-id-generation.md` maps to at least
 one automated test named in the phase that delivers it, and `mise run`
 exits 0.
 
@@ -226,7 +226,7 @@ ADR-0044, before any code changes land.
   retirement; accepted ADRs' typed links are rewritten because a typed
   link is a reference, not decision content; legacy IDs are kept.
 - Frontmatter: `supersedes: ["adr:ADR-0044"]`,
-  `relates_to: ["adr:ADR-0034", "adr:ADR-0033"]`, `parent: "work-item:0230"`.
+  `relates_to: ["adr:ADR-0034", "adr:ADR-0033"]`, `parent: "work-item:PP-760"`.
 
 #### 2. ADR-0044 status
 
@@ -794,7 +794,7 @@ provisional ID) is unrelated to `status: draft`; replace "filename is authoritat
 #### Manual Verification:
 
 - [x] `accelerator work resolve PP-760` returns
-      `meta/work/0230-tracker-owned-work-item-id-generation.md` in this repo.
+      `meta/work/PP-760-tracker-owned-work-item-id-generation.md` in this repo.
 - [x] `accelerator work list` in this repo renders the Sync column only
       when `last-sync.json` exists.
       Present with this repo's Linear baseline. The absent case was
@@ -834,7 +834,7 @@ the rest.
   - `a_retired_key_that_prefixes_another_leaves_the_other_untouched`
     (`PP-76` → `ENG-42`; `PP-760` unchanged)
   - `a_bare_numeric_id_is_rewritten_only_in_typed_links`
-    (`work-item:0230` → `work-item:PP-760`; prose `0230` unchanged)
+    (`work-item:PP-760` → `work-item:PP-760`; prose `0230` unchanged)
   - `a_work_item_reviews_work_item_id_equal_to_the_old_id_is_rewritten`
     (`type: "work-item-review"`, `work_item_id: "0230"` →
     `work_item_id: "PP-760"`)
@@ -3705,16 +3705,16 @@ One row per acceptance criterion in 0230, in the work item's order.
 
 ## References
 
-- Original work item: `meta/work/0230-tracker-owned-work-item-id-generation.md`
+- Original work item: `meta/work/PP-760-tracker-owned-work-item-id-generation.md`
 - Codebase research:
   `meta/research/codebase/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
 - Work item review: `meta/reviews/work/0230-tracker-owned-work-item-id-generation-review-1.md`
 - Superseded decision: `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md`
-- Absorbed defect: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
+- Absorbed defect: `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
   (Defect 1)
-- Downstream: `meta/work/0302-work-item-re-key-command.md`,
-  `meta/work/0291-parent-child-relationship-sync.md`,
-  `meta/work/0227-accelerator-config-validate-command.md`
+- Downstream: `meta/work/PP-879-work-item-re-key-command.md`,
+  `meta/work/PP-877-parent-child-relationship-sync.md`,
+  `meta/work/PP-757-accelerator-config-validate-command.md`
 - Precedents: `cli/migrate/src/migrations/m0002.rs:58-572` (rename and
   rewrite), `cli/jira-client/src/multipart.rs:66-80` (redraw loop),
   `cli/work-cli/src/list.rs:374-429` (cycle detection)

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0095"
-parent: "work-item:0095"
+parent: "work-item:PP-117"
 relates_to: ["codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
 topic: "Theme-Reactive Markdown Task-List Checkboxes"
 tags: ["research", "codebase", "visualiser", "markdown", "theme", "dark-mode", "checkbox", "design-tokens"]
@@ -370,13 +370,13 @@ computed-style ACs must be Playwright, not vitest (documented at
   *not* such a family (it consumes themed tokens).
 - `meta/decisions/ADR-0035-brand-layer-indirection-supplement-to-adr-0026.md` —
   token indirection layer the `--ac-*` values resolve through.
-- `meta/work/0037-glyph-component.md` (+ plan/research) — the token-driven,
+- `meta/work/PP-59-glyph-component.md` (+ plan/research) — the token-driven,
   theme-reactive glyph pattern the work item cites as the model.
-- `meta/work/0034-theme-and-font-mode-toggles.md` (+ plan/research) — the
+- `meta/work/PP-56-theme-and-font-mode-toggles.md` (+ plan/research) — the
   `data-theme` / `color-scheme` mechanism.
-- `meta/work/0076-code-block-syntax-highlight-palette.md` (+ plan/research) —
+- `meta/work/PP-98-code-block-syntax-highlight-palette.md` (+ plan/research) —
   introduced the existing `pre` override and the markdown code-block chrome.
-- `meta/work/0077-shadow-and-dark-accent-token-audit.md` — dark `--ac-accent`
+- `meta/work/PP-99-shadow-and-dark-accent-token-audit.md` — dark `--ac-accent`
   correctness (the value the checked box fills with).
 - `meta/reviews/work/0095-markdown-checkboxes-always-dark-mode-styled-review-1.md`
   — the work-item review.

@@ -6,8 +6,8 @@ date: "2026-07-22T21:45:15+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0167"
-parent: "work-item:0167"
+work_item_id: "work-item:PP-188"
+parent: "work-item:PP-188"
 derived_from: ["codebase-research:2026-07-22-0167-config-command-refactoring-opportunities"]
 relates_to: ["plan:2026-07-19-0167-config-command-and-invocation-contract-migration"]
 tags: ["rust", "config", "cli", "launcher", "store", "hexagon", "refactoring"]
@@ -1073,7 +1073,7 @@ where the umask is read, not the resulting mode).
 ## References
 
 - Research: `meta/research/codebase/2026-07-22-0167-config-command-refactoring-opportunities.md`
-- Work item: `meta/work/0167-config-command-and-invocation-contract-migration.md`
+- Work item: `meta/work/PP-188-config-command-and-invocation-contract-migration.md`
 - Implemented plan: `meta/plans/2026-07-19-0167-config-command-and-invocation-contract-migration.md`
 - Domain seam: `cli/config/src/service.rs:274-358`, `cli/config/src/catalogue.rs:219-235`
 - Agent drift: `cli/launcher/src/config_command/core/agents.rs:35-59`,

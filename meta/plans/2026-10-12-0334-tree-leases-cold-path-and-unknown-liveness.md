@@ -6,8 +6,8 @@ date: "2026-10-12T09:37:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0334"
-parent: "work-item:0334"
+work_item_id: "work-item:PP-930"
+parent: "work-item:PP-930"
 derived_from: ["codebase-research:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["runtime", "cache", "lease", "prune", "design", "tree-lease"]
 revision: "db946b0fc53884aa5938fe92c6a2b9222dc52963"
@@ -1383,7 +1383,7 @@ with the real runtime:
 
 #### 6. Work item update
 
-In `meta/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`,
+In `meta/work/PP-930-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`,
 use `/accelerator:update-work-item` to:
 
 - **Record the scope deviation:** under Drafting Notes, record that the warm-path
@@ -1500,7 +1500,7 @@ the work item's Assumptions accept.
 
 ## References
 
-- Work item: `meta/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
+- Work item: `meta/work/PP-930-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
 - Research: `meta/research/codebase/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`
 - Contract origin: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md:1700-1738`
 - Decisions: `meta/decisions/ADR-0061-signed-content-addressed-tree-generations.md`, `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`, `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`

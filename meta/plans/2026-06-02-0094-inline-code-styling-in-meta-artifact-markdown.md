@@ -14,7 +14,7 @@ repository: "ticket-management"
 last_updated: "2026-06-02T17:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0094", "work-item:0099", "codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown", "adr:ADR-0036", "adr:ADR-0026"]
+relates_to: ["work-item:PP-116", "work-item:PP-121", "codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown", "adr:ADR-0036", "adr:ADR-0026"]
 ---
 
 # Inline Code Styling In Meta Artifact Markdown Implementation Plan
@@ -660,7 +660,7 @@ No data or schema migration. Two test/code-coupled surfaces:
 ### Follow-on: scale-remap initiative (work item 0099)
 
 Not part of 0094. Captured as **work item 0099**
-(`meta/work/0099-remap-typography-size-scale-to-pure-numeric-tokens.md`); a
+(`meta/work/PP-121-remap-typography-size-scale-to-pure-numeric-tokens.md`); a
 dedicated ADR (superseding ADR-0036) + plan will follow. It
 will remap the typography scale to a **pure-numeric** scheme (e.g.
 `--size-110` = 11px, `--size-115` = 11.5px), resolving the sub-14px band's
@@ -672,8 +672,8 @@ simply updates 0094's `var(--size-eyebrow)` reference with the rest).
 
 ## References
 
-- Work item: `meta/work/0094-inline-code-styling-in-meta-artifact-markdown.md`
-- Follow-on (scale remap): `meta/work/0099-remap-typography-size-scale-to-pure-numeric-tokens.md`
+- Work item: `meta/work/PP-116-inline-code-styling-in-meta-artifact-markdown.md`
+- Follow-on (scale remap): `meta/work/PP-121-remap-typography-size-scale-to-pure-numeric-tokens.md`
 - Research: `meta/research/codebase/2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown.md`
 - Live rule: `skills/visualisation/visualise/frontend/src/components/MarkdownRenderer/MarkdownRenderer.module.css:57-60`
 - Renderer (no inline-code class): `skills/visualisation/visualise/frontend/src/components/MarkdownRenderer/MarkdownRenderer.tsx:29-44`

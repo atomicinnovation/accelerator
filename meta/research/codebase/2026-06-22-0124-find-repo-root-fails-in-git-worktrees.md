@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0124"
-parent: "work-item:0124"
+parent: "work-item:PP-145"
 relates_to: ["codebase-research:2026-05-15-0058-workspace-worktree-boundary-detection"]
 topic: "find_repo_root fails in git worktrees (-d vs -e marker test)"
 tags: ["research", "codebase", "scripts", "vcs", "git", "worktree", "conductor", "vcs-common"]
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-Work item [`0124`](../../work/0124-find-repo-root-fails-in-git-worktrees.md)
+Work item [`0124`](../../work/PP-145-find-repo-root-fails-in-git-worktrees.md)
 reports that `find_repo_root()` in `scripts/vcs-common.sh` uses a directory
 test (`[ -d "$dir/.git" ]`) to detect a repo root, which fails inside a git
 linked worktree because `.git` is a regular *file* (a `gitdir:` pointer) there.
@@ -273,7 +273,7 @@ needs no change.
 
 ## Historical Context
 
-- [`meta/work/0058-workspace-worktree-boundary-detection.md`](../../work/0058-workspace-worktree-boundary-detection.md)
+- [`meta/work/PP-80-workspace-worktree-boundary-detection.md`](../../work/PP-80-workspace-worktree-boundary-detection.md)
   (done) — identified the "`.git` is a regular file in a linked worktree" signal
   and built the probe-based helpers, but **explicitly carved `find_repo_root`
   out of scope** ("No refactor of `find_repo_root`. Its directory-only `-d` test
@@ -288,7 +288,7 @@ needs no change.
   — its test plan (lines ~910-913) is the origin of the "deliberately do NOT
   lock in `find_repo_root`'s behaviour … keeps room for a future fix" comment
   now living in `hooks/test-vcs-detect.sh`.
-- [`meta/work/0020-vcs-abstraction-layer.md`](../../work/0020-vcs-abstraction-layer.md)
+- [`meta/work/PP-42-vcs-abstraction-layer.md`](../../work/PP-42-vcs-abstraction-layer.md)
   (draft) — origin of the VCS layer and its directory-presence heuristic, but it
   never produced an ADR and imposes **no binding constraint** on `find_repo_root`.
   The `-d`→`-e` change contradicts no ratified decision.

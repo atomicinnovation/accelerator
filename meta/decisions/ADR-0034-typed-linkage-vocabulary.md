@@ -9,7 +9,7 @@ title: "ADR-0034: Typed linkage vocabulary for meta/ artifacts"
 schema_version: 1
 last_updated: "2026-05-20T10:13:04+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:0060", "adr:ADR-0033", "work-item:0061", "work-item:0057", "work-item:0040"]
+relates_to: ["work-item:PP-82", "adr:ADR-0033", "work-item:PP-83", "work-item:PP-79", "work-item:PP-62"]
 ---
 
 # ADR-0034: Typed linkage vocabulary for meta/ artifacts
@@ -74,7 +74,7 @@ The rule is sufficiency, not exclusivity: one well-formed side establishes the e
 
 Two reference forms are supported:
 
-1. **`doc-type:id`** — canonical, e.g. `"plan:0042"`, `"adr:ADR-0033"`, `"work-item:0061"`. Composes ADR-0033's artifact-type discriminator with its unified `id`. Stable across file renames.
+1. **`doc-type:id`** — canonical, e.g. `"plan:0042"`, `"adr:ADR-0033"`, `"work-item:PP-83"`. Composes ADR-0033's artifact-type discriminator with its unified `id`. Stable across file renames.
 2. **Project-root-relative path** — e.g. `"meta/notes/2026-01-15-pipeline-incident.md"`, `"src/auth/session.ts"`. Used when the target is not a meta artifact with a stable `id`, or when the link is to a specific code file.
 
 The whole reference is a single quoted YAML string in both forms, per ADR-0033's identity-value contract — `"plan:0042"`, never `plan:"0042"`. Lists of references are YAML arrays of such strings.
@@ -148,8 +148,8 @@ At least one row per canonical linkage key is listed; the table is illustrative 
 
 ## References
 
-- `meta/work/0061-adr-typed-linkage-vocabulary.md` — Source task
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — Parent epic
+- `meta/work/PP-83-adr-typed-linkage-vocabulary.md` — Source task
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — Parent epic
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — Defines `id`, identity-value shape, immutability rule; explicitly defers the typed-linkage vocabulary to this ADR
-- `meta/work/0060-adr-unified-base-frontmatter-schema.md` — Sibling task that produced ADR-0033
+- `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` — Sibling task that produced ADR-0033
 - `meta/work/0040-visualiser-meta-content-rendering.md` — Visualiser context; the future visualiser-graph epic will consume this ADR

@@ -6,8 +6,8 @@ date: "2026-10-15T22:41:51+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0302"
-parent: "work-item:0302"
+work_item_id: "work-item:PP-879"
+parent: "work-item:PP-879"
 derived_from: ["codebase-research:2026-10-15-0302-work-item-re-key-command"]
 relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
@@ -74,7 +74,7 @@ run-level half is absent:
 
 - `accelerator work rekey [--preview | --discard] [--per-item-reads]`
   exists, and every acceptance criterion in
-  `meta/work/0302-work-item-re-key-command.md` has a named test (see
+  `meta/work/PP-879-work-item-re-key-command.md` has a named test (see
   Acceptance-Criteria Traceability).
 - The run plan lives at `.accelerator/state/rekey/run-plan.json` behind a
   verified ignore-everything `.gitignore`.
@@ -2291,14 +2291,14 @@ AC for the restored case.
 
 ## References
 
-- Work item: `meta/work/0302-work-item-re-key-command.md`
+- Work item: `meta/work/PP-879-work-item-re-key-command.md`
 - Research: `meta/research/codebase/2026-10-15-0302-work-item-re-key-command.md`
 - Review: `meta/reviews/work/0302-work-item-re-key-command-review-1.md`
 - Retirement precedent: `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
 - Decisions: `meta/decisions/ADR-0070-tracker-owned-work-item-identity.md`,
   `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md`
-- Downstream: `meta/work/0343-alias-normalisation-for-re-keyed-work-items.md`,
-  `meta/work/0346-remove-deprecated-accelerator-migrate-force.md`
+- Downstream: `meta/work/PP-931-alias-normalisation-for-re-keyed-work-items.md`,
+  `meta/work/PP-934-remove-deprecated-accelerator-migrate-force.md`
 - Code: `cli/work/src/retirement.rs:348-671`,
   `cli/work-adapters/src/retirement.rs:403-539`,
   `cli/work-adapters/src/retirement_records.rs:64-164`,

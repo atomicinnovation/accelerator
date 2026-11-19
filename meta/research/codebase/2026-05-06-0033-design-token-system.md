@@ -12,8 +12,8 @@ type: "codebase-research"
 id: "2026-05-06-0033-design-token-system"
 title: "Implementation of work item 0033 — Design Token System"
 schema_version: 1
-relates_to: ["work-item:0033", "work-item:0043", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "codebase-research:2026-05-02-design-convergence-workflow", "plan:2026-05-03-design-convergence-workflow", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view", "adr:ADR-0001", "adr:ADR-0024"]
-blocks: ["work-item:0034", "work-item:0035"]
+relates_to: ["work-item:PP-55", "work-item:PP-65", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "codebase-research:2026-05-02-design-convergence-workflow", "plan:2026-05-03-design-convergence-workflow", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view", "adr:ADR-0001", "adr:ADR-0024"]
+blocks: ["work-item:PP-56", "work-item:PP-57"]
 derived_from: ["codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues"]
 ---
 
@@ -199,7 +199,7 @@ AC2 currently asserts:
 
 (1) is a manual observation; not automatable in unit tests. (2) is trivially satisfied by a single `var(--ac-font-display)` reference. The pass-2 review (`meta/reviews/work/0033-design-token-system-review-1.md` line 286) flags this as a precision-tightening concern — the implementer might consider a `globalCss` regex assertion that `--ac-font-display`, `--ac-font-body`, `--ac-font-mono` are referenced from at least one `*.module.css`, but this isn't strictly required by AC2 as written.
 
-CSP / preconnect / privacy implications captured in Dependencies (`meta/work/0033-design-token-system.md:165-168`). The pass-2 review (line 296) notes that GDPR / DPA posture for Google Fonts isn't called out alongside CSP — worth raising during PR review if the visualiser is ever deployed beyond local development.
+CSP / preconnect / privacy implications captured in Dependencies (`meta/work/PP-55-design-token-system.md:165-168`). The pass-2 review (line 296) notes that GDPR / DPA posture for Google Fonts isn't called out alongside CSP — worth raising during PR review if the visualiser is ever deployed beyond local development.
 
 ### Existing tests that don't change
 
@@ -251,11 +251,11 @@ AC3's `-g '!**/*.test.ts' -g '!**/*.test.tsx'` correctly excludes all three. **A
 
 ## Historical Context
 
-- `meta/work/0033-design-token-system.md` — the work item itself (exhaustively reviewed in two passes per `meta/reviews/work/0033-design-token-system-review-1.md`).
+- `meta/work/PP-55-design-token-system.md` — the work item itself (exhaustively reviewed in two passes per `meta/reviews/work/0033-design-token-system-review-1.md`).
 - `meta/reviews/work/0033-design-token-system-review-1.md` — pass-2 review notes that all 10 pass-1 majors are resolved or partially resolved; remaining concerns are precision-tightening (AC1 token enumeration locality, AC2 manual observation, AC6 measurement tooling). Verdict REVISE per a strict major-count threshold but the reviewer notes the work item is "implementable as-is".
-- `meta/work/0034-theme-and-font-mode-toggles.md` — the immediate successor; consumes 0033's `[data-theme="dark"]` block to wire the toggle UI, font-mode swap, and `localStorage` persistence. Confirms the scope split: 0033 ships dark *values*, 0034 ships the *toggle*.
-- `meta/work/0035-topbar-component.md` through `0042-templates-view-redesign.md` — eight downstream work items that all consume the token layer. None block 0033.
-- `meta/work/0043-spike-detail-screen-capability-retention.md`, `0044-spike-list-screen-scope-decisions.md` — two spikes that resolve TBD items in the gap analysis (per-doc-detail screen retention; lifecycle-index sort-control reduction). Out of scope for 0033 but implementer may want to skim if any cross-cutting changes show up.
+- `meta/work/PP-56-theme-and-font-mode-toggles.md` — the immediate successor; consumes 0033's `[data-theme="dark"]` block to wire the toggle UI, font-mode swap, and `localStorage` persistence. Confirms the scope split: 0033 ships dark *values*, 0034 ships the *toggle*.
+- `meta/work/PP-57-topbar-component.md` through `PP-64-templates-view-redesign.md` — eight downstream work items that all consume the token layer. None block 0033.
+- `meta/work/PP-65-spike-detail-screen-capability-retention.md`, `PP-66-spike-list-screen-scope-decisions.md` — two spikes that resolve TBD items in the gap analysis (per-doc-detail screen retention; lifecycle-index sort-control reduction). Out of scope for 0033 but implementer may want to skim if any cross-cutting changes show up.
 - `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md` — the canonical token table (Requirements bullet 4 and AC1 reference its subsections by name). The implementer should keep this open as a side-by-side reference while authoring `tokens.ts` and `global.css`.
 - `meta/research/design-inventories/2026-05-06-135214-current-app/inventory.md` — the snapshot of the current app's token surface (eight `--color-*`, no scales). Useful for confirming what's being replaced.
 - `meta/research/design-gaps/2026-05-06-current-app-vs-claude-design-prototype.md` — the gap analysis whose "Suggested Sequencing" section identifies 0033 as the load-bearing first pass.

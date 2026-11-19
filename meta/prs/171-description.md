@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0348"
-parent: "work-item:0348"
-relates_to: ["work-item:0281", "work-item:0305", "work-item:0306", "work-item:0347", "work-item:0349"]
+parent: "work-item:PP-936"
+relates_to: ["work-item:PP-865", "work-item:PP-891", "work-item:PP-892", "work-item:PP-923", "work-item:PP-924"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/171"
 pr_number: 171
 tags: ["research", "sources", "metadata", "cli", "network"]
@@ -127,7 +127,7 @@ source once) needs the `doi` key to recognise a publisher URL and its
 
 ## Context
 
-- Work item: `meta/work/0348-structured-source-metadata.md`
+- Work item: `meta/work/PP-936-structured-source-metadata.md`
 - Plan: `meta/plans/2026-10-24-0348-structured-source-metadata.md`
 - Research: `meta/research/codebase/2026-10-24-0348-structured-source-metadata.md`
 - Validation: `meta/validations/2026-10-24-0348-structured-source-metadata-validation.md`

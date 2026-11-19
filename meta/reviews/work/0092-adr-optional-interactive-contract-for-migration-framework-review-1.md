@@ -2,7 +2,7 @@
 date: "2026-05-26T10:45:00Z"
 type: "work-item-review"
 producer: "review-work-item"
-target: "work-item:0092"
+target: "work-item:PP-114"
 review_number: 1
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

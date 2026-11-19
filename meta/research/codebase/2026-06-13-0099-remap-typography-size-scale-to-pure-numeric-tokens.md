@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0099"
-parent: "work-item:0099"
+parent: "work-item:PP-121"
 relates_to: ["codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-06-02-0090-radius-tokens-consumption", "codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
 topic: "Remap Typography Size Scale To Pure-Numeric Tokens"
 tags: ["research", "codebase", "visualiser", "design-tokens", "typography", "css", "adr"]
@@ -308,8 +308,8 @@ whole-scale decision (0099 Assumptions).
 File: `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
 
 Frontmatter: `id: "ADR-0036"`, `status: accepted`,
-`supersedes: ["adr:ADR-0026"]`, `relates_to` includes `work-item:0075` and
-`work-item:0091`. No `superseded_by` (it is the *superseding* ADR).
+`supersedes: ["adr:ADR-0026"]`, `relates_to` includes `work-item:PP-97` and
+`work-item:PP-113`. No `superseded_by` (it is the *superseding* ADR).
 
 - **Decision** (lines 54-97): every `font-size` in current-app CSS must resolve
   to a `var(--size-*)` token; no `px`/`rem`/`em` literals (incl. `font:`
@@ -321,7 +321,7 @@ Frontmatter: `id: "ADR-0036"`, `status: accepted`,
   token-value determinism; "A future review of the px-vs-rem stance remains
   open; see … work item 0091." **0099 AC7 requires the successor ADR to
   reproduce this Neutral consequence verbatim-in-spirit, still-open, linking
-  `work-item:0091`** — the px-vs-rem trade-off must survive the rename.
+  `work-item:PP-113`** — the px-vs-rem trade-off must survive the rename.
 - Authoritative enforcement is `src/styles/migration.test.ts` (ADR body lines
   88-90, 103-104).
 
@@ -352,7 +352,7 @@ Frontmatter: `id: "ADR-0036"`, `status: accepted`,
 
 ### 7. Precedents and siblings
 
-- **0075 — progenitor** (`meta/work/0075-typography-size-scale-consumption.md`,
+- **0075 — progenitor** (`meta/work/PP-97-typography-size-scale-consumption.md`,
   done). Created ADR-0036 and the mixed naming 0099 fixes. Added five tokens
   (`4xs`/`3xs` numeric tiers; `eyebrow`/`row`/`subtitle` semantic) and renamed
   the chip tokens to tween names (`--size-chip` → `--size-3xs-lg`, `--size-chip-md`
@@ -360,7 +360,7 @@ Frontmatter: `id: "ADR-0036"`, `status: accepted`,
   `hero`/`h1`/`h2`/`h4` as defensive scaffolding. Authored the `global.css`
   convention comment 0099 must rewrite.
 - **0090 — rename + ADR + grep-gate precedent**
-  (`meta/work/0090-radius-tokens-consumption.md`, done; plan
+  (`meta/work/PP-112-radius-tokens-consumption.md`, done; plan
   `meta/plans/2026-06-02-0090-radius-tokens-consumption.md`). Renamed the radius
   t-shirt scale to a px-encoded ladder (`--radius-<px>` + semantic `--radius-pill`
   /`--radius-full`), via an **Authorised Deviation** in the plan that overrode
@@ -374,7 +374,7 @@ Frontmatter: `id: "ADR-0036"`, `status: accepted`,
   `tokens.ts:224-235` (`RADIUS_TOKENS`). The radius comment disambiguates its
   px-suffix from the ordinal `--sp-N` suffix — a pattern 0099's new comment
   should mirror.
-- **0091 — px-vs-rem sibling** (`meta/work/0091-typography-rem-vs-px-stance.md`,
+- **0091 — px-vs-rem sibling** (`meta/work/PP-113-typography-rem-vs-px-stance.md`,
   status `ready`, spike). Decides the *unit* axis; orthogonal to 0099's *naming*
   axis. Expects to **amend** 0099's successor ADR (not fork a second successor) —
   conditional: chains off the successor ADR if 0099 has landed, else off ADR-0036
@@ -462,13 +462,13 @@ Frontmatter: `id: "ADR-0036"`, `status: accepted`,
 
 ## Historical Context
 
-- `meta/work/0075-typography-size-scale-consumption.md` — created ADR-0036 and
+- `meta/work/PP-97-typography-size-scale-consumption.md` — created ADR-0036 and
   the three-scheme mixed naming this remap fixes; authored the convention comment.
-- `meta/work/0090-radius-tokens-consumption.md` +
+- `meta/work/PP-112-radius-tokens-consumption.md` +
   `meta/plans/2026-06-02-0090-radius-tokens-consumption.md` — the rename + ADR +
   grep-gate precedent; the "Authorised Deviation" pattern for overriding literal
   AC text; the px-encoded radius ladder as the end-state model.
-- `meta/work/0091-typography-rem-vs-px-stance.md` — the unit-axis sibling that
+- `meta/work/PP-113-typography-rem-vs-px-stance.md` — the unit-axis sibling that
   will amend 0099's successor ADR; source of the px-anchoring obligation (AC7).
 - `meta/plans/2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown.md`
   and `meta/reviews/plans/2026-06-02-0094-…-review-1.md` — the originating plan

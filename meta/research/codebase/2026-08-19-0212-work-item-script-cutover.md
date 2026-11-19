@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0212"
-parent: "work-item:0212"
+parent: "work-item:PP-742"
 relates_to: ["codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port", "codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement", "codebase-research:2026-08-12-0194-tracker-crate-and-remote-sync-engine"]
 topic: "Work-Item Script Cutover (0212)"
 tags: ["research", "codebase", "rust", "cutover", "work-items", "fixtures", "cli", "tracker"]
@@ -289,7 +289,7 @@ does not discharge the bridge's live payload validation.
 
 ## Historical Context
 
-- `meta/work/0171-jira-and-linear-integrations.md` — parent. `## Decisions`
+- `meta/work/PP-192-jira-and-linear-integrations.md` — parent. `## Decisions`
   records the three capability fates as `*open*`; `## Open Questions` says five
   things "must be settled before pickup" but Drafting Notes (2026-08-17)
   overrode the five children to `ready` with the questions open, carrying them

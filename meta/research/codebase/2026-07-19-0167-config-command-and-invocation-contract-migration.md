@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0167"
-parent: "work-item:0167"
+parent: "work-item:PP-188"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-07-07-0178-config-crates-native-yaml-reader", "codebase-research:2026-07-19-0180-atomic-store-primitives-corpus-adapters", "codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"]
 topic: "Built-in config Command and Invocation-Contract Migration (0167)"
 tags: ["research", "codebase", "rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "atomic-write", "migration"]
@@ -559,7 +559,7 @@ the `store` extraction, not the testing apparatus.
 - `meta/reviews/work/0167-…-review-1.md` — five passes. Its strongest process
   finding: every incremental patching round introduced a new critical; the single
   rewrite round did not. **Do not patch the AC section serially.**
-- `meta/work/0166-shared-config-corpus-store-crates.md:221-242` — the `store`
+- `meta/work/PP-187-shared-config-corpus-store-crates.md:221-242` — the `store`
   amendment 0167 owes is already written and already references 0167.
 
 ## Related Research

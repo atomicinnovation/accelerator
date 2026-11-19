@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0334"
-parent: "work-item:0334"
+parent: "work-item:PP-930"
 topic: "Tree leases on the cold path and under Unknown liveness (work item 0334)"
 tags: ["research", "codebase", "launcher", "design-adapters", "design-cli", "tree-lease", "lease", "prune", "repair", "cache"]
 revision: "7d85640a867ac7ac968b4ab359e832e8edb9d223"
@@ -380,7 +380,7 @@ Other changes outside the checklist:
 - `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
   covers roles (`:72-82`) and rules 4-8 (`:106-128`). These place `tree-lease`
   as a technical library.
-- `meta/work/0223-bounding-the-default-runtime-cache-root.md:132-143` is the
+- `meta/work/PP-753-bounding-the-default-runtime-cache-root.md:132-143` is the
   spike note that handed both defects over.
 - `meta/reviews/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when-review-1.md`
   ends in APPROVE after pass 5. Pass 5 widened the `repair` exposure to every

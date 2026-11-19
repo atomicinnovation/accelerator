@@ -6,8 +6,8 @@ date: "2026-09-08T18:47:27+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0285"
-work_item_id: "0285"
+target: "work-item:PP-871"
+work_item_id: "PP-871"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -533,7 +533,7 @@ work item is acceptable, and the remaining major is worth a quick pass.
   `external_id` match, which also produces a local file and must suppress the
   remote lookup.
 - 🔵 **Dependency** (Frontmatter: relates_to): the Integration watch-out names
-  0229 and 0255 in prose, but `relates_to` lists only `work-item:0257`, so the
+  0229 and 0255 in prose, but `relates_to` lists only `work-item:PP-787`, so the
   concurrent code-path coupling is invisible to graph-traversing tooling.
 - 🔵 **Dependency** (Dependencies): 'Blocked by: 0257 until merged' is stale —
   0257 is `status: done` and merged via PR #107, so the blocker is satisfied.

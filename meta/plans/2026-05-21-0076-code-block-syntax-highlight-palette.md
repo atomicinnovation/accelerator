@@ -2,7 +2,7 @@
 date: "2026-05-21T23:30:00+01:00"
 type: "plan"
 producer: "create-plan"
-work-item: "meta/work/0076-code-block-syntax-highlight-palette.md"
+work-item: "meta/work/PP-98-code-block-syntax-highlight-palette.md"
 status: "done"
 review: "meta/reviews/plans/2026-05-21-0076-code-block-syntax-highlight-palette-review-1.md"
 id: "2026-05-21-0076-code-block-syntax-highlight-palette"
@@ -14,7 +14,7 @@ last_updated: "2026-05-21T23:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "fe3b4f6a08ca"
 repository: "ticket-management"
-relates_to: ["work-item:0076", "codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "adr:ADR-0026", "work-item:0033"]
+relates_to: ["work-item:PP-98", "codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "adr:ADR-0026", "work-item:PP-55"]
 ---
 
 # Code-Block Syntax-Highlight Palette Implementation Plan
@@ -512,7 +512,7 @@ exports. Pattern matches the existing families.
 // design-inventories/2026-05-21-015231-claude-design-prototype/
 // prototype-standalone.html). Same values resolve in both light and
 // dark themes (declared only in `:root`). See ADR-0026 §5 and story
-// meta/work/0076-code-block-syntax-highlight-palette.md.
+// meta/work/PP-98-code-block-syntax-highlight-palette.md.
 export const CODE_SURFACE_TOKENS = {
   'code-bg':        '#0e1320',
   'code-bg-head':   '#161b2c',
@@ -996,7 +996,7 @@ Outline:
    single-source-of-truth contract — don't.
  
    Imported from src/main.tsx after global.css. See ADR-0026 §5 and
-   story meta/work/0076-code-block-syntax-highlight-palette.md. */
+   story meta/work/PP-98-code-block-syntax-highlight-palette.md. */
 
 .hljs {
   background: transparent;
@@ -1085,7 +1085,7 @@ contract inline.
 // assertions in tests/visual-regression/code-block-resolved-colours.spec.ts.
 // NOT part of the design-system index — story 0083 owns the
 // documented showcase. Do not link from DevDesignSystem.
-// See meta/work/0076-code-block-syntax-highlight-palette.md for
+// See meta/work/PP-98-code-block-syntax-highlight-palette.md for
 // provenance.
 import { MarkdownRenderer } from '../../components/MarkdownRenderer/MarkdownRenderer'
 
@@ -1673,7 +1673,7 @@ a second consumer arrives.
 
 ### References
 
-- Story: `meta/work/0076-code-block-syntax-highlight-palette.md`
+- Story: `meta/work/PP-98-code-block-syntax-highlight-palette.md`
 - Shared layer: `src/styles/code-syntax.global.css`
 - Drift fixture: `src/styles/fixtures/prototype-tokens.json` +
   `src/styles/prototype-tokens.fixture.test.ts`
@@ -2057,7 +2057,7 @@ seed or omitted; the Vitest CSS-structural assertion is the floor.)
 
 ## References
 
-- Original work item: `meta/work/0076-code-block-syntax-highlight-palette.md`
+- Original work item: `meta/work/PP-98-code-block-syntax-highlight-palette.md`
 - Codebase research: `meta/research/codebase/2026-05-21-0076-code-block-syntax-highlight-palette.md`
 - Review pass-2 verdict: `meta/reviews/work/0076-code-block-syntax-highlight-palette-review-1.md`
 - Prototype source: `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html` (`.ac-codeblock` block)
@@ -2065,7 +2065,7 @@ seed or omitted; the Vitest CSS-structural assertion is the floor.)
   `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/screenshots/doc-detail-plan-meta-visualisation-fullpage.png`
   and `…-fullpage-dark.png`
 - ADR being amended: `meta/decisions/ADR-0026-css-design-token-application-conventions.md` (§3 table; Appendix table)
-- Foundation: `meta/work/0033-design-token-system.md` (closes the `--code-*`/`--tk-*` gap)
+- Foundation: `meta/work/PP-55-design-token-system.md` (closes the `--code-*`/`--tk-*` gap)
 - Test pattern precedents:
   - `skills/visualisation/visualise/frontend/tests/visual-regression/glyph-resolved-fill.spec.ts` (resolved-colour Playwright)
   - `skills/visualisation/visualise/frontend/src/components/Glyph/Glyph.test.tsx:58-62` (inline `style={{ color: 'var(--ac-*)' }}` precedent)

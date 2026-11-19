@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0198"
-parent: "work-item:0198"
+parent: "work-item:PP-728"
 topic: "Replacing subprocess vcs status/log with a VCS-agnostic library-backed renderer"
 tags: ["research", "codebase", "rust", "vcs", "cli", "gix", "jj-lib", "status", "log"]
 revision: "99f7bd8d2f2a503778c1ddeadcddcdd9921511fa"
@@ -315,21 +315,21 @@ not yet use but the developer benefits from.
 
 ## Historical Context
 
-- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — chose subprocess for
+- `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — chose subprocess for
   status/log because they "cannot be produced from the six taxonomy queries …
   with no byte-parity guarantee"; explicitly names 0198 as the follow-up that
   owns that choice. 0198 dissolves the objection by dropping byte-parity.
-- `meta/work/0188-library-backed-vcs-adapter.md` (+ plan
+- `meta/work/PP-718-library-backed-vcs-adapter.md` (+ plan
   `meta/plans/2026-08-03-…`) — the in-process precedent: the six-way pin, the
   `uluru` MPL exception, `gix default-features = false`, the pup rule 0198
   widens, and the `check-zero-spawn` strong-form job 0198 extends. Records the
   sha256 limitation (gix 0.85 returns `Err` on sha256 repos; reftable reads fine)
   and the unbounded-containment reality (in-process parsing has no cap/isolation).
-- `meta/work/0185-converge-corpus-adapters-on-library-backed-vcs.md` — removed
+- `meta/work/PP-715-converge-corpus-adapters-on-library-backed-vcs.md` — removed
   `CommandProbe`, the completed precondition for full-module deletion; warns the
   capped-stdout helper and env scrub are `run_vcs_text`'s, for 0198 to delete;
   carries the jj snapshot-on-read divergence.
-- `meta/work/0125-converge-vcs-detection-on-probe-layer.md` — the
+- `meta/work/PP-146-converge-vcs-detection-on-probe-layer.md` — the
   no-PATH-dependency and ~3.6-4.7 ms-vs-~23.8 ms latency evidence 0198 borrows.
 - `meta/reviews/work/0198-…-review-1.md` — three passes → APPROVE (reviewer
   override). Sequenced the format ADR first (AC1); mandated absolute-path

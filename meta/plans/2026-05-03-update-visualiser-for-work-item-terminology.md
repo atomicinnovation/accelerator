@@ -845,7 +845,7 @@ fn work_items_default_numeric_pattern_still_works() {
     let pattern_re = compile_scan_via_cli("{number:04d}", None);
     assert_eq!(
         derive_work_item_with_regex(&pattern_re,
-            "0001-three-layer-review-system-architecture.md").as_deref(),
+            "PP-23-three-layer-review-system-architecture.md").as_deref(),
         Some("three-layer-review-system-architecture")
     );
 }

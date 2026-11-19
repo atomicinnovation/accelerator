@@ -6,8 +6,8 @@ date: "2026-09-20T22:38:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0286"
-parent: "work-item:0286"
+work_item_id: "work-item:PP-872"
+parent: "work-item:PP-872"
 derived_from: ["codebase-research:2026-09-20-0286-eradicate-direct-git-calls-from-skills"]
 tags: ["vcs", "skills", "cli"]
 revision: "df17c8e694a640b57159346e09ffdaeb48b2cd00"
@@ -1021,7 +1021,7 @@ change.
 
 ## References
 
-- Original work item: `meta/work/0286-eradicate-direct-git-calls-from-skills.md`
+- Original work item: `meta/work/PP-872-eradicate-direct-git-calls-from-skills.md`
 - Codebase research:
   `meta/research/codebase/2026-09-20-0286-eradicate-direct-git-calls-from-skills.md`
 - Command surface to extend: `cli/vcs-cli/src/cli.rs:16`,

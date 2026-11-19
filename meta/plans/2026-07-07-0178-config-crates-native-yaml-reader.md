@@ -6,8 +6,8 @@ date: "2026-07-07T01:13:37+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0178"
-parent: "work-item:0178"
+work_item_id: "work-item:PP-702"
+parent: "work-item:PP-702"
 derived_from: ["codebase-research:2026-07-07-0178-config-crates-native-yaml-reader"]
 tags: ["rust", "config", "config-adapters", "serde", "yaml", "cargo-deny", "cargo-pup", "hexagonal"]
 revision: "0d38ece1e17e9aee360574399fb61efe3bffd89a"
@@ -1251,7 +1251,7 @@ accidental.
 
 ## References
 
-- Original work item: `meta/work/0178-config-crates-native-yaml-reader.md`
+- Original work item: `meta/work/PP-702-config-crates-native-yaml-reader.md`
 - Related research:
   `meta/research/codebase/2026-07-07-0178-config-crates-native-yaml-reader.md`
 - Reference implementation:

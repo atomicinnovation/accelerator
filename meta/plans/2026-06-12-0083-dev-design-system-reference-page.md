@@ -6,8 +6,8 @@ date: "2026-06-12T23:10:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0083"
-parent: "work-item:0083"
+work_item_id: "work-item:PP-105"
+parent: "work-item:PP-105"
 derived_from: ["codebase-research:2026-06-12-0083-dev-design-system-reference-page"]
 tags: ["design", "frontend", "dev-tools", "visualiser", "design-system", "visual-regression", "theming", "scroll-spy", "keybind", "icon"]
 revision: "e13cea2829821da417f7d7e91e9c2bb7ba8b3852"
@@ -1337,7 +1337,7 @@ code-syntax-showcase,kanban-card-showcase}/`.
 "12 glyphs"→13; the "all 3 supported sizes (16/24/32 px)" glyph claim is now false
 (the size union gains `48`) so correct it to `16/24/32/48` or drop the size
 enumeration (the page itself is the live size reference); and replace the trailing
-`0037-glyph-component.md` doc-link (which describes the retired showcase and would
+`PP-59-glyph-component.md` doc-link (which describes the retired showcase and would
 dangle) with the `0083` work item, or remove it. Because the README is the only
 persistent developer-facing home for this dev-only surface (no in-app nav links to
 `/dev`), it must itemise — not merely gesture at —: all **three activation
@@ -1356,7 +1356,7 @@ re-verify the README chord wording (and any in-app hint) against the final
 
 #### 4. Amend the work item acceptance criteria
 
-**File**: `meta/work/0083-dev-design-system-reference-page.md`
+**File**: `meta/work/PP-105-dev-design-system-reference-page.md`
 **Changes**: Own the AC reconciliation the Desired End State note describes (left
 to this phase so the canonical record matches the shipped behaviour). Amend AC3/
 AC5/AC7 from the literal `#dev`-hash wording to the route + bare-section-hash form
@@ -1483,7 +1483,7 @@ Doc-type glyphs `13` not 12), which the live-constant-bound assertions already u
 
 ## References
 
-- Original work item: `meta/work/0083-dev-design-system-reference-page.md`
+- Original work item: `meta/work/PP-105-dev-design-system-reference-page.md`
 - Codebase research: `meta/research/codebase/2026-06-12-0083-dev-design-system-reference-page.md`
 - Review-1: `meta/reviews/work/0083-dev-design-system-reference-page-review-1.md`
 - Authoritative content spec: `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full/src/view-dev.jsx`

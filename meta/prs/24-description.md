@@ -6,8 +6,8 @@ date: "2026-07-20T15:22:29+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-parent: "work-item:0136"
-relates_to: ["work-item:0166", "work-item:0168", "work-item:0169", "work-item:0180", "work-item:0172"]
+parent: "work-item:PP-157"
+relates_to: ["work-item:PP-187", "work-item:PP-189", "work-item:PP-190", "work-item:PP-704", "work-item:PP-193"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/24"
 pr_number: 24
 tags: ["rust", "vcs", "visualiser", "work-items", "planning"]

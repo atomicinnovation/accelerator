@@ -6,7 +6,7 @@ date: "2026-08-02T18:57:09+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0136", "work-item:0167", "work-item:0168", "work-item:0182", "work-item:0169", "work-item:0186", "work-item:0187"]
+relates_to: ["work-item:PP-157", "work-item:PP-188", "work-item:PP-189", "work-item:PP-712", "work-item:PP-190", "work-item:PP-716", "work-item:PP-717"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/36"
 pr_number: 36
 tags: ["work-items", "bookkeeping", "status"]

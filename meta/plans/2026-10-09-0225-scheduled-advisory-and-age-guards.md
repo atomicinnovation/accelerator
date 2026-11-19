@@ -6,8 +6,8 @@ date: "2026-10-09T22:26:01+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0225"
-parent: "work-item:0225"
+work_item_id: "work-item:PP-755"
+parent: "work-item:PP-755"
 derived_from: ["codebase-research:2026-10-09-0225-scheduled-advisory-and-age-guards"]
 relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
@@ -2515,7 +2515,7 @@ release pin exercises.
 
 ## References
 
-- Original work item: `meta/work/0225-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins.md`
+- Original work item: `meta/work/PP-755-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins.md`
 - Related codebase research: `meta/research/codebase/2026-10-09-0225-scheduled-advisory-and-age-guards.md`
 - Design origin: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`
 - Task template: `tasks/docs.py:42-83`, `tasks/shared/npm_audit.py`

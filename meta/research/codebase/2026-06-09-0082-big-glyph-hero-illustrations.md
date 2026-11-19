@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0082"
-parent: "work-item:0082"
+parent: "work-item:PP-104"
 relates_to: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
 topic: "Implementing the BigGlyph per-doc-type hero illustration component"
 tags: ["research", "codebase", "bigglyph", "glyph", "empty-state", "palette", "visual-regression", "illustrations"]

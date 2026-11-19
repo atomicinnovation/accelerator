@@ -13,7 +13,7 @@ type: "codebase-research"
 id: "2026-05-26-0084-detail-page-chip-strip-cap"
 title: "Detail-Page Chip Strip Cap (Status, Date, Author) — codebase landscape for work item 0084"
 schema_version: 1
-relates_to: ["codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-14-0038-generic-chip-component", "adr:ADR-0033", "work-item:0084"]
+relates_to: ["codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-14-0038-generic-chip-component", "adr:ADR-0033", "work-item:PP-106"]
 derived_from: ["codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-14-0038-generic-chip-component", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "adr:ADR-0033"]
 ---
 

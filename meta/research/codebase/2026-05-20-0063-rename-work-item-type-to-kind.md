@@ -12,8 +12,8 @@ type: "codebase-research"
 id: "2026-05-20-0063-rename-work-item-type-to-kind"
 title: "Rename work-item `type:` Field to `kind:` (story 0063)"
 schema_version: 1
-relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0028", "adr:ADR-0023", "adr:ADR-0022", "work-item:0057", "codebase-research:2026-04-25-rename-tickets-to-work-items"]
-blocked_by: ["work-item:0065", "work-item:0070"]
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0028", "adr:ADR-0023", "adr:ADR-0022", "work-item:PP-79", "codebase-research:2026-04-25-rename-tickets-to-work-items"]
+blocked_by: ["work-item:PP-87", "work-item:PP-92"]
 derived_from: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-05-03-update-visualiser-for-work-item-terminology"]
 ---
 
@@ -428,8 +428,8 @@ Idempotence properties:
   anomalies. Sed-based rewrites are safe.
 
 Sample shapes:
-- Modern: [`meta/work/0072-playwright-daemon-cjs-import-bug.md:1-15`](../../meta/work/0072-playwright-daemon-cjs-import-bug.md), [`meta/work/0036-sidebar-redesign.md:1-15`](../../meta/work/0036-sidebar-redesign.md).
-- Legacy ADR-creation-task: [`meta/work/0001-three-layer-review-system-architecture.md:1-7`](../../meta/work/0001-three-layer-review-system-architecture.md).
+- Modern: [`meta/work/PP-94-playwright-daemon-cjs-import-bug.md:1-15`](../../meta/work/PP-94-playwright-daemon-cjs-import-bug.md), [`meta/work/PP-58-sidebar-redesign.md:1-15`](../../meta/work/PP-58-sidebar-redesign.md).
+- Legacy ADR-creation-task: [`meta/work/PP-23-three-layer-review-system-architecture.md:1-7`](../../meta/work/PP-23-three-layer-review-system-architecture.md).
 
 ### 9. `agents/*.md` — confirmed out of scope
 
@@ -539,14 +539,14 @@ needed.** Parent epic 0057's technical-notes claim should be amended.
 
 ### Parent epic and siblings
 
-- [`meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`](../../meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md) — parent epic. Line 147 contains
+- [`meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`](../../meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md) — parent epic. Line 147 contains
   the "Coordinate this rename in a single story" instruction that
   underpins 0063's single-PR scope decision. Line 72 and 147 include
   the speculative `agents/*.md` claim that 0063 disputes (lines
   233-235 of 0063); the epic's technical-notes should be amended.
-- [`meta/work/0065-update-artifact-templates-to-unified-schema.md`](../../meta/work/0065-update-artifact-templates-to-unified-schema.md) — child story, blocked by 0063 because it
+- [`meta/work/PP-87-update-artifact-templates-to-unified-schema.md`](../../meta/work/PP-87-update-artifact-templates-to-unified-schema.md) — child story, blocked by 0063 because it
   touches `templates/work-item.md`. Confirmed by 0065:50.
-- [`meta/work/0070-ship-meta-corpus-unified-schema-migration.md`](../../meta/work/0070-ship-meta-corpus-unified-schema-migration.md) — child story, blocked by 0063. **0063
+- [`meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`](../../meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md) — child story, blocked by 0063. **0063
   takes the `type:` → `kind:` rewrite step out of 0070's migration;**
   0070's migration only covers the broader unified-schema changes
   (provenance bundle, `schema_version`, typed linkage population). See

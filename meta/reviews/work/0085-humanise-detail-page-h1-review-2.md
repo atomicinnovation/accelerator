@@ -6,9 +6,9 @@ date: "2026-06-11T00:44:21+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0085"
+target: "work-item:PP-107"
 relates_to: ["work-item-review:0085-humanise-detail-page-h1-review-1"]
-work_item_id: "0085"
+work_item_id: "PP-107"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -43,7 +43,7 @@ _None. The clarity lens raised one finding at major severity (mixed-prefix examp
 
 - 🔵 **Dependency**: `blocked_by` frontmatter omits 0070, which the body names as a gating blocker
   **Location**: Frontmatter: blocked_by
-  The frontmatter `blocked_by` lists only `["work-item:0065", "work-item:0066"]`, but Dependencies, Context, Assumptions, and Drafting Notes all consistently name 0070 (corpus migration) as a third gating blocker. Tooling reading the structured field will treat the story as unblocked one dependency too early.
+  The frontmatter `blocked_by` lists only `["work-item:PP-87", "work-item:PP-88"]`, but Dependencies, Context, Assumptions, and Drafting Notes all consistently name 0070 (corpus migration) as a third gating blocker. Tooling reading the structured field will treat the story as unblocked one dependency too early.
 
 - 🔵 **Clarity** (downgraded from major): Mixed-prefix examples would benefit from a one-line note explaining the asymmetry
   **Location**: Acceptance Criteria (AC2)
@@ -94,7 +94,7 @@ _None. The clarity lens raised one finding at major severity (mixed-prefix examp
 
 ### Recommended Changes
 
-1. **Add `"work-item:0070"` to the `blocked_by` frontmatter** (addresses: `blocked_by` omits 0070) — Bring the structured field into line with the three-blocker set described throughout the body, so schedulers don't treat the story as ready early. This is the one change worth making before planning.
+1. **Add `"work-item:PP-92"` to the `blocked_by` frontmatter** (addresses: `blocked_by` omits 0070) — Bring the structured field into line with the three-blocker set described throughout the body, so schedulers don't treat the story as ready early. This is the one change worth making before planning.
 
 2. **Add a one-line note to AC2 explaining the mixed-prefix asymmetry** (addresses: mixed-prefix examples) — e.g. "once the leading prefix is stripped, any hyphens inside a *residual* date/id are ordinary segment separators." The examples are already correct; this just removes the inference burden.
 
@@ -154,7 +154,7 @@ _None. The clarity lens raised one finding at major severity (mixed-prefix examp
 - No external systems or cross-team couplings implied — correctly carries none.
 
 **Findings**:
-- 🔵 (minor) **Frontmatter: blocked_by** — Omits `work-item:0070`, which the body consistently names as a gating blocker. Structured-field readers will treat the story as unblocked too early.
+- 🔵 (minor) **Frontmatter: blocked_by** — Omits `work-item:PP-92`, which the body consistently names as a gating blocker. Structured-field readers will treat the story as unblocked too early.
 - 🔵 (minor) **Dependencies / References** — ADR 0060 named as establishing the relied-upon `title` base-field invariant but appears only under References, not as a Builds-on/Related dependency.
 
 ### Scope
@@ -196,7 +196,7 @@ All findings from the initial Review-2 pass are resolved (the 0070 `blocked_by` 
 
 ### Previously Identified Issues
 
-- 🔵 **Dependency**: `blocked_by` omits 0070 — **Resolved** (`"work-item:0070"` added to frontmatter; both dependency and the body now agree on the three-blocker set).
+- 🔵 **Dependency**: `blocked_by` omits 0070 — **Resolved** (`"work-item:PP-92"` added to frontmatter; both dependency and the body now agree on the three-blocker set).
 - 🔵 **Clarity**: Mixed-prefix asymmetry left for reader to infer — **Resolved** (AC2 now explains residual hyphens become ordinary separators). Note: the re-review clarity agent claimed the added clause inverts "first"/"second", but verification confirms the clause maps each example to its rationale correctly — recorded as not-a-defect, mirroring the analogous misread in the initial pass.
 - 🔵 **Testability**: AC1 asserts against a function, not a literal — **Resolved** (concrete `"0042-test-fixture" → "Test Fixture"` oracle added; "test oracle" now glossed inline).
 - 🔵 **Testability**: AC4 negative criterion — **Resolved** (reframed as a diff-level / CI-path-guard assertion; testability lens now lists it as a strength).

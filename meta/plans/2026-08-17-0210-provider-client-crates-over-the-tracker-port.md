@@ -6,10 +6,10 @@ date: "2026-08-17T14:32:39+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0210"
-parent: "work-item:0210"
+work_item_id: "work-item:PP-740"
+parent: "work-item:PP-740"
 derived_from: ["codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"]
-relates_to: ["work-item:0171", "work-item:0194", "work-item:0204", "work-item:0211", "work-item:0212", "plan-review:2026-08-17-0210-provider-client-crates-over-the-tracker-port-review-1"]
+relates_to: ["work-item:PP-192", "work-item:PP-724", "work-item:PP-734", "work-item:PP-741", "work-item:PP-742", "plan-review:2026-08-17-0210-provider-client-crates-over-the-tracker-port-review-1"]
 tags: ["rust", "jira", "linear", "integrations", "reqwest", "tracker", "adf", "graphql"]
 revision: "7fbc11853805ac90798eb0b0923855a2d3380c22"
 repository: "accelerator"
@@ -3413,7 +3413,7 @@ selected by the default profile.
 
 #### 4. Decisions recorded on the parent
 
-**File**: `meta/work/0171-jira-and-linear-integrations.md`
+**File**: `meta/work/PP-192-jira-and-linear-integrations.md`
 **Changes**: Copy this plan's `## Decisions` register (D1-D16) onto the work
 item, verbatim and without re-argument. The register is the single home for every
 cross-cutting rationale in this plan; restating it here in different words is how
@@ -3583,8 +3583,8 @@ taking the differential tests' oracle with it.
 
 ## References
 
-- Original work item: `meta/work/0210-provider-client-crates-over-the-tracker-port.md`
-- Parent: `meta/work/0171-jira-and-linear-integrations.md`
+- Original work item: `meta/work/PP-740-provider-client-crates-over-the-tracker-port.md`
+- Parent: `meta/work/PP-192-jira-and-linear-integrations.md`
 - Research: `meta/research/codebase/2026-08-17-0210-provider-client-crates-over-the-tracker-port.md`
 - Sibling research: `meta/research/codebase/2026-08-17-0211-integration-binaries-and-bash-cluster-retirement.md`
 - Port research: `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`

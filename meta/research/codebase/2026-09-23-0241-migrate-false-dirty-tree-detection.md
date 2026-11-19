@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0241"
-parent: "work-item:0241"
+parent: "work-item:PP-771"
 topic: "False dirty-tree detection on jj repositories (0241)"
 tags: ["research", "codebase", "migrate", "vcs-adapters", "jj", "jj-lib", "preflight", "dirty-paths"]
 revision: "4895cc3f89bfede8289e6cb5d7ede9f319262972"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For the bug in `meta/work/0241-migrate-false-dirty-tree-detection.md`: where
+For the bug in `meta/work/PP-771-migrate-false-dirty-tree-detection.md`: where
 does the jj run base come from, why does the guarded resume never engage on
 jj, how does the jj dirty-path computation diverge from `jj status`, and what
 code, tests, lints and prior decisions constrain the fix?
@@ -225,7 +225,7 @@ they were checked against the jj-cli 0.43.0 source.
 - The stall message (`render.rs:172-218`) promises resume "when the base
   revision is unchanged" (190-193).
 - Requirement 5 needs `ForeignDirt` to carry the foreign paths;
-  `meta/work/0263-rename-foreigndirt.md` is a pending rename of the same type.
+  `meta/work/PP-793-rename-foreigndirt.md` is a pending rename of the same type.
 
 ### `lint:vcs-settings:check`
 

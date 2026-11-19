@@ -13,7 +13,7 @@ last_updated: "2026-05-31T22:54:08+00:00"
 last_updated_by: "Toby Clemson"
 revision: "ba1d8a25116a"
 repository: "ticket-management"
-relates_to: ["work-item:0066", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "adr:ADR-0033", "adr:ADR-0034", "work-item:0057", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"]
+relates_to: ["work-item:PP-88", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "adr:ADR-0033", "adr:ADR-0034", "work-item:PP-79", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"]
 blocked_by: ["adr:ADR-0033", "adr:ADR-0034"]
 ---
 
@@ -144,7 +144,7 @@ greps produce the recorded output verbatim.
   migration 0070 owns that). Two narrow carve-outs are accepted within
   this story (both additive, neither a frontmatter rewrite):
   - **Phase 1 appends a `## Schema Reference` section to
-    `meta/work/0066-update-review-skills-inline-frontmatter.md`** so the
+    `meta/work/PP-88-update-review-skills-inline-frontmatter.md`** so the
     test-template cross-check has a per-story authority for the 3 new
     templates (mirroring the 0065 precedent).
   - **Phase 6 appends a `## Discovery Pass Record` section to the same
@@ -567,7 +567,7 @@ reference in Phase 6's wrap-up step.
 
 #### 4. Add 0066 work-item Schema Reference table
 
-**File**: `meta/work/0066-update-review-skills-inline-frontmatter.md`
+**File**: `meta/work/PP-88-update-review-skills-inline-frontmatter.md`
 **Changes**: Append a `## Schema Reference` section immediately before
 `## References` (mirroring 0065's structure). The table covers the three
 new templates only — `validation.md` is already covered by 0065's table
@@ -599,8 +599,8 @@ across the two work-item tables.
 # Cross-check inputs (both 0065 and 0066 carry Schema Reference tables;
 # the union must match the TSV exactly).
 WORK_ITEM_MDS=(
-  "meta/work/0065-update-artifact-templates-to-unified-schema.md"
-  "meta/work/0066-update-review-skills-inline-frontmatter.md"
+  "meta/work/PP-87-update-artifact-templates-to-unified-schema.md"
+  "meta/work/PP-88-update-review-skills-inline-frontmatter.md"
 )
 ```
 
@@ -676,7 +676,7 @@ bash scripts/test-skill-frontmatter-population.sh
 - [x] `awk -F$'\t' 'NR>1 {print $1}' scripts/templates-schema.tsv | sort | uniq -d` — no duplicates (no template listed twice).
 - [x] `awk -F$'\t' 'NF != 6 {exit 1}' scripts/templates-schema.tsv` — every row has 6 tab-separated fields (self-check inside the test driver also asserts this).
 - [x] `awk -F$'\t' 'NF != 3 {exit 1}' scripts/skills-schema.tsv` — every row has 3 tab-separated fields.
-- [x] `grep -n "^## Schema Reference$" meta/work/0066-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
+- [x] `grep -n "^## Schema Reference$" meta/work/PP-88-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
 - [x] The test-template cross-check's union read produces exactly 12 unique template filenames matching the 12 TSV rows.
 - [x] `bash scripts/test-format.sh` passes (no regressions).
 
@@ -925,7 +925,7 @@ b. **Replace the inline frontmatter block at lines 346-381** with the
    - `{id-source}` = the review filename stem
    - `{title-source}` = `Work Item Review: {work item title}`
    - `{producer-name}` = `review-work-item`
-   - `{target-shape}` = `"work-item:<4-digit-id>"` (e.g. `"work-item:0042"`),
+   - `{target-shape}` = `"work-item:<4-digit-id>"` (e.g. `"work-item:PP-64"`),
      resolved from the work item filename's 4-digit prefix via
      `${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id {path}`
      (per ADR-0033's identity-value contract, `id` is the canonical own-identity
@@ -942,7 +942,7 @@ c. **Keep `work_item_id`-emission prose; reframe as transitional alias**
    as the primary id field at lines 383-385. Reframe that paragraph as:
 
    > The `target:` field stores the work item's stable 4-digit identifier
-   > as a typed-linkage key (e.g. `"work-item:0042"`) per ADR-0034,
+   > as a typed-linkage key (e.g. `"work-item:PP-64"`) per ADR-0034,
    > providing resilience against work item renames. A `work_item_id:`
    > field is also emitted as a transitional alias carrying the same
    > 4-digit identifier (unquoted-or-quoted scalar; the visualiser's
@@ -1335,7 +1335,7 @@ still produces an empty `unexpected` set.
 
 #### 2. Append Discovery Pass Record to 0066 work item
 
-**File**: `meta/work/0066-update-review-skills-inline-frontmatter.md`
+**File**: `meta/work/PP-88-update-review-skills-inline-frontmatter.md`
 **Changes**: Append a `## Discovery Pass Record` section immediately
 before `## References`, mirroring 0065's precedent. Capture the verbatim
 greps and the resulting producer split.
@@ -1389,7 +1389,7 @@ rg -n "^target:[[:space:]]+\"pr:[0-9]+\"" templates/pr-review.md
 
 #### 3. Amend work item AC #5
 
-**File**: `meta/work/0066-update-review-skills-inline-frontmatter.md`
+**File**: `meta/work/PP-88-update-review-skills-inline-frontmatter.md`
 **Changes**: Edit AC #5 (currently asserts all three review types carry
 `review_pass`) to reflect Design Decision #1. Rewrite from:
 
@@ -1405,7 +1405,7 @@ implementer-chosen recipe the current AC text implies).
 
 #### 4. Queue follow-up under 0057
 
-**File**: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+**File**: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 **Changes**: This is the parent epic and is the canonical home for
 follow-up items. Append a one-line follow-up under the epic's existing
 follow-up list (or under Technical Notes if no follow-up list exists):
@@ -1435,10 +1435,10 @@ phase makes. It is one additive bullet in the parent epic.
 
 - [x] `bash scripts/test-skill-frontmatter-population.sh` passes including the discovery assertion ("PASS: every discovered SKILL.md is allowlisted").
 - [x] `mise run test:unit:templates` passes (all three sub-drivers GREEN).
-- [x] `grep -n "^## Discovery Pass Record$" meta/work/0066-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
+- [x] `grep -n "^## Discovery Pass Record$" meta/work/PP-88-update-review-skills-inline-frontmatter.md` returns exactly 1 line.
 - [x] The Pass-A and Pass-B greps recorded in the work item, run fresh from the workspace root, produce a producer set that matches the recorded split exactly (every hit resolves to a SKILL.md named in `IN_SCOPE_PRODUCERS` or `NON_EMITTER_TEMPLATE_CONSUMERS`).
-- [x] `grep -n "review_pass" meta/work/0066-update-review-skills-inline-frontmatter.md` — AC #5 now distinguishes the three review types per Design Decision #1.
-- [x] `grep -n "Supplementary ADR" meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` returns at least 1 match (the queued follow-up).
+- [x] `grep -n "review_pass" meta/work/PP-88-update-review-skills-inline-frontmatter.md` — AC #5 now distinguishes the three review types per Design Decision #1.
+- [x] `grep -n "Supplementary ADR" meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` returns at least 1 match (the queued follow-up).
 - [x] `bash scripts/test-format.sh` passes.
 
 #### Manual Verification:
@@ -1657,11 +1657,11 @@ state).
 
 **File**: `skills/visualisation/visualise/server/src/frontmatter.rs` (test module)
 **Changes**: Add unit tests covering:
-- `target: "work-item:0042"` with no `work_item_id:` returns
+- `target: "work-item:PP-64"` with no `work_item_id:` returns
   `vec!["0042"]` (the post-cleanup steady state).
-- `target: "work-item:0042"` with `work_item_id: "0007"` returns
+- `target: "work-item:PP-64"` with `work_item_id: "0007"` returns
   `vec!["0007"]` (the alias still wins — precedence rule).
-- **Both fields, same value**: `target: "work-item:0042"` with
+- **Both fields, same value**: `target: "work-item:PP-64"` with
   `work_item_id: "0042"` returns `vec!["0042"]` (single entry — no
   double-counting through the alias-then-target fallback chain).
 - **Non-work-item prefix exactness**: `target: "plan:2026-..."`
@@ -1745,7 +1745,7 @@ the end-to-end populated-values check remains manual).
    has `target: "plan:<plan-id>"`, `verdict` populated, all base
    fields populated, no `\{...\}` token survivors.
 2. Run `review-work-item` against a real work item. Confirm
-   `target: "work-item:0042"` (or similar, matching the work item's
+   `target: "work-item:PP-64"` (or similar, matching the work item's
    `id`), no `work_item_id:` field present, all base fields populated.
 3. Run `review-pr` against a real PR (any small PR for which review
    posting can be skipped — use option 4 "Discuss findings" at the end
@@ -1849,11 +1849,11 @@ load — already in the per-skill cost envelope established by 0065.
 
 ## References
 
-- Original work item: `meta/work/0066-update-review-skills-inline-frontmatter.md`
+- Original work item: `meta/work/PP-88-update-review-skills-inline-frontmatter.md`
 - Related research: `meta/research/codebase/2026-05-31-0066-update-review-skills-inline-frontmatter.md`
 - Authoritative schema ADR: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
 - Authoritative linkage ADR: `meta/decisions/ADR-0034-typed-linkage-vocabulary.md`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Blocked-by predecessors (all done): 0060 (ADR-0033), 0061 (ADR-0034), 0065 (validation.md frontmatter + test scaffolding handoff)
 - Blocks: 0070 (corpus migration)
 - Related: 0064 (canonicalised `work_item_id` foreign-reference shape this story drops in favour of typed `target`), 0093 (typed-linkage slot extension to every template, including the 3 new review templates)

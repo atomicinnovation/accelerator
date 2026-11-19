@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0191"
-parent: "work-item:0191"
-relates_to: ["work-item:0186", "work-item:0189", "work-item:0205", "work-item:0169"]
+parent: "work-item:PP-721"
+relates_to: ["work-item:PP-716", "work-item:PP-719", "work-item:PP-735", "work-item:PP-190"]
 topic: "Batching the two shim sha256 hashes in bin/accelerator into one backend invocation"
 tags: ["research", "codebase", "shell", "bootstrap", "bash-3.2", "performance", "sha256"]
 revision: "9fa29fb6a49c5538d81fbb91d168a3dd89d4bcdc"
@@ -229,7 +229,7 @@ fallback path.
 
 ## Historical Context
 
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — measured the
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — measured the
   saving (7.05 → 4.57 ms = 2.48 ms), added the xtrace seam, and declined to
   absorb the batch because it "needs a branch to keep today's short-circuit" and
   deserves its own before/after. Warm-path after-median 29.92 ms, of which the
@@ -237,11 +237,11 @@ fallback path.
 - `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
   "What We're NOT Doing" records the batch as a deferred follow-up with the
   figure and the branch caveat attached.
-- `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — the
+- `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — the
   measurement method (n interleaved B/G pairs, ratio of medians, paired
   bootstrap) and the baseline `median(B)`/`median(G)`; lever table sizes 0191 at
   −2.48 ms.
-- `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md` — defines C5
+- `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md` — defines C5
   (`median(G)/median(B)` on the fast backend), raised the ceiling 1.3 → 1.4 on
   author decision, and records 0191 as the deferred lever to tighten back to 1.3
   on evidence. `warm-dispatch-3.json` is 0189's first valid run: C5 = 1.3260
@@ -249,10 +249,10 @@ fallback path.
 
 ## Related Research
 
-- `meta/work/0215-remove-the-cache-hit-sha256-from-warm-dispatch.md` and
-  `meta/work/0216-close-the-sha2-hardware-intrinsics-gap.md` — the other
+- `meta/work/PP-744-remove-the-cache-hit-sha256-from-warm-dispatch.md` and
+  `meta/work/PP-745-close-the-sha2-hardware-intrinsics-gap.md` — the other
   warm-path levers; 0191 is intentionally sequenced independent of both.
-- `meta/work/0217-measure-warm-dispatch-on-linux.md` — the linux-lane
+- `meta/work/PP-746-measure-warm-dispatch-on-linux.md` — the linux-lane
   measurement that would confirm the GNU coreutils backend behaviour AC-5 needs.
 
 ## Open Questions

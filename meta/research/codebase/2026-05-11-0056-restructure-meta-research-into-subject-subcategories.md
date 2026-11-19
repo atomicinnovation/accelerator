@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-11-0056-restructure-meta-research-into-subject-subcategories"
 title: "Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056"
 schema_version: 1
-relates_to: ["note:2026-05-02-research-directory-subcategory-restructure", "codebase-research:2026-05-02-design-convergence-workflow", "work-item:0030", "work-item:0052", "work-item:0027", "adr:ADR-0023", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator"]
+relates_to: ["note:2026-05-02-research-directory-subcategory-restructure", "codebase-research:2026-05-02-design-convergence-workflow", "work-item:PP-52", "work-item:PP-74", "work-item:PP-49", "adr:ADR-0023", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator"]
 derived_from: ["codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "codebase-research:2026-05-08-0052-documents-locator-config-driven-paths"]
 ---
 
@@ -26,7 +26,7 @@ derived_from: ["codebase-research:2026-05-02-design-convergence-workflow", "code
 
 ## Research Question
 
-For work item 0056 (`meta/work/0056-restructure-meta-research-into-subject-subcategories.md`),
+For work item 0056 (`meta/work/PP-78-restructure-meta-research-into-subject-subcategories.md`),
 ground the existing Technical Notes against current code. Verify every cited
 file:line; inventory every reference site that the migration must rewrite;
 characterise the migration framework, the three exemplar migrations whose
@@ -884,16 +884,16 @@ The work item's predecessor reasoning lives across six artifacts:
   > "Future research/ subcategory restructure. … Worth its own ADR. The
   > introduction of `design-inventories` could be the forcing function —
   > but as a separate, clearly-scoped change."
-- **`meta/work/0030-centralise-path-defaults.md`** — done. Extracted
+- **`meta/work/PP-52-centralise-path-defaults.md`** — done. Extracted
   `PATH_KEYS`/`PATH_DEFAULTS` into `scripts/config-defaults.sh` so a path
   rename is a one-line edit. Explicitly flags the `init.sh:18-31` `DIR_KEYS`
   duplication as deferred to a follow-on item.
-- **`meta/work/0052-make-documents-locator-paths-config-driven.md`** — done.
+- **`meta/work/PP-74-make-documents-locator-paths-config-driven.md`** — done.
   Added `skills/config/paths/SKILL.md`, the `accelerator:paths` skill, and
   the `skills:` frontmatter convention on agent files; preloaded the paths
   block into `documents-locator`. Establishes the `accelerator:paths` →
   agent injection mechanism 0056 builds on.
-- **`meta/work/0027-ephemeral-file-separation-via-paths-tmp.md`** — done.
+- **`meta/work/PP-49-ephemeral-file-separation-via-paths-tmp.md`** — done.
   Precedent for adding a new top-level configurable path key (`paths.tmp`)
   alongside the existing ones. Showed the coordinated edit pattern across
   `config-defaults.sh`, `init.sh`, SKILL.md migrations, and an inner

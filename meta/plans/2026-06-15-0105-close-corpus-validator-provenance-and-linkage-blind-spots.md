@@ -6,8 +6,8 @@ date: "2026-06-15T19:21:05+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0105"
-parent: "work-item:0105"
+work_item_id: "work-item:PP-127"
+parent: "work-item:PP-127"
 derived_from: ["codebase-research:2026-06-15-0105-corpus-validator-provenance-linkage-blind-spots"]
 tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 revision: "9b3d121e111f9f676a8e27762efa42af640bed52"
@@ -321,7 +321,7 @@ emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-spaced-list-linkag
 assert_accepts "irregularly-spaced quoted list accepted" "$TMP/ok-spaced-list-linkage.md"
 
 # Trailing inline comment on a quoted scalar still accepts (comment strip).
-emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-comment-linkage.md" 'parent: "work-item:0001" # inverse note'
+emit_valid work-item no "$BASE_EXTRAS" "$BASE_VOCAB" "$TMP/ok-comment-linkage.md" 'parent: "work-item:PP-23" # inverse note'
 assert_accepts "quoted ref with trailing inline comment accepted" "$TMP/ok-comment-linkage.md"
 
 # set -f glob suppression: an UNQUOTED glob-bearing value must reject with the
@@ -679,7 +679,7 @@ pass (the guard still sources `frontmatter-emission-rules.sh` and reads the TSV)
 2. `parent: meta/work/0030-foo.md` (bare path) → `BAD-LINKAGE-SHAPE`.
 3. `parent: [plan:0042]` (bracketed unquoted) → `BAD-LINKAGE-SHAPE`.
 4. `relates_to: ["plan:0001", plan:0002]` (mixed) → `BAD-LINKAGE-SHAPE`.
-5. `parent: "work-item:0042"` and `relates_to: ["adr:0001","adr:0002"]` → accept.
+5. `parent: "work-item:PP-64"` and `relates_to: ["adr:0001","adr:0002"]` → accept.
 6. `parent: ""` / `relates_to: []` → `EMPTY-PLACEHOLDER` only (no double-flag,
    no `BAD-LINKAGE-SHAPE`).
 7. Non-anchored `work-item` with `revision:`/`repository:` →
@@ -700,7 +700,7 @@ conforms (sanity check proves it), so no existing artifact is newly rejected.
 
 ## References
 
-- Original work item: `meta/work/0105-close-corpus-validator-provenance-and-linkage-blind-spots.md`
+- Original work item: `meta/work/PP-127-close-corpus-validator-provenance-and-linkage-blind-spots.md`
 - Research: `meta/research/codebase/2026-06-15-0105-corpus-validator-provenance-linkage-blind-spots.md`
 - Provenance block: `scripts/validate-corpus-frontmatter.sh:295-305`
 - Linkage loop: `scripts/validate-corpus-frontmatter.sh:334-357`

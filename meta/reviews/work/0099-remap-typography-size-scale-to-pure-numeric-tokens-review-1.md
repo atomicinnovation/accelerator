@@ -6,8 +6,8 @@ date: "2026-06-13T07:16:27+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0099"
-work_item_id: "0099"
+target: "work-item:PP-121"
+work_item_id: "PP-121"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -448,7 +448,7 @@ enumeration anchors the visual-invariance claim the way 0090's AC2 does.
   checks under one criterion, including a presence-only check for the px-anchoring
   carry-forward that 0091 depends on. Suggestion: split AC5 into separately-checkable
   bullets and make the carry-forward objective (a Neutral consequence restating the
-  px-anchored stance, linking `work-item:0091`).
+  px-anchored stance, linking `work-item:PP-113`).
 
 ## Re-Review (Pass 2) — 2026-06-13
 

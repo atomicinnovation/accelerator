@@ -6,8 +6,8 @@ date: "2026-10-24T14:01:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0348"
-parent: "work-item:0348"
+work_item_id: "work-item:PP-936"
+parent: "work-item:PP-936"
 derived_from: ["codebase-research:2026-10-24-0348-structured-source-metadata"]
 tags: ["research", "sources", "metadata", "cli", "network"]
 revision: "171801a115099f9c781f220d4e595c4dbab771be"
@@ -908,7 +908,7 @@ encode:
 
 **Files**: `cli/research/src/sources/metadata/date.rs`,
 `cli/research/tests/metadata_date.rs`, `cli/research/tests/web_extract.rs`,
-`meta/work/0348-structured-source-metadata.md`
+`meta/work/PP-936-structured-source-metadata.md`
 
 Added during implementation, after a live PLOS ONE page declared
 `citation_date` as `Mar 21, 2007`. `PartialDate::parse` gains the
@@ -1618,7 +1618,7 @@ by hand, against a mock server.
 
 #### 4. Contract and docs
 
-**Files**: `meta/work/0121-topic-research-skillset.md`,
+**Files**: `meta/work/PP-22-topic-research-skillset.md`,
 `docs-site/src/content/docs/research.md`, `CHANGELOG.md`
 
 - 0121's Reputation tiers / Sources rule (`:100`) gains the optional
@@ -1710,7 +1710,7 @@ by hand, against a mock server.
 
 - [x] Structure tests pass: `mise run test:unit:build-system` (or `uv run pytest tests/unit/tasks/test_research_structure.py`)
 - [x] Invocation replay passes: `uv run pytest tests/integration/research/test_profile_invocations.py`
-- [x] Frontmatter of edited skills and 0121 validates: `accelerator corpus frontmatter validate --file meta/work/0121-topic-research-skillset.md`
+- [x] Frontmatter of edited skills and 0121 validates: `accelerator corpus frontmatter validate --file meta/work/PP-22-topic-research-skillset.md`
 - [x] Docs lane passes: `mise run docs:check`
 - [x] `mise run check` and `mise run` exit 0
 
@@ -1814,7 +1814,7 @@ sets share.
 
 ## References
 
-- Work item: `meta/work/0348-structured-source-metadata.md`
+- Work item: `meta/work/PP-936-structured-source-metadata.md`
 - Research: `meta/research/codebase/2026-10-24-0348-structured-source-metadata.md`
 - Review: `meta/reviews/work/0348-structured-source-metadata-review-1.md`
 - Prior plans: `meta/plans/2026-09-23-0280-academic-source-profiles.md`,

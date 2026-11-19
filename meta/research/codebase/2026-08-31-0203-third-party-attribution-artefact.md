@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0203"
-parent: "work-item:0203"
+parent: "work-item:PP-733"
 relates_to: ["codebase-research:2026-08-10-0185-converge-corpus-adapters-library-backed-vcs", "codebase-research:2026-08-02-0188-library-backed-vcs-adapter", "codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline"]
 topic: "Ship a Third-Party Attribution Artefact with the Release Uploads"
 tags: ["research", "codebase", "licensing", "release", "cargo-about", "attribution", "cli", "frontend"]
@@ -257,10 +257,10 @@ exists in the repo yet, so co-locate config + template under `cli/` beside
 
 ## Historical Context
 
-- `meta/work/0188-library-backed-vcs-adapter.md` — introduced the gix/jj-lib/uluru closure and the MPL-2.0 exception.
-- `meta/work/0185-converge-corpus-adapters-on-library-backed-vcs.md` — the switch that spread the closure to `accelerator-corpus`; its validation filed 0203.
-- `meta/work/0165-multi-binary-distribution-and-release-pipeline.md` — owns `_release_uploads()`/`TREE_ARTIFACTS`; the staging surface 0203 joins.
-- `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md` — tree-artifact/release payload mechanics behind the `TREE_ARTIFACTS` route.
+- `meta/work/PP-718-library-backed-vcs-adapter.md` — introduced the gix/jj-lib/uluru closure and the MPL-2.0 exception.
+- `meta/work/PP-715-converge-corpus-adapters-on-library-backed-vcs.md` — the switch that spread the closure to `accelerator-corpus`; its validation filed 0203.
+- `meta/work/PP-186-multi-binary-distribution-and-release-pipeline.md` — owns `_release_uploads()`/`TREE_ARTIFACTS`; the staging surface 0203 joins.
+- `meta/work/PP-751-settle-the-vendored-runtime-tree-artifact-mechanisms.md` — tree-artifact/release payload mechanics behind the `TREE_ARTIFACTS` route.
 - `meta/validations/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs-validation.md` — per-binary `gix_`/`jj_lib`/`uluru` symbol table; reproduced the MPL finding against the release.
 - `meta/validations/2026-08-03-0188-library-backed-vcs-adapter-validation.md` — flagged that the exception comment asserted a shipped notice artefact that did not yet exist.
 - `meta/reviews/work/0185-converge-corpus-adapters-on-library-backed-vcs-review-1.md` — the review that promoted the attribution obligation to its own work item.

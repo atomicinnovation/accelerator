@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0300"
-parent: "work-item:0300"
+parent: "work-item:PP-884"
 topic: "Sync pulls of tracked work items fail silently"
 tags: ["research", "codebase", "sync", "work-cli", "work-adapters", "corpus-adapters", "store", "sync-work-items"]
 revision: "b986a74eae4c13bbdf163025980c87f61a84fff5"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-For the bug in `meta/work/0300-sync-pulls-of-tracked-work-items-fail-silently.md`:
+For the bug in `meta/work/PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`:
 where does a pull into a tracked work item fail, why is the failure silent,
 why does a `--target` run delete other items' conflict dossiers, and what in
 the codebase shapes the fix the work item requires?

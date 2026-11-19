@@ -6,10 +6,10 @@ date: "2026-06-20T17:07:39+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0122"
-parent: "work-item:0122"
+work_item_id: "work-item:PP-143"
+parent: "work-item:PP-143"
 derived_from: ["codebase-research:2026-06-20-0122-executable-bits-skill-entrypoint-scripts"]
-relates_to: ["work-item:0106", "work-item:0098", "work-item:0107"]
+relates_to: ["work-item:PP-128", "work-item:PP-120", "work-item:PP-129"]
 tags: ["scripts", "permissions", "ci", "lint", "plugin", "executable-bit"]
 revision: "b717ec4ab24f1982ec33310679897f11a21db0cd"
 repository: "build-system"
@@ -704,7 +704,7 @@ than ShellCheck. No new process spawns.
 
 ## References
 
-- Original work item: `meta/work/0122-audit-and-correct-missing-executable-bits-on-skill-entrypoint-scripts.md`
+- Original work item: `meta/work/PP-143-audit-and-correct-missing-executable-bits-on-skill-entrypoint-scripts.md`
 - Related research: `meta/research/codebase/2026-06-20-0122-executable-bits-skill-entrypoint-scripts.md`
 - Guard idiom to mirror: `tasks/lint/scripts.py:13-47`
 - Mandated enumeration: `tasks/shared/sources.py:60-100` (`_keep` `:29-37`,
@@ -718,6 +718,6 @@ than ShellCheck. No new process spawns.
   `tests/unit/tasks/shared/test_sources.py:28-67`,
   `tests/unit/tasks/test_python_coverage.py:133-176`
 - Convention home: `tasks/README.md:30-45`
-- Related work items: 0106 (`meta/work/0106-invoke-plugin-scripts-by-bare-path.md`),
-  0098 (`meta/work/0098-repo-wide-linting-formatting-static-analysis.md`),
-  0107 (`meta/work/0107-lint-skill-body-script-invocations.md`)
+- Related work items: 0106 (`meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md`),
+  0098 (`meta/work/PP-120-repo-wide-linting-formatting-static-analysis.md`),
+  0107 (`meta/work/PP-129-lint-skill-body-script-invocations.md`)

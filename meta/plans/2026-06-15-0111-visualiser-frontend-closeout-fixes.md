@@ -6,8 +6,8 @@ date: "2026-06-15T20:36:00+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0111"
-parent: "work-item:0111"
+work_item_id: "work-item:PP-133"
+parent: "work-item:PP-133"
 derived_from: ["codebase-research:2026-06-15-0111-visualiser-frontend-closeout-fixes"]
 tags: ["visualiser", "frontend", "markdown", "lifecycle", "sidebar", "milestone-closeout"]
 revision: "6bd95b32314656c07698ca08afda2eaed4415826"
@@ -789,12 +789,12 @@ the same change; the SPA is the sole consumer of `/api/lifecycle` (bundled via
 
 ## References
 
-- Work item: `meta/work/0111-visualiser-frontend-closeout-fixes.md`
+- Work item: `meta/work/PP-133-visualiser-frontend-closeout-fixes.md`
 - Research: `meta/research/codebase/2026-06-15-0111-visualiser-frontend-closeout-fixes.md`
 - Prototype source of truth:
   `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full`
   (`src/app.css:923-928` M1, `:913-916` M2, `:777` M3, `:577-579` L4;
   `src/view-lifecycle.jsx:5-11,66-71,95-97` L2/L3)
-- VR model: `meta/work/0108-local-docker-visual-regression-baselines.md`
+- VR model: `meta/work/PP-130-local-docker-visual-regression-baselines.md`
 - ADRs: `ADR-0026` (colour tokens), `ADR-0039` (border-radius), `ADR-0043`
   (pure-numeric `--size-*`)

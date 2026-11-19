@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0229"
-parent: "work-item:0229"
+parent: "work-item:PP-759"
 topic: "Per-Tracker Pull Scope Configuration"
 tags: ["research", "codebase", "sync", "tracker", "pull-scope", "search-scope", "config", "jira", "linear"]
 revision: "53dffc3c029bf4d59acfba58a6da0e451eba7d4b"
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 What does the codebase look like today for the story at
-`meta/work/0229-per-tracker-pull-scope-configuration.md` — the per-tracker `pull`
+`meta/work/PP-759-per-tracker-pull-scope-configuration.md` — the per-tracker `pull`
 block that broadens pull discovery with `additional_*` / `all_*` scopes, a
 normalised `filters` bag, and configurable `max_items` / `max_pages` ceilings,
 plus discovered-set dedup and total ordering? Where are the seams, what already
@@ -278,7 +278,7 @@ omitting it from their personal block).
 
 ### Base-scope resolution (0228) and its current-code state
 
-0228 (`meta/work/0228-layered-configuration-key-model.md`, status **`ready`**,
+0228 (`meta/work/PP-758-layered-configuration-key-model.md`, status **`ready`**,
 unimplemented) splits the overloaded `default_project_code` into an
 integration-owned **scope key** (`jira.project_key` / `linear.team_key`) and a
 work-owned **`work.key`** local-ID prefix. The base scope 0229 broadens is the
@@ -380,7 +380,7 @@ The live code has both `SearchScope` (`cli/tracker/src/lib.rs`) and `max_pages`
   built the two Linear flood-guards and single-team `CatalogueTeam` that 0229
   must deliberately unwind for `all_teams`; explicitly deferred all-teams to
   0146 (→ 0229).
-- `meta/work/0228-layered-configuration-key-model.md` (ready) — the scope-key /
+- `meta/work/PP-758-layered-configuration-key-model.md` (ready) — the scope-key /
   `work.key` split 0229's base scope resolves from; largely already present in
   code.
 - `meta/research/codebase/2026-09-06-0257-sync-specific-work-items.md` and

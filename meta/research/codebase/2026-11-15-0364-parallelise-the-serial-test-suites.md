@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0364"
-parent: "work-item:0364"
+parent: "work-item:PP-956"
 relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness"]
 topic: "What the Playwright and dev-task integration suites look like today, and what 0364's requirements will run into when parallelising them"
 tags: ["research", "codebase", "build-system", "playwright", "pytest", "pytest-xdist", "visualiser", "dev-task", "circus", "testing", "performance"]
@@ -29,7 +29,7 @@ references are local paths)
 
 ## Research Question
 
-For work item `meta/work/0364-parallelise-the-serial-test-suites.md`: what
+For work item `meta/work/PP-956-parallelise-the-serial-test-suites.md`: what
 do the Playwright visualiser suite and the dev-task integration suite look
 like today? What will each of the item's requirements touch, depend on or
 run into?

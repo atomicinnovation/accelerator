@@ -6,10 +6,10 @@ date: "2026-06-11T13:15:24+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0104"
-parent: "work-item:0104"
+work_item_id: "work-item:PP-126"
+parent: "work-item:PP-126"
 derived_from: ["codebase-research:2026-06-11-0104-add-rejected-to-adr-status-vocabulary"]
-relates_to: ["work-item:0103"]
+relates_to: ["work-item:PP-125"]
 tags: ["frontmatter", "schema", "adr", "status", "validator"]
 revision: "f7d348e72248cf66d70955c7a90e5d51297ce9fd"
 repository: "build-system"
@@ -366,7 +366,7 @@ green because widening a vocab never invalidates existing values.
 
 ## References
 
-- Original work item: `meta/work/0104-add-rejected-to-adr-status-vocabulary.md`
+- Original work item: `meta/work/PP-126-add-rejected-to-adr-status-vocabulary.md`
 - Related research: `meta/research/codebase/2026-06-11-0104-add-rejected-to-adr-status-vocabulary.md`
 - Schema source: `scripts/templates-schema.tsv:6` (the `adr` row, col 5)
 - Coupled comment: `templates/adr.md:8`
@@ -377,4 +377,4 @@ green because widening a vocab never invalidates existing values.
 - Producer this aligns to: `skills/decisions/review-adr/SKILL.md:85,191-201`
 - Lifecycle authority: `meta/decisions/ADR-0031-skill-level-adr-immutability.md`
 - Vocab-reconciliation map (silent on `rejected`): `meta/decisions/ADR-0042-reconciling-pre-schema-status-values.md`
-- Predecessor that deferred this: `meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md`
+- Predecessor that deferred this: `meta/work/PP-125-audit-skill-frontmatter-emission-against-unified-schema.md`

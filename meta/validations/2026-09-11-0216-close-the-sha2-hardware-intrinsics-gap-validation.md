@@ -61,7 +61,7 @@ the three pre-existing `test_vendor_assemble.py` parallel-load flakes.
 - `verifier.rs` gains the empty, `abc`, padding-boundary, and multi-block known-answer vectors — the intrinsic path is now pinned directly, not by distant coverage.
 - `measure.py` adds `LauncherTerms`, `parse_asset_bytes`, and an extracted pure `assemble_terms_report`; `tasks/README.md` records the `asset_bytes / (median_ms * 1000)` formula.
 - `deny.toml:110` flips to `multiple-versions = "deny"` with 23 exact version-pinned `skip` entries and no `skip-tree`; the TLS/wildcard/`serde-saphyr` bans are intact.
-- Before/after measurement JSONs carry a shared `asset_bytes` with MB/s derived; the musl evidence file documents AC 3/AC 4; `meta/work/0217` carries the reciprocal `work-item:0216` edge and the inherited `asset_bytes` prerequisite.
+- Before/after measurement JSONs carry a shared `asset_bytes` with MB/s derived; the musl evidence file documents AC 3/AC 4; `meta/work/0217` carries the reciprocal `work-item:PP-745` edge and the inherited `asset_bytes` prerequisite.
 
 #### Deviations from Plan:
 

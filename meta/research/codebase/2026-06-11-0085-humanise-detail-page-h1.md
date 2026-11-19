@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0085"
-parent: "work-item:0085"
+parent: "work-item:PP-107"
 relates_to: ["codebase-research:2026-05-31-0085-humanise-detail-page-h1-fallback"]
 topic: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"
 tags: ["research", "codebase", "visualiser", "frontmatter", "title-cascade", "humanise-slug", "slug", "indexer"]
@@ -319,11 +319,11 @@ work item body and the 2026-05-31 research.)
   `title` as a base frontmatter field on every artifact type — the
   invariant 0085's *primary* cascade path relies on. **Numbering note:** the
   work item references "ADR 0060", but there is no ADR-0060. `0060` is the
-  *work item* (`meta/work/0060-adr-unified-base-frontmatter-schema.md`)
+  *work item* (`meta/work/PP-82-adr-unified-base-frontmatter-schema.md`)
   that produced **ADR-0033**. The Dependencies/References "0060 (ADR
   establishing `title` …)" wording conflates the work-item number with the
   ADR number.
-- `meta/work/0041-library-page-wrapper-and-overview-hub.md` — the `<Page>`
+- `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` — the `<Page>`
   wrapper that makes the H1 a single render point.
 - `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
   — the source design-gap that surfaced the unhumanised-stem rendering.
@@ -332,7 +332,7 @@ work item body and the 2026-05-31 research.)
   the prior follow-up) — 0085 remains correctly `blocked_by: 0070`. Until
   0070 runs, legacy reviews/validations still hit the humanised-slug path
   as a *load-bearing* (not merely defensive) layer.
-- `meta/work/0097-strip-redundant-doc-type-prefixes-from-titles.md` — an
+- `meta/work/PP-119-strip-redundant-doc-type-prefixes-from-titles.md` — an
   adjacent follow-up explicitly kept separate from 0085 (0085 derives the
   H1; 0097 trims redundant doc-type prefixes).
 

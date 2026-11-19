@@ -6,8 +6,8 @@ date: "2026-09-25T08:18:32+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0226"
-parent: "work-item:0226"
+work_item_id: "work-item:PP-756"
+parent: "work-item:PP-756"
 derived_from: ["codebase-research:2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys"]
 relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
@@ -3213,7 +3213,7 @@ window.
 
 ## References
 
-- Original work item: `meta/work/0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- Original work item: `meta/work/PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Codebase research: `meta/research/codebase/2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys.md`
 - Credential ladder precedent: `meta/plans/2026-09-23-0280-academic-source-profiles.md` (Phase 2)
 - Runner follow-up: `meta/validations/2026-09-23-0280-academic-source-profiles-validation.md:129-135`

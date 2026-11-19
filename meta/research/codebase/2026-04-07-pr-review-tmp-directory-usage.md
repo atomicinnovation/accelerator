@@ -216,7 +216,7 @@ should be fixed immediately:
   — Documents the migration of review-pr ephemeral files from
   `{pr reviews directory}` to `{tmp directory}`, which established the
   current pattern
-- `meta/tickets/0003-diff-data-pipeline.md` — Diff data pipeline ticket
+- `meta/tickets/PP-25-diff-data-pipeline.md` — Diff data pipeline ticket
   covering shared storage and validation
 - `meta/decisions/ADR-0008-shared-temp-directory-for-pr-diff-delivery.md`
   — ADR for the shared temp directory approach (staged, not yet

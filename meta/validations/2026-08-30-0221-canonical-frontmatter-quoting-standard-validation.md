@@ -75,7 +75,7 @@ the component lanes above.
 Covered by automated tests but not exercised live this session:
 
 1. Emitter round-trip:
-  - [ ] `accelerator work create "T" bug medium --parent "work-item:0171" --relates-to "work-item:0194"` on a scratch repo writes fully double-quoted linkage/tags with no `>-` refolds (covered by `document`/`work` tests, 641 green).
+  - [ ] `accelerator work create "T" bug medium --parent "work-item:PP-192" --relates-to "work-item:PP-724"` on a scratch repo writes fully double-quoted linkage/tags with no `>-` refolds (covered by `document`/`work` tests, 641 green).
 2. Sync baseline:
   - [ ] After migrating a repo carrying `last-sync.json`, `/sync-work-items` preview reports no spurious locally-modified items (covered by the both-directions realignment tests).
 3. Producer skills:

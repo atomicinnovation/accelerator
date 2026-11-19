@@ -6,8 +6,8 @@ date: "2026-08-05T18:55:14+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0173"
-work_item_id: "0173"
+target: "work-item:PP-194"
+work_item_id: "PP-194"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -196,7 +196,7 @@ needed.
 ### Strengths
 
 - ✅ The Dependencies section is unusually well-maintained: resolved blockers cite
-  concrete evidence (e.g., "work-item:0187 ... merged via PR #42") rather than an
+  concrete evidence (e.g., "work-item:PP-717 ... merged via PR #42") rather than an
   unqualified "done", and the registration dependency is anchored to a specific,
   reusable checklist location rather than a vague ask.
 - ✅ The three binary names and their constituent scripts/skills are stated
@@ -237,8 +237,8 @@ needed.
    leaving it as an implicit option.
 
 4. **Add the missing Dependencies entries** (addresses: 0179/0174 findings, and
-   the `gh`/Playwright external-tool suggestions). Name work-item:0179
-   specifically alongside 0166, add a "Blocks: work-item:0174" entry, and
+   the `gh`/Playwright external-tool suggestions). Name work-item:PP-703
+   specifically alongside 0166, add a "Blocks: work-item:PP-195" entry, and
    optionally note the `gh` CLI and Playwright/Node runtime preconditions.
 
 5. **Disambiguate the Q5/Q7 shorthand and the Playwright executor's status**
@@ -333,7 +333,7 @@ reverse Blocks entry is absent; and two runtime external-tool couplings (`gh`,
 the Playwright executor) go unmentioned in Dependencies.
 
 **Strengths**:
-- The resolved-blocker list cites concrete evidence ("work-item:0187 merged via
+- The resolved-blocker list cites concrete evidence ("work-item:PP-717 merged via
   PR #42") rather than an unqualified "done".
 - The sub-binary registration dependency is anchored to a specific, reusable
   location and explicitly notes it applies three times over.

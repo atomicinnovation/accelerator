@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0162"
-parent: "work-item:0162"
+parent: "work-item:PP-183"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "How to extend Rust toolchain guard rails (format/lint/test/coverage/supply-chain/architecture-enforcement) into mise tasks and CI for the incoming cli/ workspace"
 tags: ["research", "codebase", "rust", "tooling", "ci", "mise", "cargo-deny", "cargo-pup", "architecture-enforcement"]
@@ -29,7 +29,7 @@ schema_version: 1
 
 ## Research Question
 
-For work item `meta/work/0162-rust-toolchain-guard-rails.md`: how is the repo's
+For work item `meta/work/PP-183-rust-toolchain-guard-rails.md`: how is the repo's
 Rust toolchain currently wired into mise and CI, and what exactly must change to
 extend format / lint / test / coverage / supply-chain / architecture-enforcement
 tooling into `mise run` tasks and CI for the incoming `cli/` Rust workspace —
@@ -398,15 +398,15 @@ possible follow-up. Only the architecture enforcement traces to ADR-0053.
 - `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md`
   — multi-binary workspace by bounded context; drives per-crate checks and
   multi-`Cargo.toml` version coherence; `reqwest`+rustls `default-features = false`.
-- `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+- `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — the spike that chose the tool stack (no ratifying ADR); three-tier
   enforcement; pinned-nightly isolation mandate.
-- `meta/work/0163-scaffold-cli-workspace-version-subcommand.md` — paired scaffold;
+- `meta/work/PP-184-scaffold-cli-workspace-version-subcommand.md` — paired scaffold;
   authors `cli/Cargo.toml` manifest contract; `launcher` crate rename; supplies
   the code 0162's gates run against.
-- `meta/work/0166-shared-config-corpus-store-crates.md` — config/config-adapters
+- `meta/work/PP-187-shared-config-corpus-store-crates.md` — config/config-adapters
   split; where the infra-out-of-domain ban first bites (co-verifies that AC).
-  (Caveat: 0166 frontmatter lacks a machine-visible `relates_to: work-item:0162`
+  (Caveat: 0166 frontmatter lacks a machine-visible `relates_to: work-item:PP-183`
   edge — only prose cross-references exist.)
 
 ## Related Research

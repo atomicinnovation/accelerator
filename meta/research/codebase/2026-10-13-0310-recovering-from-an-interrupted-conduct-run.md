@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0310"
-parent: "work-item:0310"
+parent: "work-item:PP-896"
 relates_to: ["codebase-research:2026-09-26-0283-recursive-finding-deepening", "codebase-research:2026-10-10-0303-research-concurrency-subagent-limit"]
 topic: "Recovering from an interrupted conduct run (0310)"
 tags: ["research", "codebase", "research-topic", "conduct", "run-ledger", "outstanding", "quarantine", "recovery"]

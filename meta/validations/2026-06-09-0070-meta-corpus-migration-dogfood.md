@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-parent: "work-item:0070"
+parent: "work-item:PP-92"
 target: "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"
 tags: ["migration", "dogfood", "validation", "frontmatter", "schema"]
 last_updated: "2026-06-09T10:00:00+00:00"
@@ -134,7 +134,7 @@ resolve to a real work-item by editing to the typed form; skip the rest.
 ## References
 
 - Plan: `meta/plans/2026-06-07-0070-meta-corpus-unified-schema-migration.md`
-- Work item: `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+- Work item: `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`
 - Spike (wrong-rate procedure precedent):
   `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
 - Decisions: ADR-0033, ADR-0034, ADR-0037, ADR-0038, ADR-0040, ADR-0042

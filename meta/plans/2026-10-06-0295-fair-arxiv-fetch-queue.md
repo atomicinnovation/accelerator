@@ -6,10 +6,10 @@ date: "2026-10-06T08:19:02+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0295"
-parent: "work-item:0295"
+work_item_id: "work-item:PP-882"
+parent: "work-item:PP-882"
 derived_from: ["codebase-research:2026-10-06-0295-fair-arxiv-fetch-queue"]
-relates_to: ["work-item:0283"]
+relates_to: ["work-item:PP-867"]
 tags: ["research", "arxiv", "pacing", "fetch", "research-cli", "research-adapters"]
 revision: "ecb60d3d7abfc3fdd92add69abe0e4c7203fe633"
 repository: "accelerator"
@@ -1940,7 +1940,7 @@ are in `meta/validations/2026-10-06-0295-fair-arxiv-fetch-queue-validation.md`.
 
 ## References
 
-- Work item: `meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`
+- Work item: `meta/work/PP-882-per-profile-batch-cap-for-arxiv-researchers.md`
 - Research: `meta/research/codebase/2026-10-06-0295-fair-arxiv-fetch-queue.md`
 - Gate design: `meta/plans/2026-09-23-0280-academic-source-profiles.md`
 - 0283 step 17 and its baseline:

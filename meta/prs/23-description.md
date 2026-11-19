@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0180"
-parent: "work-item:0166"
-relates_to: ["work-item:0172"]
+parent: "work-item:PP-187"
+relates_to: ["work-item:PP-193"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/23"
 pr_number: 23
 tags: ["rust", "corpus", "store", "crates"]
@@ -45,7 +45,7 @@ Ports the load-bearing atomic-store concurrency primitives from the bash impleme
 
 ## Context
 
-- Implements work item **0180** — *Atomic-Store Primitives in corpus-adapters* (`meta/work/0180-atomic-store-primitives-corpus-adapters.md`), external `PP-704`, under epic `0166`.
+- Implements work item **0180** — *Atomic-Store Primitives in corpus-adapters* (`meta/work/PP-704-atomic-store-primitives-corpus-adapters.md`), external `PP-704`, under epic `0166`.
 - Blocked by **0179** (corpus crate scaffolding — this PR's base branch).
 - Relates to **0172** (migration engine subdomain) — carries a reciprocal clean-cutover obligation on the JSONL escaper.
 - Plan: `meta/plans/2026-07-19-0180-atomic-store-primitives-corpus-adapters.md`; research, work/plan reviews, and the execution validation are all included in the diff under `meta/`.

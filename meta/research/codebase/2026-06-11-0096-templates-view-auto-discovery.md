@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0096"
-parent: "work-item:0096"
-relates_to: ["work-item:0042", "work-item:0089", "work-item:0029", "work-item:0037"]
+parent: "work-item:PP-118"
+relates_to: ["work-item:PP-64", "work-item:PP-111", "work-item:PP-51", "work-item:PP-59"]
 topic: "Templates view auto-discovery from the templates/ directory"
 tags: ["research", "codebase", "visualiser", "templates", "write-visualiser-config", "config-generation", "template-resolver"]
 revision: "cc4054111f79f67229cdfa6fa9539b278b620f00"
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-For the story at `meta/work/0096-templates-view-auto-discovers-templates.md`: how does the
+For the story at `meta/work/PP-118-templates-view-auto-discovers-templates.md`: how does the
 templates view (`/library/templates`) currently get its list of templates, and what
 exactly needs to change so that the list is auto-discovered from the `templates/`
 directory at config-generation time instead of being driven by a hardcoded roster?
@@ -324,14 +324,14 @@ round-trip (≈ lines 330-340) and **pins nothing about the roster**, matching t
 - `meta/plans/2026-05-05-add-missing-templates-to-visualiser.md` — **most directly relevant
   prior art**: documents the manual `write-visualiser-config.sh` wiring and the on-disk vs
   wired drift — i.e. the exact manual step 0096 eliminates.
-- `meta/work/0042-templates-view-redesign.md` + `meta/research/codebase/2026-05-18-0042-templates-view-redesign.md`
+- `meta/work/PP-64-templates-view-redesign.md` + `meta/research/codebase/2026-05-18-0042-templates-view-redesign.md`
   + `meta/plans/2026-05-18-0042-templates-view-redesign.md` — designed the tier-presence
   index and detail view 0096 populates with discovered entries (0096 changes the source of
   the list, not the look).
-- `meta/work/0037-glyph-component.md` + `meta/research/codebase/2026-05-12-0037-glyph-component.md`
+- `meta/work/PP-59-glyph-component.md` + `meta/research/codebase/2026-05-12-0037-glyph-component.md`
   — the `DocTypeKey`-keyed glyph map; relevant to the `rca` glyph follow-on.
-- `meta/work/0029-template-management-subcommand-surface.md` — the out-of-scope CLI roster.
-- `meta/work/0089-templates-preview-whitespace-fix.md` — independent change to the same view
+- `meta/work/PP-51-template-management-subcommand-surface.md` — the out-of-scope CLI roster.
+- `meta/work/PP-111-templates-preview-whitespace-fix.md` — independent change to the same view
   surface; no ordering dependency with 0096.
 - `meta/reviews/work/0096-templates-view-auto-discovers-templates-review-1.md` — prior review
   of the work item itself.

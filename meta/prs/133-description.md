@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0292"
-parent: "work-item:0292"
-relates_to: ["work-item:0294"]
+parent: "work-item:PP-869"
+relates_to: ["work-item:PP-878"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/133"
 pr_number: 133
 tags: ["linear", "pull-filters", "catalogue", "sync"]
@@ -108,14 +108,14 @@ used to match only the init team's state.
 
 ## Context
 
-- Work item: `meta/work/0292-linear-project-pull-filter.md`
+- Work item: `meta/work/PP-869-linear-project-pull-filter.md`
 - Plan: `meta/plans/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids.md`
   (status `done`), with the spike outcome recorded inline.
 - Research: `meta/research/codebase/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids.md`
 - Plan reviews: `meta/reviews/plans/…-review-1.md` and `…-review-2.md`
 - Validation: `meta/validations/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids-validation.md`
   (result `pass`)
-- Follow-up: `meta/work/0294-remove-the-legacy-linear-catalogue-projections.md`
+- Follow-up: `meta/work/PP-878-remove-the-legacy-linear-catalogue-projections.md`
 
 ## Testing
 

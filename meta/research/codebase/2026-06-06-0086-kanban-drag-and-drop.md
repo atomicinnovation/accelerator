@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0086"
-parent: "work-item:0086"
-relates_to: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "adr:ADR-0024", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0044"]
+parent: "work-item:PP-108"
+relates_to: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "adr:ADR-0024", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:PP-66"]
 topic: "Kanban Drag-and-Drop with Toast Confirmations"
 tags: ["research", "codebase", "kanban", "drag-and-drop", "dnd-kit", "toaster", "accessibility", "frontend"]
 revision: "a3fa7a527033f198a9239b2c6c23a9550ba7f269"
@@ -16,7 +16,7 @@ repository: "build-system"
 last_updated: "2026-06-06T13:06:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "work-item:0086"]
+derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "work-item:PP-108"]
 ---
 
 # Kanban Drag-and-Drop with Toast Confirmations (work item 0086)
@@ -29,7 +29,7 @@ derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhau
 
 ## Research Question
 
-Research the codebase to support work item `0086-kanban-drag-and-drop.md` — a
+Research the codebase to support work item `PP-108-kanban-drag-and-drop.md` — a
 quality pass on the already-shipped kanban drag-and-drop. Establish exactly how
 the live implementation behaves across the three requirement clusters so a plan
 can be written: **A** (drag-interaction fixes against the prototype design,
@@ -326,7 +326,7 @@ The prototype uses **raw HTML5 DnD** (`draggable`, `onDragStart`, `onDragOver`+
   only doc that cross-references 0086.
 - `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
   — the gap analysis cited by 0086's References.
-- `meta/work/0044-spike-list-screen-scope-decisions.md` — the abandoned column-set
+- `meta/work/PP-66-spike-list-screen-scope-decisions.md` — the abandoned column-set
   spike (no longer a dependency).
 - No ADR exists for the dnd-kit-vs-HTML5 choice; 0086 carries it as an open decision.
 

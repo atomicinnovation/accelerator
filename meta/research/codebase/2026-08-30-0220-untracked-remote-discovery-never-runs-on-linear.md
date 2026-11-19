@@ -8,7 +8,7 @@ producer: "research-codebase"
 status: "complete"
 topic: "Why untracked-remote discovery is skipped on Linear and where the gate, scope, and key resolution live"
 work_item_id: "0220"
-parent: "work-item:0220"
+parent: "work-item:PP-749"
 tags: ["research", "codebase", "sync", "linear", "tracker", "discovery"]
 revision: "3cc3fe422551f0fd064105dc12e2f1f6082a67c5"
 repository: "accelerator"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-Ground the bug in `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md`
+Ground the bug in `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md`
 against the live codebase: verify every cited site, confirm the mechanism, and
 surface anything the work item mis-states or omits that a plan must account for.
 
@@ -291,7 +291,7 @@ gate assertions — there is no single template to copy.
   turns on.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — why the gate
   belongs in the CLI/port, not the skill.
-- `meta/work/0146-work-item-sync-enhancements.md` — parent epic owning the
+- `meta/work/PP-167-work-item-sync-enhancements.md` — parent epic owning the
   `work.key` / `<tracker>.<entity>_key` config-model redesign; no research or
   plan artifact yet.
 

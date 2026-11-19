@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0179"
-parent: "work-item:0179"
+parent: "work-item:PP-703"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/21"
 pr_number: 21
 tags: ["rust", "corpus", "document", "vcs", "crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "parity"]
@@ -62,7 +62,7 @@ The port read the bash surfaces closely enough to find four bugs, all with a gre
 
 ## Context
 
-- Work item: `meta/work/0179-corpus-crates-parsing-conventions.md` (child of 0166 — Shared config, corpus, and store crates)
+- Work item: `meta/work/PP-703-corpus-crates-parsing-conventions.md` (child of 0166 — Shared config, corpus, and store crates)
 - Plan: `meta/plans/2026-07-11-0179-corpus-crates-parsing-conventions.md`
 - Research: `meta/research/codebase/2026-07-11-0179-corpus-crates-parsing-conventions.md`
 - Validation: `meta/validations/2026-07-11-0179-corpus-crates-parsing-conventions-validation.md` (result: pass)

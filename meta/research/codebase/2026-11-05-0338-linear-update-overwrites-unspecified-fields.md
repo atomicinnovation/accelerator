@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0338"
-parent: "work-item:0338"
+parent: "work-item:PP-921"
 relates_to: ["codebase-research:2026-10-03-cli-surface-inventory", "codebase-research:2026-10-10-0296-sync-round-trip-defects", "codebase-research:2026-06-14-0048-linear-integration-apis"]
 topic: "Linear Update Overwrites Fields It Was Not Given"
 tags: ["research", "codebase", "linear", "linear-cli", "linear-client", "tracker-port", "update"]
@@ -31,7 +31,7 @@ schema_version: 1
 How does `accelerator linear update` build and send its `issueUpdate` today?
 What does the work item 0338 fix touch? Which constraints, consumers and test
 patterns bound it? The work item is at
-`meta/work/0338-linear-update-overwrites-fields-it-was-not-given.md`, and its
+`meta/work/PP-921-linear-update-overwrites-fields-it-was-not-given.md`, and its
 first review is at
 `meta/reviews/work/0338-linear-update-overwrites-fields-it-was-not-given-review-1.md`.
 

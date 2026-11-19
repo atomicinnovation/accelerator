@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-07-0035-topbar-component"
 title: "Implementation of work item 0035 — Topbar Component"
 schema_version: 1
-relates_to: ["work-item:0033", "work-item:0034", "work-item:0036", "work-item:0041", "work-item:0035", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "adr:ADR-0026"]
+relates_to: ["work-item:PP-55", "work-item:PP-56", "work-item:PP-58", "work-item:PP-63", "work-item:PP-57", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "adr:ADR-0026"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
@@ -27,7 +27,7 @@ derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebas
 ## Research Question
 
 What is required, in concrete terms, to implement work item
-[`meta/work/0035-topbar-component.md`](../work/0035-topbar-component.md) — a
+[`meta/work/PP-57-topbar-component.md`](../work/PP-57-topbar-component.md) — a
 persistent Topbar above the existing sidebar+main shell that surfaces brand,
 breadcrumbs, server-origin pill, SSE state, and theme/font-mode toggle slots —
 given the current state of the visualisation frontend?
@@ -391,13 +391,13 @@ None of these block implementation; they are tightening opportunities.
 
 ## Historical Context
 
-- `meta/work/0033-design-token-system.md` — token foundation; 0033 has
+- `meta/work/PP-55-design-token-system.md` — token foundation; 0033 has
   shipped per 0034 Context.
-- `meta/work/0034-theme-and-font-mode-toggles.md` — populates 0035's
+- `meta/work/PP-56-theme-and-font-mode-toggles.md` — populates 0035's
   slots; blocked by 0035.
-- `meta/work/0036-sidebar-redesign.md` — confirms 0035 owns SidebarFooter
+- `meta/work/PP-58-sidebar-redesign.md` — confirms 0035 owns SidebarFooter
   removal.
-- `meta/work/0041-library-page-wrapper-and-overview-hub.md` — replaces
+- `meta/work/PP-63-library-page-wrapper-and-overview-hub.md` — replaces
   `/library` redirect with a real route, will consume 0035's
   `{ crumb: string }` loader contract.
 - `meta/reviews/work/0035-topbar-component-review-1.md` — pass-2 review,

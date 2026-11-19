@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-31-0040-pipeline-visualisation-overhaul"
 title: "Pipeline Visualisation Overhaul (0040)"
 schema_version: 1
-relates_to: ["adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0033", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:0040", "work-item:0044", "work-item:0063", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only"]
+relates_to: ["adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0033", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:PP-62", "work-item:PP-66", "work-item:PP-85", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-20-0063-rename-work-item-type-to-kind", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
@@ -725,9 +725,9 @@ tests; reusable verbatim for new tests.
   promoted to a first-class wire field, the orphan predicate
   standardised on `entry.completeness == null`, and 0044 promoted to
   a "blocked by (kanban portion only)" dependency.
-- `meta/work/0044-spike-list-screen-scope-decisions.md` — open spike;
+- `meta/work/PP-66-spike-list-screen-scope-decisions.md` — open spike;
   blocks kanban portion of 0040.
-- `meta/work/0063-rename-work-item-type-to-kind.md` — done; provides
+- `meta/work/PP-85-rename-work-item-type-to-kind.md` — done; provides
   the `frontmatter.kind` label the kanban card preserves.
 - `meta/plans/2026-04-26-meta-visualiser-phase-7-kanban-read-only.md` —
   origin of the current kanban implementation; useful for the chrome

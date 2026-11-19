@@ -6,8 +6,8 @@ date: "2026-10-29T16:53:32+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0368"
-work_item_id: "0368"
+target: "work-item:PP-960"
+work_item_id: "PP-960"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -70,7 +70,7 @@ ten major findings remain, well above the threshold of two.
 - 🟡 **Dependency**: Blocks edges to 0363–0367 are not reciprocated
   **Location**: Dependencies
   `blocks` lists 0362–0367, but only 0362 has `blocked_by:
-  ["work-item:0368"]`. 0363, 0364, 0365 and 0367 say "Blocked by: none", and
+  ["work-item:PP-960"]`. 0363, 0364, 0365 and 0367 say "Blocked by: none", and
   0366 lists only 0362, so nothing in those items stops a merge before the
   baseline exists.
 
@@ -273,7 +273,7 @@ ten major findings remain, well above the threshold of two.
    consumer-specific modes in the gate)
    Narrow the gate to Requirements 1, 2, 5 and 7, the warm full-run path
    plus its baseline, and state one condition that discharges it. Add
-   `blocked_by: ["work-item:0368"]` to 0363–0367 with 0362's merge-only
+   `blocked_by: ["work-item:PP-960"]` to 0363–0367 with 0362's merge-only
    wording, and correct 0362's "Requirements 1–2".
 2. **Anchor the baseline** (addresses: reference-host blocker; Requirement
    9 changes host state; the baseline criterion accepts any host)

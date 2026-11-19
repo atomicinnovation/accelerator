@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0070"
-parent: "work-item:0070"
+parent: "work-item:PP-92"
 relates_to: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0038"]
 topic: "Implementing the meta/ corpus unified-schema migration (story 0070)"
 tags: ["research", "codebase", "migration", "frontmatter", "schema", "interactive", "visualiser", "linkage"]

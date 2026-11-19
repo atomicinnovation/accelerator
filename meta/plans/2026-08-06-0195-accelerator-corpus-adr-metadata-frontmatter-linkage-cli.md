@@ -6,8 +6,8 @@ date: "2026-08-06T08:41:17+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0195"
-parent: "work-item:0195"
+work_item_id: "work-item:PP-725"
+parent: "work-item:PP-725"
 derived_from: ["codebase-research:2026-08-06-0195-accelerator-corpus-cli-implementation-surface"]
 tags: ["rust", "corpus", "cli", "adr", "frontmatter", "linkage", "sub-binary"]
 revision: "bb58376ea87e91b416b640f9e010671ab9ccd65b"
@@ -1561,9 +1561,9 @@ remain.
 #### 3. Final checklist closure
 
 Confirm `mise run deny:check` and the `cli:check` cargo-pup lane are both
-green with the accumulated `corpus-cli` crate. Update work-item:0195's
+green with the accumulated `corpus-cli` crate. Update work-item:PP-725's
 status; note that the floor decrements applied across Phases 1/3/4 are the
-concrete instances feeding work-item:0174's lockstep requirement.
+concrete instances feeding work-item:PP-195's lockstep requirement.
 
 ### Success Criteria
 
@@ -1648,7 +1648,7 @@ removal doesn't touch.
 
 ## References
 
-- Original work item: `meta/work/0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
+- Original work item: `meta/work/PP-725-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
 - Related research: `meta/research/codebase/2026-08-06-0195-accelerator-corpus-cli-implementation-surface.md`
 - Sub-binary precedent: `cli/vcs-cli/` (`Cargo.toml`, `src/main.rs`, `src/cli.rs`, `tests/detect_goldens.rs`)
 - Registration checklist: `tasks/README.md#registering-a-dispatched-sub-binary`

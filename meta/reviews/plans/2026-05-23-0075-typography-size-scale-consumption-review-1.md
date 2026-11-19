@@ -450,7 +450,7 @@ The Pass-2 edits introduced these net-new concerns. The five **major** ones belo
 
 - 🟡 **Compatibility / Documentation**: **Work item 0091 referenced repeatedly but does not exist on disk**
   **Location**: What We're NOT Doing; ADR-0035 Consequences; Migration Notes; References.
-  The plan cites "follow-up work item 0091 (typography rem-vs-px stance review) created alongside this plan" in multiple places, including ADR-0035's Consequences section as the durable tracker for the accessibility regression. `meta/work/0091-typography-rem-vs-px-stance.md` does not exist. ADR-0035 ships with a dangling reference. **Fix**: create `meta/work/0091-…` as part of this PR (or as a precursor commit) with at least Context, AC placeholder, and `status: backlog` frontmatter.
+  The plan cites "follow-up work item 0091 (typography rem-vs-px stance review) created alongside this plan" in multiple places, including ADR-0035's Consequences section as the durable tracker for the accessibility regression. `meta/work/PP-113-typography-rem-vs-px-stance.md` does not exist. ADR-0035 ships with a dangling reference. **Fix**: create `meta/work/0091-…` as part of this PR (or as a precursor commit) with at least Context, AC placeholder, and `status: backlog` frontmatter.
 
 - 🟡 **Documentation**: **Plan acknowledges but does not actionably plan the work-item 0075 update**
   **Location**: Plan §1.1 AC6a-wording paragraph; absent Phase/Success-Criteria step.

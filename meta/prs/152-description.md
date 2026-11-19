@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0121"
-parent: "work-item:0121"
-relates_to: ["work-item:0301", "work-item:0303", "work-item:0304", "work-item:0305", "work-item:0306", "work-item:0307", "work-item:0308", "work-item:0309", "work-item:0310", "work-item:0311"]
+parent: "work-item:PP-22"
+relates_to: ["work-item:PP-888", "work-item:PP-889", "work-item:PP-890", "work-item:PP-891", "work-item:PP-892", "work-item:PP-893", "work-item:PP-894", "work-item:PP-895", "work-item:PP-896", "work-item:PP-897"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/152"
 pr_number: 152
 tags: ["research", "deep-research", "work-items"]
@@ -55,7 +55,7 @@ shows only this PR's commit. Retarget to `main` once #148 merges.
 
 ## Context
 
-- Epic: `meta/work/0121-topic-research-skillset.md`
+- Epic: `meta/work/PP-22-topic-research-skillset.md`
 - Issues: #140, #141, #142, #143, #144, #145, #146, #147 — each item cites
   its source under References.
 

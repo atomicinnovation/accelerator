@@ -6,8 +6,8 @@ date: "2026-06-20T12:45:43+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0120"
-work_item_id: "0120"
+target: "work-item:PP-142"
+work_item_id: "PP-142"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -186,7 +186,7 @@ _None._
 5. **Tidy the dependency/traceability records** (addresses: "0116 does not
    reciprocally name 0120", "0117 absent from relates_to")
    Add 0120 to 0116's "Blocks" entry (or downgrade 0120's dependency on 0116 to
-   "Relates to" if it is ordering-only), and add `work-item:0117` to `relates_to`
+   "Relates to" if it is ordering-only), and add `work-item:PP-139` to `relates_to`
    to record the sibling carrying the invoker-contract prevention items.
 
 6. **Optionally gloss dense terms / note the intentional bundling** (addresses:
@@ -283,7 +283,7 @@ entry on the 0116 side and the absence of 0117 from relates_to.
 - 🔵 **suggestion** (low) — *0117 (invoker-contract sibling) absent from the
   relates_to coupling set* (Frontmatter: relates_to): The other two prevention
   items map to sibling 0117, which 0120's relates_to does not name. Traceability
-  gap, not a scheduling blocker. Suggestion: add work-item:0117 to relates_to and
+  gap, not a scheduling blocker. Suggestion: add work-item:PP-139 to relates_to and
   a one-line "Relates to: 0117" note.
 
 ### Scope

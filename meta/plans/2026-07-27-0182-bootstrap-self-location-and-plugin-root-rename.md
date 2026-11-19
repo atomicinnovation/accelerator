@@ -6,8 +6,8 @@ date: "2026-07-27T09:02:16+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0182"
-parent: "work-item:0182"
+work_item_id: "work-item:PP-712"
+parent: "work-item:PP-712"
 derived_from: ["codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface", "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"]
 tags: ["plan", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards"]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
@@ -554,7 +554,7 @@ at most one JSON object may reach stdout.
 
 #### 4. Record all answers
 
-**File**: `meta/work/0182-cli-derives-plugin-root-from-own-location.md`
+**File**: `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md`
 **Changes**: Replace both Open Questions with the recorded results, naming the
 Claude Code version tested.
 
@@ -3162,7 +3162,7 @@ Two consequences for this phase:
 - Raise a **follow-up work item** for converting that arm's `NotFound` case into
   `PluginRootUnavailable` (keeping genuine I/O failures as `Io`), and reference its
   id here — a prose note in a completed plan is not a work queue. **Raised as
-  0184** (`meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`).
+  0184** (`meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`).
 
 #### 4. Update the tests
 
@@ -3671,7 +3671,7 @@ Carry the removal advice into the release notes for the version shipping 1b.
 
 ## References
 
-- Original work item: `meta/work/0182-cli-derives-plugin-root-from-own-location.md`
+- Original work item: `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md`
 - Work item review: `meta/reviews/work/0182-cli-derives-plugin-root-from-own-location-review-1.md`
 - Plan review (eight lenses; drove the 1a/1b/1c split, Phase 5's re-siting, the
   hop-bound change, the guard's scope, and the launcher-supply mechanism):

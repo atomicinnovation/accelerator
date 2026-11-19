@@ -235,7 +235,7 @@ none of them critical, in four areas:
 - 🔵 **Standards**: Add an explicit `public-api:update` step to Phases 3 and
   6.
 - 🔵 **Standards**: Give ADR-0072 the frontmatter `parent:
-  "work-item:0304"` and `relates_to: ["adr:ADR-0071"]`.
+  "work-item:PP-890"` and `relates_to: ["adr:ADR-0071"]`.
 - 🔵 **Correctness / Compatibility**: State the full order of start notices,
   and keep concurrency notices printed on a failing `--start`.
 - 🔵 **Documentation**: Add a halt-and-recovery paragraph to the docs-site,

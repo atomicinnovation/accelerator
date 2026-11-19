@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0185"
-parent: "work-item:0185"
+parent: "work-item:PP-715"
 relates_to: ["codebase-research:2026-08-02-0188-library-backed-vcs-adapter", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 topic: "Converge corpus-adapters on the Library-Backed VCS Adapter (0185)"
 tags: ["research", "codebase", "rust", "vcs", "corpus-adapters", "vcs-adapters", "gix", "jj-lib"]
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 What does the live codebase look like for work item
-[0185](../../work/0185-converge-corpus-adapters-on-library-backed-vcs.md) —
+[0185](../../work/PP-715-converge-corpus-adapters-on-library-backed-vcs.md) —
 "Converge corpus-adapters on the Library-Backed VCS Adapter" — so a plan can
 be written for it? Specifically: what does `vcs_adapters::facts` wire up
 today, what exactly is `CommandProbe` and what depends on it, how does
@@ -614,12 +614,12 @@ any of it today.
   unanimous scope-lens finding that the `corpus-adapters`/`CommandProbe`
   migration was "orthogonal, own risk profile, nothing in the hooks
   migration needs it."
-- `meta/work/0188-library-backed-vcs-adapter.md` (done) delivered
+- `meta/work/PP-718-library-backed-vcs-adapter.md` (done) delivered
   `InProcessProbe` deliberately unwired, specifically so 0185 could adopt it
   once proven — including reversing an earlier, wrong spike finding
   (amendment 8, withdrawn) that jj `revision` was out of reach; it is fully
   delivered (amendment 10).
-- `meta/work/0198-vcs-agnostic-status-log-renderer.md`
+- `meta/work/PP-728-vcs-agnostic-status-log-renderer.md`
   (draft, low priority) owns the separate `status`/`log` subprocess path in
   the same `subprocess.rs` module (`run_vcs_text`) — explicitly out of
   0185's scope, and the reason `scrub_environment`/`run_capped` must survive
@@ -633,7 +633,7 @@ any of it today.
   left as an in-line AC rather than split out: the MPL-2.0
   attribution-artefact work, judged cheap enough to track without a separate
   work item.
-- `meta/work/0125-converge-vcs-detection-on-probe-layer.md` (draft) — a
+- `meta/work/PP-146-converge-vcs-detection-on-probe-layer.md` (draft) — a
   separate, shell-side convergence (`find_repo_root`/`vcs_mode`) whose
   stated rationale (probing costs 1-3 subprocesses, must work with no
   `git`/`jj` on `PATH`) is dissolved *for consumers that reach the Rust

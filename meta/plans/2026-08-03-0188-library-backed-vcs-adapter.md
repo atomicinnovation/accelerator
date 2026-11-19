@@ -6,10 +6,10 @@ date: "2026-08-03T09:10:56+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0188"
-parent: "work-item:0188"
+work_item_id: "work-item:PP-718"
+parent: "work-item:PP-718"
 derived_from: ["codebase-research:2026-08-02-0188-library-backed-vcs-adapter"]
-relates_to: ["work-item:0169", "work-item:0185", "work-item:0125"]
+relates_to: ["work-item:PP-190", "work-item:PP-715", "work-item:PP-146"]
 tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
 revision: "2ec1cc10961f3070ff6432cd2ebe54c52886b13e"
 repository: "accelerator"
@@ -2331,7 +2331,7 @@ stays runnable on demand.
 
 Recorded in the work item's Validation Results. Host and OS recorded; darwin-arm64
 is chosen deliberately to match 0186's `B = 35.1 ms`
-(`meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md:46-63`), because
+(`meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md:46-63`), because
 the ~97 ms probe delta is macOS-specific and cross-host comparison would leave
 0169's gate ill-posed.
 
@@ -2442,7 +2442,7 @@ the amendment block says so and quotes it rather than deleting it.
 dissolves the lexical-fallback rationale **for consumers that reach the Rust
 adapter** — the ~26 shell call sites keep running in bash until later epic-0136
 phases migrate them. Constraints 3, 4 and 5 (`:90-95`) are untouched and must
-survive the note; only constraints 1 and 2 are dissolved. Add `work-item:0188`
+survive the note; only constraints 1 and 2 are dissolved. Add `work-item:PP-718`
 to `relates_to` (`:11`), which currently reciprocates no edges — leaving 0169
 and 0185 one-directional is a conscious choice, not an oversight.
 
@@ -2519,7 +2519,7 @@ Four further inheritances, new from the review of this plan:
 
 #### 4. Work-item closeout
 
-**File**: `meta/work/0188-library-backed-vcs-adapter.md`
+**File**: `meta/work/PP-718-library-backed-vcs-adapter.md`
 **Changes**: Validation Results filled in from Phases 1–4, and both Open
 Questions marked closed with the answers recorded in
 [Open Questions Closed](#open-questions-closed).
@@ -2556,7 +2556,7 @@ Measurement during planning forced four amendments; plan review 1 forced two
 more; the pin decision and the `revision` spike force a further two. Each is a
 change to *this* work item, recorded here rather than absorbed silently.
 
-**Amendments 1-4 were applied to `meta/work/0188-library-backed-vcs-adapter.md`
+**Amendments 1-4 were applied to `meta/work/PP-718-library-backed-vcs-adapter.md`
 on 2026-08-03, before implementation started**, together with the two
 informational corrections below. The work item carries a summary at the head of
 its Requirements and the detail inline at each affected criterion.
@@ -2847,7 +2847,7 @@ assertion.
 
 ## References
 
-- Original work item: `meta/work/0188-library-backed-vcs-adapter.md`
+- Original work item: `meta/work/PP-718-library-backed-vcs-adapter.md`
 - Related research:
   `meta/research/codebase/2026-08-02-0188-library-backed-vcs-adapter.md`
 - Feasibility probe and the two traps:

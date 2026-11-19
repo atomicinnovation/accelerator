@@ -6,8 +6,8 @@ date: "2026-11-05T16:51:32+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0338"
-parent: "work-item:0338"
+work_item_id: "work-item:PP-921"
+parent: "work-item:PP-921"
 derived_from: ["codebase-research:2026-11-05-0338-linear-update-overwrites-unspecified-fields"]
 tags: ["linear", "cli", "update"]
 revision: "9a3f77a1c7a3b3d1db560d7848c8cb49ca6f19f2"
@@ -698,7 +698,7 @@ both changes.
 ## References
 
 - Original work item:
-  `meta/work/0338-linear-update-overwrites-fields-it-was-not-given.md`
+  `meta/work/PP-921-linear-update-overwrites-fields-it-was-not-given.md`
 - Work item review:
   `meta/reviews/work/0338-linear-update-overwrites-fields-it-was-not-given-review-1.md`
 - Plan review:

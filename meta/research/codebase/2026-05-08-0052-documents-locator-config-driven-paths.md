@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-08-0052-documents-locator-config-driven-paths"
 title: "Implementation of 0052 — documents-locator Config-Driven Paths"
 schema_version: 1
-relates_to: ["note:2026-04-26-agents-hardcode-default-directory-locations", "codebase-research:2026-02-22-skills-agents-commands-refactoring", "work-item:0030"]
+relates_to: ["note:2026-04-26-agents-hardcode-default-directory-locations", "codebase-research:2026-02-22-skills-agents-commands-refactoring", "work-item:PP-52"]
 ---
 
 # Implementation of 0052 — documents-locator Config-Driven Paths
@@ -26,7 +26,7 @@ relates_to: ["note:2026-04-26-agents-hardcode-default-directory-locations", "cod
 ## Research Question
 
 What are the precise implementation details for each requirement of work item
-0052 (`meta/work/0052-make-documents-locator-paths-config-driven.md`)? Covers:
+0052 (`meta/work/PP-74-make-documents-locator-paths-config-driven.md`)? Covers:
 `config-read-all-paths.sh`, `skills/config/paths/SKILL.md`,
 `agents/documents-locator.md` updates, the `global` path key (Req 8), and the
 harness extension for `skills:` frontmatter in agent definitions (Req 9).
@@ -370,7 +370,7 @@ definition path is present.
 - `meta/research/codebase/2026-02-22-skills-agents-commands-refactoring.md` — lines
   56–57 define `skills:` frontmatter for agents; line 432 marks exact
   injection behaviour as an open question
-- `meta/work/0030-centralise-path-defaults.md` — the related work item that
+- `meta/work/PP-52-centralise-path-defaults.md` — the related work item that
   proposed `config-defaults.sh`; now landed (commit `da6c42901`). The
   `config-read-all-paths.sh` script should source the landed `config-defaults.sh`
   rather than maintaining its own key list.

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
-parent: "work-item:0364"
+parent: "work-item:PP-956"
 relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/241"
 pr_number: 241
@@ -57,7 +57,7 @@ is done. Only `meta/` changes.
 
 ## Context
 
-- Work item: `meta/work/0364-parallelise-the-serial-test-suites.md`
+- Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
 - Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
   (Phase 7)
 - **Why a paired comparison.** Both CI before windows were contaminated,

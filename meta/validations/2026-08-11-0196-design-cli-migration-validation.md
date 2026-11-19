@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "partial"
-parent: "work-item:0196"
+parent: "work-item:PP-726"
 target: "plan:2026-08-11-0196-design-cli-migration"
 tags: ["rust", "design", "cli", "sub-binary", "executor", "playwright"]
 last_updated: "2026-08-13T11:48:29+00:00"

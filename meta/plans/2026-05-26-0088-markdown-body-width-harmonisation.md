@@ -13,7 +13,7 @@ last_updated: "2026-05-26T16:30:00+01:00"
 last_updated_by: "Toby Clemson"
 revision: "9cc7bcf225b1"
 repository: "ticket-management"
-relates_to: ["work-item:0088", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation", "work-item:0033", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:0076"]
+relates_to: ["work-item:PP-110", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation", "work-item:PP-55", "plan:2026-05-23-0075-typography-size-scale-consumption", "work-item:PP-98"]
 ---
 
 # 0088 Markdown Body Width Harmonisation — Implementation Plan
@@ -46,7 +46,7 @@ the exception, and lands the screenshot baselines.
 > what actually shipped is prototype-aligned and is the canonical
 > state. See **Post-Implementation Deviations** at the end of this
 > document for the full diff. The work item
-> (`meta/work/0088-markdown-body-width-harmonisation.md`) carries
+> (`meta/work/PP-110-markdown-body-width-harmonisation.md`) carries
 > the updated requirements and acceptance criteria.
 
 ## Current State Analysis
@@ -842,7 +842,7 @@ canonicalise the 20px body size as the new baseline.
 
 ## References
 
-- Work item: `meta/work/0088-markdown-body-width-harmonisation.md`
+- Work item: `meta/work/PP-110-markdown-body-width-harmonisation.md`
 - Research: `meta/research/codebase/2026-05-26-0088-markdown-body-width-harmonisation.md`
 - Source files:
   - `skills/visualisation/visualise/frontend/src/components/MarkdownRenderer/MarkdownRenderer.module.css:1-5`
@@ -862,9 +862,9 @@ canonicalise the 20px body size as the new baseline.
   - `skills/visualisation/visualise/frontend/tests/visual-regression/tokens.spec.ts:1-87` (screenshot-spec precedent)
   - `skills/visualisation/visualise/frontend/playwright.config.ts:21-29` (visual-regression project)
 - Related prior work:
-  - `meta/work/0033-design-token-system.md` (status: done) — established the size scale and layout-token family.
+  - `meta/work/PP-55-design-token-system.md` (status: done) — established the size scale and layout-token family.
   - `meta/plans/2026-05-23-0075-typography-size-scale-consumption.md` (status: accepted) — established the `font-size` consumption rule the new declaration adheres to.
-  - `meta/work/0076-code-block-syntax-highlight-palette.md` (status: done) — recent neighbour edit on the same `MarkdownRenderer.module.css` file; no rebase risk against the current commit.
+  - `meta/work/PP-98-code-block-syntax-highlight-palette.md` (status: done) — recent neighbour edit on the same `MarkdownRenderer.module.css` file; no rebase risk against the current commit.
 
 ## Post-Implementation Deviations
 

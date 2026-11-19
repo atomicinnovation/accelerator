@@ -6,8 +6,8 @@ date: "2026-09-12T23:39:57+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0278"
-parent: "work-item:0278"
+work_item_id: "work-item:PP-862"
+parent: "work-item:PP-862"
 derived_from: ["codebase-research:2026-09-12-0278-complete-codebase-research-rename"]
 tags: ["rename", "codebase-research", "doc-type", "migration"]
 revision: "f6681293f6fcf141f788bc09b82c4d29adf31efb"

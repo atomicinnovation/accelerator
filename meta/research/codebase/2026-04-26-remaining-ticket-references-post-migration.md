@@ -177,7 +177,7 @@ will carry the stale `ticket:` frontmatter key until this is fixed.
 
 ---
 
-### Category 8: Missed — `meta/work/0026-init-skill-for-repo-bootstrap.md`
+### Category 8: Missed — `meta/work/PP-48-init-skill-for-repo-bootstrap.md`
 
 **1 location** — body text listing directory names.
 
@@ -341,7 +341,7 @@ Safe to prune as a housekeeping item, separately from the migration cleanup.
 - `templates/plan.md:5` — `ticket:` frontmatter key
 - `templates/plan.md:107` — `meta/tickets/` example path
 - `templates/pr-description.md:24` — "relevant ticket" placeholder
-- `meta/work/0026-init-skill-for-repo-bootstrap.md:108` — `tickets/` directory
+- `meta/work/PP-48-init-skill-for-repo-bootstrap.md:108` — `tickets/` directory
   name
 - `agents/documents-locator.md:25` — categorisation label `Tickets (usually in tickets/)`
 - `agents/documents-locator.md:54` — directory tree entry `├── tickets/`

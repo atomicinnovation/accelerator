@@ -6,10 +6,10 @@ date: "2026-06-06T18:03:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0101"
-parent: "work-item:0101"
+work_item_id: "work-item:PP-123"
+parent: "work-item:PP-123"
 derived_from: ["codebase-research:2026-06-06-0101-unified-dev-task-for-visualiser"]
-relates_to: ["work-item:0100", "work-item:0101", "codebase-research:2026-06-06-0101-unified-dev-task-for-visualiser"]
+relates_to: ["work-item:PP-122", "work-item:PP-123", "codebase-research:2026-06-06-0101-unified-dev-task-for-visualiser"]
 tags: ["dev-tooling", "mise", "invoke", "visualiser", "circus", "process-supervision"]
 revision: "c893bc4638cdc31c029312742292e5abd6118ed9"
 repository: "miscellaneous"
@@ -1420,7 +1420,7 @@ recorded in dev-state. Nothing is committed; all of it is removed by `dev:stop`.
 
 ## References
 
-- Original work item: `meta/work/0101-unified-dev-task-for-visualiser.md`
+- Original work item: `meta/work/PP-123-unified-dev-task-for-visualiser.md`
 - Research: `meta/research/codebase/2026-06-06-0101-unified-dev-task-for-visualiser.md`
 - Binding spec: `meta/reviews/work/0101-unified-dev-task-for-visualiser-review-1.md`
 - Prior art: `skills/visualisation/visualise/scripts/launch-server.sh`,

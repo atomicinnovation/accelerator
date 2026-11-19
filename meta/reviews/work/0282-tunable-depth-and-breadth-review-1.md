@@ -6,9 +6,9 @@ date: "2026-09-20T21:23:37+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0121"
-target: "work-item:0282"
-work_item_id: "0282"
+parent: "work-item:PP-22"
+target: "work-item:PP-866"
+work_item_id: "PP-866"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -274,16 +274,16 @@ in Dependencies.
 - The Dependencies section names both directions of coupling — upstream (0279) and
   downstream (0283) — each with a rationale rather than a bare id.
 - The downstream edge is correctly recorded in 0282's own frontmatter
-  (`blocks: ["work-item:0283"]`) and matches 0283's prose 'Blocked by ... 0282'.
+  (`blocks: ["work-item:PP-867"]`) and matches 0283's prose 'Blocked by ... 0282'.
 - The upstream 0279 edge is verifiably reciprocal: 0279's frontmatter carries
-  `blocks: ["work-item:0282", "work-item:0284"]`, so the blocker is genuinely
+  `blocks: ["work-item:PP-866", "work-item:PP-868"]`, so the blocker is genuinely
   satisfied (0279 is done).
 - The item explicitly reasons about a NON-dependency — independence from the 0280
   output-quality gate, with the token-multiplication rationale — which prevents a
   false coupling being scheduled.
 - The dormant-`depth`-through-`conduct` coupling with 0283 is captured, and the
   strict ordering (this knob lands before the recursion engine) is stated.
-- The parent edge is reciprocal: 0282's `parent: work-item:0121` is mirrored by
+- The parent edge is reciprocal: 0282's `parent: work-item:PP-22` is mirrored by
   0121's `children` list.
 
 **Findings**:
@@ -294,7 +294,7 @@ in Dependencies.
   0283's prose, so the dependent will not be lost — but the specific claim that the
   edge lives on 0283's `blocked_by` is not currently true. Impact: a reverse
   lookup from 0283's frontmatter would not surface this blocker. Suggestion: add
-  `blocked_by: ["work-item:0282", "work-item:0280"]` to 0283, or soften 0282's
+  `blocked_by: ["work-item:PP-866", "work-item:PP-864"]` to 0283, or soften 0282's
   prose to say the edge is recorded on 0282's `blocks` (0279, 0282, and 0283 all
   lack `blocked_by`, suggesting a forward-`blocks`-only convention).
 - 🔵 **minor** (confidence: medium) — **Location**: Dependencies. 0282 names only

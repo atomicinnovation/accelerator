@@ -6,10 +6,10 @@ date: "2026-08-10T12:22:08+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0194"
+parent: "work-item:PP-157"
+target: "work-item:PP-724"
 relates_to: ["work-item-review:0194-tracker-crate-and-remote-sync-engine-review-1"]
-work_item_id: "0194"
+work_item_id: "PP-724"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -103,7 +103,7 @@ None.
   specified only as "a form the SKILL can render and prompt from": no
   format, no machine-parseability, no exit code.
 
-- 🟡 **Dependency / Completeness / Scope**: `blocked_by: work-item:0170` and
+- 🟡 **Dependency / Completeness / Scope**: `blocked_by: work-item:PP-191` and
   the Dependencies narrative are stale — 0170 is done
   **Location**: Frontmatter: blocked_by; Dependencies; Drafting Notes
   0170 carries `status: done` (validated 2026-08-07), three days before
@@ -419,7 +419,7 @@ None.
    report → prompt → `--resolve` round trip.
 
 3. **Clear the stale 0170 blocker** (addresses: "`blocked_by:
-   work-item:0170` and the Dependencies narrative are stale") — drop it
+   work-item:PP-191` and the Dependencies narrative are stale") — drop it
    from frontmatter, record 0170 as discharged (done 2026-08-07) in the
    same form used for 0166 and 0187, and drop the dead "revisit if Phase D
    stalls" trigger.
@@ -582,7 +582,7 @@ that 0170 is done.
 - 🟡 Major (medium confidence) — The anti-drift gate for the ported
   `work-item-sync-label.sh` cites a shared golden fixture the item's own
   inventory does not list. Location: Acceptance Criteria.
-- 🟡 Major (high confidence) — `blocked_by: work-item:0170` and the
+- 🟡 Major (high confidence) — `blocked_by: work-item:PP-191` and the
   Dependencies narrative are stale — 0170 is done. Location: Frontmatter:
   blocked_by / Dependencies.
 - 🔵 Minor (high confidence) — Technical Notes points the reader at an Open
@@ -789,7 +789,7 @@ criterion at all.
   remain: `create`/`update --push` defer their judgment to "the SKILL"
   with no SKILL named and no criterion, and the sync round-trip criterion
   is the one criterion in the item with no verification procedure.
-- 🟡 **Dependency/Completeness/Scope**: `blocked_by: work-item:0170` is
+- 🟡 **Dependency/Completeness/Scope**: `blocked_by: work-item:PP-191` is
   stale — **Resolved**. Frontmatter cleared and Dependencies rewritten with
   the 2026-08-07 completion date. Residue: Summary, Context, Requirements
   and Assumptions still speak of 0170's commands in the future tense.

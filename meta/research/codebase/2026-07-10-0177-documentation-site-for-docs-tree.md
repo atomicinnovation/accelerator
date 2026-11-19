@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0177"
-parent: "work-item:0177"
+parent: "work-item:PP-699"
 relates_to: ["codebase-research:2026-06-29-0175-slim-readme-split-docs-tree", "codebase-research:2026-06-29-0176-workflows-rename-and-skill-catalogue"]
 topic: "What must change in the docs/ tree, build system, and CI to stand up an Astro Starlight documentation site published to GitHub Pages"
 tags: ["research", "codebase", "docs", "starlight", "github-pages", "mise", "ci"]
@@ -251,7 +251,7 @@ documented in the README).
 
 - `meta/decisions/ADR-0056-astro-starlight-for-documentation-site.md` —
   generator selection (proposed; AC1 requires acceptance)
-- `meta/work/0145-documentation-improvements.md` — parent epic
+- `meta/work/PP-166-documentation-improvements.md` — parent epic
 - `meta/plans/2026-06-29-0175-slim-readme-split-docs-tree.md` and
   `meta/research/codebase/2026-06-29-0175-slim-readme-split-docs-tree.md` —
   how the docs/ tree was created

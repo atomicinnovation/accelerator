@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0194"
-parent: "work-item:0194"
+parent: "work-item:PP-724"
 relates_to: ["codebase-research:2026-08-11-0204-remote-tracker-port", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "Educating a plan for 0194 — Tracker Crate and Remote Sync Engine"
 tags: ["research", "codebase", "rust", "sync", "tracker", "work-items", "bash-parity"]
@@ -29,7 +29,7 @@ schema_version: 1
 ## Research Question
 
 What does the codebase actually contain today that a plan for
-`meta/work/0194-tracker-crate-and-remote-sync-engine.md` must build on, preserve,
+`meta/work/PP-724-tracker-crate-and-remote-sync-engine.md` must build on, preserve,
 or correct — the bash sync engine's real behaviour, its real test coverage, the
 `tracker` port as shipped, the `work`/`work-adapters`/`accelerator-work` surface,
 and the workspace conventions (pup, deny, public-api, nextest, fakes) the new code
@@ -531,7 +531,7 @@ in size than the item implies.
 
 ## Historical Context
 
-- `meta/work/0204-remote-tracker-port.md` — accepted and implemented 2026-08-12;
+- `meta/work/PP-734-remote-tracker-port.md` — accepted and implemented 2026-08-12;
   `RemoteTimestamp` became an enum on implementation review, a **breaking**
   change from the newtype the plan text still shows
   (`meta/plans/2026-08-11-0204-remote-tracker-port.md:1117-1149` is stale on this

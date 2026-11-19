@@ -198,5 +198,5 @@ relying on the repointed skills in anger:
 - Complete the outstanding manual skill-run verification items above
   before the repointed skills are considered fully validated in
   production use.
-- All 8 acceptance criteria on `meta/work/0170-work-item-subdomain-and-sync-engine.md`
+- All 8 acceptance criteria on `meta/work/PP-191-work-item-subdomain-and-sync-engine.md`
   are met and have been marked complete on the work item.

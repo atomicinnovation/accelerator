@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"
 title: "ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
 schema_version: 1
-relates_to: ["work-item:0062", "adr:ADR-0023", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0034", "work-item:0057", "work-item:0068", "work-item:0069", "work-item:0070", "work-item:0092", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+relates_to: ["work-item:PP-84", "adr:ADR-0023", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0034", "work-item:PP-79", "work-item:PP-90", "work-item:PP-91", "work-item:PP-92", "work-item:PP-114", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 supersedes: ["adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0023"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
@@ -27,7 +27,7 @@ derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-ac
 
 ## Research Question
 
-For work item 0092 (`meta/work/0092-adr-optional-interactive-contract-for-migration-framework.md`), surface everything an ADR draft needs to land cleanly:
+For work item 0092 (`meta/work/PP-114-adr-optional-interactive-contract-for-migration-framework.md`), surface everything an ADR draft needs to land cleanly:
 
 1. The exact ADR-0023 clauses the new ADR must engage with, quoted verbatim.
 2. The ADR-0030 template shape and the corpus's amendment / supersession conventions (ADR-0031 immutability, ADR-0035 supplement-style precedent).
@@ -408,7 +408,7 @@ The new ADR should describe the contract abstractly enough that EITHER batch-con
 
 **Transitive consumer flagged but not in 0092 Dependencies:**
 
-- 0070 (`meta/work/0070-ship-meta-corpus-unified-schema-migration.md`) consumes the contract via 0062's parameterisation and 0069's implementation.
+- 0070 (`meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`) consumes the contract via 0062's parameterisation and 0069's implementation.
 
 **Reviewer endorsement of the three-layer split (verbatim, multiple places):**
 
@@ -458,11 +458,11 @@ Preserve the boundary: framework primitives only; no migration-specific values; 
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — earlier supplement-style precedent (supplements ADR-0028).
 - `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md` — sole corpus example of a full supersession; partially supersedes ADR-0026 and DID mutate the older ADR's frontmatter and body. 0092 should NOT follow this pattern (work item explicitly forbids ADR-0023 mutation).
 - `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` — provides `relates_to`, `derived_from`, `parent`, etc. as corpus-wide linkage keys. Not part of ADR-0030 frontmatter contract, but available if the new ADR wants `relates_to` to declare the ADR-0023 amendment relationship at the frontmatter level (note: no current ADR uses this for ADR-to-ADR linkage; the precedent is body-prose linkage only).
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic. Frames the interactive extension as "a deliberate departure from the contract documented in ADR-0023".
-- `meta/work/0062-adr-corpus-migration-strategy.md` — sibling ADR-task. Owns the migration-specific application of the contract 0092 defines.
-- `meta/work/0068-spike-related-documents-inference-accuracy.md` — spike whose verdict motivates the amendment. Status: done.
-- `meta/work/0069-migration-framework-interactive-validation-hooks.md` — runner implementation story. Owns concrete persistence mechanism, concurrency guards, hook genericity, per-prompt rendering.
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — transitive downstream consumer (the migration that adopts 0062's parameterisation via 0069's implementation).
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` — parent epic. Frames the interactive extension as "a deliberate departure from the contract documented in ADR-0023".
+- `meta/work/PP-84-adr-corpus-migration-strategy.md` — sibling ADR-task. Owns the migration-specific application of the contract 0092 defines.
+- `meta/work/PP-90-spike-related-documents-inference-accuracy.md` — spike whose verdict motivates the amendment. Status: done.
+- `meta/work/PP-91-migration-framework-interactive-validation-hooks.md` — runner implementation story. Owns concrete persistence mechanism, concurrency guards, hook genericity, per-prompt rendering.
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — transitive downstream consumer (the migration that adopts 0062's parameterisation via 0069's implementation).
 - `meta/reviews/work/0092-adr-optional-interactive-contract-for-migration-framework-review-1.md` — pass-2 APPROVE review. Drafter must honour deferred polish items.
 - `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md` — spike findings and verdict.
 

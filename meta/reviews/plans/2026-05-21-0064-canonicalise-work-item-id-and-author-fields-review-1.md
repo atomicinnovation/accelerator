@@ -126,7 +126,7 @@ attention:
 
 - 🟡 **Code Quality**: Awk patterns miss `work-item:value` shape (no whitespace between colon and value)
   **Location**: Phase 1 §3 awk pipeline
-  Both regexes require either a fully-empty value or whitespace before the value. `work-item:0042` falls through to the catch-all `{ print }` and the line passes through unchanged — but `grep -q '^work-item:'` returned true upstream, so `atomic_write` runs anyway. The file still carries the legacy key after a supposedly-successful rewrite.
+  Both regexes require either a fully-empty value or whitespace before the value. `work-item:PP-64` falls through to the catch-all `{ print }` and the line passes through unchanged — but `grep -q '^work-item:'` returned true upstream, so `atomic_write` runs anyway. The file still carries the legacy key after a supposedly-successful rewrite.
 
 - 🟡 **Correctness**: Dual-presence divergent branch skips quote-normalisation, violating AC #6 invariant
   **Location**: Phase 1 §3 `rewrite_plan_file` dual-presence branch
@@ -279,7 +279,7 @@ Ordered by impact. Each addresses one or more findings above.
    Anchor the `^\*\*Researcher\*\*:` regex to the post-frontmatter / pre-first-`##` region (use awk state machine on `---`/`^## ` boundaries), or require the preceding line to match a template-adjacent label like `**Date**:` or `**Git Commit**:`. Document the narrowed scope inline in the migration script. Surface a per-file body-label rewrite count to stdout. Add a fixture with a research file containing two `**Researcher**:` lines (one in the canonical position, one in quoted prose) and assert only the canonical one is rewritten.
 
 4. **Harden the awk quote-normaliser** (addresses major finding on YAML shapes)
-   Either (a) extend the awk to detect and convert single-quoted scalars, strip inline comments before wrapping, and escape embedded double quotes; or (b) explicitly reject (with `log_warn` + skip) any non-trivial shape and document in Migration Notes that the migration only canonicalises the documented forms. Add fixtures for each rejected/handled shape: `work-item: '0042'`, `work-item: 0042 # note`, `work-item: foo"bar`, `work-item:0042` (no space).
+   Either (a) extend the awk to detect and convert single-quoted scalars, strip inline comments before wrapping, and escape embedded double quotes; or (b) explicitly reject (with `log_warn` + skip) any non-trivial shape and document in Migration Notes that the migration only canonicalises the documented forms. Add fixtures for each rejected/handled shape: `work-item: '0042'`, `work-item: 0042 # note`, `work-item: foo"bar`, `work-item:PP-64` (no space).
 
 5. **Quote-normalise in the divergent branch too** (addresses major correctness finding)
    In `rewrite_plan_file`'s dual-presence branch, after `grep -v '^work-item:'` runs the surviving `work_item_id:` line through the same awk normaliser so AC #6 holds for partial-prior-run plans with unquoted survivors. Add a `partial-prior-run-plan-unquoted` fixture.

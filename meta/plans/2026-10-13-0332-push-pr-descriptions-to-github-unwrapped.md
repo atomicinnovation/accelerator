@@ -6,8 +6,8 @@ date: "2026-10-13T22:25:25+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0332"
-parent: "work-item:0332"
+work_item_id: "work-item:PP-885"
+parent: "work-item:PP-885"
 derived_from: ["codebase-research:2026-10-13-0332-push-pr-descriptions-to-github-unwrapped"]
 tags: ["collaboration", "github", "markdown", "pulldown-cmark", "describe-pr"]
 revision: "4f52d32c20ed096f05b4e9ef2a0f830a8373d3cc"
@@ -588,7 +588,7 @@ render matches the unwrap's intent becomes a named fixture in
 |---|---|---|
 | Event-stream or idempotence | span-logic | Add the minimal reproducing input to `cli/markdown/src/tests.rs` as a named fixture, red first, and fix the span rule |
 | Structure check | structural divergence | Blocks Phase 4. Add the minimal reproducing input as a fixture, red first, then fix the span rule or leave that construct's soft breaks as written |
-| Residual-wrap check alone | residual wrap | Create a follow-up work item with `/accelerator:create-work-item`, linked `relates_to: ["work-item:0332"]`. It renders no worse than today |
+| Residual-wrap check alone | residual wrap | Create a follow-up work item with `/accelerator:create-work-item`, linked `relates_to: ["work-item:PP-885"]`. It renders no worse than today |
 
 #### 5. Record
 
@@ -1076,7 +1076,7 @@ every networked binary, and reverting it reintroduces RUSTSEC-2026-0346 to
 
 ## References
 
-- Original work item: `meta/work/0332-push-pr-descriptions-to-github-unwrapped.md`
+- Original work item: `meta/work/PP-885-push-pr-descriptions-to-github-unwrapped.md`
 - Codebase research:
   `meta/research/codebase/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped.md`
 - ADR-0069:

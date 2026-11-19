@@ -6,8 +6,8 @@ date: "2026-08-05T18:07:37+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0170"
-work_item_id: "0170"
+target: "work-item:PP-191"
+work_item_id: "PP-191"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -250,7 +250,7 @@ implementation.
 3. **Add an explicit Blocks relationship from 0170 to 0171 and clarify
    real-provider wiring timing** (addresses: "0171 ... not captured as a
    Blocks entry," "in-process wiring of 0171's client adapters")
-   Add `blocks: ["work-item:0171"]` to frontmatter and a Dependencies
+   Add `blocks: ["work-item:PP-192"]` to frontmatter and a Dependencies
    bullet naming the `RemoteTracker`-port coupling; state explicitly
    whether this story's own completion requires real-provider wiring or
    only the faked port.
@@ -497,7 +497,7 @@ the split itself — all of which were fixed in this same pass.
 - 🟡 **Scope**: Declared "story" kind undersized — Resolved (each split
   item is story-sized; confirmed by the scope re-review).
 - 🟡 **Dependency**: 0171 not captured as a Blocks entry — Resolved (0194
-  now `blocks: ["work-item:0170", "work-item:0171"]`).
+  now `blocks: ["work-item:PP-191", "work-item:PP-192"]`).
 - 🟡 **Dependency**: In-process wiring of 0171's client adapters not
   captured as a blocker — Resolved (dependency direction clarified: 0194's
   `RemoteTracker` port blocks both 0170's `--push` flows and 0171).
@@ -583,7 +583,7 @@ the split itself — all of which were fixed in this same pass.
   Resolved (both criteria now verified against the actual documented
   failure behaviour — `create`'s outcome table, `update`'s
   retryable/terminal exit taxonomy — rather than an invented claim).
-- 🔵 **Clarity**: The filename `0170-work-item-subdomain-and-sync-engine.md`
+- 🔵 **Clarity**: The filename `PP-191-work-item-subdomain-and-sync-engine.md`
   still names the pre-split scope even though the title and body now read
   "Work-Item Lifecycle Subdomain" — Not resolved; accepted as a low-cost
   cosmetic trade-off (renaming would require updating an inbound reference

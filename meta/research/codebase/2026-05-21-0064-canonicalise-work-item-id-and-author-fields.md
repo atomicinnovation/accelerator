@@ -13,7 +13,7 @@ type: "codebase-research"
 id: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields"
 title: "Canonicalise `work_item_id` and `author` Frontmatter Field Names"
 schema_version: 1
-relates_to: ["work-item:0063", "plan:2026-05-20-0063-rename-work-item-type-to-kind", "work-item:0057", "work-item:0060", "adr:ADR-0033", "adr:ADR-0034", "work-item:0065", "work-item:0070", "adr:ADR-0023", "work-item:0064"]
+relates_to: ["work-item:PP-85", "plan:2026-05-20-0063-rename-work-item-type-to-kind", "work-item:PP-79", "work-item:PP-82", "adr:ADR-0033", "adr:ADR-0034", "work-item:PP-87", "work-item:PP-92", "adr:ADR-0023", "work-item:PP-86"]
 derived_from: ["codebase-research:2026-05-03-update-visualiser-for-work-item-terminology", "codebase-research:2026-04-26-remaining-ticket-references-post-migration"]
 ---
 
@@ -369,7 +369,7 @@ value, and the AC does not impose a shape contract on it.
 
 ### Sibling pattern — 0063 (just landed)
 
-- Work item: `meta/work/0063-rename-work-item-type-to-kind.md`
+- Work item: `meta/work/PP-85-rename-work-item-type-to-kind.md`
 - Plan: `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`
 - All phases marked complete in commits `64eca1bf` (frontmatter refinement),
   `9cea44c7` (phase completion), `e843e225` (eval/grader rename), `b9266ae7`
@@ -379,7 +379,7 @@ value, and the AC does not impose a shape contract on it.
 
 ### Blocked successor — 0065 (drafted)
 
-`meta/work/0065-update-artifact-templates-to-unified-schema.md` is blocked on
+`meta/work/PP-87-update-artifact-templates-to-unified-schema.md` is blocked on
 0064 and will rewrite every template under `templates/` to the full unified
 schema (adding `schema_version`, provenance bundle, `last_updated`, etc.).
 **0064 stays minimal**: only the two key renames, no extra fields. 0065 will
@@ -387,7 +387,7 @@ overwrite the same files with the broader schema later.
 
 ### Broader workstream — 0070 (drafted)
 
-`meta/work/0070-ship-meta-corpus-unified-schema-migration.md` currently lists
+`meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` currently lists
 the same `work-item:` → `work_item_id:` and `researcher:` → `author:` renames
 in its Requirements. **0064 owns them now**; 0070's Requirements and AC will
 need updating once 0064 lands (same pattern as 0063 forcing 0070 to drop the
@@ -496,11 +496,11 @@ need updating once 0064 lands (same pattern as 0063 forcing 0070 to drop the
 ## Historical Context
 
 ### Parent epic and base schema decision
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` —
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` —
   the parent epic. Explicitly enumerates the `work-item:` ↔ `work_item_id:`
   and `researcher:` ↔ `author:` conflicts as renames; identity values must be
   quoted YAML strings.
-- `meta/work/0060-adr-unified-base-frontmatter-schema.md` — the ADR-creation
+- `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` — the ADR-creation
   task; status **done**.
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — accepted
   2026-05-19. Canonicalises `author` and reserves `producer` for skill
@@ -516,19 +516,19 @@ need updating once 0064 lands (same pattern as 0063 forcing 0070 to drop the
   for 0064).
 
 ### Sibling — just landed
-- `meta/work/0063-rename-work-item-type-to-kind.md` and its plan at
+- `meta/work/PP-85-rename-work-item-type-to-kind.md` and its plan at
   `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`. All phases
   complete; migration 0005 shipped. **Direct template for 0064's planning,
   TDD ordering, and eval-baseline approach.**
 
 ### Blocked successor
-- `meta/work/0065-update-artifact-templates-to-unified-schema.md` — blocked on
+- `meta/work/PP-87-update-artifact-templates-to-unified-schema.md` — blocked on
   0064. Will rewrite every template to the full unified schema later. 0064
   must leave templates in a coherent intermediate state (the two renames, no
   other shape changes).
 
 ### Broader workstream
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` — currently
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — currently
   duplicates the two renames in its Requirements. Will need updating after
   0064 lands.
 
@@ -604,12 +604,12 @@ contract", and "Userspace template override mechanism") and summarised here:
 
 ## References
 
-- Source work item: `meta/work/0064-canonicalise-work-item-id-and-author-fields.md`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Source work item: `meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Base schema ADR: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
-- Sibling rename: `meta/work/0063-rename-work-item-type-to-kind.md` (plan: `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`)
-- Blocked successor: `meta/work/0065-update-artifact-templates-to-unified-schema.md`
-- Broader workstream: `meta/work/0070-ship-meta-corpus-unified-schema-migration.md`
+- Sibling rename: `meta/work/PP-85-rename-work-item-type-to-kind.md` (plan: `meta/plans/2026-05-20-0063-rename-work-item-type-to-kind.md`)
+- Blocked successor: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`
+- Broader workstream: `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md`
 - Migration framework: `meta/decisions/ADR-0023-meta-directory-migration-framework.md`
 - Migration precedent: `skills/config/migrate/migrations/0005-rename-work-item-type-to-kind.sh`
 - Template-rename precedent: `skills/config/migrate/migrations/0004-restructure-meta-research-into-subject-subcategories.sh:419-430`

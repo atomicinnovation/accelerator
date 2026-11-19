@@ -6,7 +6,7 @@ date: "2026-08-08T15:48:43+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-relates_to: ["work-item:0165"]
+relates_to: ["work-item:PP-186"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/58"
 pr_number: 58
 tags: []
@@ -32,7 +32,7 @@ schema_version: 1
 
 ## Context
 
-No work item drives this; it came out of diagnosing a local `build:cli:cross-compile` failure. It relates to `work-item:0165`, which built the cross-compile tasks being amended here.
+No work item drives this; it came out of diagnosing a local `build:cli:cross-compile` failure. It relates to `work-item:PP-186`, which built the cross-compile tasks being amended here.
 
 The failure was environment-specific rather than nondeterministic, which is what made it confusing: the task passed when run from a shell with a raised limit and failed from an ordinary interactive shell on the same machine. `launchctl limit maxfiles` reports 256 as the system default soft limit, and the first casualty in the log was `config-adapters-fixture` at 257 object files — one more than the limit.
 

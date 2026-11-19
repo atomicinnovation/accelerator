@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0204"
-parent: "work-item:0204"
+parent: "work-item:PP-734"
 topic: "What an implementation plan for 0204 (the tracker port crate) must know"
 tags: ["research", "codebase", "rust", "tracker", "sync", "port", "cargo-pup", "jira", "linear"]
 revision: "669484767129367b025152ee975d53a6e096246f"
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-What does an implementation plan for `meta/work/0204-remote-tracker-port.md` need
+What does an implementation plan for `meta/work/PP-734-remote-tracker-port.md` need
 to know about the codebase it lands in — the crate conventions it must match, the
 bash semantics it freezes a contract against, and the enforcement surfaces it must
 register with?
@@ -660,7 +660,7 @@ not exist here.
 
 ## Historical Context
 
-- `meta/work/0194-tracker-crate-and-remote-sync-engine.md` — the parent this crate was
+- `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md` — the parent this crate was
   split out of on 2026-08-10; owns the sync state machine, the `sync` command, the
   shared reusable fake and the pending-push marker.
 - `meta/reviews/work/0194-…-review-2.md` — the review whose clarity, scope and
@@ -668,7 +668,7 @@ not exist here.
 - `meta/reviews/work/0204-remote-tracker-port-review-1.md` — three passes; settled the
   synchronous/dyn-compatible trait, the crate-local error type, the opaque timestamp
   and the four-operation surface.
-- `meta/work/0171-jira-and-linear-integrations.md` — the client adapters that
+- `meta/work/PP-192-jira-and-linear-integrations.md` — the client adapters that
   `impl RemoteTracker`; unblocked by this item, and the inheritor of the projection
   and bulk-query constraints above.
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md` — the

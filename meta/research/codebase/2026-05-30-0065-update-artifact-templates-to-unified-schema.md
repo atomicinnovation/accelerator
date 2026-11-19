@@ -13,7 +13,7 @@ type: "codebase-research"
 id: "2026-05-30-0065-update-artifact-templates-to-unified-schema"
 title: "Update All Artifact Templates to Unified Schema (Work Item 0065)"
 schema_version: 1
-relates_to: ["adr:ADR-0028", "adr:ADR-0033", "work-item:0021", "work-item:0022", "work-item:0023", "work-item:0057", "work-item:0060", "work-item:0061", "adr:ADR-0034", "work-item:0063", "work-item:0064", "work-item:0066", "work-item:0070", "work-item:0065"]
+relates_to: ["adr:ADR-0028", "adr:ADR-0033", "work-item:PP-43", "work-item:PP-44", "work-item:PP-45", "work-item:PP-79", "work-item:PP-82", "work-item:PP-83", "adr:ADR-0034", "work-item:PP-85", "work-item:PP-86", "work-item:PP-88", "work-item:PP-92", "work-item:PP-87"]
 derived_from: ["codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation"]
 ---
 
@@ -31,7 +31,7 @@ What is the concrete implementation surface for work item 0065 — updating ever
 
 ## Summary
 
-The scope is **nine in-scope templates** under `templates/` (the work item lists them explicitly in its Schema Reference table). Eight already exist and need edits; one — `templates/validation.md` — exists as a body-only report and needs a frontmatter block added for the first time. The three review templates (`plan-review`, `work-item-review`, `pr-review`) **do not** belong to this story — `meta/work/0066-update-review-skills-inline-frontmatter.md` creates them as part of rewiring the four review/validation skills.
+The scope is **nine in-scope templates** under `templates/` (the work item lists them explicitly in its Schema Reference table). Eight already exist and need edits; one — `templates/validation.md` — exists as a body-only report and needs a frontmatter block added for the first time. The three review templates (`plan-review`, `work-item-review`, `pr-review`) **do not** belong to this story — `meta/work/PP-88-update-review-skills-inline-frontmatter.md` creates them as part of rewiring the four review/validation skills.
 
 The producer-side reality is more demanding than "edit the templates and stop". The work item's last acceptance criterion requires that artifacts generated from updated templates carry non-empty, non-tokenised values for `producer`, `schema_version`, `last_updated`, `last_updated_by`, and (for code-state-anchored types) `revision`/`repository`. The investigation found:
 
@@ -247,14 +247,14 @@ The `meta/` corpus has not stayed in lockstep with the upstream renames. Notable
 ## Historical Context
 
 - `meta/decisions/ADR-0028-common-frontmatter-schema-for-meta-artifacts.md` — Defined the prior minimal base (`date`, `type`, `skill`, `status`). ADR-0033 supplements it: keeps `date`/`type`/`status`, renames `skill` → `producer`, adds the wider base set.
-- `meta/work/0021-artifact-persistence-lifecycle.md`, `meta/work/0022-artifact-metadata-and-lifecycle.md`, `meta/work/0023-adr-system-design.md` — Produced ADRs 0027/0028 and the 0029-0032 series. ADR-0033's "Decision" section explicitly preserves their validity ("Work items 0021, 0022, 0023 remain valid; this ADR is the supplementing decision.").
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` (in-progress) — Parent epic; specifies the own-identity-rename split between 0065 and 0070.
-- `meta/work/0060-adr-unified-base-frontmatter-schema.md` (done) — Source task for ADR-0033.
-- `meta/work/0061-adr-typed-linkage-vocabulary.md` (done) — Source task for ADR-0034.
-- `meta/work/0063-rename-work-item-type-to-kind.md` (done) — Already renamed `type:` → `kind:` in `templates/work-item.md`; 0065 must not touch.
-- `meta/work/0064-canonicalise-work-item-id-and-author-fields.md` (done) — Already renamed plan `work-item:` → `work_item_id:` and research `researcher:` → `author:`. Its technical note explicitly hands the own-identity rename (`work_item_id` → `id` on work-item; `adr_id` → `id` on ADR) to 0065.
-- `meta/work/0066-update-review-skills-inline-frontmatter.md` (draft) — Owns the four review/validation skills' inline-frontmatter rewiring and the three new review template files.
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` (draft) — Owns the corpus rewrite; 0065 must leave `meta/` files alone.
+- `meta/work/PP-43-artifact-persistence-lifecycle.md`, `meta/work/PP-44-artifact-metadata-and-lifecycle.md`, `meta/work/PP-45-adr-system-design.md` — Produced ADRs 0027/0028 and the 0029-0032 series. ADR-0033's "Decision" section explicitly preserves their validity ("Work items 0021, 0022, 0023 remain valid; this ADR is the supplementing decision.").
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` (in-progress) — Parent epic; specifies the own-identity-rename split between 0065 and 0070.
+- `meta/work/PP-82-adr-unified-base-frontmatter-schema.md` (done) — Source task for ADR-0033.
+- `meta/work/PP-83-adr-typed-linkage-vocabulary.md` (done) — Source task for ADR-0034.
+- `meta/work/PP-85-rename-work-item-type-to-kind.md` (done) — Already renamed `type:` → `kind:` in `templates/work-item.md`; 0065 must not touch.
+- `meta/work/PP-86-canonicalise-work-item-id-and-author-fields.md` (done) — Already renamed plan `work-item:` → `work_item_id:` and research `researcher:` → `author:`. Its technical note explicitly hands the own-identity rename (`work_item_id` → `id` on work-item; `adr_id` → `id` on ADR) to 0065.
+- `meta/work/PP-88-update-review-skills-inline-frontmatter.md` (draft) — Owns the four review/validation skills' inline-frontmatter rewiring and the three new review template files.
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` (draft) — Owns the corpus rewrite; 0065 must leave `meta/` files alone.
 
 ## Related Research
 
@@ -273,8 +273,8 @@ The `meta/` corpus has not stayed in lockstep with the upstream renames. Notable
 
 ## References
 
-- Source work item: `meta/work/0065-update-artifact-templates-to-unified-schema.md`
+- Source work item: `meta/work/PP-87-update-artifact-templates-to-unified-schema.md`
 - Authoritative schema ADR: `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`
 - Authoritative linkage ADR: `meta/decisions/ADR-0034-typed-linkage-vocabulary.md`
-- Parent epic: `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md`
+- Parent epic: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
 - Sibling dependencies: 0060 (done), 0061 (done), 0063 (done), 0064 (done), 0066 (draft, blocks/blocked-by 0065), 0067 (draft, owns templates/note.md), 0070 (draft, corpus migration)

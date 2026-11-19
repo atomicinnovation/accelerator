@@ -6,7 +6,7 @@ date: "2026-08-17T13:19:24+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-parent: "work-item:0196"
+parent: "work-item:PP-726"
 target: "plan:2026-08-11-0196-design-vendored-runtime-distribution"
 relates_to: ["plan-review:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1", "plan-review:2026-08-11-0196-design-cli-migration-review-1"]
 reviewer: "Toby Clemson"
@@ -236,7 +236,7 @@ Two places where lenses reach opposite conclusions from the same text.
 
 - 🟡 **Code quality**: Instructions to record reasoning in doc comments will produce exactly the stale-prone comments CLAUDE.md forbids
   **Location**: Throughout (at least seven sites)
-  The sections carrying those instructions express their rationale almost entirely through ADR, work-item and phase citations, plus host-specific measurements. A transcribed 29.92ms bootstrap figure or a `per work-item:0214 SQ-2` reference is stale the moment the host or the numbering changes.
+  The sections carrying those instructions express their rationale almost entirely through ADR, work-item and phase citations, plus host-specific measurements. A transcribed 29.92ms bootstrap figure or a `per work-item:PP-751 SQ-2` reference is stale the moment the host or the numbering changes.
 
 - 🟡 **Code quality**: The `resolve_optional` extraction target is unresolvable as written
   **Location**: Phase 3 §5
@@ -272,7 +272,7 @@ Two places where lenses reach opposite conclusions from the same text.
 - 🔵 **Performance**: The version-keyed pointer forces two HTTPS GETs plus a signature verification after every plugin upgrade even when the reuse scan will find the tree already sealed — and fails outright offline, a weaker property than `cache.rs:1-6` documents for single-file binaries.
 - 🔵 **Performance**: First run is fully serialised across the two artifacts, each in its own launcher process building its own `Fetcher`, rustls provider and TLS handshake, when the two are entirely independent.
 - 🔵 **Performance**: The inflate-backend concern is likely mis-weighted — ~294MB through `miniz_oxide` is one to two seconds against a ~120MB download and ~294MB of writes — and its "ceiling" has no number.
-- 🔵 **Performance / Test coverage**: The container lane materialises real ~294MB artifacts per run with no time budget, potentially under aarch64 emulation, and work-item:0208 may adopt it as an every-build job.
+- 🔵 **Performance / Test coverage**: The container lane materialises real ~294MB artifacts per run with no time budget, potentially under aarch64 emulation, and work-item:PP-738 may adopt it as an every-build job.
 - 🔵 **Portability**: `flock` semantics are not uniform across NFS, SMB, FUSE and overlayfs; the plan states no behaviour for `ENOLCK`/`EOPNOTSUPP` on a relocated cache root.
 - 🔵 **Portability**: The redirect allowlist is compiled-in `github.com` + `*.githubusercontent.com`, so `ACCELERATOR_RELEASE_BASE_URL` does not survive a redirecting internal proxy — a mirror hatch that fails exactly where ~1.2GB per release makes one necessary.
 - 🔵 **Portability**: No pre-seed or air-gapped provisioning route for ephemeral environments (CI agents, devcontainers, Codespaces), despite `cache verify` being deliberately offline-capable.
@@ -304,7 +304,7 @@ Two places where lenses reach opposite conclusions from the same text.
 - ✅ Content-addressed generations eliminate the rename-collision branch entirely: no already-present case, no winner-versus-leftover disambiguation, and a repair can build a complete replacement beside a tree a live daemon is reading.
 - ✅ The retry-into-a-caller-owned-sink corruption trap is diagnosed correctly and non-obviously — a transient blip would otherwise become a permanent, unrecoverable checksum mismatch.
 - ✅ The GPG predicate is specified at exactly the right paranoia level: not the exit code, not `VALIDSIG` alone, but `GOODSIG` plus explicit rejection of `EXPKEYSIG`/`REVKEYSIG`/`EXPSIG`/`NO_PUBKEY`, compared against the primary-key fingerprint.
-- ✅ The binary-size budget refuses to back-derive a marginal slope from work-item:0186's composite point and specifies a direct two-point measurement under 0205's method — and the code agrees that the warm bootstrap makes exactly one O(size) pass over the launcher.
+- ✅ The binary-size budget refuses to back-derive a marginal slope from work-item:PP-716's composite point and specifies a direct two-point measurement under 0205's method — and the code agrees that the warm bootstrap makes exactly one O(size) pass over the launcher.
 - ✅ The `flate2` pure-Rust backend pin is identified as load-bearing for the static musl cross-build, and the feature-unification hole is closed by adding `libz-sys`/`zlib-ng-sys`/`zlib-sys` to the existing `_ABSENT` tuple.
 - ✅ The platform classifier is a pure function over injected observations, unit-tested across six host shapes including macOS, with the Linux gate applied at compile time — container-free portability testing done properly, and musl-first ordering correctly beats a present `gcompat` loader.
 - ✅ Per-entry sha256 is computed inline during extraction, so the `.files` table costs no second pass over ~294MB; the decompression-bomb ceiling is enforced against running totals, and the three sizes are required rather than defaulted precisely because a defaulted 0 fails open.

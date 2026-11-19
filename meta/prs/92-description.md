@@ -6,7 +6,7 @@ date: "2026-08-31T13:35:04+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-parent: "work-item:0221"
+parent: "work-item:PP-750"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/92"
 pr_number: 92
 tags: []
@@ -28,11 +28,11 @@ extracted backlog frontmatter — has landed on `main`.
 ## Changes
 
 - Set `status: "ready"` → `status: "done"` in
-  `meta/work/0221-canonical-quoting-standard-for-all-frontmatter.md`.
+  `meta/work/PP-750-canonical-quoting-standard-for-all-frontmatter.md`.
 
 ## Context
 
-Closes work item 0221 (`meta/work/0221-canonical-quoting-standard-for-all-frontmatter.md`),
+Closes work item 0221 (`meta/work/PP-750-canonical-quoting-standard-for-all-frontmatter.md`),
 a child of work item 0136.
 
 ## Testing

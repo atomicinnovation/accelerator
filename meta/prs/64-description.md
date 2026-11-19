@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0196"
-parent: "work-item:0196"
-relates_to: ["work-item:0206", "work-item:0207", "work-item:0208", "work-item:0209"]
+parent: "work-item:PP-726"
+relates_to: ["work-item:PP-736", "work-item:PP-737", "work-item:PP-738", "work-item:PP-739"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/64"
 pr_number: 64
 tags: ["rust", "design", "cli", "sub-binary", "executor", "playwright"]
@@ -53,7 +53,7 @@ The runtime still comes from where it comes from today — `ensure-playwright.sh
 
 ## Context
 
-- Work item: `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
+- Work item: `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - Plan: `meta/plans/2026-08-11-0196-design-cli-migration.md`
 - Validation: `meta/validations/2026-08-11-0196-design-cli-migration-validation.md`
 - Sibling plan, deliberately not implemented here: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`

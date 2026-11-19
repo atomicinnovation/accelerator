@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0216"
-parent: "work-item:0216"
-relates_to: ["work-item:0205", "work-item:0215", "work-item:0217", "work-item:0189", "work-item:0191"]
+parent: "work-item:PP-745"
+relates_to: ["work-item:PP-735", "work-item:PP-744", "work-item:PP-746", "work-item:PP-719", "work-item:PP-721"]
 topic: "Close the sha2 hardware-intrinsics gap"
 tags: ["research", "codebase", "cli", "launcher", "verifier", "sha2", "performance"]
 revision: "ad7f27c964b9285c64b68079cb31c2de1448a002"
@@ -250,12 +250,12 @@ the subprocess-pair protocol, though host quietness still matters for a clean be
 
 ## Historical Context
 
-- `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — first measured 555 MB/s vs
+- `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — first measured 555 MB/s vs
   openssl 1,708 MB/s and recorded the BLAKE2b inversion, all over 2,493,792 bytes; used a throwaway
   `spike_0205_warm_terms.rs` (since removed), not today's committed harness.
 - `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — the reproducible measurement
   protocol and gating preconditions; names `mise run measure:warm-dispatch` as the committed hand-off.
-- `meta/work/0217-measure-warm-dispatch-on-linux.md` — the linux measurement item; keys `reverify`
+- `meta/work/PP-746-measure-warm-dispatch-on-linux.md` — the linux measurement item; keys `reverify`
   ms-per-MB on `(architecture, SHA-extension support, libc)` but carries no reciprocal reference to 0216.
 - `meta/reviews/work/0216-close-the-sha2-hardware-intrinsics-gap-review-1.md` — three-pass review,
   final APPROVE; settled AC 1 on the ≥2.5×-baseline floor (~1,390 MB/s) and left one residual: the
@@ -298,7 +298,7 @@ a further finding.
 | AC 4 reframe | Reframe to real checks | AC 4 becomes: cargo-deny clean, lockfile-duplication effect recorded, `lint:vendor-shims:check` passes unchanged (or shims regenerated + committed). Drop the byte-identical binary rebuild — a property the artefacts do not have. |
 | Server pin | Bump both; server to workspace pin | `cli/Cargo.toml:76` → 0.11 **and** `cli/visualiser/server/Cargo.toml:49` → `sha2 = { workspace = true }`. First-party duplication collapses onto a single 0.11 pin. |
 | cargo-deny | Global `multiple-versions = "deny"` in 0216 | ⚠️ Scope expansion: 0216 now carries a workspace-wide duplicate audit — resolve or `skip`/`skip-tree` every existing duplicate with justification, land cargo-deny clean under the stricter setting. |
-| 0217 hand-off | Make 0217 reciprocate | 0216 stays darwin-scoped. 0217 gains an explicit aarch64-musl `verifier::sha256_hex` criterion keyed on SHA-extension support, a `work-item:0216` dependency, and a run-after-0216 note. |
+| 0217 hand-off | Make 0217 reciprocate | 0216 stays darwin-scoped. 0217 gains an explicit aarch64-musl `verifier::sha256_hex` criterion keyed on SHA-extension support, a `work-item:PP-745` dependency, and a run-after-0216 note. |
 | MB/s capture | Persist `asset_bytes` in 0216 | `measure.py` captures the `asset_bytes` line into the measurement JSON; document the `asset_bytes ÷ median_ms` derivation. MB/s stays out of the per-term schema to preserve the latency contract. Serves both 0216's darwin before/after and 0217's musl figure. |
 
 The load-bearing consequence is the cargo-deny decision: it turns 0216 from a scoped backend switch into a

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0163"
-parent: "work-item:0163"
+parent: "work-item:PP-184"
 topic: "Scaffolding the cli/ hexagonal workspace with a version subcommand"
 tags: ["research", "codebase", "rust", "cli", "hexagonal", "version", "vergen", "cargo-pup", "kernel"]
 revision: "66168546461febe7a502fb44117ff16d4837c03a"
@@ -369,7 +369,7 @@ precedent. Blessed patterns/versions to match for consistency:
 - `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md`
   — built-in vs external subcommands; `version` is built-in; external dispatch
   deferred to 0164.
-- `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+- `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — the spike that landed the workspace layout (kernel + per-subdomain hexagons).
 - `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
   — the parent research 0163 derives from.
@@ -377,7 +377,7 @@ precedent. Blessed patterns/versions to match for consistency:
 ## Related Research
 
 - `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 
 ## Open Questions
 

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0197"
-parent: "work-item:0197"
+parent: "work-item:PP-727"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/60"
 pr_number: 60
 tags: []
@@ -27,7 +27,7 @@ Migrates the two PR-helper bash scripts (`pr-base-repo.sh`,
 calls the GitHub REST API in-process via `octocrab`, removing the runtime
 dependency on an installed and authenticated `gh` CLI for the
 `review-pr`, `respond-to-pr`, and `describe-pr` skills. This is part of the
-broader shell-to-Rust migration epic (work-item:0136).
+broader shell-to-Rust migration epic (work-item:PP-157).
 
 ## Changes
 
@@ -75,7 +75,7 @@ broader shell-to-Rust migration epic (work-item:0136).
 
 ## Context
 
-Implements work-item:0197, split out of the abandoned work-item:0173 to
+Implements work-item:PP-727, split out of the abandoned work-item:PP-194 to
 keep the corpus/design/collaboration sub-binary migrations independently
 deliverable. Plan: `meta/plans/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md`.
 Validated against the implementation with three deliberate, coherently-executed

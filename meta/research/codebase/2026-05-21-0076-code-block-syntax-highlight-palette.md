@@ -13,7 +13,7 @@ id: "2026-05-21-0076-code-block-syntax-highlight-palette"
 title: "Code-block syntax-highlight tokens and renderer adoption (story 0076)"
 author: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0033", "adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-18-0042-templates-view-redesign", "work-item:0076", "work-item:0037"]
+relates_to: ["work-item:PP-55", "adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-18-0042-templates-view-redesign", "work-item:PP-98", "work-item:PP-59"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-18-0042-templates-view-redesign", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 ---
 
@@ -28,7 +28,7 @@ derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebas
 ## Research Question
 
 Gather the codebase context required to plan implementation of
-`meta/work/0076-code-block-syntax-highlight-palette.md` — a story that
+`meta/work/PP-98-code-block-syntax-highlight-palette.md` — a story that
 adds a self-contained `--code-*` / `--tk-*` palette to the visualiser,
 maps `hljs-*` classes onto it via a shared CSS layer, and adopts that
 layer in both the `react-markdown` pipeline and the templates preview.
@@ -269,7 +269,7 @@ These break or need updating once 0076 lands:
   > "AC #4 (`getComputedStyle(svg).fill resolves to a hex`) is verified
   > end-to-end by Playwright … JSDOM does not reliably substitute
   > `var()` in SVG presentation attributes — see the Resolved Decision
-  > in `meta/work/0037-glyph-component.md`."
+  > in `meta/work/PP-59-glyph-component.md`."
 - Existing Playwright "resolved style" precedents:
   `tests/visual-regression/glyph-resolved-fill.spec.ts:18-21` and
   `tests/visual-regression/chip-resolved-colours.spec.ts:67-92`. Both
@@ -350,7 +350,7 @@ assertions that compare hex → name are not):
 ### Story 0033 alignment (foundation)
 
 Status: **done**. Path:
-`meta/work/0033-design-token-system.md`. 0033 shipped:
+`meta/work/PP-55-design-token-system.md`. 0033 shipped:
 
 - `--ac-*` colour layer (light in `:root`, dark in `[data-theme="dark"]`).
 - `--size-*`, `--lh-*`, `--tracking-caps` typography.
@@ -529,7 +529,7 @@ Prototype source:
 
 ## Historical Context
 
-- `meta/work/0033-design-token-system.md` — shipped foundation
+- `meta/work/PP-55-design-token-system.md` — shipped foundation
   (status: done); established the `:root`/`[data-theme="dark"]` split
   and the `tokens.ts` mirror.
 - `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
@@ -545,7 +545,7 @@ Prototype source:
 - `meta/reviews/work/0076-code-block-syntax-highlight-palette-review-1.md`
   — two-pass review; final verdict ready for implementation, with
   Pass-2 observations carried forward for the plan-of-record.
-- `meta/work/0037-glyph-component.md` — the resolved decision behind
+- `meta/work/PP-59-glyph-component.md` — the resolved decision behind
   the Vitest/jsdom `getComputedStyle` limitation that bears directly on
   AC2/AC3 of 0076.
 

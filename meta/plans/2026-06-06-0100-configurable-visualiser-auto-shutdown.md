@@ -6,8 +6,8 @@ date: "2026-06-06T13:41:38+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0100"
-parent: "work-item:0100"
+work_item_id: "work-item:PP-122"
+parent: "work-item:PP-122"
 derived_from: ["codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown"]
 tags: ["visualiser", "server", "configuration", "lifecycle"]
 revision: "e5f8b4b59e58392c80373edcc442b78ba2cacfce"
@@ -15,7 +15,7 @@ repository: "accelerator"
 last_updated: "2026-06-06T19:12:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:0100", "codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown"]
+relates_to: ["work-item:PP-122", "codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown"]
 ---
 
 # Configurable Visualiser Auto-Shutdown Implementation Plan
@@ -934,7 +934,7 @@ binary; it is not introduced by this change.
 
 ## References
 
-- Original work item: `meta/work/0100-configurable-visualiser-auto-shutdown.md`
+- Original work item: `meta/work/PP-122-configurable-visualiser-auto-shutdown.md`
 - Related research:
   `meta/research/codebase/2026-06-06-0100-configurable-visualiser-auto-shutdown.md`
 - Work item review: `meta/reviews/work/0100-configurable-visualiser-auto-shutdown-review-1.md`

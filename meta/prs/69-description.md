@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0189"
-parent: "work-item:0189"
-relates_to: ["work-item:0136", "work-item:0169", "work-item:0191", "work-item:0205", "work-item:0215", "work-item:0216", "work-item:0217", "work-item:0218", "work-item:0219"]
+parent: "work-item:PP-719"
+relates_to: ["work-item:PP-157", "work-item:PP-190", "work-item:PP-721", "work-item:PP-735", "work-item:PP-744", "work-item:PP-745", "work-item:PP-746", "work-item:PP-747", "work-item:PP-748"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/69"
 pr_number: 69
 tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
@@ -43,10 +43,10 @@ Takes the warm-dispatch latency measurement 0169's Phase 10 deferred and 0189 in
 
 ## Context
 
-- Work item: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md` — authoritative for the criterion text.
+- Work item: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md` — authoritative for the criterion text.
 - Plan: `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — all four phases complete, with the full record and a Deviations section.
 - Raw records: `meta/measurements/warm-dispatch-{1,2,3}.json` plus samples sidecars for attempts 2 and 3.
-- The obligation originates in `meta/work/0169-vcs-subdomain-and-hooks-migration.md`, whose Phase 10 deferred it; `meta/work/0205-close-the-warm-dispatch-measurement-method.md` closed the *method* and is closed here.
+- The obligation originates in `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`, whose Phase 10 deferred it; `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` closed the *method* and is closed here.
 
 ## Results
 

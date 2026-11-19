@@ -559,7 +559,7 @@ B1 attacks that next. The what-if run's only failure besides `deny:check` was
 - `meta/decisions/ADR-0050-mise-invoke-task-runner.md`: mise and invoke, a parallel `depends` graph, and "local mirrors CI". No ADR mandates coverage, or any particular test lane, in the local `default`.
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md` and `meta/plans/2026-08-11-0204-remote-tracker-port.md`: the isolated nightly lane that `pup:check` and `public-api:check` run in.
 - `meta/plans/2026-07-02-0162-rust-toolchain-guard-rails.md`: put coverage in `test`, not `check`. Notes that "coverage instrumentation recompiles the workspace" and adds `ACCELERATOR_COVERAGE=off` as the fast loop.
-- `meta/work/0188-library-backed-vcs-adapter.md`: an earlier cold measurement of `build:server:dev` (21.2 s wall, 103 CPU-s, gix about 64%).
+- `meta/work/PP-718-library-backed-vcs-adapter.md`: an earlier cold measurement of `build:server:dev` (21.2 s wall, 103 CPU-s, gix about 64%).
 - `meta/validations/2026-08-03-0188-library-backed-vcs-adapter-validation.md`: target-directory contention causing "not built" failures under a full `mise run`. That is the origin of the artefact-claim helper.
 - `meta/validations/2026-08-02-0187-generalise-sub-binary-registration-surface-validation.md`: flakes in a fully parallel `mise run test` (a `node_modules` copytree race and a Vitest worker timeout).
 - `meta/plans/2026-10-06-0299-crate-dependencies-adr-0069.md`: introduced the per-binary `build:cli:<token>:dev` leaves and `test-loopback` in every debug build.

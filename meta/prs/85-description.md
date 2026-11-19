@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0201"
-parent: "work-item:0201"
-relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
+parent: "work-item:PP-731"
+relates_to: ["work-item:PP-191", "work-item:PP-195", "work-item:PP-718", "work-item:PP-728"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/85"
 pr_number: 85
 tags: ["rust", "work-adapters", "diff", "tech-debt"]
@@ -36,7 +36,7 @@ Replaces `work-adapters`' subprocess `diff -u` section renderer with an in-proce
 
 ## Context
 
-Implements work item `0201` (`meta/work/0201-in-process-section-diff.md`), following the plan at `meta/plans/2026-08-30-0201-in-process-section-diff.md` and its validation at `meta/validations/2026-08-30-0201-in-process-section-diff-validation.md`. The work item itself was added separately in merged PR #56; this PR is the implementation. Relates to the shell-tooling-retirement effort (0174), the crate where this code originated (0170), and the library-backed VCS adapter work (0188, 0198).
+Implements work item `0201` (`meta/work/PP-731-in-process-section-diff.md`), following the plan at `meta/plans/2026-08-30-0201-in-process-section-diff.md` and its validation at `meta/validations/2026-08-30-0201-in-process-section-diff-validation.md`. The work item itself was added separately in merged PR #56; this PR is the implementation. Relates to the shell-tooling-retirement effort (0174), the crate where this code originated (0170), and the library-backed VCS adapter work (0188, 0198).
 
 ## Testing
 

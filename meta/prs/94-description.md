@@ -6,8 +6,8 @@ date: "2026-08-31T23:41:07+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "work-item:0272"
-parent: "work-item:0272"
+work_item_id: "work-item:PP-802"
+parent: "work-item:PP-802"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/94"
 pr_number: 94
 tags: ["security", "config", "cleanup"]
@@ -57,7 +57,7 @@ supplied path moves. The path-agnostic resolver gates
 
 ## Context
 
-- Work item: `meta/work/0272-relocate-insecure-local-override-marker.md`
+- Work item: `meta/work/PP-802-relocate-insecure-local-override-marker.md`
   (renamed from `0272-move-insecure-local-ok-under-accelerator.md`).
 - Plan: `meta/plans/2026-08-31-0272-relocate-insecure-local-override-marker.md`
   (status `done`).
@@ -87,7 +87,7 @@ reviews, plan, implementation, and validation report.
 - ⚠️ This branch stacks on `0221-mark-canonical-quoting-standard-done` (PR #92).
   The diff therefore includes one commit unrelated to 0272 —
   `f55a693b Reconcile 0136 decomposition against the parent-linked child set`,
-  touching only `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`. Review it
+  touching only `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`. Review it
   as incidental, or merge PR #92 first so it drops out of this diff.
 - The plan's original Key Discovery claimed the public-API snapshot was
   unaffected. That was wrong — a new `pub const` changes the surface — so

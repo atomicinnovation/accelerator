@@ -6,8 +6,8 @@ date: "2026-08-12T23:16:02+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0194"
-parent: "work-item:0194"
+work_item_id: "work-item:PP-724"
+parent: "work-item:PP-724"
 derived_from: ["codebase-research:2026-08-12-0194-tracker-crate-and-remote-sync-engine"]
 relates_to: ["plan:2026-08-11-0204-remote-tracker-port", "plan-review:2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1"]
 tags: ["rust", "sync", "tracker", "work-items", "bash-parity"]
@@ -3363,7 +3363,7 @@ from sync. The asymmetry is deliberate.
 
 ## References
 
-- Work item: `meta/work/0194-tracker-crate-and-remote-sync-engine.md`
+- Work item: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`
 - Research: `meta/research/codebase/2026-08-12-0194-tracker-crate-and-remote-sync-engine.md`
 - Port: `meta/plans/2026-08-11-0204-remote-tracker-port.md`, `cli/tracker/src/lib.rs`
 - Port validation, for the inherited default-bodied-method gap:

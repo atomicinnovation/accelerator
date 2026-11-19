@@ -6,9 +6,9 @@ date: "2026-08-17T10:13:53+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0171"
-work_item_id: "0171"
+parent: "work-item:PP-157"
+target: "work-item:PP-192"
+work_item_id: "PP-192"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -188,7 +188,7 @@ has already split two siblings for exactly this shape.
 
 - 🟡 **Dependency**: The 0174 blocking edge exists in one direction only
   **Location**: Dependencies, Frontmatter: relates_to
-  0174 lists `work-item:0171` in `blocked_by`; 0171 records 0174 only
+  0174 lists `work-item:PP-192` in `blocked_by`; 0171 records 0174 only
   under "Relates to" and carries no `blocks` field. Anyone scheduling
   from 0171 cannot see the downstream cleanup waiting on it, and a tracker
   sync trusting this frontmatter drops the dependant.
@@ -416,7 +416,7 @@ has already split two siblings for exactly this shape.
    read-never-`Terminal` rule.
 
 7. **Repair the dependency graph** (addresses: the 0174, 0194, 0204 and
-   0170 findings) Add `blocks: ["work-item:0174"]` and 0204 to the
+   0170 findings) Add `blocks: ["work-item:PP-195"]` and 0204 to the
    frontmatter, flip 0194's status to `done` (or name its residue as a
    live blocker here), record Jira REST and Linear GraphQL as external
    systems with their rate and complexity limits, note the `deny.toml` and

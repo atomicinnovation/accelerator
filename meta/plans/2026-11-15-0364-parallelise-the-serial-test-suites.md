@@ -6,10 +6,10 @@ date: "2026-11-15T16:47:37+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0364"
-parent: "work-item:0364"
+work_item_id: "work-item:PP-956"
+parent: "work-item:PP-956"
 derived_from: ["codebase-research:2026-11-15-0364-parallelise-the-serial-test-suites"]
-relates_to: ["work-item:0361", "work-item:0362", "work-item:0368", "work-item:0369", "work-item:0370", "work-item:0371"]
+relates_to: ["work-item:PP-953", "work-item:PP-954", "work-item:PP-960", "work-item:PP-961", "work-item:PP-962", "work-item:PP-942"]
 tags: ["build-system", "performance", "testing", "playwright", "pytest", "pytest-xdist", "flakiness"]
 revision: "9737db7bc8c81586b1c512387e44b6da0121c318"
 repository: "accelerator"
@@ -1625,7 +1625,7 @@ removes only the worker phase.
 
 ## References
 
-- Original work item: `meta/work/0364-parallelise-the-serial-test-suites.md`
+- Original work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
 - Codebase research: `meta/research/codebase/2026-11-15-0364-parallelise-the-serial-test-suites.md`
 - Source research: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
 - Prior dev-suite flake: `meta/prs/46-description.md`

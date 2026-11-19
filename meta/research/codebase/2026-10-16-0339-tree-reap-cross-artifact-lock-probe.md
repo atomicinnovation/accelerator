@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0339"
-parent: "work-item:0339"
+parent: "work-item:PP-922"
 relates_to: ["codebase-research:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 topic: "Tree reap cross-artifact lock probe: implementation surface for 0339"
 tags: ["research", "codebase", "launcher", "tree", "reap", "lease", "single-flight", "concurrency"]
@@ -335,12 +335,12 @@ reap_orphans(paths, clock, liveness, own: Artifact, pins: &dyn PinLookup,
 
 ## Historical Context
 
-- `meta/work/0339-tree-reap-deletes-another-artifact-s-in-progress-materialise.md` - the work item; status `ready`.
+- `meta/work/PP-922-tree-reap-deletes-another-artifact-s-in-progress-materialise.md` - the work item; status `ready`.
 - `meta/reviews/work/0339-tree-reap-deletes-another-artifact-s-in-progress-materialise-review-1.md` - verdict APPROVE. It left open the timeout bound value and "expected outcome verified only by proxy".
 - `meta/plans/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md` - 0334 plan, done. It established the `LivenessProbe` seam, pure `const fn` rules, the 60s bound and in-process `ExpectedDigests::Fixed` for multi-digest scenarios. It accepted a probe-then-remove window for *leases*; 0339 deliberately rejects that window for *tree locks*.
 - `meta/validations/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness-validation.md` - 0334 passed. It notes that unit-test names that duplicate integration-test names are noisy to filter.
 - `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md` - root prunes take single-flight locks without blocking, and correctness assumes `flock` works on the root's filesystem.
-- `meta/work/0218-bound-cache-root-growth.md` - blocked by 0339. It will reuse the non-creating probe, never remove a held lock file, and needs lock failures reported distinctly.
+- `meta/work/PP-747-bound-cache-root-growth.md` - blocked by 0339. It will reuse the non-creating probe, never remove a held lock file, and needs lock failures reported distinctly.
 - `meta/reviews/work/0218-bound-cache-root-growth-review-1.md` - cited as where the bug was found. Its text covers tree-lock coverage and `ENOLCK`, not the race itself.
 
 ## Related Research

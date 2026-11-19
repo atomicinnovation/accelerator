@@ -8,7 +8,7 @@ producer: "create-adr"
 status: "superseded"
 superseded_by: "ADR-0064"
 supersedes: ["adr:ADR-0060"]
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059", "work-item:0164", "work-item:0186", "work-item:0196", "work-item:0214"]
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059", "work-item:PP-185", "work-item:PP-716", "work-item:PP-726", "work-item:PP-751"]
 tags: ["architecture", "distribution", "integrity", "manifest", "launcher", "cache", "design"]
 last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -30,7 +30,7 @@ extraction, atomic materialisation by directory rename, a read-only seal, and
 exemption from the per-exec re-verification single-file sub-binaries keep. Those
 decisions hold and are restated here.
 
-Three of its mechanisms did not survive contact with evidence. Work-item:0214
+Three of its mechanisms did not survive contact with evidence. work-item:PP-751
 settled each against prototypes, and this ADR replaces ADR-0060 rather than
 annotating it, because one of the three contradicts an assertion in its Decision
 section.
@@ -55,7 +55,7 @@ any process able to write the cache root can fabricate a tree, a matching
 sentinel and a pointer. ADR-0060's threat model rests on the cache living "under
 the user's own home directory", and `ACCELERATOR_CACHE_DIR` — which the
 distribution work actively recommends relocating — breaks that premise.
-Work-item:0205 recorded the same distinction for single files: a cache-hit
+work-item:PP-735 recorded the same distinction for single files: a cache-hit
 digest check is a corruption check, not a trust check.
 
 **Who holds a tree.** ADR-0060 argues repair is safe against a live daemon
@@ -71,7 +71,7 @@ that trees within it are reclaimed by someone.
 
 The cost envelope is unchanged from ADR-0060: a crawl is bounded at 50 routes and
 five minutes and makes 100–200 executor invocations, each a fresh launcher
-process, against work-item:0186's ~30ms warm-bootstrap target. Any per-hit work
+process, against work-item:PP-716's ~30ms warm-bootstrap target. Any per-hit work
 is multiplied by that count, which is why re-hashing 294MB per exec was rejected
 and remains rejected.
 
@@ -224,11 +224,11 @@ owner pid was an ephemeral shell.
 - ADR-0046 (zero-setup static binary distribution), ADR-0054 (git-style modular
   CLI), ADR-0057 (browser automation as a glibc-only capability), ADR-0059
   (build-time assembly of vendored browser artifacts)
-- `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
+- `meta/work/PP-751-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
   settled all three mechanisms against prototypes; carries the measurements
-- `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — the
+- `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — the
   corruption-check-versus-trust-check distinction
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — the warm-path
+- `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — the warm-path
   budget the 0.17% figure is measured against
 - `meta/notes/2026-05-19-playwright-daemon-owner-pid-ephemeral-shell.md` — why
   the liveness gate is not a pid

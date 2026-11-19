@@ -6,10 +6,10 @@ date: "2026-07-06T00:32:26+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0165"
-parent: "work-item:0165"
+work_item_id: "work-item:PP-186"
+parent: "work-item:PP-186"
 derived_from: ["codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline"]
-relates_to: ["work-item:0164", "work-item:0168"]
+relates_to: ["work-item:PP-185", "work-item:PP-189"]
 tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 revision: "d8e9c6eb30fa112f43efaa9c288a6245f76e7613"
 repository: "accelerator"
@@ -826,7 +826,7 @@ tightening, out of scope here.)
 
 ## References
 
-- Original work item: `meta/work/0165-multi-binary-distribution-and-release-pipeline.md`
+- Original work item: `meta/work/PP-186-multi-binary-distribution-and-release-pipeline.md`
 - Research: `meta/research/codebase/2026-07-06-0165-multi-binary-distribution-release-pipeline.md`
 - Frozen contract: `cli/launcher/src/launch/outbound/resolve/mod.rs:137-172`,
   `manifest.rs:21-120`, `keys.rs:11-85`, `cli/verify/tests/verify.rs:33-130`,

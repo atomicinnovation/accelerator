@@ -51,7 +51,7 @@ outstanding. `mise run test` is red on two conditions, neither of them a
   migration/idempotency, VR baseline-coverage guard).
 - ❌ `mise run test` — exit 1, on three conditions. Every 0278-visualiser test —
   registry, indexer, chips, dangling/DuplicateId, set-scoped ids — passes; the
-  three failures are the pre-existing `work-item:0286` DUPLICATE-ID (which this
+  three failures are the pre-existing `work-item:PP-872` DUPLICATE-ID (which this
   plan recorded as blocking `mise run test`), the 0277 conformance count drift,
   and one stale resolver test this plan's own registration flips (below).
 - ⚪ `mise run test:e2e:visualiser:docker` — not run (no Docker/colima); the 10
@@ -114,5 +114,5 @@ outstanding. `mise run test` is red on two conditions, neither of them a
   remaining automated criteria.
 - Record the design and status-chip human sign-offs on the PR or work item.
 - ⚠️ Resolve the orthogonal aggregate reds before claiming a green
-  `mise run` / `mise run check`: the `work-item:0286` DUPLICATE-ID and the
+  `mise run` / `mise run check`: the `work-item:PP-872` DUPLICATE-ID and the
   `RUSTSEC-2026-0285` `rustls` advisory. Neither belongs to this plan.

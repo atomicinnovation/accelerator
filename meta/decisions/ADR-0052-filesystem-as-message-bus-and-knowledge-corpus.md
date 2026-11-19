@@ -159,7 +159,7 @@ superseded**, and remains in force.
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0008-filesystem-as-message-bus-and-knowledge-corpus.md
 - `meta/decisions/ADR-0027-persist-structured-skill-outputs-to-meta.md` —
   Superseded; its persist-structured-outputs decision is carried forward here.
-- `meta/work/0031-consolidate-accelerator-owned-files-under-accelerator.md` — The
+- `meta/work/PP-53-consolidate-accelerator-owned-files-under-accelerator.md` — The
   consolidation that relocated ephemeral storage from `meta/tmp/` to
   `.accelerator/tmp`.
 - `meta/decisions/ADR-0051-skills-as-the-product.md` — Companion; deferred this

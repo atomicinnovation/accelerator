@@ -6,10 +6,10 @@ date: "2026-06-23T08:46:31+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0120"
-parent: "work-item:0120"
+work_item_id: "work-item:PP-142"
+parent: "work-item:PP-142"
 derived_from: ["codebase-research:2026-06-23-0120-prevention-tests-agent-invocation-path"]
-relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
+relates_to: ["work-item:PP-137", "work-item:PP-138", "work-item:PP-140"]
 tags: ["migrate", "interactive-migration", "agent-invocation", "testing", "0007"]
 revision: "794b453cdb78aa98360c723799ef1f313ee754c5"
 repository: "accelerator"
@@ -494,7 +494,7 @@ None — no production code or schema changes; no data migration.
 
 ## References
 
-- Original work item: `meta/work/0120-prevention-tests-for-agent-invocation-path.md`
+- Original work item: `meta/work/PP-142-prevention-tests-for-agent-invocation-path.md`
 - Research: `meta/research/codebase/2026-06-23-0120-prevention-tests-agent-invocation-path.md`
 - Incident RCA: `meta/research/issues/2026-06-19-interactive-migration-unsatisfiable-under-agent-invocation.md`
 - AC1 target (existing test): `skills/config/migrate/scripts/test-migrate-interactive.sh:1195-1215`

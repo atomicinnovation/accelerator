@@ -6,8 +6,8 @@ date: "2026-10-06T11:35:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "in-progress"
-work_item_id: "work-item:0299"
-parent: "work-item:0299"
+work_item_id: "work-item:PP-881"
+parent: "work-item:PP-881"
 derived_from: ["codebase-research:2026-10-06-0299-crate-dependencies-adr-0069"]
 relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys"]
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
@@ -2346,7 +2346,7 @@ Deviations from the Phase 2 text, found while writing the cases:
 
 ## References
 
-- Original work item: `meta/work/0299-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
+- Original work item: `meta/work/PP-881-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
 - Related codebase research: `meta/research/codebase/2026-10-06-0299-crate-dependencies-adr-0069.md`
 - `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
 - `meta/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys.md`

@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0207"
-parent: "work-item:0207"
-relates_to: ["work-item:0196"]
+parent: "work-item:PP-737"
+relates_to: ["work-item:PP-726"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/122"
 pr_number: 122
 tags: ["design", "security", "secrets"]

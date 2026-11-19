@@ -6,8 +6,8 @@ date: "2026-08-31T20:43:02+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0206"
-parent: "work-item:0206"
+work_item_id: "work-item:PP-736"
+parent: "work-item:PP-736"
 derived_from: ["codebase-research:2026-08-31-0206-classify-navigation-urls"]
 tags: ["design", "security", "ssrf", "playwright", "executor", "access-policy"]
 revision: "9c17233ee9f3c56d191c9323ceef4daa0658137e"
@@ -864,7 +864,7 @@ on-disk contract is untouched.
 ## References
 
 - Original work item:
-  `meta/work/0206-classify-navigation-urls-not-only-the-initial-location.md`
+  `meta/work/PP-736-classify-navigation-urls-not-only-the-initial-location.md`
 - Research:
   `meta/research/codebase/2026-08-31-0206-classify-navigation-urls.md`
 - Verdict domain: `cli/design/src/access_policy.rs:26`,
@@ -875,4 +875,4 @@ on-disk contract is untouched.
   (`ensureBrowser`), `:203` (`navigate`), `:214` (`links`)
 - Consumers: `agents/browser-analyser.md:43`, `agents/browser-locator.md:64`,
   `skills/design/inventory-design/SKILL.md:56`
-- Coordinating story: `meta/work/0209-wire-up-or-retire-the-header-auth-path.md`
+- Coordinating story: `meta/work/PP-739-wire-up-or-retire-the-header-auth-path.md`

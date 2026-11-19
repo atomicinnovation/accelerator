@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0167"
-parent: "work-item:0167"
+parent: "work-item:PP-188"
 relates_to: ["codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"]
 topic: "Duplication, adapter-vs-core layering, and shared-crate placement in the implemented 0167 config-command migration"
 tags: ["research", "codebase", "rust", "cli", "config", "launcher", "store", "adapters", "hexagon", "refactoring"]

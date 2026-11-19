@@ -6,8 +6,8 @@ date: "2026-08-30T17:33:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0220"
-parent: "work-item:0220"
+work_item_id: "work-item:PP-749"
+parent: "work-item:PP-749"
 derived_from: ["codebase-research:2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear"]
 tags: ["sync", "linear", "tracker", "discovery"]
 revision: "0f1624a83df9437999143ce09064485de53666b5"
@@ -896,11 +896,11 @@ set the key or run `--push-only`. Cross-reference the parent epic **0146**, whos
 
 ## References
 
-- Original work item: `meta/work/0220-untracked-remote-discovery-never-runs-on-linear.md`
+- Original work item: `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md`
 - Related research: `meta/research/codebase/2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear.md`
 - Port precedent: `cli/linear-client/src/filter.rs:18-40`, `cli/linear-client/src/catalogue.rs`
 - Discovery gate: `cli/work-adapters/src/sync/run.rs:707-725`
 - Key→UUID seam (moves into `resolve_scope`): `cli/linear-client/src/client.rs:661-686`
 - Pre-flight abort point (`prepare_run` before apply): `cli/work-adapters/src/sync/run.rs:788`
 - Exit-code taxonomy: `cli/work-cli/src/exit_codes.rs`
-- Parent epic: `meta/work/0146-work-item-sync-enhancements.md`
+- Parent epic: `meta/work/PP-167-work-item-sync-enhancements.md`

@@ -66,7 +66,7 @@ are recorded in the plan as run. They were not re-run here.
   `verify_archive_file` call, so step 2's `UnexpectedDigest` cannot
   trigger it
 - The precheck asks for `uncompressed_size + partial.additional_bytes()`
-- `0218-bound-cache-root-growth.md` has its Dependencies line and the
+- `PP-747-bound-cache-root-growth.md` has its Dependencies line and the
   rewritten Assumptions entry
 
 #### Deviations from Plan:

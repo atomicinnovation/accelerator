@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0136"
-parent: "work-item:0136"
+parent: "work-item:PP-157"
 relates_to: ["codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 topic: "Full migration scope and CLI architecture required to migrate the shell library into the accelerator Rust CLI under the accepted ADRs"
 tags: ["research", "codebase", "rust-cli", "migration", "hexagonal", "workspace", "distribution", "launcher", "config", "visualiser", "adr"]
@@ -295,7 +295,7 @@ before the bash reader retires (ADR-0047 negative). All build on
 - `scripts/config-read-value.sh:33-130` — the 2-level awk reader + read loop.
 - `tasks/lint/scripts.py:18,86,100`; `tasks/test/integration.py:8-36` — tooling to
   retire (SHELL_LIBRARIES, bashisms, exec-bits, suite floors).
-- `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
+- `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — the done architecture spike (source of ADR-0053/0054).
 
 ## Architecture Insights
@@ -562,13 +562,13 @@ minisign point — follow Accelerator's ADRs, not lum 0008's slice text.
   test-suite oracle, tooling-retirement list). This document extends it with the
   ADR-fixed target, the visualiser-folding analysis, and the construction WBS.
 - `meta/work/0158-…-hexagonal-workspace-layout.md` — done architecture spike.
-- `meta/work/0157-port-luminosity-adrs-and-feeding-spikes.md` — ported the ADRs
+- `meta/work/PP-178-port-luminosity-adrs-and-feeding-spikes.md` — ported the ADRs
   (done); explicitly out of scope for building anything.
 - ADR-0045/0046/0047/0051/0052/0053/0054 (accepted foundations); ADR-0048
   (four-toolchain split), ADR-0049 (bash 3.2 floor), ADR-0020 (per-skill dirs),
   ADR-0021 (template subcommands) — in force.
-- `meta/work/0106-invoke-plugin-scripts-by-bare-path.md`,
-  `0107-lint-skill-body-script-invocations.md` — the invocation-contract precedent
+- `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md`,
+  `PP-129-lint-skill-body-script-invocations.md` — the invocation-contract precedent
   that Phase 4 must update.
 
 ## Related Research

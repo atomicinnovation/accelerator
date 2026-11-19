@@ -6,9 +6,9 @@ date: "2026-08-31T16:17:15+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0203"
-work_item_id: "0203"
+parent: "work-item:PP-157"
+target: "work-item:PP-733"
+work_item_id: "PP-733"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -90,7 +90,7 @@ _None._
 
 - 🔵 **Dependency**: 0165 release infrastructure is a prerequisite, listed only as "Relates to"
   **Location**: Dependencies
-  The artefact must be staged into the release upload set that work-item:0165
+  The artefact must be staged into the release upload set that work-item:PP-186
   owns. The line-number anchors suggest that infrastructure already exists, but
   if any is still in flight under 0165, AC2 and AC3 cannot complete — confirm it
   is shipped, or reclassify 0165 as an upstream blocker.
@@ -283,7 +283,7 @@ hidden blocker likely to stall the work, so both are low-severity.
 **Findings**:
 - 🔵 **Minor** (confidence: medium) — *Dependencies*: 0165 release
   infrastructure is a prerequisite, listed only as "Relates to". The artefact
-  must be staged into the release upload set that work-item:0165 owns, yet 0165
+  must be staged into the release upload set that work-item:PP-186 owns, yet 0165
   is captured only under "Relates to". If any of that plumbing is still in
   flight, the second and third acceptance criteria cannot complete. Suggestion:
   confirm the upload set and `TREE_ARTIFACTS` staging are shipped; if not,

@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0105"
-parent: "work-item:0105"
+parent: "work-item:PP-127"
 relates_to: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
 topic: "Folding the two known validate-corpus-frontmatter.sh blind spots (non-anchored provenance over-emission; bare/unquoted typed-linkage values) into the single oracle"
 tags: ["research", "codebase", "frontmatter", "schema", "validator", "provenance", "linkage"]
@@ -388,7 +388,7 @@ will save the implementer a round of re-discovery.
 
 ## Historical Context
 
-- `meta/work/0103-audit-skill-frontmatter-emission-against-unified-schema.md` —
+- `meta/work/PP-125-audit-skill-frontmatter-emission-against-unified-schema.md` —
   the audit that surfaced both blind spots and introduced the bespoke guard
   helpers; the "0103 audit table" (AC1/AC2 auditable artifact) is embedded in
   this work item (~line 192), not a standalone file.
@@ -397,14 +397,14 @@ will save the implementer a round of re-discovery.
   origin of the AC2 by-inspection table.
 - `meta/plans/2026-06-09-0103-audit-skill-frontmatter-emission.md` — 0103 plan;
   details the runtime gate and the guard-helper precedent.
-- `meta/work/0070-ship-meta-corpus-unified-schema-migration.md` +
+- `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` +
   `meta/research/codebase/2026-06-07-0070-meta-corpus-unified-schema-migration.md`
   — the migration that shipped the validator.
-- `meta/work/0104-add-rejected-to-adr-status-vocabulary.md` (+ its research/plan)
+- `meta/work/PP-126-add-rejected-to-adr-status-vocabulary.md` (+ its research/plan)
   — sibling schema-vocab follow-on under 0057; touches the same contract files
   (`templates-schema.tsv`, `frontmatter-emission-rules.sh`), so 0104 and 0105
   should be merge-ordered rather than landed blind in parallel.
-- `meta/work/0057-unified-artifact-frontmatter-and-typed-cross-linking.md` —
+- `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md` —
   parent epic.
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md`,
   `ADR-0034-typed-linkage-vocabulary.md`,

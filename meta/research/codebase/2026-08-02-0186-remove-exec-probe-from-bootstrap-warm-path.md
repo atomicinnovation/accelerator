@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0186"
-parent: "work-item:0186"
+parent: "work-item:PP-716"
 relates_to: ["codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface", "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"]
 topic: "Remove the exec probe from the bin/accelerator warm path"
 tags: ["research", "codebase", "bootstrap", "shell", "performance", "testing", "bash-3.2"]

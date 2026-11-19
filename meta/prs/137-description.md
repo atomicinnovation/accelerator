@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0230"
-parent: "work-item:0230"
-relates_to: ["work-item:0302", "work-item:0296", "work-item:0297", "work-item:0227", "work-item:0291", "work-item:0146"]
+parent: "work-item:PP-760"
+relates_to: ["work-item:PP-879", "work-item:PP-880", "work-item:PP-887", "work-item:PP-757", "work-item:PP-877", "work-item:PP-167"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/137"
 pr_number: 137
 tags: []
@@ -89,7 +89,7 @@ later. ADR-0070 records the decision and supersedes ADR-0044.
 
 ## Context
 
-- Work item: `meta/work/0230-tracker-owned-work-item-id-generation.md`
+- Work item: `meta/work/PP-760-tracker-owned-work-item-id-generation.md`
 - Decision: `meta/decisions/ADR-0070-tracker-owned-work-item-identity.md`
   (supersedes ADR-0044)
 - Research:

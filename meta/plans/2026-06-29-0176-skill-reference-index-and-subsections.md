@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "create-plan"
 status: "draft"
 work_item_id: "0176"
-parent: "work-item:0176"
+parent: "work-item:PP-698"
 derived_from: ["codebase-research:2026-06-29-0176-workflows-rename-and-skill-catalogue"]
 tags: ["docs", "skills", "documentation"]
 revision: "7c12519d1173e25c10c85e22dd1f60b4916d5434"
@@ -542,10 +542,10 @@ suite silently losing its exec bit would still satisfy the stale floor.
 
 ## References
 
-- Work item: `meta/work/0176-per-skill-family-reference-docs.md`
-- Parent epic: `meta/work/0145-documentation-improvements.md`
+- Work item: `meta/work/PP-698-per-skill-family-reference-docs.md`
+- Parent epic: `meta/work/PP-166-documentation-improvements.md`
 - Research: `meta/research/codebase/2026-06-29-0176-workflows-rename-and-skill-catalogue.md`
-- Sibling (done): `meta/work/0175-slim-readme-and-split-into-docs-tree.md`
+- Sibling (done): `meta/work/PP-697-slim-readme-and-split-into-docs-tree.md`
 - Test harness: `tasks/test/helpers.py:17-44`, `tasks/test/integration.py:61-80`
 - Model for the new test: `scripts/test-skill-frontmatter-conformance.sh`
 - Grep contracts to preserve: `scripts/test-config.sh` (`work.integration`),

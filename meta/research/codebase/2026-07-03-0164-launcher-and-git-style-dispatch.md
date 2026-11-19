@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0164"
-parent: "work-item:0164"
+parent: "work-item:PP-185"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "Launcher and Git-Style Dispatch"
 tags: ["research", "codebase", "rust", "launcher", "dispatch", "cli", "fetch-verify-cache-exec", "minisign"]
@@ -521,8 +521,8 @@ should note** (not yet ACs):
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md` — the hexagonal layout the `version/` tree embodies
 - `meta/decisions/ADR-0049-bash-3.2-compatibility-floor.md` — constrains the bootstrap
 - `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md` — resolved the eight open questions; direct architectural parent
-- `meta/work/0158-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md` — the spike (§2 dispatch, §3 launcher)
-- `meta/work/0163-scaffold-cli-workspace-version-subcommand.md` + `meta/plans/2026-07-02-0163-...` + `meta/validations/2026-07-02-0163-...` — the scaffold 0164 builds on
+- `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md` — the spike (§2 dispatch, §3 launcher)
+- `meta/work/PP-184-scaffold-cli-workspace-version-subcommand.md` + `meta/plans/2026-07-02-0163-...` + `meta/validations/2026-07-02-0163-...` — the scaffold 0164 builds on
 - `meta/reviews/work/0164-launcher-and-git-style-dispatch-review-1.md` — scoping/AC feedback
 
 ## Related Research

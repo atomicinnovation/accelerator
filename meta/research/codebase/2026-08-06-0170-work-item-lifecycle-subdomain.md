@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0170"
-parent: "work-item:0170"
+parent: "work-item:PP-191"
 topic: "Work-Item Lifecycle Subdomain (accelerator-work)"
 tags: ["research", "codebase", "rust", "work-items", "cli", "corpus", "config", "store"]
 revision: "0008d64b6ae5772c53e58c99fc2e968ec8f56d93"
@@ -28,7 +28,7 @@ schema_version: 1
 ## Research Question
 
 What does the codebase already provide, and what does it still lack, in order
-to implement work item [0170: Work-Item Lifecycle Subdomain](../../work/0170-work-item-subdomain-and-sync-engine.md)
+to implement work item [0170: Work-Item Lifecycle Subdomain](../../work/PP-191-work-item-subdomain-and-sync-engine.md)
 — an `accelerator-work` Rust CLI sub-binary implementing local-only work-item
 lifecycle CRUD (`create`, `show`, `update`, `resolve`, `diff`, plus internal
 helpers) over the shared `corpus`/`config`/`store` crates, replacing 11 bash

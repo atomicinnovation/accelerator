@@ -6,8 +6,8 @@ date: "2026-08-06T08:39:45+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0170"
-parent: "work-item:0170"
+work_item_id: "work-item:PP-191"
+parent: "work-item:PP-191"
 derived_from: ["codebase-research:2026-08-06-0170-work-item-lifecycle-subdomain"]
 tags: ["rust", "work-items", "cli", "corpus", "config"]
 revision: "702b6426ab80a1b6868f8921bb592360b9919a8d"
@@ -200,7 +200,7 @@ for why). `mise run` is green end to end.
 
 **Verification**: every phase below states its own automated and manual
 success criteria; the story-level acceptance criteria in
-`meta/work/0170-work-item-subdomain-and-sync-engine.md` are the composite
+`meta/work/PP-191-work-item-subdomain-and-sync-engine.md` are the composite
 target and are cross-referenced per phase.
 
 **0194's dependency surface**: three things this plan produces are
@@ -1856,7 +1856,7 @@ this revision — `tags` and every `LIST_FIELDS` member, returning
 `ScalarSetOnListField` with the message `"'{key}' is not a valid --set
 target — it is a list field; use --append/--remove (or --add-tag/
 --remove-tag for tags) instead"`. Without this second check, `--set
-blocks=work-item:0099` would reach the generic "apply as a `Yaml` mapping
+blocks=work-item:PP-121` would reach the generic "apply as a `Yaml` mapping
 key write" path (item 3 below) unfiltered, silently overwriting a `Yaml`
 sequence (`blocks: []`) with a bare scalar string — corrupting the field's
 type with no error, exactly the failure `--append`/`--remove` exist to
@@ -2093,10 +2093,10 @@ pub fn is_dirty(mode: VcsMode, path_relative: &str, status_text: &str) -> bool {
       assert byte-identical bytes for untouched fields; see Key Discoveries);
       `--add-tag`/`--remove-tag` matches the Phase 1
       `work-item-update-tags.golden` rows including the no-change and
-      block-style-rejection cases; `--append blocks=work-item:0099` on a
+      block-style-rejection cases; `--append blocks=work-item:PP-121` on a
       fixture with **no** `blocks:` key inserts the key with a one-element
-      sequence; `--remove blocks=work-item:0099` on an existing sequence
-      changes only the `blocks:` sequence; `--set blocks=work-item:0099`
+      sequence; `--remove blocks=work-item:PP-121` on an existing sequence
+      changes only the `blocks:` sequence; `--set blocks=work-item:PP-121`
       is rejected (`ScalarSetOnListField`, not applied as a scalar
       overwrite) with a message pointing at `--append`/`--remove`;
       `--append tags=...` is rejected (`tags` must use `--add-tag`, not
@@ -2479,10 +2479,10 @@ support, but no new domain type or validation beyond presence.
 
 ## References
 
-- Work item: `meta/work/0170-work-item-subdomain-and-sync-engine.md`
+- Work item: `meta/work/PP-191-work-item-subdomain-and-sync-engine.md`
 - Research: `meta/research/codebase/2026-08-06-0170-work-item-lifecycle-subdomain.md`
 - Architectural precedent: `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md`
 - `cli/vcs-cli/`, `cli/vcs/`, `cli/vcs-adapters/` — the three-crate split this
   plan mirrors
 - ADR-0044 (`external_id` convention), ADR-0045, ADR-0052, ADR-0053
-- Split sibling: `meta/work/0194-tracker-crate-and-remote-sync-engine.md`
+- Split sibling: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`

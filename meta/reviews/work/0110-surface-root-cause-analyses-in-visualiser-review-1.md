@@ -6,8 +6,8 @@ date: "2026-06-13T09:54:13+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0110"
-work_item_id: "0110"
+target: "work-item:PP-132"
+work_item_id: "PP-132"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -375,7 +375,7 @@ anchoring, an un-promoted label flag) round out the delta.
 ### New Issues Introduced
 - 🟡 **Testability**: Detail-page criterion keeps a trailing "matching the prototype design" clause that is open-ended now that glyph/hue/hero are individually enumerated — drop the clause or reference the parity criterion.
 - 🟡 **Testability**: Parity criterion's "uses the shared list-view layout" / "compared against the authoritative prototype" framing has no defined comparison method — restate as a structural check ("reuses the same list-view component as existing doc types") or defer to the named E2E/visual-regression coverage.
-- 🔵 **Dependency**: `relates_to` frontmatter (0041, 0074, 0054, 0096) is narrower than the Dependencies prose — add `work-item:0057`, `work-item:0082`, `work-item:0093`.
+- 🔵 **Dependency**: `relates_to` frontmatter (0041, 0074, 0054, 0096) is narrower than the Dependencies prose — add `work-item:PP-79`, `work-item:PP-104`, `work-item:PP-115`.
 - 🔵 **Dependency**: No downstream consumers captured — add "Blocks: none known" or name dependents.
 - 🔵 **Dependency / Testability**: Non-empty listing/detail/count/preview/search/related-artifacts criteria are not anchored to a named test fixture (RCA artifacts + a linking artifact), so pass conditions depend on ambient repo state — note the fixture in Assumptions/Dependencies.
 - 🔵 **Completeness**: Drafting Notes still flags the "Root cause analysis" label phrasing as an open question, but Open Questions shows only the resolved entry — reconcile the two.

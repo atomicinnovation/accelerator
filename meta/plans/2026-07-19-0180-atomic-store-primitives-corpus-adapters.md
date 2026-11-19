@@ -6,11 +6,11 @@ date: "2026-07-19T00:41:09+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0180"
-parent: "work-item:0180"
-blocked_by: ["work-item:0179"]
+work_item_id: "work-item:PP-704"
+parent: "work-item:PP-704"
+blocked_by: ["work-item:PP-703"]
 derived_from: ["codebase-research:2026-07-19-0180-atomic-store-primitives-corpus-adapters"]
-relates_to: ["work-item:0166", "work-item:0172"]
+relates_to: ["work-item:PP-187", "work-item:PP-193"]
 tags: ["rust", "corpus", "corpus-adapters", "atomic-store", "jsonl", "store"]
 revision: "8306bd0b581b2faa05410d735f16eb03cd98ddfa"
 repository: "accelerator"
@@ -1107,10 +1107,10 @@ guard rails around the gap:
 
 ## References
 
-- Original work item: `meta/work/0180-atomic-store-primitives-corpus-adapters.md`
+- Original work item: `meta/work/PP-704-atomic-store-primitives-corpus-adapters.md`
 - Research:
   `meta/research/codebase/2026-07-19-0180-atomic-store-primitives-corpus-adapters.md`
-- Parent epic: `meta/work/0166-shared-config-corpus-store-crates.md`
+- Parent epic: `meta/work/PP-187-shared-config-corpus-store-crates.md`
 - Source bash: `scripts/atomic-common.sh:16-246`, `scripts/jsonl-common.sh:21-149`
 - Precedents: `cli/config/src/service.rs:29-45`, `cli/config/src/error.rs:35-108`,
   `cli/corpus-adapters/src/patcher.rs:12-94`,

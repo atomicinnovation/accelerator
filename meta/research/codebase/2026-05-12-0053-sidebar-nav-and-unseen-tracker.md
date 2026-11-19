@@ -12,7 +12,7 @@ type: "codebase-research"
 id: "2026-05-12-0053-sidebar-nav-and-unseen-tracker"
 title: "Sidebar Nav with Per-Type Change Indicators (work item 0053)"
 schema_version: 1
-relates_to: ["adr:ADR-0026", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "work-item:0036", "work-item:0033", "work-item:0034", "work-item:0035", "work-item:0037", "work-item:0054", "work-item:0055", "work-item:0053", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-06-0033-design-token-system", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
+relates_to: ["adr:ADR-0026", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "work-item:PP-58", "work-item:PP-55", "work-item:PP-56", "work-item:PP-57", "work-item:PP-59", "work-item:PP-76", "work-item:PP-77", "work-item:PP-75", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-06-0033-design-token-system", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 derived_from: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-07-0035-topbar-component", "codebase-research:2026-05-06-0033-design-token-system"]
 ---
 
@@ -475,13 +475,13 @@ These remove the AC ambiguities the work-item author would otherwise re-litigate
 
 Key meta-directory documents:
 
-- `meta/work/0036-sidebar-redesign.md` — parent epic with the canonical phase-to-doc-type table
-- `meta/work/0033-design-token-system.md` (`done`)
-- `meta/work/0034-theme-and-font-mode-toggles.md` (`done`)
-- `meta/work/0035-topbar-component.md` (`done`)
-- `meta/work/0037-glyph-component.md` (`draft`, but implementation already in code)
-- `meta/work/0054-sidebar-search.md` (`ready`)
-- `meta/work/0055-sidebar-activity-feed.md` (`ready`)
+- `meta/work/PP-58-sidebar-redesign.md` — parent epic with the canonical phase-to-doc-type table
+- `meta/work/PP-55-design-token-system.md` (`done`)
+- `meta/work/PP-56-theme-and-font-mode-toggles.md` (`done`)
+- `meta/work/PP-57-topbar-component.md` (`done`)
+- `meta/work/PP-59-glyph-component.md` (`draft`, but implementation already in code)
+- `meta/work/PP-76-sidebar-search.md` (`ready`)
+- `meta/work/PP-77-sidebar-activity-feed.md` (`ready`)
 - `meta/reviews/work/0053-sidebar-nav-and-unseen-tracker-review-1.md` — three-pass review, all majors closed
 - `meta/reviews/work/0036-sidebar-redesign-review-1.md` — parent epic review
 - `meta/research/codebase/2026-05-12-0037-glyph-component.md` — Glyph research (companion)

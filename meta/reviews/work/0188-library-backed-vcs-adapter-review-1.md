@@ -6,9 +6,9 @@ date: "2026-08-01T21:16:19+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-parent: "work-item:0136"
-target: "work-item:0188"
-work_item_id: "0188"
+parent: "work-item:PP-157"
+target: "work-item:PP-718"
+work_item_id: "PP-718"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -875,7 +875,7 @@ Work item 0188's References section cites
 as the source of every empirical claim in the story (the `cargo deny` verdicts,
 the musl static-link result, the jj-lib loader probe, the `uluru` finding) and
 names 0169 as the item it was extracted from — but the frontmatter records
-neither. `relates_to` lists only `work-item:0125`, and there is no
+neither. `relates_to` lists only `work-item:PP-146`, and there is no
 `derived_from` or `source` field. The sibling story 0169 does carry that
 research document in its `relates_to`.
 

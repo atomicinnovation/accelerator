@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0087"
-parent: "work-item:0087"
-relates_to: ["work-item:0041", "work-item:0082", "work-item:0074", "work-item:0054"]
+parent: "work-item:PP-109"
+relates_to: ["work-item:PP-63", "work-item:PP-104", "work-item:PP-96", "work-item:PP-76"]
 topic: "404 / Error Screen with Affordances"
 tags: ["research", "codebase", "frontend", "error-states", "routing", "search", "page-shell", "big-glyph", "suggestions"]
 revision: "c0a447de2b29473893289377f9e8a499b3fa37e6"
@@ -184,7 +184,7 @@ export interface PageProps {
   hero glyph composes `BigGlyph` into `children` (the empty-state precedent),
   not into `Page`.
 - Shipped/complete: work item `0041` is `status: done`
-  (`meta/work/0041-library-page-wrapper-and-overview-hub.md:7`); `Page.test.tsx`
+  (`meta/work/PP-63-library-page-wrapper-and-overview-hub.md:7`); `Page.test.tsx`
   covers H1, slots, divider, max-width/padding tokens.
 - **Two spec deviations** worth noting: horizontal padding is `--sp-7` (not
   `--sp-6` as the 0041 spec text said; `Page.module.css:8`, asserted in

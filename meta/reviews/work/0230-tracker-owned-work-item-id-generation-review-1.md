@@ -6,8 +6,8 @@ date: "2026-09-24T23:04:07+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0230"
-work_item_id: "0230"
+target: "work-item:PP-760"
+work_item_id: "PP-760"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
@@ -191,7 +191,7 @@ story that bundles four separately deliverable slices.
 4. **Pin down the 0291 contract** (addresses: 0291 capability; 0291 missing
    `blocks`; who sets children's remote parent)
    Name parent-on-create, parent update on existing issues, and a resolved
-   Jira mechanism; get them into 0291 and add `blocks: ["work-item:0230"]`
+   Jira mechanism; get them into 0291 and add `blocks: ["work-item:PP-760"]`
    there. Name the component that pushes children's parent after promotion,
    for both `work sync` and `work promote`.
 5. **Make the draft-ID guarantee verifiable** (addresses: redraw untested;
@@ -277,7 +277,7 @@ tracker availability handled by design.
 **Findings**:
 - 🟡 major / medium — Dependencies — 0291 does not commit to parent-at-create
   and leaves the Jira mechanism open; update-side parent push unnamed.
-- 🔵 minor / high — Dependencies — 0291 lacks `blocks: ["work-item:0230"]`.
+- 🔵 minor / high — Dependencies — 0291 lacks `blocks: ["work-item:PP-760"]`.
 - 🔵 minor / medium — Requirements — `{tracker}` validation rule not linked to
   0227 `config validate`.
 - 🔵 minor / medium — Assumptions — Linear grammar should be a pre-start

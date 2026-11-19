@@ -67,7 +67,7 @@ schema_version: 1
   fallbacks with dedicated tests (`indexer.rs:3150/3169`, `frontmatter.rs:514`,
   `cluster_key.rs:282`). `work-item-review` template alias removed and the
   `work_item_id` extra dropped from its `templates-schema.tsv` row. Follow-on contract
-  work item raised: `meta/work/0102-remove-visualiser-legacy-linkage-fallback-arms.md`.
+  work item raised: `meta/work/PP-124-remove-visualiser-legacy-linkage-fallback-arms.md`.
 - **ADR-0042** (`Reconciling Pre-Schema Status Values`) present and accepted — the
   status-vocab prerequisite.
 

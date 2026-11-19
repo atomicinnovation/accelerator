@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
 work_item_id: "0120"
-parent: "work-item:0120"
+parent: "work-item:PP-142"
 topic: "Prevention tests for the agent-invocation path: the no-input interactive stall and the 0007 backfill-vs-validator cross-check"
 tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "testing", "0007", "validation"]
 revision: "4f4dd27e6594f14c37936a49e138202c0518364b"

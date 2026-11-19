@@ -570,7 +570,7 @@ Verified directly:
   someone checks that criterion literally, they could delete the narrowed row
   and bring back the double summary of a refused draft.
   **Fix**: Reword those three places in
-  `meta/work/0352-sync-reports-every-unsynced-item-twice.md` to "narrowed to
+  `meta/work/PP-927-sync-reports-every-unsynced-item-twice.md` to "narrowed to
   the `order-refused` pairing". Alternatively, add one sentence to Phase 2
   saying that it deliberately reads the criterion this way.
 

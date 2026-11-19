@@ -6,8 +6,8 @@ date: "2026-08-28T07:28:16+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "done"
-work_item_id: "work-item:0174"
-parent: "work-item:0174"
+work_item_id: "work-item:PP-195"
+parent: "work-item:PP-195"
 derived_from: ["codebase-research:2026-08-28-0174-empty-scripts-and-retire-shell-tooling"]
 tags: ["shell", "tooling", "ci", "cleanup", "scripts"]
 revision: "b1d635d8f391ff188fc0a76508e85bf3a98d8ef0"
@@ -1077,10 +1077,10 @@ dry-run flag).
 
 ## References
 
-- Work item: `meta/work/0174-retire-shell-tooling-and-ci-guards.md`
+- Work item: `meta/work/PP-195-retire-shell-tooling-and-ci-guards.md`
 - Grounding research: `meta/research/codebase/2026-08-28-0174-empty-scripts-and-retire-shell-tooling.md`
 - ADRs: ADR-0048 (four-toolchain split), ADR-0049 (bash-3.2 floor)
-- Parent epic: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Predecessors (all done): 0167, 0168, 0169, 0170, 0171, 0172, 0195, 0196,
   0197, 0211, 0212
 - Jira cutover successor: `cli/work-cli/src/sync_author.rs:139-161`
