@@ -13,4 +13,5 @@ pub mod m0008;
 pub mod m0009;
 pub mod m0010;
 pub mod m0011;
+pub mod m0012;
 pub mod text;
