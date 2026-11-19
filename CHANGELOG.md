@@ -443,31 +443,6 @@
   injected citing-once rule as well as the finding outputter, or its
   findings can cite a source more than once. See
   [Citing a source once](https://atomicinnovation.github.io/accelerator/research/#citing-a-source-once).
-- **`conduct`'s researchers fetch their own templates.** A researcher's
-  prompt carries no template: it runs the
-  `accelerator config template topic-research` command its outputter names,
-  `--kind finding` or `--kind level-note`. An `agents.researcher` override
-  must run that command; an `agents.composer` override still receives the
-  finding template inline. `conduct` runs both commands before its first
-  plan, so a missing or unreadable template, or a denied command, stops it
-  before any spawn. A configured template path that does not exist falls
-  back to the default, and `accelerator research topic outstanding --start`
-  names the template among its `warnings`, which `conduct` reports before
-  spawning. `research-topic`'s spawns inherit its
-  `Bash(accelerator config *)` grant; a skill that spawns them without such
-  a grant needs `Bash(accelerator config template topic-research --kind
-  finding)` and `Bash(accelerator config template topic-research --kind
-  level-note)`.
-- **`conduct`'s node researchers query their own context.**
-  `accelerator research topic outstanding`'s node entries no longer carry
-  `question` or `known_questions`. A node's researcher is given the set's
-  slug, the run id and its spawn ref, and reads its question, known
-  questions, id, path and search budget with
-  `accelerator research topic node`, so its prompt stays the same size at
-  every depth. An `agents.researcher` override must run that query when
-  given a spawn ref. `research-topic`'s spawns inherit its
-  `Bash(accelerator research topic *)` grant; a skill that spawns them
-  without it needs `Bash(accelerator research topic node *)`.
 - **The web source profile grants `Bash(accelerator research fetch *)`**, the
   rule `research-topic` already grants, and runs `fetch web metadata` for
   each page it cites. A denied or failed call leaves that entry without a
@@ -689,6 +664,14 @@
   judges whether a set may be consulted: its status, its freshness and
   whether every outline pair is answered, in that order. It prints the first
   gate that fails, or the findings and reports to read.
+- **`accelerator research topic node` answers an offered node's context.**
+  `accelerator research topic node SLUG --run RUN --node STEM:LINEAGE` prints
+  the question, lineage, level, follow-up cap, known questions, id and path a
+  `conduct` run offered one node with, plus its search budget for a `web`
+  node. It answers only for the run's current offered batch, from the
+  snapshot the run's ledger took at the offer, and writes nothing. The
+  research guard permits it to the researcher, and keeps every other
+  `research topic` subcommand blocked.
 - **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from
   a synthesised, fresh, fully conducted set in conversation. It states its
   coverage as `answered`, `partial` or `unanswered`, naming the sources and
@@ -871,14 +854,32 @@
   `accelerator config template topic-research --kind level-note`, with
   nothing before or after them. The composer still runs no command.
 
-- **`accelerator research topic node` answers an offered node's context.**
-  `accelerator research topic node SLUG --run RUN --node STEM:LINEAGE` prints
-  the question, lineage, level, follow-up cap, known questions, id and path a
-  `conduct` run offered one node with, plus its search budget for a `web`
-  node. It answers only for the run's current offered batch, from the
-  snapshot the run's ledger took at the offer, and writes nothing. The
-  research guard permits it to the researcher, and keeps every other
-  `research topic` subcommand blocked.
+- **`conduct`'s researchers fetch their own templates.** A researcher's
+  prompt carries no template: it runs the
+  `accelerator config template topic-research` command its outputter names,
+  `--kind finding` or `--kind level-note`. An `agents.researcher` override
+  must run that command; an `agents.composer` override still receives the
+  finding template inline. `conduct` runs both commands before its first
+  plan, so a missing or unreadable template, or a denied command, stops it
+  before any spawn. A configured template path that does not exist falls
+  back to the default, and `accelerator research topic outstanding --start`
+  names the template among its `warnings`, which `conduct` reports before
+  spawning. `research-topic`'s spawns inherit its
+  `Bash(accelerator config *)` grant; a skill that spawns them without such
+  a grant needs `Bash(accelerator config template topic-research --kind
+  finding)` and `Bash(accelerator config template topic-research --kind
+  level-note)`.
+
+- **`conduct`'s node researchers query their own context.**
+  `accelerator research topic outstanding`'s node entries no longer carry
+  `question` or `known_questions`. A node's researcher is given the set's
+  slug, the run id and its spawn ref, and reads its question, known
+  questions, id, path and search budget with
+  `accelerator research topic node`, so its prompt stays the same size at
+  every depth. An `agents.researcher` override must run that query when
+  given a spawn ref. `research-topic`'s spawns inherit its
+  `Bash(accelerator research topic *)` grant; a skill that spawns them
+  without it needs `Bash(accelerator research topic node *)`.
 
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
