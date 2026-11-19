@@ -804,6 +804,9 @@ pub fn config::service::TemplateOverride::within_project(&self, abs_path: &str) 
 pub trait config::service::WriteConfigLevel
 pub fn config::service::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
 pub fn config::service::project(node: &config::node::Node) -> config::service::Value
+pub mod config::template
+pub fn config::template::resolve(config: &dyn config::service::ConfigAccess, templates: &dyn config::service::ReadTemplate, name: &str, kind: core::option::Option<&str>) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
+pub fn config::template::templates_dir(config: &dyn config::service::ConfigAccess) -> core::result::Result<alloc::string::String, config::error::ConfigError>
 pub mod config::tracker_block
 pub enum config::tracker_block::BlockFault
 pub config::tracker_block::BlockFault::BadCeiling
