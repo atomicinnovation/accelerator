@@ -7,7 +7,7 @@ author: "Phil Helm"
 producer: "review-work-item"
 status: "complete"
 target: "work-item:PP-926"
-work_item_id: "0351"
+work_item_id: "PP-926"
 reviewer: "Phil Helm"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
