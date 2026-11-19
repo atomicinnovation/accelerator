@@ -21,6 +21,7 @@ from tasks.shared.skill_parsing import (
     fenced_block_commands,
     frontmatter_bash_rules,
 )
+from tests.support.guard_commands import permitted_command, rule_covers
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -555,6 +556,25 @@ def test_every_quota_recovery_reads_alike() -> None:
         SEARCH_CAP_VARIABLE, "{}"
     )
     assert in_the_cli in _rust_text(SEARCH_WORDING)
+
+
+@pytest.mark.parametrize("name", ["FINDING_TEMPLATE", "LEVEL_NOTE_TEMPLATE"])
+def test_the_docs_allow_the_template_commands(name: str) -> None:
+    command = permitted_command(name)
+    assert command.form == "Exactly", f"{name} no longer matches exactly"
+    granting = _section(
+        _read(DOCS_RESEARCH),
+        "### Granting the commands\n",
+        "### Failure signatures\n",
+        path=DOCS_RESEARCH,
+    )
+    assert f'"Bash({command.text})"' in granting, (
+        f"the docs' allow rules omit {command.text}"
+    )
+    assert any(
+        rule_covers(f"Bash({rule})", command.text)
+        for rule in frontmatter_bash_rules(_read(RESEARCH_TOPIC))
+    ), f"research-topic grants no rule its spawns inherit for {command.text}"
 
 
 def test_the_docs_link_conduct_to_the_quota_halt() -> None:
