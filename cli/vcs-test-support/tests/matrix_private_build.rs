@@ -52,7 +52,7 @@ fn a_workbench_handed_no_matrix_builds_the_one_a_run_would_share(
     let log = directory.path().join("private.jsonl");
     let workbench = Workbench::with(Handover {
         log: FixtureLog::at(&log),
-        ..Handover::default()
+        ..Handover::nothing()
     })?;
 
     let private = workbench.matrix()?;

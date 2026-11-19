@@ -9,6 +9,7 @@ use vcs_test_support::family::Family;
 use vcs_test_support::family::PrivateBuild;
 use vcs_test_support::family::SharedFamily;
 use vcs_test_support::fixture_log::FixtureLog;
+use vcs_test_support::fixture_log::TestName;
 use vcs_test_support::fixture_log::FIXTURE_LOG_VARIABLE;
 use vcs_test_support::handover::Handover;
 use vcs_test_support::handover::SHARED_WORKBENCHES_VARIABLE;
@@ -92,7 +93,7 @@ impl Run {
     fn handing_nothing(&self) -> Result<Handover, TestError> {
         Ok(Handover {
             log: FixtureLog::at(self.log_path()?),
-            ..Handover::default()
+            ..Handover::nothing()
         })
     }
 
@@ -406,4 +407,14 @@ fn dropping_the_workbench_removes_its_directory() -> Result<(), TestError> {
 fn test_name() -> Value {
     serde_json::to_value(vcs_test_support::fixture_log::TestName::current())
         .unwrap_or_default()
+}
+
+#[test]
+fn a_hand_over_of_nothing_names_only_the_current_test() {
+    let handover = Handover::nothing();
+
+    assert!(handover.trees.is_empty());
+    assert_eq!(handover.workbenches, None);
+    assert_eq!(handover.log.location(), None);
+    assert_eq!(handover.test, TestName::current());
 }

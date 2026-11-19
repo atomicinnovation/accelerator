@@ -13,7 +13,7 @@ use crate::fixture_log::FIXTURE_LOG_VARIABLE;
 
 pub const SHARED_WORKBENCHES_VARIABLE: &str = "ACCELERATOR_SHARED_WORKBENCHES";
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Handover {
     pub trees: BTreeMap<Family, PathBuf>,
     pub workbenches: Option<PathBuf>,
@@ -22,6 +22,18 @@ pub struct Handover {
 }
 
 impl Handover {
+    /// Hands over no tree, workbenches directory or log, for the test
+    /// running now.
+    #[must_use]
+    pub fn nothing() -> Self {
+        Self {
+            trees: BTreeMap::new(),
+            workbenches: None,
+            log: FixtureLog::disabled(),
+            test: TestName::current(),
+        }
+    }
+
     #[must_use]
     pub fn from_environment() -> Self {
         Self::from_variables(|name| env::var(name).ok())

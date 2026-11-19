@@ -132,9 +132,3 @@ impl TestName {
         }
     }
 }
-
-impl Default for TestName {
-    fn default() -> Self {
-        Self::current()
-    }
-}
