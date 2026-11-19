@@ -517,6 +517,11 @@ and `research-topic`'s `allowed-tools` covers all of them:
 - `Bash(accelerator research topic *)` covers the node query.
 - `Bash(accelerator config template *)` covers both template commands.
 
+The finding and level-note outputters each list their template command under
+`allowed-tools`, but a researcher reads an outputter rather than invoking it
+as a skill, so that frontmatter grants nothing: the command runs under the
+grant the spawn inherits.
+
 `research-topic` grants only the config reads it runs, so no spawn inherits
 a grant for `accelerator config set`. The other inherited grants are broad:
 at the permission layer they also cover commands such as `accelerator
@@ -526,7 +531,13 @@ signatures](#failure-signatures)). The exact rules below are the
 least-privilege option.
 
 Where those grants do not reach the researcher, add the rules to the
-project's allow rules:
+project's allow rules. That includes a headless session, where Claude Code
+can drop `research-topic`'s grants once the orchestrator's turn ends while
+researchers are still running. Every node researcher runs its node query and
+template command before it writes anything, so a dropped grant fails each
+node of the batch. A headless run also needs
+`Bash(accelerator research topic outstanding *)`, or the orchestrator's
+next plan after that turn waits for approval.
 
 ```json
 {
@@ -712,7 +723,10 @@ counterpart.
 On `--start`, a `templates.topic-research-finding` or
 `templates.topic-research-level-note` path that does not exist gives a
 warning naming the template; `conduct`'s spawns then fill the template it
-falls back to.
+falls back to. `conduct` reads the finding template once, before its first
+plan, and passes that copy to each composer, while each researcher fetches
+its template when it starts. A template edited during a run therefore
+reaches the researchers spawned after the edit but not the composers.
 
 A run sizes per-level search budgets once, on its `--start` plan, and stores
 them in its ledger with the cap they were sized against, so later plans keep
