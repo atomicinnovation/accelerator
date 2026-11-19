@@ -202,6 +202,17 @@ pub fn migrate::ports::DecisionError::eq(&self, other: &migrate::ports::Decision
 impl core::fmt::Debug for migrate::ports::DecisionError
 pub fn migrate::ports::DecisionError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for migrate::ports::DecisionError
+pub enum migrate::ports::TextFile
+pub migrate::ports::TextFile::NotUtf8
+pub migrate::ports::TextFile::Utf8(alloc::string::String)
+impl core::clone::Clone for migrate::ports::TextFile
+pub fn migrate::ports::TextFile::clone(&self) -> migrate::ports::TextFile
+impl core::cmp::Eq for migrate::ports::TextFile
+impl core::cmp::PartialEq for migrate::ports::TextFile
+pub fn migrate::ports::TextFile::eq(&self, other: &migrate::ports::TextFile) -> bool
+impl core::fmt::Debug for migrate::ports::TextFile
+pub fn migrate::ports::TextFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::ports::TextFile
 pub enum migrate::ports::VersionControl
 pub migrate::ports::VersionControl::Git
 pub migrate::ports::VersionControl::Jj
@@ -299,6 +310,7 @@ pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::
 pub fn migrate::ports::MigrationContext::merge_move(&self, _src: &std::path::Path, _dst: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::parse_frontmatter(&self, _content: &str) -> core::result::Result<corpus::value::FrontmatterValue, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::read_text(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<migrate::ports::TextFile>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::realign_sync_baseline(&self, _pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_file(&self, _path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>

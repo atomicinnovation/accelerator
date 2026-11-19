@@ -14,6 +14,7 @@ use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext as _;
 use migrate::ports::MigrationError;
 use migrate::ports::SyncBaselines;
+use migrate::ports::TextFile;
 use migrate_adapters::context::Capabilities;
 use migrate_adapters::context::FileMigrationContext;
 use migrate_adapters::manifest_store::FileManifestStore;
@@ -172,5 +173,42 @@ fn a_path_through_a_dotdot_in_a_missing_directory_is_refused(
     assert!(read.is_err());
     assert!(!dir.path().join("missing").exists());
     assert!(!dir.path().join("templates/plan.md").exists());
+    Ok(())
+}
+
+#[test]
+fn read_text_returns_utf8_content_unchanged() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
+    let file = dir.path().join("a.md");
+    fs::write(&file, "a\r\nb\u{FFFD}")?;
+
+    assert_eq!(
+        ctx.read_text(&file)?,
+        Some(TextFile::Utf8("a\r\nb\u{FFFD}".to_owned()))
+    );
+    Ok(())
+}
+
+#[test]
+fn read_text_reports_a_file_that_is_not_utf8() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
+    let file = dir.path().join("a.md");
+    fs::write(&file, b"a\xFFb")?;
+
+    assert_eq!(ctx.read_text(&file)?, Some(TextFile::NotUtf8));
+    Ok(())
+}
+
+#[test]
+fn read_text_is_none_for_a_missing_file() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
+
+    assert_eq!(ctx.read_text(&dir.path().join("absent.md"))?, None);
     Ok(())
 }

@@ -16,6 +16,7 @@ use migrate::ports::DocTypeDir;
 use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext;
 use migrate::ports::MigrationError;
+use migrate::ports::TextFile;
 use migrate::ports::TrackedState;
 use migrate::ports::VersionControl;
 use store::NewFileMode;
@@ -89,6 +90,14 @@ impl<'a> FileMigrationContext<'a> {
                     .map(|key| (key, dir.dir))
             })
             .collect()
+    }
+
+    fn read_bytes(
+        &self,
+        path: &Path,
+    ) -> Result<Option<Vec<u8>>, MigrationError> {
+        store::read_within(path, &self.bounds())
+            .map_err(|error| MigrationError::new(error.to_string()))
     }
 
     fn resolve(&self, key: &str) -> Result<config::Resolution, MigrationError> {
@@ -178,9 +187,18 @@ impl MigrationContext for FileMigrationContext<'_> {
     }
 
     fn read(&self, path: &Path) -> Result<Option<String>, MigrationError> {
-        let bytes = store::read_within(path, &self.bounds())
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        Ok(bytes.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+        Ok(self
+            .read_bytes(path)?
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+    }
+
+    fn read_text(
+        &self,
+        path: &Path,
+    ) -> Result<Option<TextFile>, MigrationError> {
+        Ok(self.read_bytes(path)?.map(|bytes| {
+            String::from_utf8(bytes).map_or(TextFile::NotUtf8, TextFile::Utf8)
+        }))
     }
 
     fn dir_exists(&self, path: &Path) -> bool {
