@@ -140,6 +140,7 @@ pub struct PlanRequest {
     pub concurrency: CappedConcurrency,
     pub search_cap: EnvironmentSearchCap,
     pub mode: RunMode,
+    pub template_fallbacks: Vec<String>,
 }
 
 pub struct CappedConcurrency {
@@ -305,6 +306,7 @@ where
     if opened.is_starting() {
         notices
             .extend(unhonoured_search_cap_notice(&request.search_cap, &tree));
+        notices.extend(request.template_fallbacks.iter().cloned());
     }
     let observed = Observed::of(&round.inputs);
     let (ledger, budgeting) = opened.ledger(
