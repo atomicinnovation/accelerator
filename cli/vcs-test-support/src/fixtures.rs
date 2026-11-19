@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use crate::family::Family;
 use crate::hermetic::assert_git_is_recent_enough;
+use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
 use crate::manifest::Manifest;
 use crate::workbench::PrivateBuild;
@@ -79,6 +80,34 @@ impl Matrix {
         })?;
         let Manifest { fixtures } = Manifest::read(&base)?;
         Ok(Self { base, fixtures })
+    }
+
+    /// Builds every fixture beneath `base`, refusing a base inside a checkout
+    /// before its hermetic environment writes anything there.
+    ///
+    /// # Errors
+    ///
+    /// When `base` lies inside a repository, or any builder fails.
+    pub(crate) fn build_in(base: &Path) -> Result<Self, Error> {
+        assert_no_repository_ancestor(base)?;
+        let env = Hermetic::rooted_at(base)?;
+        Self::build_with(base, &env)
+    }
+
+    /// Builds the matrix at `base` for every test of a run to adopt, writing
+    /// the manifest adoption reads.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_in`], or when the manifest cannot be written.
+    pub(crate) fn build_for_sharing(base: &Path) -> Result<Self, Error> {
+        fs::create_dir_all(base)?;
+        let matrix = Self::build_in(base)?;
+        Manifest {
+            fixtures: matrix.fixtures.clone(),
+        }
+        .write(&matrix.base)?;
+        Ok(matrix)
     }
 
     /// Builds every fixture beneath `base` with `env`.

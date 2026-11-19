@@ -346,7 +346,7 @@ pub fn assert_git_is_recent_enough() -> Result<(), Error> {
     Ok(())
 }
 
-fn tool_version(binary: &str) -> Result<String, Error> {
+pub(crate) fn tool_version(binary: &str) -> Result<String, Error> {
     let output = Command::new(binary)
         .arg("--version")
         .output()

@@ -22,6 +22,23 @@ impl Family {
             Self::Matrix => "ACCELERATOR_SHARED_MATRIX",
         }
     }
+
+    /// The family's name in the fixture log and on the build step's command
+    /// line.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Matrix => "matrix",
+        }
+    }
+
+    /// The flag the build step names the family's tree with.
+    #[must_use]
+    pub const fn flag(self) -> &'static str {
+        match self {
+            Self::Matrix => "--matrix",
+        }
+    }
 }
 
 impl fmt::Display for Family {
