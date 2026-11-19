@@ -84,7 +84,6 @@ impl VersionControl {
     }
 }
 
-/// A file's text, or the fact that its bytes are not UTF-8.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextFile {
     Utf8(String),
@@ -177,9 +176,8 @@ pub trait MigrationContext {
         None
     }
 
-    /// `Ok(None)` when `path` does not exist. Decodes lossily, replacing
-    /// invalid UTF-8 with U+FFFD; use [`read_text`](Self::read_text) when the
-    /// content may be written back.
+    /// `Ok(None)` when `path` does not exist. Decodes lossily; use
+    /// [`read_text`](Self::read_text) when the content may be written back.
     ///
     /// # Errors
     /// [`MigrationError`] when a present file cannot be read.
