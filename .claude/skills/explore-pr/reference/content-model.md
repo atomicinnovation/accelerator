@@ -37,10 +37,12 @@ more than to read its lines. Lines are evidence; the design is what they will
 approve, maintain and extend. So the content leads with design at every
 level:
 
-- **`design.json`** states the design of the whole change: its shape in a
-  paragraph and a figure, the principles of the existing architecture it
-  follows or strains, and where the next change would go. It is the page's
-  second view, before any chapter.
+- **`design.json`** states the design of the whole change as an article:
+  headed sections of prose, figures, short code excerpts and asides that
+  link the decisions and abstractions, covering its shape, the principles
+  of the existing architecture it follows or strains, and where the next
+  change would go. It is the page's second view, before any chapter. The
+  design pass writes it after the chapter passes, from their output.
 - **Every chapter names what it adds to the design**: the `abstractions` it
   introduces or reshapes (types, traits, modules, ports, file formats,
   protocols), with their responsibilities and collaborators, and the
@@ -189,6 +191,13 @@ the content, and leaves out what it cannot:
   `where` or `anchor`, a whole number for a line, a list of ids for
   `findings`, `refs`, `pinnedBy`, `carries` and `carriedBy`. A field of the wrong kind is reported
   and ignored; `null` is read as absent;
+- an article section has an `id`, a `heading` and a list of `blocks`; a
+  block's `kind` is `prose`, `figure`, `code` or `aside`, and a code block
+  has `file`, `start`, `end` and `anchor`. A malformed section or block is
+  reported and left out. The build also warns about a `design.json` with no
+  `article`, an article with no figure, an excerpt longer than 15 lines or
+  outside its file, and an aside that names an id nothing declares; a prose
+  block over 150 words is noted;
 - a field whose values this document lists with `|` between them holds one
   of those values: `side`, `status`, `assessment`, `holds`, `level`,
   `verdict`, `triage`, `risk`, `severity`, `state`, a check's `status`, and
@@ -230,22 +239,22 @@ it by hand.
 ## Anchors
 
 Line numbers alone go stale without anyone noticing: a range a few lines off
-still falls inside its file, and when the PR's head moves every stop below
-the edit points at other code. So each stop and ledger row quotes the code
-it stands on. The `anchor` is a piece of one line, copied from the code and
-never retyped or paraphrased, that no other line of the file contains: a
-signature, a constant's declaration, the call a ledger row is about. Spacing
-is ignored. A stop's anchor sits on its `start` line, or on `anchorLine`
-when the range opens on a comment, an attribute or a line that is not
-distinctive; a ledger row's sits on its `line`.
+still falls inside its file, and when the PR's head moves every stop below the
+edit points at other code. So each stop, ledger row and article excerpt quotes
+the code it stands on. The `anchor` is a piece of one line, copied from the
+code and never retyped or paraphrased, that no other line of the file
+contains: a signature, a constant's declaration, the call a ledger row is
+about. Spacing is ignored. A stop's or excerpt's anchor sits on its `start`
+line, or on `anchorLine` when the range opens on a comment, an attribute or a
+line that is not distinctive; a ledger row's sits on its `line`.
 
 The build compares each anchor with the code and warns when:
 
-- there is none: every stop and ledger row needs one;
+- there is none: every stop, ledger row and excerpt needs one;
 - it is on one other line of the file: the code moved, and the warning gives
   the shift. `build.py --reanchor` applies every such move, shifting
-  `start`, `end`, `anchorLine`, `line` and a stop's `focus` lines together
-  and rewriting the content files;
+  `start`, `end`, `anchorLine`, `line` and a stop's or excerpt's `focus`
+  lines together and rewriting the content files, `design.json` included;
 - it is on several lines: choose a line only that code has;
 - it is nowhere in the file: the code changed, so read it again and rewrite
   the stop or row.
@@ -295,7 +304,20 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 ```jsonc
 {
   "title": "How the change is designed",       // optional heading
-  "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions.",
+  "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions. It opens the Design view and the overview's design teaser.",
+  "article": [{                                // the Design view, read top to bottom
+    "id": "shape",
+    "heading": "≤ 8 words: the point of the section",
+    "blocks": [
+      { "kind": "prose", "md": "md, ≤ 150 words" },
+      { "kind": "figure", "figure": { /* any figure; see Figures */ } },
+      { "kind": "code", "file": "path", "side": "new",
+        "start": 40, "end": 52, "anchor": "pub trait Disk",
+        "anchorLine": 41, "focus": [{ "line": 44, "why": "…" }],
+        "caption": "md, 1 sentence: what to notice" },   // ≤ 15 lines
+      { "kind": "aside", "refs": ["d-claim-heartbeat", "a-design-store"] }
+    ]
+  }],
   "figures": [ /* the architecture, chosen by the guide; a before/after compare */ ],
   "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's, with "carriedBy" */ ],
   "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it and "carriedBy" */ ],
@@ -311,6 +333,19 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "signOff": "md: the question to answer about the design as a whole"
 }
 ```
+
+The article reads as one piece, and someone who reads only it should be able
+to explain the change's shape, its key decisions and where the next change
+goes. The arc is recommended, not enforced: the problem and the system
+before; the shape after; one section per central idea; the fit with the
+existing architecture; where the next change goes. Lead with figures and use
+an excerpt only where a few lines show the shape better than a picture: an
+excerpt is quoted and anchored like a stop, but claims no lines as read, and
+one longer than 15 lines belongs at a stop. An aside names decisions,
+abstractions or invariants by id and links each to its entry in Reference.
+`principles` and `extension` are drawn as tables in the Decisions
+catalogue; say what matters about them in the article.
+`examples/design-article.json` shows the standard expected.
 
 ## `overview.json`
 
@@ -532,8 +567,8 @@ are the kinds in the table above that say "drawn by the diagram kit".
   mistake in the figure or a finding about the code: settle which against
   the code, and raise a finding in `ownNotes` if it is true.
 
-The build writes two diagrams for you. The Design view's diagram of how
-the abstractions work together is a class diagram drawn from their
+The build writes two diagrams for you. The Abstractions catalogue's diagram
+of how the abstractions work together is a class diagram drawn from their
 `collaborators`: each abstraction is a class with its `kind` as the
 stereotype, and each collaborator's `relation` decides the line.
 

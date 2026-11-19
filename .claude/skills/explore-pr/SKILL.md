@@ -66,8 +66,8 @@ pass reads first, and both are enforced by the build.
 
 - **Design before lines.** The reviewer approves, maintains and extends a
   design, so the page explains the design and uses lines as its evidence.
-  The Design view comes second; every chapter says what it adds to the
-  design before any code; every stop names the decisions, abstractions,
+  The Design view, an article, comes second; every chapter names what it
+  adds before any code; every stop names the decisions, abstractions,
   invariants and risks it is evidence for; design decisions and
   design-level findings are triaged first. A stop's text says what its
   code cannot (the role it plays, why it is shaped this way, what breaks
@@ -223,14 +223,14 @@ to whichever pass is best placed to verify them.
 
 ### 6. Run the reading passes
 
-Fill `{skill dir}/reference/reading-pass-brief.md` once per chapter pass, and
-`{skill dir}/reference/design-pass-brief.md` once for the design pass, which
-reads the whole change for its shape and writes `content/design.json`. Spawn
-them together, as general-purpose agents (they write files), in the
-background. At quick depth, write `design.json` yourself before any
-chapter, to the same contract: the principles hold at every depth, and so
-does the build. The passes are the most expensive step, so brief them fully
-once rather than correcting them afterwards.
+Fill `{skill dir}/reference/reading-pass-brief.md` once per chapter pass and
+spawn them as general-purpose agents (they write files), in the background.
+When they finish, fill `{skill dir}/reference/design-pass-brief.md` with
+their chapters and final messages and spawn the design pass, which reads the
+whole change for its shape and writes `content/design.json`, its article.
+At quick depth, write `design.json` yourself after your own chapters, to the
+same contract: the principles hold at every depth, and so does the build.
+Brief every pass fully once rather than correcting it afterwards.
 
 While they run, keep working:
 
@@ -276,7 +276,7 @@ settle it. Then write `content/overview.json`:
 - `paths`: two or three ways through the page sized to the agreed goal,
   each with an honest time and numbered steps that name the views. The first
   is always **understand the design**: Design, then each chapter's figures
-  and design section, in about half an hour.
+  and the decisions its stops set out, in about half an hour.
 
 ### 9. Build and verify
 

@@ -1,19 +1,21 @@
 # Design-pass brief
 
-One design pass runs beside the chapter passes. The chapter passes read
-their part of the change closely. The design pass reads the whole change for
-its shape, and how that shape sits in the existing system. Fill this in,
-resolving every `{…}` first, and spawn it with the chapter passes.
+One design pass runs after the chapter passes, with their output as its
+input. The chapter passes read their part of the change closely. The design
+pass reads the whole change for its shape, and how that shape sits in the
+existing system, and writes it as an article. Fill this in, resolving every
+`{…}` first, and spawn it once the chapter passes have finished.
 
 ---
 
 You are the design pass for an interactive exploration page of pull request
 #{number}, "{title}" in {repo}. Your output is the page's Design view, the
-second thing the reviewer sees: how the change is designed, and whether it
-is the right design. Read the code yourself; do not delegate.
+second thing the reviewer sees: an article on how the change is designed,
+and whether it is the right design. Read the code yourself; do not
+delegate.
 
 **Workspace**: `{workspace}`. Write only `{workspace}/content/design.json`.
-Never edit the repository.
+Never edit the repository, and never edit a chapter file.
 
 **Contract**: `{skill dir}/reference/content-model.md`, sections "Design before
 lines", "Pictures first", "Figures" and "`design.json`". Read them first.
@@ -25,8 +27,11 @@ itself: {the repository's CLAUDE.md or contributing guide, the ADRs the PR
 touches or cites, the plan and work item}. Read unchanged files at head with
 {how to read an unchanged file}.
 
-**The chapters** other passes are writing, so you can link to them and need
-not repeat them: {chapter ids, titles and one-line scopes}.
+**The chapters** the reading passes wrote: {chapter ids, titles and
+one-line scopes}. Read every `{workspace}/content/chapter-*.json`, and each
+pass's final message: {each reading pass's final message}. Build on them:
+the article explains how their parts make one design, and links to them
+rather than repeating them.
 
 **Work out, in this order**:
 
@@ -61,16 +66,29 @@ is stored on its own; a `data-flow-diagram` when the change handles a
 secret, a credential or untrusted input; and a `compare` of before and
 after when the change reshapes something that existed. Choose among them
 by the guide at `{skill dir}/../draw-diagram/reference/choosing.md`, link
-each element to its chapter, and mark what the change adds `new`. Write the `summary` last, in 3–5 sentences,
-naming the key abstractions in bold.
+each element to its chapter, and mark what the change adds `new`.
 
-Give every abstraction and decision an id that starts `a-design-` or
-`d-design-`: ids are unique across the page, and the chapters name some of
-the same things.
+**Then write the article** (contract, "`design.json`"): headed sections in
+the recommended arc (the problem and the system before; the shape after;
+one section per central idea; the fit with the existing architecture; where
+the next change goes), each of prose of at most 150 words a block, figures,
+and asides naming the decisions and abstractions the section rests on. Put
+your figures in its figure blocks. Use a code excerpt only where a few lines
+show the shape better than a figure, at most 15 lines, quoted with an
+`anchor` like a stop. `{skill dir}/examples/design-article.json` shows the
+standard. Write the `summary` last, in 3–5 sentences, naming the key
+abstractions in bold.
+
+**Ids.** Reuse a decision or abstraction a chapter already declared, by its
+id, in prose and asides; never declare it again. Declare a new one only when
+it is cross-cutting, with an id that starts `a-design-` or `d-design-`, and
+name the existing stops that show it in its `carriedBy`: every decision and
+abstraction needs a stop that carries it, and you cannot add stops.
 
 **Before you finish**, validate the JSON with `python3 -m json.tool`, and check
 every `where` against the `head/` copies.
 
-**Your final message** (at most 150 words): the design in two sentences, any
-decision you assessed as questionable or unsound, any principle the change
-strains or breaks, and anything you could not verify.
+**Your final message** (at most 150 words): the design in two sentences, the
+decisions you reused and any you disagree with a chapter about, any decision
+you assessed as questionable or unsound, any principle the change strains or
+breaks, and anything you could not verify.

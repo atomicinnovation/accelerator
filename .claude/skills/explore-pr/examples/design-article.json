@@ -1,0 +1,106 @@
+{
+  "summary": "Every start in a relocated root records a **version claim**, an empty file whose mtime is the version's last use, and a prune keeps what **FreshVersions** says is still claimed. Start-up only ever writes claims and a prune only ever reads them, so the two never contend for a lock. Every comparison is biased to keep: clock trouble or an unreadable `claims/` keeps entries, never removes them.",
+  "article": [
+    {
+      "id": "before",
+      "heading": "Keep the newest N evicts live versions",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "A relocated root outlives every plugin version that shares it, and several versions use it at once: a session started before an upgrade keeps dispatching its version until it reloads. Before this change a prune kept the newest versions by count, so an upgrade could evict the entries a live session still needed, and the next command re-fetched them."
+        }
+      ]
+    },
+    {
+      "id": "shape",
+      "heading": "Start-up writes claims; a prune reads them",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "The change splits retention into a writer and a reader that share only the file system. Start-up refreshes the running version's claim before any lookup can store an entry; a prune lists `claims/` and asks **FreshVersions** which versions are still in use. Neither holds a lock, because a claim is written whole by one install and read by many."
+        },
+        {
+          "kind": "figure",
+          "figure": {
+            "id": "design-article-shape",
+            "kind": "class-diagram",
+            "title": "Who writes a claim and who reads it",
+            "caption": "Start-up owns writing a claim; a prune owns reading them. The windows are shared, so the two cannot disagree about what fresh means.",
+            "classes": [
+              { "id": "StartUp", "stereotype": "module", "status": "changed", "link": "chapter:claims" },
+              { "id": "VersionClaim", "stereotype": "type", "status": "new", "link": "chapter:claims" },
+              { "id": "FreshVersions", "stereotype": "type", "status": "new", "link": "chapter:claims" },
+              { "id": "RetentionWindows", "stereotype": "module", "status": "new", "link": "chapter:claims" },
+              { "id": "Prune", "stereotype": "module", "status": "changed" }
+            ],
+            "relationships": [
+              { "from": "StartUp", "to": "VersionClaim", "kind": "dependency" },
+              { "from": "Prune", "to": "FreshVersions", "kind": "dependency" },
+              { "from": "FreshVersions", "to": "VersionClaim", "kind": "aggregation" },
+              { "from": "FreshVersions", "to": "RetentionWindows", "kind": "dependency" },
+              { "from": "StartUp", "to": "RetentionWindows", "kind": "dependency" }
+            ]
+          }
+        },
+        {
+          "kind": "aside",
+          "refs": ["d-claim-heartbeat", "a-version-claim", "a-fresh-versions"]
+        }
+      ]
+    },
+    {
+      "id": "claims",
+      "heading": "A claim is a name and a time",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "A claim carries no content: its name says which version and which install, and its mtime says when that install last started. One rule parses the name, so a prune never mistakes a stray file for a claim."
+        },
+        {
+          "kind": "code",
+          "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
+          "side": "new",
+          "start": 24,
+          "end": 31,
+          "anchor": "pub struct VersionClaim<'a> {",
+          "anchorLine": 24,
+          "caption": "The whole identity of a claim: a version and the install that made it."
+        },
+        {
+          "kind": "aside",
+          "refs": ["d-claim-per-install", "claims-i1"]
+        }
+      ]
+    },
+    {
+      "id": "fit",
+      "heading": "Effects stay at the edge",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "The launcher keeps every file-system effect behind its `Filesystem` port, and claims follow suit: `FreshVersions` is pure over a listing, and only start-up and the prune touch disk. The windows sit in a leaf module both import, so single-file and tree prune cannot drift into two retention policies."
+        },
+        {
+          "kind": "code",
+          "file": "cli/launcher/src/launch/outbound/resolve/retention_windows.rs",
+          "side": "new",
+          "start": 7,
+          "end": 12,
+          "anchor": "pub const AGE_BACKSTOP: Duration",
+          "anchorLine": 7,
+          "caption": "The one place the numbers live."
+        }
+      ]
+    },
+    {
+      "id": "next",
+      "heading": "A shared root for a group is next",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "A root shared by a group of users needs claims that another user's prune can trust. That change belongs in `VersionClaim`'s ownership check and nowhere else: the windows and `FreshVersions` already treat every valid claim alike."
+        }
+      ]
+    }
+  ]
+}

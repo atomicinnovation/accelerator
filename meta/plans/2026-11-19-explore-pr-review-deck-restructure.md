@@ -696,9 +696,9 @@ it. Name it in `content-model.md` and the design-pass brief, so that
 
 #### Automated Verification
 
-- [ ] The new build and layout tests fail first, then pass.
-- [ ] Every shared verification command passes.
-- [ ] `tests/test_documents.py` passes: `SKILL.md` stays at 360 lines or
+- [x] The new build and layout tests fail first, then pass.
+- [x] Every shared verification command passes.
+- [x] `tests/test_documents.py` passes: `SKILL.md` stays at 360 lines or
       fewer, and the example exists.
 
 #### Manual Verification
