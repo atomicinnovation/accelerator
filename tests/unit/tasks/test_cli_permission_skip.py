@@ -5,16 +5,23 @@ cargo's captured output, so the task says so on its own line where a person
 reading the run will see it.
 """
 
-from invoke import Context, MockContext, Result
+from unittest.mock import MagicMock
+
+import pytest
+from invoke import Context
 
 from tasks.test import cli
+from tests.unit.tasks.shared_fixture_doubles import FakeSharedFixtures
+
+pytestmark = pytest.mark.usefixtures("shared_fixture_roots")
 
 SKIP_VARIABLE = "ACCELERATOR_TEST_SKIP_PERMISSION_TESTS"
 
 
 def _run_task(monkeypatch, capsys) -> str:
     monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
-    context: Context = MockContext(run=Result(exited=0))
+    context = MagicMock(spec=Context)
+    context.run.side_effect = FakeSharedFixtures()
     cli.run(context)
     return capsys.readouterr().out
 

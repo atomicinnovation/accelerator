@@ -1,5 +1,8 @@
 import os
+import re
+import shlex
 import shutil
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from invoke import Context, Exit, task
@@ -22,9 +25,23 @@ from tasks.shared.instrumented_build import (
 )
 from tasks.shared.paths import (
     CLI_INSTRUMENTED_BUILD_DIR,
+    CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
 )
 from tasks.shared.rust import coverage_enabled
+from tasks.shared.shared_fixtures.errors import SharedFixturesError
+from tasks.shared.shared_fixtures.families import (
+    FIXTURE_LOG_VARIABLE,
+    SHARED_FAMILIES,
+    WORKBENCHES_VARIABLE,
+    Family,
+)
+from tasks.shared.shared_fixtures.runs import shared_fixtures_root
+from tasks.shared.shared_fixtures.session import (
+    SharedBuildError,
+    SharedFixtureSession,
+)
+from tasks.shared.signals import UNWIND_SIGNALS, Interruption, unwind_then_defer
 
 # The visualiser server is a workspace member but keeps its own dedicated test
 # tasks (test:unit:visualiser for the lib across both feature configs,
@@ -36,6 +53,22 @@ _WORKSPACE = f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}"
 _MANIFEST = f"{_WORKSPACE} --workspace --exclude {_VISUALISER} --all-features"
 _PERMISSION_SKIP = "ACCELERATOR_TEST_SKIP_PERMISSION_TESTS"
 _INSTRUMENTED_BUILD = CLI_INSTRUMENTED_BUILD_DIR
+_UNIT_LISTING = f"cargo test {_MANIFEST} --no-run --message-format=json"
+_BUILDER = "shared-fixtures"
+_shared_root = shared_fixtures_root
+_FIXTURE_LOGS = CLI_TARGET_DIR / "vcs-fixture-logs"
+_HANDOVER_VARIABLES = frozenset(
+    {
+        *(family.handover_variable for family in Family),
+        WORKBENCHES_VARIABLE,
+        FIXTURE_LOG_VARIABLE,
+    }
+)
+_COMPILING = re.compile(r"^\s*Compiling ", re.MULTILINE)
+_RUN_DIRECTLY = (
+    "no cli tests ran; to run them while diagnosing, use "
+    f"cargo nextest run {_MANIFEST} (each test builds its own fixtures)"
+)
 
 COVERAGE_FLOOR = CoverageFloor(
     {Metric.LINES: 92, Metric.FUNCTIONS: 92, Metric.REGIONS: 91}
@@ -59,6 +92,9 @@ def run(context: Context) -> None:
     `cargo llvm-cov clean --workspace` and rerun.
     ACCELERATOR_COVERAGE=off drops to plain nextest for a faster loop.
 
+    The VCS fixture matrix is built once per run and handed to the tests;
+    `cargo nextest run` run directly builds it in each test that needs it.
+
     `--all-features` turns on the `test-loopback` and `test-support` features
     the black-box suites need. The suites that build real repositories run
     unconditionally and need the mise-pinned `jj` and a `git` on `PATH`; an
@@ -69,10 +105,16 @@ def run(context: Context) -> None:
     announced here because cargo captures the tests' own output.
     """
     _announce_skipped_permission_tests()
-    if coverage_enabled():
-        _run_instrumented(context)
-    else:
-        _run_tests(context, f"cargo nextest run {_MANIFEST}")
+    with unwind_then_defer(UNWIND_SIGNALS) as interruption:
+        try:
+            if coverage_enabled():
+                _run_instrumented(context, interruption)
+            else:
+                _run_plain(context, interruption)
+        except SharedBuildError as error:
+            raise Exit(f"{error}\n{_RUN_DIRECTLY}", code=1) from error
+        except SharedFixturesError as error:
+            raise Exit(str(error), code=1) from error
 
 
 def _announce_skipped_permission_tests() -> None:
@@ -83,13 +125,97 @@ def _announce_skipped_permission_tests() -> None:
         )
 
 
-def _run_instrumented(context: Context) -> None:
+def _run_plain(context: Context, interruption: Interruption) -> None:
+    builder = _locate_builder(context, build_environment=None)
+    with _session(interruption).open(
+        SHARED_FAMILIES, _building_with(context, builder, {}), filtered=False
+    ) as handover:
+        _run_tests(context, f"cargo nextest run {_MANIFEST}", handover)
+
+
+def _run_instrumented(context: Context, interruption: Interruption) -> None:
     _clear_previous_profile_data(context)
-    _run_tests(context, f"cargo llvm-cov nextest {_MANIFEST} --no-report")
+    build_environment = _instrumented_environment(context)
+    builder = _locate_builder(context, build_environment)
+    with _session(interruption).open(
+        SHARED_FAMILIES,
+        _building_with(context, builder, build_environment),
+        filtered=False,
+    ) as handover:
+        _run_tests(
+            context, f"cargo llvm-cov nextest {_MANIFEST} --no-report", handover
+        )
     totals = _report_totals(context)
     print(totals.summary_line())
-    _sweep_superseded_artefacts(context)
+    _sweep_superseded_artefacts(context, build_environment)
     _enforce_floor(totals)
+
+
+def _session(interruption: Interruption) -> SharedFixtureSession:
+    return SharedFixtureSession(
+        _shared_root(),
+        _FIXTURE_LOGS,
+        os.environ,
+        interrupted=lambda: interruption.arrived,
+    )
+
+
+def _locate_builder(
+    context: Context, build_environment: Mapping[str, str] | None
+) -> Path:
+    listing = context.run(
+        _UNIT_LISTING,
+        warn=True,
+        hide="out",
+        pty=False,
+        **({} if build_environment is None else {"env": build_environment}),
+    )
+    if listing.exited != 0:
+        raise Exit("cargo: compiling the cli tests failed", code=1)
+    try:
+        return UnitListing.parse(listing.stdout).executable(_BUILDER)
+    except LookupError as error:
+        raise Exit(f"cargo: {error}", code=1) from error
+
+
+def _building_with(
+    context: Context, builder: Path, build_environment: Mapping[str, str]
+) -> Callable[[Mapping[Family, Path], Path], None]:
+    def build(trees: Mapping[Family, Path], log: Path) -> None:
+        flags = [
+            word
+            for family, tree in trees.items()
+            for word in (f"--{family.value}", str(tree))
+        ]
+        result = context.run(
+            shlex.join([str(builder), *flags]),
+            warn=True,
+            hide=True,
+            pty=False,
+            env=_without_inherited_handover(
+                {**build_environment, FIXTURE_LOG_VARIABLE: str(log)}
+            ),
+            replace_env=True,
+        )
+        if result.exited != 0:
+            raise SharedFixturesError(
+                f"shared VCS fixtures: {result.stderr.strip()}"
+            )
+
+    return build
+
+
+def _without_inherited_handover(
+    variables: Mapping[str, str],
+) -> dict[str, str]:
+    return {
+        **{
+            name: value
+            for name, value in os.environ.items()
+            if name not in _HANDOVER_VARIABLES
+        },
+        **variables,
+    }
 
 
 def _enforce_floor(totals: CoverageTotals) -> None:
@@ -114,10 +240,29 @@ def _clear_previous_profile_data(context: Context) -> None:
         raise Exit("cargo llvm-cov: clearing profile data failed", code=1)
 
 
-def _run_tests(context: Context, command: str) -> None:
-    result = context.run(command, warn=True, pty=False)
-    if result.exited != 0:
-        raise Exit("nextest: cli tests failed", code=1)
+def _run_tests(
+    context: Context, command: str, handover: Mapping[str, str]
+) -> None:
+    result = context.run(
+        command,
+        warn=True,
+        pty=False,
+        env=_without_inherited_handover(handover),
+        replace_env=True,
+    )
+    failures = [
+        *(["nextest: cli tests failed"] if result.exited != 0 else []),
+        *(
+            [
+                "nextest recompiled after the build step, so the builder "
+                "and the tests were not the same build"
+            ]
+            if _COMPILING.search(result.stderr or "")
+            else []
+        ),
+    ]
+    if failures:
+        raise Exit("\n".join(failures), code=1)
 
 
 def _report_totals(context: Context) -> CoverageTotals:
@@ -135,8 +280,10 @@ def _report_totals(context: Context) -> CoverageTotals:
         raise Exit(f"cargo llvm-cov: {error}", code=1) from error
 
 
-def _sweep_superseded_artefacts(context: Context) -> None:
-    listing = _list_units(context)
+def _sweep_superseded_artefacts(
+    context: Context, build_environment: Mapping[str, str]
+) -> None:
+    listing = _list_units(context, build_environment)
     if listing.rebuilt:
         raise Exit(
             f"cargo llvm-cov: listing the units rebuilt {listing.rebuilt}; "
@@ -163,7 +310,7 @@ def _sweep_superseded_artefacts(context: Context) -> None:
     print(Sweep(entries=len(swept), freed_bytes=freed).summary_line())
 
 
-def _list_units(context: Context) -> UnitListing:
+def _instrumented_environment(context: Context) -> Mapping[str, str]:
     environment = context.run(
         f"cargo llvm-cov show-env {_WORKSPACE}",
         warn=True,
@@ -174,15 +321,21 @@ def _list_units(context: Context) -> UnitListing:
         raise Exit(
             "cargo llvm-cov: reading the build environment failed", code=1
         )
+    return {
+        **parse_build_environment(environment.stdout),
+        "CARGO_TARGET_DIR": str(_INSTRUMENTED_BUILD.parent),
+    }
+
+
+def _list_units(
+    context: Context, build_environment: Mapping[str, str]
+) -> UnitListing:
     listing = context.run(
-        f"cargo test {_MANIFEST} --no-run --message-format=json",
+        _UNIT_LISTING,
         warn=True,
         hide="out",
         pty=False,
-        env={
-            **parse_build_environment(environment.stdout),
-            "CARGO_TARGET_DIR": str(_INSTRUMENTED_BUILD.parent),
-        },
+        env=build_environment,
     )
     if listing.exited != 0:
         raise Exit(

@@ -8,7 +8,6 @@ yield bogus problems.
 
 import contextlib
 import dataclasses
-import sys
 import time
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from pathlib import Path
@@ -72,7 +71,7 @@ class SharedFixtureSession:
         runs: Callable[[Path], FixtureRuns] = FixtureRuns.open,
         logs_store: Callable[[Path], FixtureLogs] = FixtureLogs,
         digest: Callable[[Path], TreeDigest] = tree_digest,
-        out: TextIO = sys.stdout,
+        out: TextIO | None = None,
     ) -> None:
         self._root = root
         self._logs = logs
