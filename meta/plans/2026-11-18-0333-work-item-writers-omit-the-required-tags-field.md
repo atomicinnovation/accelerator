@@ -5,7 +5,7 @@ title: "Work Item Writers Omit the Required Tags Field Implementation Plan"
 date: "2026-11-18T18:37:06+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0333"
 parent: "work-item:0333"
 derived_from: ["codebase-research:2026-11-18-0333-work-item-writers-omit-the-required-tags-field"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0332"]
 tags: ["work", "work-cli", "migrate", "frontmatter", "create-work-item", "extract-work-items", "sync-work-items"]
 revision: "d0e5bf7340d9fd4798b94938b2bf2ce1dfce8f9f"
 repository: "accelerator"
-last_updated: "2026-11-19T00:36:27+00:00"
+last_updated: "2026-11-19T01:41:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -583,6 +583,12 @@ end to end.
 **File**: `cli/migrate/src/migrations/mod.rs`
 **Changes**: add `pub mod m0012;` first, so the unit tests below compile
 and can be seen to fail. Registering the migration waits for §5.
+
+Until `apply` exists, nothing outside the tests calls the transform, so the
+crate's non-test build fails `dead_code` under `warnings = "deny"`. This
+was found during implementation. The red and green runs before §3 select
+the lib's test target only:
+`cargo nextest run --manifest-path cli/Cargo.toml -p migrate --lib m0012`.
 
 **File**: `cli/migrate/src/migrations/m0012.rs`
 **Changes**:
@@ -1170,7 +1176,14 @@ through global flags or write-call numbers:
 - `fail_realign: bool`, making `realign_sync_baseline` return an error;
 - `realigned: RefCell<Option<Vec<(PathBuf, String)>>>`, which stays `None`
   until `realign_sync_baseline` is called, so "never called" is
-  observable.
+  observable;
+- `failing_listing: bool`, making `list_md_files` return an error, for
+  the listing half of `a_failure_before_any_repair_omits_the_left_count`;
+- `writes: RefCell<Vec<PathBuf>>`, recording every write attempted, for
+  the "nothing is written" assertions.
+
+The last two were found during implementation; the list above did not
+name them.
 
 The tests of skipped files build `let mut backfill = Backfill::default();`,
 call `backfill.over(&ctx, dir)?`, and assert on `backfill.untouched` and
@@ -1329,6 +1342,22 @@ already carries `tags: []`, so it isn't used.
 - [x] In a scratch repository with pulled items that lack `tags`, a
       `/sync-work-items` preview after `/accelerator:migrate` reports the
       repaired items as `Synced`, with no `LocallyModified` or `Conflict`.
+
+These ran against the debug `accelerator-migrate` and `accelerator-work`
+built by `mise run`, because the installed plugin predates 0012. The
+pre-fix items came from the installed `work create` and `work sync`:
+- Scratch repository: of an untagged and a tagged item, only the untagged
+  one gained `tags: []`, and it then validated.
+- This repository's ledger stops at 0010, so a real run here would also
+  apply 0011, which edits `.accelerator/.gitignore`. The second and third
+  checks therefore ran on a scratch copy of `meta/` and `.accelerator/`
+  with 0011 marked applied. 0012 changed none of the 384 work items, and
+  a second run reported no pending migrations.
+- Sync: PP-23 and PP-24 were pulled from Linear with `--pull-only
+  --target`, so nothing was sent to Linear, and both lacked `tags`. After
+  the migration both stayed `synced` under `--preview`. With the
+  pre-migration `last-sync.json` put back, both read `locally-modified`,
+  so the realignment is what keeps them in sync.
 
 **Implementation Note**: After completing this phase and all automated
 verification passes, pause here for manual confirmation from the human that
