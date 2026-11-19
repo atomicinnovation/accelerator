@@ -1,5 +1,6 @@
-//! Confining the research subagents. Each role may run only its listed
-//! commands: the researcher the research fetch and its outputters' template
+//! Confining the research subagents to their listed commands and writes.
+//!
+//! The researcher may run the research fetch and its outputters' template
 //! commands, the composer nothing. The researcher may write only findings and
 //! level notes, the composer only findings.
 //!
