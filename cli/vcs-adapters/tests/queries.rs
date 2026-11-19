@@ -21,7 +21,7 @@ use vcs::VcsKind;
 use vcs::VcsProbe as _;
 use vcs_adapters::library::Error;
 use vcs_adapters::library::InProcessProbe;
-use vcs_test_support::fixtures::Matrix;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -399,8 +399,8 @@ fn dual_cell(roots: &DualRoots) -> String {
 
 #[test]
 fn every_query_matches_the_recorded_oracle_mapping() -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-queries-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     let probe = InProcessProbe;
     let root = matrix.base.display().to_string();
 
@@ -464,8 +464,8 @@ fn every_query_matches_the_recorded_oracle_mapping() -> Result<(), TestError> {
 #[test]
 fn a_relative_start_resolves_the_same_as_an_absolute_one(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-relative-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     let probe = InProcessProbe;
 
     // A colocated checkout is the discriminating shape: both walks must find it.
@@ -509,8 +509,8 @@ fn a_relative_start_resolves_the_same_as_an_absolute_one(
 
 #[test]
 fn failure_and_absence_are_distinguishable() -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-errors-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     let probe = InProcessProbe;
 
     // D3 is the load-bearing degenerate: its `.jj/repo` points at an existing
@@ -557,8 +557,8 @@ fn failure_and_absence_are_distinguishable() -> Result<(), TestError> {
 #[test]
 fn an_unsupported_object_format_fails_rather_than_misreads(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-formats-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     let probe = InProcessProbe;
 
     // gix 0.85 rejects extensions.objectFormat = sha256. Erroring is the
@@ -585,8 +585,8 @@ fn an_unsupported_object_format_fails_rather_than_misreads(
 #[test]
 fn a_one_sided_failure_leaves_the_other_side_readable() -> Result<(), TestError>
 {
-    let base = tempfile::Builder::new().prefix("vcs-onesided-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     // The whole reason dual_roots carries a Result per side: a repository whose
     // git side the pinned library cannot parse must never be observable as

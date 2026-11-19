@@ -1,3 +1,5 @@
+min_version = "2026.10.8"
+
 [env]
 _.python.venv = { path = ".venv", create = true }
 
@@ -338,7 +340,10 @@ run = "uv run pytest tests/unit/vcs -v"
 [tasks."test:unit:cli"]
 description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts, fails below COVERAGE_FLOOR; ACCELERATOR_COVERAGE=off drops to plain nextest)"
 depends = ["deps:install:rust-components"]
-run = "invoke test.cli.run"
+usage = '''
+flag "--filter <filterset>" help="nextest filterset selecting the tests to run (test() matches test names; binary_id() matches test binaries), e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips the coverage report, sweep and floor"
+'''
+run = 'invoke test.cli.run ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
@@ -350,7 +355,7 @@ description = "Run the runtime-free Playwright-executor JavaScript suites"
 run = "invoke test.unit.design-automation"
 
 [tasks."test:unit"]
-description = "Run all unit tests in parallel"
+description = "Run all unit tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:frontend-licenses", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
 # Deliberately absent from `test:integration` and the bare default task: these
@@ -504,7 +509,7 @@ description = "Roll-up entry point for the gix/jj-lib link-ratio floor; see buil
 depends = ["build:cli:fixture-size"]
 
 [tasks."test:integration"]
-description = "Run all integration tests in parallel"
+description = "Run all integration tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = [
     "test:integration:visualiser",
     "test:integration:dev",
@@ -536,11 +541,11 @@ depends = ["build:frontend", "build:server:dev"]
 run = "invoke test.e2e.visualiser-docker --update"
 
 [tasks."test:e2e"]
-description = "Run all E2E tests in parallel"
+description = "Run all E2E tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:e2e:visualiser"]
 
 [tasks.test]
-description = "Run all tests in parallel"
+description = "Run all tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:unit", "test:integration", "test:e2e"]
 
 [tasks."format:scripts:check"]

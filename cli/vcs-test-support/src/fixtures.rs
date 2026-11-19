@@ -1,60 +1,20 @@
 //! The checkout fixture matrix: every shape the taxonomy queries must tell
-//! apart, built with the real `git` and `jj` binaries beneath a caller-supplied
-//! root.
-//!
-//! The root is supplied rather than owned. A builder holding a
-//! `tempfile::TempDir` deletes the tree on drop, which is right in-process and
-//! wrong for a CI job that builds the matrix in one step and consumes it in
-//! another.
+//! apart, built with the real `git` and `jj` binaries.
 
-use std::env;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use tempfile::TempDir;
-
+use crate::family::Family;
+use crate::family::PrivateBuild;
+use crate::family::SharedFamily;
 use crate::hermetic::assert_git_is_recent_enough;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::matrix_manifest::Fixture;
+use crate::matrix_manifest::MatrixManifest;
 use crate::Error;
-
-/// Names the root of a matrix built by an earlier step, for a caller that
-/// cannot build one itself.
-pub const MATRIX_ROOT_VARIABLE: &str = "ACCELERATOR_ZERO_SPAWN_MATRIX";
-
-/// Written beside the fixtures so a later process can adopt them.
-const MANIFEST: &str = "fixtures.tsv";
-
-/// One (fixture, start directory) pair from the matrix.
-#[derive(Debug, Clone)]
-pub struct Fixture {
-    /// The key used in the recorded oracle mapping.
-    pub key: String,
-    /// A one-line description of the shape, for failure messages.
-    pub shape: String,
-    /// The directory queries are invoked from. Canonicalised.
-    pub start: PathBuf,
-}
-
-/// Where the matrix should live: a caller-supplied root when one is named,
-/// otherwise a temp directory the returned guard owns.
-///
-/// # Errors
-///
-/// When the temp directory cannot be created.
-pub fn matrix_root() -> Result<(Option<TempDir>, PathBuf), Error> {
-    match env::var(MATRIX_ROOT_VARIABLE) {
-        Ok(root) if !root.is_empty() => Ok((None, PathBuf::from(root))),
-        _ => {
-            let guard =
-                tempfile::Builder::new().prefix("vcs-matrix-").tempdir()?;
-            let path = guard.path().to_path_buf();
-            Ok((Some(guard), path))
-        }
-    }
-}
 
 /// Accumulates fixtures so each family builder can stay readable.
 #[derive(Debug, Default)]
@@ -97,86 +57,53 @@ pub struct Matrix {
 }
 
 impl Matrix {
-    /// Adopts a matrix already built beneath `base`, or builds one there.
-    ///
-    /// Adoption needs neither `git` nor `jj`, which is what lets a CI job build
-    /// the matrix while both are still reachable and consume it after they have
-    /// been moved out of reach.
-    ///
-    /// # Errors
-    ///
-    /// When the manifest is unreadable or malformed, or a builder fails.
-    pub fn build_or_adopt(base: &Path) -> Result<Self, Error> {
-        if base.join(MANIFEST).is_file() {
-            return Self::adopt(base);
-        }
-        let built = Self::build_in(base)?;
-        built.persist()?;
-        Ok(built)
-    }
-
-    fn persist(&self) -> Result<(), Error> {
-        let mut manifest = String::new();
-        for fixture in &self.fixtures {
-            writeln!(
-                manifest,
-                "{}\t{}\t{}",
-                fixture.key,
-                fixture.shape,
-                fixture.start.display()
-            )
-            .map_err(|error| Error::message(error.to_string()))?;
-        }
-        fs::write(self.base.join(MANIFEST), manifest)?;
-        Ok(())
-    }
-
-    fn adopt(base: &Path) -> Result<Self, Error> {
-        let base = base.canonicalize()?;
-        let manifest = fs::read_to_string(base.join(MANIFEST))?;
-        let mut fixtures = Vec::new();
-        for line in manifest.lines() {
-            let mut fields = line.split('\t');
-            let (Some(key), Some(shape), Some(start), None) =
-                (fields.next(), fields.next(), fields.next(), fields.next())
-            else {
-                return Err(Error::message(format!(
-                    "malformed fixture manifest line: {line}"
-                )));
-            };
-            fixtures.push(Fixture {
-                key: key.to_owned(),
-                shape: shape.to_owned(),
-                start: PathBuf::from(start),
-            });
-        }
-        if fixtures.is_empty() {
-            return Err(Error::message(format!(
-                "the fixture manifest at {} is empty",
-                base.display()
-            )));
-        }
-        Ok(Self { base, fixtures })
-    }
-
-    /// Builds every fixture beneath `base`.
+    /// Builds every fixture beneath `base`, refusing a base inside a checkout
+    /// before its hermetic environment writes anything there.
     ///
     /// # Errors
     ///
     /// When `base` lies inside a repository, or any builder fails.
-    pub fn build_in(base: &Path) -> Result<Self, Error> {
-        assert_git_is_recent_enough()?;
+    pub(crate) fn build_in(base: &Path) -> Result<Self, Error> {
         assert_no_repository_ancestor(base)?;
+        fs::create_dir_all(base)?;
+        let env = Hermetic::rooted_at(base)?;
+        Self::build_with(base, &env)
+    }
+
+    /// Builds the matrix at `base` for every test of a run to adopt, writing
+    /// the manifest adoption reads.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_in`], or when the manifest cannot be written.
+    pub(crate) fn build_for_sharing(base: &Path) -> Result<Self, Error> {
+        let matrix = Self::build_in(base)?;
+        MatrixManifest {
+            fixtures: matrix.fixtures.clone(),
+        }
+        .write(&matrix.base)?;
+        Ok(matrix)
+    }
+
+    /// Builds every fixture beneath `base` with `env`.
+    ///
+    /// # Errors
+    ///
+    /// When `git` is too old, or any builder fails.
+    pub(crate) fn build_with(
+        base: &Path,
+        env: &Hermetic,
+    ) -> Result<Self, Error> {
+        assert_git_is_recent_enough()?;
         let base = base.canonicalize()?;
-        let env = Hermetic::rooted_at(&base)?;
-        let parents = build_parents(&base, &env)?;
+        let parents = build_parents(&base, env)?;
 
         let mut builder = Builder::default();
-        add_git_shapes(&mut builder, &base, &env, &parents)?;
-        add_jj_shapes(&mut builder, &base, &env, &parents)?;
-        add_nested_shapes(&mut builder, &base, &env, &parents)?;
-        add_submodule_shapes(&mut builder, &base, &env, &parents)?;
-        add_format_shapes(&mut builder, &base, &env)?;
+        add_git_shapes(&mut builder, &base, env, &parents)?;
+        add_jj_shapes(&mut builder, &base, env, &parents)?;
+        add_nested_shapes(&mut builder, &base, env, &parents)?;
+        add_submodule_shapes(&mut builder, &base, env, &parents)?;
+        add_format_shapes(&mut builder, &base, env)?;
         add_degenerate_shapes(&mut builder, &base)?;
 
         Ok(Self {
@@ -196,6 +123,26 @@ impl Matrix {
             .find(|fixture| fixture.key == key)
             .map(|fixture| fixture.start.as_path())
             .ok_or_else(|| Error::message(format!("no fixture keyed {key}")))
+    }
+}
+
+impl SharedFamily for Matrix {
+    const FAMILY: Family = Family::Matrix;
+
+    fn adopt(tree: &Path) -> Result<Self, Error> {
+        let base = tree.canonicalize().map_err(|error| {
+            Error::message(format!("{}: {error}", tree.display()))
+        })?;
+        let MatrixManifest { fixtures } = MatrixManifest::read(&base)?;
+        Ok(Self { base, fixtures })
+    }
+
+    fn build_privately(
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        Self::build_with(directory, hermetic)
     }
 }
 

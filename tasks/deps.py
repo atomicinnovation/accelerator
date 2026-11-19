@@ -1,5 +1,3 @@
-import re
-
 from invoke import Context, Exit, task
 
 from tasks.shared.paths import CLI_DIR, DOCS_SITE, FRONTEND
@@ -10,10 +8,9 @@ from tasks.shared.rust import (
     RUST_NIGHTLY,
 )
 from tasks.shared.targets import TARGETS
+from tasks.shared.terminal import without_ansi_escapes
 
 _CROSS_TARGETS = tuple(triple for triple, _ in TARGETS)
-
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
 @task
@@ -97,7 +94,7 @@ def _pup_already_installed(context: Context) -> bool:
     probe = context.run(
         f"cargo +{RUST_NIGHTLY} pup --version", warn=True, pty=False
     )
-    return PUP_VERSION in _ANSI.sub("", probe.stdout).split()
+    return PUP_VERSION in without_ansi_escapes(probe.stdout).split()
 
 
 @task
@@ -130,7 +127,7 @@ def _public_api_already_installed(context: Context) -> bool:
     # false-match 0.52.1): strip ANSI, then split so PUBLIC_API_VERSION must be
     # a whole token.
     probe = context.run("cargo public-api --version", warn=True, pty=False)
-    return PUBLIC_API_VERSION in _ANSI.sub("", probe.stdout).split()
+    return PUBLIC_API_VERSION in without_ansi_escapes(probe.stdout).split()
 
 
 @task
@@ -162,7 +159,7 @@ def _cargo_about_already_installed(context: Context) -> bool:
     # false-match 0.9.2): strip ANSI, then split so ABOUT_VERSION must be a
     # whole token.
     probe = context.run("cargo about --version", warn=True, pty=False)
-    return ABOUT_VERSION in _ANSI.sub("", probe.stdout).split()
+    return ABOUT_VERSION in without_ansi_escapes(probe.stdout).split()
 
 
 @task

@@ -25,6 +25,7 @@ class UnitListing:
     uplifted: frozenset[Path]
     crates: Mapping[str, int]
     rebuilt: int
+    executables: Mapping[str, Path] = dataclasses.field(default_factory=dict)
 
     @classmethod
     def parse(cls, messages: str) -> UnitListing:
@@ -32,9 +33,14 @@ class UnitListing:
         uplifted: set[Path] = set()
         crates: Counter[str] = Counter()
         rebuilt = 0
+        executables: dict[str, Path] = {}
         for message in _json_messages(messages):
             if message.get("reason") == "compiler-artifact":
                 rebuilt += not message["fresh"]
+                if _is_runnable_bin(message):
+                    executables[message["target"]["name"]] = Path(
+                        message["executable"]
+                    )
                 crates[_crate_name(message["target"]["name"])] += 1
                 for path in _artefact_paths(message):
                     if path_hashes := _hashes([path]):
@@ -43,7 +49,21 @@ class UnitListing:
                         uplifted.add(Path(path))
             elif message.get("reason") == "build-script-executed":
                 hashes.update(_hashes([message["out_dir"]]))
-        return cls(frozenset(hashes), frozenset(uplifted), crates, rebuilt)
+        return cls(
+            frozenset(hashes),
+            frozenset(uplifted),
+            crates,
+            rebuilt,
+            executables,
+        )
+
+    def executable(self, target: str) -> Path:
+        try:
+            return self.executables[target]
+        except KeyError:
+            raise LookupError(
+                f"the unit listing builds no {target} executable"
+            ) from None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -127,6 +147,14 @@ def _json_messages(messages: str) -> Iterator[dict[str, Any]]:
             continue
         if isinstance(message, dict):
             yield message
+
+
+def _is_runnable_bin(message: Mapping[str, Any]) -> bool:
+    return (
+        "bin" in message["target"]["kind"]
+        and not message["profile"]["test"]
+        and bool(message.get("executable"))
+    )
 
 
 def _artefact_paths(message: Mapping[str, Any]) -> list[str]:

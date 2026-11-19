@@ -47,16 +47,16 @@ def workspace_lock(path: Path | str) -> Iterator[bool]:
     fd = os.open(str(path), os.O_CREAT | os.O_RDWR, 0o600)
     try:
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            yield False
-            return
+            acquired = try_exclusive_flock(fd)
         except OSError:
             # flock unsupported on this filesystem — fall back to mkdir.
             os.close(fd)
             fd = None
             with _mkdir_lock(path) as acquired:
                 yield acquired
+            return
+        if not acquired:
+            yield False
             return
         try:
             yield True
@@ -66,6 +66,21 @@ def workspace_lock(path: Path | str) -> Iterator[bool]:
     finally:
         if fd is not None:
             os.close(fd)
+
+
+def try_exclusive_flock(fd: int) -> bool:
+    """Take an exclusive ``flock`` on ``fd`` without waiting.
+
+    Returns whether it was taken; any failure other than another holder
+    raises ``OSError``.
+    """
+    import fcntl
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    return True
 
 
 @contextlib.contextmanager

@@ -5471,6 +5471,7 @@ version = "1.24.0-pre.107"
 dependencies = [
  "regex",
  "serde",
+ "serde_json",
  "tempfile",
  "toml",
 ]

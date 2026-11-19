@@ -38,6 +38,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           # OS-disambiguated so the ubuntu/macos legs never share a
@@ -86,6 +87,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           cache_key_prefix: mise-test-integration-${{ matrix.os }}-v1
@@ -134,6 +136,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -159,6 +162,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -184,6 +188,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -214,6 +219,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           # Own cache namespace: this job's cache carries the rust toolchain the
@@ -253,6 +259,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           # Own toolchain-cache namespace, distinct from every other cargo job
@@ -286,6 +293,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           cache_key_prefix: mise-supply-chain-v1
@@ -311,6 +319,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           cache_key_prefix: mise-architecture-v1
@@ -361,6 +370,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           # Own toolchain-cache namespace, distinct from every other cargo job.
@@ -392,6 +402,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -433,6 +444,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           cache_key_prefix: mise-measure-v1
@@ -460,6 +472,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -510,6 +523,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -582,6 +596,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -658,6 +673,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -800,6 +816,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
@@ -924,6 +941,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true

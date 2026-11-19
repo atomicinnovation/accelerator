@@ -1,0 +1,480 @@
+{
+  "schema_version": 1,
+  "run_id": "build_2026-11-19T105144Z_engywook_warm-no-op_devtools_isolated",
+  "run_directory": ".accelerator-measure/build/build_2026-11-19T105144Z_engywook_warm-no-op_devtools_isolated",
+  "started_at": "2026-11-19T10:51:44+00:00",
+  "conditions": {
+    "hostname": "engywook",
+    "model": "Mac16,5",
+    "os_version": "26.3",
+    "mise_jobs": 8,
+    "cache_state": "warm-no-op",
+    "mode": "isolated",
+    "isolated_tasks": [
+      "test:unit:cli"
+    ],
+    "host_settings": "devtools"
+  },
+  "commit": {
+    "id": "897d0c28adef999f52195df96600c5e8be134f46",
+    "matched_at_start": false,
+    "matched_at_end": false,
+    "matched": false
+  },
+  "host": {
+    "hostname": "engywook",
+    "model": "Mac16,5",
+    "chip": "Apple M4 Max",
+    "os_version": "26.3",
+    "os_build": "25D125",
+    "cores": {
+      "total": 16,
+      "performance": 12,
+      "efficiency": 4
+    },
+    "power": {
+      "source": "AC Power",
+      "mode": "0"
+    }
+  },
+  "mise": {
+    "version": "2026.10.8 macos-arm64 (2026-10-11)",
+    "jobs": 8
+  },
+  "idle_load_percent": 46.89655172413793,
+  "task_set": [
+    "build:cli:corpus:dev",
+    "build:cli:dev",
+    "build:cli:fixture-size",
+    "build:cli:research:dev",
+    "build:cli:vcs:dev",
+    "build:cli:work:dev",
+    "build:frontend",
+    "build:frontend:stub",
+    "build:server:dev",
+    "deny:check",
+    "deps:install:cargo-about",
+    "deps:install:cargo-sources",
+    "deps:install:docs",
+    "deps:install:docs-playwright",
+    "deps:install:nightly",
+    "deps:install:node",
+    "deps:install:playwright",
+    "deps:install:public-api",
+    "deps:install:pup",
+    "deps:install:python",
+    "deps:install:rust-components",
+    "docs:audit:check",
+    "docs:build",
+    "docs:check",
+    "docs:generate",
+    "docs:generate:check",
+    "format:build-system:fix",
+    "format:cli:fix",
+    "format:fix",
+    "format:frontend:fix",
+    "format:scripts:fix",
+    "format:server:fix",
+    "lint:bare-invocation:check",
+    "lint:build-system:check",
+    "lint:check",
+    "lint:claude-coupling:check",
+    "lint:cli:check",
+    "lint:config-test-support:check",
+    "lint:corpus-identity:check",
+    "lint:crate-dependencies:check",
+    "lint:dispatch-coherence:check",
+    "lint:frontend:check",
+    "lint:git-tokens:check",
+    "lint:integration-skills:check",
+    "lint:scripts:bashisms:check",
+    "lint:scripts:check",
+    "lint:scripts:shellcheck:check",
+    "lint:server:check",
+    "lint:skill-cli-refs:check",
+    "lint:skill-permissions:check",
+    "lint:store-duplication:check",
+    "lint:vcs-settings:check",
+    "lint:vendor-shims:check",
+    "notices:check",
+    "public-api:check",
+    "pup:check",
+    "test",
+    "test:e2e",
+    "test:e2e:visualiser",
+    "test:integration",
+    "test:integration:conformance",
+    "test:integration:deny",
+    "test:integration:dev",
+    "test:integration:entrypoint",
+    "test:integration:evals",
+    "test:integration:fixture-size",
+    "test:integration:hooks",
+    "test:integration:release-guard",
+    "test:integration:research",
+    "test:integration:skill-invocation",
+    "test:integration:tasks",
+    "test:integration:visualiser",
+    "test:unit",
+    "test:unit:cli",
+    "test:unit:design-automation",
+    "test:unit:frontend",
+    "test:unit:frontend-licenses",
+    "test:unit:tasks",
+    "test:unit:vcs",
+    "test:unit:visualiser",
+    "types:build-system:check",
+    "types:check",
+    "types:frontend:check"
+  ],
+  "tracked_processes": {
+    "syspolicyd": [
+      "^/usr/libexec/syspolicyd(?:\\s|$)"
+    ],
+    "XprotectService": [
+      "/MacOS/XprotectService(?:\\s|$)"
+    ],
+    "ide": [
+      "/Contents/MacOS/idea(?:\\s|$)",
+      "/Contents/MacOS/rustrover(?:\\s|$)"
+    ],
+    "fsnotifier": [
+      "/fsnotifier(?:\\s|$)"
+    ]
+  },
+  "priming": {
+    "wall_clock_seconds": 219.2640670419787,
+    "discarded": true
+  },
+  "runs": [
+    {
+      "index": 1,
+      "wall_clock_seconds": 215.08193008301896,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:unit:cli": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.12787504200241528,
+          "duration_seconds": 214.94,
+          "end_seconds": 215.0678750420024,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": 182.092,
+          "queueing_delay_seconds": 0.12352091699722223,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 55.06896551724138,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 30.0,
+          "busy_percent": 43.833333333333336,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 60.0,
+          "busy_percent": 45.9,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 90.0,
+          "busy_percent": 43.53333333333333,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 120.0,
+          "busy_percent": 48.0,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 150.0,
+          "busy_percent": 45.166666666666664,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 180.0,
+          "busy_percent": 39.166666666666664,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 210.0,
+          "busy_percent": 43.4,
+          "running": [
+            "test:unit:cli"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.31999999999970896,
+        "XprotectService": 0.0,
+        "ide": 307.5399999999936,
+        "fsnotifier": 1.3799999999999955
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 2,
+      "wall_clock_seconds": 176.31757366698002,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:unit:cli": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.3193538749765139,
+          "duration_seconds": 176.0,
+          "end_seconds": 176.3193538749765,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": 152.233,
+          "queueing_delay_seconds": 0.31116337497951463,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 50.0,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 30.0,
+          "busy_percent": 43.63333333333333,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 60.0,
+          "busy_percent": 57.06666666666667,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 90.0,
+          "busy_percent": 44.733333333333334,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 120.0,
+          "busy_percent": 42.0,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 150.0,
+          "busy_percent": 41.96153846153846,
+          "running": [
+            "test:unit:cli"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 5.690000000000509,
+        "XprotectService": 0.0,
+        "ide": 271.1600000000035,
+        "fsnotifier": 1.3200000000000358
+      },
+      "fetch_failures": []
+    },
+    {
+      "index": 3,
+      "wall_clock_seconds": 183.61278004100313,
+      "exit_status": 0,
+      "contains_failure": false,
+      "tasks": {
+        "test:unit:cli": {
+          "outcome": "succeeded",
+          "exit_status": 0,
+          "start_seconds": 0.170024083025055,
+          "duration_seconds": 183.44,
+          "end_seconds": 183.61002408302505,
+          "units": {
+            "compiling": 0,
+            "checking": 0,
+            "documenting": 0
+          },
+          "lock_wait_seconds": 0.0,
+          "nextest_phase_seconds": 162.33,
+          "queueing_delay_seconds": 0.16226258300594054,
+          "after_failure": false
+        }
+      },
+      "unit_totals": {
+        "compiling": 0,
+        "checking": 0,
+        "documenting": 0
+      },
+      "cpu_buckets": [
+        {
+          "start_seconds": 0.0,
+          "busy_percent": 45.44827586206897,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 30.0,
+          "busy_percent": 42.4,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 60.0,
+          "busy_percent": 45.13333333333333,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 90.0,
+          "busy_percent": 51.2,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 120.0,
+          "busy_percent": 42.3,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 150.0,
+          "busy_percent": 46.7,
+          "running": [
+            "test:unit:cli"
+          ]
+        },
+        {
+          "start_seconds": 180.0,
+          "busy_percent": 31.666666666666668,
+          "running": [
+            "test:unit:cli"
+          ]
+        }
+      ],
+      "process_cpu_seconds": {
+        "syspolicyd": 0.1499999999996362,
+        "XprotectService": 0.0,
+        "ide": 260.1200000000099,
+        "fsnotifier": 1.3999999999999915
+      },
+      "fetch_failures": []
+    }
+  ],
+  "summary": {
+    "wall_clock_seconds": {
+      "minimum": 176.31757366698002,
+      "median": 183.61278004100313,
+      "maximum": 215.08193008301896
+    },
+    "tasks": {
+      "test:unit:cli": {
+        "presence": {
+          "standing": "measured"
+        },
+        "duration_seconds": {
+          "minimum": 176.0,
+          "median": 183.44,
+          "maximum": 214.94
+        },
+        "nextest_phase_seconds": {
+          "minimum": 152.233,
+          "median": 162.33,
+          "maximum": 182.092
+        }
+      }
+    },
+    "processes": {
+      "syspolicyd": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 0.1499999999996362,
+          "median": 0.31999999999970896,
+          "maximum": 5.690000000000509
+        }
+      },
+      "XprotectService": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 0.0,
+          "median": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "ide": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 260.1200000000099,
+          "median": 271.1600000000035,
+          "maximum": 307.5399999999936
+        }
+      },
+      "fsnotifier": {
+        "presence": {
+          "standing": "measured"
+        },
+        "cpu_seconds": {
+          "minimum": 1.3200000000000358,
+          "median": 1.3799999999999955,
+          "maximum": 1.3999999999999915
+        }
+      }
+    }
+  },
+  "fetch_failures": [],
+  "failed_tasks": []
+}

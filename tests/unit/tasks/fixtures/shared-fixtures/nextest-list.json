@@ -1,0 +1,320 @@
+{
+  "rust-build-meta": {
+    "target-directory": "/workspace/cli/target",
+    "build-directory": "/workspace/cli/target",
+    "base-output-directories": [
+      "debug"
+    ],
+    "non-test-binaries": {
+      "path+file:///workspace/cli/vcs-adapters#1.24.0-pre.103": [
+        {
+          "name": "vcs-adapters-fixture",
+          "kind": "bin-exe",
+          "path": "debug/vcs-adapters-fixture"
+        },
+        {
+          "name": "vcs-adapters-fixture-stub",
+          "kind": "bin-exe",
+          "path": "debug/vcs-adapters-fixture-stub"
+        }
+      ],
+      "path+file:///workspace/cli/vcs-test-support#1.24.0-pre.103": [
+        {
+          "name": "shared-fixtures",
+          "kind": "bin-exe",
+          "path": "debug/shared-fixtures"
+        }
+      ]
+    },
+    "build-script-out-dirs": {},
+    "build-script-info": {},
+    "linked-paths": [
+      "debug/build/aws-lc-sys-f1e9f34a554a175f/out",
+      "debug/build/ring-d90f93dd654422e7/out"
+    ],
+    "platforms": {
+      "host": {
+        "platform": {
+          "triple": "aarch64-apple-darwin",
+          "target-features": "unknown"
+        },
+        "libdir": {
+          "status": "available",
+          "path": "/home/developer/.rustup/toolchains/1.90.0-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/lib"
+        }
+      },
+      "targets": []
+    },
+    "target-platforms": [
+      {
+        "triple": "aarch64-apple-darwin",
+        "target-features": "unknown"
+      }
+    ],
+    "target-platform": null
+  },
+  "test-count": 28,
+  "rust-suites": {
+    "vcs-adapters::classify": {
+      "package-name": "vcs-adapters",
+      "binary-id": "vcs-adapters::classify",
+      "binary-name": "classify",
+      "package-id": "path+file:///workspace/cli/vcs-adapters#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/classify-a6204741ccc11ef4",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-adapters",
+      "status": "listed",
+      "testcases": {
+        "a_broken_jj_store_pointer_fails_rather_than_misclassifies": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_jj_repo_pointer_to_a_non_store_directory_fails_rather_than_misclassifies": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_removed_gitdir_behind_a_dot_git_file_is_absence_not_failure": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "an_unsupported_object_format_fails_rather_than_misclassifies": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "every_fixture_classifies_as_expected": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_matrix_still_covers_every_key_this_test_exercises": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "vcs-adapters::queries": {
+      "package-name": "vcs-adapters",
+      "binary-id": "vcs-adapters::queries",
+      "binary-name": "queries",
+      "package-id": "path+file:///workspace/cli/vcs-adapters#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/queries-b5972dbfc864b16a",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-adapters",
+      "status": "listed",
+      "testcases": {
+        "a_one_sided_failure_leaves_the_other_side_readable": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_relative_start_resolves_the_same_as_an_absolute_one": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "an_unsupported_object_format_fails_rather_than_misreads": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "every_query_matches_the_recorded_oracle_mapping": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "failure_and_absence_are_distinguishable": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_jj_binary_matches_the_resolved_library": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "vcs-adapters::scrub": {
+      "package-name": "vcs-adapters",
+      "binary-id": "vcs-adapters::scrub",
+      "binary-name": "scrub",
+      "package-id": "path+file:///workspace/cli/vcs-adapters#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/scrub-736bbefade6597fc",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-adapters",
+      "status": "listed",
+      "testcases": {
+        "every_query_is_unmoved_by_a_poisoned_environment": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "status_honours_the_global_excludes_file": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_poison_is_live": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "vcs-test-support::matrix": {
+      "package-name": "vcs-test-support",
+      "binary-id": "vcs-test-support::matrix",
+      "binary-name": "matrix",
+      "package-id": "path+file:///workspace/cli/vcs-test-support#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/matrix-5b864011ead5f23e",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-test-support",
+      "status": "listed",
+      "testcases": {
+        "every_recorded_fixture_key_is_built": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_colocated_shapes_differ_as_recorded": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_degenerate_shapes_are_actually_broken": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_nested_inner_shapes_carry_only_one_marker": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_pure_jj_shapes_have_no_git_marker": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_submodule_shapes_nest_as_recorded": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    },
+    "vcs-adapters::detection": {
+      "package-name": "vcs-adapters",
+      "binary-id": "vcs-adapters::detection",
+      "binary-name": "detection",
+      "package-id": "path+file:///workspace/cli/vcs-adapters#1.24.0-pre.103",
+      "kind": "test",
+      "binary-path": "/workspace/cli/target/debug/deps/detection-a41a72fb225cfeeb",
+      "build-platform": "target",
+      "cwd": "/workspace/cli/vcs-adapters",
+      "status": "listed",
+      "testcases": {
+        "a_bare_repository_has_no_facts": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_colocated_repository_is_driven_as_jj": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_git_repository_reports_its_root_name_and_revision": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_git_repository_with_no_commits_has_no_revision": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_secondary_jj_workspace_roots_at_its_own_marker": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "a_worktree_whose_git_marker_is_a_file_is_recognised": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "the_walk_finds_the_root_from_a_nested_directory": {
+          "kind": "test",
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    }
+  }
+}

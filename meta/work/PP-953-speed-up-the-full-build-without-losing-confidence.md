@@ -12,7 +12,7 @@ blocks: ["work-item:PP-961"]
 relates_to: ["work-item:PP-961"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "ci"]
-last_updated: "2026-11-03T13:24:09+00:00"
+last_updated: "2026-11-18T13:28:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-953"
@@ -77,12 +77,14 @@ Decomposition:
 - 0363: Remove repeated work from the Rust test lanes (A2, A3; A4 shipped
   separately)
 - 0364: Parallelise the serial test suites (A5, A6)
-- 0365: Build the VCS fixture matrix once per test run (B1)
+- 0365: Build the VCS test fixtures once per test run (B1, plus the
+  status-log state set)
 - 0366: Cut Rust compile cost (B2, B5)
 - 0367: Stop rebuilding unchanged inputs (B3, B4, B6)
 - 0368: Build-performance measurement and host guidance (C1, C2)
 - 0370: Measure and cite the macOS host settings' effect on the build
   (C2, split from 0368)
+- 0391: Shorten the guarded-resume migration tests (split from 0365)
 
 ## Acceptance Criteria
 
@@ -160,4 +162,4 @@ must report no differing condition.
 ## References
 
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
-- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369, 0370
+- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369, 0370, 0391

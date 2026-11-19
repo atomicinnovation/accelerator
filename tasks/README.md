@@ -79,6 +79,36 @@ The `lint:<language>` task naming requested by work item 0098 is satisfied by
 these `<component>:check` roll-ups, and its aggregate `lint` / `format`
 acceptance criteria by the family aggregates above.
 
+### Task options
+
+A test lane that takes `--filter` (or any other option) declares it in two
+places and forwards it between them:
+
+- Declare the flag in the mise task's `usage`, e.g.
+  `flag "--filter <filterset>" help="…"`. mise names the variable after the
+  flag's long name (`usage_filter`), not after its value placeholder.
+- Forward it with `${usage_filter+--filter "$usage_filter"}`. mise leaves the
+  variable unset when the flag is absent, so this set (not non-empty) form
+  passes `--filter ''` through to the task, which refuses it, rather than
+  silently running everything. The form survives values holding a space, `&`
+  or `'`.
+- Declare the option on the invoke task, with a trailing underscore when its
+  name is a Python builtin: invoke maps a `filter_` parameter to `--filter`.
+  Give it the same help as the mise flag.
+- Build the `Selection` through `selection_from(filter_)` in
+  `tasks/test/filters.py`, which turns an empty expression into a one-line
+  `Exit`. Every lane's tests include a `filter_=""` case.
+
+Once a task's `usage` declares a flag or argument, mise refuses any
+undeclared word (exit 1) before running anything, instead of appending it
+to `run`, and a task's `depends` never receive the flag. A `usage` holding
+only metadata (`about`, `long_about`) or nothing does not count. A roll-up
+that has only `depends` and no `run` (`test:unit`, `test:integration`,
+`test:e2e`, `test`) therefore ignores extra arguments silently:
+`mise run test:unit --filter x` runs the whole roll-up unfiltered. Each of
+those roll-ups says so in its description, which `mise tasks` shows. A mise bump must re-check that `usage_<name>` is still
+named after the flag's long name and still unset when the flag is absent.
+
 ### Surviving thin shell
 
 The shell surface is two thin-wrapper files, enumerated in
@@ -217,6 +247,85 @@ What enforces the port's invariants continuously is each provider client's
 `tests/contract_offline.rs`, which runs the same conformance properties
 against a mock server in the default profile. This lane is the live-tenant
 assurance beside it, and what proves it ran is the committed evidence file.
+
+### Shared VCS fixtures
+
+`test:unit:cli` builds the VCS fixture matrix once per run and hands it to
+every test that needs it, rather than letting each test build its own. Before
+nextest's test phase it compiles the workspace tests with the same arguments
+nextest uses (so nextest compiles nothing afterwards, and the task fails if
+it does), finds the `shared-fixtures` bin in that build's unit listing and
+runs it once. Under coverage the bin runs in the instrumented environment, so
+the builder code it exercises still counts towards the floor.
+
+The trees live under one root per user,
+`<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
+is the resolved system temp directory: `<run-id>.lock` beside
+`<run-id>/{matrix,workbenches}/`. A run holds an `flock` on its lock for its
+lifetime, and each run starts by sweeping the directories of runs whose lock
+nobody holds, so a killed run's leftovers go on the next run. The root is
+refused if it is a symlink, not a directory, owned by someone else, writable
+by group or world, or inside a checkout; move it aside and the next run
+recreates it.
+
+The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`, the
+directory tests open their workbenches under through
+`ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
+`ACCELERATOR_FIXTURE_LOG`. The task owns all three: never export them, and an
+exported value never reaches the run. Every build, adoption and private
+build is logged to `cli/target/vcs-fixture-logs/<run-id>.jsonl`, which
+outlives the run (the newest 20 are kept). When the run ends, pass or fail,
+the task digests each tree again, removes the run's directory and prints the
+fixture summary, which names the log and the resolved root.
+
+The task seals each tree read-only once it is built, so a test that writes
+into one fails at the write. The run also fails when a shared tree changed
+during the run anyway, when a test built a shared family privately, or when
+the log disagrees with the consumer list in
+`tasks/shared/shared_fixtures/consumers.py`.
+
+To use the matrix in a test:
+
+```rust
+let workbench = Workbench::for_this_test()?;
+let matrix = workbench.matrix()?;
+```
+
+- Treat the matrix as read-only, and write any scratch files under
+  `workbench.path()`.
+- Open the workbench with `Workbench::for_this_test()`, never
+  `Workbench::with`: an explicit hand-over hides the test's builds from the
+  run's log, and a guard (`tests/unit/tasks/test_fixture_builds.py`) refuses
+  it outside the files that test the workbench itself.
+- A test binary that uses the matrix for the first time goes in `CONSUMERS`
+  in `tasks/shared/shared_fixtures/consumers.py`, with the families it
+  consumes. Until it does, the run fails naming the binary and that file.
+
+A failing shared build stops the lane before any test runs. Fixture builds
+are deterministic and the builder's error names the family and its cause, so
+running the rest of the suite would add a partial flow for little gain. To
+see the other tests while diagnosing, run `cargo nextest run` directly: with
+nothing handed over, each test builds its own fixtures and logs nothing.
+
+`mise run test:unit:cli --filter '<filterset>'` lists the selected tests with
+`cargo nextest list` first, then builds only the families whose consumer
+binaries have a selected test, and skips the coverage report, sweep and
+floor. A filter that selects no test, or that nextest cannot parse, fails
+before anything is built.
+
+A nextest bump must re-check that nextest still sets `NEXTEST_BINARY_ID` and
+`NEXTEST_TEST_NAME` for every test, because every event's test and binary
+come from them, and must recapture
+`tests/unit/tasks/fixtures/shared-fixtures/nextest-list.json` (and its
+`.version`), because filtered runs read that listing's schema.
+
+Two switches exist only as fault injection for checking the build step by
+hand. Neither is for CI.
+
+| Variable | Effect |
+|---|---|
+| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix`) without building it; any other value is refused. |
+| `ACCELERATOR_SHARED_FIXTURES_HOLD` | A directory: after the build step the task writes `held` there and waits up to 30 minutes for `release`. Refused when `CI` is set. |
 
 ### The gix/jj-lib link-ratio guard
 
