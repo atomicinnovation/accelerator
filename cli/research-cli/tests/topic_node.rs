@@ -325,6 +325,38 @@ fn a_pair_spawn_ref_is_refused() -> Result<(), TestError> {
     Ok(())
 }
 
+fn malformed_run(text: &str) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_RUN: --run must be 1 to 64 letters, digits, '_' \
+         or '-', got '{text}'"
+    )
+}
+
+#[test]
+fn a_malformed_run_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    budgeted_run(&project)?;
+
+    assert_exits_1(
+        &project.node("bad run!", "03-a-web:2-1")?,
+        &malformed_run("bad run!"),
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_run_is_refused_before_a_malformed_node() -> Result<(), TestError>
+{
+    let project = node_query_set()?;
+    budgeted_run(&project)?;
+
+    assert_exits_1(
+        &project.node("bad run!", "03-a-web")?,
+        &malformed_run("bad run!"),
+    );
+    Ok(())
+}
+
 #[test]
 fn the_query_writes_nothing() -> Result<(), TestError> {
     let project = node_query_set()?;
