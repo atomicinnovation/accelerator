@@ -98,10 +98,10 @@ fn build_ahead_behind_states(
         ],
         work,
     )?;
+    env.git(&["remote", "set-url", "origin", "../seed"], &origin)?;
     let origin = origin.to_str().ok_or_else(|| non_utf8(&origin))?;
 
-    let git_ahead = work.join("git-ahead");
-    env.git(&["clone", "-q", origin, "git-ahead"], work)?;
+    let git_ahead = clone_of_origin(work, env, origin, "git-ahead")?;
     fs::write(git_ahead.join("g.txt"), "2\n")?;
     env.git(&["add", "g.txt"], &git_ahead)?;
     env.git(&["commit", "--quiet", "-m", "commit-2"], &git_ahead)?;
@@ -110,8 +110,7 @@ fn build_ahead_behind_states(
     env.git(&["commit", "--quiet", "-m", "commit-3"], &git_ahead)?;
     states.insert("git-ahead", git_ahead);
 
-    let git_behind = work.join("git-behind");
-    env.git(&["clone", "-q", origin, "git-behind"], work)?;
+    let git_behind = clone_of_origin(work, env, origin, "git-behind")?;
     fs::write(seed.join("i.txt"), "4\n")?;
     env.git(&["add", "i.txt"], &seed)?;
     env.git(&["commit", "--quiet", "-m", "commit-4"], &seed)?;
@@ -119,6 +118,30 @@ fn build_ahead_behind_states(
     states.insert("git-behind", git_behind);
 
     Ok(())
+}
+
+/// Clones `origin` as `name` beneath `work`, recording neither the clone's
+/// reflog entry nor its URL as the absolute path it was cloned from.
+fn clone_of_origin(
+    work: &Path,
+    env: &Hermetic,
+    origin: &str,
+    name: &str,
+) -> Result<PathBuf, Error> {
+    env.git(
+        &[
+            "-c",
+            "core.logAllRefUpdates=false",
+            "clone",
+            "-q",
+            origin,
+            name,
+        ],
+        work,
+    )?;
+    let clone = work.join(name);
+    env.git(&["remote", "set-url", "origin", "../origin.git"], &clone)?;
+    Ok(clone)
 }
 
 fn build_jj_states(
@@ -150,19 +173,11 @@ fn build_jj_states(
     let jj_main = work.join("jj-secondary-main");
     fs::create_dir_all(&jj_main)?;
     env.jj(&["git", "init", "--no-colocate"], &jj_main)?;
-    let jj_secondary = work.join("jj-secondary");
     env.jj(
-        &[
-            "workspace",
-            "add",
-            "--quiet",
-            jj_secondary
-                .to_str()
-                .ok_or_else(|| non_utf8(&jj_secondary))?,
-        ],
+        &["workspace", "add", "--quiet", "../jj-secondary"],
         &jj_main,
     )?;
-    states.insert("jj-secondary", jj_secondary);
+    states.insert("jj-secondary", work.join("jj-secondary"));
 
     Ok(())
 }
@@ -455,9 +470,8 @@ pub fn build_adversarial_state(
     env.git(&["add", "tracked.dat"], &adversarial)?;
     env.git(&["commit", "--quiet", "-m", "init"], &adversarial)?;
 
-    let hooks = adversarial.join("hostile-hooks");
-    fs::create_dir_all(&hooks)?;
-    let hooks_path = hooks.to_str().ok_or_else(|| non_utf8(&hooks))?;
+    let hooks_path = "hostile-hooks";
+    fs::create_dir_all(adversarial.join(hooks_path))?;
     for (key, value) in [
         ("core.fsmonitor", "/nonexistent/fsmonitor-hook"),
         ("filter.evil.process", "/nonexistent/evil-process"),
