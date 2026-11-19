@@ -14,6 +14,7 @@ tags: ["sync", "sync-work-items", "skill", "unknown-recipe"]
 last_updated: "2026-11-16T11:17:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-964"
 ---
 # 0373: Sync Skill Reports Complete for an Item That Needs an Upgrade
 

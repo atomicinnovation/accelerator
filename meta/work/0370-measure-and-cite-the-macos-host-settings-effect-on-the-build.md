@@ -16,6 +16,7 @@ tags: ["build-system", "performance", "documentation", "macos"]
 last_updated: "2026-11-02T11:40:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-962"
 ---
 
 # 0370: Measure and cite the macOS host settings' effect on the build

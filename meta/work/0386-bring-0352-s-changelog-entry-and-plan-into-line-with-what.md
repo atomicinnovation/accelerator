@@ -14,6 +14,7 @@ tags: ["sync", "changelog", "documentation"]
 last_updated: "2026-11-16T11:25:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-977"
 ---
 # 0386: Bring 0352's CHANGELOG Entry and Plan Into Line With What Shipped
 

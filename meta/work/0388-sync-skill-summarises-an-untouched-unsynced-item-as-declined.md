@@ -15,6 +15,7 @@ tags: ["sync", "sync-work-items", "skill"]
 last_updated: "2026-11-16T11:25:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-979"
 ---
 # 0388: Sync Skill Summarises an Untouched Unsynced Item as Declined
 

@@ -16,6 +16,7 @@ tags: ["build-system", "performance", "testing", "ci"]
 last_updated: "2026-11-10T16:24:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-954"
 ---
 
 # 0362: Make the bootstrap test suites fast and hermetic

@@ -15,6 +15,7 @@ tags: ["build-system", "performance", "ci"]
 last_updated: "2026-11-03T13:24:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-953"
 ---
 
 # 0361: Speed up the full build without losing confidence

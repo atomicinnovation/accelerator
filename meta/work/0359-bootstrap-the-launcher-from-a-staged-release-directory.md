@@ -14,6 +14,7 @@ tags: ["bootstrap", "cache", "offline"]
 last_updated: "2026-10-27T18:01:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-951"
 ---
 # 0359: Bootstrap the Launcher from a Staged Release Directory
 

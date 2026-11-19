@@ -15,6 +15,7 @@ last_updated: "2026-10-27T19:12:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 relates_to: ["adr:ADR-0075"]
+external_id: "PP-949"
 ---
 # 0357: Pin the Launcher Digest in the Plugin Tree
 

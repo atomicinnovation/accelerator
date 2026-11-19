@@ -14,6 +14,7 @@ tags: ["sync", "architecture", "adr"]
 last_updated: "2026-11-16T11:17:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-966"
 ---
 # 0375: Record the Sync Pipeline Architecture as an ADR
 

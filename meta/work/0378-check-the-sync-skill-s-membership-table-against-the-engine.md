@@ -15,6 +15,7 @@ tags: ["sync", "sync-work-items", "skill", "tests"]
 last_updated: "2026-11-16T11:17:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-969"
 ---
 # 0378: Check the Sync Skill's Membership Table Against the Engine's Row Shapes
 

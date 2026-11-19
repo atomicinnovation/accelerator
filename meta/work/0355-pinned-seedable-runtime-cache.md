@@ -13,6 +13,7 @@ tags: ["distribution", "runtime", "cache", "security", "offline"]
 last_updated: "2026-10-27T19:31:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-947"
 ---
 # 0355: Pinned, Seedable Runtime Cache
 

@@ -15,6 +15,7 @@ tags: ["cli", "launcher", "bootstrap", "cache", "multi-user", "security", "nfs"]
 last_updated: "2026-10-21T18:42:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-945"
 ---
 # 0341: Use a Group-Shared Cache Root Safely
 

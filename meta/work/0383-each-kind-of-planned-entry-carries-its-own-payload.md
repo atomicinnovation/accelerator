@@ -15,6 +15,7 @@ tags: ["sync", "work", "public-api", "architecture"]
 last_updated: "2026-11-16T11:17:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-974"
 ---
 # 0383: Each Kind of Planned Entry Carries Its Own Payload
 
