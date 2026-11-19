@@ -17,6 +17,7 @@ schema_version: 1
 external_id: "PP-968"
 aliases: ["0377"]
 ---
+
 # PP-968: Pin the Sync Stdout Row Contract Through the Binary
 
 **Kind**: Task
@@ -48,16 +49,16 @@ settled id.
 
 Whole-stdout equality tests in `cli/work-cli/tests/cli_sync.rs` for:
 
-- An apply run that creates one item and leaves another untouched.
-- An apply run whose create fails.
-- A preview and an apply with an adopt order.
-- A refused order beside its item's `noop` row, on a draft and under
+* An apply run that creates one item and leaves another untouched.
+* An apply run whose create fails.
+* A preview and an apply with an adopt order.
+* A refused order beside its item's `noop` row, on a draft and under
   `--pull-only`.
-- A run with an import, a plan row and a create together, fixing their
+* A run with an import, a plan row and a create together, fixing their
   order.
-- A run with an identity row beside the engine row for the same settled id.
-- An unclassifiable item.
-- An unsynced item with an unknown-recipe entry under `--pull-only`.
+* A run with an identity row beside the engine row for the same settled id.
+* An unclassifiable item.
+* An unsynced item with an unknown-recipe entry under `--pull-only`.
 
 ## Acceptance Criteria
 
@@ -68,33 +69,38 @@ Whole-stdout equality tests in `cli/work-cli/tests/cli_sync.rs` for:
 
 ## Open Questions
 
-- Should stderr be compared whole as well, for the cases that print a
+* Should stderr be compared whole as well, for the cases that print a
   warning or an `error:` line?
 
 ## Dependencies
 
-- Blocked by: 0352 (PR #188) merging.
-- Blocks: 0378, 0379.
+* Blocked by: 0352 (PR #188) merging.
+* Blocks: 0378, 0379.
 
 ## Assumptions
 
-- These are characterisation tests: they record current behaviour,
+* These are characterisation tests: they record current behaviour,
   including behaviour a later item changes on purpose.
 
 ## Technical Notes
 
-- 0351 changes what a preview prints for a create whose pending-push marker
-  would be refused. Whichever lands second updates the other's expectations.
+* 0351 (PR #234) lands first, so this item pins its new preview row. A
+  create with no `--resolve` order whose pending-push marker the run would
+  refuse now previews as the run reports it: the row
+  `<id>\tfailed\tunsynced\tterminal`, the stderr line
+  `error: <id>: create would fail: pending push refused (<reason>): …`, and
+  exit 71. Pin it with a preview of an unsynced item that has an `Attempted`
+  marker, beside the apply run on the same fixture.
 
 ## Drafting Notes
 
-- Placed before the structural stories so that "stdout unchanged" in their
+* Placed before the structural stories so that "stdout unchanged" in their
   criteria is checkable.
 
 ## References
 
-- Source: PR #188 and its exploration record
+* Source: PR #188 and its exploration record
   (`.accelerator/tmp/explore-pr-188-context.md`)
-- Related: 0352, 0146
-- PR reviews: `meta/reviews/prs/188-review-1.md`,
+* Related: 0352, 0146
+* PR reviews: `meta/reviews/prs/188-review-1.md`,
   `meta/reviews/prs/188-review-2.md`

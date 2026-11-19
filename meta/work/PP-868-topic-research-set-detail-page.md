@@ -45,15 +45,15 @@ umbrella doc type and nested indexing.
 
 ## Requirements
 
-- Serve a set's sibling documents to the detail page — a new set endpoint or an
+* Serve a set's sibling documents to the detail page — a new set endpoint or an
   augmented `/api/docs/{path}` detail response (see Open Questions).
-- Read `manifest.md`'s `primary` pointer to choose the default sub-document
+* Read `manifest.md`'s `primary` pointer to choose the default sub-document
   (brief before a synthesis exists, synthesis after).
-- A topic-research library entry opens the set-level page linking to `brief.md`,
+* A topic-research library entry opens the set-level page linking to `brief.md`,
   `outline.md`, each finding, `synthesis.md`, and each report.
-- Prototype the set-level page in Claude Design and review it before
+* Prototype the set-level page in Claude Design and review it before
   implementation begins.
-- Group a focus area's findings together: since 0280 a focus area has one
+* Group a focus area's findings together: since 0280 a focus area has one
   finding per source profile, named `findings/<nn>-<question-slug>-<profile>.md`
   with a shared `<nn>`. Group them by their `question` and `source_profile`
   frontmatter, not by filename, so legacy `<nn>-<slug>.md` findings from
@@ -61,28 +61,29 @@ umbrella doc type and nested indexing.
   each finding's profile, and read an outline item's `— profiles: …` suffix
   (absent means `web`) as the focus area's assigned profiles, including those
   not yet researched, accepting `—`, `–`, and `--` alike before `profiles:`.
-- Render each source's reputation tier (`tier-1`/`tier-2`/`tier-3`) and its
+* Render each source's reputation tier (`tier-1`/`tier-2`/`tier-3`) and its
   recorded domain or venue as a distinct visual element wherever a finding,
   synthesis, or report lists Sources, for web and academic profiles alike,
   including the `(retracted)` and `(withdrawn)` suffixes 0280 appends to
   `tier-3`, and a `None found.` Sources section.
-- Show each report's `question`, and mark a report as stale when its
+* Show each report's `question`, and mark a report as stale when its
   `rounds_covered` is below the manifest's `round_count`.
-- Show each report's `coverage` (`answered` or `partial`) and render a
+* Show each report's `coverage` (`answered` or `partial`) and render a
   `partial` report's Gaps section, as 0281 defines them.
-- Render 0306's merged tier form (e.g. `tier-3 (also tier-1)`) as the
+* Render 0306's merged tier form (e.g. `tier-3 (also tier-1)`) as the
   weakest tier with the other tiers marked as a distinct element, including
   the semicolon-joined forms that combine it with `retracted` or
   `withdrawn`.
-- Parse tier text as a base tier and an optional parenthesised suffix of
+* Parse tier text as a base tier and an optional parenthesised suffix of
   `; `-separated parts, the last of which may be an `also` list separated by
   `, `, so findings written before and after 0306 both render. Render a
   source listed twice as two entries: depth-1 and pre-0306 findings, and a
   dossier whose composer dropped a linking URL, can carry one.
-- The tier-text grammar has one owner in `cli/`, a parser whose test cases
-  are the citing-once rule's examples. The visualiser renders what it
-  returns, and 0281's `report` and `ask` reuse it when they parse tier text.
-- Treat 0348's optional source metadata block, the nested `key: value` list
+* The tier-text grammar has one owner in `cli/`, a parser whose test cases
+  are the citing-once rule's examples, and the visualiser renders what it
+  returns. 0281's `report` and `ask`, which land first, read tier text
+  through the citing-once rule instead, as `synthesise` does.
+* Treat 0348's optional source metadata block, the nested `key: value` list
   under a Sources entry, as part of the entry above it.
 
 ## Acceptance Criteria
@@ -128,7 +129,7 @@ umbrella doc type and nested indexing.
 
 ## Open Questions
 
-- Set-document API shape (planning-time): does the detail page get a new endpoint
+* Set-document API shape (planning-time): does the detail page get a new endpoint
   that lists a research set's sub-documents, or does the existing
   `/api/docs/{path}` detail response get augmented to include siblings? Both are
   viable; decide during this slice's planning. This is the epic's one still-open
@@ -136,47 +137,46 @@ umbrella doc type and nested indexing.
 
 ## Dependencies
 
-- Blocked by: 0278 (umbrella doc type + nested indexing — recorded on 0278's
+* Blocked by: 0278 (umbrella doc type + nested indexing — recorded on 0278's
   `blocks`), 0279 (round/focus-area structure the page shows — recorded on
   0279's `blocks`), 0281 (the `report` kind and `reports/` layout — recorded
   on 0281's `blocks`), including its `coverage` extra and Gaps section.
-- Related: 0306 adds the `also` tier suffix; this page renders it once 0306
+* Related: 0306 adds the `also` tier suffix; this page renders it once 0306
   lands, and until then no Sources entry carries it.
-- Related: 0348 adds the optional source metadata block under Sources
+* Related: 0348 adds the optional source metadata block under Sources
   entries; until it lands, no entry carries one.
-- Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
+* Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
   the tier suffixes this page consumes. If this page is built before 0280 lands,
   0280 owns updating it.
-- Related: 0283 adds `findings/<stem>.levels/` directories of `kind:
-  level-note` documents; the page enumerates only top-level `<nn>-*.md`
+* Related: 0283 adds `findings/<stem>.levels/` directories of `kind: level-note` documents; the page enumerates only top-level `<nn>-*.md`
   findings and excludes level notes.
 
 ## Assumptions
 
-- Deferral leaves the other slices shippable, but only on disk: the indexer
+* Deferral leaves the other slices shippable, but only on disk: the indexer
   creates one entry per set, keyed on `manifest.md`, so the shared
   `LibraryDocView` renders the manifest alone and no route reaches a set's
   sub-documents until this page lands.
 
 ## Technical Notes
 
-- Unlike other doc types, `topic-research` needs this bespoke set-level detail
+* Unlike other doc types, `topic-research` needs this bespoke set-level detail
   page rather than the shared `LibraryDocView`.
 
 ## Drafting Notes
 
-- This is the epic-level descope candidate — the only slice whose deferral leaves
+* This is the epic-level descope candidate — the only slice whose deferral leaves
   the others fully shippable.
-- Multi-finding layout and tier suffixes added (2026-09-23) after 0280's review
+* Multi-finding layout and tier suffixes added (2026-09-23) after 0280's review
   made a finding one per (focus area, source profile).
-- Tier rendering moved here from 0280 (2026-09-22); until this page lands,
+* Tier rendering moved here from 0280 (2026-09-22); until this page lands,
   tiers remain readable as literal `— tier-N —` text in the shared
   `LibraryDocView`, so a deferral still leaves them legible.
-- Extracted from source documents without interactive enrichment. Acceptance
+* Extracted from source documents without interactive enrichment. Acceptance
   criteria, dependencies, and kind may need refinement before promoting from
   `draft` to `ready`.
 
 ## References
 
-- Source: `meta/work/PP-22-topic-research-skillset.md` (Slice 6)
-- Parent epic: 0121
+* Source: `meta/work/PP-22-topic-research-skillset.md` (Slice 6)
+* Parent epic: 0121
