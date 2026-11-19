@@ -11,6 +11,7 @@ pub mod fixtures;
 pub mod handover;
 pub mod hermetic;
 pub mod jj_status;
+pub mod manifest;
 pub mod masks;
 pub mod status_log;
 pub mod stubs;

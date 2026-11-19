@@ -15,17 +15,18 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 
+use crate::family::Family;
 use crate::hermetic::assert_git_is_recent_enough;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::manifest::Manifest;
+use crate::workbench::PrivateBuild;
+use crate::workbench::SharedFamily;
 use crate::Error;
 
 /// Names the root of a matrix built by an earlier step, for a caller that
 /// cannot build one itself.
 pub const MATRIX_ROOT_VARIABLE: &str = "ACCELERATOR_ZERO_SPAWN_MATRIX";
-
-/// Written beside the fixtures so a later process can adopt them.
-const MANIFEST: &str = "fixtures.tsv";
 
 /// One (fixture, start directory) pair from the matrix.
 #[derive(Debug, Clone)]
@@ -107,55 +108,29 @@ impl Matrix {
     ///
     /// When the manifest is unreadable or malformed, or a builder fails.
     pub fn build_or_adopt(base: &Path) -> Result<Self, Error> {
-        if base.join(MANIFEST).is_file() {
+        if base.join("fixtures.tsv").is_file() {
             return Self::adopt(base);
         }
         let built = Self::build_in(base)?;
-        built.persist()?;
+        Manifest {
+            fixtures: built.fixtures.clone(),
+        }
+        .write(&built.base)?;
         Ok(built)
     }
 
-    fn persist(&self) -> Result<(), Error> {
-        let mut manifest = String::new();
-        for fixture in &self.fixtures {
-            writeln!(
-                manifest,
-                "{}\t{}\t{}",
-                fixture.key,
-                fixture.shape,
-                fixture.start.display()
-            )
-            .map_err(|error| Error::message(error.to_string()))?;
-        }
-        fs::write(self.base.join(MANIFEST), manifest)?;
-        Ok(())
-    }
-
-    fn adopt(base: &Path) -> Result<Self, Error> {
-        let base = base.canonicalize()?;
-        let manifest = fs::read_to_string(base.join(MANIFEST))?;
-        let mut fixtures = Vec::new();
-        for line in manifest.lines() {
-            let mut fields = line.split('\t');
-            let (Some(key), Some(shape), Some(start), None) =
-                (fields.next(), fields.next(), fields.next(), fields.next())
-            else {
-                return Err(Error::message(format!(
-                    "malformed fixture manifest line: {line}"
-                )));
-            };
-            fixtures.push(Fixture {
-                key: key.to_owned(),
-                shape: shape.to_owned(),
-                start: PathBuf::from(start),
-            });
-        }
-        if fixtures.is_empty() {
-            return Err(Error::message(format!(
-                "the fixture manifest at {} is empty",
-                base.display()
-            )));
-        }
+    /// Takes over a matrix already built beneath `base`, from its manifest.
+    ///
+    /// Adoption runs neither `git` nor `jj`.
+    ///
+    /// # Errors
+    ///
+    /// When `base` is missing, or its manifest is missing, malformed or empty.
+    pub fn adopt(base: &Path) -> Result<Self, Error> {
+        let base = base.canonicalize().map_err(|error| {
+            Error::message(format!("{}: {error}", base.display()))
+        })?;
+        let Manifest { fixtures } = Manifest::read(&base)?;
         Ok(Self { base, fixtures })
     }
 
@@ -165,18 +140,31 @@ impl Matrix {
     ///
     /// When `base` lies inside a repository, or any builder fails.
     pub fn build_in(base: &Path) -> Result<Self, Error> {
-        assert_git_is_recent_enough()?;
         assert_no_repository_ancestor(base)?;
         let base = base.canonicalize()?;
         let env = Hermetic::rooted_at(&base)?;
-        let parents = build_parents(&base, &env)?;
+        Self::build_with(&base, &env)
+    }
+
+    /// Builds every fixture beneath `base` with `env`.
+    ///
+    /// # Errors
+    ///
+    /// When `git` is too old, or any builder fails.
+    pub(crate) fn build_with(
+        base: &Path,
+        env: &Hermetic,
+    ) -> Result<Self, Error> {
+        assert_git_is_recent_enough()?;
+        let base = base.canonicalize()?;
+        let parents = build_parents(&base, env)?;
 
         let mut builder = Builder::default();
-        add_git_shapes(&mut builder, &base, &env, &parents)?;
-        add_jj_shapes(&mut builder, &base, &env, &parents)?;
-        add_nested_shapes(&mut builder, &base, &env, &parents)?;
-        add_submodule_shapes(&mut builder, &base, &env, &parents)?;
-        add_format_shapes(&mut builder, &base, &env)?;
+        add_git_shapes(&mut builder, &base, env, &parents)?;
+        add_jj_shapes(&mut builder, &base, env, &parents)?;
+        add_nested_shapes(&mut builder, &base, env, &parents)?;
+        add_submodule_shapes(&mut builder, &base, env, &parents)?;
+        add_format_shapes(&mut builder, &base, env)?;
         add_degenerate_shapes(&mut builder, &base)?;
 
         Ok(Self {
@@ -196,6 +184,22 @@ impl Matrix {
             .find(|fixture| fixture.key == key)
             .map(|fixture| fixture.start.as_path())
             .ok_or_else(|| Error::message(format!("no fixture keyed {key}")))
+    }
+}
+
+impl SharedFamily for Matrix {
+    const FAMILY: Family = Family::Matrix;
+
+    fn adopt(tree: &Path) -> Result<Self, Error> {
+        Self::adopt(tree)
+    }
+
+    fn build_privately(
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        Self::build_with(directory, hermetic)
     }
 }
 

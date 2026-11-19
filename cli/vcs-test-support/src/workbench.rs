@@ -17,6 +17,7 @@ use tempfile::TempDir;
 use crate::family::Family;
 use crate::family::Fixtures;
 use crate::fixture_log::Event;
+use crate::fixtures::Matrix;
 use crate::handover::Handover;
 use crate::handover::SHARED_WORKBENCHES_VARIABLE;
 use crate::hermetic::assert_no_repository_ancestor;
@@ -187,6 +188,13 @@ impl Workbench {
             fixture,
             workbench: PhantomData,
         })
+    }
+
+    /// # Errors
+    ///
+    /// As [`Self::shared`].
+    pub fn matrix(&self) -> Result<Fixture<'_, Matrix>, Error> {
+        self.shared::<Matrix>()
     }
 
     fn refuse_a_second(&self, requested: Fixtures) -> Result<(), Error> {
