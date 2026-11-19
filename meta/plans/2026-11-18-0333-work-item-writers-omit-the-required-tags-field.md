@@ -5,7 +5,7 @@ title: "Work Item Writers Omit the Required Tags Field Implementation Plan"
 date: "2026-11-18T18:37:06+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0333"
 parent: "work-item:0333"
 derived_from: ["codebase-research:2026-11-18-0333-work-item-writers-omit-the-required-tags-field"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0332"]
 tags: ["work", "work-cli", "migrate", "frontmatter", "create-work-item", "extract-work-items", "sync-work-items"]
 revision: "d0e5bf7340d9fd4798b94938b2bf2ce1dfce8f9f"
 repository: "accelerator"
-last_updated: "2026-11-18T23:47:08+00:00"
+last_updated: "2026-11-19T00:36:27+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -504,32 +504,58 @@ Keep every passage within the 80-column wrap.
 >   `/accelerator:migrate` (migration 0012) to repair items already written
 >   without it.
 
+#### 9. Re-run the evals the rewording reaches
+
+**Files**: `skills/work/create-work-item/evals/benchmark.json`,
+`skills/work/create-work-item/evals/benchmark.md`,
+`skills/work/extract-work-items/evals/benchmark.json`
+**Changes**: `tests/unit/tasks/test_work_skill_benchmarks.py` fails for a
+work skill whose `SKILL.md` or `evals.json` has changed since its
+benchmark's `skill_digest` was recorded, so §7 needs evals re-run. This
+was found during implementation; the plan did not anticipate it.
+- Re-run with_skill the evals whose runs pass through the reworded text:
+  - `/create-work-item` 7 (draft frontmatter), 12 (a full local write)
+    and 40 (both creates, with no tags or parent);
+  - `/extract-work-items` 8 and 11 (manifest entries).
+- Executors are barred from the evals and benchmark files and simulate
+  every `accelerator` call. Separate graders judge each expectation from
+  the outputs alone.
+- Replace each re-run eval's with_skill run, record the new
+  `skill_digest` on those runs and in `metadata`, and add a dated note to
+  each benchmark (and to `/create-work-item`'s `benchmark.md`). Keep each
+  file's existing JSON escaping, so unrelated lines don't churn.
+
+All five passed in full.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] The `work` unit tests fail before the fix and pass after:
+- [x] The `work` unit tests fail before the fix and pass after:
       `cargo nextest run --manifest-path cli/Cargo.toml -p work -E 'test(/writes_empty_tags_and_omits_empty_linkage|writes_every_field_the_schema_requires/)'`
-- [ ] The `empty_tags` tests fail before the fix and pass after:
+- [x] The `empty_tags` tests fail before the fix and pass after:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-work -E 'test(/empty_tags/)'`
-- [ ] The characterisation pins pass before and after the fix:
+- [x] The characterisation pins pass before and after the fix:
       `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-work -E 'test(/(^|::)(tags_follow_the_linkage|a_tagged_entry_writes|typed_linkage_is_populated)/)'`
       The patterns are anchored at the start of the test name, so
       `an_untagged_entry_…` (a red test) is not selected.
-- [ ] The skill population guard still accepts the reworded passage:
+- [x] The skill population guard still accepts the reworded passage:
       `uv run pytest tests/unit/tasks/test_skill_frontmatter_population.py`
-- [ ] The CLI workspace suite passes: `mise run test:unit:cli`
-- [ ] Format and lint pass: `mise run cli:check`
-- [ ] The `work` public API is unchanged: `mise run public-api:check`
-- [ ] The full local CI mirror passes: `mise run`
+- [x] Both reworded skills' benchmarks record their current digest, and
+      every `/create-work-item` eval passes in full:
+      `uv run pytest tests/unit/tasks/test_work_skill_benchmarks.py`
+- [x] The CLI workspace suite passes: `mise run test:unit:cli`
+- [x] Format and lint pass: `mise run cli:check`
+- [x] The `work` public API is unchanged: `mise run public-api:check`
+- [x] The full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] In a scratch repository,
+- [x] In a scratch repository,
       `accelerator work create "Example" story medium` writes `tags: []` on
       the line before `last_updated`, and
       `accelerator corpus frontmatter validate --file <path>` exits 0.
-- [ ] Both SKILL.md passages, and both Quality Guidelines bullets, read
+- [x] Both SKILL.md passages, and both Quality Guidelines bullets, read
       correctly in context and make no claim that `tags` is omitted, or
       that `parent` or `external_id` is written empty.
 
