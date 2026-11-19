@@ -518,6 +518,15 @@ Planning answers each of these:
   The build step took 5.0–5.7 s, the first digest 0.1 s, and the second
   digest and removal 0.3 s each. The record is noisy: idle load was
   46.9%, and the IDE used 271 s of CPU against the baseline's 128 s.
+- Status-log shared build cost (2026-11-19, engywook, not idle: load
+  average 27–29 on 16 cores, IDE and other workspaces busy; three runs
+  each, debug build, `States::build_in` timed in-process and the
+  `shared-fixtures` bin for the matrix). The status-log set alone took
+  2.4–3.2 s (median 2.4 s); the matrix alone 3.5–4.5 s (median 3.55 s).
+  Built together, the status-log set took 2.8–3.4 s and the matrix
+  3.75–4.3 s, so the build step's wall time is the matrix's, about 4 s,
+  inside the 5 s budget even under load. Neither family's groups need
+  building on scoped threads. An idle-host rerun is still owed.
 
 ## Drafting Notes
 

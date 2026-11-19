@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T09:21:18+00:00"
+last_updated: "2026-11-19T19:10:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2035,10 +2035,13 @@ builder.
   workspace store, record the workspace there in a form relative to the
   repository, or with a path jj writes itself, so that the test goes
   green.
-- **The manifest.** `Manifest` holds the matrix's `Fixture` rows (key,
-  shape, start), while the status-log set records a key and a path per
-  state. Widen it so both families write and read their manifest through
-  it, keeping the matrix's `fixtures.tsv` format unchanged.
+- **The manifest.** The matrix's manifest became `MatrixManifest` in
+  `matrix_manifest.rs` after Phase 3, holding only the matrix's rows (key,
+  shape, start). The status-log set records a key and a path per state, so
+  it gets its own `StatusLogManifest` in `status_log_manifest.rs`, beside
+  it, writing the unchanged `status-log-states.tsv`. `adopt` reads through
+  it. `tests/status_log_sharing.rs` starts here with its round-trip,
+  missing, malformed and empty cases; Phase 5 adds the `adopt` cases.
 - **The full-set builder.** Mirror the matrix's split (Phase 1's
   `build_with`, Phase 2's `build_in` and `build_for_sharing`). Extract from
   `States::build_or_adopt`:
@@ -2049,23 +2052,31 @@ builder.
   - `States::build_for_sharing(base)`, which creates `base` if missing,
     calls `build_in` and writes the manifest through `Manifest`.
 
-  Keep `build_or_adopt` and `states_root` until Phase 5.
+  Keep `build_or_adopt` and `states_root` until Phase 5; `build_or_adopt`
+  now adopts or calls `build_for_sharing`. `build_in` is `pub`, for the
+  path test; `build_with` and `build_for_sharing` are `pub(crate)` from
+  the start, as the matrix's are.
 - **Its cost.** A `States::build_for_sharing` run is timed on engywook when
   idle, alone and alongside a matrix build, and recorded in the work item.
   That decides, before Phase 5, whether the status-log set's groups need
   building on scoped threads (Performance Considerations).
 
+  *As measured (2026-11-19):* engywook was not idle (load 27–29). The
+  status-log set took a median 2.4 s alone; built alongside the matrix,
+  the step's wall time was the matrix's, about 4 s. Scoped threads are not
+  needed. An idle rerun is still owed.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] The status-log tests pass:
+- [x] The status-log tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support -p accelerator-vcs -p vcs-adapters`
-- [ ] Regenerating the goldens changes nothing:
+- [x] Regenerating the goldens changes nothing:
       `REGENERATE_GOLDENS=1 cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-vcs -E 'test(status_and_log_match_every_captured_state)'`,
       then `jj diff --stat cli/vcs-test-support/fixtures` is empty.
-- [ ] The cli checks pass: `mise run cli:check`
-- [ ] The full local run passes: `mise run`
+- [x] The cli checks pass: `mise run cli:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
