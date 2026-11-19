@@ -14,7 +14,7 @@ pr_number: 246
 tags: ["work", "work-cli", "migrate", "frontmatter"]
 revision: "86c53738847375fc7f4226560d6eab26eaa1ea50"
 repository: "accelerator"
-last_updated: "2026-11-19T19:16:49+00:00"
+last_updated: "2026-11-19T21:46:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -68,16 +68,24 @@ repair items already written without it.
   stderr with the fix it needs, when it:
   - is not UTF-8;
   - has frontmatter that doesn't parse;
+  - has frontmatter that parses but isn't a mapping;
   - already has a `tags` key spelled in a form the scanner misses (e.g.
     `"tags":`);
   - would have another field's value changed by the insertion.
-- It realigns the `/sync-work-items` baselines of the items it repairs, so
-  synced items stay `Synced` instead of reading as `LocallyModified` on the
-  next sync.
+- A `paths.work` outside the repository (such as one set in
+  `config.local.md`) is left alone with a warning that names the manual
+  fix, so later migrations still run.
+- It realigns the Jira, Linear and Shortcut `/sync-work-items` baselines of
+  the items it repairs, so synced items stay `Synced` instead of reading as
+  `LocallyModified` on the next sync.
+- Realignment is all or nothing: every baseline is read before any is
+  written, each is written once, and a failed write puts back those already
+  written (`cli/work-adapters/src/sync/realign.rs`, shared with 0008).
 - If a write or the realignment fails, it restores every item already
-  repaired. An item that changed after its repair is never overwritten; the
-  error names it and says to remove the one added line. The error then
-  walks through the recovery steps in order.
+  repaired, and counts only the items it actually restored. An item that
+  changed after its repair is never overwritten; the error names it and
+  says to remove the one added line. The error then walks through the
+  recovery steps in order.
 - The migration port gains `read_text`, a strict UTF-8 read returning
   `TextFile::Utf8 | NotUtf8`. The existing `read` decodes lossily, so
   writing its result back would turn invalid bytes into U+FFFD. The
@@ -85,7 +93,8 @@ repair items already written without it.
   context that hasn't implemented it fails loudly instead of looking like
   a missing file.
 - 0012 is registered after 0011, and every test that hard-codes the full
-  ledger is updated. The realignment docs in `ports.rs`,
+  ledger is updated. The 0010, 0011 and 0012 suites now build their ledger
+  from the registry instead. The realignment docs in `ports.rs`,
   `sync_baselines.rs` and `realign.rs` now describe any migration that
   rewrites work items, not just 0008's re-render.
 
@@ -96,7 +105,7 @@ repair items already written without it.
   list the keys that really are omitted when empty. The evals that pass
   through that text were re-run and their benchmarks re-recorded.
 - CHANGELOG entries are under `Fixed` (the writer) and `Migrations`
-  (0012).
+  (0012). The migrate skill now documents `--unapply`.
 - The work item, codebase research, plan, plan review and validation
   report for PP-886 (formerly 0333) are included. PP-886 is marked
   `done`.
@@ -154,6 +163,21 @@ onto its Linear identifier. The code is unchanged by the rebase; only
 
 ## Testing
 
+After responding to the first review:
+
+- [x] `mise run` exits 0 end to end: `test:unit:cli` 8,121 run, 8,121
+      passed (lines 94.36%), `test:unit:tasks` 4,845 passed, and every
+      integration suite passed.
+- [x] `accelerator-migrate` suite: 207 passed, including 16
+      `migration_0012` end-to-end tests (now also a Shortcut baseline, a
+      `paths.work` outside the repository, and a misread `last_updated`
+      inside a value).
+- [x] `work-adapters` `sync_realign`: 12 passed, including one write per
+      baseline, a failed second write putting the first baseline back
+      byte-identical, and a baseline that can't be put back being named.
+- [x] `/create-work-item` evals 12, 40 and 49 re-run with_skill after the
+      Step 5 rewording, graded separately: all pass in full.
+
 After rebasing onto the Linear re-key:
 
 - [x] `mise run check` passed.
@@ -165,7 +189,7 @@ After rebasing onto the Linear re-key:
 
 Before the rebase:
 
-- [x] `accelerator-migrate` suite: 204 passed, including the 14
+- [x] `accelerator-migrate` suite: 204 passed, including the 13
       `migration_0012` end-to-end tests (CRLF through the real YAML guard,
       non-UTF-8, quoted-`tags` and unparseable items left alone, baseline
       realignment, a sealed directory forcing a failed write that leaves
