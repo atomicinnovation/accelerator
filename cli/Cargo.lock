@@ -5474,6 +5474,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml",
+ "walkdir",
 ]
 
 [[package]]

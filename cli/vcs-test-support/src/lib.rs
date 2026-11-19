@@ -13,6 +13,7 @@ pub mod hermetic;
 pub mod jj_status;
 pub mod masks;
 pub mod matrix_manifest;
+pub mod path_scan;
 pub mod shared_build;
 pub mod status_log;
 pub mod stubs;
