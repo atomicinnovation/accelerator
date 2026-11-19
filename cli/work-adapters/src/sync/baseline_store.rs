@@ -49,14 +49,40 @@ impl<'a> BaselineStore<'a> {
     /// [`StoreError`] when the underlying read fails for a reason other
     /// than "the file does not exist".
     pub fn load(&self) -> Result<(Baseline, Degradation), StoreError> {
-        let content =
-            self.reader
-                .read(&self.path)
-                .map_err(|error| StoreError::Io {
-                    path: self.path.display().to_string(),
-                    detail: error.to_string(),
-                })?;
-        Ok(Baseline::read(content.as_deref()))
+        Ok(Baseline::read(self.snapshot()?.as_deref()))
+    }
+
+    /// The document's text exactly as stored, or `None` when there is none.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the underlying read fails for a reason other
+    /// than "the file does not exist".
+    pub fn snapshot(&self) -> Result<Option<String>, StoreError> {
+        self.reader
+            .read(&self.path)
+            .map_err(|error| StoreError::Io {
+                path: self.path.display().to_string(),
+                detail: error.to_string(),
+            })
+    }
+
+    /// Writes `baseline` as the whole document, in one write.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] on the write.
+    pub fn replace(&self, baseline: &Baseline) -> Result<(), StoreError> {
+        self.write_document(baseline)
+    }
+
+    /// Writes back text an earlier [`Self::snapshot`] returned.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] on the write.
+    pub fn put_back(&self, snapshot: &str) -> Result<(), StoreError> {
+        self.writer.write(&self.path, snapshot.as_bytes())
     }
 
     #[must_use]

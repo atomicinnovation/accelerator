@@ -17,6 +17,7 @@ use work::sync::LegacyHashes;
 use work::sync::SplitFingerprints;
 
 use crate::sync::baseline;
+use crate::sync::baseline::Baseline;
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::digest;
@@ -25,6 +26,10 @@ use crate::sync::digest;
 pub enum RealignError {
     Listing(std::io::Error),
     Baseline(StoreError),
+    LeftRealigned {
+        cause: StoreError,
+        left_realigned_baselines: Vec<PathBuf>,
+    },
 }
 
 impl fmt::Display for RealignError {
@@ -32,6 +37,21 @@ impl fmt::Display for RealignError {
         match self {
             Self::Listing(error) => error.fmt(formatter),
             Self::Baseline(error) => error.fmt(formatter),
+            Self::LeftRealigned {
+                cause,
+                left_realigned_baselines,
+            } => {
+                let named = left_realigned_baselines
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(
+                    formatter,
+                    "{cause}; could not put back the baselines already \
+                     realigned: {named}"
+                )
+            }
         }
     }
 }
@@ -55,6 +75,9 @@ impl std::error::Error for RealignError {}
 ///
 /// [`RealignError::Listing`] when `integrations_root` cannot be listed, and
 /// [`RealignError::Baseline`] when a baseline cannot be read or written.
+/// Every baseline is read before any is written, and a failed write puts
+/// back the baselines already written, so a failure leaves them as they
+/// were; [`RealignError::LeftRealigned`] names any it could not put back.
 pub fn realign_baselines(
     integrations_root: &Path,
     pre_migration: &[(PathBuf, String)],
@@ -70,7 +93,7 @@ pub fn realign_baselines(
         }
     }
 
-    let mut realigned = 0;
+    let mut pending = Vec::new();
     for entry in
         fs::read_dir(integrations_root).map_err(RealignError::Listing)?
     {
@@ -82,14 +105,19 @@ pub fn realign_baselines(
         let Some(dialect) = body_rules(&integration) else {
             continue;
         };
-        let baseline_path = baseline::path(integrations_root, &integration);
-        let writer = writer_at(&entry.path());
-        let store = BaselineStore::new(baseline_path, reader, writer.as_ref());
         let digester = BaselineDigester::new(dialect, parser);
-        realigned += realign_one_baseline(&store, &by_id, reader, &digester)
-            .map_err(RealignError::Baseline)?;
+        pending.extend(
+            Realignment::planned(
+                baseline::path(integrations_root, &integration),
+                writer_at(&entry.path()),
+                &by_id,
+                reader,
+                &digester,
+            )
+            .map_err(RealignError::Baseline)?,
+        );
     }
-    Ok(realigned)
+    apply_all_or_none(&pending, reader)
 }
 
 fn frontmatter_id(content: &str) -> Option<String> {
@@ -100,29 +128,86 @@ fn frontmatter_id(content: &str) -> Option<String> {
     (!id.is_empty()).then(|| id.to_owned())
 }
 
-fn realign_one_baseline(
-    store: &BaselineStore<'_>,
-    by_id: &HashMap<String, (&Path, &str)>,
+struct Realignment {
+    path: PathBuf,
+    writer: Box<dyn AtomicWrite>,
+    snapshot: String,
+    realigned: Baseline,
+    entries: usize,
+}
+
+impl Realignment {
+    fn planned(
+        path: PathBuf,
+        writer: Box<dyn AtomicWrite>,
+        by_id: &HashMap<String, (&Path, &str)>,
+        reader: &dyn FileReader,
+        digester: &BaselineDigester<'_>,
+    ) -> Result<Option<Self>, StoreError> {
+        let store = BaselineStore::new(path.clone(), reader, writer.as_ref());
+        let Some(snapshot) = store.snapshot()? else {
+            return Ok(None);
+        };
+        let (mut baseline, _) = Baseline::read(Some(&snapshot));
+        let mut entries = 0;
+        for (id, &(item, original)) in by_id {
+            let Some(entry) = baseline.get(id) else {
+                continue;
+            };
+            let Ok(Some(new_content)) = reader.read(item) else {
+                continue;
+            };
+            if let Some(realigned_entry) =
+                realigned_entry(entry, original, &new_content, digester)
+            {
+                baseline.set(id, realigned_entry);
+                entries += 1;
+            }
+        }
+        Ok((entries > 0).then_some(Self {
+            path,
+            writer,
+            snapshot,
+            realigned: baseline,
+            entries,
+        }))
+    }
+
+    fn store<'a>(&'a self, reader: &'a dyn FileReader) -> BaselineStore<'a> {
+        BaselineStore::new(self.path.clone(), reader, self.writer.as_ref())
+    }
+
+    fn apply(&self, reader: &dyn FileReader) -> Result<(), StoreError> {
+        self.store(reader).replace(&self.realigned)
+    }
+
+    fn undo(&self, reader: &dyn FileReader) -> Result<(), StoreError> {
+        self.store(reader).put_back(&self.snapshot)
+    }
+}
+
+fn apply_all_or_none(
+    pending: &[Realignment],
     reader: &dyn FileReader,
-    digester: &BaselineDigester<'_>,
-) -> Result<usize, StoreError> {
-    let (baseline, _) = store.load()?;
-    let mut realigned = 0;
-    for (id, &(path, original)) in by_id {
-        let Some(entry) = baseline.get(id) else {
-            continue;
-        };
-        let Ok(Some(new_content)) = reader.read(path) else {
-            continue;
-        };
-        if let Some(realigned_entry) =
-            realigned_entry(entry, original, &new_content, digester)
-        {
-            store.set(id, realigned_entry)?;
-            realigned += 1;
+) -> Result<usize, RealignError> {
+    for (applied, realignment) in pending.iter().enumerate() {
+        if let Err(cause) = realignment.apply(reader) {
+            let left_realigned_baselines = pending[..applied]
+                .iter()
+                .filter(|earlier| earlier.undo(reader).is_err())
+                .map(|earlier| earlier.path.clone())
+                .collect::<Vec<_>>();
+            return Err(if left_realigned_baselines.is_empty() {
+                RealignError::Baseline(cause)
+            } else {
+                RealignError::LeftRealigned {
+                    cause,
+                    left_realigned_baselines,
+                }
+            });
         }
     }
-    Ok(realigned)
+    Ok(pending.iter().map(|realignment| realignment.entries).sum())
 }
 
 /// `entry` with its local digests moved to `new_content`'s, when they

@@ -347,7 +347,9 @@ pub trait MigrationContext {
     /// Returns the number of realigned baselines.
     ///
     /// # Errors
-    /// [`MigrationError`] when a baseline file cannot be read or written.
+    /// [`MigrationError`] when a baseline cannot be read or written. Every
+    /// baseline is then left as it was, unless the error names those it
+    /// could not put back.
     fn realign_sync_baseline(
         &self,
         _pre_migration: &[(PathBuf, String)],
@@ -478,7 +480,8 @@ pub trait SyncBaselines {
     ///
     /// # Errors
     /// [`MigrationError`] when the root cannot be listed or a baseline cannot
-    /// be read or written.
+    /// be read or written. Every baseline is then left as it was, unless the
+    /// error names those it could not put back.
     fn realign(
         &self,
         integrations_root: &Path,
