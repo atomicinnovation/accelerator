@@ -1,7 +1,7 @@
 ---
 type: "work-item"
 id: "PP-977"
-title: "Bring 0352's CHANGELOG Entry and Plan Into Line With What Shipped"
+title: "Bring PP-927's CHANGELOG Entry and Plan Into Line With What Shipped"
 date: "2026-11-16T11:25:19+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
@@ -17,7 +17,7 @@ schema_version: 1
 external_id: "PP-977"
 aliases: ["0386"]
 ---
-# PP-977: Bring 0352's CHANGELOG Entry and Plan Into Line With What Shipped
+# PP-977: Bring PP-927's CHANGELOG Entry and Plan Into Line With What Shipped
 
 **Kind**: Task
 **Status**: Draft
@@ -26,7 +26,7 @@ aliases: ["0386"]
 
 ## Summary
 
-0352's CHANGELOG entry leaves out that a preview lost the duplicate row too,
+PP-927's CHANGELOG entry leaves out that a preview lost the duplicate row too,
 and sits under `Fixed` on a claim nobody verified. Its plan still describes
 advice and wording that did not ship. Correct both.
 
@@ -79,13 +79,13 @@ from what shipped.
 
 ## Dependencies
 
-- Blocked by: 0352 (PR #188) merging.
+- Blocked by: PP-927 (PR #188) merging.
 - Blocks: none.
 
 ## Assumptions
 
 - A plan is a record that may be corrected after its work ships, as was done
-  for 0281.
+  for PP-865.
 
 ## Technical Notes
 
@@ -101,6 +101,6 @@ from what shipped.
 
 - Source: PR #188's review notes and its exploration record
   (`.accelerator/tmp/explore-pr-188-context.md`)
-- Related: 0352, 0372
+- Related: PP-927, PP-963
 - PR reviews: `meta/reviews/prs/188-review-1.md`,
   `meta/reviews/prs/188-review-2.md`
