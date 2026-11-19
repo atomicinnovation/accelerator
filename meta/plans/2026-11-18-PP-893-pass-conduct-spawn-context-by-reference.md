@@ -1132,8 +1132,8 @@ entry stating two things:
 
 #### Automated Verification
 
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Full suite green, including regenerated skill reference docs: `mise run`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Full suite green, including regenerated skill reference docs: `mise run`
 
 #### Manual Verification
 
