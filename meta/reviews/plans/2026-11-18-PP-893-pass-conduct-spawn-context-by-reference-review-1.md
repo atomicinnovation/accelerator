@@ -1,12 +1,12 @@
 ---
 type: "plan-review"
-id: "2026-11-18-0307-pass-conduct-spawn-context-by-reference-review-1"
+id: "2026-11-18-PP-893-pass-conduct-spawn-context-by-reference-review-1"
 title: "Plan Review: Pass Conduct Spawn Context by Reference Implementation Plan"
 date: "2026-11-18T21:37:00+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-11-18-0307-pass-conduct-spawn-context-by-reference"
+target: "plan:2026-11-18-PP-893-pass-conduct-spawn-context-by-reference"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "compatibility", "usability"]

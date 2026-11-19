@@ -1,13 +1,13 @@
 ---
 type: "codebase-research"
-id: "2026-11-18-0307-pass-conduct-spawn-context-by-reference"
+id: "2026-11-18-PP-893-pass-conduct-spawn-context-by-reference"
 title: "Pass Conduct Spawn Context by Reference"
 date: "2026-11-18T20:05:34+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0307"
-parent: "work-item:0307"
+work_item_id: "PP-893"
+parent: "work-item:PP-893"
 topic: "Pass Conduct Spawn Context by Reference"
 tags: ["research", "codebase", "research-topic", "conduct", "run-ledger", "research-guard", "config-template", "cli"]
 revision: "22e2773e3d1a9f2beb9967be6e61fe05bc3b2eb1"
@@ -625,23 +625,23 @@ allow rules" are the two allow blocks at `:511-516` and `:603`. A new
 
 ## Historical Context
 
-- `meta/work/0283-recursive-finding-deepening.md`,
-  `meta/research/codebase/2026-09-26-0283-recursive-finding-deepening.md`,
-  `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`: introduced
+- `meta/work/PP-867-recursive-finding-deepening.md`,
+  `meta/research/codebase/2026-09-26-PP-867-recursive-finding-deepening.md`,
+  `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md`: introduced
   the trees, level notes, `known_questions` and node spawns that this item
   reshapes.
-- `meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`,
-  `meta/plans/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`:
+- `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`,
+  `meta/plans/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion.md`:
   added `search_budgets` to the ledger and the plan, and `withheld` with
   the halt.
-- `meta/plans/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`:
+- `meta/plans/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`:
   the replaced-run report, and the ledger-decoding constraint.
-- `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md`:
+- `meta/plans/2026-10-10-PP-889-research-concurrency-subagent-limit.md`:
   capacity-refusal re-issue within step 4.
-- `meta/work/0308-researcher-bash-scope-edit-and-grep.md`: also changes the
+- `meta/work/PP-894-researcher-bash-scope-edit-and-grep.md`: also changes the
   guard. It has no plan yet; whichever lands second reconciles the
   allowlist.
-- `meta/reviews/work/0307-pass-conduct-spawn-context-by-reference-review-1.md`:
+- `meta/reviews/work/PP-893-pass-conduct-spawn-context-by-reference-review-1.md`:
   four review passes, ending APPROVE (2026-11-18T20:00).
 - `meta/prs/152-description.md`: captured 0307 from GitHub issue #144.
 - Decisions: ADR-0001 (context isolation), ADR-0008 (payload by file path
@@ -651,11 +651,11 @@ allow rules" are the two allow blocks at `:511-516` and `:603`. A new
 
 ## Related Research
 
-- `meta/research/codebase/2026-09-26-0283-recursive-finding-deepening.md`
-- `meta/research/codebase/2026-10-10-0303-research-concurrency-subagent-limit.md`
-- `meta/research/codebase/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`
-- `meta/research/codebase/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`
-- `meta/research/codebase/2026-09-08-0277-single-round-web-research-engine.md`
+- `meta/research/codebase/2026-09-26-PP-867-recursive-finding-deepening.md`
+- `meta/research/codebase/2026-10-10-PP-889-research-concurrency-subagent-limit.md`
+- `meta/research/codebase/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`
+- `meta/research/codebase/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion.md`
+- `meta/research/codebase/2026-09-08-PP-861-single-round-web-research-engine.md`
 
 ## Open Questions
 
