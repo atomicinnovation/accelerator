@@ -23,8 +23,8 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use vcs_test_support::fixtures::Matrix;
 use vcs_test_support::hermetic::Hermetic;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -85,15 +85,15 @@ impl Poison {
 
 #[test]
 fn every_query_is_unmoved_by_a_poisoned_environment() -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-scrub-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     // The poison is a *real* repository's git dir, and the global config it
     // names asserts a divergent `core.bare` — the Phase-2 empty-config
     // environment would otherwise mask exactly the config influence this
     // invariant is meant to exclude.
     let poison_repo = matrix.start("PG-r")?.join(".git");
-    let poison_config = matrix.base.join("poison.gitconfig");
+    let poison_config = workbench.path().join("poison.gitconfig");
     fs::write(&poison_config, "[core]\n\tbare = true\n")?;
     let poison = Poison {
         git_dir: poison_repo.display().to_string(),
@@ -124,13 +124,11 @@ fn every_query_is_unmoved_by_a_poisoned_environment() -> Result<(), TestError> {
 
 #[test]
 fn the_poison_is_live() -> Result<(), TestError> {
-    let base = tempfile::Builder::new()
-        .prefix("vcs-scrub-control-")
-        .tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     let poison_repo = matrix.start("PG-r")?.join(".git");
-    let poison_config = matrix.base.join("poison.gitconfig");
+    let poison_config = workbench.path().join("poison.gitconfig");
     fs::write(&poison_config, "[core]\n\tbare = true\n")?;
     let poison = Poison {
         git_dir: poison_repo.display().to_string(),

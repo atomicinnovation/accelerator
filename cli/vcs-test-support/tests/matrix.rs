@@ -6,20 +6,14 @@
 
 use std::fs;
 
-use vcs_test_support::fixtures;
-use vcs_test_support::fixtures::Matrix;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn matrix() -> Result<(Option<tempfile::TempDir>, Matrix), TestError> {
-    let (guard, root) = fixtures::matrix_root()?;
-    let built = Matrix::build_or_adopt(&root)?;
-    Ok((guard, built))
-}
-
 #[test]
 fn every_recorded_fixture_key_is_built() -> Result<(), TestError> {
-    let (_guard, matrix) = matrix()?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     let expected = [
         "CR", "CG", "JS-r", "JS-s", "PG-r", "PG-s", "NJG-i", "NJG-o", "NGJ-i",
@@ -40,7 +34,8 @@ fn every_recorded_fixture_key_is_built() -> Result<(), TestError> {
 
 #[test]
 fn the_nested_inner_shapes_carry_only_one_marker() -> Result<(), TestError> {
-    let (_guard, matrix) = matrix()?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     // These must carry `.jj` only, or a `.git`-inclusive walk stops at them for
     // the wrong reason and the fixture proves nothing.
@@ -67,7 +62,8 @@ fn the_nested_inner_shapes_carry_only_one_marker() -> Result<(), TestError> {
 
 #[test]
 fn the_pure_jj_shapes_have_no_git_marker() -> Result<(), TestError> {
-    let (_guard, matrix) = matrix()?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     for key in ["PJ", "NGPJ-o"] {
         let start = matrix.start(key)?;
         assert!(
@@ -81,7 +77,8 @@ fn the_pure_jj_shapes_have_no_git_marker() -> Result<(), TestError> {
 
 #[test]
 fn the_colocated_shapes_differ_as_recorded() -> Result<(), TestError> {
-    let (_guard, matrix) = matrix()?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     // A real colocated main owns its store, so `.jj/repo` is a directory.
     let real = matrix.start("CR")?;
@@ -112,7 +109,8 @@ fn the_colocated_shapes_differ_as_recorded() -> Result<(), TestError> {
 
 #[test]
 fn the_degenerate_shapes_are_actually_broken() -> Result<(), TestError> {
-    let (_guard, matrix) = matrix()?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     let deleted = matrix.start("D1")?;
     let target = fs::read_to_string(deleted.join(".jj/repo"))?;
@@ -139,7 +137,8 @@ fn the_degenerate_shapes_are_actually_broken() -> Result<(), TestError> {
 
 #[test]
 fn the_submodule_shapes_nest_as_recorded() -> Result<(), TestError> {
-    let (_guard, matrix) = matrix()?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     assert!(matrix.start("SM-1")?.join(".git").exists());
     assert!(matrix.start("SM-2")?.join(".git").exists());

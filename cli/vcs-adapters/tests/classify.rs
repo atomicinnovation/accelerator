@@ -9,6 +9,7 @@ use vcs::classify::classify;
 use vcs::classify::Classification;
 use vcs_adapters::library::InProcessProbe;
 use vcs_test_support::fixtures::Matrix;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -173,8 +174,8 @@ fn assert_format_and_hostile_shapes(matrix: &Matrix) -> Result<(), TestError> {
 
 #[test]
 fn every_fixture_classifies_as_expected() -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-classify-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
 
     assert_plain_single_vcs_shapes(&matrix)?;
     assert_jj_secondary_shapes(&matrix)?;
@@ -190,8 +191,8 @@ fn every_fixture_classifies_as_expected() -> Result<(), TestError> {
 #[test]
 fn an_unsupported_object_format_fails_rather_than_misclassifies(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-classify-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     assert!(classify(matrix.start("S256")?, &InProcessProbe).is_err());
     Ok(())
 }
@@ -199,8 +200,8 @@ fn an_unsupported_object_format_fails_rather_than_misclassifies(
 #[test]
 fn a_broken_jj_store_pointer_fails_rather_than_misclassifies(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-classify-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     assert!(classify(matrix.start("D1")?, &InProcessProbe).is_err());
     Ok(())
 }
@@ -208,8 +209,8 @@ fn a_broken_jj_store_pointer_fails_rather_than_misclassifies(
 #[test]
 fn a_removed_gitdir_behind_a_dot_git_file_is_absence_not_failure(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-classify-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     assert_eq!(classified(matrix.start("D2")?)?, Classification::None);
     Ok(())
 }
@@ -217,8 +218,8 @@ fn a_removed_gitdir_behind_a_dot_git_file_is_absence_not_failure(
 #[test]
 fn a_jj_repo_pointer_to_a_non_store_directory_fails_rather_than_misclassifies(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-classify-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     assert!(classify(matrix.start("D3")?, &InProcessProbe).is_err());
     Ok(())
 }
@@ -226,8 +227,8 @@ fn a_jj_repo_pointer_to_a_non_store_directory_fails_rather_than_misclassifies(
 #[test]
 fn the_matrix_still_covers_every_key_this_test_exercises(
 ) -> Result<(), TestError> {
-    let base = tempfile::Builder::new().prefix("vcs-classify-").tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let matrix = workbench.matrix()?;
     let expected = [
         "CR", "CG", "JS-r", "JS-s", "PG-r", "PG-s", "NJG-i", "NJG-o", "NGJ-i",
         "NGJ-o", "WT-l", "WT-m", "SM-1", "SM-2", "SM-s", "SO", "BARE", "NONE",
