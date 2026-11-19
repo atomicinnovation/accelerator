@@ -100,8 +100,6 @@ mod tests {
         }
     }
 
-    /// Resolves only the names in `present`, recording every name it is asked
-    /// for so the attempt order is assertable.
     struct StubTemplates {
         present: Vec<String>,
         asked: RefCell<Vec<String>>,

@@ -13,7 +13,6 @@ use crate::conduct::spawn::SpawnRef;
 use crate::topic::layout::note_ref::NoteRef;
 use crate::topic::layout::stem::Stem;
 
-/// The spawns one plan offers, with the context of each node among them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
     spawns: Vec<SpawnRef>,

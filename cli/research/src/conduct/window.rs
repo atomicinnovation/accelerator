@@ -41,7 +41,6 @@ pub struct Window {
 }
 
 impl Window {
-    /// The offered spawns with the context of each offered node.
     #[must_use]
     pub fn offer(&self) -> Offer {
         let nodes = self.pairs.iter().flat_map(|pair| {
