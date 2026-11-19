@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T19:50:00+00:00"
+last_updated: "2026-11-19T20:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2520,11 +2520,13 @@ in the work item, along with the audit table's final outcomes.
 - [x] The cleanup, summary and `Summary [` checks from Phase 3 hold for the
       status-log set.
 - [x] The SIGKILL check from Phase 3 holds for the status-log set.
-- [ ] Coverage off, coverage on, and both CI `test-unit` legs pass. Each
+- [x] Coverage off, coverage on, and both CI `test-unit` legs pass. Each
       summary shows both families built once.
       *Local (2026-11-19):* coverage off and on pass (8,113 tests), each
-      summary showing both families built once. The CI legs are owed until
-      the branch is pushed.
+      summary showing both families built once. CI (PR #249) passed: the `ubuntu-latest` leg ran 8,112 tests and the
+      `macos-latest` leg 8,113, each summary showing 1 matrix shared build
+      with 19 adoptions, 1 status-log shared build with 7 adoptions and 10
+      copies, and 4 private-set builds; the build step took 2.4 s and 5.0 s.
 - [x] Time a filtered run selecting only
       `test(=the_log_is_capped_at_five_entries)`, which builds the
       status-log set although its test doesn't use it. Record the cost in

@@ -13,7 +13,7 @@ pr_number: 249
 tags: ["build-system", "testing", "rust", "vcs"]
 revision: "ab4090f307f60b37e0a3a1d29847db9d561b74b7"
 repository: "accelerator"
-last_updated: "2026-11-19T19:51:07+00:00"
+last_updated: "2026-11-19T20:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -147,8 +147,8 @@ the matrix increment, has merged, so this PR is now based on `main`.
 - [x] The SIGKILL check: run C removed killed run A's directory and lock,
       kept held run B's, and B passed once released.
 - [x] Phase 4's push: the `ubuntu-latest` unit leg passed.
-- [ ] Both CI `test-unit` legs pass on this push, each summary showing both
-      families built once. Pending.
+- [x] Both CI `test-unit` legs pass, each summary showing both families
+      built once (8,112 tests on `ubuntu-latest`, 8,113 on `macos-latest`).
 
 ## Notes for Reviewers
 

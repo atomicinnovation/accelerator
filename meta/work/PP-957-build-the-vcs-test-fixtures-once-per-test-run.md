@@ -13,7 +13,7 @@ blocks: ["work-item:PP-943"]
 relates_to: ["work-item:PP-794", "work-item:PP-955", "work-item:PP-956", "work-item:PP-958", "work-item:PP-960", "work-item:PP-962", "work-item:PP-943"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-11-19T19:50:00+00:00"
+last_updated: "2026-11-19T20:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-957"
@@ -403,7 +403,7 @@ Mutation audit of today's consumers:
       when they are searched for `ACCELERATOR_ZERO_SPAWN_STATUS_LOG` or
       `STATES_ROOT_VARIABLE`, then nothing matches.
       *Status-log, 2026-11-19 (engywook):* nothing matches.
-- [ ] [each family] Given `test:unit:cli` with coverage on, with coverage
+- [x] [each family] Given `test:unit:cli` with coverage on, with coverage
       off, and on CI's `ubuntu-latest` and `macos-latest` `test-unit`
       legs, when each runs, then it passes and its fixture summary shows
       the family built once.
@@ -413,8 +413,10 @@ Mutation audit of today's consumers:
       all passing; each summary shows 1 matrix shared build, 19 adoptions and
       no private build, with the build step taking 1.1 s and 2.3 s.
       *Status-log, 2026-11-19 (engywook):* coverage on (full run) and off pass, each
-      summary showing both families built once. The CI legs are owed until
-      the branch is pushed.
+      summary showing both families built once. CI (PR #249) passed: the `ubuntu-latest` leg ran 8,112 tests and the
+      `macos-latest` leg 8,113, each summary showing 1 matrix shared build
+      with 19 adoptions, 1 status-log shared build with 7 adoptions and 10
+      copies, and 4 private-set builds; the build step took 2.4 s and 5.0 s.
 - [ ] [filters] Given each task listed in Requirement 5, when it is run
       with `--help`, with a filter selecting a subset, and with its listed
       malformed expression, then its help lists `--filter` and names the
