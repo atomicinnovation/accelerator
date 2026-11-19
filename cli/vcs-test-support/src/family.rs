@@ -56,12 +56,12 @@ impl fmt::Display for Family {
 /// What a private build made: a shared family, or the private sets that are
 /// never shared.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Fixtures {
+pub enum BuiltFixtures {
     Shared(Family),
     PrivateSets,
 }
 
-impl Serialize for Fixtures {
+impl Serialize for BuiltFixtures {
     fn serialize<S: Serializer>(
         &self,
         serializer: S,
@@ -73,7 +73,7 @@ impl Serialize for Fixtures {
     }
 }
 
-impl fmt::Display for Fixtures {
+impl fmt::Display for BuiltFixtures {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Shared(family) => family.fmt(formatter),

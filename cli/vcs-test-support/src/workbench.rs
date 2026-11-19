@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 
-use crate::family::Fixtures;
+use crate::family::BuiltFixtures;
 use crate::family::PrivateBuild;
 use crate::family::SharedFamily;
 use crate::fixture_log::Event;
@@ -41,8 +41,8 @@ impl fmt::Display for Acquisition {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Held {
-    fixtures: Fixtures,
+struct Holding {
+    fixtures: BuiltFixtures,
     acquisition: Acquisition,
 }
 
@@ -51,17 +51,17 @@ pub struct Workbench {
     path: PathBuf,
     hermetic: Hermetic,
     handover: Handover,
-    holds: Cell<Option<Held>>,
+    holds: Cell<Option<Holding>>,
 }
 
 /// A fixture the workbench handed out. A private build lives inside the
 /// workbench, so the fixture cannot outlive it.
-pub struct Fixture<'w, F> {
+pub struct Held<'w, F> {
     fixture: F,
     workbench: PhantomData<&'w Workbench>,
 }
 
-impl<F> Deref for Fixture<'_, F> {
+impl<F> Deref for Held<'_, F> {
     type Target = F;
 
     fn deref(&self) -> &F {
@@ -129,8 +129,8 @@ impl Workbench {
     ///
     /// When the workbench already holds a fixture, the handed tree is missing
     /// or cannot be adopted, or the private build fails.
-    pub fn shared<F: SharedFamily>(&self) -> Result<Fixture<'_, F>, Error> {
-        let fixtures = Fixtures::Shared(F::FAMILY);
+    pub fn shared<F: SharedFamily>(&self) -> Result<Held<'_, F>, Error> {
+        let fixtures = BuiltFixtures::Shared(F::FAMILY);
         self.refuse_a_second(fixtures)?;
         let test = &self.handover.test;
         let hermetic_root = self.path();
@@ -156,11 +156,11 @@ impl Workbench {
                 })?;
                 (fixture, Acquisition::Built)
             };
-        self.holds.set(Some(Held {
+        self.holds.set(Some(Holding {
             fixtures,
             acquisition,
         }));
-        Ok(Fixture {
+        Ok(Held {
             fixture,
             workbench: PhantomData,
         })
@@ -172,14 +172,14 @@ impl Workbench {
     /// # Errors
     ///
     /// As [`Self::shared`].
-    pub fn matrix(&self) -> Result<Fixture<'_, Matrix>, Error> {
+    pub fn matrix(&self) -> Result<Held<'_, Matrix>, Error> {
         self.shared::<Matrix>()
     }
 
-    fn refuse_a_second(&self, requested: Fixtures) -> Result<(), Error> {
+    fn refuse_a_second(&self, requested: BuiltFixtures) -> Result<(), Error> {
         match self.holds.get() {
             None => Ok(()),
-            Some(Held {
+            Some(Holding {
                 fixtures,
                 acquisition,
             }) => Err(Error::message(format!(

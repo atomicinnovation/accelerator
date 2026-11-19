@@ -3,8 +3,8 @@ use std::path::Path;
 use std::thread;
 
 use serde_json::Value;
+use vcs_test_support::family::BuiltFixtures;
 use vcs_test_support::family::Family;
-use vcs_test_support::family::Fixtures;
 use vcs_test_support::fixture_log::Event;
 use vcs_test_support::fixture_log::FixtureLog;
 use vcs_test_support::fixture_log::TestName;
@@ -85,7 +85,7 @@ fn concurrent_writers_never_interleave_their_lines() -> Result<(), TestError> {
     let write_fifty = || {
         for _ in 0..50 {
             log.record(&Event::PrivateBuild {
-                fixtures: Fixtures::Shared(Family::Matrix),
+                fixtures: BuiltFixtures::Shared(Family::Matrix),
                 test: &test,
                 hermetic_root: Path::new("/a/long/workbench"),
             })
@@ -140,8 +140,11 @@ fn a_test_outside_nextest_is_named_by_its_thread() {
 
 #[test]
 fn the_private_sets_are_logged_under_their_own_name() {
-    let names = [Fixtures::Shared(Family::Matrix), Fixtures::PrivateSets]
-        .map(|fixtures| serde_json::to_value(fixtures).ok());
+    let names = [
+        BuiltFixtures::Shared(Family::Matrix),
+        BuiltFixtures::PrivateSets,
+    ]
+    .map(|fixtures| serde_json::to_value(fixtures).ok());
 
     assert_eq!(
         names,
@@ -170,7 +173,7 @@ fn every_event_matches_the_shared_log_format() -> Result<(), TestError> {
             ),
         },
         Event::PrivateBuild {
-            fixtures: Fixtures::Shared(Family::Matrix),
+            fixtures: BuiltFixtures::Shared(Family::Matrix),
             test: &test,
             hermetic_root: Path::new("/tmp/vcs-workbench-b"),
         },

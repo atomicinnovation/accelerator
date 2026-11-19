@@ -9,8 +9,8 @@ use std::thread;
 
 use serde::Serialize;
 
+use crate::family::BuiltFixtures;
 use crate::family::Family;
-use crate::family::Fixtures;
 use crate::Error;
 
 pub const FIXTURE_LOG_VARIABLE: &str = "ACCELERATOR_FIXTURE_LOG";
@@ -34,7 +34,7 @@ pub enum Event<'a> {
         hermetic_root: &'a Path,
     },
     PrivateBuild {
-        fixtures: Fixtures,
+        fixtures: BuiltFixtures,
         test: &'a TestName,
         hermetic_root: &'a Path,
     },

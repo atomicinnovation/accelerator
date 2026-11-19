@@ -16,8 +16,8 @@ from tasks.shared.hashing import TreeChanges, TreeDigest
 from tasks.shared.shared_fixtures.consumers import consumers_of
 from tasks.shared.shared_fixtures.families import (
     PRIVATE_SETS,
+    BuiltFixtures,
     Family,
-    Fixtures,
     fixtures_named,
 )
 from tasks.shared.shared_fixtures.runs import RUN_ID
@@ -55,7 +55,7 @@ class Adoption:
 
 @dataclasses.dataclass(frozen=True)
 class PrivateBuild:
-    fixtures: Fixtures
+    fixtures: BuiltFixtures
     test: str
     hermetic_root: Path
 
@@ -143,7 +143,7 @@ class FixtureSummary:
             f"{_count(self._private_builds(family), 'private build')}"
         )
 
-    def _private_builds(self, fixtures: Fixtures) -> int:
+    def _private_builds(self, fixtures: BuiltFixtures) -> int:
         return sum(
             isinstance(event, PrivateBuild) and event.fixtures is fixtures
             for event in self.events

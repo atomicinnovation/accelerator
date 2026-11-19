@@ -27,10 +27,10 @@ class PrivateSets(StrEnum):
 
 PRIVATE_SETS = PrivateSets.PRIVATE_SETS
 
-type Fixtures = Family | PrivateSets
+type BuiltFixtures = Family | PrivateSets
 
 
-def fixtures_named(name: str) -> Fixtures:
+def fixtures_named(name: str) -> BuiltFixtures:
     return PRIVATE_SETS if name == PRIVATE_SETS else Family(name)
 
 
