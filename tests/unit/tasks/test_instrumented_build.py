@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -59,6 +60,54 @@ class TestUnitListing:
 
     def test_a_listing_with_no_messages_has_no_live_units(self):
         assert UnitListing.parse("").live_hashes == frozenset()
+
+
+def _bin_artefact(target: str, executable: str, *, test: bool) -> str:
+    return json.dumps(
+        {
+            "reason": "compiler-artifact",
+            "target": {"kind": ["bin"], "name": target},
+            "profile": {"test": test},
+            "filenames": [executable],
+            "executable": executable,
+            "fresh": True,
+        }
+    )
+
+
+class TestUnitListingExecutable:
+    BUILDER = "/workspace/cli/target/debug/shared-fixtures"
+    HARNESS = (
+        "/workspace/cli/target/debug/deps/shared_fixtures-0123456789abcdef"
+    )
+
+    def test_gives_the_executable_of_the_named_bin(self):
+        listing = UnitListing.parse(
+            "\n".join(
+                [
+                    UNITS,
+                    _bin_artefact("shared-fixtures", self.BUILDER, test=False),
+                ]
+            )
+        )
+
+        assert listing.executable("shared-fixtures") == Path(self.BUILDER)
+
+    def test_passes_over_a_test_harness_built_for_the_same_target(self):
+        listing = UnitListing.parse(
+            "\n".join(
+                [
+                    _bin_artefact("shared-fixtures", self.HARNESS, test=True),
+                    _bin_artefact("shared-fixtures", self.BUILDER, test=False),
+                ]
+            )
+        )
+
+        assert listing.executable("shared-fixtures") == Path(self.BUILDER)
+
+    def test_a_target_the_listing_does_not_carry_is_named(self):
+        with pytest.raises(LookupError, match="shared-fixtures"):
+            UnitListing.parse(UNITS).executable("shared-fixtures")
 
 
 def _entry(build_dir: Path, relative: str, size: int = 0) -> Path:
