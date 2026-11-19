@@ -73,7 +73,7 @@ deliberately leaves out.
 ## Context
 
 - Work item: `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
-- Review: `meta/reviews/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker-review-1.md`
+- Review: `meta/reviews/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker-review-1.md`
 - Parent epic: `meta/work/PP-167-work-item-sync-enhancements.md`
 
 The rewrite table and the list of conflicted items come from a scan of the

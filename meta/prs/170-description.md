@@ -151,9 +151,9 @@ made before, pinned by a test.
 
 - Work item: `meta/work/PP-747-bound-cache-root-growth.md` (PP-747)
 - Decision: `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
-- Plan: `meta/plans/2026-10-19-0218-bound-cache-root-growth.md`
-- Research: `meta/research/codebase/2026-10-18-0218-bound-cache-root-growth.md`
-- Validation: `meta/validations/2026-10-19-0218-bound-cache-root-growth-validation.md`
+- Plan: `meta/plans/2026-10-19-PP-747-bound-cache-root-growth.md`
+- Research: `meta/research/codebase/2026-10-18-PP-747-bound-cache-root-growth.md`
+- Validation: `meta/validations/2026-10-19-PP-747-bound-cache-root-growth-validation.md`
 - Builds on 0334 (tree leases on the cold path) and 0339 (the cross-artifact
   lock probe and inode confirmation).
 

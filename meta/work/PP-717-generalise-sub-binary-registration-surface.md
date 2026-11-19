@@ -90,7 +90,7 @@ looseness, or it will report tokens as bound on the strength of a documentation
 sentence.
 
 Extracted from 0169 (review 2, re-review pass 4 — see
-`meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md`), where
+`meta/reviews/work/PP-190-vcs-subdomain-and-hooks-migration-review-2.md`), where
 the scope lens observed that shared platform work delivered as a side effect of
 its first consumer both inflates that consumer and silently gates its siblings.
 
@@ -492,9 +492,9 @@ its first consumer both inflates that consumer and silently gates its siblings.
 
 - Extracted from: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - Registration points originally enumerated in:
-  `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`
+  `meta/research/codebase/2026-07-29-PP-190-vcs-subdomain-and-hooks-migration.md`
   §8 — superseded as the normative list by the Requirements above
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0054 (git-style modular CLI of on-demand static binaries)
-- Review: `0187-generalise-sub-binary-registration-surface-review-1.md` in
+- Review: `PP-717-generalise-sub-binary-registration-surface-review-1.md` in
   `meta/reviews/work/`

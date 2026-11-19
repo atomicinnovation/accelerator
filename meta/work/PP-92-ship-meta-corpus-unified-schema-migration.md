@@ -13,7 +13,7 @@ last_updated_by: "Toby Clemson"
 type: "work-item"
 schema_version: 1
 blocked_by: ["work-item:PP-82", "work-item:PP-55", "work-item:PP-83", "adr:ADR-0033"]
-relates_to: ["adr:ADR-0034", "adr:ADR-0038", "work-item:PP-79", "work-item:PP-78", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0040", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+relates_to: ["adr:ADR-0034", "adr:ADR-0038", "work-item:PP-79", "work-item:PP-78", "adr:ADR-0023", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0040", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy"]
 external_id: "PP-92"
 aliases: ["0070"]
 ---
@@ -400,5 +400,5 @@ ambiguous cases routed to the interactive hook._
   `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md`,
   `meta/decisions/ADR-0038-interactive-validation-parameters-for-unified-schema-linkage-migration.md`,
   `meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md`
-- Research: `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- Research: `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
 - Related: 0056, 0057, 0060, 0061, 0062, 0063, 0064, 0065, 0066, 0067, 0068, 0069

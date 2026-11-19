@@ -170,12 +170,12 @@ state refusals, none of which change.
 - Work item: `meta/work/PP-921-linear-update-overwrites-fields-it-was-not-given.md`
   (PP-921)
 - Research:
-  `meta/research/codebase/2026-11-05-0338-linear-update-overwrites-unspecified-fields.md`
-- Plan: `meta/plans/2026-11-05-0338-linear-update-sends-only-given-fields.md`
+  `meta/research/codebase/2026-11-05-PP-921-linear-update-overwrites-unspecified-fields.md`
+- Plan: `meta/plans/2026-11-05-PP-921-linear-update-sends-only-given-fields.md`
 - Reviews: `meta/reviews/work/0338-…-review-1.md` and
   `meta/reviews/plans/2026-11-05-0338-…-review-1.md`
 - Validation:
-  `meta/validations/2026-11-05-0338-linear-update-sends-only-given-fields-validation.md`
+  `meta/validations/2026-11-05-PP-921-linear-update-sends-only-given-fields-validation.md`
 
 ## Testing
 

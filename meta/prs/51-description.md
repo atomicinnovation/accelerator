@@ -49,8 +49,8 @@ Implements ADR-0048 for the VCS subsystem: builds `accelerator-vcs`, a new dispa
 ## Context
 
 - Work item: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
-- Plan: `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` (all 10 phases implemented; status `done`)
-- Validation: `meta/validations/2026-08-05-0169-vcs-subdomain-and-hooks-migration-validation.md` — result `pass`
+- Plan: `meta/plans/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration.md` (all 10 phases implemented; status `done`)
+- Validation: `meta/validations/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration-validation.md` — result `pass`
 - ADR-0048 (hook logic lives in the CLI), ADR-0053 (thin CLI over a hexagonal ports-and-adapters core)
 
 ## Testing

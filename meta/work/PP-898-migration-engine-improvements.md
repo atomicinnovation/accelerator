@@ -89,5 +89,5 @@ None.
 ## References
 
 - Codebase research:
-  `meta/research/codebase/2026-10-09-0202-reconcile-migration-engine-adrs-against-the-rust-port.md`
+  `meta/research/codebase/2026-10-09-PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`
 - Related: 0136, 0172, 0202, 0276

@@ -12,7 +12,7 @@ type: "work-item"
 schema_version: 1
 last_updated: "2026-05-17T17:16:35+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:PP-79", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+relates_to: ["work-item:PP-79", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy"]
 external_id: "PP-90"
 aliases: ["0068"]
 ---
@@ -101,7 +101,7 @@ The recommendation is robust to plausible parser improvements: even resolving ev
 
 Full findings, parser design, per-band breakdown, failure-pattern catalogue with cheap-fix counterfactual, and rubric-calibration observation:
 
-- `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
 
 **Downstream impact:**
 - Work item 0062 (migration-strategy ADR creation) should cite this finding and decide on the interactive-hooks branch.
@@ -111,5 +111,5 @@ Full findings, parser design, per-band breakdown, failure-pattern catalogue with
 ## References
 
 - Source: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
-- Findings: `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- Findings: `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
 - Related: 0057, 0062, 0069, 0070

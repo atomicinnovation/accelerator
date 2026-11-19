@@ -612,7 +612,7 @@ Unification and retirement:
   reviewed as one contract, and delivered in the phases listed under
   Technical Notes.
 - Rebased onto 0280 and folded in the codebase research at
-  `meta/research/codebase/2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys.md`:
+  `meta/research/codebase/2026-09-24-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`:
   brought `openalex.api_key_cmd` in and kept plaintext `openalex.api_key` out;
   made the runner timeout consumer-supplied so 0280's deadline budget
   survives; ruled keyless OpenAlex no fallback, keeping 0280's fatal refusals;
@@ -623,10 +623,10 @@ Unification and retirement:
 ## References
 
 - Surfaced by:
-  `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md` (Removal
+  `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md` (Removal
   sweep, follow-up work items)
 - Research:
-  `meta/research/codebase/2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+  `meta/research/codebase/2026-09-24-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Runner follow-up:
-  `meta/validations/2026-09-23-0280-academic-source-profiles-validation.md`
+  `meta/validations/2026-09-23-PP-864-academic-source-profiles-validation.md`
 - Related: 0196, 0227, 0183, 0172, 0080, 0272, 0280

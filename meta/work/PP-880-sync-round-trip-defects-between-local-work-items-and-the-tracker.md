@@ -609,7 +609,7 @@ Resolved during planning:
   children when rendering, and `markdown_to_document` rejects blockquotes,
   pipe tables and nested lists; this item extends both directions so that
   only `underline` and nodes with no Markdown form remain lossy.
-- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md`.
+- Plan: `meta/plans/2026-10-10-PP-880-sync-round-trip-defects.md`.
 
 ## Drafting Notes
 

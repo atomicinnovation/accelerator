@@ -87,11 +87,11 @@ stack of every networked binary. Reverting it brings the advisories back.
 - Work item: `meta/work/PP-885-push-pr-descriptions-to-github-unwrapped.md`
   (PP-885)
 - Plan:
-  `meta/plans/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped.md`
+  `meta/plans/2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped.md`
 - Research:
-  `meta/research/codebase/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped.md`
+  `meta/research/codebase/2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped.md`
 - Validation (pass):
-  `meta/validations/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped-validation.md`
+  `meta/validations/2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped-validation.md`
 - Review: `meta/reviews/prs/164-review-1.md`, all ten threads addressed
 
 This replaces 0071's byte-for-byte contract: the posted body now differs from

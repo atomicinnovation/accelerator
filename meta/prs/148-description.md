@@ -96,11 +96,11 @@ is delayed rather than lost.
 
 - Work item: `meta/work/PP-882-per-profile-batch-cap-for-arxiv-researchers.md`.
   0295 was rescoped from a per-profile batch cap to this fair queue.
-- Research: `meta/research/codebase/2026-10-06-0295-fair-arxiv-fetch-queue.md`
-- Plan: `meta/plans/2026-10-06-0295-fair-arxiv-fetch-queue.md`, with a
+- Research: `meta/research/codebase/2026-10-06-PP-882-fair-arxiv-fetch-queue.md`
+- Plan: `meta/plans/2026-10-06-PP-882-fair-arxiv-fetch-queue.md`, with a
   four-pass review in `meta/reviews/plans/`
 - Validation:
-  `meta/validations/2026-10-06-0295-fair-arxiv-fetch-queue-validation.md`
+  `meta/validations/2026-10-06-PP-882-fair-arxiv-fetch-queue-validation.md`
   (result: pass)
 - PR review: `meta/reviews/prs/148-review-1.md` (verdict: comment). Its
   deferred findings are in

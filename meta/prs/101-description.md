@@ -67,9 +67,9 @@ Two independently mergeable phases.
 ## Context
 
 - Work item: `meta/work/PP-788-help-show-subcommands.md`
-- Plan: `meta/plans/2026-09-05-0258-help-show-subcommands.md`
-- Research: `meta/research/codebase/2026-09-05-0258-help-show-subcommands.md`
-- Validation: `meta/validations/2026-09-05-0258-help-show-subcommands-validation.md`
+- Plan: `meta/plans/2026-09-05-PP-788-help-show-subcommands.md`
+- Research: `meta/research/codebase/2026-09-05-PP-788-help-show-subcommands.md`
+- Validation: `meta/validations/2026-09-05-PP-788-help-show-subcommands-validation.md`
   (result: pass)
 
 Deliberately out of scope for this PR (0259's remit): colour, section

@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0182"
 parent: "work-item:PP-712"
-relates_to: ["plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename", "plan-validation:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-validation", "work-item:PP-714"]
+relates_to: ["plan:2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename", "plan-validation:2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename-validation", "work-item:PP-714"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/30"
 pr_number: 30
 tags: ["pr", "cli", "launcher", "plugin-root", "hooks", "lint-guards"]
@@ -42,8 +42,8 @@ PR #28 made `bin/accelerator` derive its installation root from its own location
 ## Context
 
 - Work item: [`meta/work/PP-712-cli-derives-plugin-root-from-own-location.md`](../work/PP-712-cli-derives-plugin-root-from-own-location.md)
-- Plan: [`meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md`](../plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md)
-- Validation: [`meta/validations/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-validation.md`](../validations/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-validation.md)
+- Plan: [`meta/plans/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename.md`](../plans/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename.md)
+- Validation: [`meta/validations/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename-validation.md`](../validations/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename-validation.md)
 - Predecessor: PR #28 (bootstrap self-location and `--fail-safe`), released as `1.24.0-pre.17`
 - Follow-up raised here: [`meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`](../work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md)
 

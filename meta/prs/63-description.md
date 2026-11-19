@@ -62,9 +62,9 @@ The property already held. The work was to prove that a regression would be noti
 ## Context
 
 - Work item: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
-- Research: `meta/research/codebase/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`
-- Plan and validation: `meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`, `meta/validations/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-validation.md`
-- Sibling plan (drafted, not implemented here): `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`, blocked on `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md`
+- Research: `meta/research/codebase/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
+- Plan and validation: `meta/plans/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee.md`, `meta/validations/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee-validation.md`
+- Sibling plan (drafted, not implemented here): `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md`, blocked on `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md`
 - Upstream: 0169's Phase 5 delivered the split this PR guards; 0186 established the mutation-recording pattern Phase 2 follows
 
 ## Testing

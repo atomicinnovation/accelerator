@@ -12,9 +12,9 @@ type: "work-item"
 schema_version: 1
 last_updated: "2026-05-26T10:00:00+00:00"
 last_updated_by: "Toby Clemson"
-blocked_by: ["work-item:PP-90", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+blocked_by: ["work-item:PP-90", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy"]
 blocks: ["work-item:PP-84", "work-item:PP-91"]
-relates_to: ["adr:ADR-0023", "adr:ADR-0030", "work-item:PP-45", "work-item:PP-52", "work-item:PP-79", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+relates_to: ["adr:ADR-0023", "adr:ADR-0030", "work-item:PP-45", "work-item:PP-52", "work-item:PP-79", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy"]
 external_id: "PP-114"
 aliases: ["0092"]
 ---
@@ -67,7 +67,7 @@ This ADR addresses (1). The application-specific decisions live in 0062. Impleme
 
 ## Dependencies
 
-- Blocked by: 0068 (spike whose verdict motivates the amendment — captured in `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`; status done). No scheduling impact.
+- Blocked by: 0068 (spike whose verdict motivates the amendment — captured in `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`; status done). No scheduling impact.
 - Blocks: 0062 (linkage-application ADR — adopts and parameterises the contract defined here), 0069 (framework-extension implementation — implements the contract in the runner).
 - Related: 0023 (mechanical-contract ADR being amended; per the corpus's accepted-ADR immutability convention, ADR-0023 itself is not mutated — the amendment is recorded in the new ADR's text, and readers discover it via the supersession / amendment cross-reference declared by the new ADR), ADR-0030 (ADR template authority), 0057 (parent epic).
 
@@ -89,5 +89,5 @@ This ADR addresses (1). The application-specific decisions live in 0062. Impleme
 ## References
 
 - Source: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
-- Research: `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- Research: `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
 - Related: 0023, ADR-0030, 0057, 0062, 0068, 0069

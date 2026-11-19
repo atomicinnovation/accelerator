@@ -66,8 +66,8 @@ clean-comments skill, not part of 0216 (see Notes for Reviewers).
 ## Context
 
 - Work item: `meta/work/PP-745-close-the-sha2-hardware-intrinsics-gap.md`
-- Plan: `meta/plans/2026-09-11-0216-close-the-sha2-hardware-intrinsics-gap.md`
-- Validation: `meta/validations/2026-09-11-0216-close-the-sha2-hardware-intrinsics-gap-validation.md` (result: pass)
+- Plan: `meta/plans/2026-09-11-PP-745-close-the-sha2-hardware-intrinsics-gap.md`
+- Validation: `meta/validations/2026-09-11-PP-745-close-the-sha2-hardware-intrinsics-gap-validation.md` (result: pass)
 - Follow-on: 0217 (aarch64-musl throughput), 0215 (cache-hit sha256 fallback)
 
 ## Testing

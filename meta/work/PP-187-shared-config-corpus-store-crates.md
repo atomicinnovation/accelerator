@@ -12,7 +12,7 @@ parent: "work-item:PP-157"
 blocks: ["work-item:PP-188", "work-item:PP-189", "work-item:PP-190", "work-item:PP-191", "work-item:PP-192", "work-item:PP-193", "work-item:PP-194"]
 blocked_by: ["work-item:PP-184"]
 relates_to: ["work-item:PP-183"]
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 tags: ["rust", "config", "corpus", "store", "crates", "dedup"]
 last_updated: "2026-07-19T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -265,7 +265,7 @@ canonical JSONL) whose bash semantics must be reasoned through for Rust.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Related: 0162 (Rust toolchain guard rails), 0163 (cli/ workspace skeleton),
   0167–0173 (consumers of these crates)

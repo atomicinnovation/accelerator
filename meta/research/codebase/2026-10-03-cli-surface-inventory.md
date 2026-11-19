@@ -771,14 +771,14 @@ Non-key config files:
 
 ## Related Research
 
-- `meta/research/codebase/2026-07-03-0164-launcher-and-git-style-dispatch.md`
-- `meta/research/codebase/2026-08-02-0187-generalise-sub-binary-registration-surface.md`
-- `meta/research/codebase/2026-09-05-0258-help-show-subcommands.md`
-- `meta/research/codebase/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
-- `meta/research/codebase/2026-09-10-0228-layered-configuration-key-model.md`
-- `meta/research/codebase/2026-08-06-0195-accelerator-corpus-cli-implementation-surface.md`
-- `meta/research/codebase/2026-08-11-0196-design-cli-implementation-surface.md`
-- `meta/research/codebase/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md`
+- `meta/research/codebase/2026-07-03-PP-185-launcher-and-git-style-dispatch.md`
+- `meta/research/codebase/2026-08-02-PP-717-generalise-sub-binary-registration-surface.md`
+- `meta/research/codebase/2026-09-05-PP-788-help-show-subcommands.md`
+- `meta/research/codebase/2026-09-06-PP-799-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
+- `meta/research/codebase/2026-09-10-PP-758-layered-configuration-key-model.md`
+- `meta/research/codebase/2026-08-06-PP-725-accelerator-corpus-cli-implementation-surface.md`
+- `meta/research/codebase/2026-08-11-PP-726-design-cli-implementation-surface.md`
+- `meta/research/codebase/2026-08-08-PP-727-accelerator-collaboration-pr-helper-cli.md`
 
 ## Open Questions
 

@@ -52,5 +52,5 @@ default.
 ## References
 
 - Parent guardrails work item: `meta/work/PP-120-repo-wide-linting-formatting-static-analysis.md`
-- Plan: `meta/plans/2026-06-10-0098-repo-wide-linting-formatting-static-analysis.md`
+- Plan: `meta/plans/2026-06-10-PP-120-repo-wide-linting-formatting-static-analysis.md`
 - pyrefly presets: https://pyrefly.org/en/docs/configuration/

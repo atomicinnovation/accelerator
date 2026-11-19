@@ -13,7 +13,7 @@ repository: "ticket-management"
 last_updated: "2026-06-03T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0034", "plan:2026-06-02-0090-radius-tokens-consumption"]
+relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0034", "plan:2026-06-02-PP-112-radius-tokens-consumption"]
 ---
 
 # ADR-0026 body was edited in place, against ADR-0031 immutability
@@ -45,7 +45,7 @@ to have crossed the immutability line.
 ## Why it surfaced
 
 Surfaced while reviewing the radius-tokens plan
-(`meta/plans/2026-06-02-0090-radius-tokens-consumption.md`). That plan
+(`meta/plans/2026-06-02-PP-112-radius-tokens-consumption.md`). That plan
 originally proposed the *same* in-place amendment for radius — remove the §3
 "In-between border radii" row and add an ADR-0039 pointer — explicitly citing
 the 0075 typography amendment as precedent. The plan was corrected to leave
@@ -93,5 +93,5 @@ to edit accepted ADRs ad hoc.
   `:17`, `:112`, `:129`)
 - `meta/decisions/ADR-0031-skill-level-adr-immutability.md`
 - `meta/decisions/ADR-0034-*` (typed linkage / supersession edge derivability)
-- `meta/plans/2026-06-02-0090-radius-tokens-consumption.md` (Authorised
+- `meta/plans/2026-06-02-PP-112-radius-tokens-consumption.md` (Authorised
   Deviation 6 — the strict-immutability approach adopted for radius)

@@ -129,10 +129,10 @@ are now crate tests.
 - Work item: `meta/work/PP-881-bring-the-cli-workspace-s-crate-dependencies-into-line-with.md`
 - ADR: `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
   (accepted in this PR)
-- Plan: `meta/plans/2026-10-06-0299-crate-dependencies-adr-0069.md`. Its
+- Plan: `meta/plans/2026-10-06-PP-881-crate-dependencies-adr-0069.md`. Its
   Implementation Notes record every phase's deviations, the rule 3 outcomes,
   and the before/after figures.
-- Research: `meta/research/codebase/2026-10-06-0299-crate-dependencies-adr-0069.md`
+- Research: `meta/research/codebase/2026-10-06-PP-881-crate-dependencies-adr-0069.md`
 
 ## Testing
 

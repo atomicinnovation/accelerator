@@ -129,10 +129,10 @@ and so are not inherited by a forked daemon, now probes as `Unknown`.
 - Work item: `meta/work/PP-930-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`.
   It was captured as 0330 during the 0223 spike, and renumbered because trunk
   had already assigned 0330.
-- Plan: `meta/plans/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`,
+- Plan: `meta/plans/2026-10-12-PP-930-tree-leases-cold-path-and-unknown-liveness.md`,
   with its review under `meta/reviews/plans/`
-- Codebase research: `meta/research/codebase/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`
-- Validation (result `pass`): `meta/validations/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness-validation.md`
+- Codebase research: `meta/research/codebase/2026-10-12-PP-930-tree-leases-cold-path-and-unknown-liveness.md`
+- Validation (result `pass`): `meta/validations/2026-10-12-PP-930-tree-leases-cold-path-and-unknown-liveness-validation.md`
 - Origin: the 0223 spike (`meta/work/PP-753-bounding-the-default-runtime-cache-root.md`),
   closed here with ADR-0063 standing
 - Decisions: ADR-0061, ADR-0064, ADR-0069

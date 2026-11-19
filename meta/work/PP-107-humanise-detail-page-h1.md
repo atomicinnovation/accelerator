@@ -43,7 +43,7 @@ humanisation. The current cascade is: `frontmatter.title` → first H1 →
 raw `filename_stem`. Three doc kinds (work-item-reviews, plan-reviews,
 validations) currently lack both `frontmatter.title` and a first H1, so
 they fall through to the unhumanised stem (e.g.
-`0042-templates-view-redesign-review-1`). Only those three kinds break
+`PP-64-templates-view-redesign-review-1`). Only those three kinds break
 today, but the humanised fallback and its test cover all thirteen kinds
 in `DocTypeKey::all()`, so any future kind that ships without a title or
 first H1 is protected without further change.
@@ -98,7 +98,7 @@ malformed) still renders a readable H1.
 - [ ] `humanise_slug` is implemented as a discrete helper with unit
   tests covering, at minimum:
   - simple hyphen splits — `humanise_slug("design-token-system") == "Design Token System"`
-  - leading numeric IDs stripped — `humanise_slug("0042-templates-view-redesign-review-1") == "Templates View Redesign Review 1"`
+  - leading numeric IDs stripped — `humanise_slug("PP-64-templates-view-redesign-review-1") == "Templates View Redesign Review 1"`
   - leading ISO dates stripped — `humanise_slug("2026-05-21-current-app-vs-claude-design-prototype") == "Current App Vs Claude Design Prototype"`
   - mixed prefixes — single-pass strip: only the leading matching prefix is removed, e.g. `humanise_slug("2026-05-21-0042-foo") == "0042 Foo"` and `humanise_slug("0042-2026-05-21-foo") == "2026 05 21 Foo"`. Once the leading prefix is stripped, hyphens inside any *residual* date or ID become ordinary separators — which is why `0042` survives as a single token in the first example while the residual date splits into `2026 05 21` in the second.
   - single-segment slugs — `humanise_slug("notes") == "Notes"`

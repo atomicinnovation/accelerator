@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-185", "work-item:PP-189"]
 tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 last_updated: "2026-07-05T22:47:31+00:00"
@@ -222,7 +222,7 @@ bigger here because of multi-binary coherence and minisign key management.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Related: `meta/work/PP-185-launcher-and-git-style-dispatch.md`,
   `meta/work/PP-189-fold-visualiser-into-cli-workspace.md`

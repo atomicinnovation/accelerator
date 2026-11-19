@@ -64,7 +64,7 @@ The real anchors are committed and verified: the nine active Node release signer
 
 ## Context
 
-Implements work-item:PP-726, following `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`. Depends on the warm-dispatch measurement method from work-item:PP-735 and the tree-artifact mechanisms settled in work-item:PP-751; the container CI lane is owned by work-item:PP-738.
+Implements work-item:PP-726, following `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md`. Depends on the warm-dispatch measurement method from work-item:PP-735 and the tree-artifact mechanisms settled in work-item:PP-751; the container CI lane is owned by work-item:PP-738.
 
 ## Testing
 

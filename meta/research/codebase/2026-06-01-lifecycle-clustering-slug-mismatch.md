@@ -12,9 +12,9 @@ type: "codebase-research"
 id: "2026-06-01-lifecycle-clustering-slug-mismatch"
 title: "lifecycle clustering breaks because slugs don't agree across doc types"
 schema_version: 1
-relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "adr:ADR-0028", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "work-item:PP-79", "work-item:PP-62"]
+relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "adr:ADR-0028", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy", "work-item:PP-79", "work-item:PP-62"]
 supersedes: ["adr:ADR-0034", "adr:ADR-0033"]
-derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul"]
+derived_from: ["codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy", "codebase-research:2026-05-21-PP-86-canonicalise-work-item-id-and-author-fields", "codebase-research:2026-05-30-PP-87-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-05-31-PP-62-pipeline-visualisation-overhaul"]
 ---
 
 # lifecycle clustering breaks because slugs don't agree across doc types
@@ -30,7 +30,7 @@ derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-ac
 Lifecycle clusters in the visualiser group `IndexEntry`s by `slug`. For
 work item `0040` the work-item file `meta/work/PP-62-pipeline-visualisation-overhaul.md`
 yields slug `pipeline-visualisation-overhaul`, but its plan
-`meta/plans/2026-05-31-0040-pipeline-visualisation-overhaul.md` yields
+`meta/plans/2026-05-31-PP-62-pipeline-visualisation-overhaul.md` yields
 slug `0040-pipeline-visualisation-overhaul`. The two slugs don't agree
 and the entries don't cluster. Similarly, validations, PR descriptions
 and PR reviews never seem to land in a cluster. **Analyse the corpus
@@ -67,7 +67,7 @@ Three independent failure modes are visible:
    rules inherit the same shape. There is no path by which their slug
    matches a work-item slug; they would always orphan.
 3. **Work-item reviews are universally orphans** — `meta/reviews/work/`
-   filenames have **no date prefix** (`0030-centralise-path-defaults-review-1.md`).
+   filenames have **no date prefix** (`PP-52-centralise-path-defaults-review-1.md`).
    The slug rule for `WorkItemReviews` requires a date and returns
    `None`. Every file in this directory is dropped from clustering
    today.
@@ -111,12 +111,12 @@ Applied to representative filenames in the corpus today:
 | Filename | Doc type | Slug today | Notes |
 |---|---|---|---|
 | `meta/work/PP-62-pipeline-visualisation-overhaul.md` | WorkItems | `pipeline-visualisation-overhaul` | strip `NNNN-` (or `PROJ-NNNN-` via configured regex) |
-| `meta/plans/2026-05-31-0040-pipeline-visualisation-overhaul.md` | Plans | `0040-pipeline-visualisation-overhaul` | strip date only; **ID retained** |
+| `meta/plans/2026-05-31-PP-62-pipeline-visualisation-overhaul.md` | Plans | `0040-pipeline-visualisation-overhaul` | strip date only; **ID retained** |
 | `meta/plans/2026-02-22-pr-review-agents.md` | Plans | `pr-review-agents` | strip date only; no ID present |
-| `meta/research/codebase/2026-05-05-0031-consolidate-accelerator-owned-files.md` | Research | `0031-consolidate-accelerator-owned-files` | strip date only; **ID retained** |
-| `meta/reviews/plans/2026-05-05-0031-consolidate-accelerator-owned-files-review-1.md` | PlanReviews | `0031-consolidate-accelerator-owned-files` | strip date + `-review-N`; **ID retained** |
+| `meta/research/codebase/2026-05-05-PP-53-consolidate-accelerator-owned-files.md` | Research | `0031-consolidate-accelerator-owned-files` | strip date only; **ID retained** |
+| `meta/reviews/plans/2026-05-05-PP-53-consolidate-accelerator-owned-files-review-1.md` | PlanReviews | `0031-consolidate-accelerator-owned-files` | strip date + `-review-N`; **ID retained** |
 | `meta/validations/2026-04-21-meta-visualiser-phase-3-…-validation.md` | Validations | `meta-visualiser-phase-3-…-validation` | strip date only; `-validation` suffix **not** stripped |
-| `meta/reviews/work/0030-centralise-path-defaults-review-1.md` | WorkItemReviews | **`None`** (orphan) | rule requires date prefix; corpus filenames have no date |
+| `meta/reviews/work/PP-52-centralise-path-defaults-review-1.md` | WorkItemReviews | **`None`** (orphan) | rule requires date prefix; corpus filenames have no date |
 | `meta/decisions/ADR-0007-foo.md` | Decisions | `foo` | strip `ADR-NNNN-` |
 
 `build_entry` in indexer.rs takes a special path for `WorkItems`
@@ -414,7 +414,7 @@ parents the moment their existing `target:` frontmatter is read.
   vocabulary half but its aggregation intent matches Option B.
 - `meta/decisions/ADR-0028-common-frontmatter-schema-for-meta-artifacts.md`
   — first pass at common frontmatter; ADR-0033 supersedes.
-- `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
   — quantified the cost of body-prose link inference; recommendation
   reinforces frontmatter-based resolution.
 - `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
@@ -426,17 +426,17 @@ parents the moment their existing `target:` frontmatter is read.
 
 ## Related Research
 
-- `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
   — same family of slug-vs-frontmatter trade-offs.
-- `meta/research/codebase/2026-05-21-0064-canonicalise-work-item-id-and-author-fields.md`
+- `meta/research/codebase/2026-05-21-PP-86-canonicalise-work-item-id-and-author-fields.md`
   — the field-rename work that made `work_item_id` a coherent
   frontmatter handle.
-- `meta/research/codebase/2026-05-30-0065-update-artifact-templates-to-unified-schema.md`
+- `meta/research/codebase/2026-05-30-PP-87-update-artifact-templates-to-unified-schema.md`
   — template-level rollout of ADR-0033's mandatory fields.
 - `meta/research/codebase/2026-04-28-configurable-work-item-id-pattern.md`
   — established the configurable-pattern work that
   `WorkItemConfig::extract_id` + `normalise_id` now consume.
-- `meta/research/codebase/2026-05-31-0040-pipeline-visualisation-overhaul.md`
+- `meta/research/codebase/2026-05-31-PP-62-pipeline-visualisation-overhaul.md`
   — research for the current visualiser overhaul; introduced
   `linkedCount` + `completeness.present` but did not touch the
   cluster key.

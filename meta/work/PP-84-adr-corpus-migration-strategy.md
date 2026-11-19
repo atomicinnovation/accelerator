@@ -12,9 +12,9 @@ type: "work-item"
 schema_version: 1
 last_updated: "2026-05-17T17:16:35+00:00"
 last_updated_by: "Toby Clemson"
-blocked_by: ["work-item:PP-82", "work-item:PP-83", "work-item:PP-56", "work-item:PP-90", "work-item:PP-114", "work-item:PP-84", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0034"]
+blocked_by: ["work-item:PP-82", "work-item:PP-83", "work-item:PP-56", "work-item:PP-90", "work-item:PP-114", "work-item:PP-84", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy", "adr:ADR-0034"]
 blocks: ["work-item:PP-91", "work-item:PP-92", "work-item:PP-79"]
-relates_to: ["adr:ADR-0030", "adr:ADR-0034", "adr:ADR-0023", "work-item:PP-52", "work-item:PP-79", "work-item:PP-56", "work-item:PP-114", "work-item:PP-45", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
+relates_to: ["adr:ADR-0030", "adr:ADR-0034", "adr:ADR-0023", "work-item:PP-52", "work-item:PP-79", "work-item:PP-56", "work-item:PP-114", "work-item:PP-45", "codebase-research:2026-05-24-PP-90-related-documents-inference-accuracy"]
 external_id: "PP-84"
 aliases: ["0062"]
 ---
@@ -75,7 +75,7 @@ Sibling ADR-task 0092 owns the framework-level optional interactive contract —
 
 ## Dependencies
 
-- Blocked by: 0060 (foundational unified-base-schema decision — the interactive-hook contract and vocab-gap resolutions are defined against this base schema; status done), 0061 / ADR-0034 (typed-linkage vocabulary — this ADR supplements it via the vocab-gap resolutions and needs the typed-linkage vocabulary settled; status done), 0068 (spike whose recommendation this ADR consumes — verdict captured in `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`; status done), 0092 (framework-level optional interactive contract — this ADR adopts and parameterises that contract; status ready). The first three upstreams are accepted; 0092 must land before 0062 can finalise its parameterisation.
+- Blocked by: 0060 (foundational unified-base-schema decision — the interactive-hook contract and vocab-gap resolutions are defined against this base schema; status done), 0061 / ADR-0034 (typed-linkage vocabulary — this ADR supplements it via the vocab-gap resolutions and needs the typed-linkage vocabulary settled; status done), 0068 (spike whose recommendation this ADR consumes — verdict captured in `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`; status done), 0092 (framework-level optional interactive contract — this ADR adopts and parameterises that contract; status ready). The first three upstreams are accepted; 0092 must land before 0062 can finalise its parameterisation.
 - Blocks: 0069 (interactive-hooks framework extension — confirmed in-scope by the spike, not moot; the parser-fix routing decision may materially shift 0069's scope), 0070 (corpus migration shipping; the parser-fix routing decision may materially shift 0070's scope). Acceptance of this ADR resolves epic 0057's Open Question 3 (deterministic-vs-interactive migration design).
 - Related: ADR-0030 (ADR template authority), 0057 (parent epic — see Blocks for OQ-resolution coupling). If this ADR introduces or reuses a typed-linkage vocabulary term, the term lives in this ADR's text; per the corpus's accepted-ADR immutability convention, ADR-0034 itself is not mutated — readers discover the supplementation via the cross-reference this ADR declares (mirroring how sibling ADR 0092 handles its ADR-0023 amendment).
 
@@ -88,7 +88,7 @@ Sibling ADR-task 0092 owns the framework-level optional interactive contract —
 
 ## Technical Notes
 
-- Spike 0068's research write-up (`meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`) is the primary input to this ADR; the verdict, failure-pattern catalogue, and band-calibration observations should be cited directly in the ADR's Context.
+- Spike 0068's research write-up (`meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`) is the primary input to this ADR; the verdict, failure-pattern catalogue, and band-calibration observations should be cited directly in the ADR's Context.
 - The interactive-hooks decision is committed (see AC 1); the **hybrid** (interactive only on low-confidence) vs **uniform** (interactive on every inference) application shape is the remaining choice — AC 3 forces it to be made explicitly.
 - Sibling ADR 0092 carries the broad ADR-0023 amendment and the framework-level contract primitives; this ADR adopts and parameterises that contract for the unified-schema migration. The framework primitives' shapes (trigger predicate, display elements, control semantics, resumability) are 0092's; this ADR fills in the migration-specific values.
 
@@ -103,5 +103,5 @@ Sibling ADR-task 0092 owns the framework-level optional interactive contract —
 ## References
 
 - Source: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`
-- Research: `meta/research/codebase/2026-05-24-0068-related-documents-inference-accuracy.md`
+- Research: `meta/research/codebase/2026-05-24-PP-90-related-documents-inference-accuracy.md`
 - Related: ADR-0030, 0057, 0060, 0061 / ADR-0034, 0068, 0069, 0070, 0092

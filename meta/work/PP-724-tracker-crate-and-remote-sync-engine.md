@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-191", "work-item:PP-195"]
 tags: ["rust", "work-items", "sync", "tracker"]
 last_updated: "2026-08-13T12:20:00+00:00"
@@ -573,7 +573,7 @@ Criteria and Drafting Notes.
 - `reqwest` in the work binary (via the client adapters 0171 provides) is
   acceptable — it is already workspace-wide via the launcher, resolved by
   the work↔integrations coupling decision (research doc
-  `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`,
+  `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`,
   Open Question 2).
 - The active provider client is faked at the `RemoteTracker` port boundary
   for this story's own unit tests; real Jira/Linear wiring is exercised
@@ -674,7 +674,7 @@ Criteria and Drafting Notes.
 ## Drafting Notes
 
 - Split from 0170 on 2026-08-05 following work item review 1
-  (`meta/reviews/work/0170-work-item-subdomain-and-sync-engine-review-1.md`),
+  (`meta/reviews/work/PP-191-work-item-subdomain-and-sync-engine-review-1.md`),
   which found the lifecycle CRUD and sync engine independently deliverable.
   This item carries the `tracker` crate and `sync` command; 0170 keeps the
   CRUD lifecycle ops. Because 0170's `--push` flows and 0171's clients both
@@ -683,7 +683,7 @@ Criteria and Drafting Notes.
   the split discussion. **Superseded** by the 2026-08-05 revision two notes
   below, which absorbed `--push` and reversed the direction again.
 - Revised following work item review 1
-  (`meta/reviews/work/0194-tracker-crate-and-remote-sync-engine-review-1.md`):
+  (`meta/reviews/work/PP-724-tracker-crate-and-remote-sync-engine-review-1.md`):
   added a concrete verification mechanism for the resumability criterion,
   clarified that Dependencies' blocking milestone is the port signature
   compiling rather than this item's full Acceptance Criteria gate, added a
@@ -831,7 +831,7 @@ Criteria and Drafting Notes.
   existing bridge scripts — was rejected as throwaway work that would
   itself need retiring, for a window 0171 closes anyway.
 - Revised following work item review 2
-  (`meta/reviews/work/0194-tracker-crate-and-remote-sync-engine-review-2.md`),
+  (`meta/reviews/work/PP-724-tracker-crate-and-remote-sync-engine-review-2.md`),
   which returned REVISE on thirteen major findings, nearly all of them
   loose ends left by the 2026-08-10 correction pass. Six substantive
   decisions were taken and the rest were mechanical reconciliation:
@@ -871,7 +871,7 @@ Criteria and Drafting Notes.
   criterion into its two checks, enumerated the bridge scripts behind the
   port's four operations, and glossed the terms review 2 found undefined.
 - 0204 accepted and implemented 2026-08-12
-  (`meta/plans/2026-08-11-0204-remote-tracker-port.md`). Its Requirements
+  (`meta/plans/2026-08-11-PP-734-remote-tracker-port.md`). Its Requirements
   and Acceptance Criteria above already carried the `FetchOutcome`
   two-tier read and the retryable/terminal-on-mutation wording, from an
   earlier reconciliation pass — only the Dependencies bullet's item count
@@ -899,7 +899,7 @@ Criteria and Drafting Notes.
   writes it.
 
 - Amended 2026-08-13, following plan review 1 (three passes, eight lenses,
-  `meta/reviews/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1.md`).
+  `meta/reviews/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine-review-1.md`).
   Two acceptance criteria were wrong in ways that would have failed a correct
   implementation at validation, so both were corrected here rather than
   worked around in the plan:
@@ -921,7 +921,7 @@ Criteria and Drafting Notes.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Split from: `meta/work/PP-191-work-item-subdomain-and-sync-engine.md`
 - ADRs: ADR-0045, ADR-0052, ADR-0053

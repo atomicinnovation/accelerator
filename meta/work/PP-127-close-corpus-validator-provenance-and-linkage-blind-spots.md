@@ -219,7 +219,7 @@ and the audit table's by-inspection axes become validator-checkable.
 
 - Source: work item 0103 Discovery Pass Record (blind-spot consolidation
   follow-on)
-- `meta/research/codebase/2026-06-15-0105-corpus-validator-provenance-linkage-blind-spots.md`
+- `meta/research/codebase/2026-06-15-PP-127-corpus-validator-provenance-linkage-blind-spots.md`
   (verified current-state research; the line references above were corrected
   against it)
 - `scripts/validate-corpus-frontmatter.sh:295-305,334-357` (the two blind spots)

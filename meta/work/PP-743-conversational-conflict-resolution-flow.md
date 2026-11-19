@@ -236,7 +236,7 @@ pointed at a `MockServer` (`sync_run_real_client.rs`, which already threads a
 ## References
 
 - Research, in `meta/research/codebase/`:
-  `2026-08-18-0213-conversational-conflict-resolution-flow.md` — the
+  `2026-08-18-PP-743-conversational-conflict-resolution-flow.md` — the
   field-by-field audit of the shipped report, the exit-code and `--resolve`
   semantics verified against the binary, and the CLI-extension options. Its
   2026-08-19 follow-up records the 0210 rebase: clients wired, exit `74`, the
@@ -246,5 +246,5 @@ pointed at a `MockServer` (`sync_run_real_client.rs`, which already threads a
   port), 0212 (shares the same section of `sync-work-items/SKILL.md`)
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — skills own
   probabilistic work, the CLI owns deterministic work.
-- `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md` — the
+- `meta/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine.md` — the
   report contract as designed, and the deferral of the conversational flow.

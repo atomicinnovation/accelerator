@@ -9,7 +9,7 @@ status: "done"
 kind: "task"
 priority: "high"
 parent: "work-item:PP-953"
-relates_to: ["work-item:PP-961", "codebase-research:2026-10-30-0368-build-performance-measurement-harness", "work-item:PP-962"]
+relates_to: ["work-item:PP-961", "codebase-research:2026-10-30-PP-960-build-performance-measurement-harness", "work-item:PP-962"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "tooling", "documentation", "macos"]
 last_updated: "2026-11-03T13:24:09+00:00"
@@ -470,7 +470,7 @@ None.
 
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
 - Implementation research, including the mise probes:
-  `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
+  `meta/research/codebase/2026-10-30-PP-960-build-performance-measurement-harness.md`
 - Related: 0361, 0362, 0363, 0364, 0365, 0366, 0367, 0369, 0370
 - Precedent: 0189 (`measure:warm-dispatch` records under
   `meta/measurements/`)

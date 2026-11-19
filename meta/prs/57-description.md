@@ -40,9 +40,9 @@ Builds `accelerator-corpus`, a new dispatched sub-binary exposing `accelerator c
 ## Context
 
 - Work item: `meta/work/PP-725-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md` (status: done)
-- Plan: `meta/plans/2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
-- Research: `meta/research/codebase/2026-08-06-0195-accelerator-corpus-cli-implementation-surface.md`
-- Validation: `meta/validations/2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli-validation.md`
+- Plan: `meta/plans/2026-08-06-PP-725-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
+- Research: `meta/research/codebase/2026-08-06-PP-725-accelerator-corpus-cli-implementation-surface.md`
+- Validation: `meta/validations/2026-08-06-PP-725-accelerator-corpus-adr-metadata-frontmatter-linkage-cli-validation.md`
 
 ## Testing
 

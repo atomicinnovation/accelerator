@@ -138,8 +138,8 @@ owned by work item 0051.
 ## References
 
 - `meta/work/PP-69-core-skills-sync-integration.md` — work item that forced the decision
-- `meta/plans/2026-06-15-0047-core-skills-sync-integration.md` — implementing plan (flagged this ADR)
-- `meta/research/codebase/2026-06-15-0047-core-skills-sync-integration.md` — research enumerating the three `work_item_id` uses
+- `meta/plans/2026-06-15-PP-69-core-skills-sync-integration.md` — implementing plan (flagged this ADR)
+- `meta/research/codebase/2026-06-15-PP-69-core-skills-sync-integration.md` — research enumerating the three `work_item_id` uses
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — defines `id`; first introduces `external_id`
 - `meta/decisions/ADR-0040-omit-when-empty-frontmatter-emission-supplement-to-adr-0033.md` — omit-when-empty rule for `external_id`/`work_item_id`
 - `meta/decisions/ADR-0025-work-item-cross-ref-aggregation.md` — relies on `work_item_id` roles (A)/(B)

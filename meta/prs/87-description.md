@@ -41,8 +41,8 @@ Post-review refinements on this branch: stale planning references (ADRs, ACs, wo
 
 - Work item: `meta/work/PP-750-canonical-quoting-standard-for-all-frontmatter.md`
 - Decision: `meta/decisions/ADR-0065-canonical-frontmatter-quoting-standard.md`
-- Plan: `meta/plans/2026-08-30-0221-canonical-frontmatter-quoting-standard.md`
-- Validation: `meta/validations/2026-08-30-0221-canonical-frontmatter-quoting-standard-validation.md`
+- Plan: `meta/plans/2026-08-30-PP-750-canonical-frontmatter-quoting-standard.md`
+- Validation: `meta/validations/2026-08-30-PP-750-canonical-frontmatter-quoting-standard-validation.md`
 - Originating defect: work item 0220 (unquoted typed-linkage on `work create`)
 - Follow-up: work item 0227 (`accelerator config validate`) inherits the shared quoting predicate
 

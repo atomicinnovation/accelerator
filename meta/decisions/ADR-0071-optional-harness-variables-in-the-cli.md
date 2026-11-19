@@ -117,4 +117,4 @@ the failure the guard exists to prevent.
   that introduced the guard
 - `meta/research/issues/2026-07-26-cli-requires-claude-plugin-root-env-var.md`
   — the breakage the guard prevents
-- `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md`
+- `meta/plans/2026-10-10-PP-889-research-concurrency-subagent-limit.md`

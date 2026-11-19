@@ -11,7 +11,7 @@ type: "work-item"
 schema_version: 1
 last_updated: "2026-06-12T22:08:58+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0036", "work-item:PP-55", "work-item:PP-97", "work-item:PP-112", "work-item:PP-121", "plan:2026-05-23-0075-typography-size-scale-consumption"]
+relates_to: ["adr:ADR-0036", "work-item:PP-55", "work-item:PP-97", "work-item:PP-112", "work-item:PP-121", "plan:2026-05-23-PP-97-typography-size-scale-consumption"]
 external_id: "PP-113"
 aliases: ["0091"]
 ---
@@ -295,7 +295,7 @@ The spike is complete when:
   instrumentation is demoted to a future-validation step (Open
   Questions).
 - Addressed review-1 findings
-  (`meta/reviews/work/0091-typography-rem-vs-px-stance-review-1.md`):
+  (`meta/reviews/work/PP-113-typography-rem-vs-px-stance-review-1.md`):
   resolved the time-box wording (preamble is now "exit-criteria-bounded"
   and the Time-box section adds a soft ~1–2 day effort guideline, not a
   hard stop); added the 0033 CI-gate constraint, the conditional
@@ -318,7 +318,7 @@ The spike is complete when:
   — origin of the px-anchored stance.
 - `meta/work/PP-97-typography-size-scale-consumption.md` — landed the
   migration this work item evaluates (status: done).
-- `meta/plans/2026-05-23-0075-typography-size-scale-consumption.md` —
+- `meta/plans/2026-05-23-PP-97-typography-size-scale-consumption.md` —
   plan that introduced the px-anchored stance.
 - Related work items:
   - `meta/work/PP-121-remap-typography-size-scale-to-pure-numeric-tokens.md`

@@ -114,7 +114,7 @@ decrement its floors), both benefit from this migration.
   must not be deleted by this item until work-item:PP-193's Phase 0 bash-golden
   capture commit has landed — that capture is the only oracle for its own
   migration 0007 port, and the window closes irreversibly once this script is
-  gone. Check `meta/plans/2026-08-07-0172-migration-engine-subdomain.md`
+  gone. Check `meta/plans/2026-08-07-PP-193-migration-engine-subdomain.md`
   (Phase 0) for whether that capture commit has landed before removing this
   script as part of the `frontmatter validate` noun group.
 - Note: the compiled work-item-id scan regex needed by `linkage-parser`/

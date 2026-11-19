@@ -10,7 +10,7 @@ title: "ADR-0026: CSS Design-Token Application Conventions"
 schema_version: 1
 last_updated: "2026-05-07T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["work-item:PP-55", "plan:2026-05-06-0033-design-token-system"]
+relates_to: ["work-item:PP-55", "plan:2026-05-06-PP-55-design-token-system"]
 ---
 
 # ADR-0026: CSS Design-Token Application Conventions
@@ -294,7 +294,7 @@ a second consumer arrives.
 - `src/styles/global.css` — `:root` token declarations
 - `src/styles/migration.test.ts` — `EXCEPTIONS` enforcement harness
 - Work item `meta/work/PP-55-design-token-system.md` — migration work item
-- `meta/plans/2026-05-06-0033-design-token-system.md` — migration plan
+- `meta/plans/2026-05-06-PP-55-design-token-system.md` — migration plan
 
 ---
 

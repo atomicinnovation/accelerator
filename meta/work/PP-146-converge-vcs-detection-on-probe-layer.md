@@ -73,7 +73,7 @@ dependency bug fix, whereas this convergence is a higher-risk redesign of the
 single most widely-sourced detection function and must be done with care.
 
 See the 0124 plan's "Follow-up" section
-([`meta/plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md))
+([`meta/plans/2026-06-22-PP-145-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-PP-145-find-repo-root-fails-in-git-worktrees.md))
 for the originating analysis.
 
 ## The root cause being addressed
@@ -211,5 +211,5 @@ set at once.
   `find_jj_main_workspace_root` (`vcs-common.sh:90-114`)
 - Legacy helpers: `find_repo_root` (`vcs-common.sh:8-18`),
   `vcs_mode` (`vcs-common.sh:27-36`)
-- Originating analysis: [`meta/plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md) (Follow-up section)
-- Research: [`meta/research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-0124-find-repo-root-fails-in-git-worktrees.md)
+- Originating analysis: [`meta/plans/2026-06-22-PP-145-find-repo-root-fails-in-git-worktrees.md`](../plans/2026-06-22-PP-145-find-repo-root-fails-in-git-worktrees.md) (Follow-up section)
+- Research: [`meta/research/codebase/2026-06-22-PP-145-find-repo-root-fails-in-git-worktrees.md`](../research/codebase/2026-06-22-PP-145-find-repo-root-fails-in-git-worktrees.md)

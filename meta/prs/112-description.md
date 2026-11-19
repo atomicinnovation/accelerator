@@ -36,7 +36,7 @@ closure, which landed after that PR had already merged.
 
 - Work item: `meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`
 - Implementation PR: #111 (merged) — refuses template resolution on a wrong plugin root.
-- Validation: `meta/validations/2026-09-09-0184-template-resolution-wrong-plugin-root-validation.md` (result: pass).
+- Validation: `meta/validations/2026-09-09-PP-714-template-resolution-wrong-plugin-root-validation.md` (result: pass).
 
 ## Testing
 

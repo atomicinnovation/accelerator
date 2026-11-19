@@ -41,8 +41,8 @@ Delivered as the ten phases of the 0174 plan plus follow-up refinements, each an
 ## Context
 
 - Work item: `meta/work/PP-195-retire-shell-tooling-and-ci-guards.md` (Jira `PP-195`)
-- Plan: `meta/plans/2026-08-28-0174-empty-scripts-retire-shell-tooling.md`
-- Validation: `meta/validations/2026-08-28-0174-empty-scripts-retire-shell-tooling-validation.md` (result: pass)
+- Plan: `meta/plans/2026-08-28-PP-195-empty-scripts-retire-shell-tooling.md`
+- Validation: `meta/validations/2026-08-28-PP-195-empty-scripts-retire-shell-tooling-validation.md` (result: pass)
 - Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0048 (four-toolchain split), ADR-0049 (bash-3.2 floor)
 

@@ -214,11 +214,11 @@ From the PR #159 review (`meta/reviews/prs/159-review-1.md`), in two rounds.
 ## Context
 
 - Work item: `meta/work/PP-880-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
-- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md` (status
+- Plan: `meta/plans/2026-10-10-PP-880-sync-round-trip-defects.md` (status
   `done`)
-- Validation: `meta/validations/2026-10-10-0296-sync-round-trip-defects-validation.md`
+- Validation: `meta/validations/2026-10-10-PP-880-sync-round-trip-defects-validation.md`
   (`pass`)
-- Research: `meta/research/codebase/2026-10-10-0296-sync-round-trip-defects.md`
+- Research: `meta/research/codebase/2026-10-10-PP-880-sync-round-trip-defects.md`
 - Review PR: #156
 
 ## Testing

@@ -11,7 +11,7 @@ title: "ADR-0036: Typography font-size consumption rule"
 schema_version: 1
 last_updated: "2026-05-23T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0026", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0034", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "work-item:PP-97", "work-item:PP-113"]
+relates_to: ["adr:ADR-0026", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0034", "codebase-research:2026-05-23-PP-97-typography-size-scale-consumption", "work-item:PP-97", "work-item:PP-113"]
 ---
 
 # ADR-0036: Typography font-size consumption rule
@@ -137,7 +137,7 @@ exceptional admissions).
   supersession convention applied.
 - `meta/decisions/ADR-0034-typed-linkage-vocabulary.md` —
   `supersedes` linkage shape.
-- `meta/research/codebase/2026-05-23-0075-typography-size-scale-consumption.md`
+- `meta/research/codebase/2026-05-23-PP-97-typography-size-scale-consumption.md`
   — codebase audit that motivated this ADR.
 - `meta/work/PP-97-typography-size-scale-consumption.md` — work item
   that landed the rule.

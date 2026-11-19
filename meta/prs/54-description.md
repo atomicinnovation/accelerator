@@ -29,7 +29,7 @@ Corpus housekeeping in the wake of the VCS subdomain migration. The two follow-u
 
 - Renamed `meta/work/0192-retire-vcs-common-sh-residue-and-launcher-link-refresh.md` → `0199-…` and `meta/work/0193-decide-vcs-guard-log-diff-blocklist-membership.md` → `0200-…`, updating each file's `id:` and body H1 to match. `0199` and `0200` were the next free IDs — `0198` is the highest previously allocated work item.
 - Repointed the inbound references in `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`: the `relates_to:` list and the two resolution links in the Dependencies section that name the follow-ups by filename.
-- Repointed the narrative references in the derived artifacts — the Phase 10 hand-off criterion in `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` and the Phase 10 verdict in `meta/validations/2026-08-05-0169-vcs-subdomain-and-hooks-migration-validation.md`.
+- Repointed the narrative references in the derived artifacts — the Phase 10 hand-off criterion in `meta/plans/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration.md` and the Phase 10 verdict in `meta/validations/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration-validation.md`.
 - Updated `meta/prs/51-description.md` — both its `relates_to:` list and the hand-offs bullet — so the merged PR's record points at the surviving IDs. This edits an already-merged PR's on-disk description; it is a record-keeping correction, not a change to what #51 shipped.
 
 **Close `0169`**

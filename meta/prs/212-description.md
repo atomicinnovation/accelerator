@@ -92,7 +92,7 @@ The plan records Phase 2 as implemented.
 ## Context
 
 - Work item: `meta/work/PP-954-make-the-bootstrap-test-suites-fast-and-hermetic.md`
-- Plan: `meta/plans/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic.md`
+- Plan: `meta/plans/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic.md`
   (Phase 2)
 - Stacked on #210, which builds `minisign-verify` at `opt-level = 3` in dev
   builds

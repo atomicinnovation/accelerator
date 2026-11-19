@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-726"
-derived_from: ["plan:2026-08-11-0196-design-cli-migration"]
+derived_from: ["plan:2026-08-11-PP-726-design-cli-migration"]
 relates_to: ["work-item:PP-726"]
 tags: ["design", "security", "secrets"]
 last_updated: "2026-09-11T09:57:03+00:00"
@@ -188,7 +188,7 @@ is enforced by `scan()` returning names only.
   but high-entropy head — a bare-key header (`X-API-Key: <key>`) or a
   colon-containing password — is not prefixed (an accepted missed leak). A precise
   entropy heuristic is out of scope. (Surfaced by plan review — see
-  `plan:2026-09-11-0207-detect-encoded-credentials-in-scrubbed-artefacts`.)
+  `plan:2026-09-11-PP-737-detect-encoded-credentials-in-scrubbed-artefacts`.)
 - Mid-token and tail-truncation are deliberately not given their own detection:
   a needle short enough to catch a dropped head reintroduces the false-positive
   risk `P`/`M` exists to avoid.
@@ -207,7 +207,7 @@ is enforced by `scan()` returning names only.
   `NamedSecret::needles()`, `scan()`, the `ACCELERATOR_BROWSER_AUTH_HEADER`
   value-half split, and `CREDENTIAL_VARIABLES` in
   `cli/design-adapters/src/environment.rs` — is delivered by Phase 2 of
-  `plan:2026-08-11-0196-design-cli-migration` and has landed. This work is not
+  `plan:2026-08-11-PP-726-design-cli-migration` and has landed. This work is not
   blocked.
 - This work consumes that migration's `AUTH_HEADER` value-half extraction (the
   first-colon split) as a fixed contract: any change to that extraction shape is
@@ -216,6 +216,6 @@ is enforced by `scan()` returning names only.
 
 ## References
 
-- Derived from: `plan:2026-08-11-0196-design-cli-migration` — the CLI migration
+- Derived from: `plan:2026-08-11-PP-726-design-cli-migration` — the CLI migration
   that introduced the header value-half split this work extends.
 - Related: 0196

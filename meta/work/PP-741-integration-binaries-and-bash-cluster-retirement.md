@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-192"
 blocked_by: ["work-item:PP-740", "work-item:PP-742"]
 blocks: ["work-item:PP-195"]
-relates_to: ["work-item:PP-186", "work-item:PP-733", "codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
+relates_to: ["work-item:PP-186", "work-item:PP-733", "codebase-research:2026-08-17-PP-741-integration-binaries-and-bash-cluster-retirement"]
 tags: ["rust", "jira", "linear", "integrations", "cli", "cutover"]
 last_updated: "2026-08-17T13:33:15+00:00"
 last_updated_by: "Toby Clemson"
@@ -505,7 +505,7 @@ Recorded so the plan does not spend effort on them:
 ## Drafting Notes
 
 - Enriched 2026-08-17 from
-  `meta/research/codebase/2026-08-17-0211-integration-binaries-and-bash-cluster-retirement.md`,
+  `meta/research/codebase/2026-08-17-PP-741-integration-binaries-and-bash-cluster-retirement.md`,
   measured at revision `5e8e8677`. `producer` left as `review-work-item`: it
   records where the item came from, and this pass enriched it rather than created
   it.
@@ -528,7 +528,7 @@ Recorded so the plan does not spend effort on them:
   (five of eight flows) owned by neither 0210 nor 0211, and 0210 carrying no
   criterion for HTTP-status or GraphQL error classification.
 - The 0167 config-cluster retirement is the closest precedent and produced the
-  artefact set this child should mirror: `meta/inventories/0167-removal-set.md`,
+  artefact set this child should mirror: `meta/inventories/PP-188-removal-set.md`,
   `-suite-audit.md` and `-divergences.md`. The divergences file's governing rule
   transfers verbatim — *"A divergence nothing can detect is indistinguishable
   from a defect, so every row names a real, passing test."* Its divergence #4,
@@ -543,10 +543,10 @@ Recorded so the plan does not spend effort on them:
 - Parent: `meta/work/PP-192-jira-and-linear-integrations.md`
 - Blocked by: `meta/work/PP-740-provider-client-crates-over-the-tracker-port.md`,
   `meta/work/PP-742-work-item-script-cutover.md`
-- Research: `meta/research/codebase/2026-08-17-0211-integration-binaries-and-bash-cluster-retirement.md`
-- Review: `meta/reviews/work/0211-integration-binaries-and-bash-cluster-retirement-review-1.md`
-- Precedent: `meta/inventories/0167-removal-set.md`,
-  `meta/inventories/0167-suite-audit.md`,
-  `meta/inventories/0167-divergences.md`,
-  `meta/validations/2026-07-19-0167-config-command-and-invocation-contract-migration-validation.md`
+- Research: `meta/research/codebase/2026-08-17-PP-741-integration-binaries-and-bash-cluster-retirement.md`
+- Review: `meta/reviews/work/PP-741-integration-binaries-and-bash-cluster-retirement-review-1.md`
+- Precedent: `meta/inventories/PP-188-removal-set.md`,
+  `meta/inventories/PP-188-suite-audit.md`,
+  `meta/inventories/PP-188-divergences.md`,
+  `meta/validations/2026-07-19-PP-188-config-command-and-invocation-contract-migration-validation.md`
 - Related: 0165, 0174, 0203

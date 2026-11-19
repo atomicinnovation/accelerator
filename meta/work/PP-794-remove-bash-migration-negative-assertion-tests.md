@@ -202,5 +202,5 @@ parity/golden tests (`bash_parity_baseline.rs`, `migration_000N.rs`,
 ## References
 
 - Source: `meta/notes/2026-06-23-further-ideas-backlog.md`
-- Research: `meta/research/codebase/2026-09-08-0264-remove-bash-migration-negative-assertion-tests.md`
+- Research: `meta/research/codebase/2026-09-08-PP-794-remove-bash-migration-negative-assertion-tests.md`
 - Related: 0136, 0174, 0211, 0212, 0245, 0269

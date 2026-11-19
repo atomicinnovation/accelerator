@@ -104,10 +104,10 @@ which clamps the value to the harness's subagent cap. It also teaches
 ## Context
 
 - Work item: `meta/work/PP-889-research-concurrency-exceeds-subagent-limit.md`
-- Plan: `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md`,
+- Plan: `meta/plans/2026-10-10-PP-889-research-concurrency-subagent-limit.md`,
   with its review under `meta/reviews/plans/`
-- Codebase research: `meta/research/codebase/2026-10-10-0303-research-concurrency-subagent-limit.md`
-- Validation (result `pass`): `meta/validations/2026-10-10-0303-research-concurrency-subagent-limit-validation.md`
+- Codebase research: `meta/research/codebase/2026-10-10-PP-889-research-concurrency-subagent-limit.md`
+- Validation (result `pass`): `meta/validations/2026-10-10-PP-889-research-concurrency-subagent-limit-validation.md`
 - Decision: `meta/decisions/ADR-0071-optional-harness-variables-in-the-cli.md`
 - PR review: `meta/reviews/prs/158-review-1.md`. The responses from round 1
   are on this PR.

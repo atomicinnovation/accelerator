@@ -151,7 +151,7 @@ None.
 ## References
 
 - Split from: 0368
-- Plan: `meta/plans/2026-10-30-0368-build-performance-measurement-harness.md`
+- Plan: `meta/plans/2026-10-30-PP-960-build-performance-measurement-harness.md`
   (Phase 10)
 - Baseline: `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`
 - Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`

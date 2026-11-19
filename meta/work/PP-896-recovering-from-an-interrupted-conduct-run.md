@@ -267,7 +267,7 @@ Much of the recovery already works:
 - The recovery row is named "unfinished run" rather than "interrupted run"
   so it never asserts a cause the next run cannot observe.
 - Codebase research
-  (`meta/research/codebase/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`)
+  (`meta/research/codebase/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`)
   changed two rules. A pair's finding is now judged by whether it answers
   its outline pair rather than by schema validity alone. Under the schema
   test, a valid finding naming the wrong question was reported valid, left

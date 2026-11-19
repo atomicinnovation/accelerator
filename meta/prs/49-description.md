@@ -42,7 +42,7 @@ No product code changes — every file is Markdown under `meta/`.
 
 - Epic `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md` — owns `0187` and `0188`. With both done, the dependency graph opens up: `0169` (VCS Subdomain and Hooks Migration) has all seven of its blockers satisfied and is the only newly-unblocked item already at `ready`. `0170`, `0171`, `0173`, and `0185` also clear, though all four are still `draft` and need refinement before they are workable. `0172` and `0174` remain blocked behind `0169`.
 - Epic `meta/work/PP-722-documentation.md` — the renumbered documentation umbrella, with children `0145`, `0177`, and `0193`.
-- Plan `meta/plans/2026-07-10-0193-make-the-docs-amazing.md` and research `meta/research/codebase/2026-07-10-0193-make-the-docs-amazing.md` — the active docs-site work that the renumber keeps addressable.
+- Plan `meta/plans/2026-07-10-PP-723-make-the-docs-amazing.md` and research `meta/research/codebase/2026-07-10-PP-723-make-the-docs-amazing.md` — the active docs-site work that the renumber keeps addressable.
 
 ## Testing
 

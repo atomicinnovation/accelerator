@@ -12,11 +12,11 @@ parent: "work-item:PP-157"
 blocked_by: ["work-item:PP-187", "work-item:PP-188", "work-item:PP-190", "work-item:PP-717"]
 blocks: ["work-item:PP-195"]
 relates_to: ["work-item:PP-725", "work-item:PP-704", "work-item:PP-712", "work-item:PP-713", "work-item:PP-732"]
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 tags: ["rust", "migration-engine", "concurrency", "interactive"]
 last_updated: "2026-08-09T19:01:08+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Transitioned to done following /validate-plan (meta/validations/2026-08-07-0172-migration-engine-subdomain-validation.md, result: pass). Phase 10 (retirement cutover) closed out: all bash source deleted, call sites/guards/floors rewritten, skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract, the ADR-reconciliation follow-up (work-item:PP-732) created and linked, and the 0180/0168/0182/0167 cross-item records confirmed or closed out per the plan's Phase 10 point 5; the self-validation-obligation resolution is now also recorded on 0195 itself, closing a gap the first validation pass found. 53 of the 58 acceptance criteria above are ticked against direct evidence (passing tests, greps, and independent agent verification of every cross-item record), not by assertion. 5 are deliberately left unticked as genuine, disclosed gaps, none blocking: the doc-example fixture's transcript is not diffed byte-for-byte against its Phase-0 bash golden, nor is its session log's exact two-record shape asserted by a dedicated test (the underlying accept/edit/skip/resume behaviours are covered generically by synthetic-fixture tests elsewhere, per this plan's established pattern — see Phase 5's own success criteria); the two-owned-dirty-paths black-box test exercises only one owned path, not two, so the affordance message's naming of multiple paths together is untested; no test pins a failing migration's manifest containing exactly its pre-failure partial writes; and the JSON round-trip has no dedicated test for adversarial values (embedded quotes/backslashes/newlines/tabs/non-ASCII), relying on serde_json's own correctness instead of an in-repo assertion. A follow-up work item to close these (or a work-item update explicitly waiving them) is recommended but not created this session, per this session's standing authorisation not to expand scope unprompted."
+last_updated_note: "Transitioned to done following /validate-plan (meta/validations/2026-08-07-PP-193-migration-engine-subdomain-validation.md, result: pass). Phase 10 (retirement cutover) closed out: all bash source deleted, call sites/guards/floors rewritten, skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract, the ADR-reconciliation follow-up (work-item:PP-732) created and linked, and the 0180/0168/0182/0167 cross-item records confirmed or closed out per the plan's Phase 10 point 5; the self-validation-obligation resolution is now also recorded on 0195 itself, closing a gap the first validation pass found. 53 of the 58 acceptance criteria above are ticked against direct evidence (passing tests, greps, and independent agent verification of every cross-item record), not by assertion. 5 are deliberately left unticked as genuine, disclosed gaps, none blocking: the doc-example fixture's transcript is not diffed byte-for-byte against its Phase-0 bash golden, nor is its session log's exact two-record shape asserted by a dedicated test (the underlying accept/edit/skip/resume behaviours are covered generically by synthetic-fixture tests elsewhere, per this plan's established pattern — see Phase 5's own success criteria); the two-owned-dirty-paths black-box test exercises only one owned path, not two, so the affordance message's naming of multiple paths together is untested; no test pins a failing migration's manifest containing exactly its pre-failure partial writes; and the JSON round-trip has no dedicated test for adversarial values (embedded quotes/backslashes/newlines/tabs/non-ASCII), relying on serde_json's own correctness instead of an in-repo assertion. A follow-up work item to close these (or a work-item update explicitly waiving them) is recommended but not created this session, per this session's standing authorisation not to expand scope unprompted."
 schema_version: 1
 external_id: "PP-193"
 aliases: ["0172"]
@@ -892,10 +892,10 @@ concrete pattern to follow).
   in the criterion rather than chosen at verification time. Its own assertion
   extractor (`scripts/check-inventory.sh`) and two of its three inventory
   documents did **not** survive its own cutover commit — only
-  `meta/inventories/0167-removal-set.md`, `0167-suite-audit.md` and
-  `0167-divergences.md` remain (confirmed 2026-08-06). This item's stricter
+  `meta/inventories/PP-188-removal-set.md`, `PP-188-suite-audit.md` and
+  `PP-188-divergences.md` remain (confirmed 2026-08-06). This item's stricter
   "every assertion mapped" requirement therefore needs its own durable
-  extractor, not a reuse of 0167's; `0167-suite-audit.md`'s table shape
+  extractor, not a reuse of 0167's; `PP-188-suite-audit.md`'s table shape
   (file/line-or-suite, classification, disposition, pinning test) is the
   reusable part. A concrete registration and golden-test template is also
   available: `accelerator-vcs` (`cli/vcs-cli/`) — crate shape, `cargo-pup` rule,
@@ -1029,7 +1029,7 @@ concrete pattern to follow).
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Blocked by: `meta/work/PP-188-config-command-and-invocation-contract-migration.md`,
   `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`,
@@ -1064,8 +1064,8 @@ concrete pattern to follow).
   ports-and-adapters core)
 - Docs: `skills/config/migrate/SKILL.md` (the authoritative lifecycle,
   interactive and agent-invocation contract), `docs/migrations.md`
-- Prior research: `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- Prior research: `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
 - Implementation-groundwork research (bash lifecycle/IPC/harness/migrations in
   full, crate-foundation state, sub-binary registration template, guard
   misattributions, work-item status corrections):
-  `meta/research/codebase/2026-08-06-0172-migration-engine-implementation-research.md`
+  `meta/research/codebase/2026-08-06-PP-193-migration-engine-implementation-research.md`

@@ -119,8 +119,8 @@ silently.
 ## Context
 
 - Work item: `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`
-- Plan: `meta/plans/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`
-- Validation: `meta/validations/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion-validation.md`
+- Plan: `meta/plans/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion.md`
+- Validation: `meta/validations/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion-validation.md`
 - ADR: `meta/decisions/ADR-0073-admit-the-session-search-cap-as-an-optional-harness-variable.md`
 - PR review: `meta/reviews/prs/166-review-1.md`
 

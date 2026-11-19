@@ -99,7 +99,7 @@ templates (`work-item` + `story`/`epic`/…, `work-item-<kind>` → `work-item`)
 
 ## References
 
-- `meta/research/codebase/2026-09-08-0277-single-round-web-research-engine.md` — resolving research
+- `meta/research/codebase/2026-09-08-PP-861-single-round-web-research-engine.md` — resolving research
 - `meta/work/PP-22-topic-research-skillset.md` — artifact contract + umbrella doc type
 - `meta/work/PP-861-single-round-web-research-engine.md` — first implementer
 - `meta/decisions/ADR-0068-general-slug-resolution-in-the-corpus-cli.md` — sibling decision

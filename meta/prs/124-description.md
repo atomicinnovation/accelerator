@@ -49,13 +49,13 @@ only the tip. Stacked on #123.
 ## Context
 
 - Plans validated:
-  `meta/plans/2026-09-09-0277-single-round-web-research-engine.md`,
-  `meta/plans/2026-09-10-0278-topic-research-visualiser-doc-type.md`,
-  `meta/plans/2026-09-13-0278-complete-codebase-research-rename.md`.
+  `meta/plans/2026-09-09-PP-861-single-round-web-research-engine.md`,
+  `meta/plans/2026-09-10-PP-862-topic-research-visualiser-doc-type.md`,
+  `meta/plans/2026-09-13-PP-862-complete-codebase-research-rename.md`.
 - Work items: 0277 (single-round web research engine), 0278 (topic-research
   visualiser doc type and indexer).
 - Reports:
-  `meta/validations/2026-09-09-0277-single-round-web-research-engine-validation.md`
+  `meta/validations/2026-09-09-PP-861-single-round-web-research-engine-validation.md`
   and the two `2026-09-{10,13}-0278-*-validation.md` siblings.
 
 ## Testing

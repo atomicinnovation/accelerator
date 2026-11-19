@@ -11,7 +11,7 @@ priority: "low"
 parent: "work-item:PP-157"
 blocked_by: ["work-item:PP-190", "work-item:PP-718"]
 relates_to: ["work-item:PP-146", "work-item:PP-715", "work-item:PP-729", "work-item:PP-730", "work-item:PP-731"]
-derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
+derived_from: ["plan:2026-08-05-PP-190-vcs-subdomain-and-hooks-migration"]
 tags: ["rust", "vcs", "cli", "performance"]
 last_updated: "2026-08-31T23:45:47+00:00"
 last_updated_by: "Toby Clemson"

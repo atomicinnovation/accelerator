@@ -150,10 +150,10 @@ that 0348 adds, so #171 merges first.
 ## Context
 
 - Work item: `meta/work/PP-892-deterministic-rule-for-citing-a-source-once.md`
-- Plan: `meta/plans/2026-10-28-0306-deterministic-rule-for-citing-a-source-once.md`
-- Research: `meta/research/codebase/2026-10-28-0306-deterministic-rule-for-citing-a-source-once.md`
-- Plan review: `meta/reviews/plans/2026-10-28-0306-deterministic-rule-for-citing-a-source-once-review-1.md`
-- Validation: `meta/validations/2026-10-28-0306-deterministic-rule-for-citing-a-source-once-validation.md`
+- Plan: `meta/plans/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once.md`
+- Research: `meta/research/codebase/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once.md`
+- Plan review: `meta/reviews/plans/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once-review-1.md`
+- Validation: `meta/validations/2026-10-28-PP-892-deterministic-rule-for-citing-a-source-once-validation.md`
   (result `pass`)
 - PR review: `meta/reviews/prs/173-review-1.md`, and the replies on this PR
 

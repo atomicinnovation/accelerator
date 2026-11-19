@@ -38,9 +38,9 @@ Untracked-remote discovery returned zero pulls on Linear for two independent rea
 ## Context
 
 - Work item: `meta/work/PP-749-untracked-remote-discovery-never-runs-on-linear.md`
-- Plan: `meta/plans/2026-08-30-0220-untracked-remote-discovery-on-linear.md`
-- Research: `meta/research/codebase/2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear.md`
-- Validation: `meta/validations/2026-08-30-0220-untracked-remote-discovery-on-linear-validation.md`
+- Plan: `meta/plans/2026-08-30-PP-749-untracked-remote-discovery-on-linear.md`
+- Research: `meta/research/codebase/2026-08-30-PP-749-untracked-remote-discovery-never-runs-on-linear.md`
+- Validation: `meta/validations/2026-08-30-PP-749-untracked-remote-discovery-on-linear-validation.md`
 - Parent epic: `meta/work/PP-167-work-item-sync-enhancements.md`
 
 ## Testing

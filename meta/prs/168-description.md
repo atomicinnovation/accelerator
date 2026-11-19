@@ -103,13 +103,13 @@ then applies or discards.
 - Work item: `meta/work/PP-879-work-item-re-key-command.md` (parent 0146,
   builds on 0230)
 - Research:
-  `meta/research/codebase/2026-10-15-0302-work-item-re-key-command.md`
-- Plan: `meta/plans/2026-10-15-0302-work-item-re-key-command.md` (8 phases,
+  `meta/research/codebase/2026-10-15-PP-879-work-item-re-key-command.md`
+- Plan: `meta/plans/2026-10-15-PP-879-work-item-re-key-command.md` (8 phases,
   each with an "as built" section)
-- Reviews: `meta/reviews/work/0302-work-item-re-key-command-review-1.md`,
-  `meta/reviews/plans/2026-10-15-0302-work-item-re-key-command-review-1.md`
+- Reviews: `meta/reviews/work/PP-879-work-item-re-key-command-review-1.md`,
+  `meta/reviews/plans/2026-10-15-PP-879-work-item-re-key-command-review-1.md`
 - Validation:
-  `meta/validations/2026-10-15-0302-work-item-re-key-command-validation.md`
+  `meta/validations/2026-10-15-PP-879-work-item-re-key-command-validation.md`
   (pass; every issue found resolved test-first)
 - Split out on this branch: 0343 (alias normalisation), 0344 (reusable
   interactive decision engine), 0345 (bare-number review) and 0346 (removing

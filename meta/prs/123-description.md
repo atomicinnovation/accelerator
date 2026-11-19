@@ -57,8 +57,8 @@ Stacked on `0278-topic-research-visualiser-doc-type` (PR #118).
 ## Context
 
 - Work item: `work-item:PP-862`
-- Plan: `meta/plans/2026-09-13-0278-complete-codebase-research-rename.md`
-- Review: `meta/reviews/plans/2026-09-13-0278-complete-codebase-research-rename-review-1.md`
+- Plan: `meta/plans/2026-09-13-PP-862-complete-codebase-research-rename.md`
+- Review: `meta/reviews/plans/2026-09-13-PP-862-complete-codebase-research-rename-review-1.md`
 - Migration precedent: `cli/migrate/src/migrations/m0006.rs`
 
 The `m0006` quote helpers and positional body anchoring are duplicated inline in

@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 blocks: ["work-item:PP-717"]
 relates_to: ["work-item:PP-186", "work-item:PP-187", "work-item:PP-704"]
 tags: ["rust", "visualiser", "frontend", "workspace"]
@@ -277,6 +277,6 @@ Retained / unchanged:
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0045, ADR-0053, ADR-0054

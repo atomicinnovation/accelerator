@@ -128,9 +128,9 @@ source once) needs the `doi` key to recognise a publisher URL and its
 ## Context
 
 - Work item: `meta/work/PP-936-structured-source-metadata.md`
-- Plan: `meta/plans/2026-10-24-0348-structured-source-metadata.md`
-- Research: `meta/research/codebase/2026-10-24-0348-structured-source-metadata.md`
-- Validation: `meta/validations/2026-10-24-0348-structured-source-metadata-validation.md`
+- Plan: `meta/plans/2026-10-24-PP-936-structured-source-metadata.md`
+- Research: `meta/research/codebase/2026-10-24-PP-936-structured-source-metadata.md`
+- Validation: `meta/validations/2026-10-24-PP-936-structured-source-metadata-validation.md`
   (result `pass` after fixing a date-parser panic on a non-ASCII offset
   and the trickle-body deadline gap found in the first pass)
 

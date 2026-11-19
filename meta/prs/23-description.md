@@ -48,7 +48,7 @@ Ports the load-bearing atomic-store concurrency primitives from the bash impleme
 - Implements work item **0180** — *Atomic-Store Primitives in corpus-adapters* (`meta/work/PP-704-atomic-store-primitives-corpus-adapters.md`), external `PP-704`, under epic `0166`.
 - Blocked by **0179** (corpus crate scaffolding — this PR's base branch).
 - Relates to **0172** (migration engine subdomain) — carries a reciprocal clean-cutover obligation on the JSONL escaper.
-- Plan: `meta/plans/2026-07-19-0180-atomic-store-primitives-corpus-adapters.md`; research, work/plan reviews, and the execution validation are all included in the diff under `meta/`.
+- Plan: `meta/plans/2026-07-19-PP-704-atomic-store-primitives-corpus-adapters.md`; research, work/plan reviews, and the execution validation are all included in the diff under `meta/`.
 
 ## Testing
 

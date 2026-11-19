@@ -234,7 +234,7 @@ platform reach is a smaller loss than deleting it.
   binary distribution), ADR-0048 (four-toolchain split), ADR-0054 (git-style
   modular CLI), ADR-0058 (shell-free CLI-to-Node delegation)
 - `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
-- `meta/research/codebase/2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/research/codebase/2026-08-10-PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - Playwright system requirements (Debian/Ubuntu only):
   https://playwright.dev/docs/intro
 - Playwright Docker/Alpine guidance: https://playwright.dev/docs/docker

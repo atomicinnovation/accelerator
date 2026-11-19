@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-11-0204-remote-tracker-port"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-11-PP-734-remote-tracker-port"]
 blocks: ["work-item:PP-192", "work-item:PP-724"]
 tags: ["rust", "tracker", "sync", "port"]
 last_updated: "2026-08-12T00:30:00+00:00"
@@ -573,7 +573,7 @@ via a pending-push marker, and the port stays at four operations.
 ## Drafting Notes
 
 - Split from 0194 on 2026-08-10 following work item review 2 pass 3
-  (`meta/reviews/work/0194-tracker-crate-and-remote-sync-engine-review-2.md`),
+  (`meta/reviews/work/PP-724-tracker-crate-and-remote-sync-engine-review-2.md`),
   in which the clarity, scope and dependency lenses independently
   recommended it. The trigger was structural rather than about size alone:
   0194 recorded 0171's blocking milestone as the end of its own Phase A,
@@ -619,8 +619,8 @@ via a pending-push marker, and the port stays at four operations.
   runs workspace rustfmt and clippy only — cargo-pup lives on the
   separate nightly `pup:check` lane, so the criteria now name it.
 - Planning on 2026-08-11
-  (`meta/plans/2026-08-11-0204-remote-tracker-port.md`, backed by
-  `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`)
+  (`meta/plans/2026-08-11-PP-734-remote-tracker-port.md`, backed by
+  `meta/research/codebase/2026-08-11-PP-734-remote-tracker-port.md`)
   reopened the frozen block across three passes, deliberately and before
   either consumer began. Eight changes in total, each cheap now and
   expensive after acceptance. `fetch_all` could not express "the fetch
@@ -638,7 +638,7 @@ via a pending-push marker, and the port stays at four operations.
   cannot fail when a fifth arrives.
 
   Four more followed from plan review (five passes, verdict APPROVE on
-  2026-08-11, `meta/reviews/plans/2026-08-11-0204-remote-tracker-port-review-1.md`).
+  2026-08-11, `meta/reviews/plans/2026-08-11-PP-734-remote-tracker-port-review-1.md`).
   `FetchOutcome.found` carries a `RemoteTimestamp` rather than a
   `RemoteIssue`: no provider's bulk query returns a projected body, so
   the original shape could only have been satisfied by fabricating one,
@@ -659,7 +659,7 @@ via a pending-push marker, and the port stays at four operations.
   The freeze protocol itself is unchanged, and applies from this revision
   onward.
 - Implemented 2026-08-12 against
-  `meta/plans/2026-08-11-0204-remote-tracker-port.md`, all three phases,
+  `meta/plans/2026-08-11-PP-734-remote-tracker-port.md`, all three phases,
   `mise run` green end to end. One acceptance criterion resolved to a
   documented gap rather than a pass: giving an existing trait method a
   default body is confirmed unguarded by both `port.rs` and
@@ -685,9 +685,9 @@ via a pending-push marker, and the port stays at four operations.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
-- Implementation research: `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`
-- Plan: `meta/plans/2026-08-11-0204-remote-tracker-port.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
+- Implementation research: `meta/research/codebase/2026-08-11-PP-734-remote-tracker-port.md`
+- Plan: `meta/plans/2026-08-11-PP-734-remote-tracker-port.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Split from: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`
 - ADRs: ADR-0045, ADR-0052, ADR-0053

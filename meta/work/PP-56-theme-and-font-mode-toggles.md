@@ -188,7 +188,7 @@ Reference screenshots: `meta/research/design-inventories/2026-05-06-140608-claud
 - Attribute value `data-font="display"` adopted (not `default`) to align with
   the prototype design inventory's canonical naming
   (`meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md:227`).
-  The plan (`meta/plans/2026-05-08-0034-theme-and-font-mode-toggles.md`) records
+  The plan (`meta/plans/2026-05-08-PP-56-theme-and-font-mode-toggles.md`) records
   this decision.
 
 ## References

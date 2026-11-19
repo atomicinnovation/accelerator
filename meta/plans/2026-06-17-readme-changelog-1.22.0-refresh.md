@@ -289,7 +289,7 @@ Capture the screenshot fresh against a real plan rendered by the dev visualiser.
 1. Build/start the dev stack: `mise run dev:up` (dev binary at
    `skills/visualisation/visualise/server/target/debug/accelerator-visualiser`).
    Point it at this repo's real `meta/` so real plans render.
-2. Render `meta/plans/2026-06-06-0067-create-note-skill.md` as the hero. Its
+2. Render `meta/plans/2026-06-06-PP-89-create-note-skill.md` as the hero. Its
    route is `/library/plans/create-note-skill` — the visualiser's plan slug
    derivation (`strip_prefix_date_and_optional_id`) strips **both** the date
    prefix **and** the leading canonical work-item id (`0067`), so the slug is

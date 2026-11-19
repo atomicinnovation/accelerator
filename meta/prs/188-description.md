@@ -150,9 +150,9 @@ dossiers are read and written as before. Reverting restores the old output.
 ## Context
 
 - Work item: `meta/work/PP-927-sync-reports-every-unsynced-item-twice.md`
-- Plan: `meta/plans/2026-11-11-0352-sync-reports-every-unsynced-item-twice.md`
+- Plan: `meta/plans/2026-11-11-PP-927-sync-reports-every-unsynced-item-twice.md`
 - Research:
-  `meta/research/codebase/2026-11-10-0352-sync-reports-every-unsynced-item-twice.md`
+  `meta/research/codebase/2026-11-10-PP-927-sync-reports-every-unsynced-item-twice.md`
 - Reviews: `meta/reviews/prs/188-review-1.md`,
   `meta/reviews/prs/188-review-2.md`
 - Related: 0351, whose preview tests can assert one row per item once this

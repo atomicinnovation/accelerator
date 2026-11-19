@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
 parent: "work-item:PP-956"
-relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites", "work-item:PP-961"]
+relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites", "work-item:PP-961"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/232"
 pr_number: 232
 merge_commit: "a646f52775df912b9b4de1bc7d2516a428c09527"
@@ -74,7 +74,7 @@ measured, so it belongs in a reviewed commit that restarts the count.
 ## Context
 
 - Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
-- Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Plan: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 6)
 - Based on `main` at `7ba3859c` (#233), after #229 (Phase 5) and #230.
   Validated on `main` at `902556ac` (#228); see "The count stands after

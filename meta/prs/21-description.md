@@ -63,9 +63,9 @@ The port read the bash surfaces closely enough to find four bugs, all with a gre
 ## Context
 
 - Work item: `meta/work/PP-703-corpus-crates-parsing-conventions.md` (child of 0166 — Shared config, corpus, and store crates)
-- Plan: `meta/plans/2026-07-11-0179-corpus-crates-parsing-conventions.md`
-- Research: `meta/research/codebase/2026-07-11-0179-corpus-crates-parsing-conventions.md`
-- Validation: `meta/validations/2026-07-11-0179-corpus-crates-parsing-conventions-validation.md` (result: pass)
+- Plan: `meta/plans/2026-07-11-PP-703-corpus-crates-parsing-conventions.md`
+- Research: `meta/research/codebase/2026-07-11-PP-703-corpus-crates-parsing-conventions.md`
+- Validation: `meta/validations/2026-07-11-PP-703-corpus-crates-parsing-conventions-validation.md` (result: pass)
 - Bash inconsistencies note: `meta/notes/2026-07-13-bash-corpus-script-inconsistencies.md`
 - Conventions: ADR-0034 (typed-linkage), ADR-0045 (bash/Rust duplication)
 

@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:PP-157"
 blocked_by: ["work-item:PP-703"]
 blocks: ["work-item:PP-190", "work-item:PP-715"]
-relates_to: ["work-item:PP-146", "work-item:PP-189", "work-item:PP-717", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
+relates_to: ["work-item:PP-146", "work-item:PP-189", "work-item:PP-717", "codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration"]
 derived_from: ["work-item:PP-190"]
 tags: ["rust", "vcs", "dependencies"]
 last_updated: "2026-08-05T17:36:44+00:00"
@@ -57,7 +57,7 @@ library-backed implementation without touching the domain — a second
 implementation of the same ports is an adapter-level change by construction.
 
 Extracted from 0169, on the argument of the scope lens in
-`meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md` (pass 4):
+`meta/reviews/work/PP-190-vcs-subdomain-and-hooks-migration-review-2.md` (pass 4):
 dependency adoption and the hooks migration carry very different risk profiles.
 A hook-envelope regression is user-visible and reversible in `hooks.json`,
 whereas a `jj-lib` API break or a dependency-policy objection is a build-level
@@ -155,7 +155,7 @@ immune" overstated it — the verification set is widened to everything
 `scrub_environment` touches plus the object-directory and `GIT_CONFIG_COUNT`
 families.
 
-Plan: `meta/plans/2026-08-03-0188-library-backed-vcs-adapter.md`, which carries
+Plan: `meta/plans/2026-08-03-PP-718-library-backed-vcs-adapter.md`, which carries
 the full empirical oracle mapping.
 
 ### Delivered surface
@@ -913,7 +913,7 @@ the word "submodule" appears nowhere in it. A throwaway prototype against real
 git fixtures (git 2.54.0, darwin-arm64, `gix` 0.85.0 with default features)
 settled them, together with two riders. Full evidence tables, including the
 verbatim per-fixture oracle comparison, are in
-`meta/research/codebase/2026-08-02-0188-library-backed-vcs-adapter.md`.
+`meta/research/codebase/2026-08-02-PP-718-library-backed-vcs-adapter.md`.
 
 - **Query 1 (bare) — available.** `Repository::is_bare()`
   (`gix-0.85.0/src/repository/worktree.rs:64`) agreed with
@@ -1155,9 +1155,9 @@ gate ill-posed.
 
 - Extracted from: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - Split rationale (scope lens, pass 4):
-  `meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md`
+  `meta/reviews/work/PP-190-vcs-subdomain-and-hooks-migration-review-2.md`
 - Feasibility probe, API findings and the two traps:
-  `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`
+  `meta/research/codebase/2026-07-29-PP-190-vcs-subdomain-and-hooks-migration.md`
   §9
 - Behavioural oracle for the taxonomy queries: `scripts/vcs-common.sh`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`

@@ -61,10 +61,10 @@ Adds `InProcessProbe` — an implementation of `cli/vcs`'s `RepoRoot` and `VcsPr
 ## Context
 
 - Work item: `meta/work/PP-718-library-backed-vcs-adapter.md`
-- Plan: `meta/plans/2026-08-03-0188-library-backed-vcs-adapter.md`, carrying the full oracle mapping — every query against every fixture, with the shell implementation in `scripts/vcs-common.sh` as the behavioural oracle
-- Research: `meta/research/codebase/2026-08-02-0188-library-backed-vcs-adapter.md`
-- Plan review: `meta/reviews/plans/2026-08-03-0188-library-backed-vcs-adapter-review-1.md`
-- Validation: `meta/validations/2026-08-03-0188-library-backed-vcs-adapter-validation.md`
+- Plan: `meta/plans/2026-08-03-PP-718-library-backed-vcs-adapter.md`, carrying the full oracle mapping — every query against every fixture, with the shell implementation in `scripts/vcs-common.sh` as the behavioural oracle
+- Research: `meta/research/codebase/2026-08-02-PP-718-library-backed-vcs-adapter.md`
+- Plan review: `meta/reviews/plans/2026-08-03-PP-718-library-backed-vcs-adapter-review-1.md`
+- Validation: `meta/validations/2026-08-03-PP-718-library-backed-vcs-adapter-validation.md`
 - Dated hand-off notes are appended to **0125**, **0169** and **0185**; ADR-0053 (thin CLI over a hexagonal core) is the governing decision
 
 ## Testing

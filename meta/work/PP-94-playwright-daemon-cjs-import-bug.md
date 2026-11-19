@@ -11,7 +11,7 @@ type: "work-item"
 schema_version: 1
 last_updated: "2026-05-18T17:56:43+00:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
+relates_to: ["codebase-research:2026-05-18-PP-94-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-06-design-skill-localhost-and-mcp-issues"]
 external_id: "PP-94"
 aliases: ["0072"]
 ---
@@ -44,7 +44,7 @@ http://127.0.0.1:52705/` session on 2026-05-18. Re-bootstrapping the
 namespaced Playwright cache does not help; the defect is in the daemon code,
 not the install. Full root-cause analysis with empirical verification and a
 proposed minimal patch is in
-[`meta/research/codebase/2026-05-18-0072-playwright-daemon-cjs-import-bug.md`](../research/codebase/2026-05-18-0072-playwright-daemon-cjs-import-bug.md);
+[`meta/research/codebase/2026-05-18-PP-94-playwright-daemon-cjs-import-bug.md`](../research/codebase/2026-05-18-PP-94-playwright-daemon-cjs-import-bug.md);
 session diagnostic at `/tmp/inventory-design-debug.log` on the investigating
 machine.
 
@@ -243,7 +243,7 @@ Files touched:
 
 ## References
 
-- Research: `meta/research/codebase/2026-05-18-0072-playwright-daemon-cjs-import-bug.md`
+- Research: `meta/research/codebase/2026-05-18-PP-94-playwright-daemon-cjs-import-bug.md`
 - Background: `meta/research/codebase/2026-05-06-design-skill-localhost-and-mcp-issues.md`
 - Background: `meta/plans/2026-05-06-design-skill-localhost-and-mcp-issues.md`
 - Advisory: GHSA-7mvr-c777-76hp (https://github.com/advisories/GHSA-7mvr-c777-76hp)

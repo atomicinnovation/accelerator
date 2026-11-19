@@ -50,10 +50,10 @@ One consequence is worth stating up front: no provider client exists yet, so `wo
 ## Context
 
 - Work item: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`
-- Plan: `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md`
-- Plan review: `meta/reviews/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1.md`
-- Research: `meta/research/codebase/2026-08-12-0194-tracker-crate-and-remote-sync-engine.md`
-- Validation: `meta/validations/2026-08-13-0194-tracker-crate-and-remote-sync-engine-validation.md`
+- Plan: `meta/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine.md`
+- Plan review: `meta/reviews/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine-review-1.md`
+- Research: `meta/research/codebase/2026-08-12-PP-724-tracker-crate-and-remote-sync-engine.md`
+- Validation: `meta/validations/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine-validation.md`
 - Depends on the port frozen in #62 (0204). The cutover — removing the nine migrated scripts and repointing the skills — is 0171's.
 
 ## Testing

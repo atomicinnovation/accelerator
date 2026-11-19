@@ -66,8 +66,8 @@ suppressed-remote note.
 ## Context
 
 - Work item: `meta/work/PP-871-targeted-pull-of-remote-only-work-items.md`
-- Plan: `meta/plans/2026-09-08-0285-targeted-pull-of-remote-only-work-items.md`
-- Validation: `meta/validations/2026-09-08-0285-targeted-pull-of-remote-only-work-items-validation.md`
+- Plan: `meta/plans/2026-09-08-PP-871-targeted-pull-of-remote-only-work-items.md`
+- Validation: `meta/validations/2026-09-08-PP-871-targeted-pull-of-remote-only-work-items-validation.md`
 - Builds on the `--target` targeting introduced by work item 0257 (PR #107).
 
 ## Testing

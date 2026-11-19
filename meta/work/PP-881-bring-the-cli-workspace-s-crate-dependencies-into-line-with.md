@@ -525,5 +525,5 @@ The violations, by rule:
 - `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`
 - `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md`
-- `meta/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- `meta/plans/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Related: 0226

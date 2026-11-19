@@ -115,11 +115,11 @@ this computation.
 - **Work item**: `meta/work/PP-771-migrate-false-dirty-tree-detection.md`,
   which also closes 0263 (`meta/work/PP-793-rename-foreigndirt.md`).
 - **Research**:
-  `meta/research/codebase/2026-09-23-0241-migrate-false-dirty-tree-detection.md`
-- **Plan**: `meta/plans/2026-09-23-0241-migrate-false-dirty-tree-detection.md`,
-  with review `meta/reviews/plans/2026-09-23-0241-migrate-false-dirty-tree-detection-review-1.md`.
+  `meta/research/codebase/2026-09-23-PP-771-migrate-false-dirty-tree-detection.md`
+- **Plan**: `meta/plans/2026-09-23-PP-771-migrate-false-dirty-tree-detection.md`,
+  with review `meta/reviews/plans/2026-09-23-PP-771-migrate-false-dirty-tree-detection-review-1.md`.
 - **Validation (`pass`)**:
-  `meta/validations/2026-09-23-0241-migrate-false-dirty-tree-detection-validation.md`
+  `meta/validations/2026-09-23-PP-771-migrate-false-dirty-tree-detection-validation.md`
 - **Issue**: #97
 
 ## Testing

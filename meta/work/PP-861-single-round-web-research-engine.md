@@ -270,7 +270,7 @@ browsable. This engine is built on the reusable-infrastructure seam: a generic
   both schema and template resolution were generalised to `(type, kind)` with a
   type-level fallback — a mechanism that also paves the way for per-work-item-kind
   templates. Recorded in
-  `meta/research/codebase/2026-09-08-0277-single-round-web-research-engine.md`;
+  `meta/research/codebase/2026-09-08-PP-861-single-round-web-research-engine.md`;
   candidate for an ADR.
 - Codebase-research session (2026-09-09) chose the `corpus` binary for slug
   resolution and generalised it: `accelerator corpus resolve --type <type>
@@ -280,7 +280,7 @@ browsable. This engine is built on the reusable-infrastructure seam: a generic
   topic-research resolution couples to the 0278 doc-type registration, the generic
   resolver ships in 0277 and topic-research resolution is verified at co-land.
 - Validated on 2026-09-15 (report:
-  `meta/validations/2026-09-09-0277-single-round-web-research-engine-validation.md`,
+  `meta/validations/2026-09-09-PP-861-single-round-web-research-engine-validation.md`,
   result `partial`). All seven phases are implemented and merged; the Rust,
   server, and frontend read-only checks and the plan's behavioural tests
   (frontmatter goldens, `migration_0010`, 8/9 resolver goldens) pass. Status

@@ -9,7 +9,7 @@ status: "draft"
 kind: "bug"
 priority: "low"
 parent: "work-item:PP-953"
-derived_from: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
+derived_from: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites"]
 relates_to: ["work-item:PP-956", "work-item:PP-123"]
 external_id: "PP-942"
 aliases: ["0371"]
@@ -163,6 +163,6 @@ watcher.
 
 ## References
 
-- Source: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Source: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 1, the negative-path record's known gaps)
 - Related: 0364, 0101

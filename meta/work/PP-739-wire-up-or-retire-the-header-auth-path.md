@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-726"
-derived_from: ["plan:2026-08-11-0196-design-cli-migration"]
+derived_from: ["plan:2026-08-11-PP-726-design-cli-migration"]
 relates_to: ["work-item:PP-726", "work-item:PP-736", "work-item:PP-737", "work-item:PP-773"]
 tags: ["design", "security", "playwright", "auth"]
 last_updated: "2026-09-09T23:07:27+00:00"
@@ -243,4 +243,4 @@ yet.
 - `cli/design-cli/src/cli.rs`
 - `cli/design-adapters/src/environment.rs`
 - Related: 0196, 0206, 0207, 0243
-- Plan: `meta/plans/2026-08-11-0196-design-cli-migration.md`
+- Plan: `meta/plans/2026-08-11-PP-726-design-cli-migration.md`

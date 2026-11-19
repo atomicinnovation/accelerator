@@ -508,4 +508,4 @@ the slug bash-parity harness needing re-pathing when the crate moves into `cli/`
 - Convention specs: ADR-0034 (typed-linkage), ADR-0045 (bash/Rust duplication),
   ADR-0053; `meta/work/0060` (unified frontmatter schema), `meta/work/0061`
   (typed-linkage vocabulary), `meta/work/0064` (canonical work-item-id/author)
-- 0178 parser rationale: `meta/plans/2026-07-07-0178-config-crates-native-yaml-reader.md:544-554,785-792`
+- 0178 parser rationale: `meta/plans/2026-07-07-PP-702-config-crates-native-yaml-reader.md:544-554,785-792`

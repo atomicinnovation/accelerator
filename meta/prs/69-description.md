@@ -44,7 +44,7 @@ Takes the warm-dispatch latency measurement 0169's Phase 10 deferred and 0189 in
 ## Context
 
 - Work item: `meta/work/PP-719-once-per-dispatch-cache-root-probe-guarantee.md` — authoritative for the criterion text.
-- Plan: `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — all four phases complete, with the full record and a Deviations section.
+- Plan: `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md` — all four phases complete, with the full record and a Deviations section.
 - Raw records: `meta/measurements/warm-dispatch-{1,2,3}.json` plus samples sidecars for attempts 2 and 3.
 - The obligation originates in `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`, whose Phase 10 deferred it; `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` closed the *method* and is closed here.
 

@@ -9,7 +9,7 @@ status: "draft"
 kind: "task"
 priority: "low"
 parent: "work-item:PP-167"
-derived_from: ["plan:2026-10-10-0296-sync-round-trip-defects"]
+derived_from: ["plan:2026-10-10-PP-880-sync-round-trip-defects"]
 relates_to: ["work-item:PP-880", "work-item:PP-876"]
 tags: ["sync", "baseline", "digest"]
 last_updated: "2026-10-10T21:48:33+00:00"
@@ -89,5 +89,5 @@ path is dead weight once those are gone.
 
 ## References
 
-- Source: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md`
+- Source: `meta/plans/2026-10-10-PP-880-sync-round-trip-defects.md`
 - Related: 0296, 0290

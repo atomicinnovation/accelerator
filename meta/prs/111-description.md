@@ -60,9 +60,9 @@ closed even under `--fail-safe`.
 ## Context
 
 - Work item: `meta/work/PP-714-template-enumeration-swallows-a-wrong-plugin-root.md`
-- Plan: `meta/plans/2026-09-09-0184-template-resolution-wrong-plugin-root.md`
-- Research: `meta/research/codebase/2026-09-08-0184-template-resolution-wrong-plugin-root.md`
-- Validation: `meta/validations/2026-09-09-0184-template-resolution-wrong-plugin-root-validation.md`
+- Plan: `meta/plans/2026-09-09-PP-714-template-resolution-wrong-plugin-root.md`
+- Research: `meta/research/codebase/2026-09-08-PP-714-template-resolution-wrong-plugin-root.md`
+- Validation: `meta/validations/2026-09-09-PP-714-template-resolution-wrong-plugin-root-validation.md`
 - Builds on 0182 (CLI derives plugin root from its own location).
 
 ## Testing

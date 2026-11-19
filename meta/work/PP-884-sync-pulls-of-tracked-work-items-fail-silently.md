@@ -402,7 +402,7 @@ None.
 
 - Related: 0146, 0257, 0285, 0296
 - Sync engine origin: 0194 —
-  `meta/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine.md`,
-  `meta/research/codebase/2026-08-12-0194-tracker-crate-and-remote-sync-engine.md`
-- Targeted sync: `meta/plans/2026-09-06-0257-sync-specific-work-items.md`
-- Review: `meta/reviews/work/0300-sync-pulls-of-tracked-work-items-fail-silently-review-1.md`
+  `meta/plans/2026-08-13-PP-724-tracker-crate-and-remote-sync-engine.md`,
+  `meta/research/codebase/2026-08-12-PP-724-tracker-crate-and-remote-sync-engine.md`
+- Targeted sync: `meta/plans/2026-09-06-PP-787-sync-specific-work-items.md`
+- Review: `meta/reviews/work/PP-884-sync-pulls-of-tracked-work-items-fail-silently-review-1.md`

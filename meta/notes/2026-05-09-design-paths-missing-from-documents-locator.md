@@ -13,7 +13,7 @@ repository: "ticket-management"
 last_updated: "2026-05-09T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["plan:2026-05-08-0052-documents-locator-config-driven-paths"]
+relates_to: ["plan:2026-05-08-PP-74-documents-locator-config-driven-paths"]
 ---
 
 # documents-locator does not surface design_inventories or design_gaps paths
@@ -83,7 +83,7 @@ artefacts the agent should be able to discover.
 - `skills/config/paths/SKILL.md` — Path legend (needs design entries)
 - `agents/documents-locator.md` — categorisation list and search-routing
   tips (need design entries)
-- `meta/plans/2026-05-08-0052-documents-locator-config-driven-paths.md`
+- `meta/plans/2026-05-08-PP-74-documents-locator-config-driven-paths.md`
   — landing plan that introduced the gap
 - `skills/design/inventory-design/SKILL.md`,
   `skills/design/analyse-design-gaps/SKILL.md` — producers of the

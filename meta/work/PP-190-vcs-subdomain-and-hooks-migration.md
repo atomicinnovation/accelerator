@@ -11,8 +11,8 @@ priority: "high"
 parent: "work-item:PP-157"
 blocked_by: ["work-item:PP-185", "work-item:PP-187", "work-item:PP-188", "work-item:PP-703", "work-item:PP-716", "work-item:PP-717", "work-item:PP-718"]
 blocks: ["work-item:PP-191", "work-item:PP-192", "work-item:PP-193", "work-item:PP-194", "work-item:PP-195"]
-relates_to: ["work-item:PP-146", "work-item:PP-186", "work-item:PP-712", "work-item:PP-713", "work-item:PP-715", "work-item:PP-719", "work-item:PP-728", "work-item:PP-729", "work-item:PP-730", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+relates_to: ["work-item:PP-146", "work-item:PP-186", "work-item:PP-712", "work-item:PP-713", "work-item:PP-715", "work-item:PP-719", "work-item:PP-728", "work-item:PP-729", "work-item:PP-730", "codebase-research:2026-07-29-PP-190-vcs-subdomain-and-hooks-migration"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 tags: ["rust", "vcs", "hooks", "migration"]
 last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -424,7 +424,7 @@ segment matches; the first matching segment names the reported subcommand.
       median comparison; the ratio is demoted beneath an absolute budget; and
       the criterion is split per digest backend into six identified cells. Full
       record and rationale in
-      `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`.
+      `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md`.
 - [x] `skills/vcs/commit/SKILL.md:13-14` invoke
       `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs status --fail-safe` and
       `… vcs log --fail-safe` (the flag lets a cold-cache dispatch failure
@@ -773,11 +773,11 @@ story's, and the "~41 ms warm bootstrap" this item cites is **derived**
 ## References
 
 - Source:
-  `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+  `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Implementation surface:
-  `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`
+  `meta/research/codebase/2026-07-29-PP-190-vcs-subdomain-and-hooks-migration.md`
 - Review driving the split:
-  `meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md`
+  `meta/reviews/work/PP-190-vcs-subdomain-and-hooks-migration-review-2.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Siblings from the split: 0185, 0186, 0187, 0188
 - ADRs: ADR-0048 (hook logic lives in the CLI), ADR-0053 (thin CLI over a

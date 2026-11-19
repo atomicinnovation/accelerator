@@ -133,7 +133,7 @@ logic and definitions across Bash and Rust.
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0001-skills-vs-cli-division-of-labour.md
 - `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
   — CLI architecture spike; basis for the separate hexagonal-core ADR (ADR-0053).
-- `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
   — Accelerator's existing shell-script surface and Rust-CLI migration research.
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md`
   — the CLI's internal architecture (a thin CLI over a hexagonal core).

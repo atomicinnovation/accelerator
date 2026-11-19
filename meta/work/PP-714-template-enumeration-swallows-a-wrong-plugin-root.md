@@ -365,5 +365,5 @@ No open questions remain. The decisions taken during review:
   and the wrong-root definition was broadened in the Summary and the AC preamble.
 
 - `meta/work/PP-712-cli-derives-plugin-root-from-own-location.md`
-- `meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md`
+- `meta/plans/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename.md`
   — Phase 5 §3, "What this does and does not buy"

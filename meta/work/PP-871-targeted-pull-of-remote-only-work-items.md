@@ -194,6 +194,6 @@ the local corpus.
 ## References
 
 - Predecessor: `meta/work/PP-787-sync-specific-work-items.md`,
-  `meta/plans/2026-09-06-0257-sync-specific-work-items.md`
+  `meta/plans/2026-09-06-PP-787-sync-specific-work-items.md`
 - Parent epic: `meta/work/PP-167-work-item-sync-enhancements.md`
 - Skill: `skills/work/sync-work-items/SKILL.md`

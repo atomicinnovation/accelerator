@@ -86,9 +86,9 @@ wired-but-unused `SearchScope.filters` seam to the primary discovery mechanism.
 ## Context
 
 - Implements **work item 0229** (`meta/work/PP-759-per-tracker-pull-scope-configuration.md`).
-- Plan: `meta/plans/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
+- Plan: `meta/plans/2026-09-11-PP-759-per-tracker-pull-scope-configuration.md`
   (all 8 phases, one commit each).
-- Validation: `meta/validations/2026-09-11-0229-per-tracker-pull-scope-configuration-validation.md`
+- Validation: `meta/validations/2026-09-11-PP-759-per-tracker-pull-scope-configuration-validation.md`
   (result: **partial** — see Notes for Reviewers).
 - Layers on 0228's canonical-key base-scope model; delegates remote-existence
   checks of named entities to 0227's `accelerator config validate`.

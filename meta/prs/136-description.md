@@ -140,9 +140,9 @@ and each topic-research concept is modelled once.
 ## Context
 
 - Work item: `meta/work/PP-867-recursive-finding-deepening.md` (PP-867)
-- Plan: `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
-- Research: `meta/research/codebase/2026-09-26-0283-recursive-finding-deepening.md`
-- Validation: `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`
+- Plan: `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md`
+- Research: `meta/research/codebase/2026-09-26-PP-867-recursive-finding-deepening.md`
+- Validation: `meta/validations/2026-09-28-PP-867-recursive-finding-deepening-validation.md`
 - Follow-up: 0295 (per-profile arXiv batch cap), raised from the Phase 7
   contention measurement.
 

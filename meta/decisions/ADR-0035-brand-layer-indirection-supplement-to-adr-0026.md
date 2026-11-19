@@ -9,7 +9,7 @@ title: "ADR-0035: Brand-layer indirection — supplement to ADR-0026"
 schema_version: 1
 last_updated: "2026-05-23T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
-relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0033", "adr:ADR-0028", "work-item:PP-95", "plan:2026-05-23-0073-atomic-brand-layer-palette", "work-item:PP-55", "work-item:PP-98"]
+relates_to: ["adr:ADR-0026", "adr:ADR-0031", "adr:ADR-0033", "adr:ADR-0028", "work-item:PP-95", "plan:2026-05-23-PP-95-atomic-brand-layer-palette", "work-item:PP-55", "work-item:PP-98"]
 ---
 
 # ADR-0035: Brand-layer indirection — supplement to ADR-0026
@@ -234,7 +234,7 @@ or `DARK_COLOR_TOKENS` to lock the invariant in place.
   prior precedent for the supplement pattern (supplements ADR-0028)
 - `meta/work/PP-95-atomic-brand-layer-palette.md` — introducing work
   item
-- `meta/plans/2026-05-23-0073-atomic-brand-layer-palette.md` —
+- `meta/plans/2026-05-23-PP-95-atomic-brand-layer-palette.md` —
   implementation plan
 - `meta/work/PP-55-design-token-system.md` — original `--ac-*` layer
 - `meta/work/PP-98-code-block-syntax-highlight-palette.md` — first

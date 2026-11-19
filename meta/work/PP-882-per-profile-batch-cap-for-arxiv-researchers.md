@@ -394,7 +394,7 @@ arXiv.
   the cap, then the researcher's re-presentation and the reason row, then
   the validation run.
 - Measurement method and raw figures are in
-  `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`.
+  `meta/validations/2026-09-28-PP-867-recursive-finding-deepening-validation.md`.
 
 ## Drafting Notes
 
@@ -421,6 +421,6 @@ arXiv.
 ## References
 
 - `meta/work/PP-867-recursive-finding-deepening.md`
-- `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
-- `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`
+- `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md`
+- `meta/validations/2026-09-28-PP-867-recursive-finding-deepening-validation.md`
 - `meta/work/PP-180-roll-out-inspect-evals-across-remaining-skills.md`

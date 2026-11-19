@@ -242,7 +242,7 @@ None.
 ## References
 
 - Source: 0348 and its review,
-  `meta/reviews/work/0348-structured-source-metadata-review-1.md`
+  `meta/reviews/work/PP-936-structured-source-metadata-review-1.md`
 - Related: 0121, 0280, 0348
 - OpenAlex Work, Location and Source objects and work types
   (help.openalex.org); CSL 1.0.2 specification, Appendix III; arXiv API

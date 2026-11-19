@@ -10,7 +10,7 @@ kind: "bug"
 priority: "high"
 parent: "work-item:PP-157"
 blocks: ["work-item:PP-716"]
-relates_to: ["work-item:PP-185", "work-item:PP-188", "work-item:PP-157", "work-item:PP-713", "work-item:PP-714", "work-item:PP-716", "work-item:PP-193", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
+relates_to: ["work-item:PP-185", "work-item:PP-188", "work-item:PP-157", "work-item:PP-713", "work-item:PP-714", "work-item:PP-716", "work-item:PP-193", "codebase-research:2026-07-27-PP-712-plugin-root-self-location-implementation-surface"]
 source: "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"
 tags: ["bug", "cli", "launcher", "bootstrap", "plugin-root", "skills"]
 last_updated: "2026-09-05T00:00:00+00:00"
@@ -1262,7 +1262,7 @@ while nearly every skill was broken.
 
 Five lenses (clarity, completeness, dependency, scope, testability) returned one
 critical and nine major findings; see
-`meta/reviews/work/0182-cli-derives-plugin-root-from-own-location-review-1.md`.
+`meta/reviews/work/PP-712-cli-derives-plugin-root-from-own-location-review-1.md`.
 The substantive changes made in response:
 
 - **Exit-0 assertions were tautological.** R8 makes a bootstrap-layer abort exit
@@ -1360,7 +1360,7 @@ The substantive corrections beyond my own errors:
 
 Verified every enumerated site against the tree and measured the launcher's actual
 rootless behaviour; see
-`meta/research/codebase/2026-07-27-0182-plugin-root-self-location-implementation-surface.md`.
+`meta/research/codebase/2026-07-27-PP-712-plugin-root-self-location-implementation-surface.md`.
 The inventory held up — the `cli/` rename set is complete and exact, no line
 number had drifted, `ACCELERATOR_PLUGIN_ROOT` is unused repo-wide, and every
 pattern R7/R9/R10 needs already has a close precedent. Four mechanisms did not,
@@ -1412,7 +1412,7 @@ exists is new, and strengthens the existing case for landing R6 first.
 ### Planning pass (2026-07-27)
 
 Plan written at
-`meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md` —
+`meta/plans/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename.md` —
 six phases plus a closing local-cleanup step. Four changes were made to this item
 during that pass:
 
@@ -1460,9 +1460,9 @@ structurally blind to.
 ## References
 
 - Source: `meta/research/issues/2026-07-26-cli-requires-claude-plugin-root-env-var.md`
-- Review: `meta/reviews/work/0182-cli-derives-plugin-root-from-own-location-review-1.md`
+- Review: `meta/reviews/work/PP-712-cli-derives-plugin-root-from-own-location-review-1.md`
 - Implementation-surface research:
-  `meta/research/codebase/2026-07-27-0182-plugin-root-self-location-implementation-surface.md`
+  `meta/research/codebase/2026-07-27-PP-712-plugin-root-self-location-implementation-surface.md`
   (verified the rename set, measured root-sensitivity per `config` family, and
   corrected R4's mechanism, the gate count, and four acceptance criteria)
 - Symlink-chase prior art: `meta/plans/2026-04-18-meta-visualiser-phase-1-skill-scaffolding.md:620-655`

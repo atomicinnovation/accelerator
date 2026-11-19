@@ -71,8 +71,8 @@ single language-neutral vector corpus — either side diverging fails CI.
 ## Context
 
 - Work item: `meta/work/PP-736-classify-navigation-urls-not-only-the-initial-location.md`
-- Plan: `meta/plans/2026-08-31-0206-classify-navigation-urls.md`
-- Research: `meta/research/codebase/2026-08-31-0206-classify-navigation-urls.md`
+- Plan: `meta/plans/2026-08-31-PP-736-classify-navigation-urls.md`
+- Research: `meta/research/codebase/2026-08-31-PP-736-classify-navigation-urls.md`
 - Coordinating story: 0209 (cross-origin auth-header stripping) extends the same
   route seam this PR installs.
 

@@ -34,9 +34,9 @@ Fixes two defects in `acquire_lock` (`bin/accelerator`): a failed `mkdir` on an 
 ## Context
 
 - Work item: `meta/work/PP-720-acquire-lock-cannot-classify-mkdir-failures.md`
-- Research: `meta/research/codebase/2026-08-21-0190-acquire-lock-mkdir-classification.md`
-- Plan: `meta/plans/2026-08-21-0190-classify-lock-mkdir-failures.md`
-- Validation: `meta/validations/2026-08-21-0190-classify-lock-mkdir-failures-validation.md`
+- Research: `meta/research/codebase/2026-08-21-PP-720-acquire-lock-mkdir-classification.md`
+- Plan: `meta/plans/2026-08-21-PP-720-classify-lock-mkdir-failures.md`
+- Validation: `meta/validations/2026-08-21-PP-720-classify-lock-mkdir-failures-validation.md`
 
 ## Testing
 

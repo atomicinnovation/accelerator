@@ -179,5 +179,5 @@ each.
   `meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/screenshots/main-light.png`,
   `main-dark.png`, `library-view.png`
 - Children: 0053, 0054, 0055
-- Reviews: `meta/reviews/work/0036-sidebar-redesign-review-1.md`
+- Reviews: `meta/reviews/work/PP-58-sidebar-redesign-review-1.md`
 - Related: 0033, 0037

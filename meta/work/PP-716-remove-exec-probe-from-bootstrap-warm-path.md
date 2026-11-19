@@ -672,13 +672,13 @@ a permanent guard rather than a one-off observation.
 ## References
 
 - Measurements and attribution:
-  `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`
+  `meta/research/codebase/2026-07-29-PP-190-vcs-subdomain-and-hooks-migration.md`
   §12
 - Extracted from: `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`, whose
   review-2 (pass 4) produced this split:
-  `meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md`
+  `meta/reviews/work/PP-190-vcs-subdomain-and-hooks-migration-review-2.md`
 - Review of this work item, in `meta/reviews/work/`:
-  `0186-remove-exec-probe-from-bootstrap-warm-path-review-1.md`
+  `PP-716-remove-exec-probe-from-bootstrap-warm-path-review-1.md`
 - The fetch-verify-cache design this item edits:
   `meta/work/PP-185-launcher-and-git-style-dispatch.md`
 - Test surface: `tests/integration/entrypoint/test_accelerator_entrypoint.py`

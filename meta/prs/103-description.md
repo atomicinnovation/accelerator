@@ -57,7 +57,7 @@ read, and maintain.
 
 - Work item: `meta/work/PP-775-invoke-accelerator-directly-in-skills.md` (under
   epic 0136, single-call-form convergence).
-- Plan: `meta/plans/2026-09-06-0245-invoke-accelerator-directly-in-skills.md`
+- Plan: `meta/plans/2026-09-06-PP-775-invoke-accelerator-directly-in-skills.md`
   (status `done`).
 - Validation: `meta/validations/2026-09-06-0245-…-validation.md` (result
   `pass`).

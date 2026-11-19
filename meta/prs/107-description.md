@@ -70,9 +70,9 @@ reconciled).
 ## Context
 
 - Work item: `meta/work/PP-787-sync-specific-work-items.md`
-- Plan: `meta/plans/2026-09-06-0257-sync-specific-work-items.md`
-- Research: `meta/research/codebase/2026-09-06-0257-sync-specific-work-items.md`
-- Validation: `meta/validations/2026-09-06-0257-sync-specific-work-items-validation.md`
+- Plan: `meta/plans/2026-09-06-PP-787-sync-specific-work-items.md`
+- Research: `meta/research/codebase/2026-09-06-PP-787-sync-specific-work-items.md`
+- Validation: `meta/validations/2026-09-06-PP-787-sync-specific-work-items-validation.md`
 
 ## Testing
 

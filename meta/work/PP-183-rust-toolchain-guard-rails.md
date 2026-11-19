@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-184"]
 tags: ["rust", "tooling", "ci", "guard-rails", "architecture-enforcement"]
 last_updated: "2026-07-02T15:05:42+00:00"
@@ -216,7 +216,7 @@ extends to further members with no per-member wiring. See Dependencies.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Tool-stack direction: `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
 - ADRs: ADR-0046, ADR-0048, ADR-0053, ADR-0054

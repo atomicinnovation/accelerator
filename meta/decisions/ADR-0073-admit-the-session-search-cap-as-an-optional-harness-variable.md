@@ -128,4 +128,4 @@ get budgets sized for 200, and a user who lowers it would halt early.
 - `cli/research-cli/src/search_cap.rs` — the search cap reader
 - `cli/research-cli/src/harness_setting.rs` — the shared parse
 - `meta/work/PP-890-fail-web-nodes-on-websearch-quota-exhaustion.md`
-- `meta/plans/2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion.md`
+- `meta/plans/2026-10-15-PP-890-budget-web-searches-and-halt-on-exhaustion.md`

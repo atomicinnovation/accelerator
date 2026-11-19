@@ -9,7 +9,7 @@ status: "abandoned"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-725", "work-item:PP-726", "work-item:PP-727"]
 tags: ["rust", "corpus", "design", "collaboration", "subdomains"]
 last_updated: "2026-08-05T19:03:35+00:00"
@@ -113,7 +113,7 @@ granularity is wanted.
   splitting into three items was removed (already resolved in Context).
   Acceptance criteria, requirements, and kind were not reviewed this round —
   status intentionally left at `draft` pending that pass.
-- 2026-08-05: review-1 (`meta/reviews/work/0173-remaining-subdomains-corpus-design-collaboration-review-1.md`,
+- 2026-08-05: review-1 (`meta/reviews/work/PP-194-remaining-subdomains-corpus-design-collaboration-review-1.md`,
   verdict REVISE) found the story bundled three functionally independent
   efforts and was undersized for a `story` kind. Per that finding, this item is
   **abandoned** in favour of a split into work-item:PP-725 (`accelerator-corpus`),
@@ -125,7 +125,7 @@ granularity is wanted.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Related: `meta/work/PP-171-rename-github-skill-group-to-collaboration.md`
   (github→collaboration rename precedent), `meta/work/PP-703-corpus-crates-parsing-conventions.md`

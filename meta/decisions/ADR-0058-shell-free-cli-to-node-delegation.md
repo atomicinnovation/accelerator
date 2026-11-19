@@ -180,6 +180,6 @@ later, once the launcher port has settled.
   compatibility floor), ADR-0053 (thin CLI over a hexagonal core), ADR-0057
   (browser automation as a glibc-only capability)
 - `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
-- `meta/research/codebase/2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli.md`
+- `meta/research/codebase/2026-08-10-PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - `skills/design/inventory-design/scripts/playwright/run.sh` — the launcher
   being reproduced

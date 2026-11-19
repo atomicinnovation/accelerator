@@ -91,10 +91,10 @@ host guidance follow in later phases.
 
 - Work item: `meta/work/PP-960-build-performance-measurement-and-host-guidance.md`
   (parent epic `meta/work/PP-953-speed-up-the-full-build-without-losing-confidence.md`)
-- Plan: `meta/plans/2026-10-30-0368-build-performance-measurement-harness.md`,
+- Plan: `meta/plans/2026-10-30-PP-960-build-performance-measurement-harness.md`,
   with phases 1–4 implemented here
 - Research: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`,
-  `meta/research/codebase/2026-10-30-0368-build-performance-measurement-harness.md`
+  `meta/research/codebase/2026-10-30-PP-960-build-performance-measurement-harness.md`
 
 ## Testing
 

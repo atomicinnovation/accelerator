@@ -663,7 +663,7 @@ half was already closed by ADR-0059: the vendored core is the exact version
 - Split from: `meta/work/PP-194-remaining-subdomains-corpus-design-collaboration.md`
   (abandoned)
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
-- Research: `meta/research/codebase/2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli.md`
+- Research: `meta/research/codebase/2026-08-10-PP-726-accelerator-design-inventory-gap-tooling-cli.md`
 - ADRs: ADR-0048, ADR-0053, ADR-0057 (accepted — browser automation as a
   glibc-only capability), ADR-0058 (accepted — shell-free CLI-to-Node
   delegation), ADR-0059 (accepted — build-time assembly of vendored browser

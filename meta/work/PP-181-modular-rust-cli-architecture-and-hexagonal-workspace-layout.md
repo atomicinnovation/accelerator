@@ -375,7 +375,7 @@ jdx/sigstore-verification archival; GitHub offline-attestation docs.
 
 - **Ported from luminosity** — original spike:
   https://github.com/atomicinnovation/luminosity/blob/main/meta/work/0002-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md
-- Related research: `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- Related research: `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
   (Accelerator's Rust-CLI migration surface).
 - Research: clap external subcommands (docs.rs/clap 4.6.x); rustup proxy/shim
   model; uv tool caching; howtocodeit/hexarch (hexagonal in Rust); cargo-zigbuild

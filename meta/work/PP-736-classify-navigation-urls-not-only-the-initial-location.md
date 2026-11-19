@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-726"
-derived_from: ["plan:2026-08-11-0196-design-cli-migration"]
+derived_from: ["plan:2026-08-11-PP-726-design-cli-migration"]
 relates_to: ["work-item:PP-739"]
 tags: ["design", "security", "playwright", "ssrf"]
 last_updated: "2026-08-31T13:52:20+00:00"
@@ -214,7 +214,7 @@ None outstanding. The two prior open decisions are resolved:
 - Parent: 0196 — `validate-source`, `host_reach`, `access_policy`
   (initial-location hardening)
 - Related: 0209 — cross-origin navigation, auth-header stripping
-- Derived from: plan `meta/plans/2026-08-11-0196-design-cli-migration.md`
+- Derived from: plan `meta/plans/2026-08-11-PP-726-design-cli-migration.md`
 - Key code: `skills/design/inventory-design/scripts/playwright/lib/daemon.js`,
   `cli/design/src/host_reach.rs`, `cli/design/src/access_policy.rs`,
   `skills/design/inventory-design/PROTOCOL.md`

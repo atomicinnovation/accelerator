@@ -12,8 +12,8 @@ type: "codebase-research"
 id: "2026-05-19-inventory-design-and-browser-agent-fixes"
 title: "Fixes for the inventory-design skill and the browser-locator / browser-analyser agents"
 schema_version: 1
-relates_to: ["work-item:PP-74", "work-item:PP-52", "plan:2026-05-08-0030-remove-inline-path-defaults-from-consumers", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator", "work-item:PP-78", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "design-inventory:2026-05-06-135214-current-app"]
-derived_from: ["codebase-research:2026-05-08-0052-documents-locator-config-driven-paths", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "codebase-research:2026-05-02-design-convergence-workflow"]
+relates_to: ["work-item:PP-74", "work-item:PP-52", "plan:2026-05-08-PP-52-remove-inline-path-defaults-from-consumers", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator", "work-item:PP-78", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "design-inventory:2026-05-06-135214-current-app"]
+derived_from: ["codebase-research:2026-05-08-PP-74-documents-locator-config-driven-paths", "codebase-research:2026-05-08-PP-52-centralise-path-defaults-implementation", "codebase-research:2026-05-02-design-convergence-workflow"]
 ---
 
 # Fixes for the inventory-design skill and the browser-locator / browser-analyser agents
@@ -599,7 +599,7 @@ resolution).
   made `skills:` honour-preload in agent definitions, not just
   SKILL.md files).
 - `meta/work/PP-52-centralise-path-defaults.md` and
-  `meta/plans/2026-05-08-0030-remove-inline-path-defaults-from-consumers.md`
+  `meta/plans/2026-05-08-PP-52-remove-inline-path-defaults-from-consumers.md`
   — established the centralised `config-defaults.sh` allow-list and
   removed inline defaults from consumers. The "no inline default at
   call site" rule is enforced by
@@ -625,11 +625,11 @@ resolution).
 
 ## Related Research
 
-- `meta/research/codebase/2026-05-08-0052-documents-locator-config-driven-paths.md`
+- `meta/research/codebase/2026-05-08-PP-74-documents-locator-config-driven-paths.md`
   — enumerates which agents/skills do/don't consume config-driven
   path keys (explicitly calls out `browser-locator`,
   `browser-analyser`).
-- `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`
+- `meta/research/codebase/2026-05-08-PP-52-centralise-path-defaults-implementation.md`
   — implementation context for the centralised defaults.
 - `meta/research/codebase/2026-05-02-design-convergence-workflow.md`
   — the foundational research that introduced the browser-agent pair

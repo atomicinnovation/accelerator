@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
 parent: "work-item:PP-956"
-relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
+relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/238"
 pr_number: 238
 tags: ["visualiser", "testing", "playwright", "flakiness"]
@@ -44,7 +44,7 @@ No page code changes, and the spec gains no retry, `skip` or `fixme`.
 ## Context
 
 - Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
-- Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Plan: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 7)
 - **How it was found.** Phase 7's paired CI comparison ran 11 `Main`
   runs on each of two draft PRs from `main` at `a646f527`. #235 kept

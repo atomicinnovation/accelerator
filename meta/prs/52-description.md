@@ -33,7 +33,7 @@ Work-item 0173 bundled three functionally independent efforts — `accelerator-c
 
 ## Context
 
-Part of the ongoing shell-to-Rust CLI migration epic (work-item:PP-157). 0173 was originally extracted from `codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture` as a single grouped story for the three remaining sub-binary domains; its review-1 found the grouping risked partial-completion ambiguity and an oversized PR, since the three sub-binaries share no functional relationship beyond the sub-binary registration pattern (work-item:PP-717).
+Part of the ongoing shell-to-Rust CLI migration epic (work-item:PP-157). 0173 was originally extracted from `codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture` as a single grouped story for the three remaining sub-binary domains; its review-1 found the grouping risked partial-completion ambiguity and an oversized PR, since the three sub-binaries share no functional relationship beyond the sub-binary registration pattern (work-item:PP-717).
 
 ## Testing
 

@@ -91,9 +91,9 @@ should defer to the session VCS. Two new lint guards keep it that way.
 - Work item: `meta/work/PP-872-eradicate-direct-git-calls-from-skills.md`
   (parent 0136; spawned by spike 0200, which kept `log`/`diff` in the guard
   blocklist and located the real failure in the skills' raw git calls).
-- Plan: `meta/plans/2026-09-20-0286-eradicate-direct-git-calls-from-skills.md`
+- Plan: `meta/plans/2026-09-20-PP-872-eradicate-direct-git-calls-from-skills.md`
 - Validation:
-  `meta/validations/2026-09-20-0286-eradicate-direct-git-calls-from-skills-validation.md`
+  `meta/validations/2026-09-20-PP-872-eradicate-direct-git-calls-from-skills-validation.md`
 
 ## Testing
 

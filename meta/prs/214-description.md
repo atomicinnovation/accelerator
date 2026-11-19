@@ -127,10 +127,10 @@ network-bound smoke test, and nothing is stored or migrated.
 ## Context
 
 - Work item: `meta/work/PP-954-make-the-bootstrap-test-suites-fast-and-hermetic.md`
-- Plan: `meta/plans/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic.md`
+- Plan: `meta/plans/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic.md`
   (Phases 3–5)
 - Validation:
-  `meta/validations/2026-11-11-0362-bootstrap-test-suites-fast-and-hermetic-validation.md`
+  `meta/validations/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic-validation.md`
 - Stacked on #212 (shared installation fixtures), which is stacked on #210
   (`minisign-verify` at `opt-level = 3` in dev builds)
 

@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 tags: ["shell", "tooling", "ci", "cleanup"]
 last_updated: "2026-08-28T00:37:08+00:00"
 last_updated_by: "Toby Clemson"
@@ -484,7 +484,7 @@ shipped templates' shape or the SKILL.md-literal conformance these guards enforc
   `mise run check` lint lane, not as a `check-scripts` release gate.
 
 - Reconciled against live code 2026-08-28 (research pass, revision 85f919af — see
-  `meta/research/codebase/2026-08-28-0174-empty-scripts-and-retire-shell-tooling.md`).
+  `meta/research/codebase/2026-08-28-PP-195-empty-scripts-and-retire-shell-tooling.md`).
   Corrections applied: the surviving thin shell is **two** files (the Playwright
   executor is `run.js`, JavaScript, not shell); the config floor is **14, not 15** and
   only four floor constants remain (work/integrations already retired by 0211/0212);
@@ -510,11 +510,11 @@ shipped templates' shape or the SKILL.md-literal conformance these guards enforc
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0048, ADR-0049
-- Prior research: `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
-- Grounding research (this story): `meta/research/codebase/2026-08-28-0174-empty-scripts-and-retire-shell-tooling.md`
+- Prior research: `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
+- Grounding research (this story): `meta/research/codebase/2026-08-28-PP-195-empty-scripts-and-retire-shell-tooling.md`
 - Predecessors (all done): 0167, 0168, 0169, 0170, 0171, 0172, 0195, 0196, 0197,
   0211, 0212 — the domain-cluster migrations this cleanup follows.
 - Rust successors of the retiring libraries: `cli/store/src/lib.rs`,

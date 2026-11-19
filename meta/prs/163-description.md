@@ -103,9 +103,9 @@ run that did not end cannot halt or summarise itself.
 
 - Work item: `meta/work/PP-896-recovering-from-an-interrupted-conduct-run.md`
   (source: #147)
-- Plan: `meta/plans/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`
-- Research: `meta/research/codebase/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`
-- Validation: `meta/validations/2026-10-13-0310-recovering-from-an-interrupted-conduct-run-validation.md`
+- Plan: `meta/plans/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`
+- Research: `meta/research/codebase/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run.md`
+- Validation: `meta/validations/2026-10-13-PP-896-recovering-from-an-interrupted-conduct-run-validation.md`
 - Review: `meta/reviews/prs/163-review-1.md`; every finding is addressed on
   the PR
 

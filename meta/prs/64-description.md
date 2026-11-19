@@ -49,14 +49,14 @@ The runtime still comes from where it comes from today — `ensure-playwright.sh
 
 **Four ADRs** land as accepted decisions: 0057 (browser automation as a glibc-only capability), 0058 (shell-free CLI-to-Node delegation), and — governing the *sibling* plan rather than this one — 0059 (build-time assembly of vendored artifacts) and 0060 (launcher-resolved tree artifacts).
 
-⏱️ **Warm executor path: 108.38 ms → 43.95 ms median**, ratio 0.406 against a no-regression gate, measured with interleaved sampling before `run.sh` was deleted. A crawl makes 100–200 of these calls, so roughly 6–13 seconds per crawl. Recorded in `meta/migrations/0196-warm-path-measurement.md`; necessarily a one-time comparison, since the baseline disappears in the same change that measures it.
+⏱️ **Warm executor path: 108.38 ms → 43.95 ms median**, ratio 0.406 against a no-regression gate, measured with interleaved sampling before `run.sh` was deleted. A crawl makes 100–200 of these calls, so roughly 6–13 seconds per crawl. Recorded in `meta/migrations/PP-726-warm-path-measurement.md`; necessarily a one-time comparison, since the baseline disappears in the same change that measures it.
 
 ## Context
 
 - Work item: `meta/work/PP-726-accelerator-design-inventory-gap-tooling-cli.md`
-- Plan: `meta/plans/2026-08-11-0196-design-cli-migration.md`
-- Validation: `meta/validations/2026-08-11-0196-design-cli-migration-validation.md`
-- Sibling plan, deliberately not implemented here: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`
+- Plan: `meta/plans/2026-08-11-PP-726-design-cli-migration.md`
+- Validation: `meta/validations/2026-08-11-PP-726-design-cli-migration-validation.md`
+- Sibling plan, deliberately not implemented here: `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md`
 
 The work item was planned as one eight-phase document and reviewed three times. Every pass closed the previous pass's findings and introduced new criticals, and all of them landed in the tree-artifact, release-pipeline and runtime-swap phases. Splitting on that line let the settled half proceed. Phase numbers are inherited (1, 2, 3, 6 here) rather than renumbered, because a missed cross-reference was precisely the defect class three review passes kept finding.
 
@@ -67,7 +67,7 @@ The work item was planned as one eight-phase document and reviewed three times. 
 - [x] `mise run test:unit:design-automation` — 78 passed, 0 failed, **0 skipped**, verified against `node --test`'s own TAP accounting rather than a file-count proxy
 - [x] `mise run test:integration:design-automation` — 23 of 23, against a real Chromium
 - [x] `mise run cli:check`, `lint:dispatch-coherence:check`, `deny:check`, `public-api:check`, `docs:check` — all inside the green `check` roll-up
-- [x] Characterization coverage traced through a committed migration checklist (`meta/migrations/0196-design-cli-migration-checklist.md`): every assertion in the deleted bash suites maps to a named Rust test or a recorded deliberate drop naming its replacement property
+- [x] Characterization coverage traced through a committed migration checklist (`meta/migrations/PP-726-design-cli-migration-checklist.md`): every assertion in the deleted bash suites maps to a named Rust test or a recorded deliberate drop naming its replacement property
 - [x] `validate-source` exercised by hand across the numeric encodings, transition-encoded metadata endpoints, loopback carve-out, userinfo rejection and `about:blank`
 - [ ] The bare default `mise run` — not executed. It is `build` + `fix` + `check` + `test`; the latter two pass and `fix` is mechanical, so the gate is met in substance but not by that exact task
 - [ ] Both design skills end to end in a live session, on a machine with a bootstrapped Playwright namespace

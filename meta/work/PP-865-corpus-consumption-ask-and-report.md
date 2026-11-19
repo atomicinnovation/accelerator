@@ -360,7 +360,7 @@ from the current findings, with the VCS as its history.
   whether existing tier parsers accept the `also` suffix).
 - Relies on `finalise`'s freshness gate as shipped in the skill's `finalise`
   step and specified in 0279's plan
-  (`meta/plans/2026-09-19-0279-iterative-accretion-and-finalise.md`), not as
+  (`meta/plans/2026-09-19-PP-863-iterative-accretion-and-finalise.md`), not as
   0279's item text describes it (`status == synthesised` alone); both verbs
   reuse it, so a change to that gate changes theirs.
 - Relies on `accelerator research topic outstanding` as shipped (0279,
@@ -513,7 +513,7 @@ from the current findings, with the VCS as its history.
 
 - Source: `meta/work/PP-22-topic-research-skillset.md` (Slice 4)
 - Freshness gate:
-  `meta/plans/2026-09-19-0279-iterative-accretion-and-finalise.md`
+  `meta/plans/2026-09-19-PP-863-iterative-accretion-and-finalise.md`
 - Parent epic: 0121
 - Blocked by: 0277, 0279, 0280, 0282, 0306
 - Related: 0283, 0284, 0305, 0311, 0347

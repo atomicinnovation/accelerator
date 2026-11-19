@@ -182,7 +182,7 @@ closes the producer-side gap the migration left open.
 - Source: corpus-validator sanity-check failure during `/validate-plan` of work
   item 0070
 - Related: `meta/work/PP-79-unified-artifact-frontmatter-and-typed-cross-linking.md`,
-  `meta/plans/2026-06-07-0070-meta-corpus-unified-schema-migration.md`,
+  `meta/plans/2026-06-07-PP-92-meta-corpus-unified-schema-migration.md`,
   `meta/decisions/ADR-0042-reconciling-pre-schema-status-values.md`
 - Contract surfaces: `scripts/validate-corpus-frontmatter.sh`,
   `scripts/frontmatter-emission-rules.sh`, `scripts/templates-schema.tsv`,

@@ -107,4 +107,4 @@ together. Requirement 4 changes the domain's public API, so refresh the
 
 - Source: `meta/reviews/prs/148-review-1.md`
 - Related: 0295
-- Plan: `meta/plans/2026-10-06-0295-fair-arxiv-fetch-queue.md`
+- Plan: `meta/plans/2026-10-06-PP-882-fair-arxiv-fetch-queue.md`

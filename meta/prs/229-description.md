@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
 parent: "work-item:PP-956"
-relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
+relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/229"
 pr_number: 229
 tags: ["visualiser", "testing", "playwright", "flakiness"]
@@ -53,7 +53,7 @@ parallel workers might cause. Five full `mise run` executions found none.
 ## Context
 
 - Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
-- Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Plan: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 5)
 - Based on `main`, after #225 (Phase 4).
 - This must merge before Phase 6 (host-relative workers). That way

@@ -77,10 +77,10 @@ broader shell-to-Rust migration epic (work-item:PP-157).
 
 Implements work-item:PP-727, split out of the abandoned work-item:PP-194 to
 keep the corpus/design/collaboration sub-binary migrations independently
-deliverable. Plan: `meta/plans/2026-08-08-0197-accelerator-collaboration-pr-helper-cli.md`.
+deliverable. Plan: `meta/plans/2026-08-08-PP-727-accelerator-collaboration-pr-helper-cli.md`.
 Validated against the implementation with three deliberate, coherently-executed
 deviations from the plan's code sketch — full detail in
-`meta/validations/2026-08-08-0197-accelerator-collaboration-pr-helper-cli-validation.md`:
+`meta/validations/2026-08-08-PP-727-accelerator-collaboration-pr-helper-cli-validation.md`:
 
 - Origin-remote URL *parsing* lives in `collaboration`/`github`, not `vcs`
   as originally sketched (`vcs` only exposes the raw-remote-read port).
@@ -106,7 +106,7 @@ deviations from the plan's code sketch — full detail in
       components, including `cargo-pup`'s whole-crate import rule and
       `lint:dispatch-coherence:check`)
 
-Verified via `meta/validations/2026-08-08-0197-accelerator-collaboration-pr-helper-cli-validation.md`,
+Verified via `meta/validations/2026-08-08-PP-727-accelerator-collaboration-pr-helper-cli-validation.md`,
 recorded against this branch's tip.
 
 ## Notes for Reviewers

@@ -141,9 +141,9 @@ finding per (focus area, profile), allocated by a new
 ## Context
 
 - Work item: `meta/work/PP-864-academic-source-profiles.md`
-- Research: `meta/research/codebase/2026-09-23-0280-academic-source-profiles.md`
-- Plan: `meta/plans/2026-09-23-0280-academic-source-profiles.md`
-- Validation: `meta/validations/2026-09-23-0280-academic-source-profiles-validation.md`
+- Research: `meta/research/codebase/2026-09-23-PP-864-academic-source-profiles.md`
+- Plan: `meta/plans/2026-09-23-PP-864-academic-source-profiles.md`
+- Validation: `meta/validations/2026-09-23-PP-864-academic-source-profiles-validation.md`
   (result `partial`: phases 1–9 implemented, the phase 10 quality gate not yet
   run)
 

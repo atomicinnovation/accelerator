@@ -70,7 +70,7 @@ also moves the earlier measurement items, 0205 and 0217, under the epic, out of
 - **Cross-links from the review revision.** 0225 now relates to 0219, whose
   open-or-comment issue step 0225 can reuse. 0299 now relates to 0219: it
   takes its before-and-after figures on the same harness revision as 0219.
-- **Review artefact.** `meta/reviews/work/0219-own-the-recurring-absolute-budget-check-review-1.md`
+- **Review artefact.** `meta/reviews/work/PP-748-own-the-recurring-absolute-budget-check-review-1.md`
   records the three-pass, five-lens review this revision answers.
 
 ## Context
@@ -80,7 +80,7 @@ also moves the earlier measurement items, 0205 and 0217, under the epic, out of
 - Precedent for a standalone epic split out of 0136:
   `meta/work/PP-898-migration-engine-improvements.md`
 - Harness plan the original task derived from:
-  `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`
+  `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md`
 
 Codebase analysis during decomposition found four things the original task
 did not account for, and they shaped the split:

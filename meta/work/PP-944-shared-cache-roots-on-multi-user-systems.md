@@ -111,8 +111,8 @@ but the first, and the root is never pruned.
 
 ## References
 
-- Source: `meta/plans/2026-10-19-0218-bound-cache-root-growth.md`, plan
-  review `meta/reviews/plans/2026-10-19-0218-bound-cache-root-growth-review-1.md`
+- Source: `meta/plans/2026-10-19-PP-747-bound-cache-root-growth.md`, plan
+  review `meta/reviews/plans/2026-10-19-PP-747-bound-cache-root-growth-review-1.md`
   (passes 3–4, decisions C and E)
 - Related: 0218, 0334, 0339, 0222, 0223, 0355
 - ADR-0075 (digest-pinned resolution chain), whose Consequences assign the

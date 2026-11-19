@@ -132,6 +132,6 @@ neither `linear transition` nor the input `work sync` sends changes.
 
 ## References
 
-- Found during: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md`
+- Found during: `meta/plans/2026-10-10-PP-880-sync-round-trip-defects.md`
   (Phase 11 merge-time verification)
 - Skill: `skills/integrations/linear/update-linear-issue/SKILL.md`

@@ -8,7 +8,7 @@ producer: "implement-plan"
 status: "draft"
 kind: "epic"
 priority: "medium"
-derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
+derived_from: ["plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 relates_to: ["work-item:PP-157", "work-item:PP-719", "work-item:PP-881", "work-item:PP-755"]
 tags: ["cli", "launcher", "performance", "measurement", "ci"]
 last_updated: "2026-10-10T18:25:09+00:00"
@@ -246,7 +246,7 @@ Notes. The harness is `tasks/measure.py` with its statistics in
   CI-opened GitHub issues
 - `.github/workflows/main.yml` — the `prerelease`, `release` and
   `check-measure-harness` jobs and the `accelerator-release` group
-- `meta/reviews/work/0219-own-the-recurring-absolute-budget-check-review-1.md`
+- `meta/reviews/work/PP-748-own-the-recurring-absolute-budget-check-review-1.md`
   — the review these revisions answer
 - CodSpeed, "Benchmarks in CI without noise" —
   https://codspeed.io/blog/benchmarks-in-ci-without-noise

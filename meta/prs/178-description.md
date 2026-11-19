@@ -375,12 +375,12 @@ notice:
 
 - Work item: `meta/work/PP-905-explicit-work-item-id-on-accelerator-work-create.md`
   (Linear PP-905), a child of 0146.
-- Research: `meta/research/codebase/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
-- Plan: `meta/plans/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create.md`
+- Research: `meta/research/codebase/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create.md`
+- Plan: `meta/plans/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create.md`
   (11 phases), with its review in `meta/reviews/plans/` and the work item's
   review in `meta/reviews/work/`. Its Implementation Notes record where the
   code departs from it after review.
-- Validation: `meta/validations/2026-10-29-0319-explicit-work-item-id-on-accelerator-work-create-validation.md`
+- Validation: `meta/validations/2026-10-29-PP-905-explicit-work-item-id-on-accelerator-work-create-validation.md`
   (result `pass`, against the plan before the review response).
 - Reviews: `meta/reviews/prs/178-review-1.md`, `178-review-2.md` and
   `178-review-3.md`; every inline thread is answered and resolved. The

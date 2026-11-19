@@ -229,7 +229,7 @@ holding the draft across attempts before a single local write; `/list-work-items
 needs net-new ANSI/colour rendering plus an extended frontmatter scan to read
 `external_id`. Bounded because only synced/unsynced are derivable until 0051
 delivers `last-sync.json`. See
-`meta/plans/2026-06-15-0047-core-skills-sync-integration.md` for the four-phase
+`meta/plans/2026-06-15-PP-69-core-skills-sync-integration.md` for the four-phase
 breakdown.
 
 - The retry-then-fallback failure path means `/create-work-item` must hold the
@@ -294,7 +294,7 @@ breakdown.
   guidance points at `/create-<tracker>-issue` rather than the unbuilt
   `/sync-work-items` (AC #7); (4) both Open Questions (colour scheme, retry count)
   are now resolved by the plan. See
-  `meta/reviews/plans/2026-06-15-0047-core-skills-sync-integration-review-1.md`.
+  `meta/reviews/plans/2026-06-15-PP-69-core-skills-sync-integration-review-1.md`.
 - **Planning decision (2026-06-15, supersedes the original ID-format framing):**
   the remote tracker's identifier is stored in **`external_id`**, not
   `work_item_id`. `id` stays the local own-identity; sync classification is the
@@ -336,7 +336,7 @@ breakdown.
 ## References
 
 - Source: `meta/work/PP-67-work-management-integration.md`
-- Research: `meta/research/codebase/2026-06-15-0047-core-skills-sync-integration.md`
-- Implementing plan: `meta/plans/2026-06-15-0047-core-skills-sync-integration.md`
+- Research: `meta/research/codebase/2026-06-15-PP-69-core-skills-sync-integration.md`
+- Implementing plan: `meta/plans/2026-06-15-PP-69-core-skills-sync-integration.md`
   (four-phase breakdown; records the `external_id` / presence-based-classification
   decision this work item was reconciled to)

@@ -156,11 +156,11 @@ is authoritative. The changes most likely to break someone:
   (PP-756). It replaces the narrower
   `0226-audit-repo-settable-config-keys-for-executable-path-injection.md`,
   which is deleted.
-- Research: `meta/research/codebase/2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+- Research: `meta/research/codebase/2026-09-24-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Plan (7 phases, reviewed over six passes):
-  `meta/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys.md`
+  `meta/plans/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys.md`
 - Validation (pass):
-  `meta/validations/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys-validation.md`
+  `meta/validations/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys-validation.md`
 - Adds work item 0298, which consolidates the `SessionStart` hooks behind
   `accelerator hooks session-start`. It is filed as follow-up work, not
   implemented here.

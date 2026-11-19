@@ -10,7 +10,7 @@ kind: "task"
 priority: "medium"
 parent: "work-item:PP-748"
 blocked_by: ["work-item:PP-745"]
-derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
+derived_from: ["plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 relates_to: ["work-item:PP-719", "work-item:PP-735", "work-item:PP-748"]
 tags: ["cli", "launcher", "performance", "measurement"]
 last_updated: "2026-10-10T18:25:09+00:00"

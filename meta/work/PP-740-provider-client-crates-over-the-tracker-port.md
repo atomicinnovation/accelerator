@@ -10,7 +10,7 @@ kind: "story"
 priority: "medium"
 parent: "work-item:PP-192"
 blocks: ["work-item:PP-741", "work-item:PP-742"]
-relates_to: ["work-item:PP-724", "work-item:PP-734", "codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"]
+relates_to: ["work-item:PP-724", "work-item:PP-734", "codebase-research:2026-08-17-PP-740-provider-client-crates-over-the-tracker-port"]
 tags: ["rust", "jira", "linear", "integrations", "reqwest", "tracker"]
 last_updated: "2026-08-17T14:10:59+00:00"
 last_updated_by: "Toby Clemson"
@@ -517,7 +517,7 @@ rediscover v2 and assume it is free.
 ## Drafting Notes
 
 - Enriched 2026-08-17 from
-  `meta/research/codebase/2026-08-17-0210-provider-client-crates-over-the-tracker-port.md`,
+  `meta/research/codebase/2026-08-17-PP-740-provider-client-crates-over-the-tracker-port.md`,
   measured at revision `5dd45e01`. `producer` left as `review-work-item`: it records
   where the item came from, and this pass enriched it rather than created it.
 - **Six factual defects were corrected in this pass**, two of which made acceptance
@@ -557,7 +557,7 @@ rediscover v2 and assume it is free.
 ## References
 
 - Parent: `meta/work/PP-192-jira-and-linear-integrations.md`
-- Research: `meta/research/codebase/2026-08-17-0210-provider-client-crates-over-the-tracker-port.md`
-- Review: `meta/reviews/work/0210-provider-client-crates-over-the-tracker-port-review-1.md`
+- Research: `meta/research/codebase/2026-08-17-PP-740-provider-client-crates-over-the-tracker-port.md`
+- Review: `meta/reviews/work/PP-740-provider-client-crates-over-the-tracker-port-review-1.md`
 - Related: 0194, 0204
 - ADRs: ADR-0045, ADR-0046, ADR-0053

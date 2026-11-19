@@ -9,7 +9,7 @@ status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
+derived_from: ["plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 relates_to: ["work-item:PP-719", "work-item:PP-735", "work-item:PP-744", "work-item:PP-721", "work-item:PP-746"]
 tags: ["cli", "launcher", "performance"]
 last_updated: "2026-09-11T10:06:20+00:00"
@@ -332,7 +332,7 @@ optimisation discussion was conducted under, and it means minisign's own digest
 
 ## References
 
-- `meta/research/codebase/2026-09-10-0216-close-the-sha2-hardware-intrinsics-gap.md`
+- `meta/research/codebase/2026-09-10-PP-745-close-the-sha2-hardware-intrinsics-gap.md`
   — the codebase research backing these requirements and the open-question
   resolutions
 - `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — the

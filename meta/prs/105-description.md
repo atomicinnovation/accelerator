@@ -61,9 +61,9 @@ preserved exactly — the parity fixtures are the frozen oracle.
 ## Context
 
 - Work item: `meta/work/PP-799-remove-bash-references-from-jira-linear-clients.md`
-- Plan: `meta/plans/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
-- Research: `meta/research/codebase/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
-- Validation: `meta/validations/2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification-validation.md`
+- Plan: `meta/plans/2026-09-06-PP-799-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
+- Research: `meta/research/codebase/2026-09-06-PP-799-remove-bash-vocabulary-and-redesign-exit-code-classification.md`
+- Validation: `meta/validations/2026-09-06-PP-799-remove-bash-vocabulary-and-redesign-exit-code-classification-validation.md`
 
 The split is intentionally asymmetric: the granular numeric map leaves the
 client crates, but the retry-class `classify` and the `From<Failure> for

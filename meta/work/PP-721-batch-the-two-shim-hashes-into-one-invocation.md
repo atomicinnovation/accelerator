@@ -318,7 +318,7 @@ the transferable quantity — and the ratio moved in the expected direction.
 - `bin/accelerator` — `sha256_file` and the shim-staging condition
 - `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — Validation
   Results, which carries the measurement and the backend range
-- `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
+- `meta/plans/2026-08-02-PP-716-remove-exec-probe-from-bootstrap-warm-path.md` —
   What We're NOT Doing
 - `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — origin (its deferred
   Phase 10) of the `median(G)/median(B)` ratio definition this item inherits

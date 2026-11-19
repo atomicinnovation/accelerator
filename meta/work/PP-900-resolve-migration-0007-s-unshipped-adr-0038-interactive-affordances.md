@@ -103,5 +103,5 @@ Give each gap a disposition, restored or dropped:
 
 - `meta/decisions/ADR-0038-interactive-validation-parameters-for-unified-schema-linkage-migration.md`
 - Codebase research:
-  `meta/research/codebase/2026-10-09-0202-reconcile-migration-engine-adrs-against-the-rust-port.md`
+  `meta/research/codebase/2026-10-09-PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`
 - Related: 0202, 0070

@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:PP-157"
 blocks: ["work-item:PP-185", "work-item:PP-186", "work-item:PP-187"]
 blocked_by: ["work-item:PP-183"]
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 tags: ["rust", "cli", "hexagonal", "scaffold", "workspace"]
 last_updated: "2026-07-02T22:27:38+00:00"
 last_updated_by: "Toby Clemson"
@@ -156,7 +156,7 @@ path. The crate still produces the `accelerator` binary.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0053, ADR-0054
 - Spike: `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`

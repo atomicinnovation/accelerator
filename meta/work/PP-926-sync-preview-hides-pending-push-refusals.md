@@ -110,6 +110,6 @@ Changes:
 
 ## References
 
-- Found during: `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Found during: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
   (Phase 7 manual verification)
 - Skill: `skills/work/sync-work-items/SKILL.md`

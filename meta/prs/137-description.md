@@ -93,10 +93,10 @@ later. ADR-0070 records the decision and supersedes ADR-0044.
 - Decision: `meta/decisions/ADR-0070-tracker-owned-work-item-identity.md`
   (supersedes ADR-0044)
 - Research:
-  `meta/research/codebase/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
-- Plan: `meta/plans/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
+  `meta/research/codebase/2026-09-26-PP-760-tracker-owned-work-item-id-generation.md`
+- Plan: `meta/plans/2026-09-26-PP-760-tracker-owned-work-item-id-generation.md`
 - Validation:
-  `meta/validations/2026-09-26-0230-tracker-owned-work-item-id-generation-validation.md`
+  `meta/validations/2026-09-26-PP-760-tracker-owned-work-item-id-generation-validation.md`
 - Also on this branch: re-keying split out as 0302, the sync round-trip bugs
   as 0296, and qualified prose references as 0297. 0146, 0227 and 0291 are
   realigned to match.

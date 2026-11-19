@@ -418,8 +418,8 @@ None.
 ## References
 
 - Source: 0306 review 1, pass 2
-  (`meta/reviews/work/0306-deterministic-rule-for-citing-a-source-once-review-1.md`)
-- Review: `meta/reviews/work/0348-structured-source-metadata-review-1.md`
+  (`meta/reviews/work/PP-892-deterministic-rule-for-citing-a-source-once-review-1.md`)
+- Review: `meta/reviews/work/PP-936-structured-source-metadata-review-1.md`
 - Related: 0121, 0160, 0161, 0280, 0281, 0283, 0284, 0305, 0306, 0311,
   0349
 - Vocabularies: CSL-JSON schema, DCMI Metadata Terms, schema.org

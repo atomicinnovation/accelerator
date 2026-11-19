@@ -7,7 +7,7 @@ author: "Toby Clemson"
 producer: "create-adr"
 status: "accepted"
 parent: "work-item:PP-92"
-relates_to: ["adr:ADR-0033", "work-item:PP-92", "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"]
+relates_to: ["adr:ADR-0033", "work-item:PP-92", "plan:2026-06-07-PP-92-meta-corpus-unified-schema-migration"]
 tags: ["migration", "frontmatter", "schema", "status", "vocabulary"]
 last_updated: "2026-06-08T09:33:11+00:00"
 last_updated_by: "Toby Clemson"
@@ -107,6 +107,6 @@ a migration error (`0007-DIVERGE[unmapped-status]`), not a silent pass-through.
 - `meta/decisions/ADR-0033-unified-base-frontmatter-schema.md` — the unified base
   schema and per-type vocabularies this reconciles against
 - `meta/work/PP-92-ship-meta-corpus-unified-schema-migration.md` — the owning story
-- `meta/plans/2026-06-07-0070-meta-corpus-unified-schema-migration.md` — the
+- `meta/plans/2026-06-07-PP-92-meta-corpus-unified-schema-migration.md` — the
   migration plan that consumes this decision
 - `scripts/templates-schema.tsv` — per-type `status_vocab` source

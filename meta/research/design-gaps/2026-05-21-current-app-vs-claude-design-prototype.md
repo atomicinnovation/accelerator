@@ -302,7 +302,7 @@ We need to humanise every detail-page H1. The current app surfaces a
 humanised `entry.title` on plan, research, decision, design-inventory,
 design-gap, and work-item detail pages, but renders the raw slug as H1
 on work-item-review, plan-review, and validation pages (the
-`0042-templates-view-redesign-review-1` form). The prototype consistently
+`PP-64-templates-view-redesign-review-1` form). The prototype consistently
 uses a humanised H1 across all twelve kinds. Users need a single rule for
 how H1 is derived, applied uniformly.
 

@@ -9,7 +9,7 @@ status: "done"
 kind: "epic"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 blocks: ["work-item:PP-195"]
 relates_to: ["work-item:PP-191", "work-item:PP-724", "work-item:PP-734", "work-item:PP-195", "work-item:PP-186", "work-item:PP-733"]
 tags: ["rust", "jira", "linear", "integrations", "reqwest", "sync"]
@@ -273,7 +273,7 @@ settled and closed.
   **decided** (0211 Phase 2): a production script, not a `SHELL_LIBRARIES` entry.
   It is named by no `SKILL.md` (not even in prose) and is reachable only through
   the wildcard glob, so it was never a witnessed entrypoint; it was deleted with
-  the linear cluster (`0211-removal-set.md`).
+  the linear cluster (`PP-741-removal-set.md`).
 - Consumer sweep result for the eighteen deleted work scripts (the grep command
   and its empty output) — *pending*.
 - Reverse cross-cluster sweep result: references from `skills/work/scripts/` into
@@ -283,9 +283,9 @@ settled and closed.
   no longer exists — its absence is itself the record.
 - Flow-coverage mapping: each of the 22 Jira and 12 Linear production scripts to a
   named subcommand or a recorded internal-helper classification — **decided**
-  (0211 Phases 2/4): recorded in `0211-reconciliation.md` (the reconciliation
+  (0211 Phases 2/4): recorded in `PP-741-reconciliation.md` (the reconciliation
   table, each internal helper naming its subsuming subcommand) and cross-checked
-  by `0211-suite-audit.md`.
+  by `PP-741-suite-audit.md`.
 - Conflict-flow walkthrough evidence, one run per fixture including the clean
   exit-`0` case, committed under `skills/work/sync-work-items/evals/` in the
   reduced secret-scrubbed shape of `cli/tracker-test-support/src/evidence.rs` —
@@ -316,11 +316,11 @@ settled and closed.
 - Per-flow fixture capture source (credentialed target or mock-served) —
   **decided** (0211 Phases 2/4): mock-served against the deterministic mock
   servers, live-anchored to 0210's 2026-08-21 contract evidence (Decision 8);
-  each generator's revival anchor is recorded in `0211-removal-set.md`.
+  each generator's revival anchor is recorded in `PP-741-removal-set.md`.
 - Cross-skill `jq`/`curl` `allowed-tools` audit result — **decided** (0211
   Phase 5): `grep -rn "Bash(jq\|Bash(curl" skills/` returns nothing; the
   whole-repository shared-asset sweep's residual set is empty under its declared
-  exclusions (`0211-divergences.md` / `0211-removal-set.md`).
+  exclusions (`PP-741-divergences.md` / `PP-741-removal-set.md`).
 - Identifier-safety check — **decided**: carried forward, an unsafe identifier
   is a `Terminal` failure.
 
@@ -529,7 +529,7 @@ independently.
 15. **Fixture migration bar — port what a Rust test consumes, ledger the rest.**
     Every ported scenario is consumed by a test; the rest are ledgered with a
     reason, count-pinned against the pre-deletion list
-    (`0211-fixture-reconciliation.md`).
+    (`PP-741-fixture-reconciliation.md`).
 16. **The reserved dispatch band is `70`–`74`.** 0212 added
     `E_DISPATCH_UNCONFIGURED` = 74; the search codes remap off the whole band
     (bash `70`–`73` → `75`–`78`) and a test proves no binary emits `70`–`74`.
@@ -565,7 +565,7 @@ implication that the rich flags vanish (it does **not** re-open the mutation
 surface for the sync port): resolution happens in the binary over the caches and
 `create_op`/`update_op` assemble the payload, leaving the port's minimal
 `create`/`update` and the Decision-9 funnel unchanged. Recorded in
-`0211-divergences.md`.
+`PP-741-divergences.md`.
 
 ## Dependencies
 
@@ -894,8 +894,8 @@ surface for the sync port): resolution happens in the binary over the caches and
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Related: 0194, 0204, 0170, 0174
-- Review: `meta/reviews/work/0171-jira-and-linear-integrations-review-1.md`
+- Review: `meta/reviews/work/PP-192-jira-and-linear-integrations-review-1.md`
 - ADRs: ADR-0045, ADR-0046, ADR-0053

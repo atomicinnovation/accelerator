@@ -12,7 +12,7 @@ schema_version: 1
 last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: "Toby Clemson"
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
-relates_to: ["work-item:PP-98", "plan:2026-05-26-0088-markdown-body-width-harmonisation"]
+relates_to: ["work-item:PP-98", "plan:2026-05-26-PP-110-markdown-body-width-harmonisation"]
 external_id: "PP-110"
 aliases: ["0088"]
 ---
@@ -256,6 +256,6 @@ out of scope for this work item.
 - Source: `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
 - Prototype prose styling (`.ac-md` / `.ac-md-h2`):
   `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-standalone.html`
-- Plan: `meta/plans/2026-05-26-0088-markdown-body-width-harmonisation.md`
+- Plan: `meta/plans/2026-05-26-PP-110-markdown-body-width-harmonisation.md`
   (see its **Post-Implementation Deviations** section)
 - Related: 0033, 0075, 0076

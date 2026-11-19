@@ -326,5 +326,5 @@ A plugin-wide sweep found the full extent:
   spike that decided keep-both and spawned this (done)
 - `meta/work/PP-728-vcs-agnostic-status-log-renderer.md` — the VCS-agnostic
   renderer and session-VCS precedent (done)
-- `meta/reviews/work/0286-eradicate-direct-git-calls-from-skills-review-1.md` —
+- `meta/reviews/work/PP-872-eradicate-direct-git-calls-from-skills-review-1.md` —
   review 1, which resolved the design questions and expanded scope to `vcs root`

@@ -59,8 +59,8 @@ survives.
 ## Context
 
 - Work item: `meta/work/PP-794-remove-bash-migration-negative-assertion-tests.md`
-- Plan: `meta/plans/2026-09-08-0264-remove-bash-migration-negative-assertion-tests.md`
-- Validation: `meta/validations/2026-09-08-0264-remove-bash-migration-negative-assertion-tests-validation.md` (result: pass)
+- Plan: `meta/plans/2026-09-08-PP-794-remove-bash-migration-negative-assertion-tests.md`
+- Validation: `meta/validations/2026-09-08-PP-794-remove-bash-migration-negative-assertion-tests-validation.md` (result: pass)
 - Parent epic: 0136 (shell-to-Rust migration)
 
 The plan's "Coverage Retired (Accepted)" section records the regression classes

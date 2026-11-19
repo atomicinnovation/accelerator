@@ -162,5 +162,5 @@ catalogue; removing `linear.team_id`; the catalogue shape changes 0294 makes.
 ## References
 
 - Related: 0294, 0228, 0048, 0210
-- Found during: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md`
+- Found during: `meta/plans/2026-10-10-PP-880-sync-round-trip-defects.md`
   (Phase 10 manual verification)

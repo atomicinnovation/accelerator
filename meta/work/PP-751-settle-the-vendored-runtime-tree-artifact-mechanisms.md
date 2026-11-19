@@ -10,7 +10,7 @@ kind: "spike"
 priority: "high"
 parent: "work-item:PP-726"
 relates_to: ["work-item:PP-719", "work-item:PP-716", "work-item:PP-735"]
-derived_from: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
+derived_from: ["plan:2026-08-11-PP-726-design-vendored-runtime-distribution"]
 tags: ["rust", "design", "launcher", "distribution", "tree-artifacts", "playwright"]
 last_updated: "2026-08-19T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -28,7 +28,7 @@ aliases: ["0214"]
 
 ## Summary
 
-Four mechanisms in `plan:2026-08-11-0196-design-vendored-runtime-distribution`
+Four mechanisms in `plan:2026-08-11-PP-726-design-vendored-runtime-distribution`
 have no settled answer, and each was answered wrongly on paper at least once
 across three review passes of the plan they came from. Each changes the shape of
 the code that follows it, and each is cheap to check against the real system.
@@ -46,7 +46,7 @@ test tasks. The remedy is to measure first and specify second.
 ## Context
 
 work-item:PP-726 splits into two plans. The first —
-`plan:2026-08-11-0196-design-cli-migration` — is implemented and merged (PR #64,
+`plan:2026-08-11-PP-726-design-cli-migration` — is implemented and merged (PR #64,
 validated partial on 2026-08-13). The second vendors the Playwright runtime so
 the system Node prerequisite goes away: the launcher learns to resolve
 directory-tree artifacts, the release pipeline assembles them from verified
@@ -199,7 +199,7 @@ negative marker-string scan.
       and its positive half against a real built launcher.*
 - [x] **AC5.** Every answer is recorded on this work item, with the prototype
       that produced it referenced, and
-      `plan:2026-08-11-0196-design-vendored-runtime-distribution` is edited to
+      `plan:2026-08-11-PP-726-design-vendored-runtime-distribution` is edited to
       match — the affected sections corrected rather than annotated. *All four
       marked sections rewritten to specify mechanisms; the eight downstream
       cross-references, the phase diagram and `blocked_by` updated with them.*
@@ -219,7 +219,7 @@ negative marker-string scan.
 
 ## Dependencies
 
-- **Blocks**: `plan:2026-08-11-0196-design-vendored-runtime-distribution`, whose
+- **Blocks**: `plan:2026-08-11-PP-726-design-vendored-runtime-distribution`, whose
   Phases 1, 2 and 3 each contain a section written against an unsettled
   mechanism and which should not be scheduled until this closes.
 - **Blocked by**: nothing. Every question is answerable against the tree as it
@@ -523,13 +523,13 @@ to specify them. Specifically:
 
 ## References
 
-- Blocked plan: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`
-- Sibling plan (implemented): `meta/plans/2026-08-11-0196-design-cli-migration.md`
+- Blocked plan: `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md`
+- Sibling plan (implemented): `meta/plans/2026-08-11-PP-726-design-cli-migration.md`
 - Validation of the sibling:
-  `meta/validations/2026-08-11-0196-design-cli-migration-validation.md`
+  `meta/validations/2026-08-11-PP-726-design-cli-migration-validation.md`
 - Superseded plan and its three-pass review:
-  `meta/plans/2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli.md`,
-  `meta/reviews/plans/2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1.md`
+  `meta/plans/2026-08-11-PP-726-accelerator-design-inventory-gap-tooling-cli.md`,
+  `meta/reviews/plans/2026-08-11-PP-726-accelerator-design-inventory-gap-tooling-cli-review-1.md`
 - ADR-0059 (build-time assembly of vendored browser artifacts) — accepted,
   unaffected
 - Raised by this spike: ADR-0061 (signed content-addressed tree generations,

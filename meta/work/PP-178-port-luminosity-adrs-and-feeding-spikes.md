@@ -39,7 +39,7 @@ Luminosity recently recorded a coherent set of foundational architecture
 decisions that apply equally well to Accelerator — particularly those describing
 a Rust-CLI direction (hexagonal core, on-demand static binaries, three-/multi-
 toolchain split) that aligns with the migration surface already being researched
-here (`meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`,
+here (`meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`,
 staged in this branch). Importing these decisions gives Accelerator a ready-made,
 already-reasoned decision record rather than re-deriving each one.
 
@@ -188,6 +188,6 @@ form" applies to each ADR's *content and reasoning*, not its identifier.
 - Source: luminosity ADRs — https://github.com/atomicinnovation/luminosity/tree/main/meta/decisions
 - Source: luminosity feeding spikes — https://github.com/atomicinnovation/luminosity/blob/main/meta/work/0002-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md ,
   https://github.com/atomicinnovation/luminosity/blob/main/meta/work/0003-skill-evaluation-framework-selection.md
-- Related: this repo's `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- Related: this repo's `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
 - Related local ADRs touched by overlaps: ADR-0001, ADR-0016, ADR-0017, ADR-0027;
   conventions referenced: ADR-0029, ADR-0030, ADR-0031, ADR-0033, ADR-0034, ADR-0040

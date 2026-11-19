@@ -10,7 +10,7 @@ kind: "task"
 priority: "medium"
 parent: "work-item:PP-157"
 relates_to: ["work-item:PP-190", "work-item:PP-146", "work-item:PP-193"]
-derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
+derived_from: ["plan:2026-08-05-PP-190-vcs-subdomain-and-hooks-migration"]
 tags: ["rust", "migration", "vcs", "shell", "cli"]
 last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -136,5 +136,5 @@ separately — its remaining surface was likewise absorbed by 0174's deletion.
 - `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - `meta/work/PP-146-converge-vcs-detection-on-probe-layer.md` — 2026-08-06
   amendment records this item as its successor
-- `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` — Phase
+- `meta/plans/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration.md` — Phase
   10, "Not Doing" section

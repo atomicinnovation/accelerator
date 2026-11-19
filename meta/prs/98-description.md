@@ -64,9 +64,9 @@ every MPL-2.0 component — a §3.2 corresponding-source statement.
 ## Context
 
 - Work item: `meta/work/PP-733-ship-a-third-party-attribution-artefact-with-the-release.md`
-- Plan: `meta/plans/2026-08-31-0203-third-party-attribution-artefact.md` (status `done`)
-- Research: `meta/research/codebase/2026-08-31-0203-third-party-attribution-artefact.md`
-- Validation: `meta/validations/2026-08-31-0203-third-party-attribution-artefact-validation.md`
+- Plan: `meta/plans/2026-08-31-PP-733-third-party-attribution-artefact.md` (status `done`)
+- Research: `meta/research/codebase/2026-08-31-PP-733-third-party-attribution-artefact.md`
+- Validation: `meta/validations/2026-08-31-PP-733-third-party-attribution-artefact-validation.md`
 
 ## Testing
 

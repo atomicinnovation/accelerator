@@ -35,7 +35,7 @@ The `bin/accelerator` bootstrap hashed the verify-shim source and its staged cop
 
 ## Context
 
-Implements work item [0191](../work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md) via plan [2026-08-22-0191-batch-shim-hashes](../plans/2026-08-22-0191-batch-shim-hashes.md). Follows the bootstrap fork-count work in 0186 and 0205; the warm-dispatch ratio drop is evidence for tightening 0189's C5 threshold. Validation report: [2026-08-22-0191-batch-shim-hashes-validation](../validations/2026-08-22-0191-batch-shim-hashes-validation.md).
+Implements work item [0191](../work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md) via plan [2026-08-22-PP-721-batch-shim-hashes](../plans/2026-08-22-PP-721-batch-shim-hashes.md). Follows the bootstrap fork-count work in 0186 and 0205; the warm-dispatch ratio drop is evidence for tightening 0189's C5 threshold. Validation report: [2026-08-22-PP-721-batch-shim-hashes-validation](../validations/2026-08-22-PP-721-batch-shim-hashes-validation.md).
 
 ## Testing
 

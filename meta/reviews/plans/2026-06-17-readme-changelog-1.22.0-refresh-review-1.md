@@ -101,7 +101,7 @@ stated hero-screenshot route slug is wrong.
   The visualiser's `slug::derive` for plans calls
   `strip_prefix_date_and_optional_id`, which strips the date *and* the canonical
   id token `0067`, so the route for
-  `meta/plans/2026-06-06-0067-create-note-skill.md` is
+  `meta/plans/2026-06-06-PP-89-create-note-skill.md` is
   `/library/plans/create-note-skill`, not the plan's stated
   `/library/plans/0067-create-note-skill`. The stated slug rule ("filename stem
   minus the date prefix") is also incomplete. The capture step's

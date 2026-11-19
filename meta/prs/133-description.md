@@ -109,11 +109,11 @@ used to match only the init team's state.
 ## Context
 
 - Work item: `meta/work/PP-869-linear-project-pull-filter.md`
-- Plan: `meta/plans/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids.md`
+- Plan: `meta/plans/2026-09-22-PP-869-linear-pull-filters-catalogue-resolved-ids.md`
   (status `done`), with the spike outcome recorded inline.
-- Research: `meta/research/codebase/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids.md`
+- Research: `meta/research/codebase/2026-09-22-PP-869-linear-pull-filters-catalogue-resolved-ids.md`
 - Plan reviews: `meta/reviews/plans/…-review-1.md` and `…-review-2.md`
-- Validation: `meta/validations/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids-validation.md`
+- Validation: `meta/validations/2026-09-22-PP-869-linear-pull-filters-catalogue-resolved-ids-validation.md`
   (result `pass`)
 - Follow-up: `meta/work/PP-878-remove-the-legacy-linear-catalogue-projections.md`
 

@@ -736,7 +736,7 @@ None.
 - Source: `meta/work/PP-22-topic-research-skillset.md` (Slice 3)
 - Parent epic: 0121
 - Related: 0277, 0278, 0279, 0281, 0282, 0283, 0284
-- Review: `meta/reviews/work/0280-academic-source-profiles-review-1.md`
+- Review: `meta/reviews/work/PP-864-academic-source-profiles-review-1.md`
 - OpenAlex authentication and pricing:
   https://help.openalex.org/api-reference/authentication,
   https://help.openalex.org/access/pricing/

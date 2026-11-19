@@ -368,9 +368,9 @@ Five inheritances that change this item's sizing:
   (Dependencies → "Related", the 0185 entry; Dependencies → "Unowned debt this
   story creates")
 - Review that recommended the boundary:
-  `meta/reviews/work/0169-vcs-subdomain-and-hooks-migration-review-2.md` (Pass
+  `meta/reviews/work/PP-190-vcs-subdomain-and-hooks-migration-review-2.md` (Pass
   3, 2026-07-31)
 - Crate state and call sites:
-  `meta/research/codebase/2026-07-29-0169-vcs-subdomain-and-hooks-migration.md`
+  `meta/research/codebase/2026-07-29-PP-190-vcs-subdomain-and-hooks-migration.md`
   §1
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`

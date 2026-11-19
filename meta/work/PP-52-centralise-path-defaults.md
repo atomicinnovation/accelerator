@@ -13,7 +13,7 @@ last_updated: "2026-04-26T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 blocks: ["work-item:PP-74"]
 source: "plan:2026-04-25-rename-tickets-to-work-items"
-relates_to: ["codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "adr:ADR-0023"]
+relates_to: ["codebase-research:2026-05-08-PP-52-centralise-path-defaults-implementation", "adr:ADR-0023"]
 external_id: "PP-52"
 aliases: ["0030"]
 ---
@@ -172,7 +172,7 @@ decision.
   — this was a misreading of the `workspaces/` directory, which contains jj
   workspace **checkouts** (parallel working copies of the same repository),
   not duplicate source files. Corrected by research dated 2026-05-08:
-  `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`.
+  `meta/research/codebase/2026-05-08-PP-52-centralise-path-defaults-implementation.md`.
 - The "11 consumer scripts" / "15 sites in total" figure in earlier drafts was
   also stale. Re-counted at 13 bash consumers (+ ~25 SKILL.md exec blocks);
   consumer-site refactoring remains out of scope per Assumptions.
@@ -181,7 +181,7 @@ decision.
 
 - Source: `meta/plans/2026-04-25-rename-tickets-to-work-items.md`
 - Implementation research:
-  `meta/research/codebase/2026-05-08-0030-centralise-path-defaults-implementation.md`
+  `meta/research/codebase/2026-05-08-PP-52-centralise-path-defaults-implementation.md`
 - Related: `meta/decisions/ADR-0023-meta-directory-migration-framework.md` —
   migration framework that established the `config-dump.sh` structure being
   consolidated here.

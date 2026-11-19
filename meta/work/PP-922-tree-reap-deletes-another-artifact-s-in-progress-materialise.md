@@ -266,9 +266,9 @@ None.
 - `cli/launcher/src/launch/outbound/resolve/tree/resolver.rs` — materialise,
   `prune` and the lock scope
 - `cli/launcher/src/launch/outbound/resolve/tree/lease.rs` — the tree lock
-- `meta/reviews/work/0218-bound-cache-root-growth-review-1.md` — where it was
+- `meta/reviews/work/PP-747-bound-cache-root-growth-review-1.md` — where it was
   found
 - `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
   — the non-blocking lock rule for root prunes
-- `meta/reviews/work/0339-tree-reap-deletes-another-artifact-s-in-progress-materialise-review-1.md`
+- `meta/reviews/work/PP-922-tree-reap-deletes-another-artifact-s-in-progress-materialise-review-1.md`
 - Related: 0136, 0214, 0218, 0222, 0334

@@ -59,10 +59,10 @@ supplied path moves. The path-agnostic resolver gates
 
 - Work item: `meta/work/PP-802-relocate-insecure-local-override-marker.md`
   (renamed from `0272-move-insecure-local-ok-under-accelerator.md`).
-- Plan: `meta/plans/2026-08-31-0272-relocate-insecure-local-override-marker.md`
+- Plan: `meta/plans/2026-08-31-PP-802-relocate-insecure-local-override-marker.md`
   (status `done`).
 - Validation:
-  `meta/validations/2026-08-31-0272-relocate-insecure-local-override-marker-validation.md`
+  `meta/validations/2026-08-31-PP-802-relocate-insecure-local-override-marker-validation.md`
   (result `pass`).
 
 This PR bundles the full 0272 lifecycle: research, work item, work-item and plan

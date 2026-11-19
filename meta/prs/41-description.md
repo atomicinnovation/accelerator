@@ -39,7 +39,7 @@ Production surface is small: `bin/accelerator` (+82/-…), `docs/internals.md`, 
 
 ## Context
 
-Work item [`0186`](../work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md), under epic 0136, unblocked by 0182 and blocking [`0169`](../work/PP-190-vcs-subdomain-and-hooks-migration.md). Plan and its review are in `meta/plans/` and `meta/reviews/plans/`; the validation report is `meta/validations/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path-validation.md`.
+Work item [`0186`](../work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md), under epic 0136, unblocked by 0182 and blocking [`0169`](../work/PP-190-vcs-subdomain-and-hooks-migration.md). Plan and its review are in `meta/plans/` and `meta/reviews/plans/`; the validation report is `meta/validations/2026-08-02-PP-716-remove-exec-probe-from-bootstrap-warm-path-validation.md`.
 
 ### Why two call sites
 

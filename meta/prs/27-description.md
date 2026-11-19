@@ -44,9 +44,9 @@ Delivered across the plan's five phases, each independently mergeable and green:
 ## Context
 
 - Work item: `meta/work/PP-189-fold-visualiser-into-cli-workspace.md`
-- Plan: `meta/plans/2026-07-23-0168-fold-visualiser-into-cli-workspace.md`
-- Research: `meta/research/codebase/2026-07-23-0168-fold-visualiser-into-cli-workspace.md`
-- Validation: `meta/validations/2026-07-23-0168-fold-visualiser-into-cli-workspace-validation.md` (result: **pass**)
+- Plan: `meta/plans/2026-07-23-PP-189-fold-visualiser-into-cli-workspace.md`
+- Research: `meta/research/codebase/2026-07-23-PP-189-fold-visualiser-into-cli-workspace.md`
+- Validation: `meta/validations/2026-07-23-PP-189-fold-visualiser-into-cli-workspace-validation.md` (result: **pass**)
 - ADRs: ADR-0045, ADR-0053, ADR-0054
 - Related: work item 0165 (multi-binary distribution / signed release manifest)
 

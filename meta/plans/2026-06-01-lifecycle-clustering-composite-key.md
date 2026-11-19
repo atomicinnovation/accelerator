@@ -266,9 +266,9 @@ fn dated_types_strip_optional_work_item_id_after_date() {
     ] {
         let cases = &[
             // ID present: stripped
-            ("2026-05-31-0040-pipeline-visualisation-overhaul.md",
+            ("2026-05-31-PP-62-pipeline-visualisation-overhaul.md",
              Some("pipeline-visualisation-overhaul")),
-            ("2026-05-05-0031-consolidate-accelerator-owned-files.md",
+            ("2026-05-05-PP-53-consolidate-accelerator-owned-files.md",
              Some("consolidate-accelerator-owned-files")),
             // ID absent: descriptive slug preserved (legacy shape)
             ("2026-02-22-pr-review-agents.md", Some("pr-review-agents")),
@@ -309,7 +309,7 @@ fn dated_types_strip_project_prefixed_work_item_id_after_date() {
 fn plan_reviews_strip_optional_work_item_id_after_date() {
     let cfg = WorkItemConfig::default();
     let cases = &[
-        ("2026-05-05-0031-consolidate-accelerator-owned-files-review-1.md",
+        ("2026-05-05-PP-53-consolidate-accelerator-owned-files-review-1.md",
          Some("consolidate-accelerator-owned-files")),
         // ID-less legacy shape still works
         ("2026-04-18-foo-review-1.md", Some("foo")),
@@ -328,7 +328,7 @@ fn work_item_reviews_accept_no_date_id_prefixed_shape() {
     let cfg = WorkItemConfig::default();
     // The shape every file under meta/reviews/work/ uses today.
     let cases = &[
-        ("0030-centralise-path-defaults-review-1.md",
+        ("PP-52-centralise-path-defaults-review-1.md",
          Some("centralise-path-defaults")),
         ("0061-adr-typed-linkage-vocabulary-review-2.md",
          Some("adr-typed-linkage-vocabulary")),
@@ -373,7 +373,7 @@ fn phase_1_id_prefixed_and_bare_slugs_now_cluster_into_one_bucket() {
     let cfg = WorkItemConfig::default();
     let plan = entry_for_test_with_filename(
         DocTypeKey::Plans,
-        "2026-05-31-0040-pipeline-visualisation-overhaul.md",
+        "2026-05-31-PP-62-pipeline-visualisation-overhaul.md",
         &cfg,
     );
     let wi = entry_for_test_with_filename(
@@ -1860,7 +1860,7 @@ fn work_item_review_no_date_filename_clusters_via_target() {
     wi.work_item_id = Some("0033".into());
     wi.path = PathBuf::from("/repo/meta/work/PP-55-design-token-system.md");
     let mut review = entry_for_test(DocTypeKey::WorkItemReviews, "design-token-system", 2, "R");
-    review.path = PathBuf::from("/repo/meta/reviews/work/0033-design-token-system-review-1.md");
+    review.path = PathBuf::from("/repo/meta/reviews/work/PP-55-design-token-system-review-1.md");
     review.frontmatter = json!({ "target": "meta/work/PP-55-design-token-system.md" });
     let (clusters, _, _) = run_clusters(&[wi.clone(), review.clone()], &cfg);
     assert_eq!(clusters.len(), 1);
@@ -2066,7 +2066,7 @@ motivating bug.
   appears in the same cluster as its target plan and that plan's work
   item.
 - [ ] Pick a work-item review in `meta/reviews/work/` (e.g.
-  `0033-design-token-system-review-1.md`) and confirm it appears in
+  `PP-55-design-token-system-review-1.md`) and confirm it appears in
   the `design-token-system` cluster (was previously orphaned).
 - [ ] Confirm no cluster shows two duplicate work-item cards (would
   indicate the representative-slug picker is wrong).

@@ -71,8 +71,8 @@ VCS facts/orientation path used by `/commit`.
 ## Context
 
 - Work item: `meta/work/PP-728-vcs-agnostic-status-log-renderer.md`
-- Plan: `meta/plans/2026-08-31-0198-vcs-agnostic-status-log-renderer.md` (now `done`)
-- Validation: `meta/validations/2026-08-31-0198-vcs-agnostic-status-log-renderer-validation.md`
+- Plan: `meta/plans/2026-08-31-PP-728-vcs-agnostic-status-log-renderer.md` (now `done`)
+- Validation: `meta/validations/2026-08-31-PP-728-vcs-agnostic-status-log-renderer-validation.md`
 - Format decision: `meta/decisions/ADR-0066-vcs-agnostic-status-log-output-format.md`
 
 ## Testing

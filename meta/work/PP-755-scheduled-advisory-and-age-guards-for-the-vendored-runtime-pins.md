@@ -40,7 +40,7 @@ launch.
 ## Context
 
 The vendored-runtime plan
-(`plan:2026-08-11-0196-design-vendored-runtime-distribution`) designed the
+(`plan:2026-08-11-PP-726-design-vendored-runtime-distribution`) designed the
 age-and-expiry half of this guard and deferred advisory-feed matching as a
 follow-up; neither was built. Its trust-anchor section specified one scheduled
 job that opens an issue for key expiry, the keyring's maximum age and the
@@ -649,7 +649,7 @@ Decided during implementation:
   The 2026-08-24 specifier tightening and the Chromium placeholder
   replacement did not change what users run, and seeding from them would
   hide an already-stale runtime for 98 days. The computed seeds are in
-  `meta/research/codebase/2026-10-09-0225-scheduled-advisory-and-age-guards.md`.
+  `meta/research/codebase/2026-10-09-PP-755-scheduled-advisory-and-age-guards.md`.
 - 90 days for pins reflects Playwright's roughly monthly releases.
 - The dry-run default and the per-run issue cap were added during planning.
   A guard run from a contributor's checkout must not write issues whose
@@ -679,9 +679,9 @@ Decided during implementation:
 
 ## References
 
-- Designed in: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`
+- Designed in: `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md`
   (trust-anchor guards; Removal sweep, follow-up work items)
-- Review: `meta/reviews/work/0225-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins-review-1.md`
+- Review: `meta/reviews/work/PP-755-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins-review-1.md`
 - Related: 0196, 0162 (`cargo-deny` advisories for Rust crates)
 - OSV API: https://google.github.io/osv.dev/post-v1-querybatch/
 - Node security feed: https://github.com/nodejs/security-wg/tree/main/vuln/core

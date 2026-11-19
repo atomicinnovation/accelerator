@@ -36,7 +36,7 @@ Replaces `work-adapters`' subprocess `diff -u` section renderer with an in-proce
 
 ## Context
 
-Implements work item `0201` (`meta/work/PP-731-in-process-section-diff.md`), following the plan at `meta/plans/2026-08-30-0201-in-process-section-diff.md` and its validation at `meta/validations/2026-08-30-0201-in-process-section-diff-validation.md`. The work item itself was added separately in merged PR #56; this PR is the implementation. Relates to the shell-tooling-retirement effort (0174), the crate where this code originated (0170), and the library-backed VCS adapter work (0188, 0198).
+Implements work item `0201` (`meta/work/PP-731-in-process-section-diff.md`), following the plan at `meta/plans/2026-08-30-PP-731-in-process-section-diff.md` and its validation at `meta/validations/2026-08-30-PP-731-in-process-section-diff-validation.md`. The work item itself was added separately in merged PR #56; this PR is the implementation. Relates to the shell-tooling-retirement effort (0174), the crate where this code originated (0170), and the library-backed VCS adapter work (0188, 0198).
 
 ## Testing
 

@@ -10,7 +10,7 @@ kind: "task"
 priority: "low"
 parent: "work-item:PP-167"
 blocked_by: ["work-item:PP-869"]
-derived_from: ["plan:2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids"]
+derived_from: ["plan:2026-09-22-PP-869-linear-pull-filters-catalogue-resolved-ids"]
 relates_to: ["work-item:PP-759", "work-item:PP-869"]
 external_id: "PP-878"
 aliases: ["0294"]
@@ -128,5 +128,5 @@ apply sync.
 
 ## References
 
-- Plan: `meta/plans/2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids.md`
+- Plan: `meta/plans/2026-09-22-PP-869-linear-pull-filters-catalogue-resolved-ids.md`
 - Related: 0292, 0229, 0146

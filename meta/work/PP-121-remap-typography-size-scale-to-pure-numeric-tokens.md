@@ -12,7 +12,7 @@ last_updated: "2026-06-13T08:27:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 type: "work-item"
-relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown", "work-item:PP-113", "work-item:PP-97", "work-item:PP-112", "adr:ADR-0036"]
+relates_to: ["plan:2026-06-02-PP-116-inline-code-styling-in-meta-artifact-markdown", "work-item:PP-113", "work-item:PP-97", "work-item:PP-112", "adr:ADR-0036"]
 external_id: "PP-121"
 aliases: ["0099"]
 ---
@@ -296,9 +296,9 @@ value changes. ADR-0036 is superseded by a new ADR — the successor ADR owns th
 
 ## References
 
-- Originating plan: `meta/plans/2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown.md`
+- Originating plan: `meta/plans/2026-06-02-PP-116-inline-code-styling-in-meta-artifact-markdown.md`
   (Key Discoveries; What We're NOT Doing; Migration Notes → "scale-remap initiative")
-- Plan review: `meta/reviews/plans/2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown-review-1.md`
+- Plan review: `meta/reviews/plans/2026-06-02-PP-116-inline-code-styling-in-meta-artifact-markdown-review-1.md`
   (re-review pass 2 surfaced the naming inconsistency)
 - Progenitor: `meta/work/PP-97-typography-size-scale-consumption.md` (created
   ADR-0036, introduced the mixed semantic/numeric naming this remap fixes)

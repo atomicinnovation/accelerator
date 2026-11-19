@@ -229,9 +229,9 @@ none was built. The delivered assertions are sound under `cargo test` and
 - [x] The mutation command and its output, the crate search, the old-test →
       discharging-test mapping and the pick-up confirmation are recorded in the
       Validation Results of
-      `meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`,
+      `meta/plans/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee.md`,
       and the latency figures in the Validation Results of
-      `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`.
+      `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md`.
 
       **The non-latency clauses were discharged 2026-08-13; the latency clause
       is discharged 2026-08-17.** The record is split across two plans because
@@ -244,9 +244,9 @@ none was built. The delivered assertions are sound under `cargo test` and
 
 **Criteria 1-9 and 12 discharged 2026-08-13** against the delivered, validated
 state of the sibling plan
-`meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`
+`meta/plans/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
 (`status: done`) and its validation report
-`meta/validations/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-validation.md`
+`meta/validations/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee-validation.md`
 (verdict `pass`). The discharging evidence, by criterion:
 
 | # | Discharged by |
@@ -265,7 +265,7 @@ state of the sibling plan
 ## Latency Criterion
 
 **Landed 2026-08-13. This section is authoritative for the criterion text**;
-`meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` restates it,
+`meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md` restates it,
 and the per-platform constants table in `tasks/measure.py` is authoritative for
 the numbers, bound to a `### Criterion constants` block in `tasks/README.md` by
 a lockstep guard.
@@ -694,7 +694,7 @@ here — but confirming it belongs with whoever settles the threshold above.
 
 **This section is the authoritative summary of the measurement.** The raw record
 and the harness invocation live in
-`meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` and in
+`meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md` and in
 `meta/measurements/warm-dispatch-3.json`, which is its appendix rather than a
 competing record.
 
@@ -1017,25 +1017,25 @@ record of what gated this item.
 
 ## References
 
-- `meta/reviews/work/0189-once-per-dispatch-cache-root-probe-guarantee-review-1.md`
+- `meta/reviews/work/PP-719-once-per-dispatch-cache-root-probe-guarantee-review-1.md`
   — five-lens review, verdict REVISE across two passes, which drove this revision
-- `meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`
+- `meta/plans/2026-08-11-PP-719-once-per-dispatch-cache-root-probe-guarantee.md`
   and its validation report — the sibling plan that discharges criteria 1-9 and
   12
-- `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — the plan
+- `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md` — the plan
   that lands the reframed criterion and takes the measurement
 - `meta/work/PP-735-close-the-warm-dispatch-measurement-method.md` — the spike
   that closed the measurement method and ran it at n = 300, source of every
   measured figure in Latency Criterion
 - `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — delivered the split;
   closed with the Phase 10 latency gate unmeasured
-- `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` — Phase 5,
+- `meta/plans/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration.md` — Phase 5,
   and Phase 10's deferred latency gate and hand-off record
 - `meta/work/PP-721-batch-the-two-shim-hashes-into-one-invocation.md` —
   co-requisite for the latency gate
 - `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — the
   shell-side change, its measurement method and its diagnostic shape
-- `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md`
+- `meta/plans/2026-08-02-PP-716-remove-exec-probe-from-bootstrap-warm-path.md`
 - `cli/launcher/src/launch/outbound/resolve/cache_root.rs`
 - `cli/launcher/src/launch/outbound/resolve/mod.rs` —
   `FetchVerifyCacheResolver::fetch_verify_store`

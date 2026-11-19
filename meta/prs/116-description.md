@@ -68,8 +68,8 @@ alias and the `{project}` token are removed in 1.25.0.
 ## Context
 
 - Work item: `meta/work/PP-758-layered-configuration-key-model.md`
-- Plan: `meta/plans/2026-09-10-0228-layered-configuration-key-model.md` (done)
-- Validation: `meta/validations/2026-09-10-0228-layered-configuration-key-model-validation.md` (pass)
+- Plan: `meta/plans/2026-09-10-PP-758-layered-configuration-key-model.md` (done)
+- Validation: `meta/validations/2026-09-10-PP-758-layered-configuration-key-model-validation.md` (pass)
 - ADR-0044 (remote identity on `external_id`) and ADR-0047 (multi-level
   configuration) are reused unchanged.
 - Blocks 0229 (per-tracker pull scope) and 0230 (tracker-owned ID generation);

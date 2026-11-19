@@ -43,7 +43,7 @@ refusal is the harness declining to start a spawn because the cap is
 reached; it is distinct from an agent that starts and declines its task.
 The run ledger, offered spawns, `outstanding --spawned` and `unfinished`
 are defined in the 0283 plan
-(`meta/plans/2026-09-26-0283-recursive-finding-deepening.md`). The re-plan
+(`meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md`). The re-plan
 is the `outstanding --spawned` call that follows step 5.
 
 The skill's spawn step (step 4) says to spawn "exactly the offered spawns,

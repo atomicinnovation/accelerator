@@ -84,7 +84,7 @@ determinism. Today they are documented only in
 `skills/config/migrate/SKILL.md` (Interactive contract section) and 0172's
 plan.
 
-0172's plan (`meta/plans/2026-08-07-0172-migration-engine-subdomain.md`)
+0172's plan (`meta/plans/2026-08-07-PP-193-migration-engine-subdomain.md`)
 scoped ADR reconciliation out of its own work: "No replacement author-facing
 migration-authoring API — a migration becomes ordinary in-crate Rust; there
 is no opt-in header or published hook set to design." It also added
@@ -503,7 +503,7 @@ None.
 - `meta/decisions/ADR-0031-skill-level-adr-immutability.md`
 - `meta/decisions/ADR-0037-optional-interactive-contract-supplement-to-adr-0023.md`
 - `meta/decisions/ADR-0038-interactive-validation-parameters-for-unified-schema-linkage-migration.md`
-- `meta/plans/2026-08-07-0172-migration-engine-subdomain.md`
+- `meta/plans/2026-08-07-PP-193-migration-engine-subdomain.md`
 - `cli/migrate/src/registry.rs`, `cli/migrate/src/interactive.rs`,
   `cli/migrate/src/ports.rs`, `cli/migrate/src/engine.rs`
 - `skills/config/migrate/SKILL.md`

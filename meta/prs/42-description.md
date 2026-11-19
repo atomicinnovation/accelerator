@@ -52,8 +52,8 @@ Five phases, one commit each, each green on top of its predecessors.
 ## Context
 
 - Work item: `meta/work/PP-717-generalise-sub-binary-registration-surface.md`
-- Plan: `meta/plans/2026-08-02-0187-generalise-sub-binary-registration-surface.md` (now `status: done`)
-- Research: `meta/research/codebase/2026-08-02-0187-generalise-sub-binary-registration-surface.md`
+- Plan: `meta/plans/2026-08-02-PP-717-generalise-sub-binary-registration-surface.md` (now `status: done`)
+- Research: `meta/research/codebase/2026-08-02-PP-717-generalise-sub-binary-registration-surface.md`
 - Reviews: `meta/reviews/plans/2026-08-03-0187-…-review-1.md`
 - Validation: `meta/validations/2026-08-02-0187-…-validation.md`
 - Parent epic: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`

@@ -55,7 +55,7 @@ under it. It changes documents only; no code is touched.
 ## Context
 
 - Work item: `meta/work/PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`
-- Research: `meta/research/codebase/2026-10-09-0202-reconcile-migration-engine-adrs-against-the-rust-port.md`
+- Research: `meta/research/codebase/2026-10-09-PP-732-reconcile-migration-engine-adrs-against-the-rust-port.md`
 - Work items in this PR are numbered from 0312 to avoid collisions with
   items in flight on other branches. That collision risk is also why 0319
   exists: today `work create` always allocates max+1 locally.

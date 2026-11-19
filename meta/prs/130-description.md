@@ -81,8 +81,8 @@ breaking change to the CLI grammar.
 
 - Implements work item 0282, `meta/work/PP-866-tunable-depth-and-breadth.md`
   (child of epic 0121, high priority).
-- Plan: `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`. Validation:
-  `meta/validations/2026-09-20-0282-tunable-depth-and-breadth-validation.md`.
+- Plan: `meta/plans/2026-09-20-PP-866-tunable-depth-and-breadth.md`. Validation:
+  `meta/validations/2026-09-20-PP-866-tunable-depth-and-breadth-validation.md`.
 - `depth` lands dormant ahead of the sibling recursion engine, work item 0283,
   which 0282 blocks.
 

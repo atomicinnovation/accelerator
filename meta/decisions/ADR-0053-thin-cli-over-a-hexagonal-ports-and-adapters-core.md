@@ -171,7 +171,7 @@ survive the domain's expected growth.
   — Recommendation §1 is the source of this decision.
 - **Ported from luminosity** — original decision (lum ADR-0009):
   https://github.com/atomicinnovation/luminosity/blob/main/meta/decisions/ADR-0009-thin-cli-over-a-hexagonal-ports-and-adapters-core.md
-- `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
   — Rust-CLI migration direction; `accelerator` is the settled command name.
 - `meta/decisions/ADR-0045-skills-vs-cli-division-of-labour.md` — Establishes the
   CLI exists; defers its internal architecture to this decision.

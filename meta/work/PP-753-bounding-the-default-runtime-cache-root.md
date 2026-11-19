@@ -162,7 +162,7 @@ design plan and was never implemented. With ADR-0063 standing, it is not needed.
 ## References
 
 - Surfaced by:
-  `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md` (Removal
+  `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md` (Removal
   sweep, follow-up work items)
 - `meta/decisions/ADR-0063-plugin-version-scoped-artifact-cache.md`
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`

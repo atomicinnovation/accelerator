@@ -463,7 +463,7 @@ refinement (2026-06-12) and review (2026-06-12):
   chosen for URL cleanliness over the redundant `/dev#dev/<section>`. The
   prototype's own `history.replaceState(…, "#dev/<id>")` (Technical Notes)
   remains the pattern to port from, now adapted to the bare `#<id>` write.
-  Plan: `meta/plans/2026-06-12-0083-dev-design-system-reference-page.md`.
+  Plan: `meta/plans/2026-06-12-PP-105-dev-design-system-reference-page.md`.
 
 ## References
 

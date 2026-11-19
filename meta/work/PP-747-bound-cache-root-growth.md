@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "low"
 parent: "work-item:PP-157"
-derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
+derived_from: ["plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 blocked_by: ["work-item:PP-930", "adr:ADR-0072", "work-item:PP-922"]
 relates_to: ["work-item:PP-719", "work-item:PP-185", "work-item:PP-753", "work-item:PP-726", "work-item:PP-751", "work-item:PP-752", "adr:ADR-0063", "adr:ADR-0064"]
 tags: ["cli", "launcher", "performance", "bootstrap", "cache"]
@@ -478,7 +478,7 @@ None remaining.
 - **Relates to** 0189, which measured the root; 0164, which established the
   fetch-verify-cache resolver; 0223, which settled the default root; 0214,
   which settled the lease design (now governed by ADR-0064); and 0196, whose
-  implementation (plan `2026-08-11-0196-design-vendored-runtime-distribution`)
+  implementation (plan `2026-08-11-PP-726-design-vendored-runtime-distribution`)
   added tree claims and the lease. 0222 plans a second materialise route
   (`accelerator cache ensure --from`); it must refresh tree claims and take
   part in, or explicitly skip, the cold-path root prune.
@@ -766,7 +766,7 @@ None remaining.
 - `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
   — the amendment this item implements
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`
-- `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md` —
+- `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md` —
   where tree claims and the lease were built
 - Related: 0136, 0164, 0189, 0196, 0214, 0222, 0223, 0334, 0340 (shared cache
   roots on multi-user systems: sharing trees and pruning a group-shared root)

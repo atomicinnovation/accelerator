@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0364"
 parent: "work-item:PP-956"
-relates_to: ["plan:2026-11-15-0364-parallelise-the-serial-test-suites"]
+relates_to: ["plan:2026-11-15-PP-956-parallelise-the-serial-test-suites"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/241"
 pr_number: 241
 tags: ["build-system", "testing", "performance", "ci"]
@@ -52,13 +52,13 @@ is done. Only `meta/` changes.
   - Status `done`, and Landing Status shows both suites landed.
   - All 15 acceptance criteria are ticked, each with a one-line pointer
     to its evidence.
-- **`meta/validations/2026-11-15-0364-parallelise-the-serial-test-suites-validation.md`**
+- **`meta/validations/2026-11-15-PP-956-parallelise-the-serial-test-suites-validation.md`**
   (new): the plan's validation report, with result `pass`.
 
 ## Context
 
 - Work item: `meta/work/PP-956-parallelise-the-serial-test-suites.md`
-- Plan: `meta/plans/2026-11-15-0364-parallelise-the-serial-test-suites.md`
+- Plan: `meta/plans/2026-11-15-PP-956-parallelise-the-serial-test-suites.md`
   (Phase 7)
 - **Why a paired comparison.** Both CI before windows were contaminated,
   so Phase 7 compared the change in pairs instead.

@@ -12,7 +12,7 @@ schema_version: 1
 last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:PP-55"]
-relates_to: ["adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "adr:ADR-0036", "work-item:PP-113"]
+relates_to: ["adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-23-PP-97-typography-size-scale-consumption", "adr:ADR-0036", "work-item:PP-113"]
 external_id: "PP-97"
 aliases: ["0075"]
 ---
@@ -56,7 +56,7 @@ this work item resolves on the current-app side.
 
 The full current-app outlier inventory (sweep performed 2026-05-23,
 research at
-`meta/research/codebase/2026-05-23-0075-typography-size-scale-consumption.md`):
+`meta/research/codebase/2026-05-23-PP-97-typography-size-scale-consumption.md`):
 
 - `MarkdownRenderer` — `.markdown h1` `1.75rem` (28px),
   `.markdown code:not(pre code)` `0.88em` (em-relative)
@@ -342,7 +342,7 @@ values are `9.5px`, `10px`, `11px`, `12.5px`, `13px`, and the relative
 ## References
 
 - Source gap analysis: `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
-- Codebase audit: `meta/research/codebase/2026-05-23-0075-typography-size-scale-consumption.md`
+- Codebase audit: `meta/research/codebase/2026-05-23-PP-97-typography-size-scale-consumption.md`
 - New ADR (created by this PR): `meta/decisions/ADR-0036-typography-font-size-consumption-rule.md`
 - Convention with typography clauses superseded by ADR-0036: `meta/decisions/ADR-0026-css-design-token-application-conventions.md`
 - Follow-up: `meta/work/PP-113-typography-rem-vs-px-stance.md`

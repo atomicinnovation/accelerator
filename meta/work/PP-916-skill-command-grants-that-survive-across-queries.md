@@ -164,4 +164,4 @@ Out of scope:
   https://code.claude.com/docs/en/plugins-reference
 - Upstream: anthropics/claude-code #99353, #14956, #60515
 - Related: 0169, 0239, 0245, 0303
-- Plan: `meta/plans/2026-10-10-0303-research-concurrency-subagent-limit.md`
+- Plan: `meta/plans/2026-10-10-PP-889-research-concurrency-subagent-limit.md`

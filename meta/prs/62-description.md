@@ -41,7 +41,7 @@ Remote-tracker sync exists today only in bash, under `skills/work/scripts/`. Bot
 
 ## Context
 
-Implements `work-item:PP-734` (RemoteTracker Port), split out of `work-item:PP-724` on 2026-08-10 so the contract could be reviewed without the sync engine attached. Researched in `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`, planned in `meta/plans/2026-08-11-0204-remote-tracker-port.md`, reviewed at work-item and plan level (`meta/reviews/work/0204-remote-tracker-port-review-1.md`, `meta/reviews/plans/2026-08-11-0204-remote-tracker-port-review-1.md`), and validated in `meta/validations/2026-08-11-0204-remote-tracker-port-validation.md` (result: pass, no undocumented deviations).
+Implements `work-item:PP-734` (RemoteTracker Port), split out of `work-item:PP-724` on 2026-08-10 so the contract could be reviewed without the sync engine attached. Researched in `meta/research/codebase/2026-08-11-PP-734-remote-tracker-port.md`, planned in `meta/plans/2026-08-11-PP-734-remote-tracker-port.md`, reviewed at work-item and plan level (`meta/reviews/work/PP-734-remote-tracker-port-review-1.md`, `meta/reviews/plans/2026-08-11-PP-734-remote-tracker-port-review-1.md`), and validated in `meta/validations/2026-08-11-PP-734-remote-tracker-port-validation.md` (result: pass, no undocumented deviations).
 
 Sits under the `work-item:PP-157` Rust CLI migration epic. Unblocks `work-item:PP-192` (Jira and Linear client adapters, plus the work-item cutover) and `work-item:PP-724` (sync engine) simultaneously — that simultaneity is the whole reason the split happened.
 

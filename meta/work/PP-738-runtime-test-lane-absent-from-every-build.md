@@ -53,7 +53,7 @@ aggregate leg:
 So the gap is an omission, not a constraint the repo hasn't met before.
 
 What was hiding there, found on 2026-08-13 by running it by hand during
-`plan-validation:2026-08-11-0196-design-cli-migration`: three defects in the
+`plan-validation:2026-08-11-PP-726-design-cli-migration`: three defects in the
 migrated executor (a forwarding allowlist omitting four documented commands, an
 unreachable `WriterUnavailable` state respawning the daemon on every invocation
 in containers, and a harness never updated for the identity handoff) and three in
@@ -70,7 +70,7 @@ silent pass. That worked. It just has no observer.
 The vendored-runtime plan has landed the deletions that foreclose the
 bootstrap-now approach: `ensure-playwright.sh` and the lockhash namespace are
 gone, so there is no script for a CI job to run. **The container lane from
-`plan:2026-08-11-0196-design-vendored-runtime-distribution` owns the CI job** —
+`plan:2026-08-11-PP-726-design-vendored-runtime-distribution` owns the CI job** —
 it provisions the runtime once and asserts zero skips across the whole set, so
 this item's acceptance is satisfied by pointing at that lane rather than adding a
 second job. The lane is not built yet — it is gated on that plan's container
@@ -176,7 +176,7 @@ harness — so this item stays open until the harness lands.
 ## References
 
 - Validation that exposed the gap:
-  `meta/validations/2026-08-11-0196-design-cli-migration-validation.md`
+  `meta/validations/2026-08-11-PP-726-design-cli-migration-validation.md`
 - Related: 0196
 - Sibling plan owning the container lane:
-  `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`
+  `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md`

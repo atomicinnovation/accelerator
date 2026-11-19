@@ -10,7 +10,7 @@ kind: "spike"
 priority: "low"
 parent: "work-item:PP-157"
 relates_to: ["work-item:PP-190", "work-item:PP-728"]
-derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
+derived_from: ["plan:2026-08-05-PP-190-vcs-subdomain-and-hooks-migration"]
 tags: ["vcs", "hooks", "guard", "cli"]
 last_updated: "2026-09-10T11:44:31+00:00"
 last_updated_by: "Toby Clemson"
@@ -305,5 +305,5 @@ already uses `vcs status`/`vcs log`. That is spun out as work item 0286
 - `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md`
 - `meta/work/PP-728-vcs-agnostic-status-log-renderer.md` — adjacent prior art
   on the `git diff --stat` / `jj diff` output shapes
-- `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` — Phase
+- `meta/plans/2026-08-05-PP-190-vcs-subdomain-and-hooks-migration.md` — Phase
   10, "Not Doing" section

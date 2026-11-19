@@ -108,7 +108,7 @@ settings' effect, moves to the new work item 0370, so 0368 closes as done.
 
 - Work item: `meta/work/PP-960-build-performance-measurement-and-host-guidance.md`
   (parent epic `meta/work/PP-953-speed-up-the-full-build-without-losing-confidence.md`)
-- Plan: `meta/plans/2026-10-30-0368-build-performance-measurement-harness.md`,
+- Plan: `meta/plans/2026-10-30-PP-960-build-performance-measurement-harness.md`,
   now `done`. Its Implementation Notes record where each of Phases 5–9
   departed from the plan.
 - Follow-on: `meta/work/PP-962-measure-and-cite-the-macos-host-settings-effect-on-the-build.md`

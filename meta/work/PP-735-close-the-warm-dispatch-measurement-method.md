@@ -10,7 +10,7 @@ kind: "spike"
 priority: "medium"
 parent: "work-item:PP-748"
 relates_to: ["work-item:PP-719", "work-item:PP-190", "work-item:PP-716", "work-item:PP-718", "work-item:PP-721"]
-derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
+derived_from: ["plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
 last_updated: "2026-10-10T18:25:09+00:00"
 last_updated_by: "Toby Clemson"
@@ -30,7 +30,7 @@ host — and 0189 inherited the obligation. Three attempts to specify the method
 have now failed review: the decomposition route, the clock domain and the
 residual definition have each been answered in prose, reviewed, and found
 unsound. This spike answers them against real measurements instead, so
-`meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` can specify a
+`meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md` can specify a
 measurement rather than a methodology.
 
 The distinguishing fact is that every failure was a *design* failure, not a
@@ -199,7 +199,7 @@ as satisfied a criterion whose stated artefact never existed.
 
 ## Dependencies
 
-- Blocks: `plan:2026-08-11-0189-warm-dispatch-latency-measurement`, which cannot
+- Blocks: `plan:2026-08-11-PP-719-warm-dispatch-latency-measurement`, which cannot
   specify its measurement until SQ-1 to SQ-4 are answered.
 
   **Retracted 2026-08-13.** SQ-1 to SQ-5 are answered above, so this edge is
@@ -222,15 +222,15 @@ as satisfied a criterion whose stated artefact never existed.
 
 ## References
 
-- `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` — the plan
+- `meta/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement.md` — the plan
   this spike unblocks
-- `meta/reviews/plans/2026-08-11-0189-warm-dispatch-latency-measurement-review-1.md`
+- `meta/reviews/plans/2026-08-11-PP-719-warm-dispatch-latency-measurement-review-1.md`
   — two review passes; pass 2's assessment is what raised this spike
 - `meta/work/PP-716-remove-exec-probe-from-bootstrap-warm-path.md` — the delivered
   figures (29.92 ms warm bootstrap median at `:517`, the 35.1 ms shell-guard row
   at `:66` and its `:615` method-incomparability note, the re-derived 3.72 ms at
   `:577`) and the deviation-recording pattern at `:608-616`
-- `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
+- `meta/plans/2026-08-02-PP-716-remove-exec-probe-from-bootstrap-warm-path.md` —
   the harness shape (`:1073-1135`) and per-sample stdout guard (`:1096-1102`)
 - `meta/work/PP-718-library-backed-vcs-adapter.md:1059` — the 2,512,576-byte
   `aarch64-apple-darwin` asset
@@ -680,7 +680,7 @@ spike argues correctly, and not on a trust-boundary ground that does not hold.
 This spike's Assumptions state the gate definition "is inherited from 0169 and
 is not reopened here", and its Deviations that "the criterion remains as written
 until 0169 changes it". Both are now false.
-`plan:2026-08-11-0189-warm-dispatch-latency-measurement` lands the reframed
+`plan:2026-08-11-PP-719-warm-dispatch-latency-measurement` lands the reframed
 criterion on **work-item:PP-719**, as six identified cells — an absolute
 `median(G)`/`p90(G)` budget per digest backend as the primary, re-runnable gate,
 with `G ≤ 1.3 × B` on the fast backend retained as the historical comparison

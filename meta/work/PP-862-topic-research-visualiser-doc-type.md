@@ -538,9 +538,9 @@ prototype. Output the updated prototype.
   the 10 renamed VR baselines, and a `localStorage` last-seen rewrite.
 - Validated on 2026-09-15. Two plans deliver this story and were validated
   together (both `partial`):
-  `meta/validations/2026-09-10-0278-topic-research-visualiser-doc-type-validation.md`
+  `meta/validations/2026-09-10-PP-862-topic-research-visualiser-doc-type-validation.md`
   (doc-type registration, wire-key rename, status collapse) and
-  `meta/validations/2026-09-13-0278-complete-codebase-research-rename-validation.md`
+  `meta/validations/2026-09-13-PP-862-complete-codebase-research-rename-validation.md`
   (the display-copy/title-prefix/`m0010` rename completion). All three phases of
   the first and all five of the second are implemented and merged; the Rust,
   server, and frontend read-only checks pass, `m0010` is applied to the corpus,

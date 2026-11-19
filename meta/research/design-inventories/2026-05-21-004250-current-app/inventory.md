@@ -296,7 +296,7 @@ Detail pages first (the focus of this inventory). Each entry records: the route,
 - **Purpose**: Show a review pass against a work item, with per-lens results and possible re-review passes.
 - **Components used**: identical to work-item.
 - **States observed**: success.
-- **Sample slug**: `0042-templates-view-redesign-review-1`.
+- **Sample slug**: `PP-64-templates-view-redesign-review-1`.
 - **Notable**: H1 surfaces the raw slug (no humanised title). Chip strip carries `lenses` comma-list and pass numbers. Body shape: Cross-Cutting Themes, Findings (Critical/Major/Minor/Suggestions), Strengths, Recommended Changes, Per-Lens Results, Re-Review passes.
 - **Screenshot**: `screenshots/detail-work-item-review-0042.png`
 

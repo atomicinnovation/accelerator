@@ -90,5 +90,5 @@ None.
 
 ## References
 
-- `meta/plans/2026-08-07-0172-migration-engine-subdomain.md` (L2274-2281)
+- `meta/plans/2026-08-07-PP-193-migration-engine-subdomain.md` (L2274-2281)
 - Related: 0202, 0119

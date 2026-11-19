@@ -9,7 +9,7 @@ status: "done"
 kind: "epic"
 priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
-relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
+relates_to: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface"]
 tags: ["rust", "cli", "migration", "epic"]
 last_updated: "2026-10-10T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
@@ -279,9 +279,9 @@ questions are answered:)*
 
 - Source: `meta/notes/2026-06-22-ideas-backlog.md`
 - Research:
-  `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+  `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Research:
-  `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+  `meta/research/codebase/2026-06-23-PP-157-shell-scripts-rust-cli-migration-surface.md`
 - Spike:
   `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md`
 - ADRs: ADR-0045, ADR-0046, ADR-0047, ADR-0048, ADR-0049, ADR-0051, ADR-0052,

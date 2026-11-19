@@ -33,7 +33,7 @@ Closes the lifecycle of work item 0190 by transitioning its status to `done`, no
 
 - Work item: `meta/work/PP-720-acquire-lock-cannot-classify-mkdir-failures.md`
 - Implementation and validation merged separately; `main` already carries the fix through commit `e3ee966e` (the 0190 bookmark's tip).
-- Validation: `meta/validations/2026-08-21-0190-classify-lock-mkdir-failures-validation.md` (result: pass).
+- Validation: `meta/validations/2026-08-21-PP-720-classify-lock-mkdir-failures-validation.md` (result: pass).
 
 ## Testing
 

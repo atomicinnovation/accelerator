@@ -408,7 +408,7 @@ template rewrite.
 - ADR-0065: Canonical Frontmatter Quoting Standard (ratifies this decision)
 - ADR-0034: Typed linkage vocabulary for meta/ artifacts
 - ADR-0033: Unified base frontmatter schema for meta/ artifacts
-- Research: `meta/research/codebase/2026-08-30-0221-canonical-frontmatter-quoting-standard.md`
-- Plan: `meta/plans/2026-08-30-0221-canonical-frontmatter-quoting-standard.md`
+- Research: `meta/research/codebase/2026-08-30-PP-750-canonical-frontmatter-quoting-standard.md`
+- Plan: `meta/plans/2026-08-30-PP-750-canonical-frontmatter-quoting-standard.md`
 - Related: 0220, 0227, 0136
 - PR #76

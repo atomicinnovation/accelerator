@@ -77,9 +77,9 @@ commit, and the launcher track wires in live only in the final commit.
 ## Context
 
 - Work item: `meta/work/PP-186-multi-binary-distribution-and-release-pipeline.md`
-- Plan: `meta/plans/2026-07-06-0165-multi-binary-distribution-and-release-pipeline.md`
+- Plan: `meta/plans/2026-07-06-PP-186-multi-binary-distribution-and-release-pipeline.md`
   (status `done`)
-- Validation: `meta/validations/2026-07-06-0165-multi-binary-distribution-and-release-pipeline-validation.md`
+- Validation: `meta/validations/2026-07-06-PP-186-multi-binary-distribution-and-release-pipeline-validation.md`
   (result `pass`)
 - Frozen consumer contract delivered by 0164; 0168 will populate the manifest
   with the visualiser sub-binary and remove `bin/checksums.json`.

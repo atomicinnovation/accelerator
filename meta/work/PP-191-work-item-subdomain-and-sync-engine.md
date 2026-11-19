@@ -9,7 +9,7 @@ status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-724"]
 blocks: ["work-item:PP-724"]
 tags: ["rust", "work-items"]
@@ -207,8 +207,8 @@ scripts separately.
 
 ## Drafting Notes
 
-- Validated 2026-08-07 against `meta/plans/2026-08-06-0170-work-item-lifecycle-subdomain.md`
-  (`meta/validations/2026-08-06-0170-work-item-lifecycle-subdomain-validation.md`,
+- Validated 2026-08-07 against `meta/plans/2026-08-06-PP-191-work-item-lifecycle-subdomain.md`
+  (`meta/validations/2026-08-06-PP-191-work-item-lifecycle-subdomain-validation.md`,
   result: pass) — all 9 plan phases implemented and committed, all 8
   acceptance criteria above confirmed met, status moved to `done`. One
   unrelated `mise run` failure was found at HEAD (a later,
@@ -216,7 +216,7 @@ scripts separately.
   item.
 - Split on 2026-08-05 into this item (lifecycle CRUD) and 0194 (tracker
   crate and remote sync engine) following work item review 1
-  (`meta/reviews/work/0170-work-item-subdomain-and-sync-engine-review-1.md`),
+  (`meta/reviews/work/PP-191-work-item-subdomain-and-sync-engine-review-1.md`),
   which found the two efforts independently deliverable and the combined
   story epic-scale for a `kind: story` item. This item keeps the original
   title's scope narrowed to lifecycle ops; 0194 carries the `tracker` crate
@@ -245,7 +245,7 @@ scripts separately.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - Split into: `meta/work/PP-724-tracker-crate-and-remote-sync-engine.md`
 - ADRs: ADR-0045, ADR-0052, ADR-0053

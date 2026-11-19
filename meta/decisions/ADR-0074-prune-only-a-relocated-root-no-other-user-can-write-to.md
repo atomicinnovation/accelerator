@@ -162,7 +162,7 @@ removal around directory handles.
 - `meta/decisions/ADR-0072-claim-gated-automatic-prune-for-relocated-cache-roots.md`
   — The prune whose multi-user exposure this closes
 - `meta/work/PP-747-bound-cache-root-growth.md` — The work item that built it
-- `meta/plans/2026-10-19-0218-bound-cache-root-growth.md` — The plan
+- `meta/plans/2026-10-19-PP-747-bound-cache-root-growth.md` — The plan
 - `meta/work/PP-944-shared-cache-roots-on-multi-user-systems.md` — The epic for
   making a shared root usable and prunable
 - `meta/work/PP-945-use-a-group-shared-cache-root-safely.md` and

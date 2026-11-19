@@ -9,7 +9,7 @@ status: "abandoned"
 kind: "task"
 priority: "medium"
 parent: "work-item:PP-157"
-derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
+derived_from: ["plan:2026-08-11-PP-719-warm-dispatch-latency-measurement"]
 relates_to: ["work-item:PP-719", "work-item:PP-721", "work-item:PP-745", "work-item:PP-746"]
 tags: ["cli", "launcher", "performance", "bootstrap"]
 last_updated: "2026-10-02T10:02:41+00:00"
@@ -133,7 +133,7 @@ shipped target, so the removal is not being carried out. See Notes.)*
   fewer hash on the warm path — not on a measured saving. The name/version
   integrity criterion under Acceptance Criteria is unchanged and untouched by
   0216. Detail in
-  `meta/validations/2026-09-11-0216-close-the-sha2-hardware-intrinsics-gap-validation.md`.
+  `meta/validations/2026-09-11-PP-745-close-the-sha2-hardware-intrinsics-gap-validation.md`.
 - **Still contingent on 0217.** 0216's musl scope was inspection-only, so the
   AC 7 soft-backend-selection trigger it defined is unresolved. If 0217 measures
   aarch64-musl `sha256_hex` in the ~555 MB/s soft band, the digest stays

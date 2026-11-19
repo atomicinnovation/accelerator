@@ -63,8 +63,8 @@ to COMMENT, and it is ready for planning.
 
 - Work item: `meta/work/PP-889-research-concurrency-exceeds-subagent-limit.md`
 - Source issue: https://github.com/atomicinnovation/accelerator/issues/140
-- Review: `meta/reviews/work/0303-research-concurrency-exceeds-subagent-limit-review-1.md`
-- Orchestration vocabulary: `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
+- Review: `meta/reviews/work/PP-889-research-concurrency-exceeds-subagent-limit-review-1.md`
+- Orchestration vocabulary: `meta/plans/2026-09-26-PP-867-recursive-finding-deepening.md`
 
 ## Testing
 

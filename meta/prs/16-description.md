@@ -38,7 +38,7 @@ Builds the native Rust configuration reader that replaces the bash two-level awk
 
 ## Context
 
-Implements work item [0178](../work/PP-702-config-crates-native-yaml-reader.md) — child of [0166 Shared config/corpus/store crates](../work/PP-187-shared-config-corpus-store-crates.md). ADR-0047 makes the CLI the native config reader. See the plan at `meta/plans/2026-07-07-0178-config-crates-native-yaml-reader.md` and its codebase research/review companions under `meta/research/` and `meta/reviews/`.
+Implements work item [0178](../work/PP-702-config-crates-native-yaml-reader.md) — child of [0166 Shared config/corpus/store crates](../work/PP-187-shared-config-corpus-store-crates.md). ADR-0047 makes the CLI the native config reader. See the plan at `meta/plans/2026-07-07-PP-702-config-crates-native-yaml-reader.md` and its codebase research/review companions under `meta/research/` and `meta/reviews/`.
 
 ## Testing
 

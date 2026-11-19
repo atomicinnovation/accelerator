@@ -38,7 +38,7 @@ schema_version: 1
 
 ## Context
 
-Implements `work-item:PP-715` (Converge corpus-adapters on the Library-Backed VCS Adapter), researched in `meta/research/codebase/2026-08-10-0185-converge-corpus-adapters-library-backed-vcs.md`, planned in `meta/plans/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs.md`, reviewed at both the work-item and plan level (`meta/reviews/work/0185-...-review-1.md` and `meta/reviews/plans/2026-08-10-0185-...-review-1.md`, both APPROVE), and validated in `meta/validations/2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs-validation.md` (result: pass).
+Implements `work-item:PP-715` (Converge corpus-adapters on the Library-Backed VCS Adapter), researched in `meta/research/codebase/2026-08-10-PP-715-converge-corpus-adapters-library-backed-vcs.md`, planned in `meta/plans/2026-08-10-PP-715-converge-corpus-adapters-on-library-backed-vcs.md`, reviewed at both the work-item and plan level (`meta/reviews/work/0185-...-review-1.md` and `meta/reviews/plans/2026-08-10-0185-...-review-1.md`, both APPROVE), and validated in `meta/validations/2026-08-10-PP-715-converge-corpus-adapters-on-library-backed-vcs-validation.md` (result: pass).
 
 Completes the convergence 0169 deliberately deferred and `work-item:PP-718` set up: 0188 built and proved `InProcessProbe` without wiring it, so that the composition switch could be reviewed on its own merits. Bounded against `work-item:PP-728`, which owns the separate `status`/`log` subprocess path and is the reason `scrub_environment`/`run_capped` survive this deletion.
 

@@ -41,8 +41,8 @@ No skill changes when this merges — the jira, linear and work skills all still
 
 - Work item: `meta/work/PP-740-provider-client-crates-over-the-tracker-port.md`
 - Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md` (carries the D1–D16 decision register and the copyleft answer)
-- Plan: `meta/plans/2026-08-17-0210-provider-client-crates-over-the-tracker-port.md` (status `done`)
-- Validation: `meta/validations/2026-08-17-0210-provider-client-crates-over-the-tracker-port-validation.md`
+- Plan: `meta/plans/2026-08-17-PP-740-provider-client-crates-over-the-tracker-port.md` (status `done`)
+- Validation: `meta/validations/2026-08-17-PP-740-provider-client-crates-over-the-tracker-port-validation.md`
 - Follow-ons: 0211 (integration-binary and bash-cluster retirement), 0212 (deletes the oracle scripts and the differential tests they drive)
 
 ## Testing

@@ -159,7 +159,7 @@ Branch: <name>
 ## References
 
 - `meta/work/PP-728-vcs-agnostic-status-log-renderer.md` — the owning work item
-- `meta/research/codebase/2026-08-30-0198-vcs-agnostic-status-log-renderer.md` — grounding research
+- `meta/research/codebase/2026-08-30-PP-728-vcs-agnostic-status-log-renderer.md` — grounding research
 - `meta/decisions/ADR-0053-thin-cli-over-a-hexagonal-ports-and-adapters-core.md` — the adapter pattern
 - `meta/decisions/ADR-0054-git-style-modular-cli-of-on-demand-static-binaries.md` — the CLI shape
 - `meta/work/PP-190-vcs-subdomain-and-hooks-migration.md` — the original subprocess choice this revisits

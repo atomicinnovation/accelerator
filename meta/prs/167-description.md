@@ -139,8 +139,8 @@ versions.
 
 - Work item: `meta/work/PP-922-tree-reap-deletes-another-artifact-s-in-progress-materialise.md`
   (Linear PP-922)
-- Plan: `meta/plans/2026-10-16-0339-tree-reap-cross-artifact-lock-probe.md`
-- Validation: `meta/validations/2026-10-16-0339-tree-reap-cross-artifact-lock-probe-validation.md`
+- Plan: `meta/plans/2026-10-16-PP-922-tree-reap-cross-artifact-lock-probe.md`
+- Validation: `meta/validations/2026-10-16-PP-922-tree-reap-cross-artifact-lock-probe-validation.md`
   (pass)
 - Review: `meta/reviews/prs/167-review-1.md` (COMMENT, no blocking defect).
   The commits after it act on its three themes:

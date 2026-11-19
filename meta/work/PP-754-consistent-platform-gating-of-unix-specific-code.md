@@ -100,5 +100,5 @@ defensible; the current mix is not.
 ## References
 
 - Surfaced while reviewing the change "Extract, seal and lease a materialised
-  tree" in `plan:2026-08-11-0196-design-vendored-runtime-distribution`.
+  tree" in `plan:2026-08-11-PP-726-design-vendored-runtime-distribution`.
 - Ruleset that does *not* enforce the fallback: `cli/pup.ron`.

@@ -13,7 +13,7 @@ last_updated: "2026-05-21T09:16:34+00:00"
 last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:PP-55"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
-relates_to: ["plan:2026-05-31-0077-shadow-and-dark-accent-token-audit", "codebase-research:2026-05-31-0077-shadow-and-dark-accent-token-audit"]
+relates_to: ["plan:2026-05-31-PP-99-shadow-and-dark-accent-token-audit", "codebase-research:2026-05-31-PP-99-shadow-and-dark-accent-token-audit"]
 external_id: "PP-99"
 aliases: ["0077"]
 ---
@@ -291,7 +291,7 @@ lifecycle-cluster-after-click in both themes) passing IS the evidence
 of rendering parity on the highest-traffic consumers, and no follow-up
 baseline-refresh work item is raised. This applies the "spirit
 reading" recommended in the [companion research's Open Questions
-§1](../research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md#open-questions).
+§1](../research/codebase/2026-05-31-PP-99-shadow-and-dark-accent-token-audit.md#open-questions).
 
 ### §5 — Scope of changes
 
@@ -306,5 +306,5 @@ Doing" section for the negative-scope enumeration.
 - Source: `meta/research/design-gaps/2026-05-21-current-app-vs-claude-design-prototype.md`
 - Related: [0033 Design Token System](PP-55-design-token-system.md),
   [0034 Theme and Font-Mode Toggles](PP-56-theme-and-font-mode-toggles.md)
-- Implementation plan: [`meta/plans/2026-05-31-0077-shadow-and-dark-accent-token-audit.md`](../plans/2026-05-31-0077-shadow-and-dark-accent-token-audit.md)
-- Companion research: [`meta/research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md`](../research/codebase/2026-05-31-0077-shadow-and-dark-accent-token-audit.md)
+- Implementation plan: [`meta/plans/2026-05-31-PP-99-shadow-and-dark-accent-token-audit.md`](../plans/2026-05-31-PP-99-shadow-and-dark-accent-token-audit.md)
+- Companion research: [`meta/research/codebase/2026-05-31-PP-99-shadow-and-dark-accent-token-audit.md`](../research/codebase/2026-05-31-PP-99-shadow-and-dark-accent-token-audit.md)

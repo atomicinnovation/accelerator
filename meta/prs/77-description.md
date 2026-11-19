@@ -71,7 +71,7 @@ across 380 files: more bash retired than Rust added.
 ## Context
 
 - Work item: `meta/work/PP-741-integration-binaries-and-bash-cluster-retirement.md`
-- Plan: `meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md`
+- Plan: `meta/plans/2026-08-19-PP-741-integration-binaries-and-bash-cluster-retirement.md`
 - Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md`
 - Inventories: `meta/inventories/0211-{removal-set,suite-audit,reconciliation,divergences,fixture-reconciliation}.md`
 
@@ -98,7 +98,7 @@ across 380 files: more bash retired than Rust added.
   not to keywords (keywords carry success outcomes). The plan's "every error
   class → one keyword" criterion is reframed accordingly, and the parity guard
   checks keyword membership rather than that mapping. Recorded in
-  `0211-divergences.md`.
+  `PP-741-divergences.md`.
 - **Two latent full-run reds** surfaced when the full `mise run` was first
   executed (Phase 1 had only run `mise run check`) and were fixed here: the
   plan's own `status: approved` fell outside the corpus status vocab, and

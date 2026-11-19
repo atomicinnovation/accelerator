@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:PP-157"
 blocked_by: ["work-item:PP-185", "work-item:PP-187", "work-item:PP-702", "work-item:PP-703"]
 blocks: ["work-item:PP-190", "work-item:PP-194", "work-item:PP-195"]
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-128", "work-item:PP-129", "work-item:PP-704", "work-item:PP-193"]
 tags: ["rust", "config", "skills", "invocation-contract", "allowed-tools", "cli", "migration"]
 last_updated: "2026-08-09T00:00:00+00:00"
@@ -716,7 +716,7 @@ of 2026-07-19 — the `document`, `corpus`, `corpus-adapters`, `vcs` and
 
 - The bootstrap path stays under `${CLAUDE_PLUGIN_ROOT}` so permission matches
   hold — resolved in the source research
-  (`meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`),
+  (`meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`),
   whose Q3 concerned the bootstrap path's location.
 - `config` ships as a launcher **built-in**, not an external subcommand. An
   external would cost a second fetch-verify-cache round trip on top of the
@@ -1248,7 +1248,7 @@ Other repairs from the same pass:
 ### Planning pass — corrections from implementation planning (2026-07-19)
 
 Made while writing
-`meta/plans/2026-07-19-0167-config-command-and-invocation-contract-migration.md`,
+`meta/plans/2026-07-19-PP-188-config-command-and-invocation-contract-migration.md`,
 which supersedes this item where the two differ on mechanics. Four of these are
 defects no review pass caught; all were established by inspecting the tree at
 revision `b290d5d9` rather than by argument.
@@ -1304,9 +1304,9 @@ its final paragraph — so it is left standing as a record of how the decision m
 
 ## References
 
-- Plan: `meta/plans/2026-07-19-0167-config-command-and-invocation-contract-migration.md`
-- Research: `meta/research/codebase/2026-07-19-0167-config-command-and-invocation-contract-migration.md`
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Plan: `meta/plans/2026-07-19-PP-188-config-command-and-invocation-contract-migration.md`
+- Research: `meta/research/codebase/2026-07-19-PP-188-config-command-and-invocation-contract-migration.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0045, ADR-0047, ADR-0020, ADR-0021
 - Related: `meta/work/PP-128-invoke-plugin-scripts-by-bare-path.md`, `meta/work/PP-129-lint-skill-body-script-invocations.md`

@@ -64,7 +64,7 @@ Surfaced but not caused by this work — three consecutive full runs each failed
 
 ## Context
 
-- Implements work item **0182** (this PR's parent), Phases 0 and 1a of `meta/plans/2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename.md`. The plan is included in the diff along with its review, the codebase research and the issue research.
+- Implements work item **0182** (this PR's parent), Phases 0 and 1a of `meta/plans/2026-07-27-PP-712-bootstrap-self-location-and-plugin-root-rename.md`. The plan is included in the diff along with its review, the codebase research and the issue research.
 - Raises **0183** for the discarded `SessionStart` stderr advisory.
 - Related: **0164** (introduced the bootstrap), **0167** (routed the skills through it), **0136** (the parent Rust CLI migration epic).
 - **Blocks the next prerelease** — the plugin is substantially unusable as shipped in `1.24.0-pre.16` for any consumer who has not manually exported the variable.

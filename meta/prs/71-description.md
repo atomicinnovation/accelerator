@@ -37,7 +37,7 @@ This lands Phases 1–4 of the plan. Phase 5 (the eval suite, its committed evid
 ## Context
 
 - Work item: `meta/work/PP-743-conversational-conflict-resolution-flow.md`
-- Plan: `meta/plans/2026-08-19-0213-conversational-conflict-resolution-flow.md` (with its research, plan review, and validation report in `meta/`)
+- Plan: `meta/plans/2026-08-19-PP-743-conversational-conflict-resolution-flow.md` (with its research, plan review, and validation report in `meta/`)
 - Parent epic: `meta/work/PP-192-jira-and-linear-integrations.md`
 - Coupled child (repoints the same skill file): `meta/work/PP-742-work-item-script-cutover.md`
 

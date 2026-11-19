@@ -216,7 +216,7 @@ that seam to the primary mechanism and gives it a validated config surface.
 - Design decisions from the 2026-09-11 research walkthrough (`all_*` base handling,
   live-enumeration scope resolution with a grow-on-pull entity index, and the
   extended truncation scope) are recorded in
-  `meta/research/codebase/2026-09-11-0229-per-tracker-pull-scope-configuration.md`.
+  `meta/research/codebase/2026-09-11-PP-759-per-tracker-pull-scope-configuration.md`.
 
 ## Dependencies
 
@@ -323,7 +323,7 @@ that seam to the primary mechanism and gives it a validated config surface.
 - Related: 0227 — accelerator config validate Command; 0220 — Untracked-Remote
   Discovery Never Runs on Linear (prior art on Linear discovery scope)
 - Research:
-  `meta/research/codebase/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
+  `meta/research/codebase/2026-09-11-PP-759-per-tracker-pull-scope-configuration.md`
 - Code: `cli/tracker/src/lib.rs`, `cli/work-cli/src/sync.rs`,
   `cli/jira-client/src/jql.rs`, `cli/linear-client/src/filter.rs`,
   `cli/work-adapters/src/sync/run.rs`, `cli/tracker-support/src/transport.rs`,

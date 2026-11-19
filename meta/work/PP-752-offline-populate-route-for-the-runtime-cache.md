@@ -171,7 +171,7 @@ fetched path receives — hence a properly-scoped work item.
 ## References
 
 - Surfaced by:
-  `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md` (Removal
+  `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md` (Removal
   sweep, follow-up work items) — cut from the documentation section rather than
   shipped under-specified.
 - Code: `cli/launcher/src/launch/outbound/resolve/tree/resolver.rs`, `pins.rs`,

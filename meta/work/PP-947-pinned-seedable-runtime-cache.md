@@ -120,5 +120,5 @@ Refinement settled the shape:
 - ADR-0046 (zero-setup static binary distribution), ADR-0060, ADR-0061,
   ADR-0064 (producer-signed tree attestation over a compiled-in digest),
   ADR-0075 (digest-pinned resolution chain).
-- Plan: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md`.
+- Plan: `meta/plans/2026-08-11-PP-726-design-vendored-runtime-distribution.md`.
 - Related: 0136, 0218, 0222, 0339, 0340.

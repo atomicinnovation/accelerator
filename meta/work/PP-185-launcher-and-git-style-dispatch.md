@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:PP-157"
 blocked_by: ["work-item:PP-184"]
 blocks: ["work-item:PP-189"]
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-PP-157-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:PP-186", "work-item:PP-188", "work-item:PP-190"]
 tags: ["rust", "launcher", "dispatch", "cli"]
 last_updated: "2026-06-28T17:01:56+00:00"
@@ -155,7 +155,7 @@ sub-binary dispatch). The distribution/release pipeline and signing are 0165.
 
 ## References
 
-- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Source: `meta/research/codebase/2026-06-28-PP-157-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/PP-157-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0046, ADR-0054
 - Spike: `meta/work/PP-181-modular-rust-cli-architecture-and-hexagonal-workspace-layout.md` (§2 dispatch, §3 launcher)

@@ -204,9 +204,9 @@ identity-run lock.
 ## Context
 
 - Work item: `meta/work/PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
-- Plan: `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
-- Plan reviews: `meta/reviews/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently-review-{1,2}.md`
-- Validation: `meta/validations/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently-validation.md`
+- Plan: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Plan reviews: `meta/reviews/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently-review-{1,2}.md`
+- Validation: `meta/validations/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently-validation.md`
 - PR review: `meta/reviews/prs/169-review-1.md`; every inline thread is
   answered and resolved on GitHub.
 - Builds on 0296 (#159, merged): body equivalence, `ItemSnapshot`, and the

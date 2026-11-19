@@ -35,7 +35,7 @@ Retires the eighteen `work-item-*.sh` / `test-work-item-*.sh` scripts and the bu
 
 ## Context
 
-Implements work item [0212](../work/PP-742-work-item-script-cutover.md) per the [script-cutover plan](../plans/2026-08-19-0212-work-item-script-cutover.md) and its [review](../reviews/plans/), grounded in the [cutover codebase research](../research/codebase/). Sits alongside 0211 (integration-binary decomposition) and 0213 (conflict-resolution flow); completes the work-item half of the Rust CLI migration begun in 0171.
+Implements work item [0212](../work/PP-742-work-item-script-cutover.md) per the [script-cutover plan](../plans/2026-08-19-PP-742-work-item-script-cutover.md) and its [review](../reviews/plans/), grounded in the [cutover codebase research](../research/codebase/). Sits alongside 0211 (integration-binary decomposition) and 0213 (conflict-resolution flow); completes the work-item half of the Rust CLI migration begun in 0171.
 
 ## Testing
 

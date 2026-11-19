@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "low"
 blocked_by: ["work-item:PP-756"]
-derived_from: ["plan-review:2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys-review-1"]
+derived_from: ["plan-review:2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys-review-1"]
 relates_to: ["work-item:PP-193"]
 tags: ["hooks", "session-start", "launcher"]
 last_updated: "2026-09-25T17:53:43+00:00"
@@ -145,6 +145,6 @@ made `systemMessage` the user-facing channel.
 
 ## References
 
-- Source: `meta/reviews/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys-review-1.md`
-- Plan: `meta/plans/2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys.md` (Phase 6)
+- Source: `meta/reviews/plans/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys-review-1.md`
+- Plan: `meta/plans/2026-09-25-PP-756-unify-the-trust-barrier-for-consent-config-keys.md` (Phase 6)
 - Related: 0226, 0172

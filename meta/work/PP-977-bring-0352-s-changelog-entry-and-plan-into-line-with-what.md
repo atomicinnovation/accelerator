@@ -46,7 +46,7 @@ shipped only in 1.24.0 pre-releases. The release's other changes to
 the duplicate was not checked.
 
 The plan
-(`meta/plans/2026-11-11-0352-sync-reports-every-unsynced-item-twice.md`) is
+(`meta/plans/2026-11-11-PP-927-sync-reports-every-unsynced-item-twice.md`) is
 stale in two places. Its Migration Notes still tell scripts to key on the
 `unsynced` state column, advice dropped because other rows carry that state.
 Its Phase 2 gives the Membership rule and its test in a form that differs
