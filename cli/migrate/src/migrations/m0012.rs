@@ -232,11 +232,12 @@ impl Failure {
     }
 }
 
-const RECOVERY_STEPS: &str =
-    "If the migrate pre-flight then reports changes from \
-                        this run, including any sync baselines, commit them \
-                        all rather than discarding them, and don't push yet; \
-                        re-run /accelerator:migrate before syncing.";
+const RECOVERY_STEPS: &str = "If the migrate pre-flight then reports \
+                              changes from this run, including any sync \
+                              baselines, commit them all rather than \
+                              discarding them, and don't push that commit \
+                              yet; re-run /accelerator:migrate before \
+                              syncing.";
 
 fn restoration_message(
     root: &Path,
@@ -1318,7 +1319,7 @@ mod tests {
         for step in [
             "including any sync baselines",
             "commit them all rather than discarding them",
-            "don't push yet",
+            "don't push that commit yet",
             "re-run /accelerator:migrate before syncing",
         ] {
             assert!(message.contains(step), "{step}\n---\n{message}");
