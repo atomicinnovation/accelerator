@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use vcs_test_support::family::SharedFamily;
 use vcs_test_support::fixtures::Fixture;
 use vcs_test_support::fixtures::Matrix;
 use vcs_test_support::manifest::Manifest;

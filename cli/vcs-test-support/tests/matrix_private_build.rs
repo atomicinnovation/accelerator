@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use vcs_test_support::family::Family;
+use vcs_test_support::family::SharedFamily;
 use vcs_test_support::fixture_log::FixtureLog;
 use vcs_test_support::fixtures::Matrix;
 use vcs_test_support::handover::Handover;

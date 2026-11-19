@@ -67,21 +67,6 @@ pub struct Matrix {
 }
 
 impl Matrix {
-    /// Takes over a matrix already built beneath `base`, from its manifest.
-    ///
-    /// Adoption runs neither `git` nor `jj`.
-    ///
-    /// # Errors
-    ///
-    /// When `base` is missing, or its manifest is missing, malformed or empty.
-    pub fn adopt(base: &Path) -> Result<Self, Error> {
-        let base = base.canonicalize().map_err(|error| {
-            Error::message(format!("{}: {error}", base.display()))
-        })?;
-        let Manifest { fixtures } = Manifest::read(&base)?;
-        Ok(Self { base, fixtures })
-    }
-
     /// Builds every fixture beneath `base`, refusing a base inside a checkout
     /// before its hermetic environment writes anything there.
     ///
@@ -155,7 +140,11 @@ impl SharedFamily for Matrix {
     const FAMILY: Family = Family::Matrix;
 
     fn adopt(tree: &Path) -> Result<Self, Error> {
-        Self::adopt(tree)
+        let base = tree.canonicalize().map_err(|error| {
+            Error::message(format!("{}: {error}", tree.display()))
+        })?;
+        let Manifest { fixtures } = Manifest::read(&base)?;
+        Ok(Self { base, fixtures })
     }
 
     fn build_privately(
