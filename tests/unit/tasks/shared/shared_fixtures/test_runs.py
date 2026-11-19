@@ -514,6 +514,19 @@ class TestLiveRunIds:
 
         assert FixtureRuns.open(root).live_run_ids() == {child.run_id}
 
+    def test_counts_a_run_whose_lock_cannot_be_taken(self, root: Path):
+        _abandoned_run(root)
+        runs = FixtureRuns.open(root, flock=_failing_with(errno.ENOLCK))
+
+        assert runs.live_run_ids() == {RUN_ID}
+
+    @no_permission_stops_root
+    def test_counts_a_run_whose_lock_cannot_be_opened(self, root: Path):
+        _abandoned_run(root)
+        (root / f"{RUN_ID}.lock").chmod(0o000)
+
+        assert FixtureRuns.open(root).live_run_ids() == {RUN_ID}
+
 
 class TestHoldPoint:
     def test_waits_for_release_after_saying_where_the_run_is(
