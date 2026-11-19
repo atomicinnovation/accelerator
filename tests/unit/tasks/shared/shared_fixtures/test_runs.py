@@ -17,6 +17,7 @@ from tasks.shared.paths import REPO_ROOT
 from tasks.shared.shared_fixtures.errors import SharedFixturesError
 from tasks.shared.shared_fixtures.families import (
     FIXTURE_LOG_VARIABLE,
+    HANDOVER_VARIABLES,
     HOLD_VARIABLE,
     WORKBENCHES_VARIABLE,
     Family,
@@ -329,6 +330,15 @@ class TestStartingARun:
             WORKBENCHES_VARIABLE: str(run.workbenches),
             FIXTURE_LOG_VARIABLE: "/logs/run.jsonl",
         }
+
+    def test_hands_over_exactly_the_hand_over_variables(self, root: Path):
+        run = FixtureRuns.open(root).start()
+        try:
+            handover = run.handover(Family, Path("/logs/run.jsonl"))
+        finally:
+            run.close()
+
+        assert handover.keys() == HANDOVER_VARIABLES
 
 
 class TestClosingARun:

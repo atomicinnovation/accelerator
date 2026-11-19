@@ -36,8 +36,8 @@ from tasks.shared.shared_fixtures.consumers import families_consumed
 from tasks.shared.shared_fixtures.errors import SharedFixturesError
 from tasks.shared.shared_fixtures.families import (
     FIXTURE_LOG_VARIABLE,
+    HANDOVER_VARIABLES,
     SHARED_FAMILIES,
-    WORKBENCHES_VARIABLE,
     Family,
 )
 from tasks.shared.shared_fixtures.runs import shared_fixtures_root
@@ -62,13 +62,6 @@ _INSTRUMENTED_BUILD = CLI_INSTRUMENTED_BUILD_DIR
 _UNIT_LISTING = f"cargo test {_MANIFEST} --no-run --message-format=json"
 _BUILDER = "shared-fixtures"
 _FIXTURE_LOGS = CLI_TARGET_DIR / "vcs-fixture-logs"
-_HANDOVER_VARIABLES = frozenset(
-    {
-        *(family.handover_variable for family in Family),
-        WORKBENCHES_VARIABLE,
-        FIXTURE_LOG_VARIABLE,
-    }
-)
 _COMPILING = re.compile(r"^\s*Compiling ", re.MULTILINE)
 _COMPILES_SHOWN = {"CARGO_TERM_QUIET": "false"}
 _MISE_TASK = "test:unit:cli"
@@ -346,7 +339,7 @@ def _without_inherited_handover(
         **{
             name: value
             for name, value in os.environ.items()
-            if name not in _HANDOVER_VARIABLES
+            if name not in HANDOVER_VARIABLES
         },
         **variables,
     }

@@ -22,6 +22,7 @@ from tasks.shared.rust import RUST_NIGHTLY
 from tasks.shared.shared_fixtures.errors import SharedFixturesError
 from tasks.shared.shared_fixtures.families import (
     FIXTURE_LOG_VARIABLE,
+    HANDOVER_VARIABLES,
     WORKBENCHES_VARIABLE,
     Family,
 )
@@ -150,11 +151,6 @@ SHOW_ENV = "cargo llvm-cov show-env"
 UNIT_LISTING = "cargo test"
 _OUTPUTS = {REPORT: EXPORT, SHOW_ENV: BUILD_ENVIRONMENT, UNIT_LISTING: UNITS}
 CLASSIFY = "binary_id(vcs-adapters::classify)"
-_HANDOVER_VARIABLES = (
-    Family.MATRIX.handover_variable,
-    WORKBENCHES_VARIABLE,
-    FIXTURE_LOG_VARIABLE,
-)
 
 
 def _only_classify(binary: str, _name: str) -> bool:
@@ -367,7 +363,7 @@ class TestTestUnitCli:
         build_dir: Path,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        for variable in _HANDOVER_VARIABLES:
+        for variable in HANDOVER_VARIABLES:
             monkeypatch.setenv(variable, "/elsewhere")
 
         test_cli.run(lane)
