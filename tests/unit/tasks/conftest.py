@@ -13,7 +13,7 @@ def shared_fixture_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     developer's shell never reaches a unit test.
     """
     monkeypatch.setattr(
-        test_cli, "_shared_root", lambda: tmp_path / "shared-fixtures"
+        test_cli, "shared_fixtures_root", lambda: tmp_path / "shared-fixtures"
     )
     monkeypatch.setattr(
         test_cli, "_FIXTURE_LOGS", tmp_path / "vcs-fixture-logs"

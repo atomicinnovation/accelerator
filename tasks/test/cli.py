@@ -61,7 +61,6 @@ _PERMISSION_SKIP = "ACCELERATOR_TEST_SKIP_PERMISSION_TESTS"
 _INSTRUMENTED_BUILD = CLI_INSTRUMENTED_BUILD_DIR
 _UNIT_LISTING = f"cargo test {_MANIFEST} --no-run --message-format=json"
 _BUILDER = "shared-fixtures"
-_shared_root = shared_fixtures_root
 _FIXTURE_LOGS = CLI_TARGET_DIR / "vcs-fixture-logs"
 _HANDOVER_VARIABLES = frozenset(
     {
@@ -286,7 +285,7 @@ def _profiling_beside_the_tests(
 
 def _session(interruption: Interruption) -> SharedFixtureSession:
     return SharedFixtureSession(
-        _shared_root(),
+        shared_fixtures_root(),
         _FIXTURE_LOGS,
         os.environ,
         interrupted=lambda: interruption.arrived,

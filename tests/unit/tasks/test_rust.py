@@ -581,7 +581,9 @@ class TestTestUnitCli:
     ):
         (tmp_path / "elsewhere").mkdir()
         (tmp_path / "link").symlink_to(tmp_path / "elsewhere")
-        monkeypatch.setattr(test_cli, "_shared_root", lambda: tmp_path / "link")
+        monkeypatch.setattr(
+            test_cli, "shared_fixtures_root", lambda: tmp_path / "link"
+        )
 
         with pytest.raises(Exit) as exc_info:
             test_cli.run(lane)
