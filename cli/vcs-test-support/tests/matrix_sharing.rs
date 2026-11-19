@@ -3,9 +3,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use vcs_test_support::family::SharedFamily;
-use vcs_test_support::fixtures::Fixture;
 use vcs_test_support::fixtures::Matrix;
-use vcs_test_support::manifest::Manifest;
+use vcs_test_support::matrix_manifest::Fixture;
+use vcs_test_support::matrix_manifest::MatrixManifest;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -17,8 +17,8 @@ fn fixture(key: &str, shape: &str, start: PathBuf) -> Fixture {
     }
 }
 
-fn written_manifest(base: &Path) -> Result<Manifest, TestError> {
-    let manifest = Manifest {
+fn written_manifest(base: &Path) -> Result<MatrixManifest, TestError> {
+    let manifest = MatrixManifest {
         fixtures: vec![
             fixture("PG-r", "plain git", base.join("PG")),
             fixture("PG-s", "plain git, subdirectory", base.join("PG/deep/er")),
@@ -40,7 +40,7 @@ fn a_written_manifest_reads_back_unchanged() -> Result<(), TestError> {
     let directory = tempfile::tempdir()?;
     let written = written_manifest(directory.path())?;
 
-    let read = Manifest::read(directory.path())?;
+    let read = MatrixManifest::read(directory.path())?;
 
     assert_eq!(
         keys_and_starts(&read.fixtures),

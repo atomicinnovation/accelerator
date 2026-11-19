@@ -12,19 +12,9 @@ use crate::family::SharedFamily;
 use crate::hermetic::assert_git_is_recent_enough;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
-use crate::manifest::Manifest;
+use crate::matrix_manifest::Fixture;
+use crate::matrix_manifest::MatrixManifest;
 use crate::Error;
-
-/// One (fixture, start directory) pair from the matrix.
-#[derive(Debug, Clone)]
-pub struct Fixture {
-    /// The key used in the recorded oracle mapping.
-    pub key: String,
-    /// A one-line description of the shape, for failure messages.
-    pub shape: String,
-    /// The directory queries are invoked from. Canonicalised.
-    pub start: PathBuf,
-}
 
 /// Accumulates fixtures so each family builder can stay readable.
 #[derive(Debug, Default)]
@@ -88,7 +78,7 @@ impl Matrix {
     /// As [`Self::build_in`], or when the manifest cannot be written.
     pub(crate) fn build_for_sharing(base: &Path) -> Result<Self, Error> {
         let matrix = Self::build_in(base)?;
-        Manifest {
+        MatrixManifest {
             fixtures: matrix.fixtures.clone(),
         }
         .write(&matrix.base)?;
@@ -143,7 +133,7 @@ impl SharedFamily for Matrix {
         let base = tree.canonicalize().map_err(|error| {
             Error::message(format!("{}: {error}", tree.display()))
         })?;
-        let Manifest { fixtures } = Manifest::read(&base)?;
+        let MatrixManifest { fixtures } = MatrixManifest::read(&base)?;
         Ok(Self { base, fixtures })
     }
 

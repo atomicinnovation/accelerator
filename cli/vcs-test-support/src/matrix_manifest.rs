@@ -6,17 +6,27 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::fixtures::Fixture;
 use crate::Error;
 
 const FILE: &str = "fixtures.tsv";
 
+/// One (fixture, start directory) pair from the matrix.
 #[derive(Debug, Clone)]
-pub struct Manifest {
+pub struct Fixture {
+    /// The key used in the recorded oracle mapping.
+    pub key: String,
+    /// A one-line description of the shape, for failure messages.
+    pub shape: String,
+    /// The directory queries are invoked from. Canonicalised.
+    pub start: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct MatrixManifest {
     pub fixtures: Vec<Fixture>,
 }
 
-impl Manifest {
+impl MatrixManifest {
     /// # Errors
     ///
     /// When the manifest cannot be written beneath `base`.
