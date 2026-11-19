@@ -240,8 +240,8 @@ impl Failure {
 }
 
 const RECOVERY: &str = "If the migrate pre-flight then reports changes from \
-                        this run, including last-sync.json, commit them all \
-                        rather than discarding them, and don't push yet; \
+                        this run, including any sync baselines, commit them \
+                        all rather than discarding them, and don't push yet; \
                         re-run /accelerator:migrate before syncing.";
 
 fn restoration_message(
@@ -739,7 +739,7 @@ mod tests {
             pre_migration: &[(PathBuf, String)],
         ) -> Result<usize, MigrationError> {
             if self.fail_realign {
-                return Err(MigrationError::new("cannot write last-sync.json"));
+                return Err(MigrationError::new("cannot write a baseline"));
             }
             *self.realigned.borrow_mut() = Some(pre_migration.to_vec());
             Ok(pre_migration.len())
@@ -1293,8 +1293,9 @@ mod tests {
         );
         assert!(message.contains("Left the 2 work item(s)"), "{message}");
         assert!(!message.contains(REMOVE_BY_HAND), "{message}");
+        assert!(!message.contains("last-sync.json"), "{message}");
         for step in [
-            "including last-sync.json",
+            "including any sync baselines",
             "commit them all rather than discarding them",
             "don't push yet",
             "re-run /accelerator:migrate before syncing",
