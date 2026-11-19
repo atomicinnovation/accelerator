@@ -35,6 +35,12 @@ def test_the_matrix_consumers_are_the_four_binaries_that_adopt_it():
     }
 
 
+def test_the_status_log_consumers_are_the_binaries_that_adopt_or_copy_it():
+    assert consumers_of(Family.STATUS_LOG) == {
+        "vcs-test-support::status_log_states",
+    }
+
+
 def _consumed_by(matching: Callable[[str, str], bool]) -> frozenset[Family]:
     return families_consumed(NextestListing.parse(captured_listing(matching)))
 

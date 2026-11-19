@@ -11,12 +11,14 @@ from tasks.shared.nextest_listing import NextestListing
 from tasks.shared.shared_fixtures.families import Family
 
 _MATRIX = frozenset({Family.MATRIX})
+_STATUS_LOG = frozenset({Family.STATUS_LOG})
 
 CONSUMERS: Mapping[str, frozenset[Family]] = {
     "vcs-adapters::classify": _MATRIX,
     "vcs-adapters::queries": _MATRIX,
     "vcs-adapters::scrub": _MATRIX,
     "vcs-test-support::matrix": _MATRIX,
+    "vcs-test-support::status_log_states": _STATUS_LOG,
 }
 
 

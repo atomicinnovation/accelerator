@@ -23,6 +23,7 @@ use crate::handover::Handover;
 use crate::handover::SHARED_WORKBENCHES_VARIABLE;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::status_log::States;
 use crate::Error;
 
 #[derive(Debug, Clone, Copy)]
@@ -178,6 +179,16 @@ impl Workbench {
     /// As [`Self::shared`].
     pub fn matrix(&self) -> Result<Held<'_, Matrix>, Error> {
         self.shared::<Matrix>()
+    }
+
+    /// The run's status-log set, shared with every other test: treat it as
+    /// read-only and write scratch files under [`Self::path`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::shared`].
+    pub fn status_log_states(&self) -> Result<Held<'_, States>, Error> {
+        self.shared::<States>()
     }
 
     fn refuse_a_second(&self, requested: BuiltFixtures) -> Result<(), Error> {

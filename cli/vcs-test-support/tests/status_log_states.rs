@@ -1,21 +1,17 @@
-//! The status/log zero-spawn states build, and every state carries a start
-//! directory.
-//!
-//! Runs with the real `git`/`jj` so the CI job can build the states while both
-//! are reachable and hand the root over for the shadowed suite to adopt.
+//! The status-log set builds or is adopted whole, and no state records the
+//! directory it was built in, so a copy of it reads the same.
 
 use std::path::PathBuf;
 
 use vcs_test_support::path_scan::files_naming;
-use vcs_test_support::status_log;
-use vcs_test_support::status_log::States;
+use vcs_test_support::workbench::Workbench;
 
 type TestError = Box<dyn std::error::Error>;
 
 #[test]
 fn every_status_log_state_is_built() -> Result<(), TestError> {
-    let (_guard, root) = status_log::states_root()?;
-    let states = status_log::States::build_or_adopt(&root)?;
+    let workbench = Workbench::for_this_test()?;
+    let states = workbench.status_log_states()?;
 
     assert!(
         !states.states.is_empty(),
@@ -33,14 +29,14 @@ fn every_status_log_state_is_built() -> Result<(), TestError> {
 
 #[test]
 fn no_state_names_the_directory_it_was_built_in() -> Result<(), TestError> {
-    let directory = tempfile::tempdir()?;
-    let states = States::build_in(directory.path())?;
+    let workbench = Workbench::for_this_test()?;
+    let states = workbench.status_log_states()?;
 
     let supporting_repositories = ["seed", "origin.git", "jj-secondary-main"]
         .map(|name| states.base.join(name));
     let mut naming = Vec::<PathBuf>::new();
     for tree in states.states.values().chain(&supporting_repositories) {
-        naming.extend(files_naming(tree, directory.path())?);
+        naming.extend(files_naming(tree, &states.base)?);
     }
 
     assert!(

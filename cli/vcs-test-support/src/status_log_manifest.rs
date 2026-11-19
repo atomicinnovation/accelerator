@@ -53,10 +53,6 @@ impl StatusLogManifest {
         }
         Ok(Self { states })
     }
-
-    pub(crate) fn exists_in(base: &Path) -> bool {
-        base.join(FILE).is_file()
-    }
 }
 
 fn parse_line(line: &str) -> Result<(String, PathBuf), Error> {

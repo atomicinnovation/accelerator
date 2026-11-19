@@ -1,27 +1,28 @@
 //! The shared `vcs status`/`vcs log` fixture states.
 //!
-//! Built once here so the golden harness (`status_log_goldens.rs`), the parity
-//! harness, and the zero-spawn lane each consume one builder rather than
-//! duplicating state construction. `build_states` returns the states that carry
-//! committed goldens; the cap and bookmark states drive focused assertions and
-//! carry no golden, to keep the golden set branch-stable.
+//! Built in one place so the golden harness (`status_log_goldens.rs`), the
+//! parity harness and the in-process conflict test each consume one builder
+//! rather than duplicating state construction. `build_states` returns the
+//! states that carry committed goldens; the cap and bookmark states drive
+//! focused assertions and carry no golden, to keep the golden set
+//! branch-stable.
 
 use std::collections::BTreeMap;
-use std::env;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use tempfile::TempDir;
-
+use crate::family::Family;
+use crate::family::PrivateBuild;
+use crate::family::SharedFamily;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
 use crate::status_log_manifest::StatusLogManifest;
 use crate::Error;
 
-/// Names the root of a status/log state set built by an earlier step, for a
-/// caller inside the shadow window that cannot build one itself.
-pub const STATES_ROOT_VARIABLE: &str = "ACCELERATOR_ZERO_SPAWN_STATUS_LOG";
+/// The state whose hostile config proves a read spawns nothing; it carries no
+/// golden.
+pub const ADVERSARIAL_STATE: &str = "adversarial-git";
 
 fn non_utf8(path: &Path) -> Error {
     Error::message(format!("non-utf8 path: {}", path.display()))
@@ -463,7 +464,7 @@ pub fn build_adversarial_state(
     env: &Hermetic,
     states: &mut BTreeMap<&'static str, PathBuf>,
 ) -> Result<(), Error> {
-    let adversarial = work.join("adversarial-git");
+    let adversarial = work.join(ADVERSARIAL_STATE);
     fs::create_dir_all(&adversarial)?;
     env.git(&["init", "--quiet"], &adversarial)?;
     fs::write(adversarial.join("tracked.dat"), "data\n")?;
@@ -490,13 +491,13 @@ pub fn build_adversarial_state(
     // it, and a worktree edit so the tracked one is re-hashed.
     fs::write(adversarial.join("untracked.dat"), "more\n")?;
     fs::write(adversarial.join("tracked.dat"), "data\nchanged\n")?;
-    states.insert("adversarial-git", adversarial);
+    states.insert(ADVERSARIAL_STATE, adversarial);
 
     Ok(())
 }
 
-/// The status/log states beneath a caller-supplied root, adopted inside the
-/// zero-spawn shadow window and built (with real git/jj) outside it.
+/// The status/log states beneath one base: the run's shared build, or a
+/// private build in a workbench.
 #[derive(Debug)]
 pub struct States {
     pub base: PathBuf,
@@ -504,21 +505,6 @@ pub struct States {
 }
 
 impl States {
-    /// Adopts a state set already built beneath `base`, or builds one there.
-    ///
-    /// Adoption needs neither `git` nor `jj`, so a CI step builds the states
-    /// while both are reachable and this consumes them after they are shadowed.
-    ///
-    /// # Errors
-    ///
-    /// When the manifest is unreadable or malformed, or a builder fails.
-    pub fn build_or_adopt(base: &Path) -> Result<Self, Error> {
-        if StatusLogManifest::exists_in(base) {
-            return Self::adopt(base);
-        }
-        Self::build_for_sharing(base)
-    }
-
     /// Builds the full set beneath `base`, refusing a base inside a checkout
     /// before its hermetic environment writes anything there.
     ///
@@ -570,28 +556,43 @@ impl States {
         })
     }
 
-    fn adopt(base: &Path) -> Result<Self, Error> {
-        let base = base.canonicalize()?;
-        let StatusLogManifest { states } = StatusLogManifest::read(&base)?;
-        Ok(Self { base, states })
+    /// Every state that carries a committed golden, in key order.
+    pub fn with_goldens(&self) -> impl Iterator<Item = (&str, &Path)> {
+        self.states
+            .iter()
+            .filter(|(key, _)| key.as_str() != ADVERSARIAL_STATE)
+            .map(|(key, path)| (key.as_str(), path.as_path()))
+    }
+
+    /// The directory of the state keyed `key`.
+    ///
+    /// # Errors
+    ///
+    /// When no state carries that key.
+    pub fn get(&self, key: &str) -> Result<&Path, Error> {
+        self.states
+            .get(key)
+            .map(PathBuf::as_path)
+            .ok_or_else(|| Error::message(format!("no state keyed {key}")))
     }
 }
 
-/// Where the status/log states should live: a caller-supplied root when one is
-/// named, otherwise a temp directory the returned guard owns.
-///
-/// # Errors
-///
-/// When the temp directory cannot be created.
-pub fn states_root() -> Result<(Option<TempDir>, PathBuf), Error> {
-    match env::var(STATES_ROOT_VARIABLE) {
-        Ok(root) if !root.is_empty() => Ok((None, PathBuf::from(root))),
-        _ => {
-            let guard = tempfile::Builder::new()
-                .prefix("vcs-status-log-")
-                .tempdir()?;
-            let path = guard.path().to_path_buf();
-            Ok((Some(guard), path))
-        }
+impl SharedFamily for States {
+    const FAMILY: Family = Family::StatusLog;
+
+    fn adopt(tree: &Path) -> Result<Self, Error> {
+        let base = tree.canonicalize().map_err(|error| {
+            Error::message(format!("{}: {error}", tree.display()))
+        })?;
+        let StatusLogManifest { states } = StatusLogManifest::read(&base)?;
+        Ok(Self { base, states })
+    }
+
+    fn build_privately(
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        Self::build_with(directory, hermetic)
     }
 }
