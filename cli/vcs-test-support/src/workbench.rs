@@ -149,6 +149,9 @@ impl Workbench {
     /// Adopts the family's shared tree when the run handed one over, and
     /// otherwise builds the family privately in this workbench.
     ///
+    /// Treat the fixture as read-only: an adopted tree is shared by every
+    /// test in the run, so write scratch files under [`Self::path`] instead.
+    ///
     /// # Errors
     ///
     /// When the workbench already holds a fixture, the handed tree is missing
@@ -190,6 +193,9 @@ impl Workbench {
         })
     }
 
+    /// The run's matrix, shared with every other test: treat it as read-only
+    /// and write scratch files under [`Self::path`].
+    ///
     /// # Errors
     ///
     /// As [`Self::shared`].
