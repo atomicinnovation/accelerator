@@ -5,7 +5,7 @@ title: "Build the VCS Test Fixtures Once per Test Run Implementation Plan"
 date: "2026-11-18T19:51:03+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0365"
 parent: "work-item:0365"
 derived_from: ["codebase-research:2026-11-18-0365-build-the-vcs-test-fixtures-once-per-test-run"]
@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T00:40:07+00:00"
+last_updated: "2026-11-19T01:22:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -407,6 +407,8 @@ impl FixtureLog {
     pub fn at(path: impl Into<PathBuf>) -> Self;
     pub fn disabled() -> Self;
     pub fn from_environment() -> Self;
+    pub fn from_value(value: Option<String>) -> Self;
+    pub fn location(&self) -> Option<&Path>;
     pub fn record(&self, event: &Event<'_>) -> Result<(), Error>;
 }
 
@@ -475,7 +477,9 @@ nothing it records reaches a run's log.
   to the empty string is treated as unset.
 - **`from_environment` reads the process.** One test checks that
   `Handover::from_environment()` is `from_variables` over `std::env::var`,
-  by setting a variable no run uses.
+  by setting `ACCELERATOR_SHARED_WORKBENCHES` in its own process. A run
+  does set that variable, but nextest gives each test its own process, so
+  the override reaches no other test.
 - **One fixture per workbench.** A workbench hands out at most one fixture.
   A second `shared()` call on the same workbench fails, naming what it holds
   and what was asked for: `this workbench already holds the matrix
@@ -486,7 +490,10 @@ nothing it records reaches a run's log.
 - **Cleanup.** Dropping the workbench removes its directory.
 
 **File**: `cli/vcs-test-support/src/family.rs`
-**Changes**: Add `Family::handover_variable(self) -> &'static str`.
+**Changes**: Add `Family::handover_variable(self) -> &'static str`,
+`Family::ALL` (which `Handover::from_variables` iterates), and `Display`
+for `Family` and `Fixtures` (`the matrix`, `the private sets`), which the
+one-fixture error uses.
 
 **File**: `cli/vcs-test-support/src/handover.rs` (new)
 
@@ -574,25 +581,26 @@ The workbench directory's prefix is `vcs-workbench-`, so the goldens' existing
 
 - Remove `MATRIX_ROOT_VARIABLE`, `matrix_root` and `build_or_adopt`
   (`:23-57,99-116`), along with the module doc's references to a CI job.
-- Split `build_in` into `build_with(base, env)`, which builds with a
-  `Hermetic` it is given, and `build_in(base)`, which roots one at `base`
-  and calls `build_with`. `build_in` runs `assert_no_repository_ancestor`
-  before it roots its `Hermetic`, as it does today (`fixtures.rs:169-171`),
-  so a refused base gets nothing written into it.
-- Add `pub fn build_for_sharing(base) -> Result<Self, Error>`. It creates
-  `base` if it is missing (`assert_no_repository_ancestor` canonicalises,
-  so the base must exist), then calls `build_in` and writes the manifest.
+- Replace `build_in` with `build_with(base, env)`, which builds with a
+  `Hermetic` it is given and runs `assert_git_is_recent_enough`.
+  `Workbench::with` runs `assert_no_repository_ancestor` on its directory
+  before it roots its `Hermetic`, so a refused workbench gets nothing
+  written into it.
+- `build_in(base)` and `build_for_sharing(base)` are added in Phase 2, with
+  the shared build that first calls them. Added here, they would have no
+  caller, and `warnings = "deny"` makes an unused `pub(crate)` function an
+  error.
 - Extract the manifest into a `Manifest` value
   (`cli/vcs-test-support/src/manifest.rs`) with `write(base)` and
-  `read(base)`. Both families use it.
+  `read(base)`. It holds the matrix's `Fixture` rows (key, shape, start);
+  Phase 4 widens it for the status-log set.
 - Make `adopt` public. It now fails when `fixtures.tsv` is missing, naming
   the base.
 - Implement `SharedFamily for Matrix`: `adopt` is `Matrix::adopt`, and
   `build_privately` is `Matrix::build_with`.
-- Once §4 has moved every consumer onto the workbench, make `build_in`,
-  `build_with` and `build_for_sharing` `pub(crate)`. Only the workbench and
-  the shared build call them, so the compiler stops any test building the
-  matrix behind the log's back.
+- Once §4 has moved every consumer onto the workbench, make `build_with`
+  `pub(crate)` and remove `build_in`. Only the workbench calls the builder,
+  so the compiler stops any test building the matrix behind the log's back.
 
 **File**: `cli/vcs-test-support/tests/matrix_sharing.rs` (new). These tests
 run no git:
@@ -656,8 +664,10 @@ same use elsewhere fails.
 
 #### Manual Verification
 
-- [x] `cargo nextest list` shows the same names and count for `classify`,
-      `queries`, `matrix` and `scrub` as at `287b6279`.
+- [ ] `cargo nextest list` shows the same names and count for `classify`,
+      `queries`, `matrix` and `scrub` as at `287b6279`. The source-level
+      `#[test]` names already match (6, 6, 3 and 6); the listing itself, at
+      both revisions, has not been compared yet.
 
 ---
 
@@ -723,6 +733,18 @@ impl SharedBuildRequest {
 ```
 
 `build` is `build_with` over each family's `build_for_sharing`.
+
+**File**: `cli/vcs-test-support/src/fixtures.rs`
+**Changes**: Add the two builders Phase 1 deferred, both `pub(crate)`:
+- `Matrix::build_in(base)` runs `assert_no_repository_ancestor` before it
+  roots a `Hermetic` at `base`, so a refused base gets nothing written into
+  it, then calls `build_with`;
+- `Matrix::build_for_sharing(base)` creates `base` if it is missing
+  (`assert_no_repository_ancestor` canonicalises, so the base must exist),
+  calls `build_in` and writes the manifest through `Manifest`.
+
+The "real build error" test above drives `build_in`'s refusal, and the
+build step's tests drive `build_for_sharing`.
 
 - Each family's flag is `--<family>`, taken from `Family`.
 - `build` builds each requested family on its own scoped thread, using
@@ -1936,7 +1958,12 @@ builder.
   workspace store, record the workspace there in a form relative to the
   repository, or with a path jj writes itself, so that the test goes
   green.
-- **The full-set builder.** Mirror the matrix's split. Extract from
+- **The manifest.** `Manifest` holds the matrix's `Fixture` rows (key,
+  shape, start), while the status-log set records a key and a path per
+  state. Widen it so both families write and read their manifest through
+  it, keeping the matrix's `fixtures.tsv` format unchanged.
+- **The full-set builder.** Mirror the matrix's split (Phase 1's
+  `build_with`, Phase 2's `build_in` and `build_for_sharing`). Extract from
   `States::build_or_adopt`:
   - `States::build_with(base, env)`, which builds the full set and the
     adversarial state with the `Hermetic` it is given, and no manifest;
