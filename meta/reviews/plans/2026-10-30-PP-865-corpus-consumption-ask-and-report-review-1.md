@@ -1,12 +1,12 @@
 ---
 type: "plan-review"
-id: "2026-10-30-0281-corpus-consumption-ask-and-report-review-1"
+id: "2026-10-30-PP-865-corpus-consumption-ask-and-report-review-1"
 title: "Plan Review: Corpus Consumption: Ask and Report Implementation Plan"
 date: "2026-10-30T02:09:25+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-10-30-0281-corpus-consumption-ask-and-report"
+target: "plan:2026-10-30-PP-865-corpus-consumption-ask-and-report"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "usability", "compatibility", "standards"]

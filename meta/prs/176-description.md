@@ -6,9 +6,9 @@ date: "2026-11-01T21:06:04+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0281"
-parent: "work-item:0281"
-relates_to: ["work-item:0121", "work-item:0284", "work-item:0330"]
+work_item_id: "PP-865"
+parent: "work-item:PP-865"
+relates_to: ["work-item:PP-22", "work-item:PP-868", "work-item:PP-916"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/176"
 pr_number: 176
 tags: ["research", "research-topic", "ask", "report", "eval"]
@@ -110,10 +110,10 @@ refine loop that the build verbs left open.
 
 ## Context
 
-- Work item: `meta/work/0281-corpus-consumption-ask-and-report.md`
-- Plan: `meta/plans/2026-10-30-0281-corpus-consumption-ask-and-report.md`
-- Research: `meta/research/codebase/2026-10-29-0281-corpus-consumption-ask-and-report.md`
-- Validation: `meta/validations/2026-10-30-0281-corpus-consumption-ask-and-report-validation.md`
+- Work item: `meta/work/PP-865-corpus-consumption-ask-and-report.md`
+- Plan: `meta/plans/2026-10-30-PP-865-corpus-consumption-ask-and-report.md`
+- Research: `meta/research/codebase/2026-10-29-PP-865-corpus-consumption-ask-and-report.md`
+- Validation: `meta/validations/2026-10-30-PP-865-corpus-consumption-ask-and-report-validation.md`
   (result: pass)
 - Review: `meta/reviews/prs/176-review-1.md` (verdict: comment). Every
   inline thread is answered and resolved, and the body's findings are
