@@ -635,15 +635,15 @@ Write or Edit to `<set>/.conduct-run.json` is blocked as `OutsideScope`.
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test -p research conduct::`
-- [ ] Adapter tests pass: `cargo test -p research-adapters conduct::ledger`
-- [ ] Outstanding tests pass: `cargo test -p research-cli --test topic_outstanding`
-- [ ] Public API snapshot matches (cargo-public-api task in `tasks/README.md`)
-- [ ] Full suite green: `mise run`
+- [x] Domain tests pass: `cargo test -p research conduct::`
+- [x] Adapter tests pass: `cargo test -p research-adapters conduct::ledger`
+- [x] Outstanding tests pass: `cargo test -p research-cli --test topic_outstanding`
+- [x] Public API snapshot matches (cargo-public-api task in `tasks/README.md`)
+- [x] Full suite green: `mise run`
 
 #### Manual Verification
 
-- [ ] A `.conduct-run.json` from a live `outstanding --start --depth 2`
+- [x] A `.conduct-run.json` from a live `outstanding --start --depth 2`
       shows `offered_nodes` matching the plan's node entries.
 
 ---
