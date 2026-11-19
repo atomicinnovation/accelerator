@@ -1784,6 +1784,50 @@ fn end_run_reports_an_unreadable_ledger_with_its_code() -> Result<(), TestError>
 }
 
 #[test]
+fn continuing_reports_an_unreadable_ledger_with_its_code(
+) -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = a_set()?;
+    fs::write(project.ledger(), "{}")?;
+    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o000))?;
+
+    let output = project.outstanding_with(&["--run", "r1"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let expected = format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: ",
+        project.ledger().display()
+    );
+    assert!(stderr.starts_with(&expected), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn starting_reports_an_unreadable_ledger_with_its_code() -> Result<(), TestError>
+{
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = a_set()?;
+    fs::write(project.ledger(), "{}")?;
+    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o000))?;
+
+    let output = project.outstanding_with(&["--start"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let expected = format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: ",
+        project.ledger().display()
+    );
+    assert!(stderr.contains(&expected), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn a_malformed_run_or_spawned_exits_1() -> Result<(), TestError> {
     let project = a_set()?;
     let cases: [(&[&str], String); 5] = [
