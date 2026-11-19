@@ -2,11 +2,13 @@
 //! claimed, and what it remembers.
 
 use std::fmt;
+use std::num::NonZeroU32;
 
 use crate::conduct::memory::RunMemory;
 use crate::conduct::memory::Withheld;
 use crate::conduct::observed::Observed;
 use crate::conduct::offered_nodes::NodeContext;
+use crate::conduct::search_budget::node_search_budget;
 use crate::conduct::search_budget::SearchBudgets;
 use crate::conduct::spawn::SpawnRef;
 use crate::conduct::window::Window;
@@ -220,6 +222,15 @@ impl RunLedger {
         self.search_budgets.as_ref()
     }
 
+    #[must_use]
+    pub fn search_budget(
+        &self,
+        profile: &str,
+        level: u32,
+    ) -> Option<NonZeroU32> {
+        node_search_budget(self.search_budgets.as_ref(), profile, level)
+    }
+
     /// The context the node at `at` was first offered with, while the run's
     /// pending batch still offers it.
     #[must_use]
@@ -248,6 +259,7 @@ mod tests {
     use crate::conduct::observed::Observed;
     use crate::conduct::offered_nodes::NodeContext;
     use crate::conduct::search_budget::SearchBudgets;
+    use crate::conduct::search_budget::UNSIZED_NODE_BUDGET;
     use crate::conduct::search_budget::SearchCap;
     use crate::conduct::spawn::SpawnRef;
     use crate::conduct::window::test_support::missing;
@@ -625,6 +637,21 @@ mod tests {
             recorded(started().budgeting_searches(budgets()), &["01-a"]);
         let ledger = recorded(continued(ledger, Some(0)), &["02-b"]);
         assert_eq!(ledger.search_budgets(), Some(&budgets()));
+    }
+
+    #[test]
+    fn a_web_nodes_search_budget_is_its_levels_stored_budget() {
+        let ledger = started().budgeting_searches(budgets());
+        assert_eq!(ledger.search_budget("web", 2), NonZeroU32::new(2));
+        assert_eq!(ledger.search_budget("openalex", 2), None);
+    }
+
+    #[test]
+    fn a_ledger_without_budgets_leaves_a_web_node_unsized() {
+        assert_eq!(
+            started().search_budget("web", 3),
+            Some(UNSIZED_NODE_BUDGET)
+        );
     }
 
     fn withheld(profiles: &[&str]) -> Withheld {

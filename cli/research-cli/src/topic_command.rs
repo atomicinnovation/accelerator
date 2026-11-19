@@ -28,7 +28,6 @@ use research::conduct::observed::Observed;
 use research::conduct::replaced_run::Leftover;
 use research::conduct::replaced_run::Recovery;
 use research::conduct::replaced_run::ReplacedRun;
-use research::conduct::search_budget::searches;
 use research::conduct::search_budget::unsearched_tree;
 use research::conduct::search_budget::SearchBudgets;
 use research::conduct::spawn::SpawnRef;
@@ -947,9 +946,7 @@ impl PlanOutput<'_> {
         outstanding: &OutstandingPair,
         level: u32,
     ) -> Option<NonZeroU32> {
-        let budgets = self.ledger?.search_budgets()?;
-        searches(&outstanding.pair.profile)
-            .then(|| budgets.at(level).unwrap_or(NonZeroU32::MIN))
+        self.ledger?.search_budget(&outstanding.pair.profile, level)
     }
 
     fn node(
