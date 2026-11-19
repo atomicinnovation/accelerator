@@ -30,15 +30,6 @@ const MIGRATIONS_BEFORE_0007: [&str; 6] = [
     "0006-canonicalise-work-item-id-and-author",
 ];
 
-const MIGRATIONS_FROM_0007: [&str; 6] = [
-    MIGRATION_0007,
-    "0008-canonical-frontmatter-quoting",
-    "0009-split-work-key-from-tracker-scope-key",
-    "0010-strip-research-title-prefix",
-    "0011-ignore-machine-local-sync-state",
-    "0012-backfill-work-item-tags",
-];
-
 pub struct Outcome {
     pub stdout: String,
     pub stderr: String,
@@ -102,10 +93,25 @@ pub fn work_item(id: &str, title: &str, body: &str) -> String {
 }
 
 pub fn mark_all_migrations_applied(root: &Path) -> Result<(), TestError> {
-    let ledger: String = MIGRATIONS_BEFORE_0007
+    mark_registered_migrations_applied(root, |_| true)
+}
+
+pub fn mark_all_migrations_applied_except(
+    root: &Path,
+    pending: &str,
+) -> Result<(), TestError> {
+    mark_registered_migrations_applied(root, |id| id != pending)
+}
+
+fn mark_registered_migrations_applied(
+    root: &Path,
+    applied: impl Fn(&str) -> bool,
+) -> Result<(), TestError> {
+    let ledger: String = migrate::registry::registry()
         .iter()
-        .chain(MIGRATIONS_FROM_0007.iter())
-        .flat_map(|id| [*id, "\n"])
+        .map(migrate::registry::MigrationEntry::id)
+        .filter(|id| applied(id))
+        .flat_map(|id| [id, "\n"])
         .collect();
     write(root, ".accelerator/state/migrations-applied", &ledger)
 }
