@@ -100,7 +100,7 @@ class FixtureRun:
         self.lock.release()
         if not removed:
             raise SharedFixturesError(
-                f"shared VCS fixtures: could not remove {self.directory}; "
+                f"could not remove {self.directory}; "
                 "the next run's sweep removes it"
             )
 
@@ -211,12 +211,12 @@ class FixtureRuns:
         except FileExistsError:
             os.close(descriptor)
             raise SharedFixturesError(
-                f"shared VCS fixtures: the run lock {lock} already exists"
+                f"the run lock {lock} already exists"
             ) from None
         except OSError as error:
             os.close(descriptor)
             raise SharedFixturesError(
-                f"shared VCS fixtures: cannot lock a run under {self._root}: "
+                f"cannot lock a run under {self._root}: "
                 f"{error}; the temp filesystem must support flock and hard "
                 "links; set TMPDIR to one that does"
             ) from error
@@ -299,8 +299,7 @@ class HoldPoint:
             return None
         if environ.get("CI"):
             raise SharedFixturesError(
-                f"shared VCS fixtures: {HOLD_VARIABLE} is set, but it is "
-                "never honoured in CI"
+                f"{HOLD_VARIABLE} is set, but it is never honoured in CI"
             )
         return cls(Path(directory))
 
@@ -311,7 +310,7 @@ class HoldPoint:
         while not (self.directory / "release").exists():
             if time.monotonic() >= deadline:
                 raise SharedFixturesError(
-                    f"shared VCS fixtures: nothing released {self.directory} "
+                    f"nothing released {self.directory} "
                     f"within {self.timeout:g} s"
                 )
             time.sleep(self.poll)
@@ -355,8 +354,9 @@ def _refuse_a_root_inside_a_checkout(root: Path) -> None:
     for ancestor in root.absolute().parents:
         if (ancestor / ".git").exists() or (ancestor / ".jj").exists():
             raise SharedFixturesError(
-                f"the shared root {root} lies inside a checkout; set TMPDIR "
-                "to a writable temp directory"
+                f"the shared root {root} lies inside the checkout at "
+                f"{ancestor}; set TMPDIR to a directory outside any git or jj "
+                "checkout"
             )
 
 

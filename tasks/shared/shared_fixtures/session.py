@@ -31,19 +31,6 @@ _LOGS_KEPT = 20
 type Build = Callable[[Mapping[Family, Path], Path], None]
 
 
-@dataclasses.dataclass(frozen=True)
-class RunOutcome:
-    body_failure: str | None
-    problems: Sequence[str]
-
-    def failure(self) -> str | None:
-        lines = [
-            *([self.body_failure] if self.body_failure else []),
-            *self.problems,
-        ]
-        return "\n".join(lines) or None
-
-
 class SharedBuildError(SharedFixturesError): ...
 
 
@@ -141,7 +128,7 @@ class SharedFixtureSession:
         try:
             build(trees, log.path)
         except SharedFixturesError as error:
-            raise SharedBuildError(str(error)) from error
+            raise SharedBuildError(*error.problems) from error
         built = time.monotonic()
         for family, tree in trees.items():
             progress.built[family] = self._digest(tree)
@@ -165,18 +152,12 @@ class SharedFixtureSession:
             problems = self._clean_up(progress, runs, filtered, failure)
         if failure is not None and not problems:
             raise failure
-        outcome = RunOutcome(
-            body_failure=None
-            if failure is None
-            else str(failure) or repr(failure),
-            problems=problems,
-        )
-        message = outcome.failure()
-        if message is None:
+        if not problems:
             return
+        joined = None if failure is None else str(failure) or repr(failure)
         if isinstance(failure, SharedBuildError):
-            raise SharedBuildError(message) from failure
-        raise SharedFixturesError(message) from failure
+            raise SharedBuildError(*problems, failure=joined) from failure
+        raise SharedFixturesError(*problems, failure=joined) from failure
 
     def _clean_up(
         self,
@@ -192,7 +173,7 @@ class SharedFixtureSession:
         try:
             progress.run.close()
         except Exception as error:  # noqa: BLE001
-            problems.append(str(error))
+            problems.extend(_problems_of(error))
         removed = time.monotonic()
         try:
             self._logs_store(self._logs).prune(
@@ -265,3 +246,9 @@ class SharedFixtureSession:
 
     def _say(self, message: str) -> None:
         print(f"shared VCS fixtures: {message}", file=self._out, flush=True)
+
+
+def _problems_of(error: Exception) -> Sequence[str]:
+    if isinstance(error, SharedFixturesError):
+        return error.problems
+    return (str(error),)

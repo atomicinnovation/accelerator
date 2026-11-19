@@ -196,12 +196,14 @@ class TestOpeningTheRoot:
         (tmp_path / "checkout" / marker).mkdir(parents=True)
         root = tmp_path / "checkout" / "shared"
 
-        with pytest.raises(
-            SharedFixturesError,
-            match="lies inside a checkout; set TMPDIR to a writable temp",
-        ):
+        with pytest.raises(SharedFixturesError) as refusal:
             FixtureRuns.open(root)
 
+        assert refusal.value.problems == (
+            f"the shared root {root} lies inside the checkout at "
+            f"{tmp_path / 'checkout'}; set TMPDIR to a directory outside "
+            "any git or jj checkout",
+        )
         assert not root.exists()
 
     def test_a_root_another_run_creates_first_is_checked_and_used(

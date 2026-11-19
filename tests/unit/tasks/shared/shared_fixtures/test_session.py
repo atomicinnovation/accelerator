@@ -26,7 +26,6 @@ from tasks.shared.shared_fixtures.families import (
 from tasks.shared.shared_fixtures.log import FixtureLogs
 from tasks.shared.shared_fixtures.runs import FixtureRuns, HoldPoint
 from tasks.shared.shared_fixtures.session import (
-    RunOutcome,
     SharedBuildError,
     SharedFixtureSession,
 )
@@ -260,28 +259,11 @@ class TestNothingToShare:
         assert "  matrix: 0 shared builds" in harness.printed()
 
 
-class TestRunOutcome:
-    def test_a_clean_run_has_no_failure(self):
-        assert RunOutcome(None, ()).failure() is None
-
-    def test_a_body_failure_alone_is_its_message(self):
-        assert RunOutcome("tests failed", ()).failure() == "tests failed"
-
-    def test_problems_alone_are_their_lines(self):
-        assert RunOutcome(None, ("a", "b")).failure() == "a\nb"
-
-    def test_a_body_failure_leads_its_problems(self):
-        assert (
-            RunOutcome("tests failed", ("a", "b")).failure()
-            == "tests failed\na\nb"
-        )
-
-
 class TestAFailingBuild:
     @pytest.fixture(autouse=True)
     def failing_build(self, harness: Harness) -> None:
         def build(trees: Mapping[Family, Path], log: Path) -> None:
-            raise SharedFixturesError("shared VCS fixtures: matrix: it broke")
+            raise SharedFixturesError("matrix: it broke")
 
         harness.build = build
 
@@ -399,7 +381,7 @@ class TestAnInterruptAsInvokeReportsIt:
     def test_during_the_build_ends_as_an_interrupt(self, harness: Harness):
         def interrupted_build(trees: Mapping[Family, Path], log: Path) -> None:
             harness.arrived = True
-            raise SharedFixturesError("shared VCS fixtures: matrix: killed")
+            raise SharedFixturesError("matrix: killed")
 
         harness.build = interrupted_build
 
@@ -454,9 +436,9 @@ class TestAFailingCleanupStep:
         with pytest.raises(SharedFixturesError) as failure:
             harness.run(_failing_cli_tests, runs=_runs_that_cannot_remove)
 
-        message = str(failure.value)
-        assert message.startswith("nextest: cli tests failed\n")
-        assert "could not remove" in message
+        [body, problem] = str(failure.value).splitlines()
+        assert body == "nextest: cli tests failed"
+        assert problem.startswith("shared VCS fixtures: could not remove ")
         assert "Shared VCS fixtures (log:" in harness.printed()
 
     def test_a_pruning_failure_is_only_a_warning(self, harness: Harness):

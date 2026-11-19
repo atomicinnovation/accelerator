@@ -329,9 +329,7 @@ def _building_with(
             replace_env=True,
         )
         if result.exited != 0:
-            raise SharedFixturesError(
-                f"shared VCS fixtures: {result.stderr.strip()}"
-            )
+            raise SharedFixturesError(result.stderr.strip())
 
     return build
 
