@@ -5,12 +5,14 @@ Rust enforcement gates are wired into the aggregate `check` task, so a gate
 cannot be silently unwired from the read-only CI-mirror.
 """
 
+import re
 import tomllib
 from pathlib import Path
 
 import pytest
 
 from tasks.shared.dev_builds import DEV_BUILDS
+from tasks.test import cli as test_cli
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
@@ -427,4 +429,22 @@ def test_the_vitest_suite_waits_out_the_rust_compiling_unit_lanes(mise):
     assert waits_for >= _RUST_COMPILING_UNIT_LANES, (
         "test:unit:frontend runs alongside cargo; on a small runner Vitest's "
         "fixed 60s worker RPC timeout then fails a fully passing suite"
+    )
+
+
+_FILTER_FLAG = re.compile(
+    r'flag "--filter <(?P<value>[a-z]+)>" help="(?P<help>[^"]*)"'
+)
+_FORWARDS_FILTER = '${usage_filter+--filter "$usage_filter"}'
+
+
+def test_the_cli_lane_declares_filter_with_the_invoke_task_s_help(mise):
+    [flag] = _FILTER_FLAG.finditer(mise["tasks"]["test:unit:cli"]["usage"])
+
+    assert flag["help"] == test_cli._FILTER_HELP
+
+
+def test_the_cli_lane_forwards_filter_only_when_it_is_given(mise):
+    assert mise["tasks"]["test:unit:cli"]["run"] == (
+        f"invoke test.cli.run {_FORWARDS_FILTER}"
     )

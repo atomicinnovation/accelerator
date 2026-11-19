@@ -26,6 +26,10 @@ CAPTURED_BINARIES = frozenset(
 )
 
 
+def _everything(_binary: str, _name: str) -> bool:
+    return True
+
+
 def captured_listing(matching: Callable[[str, str], bool]) -> str:
     """The captured nextest listing as if filtered to what ``matching`` admits.
 
@@ -74,8 +78,8 @@ class FakeSharedFixtures:
     """Answers the builder and nextest as a passing run would.
 
     The builder creates each tree it is asked for and logs its shared build;
-    nextest logs one adoption by every consumer of each handed tree. Every
-    other command goes to ``respond``.
+    nextest logs one adoption by every consumer of each handed tree, and
+    lists the captured tests. Every other command goes to ``respond``.
     """
 
     def __init__(
@@ -84,13 +88,17 @@ class FakeSharedFixtures:
         *,
         builder: MagicMock | None = None,
         nextest: MagicMock | Callable[[], MagicMock] | None = None,
+        listing: MagicMock | None = None,
     ) -> None:
         self._respond = respond or self._listing_the_builder
         self._builder = builder
         self._nextest = nextest
+        self._listing = listing or passed(captured_listing(_everything))
 
     def __call__(self, command: str, **kwargs) -> MagicMock:
         environment = kwargs.get("env") or {}
+        if command.startswith("cargo nextest list"):
+            return self._listing
         if " --matrix " in command:
             return self._build(command, environment)
         if "nextest" in command:

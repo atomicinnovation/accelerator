@@ -79,6 +79,34 @@ The `lint:<language>` task naming requested by work item 0098 is satisfied by
 these `<component>:check` roll-ups, and its aggregate `lint` / `format`
 acceptance criteria by the family aggregates above.
 
+### Task options
+
+A test lane that takes `--filter` (or any other option) declares it in two
+places and forwards it between them:
+
+- Declare the flag in the mise task's `usage`, e.g.
+  `flag "--filter <filterset>" help="…"`. mise names the variable after the
+  flag's long name (`usage_filter`), not after its value placeholder.
+- Forward it with `${usage_filter+--filter "$usage_filter"}`. mise leaves the
+  variable unset when the flag is absent, so this set (not non-empty) form
+  passes `--filter ''` through to the task, which refuses it, rather than
+  silently running everything. The form survives values holding a space, `&`
+  or `'`.
+- Declare the option on the invoke task, with a trailing underscore when its
+  name is a Python builtin: invoke maps a `filter_` parameter to `--filter`.
+  Give it the same help as the mise flag.
+- Build the `Selection` through `selection_from(filter_)` in
+  `tasks/test/filters.py`, which turns an empty expression into a one-line
+  `Exit`. Every lane's tests include a `filter_=""` case.
+
+Once a task declares `usage`, mise refuses any undeclared word (exit 1)
+instead of appending it to `run`, and a task's `depends` never receive the
+flag. A roll-up that has only `depends` and no `run` (`test:unit`,
+`test:integration`, `test:e2e`, `test`) ignores extra arguments silently,
+even with an empty `usage`: `mise run test:unit --filter x` runs the whole
+roll-up unfiltered. A mise bump must re-check that `usage_<name>` is still
+named after the flag's long name and still unset when the flag is absent.
+
 ### Surviving thin shell
 
 The shell surface is two thin-wrapper files, enumerated in
@@ -260,9 +288,17 @@ running the rest of the suite would add a partial flow for little gain. To
 see the other tests while diagnosing, run `cargo nextest run` directly: with
 nothing handed over, each test builds its own fixtures and logs nothing.
 
+`mise run test:unit:cli --filter '<filterset>'` lists the selected tests with
+`cargo nextest list` first, then builds only the families whose consumer
+binaries have a selected test, and skips the coverage report, sweep and
+floor. A filter that selects no test, or that nextest cannot parse, fails
+before anything is built.
+
 A nextest bump must re-check that nextest still sets `NEXTEST_BINARY_ID` and
 `NEXTEST_TEST_NAME` for every test, because every event's test and binary
-come from them.
+come from them, and must recapture
+`tests/unit/tasks/fixtures/shared-fixtures/nextest-list.json` (and its
+`.version`), because filtered runs read that listing's schema.
 
 Two switches exist only as fault injection for checking the build step by
 hand. Neither is for CI.

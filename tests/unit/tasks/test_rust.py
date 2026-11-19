@@ -2,6 +2,7 @@ import contextlib
 import os
 import shlex
 import signal
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -28,6 +29,7 @@ from tasks.test import cli as test_cli
 from tests.unit.tasks.shared_fixture_doubles import (
     FakeSharedFixtures,
     builder_artefact,
+    captured_listing,
     failed,
     passed,
 )
@@ -147,11 +149,16 @@ REPORT = "cargo llvm-cov report"
 SHOW_ENV = "cargo llvm-cov show-env"
 UNIT_LISTING = "cargo test"
 _OUTPUTS = {REPORT: EXPORT, SHOW_ENV: BUILD_ENVIRONMENT, UNIT_LISTING: UNITS}
+CLASSIFY = "binary_id(vcs-adapters::classify)"
 _HANDOVER_VARIABLES = (
     Family.MATRIX.handover_variable,
     WORKBENCHES_VARIABLE,
     FIXTURE_LOG_VARIABLE,
 )
+
+
+def _only_classify(binary: str, _name: str) -> bool:
+    return binary == "vcs-adapters::classify"
 
 
 def _responding(
@@ -660,6 +667,191 @@ class TestTestUnitCli:
 
     def test_docstring_names_the_stale_binary_remedy(self):
         assert "cargo llvm-cov clean --workspace" in test_cli.run.body.__doc__
+
+    def _filtered_to(
+        self, lane: MagicMock, matching: Callable[[str, str], bool]
+    ) -> None:
+        lane.run.side_effect = FakeSharedFixtures(
+            _responding(), listing=passed(captured_listing(matching))
+        )
+
+    def test_the_option_is_named_filter(self):
+        [argument] = test_cli.run.get_arguments()
+
+        assert argument.names == ("filter", "f")
+
+    def test_an_unfiltered_run_lists_nothing(self, lane: MagicMock):
+        test_cli.run(lane)
+
+        assert not any("nextest list" in c for c in self._commands(lane))
+
+    def test_a_filtered_run_lists_then_builds_what_its_tests_consume(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        self._filtered_to(lane, _only_classify)
+
+        test_cli.run(lane, filter_=CLASSIFY)
+
+        listing, units, builder, tests = self._commands(lane)
+        assert listing == (
+            f"cargo nextest list {test_cli._MANIFEST} -E '{CLASSIFY}' "
+            "--message-format json"
+        )
+        assert units.startswith(UNIT_LISTING)
+        [executable, flag, _tree] = shlex.split(builder)
+        assert executable == str(build_dir / SHARED_FIXTURES)
+        assert flag == "--matrix"
+        assert (
+            tests == f"cargo nextest run {test_cli._MANIFEST} -E '{CLASSIFY}'"
+        )
+
+    def test_the_listing_leaves_nextest_s_own_errors_on_the_terminal(
+        self, lane: MagicMock
+    ):
+        self._filtered_to(lane, _only_classify)
+
+        test_cli.run(lane, filter_=CLASSIFY)
+
+        assert self._call(lane, "cargo nextest list").kwargs["hide"] == "out"
+
+    def test_a_filtered_instrumented_run_lists_in_the_instrumented_build(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        self._filtered_to(lane, _only_classify)
+
+        test_cli.run(lane, filter_=CLASSIFY)
+
+        clean, show_env, listing, units, builder, tests = self._commands(lane)
+        assert clean.startswith("cargo llvm-cov clean")
+        assert show_env.startswith(SHOW_ENV)
+        assert listing.startswith("cargo nextest list")
+        assert units.startswith(UNIT_LISTING)
+        assert builder.startswith(str(build_dir / SHARED_FIXTURES))
+        assert tests == (
+            f"cargo llvm-cov nextest {test_cli._MANIFEST} --no-report "
+            f"-E '{CLASSIFY}'"
+        )
+
+    def test_the_instrumented_listing_profiles_into_a_directory_it_removes(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        self._filtered_to(lane, _only_classify)
+
+        test_cli.run(lane, filter_=CLASSIFY)
+
+        environment = self._call(lane, "cargo nextest list").kwargs["env"]
+        profile_file = Path(environment["LLVM_PROFILE_FILE"])
+        assert profile_file.name == "list-%p.profraw"
+        assert not profile_file.parent.exists()
+        assert environment["RUSTC_WRAPPER"] == "/opt/bin/cargo-llvm-cov"
+        assert environment["CARGO_TARGET_DIR"] == str(build_dir.parent)
+
+    def test_a_filtered_instrumented_run_skips_the_report_sweep_and_floor(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        monkeypatch.setattr(
+            test_cli,
+            "COVERAGE_FLOOR",
+            CoverageFloor(dict.fromkeys(Metric, 100)),
+        )
+        self._filtered_to(lane, _only_classify)
+
+        test_cli.run(lane, filter_=CLASSIFY)
+
+        commands = self._commands(lane)
+        assert not any(c.startswith(REPORT) for c in commands)
+        assert sum(c.startswith(UNIT_LISTING) for c in commands) == 1
+        assert self._swept_nothing(build_dir)
+        assert (
+            "coverage: report, sweep and floor skipped for a filtered run"
+            in capsys.readouterr().out.splitlines()
+        )
+
+    def test_a_filter_selecting_no_consumer_builds_nothing(
+        self,
+        lane: MagicMock,
+        build_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        self._filtered_to(
+            lane, lambda binary, _name: binary == "vcs-adapters::detection"
+        )
+
+        test_cli.run(lane, filter_="binary_id(vcs-adapters::detection)")
+
+        assert not any(
+            c.startswith(str(build_dir / SHARED_FIXTURES))
+            for c in self._commands(lane)
+        )
+        assert (
+            "shared VCS fixtures: building nothing (no selected test "
+            "consumes a shared family)"
+        ) in capsys.readouterr().out.splitlines()
+        handover = self._call(lane, "cargo nextest run").kwargs["env"]
+        assert Family.MATRIX.handover_variable not in handover
+        assert WORKBENCHES_VARIABLE in handover
+        assert FIXTURE_LOG_VARIABLE in handover
+
+    def test_a_filter_selecting_no_tests_stops_before_any_fixture(
+        self, lane: MagicMock, tmp_path: Path
+    ):
+        self._filtered_to(lane, lambda _binary, _name: False)
+
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane, filter_="test(clasify)")
+
+        assert str(exc_info.value) == (
+            "--filter 'test(clasify)' selected no tests; see mise run "
+            "test:unit:cli --help for its syntax; test() matches test "
+            "names; binary_id() matches test binaries"
+        )
+        self._assert_no_fixture_was_touched(lane, tmp_path)
+
+    def test_a_failing_listing_stops_before_any_fixture(
+        self, lane: MagicMock, tmp_path: Path
+    ):
+        lane.run.side_effect = FakeSharedFixtures(
+            _responding(), listing=failed()
+        )
+
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane, filter_="test(classify")
+
+        assert str(exc_info.value) == (
+            "nextest: listing the tests for --filter 'test(classify' failed "
+            "(a malformed filterset or a build error); see nextest's output "
+            "above"
+        )
+        self._assert_no_fixture_was_touched(lane, tmp_path)
+
+    @pytest.mark.parametrize("filter_", ["", "  "])
+    def test_an_empty_filter_is_refused_before_anything_runs(
+        self, lane: MagicMock, filter_: str
+    ):
+        with pytest.raises(Exit, match=r"^--filter needs an expression$"):
+            test_cli.run(lane, filter_=filter_)
+
+        assert lane.run.call_count == 0
+
+    def _assert_no_fixture_was_touched(
+        self, lane: MagicMock, tmp_path: Path
+    ) -> None:
+        commands = self._commands(lane)
+        assert not any(SHARED_FIXTURES in c for c in commands)
+        assert not any("nextest run" in c for c in commands)
+        assert not any("llvm-cov nextest" in c for c in commands)
+        shared = tmp_path / "shared-fixtures"
+        assert not shared.exists() or not any(shared.iterdir())
 
 
 # ── The surface-pin coverage guard ────────────────────────────────────

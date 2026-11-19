@@ -2,7 +2,8 @@ import os
 import re
 import shlex
 import shutil
-from collections.abc import Callable, Mapping
+import tempfile
+from collections.abc import Callable, Collection, Mapping
 from pathlib import Path
 
 from invoke import Context, Exit, task
@@ -23,12 +24,15 @@ from tasks.shared.instrumented_build import (
     superseded_entries,
     superseded_incremental,
 )
+from tasks.shared.nextest_listing import NextestListing
 from tasks.shared.paths import (
     CLI_INSTRUMENTED_BUILD_DIR,
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
 )
 from tasks.shared.rust import coverage_enabled
+from tasks.shared.selection import Selection
+from tasks.shared.shared_fixtures.consumers import families_consumed
 from tasks.shared.shared_fixtures.errors import SharedFixturesError
 from tasks.shared.shared_fixtures.families import (
     FIXTURE_LOG_VARIABLE,
@@ -42,6 +46,7 @@ from tasks.shared.shared_fixtures.session import (
     SharedFixtureSession,
 )
 from tasks.shared.signals import UNWIND_SIGNALS, Interruption, unwind_then_defer
+from tasks.test.filters import selection_from
 
 # The visualiser server is a workspace member but keeps its own dedicated test
 # tasks (test:unit:visualiser for the lib across both feature configs,
@@ -65,6 +70,15 @@ _HANDOVER_VARIABLES = frozenset(
     }
 )
 _COMPILING = re.compile(r"^\s*Compiling ", re.MULTILINE)
+_MISE_TASK = "test:unit:cli"
+_NEXTEST_FILTER_SYNTAX = (
+    "test() matches test names; binary_id() matches test binaries"
+)
+_FILTER_HELP = (
+    "nextest filterset selecting the tests to run, "
+    "e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips "
+    "the coverage report, sweep and floor"
+)
 _RUN_DIRECTLY = (
     "no cli tests ran; to run them while diagnosing, use "
     f"cargo nextest run {_MANIFEST} (each test builds its own fixtures)"
@@ -75,8 +89,8 @@ COVERAGE_FLOOR = CoverageFloor(
 )
 
 
-@task
-def run(context: Context) -> None:
+@task(help={"filter_": _FILTER_HELP})
+def run(context: Context, filter_: str | None = None) -> None:
     """Run cli/ workspace tests (instrumented with coverage unless disabled).
 
     The instrumented run skips cargo-llvm-cov's full clean, which rebuilds
@@ -91,6 +105,8 @@ def run(context: Context) -> None:
     tasks/README.md. If instrumented binaries are suspected stale, run
     `cargo llvm-cov clean --workspace` and rerun.
     ACCELERATOR_COVERAGE=off drops to plain nextest for a faster loop.
+    A run given --filter lists the selected tests first, builds only the
+    shared fixtures they use, and skips the report, sweep and floor.
 
     The VCS fixture matrix is built once per run and handed to the tests;
     `cargo nextest run` run directly builds it in each test that needs it.
@@ -104,13 +120,14 @@ def run(context: Context) -> None:
     ACCELERATOR_TEST_SKIP_PERMISSION_TESTS turns that refusal into a skip,
     announced here because cargo captures the tests' own output.
     """
+    selection = selection_from(filter_)
     _announce_skipped_permission_tests()
     with unwind_then_defer(UNWIND_SIGNALS) as interruption:
         try:
             if coverage_enabled():
-                _run_instrumented(context, interruption)
+                _run_instrumented(context, selection, interruption)
             else:
-                _run_plain(context, interruption)
+                _run_plain(context, selection, interruption)
         except SharedBuildError as error:
             raise Exit(f"{error}\n{_RUN_DIRECTLY}", code=1) from error
         except SharedFixturesError as error:
@@ -125,32 +142,128 @@ def _announce_skipped_permission_tests() -> None:
         )
 
 
-def _run_plain(context: Context, interruption: Interruption) -> None:
+def _run_plain(
+    context: Context, selection: Selection, interruption: Interruption
+) -> None:
+    families = _families_to_share(context, selection, build_environment=None)
     builder = _locate_builder(context, build_environment=None)
     with _session(interruption).open(
-        SHARED_FAMILIES, _building_with(context, builder, {}), filtered=False
+        families,
+        _building_with(context, builder, {}),
+        filtered=selection.is_filtered,
     ) as handover:
-        _run_tests(context, f"cargo nextest run {_MANIFEST}", handover)
+        _run_tests(
+            context,
+            _command_line("cargo nextest run", _MANIFEST, selection.nextest()),
+            handover,
+        )
 
 
-def _run_instrumented(context: Context, interruption: Interruption) -> None:
+def _run_instrumented(
+    context: Context, selection: Selection, interruption: Interruption
+) -> None:
     _clear_previous_profile_data(context)
     build_environment = _instrumented_environment(context)
+    families = _families_to_share(context, selection, build_environment)
     builder = _locate_builder(context, build_environment)
     with _session(interruption).open(
-        SHARED_FAMILIES,
+        families,
         _building_with(
             context, builder, _profiling_beside_the_tests(build_environment)
         ),
-        filtered=False,
+        filtered=selection.is_filtered,
     ) as handover:
         _run_tests(
-            context, f"cargo llvm-cov nextest {_MANIFEST} --no-report", handover
+            context,
+            _command_line(
+                "cargo llvm-cov nextest",
+                _MANIFEST,
+                "--no-report",
+                selection.nextest(),
+            ),
+            handover,
         )
+    if selection.is_filtered:
+        print("coverage: report, sweep and floor skipped for a filtered run")
+        return
     totals = _report_totals(context)
     print(totals.summary_line())
     _sweep_superseded_artefacts(context, build_environment)
     _enforce_floor(totals)
+
+
+def _families_to_share(
+    context: Context,
+    selection: Selection,
+    build_environment: Mapping[str, str] | None,
+) -> Collection[Family]:
+    if not selection.is_filtered:
+        return SHARED_FAMILIES
+    listing = _list_selected_tests(context, selection, build_environment)
+    if listing.selects_nothing:
+        raise Exit(
+            f"{selection.nothing_selected(_MISE_TASK)}; "
+            f"{_NEXTEST_FILTER_SYNTAX}",
+            code=1,
+        )
+    return families_consumed(listing)
+
+
+def _list_selected_tests(
+    context: Context,
+    selection: Selection,
+    build_environment: Mapping[str, str] | None,
+) -> NextestListing:
+    """List what the filter selects, compiling the tests on the way.
+
+    Listing runs every test binary, so under coverage each one writes profile
+    data; it goes to a directory of its own and is thrown away, because only
+    the tests' run counts towards the totals.
+    """
+    with tempfile.TemporaryDirectory() as discarded_profiles:
+        result = context.run(
+            _command_line(
+                "cargo nextest list",
+                _MANIFEST,
+                selection.nextest(),
+                "--message-format json",
+            ),
+            warn=True,
+            hide="out",
+            pty=False,
+            **_running_in(
+                _profiling_into(Path(discarded_profiles), build_environment)
+            ),
+        )
+    if result.exited != 0:
+        raise Exit(
+            f"nextest: listing the tests for {selection.flag} failed (a "
+            "malformed filterset or a build error); see nextest's output "
+            "above",
+            code=1,
+        )
+    return NextestListing.parse(result.stdout)
+
+
+def _profiling_into(
+    directory: Path, build_environment: Mapping[str, str] | None
+) -> Mapping[str, str] | None:
+    if build_environment is None:
+        return None
+    return {
+        **build_environment,
+        "LLVM_PROFILE_FILE": str(directory / "list-%p.profraw"),
+    }
+
+
+def _running_in(
+    environment: Mapping[str, str] | None,
+) -> dict[str, Mapping[str, str]]:
+    return {} if environment is None else {"env": environment}
+
+
+def _command_line(*parts: str) -> str:
+    return " ".join(part for part in parts if part)
 
 
 def _profiling_beside_the_tests(
@@ -186,7 +299,7 @@ def _locate_builder(
         warn=True,
         hide="out",
         pty=False,
-        **({} if build_environment is None else {"env": build_environment}),
+        **_running_in(build_environment),
     )
     if listing.exited != 0:
         raise Exit("cargo: compiling the cli tests failed", code=1)
