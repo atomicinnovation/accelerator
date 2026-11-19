@@ -7,8 +7,8 @@ author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0333"
-parent: "work-item:0333"
-relates_to: ["work-item:0332"]
+parent: "work-item:PP-886"
+relates_to: ["work-item:PP-885"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/246"
 pr_number: 246
 tags: ["work", "work-cli", "migrate", "frontmatter"]
@@ -112,11 +112,11 @@ repair items already written without it.
 
 ## Context
 
-- Work item: `meta/work/0333-work-item-writers-omit-the-required-tags-field.md`
+- Work item: `meta/work/PP-886-work-item-writers-omit-the-required-tags-field.md`
   (Linear PP-886)
-- Plan: `meta/plans/2026-11-18-0333-work-item-writers-omit-the-required-tags-field.md`
+- Plan: `meta/plans/2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field.md`
 - Validation:
-  `meta/validations/2026-11-18-0333-work-item-writers-omit-the-required-tags-field-validation.md`
+  `meta/validations/2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field-validation.md`
 - Decisions: ADR-0033 (unified base frontmatter), ADR-0040
   (omit-when-empty emission)
 

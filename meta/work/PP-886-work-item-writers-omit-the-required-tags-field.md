@@ -211,4 +211,4 @@ Fix:
 
 - Related: 0332 (Push PR Descriptions to GitHub Unwrapped), the item
   that surfaced this
-- Review: `meta/reviews/work/0333-work-item-writers-omit-the-required-tags-field-review-1.md`
+- Review: `meta/reviews/work/PP-886-work-item-writers-omit-the-required-tags-field-review-1.md`
