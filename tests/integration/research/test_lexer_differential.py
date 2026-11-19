@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.guard_commands import permitted_command
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = REPO_ROOT / "cli/research/tests/fixtures"
 GUARD = Path(
@@ -39,7 +41,9 @@ GUARD = Path(
     )
 )
 
-PREFIX = "accelerator research fetch "
+_FETCH = permitted_command("FETCH")
+assert _FETCH.form == "Prefixed", "the fetch no longer takes arguments"
+PREFIX = _FETCH.text
 MEASURED_PREFIX = "./probe"
 PORT = "{port}"
 ESCAPES = {

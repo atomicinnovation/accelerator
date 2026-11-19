@@ -438,11 +438,26 @@ pub fn research::confinement::PathRejection::eq(&self, other: &research::confine
 impl core::fmt::Debug for research::confinement::PathRejection
 pub fn research::confinement::PathRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::confinement::PathRejection
+pub enum research::confinement::PermittedCommand
+pub research::confinement::PermittedCommand::Exactly(&'static str)
+pub research::confinement::PermittedCommand::Prefixed(&'static str)
+impl core::clone::Clone for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::clone(&self) -> research::confinement::PermittedCommand
+impl core::cmp::Eq for research::confinement::PermittedCommand
+impl core::cmp::PartialEq for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::eq(&self, other: &research::confinement::PermittedCommand) -> bool
+impl core::fmt::Debug for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::confinement::PermittedCommand
+impl core::marker::StructuralPartialEq for research::confinement::PermittedCommand
 pub enum research::confinement::Role
 pub research::confinement::Role::Composer
 pub research::confinement::Role::Researcher
 impl research::confinement::Role
 pub const fn research::confinement::Role::may_write(self, file: research::confinement::TopicFile) -> bool
+pub const fn research::confinement::Role::permitted_commands(self) -> &'static [research::confinement::PermittedCommand]
 impl core::clone::Clone for research::confinement::Role
 pub fn research::confinement::Role::clone(&self) -> research::confinement::Role
 impl core::cmp::Eq for research::confinement::Role
@@ -539,11 +554,13 @@ pub fn research::confinement::TopicsRelativePath::fmt(&self, f: &mut core::fmt::
 impl core::marker::StructuralPartialEq for research::confinement::TopicsRelativePath
 pub const research::confinement::DEFAULT_COMPOSER: &str
 pub const research::confinement::DEFAULT_RESEARCHER: &str
-pub const research::confinement::PERMITTED_PREFIX: &str
+pub const research::confinement::FETCH: research::confinement::PermittedCommand
+pub const research::confinement::FINDING_TEMPLATE: research::confinement::PermittedCommand
+pub const research::confinement::LEVEL_NOTE_TEMPLATE: research::confinement::PermittedCommand
 pub const research::confinement::STRICTER_THAN_MEASURED: [research::confinement::Construct; 2]
 pub trait research::confinement::TopicLayout
 pub fn research::confinement::TopicLayout::classify(&self, target: &research::confinement::TopicsRelativePath) -> core::option::Option<research::confinement::TopicFile>
-pub fn research::confinement::command_decision(command: &str) -> research::confinement::Decision
+pub fn research::confinement::command_decision(role: research::confinement::Role, command: &str) -> research::confinement::Decision
 pub fn research::confinement::confined_agent(call: &research::confinement::ToolCall, confinement: &research::confinement::Confinement) -> core::option::Option<research::confinement::ConfinedAgent>
 pub fn research::confinement::decide(action: &research::confinement::Action, agent: &research::confinement::ConfinedAgent, layout: &dyn research::confinement::TopicLayout) -> research::confinement::Decision
 pub mod research::sources

@@ -170,7 +170,46 @@ fn the_researcher_may_run_the_fetch() {
 fn the_researcher_may_run_nothing_else() {
     bash(&Project::new(), Some(RESEARCHER), "ls").assert_blocks(
         "E_RESEARCH_GUARD_COMMAND: accelerator:researcher may run only \
-         'accelerator research fetch …'",
+         'accelerator research fetch …', 'accelerator config template \
+         topic-research --kind finding' or 'accelerator config template \
+         topic-research --kind level-note'",
+    );
+}
+
+#[test]
+fn the_researcher_may_run_its_template_commands() {
+    for kind in ["finding", "level-note"] {
+        bash(
+            &Project::new(),
+            Some(RESEARCHER),
+            &format!(
+                "accelerator config template topic-research --kind {kind}"
+            ),
+        )
+        .assert_passes_silently();
+    }
+}
+
+#[test]
+fn a_template_command_must_match_exactly() {
+    bash(
+        &Project::new(),
+        Some(RESEARCHER),
+        "accelerator config template topic-research --kind finding \
+         --fail-safe",
+    )
+    .assert_blocks("E_RESEARCH_GUARD_COMMAND");
+}
+
+#[test]
+fn the_composer_may_run_no_template_command() {
+    bash(
+        &Project::new(),
+        Some(COMPOSER),
+        "accelerator config template topic-research --kind finding",
+    )
+    .assert_blocks(
+        "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no commands",
     );
 }
 
