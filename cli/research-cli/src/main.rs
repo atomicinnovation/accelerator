@@ -14,6 +14,7 @@ mod installed_profiles;
 mod ledger_wording;
 #[cfg(feature = "test-loopback")]
 mod loopback;
+mod node_command;
 mod plan_wording;
 mod render;
 mod report_path_command;
@@ -47,6 +48,7 @@ use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
 use research::sources::web::fetch::WebFailure;
+use research::topic::layout::note_ref::NoteRef;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
@@ -197,6 +199,9 @@ fn topic(action: TopicAction) -> ExitCode {
         TopicAction::EndRun { slug, run } => {
             topic_command::parse_run(&run).and_then(|run| end_run(&slug, &run))
         }
+        TopicAction::Node { slug, run, node } => topic_command::parse_run(&run)
+            .and_then(|run| Ok((run, node_command::parse_node(&node)?)))
+            .and_then(|(run, at)| offered_node(&slug, &run, &at)),
         TopicAction::ReportPath { slug, question } => {
             report_path_command::parse_question(&question)
                 .and_then(|question| report_path(&slug, &question))
@@ -266,6 +271,16 @@ fn end_run(slug: &str, run: &RunId) -> Result<Printed, String> {
         &RealFs,
         &FileCorpusStore::new(&set_root),
     )
+}
+
+fn offered_node(
+    slug: &str,
+    run: &RunId,
+    at: &NoteRef,
+) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
+    node_command::run_node(&set_root, run, at, &RealFs)
 }
 
 fn report_path(slug: &str, question: &str) -> Result<Printed, String> {
