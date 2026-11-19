@@ -1,13 +1,13 @@
 ---
 type: "plan-review"
-id: "2026-11-17-0351-sync-preview-hides-pending-push-refusals-review-2"
+id: "2026-11-17-PP-926-sync-preview-hides-pending-push-refusals-review-2"
 title: "Plan Review: Sync Preview Reports Pending-Push Refusals Implementation Plan"
 date: "2026-11-17T14:48:34+00:00"
 author: "Phil Helm"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-11-17-0351-sync-preview-hides-pending-push-refusals"
-relates_to: ["plan-review:2026-11-17-0351-sync-preview-hides-pending-push-refusals-review-1"]
+target: "plan:2026-11-17-PP-926-sync-preview-hides-pending-push-refusals"
+relates_to: ["plan-review:2026-11-17-PP-926-sync-preview-hides-pending-push-refusals-review-1"]
 reviewer: "Phil Helm"
 verdict: "COMMENT"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "compatibility", "documentation"]

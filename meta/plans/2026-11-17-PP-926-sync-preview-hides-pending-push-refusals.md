@@ -1,14 +1,14 @@
 ---
 type: "plan"
-id: "2026-11-17-0351-sync-preview-hides-pending-push-refusals"
+id: "2026-11-17-PP-926-sync-preview-hides-pending-push-refusals"
 title: "Sync Preview Reports Pending-Push Refusals Implementation Plan"
 date: "2026-11-17T14:14:34+00:00"
 author: "Phil Helm"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0351"
-parent: "work-item:0351"
-relates_to: ["work-item:0300", "work-item:0352"]
+work_item_id: "work-item:PP-926"
+parent: "work-item:PP-926"
+relates_to: ["work-item:PP-884", "work-item:PP-927"]
 tags: ["sync", "preview", "pending-push"]
 revision: "4626fa4798b7f965019a98aea5a60187f0a2e423"
 repository: "accelerator"
@@ -683,9 +683,9 @@ data migration.
 
 ## References
 
-- Original work item: `meta/work/0351-sync-preview-hides-pending-push-refusals.md`
-- Work item review: `meta/reviews/work/0351-sync-preview-hides-pending-push-refusals-review-1.md`
-- Plan review: `meta/reviews/plans/2026-11-17-0351-sync-preview-hides-pending-push-refusals-review-1.md`
-- Pending-push machinery: `meta/plans/2026-10-11-0300-sync-pulls-of-tracked-work-items-fail-silently.md`
+- Original work item: `meta/work/PP-926-sync-preview-hides-pending-push-refusals.md`
+- Work item review: `meta/reviews/work/PP-926-sync-preview-hides-pending-push-refusals-review-1.md`
+- Plan review: `meta/reviews/plans/2026-11-17-PP-926-sync-preview-hides-pending-push-refusals-review-1.md`
+- Pending-push machinery: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
 - Preview failure pattern to copy: `validate_pushes`, `cli/work-adapters/src/sync/run.rs:1000-1037`
 - Engine refusal table to mirror: `cli/work-adapters/tests/sync_create.rs:3245-3327`

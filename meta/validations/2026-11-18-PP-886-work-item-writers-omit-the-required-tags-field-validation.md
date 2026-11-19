@@ -1,13 +1,13 @@
 ---
 type: "plan-validation"
-id: "2026-11-18-0333-work-item-writers-omit-the-required-tags-field-validation"
+id: "2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field-validation"
 title: "Validation Report: Work Item Writers Omit the Required Tags Field Implementation Plan"
 date: "2026-11-19T09:24:58+00:00"
 author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
 result: "pass"
-target: "plan:2026-11-18-0333-work-item-writers-omit-the-required-tags-field"
+target: "plan:2026-11-18-PP-886-work-item-writers-omit-the-required-tags-field"
 tags: ["work", "work-cli", "migrate", "frontmatter"]
 last_updated: "2026-11-19T09:24:58+00:00"
 last_updated_by: "Toby Clemson"
