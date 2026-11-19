@@ -495,6 +495,30 @@ fn names_and_leaves_alone_an_item_whose_frontmatter_does_not_parse(
 }
 
 #[test]
+fn leaves_alone_an_item_whose_misread_last_updated_sits_inside_a_value(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+    let nested = "---\ntype: \"work-item\"\nid: \"0001\"\n\
+                  links: {a: 1,\nlast_updated: inner}\n\
+                  last_updated: \"2026-01-01T00:00:00+00:00\"\n---\n\n\
+                  # Nested\n";
+    write(root, "meta/work/0001-nested.md", nested)?;
+    already_applied_except_0012(root)?;
+
+    let stderr = succeeded(root)?;
+
+    assert_eq!(read(root, "meta/work/0001-nested.md")?, nested);
+    assert!(
+        stderr.contains(
+            "\n  meta/work/0001-nested.md: frontmatter does not parse as YAML ("
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_failed_write_leaves_the_work_directory_as_it_found_it(
 ) -> Result<(), TestError> {
     let dir = TempDir::new()?;
