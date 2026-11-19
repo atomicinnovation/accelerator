@@ -10,9 +10,9 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 
-use common::frontmatter_of;
-use common::omit_when_empty_lines;
-use common::violations;
+use common::written_item::frontmatter_of;
+use common::written_item::omit_when_empty_lines;
+use common::written_item::violations;
 
 type TestError = Box<dyn std::error::Error>;
 
