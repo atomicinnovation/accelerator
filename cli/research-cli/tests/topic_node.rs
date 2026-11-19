@@ -411,55 +411,113 @@ fn assert_refused_with_prefix(output: &Output, prefix: &str) {
     assert!(stderr.starts_with(prefix), "{stderr}");
 }
 
+const AT: &str = "03-a-web:2-1";
+
 #[test]
-fn the_query_refuses_what_it_cannot_answer() -> Result<(), TestError> {
-    use std::os::unix::fs::PermissionsExt as _;
-
+fn a_set_with_no_ledger_is_refused() -> Result<(), TestError> {
     let project = node_query_set()?;
-    let at = "03-a-web:2-1";
 
-    assert_exits_1(&project.node("r1", at)?, &no_usable_ledger("r1"));
+    assert_exits_1(&project.node("r1", AT)?, &no_usable_ledger("r1"));
+    Ok(())
+}
+
+#[test]
+fn a_set_that_does_not_resolve_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
 
     for slug in ["nope", "../..", "/tmp"] {
         assert_exits_1(
-            &project.run("node", &[slug, "--run", "r1", "--node", at])?,
+            &project.run("node", &[slug, "--run", "r1", "--node", AT])?,
             &format!(
                 "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"
             ),
         );
     }
+    Ok(())
+}
 
+#[test]
+fn a_run_that_does_not_own_the_ledger_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
     let (_, first) = started(&project, &DEPTH)?;
-    assert_exits_1(&project.node("r1", at)?, &superseded("r1", &first));
+
+    assert_exits_1(&project.node("r1", AT)?, &superseded("r1", &first));
+    Ok(())
+}
+
+#[test]
+fn a_superseded_run_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let (_, first) = started(&project, &DEPTH)?;
+    let (_, second) = started(&project, &DEPTH)?;
+
+    assert_exits_1(&project.node(&first, AT)?, &superseded(&first, &second));
+    Ok(())
+}
+
+#[test]
+fn a_node_the_run_never_offered_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let (_, run) = started(&project, &DEPTH)?;
+
     assert_exits_1(
-        &project.node(&first, "03-a-web:2-9")?,
-        &not_offered("03-a-web:2-9", &first),
+        &project.node(&run, "03-a-web:2-9")?,
+        &not_offered("03-a-web:2-9", &run),
     );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_spawn_ref_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let (_, run) = started(&project, &DEPTH)?;
+
     for malformed in ["2-1", "03-a-web:x", ""] {
         assert_exits_1(
-            &project.node(&first, malformed)?,
+            &project.node(&run, malformed)?,
             &malformed_node(malformed),
         );
     }
+    Ok(())
+}
 
-    let (_, second) = started(&project, &DEPTH)?;
-    assert_exits_1(&project.node(&first, at)?, &superseded(&first, &second));
-
+#[test]
+fn a_corrupt_ledger_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let (_, run) = started(&project, &DEPTH)?;
     fs::write(project.ledger(), "{")?;
-    assert_exits_1(&project.node(&second, at)?, &no_usable_ledger(&second));
 
+    assert_exits_1(&project.node(&run, AT)?, &no_usable_ledger(&run));
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_ledger_is_refused() -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = node_query_set()?;
+    let (_, run) = started(&project, &DEPTH)?;
     fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o000))?;
+
+    let output = project.node(&run, AT);
+    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o644))?;
+
     assert_refused_with_prefix(
-        &project.node(&second, at)?,
+        &output?,
         &format!(
             "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: ",
             project.ledger().display()
         ),
     );
-    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o644))?;
+    Ok(())
+}
 
-    let (_, third) = started(&project, &DEPTH)?;
-    project.run("end-run", &["s", "--run", &third])?;
-    assert_exits_1(&project.node(&third, at)?, &no_usable_ledger(&third));
+#[test]
+fn an_ended_run_is_refused() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let (_, run) = started(&project, &DEPTH)?;
+    project.run("end-run", &["s", "--run", &run])?;
+
+    assert_exits_1(&project.node(&run, AT)?, &no_usable_ledger(&run));
     Ok(())
 }
