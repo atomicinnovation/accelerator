@@ -45,7 +45,8 @@ fn setup_old_repo() -> Result<TempDir, TestError> {
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
          0010-strip-research-title-prefix\n\
-         0011-ignore-machine-local-sync-state\n",
+         0011-ignore-machine-local-sync-state\n\
+         0012-backfill-work-item-tags\n",
     )?;
     Ok(dir)
 }
@@ -103,7 +104,9 @@ fn matches_the_golden_byte_for_byte() -> Result<(), TestError> {
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n0011-ignore-machine-local-sync-state\n\
+         0010-strip-research-title-prefix\n\
+         0011-ignore-machine-local-sync-state\n\
+         0012-backfill-work-item-tags\n\
          0001-rename-tickets-to-work\n"
     );
     assert!(!dir.path().join("meta/tickets").exists());
@@ -124,7 +127,8 @@ fn already_applied_except_0001(dir: &std::path::Path) -> Result<(), TestError> {
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
          0010-strip-research-title-prefix\n\
-         0011-ignore-machine-local-sync-state\n",
+         0011-ignore-machine-local-sync-state\n\
+         0012-backfill-work-item-tags\n",
     )?;
     Ok(())
 }
@@ -278,7 +282,8 @@ fn preserves_a_pinned_non_default_tickets_directory() -> Result<(), TestError> {
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
          0010-strip-research-title-prefix\n\
-         0011-ignore-machine-local-sync-state\n",
+         0011-ignore-machine-local-sync-state\n\
+         0012-backfill-work-item-tags\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -334,7 +339,8 @@ fn the_transform_itself_converges_without_the_ledger_filter(
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
          0010-strip-research-title-prefix\n\
-         0011-ignore-machine-local-sync-state\n",
+         0011-ignore-machine-local-sync-state\n\
+         0012-backfill-work-item-tags\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
