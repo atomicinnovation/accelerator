@@ -239,6 +239,29 @@ fn the_researcher_may_not_write_config() {
 }
 
 #[test]
+fn a_researcher_cannot_write_the_run_ledger() {
+    let project = Project::new();
+    project.mkdir("meta/research/topics/s");
+    let ledger = project.at("meta/research/topics/s/.conduct-run.json");
+    write(&project, Some(RESEARCHER), &ledger)
+        .assert_blocks("'s/.conduct-run.json' is outside that scope");
+    guard(
+        &project.root,
+        &call(
+            &project.root,
+            Some(RESEARCHER),
+            "Edit",
+            &json!({
+                "file_path": ledger,
+                "old_string": "a",
+                "new_string": "b",
+            }),
+        ),
+    )
+    .assert_blocks("'s/.conduct-run.json' is outside that scope");
+}
+
+#[test]
 fn a_dot_dot_escape_from_findings_is_blocked() {
     let project = Project::new();
     project.mkdir("meta/research/topics/s/findings/new");
