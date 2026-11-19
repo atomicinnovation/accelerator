@@ -47,17 +47,26 @@ level:
   `decisions` it embodies, each with the alternatives it was chosen over, why,
   and at what cost. The page draws how the abstractions relate as a class
   diagram automatically. The build warns about a chapter with neither.
-  The Design view lists each abstraction once, merged by name across
-  `design.json` and every chapter: the first declaration describes it, its
-  collaborators are all of theirs, and it links to every chapter that
-  declares it.
+  The Abstractions catalogue lists each abstraction once, merged by name
+  across `design.json` and every chapter: the first declaration describes
+  it, its collaborators are all of theirs, and it links to every chapter
+  that declares it.
+- **Decisions and abstractions are met at the stop that first carries
+  them.** A chapter opens with a strip naming what it introduces and
+  decides; each decision is set out in full, with its control, at the first
+  stop in tour order that carries it, and each abstraction as a card there.
+  So order the stops that a decision's first carrying stop is where it is
+  best explained. The catalogues in Reference hold every one of them again,
+  and a decision's verdict is the same wherever its control is drawn.
 - **Stops are evidence for the design**, chosen to show where a responsibility
   lives or how a decision is enforced, not to walk every hunk. Every stop
   names what it is evidence for (`carries`) and the role its code plays in
   the design (`fit`): a reviewer who reads only the `fit` lines of a chapter
-  should be able to trace how the change hangs together. The build warns
-  about a stop without either, and about a decision or a high risk that no
-  stop carries.
+  should be able to trace how the change hangs together. A decision or
+  abstraction may also name the stops that carry it, in `carriedBy`, which
+  counts as if each of those stops carried it. The build warns about a stop
+  without either, and about a decision, an abstraction or a high risk that
+  no stop carries, in a chapter or in `design.json`.
 - **A stop says what its code cannot.** The code is shown beside the text,
   so a sentence that says what the lines do is wasted on a reader who can
   see them. See "What a stop says".
@@ -178,7 +187,7 @@ the content, and leaves out what it cannot:
 - a collaborator given as an object has a `name`;
 - a field holds the kind of value shown here: text for an `id`, `file`,
   `where` or `anchor`, a whole number for a line, a list of ids for
-  `findings`, `refs` and `pinnedBy`. A field of the wrong kind is reported
+  `findings`, `refs`, `pinnedBy`, `carries` and `carriedBy`. A field of the wrong kind is reported
   and ignored; `null` is read as absent;
 - a field whose values this document lists with `|` between them holds one
   of those values: `side`, `status`, `assessment`, `holds`, `level`,
@@ -199,7 +208,12 @@ Every citation must open something. `scripts/build.py` warns about:
   the last `::` segment is looked for;
 - a `chapter` on a file summary, a figure box, a module-map box, an
   abstraction or a decision that names no chapter;
-- prose that names a stop or chapter that does not exist.
+- prose that names a stop or chapter that does not exist, or a backticked
+  decision or abstraction id (`d-…`, `a-…`) that nothing declares;
+- a `carriedBy` that names a stop the tour does not have.
+
+Prose that names a declared decision, abstraction or invariant id, bare or
+in backticks, links to its entry in Reference, named by what it says.
 
 The workspace holds only the files the PR changes, so a citation into an
 unchanged file cannot be checked or opened: the page shows it as plain text
@@ -283,8 +297,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "title": "How the change is designed",       // optional heading
   "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions.",
   "figures": [ /* the architecture, chosen by the guide; a before/after compare */ ],
-  "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's */ ],
-  "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it */ ],
+  "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's, with "carriedBy" */ ],
+  "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it and "carriedBy" */ ],
   "principles": [{                              // the existing architecture's rules, from CLAUDE.md, ADRs and the code
     "principle": "Ports and adapters: core logic reaches I/O only through ports",
     "verdict": "holds|strained|broken",
@@ -327,7 +341,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
                                               // object. "kind" is needed for one that is not an
                                               // abstraction. "relation" is implements|extends|
                                               // owns|holds|uses, and "uses" when left out
-    "where": "path:line"
+    "where": "path:line",
+    "carriedBy": ["claims-s3"]                // optional: stops that carry it without naming it
   }],
   "decisions": [{                             // design choices this chapter embodies
     "id": "d-claim-heartbeat", "decision": "≤ 15 words: what was chosen",
@@ -335,7 +350,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "rationale": "md: why",
     "consequences": "md: what it costs, and what it makes easy or hard later",
     "where": "path:line", "adr": "path to an ADR, if one records it",
-    "assessment": "sound|questionable|unsound", "note": "md: the reading pass's view, ≤ 2 sentences"
+    "assessment": "sound|questionable|unsound", "note": "md: the reading pass's view, ≤ 2 sentences",
+    "carriedBy": ["claims-s1"]                // optional: stops that carry it without naming it
   }],
   "purpose": "…",                             // md, 2–3 sentences: the problem it solves
   "mechanism": "…",                           // md, ≤ ~120 words: what the figures cannot show

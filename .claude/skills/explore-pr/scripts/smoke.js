@@ -14,7 +14,9 @@
 // naming a stop and its chapter, and checks both become links and that the
 // stop's link opens its chapter at that stop. It checks that a stop names
 // everything it carries, that each name opens what it names, and that every
-// line a stop says to focus on is marked in its code. It also records a file verdict,
+// line a stop says to focus on is marked in its code. Each decision's control
+// is met once in the tour, at the first stop that shows it; each chapter names
+// what it introduces in a strip and draws no wall of abstraction cards. It also records a file verdict,
 // pretends it was given at an earlier head, and checks that rewritten lines are
 // unread again and announced, that untouched ones stay read, and that only a
 // new verdict, not a note, moves the record to this head. Every diagram the
@@ -209,11 +211,26 @@ const EVIDENCE_PROBE = `(async () => {
     const there = document.getElementById('stop-' + each.id);
     return !there || !there.querySelector('.code table') || !!there.querySelector('tr.focus + tr.point');
   });
-  if (!named) return { named, focusMarked };
-  links[0].click(); await settle();
-  const target = document.getElementById(links[0].dataset.scrollTo);
+  const decisions = window.Catalogue.of(api.content).decisions.map(each => each.item.id).filter(id => id && evidence.shownAt(id).length);
+  const controlsAt = Object.fromEntries(decisions.map(id => [id, []]));
+  const stripMissing = [], gridKept = [];
+  for (const each of chapters) {
+    location.hash = 'tour-' + each.id; await settle();
+    const introduces = (each.stops || []).some(one => evidence.introducedAt(one).length) || (each.decisions || []).length || (each.abstractions || []).length;
+    if (introduces && !document.querySelector('#main .design-strip')) stripMissing.push(each.id);
+    if (document.querySelector('#main .abs-grid')) gridKept.push(each.id);
+    decisions.forEach(id => document.querySelectorAll('#main .ctl[data-ctl="' + CSS.escape('design:' + id) + '"]')
+      .forEach(control => controlsAt[id].push((control.closest('.stop') || {}).id || 'outside a stop')));
+  }
+  const misplaced = decisions.filter(id => controlsAt[id].length !== 1 || controlsAt[id][0] !== 'stop-' + evidence.shownAt(id)[0]);
+  const decisionsMetOnce = !misplaced.length;
+  location.hash = 'tour-' + chapter.id; await settle();
+  const again = [...document.getElementById('stop-' + stop.id).querySelectorAll('a.carried')];
+  if (!named) return { named, focusMarked, decisionsMetOnce, stripMissing, gridKept };
+  again[0].click(); await settle();
+  const target = document.getElementById(again[0].dataset.scrollTo);
   const top = target ? target.getBoundingClientRect().top : null;
-  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight };
+  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight, decisionsMetOnce, misplaced, stripMissing, gridKept };
 })()`;
 
 const NOTES_PROBE = `(async () => {
@@ -433,7 +450,7 @@ async function main() {
   const references = report.references || {};
   const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
   const evidence = report.evidence || {};
-  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries);
+  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries && evidence.decisionsMetOnce && !evidence.stripMissing.length && !evidence.gridKept.length);
   const heads = report.heads || {};
   const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
   const catalogue = report.catalogue || {};

@@ -272,6 +272,9 @@ kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4p
 .carried.k-risk .eyebrow { color: var(--bad); }
 .carried.k-invariant .eyebrow { color: var(--ok); }
 .carried .carried-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.design-strip { display: flex; flex-wrap: wrap; gap: 6px; }
+.design-strip .carried { max-width: 100%; }
+.introduced { gap: 8px; }
 .why, .stop-risk { display: grid; gap: 4px; }
 .stop-risk { border-left: 3px solid var(--bad); padding: 2px 0 2px 10px; font-size: 14px; }
 .stop-risk .eyebrow { color: var(--bad); }
@@ -460,9 +463,9 @@ const short = p => {
 };
 const base = p => (p || '').split('/').pop();
 
-function md(s, inline) {
+function md(s, inline, self) {
   if (!s) return '';
-  const linked = html => (window.ProseReferences && C ? ProseReferences.link(html, C.chapters) : html);
+  const linked = html => (window.ProseReferences && C ? ProseReferences.link(html, C.chapters, DECLARED, self) : html);
   if (window.marked) {
     try { return linked(inline ? marked.parseInline(String(s)) : marked.parse(String(s))); } catch (e) { /* fall through */ }
   }
@@ -778,7 +781,7 @@ function fillPendingSlices() {
 }
 
 /* ---------- Lookups ---------- */
-let F = {}, CH = {}, FILE = {}, LEDGER = {}, EVIDENCE = null, CATALOGUE = null;
+let F = {}, CH = {}, FILE = {}, LEDGER = {}, EVIDENCE = null, CATALOGUE = null, DECLARED = [], DECISION = {}, ABSTRACTION = {}, STOP_CHAPTER = {};
 function index() {
   for (const [k, v] of Object.entries({ commits: [], chapters: [], ledger: [], findings: [], files: [], acs: [], acceptedRisks: [], breaking: [], layers: [], pathAliases: [], ledgerMeta: {}, findingsMeta: {}, tourMeta: {}, design: {}, overview: {} })) if (C[k] == null) C[k] = v;
   F = Object.fromEntries(C.findings.map(f => [f.id, f]));
@@ -787,6 +790,14 @@ function index() {
   LEDGER = Object.fromEntries(C.ledger.map(l => [l.id, l]));
   EVIDENCE = StopEvidence.index(C);
   CATALOGUE = Catalogue.of(C);
+  DECISION = Object.fromEntries(CATALOGUE.decisions.filter(({ item }) => item.id).map(entry => [entry.item.id, entry]));
+  ABSTRACTION = Object.fromEntries(CATALOGUE.abstractions.filter(({ item }) => item.id).map(entry => [entry.item.id, entry]));
+  DECLARED = [
+    ...Object.values(DECISION).map(({ item }) => ({ id: item.id, kind: 'decision', label: item.decision })),
+    ...Object.values(ABSTRACTION).map(({ item }) => ({ id: item.id, kind: 'abstraction', label: item.name })),
+    ...CATALOGUE.invariants.filter(({ item }) => item.id).map(({ item }) => ({ id: item.id, kind: 'invariant', label: item.text })),
+  ];
+  STOP_CHAPTER = Object.fromEntries(C.chapters.flatMap(ch => (ch.stops || []).map(stop => [stop.id, ch.id])));
   C.findingCheck = {};
   C.findingChapter = {};
   C.chapters.forEach(ch => (ch.findingChecks || []).forEach(fc => { C.findingCheck[fc.id] = fc; C.findingChapter[fc.id] = ch.id; }));
@@ -1171,37 +1182,55 @@ function keyAbstractions() {
 }
 const decisionTarget = d => 'design:' + (d.id || plain(d.decision));
 const hasDesign = () => routes().some(([id]) => id === 'design');
-const CARRIED = { decision: ['Decision', 'dec-'], abstraction: ['Abstraction', 'abs-'], invariant: ['Invariant', 'inv-'], risk: ['Risk', 'risk-'] };
+const CARRIED = { decision: ['Decision', 'dec-', 'decisions'], abstraction: ['Abstraction', 'abs-', 'abstractions'], invariant: ['Invariant', 'inv-', 'invariants'], risk: ['Risk', 'risk-', 'invariants'] };
 function carriedLink(carried) {
-  const [kind, prefix] = CARRIED[carried.kind];
-  return `<a class="carried k-${carried.kind}" href="${carried.chapter ? `#tour-${esc(carried.chapter)}` : '#design'}" data-scroll-to="${esc(prefix + carried.id)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${esc(plain(carried.label))}</span></a>`;
+  const [kind, prefix, route] = CARRIED[carried.kind];
+  return `<a class="carried k-${carried.kind}" href="#${route}" data-jump="${route}" data-filter="{}" data-scroll-to="${esc(prefix + carried.id)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${esc(plain(carried.label))}</span></a>`;
+}
+function stripLink(carried) {
+  const [kind] = CARRIED[carried.kind];
+  const first = EVIDENCE.shownAt(carried.id)[0];
+  if (!first) return carriedLink(carried);
+  return `<a class="carried k-${carried.kind}" href="#tour-${esc(STOP_CHAPTER[first])}" data-scroll-to="stop-${esc(first)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${esc(plain(carried.label))}</span></a>`;
+}
+function designStrip(ch) {
+  const introduced = (ch.stops || []).flatMap(stop => EVIDENCE.introducedAt(stop));
+  const declared = [...(ch.decisions || []), ...(ch.abstractions || [])].map(item => item.id && EVIDENCE.declared(item.id)).filter(Boolean);
+  const named = [...new Map([...introduced, ...declared].map(carried => [carried.id, carried])).values()];
+  return named.length ? `<section class="stack"><div class="eyebrow">What this chapter introduces and decides</div><div class="design-strip">${named.map(stripLink).join('')}</div></section>` : '';
+}
+function introducedHere(stop) {
+  const cards = EVIDENCE.introducedAt(stop).map(carried => (carried.kind === 'decision'
+    ? DECISION[carried.id] && decisionCard({ item: DECISION[carried.id].item, chapter: null }, { compact: true })
+    : ABSTRACTION[carried.id] && abstractionCard({ item: ABSTRACTION[carried.id].item, chapters: [] }, { compact: true }))).filter(Boolean);
+  return cards.length ? `<div class="introduced stack"><div class="eyebrow">Introduced here</div>${cards.join('')}</div>` : '';
 }
 function shownAt(item) {
   const stops = item.id ? EVIDENCE.shownAt(item.id) : [];
   return stops.length ? `<div class="row small"><span class="muted">Shown at</span> <span>${md(stops.map(id => '`' + id + '`').join(', '), true)}</span></div>` : '';
 }
-function abstractionCard({ item: a, chapters }) {
+function abstractionCard({ item: a, chapters }, opts = {}) {
   return `<article class="abs t-${esc(a.status || 'existing')}" id="abs-${esc(a.id || '')}">
     <div class="row"><b class="mono">${esc(plain(a.name))}</b>${a.kind ? `<span class="chip plain c-none">${esc(a.kind)}</span>` : ''}${a.status ? `<span class="chip ${STATUS_CHIP[a.status] || 'c-none'}">${esc(a.status)}</span>` : ''}</div>
-    <div class="small">${md(a.responsibility, true)}</div>
+    <div class="small">${md(a.responsibility, true, a.id)}</div>
     ${(a.collaborators || []).length ? `<div class="small muted">Works with ${a.collaborators.map(c => `<code>${esc(plain(collaboratorName(c)))}</code>`).join(', ')}</div>` : ''}
     <div class="row small">${whereBtn(a.where)}${chapters.map(ch => `<a href="#tour-${ch.id}">${esc(ch.title)}</a>`).join('')}</div>
-    ${shownAt(a)}
+    ${opts.compact ? '' : shownAt(a)}
   </article>`;
 }
 const collaboratorName = c => (typeof c === 'string' ? c : c.name || '');
-function decisionCard({ item: d, chapter }) {
+function decisionCard({ item: d, chapter }, opts = {}) {
   const chip = d.assessment ? `<span class="chip ${ASSESS_CHIP[d.assessment] || 'c-none'}">${esc(d.assessment)}</span>` : '';
   return `<article class="finding decision" id="dec-${esc(d.id || '')}">
-    <div class="finding-head"><b style="flex:1;min-width:0">${md(d.decision, true)}</b>${chip}</div>
+    <div class="finding-head"><b style="flex:1;min-width:0">${md(d.decision, true, d.id)}</b>${chip}</div>
     <div class="dec-grid">
-      ${(d.alternatives || []).length ? `<div><div class="eyebrow">Chosen over</div><ul class="prose small" style="margin:0">${d.alternatives.map(a => `<li>${md(a, true)}</li>`).join('')}</ul></div>` : ''}
-      ${d.rationale ? `<div><div class="eyebrow">Because</div><div class="md small">${md(d.rationale)}</div></div>` : ''}
-      ${d.consequences ? `<div><div class="eyebrow">At the cost of</div><div class="md small">${md(d.consequences)}</div></div>` : ''}
+      ${(d.alternatives || []).length ? `<div><div class="eyebrow">Chosen over</div><ul class="prose small" style="margin:0">${d.alternatives.map(a => `<li>${md(a, true, d.id)}</li>`).join('')}</ul></div>` : ''}
+      ${d.rationale ? `<div><div class="eyebrow">Because</div><div class="md small">${md(d.rationale, false, d.id)}</div></div>` : ''}
+      ${d.consequences ? `<div><div class="eyebrow">At the cost of</div><div class="md small">${md(d.consequences, false, d.id)}</div></div>` : ''}
     </div>
-    ${d.note ? `<div class="verdict-box"><div class="row"><span class="eyebrow">Reading pass</span>${chip}</div><div class="md small">${md(d.note)}</div></div>` : ''}
+    ${d.note ? `<div class="verdict-box"><div class="row"><span class="eyebrow">Reading pass</span>${chip}</div><div class="md small">${md(d.note, false, d.id)}</div></div>` : ''}
     <div class="row small">${whereBtn(d.where)}${d.adr ? `<span class="muted">Recorded in</span> <code>${esc(d.adr)}</code>` : ''}${chapter ? `<a href="#tour-${chapter.id}">${esc(chapter.title)}</a>` : ''}</div>
-    ${shownAt(d)}
+    ${opts.compact ? '' : shownAt(d)}
     ${ctl(decisionTarget(d), 'design', { label: `Design decision: ${plain(d.decision)}`, where: d.where || null })}
   </article>`;
 }
@@ -1210,10 +1239,6 @@ function principlesTable(rows) {
 }
 function extensionTable(rows) {
   return `<div class="table-wrap"><table class="data"><thead><tr><th>To</th><th>Where</th><th>How</th></tr></thead><tbody>${rows.map(x => `<tr><td style="min-width:200px"><b>${md(x.change, true)}</b></td><td class="small">${whereBtn(x.where)}</td><td class="small md">${md(x.how || '')}</td></tr>`).join('')}</tbody></table></div>`;
-}
-function designSection(abstractions, decisions, heading) {
-  if (!abstractions.length && !decisions.length) return '';
-  return `<section class="section"><h2>${heading}</h2>${abstractions.length ? `<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div>` : ''}${decisions.length ? `<div class="stack">${decisions.map(decisionCard).join('')}</div>` : ''}</section>`;
 }
 function vDesign() {
   const d = C.design || {};
@@ -1455,6 +1480,7 @@ function vChapter(ch) {
         ${s.figure && spansTheRow(s.figure) ? '' : `<div class="row"><span class="stop-num">${i + 1}.${j + 1}</span><h3 style="flex:1">${esc(s.title)}</h3></div>`}
         ${s.figure && !spansTheRow(s.figure) ? figureHtml(s.figure, { compact: true }) : ''}
         ${EVIDENCE.carriedBy(s).length ? `<div class="carries"><div class="eyebrow">Evidence for</div>${EVIDENCE.carriedBy(s).map(carriedLink).join('')}</div>` : ''}
+        ${introducedHere(s)}
         ${s.fit ? `<div class="fit"><div class="eyebrow">Role in the design</div><div class="md">${md(s.fit)}</div></div>` : ''}
         ${s.why ? `<div class="why"><div class="eyebrow">Why it is this way</div><div class="md">${md(s.why)}</div></div>` : ''}
         ${s.risk ? `<div class="stop-risk"><div class="eyebrow">If this is wrong</div><div class="md">${md(s.risk)}</div></div>` : ''}
@@ -1473,12 +1499,12 @@ function vChapter(ch) {
   const terms = (ch.domain || []).map(d => `<div class="term"><b>${esc(d.term)}</b><div class="small">${md(d.meaning, true)}</div>${d.code ? `<code class="small">${esc(d.code)}</code>` : ''}</div>`).join('');
   return `<div class="view-head"><div class="eyebrow">Chapter ${i + 1} of ${C.chapters.length} · ${(ch.stops || []).length} stops · ${fmt(linesOf(ch))} lines of code</div><h1>${esc(ch.title)}</h1><p class="lede">${md(ch.oneLiner, true)}</p></div>
     ${(ch.figures || []).length ? `<div class="figs">${ch.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
+    ${designStrip(ch)}
     ${terms ? `<section class="section"><h2>Terms this chapter introduces</h2><div class="glossary">${terms}</div></section>` : ''}
-    ${designSection((ch.abstractions || []).map(item => ({ item, chapters: [] })), (ch.decisions || []).map(item => ({ item, chapter: null })), 'What it adds to the design')}
     <div class="grid-2"><section class="stack"><div class="eyebrow">Why it exists</div><div class="md prose">${md(ch.purpose)}</div></section>
     <section class="stack"><div class="eyebrow">How it works</div><div class="md prose">${md(ch.mechanism)}</div></section></div>
     ${ba}
-    <section class="section"><h2>Where it lives in the code</h2><p class="small muted">The stops below are the evidence for the design above: read them to check it, not to learn it.</p><div>${stops}</div></section>
+    <section class="section"><h2>Where it lives in the code</h2><p class="small muted">The stops below are the evidence for the design: each decision and abstraction is set out at the first stop that shows it.</p><div>${stops}</div></section>
     ${inv ? `<section class="section"><h2>Invariants</h2><p class="small muted">What must always hold. The reading pass's view is shown; record your own.</p><div class="panel" style="padding-block:4px">${inv}</div></section>` : ''}
     ${risks ? `<section class="section"><h2>Risks</h2><div class="table-wrap"><table class="data"><tbody>${risks}</tbody></table></div></section>` : ''}
     ${own ? `<section class="section"><h2>New observations</h2><p class="small muted">Found by the code-reading pass; not in ${esc(source())}.</p><div class="stack">${own}</div></section>` : ''}
@@ -1491,9 +1517,9 @@ after.tour = () => { if (D) fillPendingSlices(); };
 const chapterLink = id => (CH[id] ? `<a href="#tour-${esc(id)}">${esc(CH[id].title)}</a>` : '');
 function invariantRow({ item: v, chapter }, opts = {}) {
   const ch = CH[chapter] || { title: chapter };
-  return `<div class="inv" id="inv-${esc(v.id || '')}"><div class="stack" style="gap:6px"><div class="md">${md(v.text)}</div>
+  return `<div class="inv" id="inv-${esc(v.id || '')}"><div class="stack" style="gap:6px"><div class="md">${md(v.text, false, v.id)}</div>
       <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? `<span class="muted">pinned by</span> ${v.pinnedBy.map(testRef).join(', ')}` : '<span class="muted">no pinning test named</span>'}${opts.withChapter ? chapterLink(chapter) : ''}</div>
-      ${v.why ? `<div class="small md muted">${md(v.why)}</div>` : ''}</div>
+      ${v.why ? `<div class="small md muted">${md(v.why, false, v.id)}</div>` : ''}</div>
       <div>${ctl('inv:' + v.id, 'invariant', { label: `${ch.title}: ${v.text}`, where: v.where })}</div></div>`;
 }
 function riskRow({ item: r, chapter }, opts = {}) {

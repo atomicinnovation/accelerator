@@ -27,8 +27,42 @@ def test_a_chapter_defines_its_terms_before_the_prose_that_uses_them():
 
     glossary = layout.index("Terms this chapter introduces")
     assert layout.index('class="figs"') < glossary
-    for prose in ("What it adds to the design", "Why it exists", "${ba}"):
+    for prose in ("Why it exists", "${ba}"):
         assert glossary < layout.index(prose), prose
+
+
+def test_a_chapter_names_what_it_introduces_in_a_strip_not_a_wall_of_cards():
+    layout = chapter_layout()
+
+    assert "designSection" not in renderer("vChapter")
+    strip = layout.index("designStrip(ch)")
+    assert layout.index('class="figs"') < strip
+    assert strip < layout.index("Terms this chapter introduces")
+
+
+def test_a_stop_introduces_what_it_first_shows_before_its_role():
+    stop = stop_layout()
+
+    order = [
+        stop.index(part)
+        for part in ("Evidence for", "introducedHere(s)", "md(s.fit)")
+    ]
+    assert order == sorted(order)
+    assert "EVIDENCE.introducedAt(stop)" in renderer("introducedHere")
+
+
+def test_a_decision_met_in_the_tour_does_not_list_where_else_it_is_shown():
+    card = renderer("decisionCard")
+
+    assert "opts.compact" in card
+    assert "compact ? '' : shownAt(d)" in card
+
+
+def test_what_a_stop_carries_links_to_its_entry_in_reference():
+    link = renderer("carriedLink")
+
+    assert "#tour-" not in link
+    assert "data-jump" in link
 
 
 def stop_layout():
@@ -166,9 +200,7 @@ def test_the_page_starts_tracing_graphs_once_it_loads():
 
 
 def test_rendered_markdown_links_its_chapter_and_stop_references():
-    shell = SHELL.read_text()
-    start = shell.index("function md(s, inline) {")
-    markdown = shell[start : shell.index("\n}\n", start)]
+    markdown = renderer("md")
 
     assert "ProseReferences.link(" in markdown
     assert markdown.count("return ") == markdown.count("return linked(") + 1

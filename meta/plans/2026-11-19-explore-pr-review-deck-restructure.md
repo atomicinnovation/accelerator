@@ -548,8 +548,8 @@ Fixtures that assert `warnings == []` gain carrying stops.
 
 #### Automated Verification
 
-- [ ] The new evidence, prose and build tests fail first, then pass.
-- [ ] Every shared verification command passes.
+- [x] The new evidence, prose and build tests fail first, then pass.
+- [x] Every shared verification command passes.
 
 #### Manual Verification
 

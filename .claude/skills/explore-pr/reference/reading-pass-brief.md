@@ -37,8 +37,11 @@ lines do. Write the chapter's decisions, invariants and risks first, then
 for each stop:
 
 - `carries`: the ids of the decisions, abstractions, invariants and risks it
-  is evidence for. Every decision and every high risk needs a stop that
-  carries it; give a high risk an `id` so one can.
+  is evidence for. Every decision, every abstraction and every high risk
+  needs a stop that carries it; give a high risk an `id` so one can. The
+  page sets a decision out in full, and an abstraction as a card, at the
+  first stop that carries it, so order the stops that this first stop is
+  where it is best explained.
 - `fit`: the role the code plays in the design, not who calls it. Write the
   `fit` lines of a chapter together, in order, and read them back: they
   should tell the chapter's story on their own.
