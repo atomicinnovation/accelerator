@@ -157,8 +157,8 @@ fn every_event_matches_the_shared_log_format() -> Result<(), TestError> {
         Event::SharedBuild {
             family: Family::Matrix,
             tree: Path::new("/tmp/accelerator-shared-fixtures-501/run/matrix"),
-            git: "2.50.1",
-            jj: "0.43.0",
+            git: "git version 2.50.1",
+            jj: "jj 0.43.0",
         },
         Event::Adoption {
             family: Family::Matrix,
