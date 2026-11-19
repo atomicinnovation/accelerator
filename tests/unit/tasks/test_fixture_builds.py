@@ -11,7 +11,12 @@ from tasks.shared.paths import REPO_ROOT
 
 EXPLICIT_HANDOVER = "Workbench::with("
 
-PERMITTED_FILES = frozenset({Path("cli/vcs-test-support/tests/workbench.rs")})
+PERMITTED_FILES = frozenset(
+    {
+        Path("cli/vcs-test-support/tests/workbench.rs"),
+        Path("cli/vcs-test-support/tests/matrix_private_build.rs"),
+    }
+)
 
 
 def violations(root: Path) -> list[str]:
