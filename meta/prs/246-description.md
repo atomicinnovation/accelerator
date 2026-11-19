@@ -6,15 +6,15 @@ date: "2026-11-19T10:33:18+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0333"
+work_item_id: "PP-886"
 parent: "work-item:PP-886"
 relates_to: ["work-item:PP-885"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/246"
 pr_number: 246
 tags: ["work", "work-cli", "migrate", "frontmatter"]
-revision: "a1d449c67a14d44fc8db6d7b0f229d4306417eaf"
+revision: "86c53738847375fc7f4226560d6eab26eaa1ea50"
 repository: "accelerator"
-last_updated: "2026-11-19T10:33:18+00:00"
+last_updated: "2026-11-19T12:31:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -96,7 +96,37 @@ repair items already written without it.
 - CHANGELOG entries are under `Fixed` (the writer) and `Migrations`
   (0012).
 - The work item, codebase research, plan, plan review and validation
-  report for 0333 are included. 0333 is marked `done`.
+  report for PP-886 (formerly 0333) are included. PP-886 is marked
+  `done`.
+
+### Rebased onto the Linear re-key
+
+This branch was rebased onto `main` after #245 re-keyed every work item
+onto its Linear identifier. The code is unchanged by the rebase; only
+`meta/` follows the new keys.
+
+- The work item's edits moved onto the re-keyed file,
+  `meta/work/PP-886-…` (0333 is now an alias). The same applies to
+  #234's work items, PP-926 (0351) and PP-968 (0377).
+- The documents this branch and #234 added under the old numbers are
+  renamed to the PP-* keys: plans, codebase research, plan and work-item
+  reviews, and the validation report. Their `id`s, `work-item:` and
+  document references, and `meta/` paths follow, as #245 did for
+  everything already on `main`. Bare numbers in prose are left as they
+  are, also as #245 did.
+- That re-key commit renames #234's documents too, so they appear in this
+  diff until #234 merges.
+
+### Synced with Linear
+
+- PP-886's refined content and `done` status are pushed to Linear.
+- PP-926 and PP-968, which changed in the re-key merge, are pushed too.
+- Remote edits to six unrelated items (PP-22, PP-865, PP-868, PP-87,
+  PP-893 and PP-916) are deliberately not pulled here. PP-87's Linear
+  copy already lists a `topic-research-report.md` template that isn't on
+  `main` yet, and pulling it fails the corpus Schema Reference
+  cross-check. Their baseline entries are left as they were, so the next
+  sync after that work lands pulls them.
 
 ## Migration notes
 
@@ -122,24 +152,32 @@ repair items already written without it.
 
 ## Testing
 
-- [x] `mise run test:unit:cli`: 7,808 run, 7,808 passed.
+After rebasing onto the Linear re-key:
+
+- [x] `mise run check` passed.
+- [x] `mise run test:unit:cli`: 7,809 run, 7,809 passed, including the
+      check `main` added that every schema-reference work item exists.
+- [x] All 392 work items in this repository carry `tags`.
+- [x] `/sync-work-items --preview` is clean: the six unpulled items read
+      `pull`, nothing reads `push`, and 386 are in sync.
+
+Before the rebase:
+
 - [x] `accelerator-migrate` suite: 204 passed, including the 14
       `migration_0012` end-to-end tests (CRLF through the real YAML guard,
       non-UTF-8, quoted-`tags` and unparseable items left alone, baseline
       realignment, a sealed directory forcing a failed write that leaves
       the tree as it found it, idempotence and byte stability on
       re-application).
-- [x] Every other `mise run` task passed, including `check`, `pup:check`,
+- [x] Every other `mise run` task passed, including `pup:check`,
       `public-api:check`, `deny:check`, `docs:build`, the Python suites
-      and the visualiser suites. The first `test:unit:cli` run inside it
-      hit a flaky, unrelated `design-adapters` test and then a full disk.
-      It was re-run on its own and passed, so `mise run` has not been
-      re-run end to end in one go since.
+      and the visualiser suites. `mise run` has not been run end to end
+      in one go since.
 - [x] Manual: in a scratch repository, a tag-less item written by the
       pre-fix `work create` gained only `tags: []` and then validated; a
       second migrate run reported no pending migrations.
-- [x] Manual: this repository's 390 work items all already carry `tags`.
-      On a scratch copy, 0012 changed none of them.
+- [x] Manual: on a scratch copy of this repository, whose 390 work items
+      all already carried `tags`, 0012 changed none of them.
 - [x] Manual: PP-23 and PP-24 were pulled from Linear with
       `--pull-only --target`, so nothing was sent to Linear, and both
       lacked `tags`. After the migration both stayed `synced` under
@@ -164,6 +202,8 @@ repair items already written without it.
   - An item repaired while its promotion is stalled under `pending-push/`
     will push unchanged content once on its next sync. That is a
     redundant push; no data is lost.
-- `.accelerator/state/integrations/linear/last-sync.json` changes only
-  0333's own baseline entry, from syncing the work item while it was
-  refined.
+- `.accelerator/state/integrations/linear/last-sync.json` starts from
+  `main`'s re-keyed baseline. The branch's earlier change to the old
+  0333 entry was dropped in the rebase, because its hashes described the
+  pre-re-key file. Only the PP-886, PP-926 and PP-968 entries change in
+  substance; every other entry differs only in `local_synced_at`.
