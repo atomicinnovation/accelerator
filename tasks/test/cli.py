@@ -331,7 +331,11 @@ def _building_with(
             replace_env=True,
         )
         if result.exited != 0:
-            raise SharedFixturesError(result.stderr.strip())
+            raise SharedFixturesError(
+                result.stderr.strip()
+                or f"the {_BUILDER} builder exited {result.exited} without "
+                "saying why"
+            )
 
     return build
 

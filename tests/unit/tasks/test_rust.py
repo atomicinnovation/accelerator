@@ -536,6 +536,21 @@ class TestTestUnitCli:
         assert message.endswith(test_cli._RUN_DIRECTLY)
         assert not any("nextest" in c for c in self._commands(lane))
 
+    def test_a_builder_dying_silently_is_named_with_its_exit_code(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        lane.run.side_effect = FakeSharedFixtures(
+            _responding(), builder=failed("")
+        )
+
+        with pytest.raises(Exit) as exc_info:
+            test_cli.run(lane)
+
+        assert (
+            "shared VCS fixtures: the shared-fixtures builder exited 1 "
+            "without saying why"
+        ) in str(exc_info.value)
+
     def test_a_listing_without_the_builder_stops_before_the_tests(
         self, lane: MagicMock
     ):
