@@ -14,6 +14,7 @@ mod topic_project;
 
 use topic_project::assert_exits_1;
 use topic_project::continued;
+use topic_project::copy_tree;
 use topic_project::installed_plugin;
 use topic_project::level_note;
 use topic_project::level_note_with;
@@ -3518,5 +3519,33 @@ fn a_fallback_of_a_template_conduct_does_not_use_goes_unreported(
     )?;
 
     assert_eq!(plan["warnings"], json!([]), "{plan}");
+    Ok(())
+}
+
+#[test]
+fn a_template_conduct_cannot_resolve_still_starts_without_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-finding", "missing/finding.md")],
+    )?;
+    let plugin_without_templates = project.root.join("plugin");
+    let profiles = "skills/research/profiles";
+    copy_tree(
+        &installed_plugin().join(profiles),
+        &plugin_without_templates.join(profiles),
+    )?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(
+            PLUGIN_ROOT,
+            plugin_without_templates.to_str().ok_or("non-utf8")?,
+        )],
+    )?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(stderr.is_empty(), "{stderr}");
     Ok(())
 }
