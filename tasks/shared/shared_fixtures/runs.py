@@ -224,7 +224,7 @@ class FixtureRuns:
             raise SharedFixturesError(
                 f"cannot lock a run under {self._root}: "
                 f"{error}; the temp filesystem must support flock and hard "
-                "links; set TMPDIR to one that does"
+                "links; set TMPDIR to a local directory under /tmp"
             ) from error
         finally:
             temporary.unlink(missing_ok=True)
@@ -242,7 +242,7 @@ class FixtureRuns:
                 raise SharedFixturesError(
                     f"flock under {self._root} does not exclude a second "
                     "holder; the temp filesystem must support flock; set "
-                    "TMPDIR to one that does"
+                    "TMPDIR to a local directory under /tmp"
                 )
         finally:
             os.close(second_holder)
@@ -397,8 +397,8 @@ def _refuse_a_root_inside_a_checkout(root: Path) -> None:
         if (ancestor / ".git").exists() or (ancestor / ".jj").exists():
             raise SharedFixturesError(
                 f"the shared root {root} lies inside the checkout at "
-                f"{ancestor}; set TMPDIR to a directory outside any git or jj "
-                "checkout"
+                f"{ancestor}; set TMPDIR to a directory under /tmp, outside "
+                "any git or jj checkout"
             )
 
 

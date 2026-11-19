@@ -99,6 +99,13 @@ fn a_tree_inside_a_checkout_is_refused_before_anything_is_written(
         "{}",
         failures[0].cause
     );
+    assert!(
+        failures[0]
+            .cause
+            .contains("Point TMPDIR at a directory under /tmp"),
+        "{}",
+        failures[0].cause
+    );
     assert!(!log.exists());
     Ok(())
 }

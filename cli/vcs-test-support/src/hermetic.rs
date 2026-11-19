@@ -287,7 +287,7 @@ pub fn assert_no_repository_ancestor(base: &Path) -> Result<(), Error> {
         return Err(Error::message(format!(
             "the fixture base {} lies inside the repository at {} — every \
              absence expectation in the matrix would silently resolve that \
-             repository instead. Point TMPDIR outside any checkout.",
+             repository instead. Point TMPDIR at a directory under /tmp.",
             base.display(),
             repository.display()
         )));

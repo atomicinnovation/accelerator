@@ -203,8 +203,8 @@ class TestOpeningTheRoot:
 
         assert refusal.value.problems == (
             f"the shared root {root} lies inside the checkout at "
-            f"{tmp_path / 'checkout'}; set TMPDIR to a directory outside "
-            "any git or jj checkout",
+            f"{tmp_path / 'checkout'}; set TMPDIR to a directory under /tmp, "
+            "outside any git or jj checkout",
         )
         assert not root.exists()
 
@@ -294,7 +294,8 @@ class TestStartingARun:
         runs = FixtureRuns.open(root, flock=lambda descriptor: True)
 
         with pytest.raises(
-            SharedFixturesError, match="does not exclude a second holder"
+            SharedFixturesError,
+            match=r"does not exclude a second holder.*under /tmp",
         ):
             runs.start()
 
@@ -306,7 +307,10 @@ class TestStartingARun:
     ):
         runs = FixtureRuns.open(root, link=_failing_with(number))
 
-        with pytest.raises(SharedFixturesError, match="set TMPDIR"):
+        with pytest.raises(
+            SharedFixturesError,
+            match="set TMPDIR to a local directory under /tmp",
+        ):
             runs.start()
 
         assert list(root.iterdir()) == []
