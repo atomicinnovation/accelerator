@@ -74,11 +74,8 @@ hook a reader uses to check your tiering, not a guarantee of trust.
 
 ## Search Budget
 
-- Make at most {search budget} `WebSearch` calls, where {search budget} is
-  the search budget injected into your task prompt. `WebFetch` calls do not
-  count.
-- When no search budget is injected, make as many `WebSearch` calls as the
-  question needs; Claude Code's session quota still applies.
+- Make at most {search budget} `WebSearch` calls when you have a search
+  budget. `WebFetch` calls do not count.
 - Refine the question rather than re-search with near-identical text.
 
 ## Outcome

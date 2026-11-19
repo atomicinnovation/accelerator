@@ -477,6 +477,16 @@
   a grant needs `Bash(accelerator config template topic-research --kind
   finding)` and `Bash(accelerator config template topic-research --kind
   level-note)`.
+- **`conduct`'s node researchers query their own context.**
+  `accelerator research topic outstanding`'s node entries no longer carry
+  `question` or `known_questions`. A node's researcher is given the set's
+  slug, the run id and its spawn ref, and reads its question, known
+  questions, id, path and search budget with
+  `accelerator research topic node`, so its prompt stays the same size at
+  every depth. An `agents.researcher` override must run that query when
+  given a spawn ref. `research-topic`'s spawns inherit its
+  `Bash(accelerator research topic *)` grant; a skill that spawns them
+  without it needs `Bash(accelerator research topic node *)`.
 - **The web source profile grants `Bash(accelerator research fetch *)`**, the
   rule `research-topic` already grants, and runs `fetch web metadata` for
   each page it cites. A denied or failed call leaves that entry without a
