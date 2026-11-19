@@ -13,7 +13,7 @@ relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:03
 tags: ["research", "deep-research", "conduct", "cli", "run-ledger", "research-guard", "config-template"]
 revision: "d5a62f06c836dbf06c2de86555017ed876634a46"
 repository: "accelerator"
-last_updated: "2026-11-19T00:21:26+00:00"
+last_updated: "2026-11-19T01:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -367,10 +367,13 @@ lex.
   commands such as `config set` and `topic end-run`. The research guard is
   what narrows a spawn to its listed commands, and it fails open when it
   cannot run. The exact rules below are the least-privilege option.
-- Where a skill's grant does not reach the spawn, both allow blocks
-  (`:511-516`, `:603`) add
+- Where a skill's grant does not reach the spawn, the **Granting the
+  commands** allow block (`:511-516`) adds
   `Bash(accelerator config template topic-research --kind finding)` and
   `Bash(accelerator config template topic-research --kind level-note)`.
+  The **Permissions after a reply** block (`:603`) is left alone: it lists
+  only the rules `ask` and `report` need after a reply, and neither runs a
+  template command.
 
 **File**: `tests/unit/tasks/test_research_structure.py`
 **Changes**: add `test_the_docs_allow_the_template_commands`, with the
@@ -387,17 +390,21 @@ The phase's success criteria also run
 
 #### Automated Verification
 
-- [ ] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p research-cli --test guard`
-- [ ] Lexer differential passes: `uv run pytest tests/integration/research/test_lexer_differential.py`
-- [ ] Guard-command helpers pass: `uv run pytest tests/unit/tasks/test_guard_commands.py`
-- [ ] Public API snapshot matches (cargo-public-api task in `tasks/README.md`)
-- [ ] Full suite green, including `docs:check`: `mise run`
+- [x] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p research-cli --test guard`
+- [x] Lexer differential passes: `uv run pytest tests/integration/research/test_lexer_differential.py`
+- [x] Guard-command helpers pass: `uv run pytest tests/unit/tasks/test_guard_commands.py`
+- [x] Public API snapshot matches (cargo-public-api task in `tasks/README.md`)
+- [x] Full suite green, including `docs:check`: `mise run`
 
 #### Manual Verification
 
-- [ ] With the docs' allow rules added, a researcher spawned by hand runs
+- [x] With the docs' allow rules added, a researcher spawned by hand runs
       `accelerator config template topic-research --kind level-note` and
       sees the fenced template.
+
+The installed plugin's guard predates this phase, so a manual check of a
+guard change runs in a headless `claude -p` session started with
+`ACCELERATOR_RESEARCH_BIN` pointing at `cli/target/debug/accelerator-research`.
 
 ---
 
@@ -891,8 +898,11 @@ literals in the test, never read back from a plan or the query.
   `E_TOPIC_RESEARCH_NODE_NOT_OFFERED`;
 - the guard section (`:490`) adds the node query to the researcher's
   commands;
-- both allow blocks (`:511-516`, `:603`) add
-  `Bash(accelerator research topic node *)` beside the fetch rule.
+- the **Granting the commands** allow block adds
+  `Bash(accelerator research topic node *)` beside the fetch rule. The
+  **Permissions after a reply** block already carries
+  `Bash(accelerator research topic *)`, which covers the query, so it is
+  left alone.
 
 **File**: `tests/unit/tasks/test_research_structure.py`
 **Changes**: add `test_the_docs_allow_the_node_query_beside_the_fetch`.

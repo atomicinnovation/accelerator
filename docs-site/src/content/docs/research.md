@@ -429,8 +429,10 @@ the name configured as `agents.composer`. A name configured for both roles is
 confined as the researcher. Every other call passes untouched, before any
 config is read. For the researcher the guard blocks, by exiting `2`:
 
-- a command other than `accelerator research fetch …`, or one carrying shell
-  syntax that could run anything else;
+- a command other than `accelerator research fetch …` or, exactly as
+  written, `accelerator config template topic-research --kind finding` or
+  `accelerator config template topic-research --kind level-note`; or a fetch
+  carrying shell syntax that could run anything else;
 - a write anywhere but an indexed finding,
   `<research_topics>/<set>/findings/<nn>-<name>.md`, or a level note,
   `<research_topics>/<set>/findings/<nn>-<name>.levels/<lineage>.md`,
@@ -445,7 +447,8 @@ letters, digits and `-`.
 :::caution
 The guard keys on the agent type, not on who spawned it. Every subagent of the
 configured researcher type, wherever it is spawned, may only run
-`accelerator research fetch` and write findings. Point `agents.researcher` at
+`accelerator research fetch` and its two template commands, and write
+findings. Point `agents.researcher` at
 a dedicated agent, never at one you use for other work.
 :::
 
@@ -487,7 +490,7 @@ the two constructs above.
 
 | Code                          | Cause                                                              |
 |-------------------------------|--------------------------------------------------------------------|
-| `E_RESEARCH_GUARD_COMMAND`    | A researcher command other than `accelerator research fetch …`, or any composer command, the fetch included |
+| `E_RESEARCH_GUARD_COMMAND`    | A researcher command other than `accelerator research fetch …` or its two template commands, or any composer command |
 | `E_RESEARCH_GUARD_SYNTAX`     | A construct that could run anything else, named in the message     |
 | `E_RESEARCH_GUARD_WRITE`      | A write outside the role's scope, with its cause: an indexed finding for both roles, plus a level note for the researcher |
 | `E_RESEARCH_GUARD_UNREADABLE` | A confined agent's call with no readable command or path           |
@@ -497,23 +500,40 @@ Each message names the matched agent type, adding `(agents.researcher)` or
 `(agents.composer)` when it matched a configured name. A confined agent reads
 a block as a call to correct, not the end of its work.
 
-### Granting the fetch
+### Granting the commands
 
-The guard never allows anything; it only blocks. The fetch itself must be
-granted by a permission rule that reaches the researcher subagent.
+The guard never allows anything; it only blocks. The fetch and the template
+commands must each be granted by a permission rule that reaches the
+researcher subagent. Spawns inherit the spawning skill's grants:
+`research-topic`'s `Bash(accelerator config *)` already covers both template
+commands.
+
+Those inherited grants are broad: at the permission layer they also cover
+commands such as `accelerator config set` and `accelerator research topic
+end-run`. The research guard is what narrows a spawn to its listed commands,
+and it fails open when it cannot run (see [Failure
+signatures](#failure-signatures)). The exact template rules below are the
+least-privilege option.
+
+The fetch itself must be granted by a permission rule that reaches the
+researcher subagent.
 `research-topic`'s `allowed-tools` carries `Bash(accelerator research fetch *)`,
 which researchers it spawns inherit. Any other skill that injects any profile
 must grant the same rule, and a contract test enforces this for skills in this
 repository. The academic profiles search and look up through it, and
 `web-profile` uses it for `fetch web metadata`.
 
-Where that grant does not reach the researcher, add the rule to the project's
-allow rules:
+Where those grants do not reach the researcher, add the rules to the
+project's allow rules:
 
 ```json
 {
   "permissions": {
-    "allow": ["Bash(accelerator research fetch *)"]
+    "allow": [
+      "Bash(accelerator research fetch *)",
+      "Bash(accelerator config template topic-research --kind finding)",
+      "Bash(accelerator config template topic-research --kind level-note)"
+    ]
   }
 }
 ```
