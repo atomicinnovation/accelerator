@@ -2,6 +2,8 @@
 //! compiled binary, with every other migration pre-seeded in the ledger so
 //! 0012 is the sole pending migration.
 
+mod common;
+
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
@@ -93,21 +95,7 @@ fn read(dir: &Path, relative: &str) -> Result<String, TestError> {
 }
 
 fn already_applied_except_0012(dir: &Path) -> Result<(), TestError> {
-    write(
-        dir,
-        ".accelerator/state/migrations-applied",
-        "0001-rename-tickets-to-work\n\
-         0002-rename-work-items-with-project-prefix\n\
-         0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n\
-         0005-rename-work-item-type-to-kind\n\
-         0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n\
-         0011-ignore-machine-local-sync-state\n",
-    )
+    common::mark_all_migrations_applied_except(dir, MIGRATION)
 }
 
 fn run(dir: &Path) -> std::io::Result<Output> {
