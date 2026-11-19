@@ -968,13 +968,13 @@ sections go. This needs only phase 1.
   - **What it keeps**: the finding command's fenced block, from its opening
     fence line to its closing one. That block alone goes into every compose
     prompt. The level-note command's block is discarded.
-  - **Warnings**: any other line from a command that exits 0 is a warning,
-    whatever its wording. Today that is the CLI's fallback warning for a
-    configured template path that does not exist. `conduct` prints each
-    warning before the run starts, carries it into the summary's warnings,
-    and proceeds. Every spawn then fills the fallback template, as the CLI's
-    fallback intends, and so does every composer, from the block the check
-    kept.
+  - **Other lines**: from a command that exits 0, every other line is left
+    to the first plan, whose `warnings` name a template that falls back to
+    its default (see **7. Template fallbacks on the first plan**). Every
+    spawn then fills that default, as the CLI's fallback intends, and so
+    does every composer, from the block the check kept. Manual runs showed
+    the orchestrator does not reliably relay the check's own output before
+    spawning, while it always reports the first plan's `warnings`.
   - **Failure**: if either exits non-zero, `conduct` starts no run and
     spawns nothing. It prints "template unavailable", the first line of
     stderr, and that troubleshooting row's next step.
@@ -1105,9 +1105,11 @@ only Read and Write" stays as it is.
   - stops, spawning nothing, when either exits non-zero or is denied;
   - keeps the finding command's fenced block, not the level-note one's,
     and names that block in the `compose` bullet;
-  - treats any other line from a zero exit as a warning, without matching
-    its wording, and step 7's warnings section names the template-check
-    warnings.
+  - leaves every other line to the first plan, never calling it a
+    warning itself.
+- `test_the_first_plan_reports_a_template_falling_back`: the check leaves
+  other lines to the first plan, and step 2's report of the first plan's
+  `warnings` names a template that falls back to its default.
 - `test_the_citing_once_eval_mirrors_the_compose_bullet`: the field labels
   of the prompt `tasks/eval/citing_once/sessions.py` builds equal the
   `compose` bullet's `_injected_items` labels, the finding template
@@ -1128,25 +1130,53 @@ entry stating two things:
   skill that spawns them without such a grant needs the two
   template-command rules.
 
+It also states that `outstanding --start` names a configured template path
+that falls back among its `warnings`.
+
+#### 7. Template fallbacks on the first plan
+
+A configured template path that does not exist is reported by the CLI, not
+relayed by the orchestrator.
+
+- **Shared resolution**: the three-tier lookup (`resolve`, `templates_dir`)
+  moves from `cli/launcher/src/config_command/core/template.rs` into a new
+  `config::template` module, with its unit tests. The launcher re-exports
+  it, and the `config` public-API snapshot gains the module.
+- **`ProjectContext`** (`cli/research-cli/src/context.rs`) holds the
+  template store, built with `plugin_root_from_env()` as the launcher's is.
+  `conduct_template_fallbacks()` resolves `topic-research` with the
+  `finding` and `level-note` kinds, and returns each resolution's warning
+  prefixed with the template's name. A template that cannot be resolved
+  gives no warning: the template check stops on that command's own failure.
+- **`PlanRequest`** gains `template_fallbacks`, which `main` fills on a
+  `--start` plan only. `planned` adds them to a starting plan's notices.
+- **Tests** (`cli/research-cli/tests/topic_outstanding.rs`):
+  `a_started_run_warns_of_each_conduct_template_falling_back`,
+  `a_continued_plan_does_not_repeat_a_template_fallback` and
+  `a_fallback_of_a_template_conduct_does_not_use_goes_unreported`.
+- **Docs**: `research.md` names the `--start` warning beside the search-cap
+  one.
+
 ### Success Criteria
 
 #### Automated Verification
 
 - [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [x] Full suite green, including regenerated skill reference docs: `mise run`
+- [ ] Outstanding tests pass: `cargo test -p accelerator-research --test topic_outstanding`
+- [ ] Full suite green, including regenerated skill reference docs: `mise run`
 
 #### Manual Verification
 
-- [ ] A depth-2 `conduct` over one web pair finishes with valid level notes
+- [x] A depth-2 `conduct` over one web pair finishes with valid level notes
       and a valid finding. Only compose prompts hold template text, and each
       researcher ran its template command before searching.
-- [ ] With a `templates.topic-research-finding` override outside the
+- [x] With a `templates.topic-research-finding` override outside the
       project, the composer's finding follows the override with no extra
       allow rule.
 - [ ] With a `templates.topic-research-level-note` value naming a missing
-      file, `conduct` prints the fallback warning before the run and in its
-      summary, and the level notes follow the default template.
-- [ ] With an override `.accelerator/templates/topic-research-level-note.md`
+      file, `conduct` reports the fallback warning before its first spawn and
+      in its summary, and the level notes follow the default template.
+- [x] With an override `.accelerator/templates/topic-research-level-note.md`
       made unreadable (`chmod 000`), `conduct` prints "template
       unavailable" with the I/O error and spawns nothing.
 
