@@ -777,7 +777,7 @@ function fillPendingSlices() {
 }
 
 /* ---------- Lookups ---------- */
-let F = {}, CH = {}, FILE = {}, LEDGER = {}, EVIDENCE = null;
+let F = {}, CH = {}, FILE = {}, LEDGER = {}, EVIDENCE = null, CATALOGUE = null;
 function index() {
   for (const [k, v] of Object.entries({ commits: [], chapters: [], ledger: [], findings: [], files: [], acs: [], acceptedRisks: [], breaking: [], layers: [], pathAliases: [], ledgerMeta: {}, findingsMeta: {}, tourMeta: {}, design: {}, overview: {} })) if (C[k] == null) C[k] = v;
   F = Object.fromEntries(C.findings.map(f => [f.id, f]));
@@ -785,6 +785,7 @@ function index() {
   FILE = Object.fromEntries(C.files.map(f => [f.path, f]));
   LEDGER = Object.fromEntries(C.ledger.map(l => [l.id, l]));
   EVIDENCE = StopEvidence.index(C);
+  CATALOGUE = Catalogue.of(C);
   C.findingCheck = {};
   C.findingChapter = {};
   C.chapters.forEach(ch => (ch.findingChecks || []).forEach(fc => { C.findingCheck[fc.id] = fc; C.findingChapter[fc.id] = ch.id; }));
@@ -998,7 +999,7 @@ function totals() {
   const inv = C.chapters.flatMap(c => (c.invariants || []).map(i => 'inv:' + i.id));
   const t = {
     chapters: C.chapters.map(c => 'chapter:' + c.id),
-    design: designItems('decisions').map(x => decisionTarget(x.item)),
+    design: decisionEntries().map(x => decisionTarget(x.item)),
     findings: C.findings.map(f => 'finding:' + f.id),
     ledger: C.ledger.map(l => 'ledger:' + l.id),
     files: C.files.map(f => 'file:' + f.path),
@@ -1030,27 +1031,14 @@ function renderMeters() {
 /* ---------- Rail & routing ---------- */
 const customViews = [];
 function routes() {
-  const r = [['overview', 'Overview', 'Start']];
-  if (hasDesign()) r.push(['design', 'Design', 'Start']);
-  r.push(['map', 'Attention map', 'Start']);
-  if (C.chapters.length) r.push(['tour', 'Guided tour', 'Read']);
-  if (C.ledger.length) r.push(['ledger', (C.ledgerMeta || {}).title || 'Risk ledger', 'Read']);
-  customViews.forEach(v => r.push([v.id, v.title, v.group || 'Read']));
-  if (C.findings.length) r.push(['findings', 'Findings', 'Decide']);
-  if (C.acs.length) r.push(['criteria', 'Criteria → tests', 'Decide']);
-  r.push(['files', 'All files', 'Reference']);
-  if (C.commits.length) r.push(['commits', 'By commit', 'Reference']);
-  if (C.chapters.some(c => (c.domain || []).length)) r.push(['terms', 'Domain terms', 'Reference']);
-  r.push(['notes', 'Your notes', 'Reference']);
-  const order = ['Start', 'Read', 'Decide', 'Reference'];
-  return r.map((x, i) => [x, i]).sort((a, b) => (order.indexOf(a[0][2]) - order.indexOf(b[0][2])) || (a[1] - b[1])).map(x => x[0]);
+  return ReviewSections.of(C, customViews).flatMap(({ group, routes }) => routes.map(({ id, title }) => [id, title, group]));
 }
 let currentRoute = 'overview', currentSub = null;
 function renderRail() {
   const groups = {};
   routes().forEach(r => (groups[r[2]] = groups[r[2]] || []).push(r));
   const t = totals();
-  const counts = { findings: `${t.findings.done}/${t.findings.n}`, ledger: `${t.ledger.done}/${t.ledger.n}`, files: `${t.files.done}/${t.files.n}`, tour: `${t.chapters.done}/${t.chapters.n}`, commits: `${t.commits.done}/${t.commits.n}` };
+  const counts = { findings: `${t.findings.done}/${t.findings.n}`, ledger: `${t.ledger.done}/${t.ledger.n}`, files: `${t.files.done}/${t.files.n}`, tour: `${t.chapters.done}/${t.chapters.n}`, decisions: `${t.design.done}/${t.design.n}`, invariants: `${t.inv.done}/${t.inv.n}`, commits: `${t.commits.done}/${t.commits.n}` };
   let html = `<div class="rail-path">${esc(C.pr.branch || '')}<br>${esc((C.pr.head || '').slice(0, 8))} ← ${esc((C.pr.base || '').slice(0, 8))}</div>`;
   for (const [g, rs] of Object.entries(groups)) {
     html += `<div class="rail-group"><div class="rail-head">${g}</div>`;
@@ -1067,7 +1055,7 @@ function renderRail() {
   $('#rail').innerHTML = html;
 }
 function parseHash() {
-  const h = (location.hash || '#overview').slice(1);
+  const h = ReviewSections.routeFor((location.hash || '#overview').slice(1));
   if (h.startsWith('tour-')) return ['tour', h.slice(5)];
   return [routes().some(r => r[0] === h) ? h : 'overview', null];
 }
@@ -1076,7 +1064,7 @@ function render() {
   [currentRoute, currentSub] = parseHash();
   renderRail();
   const main = $('#main');
-  const views = { overview: vOverview, design: vDesign, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, criteria: vCriteria, files: vFiles, terms: vTerms, notes: vNotes };
+  const views = { overview: vOverview, design: vDesign, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, decisions: vDecisions, abstractions: vAbstractions, invariants: vInvariants, tests: vTests, files: vFiles, terms: vTerms, notes: vNotes };
   customViews.forEach(v => { views[v.id] = () => v.render(api()); after[v.id] = () => v.mount && v.mount($('#main'), api()); });
   main.innerHTML = `<div class="view"><div class="banner" id="store-banner" hidden></div>${views[currentRoute]()}</div>`;
   renderBanner();
@@ -1166,6 +1154,7 @@ function figureViews() {
   const drawn = [];
   if (((C.overview || {}).figures || []).length) drawn.push('overview');
   if (hasDesign()) drawn.push('design');
+  if ((C.design || {}).relations) drawn.push('abstractions');
   C.chapters.forEach(ch => { if ((ch.figures || []).length || (ch.stops || []).some(s => s.figure)) drawn.push('tour-' + ch.id); });
   return drawn;
 }
@@ -1174,19 +1163,13 @@ function figureViews() {
 const STATUS_CHIP = { new: 'c-info', changed: 'c-warn', removed: 'c-bad', existing: 'c-none' };
 const ASSESS_CHIP = { sound: 'c-ok', questionable: 'c-warn', unsound: 'c-bad' };
 const VERDICT_CHIP = { holds: 'c-ok', strained: 'c-warn', broken: 'c-bad' };
-function designItems(key) {
-  const out = ((C.design || {})[key] || []).map(item => ({ item, chapter: item.chapter ? CH[item.chapter] : null }));
-  C.chapters.forEach(ch => (ch[key] || []).forEach(item => out.push({ item, chapter: ch })));
-  return out;
-}
+const withItsChapter = ({ item, chapter }) => ({ item, chapter: CH[chapter || item.chapter] || null });
+const decisionEntries = () => CATALOGUE.decisions.map(withItsChapter);
 function keyAbstractions() {
-  return (C.keyAbstractions || []).map(({ item, chapters }) => ({ item, chapters: chapters.map(id => CH[id]).filter(Boolean) }));
+  return CATALOGUE.abstractions.map(({ item, chapters }) => ({ item, chapters: chapters.map(id => CH[id]).filter(Boolean) }));
 }
 const decisionTarget = d => 'design:' + (d.id || plain(d.decision));
-function hasDesign() {
-  const d = C.design || {};
-  return !!(d.summary || (d.figures || []).length || keyAbstractions().length || designItems('decisions').length);
-}
+const hasDesign = () => routes().some(([id]) => id === 'design');
 const CARRIED = { decision: ['Decision', 'dec-'], abstraction: ['Abstraction', 'abs-'], invariant: ['Invariant', 'inv-'], risk: ['Risk', 'risk-'] };
 function carriedLink(carried) {
   const [kind, prefix] = CARRIED[carried.kind];
@@ -1233,7 +1216,7 @@ function designSection(abstractions, decisions, heading) {
 }
 function vDesign() {
   const d = C.design || {};
-  const abstractions = keyAbstractions(), decisions = designItems('decisions');
+  const abstractions = keyAbstractions(), decisions = decisionEntries();
   const count = n => `<span class="muted small" style="font-family:var(--f-body);font-weight:400">${n}</span>`;
   return `<div class="view-head"><div class="eyebrow">Design</div><h1>${esc(d.title || 'How the change is designed')}</h1>${d.summary ? `<div class="lede md">${md(d.summary)}</div>` : ''}</div>
     ${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
@@ -1276,7 +1259,7 @@ function vOverview() {
 
   ${(o.figures || []).length ? `<section class="section"><h2>The change at a glance</h2><div class="figs">${o.figures.map(f => figureHtml(f)).join('')}</div></section>` : ''}
 
-  ${hasDesign() ? `<section class="section"><h2>The design</h2><div class="panel stack">${(C.design || {}).summary ? `<div class="md">${md(C.design.summary)}</div>` : ''}${designItems('decisions').length ? `<div class="eyebrow">Decisions to agree with</div><ul class="prose small" style="margin:0">${designItems('decisions').slice(0, 8).map(({ item }) => `<li>${md(item.decision, true)}${item.assessment ? ` <span class="chip ${ASSESS_CHIP[item.assessment] || 'c-none'}">${esc(item.assessment)}</span>` : ''}</li>`).join('')}</ul>` : ''}<div class="small"><a href="#design">Open the design: abstractions, decisions, fit with the architecture →</a></div></div></section>` : ''}
+  ${hasDesign() ? `<section class="section"><h2>The design</h2><div class="panel stack">${(C.design || {}).summary ? `<div class="md">${md(C.design.summary)}</div>` : ''}${decisionEntries().length ? `<div class="eyebrow">Decisions to agree with</div><ul class="prose small" style="margin:0">${decisionEntries().slice(0, 8).map(({ item }) => `<li>${md(item.decision, true)}${item.assessment ? ` <span class="chip ${ASSESS_CHIP[item.assessment] || 'c-none'}">${esc(item.assessment)}</span>` : ''}</li>`).join('')}</ul>` : ''}<div class="small"><a href="#design">Open the design: abstractions, decisions, fit with the architecture →</a></div></div></section>` : ''}
 
   <div class="grid-2">
     <section class="panel stack">
@@ -1285,7 +1268,7 @@ function vOverview() {
       <div class="stack small">
         <div class="eyebrow">What stands in the way</div>
         ${blocks.length ? `<ul class="prose" style="margin:0">${blocks.join('')}</ul>` : '<span class="muted">Nothing marked blocking yet.</span>'}
-        ${forkBlocks.length ? `<div class="muted">The code-reading pass recommends blocking on ${forkBlocks.map(f => `<a href="#findings" data-jump-finding="${f.id}">${f.id}</a>`).join(', ')}. You have not triaged ${forkBlocks.length === 1 ? 'it' : 'them'} yet.</div>` : ''}
+        ${forkBlocks.length ? `<div class="muted">The code-reading pass recommends blocking on ${forkBlocks.map(f => findingLink(f.id)).join(', ')}. You have not triaged ${forkBlocks.length === 1 ? 'it' : 'them'} yet.</div>` : ''}
       </div>
     </section>
     <section class="panel stack">
@@ -1315,18 +1298,41 @@ function vOverview() {
   ${ar.length ? `<section class="section"><h2>Accepted risks</h2>
     <p class="lede small">The plan accepts ${ar.length} risks by name. ${arOverlap.reduce((s, a) => s + a.findings.length, 0)} ${esc(source())} findings re-raise ${arOverlap.length} of them; triaging those is a question of whether the acceptance still holds, not whether the code matches the plan.</p>
     <div class="table-wrap"><table class="data"><thead><tr><th>Risk</th><th>What the plan accepts</th><th>Re-raised by</th></tr></thead><tbody>
-    ${ar.map(a => `<tr><td style="min-width:200px"><b>${esc(a.title)}</b></td><td class="small">${md(a.gist, true)}</td><td>${(a.findings || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ') || '<span class="muted small">—</span>'}</td></tr>`).join('')}
+    ${ar.map(a => `<tr><td style="min-width:200px"><b>${esc(a.title)}</b></td><td class="small">${md(a.gist, true)}</td><td>${(a.findings || []).map(id => findingLink(id)).join(' ') || '<span class="muted small">—</span>'}</td></tr>`).join('')}
     </tbody></table></div></section>` : ''}
 
   ${ci.length ? `<section class="section"><h2>CI at head <span class="muted small" style="font-family:var(--f-body);font-weight:400">${passN} passing</span></h2><div class="table-wrap"><table class="data"><tbody>${ciRows}</tbody></table></div></section>` : ''}`;
 }
+const BLANK_FILTERS = {
+  findings: { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: '' },
+  decisions: { assessment: '', chapter: '', verdict: '' },
+  abstractions: { status: '', chapter: '' },
+  invariants: { holds: '', pinned: '', chapter: '', verdict: '' },
+};
+const filters = Object.fromEntries(Object.entries(BLANK_FILTERS).map(([route, blank]) => [route, { ...blank }]));
+const jumpLink = (route, filter, label, attrs = '') => `<a href="#${route}" data-jump="${route}" data-filter="${esc(JSON.stringify(filter))}"${attrs}>${label}</a>`;
+const findingLink = (id, label = id, attrs = '') => jumpLink('findings', { q: id }, esc(label), attrs);
 document.addEventListener('click', e => {
-  const a = e.target.closest('[data-jump-finding]');
+  const a = e.target.closest('[data-jump]');
   if (!a) return;
   e.preventDefault();
-  findingFilter = { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: a.dataset.jumpFinding };
-  if (location.hash !== '#findings') location.hash = 'findings'; else render();
+  const route = a.dataset.jump;
+  if (BLANK_FILTERS[route]) filters[route] = { ...BLANK_FILTERS[route], ...JSON.parse(a.dataset.filter || '{}') };
+  if (location.hash !== '#' + route) location.hash = route; else render();
 });
+function filterSelect(route, key, options) {
+  const chosen = filters[route][key];
+  return `<select data-filter-of="${route}" data-filter-key="${key}">${options.map(([value, label]) => `<option value="${esc(value)}" ${chosen === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
+}
+document.addEventListener('change', e => {
+  const select = e.target.closest('select[data-filter-of]');
+  if (!select) return;
+  filters[select.dataset.filterOf][select.dataset.filterKey] = select.value;
+  render();
+});
+const verdictMatches = (wanted, target) => !wanted || (wanted === 'none' ? !Store.get(target).status : Store.get(target).status === wanted);
+const verdictOptions = kind => [['', 'any'], ['none', 'not yet'], ...KINDS[kind].opts.map(([value, label]) => [value, label])];
+const chapterOptions = extra => [['', 'any'], ...extra, ...C.chapters.map(c => [c.id, c.title])];
 
 /* Attention map */
 let mapSize = 'all';
@@ -1452,17 +1458,14 @@ function vChapter(ch) {
         ${s.why ? `<div class="why"><div class="eyebrow">Why it is this way</div><div class="md">${md(s.why)}</div></div>` : ''}
         ${s.risk ? `<div class="stop-risk"><div class="eyebrow">If this is wrong</div><div class="md">${md(s.risk)}</div></div>` : ''}
         ${stopChecks(s)}
-        ${(s.findings || []).length ? `<div class="row small">${s.findings.map(id => F[id] ? `<a href="#findings" data-jump-finding="${id}" title="${esc(F[id].summary)}">${id}</a> ${sevChip(F[id].severity)}` : '').join(' ')}</div>` : ''}
+        ${(s.findings || []).length ? `<div class="row small">${s.findings.map(id => F[id] ? `${findingLink(id, id, ` title="${esc(F[id].summary)}"`)} ${sevChip(F[id].severity)}` : '').join(' ')}</div>` : ''}
         ${ctl('stop:' + s.id, 'stop', { label: `${ch.title} ${i + 1}.${j + 1}: ${s.title}`, where: `${s.file}:${s.start}-${s.end}` })}
       </div>
       ${codeSlice(s.file, s.start, s.end, s.side || 'new', { pad: 0, focus: s.focus })}
     </div>`).join('');
   const ba = (ch.beforeAfter || []).length ? `<section class="section"><h2>Before and after</h2><div class="ba">${ch.beforeAfter.map(b => `<div class="ba-aspect">${md(b.aspect, true)}</div><div><div class="eyebrow">Before</div><div class="md small">${md(b.before)}</div></div><div><div class="eyebrow">After</div><div class="md small">${md(b.after)}</div></div>`).join('')}</div></section>` : '';
-  const inv = (ch.invariants || []).map(v => `<div class="inv" id="inv-${esc(v.id || '')}"><div class="stack" style="gap:6px"><div class="md">${md(v.text)}</div>
-      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? `<span class="muted">pinned by</span> ${v.pinnedBy.map(testRef).join(', ')}` : '<span class="muted">no pinning test named</span>'}</div>
-      ${v.why ? `<div class="small md muted">${md(v.why)}</div>` : ''}</div>
-      <div>${ctl('inv:' + v.id, 'invariant', { label: `${ch.title}: ${v.text}`, where: v.where })}</div></div>`).join('');
-  const risks = (ch.risks || []).map(r => `<tr id="risk-${esc(r.id || '')}"><td>${sevChip(r.level)}</td><td class="md small">${md(r.text)}</td><td class="small">${whereBtn(r.where)}</td><td class="small">${(r.refs || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ')}</td></tr>`).join('');
+  const inv = (ch.invariants || []).map(item => invariantRow({ item, chapter: ch.id })).join('');
+  const risks = (ch.risks || []).map(item => riskRow({ item, chapter: ch.id })).join('');
   const fcs = (ch.findingChecks || []).map(fc => findingRow(F[fc.id], fc)).join('');
   const own = (ch.ownNotes || []).map((n, k) => `<div class="finding"><div class="finding-head">${sevChip(n.level)}<span class="finding-id">N-${esc(ch.id)}-${k + 1}</span>${whereBtn(n.where)}</div><div class="md">${md(n.text)}</div>${ctl(`own:${ch.id}-${k + 1}`, 'finding', { label: `New observation in ${ch.title}`, where: n.where, text: n.text })}</div>`).join('');
   const tests = (ch.tests || []).map(t => `<tr><td>${testRef(t)}</td><td class="small">${md(t.proves, true)}</td></tr>`).join('');
@@ -1484,6 +1487,17 @@ function vChapter(ch) {
     <div class="pager">${prev ? `<a href="#tour-${prev.id}"><span class="eyebrow">← Chapter ${i}</span><span>${esc(prev.title)}</span></a>` : '<span></span>'}${next ? `<a href="#tour-${next.id}" style="text-align:right"><span class="eyebrow">Chapter ${i + 2} →</span><span>${esc(next.title)}</span></a>` : '<span></span>'}</div>`;
 }
 after.tour = () => { if (D) fillPendingSlices(); };
+const chapterLink = id => (CH[id] ? `<a href="#tour-${esc(id)}">${esc(CH[id].title)}</a>` : '');
+function invariantRow({ item: v, chapter }, opts = {}) {
+  const ch = CH[chapter] || { title: chapter };
+  return `<div class="inv" id="inv-${esc(v.id || '')}"><div class="stack" style="gap:6px"><div class="md">${md(v.text)}</div>
+      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? `<span class="muted">pinned by</span> ${v.pinnedBy.map(testRef).join(', ')}` : '<span class="muted">no pinning test named</span>'}${opts.withChapter ? chapterLink(chapter) : ''}</div>
+      ${v.why ? `<div class="small md muted">${md(v.why)}</div>` : ''}</div>
+      <div>${ctl('inv:' + v.id, 'invariant', { label: `${ch.title}: ${v.text}`, where: v.where })}</div></div>`;
+}
+function riskRow({ item: r, chapter }, opts = {}) {
+  return `<tr id="risk-${esc(r.id || '')}"><td>${sevChip(r.level)}</td><td class="md small">${md(r.text)}</td><td class="small">${whereBtn(r.where)}</td><td class="small">${(r.refs || []).map(id => findingLink(id)).join(' ')}</td>${opts.withChapter ? `<td class="small">${chapterLink(chapter)}</td>` : ''}</tr>`;
+}
 
 function findingRow(f, fc) {
   if (!f) return '';
@@ -1539,7 +1553,7 @@ function ledgerCard(l) {
     </div>
     ${l.concurrency ? `<div class="small"><span class="eyebrow">${esc(lab.concurrency || 'Concurrency')}</span><div class="md">${md(l.concurrency)}</div></div>` : ''}
     ${l.concern ? `<div class="check"><div class="eyebrow">Concern</div><div class="md small">${md(l.concern.text)}</div></div>` : ''}
-    <div class="row small">${(l.tests || []).length ? `<span class="muted">Pinned by</span> ${l.tests.map(testRef).join(', ')}` : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => `<a href="#findings" data-jump-finding="${id}">${id}</a>`).join(' ')}</div>
+    <div class="row small">${(l.tests || []).length ? `<span class="muted">Pinned by</span> ${l.tests.map(testRef).join(', ')}` : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => findingLink(id)).join(' ')}</div>
     <details><summary>Show the code</summary>${codeSlice(l.file, l.start ?? l.line, l.end ?? l.line, 'new', { pad: 6 })}</details>
     ${ctl('ledger:' + l.id, 'ledger', { label: `${l.id} ${l.op}: ${l.subject}`, where: l.start ? `${l.file}:${l.start}-${l.end}` : `${l.file}:${l.line}` })}
   </article>`;
@@ -1550,10 +1564,9 @@ after.ledger = () => {
 };
 
 /* Findings */
-let findingFilter = { sev: '', lens: '', verdict: '', triage: '', chapter: '', level: '', q: '' };
 function vFindings() {
   const lenses = [...new Set(C.findings.flatMap(f => f.lenses || []))].sort();
-  const ff = findingFilter;
+  const ff = filters.findings;
   const rows = C.findings.filter(f => {
     const fc = C.findingCheck[f.id] || {};
     const st = Store.get('finding:' + f.id).status || '';
@@ -1586,19 +1599,83 @@ function vFindings() {
 }
 after.findings = () => {
   $$('[data-ff]').forEach(s => s.addEventListener(s.tagName === 'INPUT' ? 'input' : 'change', () => {
-    findingFilter[s.dataset.ff] = s.value;
+    filters.findings[s.dataset.ff] = s.value;
     if (s.tagName === 'INPUT') { clearTimeout(s._t); s._t = setTimeout(() => { const pos = s.selectionStart; render(); const n = $('[data-ff="q"]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 250); }
     else render();
   }));
 };
 
-/* Criteria */
-function vCriteria() {
+/* Catalogues */
+function vDecisions() {
+  const f = filters.decisions;
+  const shown = CATALOGUE.decisions.filter(({ item, chapter }) => (!f.assessment || (item.assessment || 'none') === f.assessment)
+    && (!f.chapter || (chapter || 'design') === f.chapter)
+    && verdictMatches(f.verdict, decisionTarget(item))).map(withItsChapter);
+  return `<div class="view-head"><div class="eyebrow">Reference</div><h1>Design decisions</h1>
+    <p class="lede">${plural(CATALOGUE.decisions.length, 'decision')}: what was chosen, over what, why, and at what cost. Whether you agree with these matters more than any single line.</p></div>
+    <div class="filters">
+      <label>Assessment ${filterSelect('decisions', 'assessment', [['', 'any'], ['sound', 'sound'], ['questionable', 'questionable'], ['unsound', 'unsound'], ['none', 'not assessed']])}</label>
+      <label>Chapter ${filterSelect('decisions', 'chapter', chapterOptions([['design', 'the design as a whole']]))}</label>
+      <label>Your verdict ${filterSelect('decisions', 'verdict', verdictOptions('design'))}</label>
+      <span class="small muted">${shown.length} shown</span>
+    </div>
+    <div class="stack">${shown.map(decisionCard).join('') || '<div class="empty">No decisions match these filters.</div>'}</div>
+    ${CATALOGUE.principles.length ? `<section class="section"><h2>Fit with the existing architecture</h2>${principlesTable(CATALOGUE.principles)}</section>` : ''}
+    ${CATALOGUE.extension.length ? `<section class="section"><h2>Where the next change goes</h2>${extensionTable(CATALOGUE.extension)}</section>` : ''}`;
+}
+function vAbstractions() {
+  const f = filters.abstractions, d = C.design || {};
+  const shown = keyAbstractions().filter(({ item, chapters }) => (!f.status || (item.status || 'existing') === f.status)
+    && (!f.chapter || chapters.some(ch => ch.id === f.chapter)));
+  return `<div class="view-head"><div class="eyebrow">Reference</div><h1>Key abstractions</h1>
+    <p class="lede">${plural(CATALOGUE.abstractions.length, 'abstraction')} the change introduces, changes or leans on: what each is responsible for and what it works with.</p></div>
+    ${d.relations ? `<div class="figs">${figureHtml(d.relations)}</div>` : ''}
+    <div class="filters">
+      <label>Status ${filterSelect('abstractions', 'status', [['', 'any'], ['new', 'new'], ['changed', 'changed'], ['removed', 'removed'], ['existing', 'existing']])}</label>
+      <label>Chapter ${filterSelect('abstractions', 'chapter', chapterOptions([]))}</label>
+      <span class="small muted">${shown.length} shown</span>
+    </div>
+    ${shown.length ? `<div class="abs-grid">${shown.map(abstractionCard).join('')}</div>` : '<div class="empty">No abstractions match these filters.</div>'}`;
+}
+const RISK_ORDER = ['high', 'medium', 'low'];
+const riskRank = ({ item }) => (RISK_ORDER.includes(item.level) ? RISK_ORDER.indexOf(item.level) : RISK_ORDER.length);
+function vInvariants() {
+  const f = filters.invariants;
+  const pinned = item => (item.pinnedBy || []).length > 0;
+  const shown = CATALOGUE.invariants.filter(({ item, chapter }) => (!f.holds || (item.holds || 'none') === f.holds)
+    && (!f.pinned || (f.pinned === 'yes') === pinned(item))
+    && (!f.chapter || chapter === f.chapter)
+    && verdictMatches(f.verdict, 'inv:' + item.id));
+  const risks = [...CATALOGUE.risks].sort((a, b) => riskRank(a) - riskRank(b));
+  return `<div class="view-head"><div class="eyebrow">Reference</div><h1>Invariants and risks</h1>
+    <p class="lede">${plural(CATALOGUE.invariants.length, 'invariant')} that must always hold, with the reading pass's view and the tests that pin them, and ${plural(risks.length, 'risk')} the reading passes named, highest first.</p></div>
+    ${CATALOGUE.invariants.length ? `<section class="section"><h2>Invariants</h2>
+      <div class="filters">
+        <label>Reading pass ${filterSelect('invariants', 'holds', [['', 'any'], ['yes', 'holds'], ['partly', 'partly'], ['unsure', 'unsure'], ['none', 'not checked']])}</label>
+        <label>Pinned ${filterSelect('invariants', 'pinned', [['', 'any'], ['yes', 'by a test'], ['no', 'by no test']])}</label>
+        <label>Chapter ${filterSelect('invariants', 'chapter', chapterOptions([]))}</label>
+        <label>Your verdict ${filterSelect('invariants', 'verdict', verdictOptions('invariant'))}</label>
+        <span class="small muted">${shown.length} shown</span>
+      </div>
+      ${shown.length ? `<div class="panel" style="padding-block:4px">${shown.map(entry => invariantRow(entry, { withChapter: true })).join('')}</div>` : '<div class="empty">No invariants match these filters.</div>'}</section>` : ''}
+    ${risks.length ? `<section class="section"><h2>Risks</h2><div class="table-wrap"><table class="data"><tbody>${risks.map(entry => riskRow(entry, { withChapter: true })).join('')}</tbody></table></div></section>` : ''}`;
+}
+function namerLink(namer) {
+  const [kind, id] = [namer.slice(0, namer.indexOf(':')), namer.slice(namer.indexOf(':') + 1)];
+  if (kind === 'chapter') return chapterLink(id) || esc(id);
+  if (kind === 'inv') return jumpLink('invariants', {}, esc(id), ` data-scroll-to="inv-${esc(id)}"`);
+  if (kind === 'ledger') return `<a href="#ledger" data-scroll-ledger="${esc(id)}">${esc(id)}</a>`;
+  return `<span class="muted">criterion ${esc(id)}</span>`;
+}
+function vTests() {
   const rows = C.acs.map(r => `<tr><td class="tnum muted">${r.n}</td><td>${md(r.label, true)}</td><td>${r.tests.map(t => t.hits.length ? t.hits.slice(0, 4).map(h => `<button class="loc" data-open="${esc(h.file)}" data-line="${h.line}">${esc(h.name)}</button>`).join('<br>') + (t.hits.length > 4 ? `<span class="muted small"> +${t.hits.length - 4} more</span>` : '') : `<code class="small">${esc(t.ref)}</code>`).join('<br>')}${r.note ? `<div class="small muted">${md(r.note, true)}</div>` : ''}</td><td class="tnum small">${esc(r.phase)}</td></tr>`).join('');
   const resolved = C.acs.reduce((s, r) => s + r.tests.filter(t => t.hits.length).length, 0), total = C.acs.reduce((s, r) => s + r.tests.length, 0);
-  return `<div class="view-head"><div class="eyebrow">Acceptance criteria</div><h1>Criteria mapped to the tests that pin them</h1>
-    <p class="lede">Each acceptance criterion with the tests that pin it, every test name resolved to its declaration at head (${resolved} of ${total} resolved). Select a test to open it.</p></div>
-    <div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Criterion</th><th>Tests</th><th>Phase</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const tests = CATALOGUE.tests.map(t => `<tr class="test-row"><td>${testRef(t)}</td><td class="small">${md(t.proves || '', true)}</td><td class="small">${t.namedBy.map(namerLink).join(', ')}</td></tr>`).join('');
+  return `<div class="view-head"><div class="eyebrow">Reference</div><h1>The tests that pin the change</h1>
+    <p class="lede">${plural(CATALOGUE.tests.length, 'test')} named by a chapter, an invariant, a ledger row or an acceptance criterion. Select a test to open it.</p></div>
+    ${C.acs.length ? `<section class="section"><h2>Criteria mapped to the tests that pin them</h2><p class="small muted">Each acceptance criterion with the tests that pin it, every test name resolved to its declaration at head (${resolved} of ${total} resolved).</p>
+    <div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Criterion</th><th>Tests</th><th>Phase</th></tr></thead><tbody>${rows}</tbody></table></div></section>` : ''}
+    ${tests ? `<section class="section"><h2>Every test named</h2><div class="table-wrap"><table class="data"><thead><tr><th>Test</th><th>Proves</th><th>Named by</th></tr></thead><tbody>${tests}</tbody></table></div></section>` : ''}`;
 }
 
 /* Files */
@@ -1625,7 +1702,7 @@ function annotationsFor(path) {
   const add = (line, item) => { if (!line) return; (a[line] = a[line] || []).push(item); };
   C.chapters.forEach((ch, i) => (ch.stops || []).forEach((s, j) => { if (s.file === path && (s.side || 'new') === 'new') add(s.end, { k: 'stop', html: `<b>${i + 1}.${j + 1} ${esc(s.title)}</b> <a href="#tour-${ch.id}" data-scroll-stop="${esc(s.id)}">in tour</a><div class="md">${md(s.why)}</div>`, at: s.start }); }));
   C.ledger.forEach(l => { if (l.file === path) add(l.line, { k: 'ledger', html: `<b>${esc(l.id)} · ${esc(l.op)}</b> ${md(l.subject, true)} <a href="#ledger" data-scroll-ledger="${esc(l.id)}">in ledger</a>`, at: l.line }); });
-  C.findings.forEach(f => { if (f.file === path && f.start) add(f.end || f.start, { k: 'finding', html: `<b>${f.id}</b> ${sevChip(f.severity)} ${md(f.summary, true)} <a href="#findings" data-jump-finding="${f.id}">in findings</a>`, at: f.start }); });
+  C.findings.forEach(f => { if (f.file === path && f.start) add(f.end || f.start, { k: 'finding', html: `<b>${f.id}</b> ${sevChip(f.severity)} ${md(f.summary, true)} ${findingLink(f.id, 'in findings')}`, at: f.start }); });
   return a;
 }
 function filePane(path) {

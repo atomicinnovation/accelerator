@@ -357,16 +357,16 @@ assert:
 
 #### Automated Verification
 
-- [ ] The new node suites fail before the modules exist, and pass after.
-- [ ] Every shared verification command passes.
+- [x] The new node suites fail before the modules exist, and pass after.
+- [x] Every shared verification command passes.
 
 #### Manual Verification
 
-- [ ] On a rebuilt workspace, the rail shows the five groups. Interact is
+- [x] On a rebuilt workspace, the rail shows the five groups. Interact is
       absent when there are no custom views.
 - [ ] Each catalogue's filters narrow the list, and a verdict given in a
       catalogue shows wherever else that item's control is drawn.
-- [ ] The smoke check reports `"ok": true`.
+- [x] The smoke check reports `"ok": true`.
 
 ---
 

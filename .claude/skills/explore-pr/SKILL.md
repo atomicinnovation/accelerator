@@ -125,7 +125,7 @@ Do this yourself; it is cheap and shapes everything after it.
 - **Context**: the work item, plan, research and ADRs the description or
   branch name points to (`{work directory}`, `{plans directory}`). A plan's
   accepted risks and acceptance-criterion map feed the overview and the
-  criteria view.
+  Tests view.
 - **CI**: `gh pr checks {number}`; for each failure, find the cause in the
   failed job's log (`gh run view {run} --log-failed`) and name the fix.
 - **The architecture it lands in**: how the system is structured where the

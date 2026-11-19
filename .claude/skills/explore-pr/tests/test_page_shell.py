@@ -90,13 +90,48 @@ def test_what_a_stop_carries_can_be_reached_from_it():
     assert "dataset.scrollTo" in shell
 
 
-def test_by_commit_sits_with_the_reference_views_after_all_files():
-    shell = SHELL.read_text()
-    routes = shell[shell.index("function routes() {") :]
-    routes = routes[: routes.index("\n}\n")]
+def test_the_rail_takes_its_sections_from_the_review_sections_model():
+    assert "ReviewSections.of(C, customViews)" in renderer("routes")
+    assert "ReviewSections.routeFor(" in renderer("parseHash")
 
-    by_commit = routes.index("['commits', 'By commit', 'Reference']")
-    assert routes.index("['files', 'All files', 'Reference']") < by_commit
+
+def test_each_catalogue_draws_the_cards_its_items_are_reached_by():
+    cards = {
+        "vDecisions": ("decisionCard", 'id="dec-'),
+        "vAbstractions": ("abstractionCard", 'id="abs-'),
+        "invariantRow": (None, 'id="inv-'),
+        "riskRow": (None, 'id="risk-'),
+    }
+    for view, (card, element) in cards.items():
+        if card:
+            assert card in renderer(view), view
+            assert element in renderer(card), card
+        else:
+            assert element in renderer(view), view
+    assert "invariantRow" in renderer("vInvariants")
+    assert "riskRow" in renderer("vInvariants")
+
+
+def test_the_tests_catalogue_keeps_the_criteria_and_lists_every_test():
+    tests = renderer("vTests")
+
+    assert "C.acs" in tests
+    assert "CATALOGUE.tests" in tests
+
+
+def test_a_chapter_draws_its_invariants_and_risks_as_the_catalogue_does():
+    chapter = renderer("vChapter")
+
+    assert "invariantRow(" in chapter
+    assert "riskRow(" in chapter
+
+
+def test_a_link_can_open_any_catalogue_already_filtered():
+    shell = SHELL.read_text()
+
+    assert "data-jump-finding" not in shell
+    assert "closest('[data-jump]')" in shell
+    assert "dataset.filter" in shell
 
 
 def renderer(name):
