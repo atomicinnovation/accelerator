@@ -180,37 +180,48 @@ class SharedFixtureSession:
         started = time.monotonic()
         digests = self._digest_again(progress, problems)
         digested = time.monotonic()
-        try:
-            progress.run.close()
-        except Exception as error:  # noqa: BLE001
-            problems.extend(_problems_of(error))
+        problems.extend(self._remove(progress))
         removed = time.monotonic()
-        try:
-            self._logs_store(self._logs).prune(
-                keep=_LOGS_KEPT, live=runs.live_run_ids()
-            )
-        except Exception as error:  # noqa: BLE001
-            self._say(f"WARNING: pruning old fixture logs failed: {error}")
+        self._prune_old_logs(runs)
         if progress.log is not None:
-            try:
-                problems.extend(
-                    progress.log.problems(
-                        FinishedRun(
-                            trees=progress.trees,
-                            digests=digests,
-                            filtered=filtered,
-                            tests_passed=failure is None,
-                        )
-                    )
+            problems.extend(
+                self._judge(
+                    progress.log,
+                    FinishedRun(
+                        trees=progress.trees,
+                        digests=digests,
+                        filtered=filtered,
+                        tests_passed=failure is None,
+                    ),
                 )
-            except Exception as error:  # noqa: BLE001
-                problems.append(f"judging the fixture log failed: {error}")
+            )
             problems.extend(self._summarise(progress.log))
         self._say(
             f"digested again in {digested - started:.1f} s, "
             f"removed in {removed - digested:.1f} s"
         )
         return problems
+
+    def _remove(self, progress: _Progress) -> Sequence[str]:
+        try:
+            progress.run.close()
+        except Exception as error:  # noqa: BLE001
+            return _problems_of(error)
+        return ()
+
+    def _prune_old_logs(self, runs: FixtureRuns) -> None:
+        try:
+            self._logs_store(self._logs).prune(
+                keep=_LOGS_KEPT, live=runs.live_run_ids()
+            )
+        except Exception as error:  # noqa: BLE001
+            self._say(f"WARNING: pruning old fixture logs failed: {error}")
+
+    def _judge(self, log: FixtureLog, run: FinishedRun) -> list[str]:
+        try:
+            return log.problems(run)
+        except Exception as error:  # noqa: BLE001
+            return [f"judging the fixture log failed: {error}"]
 
     def _digest_again(
         self, progress: _Progress, problems: list[str]
