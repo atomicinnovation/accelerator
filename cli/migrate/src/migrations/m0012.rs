@@ -120,6 +120,7 @@ fn summary(configured: &str, repaired: usize, realigned: usize) -> String {
 enum Untouched {
     NotUtf8,
     UnparseableFrontmatter(MigrationError),
+    FrontmatterNotAMapping,
     NonCanonicalTagsKey,
     InsertionChangesMeaning,
 }
@@ -134,6 +135,11 @@ impl Untouched {
                 "frontmatter does not parse as YAML ({cause}); fix the \
                  frontmatter, then add `tags: []`"
             ),
+            Self::FrontmatterNotAMapping => "frontmatter is not a YAML \
+                                             mapping; rewrite it as `key: \
+                                             value` lines, then add \
+                                             `tags: []`"
+                .to_owned(),
             Self::NonCanonicalTagsKey => "its tags key is spelled \
                                           non-canonically; rewrite the key \
                                           as `tags:`"
@@ -338,11 +344,7 @@ fn yaml_obstacle(
 ) -> Option<Untouched> {
     let before = match ctx.parse_frontmatter(original) {
         Ok(FrontmatterValue::Mapping(before)) => before,
-        Ok(_) => {
-            return Some(Untouched::UnparseableFrontmatter(
-                MigrationError::new("the frontmatter is not a mapping"),
-            ))
-        }
+        Ok(_) => return Some(Untouched::FrontmatterNotAMapping),
         Err(cause) => return Some(Untouched::UnparseableFrontmatter(cause)),
     };
     if before.get("tags").is_some() {
@@ -950,6 +952,32 @@ mod tests {
         );
         assert!(ctx.writes.borrow().is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn leaves_an_item_whose_frontmatter_is_not_a_mapping_untouched(
+    ) -> TestResult {
+        let item = untagged("A");
+        let ctx = Context::new()
+            .holding(FIRST, &item)
+            .parsing(&item, Ok(FrontmatterValue::Sequence(Vec::new())));
+
+        let backfill = backfill(&ctx)?;
+
+        assert_eq!(
+            backfill.untouched,
+            vec![(ctx.path(FIRST), Untouched::FrontmatterNotAMapping)]
+        );
+        assert!(ctx.writes.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn frontmatter_that_is_not_a_mapping_is_not_reported_as_unparseable() {
+        let reason = Untouched::FrontmatterNotAMapping.reason_and_fix();
+
+        assert!(!reason.contains("does not parse"), "{reason}");
+        assert!(reason.contains("not a YAML mapping"), "{reason}");
     }
 
     fn assert_insertion_changes_meaning(
