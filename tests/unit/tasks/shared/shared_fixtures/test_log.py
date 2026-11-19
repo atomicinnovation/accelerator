@@ -252,7 +252,7 @@ class TestTheSummary:
             f"Shared VCS fixtures (log: {log.path}; shared root: /root)",
             "  matrix: 1 shared build, 19 adoptions, 0 copies, "
             "0 private builds",
-            "  private sets: 0 private builds",
+            "  private sets (never shared): 0 private builds",
         ]
 
     def test_counts_private_builds_of_each_kind(self, tmp_path: Path):
@@ -267,7 +267,7 @@ class TestTheSummary:
 
         assert log.summary(Path("/root")).lines()[1:] == [
             "  matrix: 0 shared builds, 0 adoptions, 0 copies, 1 private build",
-            "  private sets: 2 private builds",
+            "  private sets (never shared): 2 private builds",
         ]
 
     def test_no_line_reads_as_a_nextest_summary_or_a_task_duration(

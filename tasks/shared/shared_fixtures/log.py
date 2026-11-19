@@ -121,7 +121,7 @@ class FixtureSummary:
         return [
             f"Shared VCS fixtures (log: {self.log}; shared root: {self.root})",
             *(self._family_line(family) for family in Family),
-            "  private sets: "
+            "  private sets (never shared): "
             + _count(self._private_builds(None), "private build"),
         ]
 
