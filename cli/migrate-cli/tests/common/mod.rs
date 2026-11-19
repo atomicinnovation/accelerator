@@ -30,12 +30,13 @@ const MIGRATIONS_BEFORE_0007: [&str; 6] = [
     "0006-canonicalise-work-item-id-and-author",
 ];
 
-const MIGRATIONS_FROM_0007: [&str; 5] = [
+const MIGRATIONS_FROM_0007: [&str; 6] = [
     MIGRATION_0007,
     "0008-canonical-frontmatter-quoting",
     "0009-split-work-key-from-tracker-scope-key",
     "0010-strip-research-title-prefix",
     "0011-ignore-machine-local-sync-state",
+    "0012-backfill-work-item-tags",
 ];
 
 pub struct Outcome {
