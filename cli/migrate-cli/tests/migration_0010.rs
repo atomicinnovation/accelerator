@@ -1,6 +1,6 @@
 //! Migration 0010 (`strip-research-title-prefix`) driven end to end against
-//! the compiled binary, with the ledger pre-seeded through 0009 so 0010 is the
-//! sole pending migration.
+//! the compiled binary, with the ledger pre-seeded through 0009 so 0010 runs
+//! together with every later migration still pending.
 
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ fn write(dir: &Path, relative: &str, content: &str) -> Result<(), TestError> {
     Ok(())
 }
 
-fn already_applied_except_0010(dir: &Path) -> Result<(), TestError> {
+fn applied_through_0009(dir: &Path) -> Result<(), TestError> {
     write(
         dir,
         ".accelerator/state/migrations-applied",
@@ -56,7 +56,7 @@ fn strips_both_the_frontmatter_title_and_the_body_h1() -> Result<(), TestError>
         "---\ntype: \"codebase-research\"\ntitle: \"Research: Foo\"\n---\n\n\
          # Research: Foo\n\n## Research Question\n",
     )?;
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     let output = run(root)?;
     assert_eq!(output.status.code(), Some(0), "{output:?}");
@@ -81,7 +81,7 @@ fn strips_a_frontmatter_title_only_document() -> Result<(), TestError> {
         "meta/research/codebase/a.md",
         "---\ntitle: \"Research: Only Title\"\n---\n\n# Only Title\n",
     )?;
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     assert_eq!(run(root)?.status.code(), Some(0));
     assert_eq!(
@@ -100,7 +100,7 @@ fn strips_a_body_h1_only_document() -> Result<(), TestError> {
         "meta/research/codebase/b.md",
         "---\ntitle: \"Already Clean\"\n---\n\n# Research: Only H1\n",
     )?;
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     assert_eq!(run(root)?.status.code(), Some(0));
     assert_eq!(
@@ -117,7 +117,7 @@ fn leaves_a_research_heading_after_the_first_h2_untouched(
     let root = dir.path();
     let doc = "---\ntitle: \"Clean\"\n---\n\n## Section\n\n# Research: Later\n";
     write(root, "meta/research/codebase/c.md", doc)?;
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     assert_eq!(run(root)?.status.code(), Some(0));
     assert_eq!(
@@ -132,7 +132,7 @@ fn a_repo_with_no_research_codebase_directory_still_records_applied(
 ) -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     let output = run(root)?;
     assert_eq!(output.status.code(), Some(0), "{output:?}");
@@ -158,7 +158,7 @@ fn a_dangerous_research_codebase_value_is_refused_not_walked(
         ".accelerator/config.md",
         "---\npaths:\n  research_codebase: ../escape\n---\n",
     )?;
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     let output = run(root)?;
     assert_eq!(output.status.code(), Some(0), "{output:?}");
@@ -183,7 +183,7 @@ fn a_stripped_corpus_is_byte_stable_on_re_application() -> Result<(), TestError>
         "meta/research/codebase/foo.md",
         "---\ntitle: \"Research: Foo\"\n---\n\n# Research: Foo\n",
     )?;
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
 
     run(root)?;
     let after_first =
@@ -191,7 +191,7 @@ fn a_stripped_corpus_is_byte_stable_on_re_application() -> Result<(), TestError>
 
     // Drop 0010 from the ledger so apply re-executes rather than exercising
     // the ledger gate, mirroring m0006's byte-stability test.
-    already_applied_except_0010(root)?;
+    applied_through_0009(root)?;
     let output = run(root)?;
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     assert_eq!(
