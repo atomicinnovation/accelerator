@@ -6,10 +6,12 @@ use std::fmt;
 use crate::conduct::memory::RunMemory;
 use crate::conduct::memory::Withheld;
 use crate::conduct::observed::Observed;
+use crate::conduct::offered_nodes::NodeContext;
 use crate::conduct::search_budget::SearchBudgets;
 use crate::conduct::spawn::SpawnRef;
 use crate::conduct::window::Window;
 use crate::topic::claims::ClaimedIndexes;
+use crate::topic::layout::note_ref::NoteRef;
 use crate::topic::layout::stem::Stem;
 use crate::topic::plan::RoundInputs;
 use crate::topic::plan::RoundPlan;
@@ -173,7 +175,7 @@ impl RunLedger {
     ) -> Self {
         self.claims.claim_all(&plan.claims);
         self.memory.seen.absorb(observed);
-        let displaced = self.memory.pending.replace(window.offered.clone());
+        let displaced = self.memory.pending.replace(window.offer());
         self.memory.attempted.extend(
             displaced
                 .into_iter()
@@ -217,6 +219,13 @@ impl RunLedger {
     pub const fn search_budgets(&self) -> Option<&SearchBudgets> {
         self.search_budgets.as_ref()
     }
+
+    /// The context the node at `at` was first offered with, while the run's
+    /// pending batch still offers it.
+    #[must_use]
+    pub fn offered_context(&self, at: &NoteRef) -> Option<&NodeContext> {
+        self.memory.pending.context(at)
+    }
 }
 
 #[cfg(test)]
@@ -230,12 +239,22 @@ mod tests {
     use super::RunId;
     use super::RunLedger;
     use super::Superseded;
+    use crate::conduct::concurrency::test_support::concurrency;
     use crate::conduct::concurrency::test_support::unbounded;
+    use crate::conduct::concurrency::Concurrency;
+    use crate::conduct::memory::PendingBatch;
+    use crate::conduct::memory::RunMemory;
     use crate::conduct::memory::Withheld;
     use crate::conduct::observed::Observed;
+    use crate::conduct::offered_nodes::NodeContext;
     use crate::conduct::search_budget::SearchBudgets;
     use crate::conduct::search_budget::SearchCap;
     use crate::conduct::spawn::SpawnRef;
+    use crate::conduct::window::test_support::missing;
+    use crate::conduct::window::test_support::of_profile;
+    use crate::conduct::window::test_support::outstanding;
+    use crate::conduct::window::test_support::research_nodes;
+    use crate::conduct::window::test_support::researching;
     use crate::conduct::window::window;
     use crate::conduct::window::Window;
     use crate::topic::claims::ClaimedIndexes;
@@ -653,5 +672,191 @@ mod tests {
             recorded(started().withholding(&withheld(&["web"])), &["01-a"]);
         let ledger = recorded(continued(ledger, Some(0)), &["02-b"]);
         assert_eq!(ledger.memory().withheld, withheld(&["web"]));
+    }
+
+    fn offering_within(
+        ledger: RunLedger,
+        pairs: Vec<OutstandingPair>,
+        concurrency: Concurrency,
+    ) -> RunLedger {
+        let mut plan = empty_plan();
+        plan.pairs = pairs;
+        let offer = window(
+            &plan,
+            &Observed::default(),
+            concurrency,
+            Some(ledger.memory()),
+        );
+        ledger.record(&plan, &Observed::default(), &offer)
+    }
+
+    fn offering_nodes(
+        ledger: RunLedger,
+        pairs: Vec<OutstandingPair>,
+    ) -> RunLedger {
+        offering_within(ledger, pairs, unbounded())
+    }
+
+    fn context(
+        profile: &str,
+        question: &str,
+        known_questions: &[&str],
+    ) -> NodeContext {
+        NodeContext {
+            profile: profile.into(),
+            question: question.into(),
+            known_questions: known_questions
+                .iter()
+                .map(|known| (*known).to_owned())
+                .collect(),
+        }
+    }
+
+    fn snapshot(ledger: &RunLedger) -> Vec<String> {
+        ledger
+            .memory()
+            .pending
+            .nodes()
+            .iter()
+            .map(|(at, _)| at.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn an_offer_snapshots_each_offered_nodes_profile_question_and_known_questions(
+    ) {
+        let ledger = offering_nodes(
+            started(),
+            vec![of_profile(
+                "openalex",
+                researching("01-a", vec![missing("2-1", "A?", &["K?"])]),
+            )],
+        );
+        assert_eq!(
+            ledger.offered_context(&note_ref("01-a:2-1")),
+            Some(&context("openalex", "A?", &["K?"]))
+        );
+    }
+
+    #[test]
+    fn a_repeated_offer_keeps_a_still_pending_nodes_first_context() {
+        let first = offering_nodes(
+            started(),
+            vec![researching("01-a", vec![missing("2-1", "A?", &["K?"])])],
+        );
+        let again = offering_nodes(
+            continued(first, None),
+            vec![researching(
+                "01-a",
+                vec![missing("2-1", "A?", &["K?", "L?"])],
+            )],
+        );
+        assert_eq!(
+            again.offered_context(&note_ref("01-a:2-1")),
+            Some(&context("web", "A?", &["K?"]))
+        );
+    }
+
+    #[test]
+    fn a_node_the_offer_drops_leaves_the_snapshot() {
+        let first = offering_nodes(
+            started(),
+            vec![research_nodes("01-a", &["2-1", "2-2"])],
+        );
+        let later = offering_nodes(
+            continued(first, None),
+            vec![research_nodes("01-a", &["2-2"])],
+        );
+        assert_eq!(snapshot(&later), ["01-a:2-2"]);
+    }
+
+    #[test]
+    fn a_newly_offered_node_is_snapshotted_from_the_tree() {
+        let first =
+            offering_nodes(started(), vec![research_nodes("01-a", &["2-1"])]);
+        let later = offering_nodes(
+            continued(first, None),
+            vec![researching(
+                "01-a",
+                vec![
+                    missing("2-1", "2-1?", &[]),
+                    missing("2-2", "B?", &["K?"]),
+                ],
+            )],
+        );
+        assert_eq!(snapshot(&later), ["01-a:2-1", "01-a:2-2"]);
+        assert_eq!(
+            later.offered_context(&note_ref("01-a:2-2")),
+            Some(&context("web", "B?", &["K?"]))
+        );
+    }
+
+    #[test]
+    fn an_acknowledged_batch_carries_nothing_over() {
+        let first =
+            offering_nodes(started(), vec![research_nodes("01-a", &["2-1"])]);
+        let acknowledged = continued(first, Some(0));
+        assert!(snapshot(&acknowledged).is_empty());
+        let later = offering_nodes(
+            acknowledged,
+            vec![research_nodes("01-a", &["2-1", "2-2"])],
+        );
+        assert_eq!(snapshot(&later), ["01-a:2-2"]);
+    }
+
+    #[test]
+    fn pair_spawns_are_never_snapshotted() {
+        let ledger = offering_nodes(
+            started(),
+            vec![
+                single_pass("01-a"),
+                outstanding("02-b", Stage::Compose(vec![Lineage::root()])),
+            ],
+        );
+        assert_eq!(ledger.memory().pending.spawns(), spawns(&["01-a", "02-b"]));
+        assert!(snapshot(&ledger).is_empty());
+    }
+
+    #[test]
+    fn withheld_spawns_are_never_snapshotted() {
+        let ledger = offering_nodes(
+            started().withholding(&withheld(&["web"])),
+            vec![
+                research_nodes("01-a", &["2-1"]),
+                of_profile("openalex", research_nodes("02-b", &["2-1"])),
+            ],
+        );
+        assert_eq!(snapshot(&ledger), ["02-b:2-1"]);
+    }
+
+    #[test]
+    fn only_the_offer_narrowed_by_concurrency_is_snapshotted() {
+        let ledger = offering_within(
+            started(),
+            vec![research_nodes("01-a", &["2-1", "2-2", "2-3"])],
+            concurrency(2),
+        );
+        assert_eq!(snapshot(&ledger), ["01-a:2-1", "01-a:2-2"]);
+    }
+
+    #[test]
+    fn a_pending_node_without_a_snapshot_is_snapshotted_from_the_tree() {
+        let unsnapshotted = RunLedger::from_parts(
+            run("r1"),
+            ClaimedIndexes::default(),
+            RunMemory {
+                pending: PendingBatch::new(0, spawns(&["01-a:2-1"])),
+                ..RunMemory::default()
+            },
+            None,
+        );
+        let ledger = offering_nodes(
+            unsnapshotted,
+            vec![researching("01-a", vec![missing("2-1", "A?", &[])])],
+        );
+        assert_eq!(
+            ledger.offered_context(&note_ref("01-a:2-1")),
+            Some(&context("web", "A?", &[]))
+        );
     }
 }
