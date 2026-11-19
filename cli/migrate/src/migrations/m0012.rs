@@ -186,33 +186,38 @@ struct Repair {
     repaired: String,
 }
 
+enum Restoration {
+    AlreadyOriginal,
+    Restored,
+    ChangedSinceRepair,
+    Failed(MigrationError),
+}
+
 impl Repair {
-    fn restore(
-        &self,
-        ctx: &dyn MigrationContext,
-    ) -> Result<(), MigrationError> {
-        if self.holds(ctx, &self.original)? {
-            return Ok(());
+    fn restore(&self, ctx: &dyn MigrationContext) -> Restoration {
+        let current = match ctx.read_text(&self.file) {
+            Ok(Some(TextFile::Utf8(current))) => current,
+            Ok(_) => return Restoration::ChangedSinceRepair,
+            Err(cause) => return Restoration::Failed(cause),
+        };
+        if current == self.original {
+            return Restoration::AlreadyOriginal;
         }
-        if !self.holds(ctx, &self.repaired)? {
-            return Err(MigrationError::new("it changed after the repair"));
+        if current != self.repaired {
+            return Restoration::ChangedSinceRepair;
         }
-        let written = ctx.write(&self.file, &self.original);
-        if written.is_err() && self.holds(ctx, &self.original)? {
-            return Ok(());
+        match ctx.write(&self.file, &self.original) {
+            Ok(()) => Restoration::Restored,
+            Err(_) if self.holds_original(ctx) => Restoration::Restored,
+            Err(cause) => Restoration::Failed(cause),
         }
-        written
     }
 
-    fn holds(
-        &self,
-        ctx: &dyn MigrationContext,
-        content: &str,
-    ) -> Result<bool, MigrationError> {
-        Ok(matches!(
-            ctx.read_text(&self.file)?,
-            Some(TextFile::Utf8(current)) if current == content
-        ))
+    fn holds_original(&self, ctx: &dyn MigrationContext) -> bool {
+        matches!(
+            ctx.read_text(&self.file),
+            Ok(Some(TextFile::Utf8(current))) if current == self.original
+        )
     }
 }
 
@@ -324,8 +329,15 @@ impl Backfill {
         let mut by_hand = Vec::new();
         for repair in &self.repairs {
             match repair.restore(ctx) {
-                Ok(()) => restored += 1,
-                Err(cause) => by_hand.push((repair.file.as_path(), cause)),
+                Restoration::AlreadyOriginal => {}
+                Restoration::Restored => restored += 1,
+                Restoration::ChangedSinceRepair => by_hand.push((
+                    repair.file.as_path(),
+                    MigrationError::new("it changed after the repair"),
+                )),
+                Restoration::Failed(cause) => {
+                    by_hand.push((repair.file.as_path(), cause));
+                }
             }
         }
         MigrationError::new(restoration_message(
@@ -527,6 +539,9 @@ mod tests {
         failing_writes: BTreeSet<(PathBuf, String)>,
         landing_writes: BTreeSet<(PathBuf, String)>,
         edits_on_failure: Vec<(PathBuf, String)>,
+        deletions_on_failure: Vec<PathBuf>,
+        unreadable_after_failed_writes: BTreeSet<(PathBuf, String)>,
+        unreadable: RefCell<BTreeSet<PathBuf>>,
         failing_listing: bool,
         fail_realign: bool,
         writes: RefCell<Vec<PathBuf>>,
@@ -545,6 +560,9 @@ mod tests {
                 failing_writes: BTreeSet::new(),
                 landing_writes: BTreeSet::new(),
                 edits_on_failure: Vec::new(),
+                deletions_on_failure: Vec::new(),
+                unreadable_after_failed_writes: BTreeSet::new(),
+                unreadable: RefCell::new(BTreeSet::new()),
                 failing_listing: false,
                 fail_realign: false,
                 writes: RefCell::new(Vec::new()),
@@ -591,6 +609,25 @@ mod tests {
             self
         }
 
+        fn deleting_on_failure(mut self, relative: &str) -> Self {
+            self.deletions_on_failure.push(self.path(relative));
+            self
+        }
+
+        fn unreadable_after_failed_write_of(
+            mut self,
+            relative: &str,
+            content: &str,
+        ) -> Self {
+            self.unreadable_after_failed_writes
+                .insert((self.path(relative), content.to_owned()));
+            self
+        }
+
+        fn holds_file(&self, relative: &str) -> bool {
+            self.files.borrow().contains_key(&self.path(relative))
+        }
+
         fn content(&self, relative: &str) -> String {
             self.files
                 .borrow()
@@ -604,6 +641,9 @@ mod tests {
                 self.files
                     .borrow_mut()
                     .insert(edited.clone(), content.clone());
+            }
+            for deleted in &self.deletions_on_failure {
+                self.files.borrow_mut().remove(deleted);
             }
             MigrationError::new(format!("cannot write {}", path.display()))
         }
@@ -625,16 +665,19 @@ mod tests {
         fn write(&self, path: &Path, content: &str) -> TestResult {
             self.writes.borrow_mut().push(path.to_path_buf());
             let attempt = (path.to_path_buf(), content.to_owned());
-            if self.failing_writes.contains(&attempt) {
-                return Err(self.write_failure(path));
+            let lands = !self.failing_writes.contains(&attempt);
+            if lands {
+                self.files
+                    .borrow_mut()
+                    .insert(path.to_path_buf(), content.to_owned());
+                if !self.landing_writes.contains(&attempt) {
+                    return Ok(());
+                }
             }
-            self.files
-                .borrow_mut()
-                .insert(path.to_path_buf(), content.to_owned());
-            if self.landing_writes.contains(&attempt) {
-                return Err(self.write_failure(path));
+            if self.unreadable_after_failed_writes.contains(&attempt) {
+                self.unreadable.borrow_mut().insert(path.to_path_buf());
             }
-            Ok(())
+            Err(self.write_failure(path))
         }
 
         fn config_value(
@@ -673,6 +716,12 @@ mod tests {
             &self,
             path: &Path,
         ) -> Result<Option<TextFile>, MigrationError> {
+            if self.unreadable.borrow().contains(path) {
+                return Err(MigrationError::new(format!(
+                    "cannot read {}",
+                    path.display()
+                )));
+            }
             if self.not_utf8.contains(path) {
                 return Ok(Some(TextFile::NotUtf8));
             }
@@ -1161,7 +1210,7 @@ mod tests {
             message.starts_with("0012: adding tags failed:"),
             "{message}"
         );
-        assert!(message.contains("Left the 2 work item(s)"), "{message}");
+        assert!(message.contains("Left the 1 work item(s)"), "{message}");
         assert!(!message.contains(REMOVE_BY_HAND), "{message}");
     }
 
@@ -1188,29 +1237,41 @@ mod tests {
         let message = failure_of(&ctx);
 
         assert_eq!(ctx.content(FIRST), untagged("A"));
-        assert!(message.contains("Left the 2 work item(s)"), "{message}");
+        assert!(message.contains("Left the 1 work item(s)"), "{message}");
         assert!(!message.contains(REMOVE_BY_HAND), "{message}");
     }
 
     #[test]
-    fn a_failure_before_any_repair_omits_the_left_count() {
-        let unlanded = Context::new()
+    fn a_write_that_never_landed_is_not_counted_as_left_as_found() {
+        let ctx = Context::new()
             .holding(FIRST, &untagged("A"))
             .failing_write_of(FIRST, &repaired(&untagged("A")));
-        let unlisted = Context {
+
+        let message = failure_of(&ctx);
+
+        assert_eq!(ctx.content(FIRST), untagged("A"));
+        assert!(
+            message.starts_with("0012: adding tags failed:"),
+            "{message}"
+        );
+        assert!(!message.contains("Left the"), "{message}");
+        assert!(!message.contains(REMOVE_BY_HAND), "{message}");
+    }
+
+    #[test]
+    fn a_listing_failure_omits_the_left_count() {
+        let ctx = Context {
             failing_listing: true,
             ..Context::new()
         };
 
-        let unlanded = failure_of(&unlanded);
-        let unlisted = failure_of(&unlisted);
+        let message = failure_of(&ctx);
 
-        assert!(unlanded.contains("Left the 1 work item(s)"), "{unlanded}");
         assert!(
-            unlisted.starts_with("0012: adding tags failed:"),
-            "{unlisted}"
+            message.starts_with("0012: adding tags failed:"),
+            "{message}"
         );
-        assert!(!unlisted.contains("Left the"), "{unlisted}");
+        assert!(!message.contains("Left the"), "{message}");
     }
 
     #[test]
@@ -1256,6 +1317,58 @@ mod tests {
             .unwrap_or(usize::MAX);
         let recovery = message.find("commit them all").unwrap_or(0);
         assert!(named < recovery, "{message}");
+    }
+
+    #[test]
+    fn a_failed_restore_names_the_write_error_when_the_re_check_cannot_read() {
+        let ctx = three_untagged_items()
+            .failing_write_of(SECOND, &repaired(&untagged("B")))
+            .failing_write_of(FIRST, &untagged("A"))
+            .unreadable_after_failed_write_of(FIRST, &untagged("A"));
+
+        let message = failure_of(&ctx);
+
+        assert!(
+            message.contains(&format!(
+                "{REMOVE_BY_HAND} {FIRST} (cannot write /repo/{FIRST})"
+            )),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn an_item_that_cannot_be_read_back_is_named_with_the_read_error() {
+        let landed = repaired(&untagged("B"));
+        let ctx = three_untagged_items()
+            .landing_write_of(SECOND, &landed)
+            .unreadable_after_failed_write_of(SECOND, &landed);
+
+        let message = failure_of(&ctx);
+
+        assert!(
+            message.contains(&format!(
+                "{REMOVE_BY_HAND} {SECOND} (cannot read /repo/{SECOND})"
+            )),
+            "{message}"
+        );
+        assert!(message.contains("Left the 1 work item(s)"), "{message}");
+    }
+
+    #[test]
+    fn an_item_deleted_after_its_repair_is_named_not_recreated() {
+        let ctx = three_untagged_items()
+            .failing_write_of(SECOND, &repaired(&untagged("B")))
+            .deleting_on_failure(FIRST);
+
+        let message = failure_of(&ctx);
+
+        assert!(!ctx.holds_file(FIRST));
+        assert!(
+            message.contains(&format!(
+                "{REMOVE_BY_HAND} {FIRST} (it changed after the repair)"
+            )),
+            "{message}"
+        );
     }
 
     #[test]
