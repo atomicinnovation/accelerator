@@ -303,6 +303,10 @@ Mutation audit of today's consumers:
       nothing. `--filter 'test(classify'` shows nextest's parse error, and
       `--bogus` and `extra` are refused by mise, each before any fixture is
       built. `--help` lists `--filter`.
+      A filter holding a space, `&` and `'` reaches nextest intact both under
+      macOS's `sh` and under dash, run by forcing mise's inline shell to
+      `/bin/dash` (`MISE_UNIX_DEFAULT_INLINE_SHELL_ARGS`), as Ubuntu's `sh`
+      would.
 - [ ] [status-log] Given `mise run test:unit:cli --filter 'test(conflicts)'`,
       when it runs, then the status-log set alone is built, `conflicts`
       adopts or copies it as the audit table records, and it passes.
@@ -358,9 +362,11 @@ Mutation audit of today's consumers:
       off, and on CI's `ubuntu-latest` and `macos-latest` `test-unit`
       legs, when each runs, then it passes and its fixture summary shows
       the family built once.
-      *Matrix, 2026-11-19 (engywook):* coverage on (full run) and coverage off
-      (filtered runs) pass, each summary showing the matrix built once. CI's
-      two `test-unit` legs are not yet run.
+      *Matrix, 2026-11-19 (engywook and PR #247's CI):* met. Coverage on (full
+      run) and coverage off (filtered runs) pass locally. On CI, the
+      `ubuntu-latest` leg ran 7,770 tests and the `macos-latest` leg 7,771,
+      all passing; each summary shows 1 matrix shared build, 19 adoptions and
+      no private build, with the build step taking 1.1 s and 2.3 s.
 - [ ] [filters] Given each task listed in Requirement 5, when it is run
       with `--help`, with a filter selecting a subset, and with its listed
       malformed expression, then its help lists `--filter` and names the

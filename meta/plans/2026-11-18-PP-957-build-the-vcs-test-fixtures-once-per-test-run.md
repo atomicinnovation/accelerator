@@ -1915,7 +1915,7 @@ under its criterion in the work item.
       The first shows nextest's own filterset parse error.
 - [x] `mise run test:unit:cli --help` lists `--filter`, and says that a
       filtered run skips the coverage report, sweep and floor.
-- [ ] A filter whose value contains a space, `&` and `'` reaches nextest
+- [x] A filter whose value contains a space, `&` and `'` reaches nextest
       intact, on macOS and on an ubuntu host or CI leg (where mise's
       `sh -c` is dash).
 - [x] Record what `mise run test:unit --filter x` does. `test:unit` is a
@@ -1960,7 +1960,7 @@ under its criterion in the work item.
   3. Start run C, filtered to `binary_id(vcs-adapters::classify)`.
 
   C removes A's directory and keeps B's. B passes once `touch $B/release`.
-- [ ] Coverage off, coverage on, and both CI `test-unit` legs
+- [x] Coverage off, coverage on, and both CI `test-unit` legs
       (`ubuntu-latest`, `macos-latest`) pass. Each prints a summary showing
       the matrix built once.
 - [x] An interim measurement, as an early warning and not a gate:
