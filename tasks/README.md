@@ -99,12 +99,14 @@ places and forwards it between them:
   `tasks/test/filters.py`, which turns an empty expression into a one-line
   `Exit`. Every lane's tests include a `filter_=""` case.
 
-Once a task declares `usage`, mise refuses any undeclared word (exit 1)
-instead of appending it to `run`, and a task's `depends` never receive the
-flag. A roll-up that has only `depends` and no `run` (`test:unit`,
-`test:integration`, `test:e2e`, `test`) ignores extra arguments silently,
-even with an empty `usage`: `mise run test:unit --filter x` runs the whole
-roll-up unfiltered. A mise bump must re-check that `usage_<name>` is still
+Once a task's `usage` declares a flag or argument, mise refuses any
+undeclared word (exit 1) before running anything, instead of appending it
+to `run`, and a task's `depends` never receive the flag. A `usage` holding
+only metadata (`about`, `long_about`) or nothing does not count. A roll-up
+that has only `depends` and no `run` (`test:unit`, `test:integration`,
+`test:e2e`, `test`) therefore ignores extra arguments silently:
+`mise run test:unit --filter x` runs the whole roll-up unfiltered. Each of
+those roll-ups says so in its description, which `mise tasks` shows. A mise bump must re-check that `usage_<name>` is still
 named after the flag's long name and still unset when the flag is absent.
 
 ### Surviving thin shell

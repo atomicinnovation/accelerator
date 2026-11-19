@@ -448,3 +448,13 @@ def test_the_cli_lane_forwards_filter_only_when_it_is_given(mise):
     assert mise["tasks"]["test:unit:cli"]["run"] == (
         f"invoke test.cli.run {_FORWARDS_FILTER}"
     )
+
+
+@pytest.mark.parametrize(
+    "rollup", ["test", "test:unit", "test:integration", "test:e2e"]
+)
+def test_a_test_rollup_says_it_ignores_filter(mise, rollup):
+    description = mise["tasks"][rollup]["description"]
+
+    assert "takes no options, so --filter is ignored" in description
+    assert "test:unit:cli --filter" in description

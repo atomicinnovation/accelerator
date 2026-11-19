@@ -353,7 +353,7 @@ description = "Run the runtime-free Playwright-executor JavaScript suites"
 run = "invoke test.unit.design-automation"
 
 [tasks."test:unit"]
-description = "Run all unit tests in parallel"
+description = "Run all unit tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:frontend-licenses", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
 # Deliberately absent from `test:integration` and the bare default task: these
@@ -507,7 +507,7 @@ description = "Roll-up entry point for the gix/jj-lib link-ratio floor; see buil
 depends = ["build:cli:fixture-size"]
 
 [tasks."test:integration"]
-description = "Run all integration tests in parallel"
+description = "Run all integration tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = [
     "test:integration:visualiser",
     "test:integration:dev",
@@ -539,11 +539,11 @@ depends = ["build:frontend", "build:server:dev"]
 run = "invoke test.e2e.visualiser-docker --update"
 
 [tasks."test:e2e"]
-description = "Run all E2E tests in parallel"
+description = "Run all E2E tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:e2e:visualiser"]
 
 [tasks.test]
-description = "Run all tests in parallel"
+description = "Run all tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:unit", "test:integration", "test:e2e"]
 
 [tasks."format:scripts:check"]
