@@ -1,0 +1,184 @@
+{
+  "body": {
+    "entity": {
+      "app_url": "https://app.shortcut.com/scratch-workspace/story/14",
+      "archived": false,
+      "blocked": false,
+      "blocker": false,
+      "branches": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/branches",
+        "total_items": 0
+      },
+      "checklist_items": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/checklist-items",
+        "total_items": 0
+      },
+      "comments": {
+        "current_items": 1,
+        "entities": [
+          {
+            "app_url": "https://app.shortcut.com/scratch-workspace/story/14/contract-story#activity-15",
+            "deleted": false,
+            "entity_type": "comment:slim",
+            "id": 15,
+            "text": "Contract comment",
+            "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/comments/15"
+          }
+        ],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/comments",
+        "total_items": 1
+      },
+      "commits": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/commits",
+        "total_items": 0
+      },
+      "completed": false,
+      "completed_at": null,
+      "completed_at_override": null,
+      "created_at": "2026-11-14T08:21:34.384Z",
+      "custom_field_values": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/custom-field-values",
+        "total_items": 0
+      },
+      "deadline": null,
+      "description": "Contract body\n\nA paragraph that wraps across\n1. a line that starts with a digit\n\n- a list item\n- another, with `code` and a.dotted.token\n\n```\n    indented code\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n",
+      "entity_type": "story",
+      "epic": null,
+      "estimate": null,
+      "external_id": null,
+      "external_links": {
+        "current_items": 1,
+        "entities": [
+          {
+            "entity_type": "external-link",
+            "value": "https://example.com/contract"
+          }
+        ],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/external-links",
+        "total_items": 1
+      },
+      "files": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/files",
+        "total_items": 0
+      },
+      "followers": {
+        "current_items": 1,
+        "entities": [
+          {
+            "entity_type": "member:slim",
+            "id": "00000000-0000-4000-8000-000000000001",
+            "name": "member-2",
+            "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001"
+          }
+        ],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/followers",
+        "total_items": 1
+      },
+      "formatted_vcs_branch_name": null,
+      "id": 14,
+      "iterations": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/iterations",
+        "total_items": 0
+      },
+      "labels": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/labels",
+        "total_items": 0
+      },
+      "linked_files": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/linked-files",
+        "total_items": 0
+      },
+      "mentioned_members": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/mentioned-members",
+        "total_items": 0
+      },
+      "mentioned_teams": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/mentioned-teams",
+        "total_items": 0
+      },
+      "moved_at": "2026-11-14T08:21:34.384Z",
+      "name": "Contract story",
+      "owners": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/owners",
+        "total_items": 0
+      },
+      "parent_story": null,
+      "position": 22147483648,
+      "project": null,
+      "pull_requests": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/pull-requests",
+        "total_items": 0
+      },
+      "requester": {
+        "entity_type": "member:slim",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "member-2",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001"
+      },
+      "started": false,
+      "started_at": null,
+      "started_at_override": null,
+      "story_links": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/story-links",
+        "total_items": 0
+      },
+      "story_template": null,
+      "story_type": "feature",
+      "sub_task_stories": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/sub-task-stories",
+        "total_items": 0
+      },
+      "team": {
+        "app_url": "https://app.shortcut.com/scratch-workspace/team/00000000-0000-4000-8000-000000000002",
+        "entity_type": "team:slim",
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "Team 1",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/teams/00000000-0000-4000-8000-000000000002"
+      },
+      "updated_at": "2026-11-14T08:21:35.432Z",
+      "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14",
+      "workflow": {
+        "entity_type": "workflow:slim",
+        "id": 500000005,
+        "name": "Standard",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/workflows/500000005"
+      },
+      "workflow_state": {
+        "entity_type": "workflow-state:slim",
+        "id": 500000007,
+        "name": "To Do",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/workflow-states/500000007",
+        "workflow_name": "Standard"
+      }
+    }
+  },
+  "status": 200
+}

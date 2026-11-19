@@ -1846,3 +1846,26 @@ fn the_predicted_state_equals_the_next_sync_run_for_every_disposition() {
         );
     }
 }
+
+#[test]
+fn a_draft_promotes_to_a_shortcut_story_key() {
+    let repo = Repo::new().unwrap();
+    let tracker = RecordingTracker::holding(Vec::new()).creating_under("sc");
+
+    let promotion = promoted(&repo, &tracker);
+
+    assert_eq!(
+        promotion,
+        Ok(Promotion::Completed(
+            ExternalId::new("sc-1".to_owned()),
+            SyncState::Synced
+        ))
+    );
+    assert_eq!(repo.read(DRAFT), None, "the draft is retired");
+    let target = repo
+        .read("meta/work/sc-1-add-search.md")
+        .expect("the item is at the key path");
+    assert!(target.contains("id: \"sc-1\""), "{target}");
+    assert!(target.contains("external_id: \"sc-1\""), "{target}");
+    assert!(target.contains("\n# sc-1: Add search\n"), "{target}");
+}

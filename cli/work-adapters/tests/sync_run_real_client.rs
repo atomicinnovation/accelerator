@@ -282,6 +282,18 @@ fn execute(
     scope: tracker::SearchScope,
     mode: RunMode,
 ) -> Result<RunReport, work_adapters::sync::run::RunError> {
+    execute_as("jira", tracker, spy, items, direction, scope, mode)
+}
+
+fn execute_as(
+    integration: &str,
+    tracker: &dyn RemoteTracker,
+    spy: &Spy,
+    items: &[LocalItem],
+    direction: SyncDirection,
+    scope: tracker::SearchScope,
+    mode: RunMode,
+) -> Result<RunReport, work_adapters::sync::run::RunError> {
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
     let author = UnusedAuthor;
@@ -309,7 +321,7 @@ fn execute(
         max_pushes: tracker::Ceiling::Bounded(25),
         mode,
         integrations_root: &integrations_root,
-        integration: "jira",
+        integration,
         promote: true,
         scope,
     };
@@ -1180,20 +1192,29 @@ const JIRA_PULL_EXPECTED: &str = include_str!("fixtures/jira-pull/expected.md");
 enum Tracker {
     Jira,
     Linear,
+    Shortcut,
 }
 
 impl Tracker {
+    const fn key(self) -> &'static str {
+        match self {
+            Self::Jira | Self::Linear => "ENG-1",
+            Self::Shortcut => "sc-1",
+        }
+    }
+
     const fn baseline_stamp(self) -> &'static str {
         match self {
             Self::Jira => STAMP,
             Self::Linear => LINEAR_STAMP,
+            Self::Shortcut => SHORTCUT_STAMP,
         }
     }
 
     const fn expected_local_body(self) -> &'static str {
         match self {
             Self::Jira => JIRA_PULL_EXPECTED,
-            Self::Linear => "Remote body\n",
+            Self::Linear | Self::Shortcut => "Remote body\n",
         }
     }
 
@@ -1211,6 +1232,15 @@ impl Tracker {
                     &server.base_url(),
                     TransportConfig::default(),
                 ));
+                (server, client)
+            }
+            Self::Shortcut => {
+                let server = MockHTTPServer::start();
+                server.route(
+                    RequestKey::get(&format!("{SHORTCUT_API}/stories/1")),
+                    shortcut_moved_story(),
+                );
+                let client = Box::new(shortcut_client(&server.base_url()));
                 (server, client)
             }
         }
@@ -1264,6 +1294,19 @@ impl Tracker {
                     &server.base_url(),
                     TransportConfig::default(),
                 ))
+            }
+            Self::Shortcut => {
+                server.route(
+                    RequestKey::get(&format!("{SHORTCUT_API}/stories")),
+                    shortcut_page(&serde_json::json!([
+                        {"id": 1, "updated_at": SHORTCUT_MOVED}
+                    ])),
+                );
+                server.route(
+                    RequestKey::get(&format!("{SHORTCUT_API}/stories/1")),
+                    shortcut_moved_story(),
+                );
+                Box::new(shortcut_client(&server.base_url()))
             }
         };
         (server, client)
@@ -1403,7 +1446,7 @@ fn execute_targeted_pulling(
 #[test]
 fn every_pull_entry_point_writes_the_description_without_a_title_line(
 ) -> Result<(), TestError> {
-    for tracker in [Tracker::Jira, Tracker::Linear] {
+    for tracker in [Tracker::Jira, Tracker::Linear, Tracker::Shortcut] {
         for entry_point in [
             PullEntryPoint::ReconcilePull,
             PullEntryPoint::FrontmatterKeptPull,
@@ -1425,7 +1468,7 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
                     &Spy::default(),
                     &[],
                     &BTreeMap::new(),
-                    &[ExternalId::new("ENG-1".to_owned())],
+                    &[ExternalId::new(tracker.key().to_owned())],
                     &author,
                 );
                 assert_eq!(author.bodies.into_inner(), [description], "{case}");
@@ -1438,7 +1481,7 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
             let items = [LocalItem {
                 id: "0001".to_owned(),
                 path: path.clone(),
-                external_id: Some(ExternalId::new("ENG-1".to_owned())),
+                external_id: Some(ExternalId::new(tracker.key().to_owned())),
             }];
             let local_hash = if entry_point.local_side_changed() {
                 "stale".to_owned()
@@ -1674,4 +1717,609 @@ fn a_dossier_for_an_unrenderable_remote_names_the_reason_instead_of_a_body(
     assert!(header.contains("--resolve 0001=local"), "{text}");
     assert!(!text.contains("=== "), "{text}");
     Ok(())
+}
+
+const SHORTCUT_API: &str = "/api/v4/acme";
+const SHORTCUT_TEAM: &str = "00000000-0000-4000-8000-000000000002";
+const SHORTCUT_WEB: &str = "00000000-0000-4000-8000-000000000009";
+const SHORTCUT_STAMP: &str = "2026-11-14T08:21:34.384Z";
+const SHORTCUT_MOVED: &str = "2026-11-15T09:00:00.000Z";
+
+fn shortcut_moved_story() -> Route {
+    shortcut_json(
+        200,
+        &serde_json::json!({"entity": {
+            "id": 1, "name": "Title", "description": "Remote body",
+            "updated_at": SHORTCUT_MOVED,
+        }}),
+    )
+}
+
+fn shortcut_catalogue() -> shortcut_client::catalogue::Catalogue {
+    shortcut_client::catalogue::Catalogue::parse(
+        &serde_json::json!({
+            "schema_version": 1,
+            "workspace": {"slug": "acme", "name": "Acme"},
+            "teams": [
+                {"id": SHORTCUT_TEAM, "name": "Team 1", "mention_name": "team-1",
+                 "default_workflow_id": 500, "workflow_ids": [500]},
+                {"id": SHORTCUT_WEB, "name": "Web", "mention_name": "web",
+                 "default_workflow_id": 500, "workflow_ids": [500]}
+            ],
+            "workflows": [{"id": 500, "name": "Standard", "states": [
+                {"id": 501, "name": "To Do", "type": "unstarted", "position": 1}
+            ]}]
+        })
+        .to_string(),
+    )
+    .expect("a valid catalogue")
+}
+
+fn shortcut_client(base: &str) -> shortcut_client::ShortcutClient {
+    shortcut_client_within(base, TransportConfig::default())
+}
+
+fn shortcut_client_within(
+    base: &str,
+    config: TransportConfig,
+) -> shortcut_client::ShortcutClient {
+    let transport = shortcut_client::transport::Transport::new(
+        &shortcut_client::Credentials {
+            token: Secret::new("sct_rw_secret".to_owned()),
+            source: TokenSource::Env,
+            refusals: Vec::new(),
+            notice: None,
+        },
+        config,
+        Box::new(NoSleep),
+        Box::new(NoJitter),
+    )
+    .expect("the shortcut transport builds");
+    shortcut_client::ShortcutClient::new(
+        transport,
+        Url::parse(base).expect("a base URL"),
+        shortcut_catalogue(),
+        Some("team-1".to_owned()),
+    )
+}
+
+fn shortcut_json(status: u16, body: &serde_json::Value) -> Route {
+    Route::Json {
+        status,
+        body: body.to_string(),
+    }
+}
+
+fn shortcut_entity(number: u64, body: &str) -> Route {
+    shortcut_json(
+        200,
+        &serde_json::json!({"entity": {
+            "id": number, "name": "Title", "description": body,
+            "updated_at": SHORTCUT_STAMP,
+        }}),
+    )
+}
+
+fn shortcut_page(entities: &serde_json::Value) -> Route {
+    shortcut_json(
+        200,
+        &serde_json::json!({"entities": entities, "next_page_url": null}),
+    )
+}
+
+fn shortcut_story_server(number: u64, body: &str) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories")),
+        shortcut_page(&serde_json::json!([
+            {"id": number, "updated_at": SHORTCUT_STAMP}
+        ])),
+    );
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories/{number}")),
+        shortcut_entity(number, body),
+    );
+    server
+}
+
+fn shortcut_baseline(
+    spy: &Spy,
+    client: &dyn RemoteTracker,
+    id: &str,
+    external: &str,
+) -> Result<(), TestError> {
+    let projected = client.show(&ExternalId::new(external.to_owned()))?.body;
+    spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&support::split_entry(
+            id,
+            &PlainDialect,
+            &earlier_item_content(external),
+            &projected,
+            SHORTCUT_STAMP,
+        )),
+    );
+    Ok(())
+}
+
+fn keyed(base: &str, additional: &[&str]) -> tracker::SearchScope {
+    tracker::SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(base.to_owned()),
+            additional: additional.iter().map(|&key| key.to_owned()).collect(),
+        },
+        filters: Vec::new(),
+    }
+}
+
+fn serve_shortcut_teams(server: &MockHTTPServer) {
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/teams")),
+        shortcut_page(&serde_json::json!([
+            {"id": SHORTCUT_TEAM, "name": "Team 1", "mention_name": "team-1"},
+            {"id": SHORTCUT_WEB, "name": "Web", "mention_name": "web"}
+        ])),
+    );
+    for (uuid, name) in [(SHORTCUT_TEAM, "Team 1"), (SHORTCUT_WEB, "Web")] {
+        server.route(
+            RequestKey::get(&format!("{SHORTCUT_API}/teams/{uuid}")),
+            shortcut_json(200, &serde_json::json!({"entity": {"name": name}})),
+        );
+    }
+}
+
+fn shortcut_item(
+    dir: &Path,
+    id: &str,
+    external: &str,
+) -> Result<LocalItem, TestError> {
+    Ok(LocalItem {
+        id: id.to_owned(),
+        path: item_file(dir, id, external)?,
+        external_id: Some(ExternalId::new(external.to_owned())),
+    })
+}
+
+fn creates_from_remote(report: &RunReport) -> Vec<&str> {
+    report
+        .reported
+        .iter()
+        .filter(|item| {
+            item.planned.action() == work::sync::Action::CreateFromRemote
+        })
+        .map(|item| item.planned.id())
+        .collect()
+}
+
+#[test]
+fn shortcut_classifies_a_locally_modified_story_through_the_real_client(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item = shortcut_item(dir.path(), "0001", "sc-14")?;
+    let server = shortcut_story_server(14, "Remote body\n");
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    shortcut_baseline(&spy, &client, "0001", "sc-14")?;
+
+    let report = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        RunMode::Preview,
+    )
+    .expect("the run must not refuse");
+
+    assert_eq!(
+        report.reported[0].planned.state(),
+        SyncState::LocallyModified
+    );
+    assert!(matches!(
+        report.reported[0].planned.action(),
+        work::sync::Action::Push(_)
+    ));
+    Ok(())
+}
+
+#[test]
+fn shortcut_classifies_a_locally_modified_epic_through_the_real_client(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item = shortcut_item(dir.path(), "0002", "epic-17")?;
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/epics/17")),
+        shortcut_entity(17, "Remote epic body\n"),
+    );
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    shortcut_baseline(&spy, &client, "0002", "epic-17")?;
+
+    let report = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        RunMode::Preview,
+    )
+    .expect("the run must not refuse");
+
+    assert_eq!(
+        report.reported[0].planned.state(),
+        SyncState::LocallyModified
+    );
+    Ok(())
+}
+
+#[test]
+fn shortcut_pulls_a_story_edited_only_in_shortcut() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item = shortcut_item(dir.path(), "0003", "sc-14")?;
+    let server = shortcut_story_server(14, "Edited in Shortcut\n");
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    let local = std::fs::read_to_string(&item.path)?;
+    spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&support::split_entry(
+            "0003",
+            &PlainDialect,
+            &local,
+            "Earlier remote body\n",
+            "2026-11-13T00:00:00.000Z",
+        )),
+    );
+
+    let report = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        RunMode::Preview,
+    )
+    .expect("the run must not refuse");
+
+    assert_eq!(
+        report.reported[0].planned.state(),
+        SyncState::RemotelyModified
+    );
+    Ok(())
+}
+
+#[test]
+fn shortcut_builds_a_dossier_when_both_sides_changed() -> Result<(), TestError>
+{
+    let dir = tempfile::tempdir()?;
+    let item = shortcut_item(dir.path(), "0004", "sc-14")?;
+    let server = shortcut_story_server(14, "Remote body four\n");
+    serve_shortcut_teams(&server);
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories/search")),
+        shortcut_page(&serde_json::json!([])),
+    );
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&entry(
+            "0004",
+            "2026-11-13T00:00:00.000Z",
+            "stale",
+            "stale",
+        )),
+    );
+
+    let report = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::Bidirectional,
+        keyed("team-1", &[]),
+        RunMode::Preview,
+    )
+    .expect("the run must not refuse");
+
+    let dossier = report.dossiers.first().expect("a dossier");
+    let section = dossier.sections.first().expect("the bodies differ");
+    assert!(section.local.contains("Local body"), "{:?}", section.local);
+    assert!(
+        section.remote.contains("Remote body four"),
+        "{:?}",
+        section.remote
+    );
+    Ok(())
+}
+
+#[test]
+fn shortcut_discovery_searches_the_base_team_by_uuid() {
+    let server = MockHTTPServer::start();
+    serve_shortcut_teams(&server);
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories/search")),
+        shortcut_page(&serde_json::json!([{
+            "id": 15, "updated_at": SHORTCUT_STAMP,
+            "team": {"id": SHORTCUT_TEAM}
+        }])),
+    );
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+
+    let report = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        keyed("team-1", &[]),
+        RunMode::Preview,
+    )
+    .expect("the keyed discovery run must not refuse");
+
+    assert_eq!(creates_from_remote(&report), ["sc-15"]);
+    assert_eq!(
+        server.hits(&RequestKey::get(&format!(
+            "{SHORTCUT_API}/teams/{SHORTCUT_TEAM}"
+        ))),
+        1
+    );
+}
+
+#[test]
+fn shortcut_additional_teams_search_each_team_by_uuid() {
+    let server = MockHTTPServer::start();
+    serve_shortcut_teams(&server);
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories/search")),
+        shortcut_page(&serde_json::json!([])),
+    );
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+
+    execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        keyed("team-1", &["web"]),
+        RunMode::Preview,
+    )
+    .expect("the broadened run must not refuse");
+
+    for uuid in [SHORTCUT_TEAM, SHORTCUT_WEB] {
+        assert_eq!(
+            server.hits(&RequestKey::get(&format!(
+                "{SHORTCUT_API}/teams/{uuid}"
+            ))),
+            1,
+            "{uuid} is searched"
+        );
+    }
+}
+
+#[test]
+fn shortcut_all_teams_searches_every_visible_team() {
+    let server = MockHTTPServer::start();
+    serve_shortcut_teams(&server);
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories/search")),
+        shortcut_page(&serde_json::json!([])),
+    );
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+
+    execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        tracker::SearchScope {
+            entities: tracker::EntityScope::WholeWorkspace,
+            filters: Vec::new(),
+        },
+        RunMode::Preview,
+    )
+    .expect("the whole-workspace run must not refuse");
+
+    for uuid in [SHORTCUT_TEAM, SHORTCUT_WEB] {
+        assert_eq!(
+            server.hits(&RequestKey::get(&format!(
+                "{SHORTCUT_API}/teams/{uuid}"
+            ))),
+            1,
+            "{uuid} is searched"
+        );
+    }
+}
+
+#[test]
+fn shortcut_additional_team_the_token_cannot_see_refuses_naming_it() {
+    let server = MockHTTPServer::start();
+    serve_shortcut_teams(&server);
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+
+    let error = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        keyed("team-1", &["nobody"]),
+        RunMode::Preview,
+    )
+    .err()
+    .expect("an unknown team key refuses");
+
+    match error {
+        work_adapters::sync::run::RunError::DiscoveryUnconfigured {
+            detail,
+        } => {
+            assert!(detail.contains("nobody"), "{detail}");
+        }
+        other => panic!("expected DiscoveryUnconfigured, got {other:?}"),
+    }
+    assert_eq!(
+        server
+            .hits(&RequestKey::get(&format!("{SHORTCUT_API}/stories/search"))),
+        0
+    );
+}
+
+#[test]
+fn shortcut_push_refused_403_is_retryable_and_nothing_landed(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item = shortcut_item(dir.path(), "0005", "sc-14")?;
+    let server = shortcut_story_server(14, "Remote body\n");
+    server.route(
+        RequestKey::new("PATCH", &format!("{SHORTCUT_API}/stories/14")),
+        shortcut_json(
+            403,
+            &serde_json::json!({"message": "Insufficient scope"}),
+        ),
+    );
+    server.route(
+        RequestKey::get("/api/v4/whoami"),
+        shortcut_json(
+            200,
+            &serde_json::json!({"entity": {
+                "workspace": {"slug": "acme", "name": "Acme"},
+                "member": {"id": "m", "mention_name": "ada"},
+                "authorization": {"scopes": ["read"]}
+            }}),
+        ),
+    );
+    let client = shortcut_client(&server.base_url());
+    let spy = Spy::default();
+    shortcut_baseline(&spy, &client, "0005", "sc-14")?;
+
+    let report = execute_as(
+        "shortcut",
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        RunMode::Apply,
+    )
+    .expect("the run must not refuse");
+
+    let work_adapters::sync::report::ItemOutcome::Failed(error) =
+        &report.reported[0].outcome
+    else {
+        panic!("a read-only token cannot push");
+    };
+    assert_eq!(
+        error.class(),
+        work_adapters::sync::apply::FailureClass::Retryable
+    );
+    assert_eq!(
+        error.progress(),
+        work_adapters::sync::apply::ItemProgress::NothingLanded
+    );
+    assert!(
+        error.to_string().contains("the token has only the"),
+        "{error}"
+    );
+    Ok(())
+}
+
+#[test]
+fn shortcut_push_sends_the_body_to_the_story_and_the_epic(
+) -> Result<(), TestError> {
+    for (id, external, entity) in [
+        ("0006", "sc-14", "stories/14"),
+        ("0007", "epic-17", "epics/17"),
+    ] {
+        let dir = tempfile::tempdir()?;
+        let item = shortcut_item(dir.path(), id, external)?;
+        let server = shortcut_story_server(14, "Remote body\n");
+        let entity_path = format!("{SHORTCUT_API}/{entity}");
+        let number = if external.starts_with("sc-") { 14 } else { 17 };
+        server.route(
+            RequestKey::get(&entity_path),
+            shortcut_entity(number, "Remote body\n"),
+        );
+        server.route(
+            RequestKey::new("PATCH", &entity_path),
+            shortcut_entity(number, "Local body\n"),
+        );
+        let client = shortcut_client(&server.base_url());
+        let spy = Spy::default();
+        shortcut_baseline(&spy, &client, id, external)?;
+
+        let report = execute_as(
+            "shortcut",
+            &client,
+            &spy,
+            &[item],
+            SyncDirection::PushOnly,
+            tracker::SearchScope::default(),
+            RunMode::Apply,
+        )
+        .expect("the run must not refuse");
+
+        assert!(
+            matches!(
+                report.reported[0].outcome,
+                work_adapters::sync::report::ItemOutcome::Applied
+            ),
+            "{external}"
+        );
+        let sent: serde_json::Value = serde_json::from_slice(
+            &server
+                .last_body(&RequestKey::new("PATCH", &entity_path))
+                .expect("a PATCH was sent"),
+        )?;
+        assert_eq!(
+            sent,
+            serde_json::json!({"description": "\nLocal body"}),
+            "{external}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn shortcut_search_stops_at_one_deadline_across_its_teams() {
+    let server = MockHTTPServer::start();
+    serve_shortcut_teams(&server);
+    let search = RequestKey::get(&format!("{SHORTCUT_API}/stories/search"));
+    server.route(
+        search.clone(),
+        Route::Sequence(vec![
+            Route::Delayed {
+                delay: std::time::Duration::from_millis(400),
+                route: Box::new(shortcut_page(&serde_json::json!([]))),
+            },
+            shortcut_page(&serde_json::json!([])),
+        ]),
+    );
+    let client = shortcut_client_within(
+        &server.base_url(),
+        TransportConfig {
+            deadline: std::time::Duration::from_millis(300),
+            ..TransportConfig::default()
+        },
+    );
+
+    let (_, completeness) = client
+        .search_stories(&keyed(SHORTCUT_TEAM, &[SHORTCUT_WEB]))
+        .expect("the search must not refuse");
+
+    assert_eq!(server.hits(&search), 1, "the second team is not searched");
+    assert!(!completeness.is_complete());
 }

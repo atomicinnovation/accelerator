@@ -58,15 +58,15 @@ impl From<MissingKey> for CanonicaliseError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrackerIntegrationError {
-    TrackerNeedsJiraOrLinear,
+    TrackerNeedsAnOwningTracker,
 }
 
 impl Display for TrackerIntegrationError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TrackerNeedsJiraOrLinear => formatter.write_str(
-                "`{tracker}` requires `work.integration` to be `jira` or \
-                 `linear`",
+            Self::TrackerNeedsAnOwningTracker => formatter.write_str(
+                "`{tracker}` requires `work.integration` to be `jira`, \
+                 `linear` or `shortcut`",
             ),
         }
     }
@@ -76,14 +76,14 @@ impl std::error::Error for TrackerIntegrationError {}
 
 /// # Errors
 ///
-/// [`TrackerIntegrationError::TrackerNeedsJiraOrLinear`] when `pattern` is
+/// [`TrackerIntegrationError::TrackerNeedsAnOwningTracker`] when `pattern` is
 /// `{tracker}` under an integration whose keys cannot serve as `id`s.
 pub fn check_tracker_integration(
     pattern: &IdPattern,
     supports_tracker_ids: bool,
 ) -> Result<(), TrackerIntegrationError> {
     if pattern.is_tracker_owned() && !supports_tracker_ids {
-        Err(TrackerIntegrationError::TrackerNeedsJiraOrLinear)
+        Err(TrackerIntegrationError::TrackerNeedsAnOwningTracker)
     } else {
         Ok(())
     }
@@ -512,21 +512,22 @@ mod tests {
     }
 
     #[test]
-    fn tracker_alone_with_jira_or_linear_is_valid() {
+    fn tracker_alone_with_an_owning_tracker_is_valid() {
         let pattern = IdPattern::parse(TRACKER_TOKEN).unwrap();
         assert_eq!(check_tracker_integration(&pattern, true), Ok(()));
     }
 
     #[test]
-    fn tracker_without_jira_or_linear_fails_naming_the_integration_rule() {
+    fn tracker_without_an_owning_tracker_fails_naming_the_integration_rule() {
         let pattern = IdPattern::parse(TRACKER_TOKEN).unwrap();
         assert_eq!(
             check_tracker_integration(&pattern, false),
-            Err(TrackerIntegrationError::TrackerNeedsJiraOrLinear)
+            Err(TrackerIntegrationError::TrackerNeedsAnOwningTracker)
         );
         assert_eq!(
-            TrackerIntegrationError::TrackerNeedsJiraOrLinear.to_string(),
-            "`{tracker}` requires `work.integration` to be `jira` or `linear`"
+            TrackerIntegrationError::TrackerNeedsAnOwningTracker.to_string(),
+            "`{tracker}` requires `work.integration` to be `jira`, `linear` or \
+             `shortcut`"
         );
     }
 

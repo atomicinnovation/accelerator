@@ -26,6 +26,7 @@ type TestError = Box<dyn std::error::Error>;
 const PERMITTED_HTTP_CRATES: &[&str] = &[
     "jira-client",
     "linear-client",
+    "shortcut-client",
     "research-adapters",
     "launcher",
     "visualiser/server",
@@ -110,7 +111,10 @@ fn violations(root: &Path) -> Vec<String> {
             continue;
         };
         let permitted = PERMITTED_HTTP_CRATES.contains(&key.as_str());
-        let is_client = key == "jira-client" || key == "linear-client";
+        let is_client = matches!(
+            key.as_str(),
+            "jira-client" | "linear-client" | "shortcut-client"
+        );
         let is_linear_transport_module = key == "linear-client"
             && file.components().any(|component| {
                 matches!(
@@ -151,6 +155,14 @@ fn violations(root: &Path) -> Vec<String> {
                 found.push(at(
                     "an environment read in the linear upload path — the \
                      loopback exemption must be a constructor parameter",
+                ));
+            }
+            if key == "shortcut-client"
+                && (line.contains("std::env::var") || line.contains("env::var"))
+            {
+                found.push(at(
+                    "an environment read in shortcut-client — the API URL \
+                     override belongs to the composition root",
                 ));
             }
         }

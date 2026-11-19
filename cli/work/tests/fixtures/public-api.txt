@@ -490,7 +490,7 @@ pub fn work::id_scheme::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>
 impl core::marker::Copy for work::id_scheme::IdOwnership
 impl core::marker::StructuralPartialEq for work::id_scheme::IdOwnership
 pub enum work::id_scheme::TrackerIntegrationError
-pub work::id_scheme::TrackerIntegrationError::TrackerNeedsJiraOrLinear
+pub work::id_scheme::TrackerIntegrationError::TrackerNeedsAnOwningTracker
 impl core::clone::Clone for work::id_scheme::TrackerIntegrationError
 pub fn work::id_scheme::TrackerIntegrationError::clone(&self) -> work::id_scheme::TrackerIntegrationError
 impl core::cmp::Eq for work::id_scheme::TrackerIntegrationError

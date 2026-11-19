@@ -265,7 +265,8 @@ class TestRules:
     ) -> None:
         text = _prose(output_section)
         assert "canonical token shape" in text
-        assert "`^[A-Z][A-Z0-9_]*-[0-9]+$`" in text
+        assert "`^[A-Za-z][A-Za-z0-9_]*-[0-9]+$`" in text
+        assert "`^[A-Z][A-Z0-9_]*-[0-9]+$`" not in text
 
     def test_every_change_waits_for_confirmation(
         self, output_section: str

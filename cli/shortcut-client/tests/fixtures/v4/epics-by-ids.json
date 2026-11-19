@@ -1,0 +1,9 @@
+{
+  "body": {
+    "errors": {
+      "ids": "disallowed-key"
+    },
+    "message": "The request included invalid or missing parameters."
+  },
+  "status": 400
+}

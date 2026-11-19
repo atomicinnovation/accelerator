@@ -85,6 +85,15 @@ pub trait ContractSubject {
         String::new()
     }
 
+    /// The `kind` the create-based properties create. It defaults to
+    /// [`preview_kind`], so a subject names its kind once and the preview and
+    /// the create cannot test different kinds.
+    ///
+    /// [`preview_kind`]: ContractSubject::preview_kind
+    fn create_kind(&self) -> String {
+        self.preview_kind()
+    }
+
     /// An issue this subject holds under a key other than the one it was
     /// once held under, as `(old, new)`.
     ///
@@ -142,14 +151,15 @@ pub fn create_then_show_round_trips(
 /// profile. The gate stays on the wrapper: reaching a property directly must
 /// not thereby reach a live provider.
 ///
-/// The empty `kind` is the port's "tracker's configured default": a live tenant
+/// The `kind` is the subject's [`ContractSubject::create_kind`], empty by
+/// default. Empty is the port's "tracker's configured default": a live tenant
 /// has no issue type named after a fixed literal, and a hardcoded one is
 /// case-sensitively rejected by real Jira. Empty resolves to each provider's
 /// own default (Jira's `Task`; Linear ignores kind).
 pub fn create_then_show_round_trips_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let created = tracker
-        .create("Contract title", "Contract body\n", "")
+        .create("Contract title", "Contract body\n", &subject.create_kind())
         .expect("create must succeed for a conformant implementation");
     let issue = tracker
         .show(&created)
@@ -179,7 +189,7 @@ pub fn locate_finds_a_created_issue(
 pub fn locate_finds_a_created_issue_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let created = tracker
-        .create("Contract title", "Contract body\n", "")
+        .create("Contract title", "Contract body\n", &subject.create_kind())
         .expect("create must succeed for a conformant implementation");
     let located = tracker
         .locate(&created)
@@ -213,7 +223,7 @@ pub fn update_replaces_whole_content(
 pub fn update_replaces_whole_content_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let id = tracker
-        .create("Original title", "Original body\n", "")
+        .create("Original title", "Original body\n", &subject.create_kind())
         .expect("create must succeed for a conformant implementation");
     let before = tracker
         .show(&id)
@@ -248,7 +258,7 @@ pub fn retitle_keeps_the_description(
 pub fn retitle_keeps_the_description_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let id = tracker
-        .create("Original title", "Original body\n", "")
+        .create("Original title", "Original body\n", &subject.create_kind())
         .expect("create must succeed for a conformant implementation");
     let before = tracker.show(&id).expect("show must succeed after create");
 
@@ -285,7 +295,7 @@ pub fn update_without_a_title_keeps_the_title_property(
 ) {
     let tracker = subject.tracker();
     let id = tracker
-        .create("Original title", "Original body\n", "")
+        .create("Original title", "Original body\n", &subject.create_kind())
         .expect("create must succeed for a conformant implementation");
     let before = tracker.show(&id).expect("show must succeed after create");
 
@@ -849,6 +859,61 @@ mod tests {
             },
         )
         .discovering(Vec::new(), false)
+    }
+
+    struct EpicSubject(RecordingTracker);
+
+    impl super::ContractSubject for EpicSubject {
+        fn tracker(&self) -> &dyn tracker::RemoteTracker {
+            &self.0
+        }
+
+        fn unaccountable_id(&self) -> ExternalId {
+            ExternalId::new("REC-unseen".to_owned())
+        }
+
+        fn unreadable_id(&self) -> ExternalId {
+            ExternalId::new("REC-unreadable".to_owned())
+        }
+
+        fn preview_kind(&self) -> String {
+            "epic".to_owned()
+        }
+    }
+
+    fn created_kinds(tracker: &RecordingTracker) -> Vec<String> {
+        tracker
+            .calls()
+            .into_iter()
+            .filter_map(|call| match call {
+                crate::Call::Create { kind, .. } => Some(kind),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_create_properties_create_the_kind_the_subject_previews() {
+        let subject = EpicSubject(RecordingTracker::holding(Vec::new()));
+
+        super::create_then_show_round_trips_property(&subject);
+        super::locate_finds_a_created_issue_property(&subject);
+        super::update_replaces_whole_content_property(&subject);
+        super::retitle_keeps_the_description_property(&subject);
+        super::update_without_a_title_keeps_the_title_property(&subject);
+
+        let kinds = created_kinds(&subject.0);
+        assert_eq!(kinds.len(), 5);
+        assert!(kinds.iter().all(|kind| kind == "epic"), "{kinds:?}");
+    }
+
+    #[test]
+    fn a_subject_previewing_the_default_kind_creates_with_it() {
+        let tracker = RecordingTracker::holding(Vec::new());
+
+        super::create_then_show_round_trips_property(&tracker);
+
+        assert_eq!(created_kinds(&tracker), vec![String::new()]);
     }
 
     fn moved_property_ran(records: &[EvidenceRecord]) -> bool {

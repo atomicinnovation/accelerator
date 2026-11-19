@@ -10,8 +10,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
-use corpus::lock::ExclusiveLock as _;
-use corpus::lock::LockName;
 use corpus::AtomicWrite;
 use corpus::FileRemove;
 use corpus::FilenameTimestampFormat;
@@ -19,9 +17,6 @@ use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
-use document::Mapping;
-use document::Scalar;
-use document::Yaml;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::create::resolve_author;
@@ -47,6 +42,7 @@ use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
 use work_adapters::sync::pending_push::Marker;
+use work_adapters::work_item_link;
 
 use crate::bounded_roots::BoundedRoot;
 use crate::config::announced_scheme_for_writing;
@@ -242,47 +238,23 @@ fn set_external_id(
     path: &Path,
     external_id: &ExternalId,
 ) -> Result<(), AuthorError> {
-    rewrite_frontmatter(store, path, |mapping| {
-        mapping.set(
-            "external_id".to_owned(),
-            Yaml::Scalar(Scalar::String(external_id.as_str().to_owned())),
-        );
-    })
+    work_item_link::set_external_id(
+        &LockdirLock::new(work_dir_of(path)),
+        store,
+        path,
+        external_id,
+    )
 }
 
-/// Removes `path`'s `external_id`, so the item can be created anew.
 fn clear_external_id(
     store: &dyn AtomicWrite,
     path: &Path,
 ) -> Result<(), AuthorError> {
-    rewrite_frontmatter(store, path, |mapping| {
-        *mapping = std::mem::take(mapping)
-            .into_iter()
-            .filter(|(key, _)| key != "external_id")
-            .collect();
-    })
-}
-
-/// Rewrites `path`'s frontmatter under the file's lock, as one atomic
-/// write.
-fn rewrite_frontmatter(
-    store: &dyn AtomicWrite,
-    path: &Path,
-    change: impl FnOnce(&mut Mapping),
-) -> Result<(), AuthorError> {
-    let work_dir = work_dir_of(path);
-    let _held = LockdirLock::new(work_dir)
-        .acquire(&LockName::ForFile(path.to_path_buf()))
-        .map_err(failed)?;
-    let content = std::fs::read_to_string(path).map_err(failed)?;
-    let mut yaml = document::parse(&content).map_err(failed)?;
-    let Yaml::Mapping(mapping) = &mut yaml else {
-        return Err(failed("frontmatter is not a mapping").into());
-    };
-    change(mapping);
-    let rendered = document::render(Some(&content), &yaml).map_err(failed)?;
-    store.write(path, rendered.as_bytes())?;
-    Ok(())
+    work_item_link::clear_external_id(
+        &LockdirLock::new(work_dir_of(path)),
+        store,
+        path,
+    )
 }
 
 fn work_dir_of(path: &Path) -> &Path {

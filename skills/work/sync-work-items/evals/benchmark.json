@@ -10,7 +10,7 @@
       "2"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:489108094a2ce423af754c9c4aa8c98926d61fbcbd7d2500b98d6b8a4580515b"
+    "skill_digest": "sha256:a11552b6dc5af6a045caecb0a25d5adb6ae12e099a5dab4f4d15112f8d648b1c"
   },
   "runs": [
     {
@@ -28,26 +28,26 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md quotes \"Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\""
+          "evidence": "response.md quotes the error: \"Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\""
         },
         {
           "text": "response.md says the unfinished promotion would make re-key refuse and that `accelerator work sync` settles it",
           "passed": true,
-          "evidence": "\"re-key itself would refuse right now with `E_REKEY_SYNC_UNFINISHED`, because this promotion of `draft-k3x9mq` is still unfinished. `accelerator work sync` ... can settle the unfinished promotion first\""
+          "evidence": "\"the draft-k3x9mq promotion is still unfinished, and re-key will refuse to run until it's settled (`E_REKEY_SYNC_UNFINISHED`). `accelerator work sync` isn't blocked by this and can settle the promotion.\""
         },
         {
           "text": "questions.md holds one question offering to run sync now or to stop",
           "passed": true,
-          "evidence": "Single question \"Run sync now?\" with options \"1. **Run sync now**\" and \"2. **Stop**\""
+          "evidence": "One question, \"What would you like to do?\", with two options: \"Run sync now\" (runs `accelerator work sync`) and \"Stop\""
         },
         {
           "text": "commands.md shows the promote exactly once, no `accelerator work rekey`, and no `accelerator work sync` before the user answers",
           "passed": true,
-          "evidence": "Only command: \"1. `accelerator work promote draft-k3x9mq --adopt ENG-43`\"; \"No other `accelerator` command was run\" (rekey appears only inside quoted stderr)"
+          "evidence": "Only command run is \"1. `accelerator work promote draft-k3x9mq --adopt ENG-43`\"; `accelerator work rekey` appears only inside the quoted stderr. The file adds: \"No other `accelerator` command was run. The skill stops at the AskUserQuestion prompt\""
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:489108094a2ce423af754c9c4aa8c98926d61fbcbd7d2500b98d6b8a4580515b"
+      "skill_digest": "sha256:a11552b6dc5af6a045caecb0a25d5adb6ae12e099a5dab4f4d15112f8d648b1c"
     },
     {
       "eval_id": 2,
@@ -64,21 +64,21 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md quotes 'Error: E_REKEY_REQUIRED: ...' and says 'Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`).'"
+          "evidence": "response.md quotes \"Error: E_REKEY_REQUIRED: ...\" and says \"Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to re-key it.\""
         },
         {
           "text": "questions.md is `none`",
           "passed": true,
-          "evidence": "questions.md contains exactly 'none'"
+          "evidence": "questions.md contains only \"none\""
         },
         {
           "text": "commands.md shows the resolve exactly once and no `accelerator work sync` or `accelerator work rekey` after it",
           "passed": true,
-          "evidence": "commands.md lists only '1. `accelerator work resolve ENG-7` — exit 4'; 'accelerator work rekey' appears only inside that command's quoted stderr, not as a run command"
+          "evidence": "commands.md lists one command only: \"1. `accelerator work resolve ENG-7`\" (exit 4); `accelerator work rekey` appears only inside the quoted stderr, and no other command was run."
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:489108094a2ce423af754c9c4aa8c98926d61fbcbd7d2500b98d6b8a4580515b"
+      "skill_digest": "sha256:a11552b6dc5af6a045caecb0a25d5adb6ae12e099a5dab4f4d15112f8d648b1c"
     }
   ],
   "run_summary": {

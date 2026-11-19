@@ -7,7 +7,8 @@ fn supports_tracker_owned_ids(integration: &str) -> bool {
 }
 
 #[test]
-fn only_jira_and_linear_support_tracker_owned_ids() {
+fn jira_linear_and_shortcut_support_tracker_owned_ids() {
+    assert!(supports_tracker_owned_ids("shortcut"));
     assert!(supports_tracker_owned_ids("jira"));
     assert!(supports_tracker_owned_ids("linear"));
     assert!(!supports_tracker_owned_ids(""));

@@ -56,6 +56,7 @@ bin/design-*
 bin/linear-*
 bin/jira-*
 bin/research-*
+bin/shortcut-*
 bin/*.minisig
 bin/.accelerator-lock-*
 bin/.accelerator-unverified.log
@@ -91,3 +92,6 @@ bin/.tmp-*
 *.key
 /keys/*.sec
 
+
+# Raw Shortcut live-test responses; only sanitised fixtures are committed.
+cli/shortcut-client/tests/captures/

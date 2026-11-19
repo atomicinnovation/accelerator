@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "GET",
+      "path": "/api/v4/scratch-workspace/stories/14/comments",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entities\": [{\"created_at\": \"2026-11-14T08:00:00Z\", \"id\": 101, \"text\": \"First\"}, {\"created_at\": \"2026-11-14T09:00:00Z\", \"id\": 102, \"text\": \"Second\"}, {\"created_at\": \"2026-11-14T10:00:00Z\", \"id\": 103, \"text\": \"Third\"}], \"next_page_url\": null}"
+      }
+    }
+  ]
+}

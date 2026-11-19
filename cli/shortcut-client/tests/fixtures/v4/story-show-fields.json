@@ -1,0 +1,12 @@
+{
+  "body": {
+    "entity": {
+      "app_url": "https://app.shortcut.com/scratch-workspace/story/14",
+      "description": "Contract body\n\nA paragraph that wraps across\n1. a line that starts with a digit\n\n- a list item\n- another, with `code` and a.dotted.token\n\n```\n    indented code\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n",
+      "id": 14,
+      "name": "Contract story",
+      "updated_at": "2026-11-14T08:21:34.384Z"
+    }
+  },
+  "status": 200
+}

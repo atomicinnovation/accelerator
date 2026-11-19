@@ -4,7 +4,14 @@
 
 #[test]
 fn the_provider_client_keys_are_registered() {
-    for key in ["jira.allowed_sites", "jira.site", "linear.team_id"] {
+    for key in [
+        "jira.allowed_sites",
+        "jira.site",
+        "linear.team_id",
+        "shortcut.team_key",
+        "shortcut.token",
+        "shortcut.token_cmd",
+    ] {
         assert!(
             config::catalogue::declared(key).is_some(),
             "{key} must be dumpable"

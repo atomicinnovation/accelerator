@@ -60,6 +60,7 @@ pub fn remote_projection::json::parse(text: &str, limits: &remote_projection::js
 pub enum remote_projection::Integration
 pub remote_projection::Integration::Jira
 pub remote_projection::Integration::Linear
+pub remote_projection::Integration::Shortcut
 impl core::clone::Clone for remote_projection::Integration
 pub fn remote_projection::Integration::clone(&self) -> remote_projection::Integration
 impl core::cmp::Eq for remote_projection::Integration

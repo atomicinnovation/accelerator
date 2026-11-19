@@ -1,0 +1,19 @@
+{
+  "outcome": "results",
+  "stories": [
+    {
+      "app_url": "https://app.shortcut.com/scratch-workspace/story/14",
+      "estimate": 2,
+      "key": "sc-14",
+      "labels": [],
+      "name": "Contract story",
+      "owners": [
+        "member-2"
+      ],
+      "state": "Backlog",
+      "story_type": "feature",
+      "updated_at": "2026-11-14T08:21:36.121Z"
+    }
+  ],
+  "truncated": false
+}

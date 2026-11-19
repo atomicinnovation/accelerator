@@ -1,0 +1,15 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/api/v4/scratch-workspace/epics/17/comments",
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"entity\": {\"app_url\": \"https://app.shortcut.com/scratch-workspace/epic/17#activity-18\", \"author\": {\"entity_type\": \"member:slim\", \"id\": \"00000000-0000-4000-8000-000000000001\", \"name\": \"member-2\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001\"}, \"comments\": {\"current_items\": 0, \"entities\": [], \"list_url\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/threaded-comments/18/comments\", \"total_items\": 0}, \"created_at\": \"2026-11-14T08:21:39.877Z\", \"deleted\": false, \"entity_type\": \"threaded-comment\", \"epic\": {\"app_url\": \"https://app.shortcut.com/scratch-workspace/epic/17\", \"entity_type\": \"epic:slim\", \"id\": 17, \"name\": \"Contract epic\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17\"}, \"external_id\": null, \"id\": 18, \"mentioned_members\": {\"current_items\": 0, \"entities\": [], \"list_url\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/threaded-comments/18/mentioned-members\", \"total_items\": 0}, \"mentioned_teams\": {\"current_items\": 0, \"entities\": [], \"list_url\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/threaded-comments/18/mentioned-teams\", \"total_items\": 0}, \"parent_comment\": null, \"text\": \"Contract epic comment\", \"updated_at\": \"2026-11-14T08:21:39.877Z\", \"uri\": \"https://api.app.shortcut.com/api/v4/scratch-workspace/epics/17/threaded-comments/18\"}}"
+      }
+    }
+  ]
+}

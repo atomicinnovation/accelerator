@@ -35,6 +35,16 @@ fn a_linear_identifier_has_a_letter_led_team_key_without_underscores() {
 }
 
 #[test]
+fn a_shortcut_key_names_a_story_or_an_epic_and_its_number() {
+    for key in ["sc-14", "epic-5"] {
+        assert!(TrackerKeys::Shortcut.is_key(key), "{key}");
+    }
+    for refused in NEVER_KEYS.iter().chain(&["PP-760", "SC-14", "story-3"]) {
+        assert!(!TrackerKeys::Shortcut.is_key(refused), "{refused}");
+    }
+}
+
+#[test]
 fn any_supported_tracker_accepts_what_one_tracker_accepts() {
     assert!(TrackerKeys::AnySupported.is_key("MY_PROJ-7"));
     assert!(TrackerKeys::AnySupported.is_key("PP-760"));
@@ -47,6 +57,10 @@ fn any_supported_tracker_accepts_what_one_tracker_accepts() {
 fn an_integration_names_its_own_keys() {
     assert_eq!(TrackerKeys::of_integration("jira"), TrackerKeys::Jira);
     assert_eq!(TrackerKeys::of_integration("linear"), TrackerKeys::Linear);
+    assert_eq!(
+        TrackerKeys::of_integration("shortcut"),
+        TrackerKeys::Shortcut
+    );
     assert_eq!(TrackerKeys::of_integration(""), TrackerKeys::AnySupported);
     assert_eq!(
         TrackerKeys::of_integration("github"),

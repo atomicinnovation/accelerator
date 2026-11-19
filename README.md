@@ -68,6 +68,9 @@ The full documentation site is published at
   `accelerator research` sub-binary `research-topic` uses to fetch tiered
   scholarly records from OpenAlex and arXiv, and the guard confining its
   researcher.
+- [Shortcut CLI](https://atomicinnovation.github.io/accelerator/shortcut/) —
+  the `accelerator shortcut` sub-binary the Shortcut skills use to read and
+  write stories and epics.
 - [Configuration](https://atomicinnovation.github.io/accelerator/configuration/)
   — config files, templates, per-skill customisation, and custom review lenses.
 - [Migrations](https://atomicinnovation.github.io/accelerator/migrations/) —
@@ -86,7 +89,7 @@ The full documentation site is published at
   time-boxed spikes, and short-form note capture that feed the loop.
 - <img src="https://api.iconify.design/ph/kanban-bold.svg?color=%230d9488" width="16" align="center" alt=""> [Work Items](https://atomicinnovation.github.io/accelerator/skills/work-items/) — capturing features, bugs, and tasks
   that feed into planning.
-- <img src="https://api.iconify.design/ph/ticket-bold.svg?color=%232563eb" width="16" align="center" alt=""> [Issue Trackers (Jira & Linear)](https://atomicinnovation.github.io/accelerator/skills/issue-trackers/) — remote
+- <img src="https://api.iconify.design/ph/ticket-bold.svg?color=%232563eb" width="16" align="center" alt=""> [Issue Trackers (Jira, Linear & Shortcut)](https://atomicinnovation.github.io/accelerator/skills/issue-trackers/) — remote
   tracker integration.
 - <img src="https://api.iconify.design/ph/scroll-bold.svg?color=%237c3aed" width="16" align="center" alt=""> [Architecture Decision Records (ADRs)](https://atomicinnovation.github.io/accelerator/skills/adrs/) — capturing
   architectural decisions.

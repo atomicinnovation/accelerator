@@ -18,7 +18,7 @@ use work_adapters::sync::digest;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EXPECTED_CASE_COUNT: usize = 11;
+const EXPECTED_CASE_COUNT: usize = 14;
 
 fn corpus_root() -> Result<PathBuf, TestError> {
     Ok(Path::new(env!("CARGO_MANIFEST_DIR"))

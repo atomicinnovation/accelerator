@@ -1,0 +1,49 @@
+{
+  "body": {
+    "entity": {
+      "app_url": "https://app.shortcut.com/scratch-workspace/story/14/contract-story#activity-15",
+      "author": {
+        "entity_type": "member:slim",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "member-2",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/members/00000000-0000-4000-8000-000000000001"
+      },
+      "created_at": "2026-11-14T08:21:35.173Z",
+      "deleted": false,
+      "entity_type": "comment",
+      "external_id": null,
+      "id": 15,
+      "mentioned_members": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/comments/15/mentioned-members",
+        "total_items": 0
+      },
+      "mentioned_teams": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/comments/15/mentioned-teams",
+        "total_items": 0
+      },
+      "parent_comment": null,
+      "position": 1000000,
+      "reactions": {
+        "current_items": 0,
+        "entities": [],
+        "list_url": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/comments/15/reactions",
+        "total_items": 0
+      },
+      "story": {
+        "app_url": "https://app.shortcut.com/scratch-workspace/story/14",
+        "entity_type": "story:slim",
+        "id": 14,
+        "name": "Contract story",
+        "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14"
+      },
+      "text": "Contract comment",
+      "updated_at": "2026-11-14T08:21:35.173Z",
+      "uri": "https://api.app.shortcut.com/api/v4/scratch-workspace/stories/14/comments/15"
+    }
+  },
+  "status": 201
+}
