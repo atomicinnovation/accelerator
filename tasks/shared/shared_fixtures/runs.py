@@ -391,4 +391,4 @@ def _root_problem(status: os.stat_result, mode: int) -> str | None:
 
 
 def _warn(message: str) -> None:
-    print(f"WARNING: shared VCS fixtures: {message}")
+    print(f"WARNING: shared VCS fixtures: {message}", flush=True)

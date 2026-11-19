@@ -239,10 +239,10 @@ class SharedFixtureSession:
     def _summarise(self, log: FixtureLog) -> list[str]:
         try:
             for line in log.summary(self._root).lines():
-                print(line, file=self._out)
+                print(line, file=self._out, flush=True)
         except Exception as error:  # noqa: BLE001
             return [f"summarising the fixture log failed: {error}"]
         return []
 
     def _say(self, message: str) -> None:
-        print(f"shared VCS fixtures: {message}", file=self._out)
+        print(f"shared VCS fixtures: {message}", file=self._out, flush=True)
