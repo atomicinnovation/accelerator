@@ -170,6 +170,9 @@ exacl = { version = "0.13", default-features = false }
 rustix = { version = "1", features = ["process", "fs"] }
 # Already resolved transitively, so the fixture path scan adds no package.
 walkdir = "2.5.0"
+# Already resolved transitively, so a fixture copy keeps its source's times
+# without adding a package.
+filetime = "0.2.29"
 # The command runner forwards interrupts to a helper's process group. Kept at
 # 0.4 with default features off to match the optional copy gix declares, so
 # multiple-versions = "deny" holds.

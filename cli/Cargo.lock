@@ -5469,6 +5469,7 @@ dependencies = [
 name = "vcs-test-support"
 version = "1.24.0-pre.107"
 dependencies = [
+ "filetime",
  "regex",
  "serde",
  "serde_json",
