@@ -19,17 +19,19 @@ the profile's sources, and write one self-contained document.
    profile file and an outputter file, plus the finding outputter when the
    outputter is a level-note one, which defers to it. Read them all before
    anything else. The profile defines which sources are legitimate and how to
-   tier them; the outputter defines the document's exact shape, points to the
-   template injected into your prompt, and names where to write the
-   document.
+   tier them; the outputter defines the document's exact shape and names
+   where to write the document. Then run the outputter's **Template** step,
+   before any research. If it fails, stop with the outcome the outputter
+   names, so a missing grant costs no searches.
 2. **Research the focus question** through the profile's sources. Start wide,
    then narrow. Stop when the question is answered well enough to stand on its
    own — you are not writing a survey. Follow your profile's outcomes exactly,
    including any that tell you to repeat a call before ending.
 3. **Compose the document** per the outputter, filling the frontmatter from the
    values injected into your task prompt. Run no CLI except
-   `accelerator research fetch`, and only as your profile directs — every other
-   value you need is already injected.
+   `accelerator research fetch`, only as your profile directs, and the template
+   command your outputter names — every other value you need is already
+   injected.
 4. **Tag every source** `tier-1`, `tier-2`, or `tier-3` by the profile's
    reputation vocabulary, and record each source's domain or venue beside its
    tier.

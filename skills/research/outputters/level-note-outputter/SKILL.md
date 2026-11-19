@@ -6,6 +6,8 @@ description: Output contract for a research level note, one node of a pair's
   researcher by the research-topic conduct verb — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
+allowed-tools:
+  - Bash(accelerator config template topic-research --kind level-note)
 ---
 
 # Level-Note Outputter
@@ -15,7 +17,8 @@ follow-up questions that deepen it. A note is a finding in every respect this
 document does not name. Read `finding-outputter` too: its Shape, Body and
 Sources rules, its Sources metadata block included, apply to the note
 unchanged, with "level note" and the `topic-research-level-note` template in
-place of "finding" and its template.
+place of "finding" and its template. Its **Template** step is the exception:
+a level note takes its template as **Template** below says.
 
 ## Sink
 
@@ -24,8 +27,8 @@ and to no other path.
 
 ## Injected Values
 
-Everything `finding-outputter` injects, with the level-note template in place
-of the finding template and the note path in place of the output path, plus:
+Everything `finding-outputter` injects, with the note path in place of the
+output path, plus:
 
 - **level** — your node's level; `1` is the root.
 - **depth** — the resolved depth of the tree.
@@ -37,6 +40,16 @@ of the finding template and the note path in place of the output path, plus:
   `search_budget`, the most `WebSearch` calls your node was allowed, not a
   count of calls made. When no search budget is injected, delete the
   `search_budget` line.
+
+## Template
+
+A level-note writer is always a researcher. Run
+`accelerator config template topic-research --kind level-note` exactly as
+written, without `--fail-safe`, and fill the fenced template it prints. When
+the command is denied by permissions, write no file, and say "template command
+denied by permissions" in your summary. When it exits non-zero, write no file,
+and say "template unavailable" in your summary, quoting the first line of its
+stderr.
 
 ## Shape
 

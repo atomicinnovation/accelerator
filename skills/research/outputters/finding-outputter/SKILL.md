@@ -5,6 +5,8 @@ description: Output contract for a research finding. Owns the finding's
   researcher by the research-topic conduct verb — not invoked directly.
 user-invocable: false
 disable-model-invocation: true
+allowed-tools:
+  - Bash(accelerator config template topic-research --kind finding)
 ---
 
 # Finding Outputter
@@ -22,7 +24,6 @@ and to no other path.
 Your task prompt injects everything the frontmatter needs — do not invent or
 derive it:
 
-- **finding template** — the resolved `topic-research-finding` template to render.
 - **output path** — where to write the finding.
 - **round** — the round number this finding belongs to.
 - **depth** — the resolved depth the finding was researched or composed under.
@@ -31,15 +32,26 @@ derive it:
 - **timestamp** — the ISO datetime for `date` and `last_updated`.
 - **author** — the value for `author` and `last_updated_by`.
 
+## Template
+
+The `topic-research-finding` template is the finding's shape, frontmatter and
+body skeleton both. Where it comes from depends on who you are:
+
+- **A composer** fills the finding template its task prompt carries, and
+  never runs a command for it. Given no template, write no file, and say
+  "no template given" in your summary.
+- **A researcher** runs
+  `accelerator config template topic-research --kind finding` exactly as
+  written, without `--fail-safe`, and fills the fenced template it prints.
+  When the command is denied by permissions, write no file, and say
+  "template command denied by permissions" in your summary. When it exits
+  non-zero, write no file, and say "template unavailable" in your summary,
+  quoting the first line of its stderr.
+
 ## Shape
 
-The `topic-research-finding` template is the finding's shape — frontmatter and
-body skeleton both — and is injected into your task prompt. Fill its
-placeholders from the injected values. If no template was injected, refuse
-rather than improvise a shape.
-
-Fill the template from the injected values, observing the deltas it cannot
-express on its own:
+The template the **Template** step yields is the finding's shape. Fill it from
+the injected values, observing the deltas it cannot express on its own:
 
 - `status` is always `complete`.
 - `source_profile` is always the injected source profile, and `question` the
@@ -53,10 +65,11 @@ express on its own:
 
 ## Body
 
-The template you loaded is authoritative for the finding's sections — follow
-its structure. The guidance below is about the *content* to write, not a fixed
-set of headings: where the template has a matching section, fill it out this
-way, and use your judgement for any section the template shapes differently.
+The template the **Template** step yields is authoritative for the finding's
+sections — follow its structure. The guidance below is about the *content* to
+write, not a fixed set of headings: where the template has a matching section,
+fill it out this way, and use your judgement for any section the template
+shapes differently.
 
 - **Question** — the focus area's question, restated.
 - **Findings** — standalone research prose that answers the question. It reads
