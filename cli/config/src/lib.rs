@@ -20,6 +20,7 @@ pub mod precedence;
 pub mod provenance;
 pub mod render;
 pub mod service;
+pub mod template;
 pub mod tracker_block;
 
 pub use crate::error::ConfigError;
