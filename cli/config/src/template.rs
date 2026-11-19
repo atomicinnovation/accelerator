@@ -131,7 +131,7 @@ mod tests {
                     abs_path: format!("templates/{name}.md"),
                     display_path: format!("templates/{name}.md"),
                     content: String::new(),
-                    warning: None,
+                    fallback: None,
                 }
             }))
         }

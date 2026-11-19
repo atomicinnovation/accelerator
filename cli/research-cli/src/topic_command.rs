@@ -9,6 +9,8 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
+use config::ConfigAccess;
+use config::ReadTemplate;
 use corpus::scan::DirReader;
 use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
@@ -31,6 +33,7 @@ use research::conduct::replaced_run::ReplacedRun;
 use research::conduct::search_budget::unsearched_tree;
 use research::conduct::search_budget::SearchBudgets;
 use research::conduct::spawn::SpawnRef;
+use research::conduct::template::ConductTemplate;
 use research::conduct::window::window;
 use research::conduct::window::UnfinishedSpawn;
 use research::conduct::window::Window;
@@ -275,6 +278,35 @@ fn non_negative(text: &str) -> Option<u32> {
 
 fn failed(message: impl Into<String>) -> String {
     message.into()
+}
+
+/// A warning for each template `conduct`'s spawns fill that falls back from
+/// its configured path.
+///
+/// A template that cannot be resolved at all gives no warning here: `conduct`
+/// runs the template command before its first plan, and stops on that
+/// command's own failure.
+#[must_use]
+pub fn conduct_template_fallbacks(
+    config: &dyn ConfigAccess,
+    templates: &dyn ReadTemplate,
+) -> Vec<String> {
+    ConductTemplate::ALL
+        .into_iter()
+        .filter_map(|template| {
+            let resolved = config::template::resolve(
+                config,
+                templates,
+                ConductTemplate::SET,
+                Some(template.kind()),
+            )
+            .ok()??;
+            Some(plan_wording::template_fallback(
+                template,
+                &resolved.fallback?,
+            ))
+        })
+        .collect()
 }
 
 /// Runs `research topic outstanding` against the set rooted at `set_root`,

@@ -91,7 +91,7 @@ impl ReadTemplate for PluginWorkItemTemplate {
             abs_path: "templates/work-item.md".to_owned(),
             display_path: "templates/work-item.md".to_owned(),
             content: include_str!("../../../templates/work-item.md").to_owned(),
-            warning: None,
+            fallback: None,
         }))
     }
 }
