@@ -633,10 +633,10 @@ concurrently. Please re-run /create-work-item.
 
       Include each bracketed flag only when that field has a value.
       `work create` always writes `tags`, as `[]` when no `--tag` is
-      passed. The only keys it leaves out when empty are `parent`,
-      `blocks`, `blocked_by`, `derived_from`, `relates_to`, `source` and
-      `external_id`. Each flagged one is written only when its flag is
-      passed, so no separate omission logic is needed here.
+      passed. It leaves `parent`, `blocks`, `blocked_by`, `derived_from`,
+      `relates_to`, `source` and `external_id` out when they are empty.
+      Each flagged one is written only when its flag is passed, so no
+      separate omission logic is needed here.
       `--tag`/`--block`/`--blocked-by`/`--derived-from`/`--relates-to` are
       each repeatable for multiple values.
       `external_id` has no flag; only the `--push` create in step 7 writes it.
