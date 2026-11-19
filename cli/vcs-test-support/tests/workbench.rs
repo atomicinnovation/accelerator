@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use serde_json::Value;
+use vcs_test_support::family::CopyableFamily;
 use vcs_test_support::family::Family;
 use vcs_test_support::family::PrivateBuild;
 use vcs_test_support::family::SharedFamily;
@@ -21,13 +22,19 @@ use vcs_test_support::Error;
 type TestError = Box<dyn std::error::Error>;
 
 const MARKER: &str = "marker";
+const PART: &str = "part";
+const PART_FILE: &str = "part/file";
 
-/// A family that costs one file write, so no test here runs git or jj.
+/// A family that costs a few file writes, so no test here runs git or jj.
 #[derive(Debug)]
 struct Marked {
     root: PathBuf,
     built_with_home: Option<String>,
+    part: Option<PathBuf>,
 }
+
+/// The one part of [`Marked`] a test can take a writable copy of.
+struct ThePart;
 
 impl SharedFamily for Marked {
     const FAMILY: Family = Family::Matrix;
@@ -42,6 +49,7 @@ impl SharedFamily for Marked {
         Ok(Self {
             root: tree.to_path_buf(),
             built_with_home: None,
+            part: Some(tree.join(PART)),
         })
     }
 
@@ -55,7 +63,47 @@ impl SharedFamily for Marked {
         Ok(Self {
             root: directory.to_path_buf(),
             built_with_home: Some(home),
+            part: None,
         })
+    }
+}
+
+impl CopyableFamily for Marked {
+    type Part = ThePart;
+
+    fn entries(_part: &ThePart, _tree: &Path) -> Result<Vec<String>, Error> {
+        Ok(vec![PART.to_owned()])
+    }
+
+    fn build_part_privately(
+        _part: ThePart,
+        directory: &Path,
+        hermetic: &Hermetic,
+        _token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        fs::create_dir_all(directory.join(PART))?;
+        fs::write(directory.join(PART_FILE), "private")?;
+        Ok(Self {
+            root: directory.to_path_buf(),
+            built_with_home: Some(hermetic.home().display().to_string()),
+            part: Some(directory.join(PART)),
+        })
+    }
+
+    fn rebased(self, from: &Path, onto: &Path, entries: &[String]) -> Self {
+        Self {
+            root: onto.to_path_buf(),
+            built_with_home: self.built_with_home,
+            part: self
+                .part
+                .and_then(|part| {
+                    part.strip_prefix(from).ok().map(Path::to_path_buf)
+                })
+                .filter(|relative| {
+                    entries.iter().any(|entry| relative.starts_with(entry))
+                })
+                .map(|relative| onto.join(relative)),
+        }
     }
 }
 
@@ -79,9 +127,17 @@ impl Run {
     }
 
     fn shared_tree(&self) -> Result<PathBuf, TestError> {
+        self.shared_tree_whose_part_holds("shared")
+    }
+
+    fn shared_tree_whose_part_holds(
+        &self,
+        contents: &str,
+    ) -> Result<PathBuf, TestError> {
         let tree = self.root()?.join("matrix");
-        fs::create_dir_all(&tree)?;
+        fs::create_dir_all(tree.join(PART))?;
         fs::write(tree.join(MARKER), "shared")?;
+        fs::write(tree.join(PART_FILE), contents)?;
         Ok(tree)
     }
 
@@ -443,4 +499,174 @@ fn a_hand_over_of_nothing_names_only_the_current_test() {
     assert_eq!(handover.workbenches, None);
     assert_eq!(handover.log.location(), None);
     assert_eq!(handover.test, TestName::current());
+}
+
+#[test]
+fn a_writable_part_of_a_handed_tree_is_copied_into_the_workbench(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_over(run.shared_tree()?)?)?;
+
+    let marked = workbench.writable::<Marked>(ThePart)?;
+
+    assert_eq!(marked.root, workbench.path());
+    assert_eq!(marked.part, Some(workbench.path().join(PART)));
+    assert_eq!(
+        fs::read_to_string(workbench.path().join(PART_FILE))?,
+        "shared"
+    );
+    assert!(!workbench.path().join(MARKER).exists());
+    let events = run.events()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["event"], "copy");
+    assert_eq!(events[0]["family"], "matrix");
+    let workbench_path = Value::String(workbench.path().display().to_string());
+    assert_eq!(events[0]["hermetic-root"], workbench_path);
+    assert_eq!(events[0]["copy"], workbench_path);
+    assert_eq!(events[0]["named-by"], Value::Array(Vec::new()));
+    Ok(())
+}
+
+#[test]
+fn a_writable_part_with_nothing_handed_is_built_privately(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_nothing()?)?;
+
+    let marked = workbench.writable::<Marked>(ThePart)?;
+
+    assert_eq!(marked.part, Some(workbench.path().join(PART)));
+    assert_eq!(
+        marked.built_with_home.as_deref(),
+        workbench.hermetic().home().to_str()
+    );
+    let events = run.events()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["event"], "private-build");
+    assert_eq!(events[0]["fixtures"], "matrix");
+    Ok(())
+}
+
+#[test]
+fn a_copy_still_naming_its_shared_tree_is_recorded_and_fails(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let tree = run.root()?.join("matrix");
+    let tree = run.shared_tree_whose_part_holds(&format!(
+        "origin = {}/elsewhere",
+        tree.display()
+    ))?;
+    let workbench = Workbench::with(run.handing_over(tree.clone())?)?;
+
+    let error = workbench
+        .writable::<Marked>(ThePart)
+        .err()
+        .ok_or("it should fail")?;
+
+    let copied_file = workbench.path().join(PART_FILE);
+    let message = error.to_string();
+    assert!(
+        message.contains(&copied_file.display().to_string()),
+        "{message}"
+    );
+    assert!(message.contains(&tree.display().to_string()), "{message}");
+    let events = run.events()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["event"], "copy");
+    assert_eq!(
+        events[0]["named-by"],
+        serde_json::json!([copied_file.display().to_string()])
+    );
+    Ok(())
+}
+
+fn a_private_set(
+    directory: &Path,
+    hermetic: &Hermetic,
+) -> Result<BTreeMap<&'static str, PathBuf>, Error> {
+    let state = directory.join("private-state");
+    fs::create_dir_all(&state)?;
+    fs::write(state.join("home"), hermetic.home().display().to_string())?;
+    Ok(BTreeMap::from([("private-state", state)]))
+}
+
+#[test]
+fn a_private_set_is_built_in_the_workbench_and_logged_as_one(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_over(run.shared_tree()?)?)?;
+
+    let states = workbench.private_states(a_private_set)?;
+
+    let state = states.get("private-state").ok_or("no private state")?;
+    assert_eq!(state, &workbench.path().join("private-state"));
+    assert_eq!(
+        fs::read_to_string(state.join("home"))?,
+        workbench.hermetic().home().display().to_string()
+    );
+    let events = run.events()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["event"], "private-build");
+    assert_eq!(events[0]["fixtures"], "private-sets");
+    assert_eq!(
+        events[0]["hermetic-root"],
+        Value::String(workbench.path().display().to_string())
+    );
+    Ok(())
+}
+
+#[test]
+fn a_workbench_holding_an_adoption_refuses_a_copy() -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_over(run.shared_tree()?)?)?;
+    let _first = workbench.shared::<Marked>()?;
+
+    let error = workbench
+        .writable::<Marked>(ThePart)
+        .err()
+        .ok_or("it should fail")?;
+
+    assert_eq!(
+        error.to_string(),
+        "this workbench already holds the matrix (adopted); open another \
+         workbench for the matrix"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_workbench_holding_a_copy_refuses_a_private_set() -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_over(run.shared_tree()?)?)?;
+    let _first = workbench.writable::<Marked>(ThePart)?;
+
+    let error = workbench
+        .private_states(a_private_set)
+        .err()
+        .ok_or("it should fail")?;
+
+    assert_eq!(
+        error.to_string(),
+        "this workbench already holds the matrix (copied); open another \
+         workbench for the private sets"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_workbench_holding_a_private_set_refuses_an_adoption(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_over(run.shared_tree()?)?)?;
+    let _first = workbench.private_states(a_private_set)?;
+
+    let error = workbench.shared::<Marked>().err().ok_or("it should fail")?;
+
+    assert_eq!(
+        error.to_string(),
+        "this workbench already holds the private sets (built); open \
+         another workbench for the matrix"
+    );
+    assert_eq!(run.events()?.len(), 1);
+    Ok(())
 }

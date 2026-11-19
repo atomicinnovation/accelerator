@@ -126,3 +126,32 @@ pub trait SharedFamily: Sized {
         token: PrivateBuild,
     ) -> Result<Self, Error>;
 }
+
+/// A shared family a test can take a writable copy of, one part at a time.
+pub trait CopyableFamily: SharedFamily {
+    type Part;
+
+    /// The top-level entries of `tree` that make up `part`.
+    ///
+    /// # Errors
+    ///
+    /// When `tree` cannot be listed.
+    fn entries(part: &Self::Part, tree: &Path) -> Result<Vec<String>, Error>;
+
+    /// Builds `part` alone in `directory` with `hermetic`.
+    ///
+    /// # Errors
+    ///
+    /// When any part of the build fails.
+    fn build_part_privately(
+        part: Self::Part,
+        directory: &Path,
+        hermetic: &Hermetic,
+        token: PrivateBuild,
+    ) -> Result<Self, Error>;
+
+    /// The family as it reads once `entries` of the tree at `from` are copied
+    /// to `onto`, keeping only what those entries hold.
+    #[must_use]
+    fn rebased(self, from: &Path, onto: &Path, entries: &[String]) -> Self;
+}

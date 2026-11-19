@@ -1,10 +1,11 @@
 //! A test's own directory and hermetic environment.
 //!
-//! The workbench is the one place a test acquires a shared fixture family: by
-//! adopting the run's shared build, or by building it privately when the run
-//! hands none over.
+//! The workbench is the one place a test acquires a fixture: by adopting the
+//! run's shared build of a family, by copying part of it to write in, or by
+//! building it privately when the run hands none over.
 
 use std::cell::Cell;
+use std::collections::BTreeMap;
 use std::env;
 use std::fmt;
 use std::marker::PhantomData;
@@ -14,7 +15,9 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 
+use crate::copies::copy_part;
 use crate::family::BuiltFixtures;
+use crate::family::CopyableFamily;
 use crate::family::PrivateBuild;
 use crate::family::SharedFamily;
 use crate::fixture_log::Event;
@@ -26,9 +29,17 @@ use crate::hermetic::Hermetic;
 use crate::status_log::States;
 use crate::Error;
 
+/// The states of one private set, keyed by name.
+pub type PrivateStates = BTreeMap<&'static str, PathBuf>;
+
+/// Builds one private set beneath a directory with a hermetic environment.
+pub type PrivateSetBuilder =
+    fn(&Path, &Hermetic) -> Result<PrivateStates, Error>;
+
 #[derive(Debug, Clone, Copy)]
 enum Acquisition {
     Adopted,
+    Copied,
     Built,
 }
 
@@ -36,6 +47,7 @@ impl fmt::Display for Acquisition {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Adopted => "adopted",
+            Self::Copied => "copied",
             Self::Built => "built",
         })
     }
@@ -136,39 +148,66 @@ impl Workbench {
     /// or cannot be adopted, or the private build fails.
     pub fn shared<F: SharedFamily>(&self) -> Result<Held<'_, F>, Error> {
         let fixtures = BuiltFixtures::Shared(F::FAMILY);
-        self.refuse_a_second(fixtures)?;
-        let test = &self.handover.test;
-        let hermetic_root = self.path();
-        let (fixture, acquisition) =
+        self.hand_out(fixtures, || {
             if let Some(tree) = self.handover.shared_tree(F::FAMILY) {
                 let fixture = adopt::<F>(tree)?;
                 self.handover.log.record(&Event::Adoption {
                     family: F::FAMILY,
-                    test,
-                    hermetic_root,
+                    test: &self.handover.test,
+                    hermetic_root: self.path(),
                 })?;
-                (fixture, Acquisition::Adopted)
+                Ok((fixture, Acquisition::Adopted))
             } else {
-                let fixture = F::build_privately(
-                    self.path(),
-                    &self.hermetic,
-                    PrivateBuild(()),
-                )?;
-                self.handover.log.record(&Event::PrivateBuild {
-                    fixtures,
-                    test,
-                    hermetic_root,
-                })?;
-                (fixture, Acquisition::Built)
-            };
-        self.holds.set(Some(Holding {
-            fixtures,
-            acquisition,
-        }));
-        Ok(Held {
-            fixture,
-            workbench: PhantomData,
+                self.build_privately(fixtures, |directory, hermetic| {
+                    F::build_privately(directory, hermetic, PrivateBuild(()))
+                })
+            }
         })
+    }
+
+    /// Copies `part` of the family's shared tree into this workbench when the
+    /// run handed one over, and otherwise builds `part` privately here.
+    ///
+    /// The fixture is the test's own to change.
+    ///
+    /// # Errors
+    ///
+    /// When the workbench already holds a fixture, the handed tree is missing
+    /// or cannot be adopted or copied, a copied file still names the shared
+    /// tree, or the private build fails.
+    pub fn writable<F: CopyableFamily>(
+        &self,
+        part: F::Part,
+    ) -> Result<Held<'_, F>, Error> {
+        let fixtures = BuiltFixtures::Shared(F::FAMILY);
+        self.hand_out(fixtures, || {
+            if let Some(tree) = self.handover.shared_tree(F::FAMILY) {
+                Ok((self.copied::<F>(tree, &part)?, Acquisition::Copied))
+            } else {
+                self.build_privately(fixtures, |directory, hermetic| {
+                    F::build_part_privately(
+                        part,
+                        directory,
+                        hermetic,
+                        PrivateBuild(()),
+                    )
+                })
+            }
+        })
+    }
+
+    /// Builds one of the private sets, which are never shared, in this
+    /// workbench.
+    ///
+    /// # Errors
+    ///
+    /// When the workbench already holds a fixture, or the build fails.
+    pub fn private_states(
+        &self,
+        build: PrivateSetBuilder,
+    ) -> Result<Held<'_, PrivateStates>, Error> {
+        let fixtures = BuiltFixtures::PrivateSets;
+        self.hand_out(fixtures, || self.build_privately(fixtures, build))
     }
 
     /// The run's matrix, shared with every other test: treat it as read-only
@@ -189,6 +228,69 @@ impl Workbench {
     /// As [`Self::shared`].
     pub fn status_log_states(&self) -> Result<Held<'_, States>, Error> {
         self.shared::<States>()
+    }
+
+    fn hand_out<F>(
+        &self,
+        fixtures: BuiltFixtures,
+        acquire: impl FnOnce() -> Result<(F, Acquisition), Error>,
+    ) -> Result<Held<'_, F>, Error> {
+        self.refuse_a_second(fixtures)?;
+        let (fixture, acquisition) = acquire()?;
+        self.holds.set(Some(Holding {
+            fixtures,
+            acquisition,
+        }));
+        Ok(Held {
+            fixture,
+            workbench: PhantomData,
+        })
+    }
+
+    fn build_privately<F>(
+        &self,
+        fixtures: BuiltFixtures,
+        build: impl FnOnce(&Path, &Hermetic) -> Result<F, Error>,
+    ) -> Result<(F, Acquisition), Error> {
+        let fixture = build(self.path(), &self.hermetic)?;
+        self.handover.log.record(&Event::PrivateBuild {
+            fixtures,
+            test: &self.handover.test,
+            hermetic_root: self.path(),
+        })?;
+        Ok((fixture, Acquisition::Built))
+    }
+
+    fn copied<F: CopyableFamily>(
+        &self,
+        tree: &Path,
+        part: &F::Part,
+    ) -> Result<F, Error> {
+        let shared = adopt::<F>(tree)?;
+        let entries = F::entries(part, tree)?;
+        let names: Vec<&str> = entries.iter().map(String::as_str).collect();
+        let copy = copy_part(tree, &names, self.path())?;
+        self.handover.log.record(&Event::Copy {
+            family: F::FAMILY,
+            test: &self.handover.test,
+            hermetic_root: self.path(),
+            copy: &copy.root,
+            named_by: &copy.named_by,
+        })?;
+        if !copy.is_clean() {
+            return Err(Error::message(format!(
+                "the copy of {} in {} still names the shared tree {} in: {}",
+                F::FAMILY,
+                copy.root.display(),
+                tree.display(),
+                copy.named_by
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )));
+        }
+        Ok(shared.rebased(tree, self.path(), &entries))
     }
 
     fn refuse_a_second(&self, requested: BuiltFixtures) -> Result<(), Error> {
