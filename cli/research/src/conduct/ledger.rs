@@ -750,8 +750,7 @@ mod tests {
     }
 
     #[test]
-    fn an_offer_snapshots_each_offered_nodes_profile_question_and_known_questions(
-    ) {
+    fn an_offer_snapshots_each_nodes_profile_question_and_known_questions() {
         let ledger = offering_nodes(
             started(),
             vec![of_profile(

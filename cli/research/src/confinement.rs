@@ -4,9 +4,10 @@
 //! outputters' template commands, the composer nothing. The researcher may
 //! write only findings and level notes, the composer only findings.
 //!
-//! The command rule follows Claude Code's own matching of a `Bash(… *)`
-//! allow rule, as measured release by release, and is stricter for the
-//! constructs in [`STRICTER_THAN_MEASURED`].
+//! An exact command must match in full. A prefixed command's arguments
+//! follow Claude Code's own matching of a `Bash(… *)` allow rule, as
+//! measured release by release, and are stricter for the constructs in
+//! [`STRICTER_THAN_MEASURED`].
 
 use std::fmt;
 use std::fmt::Display;
