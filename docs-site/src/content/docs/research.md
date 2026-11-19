@@ -540,6 +540,16 @@ project's allow rules:
 }
 ```
 
+:::caution
+Project allow rules apply to every session, including the main conversation
+and any agent the guard does not confine. There, Claude Code's own wildcard
+matching accepts `$VAR` expansion and `<` redirection (see [Command
+matching](#command-matching)), so a wildcard rule such as the fetch or node
+query rule can echo an environment secret back through a usage error without
+asking. Prefer a grant in the spawning skill's `allowed-tools`, and add these
+rules only where no skill's grant reaches the researcher.
+:::
+
 A `deny` or `ask` rule covering `accelerator research fetch` overrides the
 grant. For an academic researcher, `conduct` reports either case as "fetch
 denied by permissions". A web researcher whose metadata fetch is denied
