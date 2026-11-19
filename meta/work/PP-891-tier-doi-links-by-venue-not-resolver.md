@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers", "cli", "crossref"]
-last_updated: "2026-11-19T18:54:02+00:00"
+last_updated: "2026-11-19T20:01:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -32,10 +32,11 @@ The same DOI appeared at tier-1 and tier-3 in one dossier. The issue blamed
 reproduce: the CLI tiers all three reported DOIs tier-1 by both paths. The
 likely cause is web-profile researchers tiering a `https://doi.org/…` URL by
 its domain — `doi.org` is a resolver, not a venue, so peer-reviewed papers
-drop to tier-3. Add an `accelerator research fetch doi metadata` command that
-reports the venue and publisher Crossref holds for a DOI, have the web
-profile tier DOI-cited sources by that venue, and lock in search/lookup
-parity with a regression test.
+drop to tier-3. Add an `accelerator research fetch doi metadata` command,
+queued like arXiv's, that reports the venue and publisher Crossref holds for
+a DOI; have the web profile run it on any DOI a cited page declares or its
+resolver URL names, and tier the source by that venue; and lock in
+search/lookup parity with a regression test.
 
 ## Context
 
@@ -67,11 +68,12 @@ carry the tier-3 forward and it conflicts with the openalex tier-1 (PP-892).
   never recorded as a venue.
 - A new `accelerator research fetch doi metadata '<DOI>'` command:
   - accepts a bare DOI or a `doi.org` / `dx.doi.org` URL;
-  - prints `{"status":"ok","metadata":{…},"venue":"…"}`, where `venue` is
-    the container title (journal or proceedings) Crossref holds for the DOI,
-    omitted when Crossref holds none, and `metadata` carries only what the
-    DOI registry adds and a page cannot declare — `publisher` today — never
-    a key `fetch web metadata` prints;
+  - on success prints `{"status":"ok","metadata":{…},"venue":"…"}`, where
+    `venue` is the container title (journal or proceedings) Crossref holds
+    for the DOI, omitted when Crossref holds none, and `metadata` carries
+    only what the DOI registry adds and a page cannot declare — `publisher`
+    today — never a key `fetch web metadata` prints; a DOI Crossref holds no
+    record for is `ok` with empty `metadata` and no `venue`;
   - prints only metadata keys that follow every key `fetch web metadata` can
     print in canonical order, so the two maps written one after the other
     stay in canonical order;
@@ -79,19 +81,29 @@ carry the tier-3 forward and it conflicts with the openalex tier-1 (PP-892).
   - calls only Crossref, with no key — identifying itself with a configured
     contact address so Crossref serves it from the polite pool, and calling
     anonymously when none is configured;
-  - exits 2 with `E_DOI_MALFORMED` for a DOI it cannot parse, and exits 1
-    with one `E_DOI_*` line on stderr and nothing on stdout when Crossref
-    holds no record for the DOI or cannot be reached.
+  - waits its turn in a project-wide Crossref queue, paced to the limits of
+    the pool in use; a call that cannot be served within its 100 s deadline
+    prints `{"status":"waiting","source":"crossref","ticket":…,"position":…}`
+    for the caller to re-present with `--ticket`, and an unreachable
+    Crossref or an exhausted budget prints
+    `{"status":"unavailable","source":"crossref","reason":…}`; `ok`,
+    `unavailable` and `waiting` all exit 0;
+  - exits 2 with `E_DOI_MALFORMED` for a DOI it cannot parse, its only
+    non-zero exit.
 - A new optional `crossref.mailto` setting holds that contact address,
   resolved from the `ACCELERATOR_CROSSREF_MAILTO` env var, then
   `config.local.md`, then `config.md`. An address that is not a plausible
   email draws a `warning:` and the call goes anonymous; the setting never
   makes a call fail. `/configure` documents the `crossref` section.
 - `accelerator research fetch --help` lists the `doi` family and its
-  `metadata` verb.
-- For a source cited by a resolver URL, the web profile:
-  - runs `fetch web metadata` on the URL, as for any page, and
-    `fetch doi metadata` on the DOI;
+  `metadata` verb, and names `doi` among the families `--ticket` serves.
+- For every cited page, the web profile:
+  - runs `fetch web metadata` first, then `fetch doi metadata` on the DOI it
+    printed, or — when it printed none and the cited URL is a resolver URL —
+    on that URL; a source reaching neither branch is tiered by its own
+    domain, as today;
+  - re-presents a `waiting` call with `--ticket` until it settles; only
+    `unavailable` leads to the fallback below;
   - writes the entry's metadata block as the `web metadata` entries followed
     by the `doi metadata` entries, each copied unchanged in emitted order,
     following an explicit template and a worked example in the profile;
@@ -112,10 +124,18 @@ carry the tier-3 forward and it conflicts with the openalex tier-1 (PP-892).
 
 - [ ] The web profile's text names `doi.org` and `dx.doi.org` as resolvers
       that are never recorded as a venue.
-- [ ] The web profile's text directs a researcher to run both
-      `fetch web metadata` and `fetch doi metadata` for a source cited by a
-      resolver URL, and to record and tier it by the printed `venue`, then
-      the printed `publisher`, then the host its page fetch landed on.
+- [ ] The web profile's text directs a researcher to run
+      `fetch web metadata` first for every cited page, then
+      `fetch doi metadata` on the DOI it printed, or — when it printed none
+      and the cited URL is a resolver URL — on that URL; a source reaching
+      neither branch is tiered by its own domain.
+- [ ] The web profile's text directs a researcher to record and tier a
+      source that went through `fetch doi metadata` by the printed `venue`,
+      then the printed `publisher`, then the host its page fetch landed on.
+- [ ] The web profile's text includes a Waiting section, modelled on the
+      arXiv profile's, under which a `waiting` call is re-presented with
+      `--ticket` until it settles and only `unavailable` leads to the
+      fallback.
 - [ ] The web profile's text includes a template for a source cited by DOI,
       with `web metadata` entries first and `doi metadata` entries after,
       and a worked example whose link is a `https://doi.org/…` URL and whose
@@ -136,9 +156,26 @@ carry the tier-3 forward and it conflicts with the openalex tier-1 (PP-892).
 - [ ] Given a recorded Crossref response with a publisher but no container
       title, when the command runs, then it exits 0 with no `venue` and
       `metadata` holding the `publisher`.
-- [ ] Given Crossref answers 404 or cannot be reached, when the command
-      runs, then it exits 1 with one `E_DOI_*` line on stderr and nothing on
-      stdout.
+- [ ] Given Crossref answers 404, when the command runs, then it exits 0
+      and prints `{"status":"ok","metadata":{}}` with no `venue`.
+- [ ] Given Crossref cannot be reached, when the command runs, then it
+      exits 0 and prints `{"status":"unavailable","source":"crossref",…}`
+      with a reason of `upstream_error`.
+- [ ] Given Crossref answers 429 with a `Retry-After`, when the command
+      runs, then it waits as that header asks before retrying, and other
+      callers in the project defer to the same wait.
+- [ ] Given the project's Crossref queue cannot serve a call within its
+      100 s deadline, when the command runs, then it exits 0 and prints
+      `{"status":"waiting","source":"crossref","ticket":…,"position":…}`;
+      re-presenting the same call with `--ticket` settles it as `ok` or
+      `unavailable`.
+- [ ] Given a page whose `web metadata` declares a DOI but whose URL is not
+      a resolver URL, when the web profile is followed, then that DOI goes
+      through `fetch doi metadata` (profile text check).
+- [ ] Given a resolver URL whose landing page refuses the fetch, so
+      `web metadata` exits 1, when the web profile is followed, then the
+      resolver URL still goes through `fetch doi metadata` (profile text
+      check).
 - [ ] Given `not-a-doi`, when the command runs, then it exits 2 with
       `E_DOI_MALFORMED`.
 - [ ] Given `crossref.mailto` is `research@example.org`, when
@@ -185,10 +222,13 @@ None outstanding.
 - The `doi.org`-venue records came from web-profile notes. Inferred from the
   venue string; not confirmed against the original run's notes, which are
   not in this repository.
-- Only a source cited by a resolver URL goes through `fetch doi metadata`. A
-  page that merely declares a DOI is tiered by its own domain — otherwise a
-  preprint page declaring its published version's DOI would inherit the
-  journal's tier.
+- A page declares its own DOI, so any DOI `web metadata` reports may go
+  through `fetch doi metadata`. Preprint servers are believed to declare
+  their own DOIs (arXiv's `10.48550/…` are DataCite DOIs Crossref does not
+  hold, so they fall back to `arxiv.org`). Accepted risk: a page declaring
+  a DOI that is not its own takes that DOI's venue and tier.
+- Accepted risk: the profile's acceptance criteria check its text only, so
+  no test demonstrates that the original tier conflict is gone.
 
 ## Technical Notes
 
@@ -211,9 +251,21 @@ None outstanding.
   `message.container-title` (a list) and `message.publisher`. Its base URL
   would sit beside the OpenAlex and arXiv ones in
   `cli/research/src/sources/request.rs`, and `Doi` there already parses bare
-  and resolver-URL forms. Crossref throttles with 429; whether to reuse the
-  OpenAlex retry and backoff in `cli/research/src/sources/fetch.rs` is a
-  planning call.
+  and resolver-URL forms.
+- Crossref calls go through a project-wide queue like arXiv's, with the
+  same `ok` / `unavailable` / `waiting` statuses (all exit 0) and `--ticket`
+  re-presentation, paced to the limits of whichever Crossref pool the call
+  uses (anonymous, or polite with `crossref.mailto`). A Crossref miss is
+  `ok` with empty `metadata` and no `venue`, as an OpenAlex `lookup` miss is
+  `ok` with no records; only malformed input exits non-zero
+  (`E_DOI_MALFORMED`, exit 2).
+- The queue engine is spread over `cli/research/src/sources/queue.rs` (with
+  ticket handling in `fetch.rs` and `request.rs`),
+  `cli/research-adapters/src/queue.rs` and `contention.rs`, and the
+  `--ticket` plumbing in `cli/research-cli`. Crossref is its second
+  consumer: generalise it into a service-agnostic engine that arXiv and
+  Crossref share, each supplying its own pacing, rather than duplicating
+  it — more low-funding, high-volume services like these are likely.
 - Crossref's etiquette admits a client to the polite pool when it sends a
   contact address in its `User-Agent` or a `mailto` query parameter; the
   `User-Agent` keeps the address out of URLs, which tend to be logged.
@@ -258,6 +310,10 @@ None outstanding.
   in the `User-Agent` rather than the URL, allowing it in team `config.md`,
   and treating a malformed address as anonymous with a warning rather than
   an error were drafting choices.
+- The stress test widened the trigger from resolver URLs to any DOI a
+  cited page declares, and replaced the `E_DOI_*` exit-1 contract with the
+  arXiv-style shared queue so rate limiting waits rather than silently
+  falling back to a domain tier.
 - Kept separate from PP-897 at the user's direction, though scope grew from
   a profile-text change to a new CLI command.
 - Profile and outputter acceptance criteria check the skills' text only.
