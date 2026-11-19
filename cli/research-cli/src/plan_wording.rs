@@ -1,6 +1,8 @@
 //! How a round plan's warnings, trims, skipped pairs, held-back items and
 //! refused notes read to whoever runs `conduct`, `ask` or `report`.
 
+use config::TemplateFallback;
+use research::conduct::template::ConductTemplate;
 use research::topic::evidence::NoteRejection;
 use research::topic::plan::HoldBack;
 use research::topic::plan::Skip;
@@ -130,6 +132,13 @@ pub fn rejection(rejection: &NoteRejection) -> String {
             "answers a different question from its node".to_owned()
         }
     }
+}
+
+pub fn template_fallback(
+    template: ConductTemplate,
+    fallback: &TemplateFallback,
+) -> String {
+    format!("{}: {fallback}", template.name())
 }
 
 #[cfg(test)]

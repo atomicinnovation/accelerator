@@ -253,7 +253,10 @@ fn outstanding(slug: &str, flags: OutstandingFlags) -> Result<Printed, String> {
             std::env::var(name).ok()
         }),
         template_fallbacks: match mode {
-            RunMode::Start(_) => project.conduct_template_fallbacks(),
+            RunMode::Start(_) => topic_command::conduct_template_fallbacks(
+                project.config.as_ref(),
+                project.templates.as_ref(),
+            ),
             RunMode::Query | RunMode::Continue { .. } => Vec::new(),
         },
         mode,

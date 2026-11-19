@@ -54,6 +54,7 @@ pub use crate::service::Resolved;
 pub use crate::service::ResolvedTemplate;
 pub use crate::service::Scaffold;
 pub use crate::service::Source;
+pub use crate::service::TemplateFallback;
 pub use crate::service::TemplateOverride;
 pub use crate::service::TemplateSource;
 pub use crate::service::Value;

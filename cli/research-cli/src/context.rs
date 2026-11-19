@@ -16,7 +16,6 @@ use corpus::DocTypeKey;
 use research::conduct::concurrency::ConfigFile;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
-use research::conduct::template::ConductTemplate;
 
 pub struct ProjectContext {
     pub root: PathBuf,
@@ -40,34 +39,6 @@ impl ProjectContext {
             ),
             config: Box::new(composed.service),
         })
-    }
-}
-
-impl ProjectContext {
-    /// A warning for each template `conduct`'s spawns fill that falls back
-    /// from its configured path, named by the template it concerns.
-    ///
-    /// A template that cannot be resolved at all gives no warning here:
-    /// `conduct` runs the template command before its first plan, and stops
-    /// on that command's own failure.
-    #[must_use]
-    pub fn conduct_template_fallbacks(&self) -> Vec<String> {
-        ConductTemplate::ALL
-            .iter()
-            .filter_map(|template| {
-                let resolved = config::template::resolve(
-                    self.config.as_ref(),
-                    self.templates.as_ref(),
-                    ConductTemplate::SET,
-                    Some(template.kind()),
-                )
-                .ok()??;
-                let warning = resolved.warning?;
-                let reason =
-                    warning.strip_prefix("Warning: ").unwrap_or(&warning);
-                Some(format!("{}: {reason}", template.name()))
-            })
-            .collect()
     }
 }
 
