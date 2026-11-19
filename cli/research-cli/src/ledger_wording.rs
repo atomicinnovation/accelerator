@@ -1,6 +1,7 @@
-//! How a run ledger that `--start` replaced reads to whoever runs
-//! `conduct`.
+//! How a `conduct` run's ledger reads to whoever runs `conduct`: one that
+//! `--start` replaced, one another run owns, or one that cannot be used.
 
+use research::conduct::ledger::RunId;
 use research::conduct::replaced_run::ReplacedRun;
 
 pub fn corrupt_notice() -> String {
@@ -24,4 +25,18 @@ pub fn replaced_notice(replaced: &ReplacedRun) -> String {
              never deleting it"
         )
     }
+}
+
+pub fn superseded(run: &RunId, owner: &RunId) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_RUN_SUPERSEDED: run {run} was superseded by run \
+         {owner}; another conduct run now owns this set, so let it finish"
+    )
+}
+
+pub fn no_usable_ledger(run: &RunId) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: no usable ledger for run {run}; re-run \
+         conduct to start a fresh run"
+    )
 }
