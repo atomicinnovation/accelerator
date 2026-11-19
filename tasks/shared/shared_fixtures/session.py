@@ -1,0 +1,249 @@
+"""A run's lifecycle: build each family once, hand it over, judge and clean up.
+
+Every failure after the root is opened takes one of two paths. An ordinary
+failure cleans up fully and judges the log. An interrupted run only removes
+what it made: tests killed mid-write leave trees and log lines that would
+yield bogus problems.
+"""
+
+import contextlib
+import dataclasses
+import sys
+import time
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
+from pathlib import Path
+from typing import TextIO
+
+from tasks.shared.hashing import TreeDigest, tree_digest
+from tasks.shared.shared_fixtures.errors import SharedFixturesError
+from tasks.shared.shared_fixtures.families import HOLD_VARIABLE, Family
+from tasks.shared.shared_fixtures.log import (
+    DigestPhase,
+    FinishedRun,
+    FixtureLog,
+    FixtureLogs,
+    TreeDigests,
+)
+from tasks.shared.shared_fixtures.runs import FixtureRun, FixtureRuns, HoldPoint
+from tasks.shared.signals import UNWIND_SIGNALS, deferred_signals
+
+_LOGS_KEPT = 20
+
+type Build = Callable[[Mapping[Family, Path], Path], None]
+
+
+@dataclasses.dataclass(frozen=True)
+class RunOutcome:
+    body_failure: str | None
+    problems: Sequence[str]
+
+    def failure(self) -> str | None:
+        lines = [
+            *([self.body_failure] if self.body_failure else []),
+            *self.problems,
+        ]
+        return "\n".join(lines) or None
+
+
+class SharedBuildError(SharedFixturesError): ...
+
+
+@dataclasses.dataclass
+class _Progress:
+    """What a run got as far as making, which is what cleanup undoes."""
+
+    run: FixtureRun
+    log: FixtureLog | None = None
+    trees: dict[Family, Path] = dataclasses.field(default_factory=dict)
+    built: dict[Family, TreeDigest] = dataclasses.field(default_factory=dict)
+
+
+class SharedFixtureSession:
+    def __init__(
+        self,
+        root: Path,
+        logs: Path,
+        environ: Mapping[str, str],
+        *,
+        interrupted: Callable[[], bool] = lambda: False,
+        hold_point: Callable[
+            [Mapping[str, str]], HoldPoint | None
+        ] = HoldPoint.from_environment,
+        runs: Callable[[Path], FixtureRuns] = FixtureRuns.open,
+        logs_store: Callable[[Path], FixtureLogs] = FixtureLogs,
+        digest: Callable[[Path], TreeDigest] = tree_digest,
+        out: TextIO = sys.stdout,
+    ) -> None:
+        self._root = root
+        self._logs = logs
+        self._environ = environ
+        self._interrupted = interrupted
+        self._hold_point = hold_point
+        self._runs = runs
+        self._logs_store = logs_store
+        self._digest = digest
+        self._out = out
+
+    @contextlib.contextmanager
+    def open(
+        self,
+        families: Collection[Family],
+        build: Build,
+        filtered: bool,
+    ) -> Iterator[Mapping[str, str]]:
+        runs = self._runs(self._root)
+        runs.sweep_abandoned()
+        progress = _Progress(runs.start())
+        try:
+            yield self._prepare(progress, families, build)
+        except BaseException as failure:
+            if self._interrupted() or not isinstance(failure, Exception):
+                self._clean_up_after_interrupt(progress)
+                if isinstance(failure, KeyboardInterrupt):
+                    raise
+                raise KeyboardInterrupt from failure
+            self._finish(progress, runs, filtered, failure)
+        else:
+            self._finish(progress, runs, filtered, None)
+
+    def _prepare(
+        self,
+        progress: _Progress,
+        families: Collection[Family],
+        build: Build,
+    ) -> Mapping[str, str]:
+        hold = self._hold_point(self._environ)
+        log = self._logs_store(self._logs).create(progress.run.run_id)
+        progress.log = log
+        self._say(f"building {' and '.join(families)}")
+        started = time.monotonic()
+        trees = {family: progress.run.tree(family) for family in families}
+        try:
+            build(trees, log.path)
+        except SharedFixturesError as error:
+            raise SharedBuildError(str(error)) from error
+        built = time.monotonic()
+        for family, tree in trees.items():
+            progress.built[family] = self._digest(tree)
+            progress.trees[family] = tree
+            log.record_digest(
+                family, tree, DigestPhase.BUILT, progress.built[family]
+            )
+        self._say(
+            f"built in {built - started:.1f} s, "
+            f"digested in {time.monotonic() - built:.1f} s"
+        )
+        if hold is not None:
+            self._say(
+                f"held by {HOLD_VARIABLE}; touch {hold.directory}/release to "
+                f"continue (run directory: {progress.run.directory})"
+            )
+            hold.wait(progress.run.directory)
+        return progress.run.handover(families, log.path)
+
+    def _finish(
+        self,
+        progress: _Progress,
+        runs: FixtureRuns,
+        filtered: bool,
+        failure: Exception | None,
+    ) -> None:
+        with deferred_signals(UNWIND_SIGNALS):
+            outcome = RunOutcome(
+                body_failure=None if failure is None else str(failure),
+                problems=self._clean_up(progress, runs, filtered, failure),
+            )
+        message = outcome.failure()
+        if message is None:
+            return
+        if isinstance(failure, SharedBuildError):
+            raise SharedBuildError(message) from failure
+        raise SharedFixturesError(message) from failure
+
+    def _clean_up(
+        self,
+        progress: _Progress,
+        runs: FixtureRuns,
+        filtered: bool,
+        failure: Exception | None,
+    ) -> list[str]:
+        problems: list[str] = []
+        started = time.monotonic()
+        digests = self._digest_again(progress, problems)
+        digested = time.monotonic()
+        try:
+            progress.run.close()
+        except Exception as error:  # noqa: BLE001
+            problems.append(str(error))
+        removed = time.monotonic()
+        try:
+            self._logs_store(self._logs).prune(
+                keep=_LOGS_KEPT, live=runs.live_run_ids()
+            )
+        except Exception as error:  # noqa: BLE001
+            self._say(f"WARNING: pruning old fixture logs failed: {error}")
+        if progress.log is not None:
+            try:
+                problems.extend(
+                    progress.log.problems(
+                        FinishedRun(
+                            trees=progress.trees,
+                            digests=digests,
+                            filtered=filtered,
+                            tests_passed=failure is None,
+                        )
+                    )
+                )
+            except Exception as error:  # noqa: BLE001
+                problems.append(f"judging the fixture log failed: {error}")
+            problems.extend(self._summarise(progress.log))
+        self._say(
+            f"digested again in {digested - started:.1f} s, "
+            f"removed in {removed - digested:.1f} s"
+        )
+        return problems
+
+    def _digest_again(
+        self, progress: _Progress, problems: list[str]
+    ) -> dict[Family, TreeDigests]:
+        digests: dict[Family, TreeDigests] = {}
+        for family, built in progress.built.items():
+            tree = progress.trees[family]
+            try:
+                removed = self._digest(tree)
+                if progress.log is not None:
+                    progress.log.record_digest(
+                        family, tree, DigestPhase.REMOVED, removed
+                    )
+                    if removed.value != built.value:
+                        progress.log.record_changes(
+                            family, tree, removed.changes_since(built)
+                        )
+            except Exception as error:  # noqa: BLE001
+                problems.append(
+                    f"could not digest {family.noun} tree {tree} a second "
+                    f"time: {error}"
+                )
+            else:
+                digests[family] = TreeDigests(built, removed)
+        return digests
+
+    def _clean_up_after_interrupt(self, progress: _Progress) -> None:
+        try:
+            progress.run.close()
+        except Exception as error:  # noqa: BLE001
+            self._say(f"WARNING: {error}")
+        if progress.log is not None:
+            for warning in self._summarise(progress.log):
+                self._say(f"WARNING: {warning}")
+
+    def _summarise(self, log: FixtureLog) -> list[str]:
+        try:
+            for line in log.summary(self._root).lines():
+                print(line, file=self._out)
+        except Exception as error:  # noqa: BLE001
+            return [f"summarising the fixture log failed: {error}"]
+        return []
+
+    def _say(self, message: str) -> None:
+        print(f"shared VCS fixtures: {message}", file=self._out)
