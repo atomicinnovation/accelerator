@@ -919,11 +919,11 @@ it to the researcher.
 
 #### Automated Verification
 
-- [ ] Node query tests pass: `cargo test -p accelerator-research --test topic_node`
-- [ ] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p accelerator-research --test guard`
-- [ ] Lexer differential passes: `uv run pytest tests/integration/research/test_lexer_differential.py`
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Full suite green, including `docs:check`: `mise run`
+- [x] Node query tests pass: `cargo test -p accelerator-research --test topic_node`
+- [x] Guard tests pass: `cargo test -p research --test confinement` and `cargo test -p accelerator-research --test guard`
+- [x] Lexer differential passes: `uv run pytest tests/integration/research/test_lexer_differential.py`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Full suite green, including `docs:check`: `mise run`
 
 #### Manual Verification
 
