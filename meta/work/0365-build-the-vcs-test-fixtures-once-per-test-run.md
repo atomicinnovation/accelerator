@@ -244,10 +244,13 @@ Mutation audit of today's consumers:
 
 ## Acceptance Criteria
 
-- [ ] [matrix] Given a full `test:unit:cli` run, when it completes, then
+- [x] [matrix] Given a full `test:unit:cli` run, when it completes, then
       the fixture log shows one matrix shared build and, for each of the
       19 matrix consumers, an adoption or a copy as the audit table
       records, and no private build.
+      *Matrix, 2026-11-19 (engywook):* met. A full coverage-on run's log shows
+      one matrix shared build, 19 adoptions (classify 6, queries 5, scrub 2,
+      vcs-test-support::matrix 6) and no private build; 7,770 tests passed.
 - [ ] [status-log] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows one status-log shared build and, for each
       test named in Requirement 2, an adoption or a copy as the audit table
@@ -263,9 +266,15 @@ Mutation audit of today's consumers:
       metadata, the scan fails the run and names the copy. The matrix
       meets the copy clauses by making no copies: every matrix consumer
       adopts.
+      *Matrix, 2026-11-19 (engywook):* the built and removed digests match. A
+      temporary edit writing `poison.gitconfig` into `matrix.base` from a
+      `classify` test fails the run, naming the matrix tree and the added
+      path. The matrix makes no copies.
 - [ ] [each family] Given a full `test:unit:cli` run, when it completes,
       then the fixture log shows a distinct hermetic root for each test
       using the family's shared build, none inside a shared tree.
+      *Matrix, 2026-11-19 (engywook):* 19 adoptions, 19 distinct hermetic
+      roots, none inside the matrix tree.
 - [ ] [each family] Given a copy made by the copy helper and a private
       build of the same family, when they are compared, then every file's
       modification time in the copy matches its source, and
@@ -280,38 +289,67 @@ Mutation audit of today's consumers:
       `no_state_names_the_directory_it_was_built_in`, which guards the
       path-freedom the status-log copies depend on; its other test keeps
       its name and assertions.
-- [ ] [matrix] Given `mise run test:unit:cli --filter 'test(classify)'`,
+- [x] [matrix] Given `mise run test:unit:cli --filter 'test(classify)'`,
       when it runs, then the matrix alone is built, the `classify` tests
       adopt it, and they pass. Given a malformed filter or an undeclared
       argument, the task fails before any fixture is built. Given
       `mise run test:unit:cli --help`, `--filter` is listed.
+      *Matrix, 2026-11-19 (engywook):* met with `--filter
+      'binary_id(vcs-adapters::classify)'`: the matrix alone is built and the
+      six `classify` tests adopt it and pass, with coverage on and off.
+      `test(classify)` as written matches test names, not the binary: it
+      selects 41 tests in other binaries and no matrix consumer, so it builds
+      nothing. `--filter 'test(classify'` shows nextest's parse error, and
+      `--bogus` and `extra` are refused by mise, each before any fixture is
+      built. `--help` lists `--filter`.
 - [ ] [status-log] Given `mise run test:unit:cli --filter 'test(conflicts)'`,
       when it runs, then the status-log set alone is built, `conflicts`
       adopts or copies it as the audit table records, and it passes.
 - [ ] [each family] Given a filter that selects no consumer of the family,
       when `test:unit:cli` runs, then the family is not built.
+      *Matrix, 2026-11-19 (engywook):* `--filter
+      'binary_id(accelerator-vcs::status_log_parity)'` builds nothing and its
+      two tests pass.
 - [ ] [each family] Given each consumer row in the audit table, run
       through `cargo nextest run -E <filter>` directly with a filter
       selecting only that row's tests, when it runs, then the tests pass,
       no shared fixture location is created and no fixture log is written.
+      *Matrix, 2026-11-19 (engywook):* the four matrix rows (`classify`,
+      `queries`, `vcs-test-support::matrix`, and `scrub` without
+      `status_honours_the_global_excludes_file`) pass when run directly, with
+      nothing created under the shared root and no new fixture log.
 - [ ] [each family] Given the test-only switch failing the family's shared
       build, when `test:unit:cli` runs, then the run stops before
       nextest's test phase with one failure naming that family and its
       cause, the fixture log has no event for that family's consumers, and
       the fixture summary is printed.
+      *Matrix, 2026-11-19 (engywook):*
+      `ACCELERATOR_SHARED_FIXTURES_FAIL=matrix` stops the run before nextest
+      with one failure naming the matrix and its cause; the log has no event
+      and the summary is printed.
 - [ ] [each family] Given a passing run, a run with a failing test and a
       run whose shared build fails, when each ends, then nothing it created
       remains under the shared fixture location, the fixture log remains
       with the `git` and `jj` versions on each shared-build event, the
       fixture summary was printed, and no output line outside nextest's
       own matches nextest's `Summary [` line.
+      *Matrix, 2026-11-19 (engywook):* met for a passing run, a failing
+      `classify` test and the forced build failure: nothing remains under the
+      shared root, each summary is printed, and only nextest's own line
+      matches `Summary [`. The passing and failing runs' logs carry `git
+      version 2.56.0` and `jj 0.43.0` on the shared-build event; the forced
+      failure stops before any build, so its log has no shared-build event.
 - [ ] [each family] Given run A held after its build step and then killed
       with SIGKILL, and run B held after its build step, when run C
       starts, then A's trees are removed and B's remain, and B passes once
       released.
-- [ ] [matrix] Given `cli/`, `tasks/`, `mise.toml` and `.github/`, when
+      *Matrix, 2026-11-19 (engywook):* met, with A killed only once B was
+      held, so that B's own start-up sweep could not be what removed A: C
+      removed A's directory and lock and kept B's, and B passed once released.
+- [x] [matrix] Given `cli/`, `tasks/`, `mise.toml` and `.github/`, when
       they are searched for `ACCELERATOR_ZERO_SPAWN_MATRIX` or
       `MATRIX_ROOT_VARIABLE`, then nothing matches.
+      *Matrix, 2026-11-19 (engywook):* nothing matches.
 - [ ] [status-log] Given `cli/`, `tasks/`, `mise.toml` and `.github/`,
       when they are searched for `ACCELERATOR_ZERO_SPAWN_STATUS_LOG` or
       `STATES_ROOT_VARIABLE`, then nothing matches.
@@ -319,6 +357,9 @@ Mutation audit of today's consumers:
       off, and on CI's `ubuntu-latest` and `macos-latest` `test-unit`
       legs, when each runs, then it passes and its fixture summary shows
       the family built once.
+      *Matrix, 2026-11-19 (engywook):* coverage on (full run) and coverage off
+      (filtered runs) pass, each summary showing the matrix built once. CI's
+      two `test-unit` legs are not yet run.
 - [ ] [filters] Given each task listed in Requirement 5, when it is run
       with `--help`, with a filter selecting a subset, and with its listed
       malformed expression, then its help lists `--filter` and names the
@@ -455,6 +496,21 @@ Planning answers each of these:
 - A copy's mtimes can match its source, but its ctimes and inode numbers
   cannot, which is why the copy criterion also compares `git status` and
   `jj status` output.
+- Roll-ups and `--filter` (mise 2026.10.8): a roll-up with only `depends`
+  and no `run` (`test:unit`, `test:integration`, `test:e2e`, `test`)
+  ignores extra arguments silently, even with an empty `usage`, so
+  `mise run test:unit --filter x` runs the whole roll-up unfiltered. A
+  task that declares `usage` refuses an undeclared word with exit 1.
+  `tasks/README.md` "Task options" records both; the Phase 9 guard and
+  guidance build on them.
+- Interim measurement after the matrix increment (2026-11-19, engywook):
+  `build_2026-11-19T105144Z_engywook_warm-no-op_devtools_isolated.json`
+  against the 18 November baseline, conditions matching. The nextest
+  phase median fell from 181.9 s to 162.3 s (−19.6 s, beyond noise); the
+  task-duration median from 192.8 s to 183.4 s (−9.3 s, within noise).
+  The build step took 5.0–5.7 s, the first digest 0.1 s, and the second
+  digest and removal 0.3 s each. The record is noisy: idle load was
+  46.9%, and the IDE used 271 s of CPU against the baseline's 128 s.
 
 ## Drafting Notes
 

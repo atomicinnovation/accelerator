@@ -1891,34 +1891,34 @@ filtered runs read its schema. And a `### Task options` subsection under
 
 #### Automated Verification
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_selection.py tests/unit/tasks/test_filters.py tests/unit/tasks/shared/shared_fixtures/test_consumers.py tests/unit/tasks/test_rust.py tests/unit/tasks/test_mise.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
 These are the matrix increment's acceptance criteria. Record each outcome
 under its criterion in the work item.
 
-- [ ] A full run's log shows one matrix shared build, an adoption for each of
+- [x] A full run's log shows one matrix shared build, an adoption for each of
       the 19 consumers and no private build. Each `hermetic-root` is
       distinct, and none lies inside `<run>/matrix`.
-- [ ] The two matrix digests match, and a test made to write fails the run
+- [x] The two matrix digests match, and a test made to write fails the run
       (Phase 2's check, repeated at this increment).
-- [ ] `mise run test:unit:cli --filter 'binary_id(vcs-adapters::classify)'`
+- [x] `mise run test:unit:cli --filter 'binary_id(vcs-adapters::classify)'`
       builds the matrix alone, and the six `classify` tests adopt it and
       pass.
-- [ ] Each of these fails before any fixture is built:
+- [x] Each of these fails before any fixture is built:
       `mise run test:unit:cli --filter 'test(classify'`,
       `mise run test:unit:cli --bogus`, and `mise run test:unit:cli extra`.
       The first shows nextest's own filterset parse error.
-- [ ] `mise run test:unit:cli --help` lists `--filter`, and says that a
+- [x] `mise run test:unit:cli --help` lists `--filter`, and says that a
       filtered run skips the coverage report, sweep and floor.
 - [ ] A filter whose value contains a space, `&` and `'` reaches nextest
       intact, on macOS and on an ubuntu host or CI leg (where mise's
       `sh -c` is dash).
-- [ ] Record what `mise run test:unit --filter x` does. `test:unit` is a
+- [x] Record what `mise run test:unit --filter x` does. `test:unit` is a
       roll-up: it has no `run`, only `depends`, and declares no `--filter`.
       Then settle it:
       - **mise rejects the argument.** Nothing changes. Record the
@@ -1931,11 +1931,11 @@ under its criterion in the work item.
 
       Record the outcome in the work item, because Phase 9's guard and
       guidance depend on it.
-- [ ] `--filter 'binary_id(accelerator-vcs::status_log_parity)'` builds no
+- [x] `--filter 'binary_id(accelerator-vcs::status_log_parity)'` builds no
       family.
-- [ ] `--filter 'test(clasify)'` fails with `--filter 'test(clasify)'
+- [x] `--filter 'test(clasify)'` fails with `--filter 'test(clasify)'
       selected no tests`, before any fixture is built.
-- [ ] Run each matrix row directly with no shared location (the root the
+- [x] Run each matrix row directly with no shared location (the root the
       summary prints is unchanged) and no new log.
       Each passes.
       - `cargo nextest run --manifest-path cli/Cargo.toml --workspace --exclude accelerator-visualiser --all-features -E 'binary_id(vcs-adapters::classify)'`
@@ -1943,7 +1943,7 @@ under its criterion in the work item.
         - `binary_id(vcs-adapters::queries)`
         - `binary_id(vcs-test-support::matrix)`
         - `binary_id(vcs-adapters::scrub) & !test(=status_honours_the_global_excludes_file)`
-- [ ] Each of these leaves nothing it created under the root the summary
+- [x] Each of these leaves nothing it created under the root the summary
       prints:
       - a passing run;
       - a run with a test made to fail;
@@ -1952,7 +1952,7 @@ under its criterion in the work item.
       Each also keeps its log, with the `git` and `jj` versions on the
       shared-build event, and prints the summary. In each,
       `rg '^\s*Summary \['` over the output finds only nextest's own line.
-- [ ] The SIGKILL check:
+- [x] The SIGKILL check:
   1. Run A with `ACCELERATOR_SHARED_FIXTURES_HOLD=$A`, then kill it with
      SIGKILL once `$A/held` appears.
   2. Run B with `ACCELERATOR_SHARED_FIXTURES_HOLD=$B`, filtered to
@@ -1963,7 +1963,7 @@ under its criterion in the work item.
 - [ ] Coverage off, coverage on, and both CI `test-unit` legs
       (`ubuntu-latest`, `macos-latest`) pass. Each prints a summary showing
       the matrix built once.
-- [ ] An interim measurement, as an early warning and not a gate:
+- [x] An interim measurement, as an early warning and not a gate:
       `mise run measure:build -- --isolate test:unit:cli --host-settings devtools --runs 3 --keep`,
       compared with the baseline as in Phase 6. Record the nextest-phase and
       task-duration medians, and the build-step and digest times from the
