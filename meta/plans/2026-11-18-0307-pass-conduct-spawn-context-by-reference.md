@@ -927,7 +927,7 @@ it to the researcher.
 
 #### Manual Verification
 
-- [ ] During a live `conduct` batch, `accelerator research topic node <slug>
+- [x] During a live `conduct` batch, `accelerator research topic node <slug>
       --run <run> --node <ref>` run by hand prints the node's context.
 
 ---
