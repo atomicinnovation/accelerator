@@ -7,8 +7,8 @@ author: "Tom Scott"
 producer: "describe-pr"
 status: "complete"
 work_item_id: "0391"
-parent: "work-item:0391"
-relates_to: ["work-item:0392", "work-item:0393", "work-item:0394", "work-item:0395", "work-item:0396", "work-item:0397", "work-item:0398"]
+parent: "work-item:PP-990"
+relates_to: ["work-item:PP-984", "work-item:PP-988", "work-item:PP-985", "work-item:PP-989", "work-item:PP-987", "work-item:PP-986", "work-item:PP-983"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/215"
 pr_number: 215
 tags: ["shortcut", "integrations", "sync"]
@@ -61,7 +61,7 @@ the Jira and Linear connectors.
 
 ## Context
 
-- Work item: `meta/work/0391-shortcut-integration.md`
+- Work item: `meta/work/PP-990-shortcut-integration.md`
 - Plan: `meta/plans/2026-11-13-0391-shortcut-integration.md`. Each phase has
   implementation notes that record where the code departs from the plan.
 - Decision: `meta/decisions/ADR-0075-shortcut-keys-as-tracker-owned-work-item-ids.md`

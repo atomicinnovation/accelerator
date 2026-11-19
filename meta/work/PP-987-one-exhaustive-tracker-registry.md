@@ -1,6 +1,8 @@
 ---
 type: "work-item"
-id: "0396"
+id: "PP-987"
+external_id: "PP-987"
+aliases: ["0396", "draft-tb3w0z"]
 title: "One Exhaustive Tracker Registry"
 date: "2026-11-14T09:52:01+00:00"
 author: "Tom Scott"
@@ -8,14 +10,14 @@ producer: "implement-plan"
 status: "draft"
 kind: "task"
 priority: "medium"
-parent: "work-item:0181"
-relates_to: ["work-item:0391"]
+parent: "work-item:PP-701"
+relates_to: ["work-item:PP-990"]
 tags: ["work-management", "integrations"]
 last_updated: "2026-11-14T09:52:01+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0396: One Exhaustive Tracker Registry
+# PP-987: One Exhaustive Tracker Registry
 
 ## Summary
 
@@ -24,7 +26,7 @@ tracker fails to compile until every site decides how to handle it.
 
 ## Context
 
-Work item 0391 had to find and pin each site that matches on the
+Work item PP-990 had to find and pin each site that matches on the
 integration name: the registry, the scope key, the create preview, the
 finaliser, tracker-owned ids, a migration and the baseline realigner. A
 `match` on a string has a wildcard arm, so a missed site compiles and does

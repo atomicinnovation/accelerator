@@ -1,6 +1,8 @@
 ---
 type: "work-item"
-id: "0397"
+id: "PP-986"
+external_id: "PP-986"
+aliases: ["0397", "draft-jr28gw"]
 title: "Review Client-Crate Duplication Across Trackers"
 date: "2026-11-14T09:52:01+00:00"
 author: "Tom Scott"
@@ -8,14 +10,14 @@ producer: "implement-plan"
 status: "draft"
 kind: "spike"
 priority: "low"
-parent: "work-item:0181"
-relates_to: ["work-item:0391"]
+parent: "work-item:PP-701"
+relates_to: ["work-item:PP-990"]
 tags: ["work-management", "integrations"]
 last_updated: "2026-11-14T09:52:01+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0397: Review Client-Crate Duplication Across Trackers
+# PP-986: Review Client-Crate Duplication Across Trackers
 
 ## Summary
 
@@ -24,9 +26,9 @@ and decide what, if anything, moves into a shared crate.
 
 ## Context
 
-Work item 0391 copied the cache's filesystem seam, the test support doubles
-and the paging shape from the Linear client, because client crates may not
-import each other. Three copies now exist of some of this code.
+Work item PP-990 copied the cache's filesystem seam, the test support
+doubles and the paging shape from the Linear client, because client crates may
+not import each other. Three copies now exist of some of this code.
 
 ## Research Questions
 

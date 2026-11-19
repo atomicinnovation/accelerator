@@ -1,6 +1,8 @@
 ---
 type: "work-item"
-id: "0393"
+id: "PP-988"
+external_id: "PP-988"
+aliases: ["0393", "draft-v05xsh"]
 title: "Shortcut Parent/Child Sync"
 date: "2026-11-14T09:52:01+00:00"
 author: "Tom Scott"
@@ -8,25 +10,25 @@ producer: "implement-plan"
 status: "draft"
 kind: "story"
 priority: "medium"
-parent: "work-item:0291"
-relates_to: ["work-item:0391"]
+parent: "work-item:PP-877"
+relates_to: ["work-item:PP-990"]
 tags: ["work-management", "integrations", "shortcut", "sync"]
 last_updated: "2026-11-14T09:52:01+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0393: Shortcut Parent/Child Sync
+# PP-988: Shortcut Parent/Child Sync
 
 ## Summary
 
 Sync a story's epic, and a sub-task's parent story, with the local
-`parent:` link, as 0291 does for the other trackers.
+`parent:` link, as PP-877 does for the other trackers.
 
 ## Context
 
-Work item 0391 syncs a story's or an epic's title and body only. A Shortcut
-story names its epic in `epic_id`, and a sub-task names its parent story.
-0291 defines parent/child sync for the tracker port; this item is its
+Work item PP-990 syncs a story's or an epic's title and body only. A
+Shortcut story names its epic in `epic_id`, and a sub-task names its parent
+story. PP-877 defines parent/child sync for the tracker port; this item is its
 Shortcut part.
 
 ## Acceptance Criteria

@@ -7,7 +7,7 @@ author: "Tom Scott"
 producer: "create-adr"
 status: "accepted"
 decision_makers: ["Tom Scott"]
-parent: "work-item:0391"
+parent: "work-item:PP-990"
 relates_to: ["adr:ADR-0070"]
 tags: ["work-management", "integrations", "identity", "sync", "tracker", "shortcut"]
 last_updated: "2026-11-17T14:55:18+00:00"
@@ -94,5 +94,5 @@ project.
 ## References
 
 - `meta/decisions/ADR-0070-tracker-owned-work-item-identity.md`
-- `meta/work/0391-shortcut-integration.md`
+- `meta/work/PP-990-shortcut-integration.md`
 - `meta/plans/2026-11-13-0391-shortcut-integration.md`

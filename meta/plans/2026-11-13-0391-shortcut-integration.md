@@ -6,8 +6,8 @@ date: "2026-11-13T16:10:27+00:00"
 author: "Tom Scott"
 producer: "create-plan"
 status: "draft"
-work_item_id: "work-item:0391"
-parent: "work-item:0391"
+work_item_id: "work-item:PP-990"
+parent: "work-item:PP-990"
 relates_to: ["work-item:0181", "work-item:0171", "work-item:0290", "plan-review:2026-11-13-0391-shortcut-integration-review-1"]
 tags: ["integrations", "shortcut", "tracker"]
 revision: "654a72f616fcebe9e253fdc9834d75a6b227a061"
@@ -1719,7 +1719,7 @@ We're NOT Doing.
 
 ## References
 
-- Work item: `meta/work/0391-shortcut-integration.md`
+- Work item: `meta/work/PP-990-shortcut-integration.md`
 - Parent epic: `meta/work/0181-work-management-additional-integrations.md`
 - Review: `meta/reviews/plans/2026-11-13-0391-shortcut-integration-review-1.md`
 - Linear and Jira client plan:

@@ -1,6 +1,8 @@
 ---
 type: "work-item"
-id: "0391"
+id: "PP-990"
+external_id: "PP-990"
+aliases: ["0391", "draft-xtzsj9"]
 title: "Shortcut Integration"
 date: "2026-11-13T22:45:09+00:00"
 author: "Tom Scott"
@@ -8,14 +10,14 @@ producer: "create-work-item"
 status: "draft"
 kind: "story"
 priority: "medium"
-parent: "work-item:0181"
-relates_to: ["work-item:0171", "work-item:0290", "work-item:0291"]
+parent: "work-item:PP-701"
+relates_to: ["work-item:PP-192", "work-item:PP-876", "work-item:PP-877"]
 tags: ["work-management", "integrations", "shortcut", "sync"]
 last_updated: "2026-11-13T22:45:09+00:00"
 last_updated_by: "Tom Scott"
 schema_version: 1
 ---
-# 0391: Shortcut Integration
+# PP-990: Shortcut Integration
 
 **Kind**: Story
 **Status**: Draft
@@ -34,10 +36,10 @@ shortcut`, an `accelerator-shortcut` sub-binary, and eight
 
 ## Context
 
-Epic 0181 groups the trackers still to add after Jira and Linear. The
+Epic PP-701 groups the trackers still to add after Jira and Linear. The
 `RemoteTracker` port, the sync engine and the shared contract suite already
-exist (work items 0204, 0194 and 0210), so a new tracker adds a client crate,
-a composition-root arm, a binary and skills, without changing the port.
+exist (work items PP-734, PP-724 and PP-740), so a new tracker adds a client
+crate, a composition-root arm, a binary and skills, without changing the port.
 
 Shortcut differs from the precedents in four ways:
 - Story ids are bare integers. Users see them as `sc-1234`.
@@ -65,8 +67,8 @@ Shortcut differs from the precedents in four ways:
   OR'd, and fields are AND'd.
 
 Out of scope:
-- status, priority, label, owner or estimate sync (0290 owns field mapping);
-- parent/child sync, including a story's `epic_id` (0291);
+- status, priority, label, owner or estimate sync (PP-876 owns field mapping);
+- parent/child sync, including a story's `epic_id` (PP-877);
 - epics in discovery;
 - file upload for `attach`;
 - `id_pattern: "{tracker}"` for Shortcut;
@@ -138,6 +140,6 @@ phases merge in the order 1, 2, 3, 5, 4, 6, 7.
 
 - Plan: `meta/plans/2026-11-13-0391-shortcut-integration.md`
 - Review: `meta/reviews/plans/2026-11-13-0391-shortcut-integration-review-1.md`
-- Parent epic: `meta/work/0181-work-management-additional-integrations.md`
-- Related: 0171, 0204, 0194, 0210, 0211, 0290, 0291
+- Parent epic: `meta/work/PP-701-work-management-additional-integrations.md`
+- Related: PP-192, PP-734, PP-724, PP-740, PP-741, PP-876, PP-877
 - Shortcut v4 reference: https://developer.shortcut.com/api/rest/v4
