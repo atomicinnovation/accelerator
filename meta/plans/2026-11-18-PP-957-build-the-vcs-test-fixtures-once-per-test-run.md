@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T19:20:00+00:00"
+last_updated: "2026-11-19T19:50:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2082,10 +2082,10 @@ builder.
 
 #### Manual Verification
 
-- [ ] On `ubuntu-latest` (CI's `test-unit` leg), the status-log goldens and
+- [x] On `ubuntu-latest` (CI's `test-unit` leg), the status-log goldens and
       the new scan test pass.
-      *Pending (2026-11-19):* Phase 4 is open as draft PR #249, stacked on
-      #247; its CI run is in progress.
+      *Passed (2026-11-19):* PR #249's `Run unit tests (ubuntu-latest)` leg
+      passed.
 
 ---
 
@@ -2097,6 +2097,24 @@ This phase adds the copy helper. The build step builds the status-log set
 too, and the status-log consumers adopt it or copy from it. The private
 sets log their builds. `STATES_ROOT_VARIABLE` is renamed. This completes the
 status-log increment.
+
+### As built
+
+- **A copy is writable.** Phase 3 seals each shared tree read-only, so a
+  copy that kept its source's modes exactly could not be written. `copy_part`
+  keeps every mode and adds the owner's write permission; `copies.rs` asserts
+  that, and that a sealed source copies. The root-only ordering check falls
+  away, because no copied directory is ever read-only.
+- **Names.** The fixture a workbench hands out is `Held<'_, F>`, not
+  `Fixture`. `States` adopts through `SharedFamily::adopt`, as `Matrix` does,
+  rather than a public inherent `adopt`. `private_states` takes a
+  `PrivateSetBuilder` and returns `Held<'_, PrivateStates>`.
+  `CopyableFamily::build_part_privately` and `StatusLogPart`'s methods take
+  the part by value.
+- **jj reports a rename as a rename.** `rename-jj`'s snapshot summary is
+  `R {old.txt => new.txt}`, not `D old.txt` and `A new.txt`.
+- **`build_conflict_states` was already private**, so only the other full-set
+  builders narrowed to `pub(crate)`.
 
 ### Changes Required
 
@@ -2441,24 +2459,24 @@ scan and the private sets.
 
 #### Automated Verification
 
-- [ ] The Rust tests pass:
+- [x] The Rust tests pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support -p accelerator-vcs -p vcs-adapters`
-- [ ] The Python tests pass:
+- [x] The Python tests pass:
       `uv run pytest tests/unit/tasks/shared/shared_fixtures tests/unit/tasks/test_rust.py tests/unit/tasks/test_fixture_builds.py -v`
-- [ ] Nothing in `cli/`, `tasks/`, `mise.toml` or `.github/` mentions the
+- [x] Nothing in `cli/`, `tasks/`, `mise.toml` or `.github/` mentions the
       old status-log variable:
       `! rg -n 'ACCELERATOR_ZERO_SPAWN_STATUS_LOG|STATES_ROOT_VARIABLE' cli tasks mise.toml .github`
-- [ ] The goldens are unchanged: `jj diff --stat cli/vcs-test-support/fixtures`
+- [x] The goldens are unchanged: `jj diff --stat cli/vcs-test-support/fixtures`
       is empty.
-- [ ] The checks pass: `mise run cli:check && mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The checks pass: `mise run cli:check && mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
 These are the status-log increment's acceptance criteria. Record each outcome
 in the work item, along with the audit table's final outcomes.
 
-- [ ] A full run's log shows the following, with a distinct `hermetic-root`
+- [x] A full run's log shows the following, with a distinct `hermetic-root`
       for each test using the set, and none inside a shared tree:
   - one status-log shared build;
   - six copies for the goldens and one for `conflicts`, plus one from
@@ -2470,30 +2488,49 @@ in the work item, along with the audit table's final outcomes.
   - no private build of the status-log set (the part tests' private builds
     go to their own test-local logs);
   - four private builds under "private sets".
-- [ ] The status-log digests match.
-- [ ] A temporary edit that writes into the adopted tree from
+
+  *As run (2026-11-19, engywook, coverage off and on):* 1 status-log shared
+  build, 10 copies (six goldens, `conflicts`, `copy_fidelity`'s planted-path
+  test, two part tests), 7 adoptions (two `status_log_states`, three
+  `copy_fidelity` tests — its planted-path test copies rather than adopts —
+  and two part tests), no private status-log build, 4 private-set builds.
+  17 distinct hermetic roots, none inside a shared tree; every copy's scan
+  clean.
+- [x] The status-log digests match.
+- [x] A temporary edit that writes into the adopted tree from
       `status_log_states` fails the run, and the failure names the tree.
-- [ ] A temporary edit planting the shared path in the shared tree's
+      *As run:* the tree is sealed, so the edit first made the base
+      writable; the run failed naming the status-log tree and `added
+      poison`.
+- [x] A temporary edit planting the shared path in the shared tree's
       `conflict-git/.git/config`, made right after the build through the
       hold switch, fails the run naming the copy.
-- [ ] `--filter 'binary_id(vcs-adapters::conflicts)'` builds the status-log
+      *As run:* `conflicts` failed naming its copy and the shared tree, and
+      the run reported the copy's file; it also reported the tree as
+      changed, since the plant itself modified it after the built digest.
+- [x] `--filter 'binary_id(vcs-adapters::conflicts)'` builds the status-log
       set alone, and `conflicts` copies its two states and passes.
-- [ ] `--filter 'binary_id(vcs-adapters::classify)'` does not build the
+- [x] `--filter 'binary_id(vcs-adapters::classify)'` does not build the
       status-log set.
-- [ ] Each status-log row run directly through `cargo nextest run -E …`
+- [x] Each status-log row run directly through `cargo nextest run -E …`
       passes, with no shared location created and no log written.
-- [ ] `ACCELERATOR_SHARED_FIXTURES_FAIL=status-log` stops the run before the
+- [x] `ACCELERATOR_SHARED_FIXTURES_FAIL=status-log` stops the run before the
       test phase. There is one failure naming the status-log set, and no
       status-log consumer event.
-- [ ] The cleanup, summary and `Summary [` checks from Phase 3 hold for the
+- [x] The cleanup, summary and `Summary [` checks from Phase 3 hold for the
       status-log set.
-- [ ] The SIGKILL check from Phase 3 holds for the status-log set.
+- [x] The SIGKILL check from Phase 3 holds for the status-log set.
 - [ ] Coverage off, coverage on, and both CI `test-unit` legs pass. Each
       summary shows both families built once.
-- [ ] Time a filtered run selecting only
+      *Local (2026-11-19):* coverage off and on pass (8,113 tests), each
+      summary showing both families built once. The CI legs are owed until
+      the branch is pushed.
+- [x] Time a filtered run selecting only
       `test(=the_log_is_capped_at_five_entries)`, which builds the
       status-log set although its test doesn't use it. Record the cost in
       the work item (Performance Considerations).
+      *As run (coverage off, engywook):* the status-log build took 2.0 s and
+      the whole task 6.5 s.
 
 ---
 
