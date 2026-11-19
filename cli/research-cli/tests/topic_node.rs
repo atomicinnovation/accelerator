@@ -152,6 +152,39 @@ fn a_web_nodes_budget_equals_its_plan_entry() -> Result<(), TestError> {
     Ok(())
 }
 
+const ADDRESS: [&str; 6] =
+    ["lineage", "level", "cap", "id", "path", "search_budget"];
+
+fn assert_addressed_as_planned(
+    project: &Project,
+    run: &str,
+    plan: &Value,
+    spawn: &str,
+) -> Result<(), TestError> {
+    let planned = plan_node(plan, spawn)?;
+    let queried = queried(project, run, spawn)?;
+    for key in ADDRESS {
+        assert_eq!(queried[key], planned[key], "{spawn} {key}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_nodes_address_equals_its_plan_entry() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let run = budgeted_run(&project)?;
+    let plan = continued(&project, &run, &DEPTH)?;
+    for spawn in ["03-a-web:2-1", "04-b-openalex:2-3"] {
+        assert_addressed_as_planned(&project, &run, &plan, spawn)?;
+    }
+
+    every_level_two_note_written(&project)?;
+    let plan =
+        continued(&project, &run, &[&DEPTH[..], &["--spawned", "0"]].concat())?;
+    assert_addressed_as_planned(&project, &run, &plan, "03-a-web:3-1-1")?;
+    Ok(())
+}
+
 #[test]
 fn a_set_named_by_its_directory_answers_with_the_same_id_and_path(
 ) -> Result<(), TestError> {
