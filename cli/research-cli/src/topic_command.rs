@@ -558,9 +558,9 @@ pub fn owned_ledger<F: FileReader>(
         Ok(Some(ledger)) if ledger.run() == run => Ok(Some(ledger)),
         Ok(Some(ledger)) => Err(ledger_wording::superseded(run, ledger.run())),
         Err(LedgerError::Corrupt) => Err(ledger_wording::no_usable_ledger(run)),
-        Err(LedgerError::Unreadable(error)) => Err(format!(
-            "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: {error}",
-            run_ledger_path(set_root).display()
+        Err(LedgerError::Unreadable(error)) => Err(ledger_wording::unreadable(
+            &run_ledger_path(set_root),
+            error,
         )),
     }
 }
@@ -577,7 +577,10 @@ fn continued_ledger<F: FileReader>(
         Ok(None) | Err(LedgerError::Corrupt) => {
             Err(ledger_wording::no_usable_ledger(run))
         }
-        Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
+        Err(LedgerError::Unreadable(error)) => Err(ledger_wording::unreadable(
+            &run_ledger_path(set_root),
+            error,
+        )),
     }
 }
 
@@ -687,7 +690,10 @@ fn replaced_ledger<F: FileReader>(
         Ok(None) => Ok(ReplacedLedger::Absent),
         Ok(Some(stored)) => Ok(ReplacedLedger::Readable(Box::new(stored))),
         Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
-        Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
+        Err(LedgerError::Unreadable(error)) => Err(ledger_wording::unreadable(
+            &run_ledger_path(set_root),
+            error,
+        )),
     }
 }
 

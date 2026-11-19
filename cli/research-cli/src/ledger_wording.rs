@@ -1,6 +1,9 @@
 //! How a `conduct` run's ledger reads to whoever runs `conduct`: one that
 //! `--start` replaced, one another run owns, or one that cannot be used.
 
+use std::fmt::Display;
+use std::path::Path;
+
 use research::conduct::ledger::RunId;
 use research::conduct::replaced_run::ReplacedRun;
 
@@ -38,5 +41,12 @@ pub fn no_usable_ledger(run: &RunId) -> String {
     format!(
         "E_TOPIC_RESEARCH_RUN_LEDGER: no usable ledger for run {run}; re-run \
          conduct to start a fresh run"
+    )
+}
+
+pub fn unreadable(ledger: &Path, error: impl Display) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: {error}",
+        ledger.display()
     )
 }
