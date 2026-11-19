@@ -1,25 +1,25 @@
 ---
 type: "pr-description"
 id: "215"
-title: "[0391] Add a Shortcut issue-tracker connector"
+title: "[PP-990] Add a Shortcut issue-tracker connector"
 date: "2026-11-14T12:25:13+00:00"
 author: "Tom Scott"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0391"
+work_item_id: "PP-990"
 parent: "work-item:PP-990"
 relates_to: ["work-item:PP-984", "work-item:PP-988", "work-item:PP-985", "work-item:PP-989", "work-item:PP-987", "work-item:PP-986", "work-item:PP-983"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/215"
 pr_number: 215
 tags: ["shortcut", "integrations", "sync"]
-revision: "92034ab8536de1f2dca686007ec1a30524fe5304"
+revision: "68a98275305a49cdf8e22d974678fee0dc7f53d9"
 repository: "accelerator"
-last_updated: "2026-11-18T13:07:10+00:00"
-last_updated_by: "Tom Scott"
+last_updated: "2026-11-19T13:46:25+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# [0391] Add a Shortcut issue-tracker connector
+# [PP-990] Add a Shortcut issue-tracker connector
 
 ## Summary
 
@@ -56,8 +56,8 @@ the Jira and Linear connectors.
   `shortcut.md` page covers setup. The sync guide, the cookbook,
   `which-skill`, `configuration.md`, the README and the CHANGELOG mention
   Shortcut.
-- **Follow-up work items 0392–0398.** They record the work this PR leaves
-  out.
+- **Follow-up work items PP-983 to PP-989.** They record the work this PR
+  leaves out, and are synced to Linear.
 
 ## Context
 
@@ -68,9 +68,8 @@ the Jira and Linear connectors.
 
 ## Testing
 
-- [x] On the branch rebased onto main, every `mise run` gate passes except
-      `test_dev_launcher_marker_is_gitignored_and_unshipped`. That test
-      fails on one machine only, because of a local dev-launcher marker file.
+- [x] The full `mise run` passes on the branch rebased onto main, which is
+      behind only main's latest version bump.
 - [x] Client tests cover references, filters, state resolution and the 16
       write cases, including a truncated listing and a timed-out create.
 - [x] CLI flow tests run each subcommand against 21 recorded scenarios. Pins
@@ -99,17 +98,29 @@ the Jira and Linear connectors.
 
 - **The client and CLI crates repeat much of the Jira and Linear crates.** I
   kept the duplication so this PR changes no existing tracker. Work items
-  0396 and 0397 propose one exhaustive tracker registry and a review of the
-  shared code.
+  PP-987 and PP-986 propose one exhaustive tracker registry and a review of
+  the shared code.
 - **`attach` takes a URL and no title.** v4 stores an external link as a
-  bare URL, so no field can carry a title. File upload is work item 0392.
+  bare URL, so no field can carry a title. File upload is work item PP-984.
 - **The read-skill evals are missing.** The evals guard needs a real
-  `benchmark.json` from live runs. Work item 0398 tracks them.
+  `benchmark.json` from live runs. Work item PP-983 tracks them.
 - **Sync does not yet map parent links, epics in discovery, or status and
-  priority.** Work items 0393, 0394 and 0395 cover these.
+  priority.** Work items PP-988, PP-985 and PP-989 cover these.
 - **The exit codes are new values.** They do not reuse the Jira or Linear
   numbers. `exit_codes_parity` pins them against
   `captured-exit-codes.txt`.
+- **The Shortcut work items and ADR were renumbered after the rebase.** Main
+  moved work items onto Linear keys, so the items numbered 0391 to 0398 are
+  now PP-990 and PP-983 to PP-989, with their old IDs kept in `aliases`. The
+  plan's filename still carries 0391. Main also took ADR-0075, so the
+  Shortcut ADR is now ADR-0076.
+- **The branch carries a Linear sync of unrelated work items.** The sync
+  that promoted the Shortcut items also pulled nine items edited in Linear:
+  PP-22, PP-87, PP-865, PP-868, PP-886, PP-893, PP-916, PP-926 and PP-968.
+  PP-87 is held at its content from before the pull, because Linear's copy
+  lists a topic-research report template that main does not ship yet, which
+  fails the template-shape cross-check. A full sync from this branch pulls it
+  again, so leave PP-87 out until that template lands.
 - Live tests ran against a scratch Shortcut workspace with a personal token.
   No token appears in the repository or the fixtures.
 
