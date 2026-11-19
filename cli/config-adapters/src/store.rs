@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use config::{
     ConfigError, CustomLens, EjectOutcome, EjectResult, LensFields, Level,
     Node, PersonalFile, ReadConfigLevel, ReadContent, ReadLensCatalogue,
-    ReadTemplate, ResolvedTemplate, Scaffold, TemplateOverride, TemplateSource,
-    WriteConfigLevel,
+    ReadTemplate, ResolvedTemplate, Scaffold, TemplateFallback,
+    TemplateOverride, TemplateSource, WriteConfigLevel,
 };
 use kernel::TEMP_PREFIX;
 use store::{NewFileMode, WriteBounds, WriteError};
@@ -399,7 +399,7 @@ impl ReadTemplate for FileConfigStore {
         config_path: Option<&str>,
         templates_dir: &str,
     ) -> Result<Option<ResolvedTemplate>, ConfigError> {
-        let warning = match config_path.filter(|value| !value.is_empty()) {
+        let fallback = match config_path.filter(|value| !value.is_empty()) {
             Some(configured) => {
                 let candidate = self.absolutise(configured);
                 if candidate.is_file() {
@@ -409,11 +409,9 @@ impl ReadTemplate for FileConfigStore {
                         None,
                     )?));
                 }
-                Some(format!(
-                    "Warning: configured template path '{}' not found, \
-                     falling back to defaults",
-                    candidate.display()
-                ))
+                Some(TemplateFallback {
+                    configured: candidate,
+                })
             }
             None => None,
         };
@@ -422,7 +420,7 @@ impl ReadTemplate for FileConfigStore {
             return Ok(Some(self.resolved(
                 TemplateSource::UserOverride,
                 &user,
-                warning,
+                fallback,
             )?));
         }
         let default = self.plugin_template_path(name)?;
@@ -430,7 +428,7 @@ impl ReadTemplate for FileConfigStore {
             return Ok(Some(self.resolved(
                 TemplateSource::PluginDefault,
                 &default,
-                warning,
+                fallback,
             )?));
         }
         Ok(None)
@@ -476,7 +474,7 @@ impl FileConfigStore {
         &self,
         source: TemplateSource,
         path: &Path,
-        warning: Option<String>,
+        fallback: Option<TemplateFallback>,
     ) -> Result<ResolvedTemplate, ConfigError> {
         let content =
             fs::read_to_string(path).map_err(|e| io_error(path, &e))?;
@@ -485,7 +483,7 @@ impl FileConfigStore {
             abs_path: display(path),
             display_path: self.display_path(path),
             content,
-            warning,
+            fallback,
         })
     }
 
@@ -858,8 +856,8 @@ mod tests {
 
     use config::{
         ConfigAccess, ConfigError, ConfigService, Key, Level, Node,
-        ReadConfigLevel, ReadContent, ReadTemplate, Scalar, TemplateOverride,
-        TemplateSource, WriteConfigLevel,
+        ReadConfigLevel, ReadContent, ReadTemplate, Scalar, TemplateFallback,
+        TemplateOverride, TemplateSource, WriteConfigLevel,
     };
     use tempfile::TempDir;
 
@@ -1621,6 +1619,30 @@ mod tests {
             .ok_or("expected the user override to resolve")?;
         assert!(matches!(resolved.source, TemplateSource::UserOverride));
         assert_eq!(resolved.content, "# Mine\n");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_template_names_a_missing_configured_path_it_falls_back_from(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = plugin_with_templates(&["demo"])?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        let resolved = store
+            .resolve_template(
+                "demo",
+                Some("missing/demo.md"),
+                ".accelerator/templates",
+            )?
+            .ok_or("expected the plugin default to resolve")?;
+        assert!(matches!(resolved.source, TemplateSource::PluginDefault));
+        assert_eq!(
+            resolved.fallback,
+            Some(TemplateFallback {
+                configured: root.path().join("missing/demo.md"),
+            })
+        );
         Ok(())
     }
 

@@ -19,7 +19,7 @@ pub fn fenced(resolved: &ResolvedTemplate) -> Rendered {
     };
     Rendered {
         stdout,
-        warnings: resolved.warning.iter().cloned().collect(),
+        warnings: fallback_warnings(resolved),
     }
 }
 
@@ -34,8 +34,16 @@ pub fn show(resolved: &ResolvedTemplate) -> Rendered {
     );
     Rendered {
         stdout,
-        warnings: resolved.warning.iter().cloned().collect(),
+        warnings: fallback_warnings(resolved),
     }
+}
+
+fn fallback_warnings(resolved: &ResolvedTemplate) -> Vec<String> {
+    resolved
+        .fallback
+        .iter()
+        .map(|fallback| format!("Warning: {fallback}"))
+        .collect()
 }
 
 #[must_use]

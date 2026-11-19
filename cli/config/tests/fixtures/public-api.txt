@@ -766,8 +766,20 @@ pub struct config::service::ResolvedTemplate
 pub config::service::ResolvedTemplate::abs_path: alloc::string::String
 pub config::service::ResolvedTemplate::content: alloc::string::String
 pub config::service::ResolvedTemplate::display_path: alloc::string::String
+pub config::service::ResolvedTemplate::fallback: core::option::Option<config::service::TemplateFallback>
 pub config::service::ResolvedTemplate::source: config::service::TemplateSource
-pub config::service::ResolvedTemplate::warning: core::option::Option<alloc::string::String>
+pub struct config::service::TemplateFallback
+pub config::service::TemplateFallback::configured: std::path::PathBuf
+impl core::clone::Clone for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::clone(&self) -> config::service::TemplateFallback
+impl core::cmp::Eq for config::service::TemplateFallback
+impl core::cmp::PartialEq for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::eq(&self, other: &config::service::TemplateFallback) -> bool
+impl core::fmt::Debug for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::TemplateFallback
 pub trait config::service::ConfigAccess
 pub fn config::service::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigAccess::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
@@ -1173,8 +1185,20 @@ pub struct config::ResolvedTemplate
 pub config::ResolvedTemplate::abs_path: alloc::string::String
 pub config::ResolvedTemplate::content: alloc::string::String
 pub config::ResolvedTemplate::display_path: alloc::string::String
+pub config::ResolvedTemplate::fallback: core::option::Option<config::service::TemplateFallback>
 pub config::ResolvedTemplate::source: config::service::TemplateSource
-pub config::ResolvedTemplate::warning: core::option::Option<alloc::string::String>
+pub struct config::TemplateFallback
+pub config::TemplateFallback::configured: std::path::PathBuf
+impl core::clone::Clone for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::clone(&self) -> config::service::TemplateFallback
+impl core::cmp::Eq for config::service::TemplateFallback
+impl core::cmp::PartialEq for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::eq(&self, other: &config::service::TemplateFallback) -> bool
+impl core::fmt::Debug for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::service::TemplateFallback
+pub fn config::service::TemplateFallback::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::TemplateFallback
 pub const config::REMOVAL_RELEASE: &str
 pub trait config::ConfigAccess
 pub fn config::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
