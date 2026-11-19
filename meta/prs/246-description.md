@@ -1,7 +1,7 @@
 ---
 type: "pr-description"
 id: "246"
-title: "[0333] Always write tags on new work items and backfill missing ones"
+title: "[PP-886] Always write tags on new work items and backfill missing ones"
 date: "2026-11-19T10:33:18+00:00"
 author: "Toby Clemson"
 producer: "describe-pr"
@@ -19,7 +19,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# [0333] Always write tags on new work items and backfill missing ones
+# [PP-886] Always write tags on new work items and backfill missing ones
 
 ## Summary
 
