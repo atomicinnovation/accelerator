@@ -14,7 +14,7 @@ pr_number: 246
 tags: ["work", "work-cli", "migrate", "frontmatter"]
 revision: "86c53738847375fc7f4226560d6eab26eaa1ea50"
 repository: "accelerator"
-last_updated: "2026-11-19T12:31:54+00:00"
+last_updated: "2026-11-19T19:16:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -31,7 +31,9 @@ item failed `accelerator corpus frontmatter validate` with
 repair items already written without it.
 
 > **Stacked on #234.** The base is `0351-preview-pending-push-refusals`, so
-> this diff shows only the 0333 work. Retarget it to `main` once #234 merges.
+> this diff holds the PP-886 work plus the re-key's renames of #234's
+> documents (see "Rebased onto the Linear re-key"). Retarget it to `main`
+> once #234 merges.
 
 ## Changes
 
