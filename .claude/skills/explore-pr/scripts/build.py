@@ -51,6 +51,8 @@ KIT_FONT_FAMILIES = {
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
 PROSE_REFERENCES_MODEL = ASSETS / "prose-references.js"
 STOP_EVIDENCE_MODEL = ASSETS / "stop-evidence.js"
+REVIEW_SECTIONS_MODEL = ASSETS / "review-sections.js"
+CATALOGUE_MODEL = ASSETS / "catalogue.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -1762,6 +1764,8 @@ def with_page_models(page: str, views: list[str]) -> str:
         COVERAGE_MODEL,
         PROSE_REFERENCES_MODEL,
         STOP_EVIDENCE_MODEL,
+        REVIEW_SECTIONS_MODEL,
+        CATALOGUE_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)

@@ -1,5 +1,10 @@
 import json
 import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
 
 PAGE = """<title>__EXPLORE_PR_TITLE__</title>
 <style>body { color: red }</style>
@@ -224,6 +229,36 @@ def test_both_layouts_carry_the_stop_evidence_model(tmp_path, script):
 
     for html in (page, (tmp_path / "index.html").read_text()):
         assert html.index("StopEvidence") < html.index("window.APP")
+
+
+PAGE_MODEL_SUITES = ("review-sections", "catalogue")
+TESTS = Path(__file__).resolve().parent
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs node")
+@pytest.mark.parametrize("model", PAGE_MODEL_SUITES)
+def test_each_page_model_the_build_inlines_passes_its_node_suite(model):
+    run = subprocess.run(
+        ["node", "--test", str(TESTS / f"{model}.test.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert run.returncode == 0, run.stdout + run.stderr
+
+
+def test_both_layouts_carry_the_review_sections_and_catalogue_models(
+    tmp_path, script
+):
+    build = script("build")
+
+    page = build.standalone(PAGE, {}, {}, [], {}, "t")
+    build.hosted(PAGE, tmp_path, {}, {}, [], "t")
+
+    for html in (page, (tmp_path / "index.html").read_text()):
+        for model in ("ReviewSections", "Catalogue"):
+            assert html.index(model) < html.index("window.APP"), model
 
 
 def test_the_standalone_page_is_a_complete_document(script):
