@@ -1318,15 +1318,15 @@ already carries `tags: []`, so it isn't used.
 
 #### Manual Verification:
 
-- [ ] In a scratch repository holding a work item without `tags` (for
+- [x] In a scratch repository holding a work item without `tags` (for
       example one written by the pre-fix `work create`),
       `/accelerator:migrate` previews `0012-backfill-work-item-tags`,
       applies it, and `jj diff` shows exactly one added `tags: []` line per
       repaired item.
-- [ ] Running `/accelerator:migrate` in this repository adds `0012` to the
+- [x] Running `/accelerator:migrate` in this repository adds `0012` to the
       ledger and changes no file under `meta/work/`.
-- [ ] A second `/accelerator:migrate` reports no pending migrations.
-- [ ] In a scratch repository with pulled items that lack `tags`, a
+- [x] A second `/accelerator:migrate` reports no pending migrations.
+- [x] In a scratch repository with pulled items that lack `tags`, a
       `/sync-work-items` preview after `/accelerator:migrate` reports the
       repaired items as `Synced`, with no `LocallyModified` or `Conflict`.
 
