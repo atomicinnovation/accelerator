@@ -83,13 +83,17 @@ class SharedFixtureSession:
         try:
             yield self._prepare(progress, families, build)
         except BaseException as failure:
-            if self._interrupted() or not isinstance(failure, Exception):
+            if not isinstance(failure, Exception):
                 self._clean_up_after_interrupt(progress)
-                if isinstance(failure, KeyboardInterrupt):
-                    raise
+                raise
+            if self._interrupted():
+                self._clean_up_after_interrupt(progress)
                 raise KeyboardInterrupt from failure
             self._finish(progress, runs, filtered, failure)
         else:
+            if self._interrupted():
+                self._clean_up_after_interrupt(progress)
+                raise KeyboardInterrupt
             self._finish(progress, runs, filtered, None)
 
     def _prepare(

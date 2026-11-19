@@ -404,6 +404,31 @@ class TestAnInterruptAsInvokeReportsIt:
         assert harness.run_directories() == []
         assert [d["phase"] for d in harness.events("tree-digest")] == ["built"]
 
+    def test_the_tests_absorbed_still_ends_as_an_interrupt(
+        self, harness: Harness
+    ):
+        def absorbing_the_interrupt(handover: Mapping[str, str]) -> None:
+            adopt_everywhere(handover)
+            harness.arrived = True
+
+        with pytest.raises(KeyboardInterrupt):
+            harness.run(absorbing_the_interrupt)
+
+        assert harness.run_directories() == []
+        assert [d["phase"] for d in harness.events("tree-digest")] == ["built"]
+
+
+class TestAnExitThatIsNotAnException:
+    def test_keeps_its_own_type_and_code(self, harness: Harness):
+        def exiting(handover: Mapping[str, str]) -> None:
+            raise SystemExit(3)
+
+        with pytest.raises(SystemExit) as exiting_run:
+            harness.run(exiting)
+
+        assert exiting_run.value.code == 3
+        assert harness.run_directories() == []
+
 
 def _runs_that_cannot_remove(root: Path) -> FixtureRuns:
     def unremovable(path: Path) -> None:
