@@ -1,3 +1,4 @@
+import dataclasses
 from enum import StrEnum
 
 
@@ -6,19 +7,37 @@ class Family(StrEnum):
 
     @property
     def handover_variable(self) -> str:
-        return {Family.MATRIX: "ACCELERATOR_SHARED_MATRIX"}[self]
+        return _TRAITS[self].handover_variable
 
     @property
     def flag(self) -> str:
-        return {Family.MATRIX: "--matrix"}[self]
+        return _TRAITS[self].flag
 
     @property
     def heading(self) -> str:
-        return {Family.MATRIX: "matrix"}[self]
+        return _TRAITS[self].heading
 
     @property
     def noun(self) -> str:
-        return {Family.MATRIX: "the matrix"}[self]
+        return _TRAITS[self].noun
+
+
+@dataclasses.dataclass(frozen=True)
+class _Traits:
+    handover_variable: str
+    flag: str
+    heading: str
+    noun: str
+
+
+_TRAITS = {
+    Family.MATRIX: _Traits(
+        handover_variable="ACCELERATOR_SHARED_MATRIX",
+        flag="--matrix",
+        heading="matrix",
+        noun="the matrix",
+    ),
+}
 
 
 class PrivateSets(StrEnum):

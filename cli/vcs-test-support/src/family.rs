@@ -20,36 +20,46 @@ pub enum Family {
 impl Family {
     pub const ALL: [Self; 1] = [Self::Matrix];
 
+    const fn traits(self) -> Traits {
+        match self {
+            Self::Matrix => Traits {
+                name: "matrix",
+                handover_variable: "ACCELERATOR_SHARED_MATRIX",
+                flag: "--matrix",
+                noun: "the matrix",
+            },
+        }
+    }
+
     #[must_use]
     pub const fn handover_variable(self) -> &'static str {
-        match self {
-            Self::Matrix => "ACCELERATOR_SHARED_MATRIX",
-        }
+        self.traits().handover_variable
     }
 
     /// The family's name in the fixture log and on the build step's command
     /// line.
     #[must_use]
     pub const fn name(self) -> &'static str {
-        match self {
-            Self::Matrix => "matrix",
-        }
+        self.traits().name
     }
 
     /// The flag the build step names the family's tree with.
     #[must_use]
     pub const fn flag(self) -> &'static str {
-        match self {
-            Self::Matrix => "--matrix",
-        }
+        self.traits().flag
     }
+}
+
+struct Traits {
+    name: &'static str,
+    handover_variable: &'static str,
+    flag: &'static str,
+    noun: &'static str,
 }
 
 impl fmt::Display for Family {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Matrix => "the matrix",
-        })
+        formatter.write_str(self.traits().noun)
     }
 }
 
