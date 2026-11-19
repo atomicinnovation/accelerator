@@ -22,3 +22,12 @@ regex = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 serde_json = { workspace = true }
+
+# The build step's builder, run once per `test:unit:cli` run before any test.
+# Lives under tests/fixtures/ for the same reason as vcs-adapters' fixture
+# binaries: it stays off the crate's normal build surface. `test = false`
+# spares it a libtest harness, so the unit listing names one executable.
+[[bin]]
+name = "shared-fixtures"
+path = "tests/fixtures/shared_fixtures.rs"
+test = false
