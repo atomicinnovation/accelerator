@@ -3288,3 +3288,31 @@ def test_the_outstanding_docs_scope_additivity_to_stable() -> None:
         "do not know."
     ) in docs
     assert "The JSON is additive-only" not in docs
+
+
+CONFIG_READS = (
+    "agent",
+    "agents",
+    "context",
+    "get",
+    "instructions",
+    "path",
+    "template",
+)
+
+
+def test_research_topic_grants_only_the_config_reads_it_runs() -> None:
+    rules = frontmatter_bash_rules(_read(RESEARCH_TOPIC))
+    for read in CONFIG_READS:
+        assert any(
+            rule_covers(f"Bash({rule})", f"accelerator config {read} x")
+            for rule in rules
+        ), f"research-topic does not grant `accelerator config {read}`"
+    for write in (
+        "accelerator config set agents.researcher x",
+        "accelerator config init",
+        "accelerator config templates eject topic-research",
+    ):
+        assert not any(
+            rule_covers(f"Bash({rule})", write) for rule in rules
+        ), f"research-topic's spawns would inherit a grant for {write!r}"

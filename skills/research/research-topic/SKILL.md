@@ -14,7 +14,13 @@ description: Research an external subject over web and scholarly sources into
   topic on the web or in the scholarly literature, not the codebase.
 argument-hint: "brief SUBJECT | outline SLUG [--breadth N] | conduct SLUG [--depth N] [--concurrency N] | synthesise SLUG | finalise SLUG | ask SLUG QUESTION | report SLUG QUESTION"
 allowed-tools:
-  - Bash(accelerator config *)
+  - Bash(accelerator config agent *)
+  - Bash(accelerator config agents *)
+  - Bash(accelerator config context *)
+  - Bash(accelerator config get *)
+  - Bash(accelerator config instructions *)
+  - Bash(accelerator config path *)
+  - Bash(accelerator config template *)
   - Bash(accelerator corpus resolve *)
   - Bash(accelerator corpus metadata derive)
   - Bash(accelerator corpus frontmatter validate *)
@@ -296,8 +302,9 @@ allocate a finding or note path yourself.
      permissions" and that troubleshooting row's next step.
 
    A config fault or a denial therefore costs no subagents. The
-   `Bash(accelerator config *)` grant covers both commands, here and in the
-   spawns that inherit it, but a `deny` or `ask` rule outranks it.
+   `Bash(accelerator config template *)` grant covers both commands, here
+   and in the spawns that inherit it, but a `deny` or `ask` rule outranks
+   it.
 
 2. **Plan.** The first plan starts the run:
 
