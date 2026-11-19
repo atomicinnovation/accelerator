@@ -464,7 +464,8 @@ Code would accept except two constructs:
 | Any unescaped `$` outside single quotes and comments | Claude Code accepts `$HOME`, which lets a researcher read an environment secret back through a usage error's echo |
 | Any unquoted `<` outside comments                | Claude Code accepts `< file`, which includes bash's `</dev/tcp/…` and so sends data to an arbitrary host |
 
-The fetch needs neither: its arguments are literal and it reads no stdin.
+No command the researcher may run needs either: their arguments are literal
+and none reads stdin.
 Everything else follows Claude Code's measured behaviour, including globs, `~`,
 comments, a quoted separator, and discarding output to `/dev/null`. The
 separators, pipes, background operators, substitutions, braces, other
@@ -503,27 +504,25 @@ a block as a call to correct, not the end of its work.
 
 ### Granting the commands
 
-The guard never allows anything; it only blocks. The fetch and the template
-commands must each be granted by a permission rule that reaches the
-researcher subagent. Spawns inherit the spawning skill's grants:
-`research-topic`'s `Bash(accelerator config *)` already covers both template
-commands.
+The guard never allows anything; it only blocks. The fetch, the node query
+and the template commands must each be granted by a permission rule that
+reaches the researcher subagent. Spawns inherit the spawning skill's grants,
+and `research-topic`'s `allowed-tools` covers all of them:
+
+- `Bash(accelerator research fetch *)` covers the fetch. The academic
+  profiles search and look up through it, and `web-profile` uses it for
+  `fetch web metadata`. Any other skill that injects any profile must grant
+  the same rule, and a contract test enforces this for skills in this
+  repository.
+- `Bash(accelerator research topic *)` covers the node query.
+- `Bash(accelerator config *)` covers both template commands.
 
 Those inherited grants are broad: at the permission layer they also cover
 commands such as `accelerator config set` and `accelerator research topic
 end-run`. The research guard is what narrows a spawn to its listed commands,
 and it fails open when it cannot run (see [Failure
-signatures](#failure-signatures)). The exact template rules below are the
+signatures](#failure-signatures)). The exact rules below are the
 least-privilege option.
-
-The fetch and the node query must each be granted by a permission rule that
-reaches the researcher subagent. `research-topic`'s
-`Bash(accelerator research topic *)` covers the node query.
-`research-topic`'s `allowed-tools` carries `Bash(accelerator research fetch *)`,
-which researchers it spawns inherit. Any other skill that injects any profile
-must grant the same rule, and a contract test enforces this for skills in this
-repository. The academic profiles search and look up through it, and
-`web-profile` uses it for `fetch web metadata`.
 
 Where those grants do not reach the researcher, add the rules to the
 project's allow rules:
@@ -810,7 +809,7 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
 | `E_TOPIC_RESEARCH_WITHHOLD_PROFILE` | an empty `--withhold-profile`, or one without `--run` | pass a profile name, with `--run` |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
-| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
+| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing or corrupt, or cannot be read or written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
 | `E_TOPIC_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
 | `E_TOPIC_RESEARCH_PROFILES` | the plugin root holds no `skills/research/profiles` | reinstall the plugin |
