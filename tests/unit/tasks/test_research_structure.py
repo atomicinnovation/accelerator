@@ -3132,6 +3132,24 @@ def test_the_researcher_reports_node_query_failures() -> None:
     assert "This row takes precedence over the generic `E_*` row" in failed
 
 
+NODE_ACKNOWLEDGED_EARLY = (
+    "its batch was acknowledged before the researcher ran the query"
+)
+
+
+def test_a_node_refused_as_not_offered_names_an_early_acknowledgement() -> (
+    None
+):
+    failed = _troubleshooting_row(NODE_QUERY_FAILED)
+    assert NODE_ACKNOWLEDGED_EARLY in failed
+    not_offered = next(
+        line
+        for line in _read(DOCS_RESEARCH).splitlines()
+        if line.startswith("| `E_TOPIC_RESEARCH_NODE_NOT_OFFERED` |")
+    )
+    assert NODE_ACKNOWLEDGED_EARLY in not_offered
+
+
 def test_every_skill_spawning_node_researchers_grants_the_node_query() -> None:
     outputter = LEVEL_NOTE_OUTPUTTER.relative_to(REPO_ROOT).as_posix()
     spawning = [
