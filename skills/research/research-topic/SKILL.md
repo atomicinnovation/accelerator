@@ -284,10 +284,10 @@ allocate a finding or note path yourself.
      fence line to its closing one. That block alone goes into every compose
      prompt. The level-note command's block is discarded: each node's
      researcher fetches its own.
-   - **Warnings**: any other line from a command that exits 0 is a warning,
-     whatever its wording. Print each warning before the run starts, keep it
-     for the summary, and proceed: every spawn then fills the template the
-     CLI fell back to, and so does every composer, from the block kept here.
+   - **Other lines**: from a command that exits 0, every other line is left
+     to the first plan, whose `warnings` name a template that falls back to
+     its default. Every spawn then fills that default, and so does every
+     composer, from the block kept here.
    - **Failure**: if either exits non-zero, `conduct` starts no run and
      spawns nothing. Print "template unavailable", the first line of its
      stderr, and that troubleshooting row's next step.
@@ -324,8 +324,9 @@ allocate a finding or note path yourself.
    The CLI records the run in its ledger, so carry no list of attempted
    spawns yourself. Keep `run` for the whole of `conduct`, and report the
    first plan's `warnings` as soon as it returns — a corrupt run ledger, a
-   clamped concurrency, an unhonoured search cap, or search budgets that
-   cannot fit the cap — then proceed. Proceed even when the budgets cannot
+   clamped concurrency, an unhonoured search cap, search budgets that
+   cannot fit the cap, or a template that falls back to its default — then
+   proceed. Proceed even when the budgets cannot
    fit: the run's other researchers and composers still make progress, and a
    halt, if it comes, reports its own recovery. Any non-zero exit, including
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
@@ -652,8 +653,8 @@ allocate a finding or note path yourself.
          {stem}.levels/{lineage} records {recorded} follow-ups, over its cap
          of {cap}; trimmed {recorded − cap}".
 
-      Then each skipped pair, each template-check warning, and each
-      warning. `conduct` never fails because a source is unavailable.
+      Then each skipped pair and each warning. `conduct` never fails because
+      a source is unavailable.
 
    | Reason | Next step |
    |---|---|
