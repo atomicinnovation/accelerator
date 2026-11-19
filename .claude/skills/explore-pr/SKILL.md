@@ -298,11 +298,11 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
   reads only that view explain the change's shape, its key decisions and
   where the next change goes? If not, the design content is not done.
 - Look at every figure where it is shown: the overview, Design and each
-  chapter's screenshot (`tour-<id>.png`) are taken at full height. Each
-  figure must be legible at a glance, make one point, and have nothing
-  overlapping. Split a figure that tries to say two things; shorten labels
-  that wrap. Then look at each custom view, and at the overview at phone
-  width. Fix what is visibly wrong once, then stop.
+  chapter (`tour-<id>.png`, or `tour-<id>-1.png`, `-2` … in 5,000 px tiles)
+  are shot at full height. Each figure must be legible at a glance, make
+  one point, and have nothing overlapping. Split a figure that tries to say
+  two things; shorten labels that wrap. Then look at each custom view, and
+  at the overview at phone width. Fix what is visibly wrong once, then stop.
 - Spot-check five stops and three ledger rows against the code yourself.
   Fix them, and say what you checked. At each stop, cover the text and
   read the code, then read the text: anything you had already learnt from

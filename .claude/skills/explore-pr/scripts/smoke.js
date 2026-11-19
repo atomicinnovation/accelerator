@@ -20,6 +20,9 @@
 // new verdict, not a note, moves the record to this head. Every diagram the
 // kit drew is put through the kit's own checks: text inside its box, no box
 // across another or across an arrow, tracing, and a linked box opening its link.
+// A view with figures is captured at full height, in tiles 5,000 px tall when it
+// is taller (`design-1.png`, `design-2.png`, …). A DevTools call that gets no
+// reply within two minutes fails the check instead of hanging it.
 
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -27,6 +30,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { DRAWING_CHECKS, SELF_DRAWN_CHECKS, TRACING_CHECK } = require('../../diagram-kit/lib/page-checks.js');
+const { CALL_DEADLINE_MS, tilesOf, withinDeadline } = require('./capture.js');
 
 const CHROME_CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -75,7 +79,11 @@ async function devtools(chrome) {
     if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.exception?.description || data.params.exceptionDetails.text);
     if (data.method === 'Runtime.consoleAPICalled' && data.params.type === 'error') errors.push(data.params.args.map(a => a.value ?? a.description).join(' '));
   };
-  const send = (method, params = {}) => new Promise(resolve => { const n = ++id; pending.set(n, resolve); ws.send(JSON.stringify({ id: n, method, params })); });
+  const send = (method, params = {}) => {
+    const n = ++id;
+    const reply = new Promise(resolve => { pending.set(n, resolve); ws.send(JSON.stringify({ id: n, method, params })); });
+    return withinDeadline(reply, CALL_DEADLINE_MS, method).finally(() => pending.delete(n));
+  };
   const evaluate = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.result.value;
   const close = async () => {
     ws.close();
@@ -286,9 +294,17 @@ const UNFOLD_PROBE = `(async () => {
   return { file: folded.path, afterOpening, afterPicking };
 })()`;
 
-async function wholePage(cdp) {
+async function captureWholePage(cdp, file) {
   const { result: { cssContentSize: size } } = await cdp.send('Page.getLayoutMetrics');
-  return { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: size.width, height: size.height, scale: 1 } };
+  for (const tile of tilesOf(size)) {
+    const shot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: tile.clip });
+    fs.writeFileSync(`${file}${tile.name}.png`, Buffer.from(shot.result.data, 'base64'));
+  }
+}
+
+async function captureViewport(cdp, file) {
+  const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync(`${file}.png`, Buffer.from(shot.result.data, 'base64'));
 }
 
 async function main() {
@@ -313,8 +329,8 @@ async function main() {
       await sleep(700);
       report.routes[route] = await cdp.evaluate(`({ heading: (document.querySelector('main h1') || {}).textContent || null, unresolvedSlices: document.querySelectorAll('[data-pending-slice]').length, highlighted: document.querySelectorAll('[class^="hljs-"]').length })`);
       if (options.shots) {
-        const shot = await cdp.send('Page.captureScreenshot', figureViews.includes(route) ? await wholePage(cdp) : { format: 'png' });
-        fs.writeFileSync(path.join(options.shots, `${route}.png`), Buffer.from(shot.result.data, 'base64'));
+        const capture = figureViews.includes(route) ? captureWholePage : captureViewport;
+        await capture(cdp, path.join(options.shots, route));
       }
     }
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
@@ -334,8 +350,7 @@ async function main() {
     if (options.shots) {
       await cdp.evaluate("location.hash = 'overview'");
       await sleep(500);
-      const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(options.shots, 'overview-phone.png'), Buffer.from(shot.result.data, 'base64'));
+      await captureViewport(cdp, path.join(options.shots, 'overview-phone'));
     }
   } finally {
     await cdp.close();
