@@ -664,10 +664,9 @@ same use elsewhere fails.
 
 #### Manual Verification
 
-- [ ] `cargo nextest list` shows the same names and count for `classify`,
-      `queries`, `matrix` and `scrub` as at `287b6279`. The source-level
-      `#[test]` names already match (6, 6, 3 and 6); the listing itself, at
-      both revisions, has not been compared yet.
+- [x] `cargo nextest list` shows the same names and count for `classify`,
+      `queries`, `matrix` and `scrub` as at `287b6279`: the listings at both
+      revisions are identical (6, 6, 6 and 3 tests).
 
 ---
 
@@ -1587,13 +1586,14 @@ labelled as fault injection for checking the build step and never for CI.
 
 On engywook:
 
-- [ ] Coverage on: `mise run --skip-deps test:unit:cli` passes and prints the
+- [x] Coverage on: `mise run --skip-deps test:unit:cli` passes and prints the
       summary.
   - The matrix shows 1 shared build, 19 adoptions, 0 copies and 0 private
     builds.
   - The log has a distinct `hermetic-root` for each adoption, none under
     `<run>/matrix`.
-  - The coverage totals are no lower than at `287b6279`.
+  - The coverage totals are no lower than at `287b6279`: lines 94.44%,
+    functions 93.92%, regions 93.18%, against 94.41%, 93.90% and 93.15%.
 - [x] Coverage off (`ACCELERATOR_COVERAGE=off`): the same summary, and no
       `Compiling` line after the builder runs.
 - [x] Under coverage, the nextest step compiles nothing (no `Compiling` line
