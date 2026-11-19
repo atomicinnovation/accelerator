@@ -42,6 +42,11 @@ SOUND = {
         ],
     },
     "files": [{"path": "src/core.rs", "summary": "s", "risk": "high"}],
+    "readiness": {
+        "recommendation": "comment",
+        "summary": "s",
+        "conditions": [],
+    },
 }
 
 

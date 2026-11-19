@@ -55,6 +55,7 @@ REVIEW_SECTIONS_MODEL = ASSETS / "review-sections.js"
 CATALOGUE_MODEL = ASSETS / "catalogue.js"
 REVIEW_NOTES_MODEL = ASSETS / "review-notes.js"
 TARGET_RENAMES_MODEL = ASSETS / "target-renames.js"
+READINESS_MODEL = ASSETS / "readiness.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -192,6 +193,7 @@ OBJECT_LISTS = {
         "observations",
     ),
     "overview": ("figures", "paths"),
+    "readiness": ("conditions",),
 }
 
 
@@ -524,7 +526,10 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "lineage": lineage_from_earlier_heads(
             workspace, pr.get("head", ""), diff
         ),
+        "readiness": held(content, "readiness", "readiness", faults),
     }
+    if not (content / "readiness.json").exists():
+        faults.append("no readiness assessment; write content/readiness.json")
     faults += mistyped_fields(model)
     faults += malformed_parts(model)
     registered = findings_register(
@@ -1684,6 +1689,7 @@ def sources(model: dict) -> list[tuple[str, object]]:
         ("accepted risks", model["acceptedRisks"]),
         ("module map", model["moduleMap"] or {}),
         ("ci", model["ci"]),
+        ("readiness", model["readiness"]),
     ]
 
 
@@ -1816,6 +1822,8 @@ VOCABULARY = {
     ("principles", "verdict"): ("holds", "strained", "broken"),
     ("items", "state"): ("added", "removed", "changed", "kept"),
     ("checks", "status"): ("pass", "fail", "cancelled", "skipped"),
+    ("readiness", "recommendation"): ("approve", "request-changes", "comment"),
+    ("conditions", "when"): ("before-merge", "would-improve"),
 }
 TONES = (
     "new",
@@ -1854,7 +1862,7 @@ def vocabulary_warnings(model: dict) -> list[str]:
         for trail, item in located(content)
         if isinstance(item, dict)
         for field, value in item.items()
-        if (allowed := vocabulary_of(trail, field))
+        if (allowed := vocabulary_of(trail or source, field))
     ]
     problems += [
         (f"file {file['path']}", outside("risk", file.get("risk"), RISK_TIERS))
@@ -2124,6 +2132,23 @@ def article_warnings(model: dict, diff: dict) -> list[str]:
     return warnings
 
 
+def readiness_warnings(model: dict) -> list[str]:
+    """Return a warning for every id a readiness condition cannot cite."""
+    chapters = model["chapters"]
+    citable = {finding["id"] for finding in model["findings"]}
+    citable |= set(model.get("findingAliases", {}))
+    citable |= declared_ids(model, EVIDENCED_KEYS) | stop_ids(chapters)
+    citable |= {chapter["id"] for chapter in chapters}
+    return [
+        f"readiness conditions[{position}]: refs names unknown {ref}"
+        for position, condition in enumerate(
+            model.get("readiness", {}).get("conditions", [])
+        )
+        for ref in condition.get("refs", [])
+        if ref not in citable
+    ]
+
+
 def check(model: dict, diff: dict) -> list[str]:
     """Return a warning for every reference the page could not honour."""
     warnings = []
@@ -2142,6 +2167,7 @@ def check(model: dict, diff: dict) -> list[str]:
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
     warnings += article_warnings(model, diff)
+    warnings += readiness_warnings(model)
     warnings += evidence_warnings(model, diff)
     warnings += reference_warnings(model, diff)
     warnings += vocabulary_warnings(model)
@@ -2203,6 +2229,7 @@ def with_page_models(page: str, views: list[str]) -> str:
         CATALOGUE_MODEL,
         REVIEW_NOTES_MODEL,
         TARGET_RENAMES_MODEL,
+        READINESS_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)

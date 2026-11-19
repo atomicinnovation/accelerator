@@ -514,3 +514,74 @@ def test_an_observation_s_severity_and_level_are_checked(tmp_path, script):
 
     assert about(warnings, "observations[P-claims-01]", 'severity "huge"')
     assert about(warnings, "observations[P-claims-01]", 'level "vibe"')
+
+
+READINESS = {
+    "recommendation": "request-changes",
+    "summary": "Sound design; one finding blocks.",
+    "conditions": [
+        {
+            "when": "before-merge",
+            "text": "Fix R1-06.",
+            "refs": ["R1-06", "claims-i1", "d-claims", "claims-s1", "claims"],
+        }
+    ],
+}
+
+
+def readiness_of(tmp_path, script, readiness=READINESS):
+    claims = chapter(
+        decisions=[{"id": "d-claims", "decision": "Claim"}],
+        invariants=[{"id": "claims-i1", "text": "Holds."}],
+        stops=[
+            {"id": "claims-s1", "file": "src/core.rs", "start": 1, "end": 1}
+        ],
+    )
+    root = tmp_path
+    warnings = warnings_for(
+        root, script, [claims], findings=REVIEW, readiness=readiness
+    )
+    model, _ = script("build").assemble(root)
+    return model, warnings
+
+
+def test_the_readiness_assessment_is_part_of_the_content_model(
+    tmp_path, script
+):
+    model, warnings = readiness_of(tmp_path, script)
+
+    assert model["readiness"]["recommendation"] == "request-changes"
+    assert about(warnings, "readiness") == []
+
+
+def test_a_readiness_condition_may_cite_any_finding_item_stop_or_chapter(
+    tmp_path, script
+):
+    cited = dict(READINESS, conditions=[dict(READINESS["conditions"][0])])
+    cited["conditions"][0]["refs"] = ["R1-06", "nowhere"]
+
+    _, warnings = readiness_of(tmp_path, script, cited)
+
+    assert about(warnings, "readiness", "refs names unknown nowhere")
+    assert about(warnings, "R1-06") == []
+
+
+def test_a_recommendation_and_a_condition_s_timing_are_checked(
+    tmp_path, script
+):
+    odd = dict(
+        READINESS,
+        recommendation="ship",
+        conditions=[{"when": "later", "text": "t", "refs": []}],
+    )
+
+    _, warnings = readiness_of(tmp_path, script, odd)
+
+    assert about(warnings, "readiness", 'recommendation "ship"')
+    assert about(warnings, "readiness", 'when "later"')
+
+
+def test_a_page_without_a_readiness_assessment_is_reported(tmp_path, script):
+    warnings = warnings_for(tmp_path, script, [chapter()])
+
+    assert "no readiness assessment; write content/readiness.json" in warnings

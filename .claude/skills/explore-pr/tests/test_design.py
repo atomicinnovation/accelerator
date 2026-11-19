@@ -30,6 +30,7 @@ ARTICLE = [
         ],
     }
 ]
+READINESS = {"recommendation": "comment", "summary": "s", "conditions": []}
 DESIGN = {
     "summary": "One port, two adapters.",
     "figures": [FIGURE],
@@ -50,6 +51,7 @@ def workspace(root, chapters, design=DESIGN):
     )
     if design is not None:
         (root / "content/design.json").write_text(json.dumps(design))
+    (root / "content/readiness.json").write_text(json.dumps(READINESS))
     for chapter in chapters:
         (root / f"content/chapter-{chapter['id']}.json").write_text(
             json.dumps(chapter)

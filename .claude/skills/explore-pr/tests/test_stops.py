@@ -28,6 +28,7 @@ ARTICLE = [
         "blocks": [{"kind": "figure", "figure": dict(FIGURE, id="f-article")}],
     }
 ]
+READINESS = {"recommendation": "comment", "summary": "s", "conditions": []}
 DESIGN = {
     "summary": "One port, two adapters.",
     "figures": [FIGURE],
@@ -88,6 +89,7 @@ def assemble(root, script, chapters, design=DESIGN):
         json.dumps({"figures": [dict(FIGURE, id="f-over")]})
     )
     (root / "content/design.json").write_text(json.dumps(design))
+    (root / "content/readiness.json").write_text(json.dumps(READINESS))
     for each in chapters:
         (root / f"content/chapter-{each['id']}.json").write_text(
             json.dumps(each)

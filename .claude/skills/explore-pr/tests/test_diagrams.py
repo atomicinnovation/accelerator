@@ -68,6 +68,11 @@ def assembled(root, script, **content):
         "chapter-first": CHAPTER,
         "overview": {"figures": [graph(id="g0")]},
         "design": {"summary": "s", "article": ARTICLE},
+        "readiness": {
+            "recommendation": "comment",
+            "summary": "s",
+            "conditions": [],
+        },
         "files": files,
     }
     for name, value in {**base, **content}.items():
