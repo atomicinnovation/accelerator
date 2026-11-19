@@ -23,6 +23,7 @@ import json
 import os
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -658,6 +659,29 @@ def _workflow_uses(path):
     for job_name, step in _all_steps(workflow["jobs"]):
         if "uses" in step:
             yield job_name, step["uses"]
+
+
+_MISE_ACTION = "jdx/mise-action@"
+
+
+def _mise_floor():
+    return tomllib.loads((REPO_ROOT / "mise.toml").read_text())["min_version"]
+
+
+@pytest.mark.parametrize(
+    "workflow_path",
+    sorted((REPO_ROOT / ".github/workflows").glob("*.yml")),
+    ids=lambda path: path.name,
+)
+def test_every_mise_action_installs_the_mise_floor(workflow_path):
+    workflow = yaml.safe_load(workflow_path.read_text())
+    versions = [
+        (step.get("with") or {}).get("version")
+        for _, step in _all_steps(workflow["jobs"])
+        if step.get("uses", "").startswith(_MISE_ACTION)
+    ]
+
+    assert versions == [_mise_floor()] * len(versions)
 
 
 @pytest.mark.parametrize(

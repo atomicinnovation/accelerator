@@ -34,6 +34,7 @@ jobs:
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
+          version: "2026.10.8"
           install: true
           cache: true
           experimental: true
