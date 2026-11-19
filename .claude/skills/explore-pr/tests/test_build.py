@@ -231,7 +231,12 @@ def test_both_layouts_carry_the_stop_evidence_model(tmp_path, script):
         assert html.index("StopEvidence") < html.index("window.APP")
 
 
-PAGE_MODEL_SUITES = ("review-sections", "catalogue", "review-notes")
+PAGE_MODEL_SUITES = (
+    "review-sections",
+    "catalogue",
+    "review-notes",
+    "target-renames",
+)
 TESTS = Path(__file__).resolve().parent
 
 
@@ -257,7 +262,12 @@ def test_both_layouts_carry_the_page_models_the_reviewer_works_through(
     build.hosted(PAGE, tmp_path, {}, {}, [], "t")
 
     for html in (page, (tmp_path / "index.html").read_text()):
-        for model in ("ReviewSections", "Catalogue", "ReviewNotes"):
+        for model in (
+            "ReviewSections",
+            "Catalogue",
+            "ReviewNotes",
+            "TargetRenames",
+        ):
             assert html.index(model) < html.index("window.APP"), model
 
 

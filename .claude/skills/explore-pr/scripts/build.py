@@ -54,6 +54,7 @@ STOP_EVIDENCE_MODEL = ASSETS / "stop-evidence.js"
 REVIEW_SECTIONS_MODEL = ASSETS / "review-sections.js"
 CATALOGUE_MODEL = ASSETS / "catalogue.js"
 REVIEW_NOTES_MODEL = ASSETS / "review-notes.js"
+TARGET_RENAMES_MODEL = ASSETS / "target-renames.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -143,6 +144,7 @@ REQUIRED = {
     "file summary": {"path": str},
     "finding": {"id": str},
     "finding check": {"id": str},
+    "observation": {"id": str},
     "accepted risk": {"id": str},
     "check": {"question": str, "problem": str},
     "focus": {"line": int},
@@ -177,6 +179,7 @@ OBJECT_LISTS = {
         "stops",
         "tests",
         "findingChecks",
+        "observations",
         "ownNotes",
     ),
     "design": (
@@ -186,6 +189,7 @@ OBJECT_LISTS = {
         "principles",
         "extension",
         "article",
+        "observations",
     ),
     "overview": ("figures", "paths"),
 }
@@ -265,7 +269,11 @@ def with_lists_of_objects(
 def well_formed_chapter(chapter: dict, faults: list[str]) -> dict:
     where = f"chapter {chapter['id']}"
     with_lists_of_objects(chapter, "chapter", where, faults)
-    for field, kind in (("stops", "stop"), ("findingChecks", "finding check")):
+    for field, kind in (
+        ("stops", "stop"),
+        ("findingChecks", "finding check"),
+        ("observations", "observation"),
+    ):
         if field in chapter:
             chapter[field] = well_formed(kind, chapter[field], where, faults)
     for stop in chapter.get("stops", []):
@@ -299,8 +307,12 @@ def usable_block(
     return not problem
 
 
-def well_formed_article(design: dict, faults: list[str]) -> dict:
-    """Keep the sections and blocks of the design's article a view can use."""
+def well_formed_design(design: dict, faults: list[str]) -> dict:
+    """Keep the observations and the article parts a view can use."""
+    if "observations" in design:
+        design["observations"] = well_formed(
+            "observation", design["observations"], "design", faults
+        )
     if "article" not in design:
         return design
     sections = well_formed(
@@ -489,7 +501,7 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "title": manifest.get("title") or f"PR {pr.get('number')} explorer",
         "pr": pr,
         "overview": held(content, "overview", "overview", faults),
-        "design": well_formed_article(
+        "design": well_formed_design(
             held(content, "design", "design", faults), faults
         ),
         "chapters": ordered_chapters(manifest, content, faults),
@@ -515,6 +527,13 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
     }
     faults += mistyped_fields(model)
     faults += malformed_parts(model)
+    registered = findings_register(
+        model["findings"], model["chapters"], model["design"], diff
+    )
+    model["findings"] = registered["findings"]
+    model["findingAliases"] = registered["aliases"]
+    model["targetRenames"] = registered["renames"]
+    faults += registered["warnings"]
     model["keyAbstractions"] = key_abstractions(
         model["design"], model["chapters"]
     )
@@ -543,6 +562,175 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         if path not in summarised
     ]
     return model, warnings
+
+
+FINDING_LINKS = ("sameAs", "extends", "distinctFrom")
+
+
+def placed_at(where: object, diff: dict) -> dict:
+    located_at = LOCATION.match(where) if isinstance(where, str) else None
+    if not located_at:
+        return {"kind": "general"}
+    named = changed_files_named(located_at[1], diff)
+    start = int(located_at[2])
+    return {
+        "kind": "inline",
+        "file": named[0] if len(named) == 1 else located_at[1],
+        "start": start,
+        "end": int(located_at[3] or start),
+    }
+
+
+def links_of(finding: dict, key: str) -> list[str]:
+    value = finding.get(key)
+    if value is None:
+        return []
+    return [value] if isinstance(value, str) else list(value)
+
+
+def observed(
+    chapters: list[dict], design: dict, diff: dict
+) -> tuple[list[dict], dict[str, str], list[str]]:
+    """Return every observation as a finding, with any old notes renamed."""
+    findings, renames, notes = [], {}, []
+    holders = [(c["id"], "reading-pass", c) for c in chapters]
+    holders.append((None, "design-pass", design))
+    for chapter_id, source, holder in holders:
+        findings += [
+            {
+                **item,
+                "source": source,
+                "chapter": chapter_id,
+                **placed_at(item.get("where"), diff),
+            }
+            for item in holder.get("observations", [])
+        ]
+        old = holder.get("ownNotes", []) if chapter_id else []
+        if old:
+            notes.append(
+                Note(
+                    f"chapter {chapter_id}: ownNotes is the old name for "
+                    "observations; write new ones as observations"
+                )
+            )
+        for position, note in enumerate(old, 1):
+            finding_id = f"N-{chapter_id}-{position}"
+            renames[f"own:{chapter_id}-{position}"] = f"finding:{finding_id}"
+            findings.append(
+                {
+                    "id": finding_id,
+                    "severity": note.get("level"),
+                    "summary": note.get("text", ""),
+                    "where": note.get("where"),
+                    "source": source,
+                    "chapter": chapter_id,
+                    **placed_at(note.get("where"), diff),
+                }
+            )
+    return findings, renames, notes
+
+
+def merged_repeats(
+    observations: list[dict],
+) -> tuple[list[dict], dict[str, str]]:
+    """Merge each sameAs group into its first observation in tour order."""
+    position = {o["id"]: n for n, o in enumerate(observations)}
+    leader = {name: name for name in position}
+
+    def group_of(name: str) -> str:
+        while leader[name] != name:
+            name = leader[name]
+        return name
+
+    for item in observations:
+        for other in links_of(item, "sameAs"):
+            if other in position:
+                first, second = sorted(
+                    (group_of(item["id"]), group_of(other)), key=position.get
+                )
+                leader[second] = first
+    aliases = {
+        name: group_of(name) for name in position if group_of(name) != name
+    }
+    kept = [dict(o) for o in observations if o["id"] not in aliases]
+    for item in kept:
+        raised = [
+            o["chapter"] or "design"
+            for o in observations
+            if aliases.get(o["id"]) == item["id"]
+        ]
+        if raised:
+            item["alsoRaisedIn"] = list(dict.fromkeys(raised))
+    return kept, aliases
+
+
+def link_problems(
+    observations: list[dict], reviewed: set[str], known: set[str]
+) -> list[str]:
+    problems = []
+    for item in observations:
+        name = f"finding {item['id']}"
+        for key in FINDING_LINKS:
+            for ref in links_of(item, key):
+                if key == "sameAs" and ref in reviewed:
+                    problems.append(
+                        f"{name}: sameAs names {ref}, a prior finding; "
+                        "record a repeat in that finding's findingChecks"
+                    )
+                elif ref not in known:
+                    problems.append(
+                        f"{name}: {key} names unknown finding {ref}"
+                    )
+    return problems
+
+
+def are_linked(one: dict, other: dict, aliases: dict[str, str]) -> bool:
+    def named_by(item: dict) -> set[str]:
+        links = [ref for key in FINDING_LINKS for ref in links_of(item, key)]
+        return {aliases.get(ref, ref) for ref in links}
+
+    return other["id"] in named_by(one) or one["id"] in named_by(other)
+
+
+def overlap_warnings(findings: list[dict], aliases: dict[str, str]) -> list:
+    placed = [f for f in findings if f.get("file") and f.get("start")]
+    warnings = []
+    for n, one in enumerate(placed):
+        for other in placed[n + 1 :]:
+            if {one["source"], other["source"]} == {"review"}:
+                continue
+            first = max(one["start"], other["start"])
+            last = min(
+                one.get("end", one["start"]), other.get("end", other["start"])
+            )
+            if one["file"] != other["file"] or first > last:
+                continue
+            if not are_linked(one, other, aliases):
+                warnings.append(
+                    f"{one['id']} and {other['id']} cite overlapping lines of "
+                    f"{one['file']} ({first}-{last}); link them with sameAs, "
+                    "extends or distinctFrom"
+                )
+    return warnings
+
+
+def findings_register(
+    findings: list[dict], chapters: list[dict], design: dict, diff: dict
+) -> dict:
+    """Return one findings set from the review and every reading pass."""
+    reviewed = [{**finding, "source": "review"} for finding in findings]
+    observations, renames, notes = observed(chapters, design, diff)
+    reviewed_ids = {finding["id"] for finding in reviewed}
+    known = reviewed_ids | {o["id"] for o in observations}
+    kept, aliases = merged_repeats(observations)
+    register = reviewed + kept
+    warnings = notes + link_problems(observations, reviewed_ids, known)
+    return {
+        "findings": register,
+        "aliases": aliases,
+        "renames": renames,
+        "warnings": warnings + overlap_warnings(register, aliases),
+    }
 
 
 def without_blanks(item: dict) -> dict:
@@ -1528,6 +1716,7 @@ TEXT_FIELDS = (
     "where",
     "changelog",
     "kind",
+    "extends",
 )
 WHOLE_NUMBER_FIELDS = ("line", "start", "end", "anchorLine")
 TEXT_LIST_FIELDS = (
@@ -1537,6 +1726,8 @@ TEXT_LIST_FIELDS = (
     "over",
     "carries",
     "carriedBy",
+    "sameAs",
+    "distinctFrom",
 )
 LIST_FIELDS = ("rows", "cols", "cells", "tests", "items")
 
@@ -1613,6 +1804,14 @@ VOCABULARY = {
     ("findingChecks", "triage"): ("block", "fix-now", "follow-up", "drop"),
     ("findingChecks", "level"): ("design", "implementation"),
     ("ownNotes", "level"): LEVELS_OF_CONCERN,
+    ("observations", "severity"): (
+        "critical",
+        "major",
+        "minor",
+        "suggestion",
+        "question",
+    ),
+    ("observations", "level"): ("design", "implementation"),
     ("concern", "level"): LEVELS_OF_CONCERN,
     ("principles", "verdict"): ("holds", "strained", "broken"),
     ("items", "state"): ("added", "removed", "changed", "kept"),
@@ -1667,6 +1866,7 @@ def vocabulary_warnings(model: dict) -> list[str]:
             outside("severity", finding.get("severity"), SEVERITIES),
         )
         for finding in model["findings"]
+        if finding.get("source", "review") == "review"
     ]
     return [at(where, problem) for where, problem in problems if problem]
 
@@ -1930,6 +2130,7 @@ def check(model: dict, diff: dict) -> list[str]:
     for chapter in model["chapters"]:
         warnings += stop_warnings(chapter, diff)
     known = {finding["id"] for finding in model["findings"]}
+    known |= set(model.get("findingAliases", {}))
     warnings += [
         f"{where}: unknown finding {ref}"
         for where, ref in finding_references(model)
@@ -2001,6 +2202,7 @@ def with_page_models(page: str, views: list[str]) -> str:
         REVIEW_SECTIONS_MODEL,
         CATALOGUE_MODEL,
         REVIEW_NOTES_MODEL,
+        TARGET_RENAMES_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)

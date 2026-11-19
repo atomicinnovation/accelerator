@@ -346,3 +346,171 @@ def test_a_test_a_long_file_may_hold_out_of_sight_is_noted_not_refused(
     assert isinstance(noted, build.Note)
     assert "too long to carry whole; unverified" in noted
     assert not [w for w in warnings if "seen_here" in w]
+
+
+REVIEW = [
+    {
+        "id": "R1-06",
+        "severity": "major",
+        "summary": "Drops an unreadable claim.",
+        "file": "src/core.rs",
+        "start": 1,
+        "end": 3,
+    }
+]
+
+
+def observation(observation_id, **fields):
+    return {
+        "id": observation_id,
+        "severity": "minor",
+        "level": "implementation",
+        "title": "A claim can go stale",
+        "summary": "It ages out early.",
+        **fields,
+    }
+
+
+def register(script, chapters=(), design=None, findings=REVIEW):
+    return script("build").findings_register(
+        findings, list(chapters), design or {}, DIFF
+    )
+
+
+def named(findings, finding_id):
+    return next(f for f in findings if f["id"] == finding_id)
+
+
+def test_a_prior_finding_comes_from_the_review(script):
+    (prior,) = register(script)["findings"]
+
+    assert prior["source"] == "review"
+
+
+def test_an_observation_becomes_a_finding_where_it_points(script):
+    seen = observation("P-claims-01", where="other/core.rs:1")
+    claims = chapter(observations=[seen])
+
+    found = named(register(script, [claims])["findings"], "P-claims-01")
+
+    assert found["source"] == "reading-pass"
+    assert found["chapter"] == "claims"
+    assert (found["file"], found["start"], found["end"]) == (
+        "src/other/core.rs",
+        1,
+        1,
+    )
+    assert found["kind"] == "inline"
+
+
+def test_an_observation_without_a_place_is_general(script):
+    claims = chapter(observations=[observation("P-claims-01")])
+
+    found = named(register(script, [claims])["findings"], "P-claims-01")
+
+    assert found["kind"] == "general"
+
+
+def test_the_design_pass_raises_observations_of_its_own(script):
+    design = {"observations": [observation("D-01")]}
+
+    found = named(register(script, design=design)["findings"], "D-01")
+
+    assert (found["source"], found["chapter"]) == ("design-pass", None)
+
+
+def test_the_same_observation_from_two_passes_is_one_finding(script):
+    first = chapter(observations=[observation("P-claims-01")])
+    second = dict(
+        chapter(
+            observations=[observation("P-store-02", sameAs=["P-claims-01"])]
+        ),
+        id="store",
+    )
+
+    registered = register(script, [first, second])
+
+    ids = [f["id"] for f in registered["findings"]]
+    assert ids == ["R1-06", "P-claims-01"]
+    assert named(registered["findings"], "P-claims-01")["alsoRaisedIn"] == [
+        "store"
+    ]
+    assert registered["aliases"] == {"P-store-02": "P-claims-01"}
+
+
+def test_a_repeat_of_a_prior_finding_belongs_in_its_check(script):
+    repeat = observation("P-claims-01", sameAs=["R1-06"])
+
+    warnings = register(script, [chapter(observations=[repeat])])["warnings"]
+
+    assert about(warnings, "P-claims-01", "sameAs names R1-06", "findingChecks")
+
+
+def test_a_link_to_a_finding_that_does_not_exist_is_reported(script):
+    links = observation("P-claims-01", extends="R9-99", distinctFrom=["R8"])
+
+    warnings = register(script, [chapter(observations=[links])])["warnings"]
+
+    assert about(warnings, "P-claims-01", "extends names unknown finding R9-99")
+    assert about(warnings, "distinctFrom names unknown finding R8")
+
+
+def test_unlinked_findings_on_the_same_lines_are_reported(script):
+    near = observation("P-claims-01", where="src/core.rs:2-5")
+
+    warnings = register(script, [chapter(observations=[near])])["warnings"]
+
+    assert (
+        "R1-06 and P-claims-01 cite overlapping lines of src/core.rs (2-3); "
+        "link them with sameAs, extends or distinctFrom" in warnings
+    )
+
+
+def test_findings_on_the_same_lines_may_say_how_they_relate(script):
+    for link in ({"extends": "R1-06"}, {"distinctFrom": ["R1-06"]}):
+        near = observation("P-claims-01", where="src/core.rs:2", **link)
+
+        warnings = register(script, [chapter(observations=[near])])["warnings"]
+
+        assert about(warnings, "overlapping") == [], link
+
+
+def test_two_prior_findings_on_the_same_lines_are_left_alone(script):
+    twice = [*REVIEW, dict(REVIEW[0], id="R1-07")]
+
+    assert register(script, findings=twice)["warnings"] == []
+
+
+def test_old_notes_are_still_findings_under_their_old_names(script):
+    old = [{"level": "major", "text": "Stale.", "where": "src/core.rs:2"}]
+
+    registered = register(script, [chapter(ownNotes=old)])
+
+    found = named(registered["findings"], "N-claims-1")
+    assert (found["severity"], found["summary"]) == ("major", "Stale.")
+    assert registered["renames"] == {"own:claims-1": "finding:N-claims-1"}
+    assert about(registered["warnings"], "ownNotes is the old name")
+    assert all(
+        type(w).__name__ == "Note"
+        for w in about(registered["warnings"], "ownNotes")
+    )
+
+
+def test_an_observation_may_be_cited_wherever_a_finding_may(tmp_path, script):
+    seen = observation("P-claims-01")
+    risks = [{"level": "low", "text": "t", "refs": ["P-claims-01"]}]
+
+    warnings = warnings_for(
+        tmp_path, script, [chapter(observations=[seen], risks=risks)]
+    )
+
+    assert about(warnings, "unknown finding") == []
+
+
+def test_an_observation_s_severity_and_level_are_checked(tmp_path, script):
+    odd = observation("P-claims-01", severity="huge", level="vibe")
+
+    warnings = warnings_for(tmp_path, script, [chapter(observations=[odd])])
+
+    assert about(warnings, "observations[P-claims-01]", 'severity "huge"')
+    assert about(warnings, "observations[P-claims-01]", 'level "vibe"')
