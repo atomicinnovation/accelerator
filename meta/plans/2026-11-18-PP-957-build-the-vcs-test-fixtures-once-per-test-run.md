@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T19:10:00+00:00"
+last_updated: "2026-11-19T19:20:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1993,14 +1993,16 @@ metadata that the status and log renderers never read.
 - It also matches every other spelling of the needle that the filesystem
   gives it: the needle as given, and its canonical path. The test creates a
   directory and a symlink to it, and passes the symlinked spelling as the
-  needle. A file naming the canonical spelling is found, and so is the
-  reverse. This covers macOS's `/var` → `/private/var` and `/tmp` →
+  needle. A file naming the canonical spelling is found, and so is one
+  naming the symlinked spelling. This covers macOS's `/var` → `/private/var` and `/tmp` →
   `/private/tmp`, and runs on both CI legs.
 - It returns nothing for a tree that doesn't name the needle.
 - It reports a symlink whose target contains the needle.
+- It returns every match in path order.
 
 **File**: `cli/vcs-test-support/src/path_scan.rs` (new); add `walkdir =
-"2.5.0"` to `vcs-test-support`'s dependencies.
+"2.5.0"` to the workspace dependencies, and take it in `vcs-test-support`
+as `{ workspace = true }`, as every other dependency is.
 
 #### 2. A path-free private build (tests first)
 
@@ -2082,6 +2084,8 @@ builder.
 
 - [ ] On `ubuntu-latest` (CI's `test-unit` leg), the status-log goldens and
       the new scan test pass.
+      *Pending (2026-11-19):* Phase 4 is open as draft PR #249, stacked on
+      #247; its CI run is in progress.
 
 ---
 
@@ -2208,8 +2212,9 @@ is `ACCELERATOR_SHARED_STATUS_LOG`, and `variables.json` gains its entry.
 **File**: `cli/vcs-test-support/src/status_log.rs`
 - Remove `STATES_ROOT_VARIABLE`, `states_root` and `build_or_adopt`. Make
   `adopt` public; it fails on a missing manifest, a malformed line or an
-  empty manifest, naming the base. `tests/status_log_sharing.rs` (new)
-  covers each case with a hand-written manifest and no git, as
+  empty manifest, naming the base. `tests/status_log_sharing.rs`, which
+  Phase 4 started with `StatusLogManifest`'s own cases, gains a test for
+  each case with a hand-written manifest and no git, as
   `matrix_sharing.rs` does for the matrix.
 - Add these:
 
