@@ -23,7 +23,9 @@
 // kit drew is put through the kit's own checks: text inside its box, no box
 // across another or across an arrow, tracing, and a linked box opening its link.
 // Each catalogue in Reference draws one card per item, and a verdict given to a
-// decision there shows wherever else that decision's control is drawn. Your
+// decision there shows at the stop that first carries it. The design reads as
+// its article: every section drawn, every excerpt's code resolved, the sign-off
+// at the end and no catalogue of cards. Your
 // notes saves what is typed in its freeform box and in a card's note, puts the
 // freeform notes first in the export, and keeps the focus while it saves.
 // A view with figures is captured at full height, in tiles 5,000 px tall when it
@@ -233,6 +235,20 @@ const EVIDENCE_PROBE = `(async () => {
   return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight, decisionsMetOnce, misplaced, stripMissing, gridKept };
 })()`;
 
+const DESIGN_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const article = (window.ExplorePR.api.content.design || {}).article || [];
+  if (!article.length) return { skipped: 'no design article' };
+  location.hash = 'design'; await settle();
+  const excerpts = article.flatMap(section => section.blocks || []).filter(block => block.kind === 'code').length;
+  return {
+    sections: document.querySelectorAll('#main .article-section').length === article.length,
+    excerptsResolved: document.querySelectorAll('#main .excerpt .code table').length === excerpts && !document.querySelector('#main [data-pending-slice]'),
+    signOff: !!document.querySelector('#main .ctl[data-ctl="design-overall"]'),
+    noCatalogue: !document.querySelector('#main .abs-grid'),
+  };
+})()`;
+
 const NOTES_PROBE = `(async () => {
   const settle = ms => new Promise(resolve => setTimeout(resolve, ms));
   const api = window.ExplorePR.api, store = api.store;
@@ -282,13 +298,16 @@ const CATALOGUE_PROBE = `(async () => {
     const drawn = document.querySelectorAll('#main ' + cards.split(', ').join(', #main ')).length;
     counted[route] = drawn === count || { drawn, count };
   }
-  const decision = catalogue.decisions.find(each => each.item.id);
-  if (!decision) return { counted, skipped: 'no decision to give a verdict' };
+  const evidence = window.StopEvidence.index(api.content);
+  const decision = catalogue.decisions.find(each => each.item.id && evidence.shownAt(each.item.id).length);
+  if (!decision) return { counted, skipped: 'no decision a stop carries' };
   const target = 'design:' + decision.item.id;
+  const firstStop = evidence.shownAt(decision.item.id)[0];
+  const chapter = api.content.chapters.find(each => (each.stops || []).some(stop => stop.id === firstStop));
   const control = () => document.querySelector('.ctl[data-ctl="' + CSS.escape(target) + '"]');
   location.hash = 'decisions'; await settle();
   control().querySelector('button[data-v="question"]').click(); await settle();
-  location.hash = 'design'; await settle();
+  location.hash = 'tour-' + chapter.id; await settle();
   const elsewhere = control();
   const verdictTravels = !!elsewhere && elsewhere.querySelector('button[data-v="question"]').getAttribute('aria-pressed') === 'true';
   api.store.put(target, 'design', { status: '' }, {});
@@ -423,6 +442,7 @@ async function main() {
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
     report.notes = await cdp.evaluate(NOTES_PROBE);
+    report.design = await cdp.evaluate(DESIGN_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
     report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
@@ -457,10 +477,12 @@ async function main() {
   const catalogueHolds = Object.values(catalogue.counted || {}).every(held => held === true) && (!!catalogue.skipped || !!catalogue.verdictTravels);
   const notes = report.notes || {};
   const notesHold = !!(notes.generalSaved && notes.generalExported && notes.generalKeepsFocus && notes.cardSaved !== false && notes.cardKeepsFocus !== false);
+  const design = report.design || {};
+  const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && catalogueHolds && notesHold && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = diagramsHold && catalogueHolds && notesHold && designHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

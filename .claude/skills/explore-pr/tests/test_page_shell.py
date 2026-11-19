@@ -371,3 +371,42 @@ def test_a_change_of_state_refreshes_your_notes_in_place():
 
     assert "render()" not in state
     assert "refreshNotes()" in state
+
+
+def test_the_design_reads_as_an_article_then_asks_for_a_sign_off():
+    design = renderer("vDesign")
+
+    for gone in (
+        "abs-grid",
+        "decisionCard",
+        "principlesTable",
+        "extensionTable",
+    ):
+        assert gone not in design, gone
+    assert design.index("map(articleSection)") < design.index("design-overall")
+
+
+def test_a_design_without_an_article_sends_the_reader_to_the_catalogues():
+    design = renderer("vDesign")
+
+    assert 'href="#decisions"' in design
+    assert 'href="#abstractions"' in design
+
+
+def test_an_excerpt_in_the_article_claims_no_lines_read():
+    block = renderer("articleBlock")
+
+    assert "codeSlice(b.file, b.start, b.end, b.side || 'new'" in block
+    assert "pad: 0, focus: b.focus" in block
+    assert "after.design = " in SHELL.read_text()
+
+
+def test_an_aside_names_each_item_it_refers_to():
+    assert "b.refs" in renderer("articleBlock")
+
+
+def test_the_overview_sends_the_reader_to_the_design_article():
+    overview = renderer("vOverview")
+
+    assert "Read how the change is designed" in overview
+    assert "decisionEntries()" not in overview

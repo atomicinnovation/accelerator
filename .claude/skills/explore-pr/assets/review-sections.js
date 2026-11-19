@@ -13,6 +13,7 @@
   const hasAbstractions = content => listed(content, 'keyAbstractions')
     || (design(content).abstractions || []).length > 0 || anyChapterHas(content, 'abstractions');
   const hasDesign = content => !!design(content).summary || (design(content).figures || []).length > 0
+    || (design(content).article || []).length > 0
     || hasAbstractions(content) || hasDecisions(content);
   const namesTests = content => listed(content, 'acs') || anyChapterHas(content, 'tests')
     || chaptersOf(content).some(chapter => (chapter.invariants || []).some(invariant => (invariant.pinnedBy || []).length))

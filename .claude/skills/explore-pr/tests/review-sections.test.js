@@ -89,3 +89,7 @@ test('a hash that was retired opens the route that replaced it', () => {
   assert.equal(ReviewSections.routeFor('criteria'), 'tests');
   assert.equal(ReviewSections.routeFor('findings'), 'findings');
 });
+
+test('an article alone is enough for the design view', () => {
+  assert.deepEqual(routesIn({ design: { article: [{ id: 'shape', heading: 'Shape', blocks: [] }] } }, 'Start'), ['overview', 'design', 'map']);
+});

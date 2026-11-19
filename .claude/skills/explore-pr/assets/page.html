@@ -275,6 +275,10 @@ kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4p
 .design-strip { display: flex; flex-wrap: wrap; gap: 6px; }
 .design-strip .carried { max-width: 100%; }
 .introduced { gap: 8px; }
+.excerpt { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.article-aside { border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 8px 8px 0; padding: 8px 12px; display: grid; gap: 6px; }
+.aside-ref { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.aside-ref .carried { flex: 1; min-width: 0; }
 .why, .stop-risk { display: grid; gap: 4px; }
 .stop-risk { border-left: 3px solid var(--bad); padding: 2px 0 2px 10px; font-size: 14px; }
 .stop-risk .eyebrow { color: var(--bad); }
@@ -1240,19 +1244,34 @@ function principlesTable(rows) {
 function extensionTable(rows) {
   return `<div class="table-wrap"><table class="data"><thead><tr><th>To</th><th>Where</th><th>How</th></tr></thead><tbody>${rows.map(x => `<tr><td style="min-width:200px"><b>${md(x.change, true)}</b></td><td class="small">${whereBtn(x.where)}</td><td class="small md">${md(x.how || '')}</td></tr>`).join('')}</tbody></table></div>`;
 }
+function asideLine(id) {
+  const carried = EVIDENCE.declared(id);
+  if (!carried) return '';
+  const decision = carried.kind === 'decision' && DECISION[id] ? DECISION[id].item : null;
+  const chip = decision && decision.assessment ? `<span class="chip ${ASSESS_CHIP[decision.assessment] || 'c-none'}">${esc(decision.assessment)}</span>` : '';
+  return `<div class="aside-ref">${carriedLink(carried)}${chip}</div>`;
+}
+function articleBlock(b) {
+  if (b.kind === 'prose') return `<div class="md prose">${md(b.md)}</div>`;
+  if (b.kind === 'figure') return `<div class="figs">${figureHtml(b.figure)}</div>`;
+  if (b.kind === 'code') return `<figure class="excerpt">${codeSlice(b.file, b.start, b.end, b.side || 'new', { pad: 0, focus: b.focus })}${b.caption ? `<figcaption class="fig-caption md small">${md(b.caption)}</figcaption>` : ''}</figure>`;
+  if (b.kind === 'aside') return `<aside class="article-aside"><div class="eyebrow">In this section</div>${(b.refs || []).map(asideLine).join('')}</aside>`;
+  return '';
+}
+function articleSection(section) {
+  return `<section class="section article-section" id="design-${esc(section.id)}"><h2>${md(section.heading, true)}</h2>${(section.blocks || []).map(articleBlock).join('')}</section>`;
+}
 function vDesign() {
   const d = C.design || {};
-  const abstractions = keyAbstractions(), decisions = decisionEntries();
-  const count = n => `<span class="muted small" style="font-family:var(--f-body);font-weight:400">${n}</span>`;
+  const article = d.article || [];
+  const catalogues = [[CATALOGUE.decisions.length, '<a href="#decisions">The design decisions →</a>'], [CATALOGUE.abstractions.length, '<a href="#abstractions">The key abstractions →</a>']]
+    .filter(([count]) => count).map(([, link]) => link).join('');
   return `<div class="view-head"><div class="eyebrow">Design</div><h1>${esc(d.title || 'How the change is designed')}</h1>${d.summary ? `<div class="lede md">${md(d.summary)}</div>` : ''}</div>
-    ${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}
-    ${abstractions.length ? `<section class="section"><h2>Key abstractions ${count(abstractions.length)}</h2>${d.relations ? figureHtml(d.relations) : ''}<div class="abs-grid">${abstractions.map(abstractionCard).join('')}</div></section>` : ''}
-    ${decisions.length ? `<section class="section"><h2>Design decisions ${count(decisions.length)}</h2><p class="small muted">What was chosen, over what, why, and at what cost. Whether you agree with these matters more than any single line.</p><div class="stack">${decisions.map(decisionCard).join('')}</div></section>` : ''}
-    ${(d.principles || []).length ? `<section class="section"><h2>Fit with the existing architecture</h2>${principlesTable(d.principles)}</section>` : ''}
-    ${(d.extension || []).length ? `<section class="section"><h2>Where the next change goes</h2>${extensionTable(d.extension)}</section>` : ''}
+    ${article.length ? article.map(articleSection).join('') : `${(d.figures || []).length ? `<div class="figs">${d.figures.map(f => figureHtml(f)).join('')}</div>` : ''}${catalogues ? `<section class="section"><div class="row">${catalogues}</div></section>` : ''}`}
     ${C.moduleMap ? `<section class="section"><div class="figs">${figureHtml(C.moduleMap)}</div></section>` : ''}
     <section class="panel stack"><div class="eyebrow">Your view of the design</div><div class="md" style="font-size:16px">${md(d.signOff || 'Is this the right shape for the problem, and would you be content to own and extend it?')}</div>${ctl('design-overall', 'chapter', { label: 'The design as a whole' }, { noteOpen: true })}</section>`;
 }
+after.design = () => { if (D) fillPendingSlices(); };
 
 /* ---------- Views ---------- */
 function vOverview() {
@@ -1285,7 +1304,7 @@ function vOverview() {
 
   ${(o.figures || []).length ? `<section class="section"><h2>The change at a glance</h2><div class="figs">${o.figures.map(f => figureHtml(f)).join('')}</div></section>` : ''}
 
-  ${hasDesign() ? `<section class="section"><h2>The design</h2><div class="panel stack">${(C.design || {}).summary ? `<div class="md">${md(C.design.summary)}</div>` : ''}${decisionEntries().length ? `<div class="eyebrow">Decisions to agree with</div><ul class="prose small" style="margin:0">${decisionEntries().slice(0, 8).map(({ item }) => `<li>${md(item.decision, true)}${item.assessment ? ` <span class="chip ${ASSESS_CHIP[item.assessment] || 'c-none'}">${esc(item.assessment)}</span>` : ''}</li>`).join('')}</ul>` : ''}<div class="small"><a href="#design">Open the design: abstractions, decisions, fit with the architecture →</a></div></div></section>` : ''}
+  ${hasDesign() ? `<section class="section"><h2>The design</h2><div class="panel stack">${(C.design || {}).summary ? `<div class="md">${md(C.design.summary)}</div>` : ''}<div class="small"><a href="#design">Read how the change is designed →</a></div></div></section>` : ''}
 
   <div class="grid-2">
     <section class="panel stack">
