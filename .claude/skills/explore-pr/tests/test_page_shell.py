@@ -317,3 +317,25 @@ def chapter_layout_of_stops():
     shell = SHELL.read_text()
     start = shell.index("const stops = (ch.stops")
     return shell[start : shell.index("const ba = ", start)]
+
+
+def test_your_notes_open_with_a_freeform_box_then_the_cards_then_the_export():
+    notes = renderer("vNotes")
+    layout = notes[notes.index("return `") :]
+
+    assert "map(noteCard)" in notes
+    parts = ('id="general-notes"', "${cards}", 'id="notes-md"')
+    order = [layout.index(part) for part in parts]
+    assert order == sorted(order)
+
+
+def test_your_notes_take_their_items_from_the_review_notes_model():
+    assert "ReviewNotes.entries(" in renderer("noteEntries")
+    assert "ReviewNotes.markdown(" in renderer("notesMarkdown")
+
+
+def test_a_change_of_state_refreshes_your_notes_in_place():
+    state = renderer("onStateChange")
+
+    assert "render()" not in state
+    assert "refreshNotes()" in state

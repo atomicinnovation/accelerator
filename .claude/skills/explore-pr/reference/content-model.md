@@ -629,7 +629,9 @@ overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
 `stop:<id>`, `inv:<id>`, `finding:<id>`, `own:<chapter>-<n>`,
 `ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
 lines marked one at a time (its `lines` field lists them as `new:12-15` or
-`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each
+`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). The
+freeform box at the top of **Your notes** writes `notes:general`, of kind
+`notes`, with only a `note`; the Markdown export opens with it. Each
 record carries `target`, `kind`, `status`, `note`, `label`, `where`,
 `updatedAt`, the `head` its verdict was given at and, for a stop, ledger row
 or file, the lines it `claimed` there. Hosted on claude.ai, records live in

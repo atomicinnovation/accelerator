@@ -327,9 +327,9 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
 When the user has reviewed and asks you to act on their notes, read them from
 the artifact's `reviews` collection with the ArtifactData tool, or ask for the
 Markdown from **Your notes**. Each record names its target, verdict, note,
-label and file location (content model, "Review state"). Start with the
-design: a design decision marked *disagree* or *question* is usually the
-first conversation to have with the author, before any line-level comment.
+label and file location (content model, "Review state"). Read the reviewer's
+freeform notes, `notes:general`, first; then the design: a decision marked
+*disagree* or *question* comes before any line-level comment to the author.
 Typical follow-ups: draft PR comments for design decisions questioned and for
 findings triaged *fix in PR* or *block*, propose an ADR or an amendment where
 a questioned decision is not recorded, start a respond-to-pr pass, or write

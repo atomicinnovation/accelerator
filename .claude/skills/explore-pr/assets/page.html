@@ -375,6 +375,7 @@ details[open] > summary { margin-bottom: 8px; }
 .empty { padding: 28px; text-align: center; color: var(--ink-3); border: 1px dashed var(--rule); border-radius: 10px; }
 .loading { padding: 40px 0; color: var(--ink-3); }
 .copy-area { width: 100%; min-height: 320px; font-family: var(--f-mono); font-size: 12.5px; padding: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--ink); }
+.general-notes { font-family: var(--f-body); font-size: 15px; min-height: 160px; resize: vertical; }
 
 /* Figures */
 .figs { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); align-items: start; }
@@ -646,7 +647,7 @@ function onStateChange() {
   refreshControls();
   renderMeters();
   renderRail();
-  if (currentRoute === 'notes') render();
+  if (currentRoute === 'notes') refreshNotes();
 }
 
 function renderBanner() {
@@ -1898,28 +1899,12 @@ function vTerms() {
 }
 
 /* Notes */
-function notesMarkdown() {
-  const docs = [...Store.docs.values()].filter(d => d.status || d.note);
-  const label = (kind, s) => (KINDS[kind]?.opts.find(o => o[0] === s) || [s, s])[1];
-  const dec = Store.get('decision');
-  let out = `# PR ${C.pr.number} review notes\n\n${C.pr.head ? `Head: ${shortSha(C.pr.head)}\n\n` : ''}Verdict: ${dec.status ? label('decision', dec.status) : 'undecided'}${recordedEarlier(dec) ? ` (recorded at ${shortSha(dec.head)}, before the pull request moved)` : ''}\n${dec.note ? '\n' + dec.note + '\n' : ''}`;
-  const section = (title, kinds, order) => {
-    const ds = docs.filter(d => kinds.includes(d.kind) && d.target !== 'decision');
-    if (!ds.length) return;
-    out += `\n## ${title}\n\n`;
-    const sorted = ds.sort((a, b) => (order ? order.indexOf(a.status) - order.indexOf(b.status) : 0) || String(a.target).localeCompare(String(b.target)));
-    sorted.forEach(d => { out += `- [${d.status ? label(d.kind, d.status) : 'note'}] ${d.label || d.target}${d.where ? ` (${d.where})` : ''}${recordedEarlier(d) ? ` — recorded at ${shortSha(d.head)}, before the pull request moved` : ''}${d.note ? `\n  ${d.note.replace(/\n/g, '\n  ')}` : ''}\n`; });
-  };
-  section('Design decisions', ['design'], ['disagree', 'question', 'agree', '']);
-  section('Findings', ['finding'], ['block', 'fix-now', 'follow-up', 'reject', '']);
-  section('Chapters', ['chapter'], ['blocking', 'concerns', 'understood', '']);
-  section('Invariants', ['invariant'], ['issue', 'question', 'ok', '']);
-  section('Removal sites', ['ledger'], ['issue', 'question', 'ok', '']);
-  section('Tour stops', ['stop'], ['issue', 'question', 'ok', '']);
-  section('Files', ['file'], ['issue', 'ok', 'skip', '']);
-  section('Commits', ['commit'], ['issue', 'ok', 'skip', '']);
-  out += linesReadMarkdown();
-  return out;
+const GENERAL_NOTES = 'notes:general';
+function noteEntries() {
+  return ReviewNotes.entries([...Store.docs.values()], C.targetRenames);
+}
+function notesMarkdown(entries = noteEntries()) {
+  return ReviewNotes.markdown(entries, { number: C.pr.number, head: C.pr.head, kinds: KINDS, verdict: Store.get('decision'), linesRead: linesReadMarkdown() });
 }
 function linesReadMarkdown() {
   const recorded = recordedClaims();
@@ -1931,13 +1916,57 @@ function linesReadMarkdown() {
   if (outstanding.length) out += '\nStill to read:\n\n' + outstanding.map(([path, cov]) => `- ${path}: ${cov.changed ? `${fmt(cov.read)} of ${fmt(cov.changed)} read; unread ${cov.unread.map(rangeText).join(', ')}` : 'not reviewed'}\n`).join('');
   return out;
 }
-function vNotes() {
-  const n = [...Store.docs.values()].filter(d => d.kind !== 'lines' && (d.status || d.note)).length;
-  return `<div class="view-head"><div class="eyebrow">Your notes</div><h1>Everything you've recorded</h1>
-    <p class="lede">${plural(n, 'item')} with a verdict or a note. ${Store.mode === 'db' ? 'They are saved with this artifact, so Claude Code can read them back: ask it to turn them into PR comments, or to start a respond-to-pr pass from them.' : 'They are saved in this browser only.'}</p></div>
-    <div class="row"><button class="btn primary" id="copy-notes" type="button">Copy as Markdown</button><span class="small muted" id="copy-status" aria-live="polite"></span></div>
-    <textarea class="copy-area" id="notes-md" readonly aria-label="Notes as Markdown">${esc(notesMarkdown())}</textarea>`;
+const BOOKKEEPING = ['target', 'kind', 'status', 'note', 'head', 'claimed', 'updatedAt', 'lines'];
+const metaOf = record => Object.fromEntries(Object.entries(record).filter(([key]) => !BOOKKEEPING.includes(key)));
+const cardedEntries = entries => entries.filter(entry => KINDS[entry.kind]).sort((a, b) => a.target.localeCompare(b.target));
+const cardedTargets = entries => cardedEntries(entries).map(entry => entry.target).join('\n');
+const itemCount = entries => plural(entries.filter(entry => entry.section !== ReviewNotes.GENERAL).length, 'item');
+let renderedNoteCards = '';
+function noteCard(entry) {
+  return `<article class="finding"><div class="finding-head"><b style="flex:1;min-width:0">${esc(entry.label || entry.target)}</b>${entry.where ? whereBtn(entry.where) : ''}</div>${ctl(entry.target, entry.kind, metaOf(Store.get(entry.target)), { noteOpen: true })}</article>`;
 }
+function vNotes() {
+  const entries = noteEntries(), carded = cardedEntries(entries);
+  renderedNoteCards = cardedTargets(entries);
+  const cards = ReviewNotes.SECTIONS.map(section => carded.filter(entry => entry.section === section)).filter(inSection => inSection.length)
+    .map(inSection => `<section class="section"><h2>${esc(inSection[0].section)}</h2><div class="stack">${inSection.map(noteCard).join('')}</div></section>`).join('');
+  return `<div class="view-head"><div class="eyebrow">Your notes</div><h1>Everything you've recorded</h1>
+    <p class="lede"><span id="notes-count">${itemCount(entries)}</span> with a verdict or a note. ${Store.mode === 'db' ? 'They are saved with this artifact, so Claude Code can read them back: ask it to turn them into PR comments, or to start a respond-to-pr pass from them.' : 'They are saved in this browser only.'}</p></div>
+    <section class="section"><label class="eyebrow" for="general-notes">General notes</label>
+      <textarea class="copy-area general-notes" id="general-notes" placeholder="Anything to remember or raise: questions, what to check, what to say in the review" ${Store.canWrite ? '' : 'readonly'}>${esc(Store.get(GENERAL_NOTES).note || '')}</textarea></section>
+    ${cards}
+    <section class="section"><h2>As Markdown</h2>
+      <div class="row"><button class="btn primary" id="copy-notes" type="button">Copy as Markdown</button><span class="small muted" id="copy-status" aria-live="polite"></span></div>
+      <textarea class="copy-area" id="notes-md" readonly aria-label="Notes as Markdown">${esc(notesMarkdown(entries))}</textarea></section>`;
+}
+function refreshNotes() {
+  const entries = noteEntries();
+  const typing = document.activeElement && document.activeElement.matches('#main textarea');
+  if (cardedTargets(entries) !== renderedNoteCards && !typing) {
+    const scrolled = window.scrollY;
+    render();
+    window.scrollTo(0, scrolled);
+    return;
+  }
+  $('#notes-md').value = notesMarkdown(entries);
+  $('#notes-count').textContent = itemCount(entries);
+  const general = $('#general-notes'), saved = Store.get(GENERAL_NOTES).note || '';
+  general.readOnly = !Store.canWrite;
+  if (document.activeElement !== general && general.value !== saved) general.value = saved;
+}
+let generalNotesTimer = null;
+const saveGeneralNotes = note => Store.put(GENERAL_NOTES, 'notes', { note }, { label: 'General notes' });
+document.addEventListener('input', e => {
+  if (e.target.id !== 'general-notes') return;
+  clearTimeout(generalNotesTimer);
+  generalNotesTimer = setTimeout(() => { generalNotesTimer = null; saveGeneralNotes(e.target.value); }, 700);
+});
+document.addEventListener('focusout', e => {
+  if (e.target.id !== 'general-notes') return;
+  clearTimeout(generalNotesTimer);
+  generalNotesTimer = null;
+  if ((Store.get(GENERAL_NOTES).note || '') !== e.target.value) saveGeneralNotes(e.target.value);
+});
 after.notes = () => {
   $('#copy-notes').addEventListener('click', async () => {
     const ta = $('#notes-md');

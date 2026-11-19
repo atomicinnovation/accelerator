@@ -438,9 +438,9 @@ ReviewNotes.markdown(entries, context)
 
 #### Automated Verification
 
-- [ ] The review-notes suite fails before the model exists, and passes after.
-- [ ] Every shared verification command passes.
-- [ ] `tests/test_documents.py` still holds `SKILL.md` to 360 lines or fewer.
+- [x] The review-notes suite fails before the model exists, and passes after.
+- [x] Every shared verification command passes.
+- [x] `tests/test_documents.py` still holds `SKILL.md` to 360 lines or fewer.
 
 #### Manual Verification
 
@@ -448,7 +448,7 @@ ReviewNotes.markdown(entries, context)
       hosted.
 - [ ] `ArtifactData` lists `notes:general` in `reviews`.
 - [ ] Editing a card's note updates the same note in the tour.
-- [ ] Focus is not lost while typing.
+- [x] Focus is not lost while typing.
 
 ---
 

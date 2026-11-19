@@ -21,7 +21,9 @@
 // kit drew is put through the kit's own checks: text inside its box, no box
 // across another or across an arrow, tracing, and a linked box opening its link.
 // Each catalogue in Reference draws one card per item, and a verdict given to a
-// decision there shows wherever else that decision's control is drawn.
+// decision there shows wherever else that decision's control is drawn. Your
+// notes saves what is typed in its freeform box and in a card's note, puts the
+// freeform notes first in the export, and keeps the focus while it saves.
 // A view with figures is captured at full height, in tiles 5,000 px tall when it
 // is taller (`design-1.png`, `design-2.png`, …). A DevTools call that gets no
 // reply within two minutes fails the check instead of hanging it.
@@ -214,6 +216,37 @@ const EVIDENCE_PROBE = `(async () => {
   return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight };
 })()`;
 
+const NOTES_PROBE = `(async () => {
+  const settle = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const api = window.ExplorePR.api, store = api.store;
+  const stop = (api.content.chapters || []).flatMap(chapter => chapter.stops || [])[0];
+  const kept = { general: store.get('notes:general'), stop: stop && store.get('stop:' + stop.id) };
+  const type = (box, text) => { box.focus(); box.value = text; box.dispatchEvent(new Event('input', { bubbles: true })); };
+  location.hash = 'notes'; await settle(300);
+  const general = document.getElementById('general-notes');
+  type(general, 'Smoke: ask about the lock');
+  await settle(900);
+  const exported = document.getElementById('notes-md').value;
+  const generalSaved = store.get('notes:general').note === 'Smoke: ask about the lock';
+  const generalExported = /\\n## General notes\\n\\nSmoke: ask about the lock\\n/.test(exported) && exported.indexOf('## General notes') === exported.indexOf('## ');
+  const generalKeepsFocus = document.activeElement === general;
+  general.blur();
+  let cardSaved = null, cardKeepsFocus = null;
+  if (stop) {
+    store.put('stop:' + stop.id, 'stop', { status: 'question' }, { label: 'Smoke stop' }); await settle(300);
+    const note = document.querySelector('.ctl[data-ctl="' + CSS.escape('stop:' + stop.id) + '"] textarea[data-note]');
+    type(note, 'Smoke: why here?');
+    await settle(900);
+    cardSaved = store.get('stop:' + stop.id).note === 'Smoke: why here?';
+    cardKeepsFocus = document.activeElement === note;
+    note.blur();
+  }
+  const restore = (target, kind, record) => store.put(target, kind, { status: record.status || '', note: record.note || '' }, {});
+  restore('notes:general', 'notes', kept.general);
+  if (stop) restore('stop:' + stop.id, 'stop', kept.stop);
+  return { generalSaved, generalExported, generalKeepsFocus, cardSaved, cardKeepsFocus };
+})()`;
+
 const CATALOGUE_PROBE = `(async () => {
   const settle = () => new Promise(resolve => setTimeout(resolve, 300));
   const api = window.ExplorePR.api;
@@ -372,6 +405,7 @@ async function main() {
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
+    report.notes = await cdp.evaluate(NOTES_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
     report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
@@ -404,10 +438,12 @@ async function main() {
   const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
   const catalogue = report.catalogue || {};
   const catalogueHolds = Object.values(catalogue.counted || {}).every(held => held === true) && (!!catalogue.skipped || !!catalogue.verdictTravels);
+  const notes = report.notes || {};
+  const notesHold = !!(notes.generalSaved && notes.generalExported && notes.generalKeepsFocus && notes.cardSaved !== false && notes.cardKeepsFocus !== false);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && catalogueHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = diagramsHold && catalogueHolds && notesHold && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
