@@ -649,9 +649,9 @@ It prints JSON whose fields are listed below: `items` (each outline item's
 `slots`, and the `source` they came from: the variable's name, or `default`)
 and `search_cap` (its `searches`, and the `source` they came from, in the same
 form).
-The JSON is additive-only: fields may be added, never renamed or removed, and
-consumers ignore fields they do not know. It exits `1` with
-`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+From the first stable release the JSON is additive-only: fields may be added,
+never renamed or removed, and consumers ignore fields they do not know. It
+exits `1` with `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
@@ -662,9 +662,10 @@ Every plan also carries these fields, whether or not `--depth` is given:
 - `depth`, the depth planned for, `1` unless `--depth` says otherwise;
 - each pair's `stage`: `single_pass` (one researcher writes the finding),
   `research_nodes` (its missing `nodes`, each with `lineage`, `level`,
-  `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
-  `rejected` reason when the note on disk was refused) or `compose` (the
-  `notes` the composer reads, as absolute paths in lineage order);
+  `cap`, `id`, absolute `path`, and a `rejected` reason when the note on disk
+  was refused; a node's question and known questions are read with
+  `research topic node`) or `compose` (the `notes` the composer reads, as
+  absolute paths in lineage order);
 - on a run plan, a `search_budget` on every `web` `single_pass` pair and
   every node of a `web` pair: the most `WebSearch` calls its researcher may
   make;

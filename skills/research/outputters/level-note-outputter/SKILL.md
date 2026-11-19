@@ -27,19 +27,23 @@ and to no other path.
 
 ## Injected Values
 
-Everything `finding-outputter` injects, with the note path in place of the
-output path, plus:
+Your values come from the node query, from your researcher definition and
+from your task prompt:
 
-- **level** — your node's level; `1` is the root.
-- **depth** — the resolved depth of the tree.
-- **lineage** — your node's position in the tree, such as `3-2-1`.
-- **id** — the note's `id`, verbatim.
-- **follow-up cap** — the most follow-up questions the note may record.
-- **known questions** — questions already asked in this tree.
-- **search budget** — injected for a web node only. Stamp it as
-  `search_budget`, the most `WebSearch` calls your node was allowed, not a
-  count of calls made. When no search budget is injected, delete the
-  `search_budget` line.
+- **From the node query**: the question, level, lineage, id, follow-up cap,
+  known questions and note path, with the note path in place of
+  `finding-outputter`'s output path.
+  - **level** — your node's level; `1` is the root.
+  - **lineage** — your node's position in the tree, such as `3-2-1`.
+  - **id** — the note's `id`, verbatim.
+  - **follow-up cap** — the most follow-up questions the note may record.
+  - **known questions** — questions already asked in this tree.
+- **Search budget**: {search budget}, as your researcher definition resolves
+  it. Stamp it as `search_budget` on a web note: the most `WebSearch` calls
+  your node was allowed, not a count of calls made. When you have none,
+  delete the `search_budget` line.
+- **Injected**: the **depth**, the resolved depth of the tree, plus
+  `finding-outputter`'s round, timestamp, author and source profile.
 
 ## Template
 
