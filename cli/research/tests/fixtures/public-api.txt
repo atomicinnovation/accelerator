@@ -142,6 +142,7 @@ pub fn research::conduct::ledger::RunLedger::offered_context(&self, at: &researc
 pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunLedger::search_budget(&self, profile: &str, level: u32) -> core::option::Option<core::num::nonzero::NonZeroU32>
 pub const fn research::conduct::ledger::RunLedger::search_budgets(&self) -> core::option::Option<&research::conduct::search_budget::SearchBudgets>
 pub fn research::conduct::ledger::RunLedger::settling_quarantine(self, inputs: &research::topic::plan::RoundInputs) -> core::result::Result<Self, research::conduct::ledger::OwedQuarantine>
 pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
@@ -356,6 +357,8 @@ impl core::fmt::Debug for research::conduct::search_budget::SearchCap
 pub fn research::conduct::search_budget::SearchCap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::conduct::search_budget::SearchCap
 impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchCap
+pub const research::conduct::search_budget::UNSIZED_NODE_BUDGET: core::num::nonzero::NonZeroU32
+pub fn research::conduct::search_budget::node_search_budget(budgets: core::option::Option<&research::conduct::search_budget::SearchBudgets>, profile: &str, level: u32) -> core::option::Option<core::num::nonzero::NonZeroU32>
 pub fn research::conduct::search_budget::searches(profile: &str) -> bool
 pub fn research::conduct::search_budget::unsearched_tree(pairs: &[research::topic::plan::OutstandingPair]) -> research::topic::tree::WorstCaseTree
 pub mod research::conduct::spawn

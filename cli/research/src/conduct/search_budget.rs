@@ -11,6 +11,8 @@ use crate::topic::tree::WorstCaseTree;
 
 const SEARCHING_PROFILE: &str = "web";
 
+pub const UNSIZED_NODE_BUDGET: NonZeroU32 = NonZeroU32::MIN;
+
 const RESERVE_ONE_IN: u32 = 20;
 const WEIGHT_SCALE: u64 = level_weight(1);
 
@@ -146,6 +148,19 @@ pub fn searches(profile: &str) -> bool {
 }
 
 #[must_use]
+pub fn node_search_budget(
+    budgets: Option<&SearchBudgets>,
+    profile: &str,
+    level: u32,
+) -> Option<NonZeroU32> {
+    searches(profile).then(|| {
+        budgets
+            .and_then(|budgets| budgets.at(level))
+            .unwrap_or(UNSIZED_NODE_BUDGET)
+    })
+}
+
+#[must_use]
 pub fn unsearched_tree(pairs: &[OutstandingPair]) -> WorstCaseTree {
     pairs
         .iter()
@@ -249,8 +264,15 @@ fn rising_level(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+    use std::num::NonZeroU32;
+
+    use super::node_search_budget;
     use super::searches;
     use super::unsearched_tree;
+    use super::SearchBudgets;
+    use super::SearchCap;
+    use super::UNSIZED_NODE_BUDGET;
     use crate::topic::layout::stem::Stem;
     use crate::topic::outline::Pair;
     use crate::topic::plan::OutstandingPair;
@@ -296,5 +318,50 @@ mod tests {
             .filter_map(|index| deep_pair(index, "arxiv"))
             .collect();
         assert!(unsearched_tree(&pairs).is_empty());
+    }
+
+    fn stored(levels: &[(u32, u32)]) -> SearchBudgets {
+        let budgets = levels
+            .iter()
+            .filter_map(|&(level, budget)| {
+                NonZeroU32::new(budget).map(|budget| (level, budget))
+            })
+            .collect::<BTreeMap<_, _>>();
+        SearchBudgets::from_parts(budgets, 0, SearchCap::new(NonZeroU32::MIN))
+    }
+
+    #[test]
+    fn a_web_node_takes_its_levels_stored_budget() {
+        let budgets = stored(&[(1, 8), (2, 5), (3, 3)]);
+
+        assert_eq!(
+            node_search_budget(Some(&budgets), "web", 2),
+            NonZeroU32::new(5)
+        );
+    }
+
+    #[test]
+    fn a_level_the_budgets_do_not_cover_is_unsized() {
+        let budgets = stored(&[(1, 8)]);
+
+        assert_eq!(
+            node_search_budget(Some(&budgets), "web", 4),
+            Some(UNSIZED_NODE_BUDGET)
+        );
+    }
+
+    #[test]
+    fn a_run_without_stored_budgets_leaves_every_web_node_unsized() {
+        assert_eq!(
+            node_search_budget(None, "web", 1),
+            Some(UNSIZED_NODE_BUDGET)
+        );
+    }
+
+    #[test]
+    fn a_node_whose_profile_does_not_search_has_no_budget() {
+        let budgets = stored(&[(2, 5)]);
+
+        assert_eq!(node_search_budget(Some(&budgets), "openalex", 2), None);
     }
 }
