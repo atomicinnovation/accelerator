@@ -286,3 +286,69 @@ pub fn assert_exits_1(output: &Output, stderr: &str) {
     assert_eq!(String::from_utf8_lossy(&output.stderr).trim_end(), stderr);
     assert!(output.stdout.is_empty());
 }
+
+pub const WEB_STEM: &str = "03-a-web";
+pub const OPENALEX_STEM: &str = "04-b-openalex";
+
+/// A depth-3 round over one web and one openalex pair, each with a level-1
+/// note recording three follow-ups, so a first plan offers `2-1`, `2-2` and
+/// `2-3` under each pair.
+pub fn node_query_set() -> Result<Project, TestError> {
+    let project = Project::new("node-query")?;
+    project.write(&format!("{TOPICS}/s/manifest.md"), "---\n---\n")?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+         source_profiles: [\"web\", \"openalex\"]\n---\n",
+    )?;
+    project.write(
+        &format!("{TOPICS}/s/outline.md"),
+        "---\ntype: \"topic-research\"\nkind: \"outline\"\n---\n\n\
+         - [ ] A? — profiles: web\n- [ ] B? — profiles: openalex\n",
+    )?;
+    project.write_note(WEB_STEM, "1", "A?", &["A1?", "A2?", "A3?"])?;
+    project.write_profiled_note(
+        "openalex",
+        OPENALEX_STEM,
+        "1",
+        "B?",
+        &["B1?", "B2?", "B3?"],
+    )?;
+    Ok(project)
+}
+
+impl Project {
+    pub fn write_profiled_note(
+        &self,
+        profile: &str,
+        stem: &str,
+        lineage: &str,
+        question: &str,
+        follow_ups: &[&str],
+    ) -> Result<(), TestError> {
+        self.write(
+            &note_path(stem, lineage),
+            &level_note(stem, lineage, question, follow_ups).replace(
+                "source_profile: \"web\"",
+                &format!("source_profile: \"{profile}\""),
+            ),
+        )
+    }
+
+    pub fn node(&self, run: &str, at: &str) -> Result<Output, TestError> {
+        self.run("node", &["s", "--run", run, "--node", at])
+    }
+}
+
+/// Rewrites the run's stored search budgets, one per level from level 1.
+pub fn budgeting(project: &Project, budgets: &[u32]) -> Result<(), TestError> {
+    let mut ledger = stored_ledger(project)?;
+    let levels: serde_json::Map<String, Value> = (1..)
+        .zip(budgets)
+        .map(|(level, budget): (u32, &u32)| (level.to_string(), json!(budget)))
+        .collect();
+    ledger["search_budgets"] =
+        json!({"levels": levels, "demand": 0, "cap": 200});
+    fs::write(project.ledger(), ledger.to_string())?;
+    Ok(())
+}

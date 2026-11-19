@@ -148,6 +148,19 @@ pub enum TopicAction {
         #[arg(long, allow_hyphen_values = true)]
         run: String,
     },
+    /// One offered node's context in a `conduct` run, as JSON: what its
+    /// researcher is told. Answers only for the run's current offered batch,
+    /// from the snapshot taken when the node was offered. Writes nothing.
+    Node {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The run whose offered batch holds the node.
+        #[arg(long, allow_hyphen_values = true)]
+        run: String,
+        /// The node's spawn ref, `<stem>:<lineage>`.
+        #[arg(long, allow_hyphen_values = true)]
+        node: String,
+    },
     /// The absolute path a new report on QUESTION takes in the set:
     /// `reports/<question-slug>.md`, or the first free `-2`, `-3`, … suffix.
     /// Writes nothing.
