@@ -1407,6 +1407,9 @@ def test_the_halt_notice_names_what_it_halted() -> None:
         "{recovery}",
     ):
         assert line in halt, f"the halt notice must carry {line!r}"
+    assert "- {stem}: {question}" not in halt, (
+        "the halt notice names a pair by its {pair question}"
+    )
     for sentence in (
         "once per withheld profile",
         '"spawns that reported it" lists each spawn whose own summary gave '
@@ -2950,7 +2953,8 @@ NODE_ITEMS = [
     "`${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/level-note-outputter/"
     "SKILL.md`, and the finding outputter path it defers to",
     "the resolved `depth`",
-    f'this line, verbatim: "{NODE_QUERY_LINE}"',
+    "this line, with its `<slug>`, `<run>` and `<spawn ref>` replaced by "
+    f'those values: "{NODE_QUERY_LINE}"',
 ]
 NODE_QUERY_DENIED = "node query denied by permissions"
 NODE_QUERY_FAILED = "node query failed"
