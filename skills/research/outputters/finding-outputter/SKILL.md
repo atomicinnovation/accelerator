@@ -2,7 +2,8 @@
 name: finding-outputter
 description: Output contract for a research finding. Owns the finding's
   frontmatter, sections, tier-tagged sources, and write sink. Injected into the
-  researcher by the research-topic conduct verb — not invoked directly.
+  researcher and the composer by the research-topic conduct verb — not invoked
+  directly.
 user-invocable: false
 disable-model-invocation: true
 allowed-tools:
@@ -45,8 +46,9 @@ body skeleton both. Where it comes from depends on who you are:
   written, without `--fail-safe`, and fills the fenced template it prints.
   When the command is denied by permissions, write no file, and say
   "template command denied by permissions" in your summary. When it exits
-  non-zero, write no file, and say "template unavailable" in your summary,
-  quoting the first line of its stderr.
+  non-zero, a research-guard refusal (`E_RESEARCH_GUARD_COMMAND`) included,
+  write no file, and say "template unavailable" in your summary, quoting the
+  first line of its stderr.
 
 ## Shape
 

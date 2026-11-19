@@ -2827,6 +2827,39 @@ def test_template_failures_are_named_and_troubleshot(
     assert _troubleshooting_row(NO_TEMPLATE_GIVEN)
 
 
+@TEMPLATE_OUTPUTTERS
+def test_a_guard_refusal_of_a_template_command_is_troubleshot(
+    outputter: Path, command: str
+) -> None:
+    step = _outputter_template_step(outputter)
+    assert (
+        "When it exits non-zero, a research-guard refusal "
+        "(`E_RESEARCH_GUARD_COMMAND`) included, write no file" in step
+    ), f"{outputter.parent.name} must name a guard refusal as non-zero"
+    unavailable = _troubleshooting_row(TEMPLATE_UNAVAILABLE)
+    assert "`E_RESEARCH_GUARD_COMMAND`" in unavailable
+    assert "`agents.researcher` override" in unavailable
+
+
+def test_a_level_note_takes_its_path_and_question_from_the_node_query() -> None:
+    outputter = _prose(LEVEL_NOTE_OUTPUTTER)
+    sink = _section(
+        outputter, "## Sink", "## Injected Values", path=LEVEL_NOTE_OUTPUTTER
+    )
+    assert "the **single note path the node query prints**" in sink
+    assert "injected into your task prompt" not in sink
+    assert (
+        "the question in place of its injected question, byte for byte"
+        in outputter
+    )
+
+
+def test_the_finding_outputter_names_both_its_readers() -> None:
+    frontmatter, _ = _split(_read(FINDING_OUTPUTTER))
+    description = " ".join(frontmatter.split())
+    assert "Injected into the researcher and the composer" in description
+
+
 def test_conduct_checks_its_templates_before_the_first_plan() -> None:
     conduct = _conduct()
     assert conduct.index("**Template check.**") < conduct.index("--start")
