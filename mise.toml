@@ -325,17 +325,26 @@ run = "invoke test.unit.frontend"
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/unit/tasks -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.unit.tasks ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:frontend-licenses"]
 description = "Guard that every module in the built frontend bundle resolves to the --production licence closure (its own sourcemap build; no shipped dist/ dependency)"
 depends = ["deps:install:node", "deps:install:python"]
-run = "uv run pytest tests/unit/frontend -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.unit.frontend-licenses ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:vcs"]
 description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/unit/vcs -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.unit.vcs ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:cli"]
 description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts, fails below COVERAGE_FLOOR; ACCELERATOR_COVERAGE=off drops to plain nextest)"
@@ -348,7 +357,10 @@ run = 'invoke test.cli.run ${usage_filter+--filter "$usage_filter"}'
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/integration/tasks -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.tasks ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:design-automation"]
 description = "Run the runtime-free Playwright-executor JavaScript suites"
@@ -382,7 +394,10 @@ run = "invoke test.integration.visualiser-os-watcher"
 [tasks."test:integration:dev"]
 description = "Run unified dev task integration tests (real circusd + Python fake processes)"
 depends = ["deps:install:python"]
-run = "invoke test.integration.dev"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.dev ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:release-guard"]
 description = "Build the loopback-seamed CLIs as release binaries, with and without test-loopback, and run the release guard over them"
@@ -392,7 +407,10 @@ run = "invoke test.integration.release-guard"
 [tasks."test:integration:entrypoint"]
 description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)"
 depends = ["deps:install:python"]
-run = "invoke test.integration.entrypoint"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.entrypoint ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:skill-invocation"]
 description = "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment"
@@ -402,7 +420,10 @@ run = "invoke test.integration.skill-invocation"
 [tasks."test:integration:evals"]
 description = "Hold the CLI output skill evals quote to the built accelerator-work"
 depends = ["build:cli:work:dev"]
-run = "invoke test.integration.evals"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.evals ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:conformance"]
 description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
@@ -467,7 +488,10 @@ run = "invoke eval.citing-once"
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
 depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
-run = "invoke test.integration.pup"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.pup ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:tracker-contract"]
 description = "Run the RemoteTracker contract harness against a live tracker (opt-in: needs credentials, so it is out of the test:integration roll-up and out of default; filtered out of test:unit:cli by cli/.config/nextest.toml)"
@@ -477,12 +501,18 @@ run = "invoke test.integration.tracker-contract"
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 depends = ["build:cli:dev", "build:cli:vcs:dev", "build:cli:research:dev"]
-run = "invoke test.integration.hooks"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.hooks ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:research"]
 description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard"
 depends = ["build:cli:research:dev"]
-run = "invoke test.integration.research"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.research ${usage_filter+--filter "$usage_filter"}'
 
 # Deliberately absent from `test:integration` and the bare default task: it
 # splices every metacharacter at every position, which takes minutes rather
@@ -490,7 +520,10 @@ run = "invoke test.integration.research"
 [tasks."test:integration:research-exhaustive"]
 description = "Run the research guard's lexer differential at every splice position (opt-in: minutes)"
 depends = ["build:cli:research:dev"]
-run = "invoke test.integration.research-exhaustive"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+'''
+run = 'invoke test.integration.research-exhaustive ${usage_filter+--filter "$usage_filter"}'
 
 # Deliberately absent from `test:integration` and the bare default task: thirty
 # real-time fetch processes take minutes, and the default lane's queue tests

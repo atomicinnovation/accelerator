@@ -13,6 +13,7 @@ import pytest
 
 from tasks.shared.dev_builds import DEV_BUILDS
 from tasks.test import cli as test_cli
+from tasks.test.filters import PYTEST_FILTER_HELP
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
@@ -463,3 +464,37 @@ def test_a_test_rollup_says_it_ignores_filter(mise, rollup):
 
     assert "takes no options, so --filter is ignored" in description
     assert "test:unit:cli --filter" in description
+
+
+_PYTEST_LANES = {
+    "test:unit:tasks": "test.unit.tasks",
+    "test:unit:frontend-licenses": "test.unit.frontend-licenses",
+    "test:unit:vcs": "test.unit.vcs",
+    "test:integration:tasks": "test.integration.tasks",
+    "test:integration:dev": "test.integration.dev",
+    "test:integration:entrypoint": "test.integration.entrypoint",
+    "test:integration:evals": "test.integration.evals",
+    "test:integration:pup": "test.integration.pup",
+    "test:integration:hooks": "test.integration.hooks",
+    "test:integration:research": "test.integration.research",
+    "test:integration:research-exhaustive": (
+        "test.integration.research-exhaustive"
+    ),
+}
+
+
+@pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
+def test_a_pytest_lane_declares_filter_with_the_invoke_task_s_help(
+    mise, mise_task
+):
+    [flag] = _FILTER_FLAG.finditer(mise["tasks"][mise_task]["usage"])
+
+    assert flag["value"] == "expression"
+    assert flag["help"] == PYTEST_FILTER_HELP
+
+
+@pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
+def test_a_pytest_lane_forwards_filter_only_when_it_is_given(mise, mise_task):
+    assert mise["tasks"][mise_task]["run"] == (
+        f"invoke {_PYTEST_LANES[mise_task]} {_FORWARDS_FILTER}"
+    )
