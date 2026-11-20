@@ -9,11 +9,10 @@ status: "ready"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-953"
-blocks: ["work-item:PP-943"]
 relates_to: ["work-item:PP-794", "work-item:PP-955", "work-item:PP-956", "work-item:PP-958", "work-item:PP-960", "work-item:PP-962", "work-item:PP-943"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-11-19T20:30:00+00:00"
+last_updated: "2026-11-20T13:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-957"
@@ -427,11 +426,11 @@ Mutation audit of today's consumers:
       including `test:unit:cli`'s, name the exempt tasks, rule out
       `cargo test`, and present running an underlying runner directly only
       as a last resort.
-- [ ] [fixtures closure] Given a full `test:unit:cli` run, when it
+- [x] [fixtures closure] Given a full `test:unit:cli` run, when it
       completes, then nextest's summary line reports at least as many tests
       run as the before run's summary line (7,727 for the 18 November
       baseline).
-- [ ] [fixtures closure] Given the baseline
+- [x] [fixtures closure] Given the baseline
       `meta/measurements/build_2026-11-18T123358Z_engywook_warm-no-op_devtools_isolated.json`,
       or a fresh before-record taken under Dependencies, when
       `mise run measure:build -- --isolate test:unit:cli
@@ -468,10 +467,9 @@ Planning answers each of these:
 ## Dependencies
 
 - Blocked by: none.
-- Blocks: 0391, which shortens the `guarded_resume` tests, the slowest left
-  once this item lands. The edge is released once both fixture increments
-  have landed, whatever the state of the filters increment, since removing
-  the repeated fixture building changes the conditions those tests run in.
+- Blocks: none. Blocked 0391, which shortens the `guarded_resume` tests,
+  until both fixture increments had landed; released on 2026-11-20 by the
+  fixtures closure measurement in Technical Notes.
 - Parent: 0361's closing comparison counts on this item's saving.
   Abandoning either fixture increment needs agreement on 0361.
 - Coordinated with 0364, which changes some of the same test tasks
@@ -577,6 +575,33 @@ Planning answers each of these:
   3.75–4.3 s, so the build step's wall time is the matrix's, about 4 s,
   inside the 5 s budget even under load. Neither family's groups need
   building on scoped threads. An idle-host rerun is still owed.
+- Fixtures closure measurement (2026-11-20, engywook, `devtools`). 0371's
+  Shortcut integration landed on `main` after the 18 November baseline,
+  adding about 300 tests and, in CI's macOS leg, about 40 s of nextest
+  time, so a fresh before-record was taken at `a89415bf` with #247 and
+  #249 backed out (code only; `meta/`, `.github/` and the version bump
+  kept). The harness attributes that record to `a89415bf` with "working
+  copy did not match", because the backout was the jj working-copy
+  change.
+  - Before:
+    `build_2026-11-20T124714Z_engywook_warm-no-op_devtools_isolated.json`,
+    8,025 tests run. Task duration median 198.3 s (min 198.2, max 216.9);
+    nextest phase median 189.4 s (min 189.1, max 207.3). Idle load 20.2%,
+    IDE 185.6 CPU-s.
+  - After:
+    `build_2026-11-20T130237Z_engywook_warm-no-op_devtools_isolated.json`,
+    8,113 tests run in every run. Task duration median 160.9 s (min 145.4,
+    max 166.1); nextest phase median 143.0 s (min 126.1, max 144.0). Idle
+    load 27.9%, IDE 277.8 CPU-s.
+  - Comparison: conditions match. Task duration −37.3 s (×0.812), nextest
+    phase −46.4 s (×0.755), both beyond noise. Against the 18 November
+    baseline, conditions also match: task duration 192.8 s → 160.9 s
+    (−31.8 s), nextest phase 181.9 s → 143.0 s (−38.9 s), both beyond
+    noise and inside the 167.8 s and 156.9 s targets.
+  - No cargo unit compiled in either record, and no `Compiling` line
+    follows the build step in any after run. The build step took 4.5–5.1 s
+    with a 0.3–0.5 s first digest; the second digest and removal took
+    0.3–0.4 s and 0.3 s.
 
 ## Drafting Notes
 

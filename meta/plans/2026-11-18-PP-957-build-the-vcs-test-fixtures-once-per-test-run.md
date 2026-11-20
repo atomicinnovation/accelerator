@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T20:30:00+00:00"
+last_updated: "2026-11-20T14:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2559,23 +2559,54 @@ releases 0391 and gives 0361 its result.
 2. `mise run measure:build -- --isolate test:unit:cli --host-settings devtools --runs 3 --keep`
 3. `mise run measure:compare-builds -- meta/measurements/build_2026-11-18T123358Z_engywook_warm-no-op_devtools_isolated.json <after> --task test:unit:cli`
 
+*As run (2026-11-20, engywook):* 0371's Shortcut integration (PR #215) had
+landed on `main` since `287b6279`, adding about 300 tests, so step 1's fresh
+before-record was taken. It ran in a throwaway jj workspace at `a89415bf`
+with #247 and #249's code backed out (`meta/`, `.github/` and the version
+bump kept), and the workspace was removed afterwards; its raw run directory
+was kept under `.accelerator-measure/build/`. The harness attributes the
+before-record to `a89415bf` with "working copy did not match", because the
+backout was the jj working-copy change. Step 3 compared against both the
+fresh before-record and the 18 November baseline.
+
+- Before: `build_2026-11-20T124714Z_engywook_warm-no-op_devtools_isolated.json`
+- After: `build_2026-11-20T130237Z_engywook_warm-no-op_devtools_isolated.json`
+
 ### Success Criteria
 
 #### Manual Verification
 
-- [ ] The after-record's nextest summary line reports at least 7,727 tests
+- [x] The after-record's nextest summary line reports at least 7,727 tests
       run (or the fresh before-record's count).
-- [ ] The comparison's first line reports no differing condition.
-- [ ] The nextest-phase median is ≤ 156.9 s, and the task-duration median is
+      *As run:* 8,113 tests in every run, against the fresh before-record's
+      8,025.
+- [x] The comparison's first line reports no differing condition.
+      *As run:* `conditions match` against both the fresh before-record and
+      the 18 November baseline.
+- [x] The nextest-phase median is ≤ 156.9 s, and the task-duration median is
       ≤ 167.8 s, both "beyond" noise (or 25 s under a fresh before-record).
-- [ ] In the after-record, the cargo units show nothing compiled after the
+      *As run:* both bars met. Nextest phase 189.4 s → 143.0 s (−46.4 s);
+      task duration 198.3 s → 160.9 s (−37.3 s), both beyond noise. Against
+      the 18 November baseline: 181.9 s → 143.0 s and 192.8 s → 160.9 s,
+      also beyond noise.
+- [x] In the after-record, the cargo units show nothing compiled after the
       builder runs, in the nextest step, so the listing and nextest still
       fingerprint the same build.
-- [ ] If the task-duration median misses while the nextest phase meets its
+      *As run:* no cargo unit compiled in either record, and no `Compiling`
+      line follows the build step in any after run.
+- [x] If the task-duration median misses while the nextest phase meets its
       target, the build-step and digest times on the run's own line show
       where the serial overhead went. Record them.
-- [ ] The figures are recorded in the work item, and 0391's blocking edge is
+      *As run:* not triggered (the task-duration median met its bar). For
+      the record: build step 4.5–5.1 s, first digest 0.3–0.5 s, second
+      digest and removal 0.3–0.4 s and 0.3 s.
+- [x] The figures are recorded in the work item, and 0391's blocking edge is
       released.
+      *As run:* recorded in PP-957's Technical Notes. The `blocks` /
+      `blocked_by` edge between PP-957 and PP-943 (0391) is removed from
+      both items, and both are synced to Linear. The sync pushes titles
+      and descriptions only, so any blocking relation in Linear itself has
+      to be removed there by hand.
 
 ---
 

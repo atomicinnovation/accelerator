@@ -9,11 +9,10 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:PP-953"
-blocked_by: ["work-item:PP-957"]
 relates_to: ["work-item:PP-957"]
 external_id: "PP-943"
 tags: ["performance", "testing", "rust", "migrate"]
-last_updated: "2026-11-18T13:28:33+00:00"
+last_updated: "2026-11-20T13:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 aliases: ["0391"]
@@ -98,9 +97,10 @@ matrix build is the warning case: it takes 3.3 s alone and 45 s under load.
 
 ## Dependencies
 
-- Blocked by: 0365. Its before figures are taken once 0365 has cut the
-  suite's contention, and that measurement decides whether this item is
-  still worth doing.
+- Blocked by: none. 0365's fixture increments landed and its closure
+  measurement (2026-11-20) released this item. Its before figures are
+  taken now that 0365 has cut the suite's contention, and that
+  measurement decides whether this item is still worth doing.
 - Blocks: none.
 - Related: 0365.
 
