@@ -8,8 +8,9 @@ import re
 from collections.abc import Iterable, Sequence
 from urllib.parse import unquote
 
-from tasks.eval.citing_once.sources import Citation, TierText
+from tasks.eval.documents.sources import Citation, TierText
 
+RULE = "skills/research/outputters/citing-once/SKILL.md"
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 BARE_DOMAIN = re.compile(r"^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
 DOI_HOSTS = frozenset({"doi.org", "dx.doi.org"})

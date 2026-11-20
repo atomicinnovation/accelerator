@@ -3,7 +3,10 @@
 
 mod cli;
 mod concurrency_wording;
+mod consultable_command;
 mod context;
+mod counts_command;
+mod counts_wording;
 mod fetch_command;
 mod guard;
 mod harness_setting;
@@ -12,6 +15,7 @@ mod ledger_wording;
 mod loopback;
 mod plan_wording;
 mod render;
+mod report_path_command;
 mod search_cap;
 mod search_wording;
 mod subagent_cap;
@@ -193,6 +197,14 @@ fn topic(action: TopicAction) -> ExitCode {
         TopicAction::EndRun { slug, run } => {
             topic_command::parse_run(&run).and_then(|run| end_run(&slug, &run))
         }
+        TopicAction::ReportPath { slug, question } => {
+            report_path_command::parse_question(&question)
+                .and_then(|question| report_path(&slug, &question))
+        }
+        TopicAction::Counts { slug } => counts(&slug),
+        TopicAction::Consultable { slug, profiles_dir } => {
+            consultable(&slug, &profiles_dir)
+        }
     };
     match printed {
         Ok(printed) => {
@@ -259,6 +271,24 @@ fn end_run(slug: &str, run: &RunId) -> Result<Printed, String> {
         &RealFs,
         &FileCorpusStore::new(&set_root),
     )
+}
+
+fn report_path(slug: &str, question: &str) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    report_path_command::run_report_path(&set_root, question, &RealFs)
+}
+
+fn counts(slug: &str) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    counts_command::run_counts(&set_root, &RealFs)
+}
+
+fn consultable(slug: &str, profiles_dir: &Path) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    consultable_command::run_consultable(&set_root, profiles_dir, &RealFs)
 }
 
 fn minted_run() -> Result<RunId, String> {

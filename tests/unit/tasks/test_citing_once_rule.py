@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tasks.eval.citing_once.rule import (
+from tasks.eval.documents.rule import (
     citation_order,
     cite_once,
     key_order,
@@ -13,7 +13,7 @@ from tasks.eval.citing_once.rule import (
     same_source,
     sources,
 )
-from tasks.eval.citing_once.sources import Citation, TierText, parse_sources
+from tasks.eval.documents.sources import Citation, TierText, parse_sources
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RULE = REPO_ROOT / "skills/research/outputters/citing-once/SKILL.md"

@@ -1,6 +1,8 @@
-//! The `research topic` command layer: a set's round plan rendered as the
-//! JSON `research-topic`'s `conduct` consumes, and the run ledger `conduct`
-//! keeps between plans.
+//! The `research topic` command layer for `outstanding` and `end-run`.
+//!
+//! It renders a set's round plan as the JSON `research-topic`'s `conduct`
+//! consumes, keeps the run ledger `conduct` holds between plans, and resolves
+//! the set and prints the output every `research topic` subcommand shares.
 
 use std::fmt::Write as _;
 use std::num::NonZeroU32;

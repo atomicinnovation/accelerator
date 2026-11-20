@@ -1,0 +1,210 @@
+{
+  "family": "G1",
+  "title": "The status gate",
+  "scenarios": [
+    {
+      "name": "g1-briefed-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "briefed"
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "briefed",
+                "Run outline llm-agent-planning, then conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g1-briefed-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "briefed"
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "briefed",
+                "Run outline llm-agent-planning, then conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g1-outlined-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "outlined"
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "outlined",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g1-outlined-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "outlined"
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "outlined",
+                "Run conduct llm-agent-planning, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g1-researching-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g1-researching-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -16,8 +16,8 @@ use crate::topic::tree::Depth;
 
 const LEVEL_NOTE_KIND: &str = "level-note";
 
-/// A visible `findings/*.md` file: retained when it validates, in which case
-/// it answers one pair.
+/// A visible numbered `findings/*.md` file: retained when it validates, in
+/// which case it answers one pair.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Finding {
     name: String,

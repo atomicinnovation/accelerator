@@ -148,6 +148,34 @@ pub enum TopicAction {
         #[arg(long, allow_hyphen_values = true)]
         run: String,
     },
+    /// The absolute path a new report on QUESTION takes in the set:
+    /// `reports/<question-slug>.md`, or the first free `-2`, `-3`, … suffix.
+    /// Writes nothing.
+    ReportPath {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The report's question, as one quoted argument or as separate words
+        /// joined with single spaces.
+        #[arg(allow_hyphen_values = true)]
+        question: Vec<String>,
+    },
+    /// The counts the set's files give, beside those its manifest and
+    /// synthesis record, and whether they agree, as JSON. Writes nothing;
+    /// fields are only ever added.
+    Counts {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+    },
+    /// Whether `ask` and `report` may consult the set, or the first gate it
+    /// fails, as JSON. Writes nothing; fields are only ever added, and `gate`
+    /// is one of `status`, `freshness` and `conducted`.
+    Consultable {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The directory holding one `<name>-profile/SKILL.md` per profile.
+        #[arg(long)]
+        profiles_dir: PathBuf,
+    },
 }
 
 #[cfg(test)]

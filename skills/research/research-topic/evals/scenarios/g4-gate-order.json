@@ -1,0 +1,158 @@
+{
+  "family": "G4",
+  "title": "The gates apply in order",
+  "scenarios": [
+    {
+      "name": "g4-status-before-freshness-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          },
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g4-status-before-freshness-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "status",
+            "value": "researching"
+          },
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          }
+        ]
+      },
+      "gate": "status",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "status",
+              "names": [
+                "researching",
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+              ],
+              "omits": [
+                "synthesis is stale",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g4-freshness-before-conducted-ask",
+      "verb": "ask",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          },
+          {
+            "append": "outline.md",
+            "text": "\n## Round 4\n\n- [ ] Which datasets suit agent training? — profiles: web\n"
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "g4-freshness-before-conducted-report",
+      "verb": "report",
+      "question": "How do LLM agents plan multi-step tasks?",
+      "times": 1,
+      "setup": {
+        "variant": "base",
+        "mutations": [
+          {
+            "set": "manifest.md",
+            "field": "round_count",
+            "value": 2
+          },
+          {
+            "append": "outline.md",
+            "text": "\n## Round 4\n\n- [ ] Which datasets suit agent training? — profiles: web\n"
+          }
+        ]
+      },
+      "gate": "freshness",
+      "turns": [
+        {
+          "expect": {
+            "refusal": {
+              "gate": "freshness",
+              "names": [
+                "manifest.md records round_count 2 but the findings reach round 3"
+              ],
+              "omits": [
+                "needs synthesised or complete",
+                "is not fully conducted"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

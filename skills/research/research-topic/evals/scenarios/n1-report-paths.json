@@ -1,0 +1,91 @@
+{
+  "family": "N1",
+  "title": "report names new reports from the question",
+  "scenarios": [
+    {
+      "name": "n1-c7",
+      "verb": "report",
+      "question": "How do autonomous language model agents decompose long horizon planning tasks into executable steps?",
+      "times": 1,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-autonomous-language-model-agents-decompose-long.md",
+              "manifest.md"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "n1-c8",
+      "verb": "report",
+      "question": "Supercalifragilisticexpialidociousplannersoutperformallbaselines?",
+      "times": 1,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/supercalifragilisticexpialidociousplannersoutperformallbasel.md",
+              "manifest.md"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "n1-escaping",
+      "verb": "report",
+      "question": "How do LLM agents' \"planners\" plan multi-step tasks $(touch pwned)?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "offers": "accept",
+            "writes": []
+          }
+        },
+        {
+          "reply": "accept",
+          "expect": {
+            "writes": [
+              "reports/how-do-llm-agents-planners-plan-multi-step-tasks-touch-pwned.md",
+              "manifest.md"
+            ],
+            "report": {
+              "path": "reports/how-do-llm-agents-planners-plan-multi-step-tasks-touch-pwned.md",
+              "fields": {
+                "question": "How do LLM agents' \"planners\" plan multi-step tasks $(touch pwned)?"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

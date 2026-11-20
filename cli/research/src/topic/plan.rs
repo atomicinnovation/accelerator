@@ -52,11 +52,15 @@ pub struct RoundPlan {
 
 /// Whether an outline item is complete: it has at least one eligible pair,
 /// and a retained finding answers every one.
+///
+/// A repeat asks a question an earlier item already asks, so its pairs and
+/// skips are that item's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemStatus {
     pub line: usize,
     pub question: String,
     pub complete: bool,
+    pub repeat: bool,
 }
 
 /// A pair no retained finding answers yet, under the stem its finding and
@@ -196,11 +200,13 @@ impl<'a> Planner<'a> {
                 plan.warnings
                     .push(Warning::UnseparatedProfiles { line: item.line });
             }
+            let repeat = self.asked_earlier(&item.question);
             let complete = self.plan_item(item, &mut plan);
             plan.items.push(ItemStatus {
                 line: item.line,
                 question: item.question.clone(),
                 complete,
+                repeat,
             });
         }
         plan.warnings.extend(self.unmatched_findings());
@@ -210,6 +216,10 @@ impl<'a> Planner<'a> {
             }
         }
         plan
+    }
+
+    fn asked_earlier(&self, question: &str) -> bool {
+        self.claimed.contains_key(&self.normalised(question))
     }
 
     fn plan_item(&mut self, item: &OutlineItem, plan: &mut RoundPlan) -> bool {
@@ -768,6 +778,14 @@ mod tests {
                 .into_iter()
                 .collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn a_later_asking_of_a_question_is_a_repeat() {
+        let plan = plan(&inputs(outline(&["- [ ] A? B?", "- [ ] A?   B?"])));
+        let repeats: Vec<bool> =
+            plan.items.iter().map(|item| item.repeat).collect();
+        assert_eq!(repeats, [false, true]);
     }
 
     #[test]

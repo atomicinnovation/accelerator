@@ -147,10 +147,15 @@ fn row_json(
         required_extras,
         optional_extras,
         empty_list_extras,
+        extra_vocabs,
         status_vocab,
         forbidden_own_id_keys,
         typed_linkage_keys,
     } = row;
+    let extra_vocabs: serde_json::Map<String, serde_json::Value> = extra_vocabs
+        .iter()
+        .map(|vocab| (vocab.extra.to_owned(), serde_json::json!(vocab.values)))
+        .collect();
     serde_json::json!({
         "template": template,
         "linkage_type": linkage_type,
@@ -159,6 +164,7 @@ fn row_json(
         "required_extras": required_extras,
         "optional_extras": optional_extras,
         "empty_list_extras": empty_list_extras,
+        "extra_vocabs": extra_vocabs,
         "status_vocab": status_vocab,
         "forbidden_own_id_keys": forbidden_own_id_keys,
         "typed_linkage_keys": typed_linkage_keys,

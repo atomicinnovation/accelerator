@@ -17,7 +17,8 @@ pub trait Clock {
     fn filename_timestamp(&self, format: FilenameTimestampFormat) -> String;
 }
 
-/// A repository's name and current revision, in this crate's own vocabulary.
+/// A repository's name, current revision and configured author, in this
+/// crate's own vocabulary.
 ///
 /// [`RepoFactsProbe`]'s concrete implementation translates from whatever
 /// VCS-specific type it reads, so nothing inward of that translation needs
@@ -26,6 +27,7 @@ pub trait Clock {
 pub struct RepositoryFacts {
     pub name: String,
     pub revision: Option<String>,
+    pub author: Option<String>,
 }
 
 /// The VCS-facts seam: the repository facts for the checkout containing
@@ -38,12 +40,14 @@ pub trait RepoFactsProbe {
     fn facts(&self, start: &Path) -> Option<RepositoryFacts>;
 }
 
-/// The facts an artifact-metadata block carries. `repository_name`/`revision`
-/// are absent outside a VCS checkout.
+/// The facts an artifact-metadata block carries. `repository_name`,
+/// `revision` and `author` are absent outside a VCS checkout, and `author`
+/// also when the checkout configures no user name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArtifactMetadata {
     pub datetime_utc: String,
     pub filename_timestamp: String,
     pub repository_name: Option<String>,
     pub revision: Option<String>,
+    pub author: Option<String>,
 }

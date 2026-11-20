@@ -1,56 +1,11 @@
 """The tool calls a session's stream-json log shows its carrier made."""
 
-import json
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+
+from tasks.eval.headless.transcript import ToolCall
 
 SPAWNS = frozenset({"Agent", "Task"})
 COMPOSER = "accelerator:composer"
-
-
-@dataclass(frozen=True)
-class ToolCall:
-    name: str
-    input: dict[str, Any]
-    by_subagent: bool
-
-    def reads(self, path: Path) -> bool:
-        target = self.input.get("file_path")
-        return (
-            self.name == "Read"
-            and isinstance(target, str)
-            and Path(target).resolve() == path.resolve()
-        )
-
-    def writes(self, filename: str) -> bool:
-        target = self.input.get("file_path")
-        return (
-            self.name in {"Write", "Edit"}
-            and isinstance(target, str)
-            and Path(target).name == filename
-        )
-
-
-def tool_calls(log: str) -> list[ToolCall]:
-    calls = []
-    for line in log.splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(event, dict) or event.get("type") != "assistant":
-            continue
-        calls.extend(
-            ToolCall(
-                name=block["name"],
-                input=block.get("input", {}),
-                by_subagent=event.get("parent_tool_use_id") is not None,
-            )
-            for block in event.get("message", {}).get("content", [])
-            if block.get("type") == "tool_use"
-        )
-    return calls
 
 
 def composer_log_failures(calls: list[ToolCall], rule: Path) -> list[str]:
