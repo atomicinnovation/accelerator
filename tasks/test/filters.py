@@ -16,6 +16,10 @@ NEXTEST_CONTRACT_FILTER_HELP = (
     "'test(the_conformance_set_passes_against_a_live_team)'"
 )
 
+VITEST_FILTER_HELP = (
+    "Vitest -t test-name regex selecting the tests to run, e.g. 'copyText'"
+)
+
 LIBTEST_FILTER_HELP = (
     "libtest substring of the test path selecting the tests to run, "
     "e.g. 'path_normalisation'"
@@ -29,6 +33,10 @@ _LIBTEST_RESULT = re.compile(
     r"(?P<ignored>\d+) ignored;",
     re.MULTILINE,
 )
+
+_VITEST_TESTS_SUMMARY = re.compile(r"^\s*Tests\s+(?P<counts>.*)$", re.MULTILINE)
+_VITEST_TESTS_RUN = re.compile(r"(?P<count>\d+) (?:passed|failed)\b")
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def selection_from(filter_: str | None) -> Selection:
@@ -86,6 +94,10 @@ def command_line(*parts: str) -> str:
     return " ".join(filter(None, parts))
 
 
+def npm_script_options(options: str) -> str:
+    return options and f"-- {options}"
+
+
 def _environment(
     env: Mapping[str, str] | None,
 ) -> dict[str, dict[str, str]]:
@@ -115,4 +127,14 @@ def libtest_tests_run(output: str) -> int:
     return sum(
         int(result["passed"]) + int(result["failed"]) + int(result["ignored"])
         for result in _LIBTEST_RESULT.finditer(output)
+    )
+
+
+def vitest_tests_run(output: str) -> int:
+    summary = _VITEST_TESTS_SUMMARY.search(_ANSI_ESCAPE.sub("", output))
+    if summary is None:
+        raise Exit("Vitest emitted no 'Tests' summary line", code=1)
+    return sum(
+        int(run["count"])
+        for run in _VITEST_TESTS_RUN.finditer(summary["counts"])
     )

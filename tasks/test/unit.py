@@ -2,13 +2,18 @@ import re
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CARGO_TOML
+from tasks.shared.paths import CARGO_TOML, FRONTEND
 
 from .filters import (
     LIBTEST_FILTER_HELP,
     PYTEST_FILTER_HELP,
+    VITEST_FILTER_HELP,
+    command_line,
+    npm_script_options,
     run_libtest_lane,
     run_pytest_lane,
+    selection_from,
+    vitest_tests_run,
 )
 from .helpers import repo_root
 
@@ -38,11 +43,18 @@ def visualiser(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task
-def frontend(context: Context) -> None:
+@task(help={"filter_": VITEST_FILTER_HELP})
+def frontend(context: Context, filter_: str | None = None) -> None:
     """Run the visualiser frontend unit tests (Vitest)."""
-    frontend_root = repo_root() / "cli/visualiser/frontend"
-    context.run(f"npm --prefix {frontend_root} run test")
+    selection = selection_from(filter_)
+    result = context.run(
+        command_line(
+            f"npm --prefix {FRONTEND} run test",
+            npm_script_options(selection.vitest()),
+        )
+    )
+    if selection.is_filtered and vitest_tests_run(result.stdout) == 0:
+        raise Exit(selection.nothing_selected("test:unit:frontend"), code=1)
 
 
 @task(name="tasks", help={"filter_": PYTEST_FILTER_HELP})

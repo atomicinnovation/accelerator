@@ -323,7 +323,10 @@ run = 'invoke test.unit.visualiser ${usage_filter+--filter "$usage_filter"}'
 description = "Run visualiser frontend unit tests (Vitest)"
 depends = ["deps:install:node"]
 wait_for = ["test:unit:cli", "test:unit:visualiser"]
-run = "invoke test.unit.frontend"
+usage = '''
+flag "--filter <expression>" help="Vitest -t test-name regex selecting the tests to run, e.g. 'copyText'"
+'''
+run = 'invoke test.unit.frontend ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
