@@ -1,4 +1,5 @@
 import shlex
+from pathlib import Path
 
 import pytest
 from invoke import Context, Exit, Result, UnexpectedExit
@@ -285,5 +286,180 @@ def test_the_frontend_help_names_vitest_s_test_name_regex():
 def test_an_empty_filter_runs_no_frontend_test(context):
     with pytest.raises(Exit, match=r"^--filter needs an expression$"):
         unit.frontend(context, filter_="")
+
+    context.run.assert_not_called()
+
+
+_PLAYWRIGHT_ROOT = (
+    Path(__file__).resolve().parents[3]
+    / "skills/design/inventory-design/scripts/playwright"
+)
+_UNIT_SUITES = sorted((_PLAYWRIGHT_ROOT / "lib").glob("*.test.js"))
+_RUNTIME_SUITES = [
+    _PLAYWRIGHT_ROOT / "test-run.js",
+    _PLAYWRIGHT_ROOT / "daemon-runtime.test.js",
+]
+_DESIGN_AUTOMATION_FLOORS_SKIPPED = (
+    "design-automation: pass-count and skip floors skipped for a filtered run"
+)
+
+
+def _tap(points, *, passed, failed=0, skipped=0):
+    lines = [f"ok {number} - {name}" for number, name in enumerate(points, 1)]
+    return "\n".join(
+        [
+            "TAP version 13",
+            *lines,
+            f"# pass {passed}",
+            f"# fail {failed}",
+            f"# skipped {skipped}",
+            "",
+        ]
+    )
+
+
+@pytest.fixture
+def driver_tree(monkeypatch, tmp_path):
+    monkeypatch.setenv("ACCELERATOR_TREE_DRIVER", str(tmp_path))
+
+
+_DESIGN_AUTOMATION_LANES = {
+    "test:unit:design-automation": (unit.design_automation, _UNIT_SUITES),
+    "test:integration:design-automation": (
+        integration.design_automation,
+        _RUNTIME_SUITES,
+    ),
+}
+
+
+def _run_design_automation(context, mise_task, tap, **kwargs):
+    lane, _ = _DESIGN_AUTOMATION_LANES[mise_task]
+    context.run.return_value = Result(stdout=tap)
+    lane(context, **kwargs)
+
+
+def _filtered_tap_ran_some(mise_task):
+    _, suites = _DESIGN_AUTOMATION_LANES[mise_task]
+    return _tap(
+        ["a selected test", "another", "a third", *map(str, suites[1:])],
+        passed=3 + len(suites) - 1,
+        skipped=102,
+    )
+
+
+def _filtered_tap_ran_nothing(mise_task):
+    _, suites = _DESIGN_AUTOMATION_LANES[mise_task]
+    return _tap(list(map(str, suites)), passed=len(suites))
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_a_design_automation_lane_runs_its_command_unchanged_unfiltered(
+    context, mise_task
+):
+    _, suites = _DESIGN_AUTOMATION_LANES[mise_task]
+
+    _run_design_automation(context, mise_task, _tap(["t"] * 200, passed=200))
+
+    assert shlex.split(_commands_run(context)[0]) == [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        *map(str, suites),
+    ]
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_a_design_automation_filter_comes_before_the_first_suite(
+    context, mise_task
+):
+    _, suites = _DESIGN_AUTOMATION_LANES[mise_task]
+
+    _run_design_automation(
+        context,
+        mise_task,
+        _filtered_tap_ran_some(mise_task),
+        filter_="ping: exits 0",
+    )
+
+    assert shlex.split(_commands_run(context)[0]) == [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern",
+        "ping: exits 0",
+        *map(str, suites),
+    ]
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_a_filtered_design_automation_run_skips_its_floors_and_says_so(
+    context, mise_task, capsys
+):
+    _run_design_automation(
+        context, mise_task, _filtered_tap_ran_some(mise_task), filter_="x"
+    )
+
+    assert capsys.readouterr().out.splitlines() == [
+        _DESIGN_AUTOMATION_FLOORS_SKIPPED
+    ]
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_a_filtered_design_automation_failure_still_fails(context, mise_task):
+    with pytest.raises(Exit, match=r"1 design-automation .*failed"):
+        _run_design_automation(
+            context,
+            mise_task,
+            _tap(["a selected test"], passed=0, failed=1),
+            filter_="x",
+        )
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_a_filtered_design_automation_run_of_no_test_names_the_lane(
+    context, mise_task
+):
+    with pytest.raises(Exit) as exc_info:
+        _run_design_automation(
+            context,
+            mise_task,
+            _filtered_tap_ran_nothing(mise_task),
+            filter_="x",
+        )
+
+    assert str(exc_info.value) == Selection("x").nothing_selected(mise_task)
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_an_unfiltered_design_automation_run_keeps_its_floors(
+    context, mise_task
+):
+    with pytest.raises(Exit, match="skipped"):
+        _run_design_automation(
+            context, mise_task, _filtered_tap_ran_some(mise_task)
+        )
+
+
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_a_design_automation_lane_s_help_names_node_s_pattern(mise_task):
+    lane, _ = _DESIGN_AUTOMATION_LANES[mise_task]
+
+    assert "node --test-name-pattern regex" in lane.help["filter_"]
+
+
+@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+def test_an_empty_filter_runs_no_design_automation_suite(context, mise_task):
+    lane, _ = _DESIGN_AUTOMATION_LANES[mise_task]
+
+    with pytest.raises(Exit, match=r"^--filter needs an expression$"):
+        lane(context, filter_="")
 
     context.run.assert_not_called()

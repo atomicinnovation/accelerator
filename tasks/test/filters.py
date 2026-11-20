@@ -1,6 +1,7 @@
 import re
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
+from pathlib import Path
 
 from invoke import Context, Exit, UnexpectedExit
 
@@ -20,6 +21,16 @@ VITEST_FILTER_HELP = (
     "Vitest -t test-name regex selecting the tests to run, e.g. 'copyText'"
 )
 
+NODE_TEST_UNIT_FILTER_HELP = (
+    "node --test-name-pattern regex selecting the tests to run, "
+    "e.g. 'judges as the corpus says'"
+)
+
+NODE_TEST_RUNTIME_FILTER_HELP = (
+    "node --test-name-pattern regex selecting the tests to run, "
+    "e.g. 'ping: exits 0'"
+)
+
 LIBTEST_FILTER_HELP = (
     "libtest substring of the test path selecting the tests to run, "
     "e.g. 'path_normalisation'"
@@ -36,6 +47,9 @@ _LIBTEST_RESULT = re.compile(
 
 _VITEST_TESTS_SUMMARY = re.compile(r"^\s*Tests\s+(?P<counts>.*)$", re.MULTILINE)
 _VITEST_TESTS_RUN = re.compile(r"(?P<count>\d+) (?:passed|failed)\b")
+_TAP_TOP_LEVEL_POINT = re.compile(
+    r"^(?:not )?ok \d+ - (?P<name>.*)$", re.MULTILINE
+)
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -137,4 +151,18 @@ def vitest_tests_run(output: str) -> int:
     return sum(
         int(run["count"])
         for run in _VITEST_TESTS_RUN.finditer(summary["counts"])
+    )
+
+
+def node_tests_run(tap: str, suites: Sequence[Path]) -> int:
+    """Count the tests a `node --test` run reported.
+
+    Node reports a suite file in which no test ran as a passing test named
+    after the file, so those points are not tests.
+    """
+    suite_names = {str(suite) for suite in suites}
+    return sum(
+        1
+        for point in _TAP_TOP_LEVEL_POINT.finditer(tap)
+        if point["name"] not in suite_names
     )

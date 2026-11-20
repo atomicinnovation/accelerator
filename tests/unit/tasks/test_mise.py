@@ -515,6 +515,14 @@ _CARGO_AND_NODE_LANES = {
         "test.unit.frontend",
         test_unit.frontend,
     ),
+    "test:unit:design-automation": (
+        "test.unit.design-automation",
+        test_unit.design_automation,
+    ),
+    "test:integration:design-automation": (
+        "test.integration.design-automation",
+        test_integration.design_automation,
+    ),
     "test:integration:tracker-contract": (
         "test.integration.tracker-contract",
         test_integration.tracker_contract,

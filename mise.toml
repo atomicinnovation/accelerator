@@ -370,7 +370,10 @@ run = 'invoke test.integration.tasks ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:design-automation"]
 description = "Run the runtime-free Playwright-executor JavaScript suites"
-run = "invoke test.unit.design-automation"
+usage = '''
+flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'judges as the corpus says'"
+'''
+run = 'invoke test.unit.design-automation ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
@@ -382,7 +385,10 @@ depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:frontend-lic
 # visible refusal instead of a silent pass.
 [tasks."test:integration:design-automation"]
 description = "Run the Playwright-executor suites that need a real runtime (opt-in)"
-run = "invoke test.integration.design-automation"
+usage = '''
+flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'ping: exits 0'"
+'''
+run = 'invoke test.integration.design-automation ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"

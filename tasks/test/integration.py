@@ -9,12 +9,19 @@ from tasks.test.cli import _MANIFEST
 from tasks.test.filters import (
     LIBTEST_FILTER_HELP,
     NEXTEST_CONTRACT_FILTER_HELP,
+    NODE_TEST_RUNTIME_FILTER_HELP,
     PYTEST_FILTER_HELP,
+    command_line,
     run_libtest_lane,
     run_nextest_lane,
     run_pytest_lane,
+    selection_from,
 )
-from tasks.test.unit import _bare_returns_in_tests, _tap_counts
+from tasks.test.unit import (
+    _bare_returns_in_tests,
+    _tap_counts,
+    report_filtered_design_automation_run,
+)
 
 from .helpers import accelerator_env, repo_root
 
@@ -289,8 +296,8 @@ def _resolve_driver_tree(context: Context) -> Path:
     return tree
 
 
-@task
-def design_automation(context: Context) -> None:
+@task(help={"filter_": NODE_TEST_RUNTIME_FILTER_HELP})
+def design_automation(context: Context, filter_: str | None = None) -> None:
     """Run the Playwright-executor suites that need a real runtime (opt-in).
 
     Deliberately outside `test:integration` and the bare default task: no CI
@@ -298,6 +305,7 @@ def design_automation(context: Context) -> None:
     is indistinguishable from passing — this refuses up front, following the
     `docker info` preflight precedent in `tasks/test/e2e.py`.
     """
+    selection = selection_from(filter_)
     root = repo_root()
     driver_tree = _resolve_driver_tree(context)
 
@@ -324,7 +332,9 @@ def design_automation(context: Context) -> None:
 
     discovered = " ".join(str(path) for path in suites)
     result = context.run(
-        f"node --test --test-reporter=tap {discovered}",
+        command_line(
+            "node --test --test-reporter=tap", selection.node_test(), discovered
+        ),
         warn=True,
         pty=False,
         env={_DRIVER_TREE_ENV: str(driver_tree)},
@@ -334,6 +344,14 @@ def design_automation(context: Context) -> None:
         raise Exit(
             f"{counts['fail']} design-automation runtime test(s) failed", code=1
         )
+    if selection.is_filtered:
+        report_filtered_design_automation_run(
+            selection,
+            "test:integration:design-automation",
+            result.stdout,
+            suites,
+        )
+        return
     if counts["skipped"]:
         raise Exit(
             f"{counts['skipped']} design-automation runtime test(s) skipped; "

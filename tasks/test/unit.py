@@ -1,14 +1,19 @@
 import re
+from collections.abc import Sequence
+from pathlib import Path
 
 from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML, FRONTEND
+from tasks.shared.selection import Selection
 
 from .filters import (
     LIBTEST_FILTER_HELP,
+    NODE_TEST_UNIT_FILTER_HELP,
     PYTEST_FILTER_HELP,
     VITEST_FILTER_HELP,
     command_line,
+    node_tests_run,
     npm_script_options,
     run_libtest_lane,
     run_pytest_lane,
@@ -168,9 +173,21 @@ def _bare_returns_in_tests(source: str) -> list[str]:
     return offenders
 
 
-@task
-def design_automation(context: Context) -> None:
+def report_filtered_design_automation_run(
+    selection: Selection, mise_task: str, tap: str, suites: Sequence[Path]
+) -> None:
+    if node_tests_run(tap, suites) == 0:
+        raise Exit(selection.nothing_selected(mise_task), code=1)
+    print(
+        "design-automation: pass-count and skip floors skipped for a "
+        "filtered run"
+    )
+
+
+@task(help={"filter_": NODE_TEST_UNIT_FILTER_HELP})
+def design_automation(context: Context, filter_: str | None = None) -> None:
     """Run the runtime-free Playwright-executor JavaScript suites."""
+    selection = selection_from(filter_)
     root = repo_root() / _PLAYWRIGHT_DIR
     suites = sorted((root / "lib").glob("*.test.js"))
     if len(suites) < _EXPECTED_DESIGN_AUTOMATION_SUITES:
@@ -194,7 +211,9 @@ def design_automation(context: Context) -> None:
 
     discovered = " ".join(str(path) for path in suites)
     result = context.run(
-        f"node --test --test-reporter=tap {discovered}",
+        command_line(
+            "node --test --test-reporter=tap", selection.node_test(), discovered
+        ),
         warn=True,
         pty=False,
     )
@@ -202,6 +221,11 @@ def design_automation(context: Context) -> None:
 
     if counts["fail"]:
         raise Exit(f"{counts['fail']} design-automation test(s) failed", code=1)
+    if selection.is_filtered:
+        report_filtered_design_automation_run(
+            selection, "test:unit:design-automation", result.stdout, suites
+        )
+        return
     if counts["skipped"]:
         raise Exit(
             f"{counts['skipped']} design-automation test(s) skipped; this lane "
