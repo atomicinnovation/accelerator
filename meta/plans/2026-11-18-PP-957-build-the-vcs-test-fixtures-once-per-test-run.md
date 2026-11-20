@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-20T14:00:00+00:00"
+last_updated: "2026-11-20T16:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2620,6 +2620,32 @@ four bare `uv run pytest` leaves get invoke tasks so that each declares
 `filter_` the same way. Rebase onto 0364's `tasks/test/integration.py`
 changes first, and keep out of 0364's CI measurement windows.
 
+### As built
+
+- **No rebase was needed.** 0364 (PP-956) was already done, and its
+  `-n auto` on `test:integration:dev` was already on `main`.
+- **The table is in the work item** under Requirement 5. The cells this
+  phase leaves open (Vitest's "nothing matches" outcome and the malformed
+  examples for Vitest, node and Playwright) are marked there as still to
+  be confirmed by Phase 8.
+- **One function runs every pytest lane.** Each lane does not add
+  `selection_from(filter_).pytest()` to its own command. Instead it calls
+  `run_pytest_lane(context, command, mise_task=…, filter_=…, env=…)` in
+  `tasks/test/filters.py`. That function builds the selection, appends
+  `-k`, runs the command and turns a filtered exit 5 into
+  `nothing_selected(mise_task)`. It catches invoke's `UnexpectedExit`
+  rather than running with `warn=True`, so an unfiltered run, or any other
+  failing exit, raises exactly what it raised before. It passes `env` only
+  when one is given, so `test_hooks_task_environment.py` still holds.
+- **The shared help text** is `PYTEST_FILTER_HELP` in the same module. Both
+  the invoke tasks and `test_mise.py` read it, so the mise flag's help
+  can't drift from it.
+- **The new invoke tasks** are `build_system` (invoke name `tasks`) in both
+  `unit.py` and `integration.py`, plus `frontend_licenses` and `vcs` in
+  `unit.py`.
+- **Selection** gains `pytest()`. `nextest()` and `pytest()` share a
+  private `_option(name)`.
+
 ### In-scope tasks (written into the work item)
 
 | Task | Runner | Filter syntax | Example | Malformed example | Runner when nothing matches |
@@ -2707,20 +2733,26 @@ parses as TOML.
 
 #### Automated Verification
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_selection.py tests/unit/tasks/test_pytest_lanes.py tests/unit/tasks/test_mise.py tests/unit/tasks/test_dev_integration_task.py tests/unit/tasks/test_hooks_task_environment.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
 For each pytest lane:
 
-- [ ] `mise run <task> --help` lists `--filter` and names pytest's `-k`.
-- [ ] `mise run <task> --filter '<a name in the suite>'` runs fewer tests
+- [x] `mise run <task> --help` lists `--filter` and names pytest's `-k`.
+- [x] `mise run <task> --filter '<a name in the suite>'` runs fewer tests
       than the bare task, and all of them pass.
-- [ ] `mise run <task> --filter 'foo and'` fails (pytest exit 4).
-- [ ] `mise run <task> --filter 'no_such_test_xyz'` fails with `selected no
+      *As run:* each of the eleven lanes, filtered to one test name taken
+      from its collection, ran that test (four parametrised cases for
+      `entrypoint`) and deselected the rest, all passing.
+- [x] `mise run <task> --filter 'foo and'` fails (pytest exit 4).
+      *As run:* exit 4 in every lane but `test:integration:dev`, which
+      exits 3: under `-n auto`, xdist reports the `-k` usage error as an
+      internal error. The lane still fails.
+- [x] `mise run <task> --filter 'no_such_test_xyz'` fails with `selected no
       tests`.
 
 ---
