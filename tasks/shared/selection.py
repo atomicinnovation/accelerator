@@ -25,6 +25,20 @@ class Selection:
     def pytest(self) -> str:
         return self._option("-k")
 
+    def libtest(self) -> str:
+        if self.expression is None:
+            return ""
+        return _quoted(self.expression)
+
+    def vitest(self) -> str:
+        return self._option("-t")
+
+    def node_test(self) -> str:
+        return self._option("--test-name-pattern")
+
+    def playwright(self) -> str:
+        return self._option("--grep")
+
     def _option(self, name: str) -> str:
         if self.expression is None:
             return ""
