@@ -239,8 +239,12 @@ an engine-level `70` can follow partial writes, so the operator knows whether a
 re-run is a clean retry or a resume (see the target-abort codes under Step 1).
 Under `--preview` no baseline mutation occurs, every planned push carries a
 locally-validated payload check or the `pull-residue` or `unrenderable` failure
-the run would meet, and every planned pull carries the `unrenderable` failure
-the run would meet.
+the run would meet, every planned pull carries the `unrenderable` failure the
+run would meet, and every create without a `--resolve` order carries the
+pending-push refusal, the incomplete-corpus deferral or the work-file failure
+the run would meet. A create with a `--resolve` order is checked against its
+marker only on the run. When a preview carries a `--resolve` order for a
+create, tell the user the preview cannot confirm that item.
 
 **A re-key in progress.** `work sync` refuses before reading or writing
 anything while an `accelerator work rekey` run is unfinished. Before any other
@@ -282,13 +286,7 @@ stderr:
 exit code: a `4` run can carry retryable failures and a `71` run may also carry
 conflicts. Every failure also prints `error: <id-path-or-dash>: <operation>
 failed: <cause>` on stderr (`would fail` on a preview), except a refused or
-rolled-back key change, which is a `failed` row only. A preview does not yet
-read a create's pending-push marker, so a pending push the run would refuse
-fails only on the run itself: for each `create-from-local` row in a preview,
-read the marker at
-`<paths.integrations>/<work.integration>/pending-push/<id>.json`; if one
-exists, tell the user the preview cannot confirm that item and follow the
-recovery skill's pending-push recovery before the real run. A `record-baseline` row
+rolled-back key change, which is a `failed` row only. A `record-baseline` row
 (state `locally-modified`) means only the item's baseline was recorded and
 nothing was sent or written: the local change touched no field the tracker
 holds, or both sides already agree. A `push` row also covers a title sent
@@ -781,12 +779,13 @@ unchanged — do not reinterpret:
   numbers for two distinct concepts, never one overstated count.
 
 Under `--preview`, present the same plan (every push carrying its
-locally-validated payload check) and report every pull instead of writing it;
-**no** baseline mutation occurs. A locally-detectable missing required field is
-surfaced here before any mutation — but update validation is now **local-only**,
-so a clean preview does not guarantee a successful push (a tracker-side field
-rejection surfaces only at apply, as a `retryable` or `terminal` row by
-whether the tracker can show nothing changed).
+locally-validated payload check, and every create without a `--resolve` order
+carrying the failure the run would meet) and report every pull instead of
+writing it; **no** baseline mutation occurs. A locally-detectable missing
+required field is surfaced here before any mutation — but update validation is
+now **local-only**, so a clean preview does not guarantee a successful push (a
+tracker-side field rejection surfaces only at apply, as a `retryable` or
+`terminal` row by whether the tracker can show nothing changed).
 
 **Validate the frontmatter**: the sync engine owns every write, so after the
 engine run validate each concrete item it touched (created or written back)
