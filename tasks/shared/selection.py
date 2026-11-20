@@ -20,9 +20,15 @@ class Selection:
         return self.expression is not None
 
     def nextest(self) -> str:
+        return self._option("-E")
+
+    def pytest(self) -> str:
+        return self._option("-k")
+
+    def _option(self, name: str) -> str:
         if self.expression is None:
             return ""
-        return f"-E {_quoted(self.expression)}"
+        return f"{name} {_quoted(self.expression)}"
 
     @property
     def flag(self) -> str:

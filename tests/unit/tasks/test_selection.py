@@ -64,3 +64,15 @@ def test_nothing_selected_quotes_an_expression_holding_a_quote():
     message = Selection("test(it's)").nothing_selected("test:unit:cli")
 
     assert shlex.split(message)[:2] == ["--filter", "test(it's)"]
+
+
+def test_pytest_renders_the_expression_as_one_quoted_k_option():
+    assert Selection("a and not b").pytest() == "-k 'a and not b'"
+
+
+def test_pytest_renders_nothing_unfiltered():
+    assert Selection(None).pytest() == ""
+
+
+def test_the_pytest_rendering_splits_back_into_the_option_and_the_expression():
+    assert shlex.split(Selection("it's a").pytest()) == ["-k", "it's a"]
