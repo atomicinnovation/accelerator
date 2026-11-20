@@ -7,7 +7,7 @@ from invoke import Context, Exit, task
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
 from tasks.test.filters import (
-    LIBTEST_FILTER_HELP,
+    LIBTEST_INTEGRATION_FILTER_HELP,
     NEXTEST_CONTRACT_FILTER_HELP,
     NODE_TEST_RUNTIME_FILTER_HELP,
     PYTEST_FILTER_HELP,
@@ -26,7 +26,7 @@ from tasks.test.unit import (
 from .helpers import accelerator_env, repo_root
 
 
-@task(help={"filter_": LIBTEST_FILTER_HELP})
+@task(help={"filter_": LIBTEST_INTEGRATION_FILTER_HELP})
 def visualiser(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the visualiser (its `tests/*.rs` targets).
 

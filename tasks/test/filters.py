@@ -40,9 +40,14 @@ PLAYWRIGHT_DOCKER_FILTER_HELP = (
     "Playwright --grep regex selecting the tests to run, e.g. 'chip-showcase'"
 )
 
-LIBTEST_FILTER_HELP = (
+LIBTEST_UNIT_FILTER_HELP = (
     "libtest substring of the test path selecting the tests to run, "
     "e.g. 'path_normalisation'"
+)
+
+LIBTEST_INTEGRATION_FILTER_HELP = (
+    "libtest substring of the test path selecting the tests to run, "
+    "e.g. 'spa_route'"
 )
 
 _PYTEST_NO_TESTS_COLLECTED = 5

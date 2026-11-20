@@ -8,7 +8,7 @@ from tasks.shared.paths import CARGO_TOML, FRONTEND
 from tasks.shared.selection import Selection
 
 from .filters import (
-    LIBTEST_FILTER_HELP,
+    LIBTEST_UNIT_FILTER_HELP,
     NODE_TEST_UNIT_FILTER_HELP,
     PYTEST_FILTER_HELP,
     VITEST_FILTER_HELP,
@@ -23,7 +23,7 @@ from .filters import (
 from .helpers import repo_root
 
 
-@task(help={"filter_": LIBTEST_FILTER_HELP})
+@task(help={"filter_": LIBTEST_UNIT_FILTER_HELP})
 def visualiser(context: Context, filter_: str | None = None) -> None:
     """Run the visualiser server unit tests.
 

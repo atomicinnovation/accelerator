@@ -394,7 +394,7 @@ run = 'invoke test.integration.design-automation ${usage_filter+--filter "$usage
 description = "Run visualiser integration tests"
 depends = ["build:server:dev", "build:cli:dev"]
 usage = '''
-flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'path_normalisation'"
+flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'spa_route'"
 '''
 run = 'invoke test.integration.visualiser ${usage_filter+--filter "$usage_filter"}'
 
