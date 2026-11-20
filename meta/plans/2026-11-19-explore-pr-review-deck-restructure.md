@@ -364,7 +364,7 @@ assert:
 
 - [x] On a rebuilt workspace, the rail shows the five groups. Interact is
       absent when there are no custom views.
-- [ ] Each catalogue's filters narrow the list, and a verdict given in a
+- [x] Each catalogue's filters narrow the list, and a verdict given in a
       catalogue shows wherever else that item's control is drawn.
 - [x] The smoke check reports `"ok": true`.
 
@@ -553,10 +553,10 @@ Fixtures that assert `warnings == []` gain carrying stops.
 
 #### Manual Verification
 
-- [ ] In a rebuilt chapter, each decision reads naturally at the stop where it
+- [x] In a rebuilt chapter, each decision reads naturally at the stop where it
       first appears.
-- [ ] Its verdict matches Reference.
-- [ ] The chip strip links to the right stop.
+- [x] Its verdict matches Reference.
+- [x] The chip strip links to the right stop.
 
 ---
 
@@ -703,11 +703,11 @@ it. Name it in `content-model.md` and the design-pass brief, so that
 
 #### Manual Verification
 
-- [ ] On a real pull request, the Design view reads as an article.
-- [ ] Someone who reads only that view can explain the change's shape, its key
+- [x] On a real pull request, the Design view reads as an article.
+- [x] Someone who reads only that view can explain the change's shape, its key
       decisions and where the next change goes.
-- [ ] The design pass reused the chapters' ids and added `carriedBy` links.
-- [ ] The build passes without reworking any chapter.
+- [x] The design pass reused the chapters' ids and added `carriedBy` links.
+- [x] The build passes without reworking any chapter.
 
 ---
 
@@ -867,7 +867,7 @@ chapter's "Findings here" links open the matching finding.
       them, rebuilds.
 - [x] Its verdicts appear on `N-…` findings, and nothing is listed twice in
       Your notes.
-- [ ] On a new run, no issue appears twice in Findings.
+- [x] On a new run, no issue appears twice in Findings.
 
 ---
 
@@ -990,10 +990,10 @@ store code. `KINDS` is unchanged.
 
 #### Manual Verification
 
-- [ ] On the end-to-end run, every gate's state is right against the records.
+- [x] On the end-to-end run, every gate's state is right against the records.
 - [ ] Each "outstanding" link opens a filtered catalogue holding exactly those
       items.
-- [ ] The recommendation and conditions match the reconciled findings.
+- [x] The recommendation and conditions match the reconciled findings.
 
 ---
 
