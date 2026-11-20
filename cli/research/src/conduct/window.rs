@@ -4,9 +4,12 @@
 use std::collections::BTreeSet;
 
 use crate::conduct::concurrency::Concurrency;
+use crate::conduct::memory::Offer;
 use crate::conduct::memory::RunMemory;
 use crate::conduct::memory::Withheld;
 use crate::conduct::observed::Observed;
+use crate::conduct::offered_nodes::NodeContext;
+use crate::conduct::offered_nodes::OfferedNodes;
 use crate::conduct::spawn::SpawnRef;
 use crate::topic::evidence::NoteRejection;
 use crate::topic::layout::lineage::Lineage;
@@ -35,6 +38,32 @@ pub struct Window {
     pub remaining: usize,
     pub unfinished: Vec<UnfinishedSpawn>,
     pub unexpected: Vec<SpawnRef>,
+}
+
+impl Window {
+    #[must_use]
+    pub fn offer(&self) -> Offer {
+        let nodes = self.pairs.iter().flat_map(|pair| {
+            let nodes = match &pair.stage {
+                Stage::ResearchNodes(nodes) => nodes.as_slice(),
+                Stage::SinglePass | Stage::Compose(_) => &[],
+            };
+            nodes.iter().map(|node| {
+                (
+                    NoteRef {
+                        stem: pair.stem.clone(),
+                        lineage: node.lineage.clone(),
+                    },
+                    NodeContext {
+                        profile: pair.pair.profile.clone(),
+                        question: node.question.clone(),
+                        known_questions: node.known_questions.clone(),
+                    },
+                )
+            })
+        });
+        Offer::new(self.offered.clone(), OfferedNodes::of(nodes))
+    }
 }
 
 /// Offers the first spawns the concurrency admits, of those not yet
@@ -190,10 +219,75 @@ fn unexpected(observed: &Observed, memory: &RunMemory) -> Vec<SpawnRef> {
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
+pub(crate) mod test_support {
+    use crate::topic::layout::lineage::Lineage;
+    use crate::topic::layout::stem::Stem;
+    use crate::topic::outline::Pair;
+    use crate::topic::plan::OutstandingPair;
+    use crate::topic::tree::MissingNode;
+    use crate::topic::tree::Stage;
+    use crate::topic::tree::WorstCaseTree;
+
+    pub fn outstanding(stem: &str, stage: Stage) -> OutstandingPair {
+        OutstandingPair {
+            pair: Pair {
+                question: "Q?".into(),
+                profile: "web".into(),
+            },
+            stem: Stem::parse(stem).expect("a stem"),
+            stage,
+            worst_case: WorstCaseTree::default(),
+        }
+    }
+
+    pub fn missing(
+        lineage: &str,
+        question: &str,
+        known_questions: &[&str],
+    ) -> MissingNode {
+        MissingNode {
+            lineage: Lineage::parse(lineage).expect("a lineage"),
+            question: question.into(),
+            known_questions: known_questions
+                .iter()
+                .map(|known| (*known).to_owned())
+                .collect(),
+            rejected: None,
+        }
+    }
+
+    pub fn researching(stem: &str, nodes: Vec<MissingNode>) -> OutstandingPair {
+        outstanding(stem, Stage::ResearchNodes(nodes))
+    }
+
+    pub fn research_nodes(stem: &str, lineages: &[&str]) -> OutstandingPair {
+        researching(
+            stem,
+            lineages
+                .iter()
+                .map(|at| missing(at, &format!("{at}?"), &[]))
+                .collect(),
+        )
+    }
+
+    pub fn of_profile(
+        profile: &str,
+        mut pair: OutstandingPair,
+    ) -> OutstandingPair {
+        pair.pair.profile = profile.into();
+        pair
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
 
+    use super::test_support::of_profile;
+    use super::test_support::outstanding;
+    use super::test_support::research_nodes;
     use super::window;
     use super::UnfinishedSpawn;
     use super::Window;
@@ -211,12 +305,9 @@ mod tests {
     use crate::topic::layout::lineage::Lineage;
     use crate::topic::layout::note_ref::NoteRef;
     use crate::topic::layout::stem::Stem;
-    use crate::topic::outline::Pair;
     use crate::topic::plan::OutstandingPair;
     use crate::topic::plan::RoundPlan;
-    use crate::topic::tree::MissingNode;
     use crate::topic::tree::Stage;
-    use crate::topic::tree::WorstCaseTree;
 
     const SEEN: Digest = Digest::new([1; 32]);
     const CHANGED: Digest = Digest::new([2; 32]);
@@ -237,42 +328,12 @@ mod tests {
         }
     }
 
-    fn outstanding(stem_text: &str, stage: Stage) -> OutstandingPair {
-        OutstandingPair {
-            pair: Pair {
-                question: "Q?".into(),
-                profile: "web".into(),
-            },
-            stem: stem(stem_text),
-            stage,
-            worst_case: WorstCaseTree::default(),
-        }
-    }
-
     fn single_pass(stem_text: &str) -> OutstandingPair {
         outstanding(stem_text, Stage::SinglePass)
     }
 
     fn compose(stem_text: &str) -> OutstandingPair {
         outstanding(stem_text, Stage::Compose(vec![Lineage::root()]))
-    }
-
-    fn research_nodes(stem_text: &str, lineages: &[&str]) -> OutstandingPair {
-        let nodes = lineages
-            .iter()
-            .map(|at| MissingNode {
-                lineage: Lineage::parse(at).expect("a lineage"),
-                question: format!("{at}?"),
-                known_questions: Vec::new(),
-                rejected: None,
-            })
-            .collect();
-        outstanding(stem_text, Stage::ResearchNodes(nodes))
-    }
-
-    fn of_profile(profile: &str, mut pair: OutstandingPair) -> OutstandingPair {
-        pair.pair.profile = profile.into();
-        pair
     }
 
     fn withholding(profiles: &[&str]) -> RunMemory {

@@ -170,7 +170,90 @@ fn the_researcher_may_run_the_fetch() {
 fn the_researcher_may_run_nothing_else() {
     bash(&Project::new(), Some(RESEARCHER), "ls").assert_blocks(
         "E_RESEARCH_GUARD_COMMAND: accelerator:researcher may run only \
-         'accelerator research fetch …'",
+         'accelerator research fetch …', 'accelerator research topic node …', \
+         'accelerator config template topic-research --kind finding' or \
+         'accelerator config template topic-research --kind level-note'",
+    );
+}
+
+#[test]
+fn the_researcher_may_run_its_template_commands() {
+    for kind in ["finding", "level-note"] {
+        bash(
+            &Project::new(),
+            Some(RESEARCHER),
+            &format!(
+                "accelerator config template topic-research --kind {kind}"
+            ),
+        )
+        .assert_passes_silently();
+    }
+}
+
+#[test]
+fn a_template_command_must_match_exactly() {
+    bash(
+        &Project::new(),
+        Some(RESEARCHER),
+        "accelerator config template topic-research --kind finding \
+         --fail-safe",
+    )
+    .assert_blocks("E_RESEARCH_GUARD_COMMAND");
+}
+
+#[test]
+fn the_composer_may_run_no_template_command() {
+    bash(
+        &Project::new(),
+        Some(COMPOSER),
+        "accelerator config template topic-research --kind finding",
+    )
+    .assert_blocks(
+        "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no commands",
+    );
+}
+
+const NODE_QUERY: &str =
+    "accelerator research topic node s --run r1 --node 03-a-web:2-1";
+
+#[test]
+fn the_node_query_is_permitted() {
+    bash(&Project::new(), Some(RESEARCHER), NODE_QUERY)
+        .assert_passes_silently();
+}
+
+#[test]
+fn every_other_topic_subcommand_stays_blocked() {
+    for command in [
+        "accelerator research topic outstanding s --profiles-dir p",
+        "accelerator research topic outstanding s --start",
+        "accelerator research topic outstanding s --run r1 --spawned 0",
+        "accelerator research topic end-run s --run r1",
+        "accelerator research topic report-path s q",
+        "accelerator research topic counts s",
+        "accelerator research topic consultable s --profiles-dir p",
+        "accelerator research topic nodex s",
+        "accelerator research topic node",
+    ] {
+        bash(&Project::new(), Some(RESEARCHER), command)
+            .assert_blocks("E_RESEARCH_GUARD_COMMAND");
+    }
+}
+
+#[test]
+fn a_chained_node_query_is_blocked() {
+    bash(
+        &Project::new(),
+        Some(RESEARCHER),
+        &format!("{NODE_QUERY}; rm -rf ."),
+    )
+    .assert_blocks("E_RESEARCH_GUARD_SYNTAX: command contains a ';'");
+}
+
+#[test]
+fn the_composer_may_not_run_the_node_query() {
+    bash(&Project::new(), Some(COMPOSER), NODE_QUERY).assert_blocks(
+        "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no commands",
     );
 }
 
@@ -197,6 +280,29 @@ fn the_researcher_may_not_write_config() {
         &project.at(".accelerator/config.md"),
     )
     .assert_blocks("E_RESEARCH_GUARD_WRITE: accelerator:researcher");
+}
+
+#[test]
+fn a_researcher_cannot_write_the_run_ledger() {
+    let project = Project::new();
+    project.mkdir("meta/research/topics/s");
+    let ledger = project.at("meta/research/topics/s/.conduct-run.json");
+    write(&project, Some(RESEARCHER), &ledger)
+        .assert_blocks("'s/.conduct-run.json' is outside that scope");
+    guard(
+        &project.root,
+        &call(
+            &project.root,
+            Some(RESEARCHER),
+            "Edit",
+            &json!({
+                "file_path": ledger,
+                "old_string": "a",
+                "new_string": "b",
+            }),
+        ),
+    )
+    .assert_blocks("'s/.conduct-run.json' is outside that scope");
 }
 
 #[test]

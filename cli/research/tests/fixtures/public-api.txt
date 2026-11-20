@@ -138,9 +138,11 @@ pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::t
 pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
 pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory, search_budgets: core::option::Option<research::conduct::search_budget::SearchBudgets>) -> Self
 pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
+pub fn research::conduct::ledger::RunLedger::offered_context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
 pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunLedger::search_budget(&self, profile: &str, level: u32) -> core::option::Option<core::num::nonzero::NonZeroU32>
 pub const fn research::conduct::ledger::RunLedger::search_budgets(&self) -> core::option::Option<&research::conduct::search_budget::SearchBudgets>
 pub fn research::conduct::ledger::RunLedger::settling_quarantine(self, inputs: &research::topic::plan::RoundInputs) -> core::result::Result<Self, research::conduct::ledger::OwedQuarantine>
 pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
@@ -164,12 +166,26 @@ impl core::fmt::Debug for research::conduct::ledger::Superseded
 pub fn research::conduct::ledger::Superseded::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::ledger::Superseded
 pub mod research::conduct::memory
+pub struct research::conduct::memory::Offer
+impl research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::new(spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>, nodes: research::conduct::offered_nodes::OfferedNodes) -> Self
+impl core::clone::Clone for research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::clone(&self) -> research::conduct::memory::Offer
+impl core::cmp::Eq for research::conduct::memory::Offer
+impl core::cmp::PartialEq for research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::eq(&self, other: &research::conduct::memory::Offer) -> bool
+impl core::fmt::Debug for research::conduct::memory::Offer
+pub fn research::conduct::memory::Offer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::memory::Offer
 pub struct research::conduct::memory::PendingBatch
 impl research::conduct::memory::PendingBatch
 pub fn research::conduct::memory::PendingBatch::acknowledge(&mut self, spawned: u32) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
 pub const fn research::conduct::memory::PendingBatch::new(number: u32, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> Self
+pub const fn research::conduct::memory::PendingBatch::nodes(&self) -> &research::conduct::offered_nodes::OfferedNodes
 pub const fn research::conduct::memory::PendingBatch::number(&self) -> u32
-pub fn research::conduct::memory::PendingBatch::replace(&mut self, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::replace(&mut self, offer: research::conduct::memory::Offer) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::restored(number: u32, offer: research::conduct::memory::Offer) -> Self
 pub fn research::conduct::memory::PendingBatch::spawns(&self) -> &[research::conduct::spawn::SpawnRef]
 impl core::clone::Clone for research::conduct::memory::PendingBatch
 pub fn research::conduct::memory::PendingBatch::clone(&self) -> research::conduct::memory::PendingBatch
@@ -234,6 +250,36 @@ pub fn research::conduct::observed::Observed::default() -> research::conduct::ob
 impl core::fmt::Debug for research::conduct::observed::Observed
 pub fn research::conduct::observed::Observed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::observed::Observed
+pub mod research::conduct::offered_nodes
+pub struct research::conduct::offered_nodes::NodeContext
+pub research::conduct::offered_nodes::NodeContext::known_questions: alloc::vec::Vec<alloc::string::String>
+pub research::conduct::offered_nodes::NodeContext::profile: alloc::string::String
+pub research::conduct::offered_nodes::NodeContext::question: alloc::string::String
+impl core::clone::Clone for research::conduct::offered_nodes::NodeContext
+pub fn research::conduct::offered_nodes::NodeContext::clone(&self) -> research::conduct::offered_nodes::NodeContext
+impl core::cmp::Eq for research::conduct::offered_nodes::NodeContext
+impl core::cmp::PartialEq for research::conduct::offered_nodes::NodeContext
+pub fn research::conduct::offered_nodes::NodeContext::eq(&self, other: &research::conduct::offered_nodes::NodeContext) -> bool
+impl core::fmt::Debug for research::conduct::offered_nodes::NodeContext
+pub fn research::conduct::offered_nodes::NodeContext::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::offered_nodes::NodeContext
+pub struct research::conduct::offered_nodes::OfferedNodes(_)
+impl research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
+pub const fn research::conduct::offered_nodes::OfferedNodes::empty() -> Self
+pub fn research::conduct::offered_nodes::OfferedNodes::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&research::topic::layout::note_ref::NoteRef, &research::conduct::offered_nodes::NodeContext)>
+pub fn research::conduct::offered_nodes::OfferedNodes::of(contexts: impl core::iter::traits::collect::IntoIterator<Item = (research::topic::layout::note_ref::NoteRef, research::conduct::offered_nodes::NodeContext)>) -> Self
+pub fn research::conduct::offered_nodes::OfferedNodes::retained_for(self, spawns: &[research::conduct::spawn::SpawnRef]) -> Self
+impl core::clone::Clone for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::clone(&self) -> research::conduct::offered_nodes::OfferedNodes
+impl core::cmp::Eq for research::conduct::offered_nodes::OfferedNodes
+impl core::cmp::PartialEq for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::eq(&self, other: &research::conduct::offered_nodes::OfferedNodes) -> bool
+impl core::default::Default for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::default() -> research::conduct::offered_nodes::OfferedNodes
+impl core::fmt::Debug for research::conduct::offered_nodes::OfferedNodes
+pub fn research::conduct::offered_nodes::OfferedNodes::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::offered_nodes::OfferedNodes
 pub mod research::conduct::replaced_run
 pub struct research::conduct::replaced_run::Leftover
 impl research::conduct::replaced_run::Leftover
@@ -311,6 +357,8 @@ impl core::fmt::Debug for research::conduct::search_budget::SearchCap
 pub fn research::conduct::search_budget::SearchCap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::conduct::search_budget::SearchCap
 impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchCap
+pub const research::conduct::search_budget::UNSIZED_NODE_BUDGET: core::num::nonzero::NonZeroU32
+pub fn research::conduct::search_budget::node_search_budget(budgets: core::option::Option<&research::conduct::search_budget::SearchBudgets>, profile: &str, level: u32) -> core::option::Option<core::num::nonzero::NonZeroU32>
 pub fn research::conduct::search_budget::searches(profile: &str) -> bool
 pub fn research::conduct::search_budget::unsearched_tree(pairs: &[research::topic::plan::OutstandingPair]) -> research::topic::tree::WorstCaseTree
 pub mod research::conduct::spawn
@@ -335,6 +383,25 @@ pub fn research::conduct::spawn::SpawnRef::fmt(&self, f: &mut core::fmt::Formatt
 impl core::hash::Hash for research::conduct::spawn::SpawnRef
 pub fn research::conduct::spawn::SpawnRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::conduct::spawn::SpawnRef
+pub mod research::conduct::template
+pub enum research::conduct::template::ConductTemplate
+pub research::conduct::template::ConductTemplate::Finding
+pub research::conduct::template::ConductTemplate::LevelNote
+impl research::conduct::template::ConductTemplate
+pub const research::conduct::template::ConductTemplate::ALL: [Self; 2]
+pub const research::conduct::template::ConductTemplate::SET: &'static str
+pub const fn research::conduct::template::ConductTemplate::kind(self) -> &'static str
+pub fn research::conduct::template::ConductTemplate::name(&self) -> alloc::string::String
+pub const fn research::conduct::template::ConductTemplate::permitted_command(self) -> research::confinement::PermittedCommand
+impl core::clone::Clone for research::conduct::template::ConductTemplate
+pub fn research::conduct::template::ConductTemplate::clone(&self) -> research::conduct::template::ConductTemplate
+impl core::cmp::Eq for research::conduct::template::ConductTemplate
+impl core::cmp::PartialEq for research::conduct::template::ConductTemplate
+pub fn research::conduct::template::ConductTemplate::eq(&self, other: &research::conduct::template::ConductTemplate) -> bool
+impl core::fmt::Debug for research::conduct::template::ConductTemplate
+pub fn research::conduct::template::ConductTemplate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::conduct::template::ConductTemplate
+impl core::marker::StructuralPartialEq for research::conduct::template::ConductTemplate
 pub mod research::conduct::window
 pub struct research::conduct::window::UnfinishedSpawn
 pub research::conduct::window::UnfinishedSpawn::rejected: core::option::Option<research::topic::evidence::NoteRejection>
@@ -354,6 +421,8 @@ pub research::conduct::window::Window::remaining: usize
 pub research::conduct::window::Window::unexpected: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
 pub research::conduct::window::Window::unfinished: alloc::vec::Vec<research::conduct::window::UnfinishedSpawn>
 pub research::conduct::window::Window::withheld_spawns: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
+impl research::conduct::window::Window
+pub fn research::conduct::window::Window::offer(&self) -> research::conduct::memory::Offer
 impl core::clone::Clone for research::conduct::window::Window
 pub fn research::conduct::window::Window::clone(&self) -> research::conduct::window::Window
 impl core::cmp::Eq for research::conduct::window::Window
@@ -438,11 +507,26 @@ pub fn research::confinement::PathRejection::eq(&self, other: &research::confine
 impl core::fmt::Debug for research::confinement::PathRejection
 pub fn research::confinement::PathRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::confinement::PathRejection
+pub enum research::confinement::PermittedCommand
+pub research::confinement::PermittedCommand::Exactly(&'static str)
+pub research::confinement::PermittedCommand::Prefixed(&'static str)
+impl core::clone::Clone for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::clone(&self) -> research::confinement::PermittedCommand
+impl core::cmp::Eq for research::confinement::PermittedCommand
+impl core::cmp::PartialEq for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::eq(&self, other: &research::confinement::PermittedCommand) -> bool
+impl core::fmt::Debug for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::confinement::PermittedCommand
+pub fn research::confinement::PermittedCommand::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::confinement::PermittedCommand
+impl core::marker::StructuralPartialEq for research::confinement::PermittedCommand
 pub enum research::confinement::Role
 pub research::confinement::Role::Composer
 pub research::confinement::Role::Researcher
 impl research::confinement::Role
 pub const fn research::confinement::Role::may_write(self, file: research::confinement::TopicFile) -> bool
+pub const fn research::confinement::Role::permitted_commands(self) -> &'static [research::confinement::PermittedCommand]
 impl core::clone::Clone for research::confinement::Role
 pub fn research::confinement::Role::clone(&self) -> research::confinement::Role
 impl core::cmp::Eq for research::confinement::Role
@@ -539,11 +623,14 @@ pub fn research::confinement::TopicsRelativePath::fmt(&self, f: &mut core::fmt::
 impl core::marker::StructuralPartialEq for research::confinement::TopicsRelativePath
 pub const research::confinement::DEFAULT_COMPOSER: &str
 pub const research::confinement::DEFAULT_RESEARCHER: &str
-pub const research::confinement::PERMITTED_PREFIX: &str
+pub const research::confinement::FETCH: research::confinement::PermittedCommand
+pub const research::confinement::FINDING_TEMPLATE: research::confinement::PermittedCommand
+pub const research::confinement::LEVEL_NOTE_TEMPLATE: research::confinement::PermittedCommand
+pub const research::confinement::NODE_QUERY: research::confinement::PermittedCommand
 pub const research::confinement::STRICTER_THAN_MEASURED: [research::confinement::Construct; 2]
 pub trait research::confinement::TopicLayout
 pub fn research::confinement::TopicLayout::classify(&self, target: &research::confinement::TopicsRelativePath) -> core::option::Option<research::confinement::TopicFile>
-pub fn research::confinement::command_decision(command: &str) -> research::confinement::Decision
+pub fn research::confinement::command_decision(role: research::confinement::Role, command: &str) -> research::confinement::Decision
 pub fn research::confinement::confined_agent(call: &research::confinement::ToolCall, confinement: &research::confinement::Confinement) -> core::option::Option<research::confinement::ConfinedAgent>
 pub fn research::confinement::decide(action: &research::confinement::Action, agent: &research::confinement::ConfinedAgent, layout: &dyn research::confinement::TopicLayout) -> research::confinement::Decision
 pub mod research::sources

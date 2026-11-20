@@ -7,21 +7,55 @@
 use std::collections::BTreeSet;
 
 use crate::conduct::observed::Observed;
+use crate::conduct::offered_nodes::NodeContext;
+use crate::conduct::offered_nodes::OfferedNodes;
 use crate::conduct::spawn::SpawnRef;
+use crate::topic::layout::note_ref::NoteRef;
 use crate::topic::layout::stem::Stem;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Offer {
+    spawns: Vec<SpawnRef>,
+    nodes: OfferedNodes,
+}
+
+impl Offer {
+    #[must_use]
+    pub fn new(spawns: Vec<SpawnRef>, nodes: OfferedNodes) -> Self {
+        let nodes = nodes.retained_for(&spawns);
+        Self { spawns, nodes }
+    }
+}
+
 /// The spawns last offered and not yet acknowledged, under the number the
-/// acknowledgement must quote.
+/// acknowledgement must quote, with the context each pending node was first
+/// offered with.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PendingBatch {
     number: u32,
     spawns: Vec<SpawnRef>,
+    nodes: OfferedNodes,
 }
 
 impl PendingBatch {
     #[must_use]
     pub const fn new(number: u32, spawns: Vec<SpawnRef>) -> Self {
-        Self { number, spawns }
+        Self {
+            number,
+            spawns,
+            nodes: OfferedNodes::empty(),
+        }
+    }
+
+    /// A pending node may lack a context, as in a batch offered before
+    /// contexts were kept.
+    #[must_use]
+    pub fn restored(number: u32, offer: Offer) -> Self {
+        Self {
+            number,
+            spawns: offer.spawns,
+            nodes: offer.nodes,
+        }
     }
 
     /// Takes the batch when `spawned` is its number, so a stale or replayed
@@ -31,23 +65,41 @@ impl PendingBatch {
             return Vec::new();
         }
         self.number = self.number.saturating_add(1);
+        self.nodes = OfferedNodes::empty();
         std::mem::take(&mut self.spawns)
     }
 
-    /// Offers `spawns` in place of the pending batch, returning the pending
-    /// spawns the new offer drops.
-    pub fn replace(&mut self, spawns: Vec<SpawnRef>) -> Vec<SpawnRef> {
+    /// Offers `offer` in place of the pending batch, returning the pending
+    /// spawns it drops. A node still pending keeps the context it was first
+    /// offered with.
+    pub fn replace(&mut self, offer: Offer) -> Vec<SpawnRef> {
         let displaced = self
             .spawns
             .iter()
-            .filter(|spawn| !spawns.contains(spawn))
+            .filter(|spawn| !offer.spawns.contains(spawn))
             .cloned()
             .collect();
-        if !self.spawns.is_empty() && self.spawns != spawns {
+        if !self.spawns.is_empty() && self.spawns != offer.spawns {
             self.number = self.number.saturating_add(1);
         }
-        self.spawns = spawns;
+        let first_offered = std::mem::take(&mut self.nodes);
+        self.nodes =
+            OfferedNodes::of(offer.nodes.iter().map(|(at, offered)| {
+                let context = first_offered.context(at).unwrap_or(offered);
+                (at.clone(), context.clone())
+            }));
+        self.spawns = offer.spawns;
         displaced
+    }
+
+    #[must_use]
+    pub fn context(&self, at: &NoteRef) -> Option<&NodeContext> {
+        self.nodes.context(at)
+    }
+
+    #[must_use]
+    pub const fn nodes(&self) -> &OfferedNodes {
+        &self.nodes
     }
 
     #[must_use]
@@ -115,15 +167,96 @@ impl RunMemory {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use super::Offer;
     use super::PendingBatch;
     use super::RunMemory;
+    use crate::conduct::offered_nodes::NodeContext;
+    use crate::conduct::offered_nodes::OfferedNodes;
     use crate::conduct::spawn::SpawnRef;
+    use crate::topic::layout::lineage::Lineage;
+    use crate::topic::layout::note_ref::NoteRef;
+    use crate::topic::layout::stem::Stem;
 
     fn spawns(texts: &[&str]) -> Vec<SpawnRef> {
         texts
             .iter()
             .map(|text| SpawnRef::parse(text).expect("a spawn ref"))
             .collect()
+    }
+
+    fn node(text: &str) -> NoteRef {
+        let (stem, lineage) = text.split_once(':').expect("a node ref");
+        NoteRef {
+            stem: Stem::parse(stem).expect("a stem"),
+            lineage: Lineage::parse(lineage).expect("a lineage"),
+        }
+    }
+
+    fn asking(question: &str) -> NodeContext {
+        NodeContext {
+            profile: "web".into(),
+            question: question.into(),
+            known_questions: Vec::new(),
+        }
+    }
+
+    fn contexts(asked: &[(&str, &str)]) -> OfferedNodes {
+        OfferedNodes::of(
+            asked
+                .iter()
+                .map(|(at, question)| (node(at), asking(question))),
+        )
+    }
+
+    fn offer(texts: &[&str]) -> Offer {
+        Offer::new(spawns(texts), OfferedNodes::empty())
+    }
+
+    #[test]
+    fn retained_for_keeps_only_contexts_of_node_spawns_held() {
+        let held = contexts(&[("01-a:2-1", "A?"), ("01-a:2-2", "B?")])
+            .retained_for(&spawns(&["01-a:2-1", "01-a"]));
+        assert_eq!(held, contexts(&[("01-a:2-1", "A?")]));
+    }
+
+    #[test]
+    fn a_batch_keeps_no_context_for_a_spawn_it_does_not_hold() {
+        let batch = PendingBatch::restored(
+            0,
+            Offer::new(
+                spawns(&["01-a:2-1"]),
+                contexts(&[("01-a:2-1", "A?"), ("01-a:2-2", "B?")]),
+            ),
+        );
+        assert_eq!(batch.context(&node("01-a:2-1")), Some(&asking("A?")));
+        assert_eq!(batch.context(&node("01-a:2-2")), None);
+    }
+
+    #[test]
+    fn a_batch_may_hold_pending_nodes_without_context() {
+        let batch = PendingBatch::restored(0, offer(&["01-a:2-1"]));
+        assert_eq!(batch.spawns(), spawns(&["01-a:2-1"]));
+        assert_eq!(batch.context(&node("01-a:2-1")), None);
+    }
+
+    #[test]
+    fn acknowledging_a_batch_clears_its_contexts() {
+        let mut batch = PendingBatch::restored(
+            0,
+            Offer::new(spawns(&["01-a:2-1"]), contexts(&[("01-a:2-1", "A?")])),
+        );
+        batch.acknowledge(0);
+        assert_eq!(batch.nodes(), &OfferedNodes::empty());
+    }
+
+    #[test]
+    fn a_stale_acknowledgement_keeps_the_contexts() {
+        let mut batch = PendingBatch::restored(
+            0,
+            Offer::new(spawns(&["01-a:2-1"]), contexts(&[("01-a:2-1", "A?")])),
+        );
+        batch.acknowledge(1);
+        assert_eq!(batch.context(&node("01-a:2-1")), Some(&asking("A?")));
     }
 
     #[test]
@@ -137,12 +270,12 @@ mod tests {
     #[test]
     fn replacing_returns_only_spawns_absent_from_the_new_offer() {
         let mut batch = PendingBatch::new(3, spawns(&["01-a", "02-b"]));
-        assert_eq!(batch.replace(spawns(&["02-b", "03-c"])), spawns(&["01-a"]));
+        assert_eq!(batch.replace(offer(&["02-b", "03-c"])), spawns(&["01-a"]));
         assert_eq!(batch.number(), 4);
-        assert!(batch.replace(spawns(&["02-b", "03-c"])).is_empty());
+        assert!(batch.replace(offer(&["02-b", "03-c"])).is_empty());
         assert_eq!(batch.number(), 4);
         let mut empty = PendingBatch::new(2, Vec::new());
-        assert!(empty.replace(spawns(&["01-a"])).is_empty());
+        assert!(empty.replace(offer(&["01-a"])).is_empty());
         assert_eq!(empty.number(), 2);
     }
 

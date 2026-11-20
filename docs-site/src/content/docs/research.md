@@ -429,8 +429,11 @@ the name configured as `agents.composer`. A name configured for both roles is
 confined as the researcher. Every other call passes untouched, before any
 config is read. For the researcher the guard blocks, by exiting `2`:
 
-- a command other than `accelerator research fetch …`, or one carrying shell
-  syntax that could run anything else;
+- a command other than `accelerator research fetch …`,
+  `accelerator research topic node …` or, exactly as written,
+  `accelerator config template topic-research --kind finding` or
+  `accelerator config template topic-research --kind level-note`; or a fetch
+  or node query carrying shell syntax that could run anything else;
 - a write anywhere but an indexed finding,
   `<research_topics>/<set>/findings/<nn>-<name>.md`, or a level note,
   `<research_topics>/<set>/findings/<nn>-<name>.levels/<lineage>.md`,
@@ -445,7 +448,8 @@ letters, digits and `-`.
 :::caution
 The guard keys on the agent type, not on who spawned it. Every subagent of the
 configured researcher type, wherever it is spawned, may only run
-`accelerator research fetch` and write findings. Point `agents.researcher` at
+`accelerator research fetch`, the node query and its two template commands,
+and write findings. Point `agents.researcher` at
 a dedicated agent, never at one you use for other work.
 :::
 
@@ -460,7 +464,8 @@ Code would accept except two constructs:
 | Any unescaped `$` outside single quotes and comments | Claude Code accepts `$HOME`, which lets a researcher read an environment secret back through a usage error's echo |
 | Any unquoted `<` outside comments                | Claude Code accepts `< file`, which includes bash's `</dev/tcp/…` and so sends data to an arbitrary host |
 
-The fetch needs neither: its arguments are literal and it reads no stdin.
+No command the researcher may run needs either: their arguments are literal
+and none reads stdin.
 Everything else follows Claude Code's measured behaviour, including globs, `~`,
 comments, a quoted separator, and discarding output to `/dev/null`. The
 separators, pipes, background operators, substitutions, braces, other
@@ -487,7 +492,7 @@ the two constructs above.
 
 | Code                          | Cause                                                              |
 |-------------------------------|--------------------------------------------------------------------|
-| `E_RESEARCH_GUARD_COMMAND`    | A researcher command other than `accelerator research fetch …`, or any composer command, the fetch included |
+| `E_RESEARCH_GUARD_COMMAND`    | A researcher command other than `accelerator research fetch …`, `accelerator research topic node …` or its two template commands, or any composer command |
 | `E_RESEARCH_GUARD_SYNTAX`     | A construct that could run anything else, named in the message     |
 | `E_RESEARCH_GUARD_WRITE`      | A write outside the role's scope, with its cause: an indexed finding for both roles, plus a level note for the researcher |
 | `E_RESEARCH_GUARD_UNREADABLE` | A confined agent's call with no readable command or path           |
@@ -497,26 +502,65 @@ Each message names the matched agent type, adding `(agents.researcher)` or
 `(agents.composer)` when it matched a configured name. A confined agent reads
 a block as a call to correct, not the end of its work.
 
-### Granting the fetch
+### Granting the commands
 
-The guard never allows anything; it only blocks. The fetch itself must be
-granted by a permission rule that reaches the researcher subagent.
-`research-topic`'s `allowed-tools` carries `Bash(accelerator research fetch *)`,
-which researchers it spawns inherit. Any other skill that injects any profile
-must grant the same rule, and a contract test enforces this for skills in this
-repository. The academic profiles search and look up through it, and
-`web-profile` uses it for `fetch web metadata`.
+The guard never allows anything; it only blocks. The fetch, the node query
+and the template commands must each be granted by a permission rule that
+reaches the researcher subagent. Spawns inherit the spawning skill's grants,
+and `research-topic`'s `allowed-tools` covers all of them:
 
-Where that grant does not reach the researcher, add the rule to the project's
-allow rules:
+- `Bash(accelerator research fetch *)` covers the fetch. The academic
+  profiles search and look up through it, and `web-profile` uses it for
+  `fetch web metadata`. Any other skill that injects any profile must grant
+  the same rule, and a contract test enforces this for skills in this
+  repository.
+- `Bash(accelerator research topic *)` covers the node query.
+- `Bash(accelerator config template *)` covers both template commands.
+
+The finding and level-note outputters each list their template command under
+`allowed-tools`, but a researcher reads an outputter rather than invoking it
+as a skill, so that frontmatter grants nothing: the command runs under the
+grant the spawn inherits.
+
+`research-topic` grants only the config reads it runs, so no spawn inherits
+a grant for `accelerator config set`. The other inherited grants are broad:
+at the permission layer they also cover commands such as `accelerator
+research topic end-run`. The research guard is what narrows a spawn to its
+listed commands, and it fails open when it cannot run (see [Failure
+signatures](#failure-signatures)). The exact rules below are the
+least-privilege option.
+
+Where those grants do not reach the researcher, add the rules to the
+project's allow rules. That includes a headless session, where Claude Code
+can drop `research-topic`'s grants once the orchestrator's turn ends while
+researchers are still running. Every node researcher runs its node query and
+template command before it writes anything, so a dropped grant fails each
+node of the batch. A headless run also needs
+`Bash(accelerator research topic outstanding *)`, or the orchestrator's
+next plan after that turn waits for approval.
 
 ```json
 {
   "permissions": {
-    "allow": ["Bash(accelerator research fetch *)"]
+    "allow": [
+      "Bash(accelerator research fetch *)",
+      "Bash(accelerator research topic node *)",
+      "Bash(accelerator config template topic-research --kind finding)",
+      "Bash(accelerator config template topic-research --kind level-note)"
+    ]
   }
 }
 ```
+
+:::caution
+Project allow rules apply to every session, including the main conversation
+and any agent the guard does not confine. There, Claude Code's own wildcard
+matching accepts `$VAR` expansion and `<` redirection (see [Command
+matching](#command-matching)), so a wildcard rule such as the fetch or node
+query rule can echo an environment secret back through a usage error without
+asking. Prefer a grant in the spawning skill's `allowed-tools`, and add these
+rules only where no skill's grant reaches the researcher.
+:::
 
 A `deny` or `ask` rule covering `accelerator research fetch` overrides the
 grant. For an academic researcher, `conduct` reports either case as "fetch
@@ -626,9 +670,9 @@ It prints JSON whose fields are listed below: `items` (each outline item's
 `slots`, and the `source` they came from: the variable's name, or `default`)
 and `search_cap` (its `searches`, and the `source` they came from, in the same
 form).
-The JSON is additive-only: fields may be added, never renamed or removed, and
-consumers ignore fields they do not know. It exits `1` with
-`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+From the first stable release the JSON is additive-only: fields may be added,
+never renamed or removed, and consumers ignore fields they do not know. It
+exits `1` with `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
@@ -639,9 +683,10 @@ Every plan also carries these fields, whether or not `--depth` is given:
 - `depth`, the depth planned for, `1` unless `--depth` says otherwise;
 - each pair's `stage`: `single_pass` (one researcher writes the finding),
   `research_nodes` (its missing `nodes`, each with `lineage`, `level`,
-  `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
-  `rejected` reason when the note on disk was refused) or `compose` (the
-  `notes` the composer reads, as absolute paths in lineage order);
+  `cap`, `id`, absolute `path`, and a `rejected` reason when the note on disk
+  was refused; a node's question and known questions are read with
+  `research topic node`) or `compose` (the `notes` the composer reads, as
+  absolute paths in lineage order);
 - on a run plan, a `search_budget` on every `web` `single_pass` pair and
   every node of a `web` pair: the most `WebSearch` calls its researcher may
   make;
@@ -674,6 +719,14 @@ read from `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it,
 else 200. A set value Claude Code would not honour is ignored, with a warning
 on `--start` when the run has web pairs. There is no `ACCELERATOR_*`
 counterpart.
+
+On `--start`, a `templates.topic-research-finding` or
+`templates.topic-research-level-note` path that does not exist gives a
+warning naming the template; `conduct`'s spawns then fill the template it
+falls back to. `conduct` reads the finding template once, before its first
+plan, and passes that copy to each composer, while each researcher fetches
+its template when it starts. A template edited during a run therefore
+reaches the researchers spawned after the edit but not the composers.
 
 A run sizes per-level search budgets once, on its `--start` plan, and stores
 them in its ledger with the cap they were sized against, so later plans keep
@@ -759,8 +812,54 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
 | `E_TOPIC_RESEARCH_WITHHOLD_PROFILE` | an empty `--withhold-profile`, or one without `--run` | pass a profile name, with `--run` |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
-| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
+| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing or corrupt, or cannot be read or written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
+
+### `research topic node`
+
+A researcher `conduct` spawns for one node of a pair's tree reads that node's
+context from the run, rather than from its prompt:
+
+```bash
+accelerator research topic node SLUG --run RUN --node STEM:LINEAGE
+```
+
+It prints one JSON object with the context the node was offered with:
+
+| Key | Value |
+|---|---|
+| `question` | the node's question, a follow-up its parent's note recorded |
+| `lineage` | the node's lineage, such as `2-1` |
+| `level` | the node's level in the tree |
+| `cap` | the most follow-ups the node's note may record |
+| `known_questions` | the questions already asked above the node, which its follow-ups must not repeat |
+| `id` | the level note's id, scoped by the set's directory name |
+| `path` | the level note's absolute path |
+| `search_budget` | the node's `WebSearch` allowance, for a `web` node only |
+
+The context is the snapshot the run's ledger took when the node was first
+offered, so a sibling's note written mid-batch never changes it. The command
+answers only for a node in the run's current offered batch, and writes
+nothing. A node of an earlier batch, or one withheld, is refused.
+
+The web profile and the level-note outputter use `{search budget}` without
+defining it. The researcher resolves it: the query's `search_budget` when it
+prints one, else a search budget injected into its prompt, else none, and
+then as many `WebSearch` calls as the question needs. An `agents.researcher`
+override must resolve it the same way, or it ignores the run's search quota.
+
+#### Exit codes
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_NODE` | `--node` is not a node's spawn ref, `<stem>:<lineage>` | pass the node's `spawn` from the plan |
+| `E_TOPIC_RESEARCH_NODE_NOT_OFFERED` | the run's current offered batch holds no context for the node, as when its batch was acknowledged before the researcher ran the query | re-run `conduct`, whose fresh run offers the node again |
+| `E_TOPIC_RESEARCH_RUN` | a malformed `--run` | pass the run id `conduct` injected |
+| `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
+| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt or unreadable | re-run `conduct` to start a fresh run |
+| `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
 
 ### `research topic report-path`
 

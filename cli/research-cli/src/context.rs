@@ -6,8 +6,10 @@ use std::path::PathBuf;
 use config::ConfigAccess;
 use config::ConfigError;
 use config::Key;
+use config::ReadTemplate;
 use config::Source;
 use config_adapters::compose;
+use config_adapters::plugin_root_from_env;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use corpus::DocTypeKey;
@@ -18,6 +20,7 @@ use research::conduct::concurrency::RequestedConcurrency;
 pub struct ProjectContext {
     pub root: PathBuf,
     pub config: Box<dyn ConfigAccess>,
+    pub templates: Box<dyn ReadTemplate>,
 }
 
 impl ProjectContext {
@@ -31,6 +34,9 @@ impl ProjectContext {
         composed.report_ignored_personal_file();
         Ok(Self {
             root: FileConfigStore::discover_root(cwd),
+            templates: Box::new(
+                composed.store.with_plugin_root(plugin_root_from_env()),
+            ),
             config: Box::new(composed.service),
         })
     }

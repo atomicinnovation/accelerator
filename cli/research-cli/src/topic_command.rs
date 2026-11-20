@@ -9,6 +9,8 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
+use config::ConfigAccess;
+use config::ReadTemplate;
 use corpus::scan::DirReader;
 use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
@@ -28,10 +30,10 @@ use research::conduct::observed::Observed;
 use research::conduct::replaced_run::Leftover;
 use research::conduct::replaced_run::Recovery;
 use research::conduct::replaced_run::ReplacedRun;
-use research::conduct::search_budget::searches;
 use research::conduct::search_budget::unsearched_tree;
 use research::conduct::search_budget::SearchBudgets;
 use research::conduct::spawn::SpawnRef;
+use research::conduct::template::ConductTemplate;
 use research::conduct::window::window;
 use research::conduct::window::UnfinishedSpawn;
 use research::conduct::window::Window;
@@ -61,6 +63,7 @@ use serde_json::Value;
 use crate::concurrency_wording;
 use crate::context::ProjectContext;
 use crate::ledger_wording;
+use crate::node_address;
 use crate::plan_wording;
 use crate::search_cap::EnvironmentSearchCap;
 use crate::search_wording;
@@ -168,6 +171,7 @@ pub struct PlanRequest {
     pub concurrency: CappedConcurrency,
     pub search_cap: EnvironmentSearchCap,
     pub mode: RunMode,
+    pub template_fallbacks: Vec<String>,
 }
 
 pub struct CappedConcurrency {
@@ -276,6 +280,35 @@ fn failed(message: impl Into<String>) -> String {
     message.into()
 }
 
+/// A warning for each template `conduct`'s spawns fill that falls back from
+/// its configured path.
+///
+/// A template that cannot be resolved at all gives no warning here: `conduct`
+/// runs the template command before its first plan, and stops on that
+/// command's own failure.
+#[must_use]
+pub fn conduct_template_fallbacks(
+    config: &dyn ConfigAccess,
+    templates: &dyn ReadTemplate,
+) -> Vec<String> {
+    ConductTemplate::ALL
+        .into_iter()
+        .filter_map(|template| {
+            let resolved = config::template::resolve(
+                config,
+                templates,
+                ConductTemplate::SET,
+                Some(template.kind()),
+            )
+            .ok()??;
+            Some(plan_wording::template_fallback(
+                template,
+                &resolved.fallback?,
+            ))
+        })
+        .collect()
+}
+
 /// Runs `research topic outstanding` against the set rooted at `set_root`,
 /// which must be canonical: every path is emitted beneath it.
 ///
@@ -333,6 +366,7 @@ where
     if opened.is_starting() {
         notices
             .extend(unhonoured_search_cap_notice(&request.search_cap, &tree));
+        notices.extend(request.template_fallbacks.iter().cloned());
     }
     let observed = Observed::of(&round.inputs);
     let (ledger, budgeting) = opened.ledger(
@@ -558,21 +592,37 @@ pub fn run_end_run<F: FileReader, R: FileRemove>(
     fs: &F,
     remover: &R,
 ) -> Result<Printed, String> {
+    if owned_ledger(set_root, run, fs)?.is_some() {
+        delete_run_ledger(set_root, remover).map_err(|error| {
+            failed(format!(
+                "E_TOPIC_RESEARCH_RUN_LEDGER: could not remove {}: {error}",
+                run_ledger_path(set_root).display()
+            ))
+        })?;
+    }
+    Ok(Printed::default())
+}
+
+/// The set's ledger when `run` owns it, or `None` when the set has none.
+///
+/// # Errors
+///
+/// A message when the ledger is corrupt, unreadable or owned by another
+/// run.
+pub fn owned_ledger<F: FileReader>(
+    set_root: &Path,
+    run: &RunId,
+    fs: &F,
+) -> Result<Option<RunLedger>, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
-        Ok(None) => Ok(Printed::default()),
-        Ok(Some(ledger)) if ledger.run() == run => {
-            delete_run_ledger(set_root, remover).map_err(|error| {
-                failed(format!(
-                    "E_TOPIC_RESEARCH_RUN_LEDGER: could not remove {}: \
-                     {error}",
-                    run_ledger_path(set_root).display()
-                ))
-            })?;
-            Ok(Printed::default())
-        }
-        Ok(Some(ledger)) => Err(superseded(run, ledger.run())),
-        Err(LedgerError::Corrupt) => Err(no_usable_ledger(run)),
-        Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
+        Ok(None) => Ok(None),
+        Ok(Some(ledger)) if ledger.run() == run => Ok(Some(ledger)),
+        Ok(Some(ledger)) => Err(ledger_wording::superseded(run, ledger.run())),
+        Err(LedgerError::Corrupt) => Err(ledger_wording::no_usable_ledger(run)),
+        Err(LedgerError::Unreadable(error)) => Err(ledger_wording::unreadable(
+            &run_ledger_path(set_root),
+            error,
+        )),
     }
 }
 
@@ -584,9 +634,14 @@ fn continued_ledger<F: FileReader>(
 ) -> Result<RunLedger, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
         Ok(Some(stored)) => RunLedger::continue_as(stored, run, spawned)
-            .map_err(|owner| superseded(run, &owner.by)),
-        Ok(None) | Err(LedgerError::Corrupt) => Err(no_usable_ledger(run)),
-        Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
+            .map_err(|owner| ledger_wording::superseded(run, &owner.by)),
+        Ok(None) | Err(LedgerError::Corrupt) => {
+            Err(ledger_wording::no_usable_ledger(run))
+        }
+        Err(LedgerError::Unreadable(error)) => Err(ledger_wording::unreadable(
+            &run_ledger_path(set_root),
+            error,
+        )),
     }
 }
 
@@ -696,22 +751,11 @@ fn replaced_ledger<F: FileReader>(
         Ok(None) => Ok(ReplacedLedger::Absent),
         Ok(Some(stored)) => Ok(ReplacedLedger::Readable(Box::new(stored))),
         Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
-        Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
+        Err(LedgerError::Unreadable(error)) => Err(ledger_wording::unreadable(
+            &run_ledger_path(set_root),
+            error,
+        )),
     }
-}
-
-fn superseded(run: &RunId, owner: &RunId) -> String {
-    failed(format!(
-        "E_TOPIC_RESEARCH_RUN_SUPERSEDED: run {run} was superseded by run \
-         {owner}; another conduct run now owns this set, so let it finish"
-    ))
-}
-
-fn no_usable_ledger(run: &RunId) -> String {
-    failed(format!(
-        "E_TOPIC_RESEARCH_RUN_LEDGER: no usable ledger for run {run}; re-run \
-         conduct to start a fresh run"
-    ))
 }
 
 fn unfinished_spawn(unfinished: &UnfinishedSpawn) -> Value {
@@ -947,9 +991,7 @@ impl PlanOutput<'_> {
         outstanding: &OutstandingPair,
         level: u32,
     ) -> Option<NonZeroU32> {
-        let budgets = self.ledger?.search_budgets()?;
-        searches(&outstanding.pair.profile)
-            .then(|| budgets.at(level).unwrap_or(NonZeroU32::MIN))
+        self.ledger?.search_budget(&outstanding.pair.profile, level)
     }
 
     fn node(
@@ -958,16 +1000,8 @@ impl PlanOutput<'_> {
         node: &MissingNode,
         search_budget: Option<NonZeroU32>,
     ) -> Value {
-        let mut rendered = json!({
-            "lineage": node.lineage.to_string(),
-            "level": node.lineage.level(),
-            "question": node.question,
-            "cap": node.cap(),
-            "id": address.id(&self.set_slug()),
-            "path": self.absolute(&address.path()),
-            "known_questions": node.known_questions,
-            "spawn": SpawnRef::Node(address).to_string(),
-        });
+        let mut rendered = node_address::addressed(self.set_root, &address);
+        rendered["spawn"] = json!(SpawnRef::Node(address).to_string());
         if let Some(rejected) = &node.rejected {
             rendered["rejected"] = json!(plan_wording::rejection(rejected));
         }
@@ -979,13 +1013,6 @@ impl PlanOutput<'_> {
 
     fn absolute(&self, relative: &str) -> String {
         self.set_root.join(relative).to_string_lossy().into_owned()
-    }
-
-    fn set_slug(&self) -> String {
-        self.set_root
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default()
     }
 }
 
