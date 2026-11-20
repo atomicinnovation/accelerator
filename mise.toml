@@ -314,7 +314,10 @@ run = "invoke vendor.guard-pins"
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
 depends = ["build:frontend"]
-run = "invoke test.unit.visualiser"
+usage = '''
+flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'path_normalisation'"
+'''
+run = 'invoke test.unit.visualiser ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:unit:frontend"]
 description = "Run visualiser frontend unit tests (Vitest)"
@@ -381,7 +384,10 @@ run = "invoke test.integration.design-automation"
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
 depends = ["build:server:dev", "build:cli:dev"]
-run = "invoke test.integration.visualiser"
+usage = '''
+flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'path_normalisation'"
+'''
+run = 'invoke test.integration.visualiser ${usage_filter+--filter "$usage_filter"}'
 
 # Deliberately absent from `test:integration` and the bare default task: it
 # waits on the OS's file notifications, which a loaded macOS fseventsd delays

@@ -13,6 +13,8 @@ import pytest
 
 from tasks.shared.dev_builds import DEV_BUILDS
 from tasks.test import cli as test_cli
+from tasks.test import integration as test_integration
+from tasks.test import unit as test_unit
 from tasks.test.filters import PYTEST_FILTER_HELP
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -497,4 +499,38 @@ def test_a_pytest_lane_declares_filter_with_the_invoke_task_s_help(
 def test_a_pytest_lane_forwards_filter_only_when_it_is_given(mise, mise_task):
     assert mise["tasks"][mise_task]["run"] == (
         f"invoke {_PYTEST_LANES[mise_task]} {_FORWARDS_FILTER}"
+    )
+
+
+_CARGO_AND_NODE_LANES = {
+    "test:unit:visualiser": (
+        "test.unit.visualiser",
+        test_unit.visualiser,
+    ),
+    "test:integration:visualiser": (
+        "test.integration.visualiser",
+        test_integration.visualiser,
+    ),
+}
+
+
+@pytest.mark.parametrize("mise_task", sorted(_CARGO_AND_NODE_LANES))
+def test_a_cargo_or_node_lane_declares_filter_with_the_invoke_task_s_help(
+    mise, mise_task
+):
+    _, invoke_task = _CARGO_AND_NODE_LANES[mise_task]
+    [flag] = _FILTER_FLAG.finditer(mise["tasks"][mise_task]["usage"])
+
+    assert flag["value"] == "expression"
+    assert flag["help"] == invoke_task.help["filter_"]
+
+
+@pytest.mark.parametrize("mise_task", sorted(_CARGO_AND_NODE_LANES))
+def test_a_cargo_or_node_lane_forwards_filter_only_when_it_is_given(
+    mise, mise_task
+):
+    invoke_name, _ = _CARGO_AND_NODE_LANES[mise_task]
+
+    assert mise["tasks"][mise_task]["run"] == (
+        f"invoke {invoke_name} {_FORWARDS_FILTER}"
     )

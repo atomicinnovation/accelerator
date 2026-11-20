@@ -4,12 +4,17 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML
 
-from .filters import PYTEST_FILTER_HELP, run_pytest_lane
+from .filters import (
+    LIBTEST_FILTER_HELP,
+    PYTEST_FILTER_HELP,
+    run_libtest_lane,
+    run_pytest_lane,
+)
 from .helpers import repo_root
 
 
-@task
-def visualiser(context: Context) -> None:
+@task(help={"filter_": LIBTEST_FILTER_HELP})
+def visualiser(context: Context, filter_: str | None = None) -> None:
     """Run the visualiser server unit tests.
 
     Runs cargo test twice to cover both feature-gated test modules:
@@ -21,11 +26,16 @@ def visualiser(context: Context) -> None:
          rust-embed reads the folder at compile time; when invoked via
          `mise run test:unit:visualiser`, `build:frontend` runs first.
     """
-    context.run(
-        f"cargo test --manifest-path {CARGO_TOML} --lib "
-        f"--no-default-features --features dev-frontend"
+    run_libtest_lane(
+        context,
+        [
+            f"cargo test --manifest-path {CARGO_TOML} --lib "
+            f"--no-default-features --features dev-frontend",
+            f"cargo test --manifest-path {CARGO_TOML} --lib",
+        ],
+        mise_task="test:unit:visualiser",
+        filter_=filter_,
     )
-    context.run(f"cargo test --manifest-path {CARGO_TOML} --lib")
 
 
 @task

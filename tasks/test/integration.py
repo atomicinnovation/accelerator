@@ -6,14 +6,19 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
-from tasks.test.filters import PYTEST_FILTER_HELP, run_pytest_lane
+from tasks.test.filters import (
+    LIBTEST_FILTER_HELP,
+    PYTEST_FILTER_HELP,
+    run_libtest_lane,
+    run_pytest_lane,
+)
 from tasks.test.unit import _bare_returns_in_tests, _tap_counts
 
 from .helpers import accelerator_env, repo_root
 
 
-@task
-def visualiser(context: Context) -> None:
+@task(help={"filter_": LIBTEST_FILTER_HELP})
+def visualiser(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the visualiser (its `tests/*.rs` targets).
 
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
@@ -26,11 +31,15 @@ def visualiser(context: Context) -> None:
     # compiled launcher, so they need it on the env (built by the build:cli:dev
     # mise dependency) rather than the signed-release bootstrap. The overlay is
     # passed to each child, not written into this process.
-    env = accelerator_env()
-    context.run(
-        f"cargo test --manifest-path {CARGO_TOML} --test '*' "
-        f"--no-default-features --features dev-frontend",
-        env=env,
+    run_libtest_lane(
+        context,
+        [
+            f"cargo test --manifest-path {CARGO_TOML} --test '*' "
+            f"--no-default-features --features dev-frontend"
+        ],
+        mise_task="test:integration:visualiser",
+        filter_=filter_,
+        env=accelerator_env(),
     )
 
 

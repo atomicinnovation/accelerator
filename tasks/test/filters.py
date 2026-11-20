@@ -1,4 +1,5 @@
-from collections.abc import Mapping
+import re
+from collections.abc import Mapping, Sequence
 
 from invoke import Context, Exit, UnexpectedExit
 
@@ -9,7 +10,18 @@ PYTEST_FILTER_HELP = (
     "e.g. 'resume and not slow'"
 )
 
+LIBTEST_FILTER_HELP = (
+    "libtest substring of the test path selecting the tests to run, "
+    "e.g. 'path_normalisation'"
+)
+
 _PYTEST_NO_TESTS_COLLECTED = 5
+
+_LIBTEST_RESULT = re.compile(
+    r"^test result: \w+\. (?P<passed>\d+) passed; (?P<failed>\d+) failed; "
+    r"(?P<ignored>\d+) ignored;",
+    re.MULTILINE,
+)
 
 
 def selection_from(filter_: str | None) -> Selection:
@@ -41,3 +53,33 @@ def run_pytest_lane(
         ):
             raise Exit(selection.nothing_selected(mise_task), code=1) from None
         raise
+
+
+def run_libtest_lane(
+    context: Context,
+    commands: Sequence[str],
+    *,
+    mise_task: str,
+    filter_: str | None,
+    env: Mapping[str, str] | None = None,
+) -> None:
+    selection = selection_from(filter_)
+    environment: dict[str, dict[str, str]] = (
+        {} if env is None else {"env": dict(env)}
+    )
+    tests_run = 0
+    for command in commands:
+        result = context.run(
+            " ".join(filter(None, [command, selection.libtest()])),
+            **environment,
+        )
+        tests_run += libtest_tests_run(result.stdout)
+    if selection.is_filtered and tests_run == 0:
+        raise Exit(selection.nothing_selected(mise_task), code=1)
+
+
+def libtest_tests_run(output: str) -> int:
+    return sum(
+        int(result["passed"]) + int(result["failed"]) + int(result["ignored"])
+        for result in _LIBTEST_RESULT.finditer(output)
+    )
