@@ -146,6 +146,23 @@ Fixture families, as this item uses the terms:
    Planning lists each in-scope task here, with its runner, its filter
    syntax and an example of a malformed expression, before the filters
    increment starts.
+
+   | Task | Runner | Filter syntax | Example | Malformed example | Runner when nothing matches |
+   |---|---|---|---|---|---|
+   | `test:unit:cli` | nextest 0.9.138 | filterset (`-E`) | `binary_id(vcs-adapters::classify)` | `test(foo` | fails ("no tests to run"); the task's list sees it first |
+   | `test:unit:tasks`, `test:unit:frontend-licenses`, `test:unit:vcs`, `test:integration:tasks` | pytest 9.0.3 | `-k` expression | `resume and not slow` | `foo and` | exit 5 |
+   | `test:integration:dev`, `:entrypoint`, `:evals`, `:pup`, `:hooks`, `:research`, `:research-exhaustive` | pytest 9.0.3 | `-k` expression | `resume and not slow` | `foo and` | exit 5 |
+   | `test:unit:visualiser`, `test:integration:visualiser` | libtest (cargo test) | substring of the test path | `path_normalisation` | none: any string is valid | exit 0, `0 passed` in every binary |
+   | `test:integration:tracker-contract` | nextest 0.9.138 | filterset (`-E`), intersected with `binary(=contract)` | a `test(…)` naming one contract test | `test(foo` | fails ("no tests to run") |
+   | `test:unit:frontend` | Vitest 3.2.4 | test-name regex (`-t`) | a regex naming one `describe` block | `(` | to confirm |
+   | `test:unit:design-automation`, `test:integration:design-automation` | `node --test` (node 22.22.2) | test-name regex (`--test-name-pattern`) | a regex naming one test | `(` | exit 0, `# pass 0` |
+   | `test:e2e:visualiser`, `test:e2e:visualiser:docker`, `test:e2e:visualiser:docker:update` | Playwright 1.59.1 | title regex (`--grep`) | a regex naming one spec's title | `(` | fails ("No tests found") |
+
+   Whatever the runner does, a filter that runs no test fails the task
+   with `--filter '<expression>' selected no tests`. The malformed
+   examples for Vitest, node and Playwright are still to be confirmed by
+   running each runner; a runner that accepts its example is recorded here
+   as having no malformed form.
 6. Each test that uses a shared build gets its own hermetic environment
    (the isolated home, XDG and jj configuration that `Hermetic` sets up),
    outside every shared tree and separate from every other test's.
