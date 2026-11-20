@@ -8,7 +8,8 @@
 // With commits, it marks a line in By commit and finds it read in All files,
 // gives a file a verdict and finds its lines read in By commit, and marks one
 // line at a time in All files, checking a mark link sits above each run of
-// unread lines and that the n key jumps to the next unread line. Needs Node
+// unread lines (in a file with three changed lines in a row; with none, that
+// check is skipped) and that the n key jumps to the next unread line. Needs Node
 // 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
 // opened by link and in one picked from the file list. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
@@ -142,7 +143,10 @@ const COMMITS_PROBE = `(async () => {
   if (!(api.content.commits || []).length) return { skipped: 'no commits' };
   for (let i = 0; i < 30 && !Object.keys(api.commits || {}).length; i++) await settle();
   const commits = Object.values(window.ExplorePR.api.commits);
-  const row = commits.flatMap(c => window.ReviewCoverage.commitLines(c).filter(r => r.counted && api.diff[r.path]).map(r => ({ ...r, sha: c.sha })))[0];
+  const counted = commits.flatMap(c => window.ReviewCoverage.commitLines(c).filter(r => r.counted && api.diff[r.path]).map(r => ({ ...r, sha: c.sha })));
+  const holdsARunOfThree = path => window.ReviewCoverage.changedLinesOf(api.diff[path]).some((l, i, all) => i >= 2 && [1, 2].every(back => all[i - back].side === l.side && all[i - back].line === l.line - back));
+  const runnable = counted.find(r => holdsARunOfThree(r.path));
+  const row = runnable || counted[0];
   if (!row) return { skipped: 'no commit line in the whole diff' };
   const sel = (lp, lk) => 'tr[data-lp="' + CSS.escape(lp) + '"][data-lk="' + lk + '"]';
   const forget = target => api.store.put(target, target.split(':')[0], { status: '', lines: [] }, {});
@@ -169,7 +173,7 @@ const COMMITS_PROBE = `(async () => {
   const rows = [...document.querySelectorAll('#file-code tr')];
   const unreadRun = i => rows[i].matches('tr.unread[data-lk]');
   const runStarts = rows.map((_, i) => i).filter(i => unreadRun(i) && !(i > 0 && (unreadRun(i - 1) || rows[i - 1].matches('tr.anno') && i > 1 && unreadRun(i - 2))));
-  const linkAboveEachUnreadRun = !!middle && runStarts.every(i => rows[i - 1] && rows[i - 1].matches('tr.blk'))
+  const linkAboveEachUnreadRun = !runnable ? null : !!middle && runStarts.every(i => rows[i - 1] && rows[i - 1].matches('tr.blk'))
     && document.querySelectorAll('#file-code tr.blk').length === runStarts.length;
   document.querySelectorAll('tr.flash').forEach(tr => tr.classList.remove('flash'));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', bubbles: true }));
@@ -514,7 +518,7 @@ async function main() {
   const coverage = report.coverage || {};
   const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.linesMarked && coverage.fileReachesStops);
   const commits = report.commits || {};
-  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
+  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun !== false && commits.nextUnreadKey);
   const unfold = report.unfold || {};
   const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
   const references = report.references || {};
