@@ -189,4 +189,4 @@ None.
 - Found during: `meta/plans/2026-10-11-PP-884-sync-pulls-of-tracked-work-items-fail-silently.md`
   (Phase 7 manual verification)
 - Skill: `skills/work/sync-work-items/SKILL.md`
-- Review: `meta/reviews/work/0351-sync-preview-hides-pending-push-refusals-review-1.md`
+- Review: `meta/reviews/work/PP-926-sync-preview-hides-pending-push-refusals-review-1.md`

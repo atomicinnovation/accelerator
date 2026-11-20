@@ -1,13 +1,13 @@
 ---
 type: "work-item-review"
-id: "0351-sync-preview-hides-pending-push-refusals-review-1"
+id: "PP-926-sync-preview-hides-pending-push-refusals-review-1"
 title: "Work Item Review: Sync Preview Hides Pending-Push Refusals"
 date: "2026-11-12T16:43:08+00:00"
 author: "Phil Helm"
 producer: "review-work-item"
 status: "complete"
-target: "work-item:0351"
-work_item_id: "0351"
+target: "work-item:PP-926"
+work_item_id: "PP-926"
 reviewer: "Phil Helm"
 verdict: "REVISE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
