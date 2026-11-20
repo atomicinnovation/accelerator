@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-20T16:00:00+00:00"
+last_updated: "2026-11-20T23:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2765,6 +2765,35 @@ For each pytest lane:
 design-automation lanes skip their pass-count and skip floors when filtered.
 The Docker Playwright command quotes the pattern for its inner `bash -c`.
 
+### As built
+
+- **Step 0 changed two detection mechanisms.** The findings are in the work
+  item's table.
+  - Vitest exits 0 when `-t` matches nothing. `test.unit.frontend` reads
+    the `Tests` summary line and counts its `passed` and `failed` numbers,
+    after stripping ANSI colour codes, because Vitest colours its summary
+    under `CI`. A filtered run with no summary line fails.
+  - `node --test` never reports `# pass 0`. A file in which no test
+    matches is reported as one passing test named after the file. The
+    design-automation lanes count the top-level TAP points that are not
+    named after a discovered suite, and raise `nothing_selected` when that
+    count is zero.
+- **Each runner's handling lives in `tasks/test/filters.py`.**
+  `run_libtest_lane` sums the `test result:` lines across every command it
+  runs, so the unit visualiser lane counts both feature sets together.
+  `run_nextest_lane` runs the tracker contract. `nothing_selected_on_exit`
+  is the exit-code translation that the pytest and nextest lanes share.
+  `nothing_selected_when_playwright_finds_no_tests` matches Playwright's
+  "No tests found" in stdout and stderr. `vitest_tests_run` and
+  `node_tests_run` read the summaries.
+- **Help strings are per lane** where the example differs: the unit and
+  integration visualiser lanes, the two design-automation lanes, and the
+  host and Docker Playwright lanes each name a test from their own suites.
+- **The visualiser integration example.** `spa_serving` names a test
+  binary, which libtest's filter does not see. `spa_route` names a test.
+- **Playwright's `--grep` matches the titles joined by spaces**, not by the
+  `›` its reporter prints.
+
 ### Changes Required
 
 #### 0. Confirm the malformed examples
@@ -2872,10 +2901,10 @@ discovered files for `node --test`. `docker_visual_command` gains
 
 #### Automated Verification
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_selection.py tests/unit/tasks/test_cargo_and_node_lanes.py tests/unit/tasks/test_e2e_docker.py tests/unit/tasks/test_mise.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
@@ -2883,14 +2912,25 @@ For each lane in the Phase 7 table, except `tracker-contract`, which needs
 credentials. Check its rendering in the unit tests, and run it by hand only
 where credentials are available:
 
-- [ ] `--help` lists `--filter` and names the syntax.
-- [ ] A subset filter runs fewer tests, and all of them pass. The Docker
+- [x] `--help` lists `--filter` and names the syntax.
+- [x] A subset filter runs fewer tests, and all of them pass. The Docker
       lanes are checked on a host with Docker; `:update` is checked with a
       filter that selects one snapshot, and its result is reverted.
-- [ ] Each lane's malformed example fails, or the work item's table records
-      that its syntax has no malformed form.
-- [ ] Each lane, given a filter that matches nothing, fails with `selected
-      no tests`.
+      *As run:* every lane but `test:integration:design-automation` ran a
+      passing subset. `:update`, filtered to
+      `chip-showcase \(light\) neutral @ sm$`, regenerated one snapshot
+      byte for byte, so there was nothing to revert. Every test in
+      `test:integration:design-automation` fails on this machine with or
+      without a filter, because no Playwright runtime is provisioned
+      (`package-lock.json` is missing). Filtered to `ping: exits 0`, it
+      ran exactly that test and no other, and reported its failure.
+- [x] Each lane's malformed example fails, or the work item's table records
+      that its syntax has no malformed form. *As run:* including
+      `tracker-contract`, whose filterset is parsed before any credential
+      is needed.
+- [x] Each lane, given a filter that matches nothing, fails with `selected
+      no tests`. *As run:* including `tracker-contract`, which exits 4
+      before any test needs credentials.
 
 ---
 
