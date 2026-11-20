@@ -37,12 +37,15 @@ page's own script. It registers itself:
   ExplorePR.registerView({
     id: 'retry-sim',                // the hash route: letters, digits, hyphens
     title: 'Retry simulator',       // rail label
-    group: 'Read',                  // Start | Read | Decide | Reference
+    group: 'Interact',              // Start | Read | Interact | Decide | Reference
     render(api) { return `<div class="view-head">…</div>…`; },  // HTML string
     mount(root, api) { /* bind events after the HTML is in the page */ },
   });
 })();
 ```
+
+A view without a `group`, or with one the rail does not have, sits in
+Interact.
 
 `api` (also `ExplorePR.api`) exposes the page's own building blocks, so a
 view looks and behaves like the rest of the page:

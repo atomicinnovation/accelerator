@@ -8,18 +8,30 @@
 // With commits, it marks a line in By commit and finds it read in All files,
 // gives a file a verdict and finds its lines read in By commit, and marks one
 // line at a time in All files, checking a mark link sits above each run of
-// unread lines and that the n key jumps to the next unread line. Needs Node
+// unread lines (in a file with three changed lines in a row; with none, that
+// check is skipped) and that the n key jumps to the next unread line. Needs Node
 // 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
 // opened by link and in one picked from the file list. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
 // stop's link opens its chapter at that stop. It checks that a stop names
 // everything it carries, that each name opens what it names, and that every
-// line a stop says to focus on is marked in its code. It also records a file verdict,
+// line a stop says to focus on is marked in its code. Each decision's control
+// is met once in the tour, at the first stop that shows it; each chapter names
+// what it introduces in a strip and draws no wall of abstraction cards. It also records a file verdict,
 // pretends it was given at an earlier head, and checks that rewritten lines are
 // unread again and announced, that untouched ones stay read, and that only a
 // new verdict, not a note, moves the record to this head. Every diagram the
 // kit drew is put through the kit's own checks: text inside its box, no box
 // across another or across an arrow, tracing, and a linked box opening its link.
+// Each catalogue in Reference draws one card per item, and a verdict given to a
+// decision there shows at the stop that first carries it. The design reads as
+// its article: every section drawn, every excerpt's code resolved, the sign-off
+// at the end and no catalogue of cards. Findings lists every observation, its
+// source filter narrows the list, and a chapter's finding opens in Findings.
+// Readiness draws the gates its model works out, turns the design gate when a
+// decision is disagreed with, and its verdict control drives the top bar. Your
+// notes saves what is typed in its freeform box and in a card's note, puts the
+// freeform notes first in the export, and keeps the focus while it saves.
 // A view with figures is captured at full height, in tiles 5,000 px tall when it
 // is taller (`design-1.png`, `design-2.png`, …). A DevTools call that gets no
 // reply within two minutes fails the check instead of hanging it.
@@ -131,7 +143,10 @@ const COMMITS_PROBE = `(async () => {
   if (!(api.content.commits || []).length) return { skipped: 'no commits' };
   for (let i = 0; i < 30 && !Object.keys(api.commits || {}).length; i++) await settle();
   const commits = Object.values(window.ExplorePR.api.commits);
-  const row = commits.flatMap(c => window.ReviewCoverage.commitLines(c).filter(r => r.counted && api.diff[r.path]).map(r => ({ ...r, sha: c.sha })))[0];
+  const counted = commits.flatMap(c => window.ReviewCoverage.commitLines(c).filter(r => r.counted && api.diff[r.path]).map(r => ({ ...r, sha: c.sha })));
+  const holdsARunOfThree = path => window.ReviewCoverage.changedLinesOf(api.diff[path]).some((l, i, all) => i >= 2 && [1, 2].every(back => all[i - back].side === l.side && all[i - back].line === l.line - back));
+  const runnable = counted.find(r => holdsARunOfThree(r.path));
+  const row = runnable || counted[0];
   if (!row) return { skipped: 'no commit line in the whole diff' };
   const sel = (lp, lk) => 'tr[data-lp="' + CSS.escape(lp) + '"][data-lk="' + lk + '"]';
   const forget = target => api.store.put(target, target.split(':')[0], { status: '', lines: [] }, {});
@@ -158,7 +173,7 @@ const COMMITS_PROBE = `(async () => {
   const rows = [...document.querySelectorAll('#file-code tr')];
   const unreadRun = i => rows[i].matches('tr.unread[data-lk]');
   const runStarts = rows.map((_, i) => i).filter(i => unreadRun(i) && !(i > 0 && (unreadRun(i - 1) || rows[i - 1].matches('tr.anno') && i > 1 && unreadRun(i - 2))));
-  const linkAboveEachUnreadRun = !!middle && runStarts.every(i => rows[i - 1] && rows[i - 1].matches('tr.blk'))
+  const linkAboveEachUnreadRun = !runnable ? null : !!middle && runStarts.every(i => rows[i - 1] && rows[i - 1].matches('tr.blk'))
     && document.querySelectorAll('#file-code tr.blk').length === runStarts.length;
   document.querySelectorAll('tr.flash').forEach(tr => tr.classList.remove('flash'));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', bubbles: true }));
@@ -205,11 +220,150 @@ const EVIDENCE_PROBE = `(async () => {
     const there = document.getElementById('stop-' + each.id);
     return !there || !there.querySelector('.code table') || !!there.querySelector('tr.focus + tr.point');
   });
-  if (!named) return { named, focusMarked };
-  links[0].click(); await settle();
-  const target = document.getElementById(links[0].dataset.scrollTo);
+  const decisions = window.Catalogue.of(api.content).decisions.map(each => each.item.id).filter(id => id && evidence.shownAt(id).length);
+  const controlsAt = Object.fromEntries(decisions.map(id => [id, []]));
+  const stripMissing = [], gridKept = [];
+  for (const each of chapters) {
+    location.hash = 'tour-' + each.id; await settle();
+    const introduces = (each.stops || []).some(one => evidence.introducedAt(one).length) || (each.decisions || []).length || (each.abstractions || []).length;
+    if (introduces && !document.querySelector('#main .design-strip')) stripMissing.push(each.id);
+    if (document.querySelector('#main .abs-grid')) gridKept.push(each.id);
+    decisions.forEach(id => document.querySelectorAll('#main .ctl[data-ctl="' + CSS.escape('design:' + id) + '"]')
+      .forEach(control => controlsAt[id].push((control.closest('.stop') || {}).id || 'outside a stop')));
+  }
+  const misplaced = decisions.filter(id => controlsAt[id].length !== 1 || controlsAt[id][0] !== 'stop-' + evidence.shownAt(id)[0]);
+  const decisionsMetOnce = !misplaced.length;
+  location.hash = 'tour-' + chapter.id; await settle();
+  const again = [...document.getElementById('stop-' + stop.id).querySelectorAll('a.carried')];
+  if (!named) return { named, focusMarked, decisionsMetOnce, stripMissing, gridKept };
+  again[0].click(); await settle();
+  const target = document.getElementById(again[0].dataset.scrollTo);
   const top = target ? target.getBoundingClientRect().top : null;
-  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight };
+  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight, decisionsMetOnce, misplaced, stripMissing, gridKept };
+})()`;
+
+const READINESS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api, store = api.store, content = api.content;
+  const drawnGates = () => [...document.querySelectorAll('#gates [data-gate]')].map(gate => gate.dataset.gate + ':' + gate.dataset.state);
+  location.hash = 'readiness'; await settle();
+  const expected = window.Readiness.gates(content, target => store.get(target), path => api.coverageOf(path)).map(gate => gate.id + ':' + gate.state);
+  const gatesMatch = JSON.stringify(drawnGates()) === JSON.stringify(expected);
+  const decision = window.Catalogue.of(content).decisions.find(each => each.item.id);
+  let designTurns = null;
+  if (decision) {
+    const target = 'design:' + decision.item.id, kept = store.get(target);
+    store.put(target, 'design', { status: 'disagree' }, {}); await settle();
+    designTurns = drawnGates().includes('design:not-met');
+    store.put(target, 'design', { status: kept.status || '' }, {}); await settle();
+  }
+  const approve = () => document.querySelector('#main .ctl[data-ctl="decision"] button[data-v="approve"]');
+  const before = store.get('decision').status || '';
+  approve().click(); await settle();
+  const chipFollows = document.getElementById('decision-chip').textContent === 'Approve';
+  store.put('decision', 'decision', { status: before }, {});
+  return { gatesMatch, designTurns, chipFollows };
+})()`;
+
+const FINDINGS_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const content = window.ExplorePR.api.content;
+  const observed = content.findings.filter(finding => finding.source && finding.source !== 'review');
+  if (!observed.length) return { skipped: 'no observations' };
+  location.hash = 'overview'; await settle();
+  location.hash = 'findings'; await settle();
+  const listed = observed.every(finding => document.getElementById('f-' + finding.id));
+  const source = document.querySelector('[data-ff="source"]');
+  source.value = 'reading-pass'; source.dispatchEvent(new Event('change', { bubbles: true })); await settle();
+  const narrowed = document.querySelectorAll('#main article.finding').length === content.findings.filter(finding => finding.source === 'reading-pass').length;
+  document.querySelector('[data-ff="source"]').value = '';
+  document.querySelector('[data-ff="source"]').dispatchEvent(new Event('change', { bubbles: true })); await settle();
+  const chapter = content.chapters.find(each => content.findings.some(finding => finding.chapter === each.id));
+  location.hash = 'tour-' + chapter.id; await settle();
+  const link = document.querySelector('#main .finding-list a[data-jump="findings"]');
+  const wanted = JSON.parse(link.dataset.filter).q;
+  link.click(); await settle();
+  const shown = [...document.querySelectorAll('#main article.finding')].map(article => article.id);
+  return { listed, narrowed, opensItsFinding: location.hash === '#findings' && shown.length === 1 && shown[0] === 'f-' + wanted };
+})()`;
+
+const DESIGN_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const article = (window.ExplorePR.api.content.design || {}).article || [];
+  if (!article.length) return { skipped: 'no design article' };
+  location.hash = 'design'; await settle();
+  const excerpts = article.flatMap(section => section.blocks || []).filter(block => block.kind === 'code').length;
+  return {
+    sections: document.querySelectorAll('#main .article-section').length === article.length,
+    excerptsResolved: document.querySelectorAll('#main .excerpt .code table').length === excerpts && !document.querySelector('#main [data-pending-slice]'),
+    signOff: !!document.querySelector('#main .ctl[data-ctl="design-overall"]'),
+    noCatalogue: !document.querySelector('#main .abs-grid'),
+  };
+})()`;
+
+const NOTES_PROBE = `(async () => {
+  const settle = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const api = window.ExplorePR.api, store = api.store;
+  const stop = (api.content.chapters || []).flatMap(chapter => chapter.stops || [])[0];
+  const kept = { general: store.get('notes:general'), stop: stop && store.get('stop:' + stop.id) };
+  const type = (box, text) => { box.focus(); box.value = text; box.dispatchEvent(new Event('input', { bubbles: true })); };
+  location.hash = 'notes'; await settle(300);
+  const general = document.getElementById('general-notes');
+  type(general, 'Smoke: ask about the lock');
+  await settle(900);
+  const exported = document.getElementById('notes-md').value;
+  const generalSaved = store.get('notes:general').note === 'Smoke: ask about the lock';
+  const generalExported = /\\n## General notes\\n\\nSmoke: ask about the lock\\n/.test(exported) && exported.indexOf('## General notes') === exported.indexOf('## ');
+  const generalKeepsFocus = document.activeElement === general;
+  general.blur();
+  let cardSaved = null, cardKeepsFocus = null;
+  if (stop) {
+    store.put('stop:' + stop.id, 'stop', { status: 'question' }, { label: 'Smoke stop' }); await settle(300);
+    const note = document.querySelector('.ctl[data-ctl="' + CSS.escape('stop:' + stop.id) + '"] textarea[data-note]');
+    type(note, 'Smoke: why here?');
+    await settle(900);
+    cardSaved = store.get('stop:' + stop.id).note === 'Smoke: why here?';
+    cardKeepsFocus = document.activeElement === note;
+    note.blur();
+  }
+  const restore = (target, kind, record) => store.put(target, kind, { status: record.status || '', note: record.note || '' }, {});
+  restore('notes:general', 'notes', kept.general);
+  if (stop) restore('stop:' + stop.id, 'stop', kept.stop);
+  return { generalSaved, generalExported, generalKeepsFocus, cardSaved, cardKeepsFocus };
+})()`;
+
+const CATALOGUE_PROBE = `(async () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+  const api = window.ExplorePR.api;
+  const catalogue = window.Catalogue.of(api.content);
+  const expected = {
+    decisions: ['article.decision', catalogue.decisions.length],
+    abstractions: ['.abs', catalogue.abstractions.length],
+    invariants: ['.inv, tr[id^="risk-"]', catalogue.invariants.length + catalogue.risks.length],
+    tests: ['tr.test-row', catalogue.tests.length],
+  };
+  const routes = window.ExplorePR.routes();
+  const counted = {};
+  for (const [route, [cards, count]] of Object.entries(expected)) {
+    if (!routes.includes(route)) continue;
+    location.hash = route; await settle();
+    const drawn = document.querySelectorAll('#main ' + cards.split(', ').join(', #main ')).length;
+    counted[route] = drawn === count || { drawn, count };
+  }
+  const evidence = window.StopEvidence.index(api.content);
+  const decision = catalogue.decisions.find(each => each.item.id && evidence.shownAt(each.item.id).length);
+  if (!decision) return { counted, skipped: 'no decision a stop carries' };
+  const target = 'design:' + decision.item.id;
+  const firstStop = evidence.shownAt(decision.item.id)[0];
+  const chapter = api.content.chapters.find(each => (each.stops || []).some(stop => stop.id === firstStop));
+  const control = () => document.querySelector('.ctl[data-ctl="' + CSS.escape(target) + '"]');
+  location.hash = 'decisions'; await settle();
+  control().querySelector('button[data-v="question"]').click(); await settle();
+  location.hash = 'tour-' + chapter.id; await settle();
+  const elsewhere = control();
+  const verdictTravels = !!elsewhere && elsewhere.querySelector('button[data-v="question"]').getAttribute('aria-pressed') === 'true';
+  api.store.put(target, 'design', { status: '' }, {});
+  return { counted, verdictTravels };
 })()`;
 
 const HEADS_PROBE = `(async () => {
@@ -338,6 +492,11 @@ async function main() {
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
+    report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
+    report.notes = await cdp.evaluate(NOTES_PROBE);
+    report.design = await cdp.evaluate(DESIGN_PROBE);
+    report.findings = await cdp.evaluate(FINDINGS_PROBE);
+    report.readiness = await cdp.evaluate(READINESS_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
     report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
     await viewport(400);
@@ -359,19 +518,29 @@ async function main() {
   const coverage = report.coverage || {};
   const coverageHolds = !!coverage.skipped || (coverage.stopReachesFiles && coverage.linesMarked && coverage.fileReachesStops);
   const commits = report.commits || {};
-  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun && commits.nextUnreadKey);
+  const commitsHold = !!commits.skipped || !!(commits.commitReachesFiles && commits.filesReachCommits && commits.linesMarkOneByOne && commits.linkAboveEachUnreadRun !== false && commits.nextUnreadKey);
   const unfold = report.unfold || {};
   const unfoldHolds = !!unfold.skipped || (unfold.afterOpening !== false && unfold.afterPicking !== false && (unfold.afterOpening || unfold.afterPicking) !== null);
   const references = report.references || {};
   const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
   const evidence = report.evidence || {};
-  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries);
+  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries && evidence.decisionsMetOnce && !evidence.stripMissing.length && !evidence.gridKept.length);
   const heads = report.heads || {};
   const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
+  const catalogue = report.catalogue || {};
+  const catalogueHolds = Object.values(catalogue.counted || {}).every(held => held === true) && (!!catalogue.skipped || !!catalogue.verdictTravels);
+  const notes = report.notes || {};
+  const notesHold = !!(notes.generalSaved && notes.generalExported && notes.generalKeepsFocus && notes.cardSaved !== false && notes.cardKeepsFocus !== false);
+  const design = report.design || {};
+  const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
+  const findings = report.findings || {};
+  const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
+  const readiness = report.readiness || {};
+  const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

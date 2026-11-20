@@ -27,8 +27,42 @@ def test_a_chapter_defines_its_terms_before_the_prose_that_uses_them():
 
     glossary = layout.index("Terms this chapter introduces")
     assert layout.index('class="figs"') < glossary
-    for prose in ("What it adds to the design", "Why it exists", "${ba}"):
+    for prose in ("Why it exists", "${ba}"):
         assert glossary < layout.index(prose), prose
+
+
+def test_a_chapter_names_what_it_introduces_in_a_strip_not_a_wall_of_cards():
+    layout = chapter_layout()
+
+    assert "designSection" not in renderer("vChapter")
+    strip = layout.index("designStrip(ch)")
+    assert layout.index('class="figs"') < strip
+    assert strip < layout.index("Terms this chapter introduces")
+
+
+def test_a_stop_introduces_what_it_first_shows_before_its_role():
+    stop = stop_layout()
+
+    order = [
+        stop.index(part)
+        for part in ("Evidence for", "introducedHere(s)", "md(s.fit)")
+    ]
+    assert order == sorted(order)
+    assert "EVIDENCE.introducedAt(stop)" in renderer("introducedHere")
+
+
+def test_a_decision_met_in_the_tour_does_not_list_where_else_it_is_shown():
+    card = renderer("decisionCard")
+
+    assert "opts.compact" in card
+    assert "compact ? '' : shownAt(d)" in card
+
+
+def test_what_a_stop_carries_links_to_its_entry_in_reference():
+    link = renderer("carriedLink")
+
+    assert "#tour-" not in link
+    assert "data-jump" in link
 
 
 def stop_layout():
@@ -90,13 +124,48 @@ def test_what_a_stop_carries_can_be_reached_from_it():
     assert "dataset.scrollTo" in shell
 
 
-def test_by_commit_sits_with_the_reference_views_after_all_files():
-    shell = SHELL.read_text()
-    routes = shell[shell.index("function routes() {") :]
-    routes = routes[: routes.index("\n}\n")]
+def test_the_rail_takes_its_sections_from_the_review_sections_model():
+    assert "ReviewSections.of(C, customViews)" in renderer("routes")
+    assert "ReviewSections.routeFor(" in renderer("parseHash")
 
-    by_commit = routes.index("['commits', 'By commit', 'Reference']")
-    assert routes.index("['files', 'All files', 'Reference']") < by_commit
+
+def test_each_catalogue_draws_the_cards_its_items_are_reached_by():
+    cards = {
+        "vDecisions": ("decisionCard", 'id="dec-'),
+        "vAbstractions": ("abstractionCard", 'id="abs-'),
+        "invariantRow": (None, 'id="inv-'),
+        "riskRow": (None, 'id="risk-'),
+    }
+    for view, (card, element) in cards.items():
+        if card:
+            assert card in renderer(view), view
+            assert element in renderer(card), card
+        else:
+            assert element in renderer(view), view
+    assert "invariantRow" in renderer("vInvariants")
+    assert "riskRow" in renderer("vInvariants")
+
+
+def test_the_tests_catalogue_keeps_the_criteria_and_lists_every_test():
+    tests = renderer("vTests")
+
+    assert "C.acs" in tests
+    assert "CATALOGUE.tests" in tests
+
+
+def test_a_chapter_draws_its_invariants_and_risks_as_the_catalogue_does():
+    chapter = renderer("vChapter")
+
+    assert "invariantRow(" in chapter
+    assert "riskRow(" in chapter
+
+
+def test_a_link_can_open_any_catalogue_already_filtered():
+    shell = SHELL.read_text()
+
+    assert "data-jump-finding" not in shell
+    assert "closest('[data-jump]')" in shell
+    assert "dataset.filter" in shell
 
 
 def renderer(name):
@@ -131,9 +200,7 @@ def test_the_page_starts_tracing_graphs_once_it_loads():
 
 
 def test_rendered_markdown_links_its_chapter_and_stop_references():
-    shell = SHELL.read_text()
-    start = shell.index("function md(s, inline) {")
-    markdown = shell[start : shell.index("\n}\n", start)]
+    markdown = renderer("md")
 
     assert "ProseReferences.link(" in markdown
     assert markdown.count("return ") == markdown.count("return linked(") + 1
@@ -282,3 +349,129 @@ def chapter_layout_of_stops():
     shell = SHELL.read_text()
     start = shell.index("const stops = (ch.stops")
     return shell[start : shell.index("const ba = ", start)]
+
+
+def test_your_notes_open_with_a_freeform_box_then_the_cards_then_the_export():
+    notes = renderer("vNotes")
+    layout = notes[notes.index("return `") :]
+
+    assert "map(noteCard)" in notes
+    parts = ('id="general-notes"', "${cards}", 'id="notes-md"')
+    order = [layout.index(part) for part in parts]
+    assert order == sorted(order)
+
+
+def test_your_notes_take_their_items_from_the_review_notes_model():
+    assert "ReviewNotes.entries(" in renderer("noteEntries")
+    assert "ReviewNotes.markdown(" in renderer("notesMarkdown")
+
+
+def test_a_change_of_state_refreshes_your_notes_in_place():
+    state = renderer("onStateChange")
+
+    assert "render()" not in state
+    assert "refreshNotes()" in state
+
+
+def test_the_design_reads_as_an_article_then_asks_for_a_sign_off():
+    design = renderer("vDesign")
+
+    for gone in (
+        "abs-grid",
+        "decisionCard",
+        "principlesTable",
+        "extensionTable",
+    ):
+        assert gone not in design, gone
+    assert design.index("map(articleSection)") < design.index("design-overall")
+
+
+def test_a_design_without_an_article_sends_the_reader_to_the_catalogues():
+    design = renderer("vDesign")
+
+    assert 'href="#decisions"' in design
+    assert 'href="#abstractions"' in design
+
+
+def test_an_excerpt_in_the_article_claims_no_lines_read():
+    block = renderer("articleBlock")
+
+    assert "codeSlice(b.file, b.start, b.end, b.side || 'new'" in block
+    assert "pad: 0, focus: b.focus" in block
+    assert "after.design = " in SHELL.read_text()
+
+
+def test_an_aside_names_each_item_it_refers_to():
+    assert "b.refs" in renderer("articleBlock")
+
+
+def test_the_overview_sends_the_reader_to_the_design_article():
+    overview = renderer("vOverview")
+
+    assert "Read how the change is designed" in overview
+    assert "decisionEntries()" not in overview
+
+
+def test_a_finding_says_where_it_came_from_and_what_it_builds_on():
+    row = renderer("findingRow")
+
+    for part in ("sourceChip(f)", "f.extends", "f.alsoRaisedIn", "f.chapter"):
+        assert part in row, part
+
+
+def test_findings_can_be_narrowed_and_counted_by_source():
+    findings = renderer("vFindings")
+
+    assert "sel('source'" in findings
+    assert "bySource" in findings
+
+
+def test_a_jump_to_a_merged_finding_opens_the_finding_it_joined():
+    assert (
+        "C.findingAliases"
+        in SHELL.read_text()[
+            SHELL.read_text().index("closest('[data-jump]')") :
+        ][:600]
+    )
+
+
+def test_a_chapter_lists_its_findings_once_and_compactly():
+    chapter = renderer("vChapter")
+
+    assert "New observations" not in chapter
+    assert "Prior findings here" not in chapter
+    assert "Findings here" in chapter
+    assert "findingsHere(ch)" in chapter
+
+
+def test_verdicts_on_renamed_targets_are_carried_over_with_their_head():
+    shell = SHELL.read_text()
+
+    assert "TargetRenames.pending(" in renderer("carryOverRenames")
+    assert "preserveHead: true" in renderer("carryOverRenames")
+    assert "opts.preserveHead" in shell[shell.index("  put(target") :][:600]
+
+
+def test_readiness_gives_the_assessment_then_the_gates_then_your_verdict():
+    readiness = renderer("vReadiness")
+    layout = readiness[readiness.index("return `") :]
+
+    parts = ("${assessment}", 'id="gates"', "ctl('decision'")
+    order = [layout.index(part) for part in parts]
+    assert order == sorted(order)
+    assert "What stands in the way" in layout
+
+
+def test_the_gates_come_from_the_readiness_model_and_refresh_in_place():
+    assert "Readiness.gates(C" in renderer("readinessGates")
+    assert "refreshReadiness()" in renderer("onStateChange")
+    assert "principlesTable(" in renderer("gateCard")
+    assert "jumpLink(" in renderer("gateCard")
+
+
+def test_the_overview_keeps_a_readiness_strip_and_gives_up_the_verdict():
+    overview = renderer("vOverview")
+
+    assert "ctl('decision'" not in overview
+    assert "readinessStrip()" in overview
+    assert 'href="#readiness"' in renderer("readinessStrip")

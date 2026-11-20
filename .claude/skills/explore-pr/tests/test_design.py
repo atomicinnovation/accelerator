@@ -20,7 +20,22 @@ DECISION = {
     "alternatives": ["call std::fs directly"],
     "rationale": "Tests can record every call.",
 }
-DESIGN = {"summary": "One port, two adapters.", "figures": [FIGURE]}
+ARTICLE = [
+    {
+        "id": "shape",
+        "heading": "One port, two adapters",
+        "blocks": [
+            {"kind": "prose", "md": "Every write goes through a port."},
+            {"kind": "figure", "figure": dict(FIGURE, id="f-article")},
+        ],
+    }
+]
+READINESS = {"recommendation": "comment", "summary": "s", "conditions": []}
+DESIGN = {
+    "summary": "One port, two adapters.",
+    "figures": [FIGURE],
+    "article": ARTICLE,
+}
 
 
 def workspace(root, chapters, design=DESIGN):
@@ -36,6 +51,7 @@ def workspace(root, chapters, design=DESIGN):
     )
     if design is not None:
         (root / "content/design.json").write_text(json.dumps(design))
+    (root / "content/readiness.json").write_text(json.dumps(READINESS))
     for chapter in chapters:
         (root / f"content/chapter-{chapter['id']}.json").write_text(
             json.dumps(chapter)
@@ -332,3 +348,132 @@ def test_a_stop_that_places_itself_in_the_change_raises_nothing(
     )
 
     assert not [w for w in warnings if "role it plays" in w]
+
+
+def article_warnings(tmp_path, script, *sections, **design):
+    chapters = [chapter("c", abstractions=[ABSTRACTION])]
+    whole = dict(DESIGN, article=list(sections), **design)
+    _, warnings = assemble(tmp_path, script, chapters, whole)
+    return warnings
+
+
+def section(*blocks):
+    figure = {"kind": "figure", "figure": dict(FIGURE, id="f-article")}
+    return {"id": "shape", "heading": "The shape", "blocks": [*blocks, figure]}
+
+
+def test_a_design_without_an_article_is_reported(tmp_path, script):
+    design = {key: v for key, v in DESIGN.items() if key != "article"}
+
+    _, warnings = assemble(tmp_path, script, [], design)
+
+    assert "design: no article; write the design as one" in warnings
+
+
+def test_a_page_without_a_design_needs_no_article(tmp_path, script):
+    _, warnings = assemble(tmp_path, script, [], design=None)
+
+    assert not any("no article" in w for w in warnings)
+
+
+def test_an_article_without_a_figure_is_reported(tmp_path, script):
+    prose_only = {
+        "id": "s",
+        "heading": "h",
+        "blocks": [ARTICLE[0]["blocks"][0]],
+    }
+
+    warnings = article_warnings(tmp_path, script, prose_only)
+
+    assert any("design article: no figure" in w for w in warnings)
+
+
+def test_an_article_section_without_a_heading_is_left_out(tmp_path, script):
+    headless = {"id": "loose", "blocks": []}
+    design = dict(DESIGN, article=[headless, *ARTICLE])
+
+    model, warnings = assemble(tmp_path, script, [], design)
+
+    assert [each["id"] for each in model["design"]["article"]] == ["shape"]
+    assert any(
+        "article section loose has no heading; left out" in w for w in warnings
+    )
+
+
+def test_a_block_of_an_unknown_kind_is_left_out(tmp_path, script):
+    warnings = article_warnings(
+        tmp_path, script, section({"kind": "poem", "md": "x"})
+    )
+
+    assert any(
+        'kind "poem" is not one of prose, figure, code, aside; left out' in w
+        for w in warnings
+    )
+
+
+def test_a_code_block_without_an_anchor_is_left_out(tmp_path, script):
+    code = {"kind": "code", "file": "src/a.rs", "start": 1, "end": 1}
+
+    model, warnings = assemble(
+        tmp_path,
+        script,
+        [],
+        dict(DESIGN, article=[section(code)]),
+    )
+
+    assert [b["kind"] for b in model["design"]["article"][0]["blocks"]] == [
+        "figure"
+    ]
+    assert any("code block 1 has no anchor; left out" in w for w in warnings)
+
+
+def test_a_long_excerpt_is_reported_and_pointed_at_a_stop(tmp_path, script):
+    code = {
+        "kind": "code",
+        "file": "src/a.rs",
+        "start": 1,
+        "end": 16,
+        "anchor": "x",
+    }
+
+    warnings = article_warnings(tmp_path, script, section(code))
+
+    assert any(
+        "excerpt of 16 lines; keep it to 15 and show more at a stop" in w
+        for w in warnings
+    )
+
+
+def test_a_long_prose_block_is_noted(tmp_path, script):
+    long = {"kind": "prose", "md": " ".join(["word"] * 151)}
+
+    warnings = article_warnings(tmp_path, script, section(long))
+
+    noted = [w for w in warnings if "151 words" in w]
+    assert noted
+    assert all(type(w).__name__ == "Note" for w in noted)
+
+
+def test_an_aside_must_name_what_the_page_declares(tmp_path, script):
+    aside = {"kind": "aside", "refs": ["a-store", "d-gone"]}
+
+    warnings = article_warnings(tmp_path, script, section(aside))
+
+    assert any("aside names unknown d-gone" in w for w in warnings)
+    assert not any("unknown a-store" in w for w in warnings)
+
+
+def test_an_article_figure_is_checked_like_any_other(tmp_path, script):
+    flow = {"kind": "figure", "figure": {"id": "f-flow", "kind": "flow"}}
+
+    warnings = article_warnings(tmp_path, script, section(flow))
+
+    assert any("f-flow: flow is no longer drawn" in w for w in warnings)
+
+
+def test_article_prose_is_checked_like_any_other(tmp_path, script):
+    naming = {"kind": "prose", "md": "As stop `c-s9` shows."}
+
+    warnings = article_warnings(tmp_path, script, section(naming))
+
+    assert any("names unknown stop c-s9" in w for w in warnings)

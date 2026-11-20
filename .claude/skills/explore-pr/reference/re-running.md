@@ -22,7 +22,14 @@ survive a moved head (`reference/content-model.md`, "When the head moves").
      checked for something a stop should now cover;
    - a chapter with an anchor that was not found, or a changed hunk inside
      a stop or row, needs its pass re-run.
-5. Refresh the design and the overview if the shape of the change moved.
+5. Refresh the design and the overview if the shape of the change moved. A
+   workspace built before the Design view became an article has no
+   `article` in `design.json`: the page falls back to the summary and
+   figures, and the build warns until the design pass writes one, so re-run
+   it from the chapters as they stand.
+   A chapter written with `ownNotes` keeps them as they are, so the
+   reviewer's verdicts on them keep their targets; write anything new in
+   `observations`.
 6. Build and verify as in step 9, then publish the hosted page to the same
    artifact, never a new one: the reviewer's records live with it.
 7. Tell the reviewer what they will see: lines changed since their review

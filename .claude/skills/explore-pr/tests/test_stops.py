@@ -21,7 +21,19 @@ FIGURE = {
     "title": "Shape",
     "svg": "<svg viewBox='0 0 1 1'/>",
 }
-DESIGN = {"summary": "One port, two adapters.", "figures": [FIGURE]}
+ARTICLE = [
+    {
+        "id": "shape",
+        "heading": "One port, two adapters",
+        "blocks": [{"kind": "figure", "figure": dict(FIGURE, id="f-article")}],
+    }
+]
+READINESS = {"recommendation": "comment", "summary": "s", "conditions": []}
+DESIGN = {
+    "summary": "One port, two adapters.",
+    "figures": [FIGURE],
+    "article": ARTICLE,
+}
 DECISION = {
     "id": "d-port",
     "decision": "Reach the disk through a port",
@@ -77,6 +89,7 @@ def assemble(root, script, chapters, design=DESIGN):
         json.dumps({"figures": [dict(FIGURE, id="f-over")]})
     )
     (root / "content/design.json").write_text(json.dumps(design))
+    (root / "content/readiness.json").write_text(json.dumps(READINESS))
     for each in chapters:
         (root / f"content/chapter-{each['id']}.json").write_text(
             json.dumps(each)
@@ -339,3 +352,89 @@ def test_a_why_that_names_one_thing_from_its_lines_is_not_noted(
     pointed = "`journal.append` comes last so a failed write leaves no entry."
 
     assert stop_warnings(tmp_path, script, why=pointed) == []
+
+
+def test_an_item_may_name_the_stops_that_carry_it(tmp_path, script):
+    design = dict(DESIGN, decisions=[dict(DECISION, id="d-top")])
+    linked = dict(ABSTRACTION, carriedBy=["c-s1"])
+    decisions = [dict(DECISION, id="d-top", carriedBy=["c-s1"])]
+
+    warnings = warnings_for(
+        tmp_path,
+        script,
+        chapter(abstractions=[linked]),
+        design=dict(design, decisions=decisions),
+    )
+
+    assert warnings == []
+
+
+def test_naming_a_stop_that_does_not_exist_as_a_carrier_is_reported(
+    tmp_path, script
+):
+    linked = dict(DECISION, carriedBy=["c-s1", "c-s9"])
+
+    warnings = warnings_for(tmp_path, script, chapter(decisions=[linked]))
+
+    assert any(
+        "decision d-port: carriedBy names unknown stop c-s9" in w
+        for w in warnings
+    )
+
+
+def test_the_stops_that_carry_an_item_are_named_as_a_list(tmp_path, script):
+    linked = dict(DECISION, carriedBy="c-s1")
+
+    warnings = warnings_for(tmp_path, script, chapter(decisions=[linked]))
+
+    assert any("carriedBy must be a list of text" in w for w in warnings)
+
+
+def test_an_abstraction_no_stop_carries_is_reported(tmp_path, script):
+    warnings = warnings_for(
+        tmp_path, script, chapter(abstractions=[ABSTRACTION])
+    )
+
+    assert any(
+        "chapter c: abstraction a-store: no stop carries it" in w
+        for w in warnings
+    )
+
+
+def test_what_the_design_declares_must_be_carried_too(tmp_path, script):
+    design = dict(
+        DESIGN,
+        decisions=[dict(DECISION, id="d-top")],
+        abstractions=[ABSTRACTION],
+    )
+
+    warnings = warnings_for(tmp_path, script, chapter(), design=design)
+
+    assert any(
+        "design: decision d-top: no stop carries it" in w for w in warnings
+    )
+    assert any(
+        "design: abstraction a-store: no stop carries it" in w for w in warnings
+    )
+
+
+def test_the_design_needs_no_stop_when_there_is_no_tour(tmp_path, script):
+    design = dict(DESIGN, decisions=[dict(DECISION, id="d-top")])
+
+    warnings = warnings_for(
+        tmp_path, script, chapter(stops=[], decisions=[]), design=design
+    )
+
+    assert not any("no stop carries it" in w for w in warnings)
+
+
+def test_prose_naming_an_undeclared_decision_or_abstraction_is_reported(
+    tmp_path, script
+):
+    stop = dict(STOP, why="Unlike `d-gone` and `a-gone`, `d-port` holds.")
+
+    warnings = warnings_for(tmp_path, script, chapter(stops=[stop]))
+
+    assert any("names unknown decision d-gone" in w for w in warnings)
+    assert any("names unknown abstraction a-gone" in w for w in warnings)
+    assert not any("d-port" in w for w in warnings)

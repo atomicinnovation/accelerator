@@ -75,3 +75,32 @@ test('an attribute that carries a stop id is left alone', () => {
 test('prose without chapters to refer to is returned unchanged', () => {
   assert.equal(ProseReferences.link('See <code>claims-s1</code>.', []), 'See <code>claims-s1</code>.');
 });
+
+const DECLARED = [
+  { id: 'd-root', kind: 'decision', label: 'Keep one `root`' },
+  { id: 'a-store', kind: 'abstraction', label: 'Store' },
+  { id: 'claims-i1', kind: 'invariant', label: 'A claim <holds>' },
+];
+const linkDeclared = (html, except) => ProseReferences.link(html, CHAPTERS, DECLARED, except);
+const DECISION = '<a class="ref" href="#decisions" data-scroll-to="dec-d-root">Keep one root</a>';
+
+test('a declared decision id in code becomes a link to its entry, named by what was decided', () => {
+  assert.equal(linkDeclared('As <code>d-root</code> says.'), `As ${DECISION} says.`);
+});
+
+test('a declared decision id written bare becomes the same link', () => {
+  assert.equal(linkDeclared('As d-root says.'), `As ${DECISION} says.`);
+});
+
+test('an abstraction and an invariant link to their own catalogues', () => {
+  assert.equal(linkDeclared('<code>a-store</code>'), '<a class="ref" href="#abstractions" data-scroll-to="abs-a-store">Store</a>');
+  assert.equal(linkDeclared('see claims-i1'), 'see <a class="ref" href="#invariants" data-scroll-to="inv-claims-i1">A claim &lt;holds&gt;</a>');
+});
+
+test('an id on its own card is not linked', () => {
+  assert.equal(linkDeclared('As <code>d-root</code> and d-root say.', 'd-root'), 'As <code>d-root</code> and d-root say.');
+});
+
+test('an id nothing declares is left alone', () => {
+  assert.equal(linkDeclared('<code>d-gone</code> and d-gone'), '<code>d-gone</code> and d-gone');
+});
