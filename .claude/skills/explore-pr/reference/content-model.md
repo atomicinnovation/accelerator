@@ -363,7 +363,9 @@ one longer than 15 lines belongs at a stop. An aside names decisions,
 abstractions or invariants by id and links each to its entry in Reference.
 `principles` and `extension` are drawn as tables in the Decisions
 catalogue; say what matters about them in the article.
-`examples/design-article.json` shows the standard expected.
+`examples/design-article.json` is a real article at the standard expected,
+from the design pass for PR 250: eight sections in the recommended arc,
+four figures, two short excerpts and an aside in most sections.
 
 ## `readiness.json`
 

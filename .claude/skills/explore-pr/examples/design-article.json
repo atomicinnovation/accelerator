@@ -1,104 +1,1034 @@
 {
-  "summary": "Every start in a relocated root records a **version claim**, an empty file whose mtime is the version's last use, and a prune keeps what **FreshVersions** says is still claimed. Start-up only ever writes claims and a prune only ever reads them, so the two never contend for a lock. Every comparison is biased to keep: clock trouble or an unreadable `claims/` keeps entries, never removes them.",
+  "summary": "`conduct` stops typing each spawn's context into its prompt: a node researcher is handed a **spawn address** (slug, run, spawn ref) and resolves it through the read-only **node query**, which answers from the **offered-node snapshot** that the **pending batch** records in the run ledger when it offers the node. Templates take the same route: each **outputter's Template step** runs an exact `accelerator config template` command, resolved by a `config::template` module both binaries now share, while the command-free composer keeps its template inline. The researcher's command surface grows from one prefix to a **per-role list of permitted commands**, so the guard, not the prompt, bounds every reference a spawn can resolve. Dependencies still run one way, from prompts to binaries to adapters to domain, and the orchestrator's output per spawn no longer grows with depth; the price is a snapshot whose integrity rests on the same fail-open guard.",
   "article": [
     {
       "id": "before",
-      "heading": "Keep the newest N evicts live versions",
+      "heading": "The orchestrator typed every spawn's context",
       "blocks": [
         {
           "kind": "prose",
-          "md": "A relocated root outlives every plugin version that shares it, and several versions use it at once: a session started before an upgrade keeps dispatching its version until it reloads. Before this change a prune kept the newest versions by count, so an upgrade could evict the entries a live session still needed, and the next command re-fetched them."
+          "md": "Before this change `conduct`'s orchestrator read each node's `question` and `known_questions` from `outstanding`'s plan and re-typed them, with a template inlined at skill load and a web node's budget, into every Task prompt. The work item measured the cost: a level-3 node prompt of about 5 KB, about 125–150k serial output tokens in a depth-3 run, a batch of 20 spawns near the per-response output limit, and byte-for-byte rules resting on a model re-typing JSON the CLI already held. A researcher could run one command, `accelerator research fetch`, so the prompt was the only way to hand it anything."
+        },
+        {
+          "kind": "figure",
+          "figure": {
+            "id": "design-spawn-carries",
+            "kind": "compare",
+            "title": "Only the node prompt stopped growing",
+            "caption": "Amber and red cells are text the orchestrator writes per spawn; only the node column grew with depth, and it is the one that now carries addresses. The composer keeps its inline template, once per pair.",
+            "wide": true,
+            "before": {
+              "id": "design-carries-before",
+              "kind": "matrix",
+              "title": "Before: every value typed by the orchestrator",
+              "rowLabel": "Context",
+              "colLabel": "Spawn",
+              "rows": [
+                "template",
+                "question",
+                "known questions, lineage, level, cap",
+                "output path and id",
+                "search budget",
+                "slug, run, spawn ref"
+              ],
+              "cols": [
+                "`single_pass` researcher",
+                "node researcher",
+                "composer"
+              ],
+              "cells": [
+                [
+                  {
+                    "text": "finding, inline",
+                    "tone": "warn"
+                  },
+                  {
+                    "text": "level-note, inline",
+                    "tone": "warn"
+                  },
+                  {
+                    "text": "finding, inline",
+                    "tone": "warn"
+                  }
+                ],
+                [
+                  "inline",
+                  {
+                    "text": "inline, byte for byte",
+                    "tone": "warn"
+                  },
+                  "inline"
+                ],
+                [
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  },
+                  {
+                    "text": "inline, grows with depth",
+                    "tone": "bad"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  }
+                ],
+                [
+                  "path, inline",
+                  {
+                    "text": "inline",
+                    "tone": "warn"
+                  },
+                  "path, inline"
+                ],
+                [
+                  "inline, web only",
+                  {
+                    "text": "inline, web only",
+                    "tone": "warn"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  }
+                ],
+                [
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  }
+                ]
+              ]
+            },
+            "after": {
+              "id": "design-carries-after",
+              "kind": "matrix",
+              "title": "After: a node researcher gets addresses",
+              "rowLabel": "Context",
+              "colLabel": "Spawn",
+              "rows": [
+                "template",
+                "question",
+                "known questions, lineage, level, cap",
+                "output path and id",
+                "search budget",
+                "slug, run, spawn ref"
+              ],
+              "cols": [
+                "`single_pass` researcher",
+                "node researcher",
+                "composer"
+              ],
+              "cells": [
+                [
+                  {
+                    "text": "runs the template command",
+                    "tone": "ok"
+                  },
+                  {
+                    "text": "runs the template command",
+                    "tone": "ok"
+                  },
+                  {
+                    "text": "finding, inline",
+                    "tone": "warn"
+                  }
+                ],
+                [
+                  "inline",
+                  {
+                    "text": "node query",
+                    "tone": "ok"
+                  },
+                  "inline"
+                ],
+                [
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  },
+                  {
+                    "text": "node query",
+                    "tone": "ok"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  }
+                ],
+                [
+                  "path, inline",
+                  {
+                    "text": "node query",
+                    "tone": "ok"
+                  },
+                  "path, inline"
+                ],
+                [
+                  "inline, web only",
+                  {
+                    "text": "node query, web only",
+                    "tone": "ok"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  }
+                ],
+                [
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  },
+                  {
+                    "text": "inline",
+                    "tone": "info"
+                  },
+                  {
+                    "text": "none",
+                    "tone": "none"
+                  }
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "kind": "prose",
+          "md": "Only the node column grew with depth, because `known_questions` gathers every question above a node, and only the node column now carries addresses. `single_pass` and compose spawns keep their inline question by user decision (work item, Drafting Notes): their prompts are small and do not grow. Every researcher's template leaves its prompt; the composer's stays."
+        },
+        {
+          "kind": "aside",
+          "refs": [
+            "d-prompts-refs-only",
+            "d-node-query-by-reference"
+          ]
         }
       ]
     },
     {
       "id": "shape",
-      "heading": "Start-up writes claims; a prune reads them",
+      "heading": "Context moves behind guarded commands",
       "blocks": [
         {
           "kind": "prose",
-          "md": "The change splits retention into a writer and a reader that share only the file system. Start-up refreshes the running version's claim before any lookup can store an entry; a prune lists `claims/` and asks **FreshVersions** which versions are still in use. Neither holds a lock, because a claim is written whole by one install and read by many."
+          "md": "After the change a spawn carries addresses and the agent resolves them through the CLI. Four parts make that work, one per chapter: the guard lets the researcher run the new commands (chapter `guard`); each offer records what every node will be told (chapter `snapshot`); the node query answers from that record (chapter `node-query`); and outputters fetch their own templates (chapter `templates`). The prompts then shrink to references (chapter `prompts`). `d-node-query-by-reference` and `d-prompts-refs-only` are one choice seen from the CLI and from the prompt."
         },
         {
           "kind": "figure",
           "figure": {
-            "id": "design-article-shape",
-            "kind": "class-diagram",
-            "title": "Who writes a claim and who reads it",
-            "caption": "Start-up owns writing a claim; a prune owns reading them. The windows are shared, so the two cannot disagree about what fresh means.",
-            "classes": [
-              { "id": "StartUp", "stereotype": "module", "status": "changed", "link": "chapter:claims" },
-              { "id": "VersionClaim", "stereotype": "type", "status": "new", "link": "chapter:claims" },
-              { "id": "FreshVersions", "stereotype": "type", "status": "new", "link": "chapter:claims" },
-              { "id": "RetentionWindows", "stereotype": "module", "status": "new", "link": "chapter:claims" },
-              { "id": "Prune", "stereotype": "module", "status": "changed" }
+            "id": "design-dependencies",
+            "kind": "dependency-graph",
+            "title": "Prompts call binaries; binaries reach down one way",
+            "caption": "Every new arrow points down a layer: the prompts reach the CLI only through shell commands, `node_command` reaches the domain through `topic_command`'s owned-ledger read, and `config::template` is shared by both binaries without `research` ever depending on `config`.",
+            "wide": true,
+            "modules": [
+              {
+                "id": "prompts",
+                "label": "prompts (skills/, agents/)",
+                "modules": [
+                  {
+                    "id": "research-topic",
+                    "detail": "orchestrator: plans, checks templates, spawns",
+                    "status": "changed",
+                    "link": "skills/research/research-topic/SKILL.md:269"
+                  },
+                  {
+                    "id": "researcher",
+                    "detail": "queries its node, fetches its template",
+                    "status": "changed",
+                    "link": "agents/researcher.md:21"
+                  },
+                  {
+                    "id": "composer",
+                    "detail": "Read and Write only"
+                  },
+                  {
+                    "id": "outputters",
+                    "detail": "finding and level-note Template step",
+                    "status": "changed",
+                    "link": "skills/research/outputters/finding-outputter/SKILL.md:36"
+                  }
+                ]
+              },
+              {
+                "id": "research-cli",
+                "modules": [
+                  {
+                    "id": "node_command",
+                    "detail": "`research topic node`",
+                    "status": "new",
+                    "link": "cli/research-cli/src/node_command.rs:37"
+                  },
+                  {
+                    "id": "topic_command",
+                    "detail": "`outstanding`, `end-run`, `owned_ledger`",
+                    "status": "changed",
+                    "link": "cli/research-cli/src/topic_command.rs:588"
+                  },
+                  {
+                    "id": "context",
+                    "detail": "template fallback warnings",
+                    "status": "changed",
+                    "link": "cli/research-cli/src/context.rs:56"
+                  },
+                  {
+                    "id": "guard",
+                    "detail": "PreToolUse hook",
+                    "link": "chapter:guard"
+                  }
+                ]
+              },
+              {
+                "id": "launcher",
+                "modules": [
+                  {
+                    "id": "core::template",
+                    "detail": "`accelerator config template`",
+                    "status": "changed",
+                    "link": "cli/launcher/src/config_command/core/template.rs:6"
+                  }
+                ]
+              },
+              {
+                "id": "research-adapters",
+                "modules": [
+                  {
+                    "id": "ledger codec",
+                    "detail": "`.conduct-run.json`",
+                    "status": "changed",
+                    "link": "cli/research-adapters/src/conduct/ledger.rs:226"
+                  }
+                ]
+              },
+              {
+                "id": "config-adapters",
+                "detail": "file store, `ReadTemplate`"
+              },
+              {
+                "id": "research",
+                "modules": [
+                  {
+                    "id": "confinement",
+                    "detail": "per-role permitted commands",
+                    "status": "changed",
+                    "link": "cli/research/src/confinement.rs:108"
+                  },
+                  {
+                    "id": "conduct",
+                    "modules": [
+                      {
+                        "id": "conduct::ledger",
+                        "detail": "`RunLedger`",
+                        "status": "changed",
+                        "link": "cli/research/src/conduct/ledger.rs:237"
+                      },
+                      {
+                        "id": "conduct::memory",
+                        "detail": "`PendingBatch`",
+                        "status": "changed",
+                        "link": "cli/research/src/conduct/memory.rs:34"
+                      },
+                      {
+                        "id": "offered_nodes",
+                        "detail": "`OfferedNodes`, `NodeContext`",
+                        "status": "new",
+                        "link": "cli/research/src/conduct/offered_nodes.rs:18"
+                      },
+                      {
+                        "id": "search_budget",
+                        "detail": "`node_search_budget`",
+                        "status": "changed",
+                        "link": "cli/research/src/conduct/search_budget.rs:151"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "config",
+                "modules": [
+                  {
+                    "id": "config::template",
+                    "detail": "three-tier resolution",
+                    "status": "new",
+                    "link": "cli/config/src/template.rs:20"
+                  }
+                ]
+              }
             ],
-            "relationships": [
-              { "from": "StartUp", "to": "VersionClaim", "kind": "dependency" },
-              { "from": "Prune", "to": "FreshVersions", "kind": "dependency" },
-              { "from": "FreshVersions", "to": "VersionClaim", "kind": "aggregation" },
-              { "from": "FreshVersions", "to": "RetentionWindows", "kind": "dependency" },
-              { "from": "StartUp", "to": "RetentionWindows", "kind": "dependency" }
+            "dependencies": [
+              {
+                "from": "research-topic",
+                "to": "researcher",
+                "label": "spawns"
+              },
+              {
+                "from": "research-topic",
+                "to": "composer",
+                "label": "spawns"
+              },
+              {
+                "from": "researcher",
+                "to": "outputters",
+                "label": "reads"
+              },
+              {
+                "from": "composer",
+                "to": "outputters",
+                "label": "reads"
+              },
+              {
+                "from": "research-topic",
+                "to": "topic_command",
+                "label": "runs `outstanding`"
+              },
+              {
+                "from": "research-topic",
+                "to": "core::template",
+                "label": "template check",
+                "status": "new",
+                "link": "skills/research/research-topic/SKILL.md:269"
+              },
+              {
+                "from": "researcher",
+                "to": "node_command",
+                "label": "node query",
+                "status": "new",
+                "link": "agents/researcher.md:21"
+              },
+              {
+                "from": "outputters",
+                "to": "core::template",
+                "label": "Template step",
+                "status": "new",
+                "link": "skills/research/outputters/finding-outputter/SKILL.md:44"
+              },
+              {
+                "from": "node_command",
+                "to": "topic_command",
+                "label": "`owned_ledger`",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:14"
+              },
+              {
+                "from": "node_command",
+                "to": "conduct::ledger",
+                "label": "`offered_context`",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:45"
+              },
+              {
+                "from": "topic_command",
+                "to": "ledger codec"
+              },
+              {
+                "from": "topic_command",
+                "to": "conduct::ledger"
+              },
+              {
+                "from": "topic_command",
+                "to": "context"
+              },
+              {
+                "from": "context",
+                "to": "config::template",
+                "status": "new",
+                "link": "cli/research-cli/src/context.rs:60"
+              },
+              {
+                "from": "context",
+                "to": "config-adapters"
+              },
+              {
+                "from": "guard",
+                "to": "confinement"
+              },
+              {
+                "from": "core::template",
+                "to": "config::template",
+                "label": "re-exports",
+                "status": "new",
+                "link": "cli/launcher/src/config_command/core/template.rs:6"
+              },
+              {
+                "from": "ledger codec",
+                "to": "conduct::ledger"
+              },
+              {
+                "from": "ledger codec",
+                "to": "offered_nodes",
+                "status": "new",
+                "link": "cli/research-adapters/src/conduct/ledger.rs:243"
+              },
+              {
+                "from": "config-adapters",
+                "to": "config"
+              },
+              {
+                "from": "conduct::ledger",
+                "to": "conduct::memory"
+              },
+              {
+                "from": "conduct::memory",
+                "to": "offered_nodes",
+                "status": "new",
+                "link": "cli/research/src/conduct/memory.rs:37"
+              },
+              {
+                "from": "conduct::ledger",
+                "to": "search_budget"
+              }
             ]
           }
         },
         {
+          "kind": "prose",
+          "md": "The layering survives. Prompts reach the binaries only through shell commands; `node_command` reaches the domain through `topic_command`'s owned-ledger read; and the template lookup the launcher owned moves down into `config`, which `research` still never imports. No `Cargo.toml` changes: `research-cli` already depended on `config`."
+        },
+        {
+          "kind": "code",
+          "file": "skills/research/research-topic/SKILL.md",
+          "side": "new",
+          "start": 463,
+          "end": 473,
+          "anchor": "**a node of a `research_nodes` pair** gets a researcher of the same",
+          "focus": [
+            {
+              "line": 465,
+              "why": "the spawn address: all a node prompt says about its node"
+            },
+            {
+              "line": 471,
+              "why": "the one fixed line, the same bytes at every depth"
+            }
+          ],
+          "caption": "The whole node-spawn contract: three references, the profile and outputter paths, the depth and one fixed line."
+        },
+        {
           "kind": "aside",
-          "refs": ["d-claim-heartbeat", "a-version-claim", "a-fresh-versions"]
+          "refs": [
+            "a-design-spawn-address",
+            "d-design-commands-not-reads"
+          ]
         }
       ]
     },
     {
-      "id": "claims",
-      "heading": "A claim is a name and a time",
+      "id": "contracts",
+      "heading": "One prompt became four contracts",
       "blocks": [
         {
           "kind": "prose",
-          "md": "A claim carries no content: its name says which version and which install, and its mtime says when that install last started. One rule parses the name, so a prune never mistakes a stray file for a claim."
+          "md": "The text the orchestrator used to write is now four contracts, each with one owner. `outstanding` provides the plan, now without node questions, and the `offered_nodes` key, which only `topic node` reads. `topic node` provides the node-context JSON the researcher requires. `accelerator config template` provides the fenced template that each outputter's Template step requires and the orchestrator's template check reads. The composer requires none of them, by design (`d-templates-composer-inline`)."
         },
         {
-          "kind": "code",
-          "file": "cli/launcher/src/launch/outbound/resolve/retention/version_claims.rs",
-          "side": "new",
-          "start": 24,
-          "end": 31,
-          "anchor": "pub struct VersionClaim<'a> {",
-          "anchorLine": 24,
-          "caption": "The whole identity of a claim: a version and the install that made it."
+          "kind": "figure",
+          "figure": {
+            "id": "design-interfaces",
+            "kind": "component-diagram",
+            "title": "One prompt became four contracts",
+            "caption": "What the orchestrator used to type is now provided by two binaries and required by the agents. `offered_nodes` is the only contract between the two `research-cli` commands, and the composer is the one agent that still requires nothing but its prompt.",
+            "wide": true,
+            "components": [
+              {
+                "id": "research-topic",
+                "stereotype": "skill",
+                "status": "changed",
+                "link": "skills/research/research-topic/SKILL.md:269"
+              },
+              {
+                "id": "researcher",
+                "stereotype": "agent",
+                "status": "changed",
+                "link": "agents/researcher.md:21"
+              },
+              {
+                "id": "composer",
+                "stereotype": "agent"
+              },
+              {
+                "id": "outputters",
+                "stereotype": "skill",
+                "status": "changed",
+                "link": "skills/research/outputters/finding-outputter/SKILL.md:36"
+              },
+              {
+                "id": "research-cli",
+                "stereotype": "binary",
+                "components": [
+                  {
+                    "id": "outstanding",
+                    "name": "topic outstanding",
+                    "status": "changed",
+                    "link": "cli/research-cli/src/topic_command.rs:967"
+                  },
+                  {
+                    "id": "node",
+                    "name": "topic node",
+                    "status": "new",
+                    "link": "cli/research-cli/src/node_command.rs:37"
+                  }
+                ]
+              },
+              {
+                "id": "launcher",
+                "stereotype": "binary",
+                "components": [
+                  {
+                    "id": "config-template",
+                    "name": "config template",
+                    "status": "changed",
+                    "link": "cli/launcher/src/config_command/core/template.rs:6"
+                  }
+                ]
+              }
+            ],
+            "interfaces": [
+              {
+                "id": "plan",
+                "name": "plan JSON, no node questions",
+                "status": "changed",
+                "link": "cli/research-cli/src/topic_command.rs:967"
+              },
+              {
+                "id": "offered_nodes",
+                "name": "offered_nodes ledger key",
+                "status": "new",
+                "link": "cli/research-adapters/src/conduct/ledger.rs:158"
+              },
+              {
+                "id": "node-context",
+                "name": "node context JSON",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:52"
+              },
+              {
+                "id": "template",
+                "name": "fenced template"
+              }
+            ],
+            "relationships": [
+              {
+                "from": "research-topic",
+                "to": "plan",
+                "kind": "requires"
+              },
+              {
+                "from": "outstanding",
+                "to": "plan",
+                "kind": "provides",
+                "status": "changed"
+              },
+              {
+                "from": "outstanding",
+                "to": "offered_nodes",
+                "kind": "provides",
+                "status": "new",
+                "link": "cli/research-adapters/src/conduct/ledger.rs:150"
+              },
+              {
+                "from": "node",
+                "to": "offered_nodes",
+                "kind": "requires",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:45"
+              },
+              {
+                "from": "node",
+                "to": "node-context",
+                "kind": "provides",
+                "status": "new"
+              },
+              {
+                "from": "researcher",
+                "to": "node-context",
+                "kind": "requires",
+                "status": "new",
+                "link": "agents/researcher.md:21"
+              },
+              {
+                "from": "config-template",
+                "to": "template",
+                "kind": "provides"
+              },
+              {
+                "from": "outputters",
+                "to": "template",
+                "kind": "requires",
+                "status": "new",
+                "link": "skills/research/outputters/finding-outputter/SKILL.md:44"
+              },
+              {
+                "from": "research-topic",
+                "to": "template",
+                "kind": "requires",
+                "status": "new",
+                "link": "skills/research/research-topic/SKILL.md:269"
+              },
+              {
+                "from": "research-topic",
+                "to": "researcher",
+                "kind": "dependency",
+                "label": "spawns with references",
+                "status": "changed",
+                "link": "skills/research/research-topic/SKILL.md:463"
+              },
+              {
+                "from": "research-topic",
+                "to": "composer",
+                "kind": "dependency",
+                "label": "spawns with the template inline",
+                "link": "skills/research/research-topic/SKILL.md:474"
+              },
+              {
+                "from": "researcher",
+                "to": "outputters",
+                "kind": "dependency",
+                "label": "reads"
+              },
+              {
+                "from": "composer",
+                "to": "outputters",
+                "kind": "dependency",
+                "label": "reads"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "prose",
+          "md": "Two of the contracts are pinned from one side only. The node query's keys are asserted in `topic_node.rs` and named again, as literals, by the structure test on `agents/researcher.md`, with nothing tying the two (`D-01`); the guard's commands, by contrast, are read from the Rust constants (`d-guard-python-reads-rust`). The template kinds `conduct` checks for fallbacks are restated in `context.rs` (`P-templates-03`)."
         },
         {
           "kind": "aside",
-          "refs": ["d-claim-per-install", "claims-i1"]
+          "refs": [
+            "a-snapshot-ledger-key",
+            "a-node-query-command",
+            "a-templates-template-step",
+            "a-prompts-researcher-contract"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snapshot",
+      "heading": "Fixed at offer, answered only for the batch",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "The central choice is when a node's context is fixed. Reading the live tree on each query would need no new state, but a re-issued spawn could then be told something different; the work item asked for a snapshot taken at offer time and answered only while its batch is pending. `PendingBatch` holds it as a private field, so `replace` and `acknowledge` keep it in step with the spawns, and the ledger stores only what a spawn ref cannot derive. The query derives `lineage`, `level`, `cap`, `id` and `path` from the ref, and the budget from `node_search_budget`, the one rule the plan entry also uses, so the plan and the query cannot disagree about a budget."
+        },
+        {
+          "kind": "prose",
+          "md": "The cost is a second source of node context beside the tree. The plan notes that level gating already keeps a pending node's known questions stable, so in the ordinary case the snapshot guards re-issues, and it serves a stale question after a mid-batch parent rewrite, which the plan accepts. Decoding it leniently protects the run's claims, but the loss is silent where it happens (`P-snapshot-01`)."
+        },
+        {
+          "kind": "aside",
+          "refs": [
+            "d-snapshot-answer-from-snapshot",
+            "d-snapshot-owned-by-batch",
+            "d-snapshot-underivable-only",
+            "d-node-query-current-batch-only",
+            "d-node-query-budget-in-domain"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "templates",
+      "heading": "Templates by command, except the composer's",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "Templates take the same route for a different reason. A path plus a `Read` grant was rejected because the launcher resolves the plugin root through symlinks, so a grant written against `${CLAUDE_PLUGIN_ROOT}` might not match, and an override outside the project would need its own rule (work item, Technical Notes). Having the CLI print the template keeps the plugin root the launcher's concern. Moving the three-tier lookup into `config::template` lets `outstanding --start` name a fallback without a second copy of it. The composer, which reads every note of a pair and so is the agent most exposed to injected content, stays command-free and is given the finding template inline, once per pair."
+        },
+        {
+          "kind": "prose",
+          "md": "The orchestrator's template check runs both commands before the first plan, so a broken or denied template costs no subagents. Its denial branch is the PR's one unobserved outcome, and the unticked manual check may never reach it (`P-templates-01`). Two sources of one template have a side effect: in a run, composers fill the block captured at the check while `single_pass` researchers fetch theirs as they start (`D-03`)."
+        },
+        {
+          "kind": "aside",
+          "refs": [
+            "d-templates-by-command",
+            "d-templates-composer-inline",
+            "d-templates-preflight",
+            "d-templates-config-crate",
+            "d-templates-fallback-on-plan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trust",
+      "heading": "The guard bounds every reference",
+      "blocks": [
+        {
+          "kind": "prose",
+          "md": "Passing context by reference widens what a confined researcher may run, so the guard is where this design is safe or not. Each role now has an ordered list of permitted commands, and the researcher's whole surface is four entries: the fetch and the node query as prefixes whose arguments the lexer must clear, and the two template commands matched exactly. The node query's prefix keeps its trailing space, so `end-run` and `outstanding --spawned`, which would let a researcher end or advance the run, stay blocked."
+        },
+        {
+          "kind": "code",
+          "file": "cli/research/src/confinement.rs",
+          "side": "new",
+          "start": 107,
+          "end": 115,
+          "anchor": "pub const fn permitted_commands(self)",
+          "anchorLine": 108,
+          "focus": [
+            {
+              "line": 111,
+              "why": "the researcher's entire command surface"
+            },
+            {
+              "line": 113,
+              "why": "the composer runs nothing, whatever it is told"
+            }
+          ],
+          "caption": "Everything a confined agent may run, by role."
+        },
+        {
+          "kind": "figure",
+          "figure": {
+            "id": "design-trust",
+            "kind": "data-flow-diagram",
+            "title": "Node questions reach researchers only through the CLI",
+            "caption": "The orchestrator now hands the confined boundary only addresses; every node question and template crosses into it from a CLI process. The run ledger sits in the topic set, where only the guard's write rule keeps a researcher from rewriting what the node query serves.",
+            "wide": true,
+            "direction": "right",
+            "externals": [
+              {
+                "id": "web",
+                "name": "Web and scholarly sources"
+              }
+            ],
+            "processes": [
+              {
+                "id": "orchestrate",
+                "name": "Plan and spawn a batch",
+                "status": "changed",
+                "link": "skills/research/research-topic/SKILL.md:463"
+              },
+              {
+                "id": "offer",
+                "name": "Offer the batch",
+                "status": "changed",
+                "link": "cli/research/src/conduct/window.rs:45"
+              },
+              {
+                "id": "answer",
+                "name": "Answer a node query",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:37"
+              },
+              {
+                "id": "print",
+                "name": "Print a template",
+                "status": "changed",
+                "link": "cli/config/src/template.rs:20"
+              },
+              {
+                "id": "research",
+                "name": "Research one node",
+                "status": "changed",
+                "link": "agents/researcher.md:21"
+              },
+              {
+                "id": "compose",
+                "name": "Compose a finding"
+              }
+            ],
+            "stores": [
+              {
+                "id": "notes",
+                "name": "level notes"
+              },
+              {
+                "id": "ledger",
+                "name": ".conduct-run.json",
+                "status": "changed",
+                "tone": "risk",
+                "link": "cli/research-adapters/src/conduct/ledger.rs:150"
+              },
+              {
+                "id": "templates",
+                "name": "templates: override or default"
+              }
+            ],
+            "boundaries": [
+              {
+                "id": "session",
+                "name": "Orchestrator session",
+                "holds": [
+                  "orchestrate"
+                ]
+              },
+              {
+                "id": "cli",
+                "name": "CLI binaries",
+                "holds": [
+                  "offer",
+                  "answer",
+                  "print"
+                ]
+              },
+              {
+                "id": "confined",
+                "name": "Confined subagents",
+                "holds": [
+                  "research",
+                  "compose"
+                ],
+                "link": "chapter:guard"
+              }
+            ],
+            "flows": [
+              {
+                "from": "web",
+                "to": "research",
+                "data": "fetched pages"
+              },
+              {
+                "from": "research",
+                "to": "notes",
+                "data": "level note with follow-ups"
+              },
+              {
+                "from": "notes",
+                "to": "offer",
+                "data": "next level's node questions"
+              },
+              {
+                "from": "offer",
+                "to": "ledger",
+                "data": "offered_nodes snapshot",
+                "status": "new",
+                "link": "cli/research-adapters/src/conduct/ledger.rs:150"
+              },
+              {
+                "from": "offer",
+                "to": "orchestrate",
+                "data": "plan without node questions",
+                "status": "changed",
+                "link": "cli/research-cli/src/topic_command.rs:967"
+              },
+              {
+                "from": "templates",
+                "to": "print",
+                "data": "template file"
+              },
+              {
+                "from": "print",
+                "to": "orchestrate",
+                "data": "finding template, warnings",
+                "status": "new",
+                "link": "skills/research/research-topic/SKILL.md:269"
+              },
+              {
+                "from": "orchestrate",
+                "to": "research",
+                "data": "slug, run, spawn ref",
+                "status": "changed",
+                "link": "skills/research/research-topic/SKILL.md:463"
+              },
+              {
+                "from": "ledger",
+                "to": "answer",
+                "data": "node context of the pending batch",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:45"
+              },
+              {
+                "from": "answer",
+                "to": "research",
+                "data": "question, known questions, path, budget",
+                "status": "new",
+                "link": "cli/research-cli/src/node_command.rs:52"
+              },
+              {
+                "from": "print",
+                "to": "research",
+                "data": "own outputter's template",
+                "status": "new",
+                "link": "skills/research/outputters/finding-outputter/SKILL.md:44"
+              },
+              {
+                "from": "orchestrate",
+                "to": "compose",
+                "data": "finding template, inline",
+                "status": "changed",
+                "link": "skills/research/research-topic/SKILL.md:480"
+              },
+              {
+                "from": "notes",
+                "to": "compose",
+                "data": "the pair's notes"
+              },
+              {
+                "from": "compose",
+                "to": "orchestrate",
+                "data": "short summary"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "prose",
+          "md": "Untrusted text crosses into the confined boundary as before, but from a CLI process rather than the orchestrator: a node question still begins in an earlier researcher's note, and both the agent definition and the fixed prompt line call it data. What changed is where it rests. The question now sits in `.conduct-run.json` inside the topic set, and only the guard's write rule stops a researcher rewriting it (`snapshot-r2`). The guard fails open, and the grants it narrows are broad (`guard-r1`)."
+        },
+        {
+          "kind": "prose",
+          "md": "The plan cites that fail-open property to keep the composer command-free, yet accepts the same guard as the snapshot's only write protection, and no source weighs the two (`P-snapshot-04`, extended by `D-02`). The exposure is narrower than it sounds: with the guard down, a researcher could as easily rewrite the level notes that node questions are derived from."
+        },
+        {
+          "kind": "aside",
+          "refs": [
+            "d-guard-per-role-list",
+            "d-guard-exact-template",
+            "d-guard-node-prefix",
+            "d-prompts-inherited-grants",
+            "d-prompts-untrusted-twice"
+          ]
         }
       ]
     },
     {
       "id": "fit",
-      "heading": "Effects stay at the edge",
+      "heading": "Layering holds; least privilege strains",
       "blocks": [
         {
           "kind": "prose",
-          "md": "The launcher keeps every file-system effect behind its `Filesystem` port, and claims follow suit: `FreshVersions` is pure over a listing, and only start-up and the prune touch disk. The windows sit in a leaf module both import, so single-file and tree prune cannot drift into two retention policies."
+          "md": "The change follows the repository's rules closely. The snapshot is a domain type in `research`, its encoding lives in `research-adapters` and its command in `research-cli`; template resolution moves to `config`, which reaches files only through its `ConfigAccess` and `ReadTemplate` ports. Each behaviour commit carries its tests, and the prompts are pinned by structure tests. Communicating through the file system gets stronger: node context travels from note to ledger to researcher, and the orchestrator never reads it, which is why step 7 names a failed node by pair and lineage."
         },
         {
-          "kind": "code",
-          "file": "cli/launcher/src/launch/outbound/resolve/retention_windows.rs",
-          "side": "new",
-          "start": 7,
-          "end": 12,
-          "anchor": "pub const AGE_BACKSTOP: Duration",
-          "anchorLine": 7,
-          "caption": "The one place the numbers live."
+          "kind": "prose",
+          "md": "Two seams are looser than the rest. `node_command` reaches into its sibling `topic_command` for `owned_ledger`, `set_slug` and `Printed`, which the plan review asked to avoid (`D-04`). And least privilege is strained, not broken: the PR adds no Claude Code grant and documents exact rules, but the inherited ones stay broad and the guard that narrows them fails open."
+        },
+        {
+          "kind": "aside",
+          "refs": [
+            "d-snapshot-top-level-key",
+            "d-node-query-shared-owned-ledger",
+            "d-prompts-summary-by-pair"
+          ]
         }
       ]
     },
     {
       "id": "next",
-      "heading": "A shared root for a group is next",
+      "heading": "Next: pair refs, 0308's scope, lost grants",
       "blocks": [
         {
           "kind": "prose",
-          "md": "A root shared by a group of users needs claims that another user's prune can trust. That change belongs in `VersionClaim`'s ownership check and nowhere else: the windows and `FreshVersions` already treat every valid claim alike."
+          "md": "Three changes are queued or implied. The plan defers 0308's guard scope: whichever of this item and 0308 lands second reconciles the allowlist in `Role::permitted_commands` and `may_write`, and a new `Prefixed` entry must also join the shell differential's prefix list by hand (`P-guard-02`). The headless session that loses `research-topic`'s `allowed-tools` while background researchers run is to be its own work item; it would surface as per-spawn node-query and template denials. And should `single_pass` or compose spawns ever pass by reference, the query needs a pair ref: `parse_node` refuses one today and `Offer::new` keeps only node contexts, so the parser, the snapshot and its codec would each grow a pair case."
         }
       ]
     }
