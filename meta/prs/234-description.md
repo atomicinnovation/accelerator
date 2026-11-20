@@ -6,9 +6,9 @@ date: "2026-11-17T16:14:05+00:00"
 author: "Phil Helm"
 producer: "describe-pr"
 status: "complete"
-work_item_id: "0351"
-parent: "work-item:0351"
-relates_to: ["plan:2026-11-17-0351-sync-preview-hides-pending-push-refusals"]
+work_item_id: "PP-926"
+parent: "work-item:PP-926"
+relates_to: ["plan:2026-11-17-PP-926-sync-preview-hides-pending-push-refusals"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/234"
 pr_number: 234
 tags: ["sync", "preview", "pending-push"]
