@@ -4,6 +4,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML
 
+from .filters import PYTEST_FILTER_HELP, run_pytest_lane
 from .helpers import repo_root
 
 
@@ -32,6 +33,39 @@ def frontend(context: Context) -> None:
     """Run the visualiser frontend unit tests (Vitest)."""
     frontend_root = repo_root() / "cli/visualiser/frontend"
     context.run(f"npm --prefix {frontend_root} run test")
+
+
+@task(name="tasks", help={"filter_": PYTEST_FILTER_HELP})
+def build_system(context: Context, filter_: str | None = None) -> None:
+    """Run the pytest unit tests for the invoke tasks."""
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/unit/tasks -v",
+        mise_task="test:unit:tasks",
+        filter_=filter_,
+    )
+
+
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def frontend_licenses(context: Context, filter_: str | None = None) -> None:
+    """Guard the built frontend bundle's licence closure."""
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/unit/frontend -v",
+        mise_task="test:unit:frontend-licenses",
+        filter_=filter_,
+    )
+
+
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def vcs(context: Context, filter_: str | None = None) -> None:
+    """Run the pytest unit tests for the VCS test-support fixtures."""
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/unit/vcs -v",
+        mise_task="test:unit:vcs",
+        filter_=filter_,
+    )
 
 
 # The runtime-free JavaScript suites under the Playwright executor's `lib/`.

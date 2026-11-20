@@ -6,6 +6,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
+from tasks.test.filters import PYTEST_FILTER_HELP, run_pytest_lane
 from tasks.test.unit import _bare_returns_in_tests, _tap_counts
 
 from .helpers import accelerator_env, repo_root
@@ -51,20 +52,41 @@ def visualiser_os_watcher(context: Context) -> None:
     )
 
 
-@task
-def dev(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def dev(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the dev task (real circusd, fake processes)."""
-    context.run("uv run pytest tests/integration/dev -n auto -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/dev -n auto -v",
+        mise_task="test:integration:dev",
+        filter_=filter_,
+    )
 
 
-@task
-def entrypoint(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def entrypoint(context: Context, filter_: str | None = None) -> None:
     """Hermetic tests for the bin/accelerator plugin entry point.
 
     Exercises the bootstrap end-to-end against a stubbed downloader and real
     minisign signatures verified by the real accelerator-verify shim.
     """
-    context.run("uv run pytest tests/integration/entrypoint -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/entrypoint -v",
+        mise_task="test:integration:entrypoint",
+        filter_=filter_,
+    )
+
+
+@task(name="tasks", help={"filter_": PYTEST_FILTER_HELP})
+def build_system(context: Context, filter_: str | None = None) -> None:
+    """Run the pytest integration tests for the invoke tasks."""
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/tasks -v",
+        mise_task="test:integration:tasks",
+        filter_=filter_,
+    )
 
 
 @task
@@ -85,10 +107,15 @@ def deny(context: Context) -> None:
     context.run("uv run pytest tests/integration/deny -v")
 
 
-@task
-def pup(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def pup(context: Context, filter_: str | None = None) -> None:
     """cargo-pup architecture regression (needs the nightly lane)."""
-    context.run("uv run pytest tests/integration/pup -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/pup -v",
+        mise_task="test:integration:pup",
+        filter_=filter_,
+    )
 
 
 @task
@@ -117,32 +144,42 @@ def conformance(context: Context) -> None:
     )
 
 
-@task
-def evals(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def evals(context: Context, filter_: str | None = None) -> None:
     """Hold the CLI output skill evals quote to what the CLI prints.
 
     Runs against the accelerator-work built by the build:cli:work:dev
     dependency.
     """
-    context.run("uv run pytest tests/integration/evals -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/evals -v",
+        mise_task="test:integration:evals",
+        filter_=filter_,
+    )
 
 
-@task
-def hooks(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def hooks(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the hooks/ subtree.
 
     The suite runs the launcher, accelerator-vcs and accelerator-research
     built by the build:cli:dev, build:cli:vcs:dev and build:cli:research:dev
     dependencies.
     """
-    context.run("uv run pytest tests/integration/hooks -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/hooks -v",
+        mise_task="test:integration:hooks",
+        filter_=filter_,
+    )
 
 
 _RESEARCH_DIFFERENTIAL = "uv run pytest tests/integration/research -v"
 
 
-@task
-def research(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def research(context: Context, filter_: str | None = None) -> None:
     """Run the research guard's lexer differential against bash and zsh.
 
     Runs the measured baseline, the lexer-boundary rows, and a fixed-seed
@@ -150,7 +187,12 @@ def research(context: Context) -> None:
     build:cli:research:dev dependency, and every fetch the academic profiles
     show through the same guard.
     """
-    context.run(_RESEARCH_DIFFERENTIAL)
+    run_pytest_lane(
+        context,
+        _RESEARCH_DIFFERENTIAL,
+        mise_task="test:integration:research",
+        filter_=filter_,
+    )
 
 
 @task
@@ -164,11 +206,15 @@ def arxiv_queue_stress(context: Context) -> None:
     )
 
 
-@task
-def research_exhaustive(context: Context) -> None:
+@task(help={"filter_": PYTEST_FILTER_HELP})
+def research_exhaustive(context: Context, filter_: str | None = None) -> None:
     """Run the research guard's lexer differential at every position."""
-    context.run(
-        _RESEARCH_DIFFERENTIAL, env={"RESEARCH_DIFFERENTIAL_EXHAUSTIVE": "1"}
+    run_pytest_lane(
+        context,
+        _RESEARCH_DIFFERENTIAL,
+        mise_task="test:integration:research-exhaustive",
+        filter_=filter_,
+        env={"RESEARCH_DIFFERENTIAL_EXHAUSTIVE": "1"},
     )
 
 
