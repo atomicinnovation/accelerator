@@ -8,8 +8,10 @@ from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
 from tasks.test.filters import (
     LIBTEST_FILTER_HELP,
+    NEXTEST_CONTRACT_FILTER_HELP,
     PYTEST_FILTER_HELP,
     run_libtest_lane,
+    run_nextest_lane,
     run_pytest_lane,
 )
 from tasks.test.unit import _bare_returns_in_tests, _tap_counts
@@ -127,13 +129,15 @@ def pup(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task
-def tracker_contract(context: Context) -> None:
+@task(help={"filter_": NEXTEST_CONTRACT_FILTER_HELP})
+def tracker_contract(context: Context, filter_: str | None = None) -> None:
     """Run the RemoteTracker contract harness (excluded from test:unit:cli)."""
-    context.run(
+    run_nextest_lane(
+        context,
         f"cargo nextest run --profile contract {_MANIFEST}",
+        mise_task="test:integration:tracker-contract",
+        filter_=filter_,
         env={"ACCELERATOR_TRACKER_CONTRACT": "1"},
-        pty=True,
     )
 
 

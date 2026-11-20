@@ -511,6 +511,10 @@ _CARGO_AND_NODE_LANES = {
         "test.integration.visualiser",
         test_integration.visualiser,
     ),
+    "test:integration:tracker-contract": (
+        "test.integration.tracker-contract",
+        test_integration.tracker_contract,
+    ),
 }
 
 

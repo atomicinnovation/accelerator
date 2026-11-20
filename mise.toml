@@ -502,7 +502,10 @@ run = 'invoke test.integration.pup ${usage_filter+--filter "$usage_filter"}'
 [tasks."test:integration:tracker-contract"]
 description = "Run the RemoteTracker contract harness against a live tracker (opt-in: needs credentials, so it is out of the test:integration roll-up and out of default; filtered out of test:unit:cli by cli/.config/nextest.toml)"
 depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
-run = "invoke test.integration.tracker-contract"
+usage = '''
+flag "--filter <expression>" help="nextest filterset selecting the contract tests to run, e.g. 'test(the_conformance_set_passes_against_a_live_team)'"
+'''
+run = 'invoke test.integration.tracker-contract ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"

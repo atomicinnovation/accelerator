@@ -1,10 +1,11 @@
 import shlex
 
 import pytest
-from invoke import Context, Exit, Result
+from invoke import Context, Exit, Result, UnexpectedExit
 
 from tasks.shared.selection import Selection
 from tasks.test import integration, unit
+from tasks.test.cli import _MANIFEST
 
 _NO_TESTS = (
     "running 0 tests\n"
@@ -122,3 +123,75 @@ def test_the_integration_visualiser_lane_keeps_its_environment(context):
     integration.visualiser(context, filter_="x")
 
     assert "env" in context.run.call_args.kwargs
+
+
+def _failing_with(exit_code):
+    return UnexpectedExit(Result(exited=exit_code))
+
+
+def test_the_tracker_contract_lane_runs_its_command_unchanged(context):
+    integration.tracker_contract(context)
+
+    assert _commands_run(context) == [
+        f"cargo nextest run --profile contract {_MANIFEST}"
+    ]
+
+
+def test_the_tracker_contract_lane_intersects_the_filter_with_its_profile(
+    context,
+):
+    integration.tracker_contract(context, filter_="test(a b)")
+
+    [command] = _commands_run(context)
+    assert command.startswith(
+        f"cargo nextest run --profile contract {_MANIFEST} "
+    )
+    assert shlex.split(command)[-2:] == ["-E", "test(a b)"]
+
+
+def test_a_filtered_tracker_contract_run_with_no_tests_names_the_lane(
+    context,
+):
+    context.run.side_effect = _failing_with(4)
+
+    with pytest.raises(Exit) as exc_info:
+        integration.tracker_contract(context, filter_="test(x)")
+
+    assert str(exc_info.value) == Selection("test(x)").nothing_selected(
+        "test:integration:tracker-contract"
+    )
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    ("filter_", "exit_code"), [("test(x)", 100), (None, 4)]
+)
+def test_the_tracker_contract_lane_reports_other_failures_as_they_are(
+    context, filter_, exit_code
+):
+    failure = _failing_with(exit_code)
+    context.run.side_effect = failure
+
+    with pytest.raises(UnexpectedExit) as exc_info:
+        integration.tracker_contract(context, filter_=filter_)
+
+    assert exc_info.value is failure
+
+
+def test_the_tracker_contract_lane_keeps_its_environment(context):
+    integration.tracker_contract(context, filter_="test(x)")
+
+    assert context.run.call_args.kwargs["env"] == {
+        "ACCELERATOR_TRACKER_CONTRACT": "1"
+    }
+
+
+def test_the_tracker_contract_help_names_nextest_s_filterset():
+    assert "nextest filterset" in integration.tracker_contract.help["filter_"]
+
+
+def test_an_empty_filter_runs_no_tracker_contract(context):
+    with pytest.raises(Exit, match=r"^--filter needs an expression$"):
+        integration.tracker_contract(context, filter_="")
+
+    context.run.assert_not_called()
