@@ -31,6 +31,15 @@ NODE_TEST_RUNTIME_FILTER_HELP = (
     "e.g. 'ping: exits 0'"
 )
 
+PLAYWRIGHT_HOST_FILTER_HELP = (
+    "Playwright --grep regex selecting the tests to run, "
+    "e.g. 'kanban renders all seven default columns'"
+)
+
+PLAYWRIGHT_DOCKER_FILTER_HELP = (
+    "Playwright --grep regex selecting the tests to run, e.g. 'chip-showcase'"
+)
+
 LIBTEST_FILTER_HELP = (
     "libtest substring of the test path selecting the tests to run, "
     "e.g. 'path_normalisation'"
@@ -38,6 +47,7 @@ LIBTEST_FILTER_HELP = (
 
 _PYTEST_NO_TESTS_COLLECTED = 5
 _NEXTEST_NO_TESTS_RUN = 4
+_PLAYWRIGHT_NO_TESTS_FOUND = "No tests found"
 
 _LIBTEST_RESULT = re.compile(
     r"^test result: \w+\. (?P<passed>\d+) passed; (?P<failed>\d+) failed; "
@@ -100,6 +110,19 @@ def nothing_selected_on_exit(
         yield
     except UnexpectedExit as failure:
         if selection.is_filtered and failure.result.exited == exit_code:
+            raise Exit(selection.nothing_selected(mise_task), code=1) from None
+        raise
+
+
+@contextmanager
+def nothing_selected_when_playwright_finds_no_tests(
+    selection: Selection, mise_task: str
+) -> Generator[None]:
+    try:
+        yield
+    except UnexpectedExit as failure:
+        output = f"{failure.result.stdout}{failure.result.stderr}"
+        if selection.is_filtered and _PLAYWRIGHT_NO_TESTS_FOUND in output:
             raise Exit(selection.nothing_selected(mise_task), code=1) from None
         raise
 

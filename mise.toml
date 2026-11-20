@@ -579,17 +579,26 @@ depends = [
 [tasks."test:e2e:visualiser"]
 description = "Run visualiser E2E tests (Playwright)"
 depends = ["deps:install:playwright", "build:frontend", "build:server:dev"]
-run = "invoke test.e2e.visualiser"
+usage = '''
+flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'kanban renders all seven default columns'"
+'''
+run = 'invoke test.e2e.visualiser ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:e2e:visualiser:docker"]
 description = "Run visual-regression specs in the pinned Playwright Docker image (compare)"
 depends = ["build:frontend", "build:server:dev"]
-run = "invoke test.e2e.visualiser-docker"
+usage = '''
+flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'chip-showcase'"
+'''
+run = 'invoke test.e2e.visualiser-docker ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:e2e:visualiser:docker:update"]
 description = "Regenerate the canonical Linux visual-regression baselines in the pinned Docker image"
 depends = ["build:frontend", "build:server:dev"]
-run = "invoke test.e2e.visualiser-docker --update"
+usage = '''
+flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'chip-showcase'"
+'''
+run = 'invoke test.e2e.visualiser-docker --update ${usage_filter+--filter "$usage_filter"}'
 
 [tasks."test:e2e"]
 description = "Run all E2E tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"

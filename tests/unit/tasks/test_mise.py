@@ -13,6 +13,7 @@ import pytest
 
 from tasks.shared.dev_builds import DEV_BUILDS
 from tasks.test import cli as test_cli
+from tasks.test import e2e as test_e2e
 from tasks.test import integration as test_integration
 from tasks.test import unit as test_unit
 from tasks.test.filters import PYTEST_FILTER_HELP
@@ -522,6 +523,18 @@ _CARGO_AND_NODE_LANES = {
     "test:integration:design-automation": (
         "test.integration.design-automation",
         test_integration.design_automation,
+    ),
+    "test:e2e:visualiser": (
+        "test.e2e.visualiser",
+        test_e2e.visualiser,
+    ),
+    "test:e2e:visualiser:docker": (
+        "test.e2e.visualiser-docker",
+        test_e2e.visualiser_docker,
+    ),
+    "test:e2e:visualiser:docker:update": (
+        "test.e2e.visualiser-docker --update",
+        test_e2e.visualiser_docker,
     ),
     "test:integration:tracker-contract": (
         "test.integration.tracker-contract",

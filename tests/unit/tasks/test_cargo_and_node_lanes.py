@@ -1,4 +1,5 @@
 import shlex
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -6,7 +7,7 @@ from invoke import Context, Exit, Result, UnexpectedExit
 
 from tasks.shared.paths import FRONTEND
 from tasks.shared.selection import Selection
-from tasks.test import integration, unit
+from tasks.test import e2e, integration, unit
 from tasks.test.cli import _MANIFEST
 
 _NO_TESTS = (
@@ -461,5 +462,121 @@ def test_an_empty_filter_runs_no_design_automation_suite(context, mise_task):
 
     with pytest.raises(Exit, match=r"^--filter needs an expression$"):
         lane(context, filter_="")
+
+    context.run.assert_not_called()
+
+
+def _playwright_found_no_tests():
+    return UnexpectedExit(
+        Result(
+            exited=1,
+            stdout="Running 0 tests\n",
+            stderr="Error: No tests found\n",
+        )
+    )
+
+
+def test_the_host_e2e_lane_runs_its_command_unchanged(context):
+    e2e.visualiser(context)
+
+    assert _commands_run(context) == [f"npm --prefix {FRONTEND} run test:e2e"]
+
+
+def test_the_host_e2e_lane_passes_grep_after_npm_s_separator(context):
+    e2e.visualiser(context, filter_="kanban renders")
+
+    [command] = _commands_run(context)
+    assert shlex.split(command)[-3:] == ["--", "--grep", "kanban renders"]
+    assert "E2E_HEALTH_PORT" in context.run.call_args.kwargs["env"]
+
+
+@pytest.fixture
+def docker_lane(mocker, tmp_path):
+    server_bin = tmp_path / "accelerator-visualiser"
+    server_bin.touch()
+    mocker.patch.object(e2e, "SERVER_BIN", server_bin)
+    mocker.patch.object(e2e, "playwright_image", return_value="image")
+    mocker.patch.object(
+        e2e,
+        "run_against_host_server",
+        side_effect=lambda server_bin, on_ready: on_ready("7799"),
+    )
+
+
+def _docker_lane_failing_with(context, failure):
+    context.run.side_effect = [Result(exited=0), failure]
+
+
+_PLAYWRIGHT_LANES = {
+    "test:e2e:visualiser": e2e.visualiser,
+    "test:e2e:visualiser:docker": e2e.visualiser_docker,
+    "test:e2e:visualiser:docker:update": partial(
+        e2e.visualiser_docker, update=True
+    ),
+}
+
+
+def _fail_playwright_run(context, mise_task, failure):
+    if mise_task == "test:e2e:visualiser":
+        context.run.side_effect = failure
+    else:
+        _docker_lane_failing_with(context, failure)
+
+
+@pytest.mark.usefixtures("docker_lane")
+@pytest.mark.parametrize("mise_task", sorted(_PLAYWRIGHT_LANES))
+def test_a_filtered_playwright_run_that_finds_no_tests_names_the_lane(
+    context, mise_task
+):
+    _fail_playwright_run(context, mise_task, _playwright_found_no_tests())
+
+    with pytest.raises(Exit) as exc_info:
+        _PLAYWRIGHT_LANES[mise_task](context, filter_="x")
+
+    assert str(exc_info.value) == Selection("x").nothing_selected(mise_task)
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.usefixtures("docker_lane")
+@pytest.mark.parametrize("mise_task", sorted(_PLAYWRIGHT_LANES))
+@pytest.mark.parametrize(
+    ("filter_", "failure"),
+    [
+        ("x", UnexpectedExit(Result(exited=1, stderr="1 failed\n"))),
+        (None, _playwright_found_no_tests()),
+    ],
+)
+def test_a_playwright_lane_reports_other_failures_as_they_are(
+    context, mise_task, filter_, failure
+):
+    _fail_playwright_run(context, mise_task, failure)
+
+    with pytest.raises(UnexpectedExit) as exc_info:
+        _PLAYWRIGHT_LANES[mise_task](context, filter_=filter_)
+
+    assert exc_info.value is failure
+
+
+@pytest.mark.usefixtures("docker_lane")
+@pytest.mark.parametrize("update", [False, True])
+def test_the_docker_lanes_pass_grep_into_the_container(context, update):
+    e2e.visualiser_docker(context, update=update, filter_="chip showcase")
+
+    payload = shlex.split(_commands_run(context)[-1])[-1]
+    assert shlex.split(payload)[-2:] == ["--grep", "chip showcase"]
+
+
+@pytest.mark.parametrize(
+    "lane", [e2e.visualiser, e2e.visualiser_docker], ids=["host", "docker"]
+)
+def test_a_playwright_lane_s_help_names_playwright_s_grep(lane):
+    assert "Playwright --grep regex" in lane.help["filter_"]
+
+
+@pytest.mark.usefixtures("docker_lane")
+@pytest.mark.parametrize("mise_task", sorted(_PLAYWRIGHT_LANES))
+def test_an_empty_filter_runs_no_playwright_lane(context, mise_task):
+    with pytest.raises(Exit, match=r"^--filter needs an expression$"):
+        _PLAYWRIGHT_LANES[mise_task](context, filter_="")
 
     context.run.assert_not_called()
