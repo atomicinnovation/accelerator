@@ -51,6 +51,11 @@ KIT_FONT_FAMILIES = {
 COVERAGE_MODEL = ASSETS / "review-coverage.js"
 PROSE_REFERENCES_MODEL = ASSETS / "prose-references.js"
 STOP_EVIDENCE_MODEL = ASSETS / "stop-evidence.js"
+REVIEW_SECTIONS_MODEL = ASSETS / "review-sections.js"
+CATALOGUE_MODEL = ASSETS / "catalogue.js"
+REVIEW_NOTES_MODEL = ASSETS / "review-notes.js"
+TARGET_RENAMES_MODEL = ASSETS / "target-renames.js"
+READINESS_MODEL = ASSETS / "readiness.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -140,16 +145,29 @@ REQUIRED = {
     "file summary": {"path": str},
     "finding": {"id": str},
     "finding check": {"id": str},
+    "observation": {"id": str},
     "accepted risk": {"id": str},
     "check": {"question": str, "problem": str},
     "focus": {"line": int},
+    "article section": {"id": str, "heading": str, "blocks": list},
+    "prose block": {"md": str},
+    "figure block": {"figure": dict},
+    "code block": {"file": str, "start": int, "end": int, "anchor": str},
+    "aside block": {"refs": list},
 }
 STOP_PARTS = (("checks", "check"), ("focus", "focus"))
 OPTIONAL = {
     "stop": {"anchorLine": int, "figure": dict},
     "ledger row": {"start": int, "end": int},
+    "code block": {"anchorLine": int},
 }
-DESCRIBED = {str: "text", int: "a whole number", dict: "an object"}
+DESCRIBED = {
+    str: "text",
+    int: "a whole number",
+    dict: "an object",
+    list: "a list",
+}
+BLOCK_KINDS = ("prose", "figure", "code", "aside")
 OBJECT_LISTS = {
     "chapter": (
         "figures",
@@ -162,6 +180,7 @@ OBJECT_LISTS = {
         "stops",
         "tests",
         "findingChecks",
+        "observations",
         "ownNotes",
     ),
     "design": (
@@ -170,8 +189,11 @@ OBJECT_LISTS = {
         "decisions",
         "principles",
         "extension",
+        "article",
+        "observations",
     ),
     "overview": ("figures", "paths"),
+    "readiness": ("conditions",),
 }
 
 
@@ -249,7 +271,11 @@ def with_lists_of_objects(
 def well_formed_chapter(chapter: dict, faults: list[str]) -> dict:
     where = f"chapter {chapter['id']}"
     with_lists_of_objects(chapter, "chapter", where, faults)
-    for field, kind in (("stops", "stop"), ("findingChecks", "finding check")):
+    for field, kind in (
+        ("stops", "stop"),
+        ("findingChecks", "finding check"),
+        ("observations", "observation"),
+    ):
         if field in chapter:
             chapter[field] = well_formed(kind, chapter[field], where, faults)
     for stop in chapter.get("stops", []):
@@ -265,6 +291,63 @@ def well_formed_stop_parts(stop: dict, faults: list[str]) -> None:
                 None, stop[field], f"{where}: {field}", faults
             )
             stop[field] = well_formed(kind, entries, where, faults)
+
+
+def usable_block(
+    block: dict, position: int, where: str, faults: list[str]
+) -> bool:
+    kind = block.get("kind")
+    if kind not in BLOCK_KINDS:
+        faults.append(
+            f'{where}: block {position}: kind "{kind}" is not one of '
+            f"{', '.join(BLOCK_KINDS)}; left out"
+        )
+        return False
+    problem = shape_problem(f"{kind} block", block)
+    if problem:
+        faults.append(f"{where}: {kind} block {position} {problem}; left out")
+    return not problem
+
+
+def well_formed_design(design: dict, faults: list[str]) -> dict:
+    """Keep the observations and the article parts a view can use."""
+    if "observations" in design:
+        design["observations"] = well_formed(
+            "observation", design["observations"], "design", faults
+        )
+    if "article" not in design:
+        return design
+    sections = well_formed(
+        "article section", design["article"], "design", faults
+    )
+    for section in sections:
+        where = f"design article {section['id']}"
+        blocks = entries_with(
+            None, section["blocks"], f"{where}: blocks", faults
+        )
+        section["blocks"] = [
+            block
+            for position, block in enumerate(blocks, 1)
+            if usable_block(block, position, where, faults)
+        ]
+    design["article"] = sections
+    return design
+
+
+def article_blocks(design: dict) -> Iterator[tuple[str, dict]]:
+    """Yield the name and the block of every block in the design's article."""
+    for section in design.get("article", []):
+        for position, block in enumerate(section.get("blocks", []), 1):
+            kind = block.get("kind")
+            yield f"article {section.get('id')} {kind} block {position}", block
+
+
+def excerpts(design: dict) -> Iterator[tuple[str, dict]]:
+    for name, block in article_blocks(design):
+        if block.get("kind") == "code" and not shape_problem(
+            "code block", block
+        ):
+            yield name, block
 
 
 def layer_of(path: str, layers: list[dict]) -> str:
@@ -420,7 +503,9 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "title": manifest.get("title") or f"PR {pr.get('number')} explorer",
         "pr": pr,
         "overview": held(content, "overview", "overview", faults),
-        "design": held(content, "design", "design", faults),
+        "design": well_formed_design(
+            held(content, "design", "design", faults), faults
+        ),
         "chapters": ordered_chapters(manifest, content, faults),
         "ledger": concatenated(content, "ledger*.json", "ledger row", faults),
         "ledgerMeta": manifest.get("ledger", {}),
@@ -441,9 +526,19 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         "lineage": lineage_from_earlier_heads(
             workspace, pr.get("head", ""), diff
         ),
+        "readiness": held(content, "readiness", "readiness", faults),
     }
+    if not (content / "readiness.json").exists():
+        faults.append("no readiness assessment; write content/readiness.json")
     faults += mistyped_fields(model)
     faults += malformed_parts(model)
+    registered = findings_register(
+        model["findings"], model["chapters"], model["design"], diff
+    )
+    model["findings"] = registered["findings"]
+    model["findingAliases"] = registered["aliases"]
+    model["targetRenames"] = registered["renames"]
+    faults += registered["warnings"]
     model["keyAbstractions"] = key_abstractions(
         model["design"], model["chapters"]
     )
@@ -460,6 +555,10 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
     if model["moduleMap"]:
         model["moduleMap"] = module_map_graph(model["moduleMap"])
     faults += kit_warnings(model)
+    if (content / "design.json").exists() and not model["design"].get(
+        "article"
+    ):
+        faults.append("design: no article; write the design as one")
     summarised = {entry["path"] for entry in summaries}
     warnings = faults + check(model, diff) + commit_warnings(commits, diff)
     warnings += [
@@ -468,6 +567,175 @@ def assemble(workspace: Path) -> tuple[dict, list[str]]:
         if path not in summarised
     ]
     return model, warnings
+
+
+FINDING_LINKS = ("sameAs", "extends", "distinctFrom")
+
+
+def placed_at(where: object, diff: dict) -> dict:
+    located_at = LOCATION.match(where) if isinstance(where, str) else None
+    if not located_at:
+        return {"kind": "general"}
+    named = changed_files_named(located_at[1], diff)
+    start = int(located_at[2])
+    return {
+        "kind": "inline",
+        "file": named[0] if len(named) == 1 else located_at[1],
+        "start": start,
+        "end": int(located_at[3] or start),
+    }
+
+
+def links_of(finding: dict, key: str) -> list[str]:
+    value = finding.get(key)
+    if value is None:
+        return []
+    return [value] if isinstance(value, str) else list(value)
+
+
+def observed(
+    chapters: list[dict], design: dict, diff: dict
+) -> tuple[list[dict], dict[str, str], list[str]]:
+    """Return every observation as a finding, with any old notes renamed."""
+    findings, renames, notes = [], {}, []
+    holders = [(c["id"], "reading-pass", c) for c in chapters]
+    holders.append((None, "design-pass", design))
+    for chapter_id, source, holder in holders:
+        findings += [
+            {
+                **item,
+                "source": source,
+                "chapter": chapter_id,
+                **placed_at(item.get("where"), diff),
+            }
+            for item in holder.get("observations", [])
+        ]
+        old = holder.get("ownNotes", []) if chapter_id else []
+        if old:
+            notes.append(
+                Note(
+                    f"chapter {chapter_id}: ownNotes is the old name for "
+                    "observations; write new ones as observations"
+                )
+            )
+        for position, note in enumerate(old, 1):
+            finding_id = f"N-{chapter_id}-{position}"
+            renames[f"own:{chapter_id}-{position}"] = f"finding:{finding_id}"
+            findings.append(
+                {
+                    "id": finding_id,
+                    "severity": note.get("level"),
+                    "summary": note.get("text", ""),
+                    "where": note.get("where"),
+                    "source": source,
+                    "chapter": chapter_id,
+                    **placed_at(note.get("where"), diff),
+                }
+            )
+    return findings, renames, notes
+
+
+def merged_repeats(
+    observations: list[dict],
+) -> tuple[list[dict], dict[str, str]]:
+    """Merge each sameAs group into its first observation in tour order."""
+    position = {o["id"]: n for n, o in enumerate(observations)}
+    leader = {name: name for name in position}
+
+    def group_of(name: str) -> str:
+        while leader[name] != name:
+            name = leader[name]
+        return name
+
+    for item in observations:
+        for other in links_of(item, "sameAs"):
+            if other in position:
+                first, second = sorted(
+                    (group_of(item["id"]), group_of(other)), key=position.get
+                )
+                leader[second] = first
+    aliases = {
+        name: group_of(name) for name in position if group_of(name) != name
+    }
+    kept = [dict(o) for o in observations if o["id"] not in aliases]
+    for item in kept:
+        raised = [
+            o["chapter"] or "design"
+            for o in observations
+            if aliases.get(o["id"]) == item["id"]
+        ]
+        if raised:
+            item["alsoRaisedIn"] = list(dict.fromkeys(raised))
+    return kept, aliases
+
+
+def link_problems(
+    observations: list[dict], reviewed: set[str], known: set[str]
+) -> list[str]:
+    problems = []
+    for item in observations:
+        name = f"finding {item['id']}"
+        for key in FINDING_LINKS:
+            for ref in links_of(item, key):
+                if key == "sameAs" and ref in reviewed:
+                    problems.append(
+                        f"{name}: sameAs names {ref}, a prior finding; "
+                        "record a repeat in that finding's findingChecks"
+                    )
+                elif ref not in known:
+                    problems.append(
+                        f"{name}: {key} names unknown finding {ref}"
+                    )
+    return problems
+
+
+def are_linked(one: dict, other: dict, aliases: dict[str, str]) -> bool:
+    def named_by(item: dict) -> set[str]:
+        links = [ref for key in FINDING_LINKS for ref in links_of(item, key)]
+        return {aliases.get(ref, ref) for ref in links}
+
+    return other["id"] in named_by(one) or one["id"] in named_by(other)
+
+
+def overlap_warnings(findings: list[dict], aliases: dict[str, str]) -> list:
+    placed = [f for f in findings if f.get("file") and f.get("start")]
+    warnings = []
+    for n, one in enumerate(placed):
+        for other in placed[n + 1 :]:
+            if {one["source"], other["source"]} == {"review"}:
+                continue
+            first = max(one["start"], other["start"])
+            last = min(
+                one.get("end", one["start"]), other.get("end", other["start"])
+            )
+            if one["file"] != other["file"] or first > last:
+                continue
+            if not are_linked(one, other, aliases):
+                warnings.append(
+                    f"{one['id']} and {other['id']} cite overlapping lines of "
+                    f"{one['file']} ({first}-{last}); link them with sameAs, "
+                    "extends or distinctFrom"
+                )
+    return warnings
+
+
+def findings_register(
+    findings: list[dict], chapters: list[dict], design: dict, diff: dict
+) -> dict:
+    """Return one findings set from the review and every reading pass."""
+    reviewed = [{**finding, "source": "review"} for finding in findings]
+    observations, renames, notes = observed(chapters, design, diff)
+    reviewed_ids = {finding["id"] for finding in reviewed}
+    known = reviewed_ids | {o["id"] for o in observations}
+    kept, aliases = merged_repeats(observations)
+    register = reviewed + kept
+    warnings = notes + link_problems(observations, reviewed_ids, known)
+    return {
+        "findings": register,
+        "aliases": aliases,
+        "renames": renames,
+        "warnings": warnings + overlap_warnings(register, aliases),
+    }
 
 
 def without_blanks(item: dict) -> dict:
@@ -743,12 +1011,26 @@ def ledger_anchorage(row: dict) -> dict:
     }
 
 
-def anchored_items(chapters: list[dict], ledger: list[dict]) -> Iterator:
+def excerpt_anchorage(name: str, block: dict) -> dict:
+    return {
+        "name": name,
+        "side": block.get("side", "new"),
+        "line": block.get("anchorLine", block["start"]),
+        "moves": ("start", "end", "anchorLine"),
+        "span": ("start", "end"),
+    }
+
+
+def anchored_items(
+    chapters: list[dict], ledger: list[dict], design: dict | None = None
+) -> Iterator:
     for chapter in chapters:
         for stop in chapter.get("stops", []):
             yield stop, stop_anchorage(stop)
     for row in ledger:
         yield row, ledger_anchorage(row)
+    for name, block in excerpts(design or {}):
+        yield block, excerpt_anchorage(name, block)
 
 
 def new_home(item: dict, anchorage: dict, diff: dict) -> int | None:
@@ -802,11 +1084,11 @@ def anchor_problem(item: dict, anchorage: dict, diff: dict) -> str | None:
 
 
 def anchor_warnings(model: dict, diff: dict) -> list[str]:
-    """Return a warning for every stop and ledger row its code has left."""
+    """Return a warning for every stop, row and excerpt its code has left."""
     problems = [
         (anchorage["name"], anchor_problem(item, anchorage, diff))
         for item, anchorage in anchored_items(
-            model["chapters"], model["ledger"]
+            model["chapters"], model["ledger"], model["design"]
         )
     ]
     return [f"{name}: {problem}" for name, problem in problems if problem]
@@ -842,7 +1124,7 @@ def moved_with_its_anchor(
 
 
 def reanchor(workspace: Path) -> list[str]:
-    """Move every stop and ledger row whose anchor has one new home."""
+    """Move every stop, ledger row and excerpt whose anchor has one new home."""
     diff = load_json(workspace / "data/diff.json", {})
     content = workspace / "content"
     report = []
@@ -860,6 +1142,14 @@ def reanchor(workspace: Path) -> list[str]:
             for item, anchorage in anchored_items([], rows)
         ]
         report += rewritten(path, rows, moves)
+    path = content / "design.json"
+    design = json.loads(path.read_text()) if path.exists() else None
+    if isinstance(design, dict):
+        moves = [
+            moved_with_its_anchor(item, anchorage, diff)
+            for item, anchorage in anchored_items([], [], design)
+        ]
+        report += rewritten(path, design, moves)
     return report
 
 
@@ -989,6 +1279,11 @@ NO_LONGER_DRAWN = {
 def placed_figures(model: dict) -> list[tuple[str, dict]]:
     placed = [("overview", f) for f in model["overview"].get("figures", [])]
     placed += [("design", f) for f in model["design"].get("figures", [])]
+    placed += [
+        ("design article", block["figure"])
+        for _, block in article_blocks(model["design"])
+        if block.get("kind") == "figure"
+    ]
     for chapter in model["chapters"]:
         where = f"chapter {chapter['id']}"
         placed += [(where, f) for f in chapter.get("figures", [])]
@@ -1201,13 +1496,67 @@ def declared_ids(model: dict, keys: tuple[str, ...]) -> set[str]:
     }
 
 
-def carried_ids(chapters: list[dict]) -> set[str]:
-    return {
+EVIDENCED_KINDS = {
+    "decisions": "decision",
+    "abstractions": "abstraction",
+    "invariants": "invariant",
+    "risks": "risk",
+}
+MUST_BE_CARRIED = (
+    ("decisions", "show where it is enforced"),
+    ("abstractions", "show where it lives"),
+)
+
+
+def stop_ids(chapters: list[dict]) -> set[str]:
+    return {stop["id"] for c in chapters for stop in c.get("stops", [])}
+
+
+def evidenced_items(model: dict) -> Iterator[tuple[str, str, dict]]:
+    """Yield where each evidenced item is declared, its kind and the item."""
+    holders = [("design", model["design"])] + [
+        (f"chapter {chapter['id']}", chapter) for chapter in model["chapters"]
+    ]
+    for where, holder in holders:
+        for key, kind in EVIDENCED_KINDS.items():
+            for item in holder.get(key, []):
+                yield where, kind, item
+
+
+def carried_ids(model: dict) -> set[str]:
+    """Return what a stop carries, or what names a stop that carries it."""
+    stops = stop_ids(model["chapters"])
+    carried = {
         carried
-        for chapter in chapters
+        for chapter in model["chapters"]
         for stop in chapter.get("stops", [])
         for carried in stop.get("carries", [])
     }
+    return carried | {
+        item["id"]
+        for _, _, item in evidenced_items(model)
+        if item.get("id") and stops.intersection(item.get("carriedBy", []))
+    }
+
+
+def unknown_carriers(model: dict) -> list[str]:
+    stops = stop_ids(model["chapters"])
+    return [
+        f"{where}: {kind} {item.get('id', '?')}: carriedBy names unknown "
+        f"stop {named}"
+        for where, kind, item in evidenced_items(model)
+        for named in item.get("carriedBy", [])
+        if named not in stops
+    ]
+
+
+def uncarried(holder: dict, carried: set[str]) -> list[str]:
+    return [
+        f"{EVIDENCED_KINDS[key]} {item['id']}: no stop carries it; {instead}"
+        for key, instead in MUST_BE_CARRIED
+        for item in holder.get(key, [])
+        if item.get("id") and item["id"] not in carried
+    ]
 
 
 def own_lines(stop: dict, diff: dict) -> str:
@@ -1270,15 +1619,10 @@ def stop_evidence_problems(
 
 
 def unevidenced(chapter: dict, carried: set[str]) -> list[str]:
-    """Return the decisions and high risks no stop was chosen to show."""
+    """Return what a chapter declares that no stop was chosen to show."""
     if not chapter.get("stops"):
         return []
-    problems = [
-        f"decision {decision['id']}: no stop carries it; "
-        "show where it is enforced"
-        for decision in chapter.get("decisions", [])
-        if decision.get("id") and decision["id"] not in carried
-    ]
+    problems = uncarried(chapter, carried)
     for position, risk in enumerate(chapter.get("risks", []), 1):
         if risk.get("level") != "high":
             continue
@@ -1299,8 +1643,13 @@ def evidence_warnings(model: dict, diff: dict) -> list[str]:
     """Return warnings for stops that narrate code instead of explaining it."""
     declared = declared_ids(model, EVIDENCED_KEYS)
     risks = declared_ids(model, ("risks",))
-    carried = carried_ids(model["chapters"])
-    warnings: list[str] = []
+    carried = carried_ids(model)
+    warnings: list[str] = unknown_carriers(model)
+    if stop_ids(model["chapters"]):
+        warnings += [
+            f"design: {problem}"
+            for problem in uncarried(model["design"], carried)
+        ]
     for chapter in model["chapters"]:
         for stop in chapter.get("stops", []):
             warnings += [
@@ -1340,6 +1689,7 @@ def sources(model: dict) -> list[tuple[str, object]]:
         ("accepted risks", model["acceptedRisks"]),
         ("module map", model["moduleMap"] or {}),
         ("ci", model["ci"]),
+        ("readiness", model["readiness"]),
     ]
 
 
@@ -1372,9 +1722,19 @@ TEXT_FIELDS = (
     "where",
     "changelog",
     "kind",
+    "extends",
 )
 WHOLE_NUMBER_FIELDS = ("line", "start", "end", "anchorLine")
-TEXT_LIST_FIELDS = ("findings", "refs", "pinnedBy", "over", "carries")
+TEXT_LIST_FIELDS = (
+    "findings",
+    "refs",
+    "pinnedBy",
+    "over",
+    "carries",
+    "carriedBy",
+    "sameAs",
+    "distinctFrom",
+)
 LIST_FIELDS = ("rows", "cols", "cells", "tests", "items")
 
 
@@ -1450,10 +1810,20 @@ VOCABULARY = {
     ("findingChecks", "triage"): ("block", "fix-now", "follow-up", "drop"),
     ("findingChecks", "level"): ("design", "implementation"),
     ("ownNotes", "level"): LEVELS_OF_CONCERN,
+    ("observations", "severity"): (
+        "critical",
+        "major",
+        "minor",
+        "suggestion",
+        "question",
+    ),
+    ("observations", "level"): ("design", "implementation"),
     ("concern", "level"): LEVELS_OF_CONCERN,
     ("principles", "verdict"): ("holds", "strained", "broken"),
     ("items", "state"): ("added", "removed", "changed", "kept"),
     ("checks", "status"): ("pass", "fail", "cancelled", "skipped"),
+    ("readiness", "recommendation"): ("approve", "request-changes", "comment"),
+    ("conditions", "when"): ("before-merge", "would-improve"),
 }
 TONES = (
     "new",
@@ -1492,7 +1862,7 @@ def vocabulary_warnings(model: dict) -> list[str]:
         for trail, item in located(content)
         if isinstance(item, dict)
         for field, value in item.items()
-        if (allowed := vocabulary_of(trail, field))
+        if (allowed := vocabulary_of(trail or source, field))
     ]
     problems += [
         (f"file {file['path']}", outside("risk", file.get("risk"), RISK_TIERS))
@@ -1504,6 +1874,7 @@ def vocabulary_warnings(model: dict) -> list[str]:
             outside("severity", finding.get("severity"), SEVERITIES),
         )
         for finding in model["findings"]
+        if finding.get("source", "review") == "review"
     ]
     return [at(where, problem) for where, problem in problems if problem]
 
@@ -1618,8 +1989,20 @@ def stops_named_in(prose: str, chapters: set[str]) -> list[str]:
     return stop_shaped.findall(prose)
 
 
+DESIGN_ID = re.compile(r"`((d|a)-[a-z0-9]+(?:-[a-z0-9]+)*)`")
+DESIGN_ID_KINDS = {"d": "decision", "a": "abstraction"}
+
+
+def unknown_design_ids(prose: str, declared: set[str]) -> list[str]:
+    return [
+        f"names unknown {DESIGN_ID_KINDS[prefix]} {name}"
+        for name, prefix in DESIGN_ID.findall(prose)
+        if name not in declared
+    ]
+
+
 def prose_problems(
-    prose: str, chapters: set[str], stops: set[str]
+    prose: str, chapters: set[str], stops: set[str], declared: set[str]
 ) -> list[str]:
     unknown_stops = [
         f"names unknown stop {stop}"
@@ -1631,7 +2014,8 @@ def prose_problems(
         for name in chapters_named_in(prose)
         if name not in chapters
     ]
-    return list(dict.fromkeys(unknown_stops + unknown_chapters))
+    unknown_ids = unknown_design_ids(prose, declared)
+    return list(dict.fromkeys(unknown_stops + unknown_chapters + unknown_ids))
 
 
 def item_problems(
@@ -1667,9 +2051,8 @@ def link_problem(link: object, diff: dict, chapters: set[str]) -> str | None:
 def reference_warnings(model: dict, diff: dict) -> list[str]:
     """Return a warning for every citation the page could not open."""
     chapters = {chapter["id"] for chapter in model["chapters"]}
-    stops = {
-        stop["id"] for c in model["chapters"] for stop in c.get("stops", [])
-    }
+    stops = stop_ids(model["chapters"])
+    declared = declared_ids(model, DESIGN_KEYS)
     warnings = []
     for source, content in sources(model):
         for trail, value in located(content):
@@ -1678,7 +2061,9 @@ def reference_warnings(model: dict, diff: dict) -> list[str]:
             else:
                 problems = [
                     at(trail, problem)
-                    for problem in prose_problems(value, chapters, stops)
+                    for problem in prose_problems(
+                        value, chapters, stops, declared
+                    )
                 ]
             warnings += [at(source, problem) for problem in problems]
     warnings += [
@@ -1689,12 +2074,88 @@ def reference_warnings(model: dict, diff: dict) -> list[str]:
     return warnings
 
 
+MOST_EXCERPT_LINES = 15
+MOST_PROSE_WORDS = 150
+
+
+def article_block_problems(
+    block: dict, declared: set[str], diff: dict
+) -> list[str]:
+    if block["kind"] == "prose":
+        words = len(block["md"].split())
+        return (
+            [Note(f"prose block of {words} words; keep it to 150")]
+            if words > MOST_PROSE_WORDS
+            else []
+        )
+    if block["kind"] == "aside":
+        return [
+            f"aside names unknown {ref}"
+            for ref in block["refs"]
+            if ref not in declared
+        ]
+    if block["kind"] != "code":
+        return []
+    problems = []
+    lines = block["end"] - block["start"] + 1
+    if lines > MOST_EXCERPT_LINES:
+        problems.append(
+            f"excerpt of {lines} lines; keep it to 15 and show more at a stop"
+        )
+    if block["file"] not in diff:
+        return [*problems, f"{block['file']} not in diff"]
+    last = last_line(diff[block["file"]], block.get("side", "new"))
+    if not 1 <= block["start"] <= block["end"] <= last:
+        problems.append(
+            f"lines {block['start']}-{block['end']} outside 1-{last} of "
+            f"{block['file']}"
+        )
+    return problems
+
+
+def article_warnings(model: dict, diff: dict) -> list[str]:
+    """Return warnings for an article that cannot be shown or read well."""
+    article = model["design"].get("article", [])
+    if not article:
+        return []
+    declared = declared_ids(model, EVIDENCED_KEYS)
+    blocks = list(article_blocks(model["design"]))
+    warnings = [
+        at(f"design {name}", problem)
+        for name, block in blocks
+        for problem in article_block_problems(block, declared, diff)
+    ]
+    if not any(block["kind"] == "figure" for _, block in blocks):
+        warnings.append(
+            "design article: no figure; draw the shape it describes"
+        )
+    return warnings
+
+
+def readiness_warnings(model: dict) -> list[str]:
+    """Return a warning for every id a readiness condition cannot cite."""
+    chapters = model["chapters"]
+    citable = {finding["id"] for finding in model["findings"]}
+    citable |= set(model.get("findingAliases", {}))
+    citable |= declared_ids(model, EVIDENCED_KEYS) | stop_ids(chapters)
+    citable |= {chapter["id"] for chapter in chapters}
+    return [
+        f"readiness conditions[{position}]: refs names unknown {ref}"
+        for position, condition in enumerate(
+            model.get("readiness", {}).get("conditions", [])
+        )
+        for ref in condition.get("refs", [])
+        if ref not in citable
+    ]
+
+
 def check(model: dict, diff: dict) -> list[str]:
     """Return a warning for every reference the page could not honour."""
     warnings = []
     for chapter in model["chapters"]:
         warnings += stop_warnings(chapter, diff)
     known = {finding["id"] for finding in model["findings"]}
+    known |= set(model.get("findingAliases", {}))
     warnings += [
         f"{where}: unknown finding {ref}"
         for where, ref in finding_references(model)
@@ -1705,6 +2166,8 @@ def check(model: dict, diff: dict) -> list[str]:
     warnings += anchor_warnings(model, diff)
     warnings += figure_warnings(model)
     warnings += design_warnings(model)
+    warnings += article_warnings(model, diff)
+    warnings += readiness_warnings(model)
     warnings += evidence_warnings(model, diff)
     warnings += reference_warnings(model, diff)
     warnings += vocabulary_warnings(model)
@@ -1762,6 +2225,11 @@ def with_page_models(page: str, views: list[str]) -> str:
         COVERAGE_MODEL,
         PROSE_REFERENCES_MODEL,
         STOP_EVIDENCE_MODEL,
+        REVIEW_SECTIONS_MODEL,
+        CATALOGUE_MODEL,
+        REVIEW_NOTES_MODEL,
+        TARGET_RENAMES_MODEL,
+        READINESS_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)

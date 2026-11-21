@@ -66,8 +66,8 @@ pass reads first, and both are enforced by the build.
 
 - **Design before lines.** The reviewer approves, maintains and extends a
   design, so the page explains the design and uses lines as its evidence.
-  The Design view comes second; every chapter says what it adds to the
-  design before any code; every stop names the decisions, abstractions,
+  The Design view, an article, comes second; every chapter names what it
+  adds before any code; every stop names the decisions, abstractions,
   invariants and risks it is evidence for; design decisions and
   design-level findings are triaged first. A stop's text says what its
   code cannot (the role it plays, why it is shaped this way, what breaks
@@ -125,7 +125,7 @@ Do this yourself; it is cheap and shapes everything after it.
 - **Context**: the work item, plan, research and ADRs the description or
   branch name points to (`{work directory}`, `{plans directory}`). A plan's
   accepted risks and acceptance-criterion map feed the overview and the
-  criteria view.
+  Tests view.
 - **CI**: `gh pr checks {number}`; for each failure, find the cause in the
   failed job's log (`gh run view {run} --log-failed`) and name the fix.
 - **The architecture it lands in**: how the system is structured where the
@@ -223,14 +223,14 @@ to whichever pass is best placed to verify them.
 
 ### 6. Run the reading passes
 
-Fill `{skill dir}/reference/reading-pass-brief.md` once per chapter pass, and
-`{skill dir}/reference/design-pass-brief.md` once for the design pass, which
-reads the whole change for its shape and writes `content/design.json`. Spawn
-them together, as general-purpose agents (they write files), in the
-background. At quick depth, write `design.json` yourself before any
-chapter, to the same contract: the principles hold at every depth, and so
-does the build. The passes are the most expensive step, so brief them fully
-once rather than correcting them afterwards.
+Fill `{skill dir}/reference/reading-pass-brief.md` once per chapter pass and
+spawn them as general-purpose agents (they write files), in the background.
+When they finish, fill `{skill dir}/reference/design-pass-brief.md` with
+their chapters and final messages and spawn the design pass, which reads the
+whole change for its shape and writes `content/design.json`, its article.
+At quick depth, write `design.json` yourself after your own chapters, to the
+same contract: the principles hold at every depth, and so does the build.
+Brief every pass fully once rather than correcting it afterwards.
 
 While they run, keep working:
 
@@ -260,23 +260,25 @@ template.
 ### 8. Write the overview
 
 When the passes are done, read their summaries, `design.json`, and the
-chapters' decisions and `findingChecks`. Reconcile the design pass with the
-chapter passes where they disagree about a decision, reading the code to
-settle it. Then write `content/overview.json`:
+chapters' decisions, `findingChecks` and `observations`. Reconcile the passes
+where they disagree, reading the code; join one thing's observations with
+`sameAs` (the build flags overlaps). Then write `content/overview.json`:
 
 - `figures`: the change at a glance, first and foremost. Usually a `compare`
   of the part of the system the PR reshapes, before and after, with the new
   parts toned `new` and linked to their chapters. Someone who reads only this
   figure should know what the PR does.
 - `lede`: what the PR does, then the headline assessment, design first:
-  whether the design is sound and any decision that is questionable, then
-  what blocks merge, what should be fixed in the PR, and what the reading
-  passes disputed.
+  whether the design is sound and any questionable decision, then what blocks
+  merge, what to fix in the PR, and what the reading passes disputed.
 - `whatChanges`: one bullet per concept.
 - `paths`: two or three ways through the page sized to the agreed goal,
-  each with an honest time and numbered steps that name the views. The first
-  is always **understand the design**: Design, then each chapter's figures
-  and design section, in about half an hour.
+  each with an honest time and numbered steps that name the views, ending at
+  Readiness where it helps. The first is always **understand the design**:
+  Design, then each chapter's figures and its stops' decisions, half an hour.
+
+Write `content/readiness.json` last (content model): your recommendation and
+the conditions that would change it, from the reconciled findings and CI.
 
 ### 9. Build and verify
 
@@ -327,9 +329,9 @@ node {skill dir}/scripts/smoke.js {workspace}/explore-pr-{number}.html --shots {
 When the user has reviewed and asks you to act on their notes, read them from
 the artifact's `reviews` collection with the ArtifactData tool, or ask for the
 Markdown from **Your notes**. Each record names its target, verdict, note,
-label and file location (content model, "Review state"). Start with the
-design: a design decision marked *disagree* or *question* is usually the
-first conversation to have with the author, before any line-level comment.
+label and file location (content model, "Review state"). Read the reviewer's
+freeform notes, `notes:general`, first; then the design: a decision marked
+*disagree* or *question* comes before any line-level comment to the author.
 Typical follow-ups: draft PR comments for design decisions questioned and for
 findings triaged *fix in PR* or *block*, propose an ADR or an amendment where
 a questioned decision is not recorded, start a respond-to-pr pass, or write
@@ -344,12 +346,10 @@ written, follow `{skill dir}/reference/re-running.md`.
 
 ## Report
 
-- Where the page is: the link, the file path, or both, and how many figures
-  and interactive views it carries.
-- The design in two sentences, and the design assessment: any decision the
-  passes judged questionable or unsound, and any architectural principle the
-  change strains or breaks.
-- What else the reader should know before opening it: what blocks the merge,
+- Where the page is (link, file or both) and its figures and interactive views.
+- The design in two sentences and its assessment: any questionable or unsound
+  decision, and any architectural principle the change strains or breaks.
+- The recommendation, and what else to know before opening it: what blocks,
   what should be fixed in the PR, which prior findings were disputed or
   re-raise accepted risks.
 - What was verified and how: build warnings, the smoke check, model tests,

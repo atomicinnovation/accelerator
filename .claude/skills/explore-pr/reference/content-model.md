@@ -19,6 +19,7 @@ orchestrator, the reading passes and the page.
     accepted-risks.json   risks the plan or description accepts by name
     criteria.json         acceptance criteria to tests (scripts/criteria_map.py)
     modmap.json           module map: layers, nodes, edges
+    readiness.json        the recommended verdict and what would change it, written last
   data/diff.json          per-file diff (scripts/extract_diff.py)
   data/commits.json       per-commit hunks, traced onto the diff (scripts/extract_commits.py)
   views/*.js              PR-specific views (reference/custom-views.md)
@@ -37,27 +38,38 @@ more than to read its lines. Lines are evidence; the design is what they will
 approve, maintain and extend. So the content leads with design at every
 level:
 
-- **`design.json`** states the design of the whole change: its shape in a
-  paragraph and a figure, the principles of the existing architecture it
-  follows or strains, and where the next change would go. It is the page's
-  second view, before any chapter.
+- **`design.json`** states the design of the whole change as an article:
+  headed sections of prose, figures, short code excerpts and asides that
+  link the decisions and abstractions, covering its shape, the principles
+  of the existing architecture it follows or strains, and where the next
+  change would go. It is the page's second view, before any chapter. The
+  design pass writes it after the chapter passes, from their output.
 - **Every chapter names what it adds to the design**: the `abstractions` it
   introduces or reshapes (types, traits, modules, ports, file formats,
   protocols), with their responsibilities and collaborators, and the
   `decisions` it embodies, each with the alternatives it was chosen over, why,
   and at what cost. The page draws how the abstractions relate as a class
   diagram automatically. The build warns about a chapter with neither.
-  The Design view lists each abstraction once, merged by name across
-  `design.json` and every chapter: the first declaration describes it, its
-  collaborators are all of theirs, and it links to every chapter that
-  declares it.
+  The Abstractions catalogue lists each abstraction once, merged by name
+  across `design.json` and every chapter: the first declaration describes
+  it, its collaborators are all of theirs, and it links to every chapter
+  that declares it.
+- **Decisions and abstractions are met at the stop that first carries
+  them.** A chapter opens with a strip naming what it introduces and
+  decides; each decision is set out in full, with its control, at the first
+  stop in tour order that carries it, and each abstraction as a card there.
+  So order the stops that a decision's first carrying stop is where it is
+  best explained. The catalogues in Reference hold every one of them again,
+  and a decision's verdict is the same wherever its control is drawn.
 - **Stops are evidence for the design**, chosen to show where a responsibility
   lives or how a decision is enforced, not to walk every hunk. Every stop
   names what it is evidence for (`carries`) and the role its code plays in
   the design (`fit`): a reviewer who reads only the `fit` lines of a chapter
-  should be able to trace how the change hangs together. The build warns
-  about a stop without either, and about a decision or a high risk that no
-  stop carries.
+  should be able to trace how the change hangs together. A decision or
+  abstraction may also name the stops that carry it, in `carriedBy`, which
+  counts as if each of those stops carried it. The build warns about a stop
+  without either, and about a decision, an abstraction or a high risk that
+  no stop carries, in a chapter or in `design.json`.
 - **A stop says what its code cannot.** The code is shown beside the text,
   so a sentence that says what the lines do is wasted on a reader who can
   see them. See "What a stop says".
@@ -102,7 +114,7 @@ about.
 **Where the why comes from.** The PR description, commit messages, ADRs,
 the plan or work item, prior review findings, and the base copy of the
 file. A why that none of them states and the code does not make evident
-is not known: write it as a `question` in `ownNotes`, never as a reason
+is not known: raise it as a `question` in `observations`, never as a reason
 you inferred.
 
 The build warns about a stop with no `why`, one that carries nothing or
@@ -178,8 +190,15 @@ the content, and leaves out what it cannot:
 - a collaborator given as an object has a `name`;
 - a field holds the kind of value shown here: text for an `id`, `file`,
   `where` or `anchor`, a whole number for a line, a list of ids for
-  `findings`, `refs` and `pinnedBy`. A field of the wrong kind is reported
+  `findings`, `refs`, `pinnedBy`, `carries` and `carriedBy`. A field of the wrong kind is reported
   and ignored; `null` is read as absent;
+- an article section has an `id`, a `heading` and a list of `blocks`; a
+  block's `kind` is `prose`, `figure`, `code` or `aside`, and a code block
+  has `file`, `start`, `end` and `anchor`. A malformed section or block is
+  reported and left out. The build also warns about a `design.json` with no
+  `article`, an article with no figure, an excerpt longer than 15 lines or
+  outside its file, and an aside that names an id nothing declares; a prose
+  block over 150 words is noted;
 - a field whose values this document lists with `|` between them holds one
   of those values: `side`, `status`, `assessment`, `holds`, `level`,
   `verdict`, `triage`, `risk`, `severity`, `state`, a check's `status`, and
@@ -199,7 +218,28 @@ Every citation must open something. `scripts/build.py` warns about:
   the last `::` segment is looked for;
 - a `chapter` on a file summary, a figure box, a module-map box, an
   abstraction or a decision that names no chapter;
-- prose that names a stop or chapter that does not exist.
+- prose that names a stop or chapter that does not exist, or a backticked
+  decision or abstraction id (`d-…`, `a-…`) that nothing declares;
+- a `carriedBy` that names a stop the tour does not have;
+- an observation's `sameAs`, `extends` or `distinctFrom` that names no
+  finding, or a `sameAs` that names a prior finding: a repeat of a prior
+  finding goes in that finding's `findingChecks` note, never in
+  `observations`;
+- two findings, at least one of them an observation, that cite overlapping
+  lines of one file without being linked by `sameAs`, `extends` or
+  `distinctFrom`.
+
+**One findings set.** The page shows the prior findings, the reading passes'
+observations and the design pass's as one set in **Findings**, each with its
+source. A `sameAs` group is shown once, as the first in tour order, with the
+chapters that also raised it, and the others' ids still lead to it. An
+observation id may be cited wherever a finding id may: a stop's `findings`,
+a risk's `refs`, a ledger row's `findings`. A chapter's old `ownNotes` are
+still read, each as a finding `N-<chapter>-<n>`, with a note that
+`observations` is the new name.
+
+Prose that names a declared decision, abstraction or invariant id, bare or
+in backticks, links to its entry in Reference, named by what it says.
 
 The workspace holds only the files the PR changes, so a citation into an
 unchanged file cannot be checked or opened: the page shows it as plain text
@@ -216,22 +256,22 @@ it by hand.
 ## Anchors
 
 Line numbers alone go stale without anyone noticing: a range a few lines off
-still falls inside its file, and when the PR's head moves every stop below
-the edit points at other code. So each stop and ledger row quotes the code
-it stands on. The `anchor` is a piece of one line, copied from the code and
-never retyped or paraphrased, that no other line of the file contains: a
-signature, a constant's declaration, the call a ledger row is about. Spacing
-is ignored. A stop's anchor sits on its `start` line, or on `anchorLine`
-when the range opens on a comment, an attribute or a line that is not
-distinctive; a ledger row's sits on its `line`.
+still falls inside its file, and when the PR's head moves every stop below the
+edit points at other code. So each stop, ledger row and article excerpt quotes
+the code it stands on. The `anchor` is a piece of one line, copied from the
+code and never retyped or paraphrased, that no other line of the file
+contains: a signature, a constant's declaration, the call a ledger row is
+about. Spacing is ignored. A stop's or excerpt's anchor sits on its `start`
+line, or on `anchorLine` when the range opens on a comment, an attribute or a
+line that is not distinctive; a ledger row's sits on its `line`.
 
 The build compares each anchor with the code and warns when:
 
-- there is none: every stop and ledger row needs one;
+- there is none: every stop, ledger row and excerpt needs one;
 - it is on one other line of the file: the code moved, and the warning gives
   the shift. `build.py --reanchor` applies every such move, shifting
-  `start`, `end`, `anchorLine`, `line` and a stop's `focus` lines together
-  and rewriting the content files;
+  `start`, `end`, `anchorLine`, `line` and a stop's or excerpt's `focus`
+  lines together and rewriting the content files, `design.json` included;
 - it is on several lines: choose a line only that code has;
 - it is nowhere in the file: the code changed, so read it again and rewrite
   the stop or row.
@@ -281,10 +321,23 @@ tried in order; the `fallback` layer takes what nothing else matches. The
 ```jsonc
 {
   "title": "How the change is designed",       // optional heading
-  "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions.",
+  "summary": "md, 3–5 sentences: the shape of the change in design terms: the new abstractions, how responsibility is divided, which way dependencies run, and what makes it safe or testable. Bold the key abstractions. It opens the Design view and the overview's design teaser.",
+  "article": [{                                // the Design view, read top to bottom
+    "id": "shape",
+    "heading": "≤ 8 words: the point of the section",
+    "blocks": [
+      { "kind": "prose", "md": "md, ≤ 150 words" },
+      { "kind": "figure", "figure": { /* any figure; see Figures */ } },
+      { "kind": "code", "file": "path", "side": "new",
+        "start": 40, "end": 52, "anchor": "pub trait Disk",
+        "anchorLine": 41, "focus": [{ "line": 44, "why": "…" }],
+        "caption": "md, 1 sentence: what to notice" },   // ≤ 15 lines
+      { "kind": "aside", "refs": ["d-claim-heartbeat", "a-design-store"] }
+    ]
+  }],
   "figures": [ /* the architecture, chosen by the guide; a before/after compare */ ],
-  "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's */ ],
-  "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it */ ],
+  "abstractions": [ /* system-level ones no single chapter owns; same shape as a chapter's, with "carriedBy" */ ],
+  "decisions": [ /* cross-cutting decisions; same shape as a chapter's, with "chapter" if one owns it and "carriedBy" */ ],
   "principles": [{                              // the existing architecture's rules, from CLAUDE.md, ADRs and the code
     "principle": "Ports and adapters: core logic reaches I/O only through ports",
     "verdict": "holds|strained|broken",
@@ -294,9 +347,49 @@ tried in order; the `fallback` layer takes what nothing else matches. The
   "extension": [{                               // for owning it: where the next change goes
     "change": "Support a group-shared root", "where": "path:line", "how": "md, ≤ 2 sentences"
   }],
+  "observations": [ /* the design pass's own findings, ids D-NN; same shape as a chapter's */ ],
   "signOff": "md: the question to answer about the design as a whole"
 }
 ```
+
+The article reads as one piece, and someone who reads only it should be able
+to explain the change's shape, its key decisions and where the next change
+goes. The arc is recommended, not enforced: the problem and the system
+before; the shape after; one section per central idea; the fit with the
+existing architecture; where the next change goes. Lead with figures and use
+an excerpt only where a few lines show the shape better than a picture: an
+excerpt is quoted and anchored like a stop, but claims no lines as read, and
+one longer than 15 lines belongs at a stop. An aside names decisions,
+abstractions or invariants by id and links each to its entry in Reference.
+`principles` and `extension` are drawn as tables in the Decisions
+catalogue; say what matters about them in the article.
+`examples/design-article.json` is a real article at the standard expected,
+from the design pass for PR 250: eight sections in the recommended arc,
+four figures, two short excerpts and an aside in most sections.
+
+## `readiness.json`
+
+Written last, from the reconciled findings, the design assessment and CI.
+**Readiness**, the first view under Decide, shows it above the gates the page
+works out for itself (CI, design decisions, fit with the architecture,
+findings, high-risk files, invariants, criteria, breaking changes, accepted
+risks, the ledger and chapters, each `met`, `needs-you` or `not-met`) and the
+reviewer's own verdict.
+
+```jsonc
+{
+  "recommendation": "approve|request-changes|comment",
+  "summary": "md, ≤ 3 sentences: the assessment behind it",
+  "conditions": [{
+    "when": "before-merge|would-improve",
+    "text": "md: what has to happen",
+    "refs": ["R1-06", "claims-i1", "d-claim-heartbeat"]   // findings, invariants, decisions, stops or chapters
+  }]
+}
+```
+
+The build warns when the file is absent, and about a `ref` that names no
+finding, observation, declared item, stop or chapter.
 
 ## `overview.json`
 
@@ -327,7 +420,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
                                               // object. "kind" is needed for one that is not an
                                               // abstraction. "relation" is implements|extends|
                                               // owns|holds|uses, and "uses" when left out
-    "where": "path:line"
+    "where": "path:line",
+    "carriedBy": ["claims-s3"]                // optional: stops that carry it without naming it
   }],
   "decisions": [{                             // design choices this chapter embodies
     "id": "d-claim-heartbeat", "decision": "≤ 15 words: what was chosen",
@@ -335,7 +429,8 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "rationale": "md: why",
     "consequences": "md: what it costs, and what it makes easy or hard later",
     "where": "path:line", "adr": "path to an ADR, if one records it",
-    "assessment": "sound|questionable|unsound", "note": "md: the reading pass's view, ≤ 2 sentences"
+    "assessment": "sound|questionable|unsound", "note": "md: the reading pass's view, ≤ 2 sentences",
+    "carriedBy": ["claims-s1"]                // optional: stops that carry it without naming it
   }],
   "purpose": "…",                             // md, 2–3 sentences: the problem it solves
   "mechanism": "…",                           // md, ≤ ~120 words: what the figures cannot show
@@ -376,7 +471,17 @@ tried in order; the `fallback` layer takes what nothing else matches. The
     "triage": "block|fix-now|follow-up|drop", // a recommendation; the reviewer decides
     "level": "design|implementation"          // design: shape, boundaries, dependencies, decisions
   }],
-  "ownNotes": [{ "level": "major|minor|question", "text": "md", "where": "path:line" }],
+  "observations": [{                         // what this pass found that no prior finding says
+    "id": "P-claims-01",                      // P-<chapter>-NN; the design pass writes D-NN
+    "severity": "critical|major|minor|suggestion|question",
+    "level": "design|implementation",
+    "title": "≤ 12 words",
+    "summary": "md, ≤ 3 sentences",
+    "where": "path:line or path:start-end",   // optional; without it the finding is general
+    "extends": "R1-06",                       // optional: adds to that finding without repeating it
+    "sameAs": ["P-store-02"],                 // optional: another pass's observation of the same thing
+    "distinctFrom": ["R1-07"]                 // optional: a finding at overlapping lines that is different
+  }],
   "signOff": "md, 1–2 sentences: the question to answer before signing this chapter off"
 }
 ```
@@ -514,10 +619,10 @@ are the kinds in the table above that say "drawn by the diagram kit".
   a decision with nothing to decide by, a question whose answers all lead
   to one outcome, a reference into an aggregate past its root) is either a
   mistake in the figure or a finding about the code: settle which against
-  the code, and raise a finding in `ownNotes` if it is true.
+  the code, and raise it in `observations` if it is true.
 
-The build writes two diagrams for you. The Design view's diagram of how
-the abstractions work together is a class diagram drawn from their
+The build writes two diagrams for you. The Abstractions catalogue's diagram
+of how the abstractions work together is a class diagram drawn from their
 `collaborators`: each abstraction is a class with its `kind` as the
 stereotype, and each collaborator's `relation` decides the line.
 
@@ -626,10 +731,15 @@ can be mapped to the same shape:
 
 Every review control writes one record keyed by its target: `decision` (the
 overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
-`stop:<id>`, `inv:<id>`, `finding:<id>`, `own:<chapter>-<n>`,
+`stop:<id>`, `inv:<id>`, `finding:<id>` (an observation's id included),
 `ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
 lines marked one at a time (its `lines` field lists them as `new:12-15` or
-`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). Each
+`old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). The
+page renames an old `own:<chapter>-<n>` record to `finding:N-<chapter>-<n>`
+when it loads, copying its verdict, note and head once and leaving the old
+record in place, ignored. The freeform box at the top of **Your notes**
+writes `notes:general`, of kind
+`notes`, with only a `note`; the Markdown export opens with it. Each
 record carries `target`, `kind`, `status`, `note`, `label`, `where`,
 `updatedAt`, the `head` its verdict was given at and, for a stop, ledger row
 or file, the lines it `claimed` there. Hosted on claude.ai, records live in

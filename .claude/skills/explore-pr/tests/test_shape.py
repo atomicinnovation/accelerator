@@ -29,8 +29,24 @@ SOUND_CHAPTER = {
 SOUND = {
     "chapter-first": SOUND_CHAPTER,
     "overview": {"figures": [dict(DRAWING, id="f0")]},
-    "design": {"summary": "s"},
+    "design": {
+        "summary": "s",
+        "article": [
+            {
+                "id": "shape",
+                "heading": "The shape",
+                "blocks": [
+                    {"kind": "figure", "figure": dict(DRAWING, id="f-article")}
+                ],
+            }
+        ],
+    },
     "files": [{"path": "src/core.rs", "summary": "s", "risk": "high"}],
+    "readiness": {
+        "recommendation": "comment",
+        "summary": "s",
+        "conditions": [],
+    },
 }
 
 

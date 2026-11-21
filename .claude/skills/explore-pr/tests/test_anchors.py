@@ -34,7 +34,7 @@ def row(**fields):
     return {"id": "L1", "file": "src/core.rs", "line": 2, **fields}
 
 
-def workspace(root, stops=(), ledger=()):
+def workspace(root, stops=(), ledger=(), excerpts=()):
     (root / "content").mkdir(parents=True)
     (root / "data").mkdir()
     (root / "data/diff.json").write_text(json.dumps(DIFF))
@@ -42,7 +42,22 @@ def workspace(root, stops=(), ledger=()):
     chapter = {"id": "first", "title": "First", "stops": list(stops)}
     (root / "content/chapter-first.json").write_text(json.dumps(chapter))
     (root / "content/ledger-a.json").write_text(json.dumps(list(ledger)))
+    if excerpts:
+        blocks = [{"kind": "code", **each} for each in excerpts]
+        article = [{"id": "shape", "heading": "Shape", "blocks": blocks}]
+        (root / "content/design.json").write_text(
+            json.dumps({"summary": "s", "article": article})
+        )
     return root
+
+
+def excerpt(**fields):
+    return {"file": "src/core.rs", "start": 5, "end": 7, **fields}
+
+
+def excerpts_of(root):
+    article = json.loads((root / "content/design.json").read_text())["article"]
+    return article[0]["blocks"]
 
 
 def anchor_warnings(root, script, **content):
@@ -275,3 +290,44 @@ def test_a_stop_on_lines_a_long_file_does_carry_is_anchored_as_usual(
     near = stop(file="tests/long.rs", start=99, end=101, anchor="fn near()")
 
     assert partly_carried(tmp_path, script, [near]) == []
+
+
+def test_an_excerpt_is_anchored_like_a_stop(tmp_path, script):
+    moved = excerpt(start=1, end=3, anchor="fn c() {}", anchorLine=1)
+
+    warnings = anchor_warnings(tmp_path, script, excerpts=[moved])
+
+    assert any(
+        "article shape code block 1" in w and "moved from line 1 to line 8" in w
+        for w in warnings
+    )
+
+
+def test_an_excerpt_on_its_anchor_raises_nothing(tmp_path, script):
+    held = excerpt(anchor="fn b() {")
+
+    assert anchor_warnings(tmp_path, script, excerpts=[held]) == []
+
+
+def test_reanchoring_moves_an_excerpt_with_its_anchor(tmp_path, script):
+    root = workspace(
+        tmp_path, excerpts=[excerpt(start=1, end=2, anchor="fn c() {}")]
+    )
+
+    script("build").reanchor(root)
+
+    (moved,) = excerpts_of(root)
+    assert (moved["start"], moved["end"]) == (8, 9)
+
+
+def test_an_excerpt_outside_its_file_is_reported(tmp_path, script):
+    beyond = excerpt(start=7, end=12, anchor="}")
+
+    _, warnings = script("build").assemble(
+        workspace(tmp_path, excerpts=[beyond])
+    )
+
+    assert any(
+        "article shape code block 1: lines 7-12 outside 1-8 of src/core.rs" in w
+        for w in warnings
+    )
