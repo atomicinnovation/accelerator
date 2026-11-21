@@ -3,7 +3,7 @@ from invoke import Context, Exit, Result
 
 from tasks.test import integration
 
-_TAP = "# pass 37\n# fail 0\n# skipped 0\n"
+_TAP = "# pass 38\n# fail 0\n# skipped 0\n"
 
 
 @pytest.fixture

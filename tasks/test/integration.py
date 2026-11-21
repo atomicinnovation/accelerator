@@ -259,7 +259,7 @@ _RUNTIME_TREES = ("driver", "browser")
 # mirroring the unit lane: this lane sits outside the enforced gate, so a
 # case-count floor and a bare-return guard are its only defence against a suite
 # quietly evaporating or a test body silently asserting nothing.
-_EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 37
+_EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 38
 
 
 def _tree_variable(artifact: str) -> str:
