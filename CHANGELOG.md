@@ -348,6 +348,15 @@
   with exit 34 before anything is sent. A transition that succeeds prints the
   same JSON as before. Scripts that parse a failed `linear transition`'s
   output or exit codes need updating.
+- **Older binaries reject topic-research reports.** A report's `kind: report`
+  is unknown to earlier releases, so their whole-corpus
+  `corpus frontmatter validate` fails every committed report with
+  `UNKNOWN-KIND` until the teammate upgrades. Upgrade a shared corpus
+  together before anyone commits a report.
+- **A bare `status:` fails validation.** A `status:` key with no value, which
+  passed before, now fails `corpus frontmatter validate` with `BAD-STATUS`,
+  as a bare extra fails with `BAD-EXTRA-VALUE`. Give the key a value from its
+  type's vocabulary or remove it.
 
 ### Added
 
@@ -648,8 +657,7 @@
 - **`BAD-EXTRA-VALUE` flags an extra outside its closed vocabulary.** A
   report's `coverage` must be `answered` or `partial`; any other value fails
   `corpus frontmatter validate` with `BAD-EXTRA-VALUE`, as a `status` outside
-  its vocabulary fails with `BAD-STATUS`. A bare `status:` with no value now
-  fails with `BAD-STATUS` too, as a bare extra does, where it passed before.
+  its vocabulary fails with `BAD-STATUS`.
 - **`accelerator research topic report-path SLUG QUESTION`** prints the
   absolute path a new report on the question takes:
   `reports/<question-slug>.md`, cut before the word that would pass 60
@@ -1317,9 +1325,7 @@
   the outset. The field is optional, so an override without it still writes
   valid manifests.
 - **Upgrade a shared corpus together before committing a report.** An
-  older binary's whole-corpus `validate` rejects the `report` kind as
-  `UNKNOWN-KIND`, so a teammate on an earlier release sees every committed
-  report fail until they upgrade.
+  older binary rejects the `report` kind as `UNKNOWN-KIND` (see Breaking).
 
 - **Reload every session sharing a relocated root within 14 days of
   upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so
