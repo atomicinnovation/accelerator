@@ -2919,11 +2919,19 @@ where credentials are available:
       *As run:* every lane but `test:integration:design-automation` ran a
       passing subset. `:update`, filtered to
       `chip-showcase \(light\) neutral @ sm$`, regenerated one snapshot
-      byte for byte, so there was nothing to revert. Every test in
-      `test:integration:design-automation` fails on this machine with or
-      without a filter, because no Playwright runtime is provisioned
-      (`package-lock.json` is missing). Filtered to `ping: exits 0`, it
-      ran exactly that test and no other, and reported its failure.
+      byte for byte, so there was nothing to revert.
+      `tracker-contract` ran without credentials against the in-memory
+      `RecordingTracker` binary: `test(a_failing_show_is_retryable)` ran 1
+      test with 16 skipped, and
+      `binary_id(tracker-test-support::contract)` ran that binary's 6
+      tests, all passing. The live Jira, Linear and Shortcut contract tests
+      need credentials and were not run.
+      `test:integration:design-automation` can't show a passing subset: all
+      37 of its tests fail unfiltered on trunk.
+      `runtime-preflight.js` still reads the `package-lock.json` that
+      "Delete the Playwright bootstrap residue and repoint the runtime lane"
+      removed. Filtered to `ping: exits 0`, the lane ran exactly that test
+      and no other, and reported its failure.
 - [x] Each lane's malformed example fails, or the work item's table records
       that its syntax has no malformed form. *As run:* including
       `tracker-contract`, whose filterset is parsed before any credential
