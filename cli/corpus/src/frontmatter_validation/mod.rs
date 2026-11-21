@@ -341,14 +341,14 @@ fn check_extra_vocabs(
     }
 }
 
-/// An empty `""` is left to `EMPTY-PLACEHOLDER`, while a bare `key:` reads
+/// An empty `""` or `''` is left to `EMPTY-PLACEHOLDER`, while a bare `key:` reads
 /// as the empty value, which lies outside every vocab.
 fn vocab_value<'a>(
     entries: &'a [(String, String)],
     key: &str,
 ) -> Option<&'a str> {
     raw_value(entries, key)
-        .filter(|field_value| *field_value != EMPTY_STRING)
+        .filter(|field_value| !is_empty_string(field_value))
         .map(strip_surrounding_quote)
 }
 
@@ -419,7 +419,11 @@ fn check_required_extras(
 }
 
 const WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"];
-const EMPTY_STRING: &str = "\"\"";
+const EMPTY_STRINGS: [&str; 2] = ["\"\"", "''"];
+
+fn is_empty_string(value: &str) -> bool {
+    EMPTY_STRINGS.contains(&value)
+}
 
 fn check_empty_placeholders(
     entries: &[(String, String)],
@@ -430,7 +434,7 @@ fn check_empty_placeholders(
         if WHOLLY_EXEMPT_KEYS.contains(&key.as_str()) {
             continue;
         }
-        let is_empty_string = value == EMPTY_STRING;
+        let is_empty_string = is_empty_string(value);
         let is_forbidden_empty_list =
             value == "[]" && !row.empty_list_extras.contains(&key.as_str());
         if is_empty_string || is_forbidden_empty_list {
@@ -756,6 +760,20 @@ mod tests {
     fn an_empty_status_is_only_a_placeholder() {
         let source = minimal_valid_work_item()
             .replace("status: \"draft\"", "status: \"\"");
+        let violations = validate_file(&source);
+        assert!(violations.iter().any(|v| matches!(
+            v,
+            Violation::EmptyPlaceholder { key } if key == "status"
+        )));
+        assert!(!violations
+            .iter()
+            .any(|v| matches!(v, Violation::BadStatus { .. })));
+    }
+
+    #[test]
+    fn a_single_quoted_empty_status_is_only_a_placeholder() {
+        let source = minimal_valid_work_item()
+            .replace("status: \"draft\"", "status: ''");
         let violations = validate_file(&source);
         assert!(violations.iter().any(|v| matches!(
             v,
