@@ -1,33 +1,5 @@
-// Auth-header route factory. The expected origin and the header are read per
-// request through daemon-supplied getters, never from the environment.
-
-export function makeAuthHeaderHandler(
-  page,
-  { getExpectedOrigin, getAuthHeader } = {}
-) {
-  return async () => {
-    await page.route('**/*', async (route) => {
-      try {
-        const header = getAuthHeader?.() ?? null;
-        const attach =
-          !!header &&
-          shouldAttachHeader(route.request().url(), getExpectedOrigin?.());
-        const headers = applyHeader(
-          await route.request().allHeaders(),
-          attach,
-          header
-        );
-        await route.continue({ headers });
-      } catch (error) {
-        const detail = error?.message ?? String(error);
-        console.error(`auth-header route error: ${detail}`);
-        try {
-          await route.continue();
-        } catch {}
-      }
-    });
-  };
-}
+// Auth-header decisions for one request hop. The expected origin and the header
+// come from the daemon's per-request state, never from the environment.
 
 export function parseAuthHeader(raw) {
   if (!raw) return null;

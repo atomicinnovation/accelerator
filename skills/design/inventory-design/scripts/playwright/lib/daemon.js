@@ -10,13 +10,14 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
 import { readIdentity } from './identity-handoff.js';
-import { makeAuthHeaderHandler, parseAuthHeader } from './auth-header.js';
+import { parseAuthHeader } from './auth-header.js';
 import { LOCATION_URL_FIELD, AUTH_HEADER_FIELD } from './request-fields.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
-import { classifyLocation, classifyNavigationRequest } from './access-policy.js';
+import { classifyLocation } from './access-policy.js';
+import { interceptRequests } from './request-interception.js';
 
 // 10-min default balances cross-turn daemon reuse (Claude Code sessions
 // typically span minutes) against bounding the lifetime of an
@@ -211,47 +212,19 @@ export async function startDaemon({ stateDir }) {
     const ctx = await browser.newContext();
     page = await ctx.newPage();
 
-    // Two page-lifetime route handlers, co-located so their ordering is visible
-    // at the one point it matters. Playwright dispatches last-registered-first,
-    // so the classifier (registered second) runs first and the auth-header
-    // route (registered first) runs last. The classifier's allow path calls
-    // `fallback()`, which hands the request down to the earlier-registered
-    // auth-header route — the seam that lets navigation policy gate the request
-    // before the header is attached or stripped. Registering the auth-header
-    // route after the classifier would invert this: it would `continue()` first
-    // and the classifier would never run.
-    const installAuthHeader = makeAuthHeaderHandler(page, {
+    // One page-lifetime interceptor, so a redirect hop and a page-initiated
+    // navigation (a <meta refresh>, a scripted location change) are classified
+    // under the current request's allowances too, not only the initial URL, and
+    // the auth header is decided per hop against the location origin. A refusal
+    // is recorded only for the main frame, so a sub-frame abort never masks the
+    // top-level result.
+    await interceptRequests(page, {
+      getAllowances: () => currentAllowances,
       getExpectedOrigin: () => currentExpectedOrigin,
       getAuthHeader: () => currentAuthHeader,
-    });
-    await installAuthHeader();
-
-    // One handler for the page's whole life, so a redirect hop and a
-    // page-initiated navigation (a <meta refresh>, a scripted location change)
-    // are classified under the current request's allowances too, not only the
-    // initial URL. A refusal is recorded only for the main frame, so a sub-frame
-    // abort never masks the top-level result. The body fails closed: a thrown
-    // classifier error aborts as `malformed` rather than leaving the request
-    // unhandled to hang until the wall-clock.
-    await page.route('**/*', async route => {
-      let decision;
-      try {
-        decision = classifyNavigationRequest(
-          route.request(),
-          currentAllowances
-        );
-      } catch {
-        decision = {
-          abort: true,
-          classification: 'malformed',
-          url: route.request().url(),
-        };
-      }
-      if (decision.continue) return route.fallback();
-      if (route.request().frame() === page.mainFrame()) {
-        lastRefusal = decision;
-      }
-      return route.abort('blockedbyclient');
+      onMainFrameRefusal: refusal => {
+        lastRefusal = refusal;
+      },
     });
   }
 

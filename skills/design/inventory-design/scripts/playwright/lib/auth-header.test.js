@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  makeAuthHeaderHandler,
   parseAuthHeader,
   applyHeader,
   shouldAttachHeader,
@@ -109,67 +108,6 @@ test('applyHeader leaves the map untouched when no header is configured', () => 
   const headers = applyHeader(current, false, null);
   assert.deepEqual(headers, { authorization: 'existing' });
   assert.notEqual(headers, current);
-});
-
-// Exercises the installed route body with a mock page/route, so the getter
-// wiring and the fail-closed default are covered without a live browser.
-function captureRoute(getters) {
-  let registered;
-  const page = {
-    route: async (_pattern, handler) => {
-      registered = handler;
-    },
-  };
-  const install = makeAuthHeaderHandler(page, getters);
-  return install().then(() => registered);
-}
-
-function mockRoute(url, headers = {}) {
-  const seen = {};
-  return {
-    seen,
-    request: () => ({
-      url: () => url,
-      allHeaders: async () => ({ ...headers }),
-    }),
-    continue: async (options) => {
-      seen.options = options ?? {};
-    },
-  };
-}
-
-test('the installed route attaches the header on the expected origin', async () => {
-  const route = await captureRoute({
-    getExpectedOrigin: () => origin,
-    getAuthHeader: () => ({ name: 'Authorization', value: 'Bearer abc123' }),
-  });
-  const call = mockRoute('https://app.example.com/api');
-  await route(call);
-  assert.equal(call.seen.options.headers.authorization, 'Bearer abc123');
-});
-
-test('the installed route strips the header on a cross-origin request', async () => {
-  const route = await captureRoute({
-    getExpectedOrigin: () => origin,
-    getAuthHeader: () => ({ name: 'Authorization', value: 'Bearer abc123' }),
-  });
-  const call = mockRoute('https://cdn.other.com/asset.js', {
-    authorization: 'Bearer abc123',
-  });
-  await route(call);
-  assert.ok(!('authorization' in call.seen.options.headers));
-});
-
-test('the installed route no-ops when the header getter returns null', async () => {
-  const route = await captureRoute({
-    getExpectedOrigin: () => origin,
-    getAuthHeader: () => null,
-  });
-  const call = mockRoute('https://app.example.com/', {
-    authorization: 'pre-existing',
-  });
-  await route(call);
-  assert.deepEqual(call.seen.options.headers, { authorization: 'pre-existing' });
 });
 
 test('the module reads neither retired auth env var', () => {
