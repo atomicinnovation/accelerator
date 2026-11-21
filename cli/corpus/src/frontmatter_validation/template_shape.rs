@@ -23,6 +23,7 @@ use crate::frontmatter_validation::is_bare_one;
 use crate::frontmatter_validation::is_present;
 use crate::frontmatter_validation::parse_entries;
 use crate::frontmatter_validation::raw_value;
+use crate::frontmatter_validation::schema::ExtraVocab;
 use crate::frontmatter_validation::schema::SchemaRow;
 use crate::frontmatter_validation::schema::SCHEMA;
 use crate::frontmatter_validation::strip_surrounding_quote;
@@ -113,6 +114,7 @@ pub enum TemplateViolation {
     UnknownLinkageKey { template: String, key: String },
     ClosedSetViolation { template: String, key: String },
     BadStatusVocab { template: String, vocab: String },
+    BadExtraVocab { template: String, extra: ExtraVocab },
     UnquotedString { template: String, key: String },
     SchemaCrossCheck { work_item: String, schema: String },
 }
@@ -137,6 +139,7 @@ impl TemplateViolation {
             Self::UnknownLinkageKey { .. } => "TEMPLATE-UNKNOWN-LINKAGE-KEY",
             Self::ClosedSetViolation { .. } => "TEMPLATE-CLOSED-SET",
             Self::BadStatusVocab { .. } => "TEMPLATE-BAD-STATUS-VOCAB",
+            Self::BadExtraVocab { .. } => "TEMPLATE-BAD-EXTRA-VOCAB",
             Self::UnquotedString { .. } => "TEMPLATE-UNQUOTED-STRING",
             Self::SchemaCrossCheck { .. } => "SCHEMA-CROSS-CHECK",
         }
@@ -192,6 +195,11 @@ impl TemplateViolation {
             ),
             Self::BadStatusVocab { template, vocab } => format!(
                 "{template}: status line missing pinned vocabulary '{vocab}'"
+            ),
+            Self::BadExtraVocab { template, extra } => format!(
+                "{template}: {} line missing pinned vocabulary '{}'",
+                extra.extra,
+                extra.values.join(" | ")
             ),
             Self::UnquotedString { template, key } => {
                 format!(
@@ -262,6 +270,7 @@ pub fn validate_template(
     check_extras(row, &entries, &mut found);
     check_linkage(row, frontmatter, &entries, &mut found);
     check_status(row, frontmatter, &mut found);
+    check_extra_vocabs(row, frontmatter, &mut found);
     check_canonical_quoting(row, &entries, &mut found);
 
     found
@@ -436,6 +445,27 @@ fn check_status(
     }
 }
 
+fn check_extra_vocabs(
+    row: &SchemaRow,
+    frontmatter: &str,
+    found: &mut Vec<TemplateViolation>,
+) {
+    for extra in row.extra_vocabs {
+        let vocab = extra.values.join(" | ");
+        let prefix = format!("{}:", extra.extra);
+        let pins_its_vocab = frontmatter
+            .lines()
+            .find(|line| line.starts_with(&prefix))
+            .is_some_and(|line| line.contains(&vocab));
+        if !pins_its_vocab {
+            found.push(TemplateViolation::BadExtraVocab {
+                template: row.template.to_owned(),
+                extra: *extra,
+            });
+        }
+    }
+}
+
 fn check_canonical_quoting(
     row: &SchemaRow,
     entries: &[(String, String)],
@@ -600,6 +630,7 @@ mod tests {
     use super::{
         cross_check, extract_frontmatter, validate_template, TemplateViolation,
     };
+    use crate::frontmatter_validation::schema::ExtraVocab;
     use crate::frontmatter_validation::schema::SchemaRow;
     use crate::frontmatter_validation::schema::SCHEMA;
 
@@ -833,6 +864,43 @@ mod tests {
             &check(&demo_row(), &body),
             "TEMPLATE-BAD-STATUS-VOCAB"
         ));
+    }
+
+    const COVERAGE: ExtraVocab = ExtraVocab {
+        extra: "coverage",
+        values: &["answered", "partial"],
+    };
+
+    fn row_closing_coverage() -> SchemaRow {
+        SchemaRow {
+            required_extras: &["coverage"],
+            extra_vocabs: &[COVERAGE],
+            ..demo_row()
+        }
+    }
+
+    fn with_coverage_line(line: &str) -> String {
+        conforming()
+            .replace("schema_version: 1", &format!("{line}\nschema_version: 1"))
+    }
+
+    #[test]
+    fn an_extra_line_pinning_its_vocabulary_passes() {
+        let body =
+            with_coverage_line("coverage: \"answered\" # answered | partial");
+        assert_eq!(check(&row_closing_coverage(), &body), Vec::new());
+    }
+
+    #[test]
+    fn an_extra_line_missing_its_vocabulary_is_flagged() {
+        let body = with_coverage_line("coverage: \"answered\" # answered");
+        assert_eq!(
+            check(&row_closing_coverage(), &body),
+            vec![TemplateViolation::BadExtraVocab {
+                template: "demo.md".to_owned(),
+                extra: COVERAGE,
+            }]
+        );
     }
 
     #[test]

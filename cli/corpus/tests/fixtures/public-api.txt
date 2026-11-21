@@ -339,6 +339,15 @@ pub mod corpus::frontmatter_validation::schema
 pub struct corpus::frontmatter_validation::schema::ExtraVocab
 pub corpus::frontmatter_validation::schema::ExtraVocab::extra: &'static str
 pub corpus::frontmatter_validation::schema::ExtraVocab::values: &'static [&'static str]
+impl core::clone::Clone for corpus::frontmatter_validation::schema::ExtraVocab
+pub fn corpus::frontmatter_validation::schema::ExtraVocab::clone(&self) -> corpus::frontmatter_validation::schema::ExtraVocab
+impl core::cmp::Eq for corpus::frontmatter_validation::schema::ExtraVocab
+impl core::cmp::PartialEq for corpus::frontmatter_validation::schema::ExtraVocab
+pub fn corpus::frontmatter_validation::schema::ExtraVocab::eq(&self, other: &corpus::frontmatter_validation::schema::ExtraVocab) -> bool
+impl core::fmt::Debug for corpus::frontmatter_validation::schema::ExtraVocab
+pub fn corpus::frontmatter_validation::schema::ExtraVocab::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::frontmatter_validation::schema::ExtraVocab
+impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::schema::ExtraVocab
 pub struct corpus::frontmatter_validation::schema::SchemaRow
 pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
 pub corpus::frontmatter_validation::schema::SchemaRow::empty_list_extras: &'static [&'static str]
@@ -365,6 +374,9 @@ pub mod corpus::frontmatter_validation::shape
 pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
 pub mod corpus::frontmatter_validation::template_shape
 pub enum corpus::frontmatter_validation::template_shape::TemplateViolation
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadExtraVocab
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadExtraVocab::extra: corpus::frontmatter_validation::schema::ExtraVocab
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadExtraVocab::template: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadLinkageSlot
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadLinkageSlot::key: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadLinkageSlot::template: alloc::string::String

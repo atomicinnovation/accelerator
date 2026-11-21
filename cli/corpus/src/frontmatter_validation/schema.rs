@@ -2,6 +2,7 @@
 //! data — no filesystem, no regex.
 
 /// The closed set of values one extra may take.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExtraVocab {
     pub extra: &'static str,
     pub values: &'static [&'static str],
