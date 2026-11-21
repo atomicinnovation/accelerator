@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Integration tests for the Playwright executor.
-// Requires a bootstrapped Playwright install (run ensure-playwright.sh first).
-// Run with: node --test test-run.js
+// Run with: mise run test:integration:design-automation, which resolves the
+// vendored driver and browser trees these tests launch.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ import { fork, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { request } from 'node:http';
 
-import { playwrightNsRoot, requireRuntime } from './runtime-preflight.js';
+import { requireRuntime } from './runtime-preflight.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const RUN_JS = resolve(__dir, 'run.js');
@@ -81,7 +81,7 @@ function spawnDaemon(stateDir, extraEnv = {}) {
     ...process.env,
     ACCELERATOR_PLAYWRIGHT_STATE_DIR: stateDir,
     ACCELERATOR_PLAYWRIGHT_IDENTITY_FD: String(HANDOFF_FD),
-    ACCELERATOR_PLAYWRIGHT_NS_ROOT: playwrightNsRoot(),
+    ...requireRuntime(),
     ACCELERATOR_PLAYWRIGHT_IDLE_MS: '10000',
     ...extraEnv,
   };
@@ -138,19 +138,17 @@ test('ping: exits 0 with ok: true and chromium path, < 500ms', { timeout: 15000 
   });
 });
 
-test('ping: corrupted bootstrap → category: bootstrap', { timeout: 10000 }, async () => {
+test('ping: missing browser → category: bootstrap', { timeout: 10000 }, async () => {
   requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir, {
-      PLAYWRIGHT_BROWSERS_PATH: '/nonexistent-path-xyz',
+      ACCELERATOR_DESIGN_BROWSER_EXECUTABLE: '/nonexistent-path-xyz/chrome-headless-shell',
     });
     try {
       const info = await waitForInfo(stateDir);
       const res = await send(info.url, { protocol: 1, command: 'ping' });
-      // Either ok or bootstrap error depending on executable path
-      if (!res.ok) {
-        assert.equal(res.category, 'bootstrap');
-      }
+      assert.equal(res.error, 'chromium-not-found');
+      assert.equal(res.category, 'bootstrap');
     } finally {
       child.kill('SIGTERM');
     }

@@ -320,8 +320,9 @@ def _tap(points, *, passed, failed=0, skipped=0):
 
 
 @pytest.fixture
-def driver_tree(monkeypatch, tmp_path):
+def runtime_trees(monkeypatch, tmp_path):
     monkeypatch.setenv("ACCELERATOR_TREE_DRIVER", str(tmp_path))
+    monkeypatch.setenv("ACCELERATOR_TREE_BROWSER", str(tmp_path))
 
 
 _DESIGN_AUTOMATION_LANES = {
@@ -353,7 +354,7 @@ def _filtered_tap_ran_nothing(mise_task):
     return _tap(list(map(str, suites)), passed=len(suites))
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_a_design_automation_lane_runs_its_command_unchanged_unfiltered(
     context, mise_task
@@ -370,7 +371,7 @@ def test_a_design_automation_lane_runs_its_command_unchanged_unfiltered(
     ]
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_a_design_automation_filter_comes_before_the_first_suite(
     context, mise_task
@@ -394,7 +395,7 @@ def test_a_design_automation_filter_comes_before_the_first_suite(
     ]
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_a_filtered_design_automation_run_skips_its_floors_and_says_so(
     context, mise_task, capsys
@@ -408,7 +409,7 @@ def test_a_filtered_design_automation_run_skips_its_floors_and_says_so(
     ]
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_a_filtered_design_automation_failure_still_fails(context, mise_task):
     with pytest.raises(Exit, match=r"1 design-automation .*failed"):
@@ -420,7 +421,7 @@ def test_a_filtered_design_automation_failure_still_fails(context, mise_task):
         )
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_a_filtered_design_automation_run_of_no_test_names_the_lane(
     context, mise_task
@@ -437,7 +438,7 @@ def test_a_filtered_design_automation_run_of_no_test_names_the_lane(
     assert exc_info.value.code == 1
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_an_unfiltered_design_automation_run_keeps_its_floors(
     context, mise_task
@@ -455,7 +456,7 @@ def test_a_design_automation_lane_s_help_names_node_s_pattern(mise_task):
     assert "node --test-name-pattern regex" in lane.help["filter_"]
 
 
-@pytest.mark.usefixtures("driver_tree")
+@pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_an_empty_filter_runs_no_design_automation_suite(context, mise_task):
     lane, _ = _DESIGN_AUTOMATION_LANES[mise_task]

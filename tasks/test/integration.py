@@ -249,9 +249,11 @@ _DESIGN_AUTOMATION_RUNTIME_SUITES = (
 
 _PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 
-# The launcher exports this on a tree-consuming dispatch; the lane reuses it
-# when present rather than paying a second materialisation.
-_DRIVER_TREE_ENV = "ACCELERATOR_TREE_DRIVER"
+# The vendored trees the runtime suites launch: the driver tree's
+# playwright-core, and the bundled browser. The launcher exports each as
+# ACCELERATOR_TREE_<ARTIFACT> on a tree-consuming dispatch; the lane reuses
+# them when present rather than paying a second materialisation.
+_RUNTIME_TREES = ("driver", "browser")
 
 # Today's executed total across the two runtime suites. An at-least floor,
 # mirroring the unit lane: this lane sits outside the enforced gate, so a
@@ -260,40 +262,55 @@ _DRIVER_TREE_ENV = "ACCELERATOR_TREE_DRIVER"
 _EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 37
 
 
-def _resolve_driver_tree(context: Context) -> Path:
-    """Resolve the materialised driver tree, or refuse the lane.
+def _tree_variable(artifact: str) -> str:
+    return f"ACCELERATOR_TREE_{artifact.upper()}"
 
-    Prefers the launcher-exported driver-tree path; failing that, materialises
-    it through `accelerator cache ensure driver` and reads the tree path from
-    the tab-separated success line. An unresolvable runtime is a visible refusal
+
+def _resolve_runtime_trees(context: Context) -> dict[str, str]:
+    """Resolve the materialised runtime trees, or refuse the lane.
+
+    Prefers the launcher-exported tree paths; failing that, materialises them
+    through `accelerator cache ensure` and reads each tree path from its
+    tab-separated success line. An unresolvable runtime is a visible refusal
     rather than a silent pass.
     """
-    exported = os.environ.get(_DRIVER_TREE_ENV)
-    if exported and Path(exported).is_dir():
-        return Path(exported)
+    exported = {
+        artifact: os.environ.get(_tree_variable(artifact), "")
+        for artifact in _RUNTIME_TREES
+    }
+    if all(path and Path(path).is_dir() for path in exported.values()):
+        return {
+            _tree_variable(artifact): path
+            for artifact, path in exported.items()
+        }
 
     accelerator = repo_root() / "bin/accelerator"
     ensured = context.run(
-        f"{shlex.quote(str(accelerator))} cache ensure driver",
+        f"{shlex.quote(str(accelerator))} cache ensure "
+        + " ".join(_RUNTIME_TREES),
         warn=True,
         hide=True,
     )
-    tree: Path | None = None
+    resolved: dict[str, str] = {}
     if ensured is not None and ensured.exited == 0:
         for line in ensured.stdout.splitlines():
             fields = line.split("\t")
-            if len(fields) >= 2 and fields[0] == "driver":
-                tree = Path(fields[1])
-                break
-    if tree is None or not tree.is_dir():
-        raise Exit(
-            "the vendored Playwright driver tree is not available. Run "
-            "`accelerator cache ensure driver`, then retry. This lane fails "
-            "rather than skipping: a skipped runtime suite is "
-            "indistinguishable from a passing one.",
-            code=1,
-        )
-    return tree
+            if len(fields) >= 2 and fields[0] in _RUNTIME_TREES:
+                resolved[fields[0]] = fields[1]
+    for artifact in _RUNTIME_TREES:
+        tree = resolved.get(artifact)
+        if tree is None or not Path(tree).is_dir():
+            raise Exit(
+                f"the vendored Playwright {artifact} tree is not available. "
+                f"Run `accelerator cache ensure {' '.join(_RUNTIME_TREES)}`, "
+                "then retry. This lane fails rather than skipping: a skipped "
+                "runtime suite is indistinguishable from a passing one.",
+                code=1,
+            )
+    return {
+        _tree_variable(artifact): resolved[artifact]
+        for artifact in _RUNTIME_TREES
+    }
 
 
 @task(help={"filter_": NODE_TEST_RUNTIME_FILTER_HELP})
@@ -307,7 +324,7 @@ def design_automation(context: Context, filter_: str | None = None) -> None:
     """
     selection = selection_from(filter_)
     root = repo_root()
-    driver_tree = _resolve_driver_tree(context)
+    runtime_trees = _resolve_runtime_trees(context)
 
     suites = [
         root / _PLAYWRIGHT_DIR / name
@@ -337,7 +354,7 @@ def design_automation(context: Context, filter_: str | None = None) -> None:
         ),
         warn=True,
         pty=False,
-        env={_DRIVER_TREE_ENV: str(driver_tree)},
+        env=runtime_trees,
     )
     counts = _tap_counts(result.stdout)
     if counts["fail"]:

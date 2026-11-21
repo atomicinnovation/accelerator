@@ -95,9 +95,9 @@ async function waitForInfo(stateDir, ms = 10000) {
 // production via the bootstrap log — so a test can assert a warning without a
 // header value in it.
 async function withDaemon(body) {
-  const nsRoot = requireRuntime();
+  const runtime = requireRuntime();
   return withTmpDir(async dir => {
-    const child = forkDaemon(dir, { ACCELERATOR_PLAYWRIGHT_NS_ROOT: nsRoot });
+    const child = forkDaemon(dir, runtime);
     let stderr = '';
     child.stderr?.on('data', chunk => {
       stderr += chunk.toString('utf8');
