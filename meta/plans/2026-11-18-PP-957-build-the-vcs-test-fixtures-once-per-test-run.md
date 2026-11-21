@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-21T09:00:00+00:00"
+last_updated: "2026-11-21T14:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2926,12 +2926,13 @@ where credentials are available:
       `binary_id(tracker-test-support::contract)` ran that binary's 6
       tests, all passing. The live Jira, Linear and Shortcut contract tests
       need credentials and were not run.
-      `test:integration:design-automation` can't show a passing subset: all
-      37 of its tests fail unfiltered on trunk.
-      `runtime-preflight.js` still reads the `package-lock.json` that
-      "Delete the Playwright bootstrap residue and repoint the runtime lane"
-      removed. Filtered to `ping: exits 0`, the lane ran exactly that test
-      and no other, and reported its failure.
+      `test:integration:design-automation` first failed all 37 of its
+      tests, filtered or not, because `runtime-preflight.js` still read the
+      `package-lock.json` that "Delete the Playwright bootstrap residue and
+      repoint the runtime lane" removed. Once the suites and the executor
+      were repaired, it passed all 38 of its tests unfiltered. Filtered to
+      `ping: exits 0`, it ran that test alone, passed, and skipped its
+      floors.
 - [x] Each lane's malformed example fails, or the work item's table records
       that its syntax has no malformed form. *As run:* including
       `tracker-contract`, whose filterset is parsed before any credential
