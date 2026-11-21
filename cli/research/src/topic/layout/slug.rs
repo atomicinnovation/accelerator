@@ -50,6 +50,29 @@ impl From<&str> for QuestionSlug {
     }
 }
 
+/// The name of every entry under a set's `reports/`, whatever its kind.
+///
+/// Wider than the reports a set counts: a directory, or a link to one, named
+/// `<slug>.md` takes that name too.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TakenNames(Vec<String>);
+
+impl TakenNames {
+    #[must_use]
+    pub const fn listed(names: Vec<String>) -> Self {
+        Self(names)
+    }
+
+    #[must_use]
+    pub fn names(&self) -> &[String] {
+        &self.0
+    }
+
+    fn hold(&self, name: &str) -> bool {
+        self.0.iter().any(|entry| entry.eq_ignore_ascii_case(name))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportSlug(String);
 
@@ -62,13 +85,10 @@ impl ReportSlug {
     /// Compares names without regard to ASCII case: a case-insensitive
     /// filesystem holds `A.MD` and `a.md` as one file.
     #[must_use]
-    pub fn free_report_path(&self, taken: &[String]) -> String {
-        let is_taken = |name: &str| {
-            taken.iter().any(|entry| entry.eq_ignore_ascii_case(name))
-        };
+    pub fn free_report_path(&self, taken: &TakenNames) -> String {
         let mut name = format!("{}.md", self.0);
         let mut suffix = 1_u32;
-        while is_taken(&name) {
+        while taken.hold(&name) {
             suffix += 1;
             name = format!("{}-{suffix}.md", self.0);
         }
@@ -86,14 +106,17 @@ impl From<&str> for ReportSlug {
 mod tests {
     use super::QuestionSlug;
     use super::ReportSlug;
+    use super::TakenNames;
 
     const C7: &str = "How do autonomous language model agents decompose long \
                       horizon planning tasks into executable steps?";
     const C8: &str =
         "Supercalifragilisticexpialidociousplannersoutperformallbaselines?";
 
-    fn taken(names: &[&str]) -> Vec<String> {
-        names.iter().map(|name| (*name).to_owned()).collect()
+    fn taken(names: &[&str]) -> TakenNames {
+        TakenNames::listed(
+            names.iter().map(|name| (*name).to_owned()).collect(),
+        )
     }
 
     #[test]
@@ -221,7 +244,10 @@ mod tests {
 
     #[test]
     fn an_untaken_report_path_is_the_bare_slug() {
-        assert_eq!(ReportSlug::from("A").free_report_path(&[]), "reports/a.md");
+        assert_eq!(
+            ReportSlug::from("A").free_report_path(&taken(&[])),
+            "reports/a.md"
+        );
     }
 
     #[test]

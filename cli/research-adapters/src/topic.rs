@@ -34,6 +34,7 @@ use research::topic::evidence::LevelsDirectory;
 use research::topic::evidence::NoteRejection;
 use research::topic::layout::entry::is_finding_entry;
 use research::topic::layout::lineage::Lineage;
+use research::topic::layout::slug::TakenNames;
 use research::topic::layout::stem::Stem;
 use research::topic::layout::FINDINGS;
 use research::topic::layout::REPORTS;
@@ -171,11 +172,7 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     })
 }
 
-/// The name of every entry under the set's `reports/`, of whatever kind, or
-/// none when it has no `reports/`.
-///
-/// Wider than the reports `read_counts` counts: a new report cannot take a
-/// name a directory, a hidden file or any other entry already holds.
+/// The names under the set's `reports/`, or none when it has no `reports/`.
 ///
 /// # Errors
 ///
@@ -183,8 +180,10 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
 pub fn taken_report_names<F: DirReader>(
     set_root: &Path,
     fs: &F,
-) -> Result<Vec<String>, kernel::Error> {
-    Ok(fs.list(&set_root.join(REPORTS))?.unwrap_or_default())
+) -> Result<TakenNames, kernel::Error> {
+    Ok(TakenNames::listed(
+        fs.list(&set_root.join(REPORTS))?.unwrap_or_default(),
+    ))
 }
 
 /// The counts the files in the set's `findings/` and `reports/` give, beside
@@ -1299,7 +1298,7 @@ mod tests {
     fn a_set_without_reports_lists_none() -> Result<(), TestError> {
         let fs = set_with(StubFs::default());
 
-        assert!(taken_report_names(Path::new(SET), &fs)?.is_empty());
+        assert!(taken_report_names(Path::new(SET), &fs)?.names().is_empty());
         Ok(())
     }
 
@@ -1311,7 +1310,7 @@ mod tests {
             .with_dir("/set/reports/b.md");
 
         assert_eq!(
-            taken_report_names(Path::new(SET), &fs)?,
+            taken_report_names(Path::new(SET), &fs)?.names(),
             [".draft.md", "a.md", "b.md"]
         );
         Ok(())
