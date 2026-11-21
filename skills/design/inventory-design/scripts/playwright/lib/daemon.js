@@ -318,8 +318,10 @@ export async function startDaemon({ stateDir }) {
       }
 
       case 'snapshot': {
-        const snap = await page.accessibility.snapshot();
-        return { protocol: PROTOCOL, snapshot: snap };
+        const snapshot = await page
+          .locator('body')
+          .ariaSnapshot({ timeout: WALL_CLOCK_MS });
+        return { protocol: PROTOCOL, snapshot };
       }
 
       case 'links': {

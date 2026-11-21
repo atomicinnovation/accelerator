@@ -155,7 +155,7 @@ test('ping: missing browser → category: bootstrap', { timeout: 10000 }, async 
   });
 });
 
-test('navigate then snapshot produces non-empty JSON', { timeout: 30000 }, async () => {
+test('navigate then snapshot returns the page as an ARIA snapshot', { timeout: 30000 }, async () => {
   requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
@@ -166,8 +166,9 @@ test('navigate then snapshot produces non-empty JSON', { timeout: 30000 }, async
         assert.equal(navRes.ok, true);
 
         const snapRes = await send(info.url, { protocol: 1, command: 'snapshot' });
-        assert.ok(snapRes.snapshot !== undefined);
-        assert.ok(snapRes.snapshot !== null);
+        assert.equal(typeof snapRes.snapshot, 'string', JSON.stringify(snapRes));
+        assert.match(snapRes.snapshot, /heading "Fixture Page" \[level=1\]/);
+        assert.match(snapRes.snapshot, /button "Click Me"/);
       });
     } finally {
       child.kill('SIGTERM');
