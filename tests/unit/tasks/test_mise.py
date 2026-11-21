@@ -70,6 +70,7 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 # nothing.
 _CLI_DEV_BUILDS = {
     "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:design-automation": {_LAUNCHER},
     "test:integration:evals": {"build:cli:work:dev"},
     "test:integration:hooks": {
         _LAUNCHER,
@@ -94,8 +95,6 @@ _NO_LAUNCHER_NEEDED = {
     "tracker; reaches no accelerator binary",
     "test:integration:arxiv-queue-stress": "cargo nextest builds "
     "accelerator-research itself",
-    "test:integration:design-automation": "node --test against a Playwright "
-    "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
     "test:integration:visualiser-os-watcher": "cargo test builds the "
     "visualiser library itself; reaches no accelerator binary",
@@ -224,12 +223,6 @@ def test_every_cli_dev_leaf_names_a_dev_build(mise):
 # runs. Each exclusion carries its reason.
 _NOT_IN_INTEGRATION_ROLLUP = {
     "test:integration:pup": "needs the isolated nightly toolchain lane",
-    # Needs a bootstrapped Playwright runtime, which no CI lane provisions, so
-    # in the roll-up it would fail every build. It fails rather than skips
-    # without one, which keeps it runnable on demand and honest when the
-    # runtime is absent.
-    "test:integration:design-automation": "needs a Playwright runtime no CI "
-    "lane provisions; fails rather than skips without one",
     # It waits on the OS's file notifications, which a loaded macOS fseventsd
     # delays by minutes; in the roll-up it would time out whenever the default
     # task's other lanes saturate the machine. The scripted-event watcher and

@@ -270,9 +270,9 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
     """Resolve the materialised runtime trees, or refuse the lane.
 
     Prefers the launcher-exported tree paths; failing that, materialises them
-    through `accelerator cache ensure` and reads each tree path from its
-    tab-separated success line. An unresolvable runtime is a visible refusal
-    rather than a silent pass.
+    through the `build:cli:dev` launcher's `cache ensure` and reads each tree
+    path from its tab-separated success line. An unresolvable runtime is a
+    visible refusal rather than a silent pass.
     """
     exported = {
         artifact: os.environ.get(_tree_variable(artifact), "")
@@ -284,12 +284,13 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
             for artifact, path in exported.items()
         }
 
-    accelerator = repo_root() / "bin/accelerator"
+    launcher_env = accelerator_env()
     ensured = context.run(
-        f"{shlex.quote(str(accelerator))} cache ensure "
+        f"{shlex.quote(launcher_env['ACCELERATOR_BIN'])} cache ensure "
         + " ".join(_RUNTIME_TREES),
         warn=True,
         hide=True,
+        env=launcher_env,
     )
     resolved: dict[str, str] = {}
     if ensured is not None and ensured.exited == 0:
@@ -315,12 +316,11 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
 
 @task(help={"filter_": NODE_TEST_RUNTIME_FILTER_HELP})
 def design_automation(context: Context, filter_: str | None = None) -> None:
-    """Run the Playwright-executor suites that need a real runtime (opt-in).
+    """Run the Playwright-executor suites against the vendored runtime.
 
-    Deliberately outside `test:integration` and the bare default task: no CI
-    lane provisions a Playwright runtime. Rather than skip without one — which
-    is indistinguishable from passing — this refuses up front, following the
-    `docker info` preflight precedent in `tasks/test/e2e.py`.
+    Rather than skip without a runtime — which is indistinguishable from
+    passing — this refuses up front, following the `docker info` preflight
+    precedent in `tasks/test/e2e.py`.
     """
     selection = selection_from(filter_)
     root = repo_root()

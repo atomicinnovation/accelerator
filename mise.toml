@@ -379,12 +379,9 @@ run = 'invoke test.unit.design-automation ${usage_filter+--filter "$usage_filter
 description = "Run all unit tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
 depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:frontend-licenses", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
-# Deliberately absent from `test:integration` and the bare default task: these
-# suites need a bootstrapped Playwright runtime, which no CI lane provisions.
-# They fail rather than skip when one is missing, so an absent runtime is a
-# visible refusal instead of a silent pass.
 [tasks."test:integration:design-automation"]
-description = "Run the Playwright-executor suites that need a real runtime (opt-in)"
+description = "Run the Playwright-executor suites against the vendored driver and browser trees"
+depends = ["build:cli:dev"]
 usage = '''
 flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'ping: exits 0'"
 '''
@@ -574,6 +571,7 @@ depends = [
     "test:integration:research",
     "test:integration:fixture-size",
     "test:integration:release-guard",
+    "test:integration:design-automation",
 ]
 
 [tasks."test:e2e:visualiser"]

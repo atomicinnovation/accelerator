@@ -2,6 +2,7 @@ import pytest
 from invoke import Context, Exit, Result
 
 from tasks.test import integration
+from tasks.test.helpers import accelerator_env
 
 _TAP = "# pass 38\n# fail 0\n# skipped 0\n"
 
@@ -53,19 +54,20 @@ def test_exported_trees_are_handed_to_the_suites(context, monkeypatch, trees):
     }
 
 
-def test_unexported_trees_are_ensured_together(context, monkeypatch, trees):
+def test_unexported_trees_are_ensured_together_by_the_dev_launcher(
+    context, monkeypatch, trees
+):
     driver, browser = trees
     monkeypatch.delenv("ACCELERATOR_TREE_DRIVER", raising=False)
     monkeypatch.delenv("ACCELERATOR_TREE_BROWSER", raising=False)
+    monkeypatch.setenv("ACCELERATOR_BIN", "/dev/launcher")
     context.run.side_effect = [_ensured(driver, browser), Result(stdout=_TAP)]
 
     integration.design_automation(context)
 
-    assert (
-        context.run.call_args_list[0]
-        .args[0]
-        .endswith("cache ensure driver browser")
-    )
+    ensure = context.run.call_args_list[0]
+    assert ensure.args[0] == "/dev/launcher cache ensure driver browser"
+    assert ensure.kwargs["env"] == accelerator_env()
     assert _suite_environment(context) == {
         "ACCELERATOR_TREE_DRIVER": str(driver),
         "ACCELERATOR_TREE_BROWSER": str(browser),

@@ -5,7 +5,7 @@
 // cases per lane. A runtime-dependent assertion therefore has to live in a file
 // the unit lane never reaches, not merely be labelled opt-in inside one it does.
 //
-// Nothing here skips. The opt-in task's own preflight guarantees a runtime
+// Nothing here skips. The runtime lane's own preflight guarantees a runtime
 // before any of this runs, so an absent one is a visible failure rather than a
 // silent pass — the pattern this suite exists to stop reproducing.
 

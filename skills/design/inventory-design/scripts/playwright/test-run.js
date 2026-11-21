@@ -112,7 +112,7 @@ async function withFixtureServer(fn) {
   }
 }
 
-// This suite runs only in the opt-in lane, whose preflight has already
+// This suite runs only in the runtime lane, whose preflight has already
 // guaranteed a runtime — so an absent one is a bug in the lane, not a reason to
 // skip. Skipping here is what let a whole suite evaporate silently: `node
 // --test` reports a skipped test as neither passed nor failed, so an absent
