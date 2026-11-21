@@ -11,7 +11,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, realpathSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, realpathSync } from 'node:fs';
 import { fork } from 'node:child_process';
 import { createServer, request } from 'node:http';
 import { resolve } from 'node:path';
@@ -125,20 +125,34 @@ test('ping returns ok: true without launching a browser', { timeout: 20000 }, as
 // Chromium, so unlike the spawn properties there is no honest way to make this
 // runtime-free.
 
-const FIXTURE_URL = `file://${resolve(import.meta.dirname, '__fixtures__/links.html')}`;
+const LINKS_FIXTURE = readFileSync(
+  resolve(import.meta.dirname, '__fixtures__/links.html'),
+  'utf8'
+);
 
 async function linksOf(info, url) {
-  await send(info.url, { protocol: 1, command: 'navigate', url });
+  const navigated = await send(info.url, { protocol: 1, command: 'navigate', url });
+  assert.equal(navigated.ok, true, JSON.stringify(navigated));
   return send(info.url, { protocol: 1, command: 'links' });
+}
+
+function linksOfFixture(info, headers = {}) {
+  return withServer(
+    (_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html', ...headers });
+      res.end(LINKS_FIXTURE);
+    },
+    url => linksOf(info, url)
+  );
 }
 
 test('links names the current page and resolves same-origin paths', { timeout: 30000 }, async () => {
   await withDaemon(async info => {
-    const res = await linksOf(info, FIXTURE_URL);
+    const res = await linksOfFixture(info);
     const body = JSON.stringify(res);
 
     assert.ok(Array.isArray(res.links), body);
-    assert.ok(res.url.startsWith('file://'), body);
+    assert.ok(res.url.startsWith('http://127.0.0.1:'), body);
     assert.ok(body.includes('"pathname":"/work-items"'), body);
     assert.ok(body.includes('/library/work-items'), body);
   });
@@ -146,7 +160,7 @@ test('links names the current page and resolves same-origin paths', { timeout: 3
 
 test('links normalises anchor text and preserves role verbatim', { timeout: 30000 }, async () => {
   await withDaemon(async info => {
-    const res = await linksOf(info, FIXTURE_URL);
+    const res = await linksOfFixture(info);
     const texts = res.links.map(l => l.text);
     const roles = res.links.map(l => l.role);
 
@@ -157,11 +171,23 @@ test('links normalises anchor text and preserves role verbatim', { timeout: 3000
 });
 
 test('every anchor on an opaque-origin page reports same_origin false', { timeout: 30000 }, async () => {
-  // A file:// page has an opaque origin, so nothing can be same-origin with
-  // it. Reporting otherwise would tell a crawler to follow links it should not.
+  // about:blank has an opaque origin, so nothing can be same-origin with it,
+  // not even another about:blank URL whose origin is the same "null". Reporting
+  // otherwise would tell a crawler to follow links it should not.
   await withDaemon(async info => {
-    const res = await linksOf(info, FIXTURE_URL);
-    assert.ok(res.links.length > 0);
+    await send(info.url, { protocol: 1, command: 'navigate', url: 'about:blank' });
+    await send(info.url, {
+      protocol: 1,
+      command: 'evaluate',
+      expression: `document.body.innerHTML = ${JSON.stringify(
+        '<a href="about:blank#top">Top</a>' +
+          '<a href="https://example.com/external">External</a>' +
+          '<a href="mailto:user@example.com">Contact</a>'
+      )}`,
+    });
+    const res = await send(info.url, { protocol: 1, command: 'links' });
+
+    assert.equal(res.links.length, 3, JSON.stringify(res));
     assert.ok(
       res.links.every(l => l.same_origin === false),
       JSON.stringify(res.links)
@@ -171,9 +197,9 @@ test('every anchor on an opaque-origin page reports same_origin false', { timeou
 
 test('links reports each anchor scheme', { timeout: 30000 }, async () => {
   await withDaemon(async info => {
-    const res = await linksOf(info, FIXTURE_URL);
+    const res = await linksOfFixture(info);
     const schemes = new Set(res.links.map(l => l.scheme));
-    for (const scheme of ['file', 'https', 'mailto']) {
+    for (const scheme of ['http', 'https', 'mailto']) {
       assert.ok(schemes.has(scheme), `${scheme} missing from ${[...schemes]}`);
     }
   });
@@ -183,7 +209,7 @@ test('links returns no raw href, resolved URL, query string or fragment', { time
   // The contract that makes `links` safe to hand to a model: it describes where
   // an anchor points without echoing anything the page put in the URL.
   await withDaemon(async info => {
-    const res = await linksOf(info, FIXTURE_URL);
+    const res = await linksOfFixture(info);
     const body = JSON.stringify(res);
 
     for (const forbidden of [
@@ -207,8 +233,8 @@ test('links on about:blank returns an empty list rather than an error', { timeou
   });
 });
 
-// Navigation classification over a real browser: the route handler must fire per
-// redirect hop and per page-initiated navigation, which a mocked route cannot
+// Navigation classification over a real browser: the interceptor must fire per
+// redirect hop and per page-initiated navigation, which a mocked one cannot
 // prove. A link-local host stands in for the metadata endpoint; the loopback
 // server that redirects to it is itself always allowed, so only the hop can
 // produce a link-local refusal.
@@ -253,6 +279,18 @@ test('a redirect to a link-local host is refused, not followed', { timeout: 3000
       assert.equal(res.details.classification, 'link-local');
       assert.ok(!res.message.includes('?'), res.message);
     });
+  });
+});
+
+test('a file:// navigation is refused, as the executor refuses the location', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    const res = await send(info.url, {
+      protocol: 1,
+      command: 'navigate',
+      url: `file://${resolve(import.meta.dirname, '__fixtures__/links.html')}`,
+    });
+    assert.equal(res.error, 'navigation-refused', JSON.stringify(res));
+    assert.equal(res.details.classification, 'malformed');
   });
 });
 
