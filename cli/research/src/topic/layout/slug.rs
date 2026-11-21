@@ -2,18 +2,34 @@
 
 use crate::topic::layout::REPORTS;
 
-const QUESTION_SLUG_MAX_LEN: usize = 60;
+const SLUG_MAX_LEN: usize = 60;
+const SHORTEST_WORD_CUT: usize = 41;
 const EMPTY_QUESTION_SLUG: &str = "focus-area";
-const REPORT_SLUG_MAX_LEN: usize = 60;
 const EMPTY_REPORT_SLUG: &str = "report";
 
-fn hyphenated(question: &str) -> String {
-    question
+fn slug_of(question: &str) -> Option<String> {
+    let hyphenated = question
         .to_ascii_lowercase()
         .split(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit()))
         .filter(|run| !run.is_empty())
         .collect::<Vec<_>>()
-        .join("-")
+        .join("-");
+    let cut = cut_before_the_overflowing_word(&hyphenated);
+    (!cut.is_empty()).then(|| cut.to_owned())
+}
+
+fn cut_before_the_overflowing_word(slug: &str) -> &str {
+    if slug.len() <= SLUG_MAX_LEN {
+        return slug;
+    }
+    let window = slug.get(..=SLUG_MAX_LEN).unwrap_or(slug);
+    match window.rfind('-') {
+        Some(hyphen) if hyphen >= SHORTEST_WORD_CUT => &window[..hyphen],
+        _ => slug
+            .get(..SLUG_MAX_LEN)
+            .unwrap_or(slug)
+            .trim_end_matches('-'),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,16 +44,9 @@ impl QuestionSlug {
 
 impl From<&str> for QuestionSlug {
     fn from(question: &str) -> Self {
-        let hyphenated = hyphenated(question);
-        let cut = hyphenated
-            .get(..QUESTION_SLUG_MAX_LEN)
-            .unwrap_or(&hyphenated)
-            .trim_end_matches('-');
-        Self(if cut.is_empty() {
-            EMPTY_QUESTION_SLUG.to_owned()
-        } else {
-            cut.to_owned()
-        })
+        Self(
+            slug_of(question).unwrap_or_else(|| EMPTY_QUESTION_SLUG.to_owned()),
+        )
     }
 }
 
@@ -69,29 +78,7 @@ impl ReportSlug {
 
 impl From<&str> for ReportSlug {
     fn from(question: &str) -> Self {
-        let hyphenated = hyphenated(question);
-        let cut = cut_before_the_overflowing_word(&hyphenated);
-        Self(if cut.is_empty() {
-            EMPTY_REPORT_SLUG.to_owned()
-        } else {
-            cut.to_owned()
-        })
-    }
-}
-
-fn cut_before_the_overflowing_word(slug: &str) -> &str {
-    if slug.len() <= REPORT_SLUG_MAX_LEN {
-        return slug;
-    }
-    let window = slug.get(..=REPORT_SLUG_MAX_LEN).unwrap_or(slug);
-    let hard_cut = || {
-        slug.get(..REPORT_SLUG_MAX_LEN)
-            .unwrap_or(slug)
-            .trim_end_matches('-')
-    };
-    match window.rfind('-') {
-        Some(hyphen) if window[..hyphen].contains('-') => &window[..hyphen],
-        _ => hard_cut(),
+        Self(slug_of(question).unwrap_or_else(|| EMPTY_REPORT_SLUG.to_owned()))
     }
 }
 
@@ -145,6 +132,44 @@ mod tests {
     }
 
     #[test]
+    fn a_long_question_slug_is_cut_before_the_word_that_would_pass_sixty() {
+        assert_eq!(
+            QuestionSlug::from(C7).as_str(),
+            "how-do-autonomous-language-model-agents-decompose-long"
+        );
+    }
+
+    #[test]
+    fn a_word_cut_leaving_forty_characters_or_fewer_is_a_cut_at_sixty() {
+        let question = format!("{} {}", "a".repeat(40), "b".repeat(30));
+        let hard_cut = format!("{}-{}", "a".repeat(40), "b".repeat(19));
+        assert_eq!(QuestionSlug::from(question.as_str()).as_str(), hard_cut);
+        assert_eq!(ReportSlug::from(question.as_str()).as_str(), hard_cut);
+    }
+
+    #[test]
+    fn a_word_cut_leaving_forty_one_characters_is_kept() {
+        let question = format!("{} {}", "a".repeat(41), "b".repeat(30));
+        assert_eq!(
+            QuestionSlug::from(question.as_str()).as_str(),
+            "a".repeat(41)
+        );
+        assert_eq!(
+            ReportSlug::from(question.as_str()).as_str(),
+            "a".repeat(41)
+        );
+    }
+
+    #[test]
+    fn a_short_opening_before_an_overlong_word_is_cut_at_sixty() {
+        let question = format!("How do {C8}");
+        assert_eq!(
+            ReportSlug::from(question.as_str()).as_str(),
+            "how-do-supercalifragilisticexpialidociousplannersoutperforma"
+        );
+    }
+
+    #[test]
     fn a_report_slug_keeps_ascii_alphanumerics_and_hyphenates_the_rest() {
         assert_eq!(
             ReportSlug::from("How do LLM agents plan multi-step tasks?")
@@ -176,16 +201,6 @@ mod tests {
         assert_eq!(
             ReportSlug::from(C8).as_str(),
             "supercalifragilisticexpialidociousplannersoutperformallbasel"
-        );
-    }
-
-    #[test]
-    fn a_long_report_slug_whose_second_word_overflows_is_cut_at_sixty_characters(
-    ) {
-        let question = format!("How {C8}");
-        assert_eq!(
-            ReportSlug::from(question.as_str()).as_str(),
-            "how-supercalifragilisticexpialidociousplannersoutperformallb"
         );
     }
 

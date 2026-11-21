@@ -661,8 +661,9 @@
 - **`accelerator research topic report-path SLUG QUESTION`** prints the
   absolute path a new report on the question takes:
   `reports/<question-slug>.md`, cut before the word that would pass 60
-  characters, or at 60 when that would keep only the first word. When that name is taken, it appends the first free `-2`,
-  `-3`, … suffix to the cut slug. It writes nothing,
+  characters, or at 60 when that would leave 40 or fewer. When that name is
+  taken, it appends the first free `-2`, `-3`, … suffix to the cut slug. It
+  writes nothing,
   and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
   question.
 - **`accelerator research topic counts SLUG`** prints the round, finding and
@@ -703,6 +704,13 @@
 
 ### Changed
 
+- **A finding stem for a long question is cut at a word.** A question slug
+  over 60 characters is now cut before the word that would pass 60, or at 60
+  when that would leave 40 or fewer, as a report's name is. Findings already
+  written keep their names, since a finding is matched by its frontmatter
+  `question`. A pair whose depth research was interrupted part-way keeps a
+  `<stem>.levels/` tree under the old stem, which `conduct` no longer finds,
+  so it researches that pair again from the start.
 - **`visualiser.idle_timeout` is parsed by `jiff`, not `humantime`.**
   `humantime` is unmaintained (RUSTSEC-2026-0542). Hours, minutes, seconds
   and smaller units read as before, and a day or week counts as 24 hours or

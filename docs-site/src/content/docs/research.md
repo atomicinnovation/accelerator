@@ -574,7 +574,18 @@ the researcher agent follows: `web-profile` (web search and fetch, and
   [Web search quota](#web-search-quota).
 
 Each pair's finding lives at `findings/<nn>-<question-slug>-<profile>.md`,
-where every profile of one focus area shares its `<nn>`. The finding's
+where every profile of one focus area shares its `<nn>`.
+
+#### Question slugs
+
+A question slug lowercases the question, keeps its ASCII letters and digits,
+and joins each run of them with `-`. A slug longer than 60 characters is cut
+before the word that would pass 60, or at 60 when that cut would leave 40
+characters or fewer; a cut never ends in `-`. Finding stems and report names
+share the rule. A question with no ASCII letter or digit slugs to `focus-area`
+in a stem.
+
+The finding's
 `question` and `source_profile` frontmatter, not its filename, identify the
 pair: sets written before profiles existed hold one `findings/<nn>-<slug>.md`
 per focus area, and still count as their `web` pair. Consumers group findings
@@ -772,11 +783,8 @@ accelerator research topic report-path SLUG 'QUESTION'
 ```
 
 It prints one line, the absolute path `reports/<question-slug>.md` under the
-set. The slug lowercases the question, keeps its ASCII letters and digits,
-and joins each run of them with `-`. A slug longer than 60 characters is cut
-before the last `-` within its first 61, or at 60 when that cut would keep
-only the first word, and a question with no ASCII letter or digit slugs to
-`report`. When any entry in
+set. The slug follows the [question slug rule](#question-slugs), and a
+question with no ASCII letter or digit slugs to `report`. When any entry in
 `reports/` already holds that name, compared without regard to case, the
 path takes the first free `-2`, `-3`, … suffix. The question may be one
 quoted argument or separate words, which are joined with single spaces. The

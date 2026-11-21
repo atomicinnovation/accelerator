@@ -174,7 +174,8 @@ from the current findings, with the VCS as its history.
     trailing hyphens trimmed; "How do LLM agents plan multi-step tasks?"
     becomes `how-do-llm-agents-plan-multi-step-tasks`. A slug over 60
     characters is cut before the last hyphen within its first 61 characters,
-    or at 60 characters when there is none, so it never ends in a hyphen. On
+    or at 60 characters when that cut would leave 40 or fewer, so it never
+    ends in a hyphen. Finding stems share the rule. On
     collision it then takes `-2`, `-3`, …, which may pass 60 characters. A
     question that yields an empty slug takes `report`.
   - Edits `manifest.md` after writing the report to record reports —
