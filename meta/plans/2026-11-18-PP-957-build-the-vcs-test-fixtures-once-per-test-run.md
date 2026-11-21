@@ -13,7 +13,7 @@ relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-sl
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-20T23:00:00+00:00"
+last_updated: "2026-11-21T09:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2626,8 +2626,8 @@ changes first, and keep out of 0364's CI measurement windows.
   `-n auto` on `test:integration:dev` was already on `main`.
 - **The table is in the work item** under Requirement 5. The cells this
   phase leaves open (Vitest's "nothing matches" outcome and the malformed
-  examples for Vitest, node and Playwright) are marked there as still to
-  be confirmed by Phase 8.
+  examples for Vitest, node and Playwright) were marked there as still to
+  be confirmed. Phase 8 has since confirmed them and filled them in.
 - **One function runs every pytest lane.** Each lane does not add
   `selection_from(filter_).pytest()` to its own command. Instead it calls
   `run_pytest_lane(context, command, mise_task=…, filter_=…, env=…)` in
@@ -2653,22 +2653,20 @@ changes first, and keep out of 0364's CI measurement windows.
 | `test:unit:cli` | nextest 0.9.138 | filterset (`-E`) | `binary_id(vcs-adapters::classify)` | `test(foo` | fails ("no tests to run"); the task's list sees it first |
 | `test:unit:tasks`, `test:unit:frontend-licenses`, `test:unit:vcs`, `test:integration:tasks` | pytest 9.0.3 | `-k` expression | `resume and not slow` | `foo and` | exit 5 |
 | `test:integration:dev`, `:entrypoint`, `:evals`, `:pup`, `:hooks`, `:research`, `:research-exhaustive` | pytest 9.0.3 | `-k` expression | `resume and not slow` | `foo and` | exit 5 |
-| `test:unit:visualiser`, `test:integration:visualiser` | libtest (cargo test) | substring of the test path | `path_normalisation` | none: any string is valid | exit 0, `0 passed` in every binary |
-| `test:integration:tracker-contract` | nextest 0.9.138 | filterset (`-E`), intersected with `binary(=contract)` | a `test(…)` naming one contract test | `test(foo` | fails ("no tests to run") |
-| `test:unit:frontend` | Vitest 3.2.4 | test-name regex (`-t`) | a regex naming one `describe` block | `(` | to confirm in Phase 8 |
-| `test:unit:design-automation`, `test:integration:design-automation` | `node --test` (node 22.22.2) | test-name regex (`--test-name-pattern`) | a regex naming one test | `(` | exit 0, `# pass 0` |
-| `test:e2e:visualiser`, `test:e2e:visualiser:docker`, `test:e2e:visualiser:docker:update` | Playwright 1.59.1 | title regex (`--grep`) | a regex naming one spec's title | `(` | fails ("No tests found") |
+| `test:unit:visualiser`, `test:integration:visualiser` | libtest (cargo test) | substring of the test path | `path_normalisation` (integration: `spa_route`) | none: any string is valid | exit 0, `0 passed` in every binary |
+| `test:integration:tracker-contract` | nextest 0.9.138 | filterset (`-E`), intersected with `binary(=contract)` | `test(the_conformance_set_passes_against_a_live_team)` | `test(foo` (confirmed: "failed to parse filterset") | exit 4 ("no tests to run") |
+| `test:unit:frontend` | Vitest 5.1.0 | test-name regex (`-t`) | `copyText` | `(` (confirmed: exit 1, "Invalid regular expression") | exit 0; the `Tests` summary line counts every test as skipped (`Tests  2697 skipped (2697)`) |
+| `test:unit:design-automation`, `test:integration:design-automation` | `node --test` (node 22.23.4) | test-name regex (`--test-name-pattern`) | `judges as the corpus says` (integration: `ping: exits 0`) | `(` (confirmed: exit 1, `ERR_INVALID_ARG_VALUE`) | exit 0, and each file with no matching test is reported as a passing test named after the file, so `# pass` is the file count rather than 0 |
+| `test:e2e:visualiser`, `test:e2e:visualiser:docker`, `test:e2e:visualiser:docker:update` | Playwright 1.59.1 | title regex (`--grep`), matched against the titles joined by spaces | `kanban renders all seven default columns` (Docker: `chip-showcase`) | `(` (confirmed: exit 1, "Invalid regular expression") | exit 1, "No tests found" |
 
 Whatever the runner does, every lane fails with `Selection.nothing_selected(task)`
 (`--filter '<expression>' selected no tests`) when a filter runs no test.
 The last column records what each lane has to translate or detect.
 
-The malformed examples for Vitest, node and Playwright are inferred. Phase 8's
-first step confirms each one fails. If a runner accepts its example, the
-table records that its syntax has no malformed form. Where the example is
-described rather than given, the lane's phase picks a real name from its
-suite, and checks by hand that it selects at least one test. Each lane's
-help carries its example.
+Phase 8's first step confirmed every malformed example above by running its
+runner, and replaced each described example with a real name from the
+lane's suite that selects at least one test. Each lane's help carries its
+example. The table matches the one in the work item.
 
 ### Changes Required
 
@@ -2842,18 +2840,20 @@ lanes add npm's `--` separator themselves, and the Docker payload uses
   The test feeds exit 4, and any other non-zero exit is reported as today.
 - **`test.unit.frontend`.** `npm --prefix … run test -- -t '<filter>'`.
   With a filter, a run that executes no test raises
-  `Exit(selection.nothing_selected(<task>))`. Step 0's finding decides the
-  mechanism: if Vitest already fails, the lane translates that failure;
-  if it exits 0, the lane reads the test count from Vitest's summary line,
-  or adds `--reporter=json` if the summary line can't be relied on.
+  `Exit(selection.nothing_selected(<task>))`. Step 0 found that Vitest
+  exits 0, so the lane counts the `passed` and `failed` numbers on Vitest's
+  `Tests` summary line, after stripping ANSI colour codes. A filtered run
+  with no summary line fails.
 - **The design-automation lanes, filtered.** `node --test` gains
   `--test-name-pattern`, placed before the first test file, because node
   reads every argument after the first file as another file. The test
   asserts that order. A TAP result of `# pass 3`, `# fail 0` and
   `# skipped 102` passes, and one line is printed:
   `design-automation: pass-count and skip floors skipped for a filtered run`.
-  `# fail 1` still fails. `# pass 0` with `# fail 0` raises
-  `Exit(selection.nothing_selected(<task>))`.
+  `# fail 1` still fails. A run whose only top-level TAP points are named
+  after the discovered suite files ran no test, because node reports a
+  file with no matching test as a passing point named after the file. It
+  raises `Exit(selection.nothing_selected(<task>))`.
 - **The design-automation lanes, unfiltered.** The floors still apply.
 - **Every lane.** `filter_=""` exits with `--filter needs an expression` and
   runs nothing. Each lane's no-match message names its own mise task,
@@ -2992,9 +2992,9 @@ If Phase 3 gave the roll-ups an empty `usage`, a second test,
 - the exempt tasks;
 - the rule that a filter which runs no test fails the lane, and which lanes
   detect it from runner output text rather than an exit code (libtest's
-  `test result:` lines, node's TAP `# pass`, Playwright's "No tests found",
-  and Vitest's summary if Phase 8 finds it needs one), so a runner bump
-  knows to re-check them;
+  `test result:` lines, node's top-level TAP points against the suite file
+  names, Playwright's "No tests found" and Vitest's `Tests` summary line),
+  so a runner bump knows to re-check them;
 - the `cargo test` rule;
 - the last-resort note.
 
