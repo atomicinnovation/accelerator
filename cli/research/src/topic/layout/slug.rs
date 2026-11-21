@@ -267,8 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn a_report_name_taken_under_a_letter_that_lowercases_to_ascii_is_taken()
-    {
+    fn a_report_name_taken_under_a_letter_that_lowercases_to_ascii_is_taken() {
         assert_eq!(
             ReportSlug::from("K").free_report_path(&taken(&["\u{212A}.md"])),
             "reports/k-2.md"

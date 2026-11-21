@@ -14,6 +14,13 @@ pub type TestError = Box<dyn std::error::Error>;
 
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
 pub const TOPICS: &str = "meta/research/topics";
+pub const PLUGIN_ROOT: &str = "ACCELERATOR_PLUGIN_ROOT";
+
+/// The repository's own plugin root, whose `skills/research/profiles` the
+/// launcher would hand an installed `accelerator`.
+pub fn installed_plugin() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
 
 pub struct Project {
     _dir: tempfile::TempDir,
@@ -37,11 +44,36 @@ impl Project {
     }
 
     pub fn run(&self, verb: &str, args: &[&str]) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
+        self.run_from(&installed_plugin(), verb, args)
+    }
+
+    pub fn run_from(
+        &self,
+        plugin_root: &Path,
+        verb: &str,
+        args: &[&str],
+    ) -> Result<Output, TestError> {
+        Ok(self
+            .command(verb, args)
+            .env(PLUGIN_ROOT, plugin_root)
+            .output()?)
+    }
+
+    pub fn run_without_a_plugin_root(
+        &self,
+        verb: &str,
+        args: &[&str],
+    ) -> Result<Output, TestError> {
+        Ok(self.command(verb, args).env_remove(PLUGIN_ROOT).output()?)
+    }
+
+    fn command(&self, verb: &str, args: &[&str]) -> Command {
+        let mut command = Command::new(BIN);
+        command
             .current_dir(&self.root)
             .args(["topic", verb])
-            .args(args)
-            .output()?)
+            .args(args);
+        command
     }
 }
 

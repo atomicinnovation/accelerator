@@ -70,20 +70,8 @@ def _output(command: Sequence[object], root: Path, toolchain: Toolchain) -> str:
 def _research_topic(
     toolchain: Toolchain, root: Path, verb: str
 ) -> dict[str, Any]:
-    profiles = toolchain.plugin_root / "skills/research/profiles"
     return json.loads(
-        _output(
-            [
-                toolchain.research,
-                "topic",
-                verb,
-                SLUG,
-                "--profiles-dir",
-                profiles,
-            ],
-            root,
-            toolchain,
-        )
+        _output([toolchain.research, "topic", verb, SLUG], root, toolchain)
     )
 
 

@@ -275,7 +275,7 @@ allocate a finding or note path yourself.
 2. **Plan.** The first plan starts the run:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --start
+   accelerator research topic outstanding SLUG --depth {depth} {concurrency flag} --start
    ```
 
    Every later plan continues it, with `--run {run} --spawned {batch}` in
@@ -283,7 +283,7 @@ allocate a finding or note path yourself.
    returned:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch} {withhold flags}
+   accelerator research topic outstanding SLUG --depth {depth} {concurrency flag} --run {run} --spawned {batch} {withhold flags}
    ```
 
    `{withhold flags}` is nothing until the run halts (see **Halting
@@ -560,7 +560,7 @@ allocate a finding or note path yourself.
       no run flag:
 
       ```bash
-      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag}
+      accelerator research topic outstanding SLUG --depth {depth} {concurrency flag}
       ```
 
       Set every outline item's checkbox, at its `line`, to its `complete`
@@ -802,7 +802,7 @@ If QUESTION is missing, ask for it before anything else. Then, before reading
 anything, take the verdict:
 
 ```bash
-accelerator research topic consultable SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles
+accelerator research topic consultable SLUG
 ```
 
 If it exits non-zero, report its error and stop. It applies three gates in

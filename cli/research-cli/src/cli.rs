@@ -3,8 +3,6 @@
 //! Families, verbs and the limit are taken as raw text so the domain's
 //! `FetchRequest::parse` owns every usage message.
 
-use std::path::PathBuf;
-
 use clap::Parser;
 use clap::Subcommand;
 
@@ -110,9 +108,6 @@ pub enum TopicAction {
     Outstanding {
         /// The set's slug, set directory, or sub-document path.
         slug: String,
-        /// The directory holding one `<name>-profile/SKILL.md` per profile.
-        #[arg(long)]
-        profiles_dir: PathBuf,
         /// How many levels each pair's tree is researched to, 1 to 10.
         /// Defaults to 1 and is never read from `research.topic.depth`, so a
         /// hand run must pass the depth `conduct` resolved.
@@ -134,8 +129,7 @@ pub enum TopicAction {
         #[arg(long, allow_hyphen_values = true)]
         spawned: Option<String>,
         /// Withhold researcher spawns of this profile for the rest of the
-        /// run; repeatable. Needs `--run`, and a profile under
-        /// `--profiles-dir`.
+        /// run; repeatable. Needs `--run`, and a profile the plugin installs.
         #[arg(long, allow_hyphen_values = true)]
         withhold_profile: Vec<String>,
     },
@@ -172,9 +166,6 @@ pub enum TopicAction {
     Consultable {
         /// The set's slug, set directory, or sub-document path.
         slug: String,
-        /// The directory holding one `<name>-profile/SKILL.md` per profile.
-        #[arg(long)]
-        profiles_dir: PathBuf,
     },
 }
 

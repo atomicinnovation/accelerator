@@ -19,6 +19,7 @@ const TOPICS: &str = "meta/research/topics";
 const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
 const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
 const SEARCH_CAP: &str = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION";
+const PLUGIN_ROOT: &str = "ACCELERATOR_PLUGIN_ROOT";
 
 struct Project {
     _dir: tempfile::TempDir,
@@ -56,12 +57,12 @@ impl Project {
     fn outstanding(
         &self,
         slug: &str,
-        profiles_dir: &Path,
+        plugin_root: &Path,
     ) -> Result<Output, TestError> {
         Ok(command_without_an_inherited_cap()
             .current_dir(&self.root)
-            .args(["topic", "outstanding", slug, "--profiles-dir"])
-            .arg(profiles_dir)
+            .env(PLUGIN_ROOT, plugin_root)
+            .args(["topic", "outstanding", slug])
             .output()?)
     }
 
@@ -91,13 +92,7 @@ impl Project {
         args: &[&str],
         cap: &[(&str, &str)],
     ) -> Result<Output, TestError> {
-        let profiles = installed_profiles();
-        let mut all = vec![
-            "outstanding",
-            "s",
-            "--profiles-dir",
-            profiles.to_str().ok_or("non-utf8")?,
-        ];
+        let mut all = vec!["outstanding", "s"];
         all.extend_from_slice(args);
         self.run_in(&all, cap)
     }
@@ -135,15 +130,15 @@ impl Project {
     }
 
     fn plan(&self, slug: &str) -> Result<Value, TestError> {
-        self.plan_with_profiles(slug, &installed_profiles())
+        self.plan_from(slug, &installed_plugin())
     }
 
-    fn plan_with_profiles(
+    fn plan_from(
         &self,
         slug: &str,
-        profiles_dir: &Path,
+        plugin_root: &Path,
     ) -> Result<Value, TestError> {
-        let output = self.outstanding(slug, profiles_dir)?;
+        let output = self.outstanding(slug, plugin_root)?;
         assert!(
             output.status.success(),
             "{}",
@@ -158,7 +153,8 @@ fn command_without_an_inherited_cap() -> Command {
     command
         .env_remove(ACCELERATOR_CAP)
         .env_remove(HARNESS_CAP)
-        .env_remove(SEARCH_CAP);
+        .env_remove(SEARCH_CAP)
+        .env(PLUGIN_ROOT, installed_plugin());
     command
 }
 
@@ -169,9 +165,8 @@ fn fixtures() -> PathBuf {
         .join("../corpus-cli/tests/fixtures")
 }
 
-fn installed_profiles() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../skills/research/profiles")
+fn installed_plugin() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
@@ -399,11 +394,13 @@ fn a_profile_missing_from_the_profiles_directory_is_skipped(
 ) -> Result<(), TestError> {
     let project =
         small_set("uninstalled", "- [ ] A? — profiles: web, openalex")?;
-    project.write("profiles/web-profile/SKILL.md", "web\n")?;
-    project.write("profiles/openalex-profile/README.md", "no skill\n")?;
+    project.write("skills/research/profiles/web-profile/SKILL.md", "web\n")?;
+    project.write(
+        "skills/research/profiles/openalex-profile/README.md",
+        "no skill\n",
+    )?;
 
-    let plan =
-        project.plan_with_profiles("s", &project.root.join("profiles"))?;
+    let plan = project.plan_from("s", &project.root)?;
 
     assert_eq!(
         plan["pairs"],
@@ -430,7 +427,7 @@ fn an_unresolvable_set_exits_1() -> Result<(), TestError> {
     let project = Project::new("missing")?;
     fs::create_dir_all(project.root.join(TOPICS))?;
 
-    let output = project.outstanding("no-such-set", &installed_profiles())?;
+    let output = project.outstanding("no-such-set", &installed_plugin())?;
 
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
@@ -2449,7 +2446,7 @@ fn an_unknown_set_is_reported_before_an_empty_concurrency(
     let project = a_set()?;
     project.configure_team_concurrency("\"\"")?;
 
-    let output = project.outstanding("no-such-set", &installed_profiles())?;
+    let output = project.outstanding("no-such-set", &installed_plugin())?;
 
     assert_exits_1(
         &output,
@@ -2680,19 +2677,11 @@ fn start_notices_keep_their_order() -> Result<(), TestError> {
 fn a_start_that_cannot_plan_still_reports_its_concurrency_notices(
 ) -> Result<(), TestError> {
     let project = a_set()?;
-    let missing = project.root.join("no-profiles");
+    let without_profiles = project.root.to_str().ok_or("non-utf8")?;
 
     let output = project.run_in(
-        &[
-            "outstanding",
-            "s",
-            "--profiles-dir",
-            missing.to_str().ok_or("non-utf8")?,
-            "--concurrency",
-            "24",
-            "--start",
-        ],
-        &[(ACCELERATOR_CAP, "8")],
+        &["outstanding", "s", "--concurrency", "24", "--start"],
+        &[(ACCELERATOR_CAP, "8"), (PLUGIN_ROOT, without_profiles)],
     )?;
 
     assert_eq!(output.status.code(), Some(1));

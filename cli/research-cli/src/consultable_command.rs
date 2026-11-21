@@ -25,13 +25,20 @@ use crate::topic_command::Printed;
 ///
 /// # Errors
 ///
-/// A message when the set cannot be read as far as its verdict needs, so a
-/// set is never opened on a read that failed.
+/// A message when the profiles directory is missing, before any gate, or
+/// when the set cannot be read as far as its verdict needs, so a set is
+/// never opened on a read that failed.
 pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
     set_root: &Path,
     profiles_dir: &Path,
     fs: &F,
 ) -> Result<Printed, String> {
+    if !fs.is_dir(profiles_dir) {
+        return Err(format!(
+            "no profiles directory at {}",
+            profiles_dir.display()
+        ));
+    }
     let status = read_set_status(set_root, fs, &YamlFrontmatter)
         .map_err(|error| error.to_string())?;
     let verdict = Consultation::judge(

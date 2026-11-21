@@ -626,8 +626,12 @@ prompt:
 findings go, rather than allocating paths itself:
 
 ```bash
-accelerator research topic outstanding SLUG --profiles-dir DIR
+accelerator research topic outstanding SLUG
 ```
+
+It reads the installed profiles from `skills/research/profiles` under
+`ACCELERATOR_PLUGIN_ROOT`, which the `accelerator` launcher sets, as
+`consultable` does.
 
 It prints JSON whose fields are listed below: `items` (each outline item's
 `line`, `question`, and `complete`), `pairs` (each outstanding pair's
@@ -706,7 +710,7 @@ The run flags exist for `conduct`. `--start` begins a run and returns its
 as spawned. `--withhold-profile P`, which needs `--run` and may be repeated,
 withholds researcher spawns of profile `P` for the rest of the run; the run
 ledger keeps each withheld profile until `end-run`, so a later `--run` need
-not repeat the flag. A profile with no skill under `--profiles-dir` exits 1 with
+not repeat the flag. A profile the plugin installs no skill for exits 1 with
 `E_TOPIC_RESEARCH_WITHHOLD_PROFILE`. Compositions are still offered. During a
 run the JSON also carries `run`, `batch` (the number the next `--spawned` must
 pass), `withheld` (the profiles the run withholds, sorted) and `unexpected` (the
@@ -869,7 +873,7 @@ Each exit code below exits `1`:
 which documents to read, rather than judging the gates themselves:
 
 ```bash
-accelerator research topic consultable SLUG --profiles-dir DIR
+accelerator research topic consultable SLUG
 ```
 
 It applies three gates in order and stops at the first that fails:
@@ -904,7 +908,8 @@ as `outstanding` prints its paths. `mismatches` reads as `counts` prints it,
 and each `held_back` item's `reasons` read as `outstanding`'s
 `skipped[].reason`. The command reads `synthesis.md`, `findings/` and
 `reports/` only past the status gate, and the outline and profiles only past
-the freshness gate.
+the freshness gate; it fails before any gate when the plugin holds no
+profiles directory.
 It reads no concurrency, depth or search cap, so a bad
 `research.topic.concurrency` never refuses it.
 
@@ -919,7 +924,8 @@ Each exit code below exits `1`:
 |---|---|---|
 | `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
 | none; the message names `manifest.md` | the manifest is missing or records no `status` | restore the manifest's `status` |
-| none; the message names the profiles directory | `--profiles-dir` names no directory, for a set past the status and freshness gates | pass the plugin's `skills/research/profiles` |
+| `E_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
+| none; the message names the profiles directory | the plugin root holds no `skills/research/profiles`, checked before any gate | reinstall the plugin |
 | none; the message names the path | a directory or file of the set cannot be read | make it readable, then re-run |
 
 ## Sources metadata

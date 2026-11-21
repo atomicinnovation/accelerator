@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 from dataclasses import replace
@@ -83,10 +84,9 @@ def test_the_harness_takes_as_findings_what_the_cli_does(
             "topic",
             "consultable",
             SLUG,
-            "--profiles-dir",
-            str(REPO_ROOT / "skills/research/profiles"),
         ],
         cwd=tmp_path,
+        env=os.environ | {"ACCELERATOR_PLUGIN_ROOT": str(REPO_ROOT)},
         capture_output=True,
         text=True,
         check=True,

@@ -2,8 +2,6 @@
 //! it fails.
 
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
 use std::process::Output;
 
 use serde_json::json;
@@ -53,23 +51,16 @@ impl Project {
         Ok(())
     }
 
-    fn consultable_output(
-        &self,
-        slug: &str,
-        profiles_dir: &Path,
-    ) -> Result<Output, TestError> {
-        let profiles_dir = profiles_dir.to_str().ok_or("non-utf8")?;
-        self.run("consultable", &[slug, "--profiles-dir", profiles_dir])
+    fn consultable_output(&self, slug: &str) -> Result<Output, TestError> {
+        self.run("consultable", &[slug])
     }
 
     fn consultable(&self) -> Result<Value, TestError> {
-        json_of(&self.consultable_output(SET, &installed_profiles())?)
+        json_of(&self.consultable_output(SET)?)
     }
 
     fn plan(&self) -> Result<Value, TestError> {
-        let profiles = installed_profiles();
-        let profiles = profiles.to_str().ok_or("non-utf8")?;
-        json_of(&self.run("outstanding", &[SET, "--profiles-dir", profiles])?)
+        json_of(&self.run("outstanding", &[SET])?)
     }
 
     fn counts(&self) -> Result<Value, TestError> {
@@ -90,9 +81,42 @@ fn json_of(output: &Output) -> Result<Value, TestError> {
     Ok(serde_json::from_slice(&output.stdout)?)
 }
 
-fn installed_profiles() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../skills/research/profiles")
+#[test]
+fn consultable_names_a_missing_profiles_directory_before_any_gate(
+) -> Result<(), TestError> {
+    let project = Project::multiround()?;
+    project.edit(
+        "manifest.md",
+        "status: \"synthesised\"",
+        "status: \"researching\"",
+    )?;
+
+    let output = project.run_from(&project.root, "consultable", &[SET])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!(
+            "no profiles directory at {}",
+            project.root.join("skills/research/profiles").display()
+        )),
+        "{stderr}"
+    );
+    assert!(output.stdout.is_empty());
+    Ok(())
+}
+
+#[test]
+fn consultable_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
+{
+    let project = Project::multiround()?;
+
+    let output = project.run_without_a_plugin_root("consultable", &[SET])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("ACCELERATOR_PLUGIN_ROOT"), "{stderr}");
+    Ok(())
 }
 
 #[test]
@@ -122,9 +146,7 @@ fn consultable_refuses_a_stale_set_before_planning() -> Result<(), TestError> {
     let project = Project::multiround()?;
     project.edit("manifest.md", "finding_count: 3", "finding_count: 9")?;
 
-    let output =
-        project.consultable_output(SET, &project.root.join("no-profiles"))?;
-    let verdict = json_of(&output)?;
+    let verdict = project.consultable()?;
 
     assert_eq!(
         verdict,
@@ -143,13 +165,13 @@ fn consultable_refuses_a_stale_set_before_planning() -> Result<(), TestError> {
 fn consultable_fails_when_an_open_set_s_plan_cannot_be_read(
 ) -> Result<(), TestError> {
     let project = Project::multiround()?;
+    fs::write(project.set(SET).join("outline.md"), [0xff, 0xfe])?;
 
-    let output =
-        project.consultable_output(SET, &project.root.join("no-profiles"))?;
+    let output = project.consultable_output(SET)?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(output.status.code(), Some(1), "{stderr}");
-    assert!(stderr.contains("no-profiles"), "{stderr}");
+    assert!(stderr.contains("outline.md"), "{stderr}");
     assert!(output.stdout.is_empty(), "{:?}", output.stdout);
     Ok(())
 }
@@ -191,11 +213,8 @@ fn consultable_ignores_the_concurrency_config() -> Result<(), TestError> {
         ".accelerator/config.md",
         "---\nresearch:\n  topic:\n    concurrency: \"\"\n---\n",
     )?;
-    let profiles = installed_profiles();
-    let profiles = profiles.to_str().ok_or("non-utf8")?;
 
-    let outstanding =
-        project.run("outstanding", &[SET, "--profiles-dir", profiles])?;
+    let outstanding = project.run("outstanding", &[SET])?;
     let verdict = project.consultable()?;
 
     assert_eq!(outstanding.status.code(), Some(1));
@@ -284,8 +303,7 @@ fn consultable_writes_nothing() -> Result<(), TestError> {
 fn consultable_for_an_unknown_set_fails() -> Result<(), TestError> {
     let project = Project::multiround()?;
 
-    let output =
-        project.consultable_output("no-such-set", &installed_profiles())?;
+    let output = project.consultable_output("no-such-set")?;
 
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
