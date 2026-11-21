@@ -69,7 +69,7 @@ impl TakenNames {
     }
 
     fn hold(&self, name: &str) -> bool {
-        self.0.iter().any(|entry| entry.eq_ignore_ascii_case(name))
+        self.0.iter().any(|entry| entry.to_lowercase() == name)
     }
 }
 
@@ -82,8 +82,8 @@ impl ReportSlug {
         &self.0
     }
 
-    /// Compares names without regard to ASCII case: a case-insensitive
-    /// filesystem holds `A.MD` and `a.md` as one file.
+    /// Compares names lowercased: a case-insensitive filesystem holds `A.MD`
+    /// and `a.md`, and may hold `\u{212A}.md` and `k.md`, as one file.
     #[must_use]
     pub fn free_report_path(&self, taken: &TakenNames) -> String {
         let mut name = format!("{}.md", self.0);
@@ -263,6 +263,15 @@ mod tests {
         assert_eq!(
             ReportSlug::from("A").free_report_path(&taken(&["A.MD"])),
             "reports/a-2.md"
+        );
+    }
+
+    #[test]
+    fn a_report_name_taken_under_a_letter_that_lowercases_to_ascii_is_taken()
+    {
+        assert_eq!(
+            ReportSlug::from("K").free_report_path(&taken(&["\u{212A}.md"])),
+            "reports/k-2.md"
         );
     }
 
