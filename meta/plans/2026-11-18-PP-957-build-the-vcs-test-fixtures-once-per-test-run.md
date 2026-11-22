@@ -9,11 +9,11 @@ status: "in-progress"
 work_item_id: "work-item:PP-957"
 parent: "work-item:PP-957"
 derived_from: ["codebase-research:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"]
-relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "work-item:PP-953", "work-item:PP-956", "work-item:PP-958", "work-item:PP-943"]
+relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "work-item:PP-953", "work-item:PP-956", "work-item:PP-958", "work-item:PP-943", "work-item:PP-805", "work-item:PP-778", "work-item:PP-738"]
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-21T14:00:00+00:00"
+last_updated: "2026-11-22T01:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2791,6 +2791,26 @@ The Docker Playwright command quotes the pattern for its inner `bash -c`.
   binary, which libtest's filter does not see. `spa_route` names a test.
 - **Playwright's `--grep` matches the titles joined by spaces**, not by the
   `›` its reporter prints.
+- **Beyond the plan: the design-automation runtime lane.** Running
+  `test:integration:design-automation` for this phase's checks showed it
+  failing all 37 of its tests on trunk, outside every build. Repairing it
+  completed PP-805, PP-778 and PP-738, all marked done:
+  - The suites take the driver and browser trees the lane resolves, in
+    place of the deleted `package-lock.json` namespace.
+  - The executor intercepts every request hop through CDP's `Fetch`
+    domain, because Playwright 1.64.1's `page.route` sees only a redirect
+    chain's first hop and carries header overrides onto later hops. That
+    closed a cross-origin bearer leak.
+  - `snapshot` returns an ARIA snapshot, since `page.accessibility` is gone,
+    and the `links` tests serve their fixture over loopback HTTP, because
+    `file://` is refused end to end.
+  - The lane joined the `test:integration` roll-up, and materialises its
+    trees under `cli/target/design-automation-cache/`: the launcher's
+    default root, the shipped `bin/`, tripped the `entrypoint` suite's
+    untouched-`bin/` guard on the first CI run.
+- **Landing.** Phases 6–8 and the lane repair are in PR #253 (open). CI
+  passed on both legs, with the runtime lane at 38 of 38 on
+  `ubuntu-latest`.
 
 ### Changes Required
 
@@ -3153,6 +3173,11 @@ These are listed per phase. The ones that can't be automated cheaply are:
   in every summary.
 - `cli/target/vcs-fixture-logs/` keeps the newest 20 logs. `cargo clean`
   removes them.
+- `test:integration` now runs `test:integration:design-automation`, which
+  needs the `build:cli:dev` launcher and, on a cold
+  `cli/target/design-automation-cache/`, downloads the driver and browser
+  trees (about 45 s). `cargo clean` removes the cache with the rest of
+  `cli/target/`.
 - **Rollback.** Revert Phase 2 or Phase 5's task change, and the consumers
   fall back to private builds with no further change, because nothing hands
   them a tree.
@@ -3160,6 +3185,9 @@ These are listed per phase. The ones that can't be automated cheaply are:
 ## References
 
 - Work item: `meta/work/PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
+- Pull requests: #247 (matrix), #249 (status-log), #253 (fixtures closure,
+  filters Phases 7–8, design-automation runtime lane)
+- Runtime-lane work items completed alongside Phase 8: PP-805, PP-778, PP-738
 - Research: `meta/research/codebase/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
 - Baseline: `meta/measurements/build_2026-11-18T123358Z_engywook_warm-no-op_devtools_isolated.json`
 - Coverage lane shape: `meta/plans/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`
