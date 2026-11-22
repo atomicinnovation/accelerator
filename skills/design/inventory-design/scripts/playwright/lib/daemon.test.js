@@ -325,6 +325,14 @@ test('the payload-rejection deny-list marker is absent from executor source', ()
   assert.deepEqual(filesContaining(executorImplementation(), needle), []);
 });
 
+test('no Playwright routing shares the page with the Fetch interceptor', () => {
+  const routing = new RegExp('\\.(?:un)?' + 'route(?:FromHAR)?\\(');
+  const routed = executorImplementation()
+    .filter(path => routing.test(readFileSync(path, 'utf8')))
+    .map(path => path.replace(EXECUTOR_SRC, ''));
+  assert.deepEqual(routed, []);
+});
+
 test('no MCP-prefixed browser-tool reference survives in executor source', () => {
   const needle = 'mcp' + '__' + 'playwright' + '__';
   assert.deepEqual(filesContaining(executorImplementation(), needle), []);

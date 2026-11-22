@@ -5,6 +5,10 @@
 // could reach a refused host unjudged and carry the bearer to another origin.
 // The Fetch domain pauses each hop on its own, and an override set on one hop
 // does not extend to the next.
+//
+// This must be the page's only Fetch client. Playwright's own routing also
+// runs on the Fetch domain, so any page or context routing beside it would
+// pause a hop twice or let the wrong handler release it.
 
 import { classifyNavigationRequest } from './access-policy.js';
 import { applyHeader, shouldAttachHeader } from './auth-header.js';
