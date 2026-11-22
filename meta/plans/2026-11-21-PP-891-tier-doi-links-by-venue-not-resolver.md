@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T13:40:00+00:00"
+last_updated: "2026-11-22T14:25:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1138,11 +1138,13 @@ Update any structure-test pin on the old path.
 
 ### Outcome
 
-Phase 3 landed in seven commits, each green on its own. The suites run
-1219 tests; the opt-in stress run passed in 117 s; a live
-`fetch arxiv lookup 1706.03762` wrote state only under
-`services/arxiv/`, beside an empty `arxiv.lock`. Departures from the
-plan:
+Phase 3 landed in seven commits, each green on its own, and a
+follow-up test fix. The suites run 1219 tests; the opt-in stress run
+passed in 117 s; a live `fetch arxiv lookup 1706.03762` wrote state only
+under `services/arxiv/`, beside an empty `arxiv.lock`. The bare
+`mise run` exits 0, with CLI line coverage at 94.33%. Its first run
+failed the 92% floor at 91.62% only on stale profile data, which
+`cargo llvm-cov clean --workspace` cleared. Departures from the plan:
 
 - **Foreign-ticket wording**: "was issued by fetch `<code>`" (for
   example `fetch doi`), not "by a `<family>` fetch", which reads "a
@@ -1185,6 +1187,14 @@ plan:
   `arxiv-lookup-withdrawn.json`. The held-`arxiv.lock` test uses a 40 s
   budget; 32 s never admits arXiv's 3 s window plus a 30 s request, so it
   would pass without the companion.
+- **Phase 2 test body changed**: under the full instrumented
+  `mise run`, start-up alone could use up the 100 ms the throttled call
+  in `a_throttled_call_defers_a_concurrent_process` had beyond arXiv's
+  33 s serving window, so it returned `waiting` without sending. Its
+  budget rose from 33.1 s to 36 s, which still admits its first attempt
+  and still refuses the 5 s retry (which needs 40 s). This is the one
+  change to a phase 2 CLI test body outside `support/`, a deliberate
+  exception to the criterion below.
 
 ### Success Criteria
 
