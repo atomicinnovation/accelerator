@@ -453,3 +453,35 @@ test('links is wall-clock bounded like every other browser operation', () => {
   assert.ok(declaration, 'BLOCKING_OPS is not declared');
   assert.ok(declaration.includes("'links'"), declaration);
 });
+
+test('a browser whose request interception fails to start is closed and launched afresh', { timeout: 8000 }, async () => {
+  await withTmpDir(async dir => {
+    const log = resolve(dir, 'playwright.log');
+    const child = forkDaemon(dir, {
+      ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000',
+      ACCELERATOR_PLAYWRIGHT_NS_ROOT: pathResolve(
+        import.meta.dirname,
+        '__fixtures__/playwright-whose-first-interception-fails'
+      ),
+      FAKE_PLAYWRIGHT_LOG: log,
+    });
+    try {
+      const info = await waitForInfo(dir, 5000);
+      const navigate = { protocol: 1, command: 'navigate', url: 'https://app.example.com/' };
+
+      const first = await send(info.url, navigate);
+      const second = await send(info.url, navigate);
+
+      assert.equal(first.error, 'internal-error');
+      assert.equal(second.ok, true);
+      assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n'), [
+        'browser 1: Fetch.enable rejected',
+        'browser 1: closed',
+        'browser 2: Fetch.enable',
+        'browser 2: goto https://app.example.com/',
+      ]);
+    } finally {
+      child.kill('SIGTERM');
+    }
+  });
+});

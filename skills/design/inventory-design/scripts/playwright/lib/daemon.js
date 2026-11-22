@@ -200,7 +200,7 @@ export async function startDaemon({ stateDir }) {
   // ------ Browser / page --------------------------------------------------
 
   async function ensureBrowser() {
-    if (browser) return;
+    if (page) return;
     const { chromium } = await importPlaywright({
       nsRoot: process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT,
     });
@@ -209,23 +209,37 @@ export async function startDaemon({ stateDir }) {
     // its own browser registry, so a sealed read-only tree is never consulted.
     const executablePath = process.env.ACCELERATOR_DESIGN_BROWSER_EXECUTABLE;
     browser = await chromium.launch({ headless: true, executablePath });
-    const ctx = await browser.newContext();
-    page = await ctx.newPage();
+    try {
+      const ctx = await browser.newContext();
+      const intercepted = await ctx.newPage();
 
-    // One page-lifetime interceptor, so a redirect hop and a page-initiated
-    // navigation (a <meta refresh>, a scripted location change) are classified
-    // under the current request's allowances too, not only the initial URL, and
-    // the auth header is decided per hop against the location origin. A refusal
-    // is recorded only for the main frame, so a sub-frame abort never masks the
-    // top-level result.
-    await interceptRequests(page, {
-      getAllowances: () => currentAllowances,
-      getExpectedOrigin: () => currentExpectedOrigin,
-      getAuthHeader: () => currentAuthHeader,
-      onMainFrameRefusal: refusal => {
-        lastRefusal = refusal;
-      },
-    });
+      // One page-lifetime interceptor, so a redirect hop and a page-initiated
+      // navigation (a <meta refresh>, a scripted location change) are
+      // classified under the current request's allowances too, not only the
+      // initial URL, and the auth header is decided per hop against the
+      // location origin. A refusal is recorded only for the main frame, so a
+      // sub-frame abort never masks the top-level result.
+      await interceptRequests(intercepted, {
+        getAllowances: () => currentAllowances,
+        getExpectedOrigin: () => currentExpectedOrigin,
+        getAuthHeader: () => currentAuthHeader,
+        onMainFrameRefusal: refusal => {
+          lastRefusal = refusal;
+        },
+      });
+      page = intercepted;
+    } catch (error) {
+      // A page without its interceptor would navigate unjudged, so the next
+      // command starts again from a fresh browser rather than reusing it.
+      await discardBrowser();
+      throw error;
+    }
+  }
+
+  async function discardBrowser() {
+    const launched = browser;
+    browser = null;
+    try { await launched?.close(); } catch {}
   }
 
   // ------ Request handler -------------------------------------------------
