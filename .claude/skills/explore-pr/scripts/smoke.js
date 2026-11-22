@@ -11,7 +11,27 @@
 // unread lines (in a file with three changed lines in a row; with none, that
 // check is skipped) and that the n key jumps to the next unread line. Needs Node
 // 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
-// opened by link and in one picked from the file list. Last, it renders prose
+// opened by link and in one picked from the file list. In All files it checks
+// the navigator draws every file in a directory tree, that collapsing a folder
+// hides its files and opening one reveals it, that a Role facet narrows the
+// tree to that role and counts what it shows without moving the controls or
+// the tree, that opening a facet moves no other facet, that grouping by None
+// lists every file flat and sorted across them all, that the search and
+// facets stay in place while the list scrolls, that choosing a file
+// keeps the list's scroll and brings the file just below the top bar, that a
+// folder's checkbox selects its files for one bulk verdict that leaves a file
+// with an Issue alone and that Undo reverses, that the shortcuts move between
+// files and chunks, mark a chunk and undo it, raise an issue noting the chunk,
+// open and close their list, move on after a verdict and step between
+// commits, that By commit opens only the selected commit, that j crosses
+// into the next commit, that a commit's chevron opens it without selecting it,
+// that a verdict on a file in a commit reads only that
+// file's lines, that the pane shows one file or the whole commit, that a line
+// too long to read is cut short, that the file list widens and resets, that
+// risk edges show only when asked for, that on a touch screen every
+// selection checkbox shows without a hover, that a
+// !term search excludes
+// paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
 // stop's link opens its chapter at that stop. It checks that a stop names
 // everything it carries, that each name opens what it names, and that every
@@ -29,7 +49,8 @@
 // at the end and no catalogue of cards. Findings lists every observation, its
 // source filter narrows the list, and a chapter's finding opens in Findings.
 // Readiness draws the gates its model works out, turns the design gate when a
-// decision is disagreed with, and its verdict control drives the top bar. Your
+// decision is disagreed with, its high-risk gate opens All files on exactly
+// the high-risk files still to read, and its verdict control drives the top bar. Your
 // notes saves what is typed in its freeform box and in a card's note, puts the
 // freeform notes first in the export, and keeps the focus while it saves.
 // A view with figures is captured at full height, in tiles 5,000 px tall when it
@@ -151,14 +172,14 @@ const COMMITS_PROBE = `(async () => {
   const sel = (lp, lk) => 'tr[data-lp="' + CSS.escape(lp) + '"][data-lk="' + lk + '"]';
   const forget = target => api.store.put(target, target.split(':')[0], { status: '', lines: [] }, {});
   location.hash = 'commits'; await settle();
-  document.querySelector('[data-commit="' + row.sha + '"]').click(); await settle();
+  api.openCommit(row.sha, row.file.headPath || row.file.path); await settle();
   document.querySelector('#commit-code ' + sel(row.path, row.key) + ' td.ln').click(); await settle();
   api.openFile(row.path, +row.key.split(':')[1], row.key.startsWith('old') ? 'old' : 'new'); await settle();
   const commitReachesFiles = !!document.querySelector('#file-code ' + sel(row.path, row.key) + '.read');
   forget('lines:' + row.path);
   api.store.put('file:' + row.path, 'file', { status: 'ok' }, {});
   location.hash = 'commits'; await settle();
-  document.querySelector('[data-commit="' + row.sha + '"]').click(); await settle();
+  api.openCommit(row.sha, row.file.headPath || row.file.path); await settle();
   const filesReachCommits = !!document.querySelector('#commit-code ' + sel(row.path, row.key) + '.read');
   forget('file:' + row.path);
   api.openFile(row.path, null, 'new'); await settle();
@@ -262,7 +283,16 @@ const READINESS_PROBE = `(async () => {
   approve().click(); await settle();
   const chipFollows = document.getElementById('decision-chip').textContent === 'Approve';
   store.put('decision', 'decision', { status: before }, {});
-  return { gatesMatch, designTurns, chipFollows };
+  const highRisk = content.files.filter(f => f.risk === 'high' && (api.coverageOf(f.path) || {}).state !== 'read').map(f => f.path);
+  let highRiskOpens = null;
+  if (highRisk.length) {
+    location.hash = 'readiness'; await settle();
+    document.querySelector('#gates [data-gate="high-risk"] [data-jump]').click(); await settle(700);
+    const shown = [...document.querySelectorAll('#nav-tree .nav-file')].map(row => row.dataset.file);
+    highRiskOpens = location.hash === '#files' && shown.length === highRisk.length && shown.every(path => highRisk.includes(path));
+    document.querySelector('[data-clear-facets]').click(); await settle();
+  }
+  return { gatesMatch, designTurns, chipFollows, highRiskOpens };
 })()`;
 
 const FINDINGS_PROBE = `(async () => {
@@ -427,6 +457,259 @@ const DIAGRAMS_PROBE = `(async () => {
   return { problems, tracing, linkOpens };
 })()`;
 
+const NAVIGATOR_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 400) => new Promise(r => setTimeout(r, ms));
+  location.hash = 'files'; await settle();
+  const choose = (pref, value) => { const select = document.querySelector('[data-nav-pref="' + pref + '"]'); select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); };
+  choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
+  const fileRows = () => [...document.querySelectorAll('#nav-tree .nav-file')];
+  const shownPaths = () => fileRows().map(row => row.dataset.file);
+  const folderHolding = path => [...document.querySelectorAll('#nav-tree .nav-folder')].find(row => path.startsWith(row.dataset.toggleNode.replace(/^folder::/, '')));
+  const nested = api.content.files.find(f => f.path.includes('/'));
+  if (!nested) return { skipped: 'no file in a directory' };
+  const everyFileDrawn = shownPaths().length === api.content.files.length;
+  const folder = folderHolding(nested.path);
+  const treeDrawn = !!folder && everyFileDrawn;
+  folder.click(); await settle();
+  const collapseHides = !shownPaths().includes(nested.path);
+  api.openFile(nested.path, null, 'new'); await settle(700);
+  const openingReveals = shownPaths().includes(nested.path);
+  const layers = [...new Set(api.content.files.map(f => f.layer))];
+  const layer = layers.find(id => api.content.files.some(f => f.layer !== id)) || layers[0];
+  const role = document.querySelector('#nav-facets [data-facet="layer"]');
+  role.open = true;
+  const box = role.querySelector('[data-facet-value="' + CSS.escape(layer) + '"]');
+  const chip = role.querySelector('summary'), chipTop = chip.getBoundingClientRect().top, treeTop = document.querySelector('#nav-tree').getBoundingClientRect().top;
+  box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); await settle();
+  const controlsStay = chip.isConnected && role.open && chip.getBoundingClientRect().top === chipTop && document.querySelector('#nav-tree').getBoundingClientRect().top === treeTop;
+  const ofLayer = new Set(api.content.files.filter(f => f.layer === layer).map(f => f.path));
+  const count = +document.querySelector('#nav-facets [data-facet="layer"] [data-facet-value="' + CSS.escape(layer) + '"]').closest('label').querySelector('[data-facet-count]').textContent.replace(/,/g, '');
+  const roleNarrows = shownPaths().length === ofLayer.size && shownPaths().every(path => ofLayer.has(path)) && count === ofLayer.size;
+  document.querySelector('[data-clear-facets]').click(); await settle();
+  const query = document.querySelector('#fq');
+  query.value = '!test'; query.dispatchEvent(new Event('input', { bubbles: true })); await settle(700);
+  const excludes = shownPaths().length > 0 && shownPaths().every(path => !/test/i.test(path));
+  query.value = ''; query.dispatchEvent(new Event('input', { bubbles: true })); await settle(700);
+  const inFolder = api.content.files.find(f => f.path.includes('/') && api.coverageOf(f.path) && api.coverageOf(f.path).changed);
+  const row = folderHolding(inFolder.path);
+  const before = row.querySelector('[data-folder-count-of]').textContent;
+  api.store.put('file:' + inFolder.path, 'file', { status: 'ok' }, {}); await settle();
+  const totalsInPlace = row.isConnected && row.querySelector('[data-folder-count-of]').textContent !== before;
+  api.store.put('file:' + inFolder.path, 'file', { status: '' }, {}); await settle();
+  const pillsAt = () => [...document.querySelectorAll('#nav-facets summary')].map(pill => { const at = pill.getBoundingClientRect(); return at.left + ',' + at.top; }).join(' ');
+  const pillsBefore = pillsAt();
+  const progress = document.querySelector('#nav-facets [data-facet="progress"]');
+  progress.querySelector('summary').click(); await settle();
+  const pillsStay = progress.open && pillsAt() === pillsBefore;
+  document.body.click(); await settle();
+  choose('groupBy', 'none'); choose('sortBy', 'size'); await settle();
+  const sizes = fileRows().map(row => { const f = api.content.files.find(each => each.path === row.dataset.file); return f.add + f.del; });
+  const flattened = !document.querySelector('#nav-tree .nav-folder, #nav-tree .nav-group') && sizes.length === api.content.files.length && sizes.every((n, i) => !i || sizes[i - 1] >= n);
+  const nav = document.querySelector('#nav-tree');
+  const searchTop = document.querySelector('#fq').getBoundingClientRect().top;
+  nav.scrollTop = nav.scrollHeight;
+  const filtersPinned = nav.scrollTop > 0 && document.querySelector('#fq').getBoundingClientRect().top === searchTop;
+  nav.scrollTop = Math.min(200, nav.scrollHeight - nav.clientHeight);
+  const kept = nav.scrollTop, frame = nav.getBoundingClientRect();
+  const inView = fileRows().filter(row => { const at = row.getBoundingClientRect(); return at.top >= frame.top && at.bottom <= frame.bottom; });
+  inView[inView.length - 1].click(); await settle();
+  const barBottom = document.querySelector('.topbar').getBoundingClientRect().bottom, paneTop = document.querySelector('#file-pane').getBoundingClientRect().top;
+  const navigatorStays = nav.scrollTop === kept;
+  const paneBelowTopBar = paneTop >= barBottom && paneTop - barBottom <= 16;
+  choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
+  const handle = document.querySelector('.nav-resizer'), drawerWidth = () => Math.round(document.querySelector('.nav-drawer').getBoundingClientRect().width);
+  const narrow = drawerWidth();
+  handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })); await settle();
+  const widens = drawerWidth() === narrow + 24;
+  handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await settle();
+  const resets = drawerWidth() === narrow;
+  const edged = () => [...document.querySelectorAll('#nav-tree .fl-item')].filter(row => getComputedStyle(row, '::before').content !== 'none').length;
+  const picks = [...document.querySelectorAll('#nav-tree .pick')].map(box => Math.round(box.getBoundingClientRect().left));
+  const picksAligned = picks.length > 1 && picks.every(left => left === picks[0]);
+  const quietByDefault = edged() === 0;
+  document.querySelector('[data-toggle-risk]').click(); await settle();
+  const riskEdges = quietByDefault && edged() === document.querySelectorAll('#nav-tree .fl-item').length;
+  document.querySelector('[data-toggle-risk]').click(); await settle();
+  return { file: nested.path, layer, treeDrawn, collapseHides, openingReveals, roleNarrows, controlsStay, excludes, totalsInPlace, pillsStay, flattened, filtersPinned, navigatorStays, paneBelowTopBar, widens, resets, riskEdges, picksAligned };
+})()`;
+
+const BULK_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 400) => new Promise(r => setTimeout(r, ms));
+  location.hash = 'files'; await settle();
+  const choose = (pref, value) => { const select = document.querySelector('[data-nav-pref="' + pref + '"]'); select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); };
+  choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
+  const filesIn = row => api.content.files.map(f => f.path).filter(path => path.startsWith(row.dataset.toggleNode.replace(/^folder::/, '')));
+  const folder = [...document.querySelectorAll('#nav-tree .nav-folder')].find(row => filesIn(row).length >= 2);
+  if (!folder) return { skipped: 'no folder holding two files' };
+  const paths = filesIn(folder), flagged = paths[0];
+  api.store.put('file:' + flagged, 'file', { status: 'issue' }, {}); await settle();
+  const before = Object.fromEntries(paths.map(path => [path, api.store.get('file:' + path).status || '']));
+  const row = () => document.querySelector('#nav-tree [data-toggle-node="' + CSS.escape(folder.dataset.toggleNode) + '"]');
+  row().parentElement.querySelector('.pick').click(); await settle();
+  const barShown = !document.querySelector('#bulk-bar').hidden && document.querySelector('#bulk-count').textContent.startsWith(String(paths.length));
+  document.querySelector('#bulk-bar [data-bulk="ok"]').click(); await settle();
+  const issueKept = api.store.get('file:' + flagged).status === 'issue';
+  const othersReviewed = paths.slice(1).every(path => api.store.get('file:' + path).status === 'ok');
+  const [read, changed] = row().querySelector('[data-folder-count-of]').textContent.replace(/,/g, '').split('/').map(Number);
+  const folderRead = changed > 0 && read === changed;
+  const toast = document.querySelector('#undo-toast');
+  const toastSays = !toast.hidden && /with an Issue left as it was/.test(toast.textContent) && !!toast.querySelector('[data-undo]');
+  const selectionCleared = document.querySelector('#bulk-bar').hidden;
+  toast.querySelector('[data-undo]').click(); await settle();
+  const undone = paths.every(path => (api.store.get('file:' + path).status || '') === before[path]);
+  api.store.put('file:' + flagged, 'file', { status: '' }, {}); await settle();
+  return { folder: folder.dataset.toggleNode, files: paths.length, barShown, issueKept, othersReviewed, folderRead, toastSays, selectionCleared, undone };
+})()`;
+
+const KEYS_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 350) => new Promise(r => setTimeout(r, ms));
+  const press = (key, on = document.body) => on.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  location.hash = 'files'; await settle();
+  const choose = (pref, value) => { const select = document.querySelector('[data-nav-pref="' + pref + '"]'); select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); };
+  choose('groupBy', 'none'); choose('sortBy', 'path'); await settle();
+  const rows = () => [...document.querySelectorAll('#nav-tree .nav-file')];
+  const current = () => (document.querySelector('#nav-tree .nav-file[aria-current="true"]') || {}).dataset?.file;
+  const unreadFiles = rows().map(row => row.dataset.file).filter(path => { const cov = api.coverageOf(path); return cov && cov.changed && cov.read === 0; });
+  if (unreadFiles.length < 3) return { skipped: 'fewer than three unread files' };
+  const start = unreadFiles[0];
+  rows().find(row => row.dataset.file === start).click(); await settle();
+  const order = rows().map(row => row.dataset.file), at = order.indexOf(start);
+  press('j'); await settle();
+  const jMoves = current() === order[at + 1];
+  press('k'); await settle();
+  const kReturns = current() === start;
+  press(']'); await settle();
+  const cursor = () => [...document.querySelectorAll('#file-code tr.chunk-cursor')];
+  const chunkCursor = cursor().length > 0;
+  press('m'); await settle();
+  const chunkMarked = cursor().length > 0 && cursor().every(tr => tr.classList.contains('read'));
+  press('z'); await settle();
+  const markUndone = cursor().every(tr => tr.classList.contains('unread'));
+  press('i'); await settle();
+  const note = document.querySelector('#file-pane .ctl[data-ctl="file:' + CSS.escape(start) + '"] textarea');
+  const issueNoted = api.store.get('file:' + start).status === 'issue' && /^(head|base) \\d+/.test(note.value) && note.value.endsWith(': ') && document.activeElement === note;
+  press('Escape', note); await settle();
+  const fieldLeft = document.activeElement !== note;
+  press('z'); await settle(900);
+  const issueUndone = !api.store.get('file:' + start).status;
+  api.store.put('file:' + start, 'file', { note: '' }, {}); await settle();
+  press('?'); await settle();
+  const helpOpens = !document.querySelector('#keys-help').hidden && document.querySelectorAll('#keys-help dt').length > 10;
+  press('Escape'); await settle();
+  const helpCloses = document.querySelector('#keys-help').hidden;
+  press('r'); await settle();
+  const advances = api.store.get('file:' + start).status === 'ok' && current() !== start && unreadFiles.includes(current());
+  press('z'); await settle();
+  api.store.put('file:' + start, 'file', { status: '' }, {}); await settle();
+  press('x'); await settle();
+  const xSelects = !document.querySelector('#bulk-bar').hidden;
+  press('Escape'); await settle();
+  const escapeDeselects = document.querySelector('#bulk-bar').hidden;
+  const shownBefore = rows().length;
+  api.store.put('file:' + order[0], 'file', { status: 'ok' }, {}); await settle();
+  press('u'); await settle();
+  const uNarrows = rows().length < shownBefore && !rows().some(row => row.dataset.file === order[0]);
+  press('u'); await settle();
+  api.store.put('file:' + order[0], 'file', { status: '' }, {}); await settle();
+  choose('groupBy', 'tree'); await settle();
+  press('g'); await settle();
+  const gCycles = document.querySelector('[data-nav-pref="groupBy"]').value === 'none' && !document.querySelector('#nav-tree .nav-folder');
+  choose('groupBy', 'tree'); await settle();
+  const treeRow = document.querySelector('#nav-tree .fl-item[tabindex="0"]');
+  treeRow.focus();
+  press('ArrowDown', treeRow); await settle();
+  const arrowMoves = document.activeElement !== treeRow && document.activeElement.classList.contains('fl-item');
+  const folder = document.querySelector('#nav-tree .nav-folder[aria-expanded="true"]');
+  folder.focus();
+  press('ArrowLeft', folder); await settle();
+  const arrowCollapses = document.querySelector('#nav-tree [data-toggle-node="' + CSS.escape(folder.dataset.toggleNode) + '"]').getAttribute('aria-expanded') === 'false';
+  press('ArrowRight', document.activeElement); await settle();
+  press('f'); await settle();
+  const fFocusesList = !!document.activeElement.closest('#nav-tree') && document.activeElement.getAttribute('aria-current') === 'true';
+  press('c', document.activeElement); await settle();
+  const cFocusesCode = document.activeElement === document.querySelector('#file-pane');
+  let commitKeys = null, commitFileKeys = null;
+  if ((api.content.commits || []).length > 1) {
+    location.hash = 'commits'; await settle(700);
+    const selected = () => document.querySelector('#nav-tree .nav-commit[aria-current="true"]').dataset.commit;
+    const before = selected();
+    press('J'); await settle();
+    const after = selected();
+    press('K'); await settle();
+    commitKeys = after !== before && selected() === before;
+    const many = Object.values(api.commits).find(c => !c.merge && c.files.length > 1);
+    if (many) {
+      api.openCommit(many.sha); await settle(700);
+      const inCommit = api.navigator.order().filter(key => key.startsWith(many.sha + ':'));
+      press('j'); await settle();
+      const block = document.querySelector('#commit-code > .code');
+      const bar = document.querySelector('.topbar').getBoundingClientRect().bottom, top = block.getBoundingClientRect().top;
+      commitFileKeys = api.navigator.current() === inCommit[1] && block.dataset.commitFile === inCommit[1].slice(many.sha.length + 1) && top >= bar && top - bar <= 16;
+    }
+  }
+  return { file: start, jMoves, kReturns, chunkCursor, chunkMarked, markUndone, issueNoted, fieldLeft, issueUndone, helpOpens, helpCloses, advances, xSelects, escapeDeselects, uNarrows, gCycles, arrowMoves, arrowCollapses, fFocusesList, cFocusesCode, commitKeys, commitFileKeys };
+})()`;
+
+const COMMIT_NAVIGATOR_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 400) => new Promise(r => setTimeout(r, ms));
+  const press = key => document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  if ((api.content.commits || []).length < 2) return { skipped: 'fewer than two commits' };
+  const reviewable = api.content.commits.filter(c => !c.merge && (api.commits[c.sha] || {}).files?.length);
+  const pair = reviewable.findIndex((c, i) => reviewable[i + 1] && api.commits[c.sha].files.length > 1);
+  if (pair < 0) return { skipped: 'no commit with two files before another' };
+  const first = reviewable[pair], second = reviewable[pair + 1];
+  api.openCommit(first.sha); await settle(700);
+  const expanded = [...document.querySelectorAll('#nav-tree .nav-commit[aria-expanded="true"]')].map(row => row.dataset.commit);
+  const onlySelectedOpen = expanded.length === 1 && expanded[0] === first.sha;
+  const order = api.navigator.order();
+  const lastOfFirst = order.filter(key => key.startsWith(first.sha + ':')).pop();
+  const firstOfSecond = order.find(key => key.startsWith(second.sha + ':'));
+  api.openCommit(first.sha, lastOfFirst.slice(first.sha.length + 1)); await settle();
+  press('j'); await settle();
+  const crossesCommits = api.navigator.current() === firstOfSecond;
+  const commit = api.commits[first.sha];
+  const counted = file => window.ReviewCoverage.commitLines({ ...commit, files: [file] }).filter(row => row.counted && api.diff[row.path]);
+  const [marked, other] = commit.files.filter(file => counted(file).length);
+  let verdictScoped = null;
+  if (marked && other) {
+    const path = marked.headPath || marked.path, otherPath = other.headPath || other.path;
+    const otherBefore = (api.coverageOf(otherPath) || {}).read;
+    const before = (api.coverageOf(path) || {}).read;
+    api.openCommit(first.sha, path); await settle();
+    press('r'); await settle();
+    verdictScoped = api.store.get('commitfile:' + first.sha + ':' + path).status === 'ok'
+      && api.coverageOf(path).read > before && (otherPath === path || api.coverageOf(otherPath).read === otherBefore);
+    api.store.put('commitfile:' + first.sha + ':' + path, 'commitfile', { status: '' }, {}); await settle();
+  }
+  api.openCommit(first.sha); await settle();
+  const commitRow = sha => document.querySelector('#nav-tree .nav-commit[data-commit="' + sha + '"]');
+  commitRow(second.sha).querySelector('.chev').click(); await settle();
+  const chevronOpensWithoutSelecting = commitRow(second.sha).getAttribute('aria-expanded') === 'true'
+    && commitRow(first.sha).getAttribute('aria-expanded') === 'true' && commitRow(first.sha).getAttribute('aria-current') === 'true';
+  commitRow(second.sha).querySelector('.chev').click(); await settle();
+  document.querySelector('[data-commit-pane="whole"]').click(); await settle();
+  const wholeShowsAll = document.querySelectorAll('#commit-code > .code').length === commit.files.length;
+  document.querySelector('[data-commit-pane="one"]').click(); await settle();
+  const oneShowsOne = document.querySelectorAll('#commit-code > .code').length === 1;
+  const longest = Object.entries(api.diff).map(([path, f]) => [path, Math.max(0, ...(f.hunks || []).flatMap(h => h.l.map(l => l.length)))]).sort((a, b) => b[1] - a[1])[0];
+  let longLinesCut = null;
+  if (longest && longest[1] > 2000) {
+    api.openFile(longest[0], null, 'new'); await settle(700);
+    longLinesCut = [...document.querySelectorAll('#file-code td.src')].every(td => td.textContent.length <= 2100) && !!document.querySelector('#file-code td.src .cut');
+  }
+  return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, chevronOpensWithoutSelecting, wholeShowsAll, oneShowsOne, longLinesCut };
+})()`;
+
+const TOUCH_PROBE = `(async () => {
+  location.hash = 'files'; await new Promise(r => setTimeout(r, 500));
+  const picks = [...document.querySelectorAll('#nav-tree .pick')];
+  return { hoverNone: matchMedia('(hover: none)').matches, mobile: matchMedia('(pointer: coarse)').matches, picks: picks.length, picksShown: picks.length > 0 && picks.every(box => getComputedStyle(box).visibility === 'visible') };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -490,6 +773,10 @@ async function main() {
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
+    report.navigator = await cdp.evaluate(NAVIGATOR_PROBE);
+    report.bulk = await cdp.evaluate(BULK_PROBE);
+    report.keys = await cdp.evaluate(KEYS_PROBE);
+    report.commitNavigator = await cdp.evaluate(COMMIT_NAVIGATOR_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
@@ -506,6 +793,9 @@ async function main() {
       const width = await cdp.evaluate('document.documentElement.scrollWidth');
       if (width > 400) report.overflow.push({ route, scrollWidth: width });
     }
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    report.touch = await cdp.evaluate(TOUCH_PROBE);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
     if (options.shots) {
       await cdp.evaluate("location.hash = 'overview'");
       await sleep(500);
@@ -533,14 +823,24 @@ async function main() {
   const notesHold = !!(notes.generalSaved && notes.generalExported && notes.generalKeepsFocus && notes.cardSaved !== false && notes.cardKeepsFocus !== false);
   const design = report.design || {};
   const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
+  const navigator = report.navigator || {};
+  const navigatorHolds = !!navigator.skipped || !!(navigator.treeDrawn && navigator.collapseHides && navigator.openingReveals && navigator.roleNarrows && navigator.controlsStay && navigator.excludes && navigator.totalsInPlace && navigator.pillsStay && navigator.flattened && navigator.filtersPinned && navigator.navigatorStays && navigator.paneBelowTopBar && navigator.widens && navigator.resets && navigator.riskEdges && navigator.picksAligned);
+  const bulk = report.bulk || {};
+  const bulkHolds = !!bulk.skipped || !!(bulk.barShown && bulk.issueKept && bulk.othersReviewed && bulk.folderRead && bulk.toastSays && bulk.selectionCleared && bulk.undone);
+  const keys = report.keys || {};
+  const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.fFocusesList && keys.cFocusesCode && keys.commitKeys !== false && keys.commitFileKeys !== false);
+  const commitNavigator = report.commitNavigator || {};
+  const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.chevronOpensWithoutSelecting && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne && commitNavigator.longLinesCut !== false);
+  const touch = report.touch || {};
+  const touchHolds = !!touch.picksShown;
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
-  const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows);
+  const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows && readiness.highRiskOpens !== false);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = touchHolds && navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

@@ -732,7 +732,9 @@ can be mapped to the same shape:
 Every review control writes one record keyed by its target: `decision` (the
 overall verdict), `design-overall`, `design:<decision id>`, `chapter:<id>`,
 `stop:<id>`, `inv:<id>`, `finding:<id>` (an observation's id included),
-`ledger:<id>`, `file:<path>`, `commit:<sha>`, and `lines:<path>` for the
+`ledger:<id>`, `file:<path>`, `commit:<sha>`, `commitfile:<sha>:<path>` (a
+file's verdict within one commit, which reads only that commit's lines of
+it), and `lines:<path>` for the
 lines marked one at a time (its `lines` field lists them as `new:12-15` or
 `old:4`; `<path>` is `commit:<sha>:<path>` for a superseded line). The
 page renames an old `own:<chapter>-<n>` record to `finding:N-<chapter>-<n>`

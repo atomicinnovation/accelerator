@@ -99,3 +99,16 @@ test('the sections are listed in the order the Markdown gives them', () => {
   );
   assert.equal(ReviewNotes.SECTIONS.at(-1), 'Other');
 });
+
+test('a verdict on a file within a commit goes under Commit files, after Commits, issues first', () => {
+  const records = [
+    { target: 'commitfile:c1:src/b.rs', kind: 'commitfile', status: 'ok', label: 'src/b.rs in c1' },
+    { target: 'commitfile:c1:src/a.rs', kind: 'commitfile', status: 'issue', label: 'src/a.rs in c1' },
+    { target: 'commit:c1', kind: 'commit', status: 'ok', label: 'Commit c1' },
+  ];
+  const notes = ReviewNotes.markdown(ReviewNotes.entries(records, {}), { number: 7, kinds: { commitfile: { opts: [['ok', 'Reviewed'], ['issue', 'Issue']] } } });
+  const titles = notes.split('\n').filter(line => line.startsWith('## ')).map(line => line.slice(3));
+
+  assert.deepEqual(titles, ['Commits', 'Commit files']);
+  assert.ok(notes.indexOf('src/a.rs in c1') < notes.indexOf('src/b.rs in c1'));
+});

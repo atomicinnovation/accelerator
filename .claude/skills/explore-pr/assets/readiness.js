@@ -53,7 +53,7 @@
         { route: 'findings', notMet: outcome(n => `You would block on ${counted(n, 'finding')}`, { triage: 'block' }), needsYou: outcome(n => `${counted(n, 'critical or major finding')} not triaged`, { triage: 'none' }), met: outcome('No finding blocks, and every serious one is triaged') }),
       gate('high-risk', 'High-risk files', (content.files || []).filter(f => f.risk === 'high').map(f => ({ ...f, target: 'file:' + f.path, label: f.path })),
         f => (readInFull(f) ? 'met' : 'needs-you'),
-        { route: 'files', notMet: UNREACHED, needsYou: outcome((n, all) => `${n} of ${counted(all, 'high-risk file')} not read in full`), met: outcome('Every high-risk file is read in full') }),
+        { route: 'files', notMet: UNREACHED, needsYou: outcome((n, all) => `${n} of ${counted(all, 'high-risk file')} not read in full`, { risk: ['high'], progress: ['unread', 'partial'] }), met: outcome('Every high-risk file is read in full') }),
       gate('invariants', 'Invariants', invariants,
         v => (statusOf(v.target) === 'issue' ? 'not-met'
           : (DOUBTFUL.has(v.holds) || !(v.pinnedBy || []).length) && statusOf(v.target) !== 'ok' ? 'needs-you' : 'met'),
