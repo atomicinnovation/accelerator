@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T18:45:00+00:00"
+last_updated: "2026-11-22T22:15:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1975,7 +1975,13 @@ found no bug. The work is `W3176171201`, with venue "ACM SIGMOD
 International Conference on Management of Data (SIGMOD)". The search fixture
 comes from the query `consistency completeness distributed stream processing
 kafka`, which returns this work first of two. A mutated `listed_in` in
-`parity-wid.json` made the test fail, so it detects divergence.
+`parity-wid.json` made the test fail, so it detects divergence. The bare
+`mise run` has not been run for this phase.
+
+After the branch was rebased onto `main` at 1.24.0-pre.112, `mise run check`
+exits 0 and phase 5's suites pass (2514 tests). Phase 5's command named the
+launcher crate `launcher`; its package name is `accelerator`, and the
+command now says so.
 
 ### Success Criteria
 
