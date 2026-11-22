@@ -133,7 +133,7 @@ as `unavailable`, reporting the status verbatim as its reason.
 | `E_OPENALEX_ID_MALFORMED`         | 2    | A `lookup` ID that is neither a `W…` ID nor a DOI            |
 | `E_ARXIV_ID_MALFORMED`            | 2    | A `lookup` ID that is not an arXiv ID                        |
 | `E_ARXIV_TICKET_MALFORMED`        | 2    | A `--ticket` that is not a ticket such as `42-9f1c2a`        |
-| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for; names the call it was issued for and which arguments differ |
+| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for, naming that call and which arguments differ; or a ticket another family's fetch or an earlier plugin version issued |
 | `E_ARXIV_TICKET_LIVE`             | 2    | A ticket another call is presenting right now; clears once that call returns |
 | `E_OPENALEX_KEY_REJECTED`         | 1    | OpenAlex refused the key; names the rung that supplied it    |
 | `E_OPENALEX_UNAUTHENTICATED`      | 1    | OpenAlex refused a keyless request                           |
@@ -297,32 +297,46 @@ whole call is `unavailable`: an unconfirmed withdrawal is never cited as
 
 ## Pacing
 
-arXiv admits one request every three seconds. Every arXiv request in a
-project, across processes, passes through an exclusive file lock at
-`<paths.tmp>/research/arxiv.lock` (`paths.tmp` defaults to
-`.accelerator/tmp`), which holds one connection at a time and spaces each
-request at least 3 s from the end of the previous request's response. When a
-call was killed before its response ended, the next request is spaced 3.1 s
-from the killed request's send instead, since its arrival was never seen. A
-`429` or `403` defers every waiting process together, by up to 30 s. The
-lock does not coordinate across repositories on one machine. OpenAlex is not paced; its budget is enforced server-side.
+Each queued service keeps its pacing state under
+`<paths.tmp>/research/services/<service>/` (`paths.tmp` defaults to
+`.accelerator/tmp`). arXiv is the only queued service, under
+`services/arxiv/`. OpenAlex is not paced; its budget is enforced server-side.
+
+arXiv admits one request every three seconds, one connection at a time. A
+service serves as many calls at once as it has serving slots, each an
+exclusive file lock, `serving-<i>.lock`; arXiv has one, `serving-0.lock`. A
+call's turn holds its slot from its first request to its last. Its pacing
+state, in `pacing`, is read and written only under the short-lived
+`pacing.lock`, which no call holds while it waits.
+
+Before each request a call reserves a send time, waits for it outside
+`pacing.lock`, then confirms it against the last request actually sent and
+any deferral. arXiv spaces each request at least 3 s from the end of the
+previous request's response. When a call was killed before its response
+ended, the next request is spaced 3.1 s from the killed request's send
+instead, since its arrival was never seen. A `429` or `403` defers every
+waiting process together, by up to 30 s; a deferral written while a call
+waits holds that call too. The locks do not coordinate across repositories
+on one machine.
 
 ### The fetch queue
 
-arXiv calls take turns in a first-in, first-out queue of tickets under
-`<paths.tmp>/research/arxiv-queue/`:
+A service's calls take turns in a first-in, first-out queue of tickets under
+`services/<service>/queue/`:
 
-- **Whole-call admission.** The front ticket is admitted once the lock is
-  free and at least 33 s of its 100 s budget remain: one 3 s spacing and one
-  30 s request. It then holds the lock for every request, retry and backoff
-  it makes, including its withdrawal confirmations, and checks the same
-  serving window before each attempt.
+- **Whole-call admission.** A ticket is admitted once fewer tickets ahead of
+  it are still running than the service has slots, a slot is free, and its
+  budget still covers one spacing and one 30 s request: for arXiv, at least
+  33 s of its 100 s. It then holds its slot for every request, retry and
+  backoff it makes, including arXiv's withdrawal confirmations, and checks
+  the same serving window before each attempt.
 - **`waiting`.** A call that runs out of budget, before or after admission,
   prints its ticket and position and keeps its place. Re-presenting the same
   call with `--ticket` resumes it; the researcher does this until the call
   settles. A ticket presented with other arguments exits 2 with
-  `E_ARXIV_TICKET_MISMATCH`, and one another call is presenting exits 2 with
-  `E_ARXIV_TICKET_LIVE`.
+  `E_ARXIV_TICKET_MISMATCH`, as does a ticket another family's fetch or an
+  earlier plugin version issued, and one another call is presenting exits 2
+  with `E_ARXIV_TICKET_LIVE`.
 - **Expiry and the cap.** A ticket keeps its place for 300 s after its last
   call ended; after that it rejoins at the back with a fresh ticket. More than
   900 s after issue, a re-presentation ends `rate_limited` with
@@ -335,38 +349,41 @@ arXiv calls take turns in a first-in, first-out queue of tickets under
 
 ### Logs
 
-`arxiv-requests.log` beside the lock records one timestamped line per request
-sent. `arxiv-contention.log` records one line per call that ended in
+Each service's `requests.log` records one timestamped line per request sent.
+Its `contention.log` records one line per call that ended in
 `lock_contention` with no upstream failure behind it, in the form
-`<wall ms> <kind>[ <ticket>]`. A line with only a timestamp comes from a
-session running an earlier prerelease of the plugin.
+`<wall ms> <kind>[ <ticket>]`.
 
 | Kind              | Means                                      | Next step                                                                                                   |
 |-------------------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------|
 | `ticket_past_cap` | The ticket waited past its 900 s cap       | Avoid overlapping `conduct` runs in one project, or re-run once the other run has finished                  |
-| `queue_unusable`  | The call ran out of budget with no place to keep | Check that `<paths.tmp>/research/arxiv-queue/` is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
+| `queue_unusable`  | The call ran out of budget with no place to keep | Check that the service's `services/<service>/queue/` (for arXiv, `services/arxiv/queue/`) is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
 
 ### Limits
 
-- When `arxiv.lock` cannot be locked, on a filesystem without working `flock`
-  or after a per-call lock error, pacing runs unlocked. Neither one
-  connection at a time nor 3 s spacing is then guaranteed, and only the
-  stderr diagnostic records it.
+- When a serving slot or `pacing.lock` cannot be locked, on a filesystem
+  without working `flock` or after a per-call lock error, pacing runs
+  unlocked. Neither the slot count nor the spacing is then guaranteed, and
+  only the stderr diagnostic records it.
 - When the queue itself cannot be used, a call is served without a place, and
   ends in `lock_contention` rather than `waiting` if its budget runs out. A
   re-presented call keeps the place its ticket already holds and still ends
   in `waiting`.
-- The queue is fair only while every session in the project runs a plugin
-  version with this queue. An earlier one still paces through `arxiv.lock`
-  but ignores the queue, so calls queued behind it see more
-  `lock_contention`. A version whose queue records it cannot read removes
-  them once their tickets are free.
-- A ticket that has just found itself at the front takes `arxiv.lock` a
-  moment later. An earlier ticket re-presented in that moment can be passed
-  for one turn; spacing is unaffected.
+- Earlier plugin versions kept arXiv's state directly under
+  `<paths.tmp>/research/`. While a session of one still runs, every arXiv
+  call also takes that version's `arxiv.lock`, so the two versions keep one
+  arXiv connection at a time. Their pacing state is separate, so expect
+  occasional throttling until older sessions end.
+- Once no earlier version runs in the project, `arxiv-pacing`,
+  `arxiv-queue/`, `arxiv-requests.log` and `arxiv-contention.log` under
+  `<paths.tmp>/research/` can be deleted. `arxiv.lock` stays: every arXiv
+  call recreates it, empty, until a later release stops taking it.
+- A ticket that has just found itself admitted takes its slot a moment
+  later. An earlier ticket re-presented in that moment can be passed for one
+  turn; spacing is unaffected.
 - Wall-clock steps, and a host that sleeps mid-run, can delay or hasten
   expiry, abandonment and the cap. That costs fairness or an occasional node,
-  never spacing, which the lock enforces on every request.
+  never spacing, which every request confirms against the last one sent.
 
 ## Credentials
 
