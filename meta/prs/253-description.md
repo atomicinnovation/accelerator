@@ -14,7 +14,7 @@ pr_number: 253
 tags: ["build-system", "testing", "design", "playwright", "security", "ci"]
 revision: "ce6c14c3d2f9f283ca32dc2dfa7c60409158c3bf"
 repository: "accelerator"
-last_updated: "2026-11-22T10:39:34+00:00"
+last_updated: "2026-11-22T12:16:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -110,6 +110,13 @@ origin was reaching the target of a cross-origin redirect.
 - Floors raised to today's totals: runtime 37 → 38 cases; unit 10 → 11
   suites, 105 → 114 cases.
 
+### Supply chain
+
+- `url` 2.5.8 → 2.5.9 (and `form_urlencoded` 1.2.2 → 1.2.3) in
+  `cli/Cargo.lock`, for RUSTSEC-2026-0592: `Url::origin()` overflows the
+  stack on nested `blob:` URLs. The advisory landed after `main`'s last
+  supply-chain run, so `main` fails `cargo deny` until this merges.
+
 ### Phase 6 record
 
 The fixtures-closure measurement is recorded in the plan and work item, and
@@ -163,8 +170,10 @@ noise; the two run records are under `meta/measurements/`.
       `chrome-headless-shell` there. The first CI run failed the
       `entrypoint` suite's untouched-`bin/` guard, because the lane wrote
       `bin/trees`; the trees now go under `cli/target/`
-- [ ] CI on the current head `ce6c14c3`, which adds Phase 9, both
-      interception fixes and the forwarding fix
+- [x] `mise run deny:check` and `mise run cli:check` pass after the `url`
+      upgrade
+- [ ] CI on the current head, which adds Phase 9, both interception fixes,
+      the forwarding fix and the `url` upgrade
 
 ## Notes for Reviewers
 
@@ -173,12 +182,15 @@ noise; the two run records are under `meta/measurements/`.
   but a hop the interceptor never answers still stalls until the
   per-operation wall clock. Not exercised against service workers or deep
   frame trees.
-- **Known gaps, for follow-up rather than this PR.** Interception covers only
-  the first page's own target, so popups, out-of-process iframes, workers and
-  websockets skip the navigation policy (the bearer fails closed there). The
-  bearer is attached by request URL whatever the initiator, so a cross-origin
-  frame that fetches the location origin borrows it; `page.route` behaved the
-  same, and it needs a security decision.
+- **Known gaps, drafted as a follow-up rather than fixed here.**
+  Interception covers only the first page's own target, so popups,
+  out-of-process iframes, workers and websockets skip the navigation policy
+  (the bearer fails closed there). The bearer is attached by request URL
+  whatever the initiator, so a cross-origin frame that fetches the location
+  origin borrows it; `page.route` behaved the same, and it needs a security
+  decision. Both are captured in
+  `meta/work/drafts/draft-tdjepd-apply-the-design-crawl-s-request-policy-to-every-target-and.md`,
+  not yet pushed to Linear.
 - **`snapshot` changed shape**, from a JSON tree to a YAML string. The
   in-repo consumers are the `browser-analyser` and `browser-locator` agents,
   which read it as text; nothing outside the repo was checked.
