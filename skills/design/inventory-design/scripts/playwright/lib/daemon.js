@@ -199,7 +199,7 @@ export async function startDaemon({ stateDir }) {
 
   // ------ Browser / page --------------------------------------------------
 
-  async function ensureBrowser() {
+  async function ensurePage() {
     if (page) return;
     const { chromium } = await importPlaywright({
       nsRoot: process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT,
@@ -320,7 +320,7 @@ export async function startDaemon({ stateDir }) {
     }
 
     // All remaining commands require the browser
-    await ensureBrowser();
+    await ensurePage();
     onBrowserReady?.();
 
     switch (cmd) {
@@ -572,7 +572,7 @@ export async function startDaemon({ stateDir }) {
           // Armed once the browser exists, not before the call: acquiring
           // Chromium can outrun any sane per-op budget, and charging a cold
           // start to the operation kills the daemon on its first browser
-          // command. The hook fires after `ensureBrowser`, so the commands that
+          // command. The hook fires after `ensurePage`, so the commands that
           // return before it — and a request arriving mid-shutdown — arm nothing.
           onBrowserReady: () => {
             if (isBlocking) armWallClock(parsed.command, res);
