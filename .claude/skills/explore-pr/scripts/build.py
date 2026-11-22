@@ -59,6 +59,8 @@ READINESS_MODEL = ASSETS / "readiness.js"
 FILE_NAVIGATOR_MODEL = ASSETS / "file-navigator.js"
 BULK_VERDICTS_MODEL = ASSETS / "bulk-verdicts.js"
 REVIEW_KEYS_MODEL = ASSETS / "review-keys.js"
+ITEM_ADDRESSES_MODEL = ASSETS / "item-addresses.js"
+VERDICT_MARKS_MODEL = ASSETS / "verdict-marks.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -2226,6 +2228,8 @@ def with_page_models(page: str, views: list[str]) -> str:
     models = (
         *(KIT / module for module in KIT_MODULES),
         COVERAGE_MODEL,
+        ITEM_ADDRESSES_MODEL,
+        VERDICT_MARKS_MODEL,
         PROSE_REFERENCES_MODEL,
         STOP_EVIDENCE_MODEL,
         REVIEW_SECTIONS_MODEL,

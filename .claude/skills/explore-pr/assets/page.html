@@ -49,7 +49,9 @@
   --f-body: "IBM Plex Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --rail-w: 248px;
+  --top-min-h: 56px;
   --top-h: 56px;
+  --filters-h: 0px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -108,7 +110,7 @@ button { font: inherit; color: inherit; }
 /* Top bar */
 .topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--panel); border-bottom: 1px solid var(--rule);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.topbar-inner { min-height: var(--top-h); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 8px; }
+.topbar-inner { min-height: var(--top-min-h); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 8px; }
 .pr-id { font-family: var(--f-mono); font-weight: 600; font-size: 13px; background: var(--ink); color: var(--panel); border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
 .pr-title { font-family: var(--f-display); font-weight: 600; font-size: 15.5px; min-width: 0; flex: 1 1 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meters { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
@@ -271,6 +273,7 @@ kbd { border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4p
 .carries { display: grid; gap: 6px; }
 .carried { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 5px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: inherit; text-decoration: none; font-size: 13.5px; }
 .carried:hover { border-color: var(--accent); }
+.carried-label { display: flex; align-items: baseline; gap: 0; min-width: 0; }
 .carried .eyebrow { color: var(--accent); }
 .carried.k-risk .eyebrow { color: var(--bad); }
 .carried.k-invariant .eyebrow { color: var(--ok); }
@@ -315,6 +318,28 @@ details[open] > summary { margin-bottom: 8px; }
 .filters label { font-size: 12.5px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
 .filters select, .filters input[type="search"] { font: inherit; font-size: 13.5px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .count-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pinned-by { display: grid; gap: 2px; justify-items: start; min-width: 0; flex-basis: 100%; }
+.filters-toggle { display: none; }
+.view :is([id^="stop-"], [id^="dec-"], [id^="abs-"], [id^="inv-"], [id^="risk-"], [id^="f-"], [id^="l-"]) { scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + var(--filters-h) + 16px); }
+
+/* Verdict marks */
+.mark { display: inline-grid; place-items: center; flex: none; width: 15px; height: 15px; margin-right: 6px; border-radius: 50%; border: 1.5px solid var(--ink-3); background: transparent; color: var(--panel); font: 700 10px/1 var(--f-body); vertical-align: -2px; text-decoration: none; }
+.mark:not([data-tone]) { display: none; }
+.mark[data-tone="ok"] { background: var(--ok); border-color: var(--ok); }
+.mark[data-tone="warn"] { background: var(--warn); border-color: var(--warn); }
+.mark[data-tone="bad"] { background: var(--bad); border-color: var(--bad); }
+.mark[data-tone="info"] { background: var(--info); border-color: var(--info); }
+.mark[data-tone="none"] { background: var(--none); border-color: var(--none); }
+.rail a .mark { margin-right: 0; }
+
+/* Peeks */
+.peek { display: grid; gap: 10px; background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; padding: 12px; min-width: 0; text-align: left; font-size: 15px; white-space: normal; }
+.peek > article, .peek > .inv { border: 0; padding: 0; background: none; box-shadow: none; }
+.peek > .inv { grid-template-columns: minmax(0, 1fr); }
+.peek-pop { position: absolute; z-index: 45; width: min(560px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 14px 36px rgba(0, 0, 0, .22); }
+.peek-inline { flex-basis: 100%; width: 100%; margin: 10px 0; border-left: 3px solid var(--accent); }
+.peek-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; border-top: 1px solid var(--rule); padding-top: 8px; }
+.peek-close { background: none; border: 1px solid var(--rule); border-radius: 6px; padding: 2px 8px; cursor: pointer; color: var(--ink-2); }
 
 /* Map */
 .tm-wrap { position: relative; width: 100%; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; touch-action: manipulation; }
@@ -416,9 +441,6 @@ details[open] > summary { margin-bottom: 8px; }
 .nav-resizer:hover, .nav-resizer:focus-visible, .nav-resizer.dragging { background: var(--accent-soft); box-shadow: inset 3px 0 0 -2px var(--accent), inset -3px 0 0 -2px var(--accent); outline: none; }
 .rail, #nav-tree, html { scrollbar-width: none; }
 .rail::-webkit-scrollbar, #nav-tree::-webkit-scrollbar, html::-webkit-scrollbar { display: none; }
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot.s-ok { background: var(--ok); } .dot.s-issue { background: var(--bad); } .dot.s-skip { background: var(--none); }
-.dot.s-none { background: transparent; border: 1px solid var(--ink-3); }
 
 /* Simulator */
 .sim-layout { display: grid; grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -473,9 +495,9 @@ details[open] > summary { margin-bottom: 8px; }
 .fig.wide { grid-column: 1 / -1; }
 .abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 .abs { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
-.abs.t-new { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-.abs.t-changed { border-color: var(--warn); box-shadow: inset 3px 0 0 var(--warn); }
-.abs.t-removed { border-style: dashed; border-color: var(--bad); }
+.abs:where(.t-new) { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.abs:where(.t-changed) { border-color: var(--warn); box-shadow: inset 3px 0 0 var(--warn); }
+.abs:where(.t-removed) { border-style: dashed; border-color: var(--bad); }
 .dec-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
 .fcompare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
 .fside { display: grid; gap: 8px; min-width: 0; align-content: start; border: 1px dashed var(--rule); border-radius: 8px; padding: 10px; }
@@ -488,18 +510,23 @@ details[open] > summary { margin-bottom: 8px; }
   .nav-drawer > summary { display: block; cursor: pointer; font-weight: 600; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); margin-bottom: 6px; }
 }
 @media (max-width: 760px) {
+  .topbar-inner { flex-wrap: nowrap; gap: 10px; }
+  .pr-title { flex: 1 1 0; }
+  .filters-toggle { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .filters:not(.open) > :not(.filters-toggle) { display: none; }
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--rule); display: flex; gap: 4px; overflow-x: auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
   .rail-group { display: flex; margin: 0; gap: 4px; }
   .rail-head, .rail a.sub, .rail-path { display: none; }
   .rail a { white-space: nowrap; }
   .meters { display: none; }
-  .ba { grid-template-columns: minmax(0, 1fr); }
+  .ba, .inv { grid-template-columns: minmax(0, 1fr); }
   .ba > div:nth-child(odd) { border-right: 0; }
   .chapter-card { grid-template-columns: 34px minmax(0, 1fr); }
   .chapter-card .meta { grid-column: 2; justify-items: start; text-align: left; }
   h1 { font-size: 1.5rem; }
 }
+.arrived { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 @media (prefers-reduced-motion: no-preference) {
   .code tr.flash { transition: background 1.2s ease; }
 }
@@ -555,18 +582,7 @@ function md(s, inline, self) {
 }
 
 /* ---------- Review state ---------- */
-const KINDS = {
-  decision: { label: 'Verdict', opts: [['approve', 'Approve', 'ok'], ['request-changes', 'Request changes', 'bad'], ['comment', 'Comment', 'warn']] },
-  design: { label: 'Design decision', opts: [['agree', 'Agree', 'ok'], ['question', 'Question', 'warn'], ['disagree', 'Disagree', 'bad']] },
-  chapter: { label: 'Sign-off', opts: [['understood', 'Signed off', 'ok'], ['concerns', 'Concerns', 'warn'], ['blocking', 'Blocking', 'bad']] },
-  stop: { label: 'Stop', opts: [['ok', 'Read', 'ok'], ['question', 'Question', 'warn'], ['issue', 'Issue', 'bad']] },
-  invariant: { label: 'Invariant', opts: [['ok', 'Holds', 'ok'], ['question', 'Unsure', 'warn'], ['issue', 'Broken', 'bad']] },
-  ledger: { label: 'Removal site', opts: [['ok', 'Safe', 'ok'], ['question', 'Unsure', 'warn'], ['issue', 'Unsafe', 'bad']] },
-  finding: { label: 'Triage', opts: [['block', 'Block merge', 'bad'], ['fix-now', 'Fix in PR', 'warn'], ['follow-up', 'Follow-up', 'info'], ['reject', 'Reject', 'none']] },
-  file: { label: 'File', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
-  commit: { label: 'Commit', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
-  commitfile: { label: 'File in commit', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
-};
+const KINDS = VerdictMarks.KINDS;
 const Store = {
   mode: 'none', canWrite: true, version: 0, docs: new Map(), db: null, pending: new Map(), inflight: new Set(), reachable: true,
   key: 'explore-pr',
@@ -771,15 +787,28 @@ function refreshControls() {
     const s = Store.get(el.dataset.statusOf).status || 'none';
     el.className = el.className.replace(/\bs-[a-z-]+/g, '').trim() + ' s-' + s;
   });
+  refreshMarks(recorded);
   refreshCoverage(recorded);
+}
+const markSlot = target => (target ? `<span class="mark" data-mark-of="${esc(target)}"></span>` : '');
+function refreshMarks(recorded = recordedClaims(), scope = document) {
+  $$('.mark[data-mark-of]', scope).forEach(slot => {
+    const mark = VerdictMarks.of(slot.dataset.markOf, Store.get(slot.dataset.markOf), readVia(slot.dataset.markOf, recorded));
+    if (!mark || (slot.dataset.tone === mark.tone && slot.title === mark.said)) return;
+    slot.dataset.tone = mark.tone;
+    slot.textContent = VerdictMarks.glyphOf(mark.tone);
+    slot.title = mark.said;
+    slot.setAttribute('role', 'img');
+    slot.setAttribute('aria-label', mark.said);
+  });
 }
 
 function onStateChange() {
   if (!C) return;
   renderBanner();
+  renderRail();
   refreshControls();
   renderMeters();
-  renderRail();
   if (currentRoute === 'notes') refreshNotes();
   if (currentRoute === 'readiness') refreshReadiness();
 }
@@ -1131,6 +1160,7 @@ function parseWhere(w) {
   return { path: p, line: +m[2], end: m[3] ? +m[3] : +m[2] };
 }
 const whereBtn = w => { const p = parseWhere(w); return p ? locBtn(p.path, p.line) : (w ? `<code>${esc(w)}</code>` : ''); };
+const pinnedBy = (label, tests) => `<span class="pinned-by"><span class="muted">${label}</span>${tests.map(testRef).join('')}</span>`;
 function testRef(t) {
   const s = typeof t === 'string' ? t : `${t.file}::${t.name}`;
   const [file, name] = s.split('::');
@@ -1208,22 +1238,25 @@ function renderRail() {
       const cur = currentRoute === id && !(id === 'tour' && currentSub);
       html += `<a href="#${id}" ${cur ? 'aria-current="page"' : ''}><span class="lbl">${label}</span>${counts[id] ? `<span class="num">${counts[id]}</span>` : ''}</a>`;
       if (id === 'tour') C.chapters.forEach((c, i) => {
-        const s = Store.get('chapter:' + c.id).status || 'none';
-        html += `<a class="sub" href="#tour-${c.id}" ${currentRoute === 'tour' && currentSub === c.id ? 'aria-current="page"' : ''}><span class="num">${i + 1}</span><span class="lbl">${esc(c.title)}</span><span class="dot s-${s === 'understood' ? 'ok' : s === 'blocking' ? 'issue' : s === 'concerns' ? 'skip' : 'none'}"></span></a>`;
+        html += `<a class="sub" href="#tour-${c.id}" ${currentRoute === 'tour' && currentSub === c.id ? 'aria-current="page"' : ''}><span class="num">${i + 1}</span><span class="lbl">${esc(c.title)}</span>${markSlot('chapter:' + c.id)}</a>`;
       });
     }
     html += `</div>`;
   }
   $('#rail').innerHTML = html;
 }
+const addressOf = (view, item) => esc('#' + ItemAddresses.to(view, item));
 function parseHash() {
-  const h = ReviewSections.routeFor((location.hash || '#overview').slice(1));
-  if (h.startsWith('tour-')) return ['tour', h.slice(5)];
-  return [routes().some(r => r[0] === h) ? h : 'overview', null];
+  const { view, item } = ItemAddresses.parse(location.hash || '#overview');
+  const h = ReviewSections.routeFor(view || 'overview');
+  if (h.startsWith('tour-')) return ['tour', h.slice(5), item];
+  return [routes().some(r => r[0] === h) ? h : 'overview', null, item];
 }
-let pendingOpen = null;
-function render() {
-  [currentRoute, currentSub] = parseHash();
+let pendingOpen = null, currentItem = null;
+const LANDING = { arrive: 'arrive', item: 'item', top: 'top' };
+function render(landing = LANDING.top) {
+  closePeek();
+  [currentRoute, currentSub, currentItem] = parseHash();
   renderRail();
   const main = $('#main');
   const views = { overview: vOverview, design: vDesign, map: vMap, tour: vTour, ledger: vLedger, commits: vCommits, findings: vFindings, readiness: vReadiness, decisions: vDecisions, abstractions: vAbstractions, invariants: vInvariants, tests: vTests, files: vFiles, terms: vTerms, notes: vNotes };
@@ -1231,11 +1264,105 @@ function render() {
   main.innerHTML = `<div class="view"><div class="banner" id="store-banner" hidden></div>${views[currentRoute]()}</div>`;
   renderBanner();
   after[currentRoute] && after[currentRoute]();
+  foldFilters();
   refreshControls();
-  if (!pendingOpen) window.scrollTo(0, 0);
+  land(landing);
 }
 const after = {};
-window.addEventListener('hashchange', render);
+
+const ScrollMemory = {
+  positions: new Map(),
+  entry: null,
+  enter() {
+    let entry = history.state && history.state.entry;
+    if (!entry) {
+      entry = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      try { history.replaceState({ ...(history.state || {}), entry }, ''); } catch (e) { /* without history state the page lands at the top */ }
+    }
+    this.entry = entry;
+    return this.positions.get(entry);
+  },
+  remember() { if (this.entry) this.positions.set(this.entry, window.scrollY); },
+};
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.addEventListener('scroll', () => ScrollMemory.remember(), { passive: true });
+
+const SETTLING_MS = 1500;
+const READER_INPUTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
+let heldScroll = null;
+function releaseScroll() {
+  if (!heldScroll) return;
+  heldScroll.observer.disconnect();
+  clearTimeout(heldScroll.timer);
+  READER_INPUTS.forEach(type => window.removeEventListener(type, heldScroll.release));
+  heldScroll = null;
+}
+function holdScroll(apply) {
+  releaseScroll();
+  apply();
+  const release = () => releaseScroll();
+  const observer = new ResizeObserver(() => apply());
+  observer.observe($('#main'));
+  heldScroll = { observer, release, timer: setTimeout(release, SETTLING_MS) };
+  READER_INPUTS.forEach(type => window.addEventListener(type, release, { passive: true }));
+}
+function landOnItem(id) {
+  const item = id && document.getElementById(id);
+  if (!item) return false;
+  holdScroll(() => item.scrollIntoView({ block: 'start' }));
+  item.classList.add('arrived');
+  setTimeout(() => item.classList.remove('arrived'), 1600);
+  return true;
+}
+function land(landing) {
+  measureFilters();
+  const saved = landing === LANDING.arrive ? ScrollMemory.enter() : undefined;
+  if (pendingOpen) return;
+  if (saved !== undefined) { holdScroll(() => window.scrollTo(0, saved)); return; }
+  if (landing !== LANDING.top && landOnItem(currentItem)) return;
+  releaseScroll();
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', () => render(LANDING.arrive));
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a || a.matches('[data-jump], [data-peek], [data-open]') || e.defaultPrevented) return;
+  const { item } = ItemAddresses.parse(a.getAttribute('href'));
+  if (item && a.getAttribute('href') === location.hash) { e.preventDefault(); landOnItem(item); }
+});
+
+const rootStyle = document.documentElement.style;
+function measureTopBar() { rootStyle.setProperty('--top-h', $('.topbar').offsetHeight + 'px'); }
+const FILTERS_GAP = 8;
+function measureFilters() {
+  const filters = $('#main .filters');
+  rootStyle.setProperty('--filters-h', filters ? filters.offsetHeight + FILTERS_GAP + 'px' : '0px');
+}
+new ResizeObserver(measureTopBar).observe($('.topbar'));
+measureTopBar();
+const filtersObserver = new ResizeObserver(measureFilters);
+
+const unfoldedFilters = new Set();
+function foldFilters() {
+  filtersObserver.disconnect();
+  $$('#main .filters').forEach((filters, i) => {
+    const key = `${currentRoute}:${i}`, open = unfoldedFilters.has(key);
+    const active = $$('select, input[type="search"]', filters).filter(field => field.value).length;
+    const shown = ($('.small.muted', filters) || {}).textContent || '';
+    filters.insertAdjacentHTML('afterbegin', `<button type="button" class="filters-toggle" data-fold="${esc(key)}" aria-expanded="${open}"><span>Filters${active ? ` · ${active} active` : ''}</span><span class="muted">${esc(shown)}</span></button>`);
+    filters.classList.toggle('open', open);
+    filtersObserver.observe(filters);
+  });
+}
+document.addEventListener('click', e => {
+  const toggle = e.target.closest('[data-fold]');
+  if (!toggle) return;
+  const open = !unfoldedFilters.has(toggle.dataset.fold);
+  if (open) unfoldedFilters.add(toggle.dataset.fold); else unfoldedFilters.delete(toggle.dataset.fold);
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.closest('.filters').classList.toggle('open', open);
+  measureFilters();
+});
 document.addEventListener('click', e => {
   const o = e.target.closest('[data-open]');
   if (!o) return;
@@ -1333,15 +1460,20 @@ function keyAbstractions() {
 const decisionTarget = d => 'design:' + (d.id || plain(d.decision));
 const hasDesign = () => routes().some(([id]) => id === 'design');
 const CARRIED = { decision: ['Decision', 'dec-', 'decisions'], abstraction: ['Abstraction', 'abs-', 'abstractions'], invariant: ['Invariant', 'inv-', 'invariants'], risk: ['Risk', 'risk-', 'invariants'] };
+const markOfItem = (kind, id) => markSlot(VerdictMarks.targetOf(kind, id));
+const peekLink = (kind, id, label, attrs = '') => {
+  const [, prefix, route] = CARRIED[kind] || PEEK_FINDING;
+  return `<a href="${addressOf(route, prefix + id)}" data-peek="${esc(kind + ':' + id)}"${attrs}>${markOfItem(kind, id)}${label}</a>`;
+};
 function carriedLink(carried) {
   const [kind, prefix, route] = CARRIED[carried.kind];
-  return `<a class="carried k-${carried.kind}" href="#${route}" data-jump="${route}" data-filter="{}" data-scroll-to="${esc(prefix + carried.id)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${esc(plain(carried.label))}</span></a>`;
+  return `<a class="carried k-${carried.kind}" href="${addressOf(route, prefix + carried.id)}" data-peek="${esc(carried.kind + ':' + carried.id)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${markOfItem(carried.kind, carried.id)}${esc(plain(carried.label))}</span></a>`;
 }
 function stripLink(carried) {
   const [kind] = CARRIED[carried.kind];
   const first = EVIDENCE.shownAt(carried.id)[0];
   if (!first) return carriedLink(carried);
-  return `<a class="carried k-${carried.kind}" href="#tour-${esc(STOP_CHAPTER[first])}" data-scroll-to="stop-${esc(first)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${esc(plain(carried.label))}</span></a>`;
+  return `<a class="carried k-${carried.kind}" href="${addressOf('tour-' + STOP_CHAPTER[first], 'stop-' + first)}" title="${esc(plain(carried.label))}"><span class="eyebrow">${kind}</span><span class="carried-label">${markOfItem(carried.kind, carried.id)}${esc(plain(carried.label))}</span></a>`;
 }
 function designStrip(ch) {
   const introduced = (ch.stops || []).flatMap(stop => EVIDENCE.introducedAt(stop));
@@ -1364,7 +1496,7 @@ function abstractionCard({ item: a, chapters }, opts = {}) {
     <div class="row"><b class="mono">${esc(plain(a.name))}</b>${a.kind ? `<span class="chip plain c-none">${esc(a.kind)}</span>` : ''}${a.status ? `<span class="chip ${STATUS_CHIP[a.status] || 'c-none'}">${esc(a.status)}</span>` : ''}</div>
     <div class="small">${md(a.responsibility, true, a.id)}</div>
     ${(a.collaborators || []).length ? `<div class="small muted">Works with ${a.collaborators.map(c => `<code>${esc(plain(collaboratorName(c)))}</code>`).join(', ')}</div>` : ''}
-    <div class="row small">${whereBtn(a.where)}${chapters.map(ch => `<a href="#tour-${ch.id}">${esc(ch.title)}</a>`).join('')}</div>
+    <div class="row small">${whereBtn(a.where)}${chapters.map(ch => chapterLink(ch.id)).join('')}</div>
     ${opts.compact ? '' : shownAt(a)}
   </article>`;
 }
@@ -1379,7 +1511,7 @@ function decisionCard({ item: d, chapter }, opts = {}) {
       ${d.consequences ? `<div><div class="eyebrow">At the cost of</div><div class="md small">${md(d.consequences, false, d.id)}</div></div>` : ''}
     </div>
     ${d.note ? `<div class="verdict-box"><div class="row"><span class="eyebrow">Reading pass</span>${chip}</div><div class="md small">${md(d.note, false, d.id)}</div></div>` : ''}
-    <div class="row small">${whereBtn(d.where)}${d.adr ? `<span class="muted">Recorded in</span> <code>${esc(d.adr)}</code>` : ''}${chapter ? `<a href="#tour-${chapter.id}">${esc(chapter.title)}</a>` : ''}</div>
+    <div class="row small">${whereBtn(d.where)}${d.adr ? `<span class="muted">Recorded in</span> <code>${esc(d.adr)}</code>` : ''}${chapter ? chapterLink(chapter.id) : ''}</div>
     ${opts.compact ? '' : shownAt(d)}
     ${ctl(decisionTarget(d), 'design', { label: `Design decision: ${plain(d.decision)}`, where: d.where || null })}
   </article>`;
@@ -1490,8 +1622,21 @@ const BLANK_FILTERS = {
   commits: FileNavigator.BLANK,
 };
 const filters = Object.fromEntries(Object.entries(BLANK_FILTERS).map(([route, blank]) => [route, { ...blank }]));
-const jumpLink = (route, filter, label, attrs = '') => `<a href="#${route}" data-jump="${route}" data-filter="${esc(JSON.stringify(filter))}"${attrs}>${label}</a>`;
-const findingLink = (id, label = id, attrs = '') => jumpLink('findings', { q: id }, esc(label), attrs);
+const jumpLink = (route, filter, label, attrs = '', item = null) => `<a href="${addressOf(route, item)}" data-jump="${route}" data-filter="${esc(JSON.stringify(filter))}"${attrs}>${label}</a>`;
+const PEEK_FINDING = ['Finding', 'f-', 'findings'];
+const findingLink = (id, label = id, attrs = '') => peekLink('finding', id, esc(label), attrs);
+const stopLink = (id, label) => `<a href="${addressOf('tour-' + STOP_CHAPTER[id], 'stop-' + id)}">${markSlot('stop:' + id)}${label}</a>`;
+const ledgerLink = (id, label) => `<a href="${addressOf('ledger', 'l-' + id)}">${markSlot('ledger:' + id)}${label}</a>`;
+function linkToTarget(target, label) {
+  const at = target.indexOf(':'), kind = target.slice(0, at), id = target.slice(at + 1);
+  if (kind === 'design') return DECISION[id] ? peekLink('decision', id, esc(label)) : `<a href="#decisions">${markSlot(target)}${esc(label)}</a>`;
+  if (kind === 'inv') return peekLink('invariant', id, esc(label));
+  if (kind === 'finding') return findingLink(id, label);
+  if (kind === 'chapter' && CH[id]) return `<a href="#tour-${esc(id)}">${markSlot(target)}${esc(label)}</a>`;
+  if (kind === 'ledger') return ledgerLink(id, esc(label));
+  if (kind === 'file') return `<a href="#files" data-open="${esc(id)}">${esc(label)}</a>`;
+  return esc(label);
+}
 /* Readiness */
 const GATE_CHIP = { met: ['c-ok', 'met'], 'needs-you': ['c-warn', 'needs you'], 'not-met': ['c-bad', 'not met'] };
 const RECOMMENDATION = { approve: ['c-ok', 'Approve'], 'request-changes': ['c-bad', 'Request changes'], comment: ['c-warn', 'Comment'] };
@@ -1501,7 +1646,7 @@ function readinessGates() {
 }
 function gateCard(gate) {
   const [tone, said] = GATE_CHIP[gate.state];
-  const listed = gate.outstanding.slice(0, MOST_OUTSTANDING_LISTED).map(item => `<li>${esc(item.label)}</li>`).join('');
+  const listed = gate.outstanding.slice(0, MOST_OUTSTANDING_LISTED).map(item => `<li>${linkToTarget(item.target, item.label)}</li>`).join('');
   const more = gate.outstanding.length - MOST_OUTSTANDING_LISTED;
   return `<article class="finding gate" data-gate="${esc(gate.id)}" data-state="${gate.state}">
     <div class="finding-head"><b style="flex:1;min-width:0">${esc(gate.title)}</b><span class="chip ${tone}">${said}</span></div>
@@ -1514,11 +1659,8 @@ function gateCard(gate) {
 function refLink(id) {
   if (F[id]) return findingLink(id);
   const declared = EVIDENCE.declared(id);
-  if (declared) {
-    const [, prefix, route] = CARRIED[declared.kind];
-    return jumpLink(route, {}, esc(id), ` data-scroll-to="${esc(prefix + id)}" title="${esc(plain(declared.label))}"`);
-  }
-  if (STOP_CHAPTER[id]) return `<a href="#tour-${esc(STOP_CHAPTER[id])}" data-scroll-stop="${esc(id)}">${esc(id)}</a>`;
+  if (declared) return peekLink(declared.kind, id, esc(id), ` title="${esc(plain(declared.label))}"`);
+  if (STOP_CHAPTER[id]) return stopLink(id, esc(id));
   return chapterLink(id) || `<code>${esc(id)}</code>`;
 }
 function readinessAssessment() {
@@ -1556,8 +1698,9 @@ function vReadiness() {
 }
 function refreshReadiness() {
   const gates = gatesHtml();
-  if (gates !== shownGates) { $('#gates').innerHTML = gates; shownGates = gates; }
+  if (gates !== shownGates) { $('#gates').innerHTML = gates; shownGates = gates; refreshMarks(undefined, $('#gates')); }
   $('#in-the-way').innerHTML = standsInTheWay();
+  refreshMarks(undefined, $('#in-the-way'));
 }
 function readinessStrip() {
   const gates = readinessGates();
@@ -1577,7 +1720,8 @@ document.addEventListener('click', e => {
   if (BLANK_FILTERS[route]) filters[route] = { ...BLANK_FILTERS[route], ...filter };
   if (NAVIGATED.includes(route)) { navOf(route).query = ''; navOf(route).selection.keys.clear(); }
   if (route === 'ledger') ledgerFilter = { facets: {}, concern: '', status: '', ...filter };
-  if (location.hash !== '#' + route) location.hash = route; else render();
+  const address = ItemAddresses.to(route, ItemAddresses.parse(a.getAttribute('href')).item);
+  if (location.hash !== '#' + address) location.hash = address; else render(LANDING.item);
 });
 function filterSelect(route, key, options) {
   const chosen = filters[route][key];
@@ -1742,7 +1886,7 @@ function vChapter(ch) {
     ${here ? `<section class="section"><h2>Findings here</h2><ul class="finding-list">${here}</ul><p class="small muted">Read and triage each one in <a href="#findings">Findings</a>.</p></section>` : ''}
     ${tests ? `<section class="section"><h2>Tests that pin it</h2><div class="table-wrap"><table class="data"><tbody>${tests}</tbody></table></div></section>` : ''}
     <section class="panel stack"><div class="eyebrow">Sign off this chapter</div><div class="md" style="font-size:16px">${md(ch.signOff)}</div>${ctl('chapter:' + ch.id, 'chapter', { label: `Chapter: ${ch.title}` }, { noteOpen: true })}</section>
-    <div class="pager">${prev ? `<a href="#tour-${prev.id}"><span class="eyebrow">← Chapter ${i}</span><span>${esc(prev.title)}</span></a>` : '<span></span>'}${next ? `<a href="#tour-${next.id}" style="text-align:right"><span class="eyebrow">Chapter ${i + 2} →</span><span>${esc(next.title)}</span></a>` : '<span></span>'}</div>`;
+    <div class="pager">${prev ? `<a href="#tour-${prev.id}"><span class="eyebrow">← Chapter ${i}</span><span>${markSlot('chapter:' + prev.id)}${esc(prev.title)}</span></a>` : '<span></span>'}${next ? `<a href="#tour-${next.id}" style="text-align:right"><span class="eyebrow">Chapter ${i + 2} →</span><span>${markSlot('chapter:' + next.id)}${esc(next.title)}</span></a>` : '<span></span>'}</div>`;
 }
 after.tour = () => { if (D) fillPendingSlices(); };
 function findingsHere(ch) {
@@ -1752,13 +1896,16 @@ function findingsHere(ch) {
     return `<li class="row small">${findingLink(f.id)}${sevChip(f.severity)}<span class="finding-title">${md(f.title || f.summary, true)}</span>${fc ? `<span class="chip c-${esc(fc.verdict)}">${esc(fc.verdict)}</span>` : sourceChip(f)}</li>`;
   }).join('');
 }
-const chapterLink = id => (CH[id] ? `<a href="#tour-${esc(id)}">${esc(CH[id].title)}</a>` : '');
+const chapterLink = id => (CH[id] ? `<a href="#tour-${esc(id)}">${markSlot('chapter:' + id)}${esc(CH[id].title)}</a>` : '');
 function invariantRow({ item: v, chapter }, opts = {}) {
   const ch = CH[chapter] || { title: chapter };
   return `<div class="inv" id="inv-${esc(v.id || '')}"><div class="stack" style="gap:6px"><div class="md">${md(v.text, false, v.id)}</div>
-      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? `<span class="muted">pinned by</span> ${v.pinnedBy.map(testRef).join(', ')}` : '<span class="muted">no pinning test named</span>'}${opts.withChapter ? chapterLink(chapter) : ''}</div>
+      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? pinnedBy('pinned by', v.pinnedBy) : '<span class="muted">no pinning test named</span>'}${opts.withChapter ? chapterLink(chapter) : ''}</div>
       ${v.why ? `<div class="small md muted">${md(v.why, false, v.id)}</div>` : ''}</div>
       <div>${ctl('inv:' + v.id, 'invariant', { label: `${ch.title}: ${v.text}`, where: v.where })}</div></div>`;
+}
+function riskCard({ item: r, chapter }) {
+  return `<article class="stack"><div class="row">${sevChip(r.level)}${chapterLink(chapter)}</div><div class="md">${md(r.text)}</div><div class="row small">${whereBtn(r.where)}${(r.refs || []).map(id => findingLink(id)).join(' ')}</div></article>`;
 }
 function riskRow({ item: r, chapter }, opts = {}) {
   return `<tr id="risk-${esc(r.id || '')}"><td>${sevChip(r.level)}</td><td class="md small">${md(r.text)}</td><td class="small">${whereBtn(r.where)}</td><td class="small">${(r.refs || []).map(id => findingLink(id)).join(' ')}</td>${opts.withChapter ? `<td class="small">${chapterLink(chapter)}</td>` : ''}</tr>`;
@@ -1825,7 +1972,7 @@ function ledgerCard(l) {
     </div>
     ${l.concurrency ? `<div class="small"><span class="eyebrow">${esc(lab.concurrency || 'Concurrency')}</span><div class="md">${md(l.concurrency)}</div></div>` : ''}
     ${l.concern ? `<div class="check"><div class="eyebrow">Concern</div><div class="md small">${md(l.concern.text)}</div></div>` : ''}
-    <div class="row small">${(l.tests || []).length ? `<span class="muted">Pinned by</span> ${l.tests.map(testRef).join(', ')}` : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => findingLink(id)).join(' ')}</div>
+    <div class="row small">${(l.tests || []).length ? pinnedBy('Pinned by', l.tests) : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => findingLink(id)).join(' ')}</div>
     <details><summary>Show the code</summary>${codeSlice(l.file, l.start ?? l.line, l.end ?? l.line, 'new', { pad: 6 })}</details>
     ${ctl('ledger:' + l.id, 'ledger', { label: `${l.id} ${l.op}: ${l.subject}`, where: l.start ? `${l.file}:${l.start}-${l.end}` : `${l.file}:${l.line}` })}
   </article>`;
@@ -1940,8 +2087,8 @@ function vInvariants() {
 function namerLink(namer) {
   const [kind, id] = [namer.slice(0, namer.indexOf(':')), namer.slice(namer.indexOf(':') + 1)];
   if (kind === 'chapter') return chapterLink(id) || esc(id);
-  if (kind === 'inv') return jumpLink('invariants', {}, esc(id), ` data-scroll-to="inv-${esc(id)}"`);
-  if (kind === 'ledger') return `<a href="#ledger" data-scroll-ledger="${esc(id)}">${esc(id)}</a>`;
+  if (kind === 'inv') return peekLink('invariant', id, esc(id));
+  if (kind === 'ledger') return ledgerLink(id, esc(id));
   return `<span class="muted">criterion ${esc(id)}</span>`;
 }
 function vTests() {
@@ -2344,8 +2491,8 @@ function vFiles() {
 function annotationsFor(path) {
   const a = {};
   const add = (line, item) => { if (!line) return; (a[line] = a[line] || []).push(item); };
-  C.chapters.forEach((ch, i) => (ch.stops || []).forEach((s, j) => { if (s.file === path && (s.side || 'new') === 'new') add(s.end, { k: 'stop', html: `<b>${i + 1}.${j + 1} ${esc(s.title)}</b> <a href="#tour-${ch.id}" data-scroll-stop="${esc(s.id)}">in tour</a><div class="md">${md(s.why)}</div>`, at: s.start }); }));
-  C.ledger.forEach(l => { if (l.file === path) add(l.line, { k: 'ledger', html: `<b>${esc(l.id)} · ${esc(l.op)}</b> ${md(l.subject, true)} <a href="#ledger" data-scroll-ledger="${esc(l.id)}">in ledger</a>`, at: l.line }); });
+  C.chapters.forEach((ch, i) => (ch.stops || []).forEach((s, j) => { if (s.file === path && (s.side || 'new') === 'new') add(s.end, { k: 'stop', html: `<b>${i + 1}.${j + 1} ${esc(s.title)}</b> ${stopLink(s.id, 'in tour')}<div class="md">${md(s.why)}</div>`, at: s.start }); }));
+  C.ledger.forEach(l => { if (l.file === path) add(l.line, { k: 'ledger', html: `<b>${esc(l.id)} · ${esc(l.op)}</b> ${md(l.subject, true)} ${ledgerLink(l.id, 'in ledger')}`, at: l.line }); });
   C.findings.forEach(f => { if (f.file === path && f.start) add(f.end || f.start, { k: 'finding', html: `<b>${f.id}</b> ${sevChip(f.severity)} ${md(f.summary, true)} ${findingLink(f.id, 'in findings')}`, at: f.start }); });
   return a;
 }
@@ -2530,12 +2677,99 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   if (e.target.closest('[data-next-unread]')) stepUnread(1);
 });
+
+/* Peeks */
+const PEEK_HOMES = {
+  decision: ['decisions', 'dec-', 'Decisions'],
+  abstraction: ['abstractions', 'abs-', 'Abstractions'],
+  invariant: ['invariants', 'inv-', 'Invariants & risks'],
+  risk: ['invariants', 'risk-', 'Invariants & risks'],
+  finding: ['findings', 'f-', 'Findings'],
+};
+const catalogueEntry = (list, id) => list.find(({ item }) => item.id === id);
+const PEEK_CARDS = {
+  decision: id => DECISION[id] && decisionCard(withItsChapter(DECISION[id]), { compact: true }),
+  abstraction: id => ABSTRACTION[id] && abstractionCard({ item: ABSTRACTION[id].item, chapters: ABSTRACTION[id].chapters.map(c => CH[c]).filter(Boolean) }, { compact: true }),
+  invariant: id => { const entry = catalogueEntry(CATALOGUE.invariants, id); return entry && invariantRow(entry); },
+  risk: id => { const entry = catalogueEntry(CATALOGUE.risks, id); return entry && riskCard(entry); },
+  finding: id => F[id] && findingRow(F[id]),
+};
+function peekContent(kind, id) {
+  const card = PEEK_CARDS[kind] && PEEK_CARDS[kind](id);
+  if (!card) return null;
+  const [route, prefix, home] = PEEK_HOMES[kind];
+  const filter = kind === 'finding' ? { q: id } : {};
+  return `${card}<div class="peek-foot"><button type="button" class="peek-close" data-peek-close>Close</button>${jumpLink(route, filter, `Open in ${esc(home)} →`, '', prefix + id)}</div>`;
+}
+const widePeeks = window.matchMedia('(min-width: 761px)');
+let openPeek = null;
+function closePeek({ refocus = false } = {}) {
+  if (!openPeek) return;
+  const { link, peek } = openPeek;
+  openPeek = null;
+  peek.remove();
+  link.setAttribute('aria-expanded', 'false');
+  if (refocus && link.isConnected) link.focus();
+}
+const INLINE_HOSTS = 'li, td';
+const INLINE_BLOCKS = `${INLINE_HOSTS}, p, blockquote, .aside-ref, .carries, .design-strip, .row, .md, h1, h2, h3, h4, div`;
+function placeInline(peek, link) {
+  const block = link.closest(INLINE_BLOCKS) || link;
+  if (block.matches(INLINE_HOSTS)) block.append(peek);
+  else block.insertAdjacentElement('afterend', peek);
+}
+const PEEK_MARGIN = 12;
+function placePopover(peek, link) {
+  document.body.append(peek);
+  const anchor = link.getBoundingClientRect();
+  const topBar = $('.topbar').getBoundingClientRect().bottom;
+  const below = innerHeight - anchor.bottom - 2 * PEEK_MARGIN, above = anchor.top - topBar - 2 * PEEK_MARGIN;
+  const natural = peek.scrollHeight;
+  const goesBelow = natural <= below || (natural > above && below >= above);
+  const height = Math.min(natural, goesBelow ? below : above);
+  peek.style.maxHeight = height + 'px';
+  const width = peek.offsetWidth;
+  const left = Math.min(Math.max(anchor.left, PEEK_MARGIN), innerWidth - width - PEEK_MARGIN);
+  const top = goesBelow ? anchor.bottom + PEEK_MARGIN : anchor.top - PEEK_MARGIN - height;
+  peek.style.left = left + scrollX + 'px';
+  peek.style.top = top + scrollY + 'px';
+}
+function openPeekFrom(link) {
+  const at = link.dataset.peek.indexOf(':');
+  const kind = link.dataset.peek.slice(0, at), raw = link.dataset.peek.slice(at + 1);
+  const id = kind === 'finding' ? (C.findingAliases || {})[raw] || raw : raw;
+  const content = peekContent(kind, id);
+  if (!content) return false;
+  const peek = document.createElement('div');
+  peek.className = 'peek ' + (widePeeks.matches ? 'peek-pop' : 'peek-inline');
+  peek.dataset.peekOf = link.dataset.peek;
+  peek.setAttribute('role', 'dialog');
+  peek.setAttribute('aria-label', plain(link.textContent));
+  peek.tabIndex = -1;
+  peek.innerHTML = content;
+  $$('[id]', peek).forEach(el => el.removeAttribute('id'));
+  if (widePeeks.matches) placePopover(peek, link); else placeInline(peek, link);
+  openPeek = { link, peek };
+  link.setAttribute('aria-expanded', 'true');
+  refreshControls();
+  if (widePeeks.matches) peek.focus({ preventScroll: true });
+  return true;
+}
 document.addEventListener('click', e => {
-  const s = e.target.closest('[data-scroll-stop],[data-scroll-ledger],[data-scroll-to]');
-  if (!s) return;
-  const id = s.dataset.scrollTo || (s.dataset.scrollStop ? 'stop-' + s.dataset.scrollStop : 'l-' + s.dataset.scrollLedger);
-  setTimeout(() => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start' }); }, 60);
+  const link = e.target.closest('a[data-peek]');
+  if (link && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) {
+    const alreadyOpen = !!openPeek && openPeek.link === link;
+    closePeek();
+    if (alreadyOpen || openPeekFrom(link)) e.preventDefault();
+    return;
+  }
+  if (e.target.closest('[data-peek-close]')) { closePeek({ refocus: true }); return; }
+  if (openPeek && widePeeks.matches && !e.target.closest('.peek')) closePeek();
 });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && openPeek) { e.stopPropagation(); closePeek({ refocus: true }); }
+}, true);
+window.addEventListener('resize', () => { if (openPeek && openPeek.peek.classList.contains('peek-pop')) closePeek(); });
 
 
 /* By commit */
@@ -3032,7 +3266,7 @@ after.notes = () => {
 
 /* ---------- Extension API ---------- */
 const source = () => (C.findingsMeta || {}).source || 'the earlier review';
-const api = () => ({ content: C, diff: D, commits: COMMIT, coverageOf: path => coverageOf(path), md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile, openCommit, navigator: { order: () => FileNavigator.fileOrder(navTree()), current: () => currentKey() } });
+const api = () => ({ content: C, diff: D, commits: COMMIT, coverageOf: path => coverageOf(path), md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, refreshMarks: (element = document) => refreshMarks(undefined, element), rerender: render, openFile, openCommit, navigator: { order: () => FileNavigator.fileOrder(navTree()), current: () => currentKey() } });
 window.ExplorePR = {
   registerView(view) {
     if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);
@@ -3058,7 +3292,7 @@ async function boot() {
   GH = C.pr.repoUrl || '';
   $('#pr-id').textContent = '#' + C.pr.number;
   $('#pr-title').textContent = C.pr.title || '';
-  render();
+  render(LANDING.arrive);
   Store.init();
   try {
     D = window.__EXPLORE_DIFF || await (await fetch('diff.json')).json();

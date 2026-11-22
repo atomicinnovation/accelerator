@@ -43,6 +43,18 @@
 // new verdict, not a note, moves the record to this head. Every diagram the
 // kit drew is put through the kit's own checks: text inside its box, no box
 // across another or across an arrow, tracing, and a linked box opening its link.
+// A decision named in the design opens in a popover without leaving the page,
+// a verdict given there marks every link to it, and Esc or a click elsewhere
+// closes it. Following a link from part-way down a view and going Back returns
+// the view to where it was scrolled, while a new view opens at its top. Every
+// link to an item that takes a verdict carries a painted mark, the readiness
+// gates link each outstanding item, and the rail marks each chapter. At phone
+// width the top bar keeps to one line, a catalogue's filters fold and stick
+// below it, an item opened by its address lands below both, and a peek unfolds
+// below its paragraph with no card inside it drawing an edge of its own. In
+// every kind of peek, and in the invariants catalogue, an item's text keeps
+// most of the width, with its review control flowed beneath it, and a comma in
+// a list of tests stays on the line of the test before it.
 // Each catalogue in Reference draws one card per item, and a verdict given to a
 // decision there shows at the stop that first carries it. The design reads as
 // its article: every section drawn, every excerpt's code resolved, the sign-off
@@ -117,7 +129,10 @@ async function devtools(chrome) {
     const reply = new Promise(resolve => { pending.set(n, resolve); ws.send(JSON.stringify({ id: n, method, params })); });
     return withinDeadline(reply, CALL_DEADLINE_MS, method).finally(() => pending.delete(n));
   };
-  const evaluate = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.result.value;
+  const evaluate = async expression => {
+    const { result } = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+    return result.exceptionDetails ? { thrown: result.exceptionDetails.exception?.description || result.exceptionDetails.text } : result.result.value;
+  };
   const close = async () => {
     ws.close();
     const exited = new Promise(resolve => proc.once('exit', resolve));
@@ -221,7 +236,7 @@ const REFERENCES_PROBE = `(async () => {
   toStop.click(); await settle();
   const target = document.getElementById('stop-' + stop.id);
   const top = target ? target.getBoundingClientRect().top : null;
-  return { named, opensChapter: location.hash === '#tour-' + last.id, reachesStop: top !== null && top >= -2 && top < innerHeight };
+  return { named, opensChapter: location.hash === '#tour-' + last.id + '/stop-' + encodeURIComponent(stop.id), reachesStop: top !== null && top >= -2 && top < innerHeight };
 })()`;
 
 const EVIDENCE_PROBE = `(async () => {
@@ -258,9 +273,173 @@ const EVIDENCE_PROBE = `(async () => {
   const again = [...document.getElementById('stop-' + stop.id).querySelectorAll('a.carried')];
   if (!named) return { named, focusMarked, decisionsMetOnce, stripMissing, gridKept };
   again[0].click(); await settle();
-  const target = document.getElementById(again[0].dataset.scrollTo);
-  const top = target ? target.getBoundingClientRect().top : null;
-  return { stop: stop.id, named, focusMarked, reachesWhatItCarries: top !== null && top >= -2 && top < innerHeight, decisionsMetOnce, misplaced, stripMissing, gridKept };
+  const peek = document.querySelector('.peek:not([hidden])[data-peek-of="' + CSS.escape(again[0].dataset.peek) + '"]');
+  const reachesWhatItCarries = !!peek && !!peek.querySelector('article, .inv, table') && location.hash === '#tour-' + chapter.id;
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle();
+  return { stop: stop.id, named, focusMarked, reachesWhatItCarries, decisionsMetOnce, misplaced, stripMissing, gridKept };
+})()`;
+
+const PEEK_PROBE = `(async () => {
+  const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
+  const api = window.ExplorePR.api;
+  if (!window.ExplorePR.routes().includes('design')) return { skipped: 'no design view' };
+  location.hash = 'overview'; await settle();
+  location.hash = 'design'; await settle();
+  const link = document.querySelector('#main a[data-peek^="decision:"]');
+  if (!link) return { skipped: 'no decision linked from the design' };
+  const target = 'design:' + link.dataset.peek.slice('decision:'.length);
+  const kept = api.store.get(target).status || '';
+  link.scrollIntoView({ block: 'center' }); await settle();
+  link.click(); await settle();
+  const pop = document.querySelector('.peek.peek-pop:not([hidden])');
+  const opensInPlace = location.hash === '#design' && !!pop && !!pop.querySelector('.ctl[data-ctl="' + CSS.escape(target) + '"]');
+  if (!opensInPlace) return { opensInPlace };
+  const box = pop.getBoundingClientRect();
+  const popoverInView = box.top >= 0 && box.bottom <= innerHeight + 1 && box.left >= 0 && box.right <= innerWidth + 1;
+  pop.querySelector('button[data-v="question"]').click(); await settle();
+  const marks = [...document.querySelectorAll('.mark[data-mark-of="' + CSS.escape(target) + '"]')];
+  const markFollows = marks.length > 1 && marks.every(mark => mark.dataset.tone === 'warn');
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle();
+  const escapeCloses = !document.querySelector('.peek.peek-pop:not([hidden])');
+  link.click(); await settle();
+  document.querySelector('#main h1').click(); await settle();
+  const outsideCloses = !document.querySelector('.peek.peek-pop:not([hidden])');
+  api.store.put(target, 'design', { status: kept }, {}); await settle();
+  return { opensInPlace, popoverInView, markFollows, escapeCloses, outsideCloses };
+})()`;
+
+const RESTORE_PROBE = `(async () => {
+  const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
+  const routes = window.ExplorePR.routes();
+  const from = routes.includes('design') ? 'design' : 'overview';
+  location.hash = 'files'; await settle();
+  location.hash = from; await settle(700);
+  const inProse = [...document.querySelectorAll('#main a[href^="#tour-"]:not([data-peek])')].filter(link => link instanceof HTMLElement);
+  const link = inProse.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top)[0]
+    || document.querySelector('#rail a[href="#files"]');
+  link.scrollIntoView({ block: 'center' }); await settle();
+  const before = scrollY;
+  if (before < 100) return { skipped: 'nothing to scroll past in ' + from };
+  link.click(); await settle(700);
+  const left = location.hash !== '#' + from;
+  const landsWhereItLeads = link.getAttribute('href').includes('/') || scrollY === 0;
+  history.back(); await settle(1200);
+  const restores = location.hash === '#' + from && Math.abs(scrollY - before) <= 2;
+  document.querySelector('#rail a[href="#files"]').click(); await settle();
+  const newViewAtTop = scrollY === 0;
+  return { left, landsWhereItLeads, restores, newViewAtTop, before, after: scrollY };
+})()`;
+
+const MARKS_PROBE = `(async () => {
+  const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
+  const api = window.ExplorePR.api;
+  const routes = window.ExplorePR.routes();
+  const views = ['design', 'tour-' + ((api.content.chapters || [])[0] || {}).id, 'readiness', 'findings', 'decisions'].filter(view => routes.includes(view) || view.startsWith('tour-'));
+  const unfilled = [], unmarked = [];
+  const ACTIONABLE = '#main a[data-peek^="decision:"], #main a[data-peek^="invariant:"], #main a[data-peek^="finding:"], #main a[href*="/stop-"]:not(.k-abstraction), #main a.ref[href^="#tour-"]';
+  for (const view of views) {
+    location.hash = view; await settle();
+    document.querySelectorAll('.mark[data-mark-of]').forEach(mark => { if (!mark.dataset.tone) unfilled.push(view + ' ' + mark.dataset.markOf); });
+    document.querySelectorAll(ACTIONABLE).forEach(link => { if (!link.querySelector('.mark[data-tone]')) unmarked.push(view + ' ' + link.getAttribute('href')); });
+  }
+  location.hash = 'readiness'; await settle();
+  const MARKED_GATES = ['design', 'findings', 'invariants', 'ledger', 'chapters', 'accepted-risks'];
+  const outstanding = [...document.querySelectorAll('#gates [data-gate]')].filter(gate => MARKED_GATES.includes(gate.dataset.gate))
+    .flatMap(gate => [...gate.querySelectorAll('li:not(.muted)')]);
+  const outstandingLinked = outstanding.every(item => !!item.querySelector('a .mark[data-tone]'));
+  const railMarked = [...document.querySelectorAll('#rail a.sub')].every(link => !!link.querySelector('.mark[data-tone]'));
+  return { unfilled: unfilled.slice(0, 10), unmarked: unmarked.slice(0, 10), outstandingLinked, outstandingCount: outstanding.length, railMarked };
+})()`;
+
+const PHONE_PROBE = `(async () => {
+  const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
+  const routes = window.ExplorePR.routes();
+  const bar = () => document.querySelector('.topbar').getBoundingClientRect();
+  const shown = el => !!el && el.getClientRects().length > 0;
+  const result = {};
+  location.hash = 'overview'; await settle();
+  result.topBarOneLine = bar().height <= 60;
+  const catalogue = ['decisions', 'invariants', 'findings'].find(route => routes.includes(route));
+  if (catalogue) {
+    location.hash = catalogue; await settle();
+    const filters = () => document.querySelector('#main .filters');
+    const toggle = filters().querySelector('.filters-toggle');
+    result.filtersFolded = shown(toggle) && [...filters().querySelectorAll('select')].every(select => !shown(select));
+    if (toggle) toggle.click(); await settle();
+    result.filtersUnfold = [...filters().querySelectorAll('select')].every(select => shown(select));
+    if (toggle) filters().querySelector('.filters-toggle').click(); await settle();
+    window.scrollTo(0, 900); await settle();
+    result.filtersBelowTopBar = filters().getBoundingClientRect().top >= bar().bottom - 1;
+    const cards = [...document.querySelectorAll('#main article[id], #main .inv[id]')];
+    const middle = cards[Math.floor(cards.length / 2)];
+    if (middle) {
+      location.hash = catalogue + '/' + encodeURIComponent(middle.id); await settle(900);
+      const card = document.getElementById(middle.id).getBoundingClientRect();
+      const covered = Math.max(bar().bottom, filters().getBoundingClientRect().bottom);
+      result.itemBelowBars = card.top >= covered - 1 && card.top < innerHeight;
+      result.landing = { card: card.top, covered };
+    }
+  }
+  if (routes.includes('design')) {
+    location.hash = 'design'; await settle();
+    const link = document.querySelector('#main a[data-peek]');
+    if (link) {
+      link.scrollIntoView({ block: 'center' }); await settle();
+      link.click(); await settle();
+      const inline = document.querySelector('#main .peek.peek-inline');
+      result.peeksInline = !!inline && !document.querySelector('.peek.peek-pop:not([hidden])')
+        && inline.getBoundingClientRect().top > link.getBoundingClientRect().top && location.hash === '#design';
+      link.click(); await settle();
+      result.peekCloses = !document.querySelector('#main .peek.peek-inline');
+    }
+  }
+  const abstractionView = ['design', 'abstractions'].find(route => routes.includes(route));
+  if (abstractionView) {
+    location.hash = abstractionView; await settle();
+    const link = document.querySelector('#main a[data-peek^="abstraction:"]');
+    if (link) {
+      link.click(); await settle();
+      const cards = [...document.querySelectorAll('.peek > :not(.peek-foot)')];
+      result.peekedCardsUnedged = cards.length > 0 && cards.every(card => getComputedStyle(card).boxShadow === 'none');
+      link.click(); await settle();
+    }
+  }
+  const FULL_WIDTH_SHARE = 0.75;
+  const textShare = (text, within) => text.getBoundingClientRect().width / (within.clientWidth - parseFloat(getComputedStyle(within).paddingLeft) - parseFloat(getComputedStyle(within).paddingRight));
+  const pendingKinds = new Set(['decision', 'abstraction', 'invariant', 'risk', 'finding']);
+  const cramped = [];
+  for (const view of ['design', ...(window.ExplorePR.api.content.chapters || []).map(chapter => 'tour-' + chapter.id)]) {
+    if (!pendingKinds.size) break;
+    if (view === 'design' && !routes.includes('design')) continue;
+    location.hash = view; await settle();
+    for (const kind of [...pendingKinds]) {
+      const link = document.querySelector('#main a[data-peek^="' + kind + ':"]');
+      if (!link) continue;
+      pendingKinds.delete(kind);
+      link.click(); await settle();
+      const peek = document.querySelector('.peek');
+      const text = peek && peek.querySelector('.md');
+      if (text && textShare(text, peek) < FULL_WIDTH_SHARE) cramped.push(kind + ' ' + Math.round(100 * textShare(text, peek)) + '%');
+      link.click(); await settle();
+    }
+  }
+  result.peekTextFullWidth = !cramped.length;
+  result.crampedPeeks = cramped;
+  if (routes.includes('invariants')) {
+    location.hash = 'invariants'; await settle();
+    const invariant = document.querySelector('#main .inv');
+    if (invariant) result.invariantTextFullWidth = textShare(invariant.querySelector('.md'), invariant) >= FULL_WIDTH_SHARE;
+    const walker = document.createTreeWalker(document.querySelector('#main'), NodeFilter.SHOW_TEXT, { acceptNode: node => (node.textContent.trim() === ',' && node.previousElementSibling ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) });
+    const strayCommas = [];
+    for (let comma = walker.nextNode(); comma; comma = walker.nextNode()) {
+      const range = document.createRange(); range.selectNodeContents(comma);
+      const at = [...range.getClientRects()].pop(), item = [...comma.previousElementSibling.getClientRects()].pop();
+      if (at && item && Math.abs(at.bottom - item.bottom) > 4) strayCommas.push(comma.previousElementSibling.textContent);
+    }
+    result.commasStayWithTheirItem = !strayCommas.length;
+    result.strayCommas = strayCommas.slice(0, 3);
+  }
+  return result;
 })()`;
 
 const READINESS_PROBE = `(async () => {
@@ -310,11 +489,16 @@ const FINDINGS_PROBE = `(async () => {
   document.querySelector('[data-ff="source"]').dispatchEvent(new Event('change', { bubbles: true })); await settle();
   const chapter = content.chapters.find(each => content.findings.some(finding => finding.chapter === each.id));
   location.hash = 'tour-' + chapter.id; await settle();
-  const link = document.querySelector('#main .finding-list a[data-jump="findings"]');
-  const wanted = JSON.parse(link.dataset.filter).q;
+  const link = document.querySelector('#main .finding-list a[data-peek^="finding:"]');
+  const wanted = link.dataset.peek.slice('finding:'.length);
   link.click(); await settle();
+  const peek = document.querySelector('.peek:not([hidden])[data-peek-of="finding:' + CSS.escape(wanted) + '"]');
+  const peeksAtItsFinding = !!peek && !!peek.querySelector('.ctl[data-ctl="finding:' + CSS.escape(wanted) + '"]');
+  if (!peeksAtItsFinding) return { listed, narrowed, peeksAtItsFinding };
+  peek.querySelector('[data-jump="findings"]').click(); await settle();
   const shown = [...document.querySelectorAll('#main article.finding')].map(article => article.id);
-  return { listed, narrowed, opensItsFinding: location.hash === '#findings' && shown.length === 1 && shown[0] === 'f-' + wanted };
+  const opensItsFinding = location.hash === '#findings/f-' + encodeURIComponent(wanted) && shown.length === 1 && shown[0] === 'f-' + wanted;
+  return { listed, narrowed, peeksAtItsFinding, opensItsFinding };
 })()`;
 
 const DESIGN_PROBE = `(async () => {
@@ -786,6 +970,9 @@ async function main() {
     report.readiness = await cdp.evaluate(READINESS_PROBE);
     report.heads = await cdp.evaluate(HEADS_PROBE);
     report.diagrams = await cdp.evaluate(DIAGRAMS_PROBE);
+    report.peek = await cdp.evaluate(PEEK_PROBE);
+    report.restore = await cdp.evaluate(RESTORE_PROBE);
+    report.marks = await cdp.evaluate(MARKS_PROBE);
     await viewport(400);
     for (const route of routes) {
       await cdp.evaluate(`location.hash = ${JSON.stringify(route)}`);
@@ -793,6 +980,7 @@ async function main() {
       const width = await cdp.evaluate('document.documentElement.scrollWidth');
       if (width > 400) report.overflow.push({ route, scrollWidth: width });
     }
+    report.phone = await cdp.evaluate(PHONE_PROBE);
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
     report.touch = await cdp.evaluate(TOUCH_PROBE);
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
@@ -834,13 +1022,21 @@ async function main() {
   const touch = report.touch || {};
   const touchHolds = !!touch.picksShown;
   const findings = report.findings || {};
-  const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
+  const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.peeksAtItsFinding && findings.opensItsFinding);
   const readiness = report.readiness || {};
   const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows && readiness.highRiskOpens !== false);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = touchHolds && navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  const peek = report.peek || {};
+  const peekHolds = !!peek.skipped || !!(peek.opensInPlace && peek.popoverInView && peek.markFollows && peek.escapeCloses && peek.outsideCloses);
+  const restore = report.restore || {};
+  const restoreHolds = !!restore.skipped || !!(restore.left && restore.landsWhereItLeads && restore.restores && restore.newViewAtTop);
+  const marks = report.marks || {};
+  const marksHold = !!(marks.unfilled && !marks.unfilled.length && !marks.unmarked.length && marks.outstandingLinked && marks.railMarked);
+  const phone = report.phone || {};
+  const phoneHolds = !!phone.topBarOneLine && ['filtersFolded', 'filtersUnfold', 'filtersBelowTopBar', 'itemBelowBars', 'peeksInline', 'peekCloses', 'peekedCardsUnedged', 'peekTextFullWidth', 'invariantTextFullWidth', 'commasStayWithTheirItem'].every(check => phone[check] !== false);
+  report.ok = peekHolds && restoreHolds && marksHold && phoneHolds && touchHolds && navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

@@ -58,11 +58,12 @@ def test_a_decision_met_in_the_tour_does_not_list_where_else_it_is_shown():
     assert "compact ? '' : shownAt(d)" in card
 
 
-def test_what_a_stop_carries_links_to_its_entry_in_reference():
+def test_what_a_stop_carries_peeks_at_its_entry_in_reference():
     link = renderer("carriedLink")
 
     assert "#tour-" not in link
-    assert "data-jump" in link
+    assert "data-peek" in link
+    assert "addressOf(route, prefix + carried.id)" in link
 
 
 def stop_layout():
@@ -121,7 +122,8 @@ def test_what_a_stop_carries_can_be_reached_from_it():
 
     for target in ('id="dec-', 'id="abs-', 'id="inv-', 'id="risk-'):
         assert target in shell, target
-    assert "dataset.scrollTo" in shell
+    assert "prefix + id" in renderer("peekContent")
+    assert "landOnItem(currentItem)" in renderer("land")
 
 
 def test_the_rail_takes_its_sections_from_the_review_sections_model():
