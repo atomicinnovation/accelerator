@@ -14,8 +14,19 @@ use std::time::Instant;
 use std::time::SystemTime;
 
 use research::sources::fetch::Clock;
+use research::sources::queue::ArxivQueue as _;
+use research::sources::queue::Binding;
+use research::sources::queue::Joining;
+use research::sources::queue::Nonce;
+use research::sources::queue::Ticket;
+use research::sources::schedule::Deadline;
+use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
+use research_adapters::pacing::FilePacingGate;
+use research_adapters::queue::FileArxivQueue;
 use research_adapters::scratch::ScratchDir;
+
+const ARXIV_SPACING: Duration = secs(3);
 
 pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -88,6 +99,71 @@ impl Diagnostics for RecordedDiagnostics {
     }
 }
 
+/// A file or directory of arXiv's queue and pacing state.
+#[derive(Debug, Clone, Copy)]
+pub enum StateFile {
+    ServingLock,
+    Pacing,
+    RequestLog,
+    ContentionLog,
+    Queue,
+}
+
+impl StateFile {
+    const fn arxiv_name(self) -> &'static str {
+        match self {
+            Self::ServingLock => "arxiv.lock",
+            Self::Pacing => "arxiv-pacing",
+            Self::RequestLog => "arxiv-requests.log",
+            Self::ContentionLog => "arxiv-contention.log",
+            Self::Queue => "arxiv-queue",
+        }
+    }
+}
+
+/// The pacing state arXiv's gate persists between calls.
+#[derive(Default)]
+pub struct PacingRecord {
+    pub last_sent: Option<SystemTime>,
+    pub last_finish: Option<SystemTime>,
+    pub not_before: Option<SystemTime>,
+}
+
+pub fn arxiv_gate(
+    scratch: &Scratch,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> FilePacingGate {
+    FilePacingGate::new(scratch.dir(), clock, diagnostics)
+}
+
+pub fn arxiv_contention_log(
+    scratch: &Scratch,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> FileContentionLog {
+    FileContentionLog::new(scratch.dir(), clock, diagnostics)
+}
+
+pub fn arxiv_queue(
+    research: &ScratchDir,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+    nonces: Box<dyn Fn() -> Nonce>,
+) -> FileArxivQueue {
+    FileArxivQueue::new(research, clock, diagnostics, nonces)
+}
+
+/// Joins `queue` as an arXiv call would, with arXiv's spacing.
+pub fn join_queue<'q>(
+    queue: &'q FileArxivQueue,
+    binding: &Binding,
+    presented: Option<&Ticket>,
+    deadline: &Deadline,
+) -> Joining<'q> {
+    queue.join(binding, presented, deadline, ARXIV_SPACING)
+}
+
 /// A project root holding the `research` scratch directory the adapters
 /// keep their state in.
 pub struct Scratch {
@@ -109,8 +185,48 @@ impl Scratch {
         self.root.path().join("tmp/research")
     }
 
+    pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
+        self.directory().join(file.arxiv_name())
+    }
+
     pub fn queue_directory(&self) -> PathBuf {
-        self.directory().join("arxiv-queue")
+        self.arxiv_state(StateFile::Queue)
+    }
+
+    pub fn write_pacing(&self, record: &PacingRecord) {
+        let millis = |at: Option<SystemTime>| {
+            at.map_or_else(|| "null".to_owned(), |at| millis(at).to_string())
+        };
+        self.write(
+            self.arxiv_state(StateFile::Pacing),
+            &format!(
+                "{{\"last_sent_ms\":{},\"last_finish_ms\":{},\
+                 \"not_before_ms\":{}}}",
+                millis(record.last_sent),
+                millis(record.last_finish),
+                millis(record.not_before)
+            ),
+        );
+    }
+
+    /// Writes pacing state in the shape stored before sends were recorded.
+    pub fn write_pacing_without_last_sent(&self, last_finish: SystemTime) {
+        self.write(
+            self.arxiv_state(StateFile::Pacing),
+            &format!(
+                "{{\"last_finish_ms\":{},\"not_before_ms\":null}}",
+                millis(last_finish)
+            ),
+        );
+    }
+
+    pub fn stored_pacing(&self) -> serde_json::Value {
+        serde_json::from_str(
+            &self
+                .read(self.arxiv_state(StateFile::Pacing))
+                .expect("a pacing state"),
+        )
+        .expect("JSON pacing state")
     }
 
     pub fn queue_path(&self, name: &str) -> PathBuf {
@@ -267,25 +383,28 @@ impl Scratch {
             .map(|bytes| serde_json::from_slice(&bytes).expect("a JSON record"))
     }
 
-    fn path(&self, name: &str) -> PathBuf {
-        let directory = self.directory();
-        std::fs::create_dir_all(&directory).expect("mkdir scratch");
-        directory.join(name)
+    /// `name` relative to the research directory, or an absolute path such
+    /// as [`Self::arxiv_state`] gives, with its parent created.
+    fn path(&self, name: impl AsRef<Path>) -> PathBuf {
+        let path = self.directory().join(name);
+        std::fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("mkdir scratch");
+        path
     }
 
-    pub fn write(&self, name: &str, contents: &str) {
+    pub fn write(&self, name: impl AsRef<Path>, contents: &str) {
         std::fs::write(self.path(name), contents).expect("write scratch file");
     }
 
-    pub fn read(&self, name: &str) -> Option<String> {
+    pub fn read(&self, name: impl AsRef<Path>) -> Option<String> {
         std::fs::read_to_string(self.path(name)).ok()
     }
 
-    pub fn mkdir(&self, name: &str) {
+    pub fn mkdir(&self, name: impl AsRef<Path>) {
         std::fs::create_dir_all(self.path(name)).expect("mkdir");
     }
 
-    pub fn open(&self, name: &str) -> File {
+    pub fn open(&self, name: impl AsRef<Path>) -> File {
         std::fs::OpenOptions::new()
             .create(true)
             .truncate(false)
@@ -294,7 +413,7 @@ impl Scratch {
             .expect("open scratch file")
     }
 
-    pub fn lines(&self, name: &str) -> Vec<String> {
+    pub fn lines(&self, name: impl AsRef<Path>) -> Vec<String> {
         self.read(name)
             .unwrap_or_default()
             .lines()

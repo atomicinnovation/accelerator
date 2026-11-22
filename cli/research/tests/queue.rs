@@ -1,5 +1,7 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
+mod support;
+
 use std::cell::Cell;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -24,6 +26,7 @@ use research::sources::request::ArxivRequest;
 use research::sources::request::Family;
 use research::sources::request::Limit;
 use research::sources::request::RequestError;
+use support::queue_of;
 
 const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -129,7 +132,7 @@ impl Seed {
 }
 
 fn queue(seeds: Vec<Seed>) -> Queue {
-    Queue::new(seeds.into_iter().map(Seed::standing).collect(), Vec::new())
+    queue_of(seeds.into_iter().map(Seed::standing).collect(), Vec::new())
 }
 
 fn present(queue: &Queue, presented: &str, binding: &Binding) -> Presentation {
@@ -508,7 +511,7 @@ fn the_next_number_follows_an_absent_highest_ticket() {
 
 #[test]
 fn the_next_number_follows_an_unparsed_highest_ticket() {
-    let queue = Queue::new(
+    let queue = queue_of(
         vec![Seed::new("2-aaaaaa", 10).standing()],
         vec![ticket("9-cccccc")],
     );

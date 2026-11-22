@@ -103,6 +103,30 @@ pub fn page_of(names: &[&str]) -> String {
     format!("{{\"meta\":{{}},\"results\":[{works}]}}")
 }
 
+/// A file or directory of arXiv's queue and pacing state.
+#[derive(Debug, Clone, Copy)]
+pub enum StateFile {
+    ServingLock,
+    Pacing,
+    RequestLog,
+    ContentionLog,
+    Queue,
+    QueueLock,
+}
+
+impl StateFile {
+    const fn arxiv_name(self) -> &'static str {
+        match self {
+            Self::ServingLock => "arxiv.lock",
+            Self::Pacing => "arxiv-pacing",
+            Self::RequestLog => "arxiv-requests.log",
+            Self::ContentionLog => "arxiv-contention.log",
+            Self::Queue => "arxiv-queue",
+            Self::QueueLock => "arxiv-queue/queue.lock",
+        }
+    }
+}
+
 /// A scratch project: a repository directory with an `.accelerator/`
 /// directory, optionally under git so files can be tracked.
 pub struct Project {
@@ -170,15 +194,18 @@ impl Project {
         let _ = std::fs::remove_file(self.clock_log());
     }
 
-    /// The directory the arXiv lock, pacing state and logs live in under the
-    /// default `paths.tmp`.
+    /// The research scratch directory under the default `paths.tmp`.
     pub fn research_scratch(&self) -> PathBuf {
         self.root.join(".accelerator/tmp/research")
     }
 
+    pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
+        self.research_scratch().join(file.arxiv_name())
+    }
+
     pub fn queue_dir(&self) -> PathBuf {
-        let queue = self.research_scratch().join("arxiv-queue");
-        std::fs::create_dir_all(&queue).expect("mkdir arxiv-queue");
+        let queue = self.arxiv_state(StateFile::Queue);
+        std::fs::create_dir_all(&queue).expect("mkdir the queue");
         queue
     }
 
@@ -226,10 +253,12 @@ impl Project {
         .expect("seed a ticket");
     }
 
-    /// Holds `name` in the research scratch directory exclusively, as
-    /// another call would.
-    pub fn hold(&self, name: &str) -> File {
-        let path = self.research_scratch().join(name);
+    /// Holds `file` exclusively, as another call would.
+    pub fn hold(&self, file: StateFile) -> File {
+        Self::hold_path(&self.arxiv_state(file))
+    }
+
+    fn hold_path(path: &Path) -> File {
         std::fs::create_dir_all(path.parent().expect("a parent"))
             .expect("mkdir");
         let file = std::fs::OpenOptions::new()
@@ -237,7 +266,7 @@ impl Project {
             .truncate(false)
             .read(true)
             .write(true)
-            .open(&path)
+            .open(path)
             .expect("open to hold");
         rustix::fs::flock(
             &file,
@@ -248,7 +277,7 @@ impl Project {
     }
 
     pub fn hold_ticket(&self, ticket: &str) -> File {
-        self.hold(&format!("arxiv-queue/{ticket}.lock"))
+        Self::hold_path(&self.queue_dir().join(format!("{ticket}.lock")))
     }
 
     /// Whether a call holds the ticket, read with a shared probe as the
@@ -302,13 +331,11 @@ impl Project {
     }
 
     pub fn contention_lines(&self) -> Vec<String> {
-        std::fs::read_to_string(
-            self.research_scratch().join("arxiv-contention.log"),
-        )
-        .unwrap_or_default()
-        .lines()
-        .map(str::to_owned)
-        .collect()
+        std::fs::read_to_string(self.arxiv_state(StateFile::ContentionLog))
+            .unwrap_or_default()
+            .lines()
+            .map(str::to_owned)
+            .collect()
     }
 }
 

@@ -13,6 +13,7 @@ use support::search_binding;
 use support::Project;
 use support::Run;
 use support::SeededTicket;
+use support::StateFile;
 use support::CALL_BUDGET_MS;
 
 const WITHDRAWN: &str = "2608.21129";
@@ -404,7 +405,7 @@ fn a_throttled_call_defers_the_next_calls_first_request() {
 fn a_lock_held_past_the_window_waits_with_a_ticket() {
     let project = Project::new();
     let server = server_with(vec![(query(), feed("search-3.xml"))]);
-    let _arxiv = project.hold("arxiv.lock");
+    let _arxiv = project.hold(StateFile::ServingLock);
 
     let run = fetch(&project, &server, &["arxiv", "search", "graphs"], &[]);
 
@@ -472,7 +473,7 @@ fn a_waiting_document_carries_ticket_and_position() {
 fn a_40_s_budget_behind_a_live_ticket_waits_at_position_2() {
     let project = Project::new();
     let server = server_with(vec![(query(), feed("search-3.xml"))]);
-    let _arxiv = project.hold("arxiv.lock");
+    let _arxiv = project.hold(StateFile::ServingLock);
     project.seed_ticket("1-aaaaaa", &SeededTicket::live(&graphs(), 10));
     let _ahead = project.hold_ticket("1-aaaaaa");
 
@@ -557,7 +558,7 @@ fn a_ticket_with_another_query_exits_2_naming_it_and_changes_nothing() {
         },
     );
     project.seed_ticket("2-bbbbbb", &SeededTicket::absent(&graphs(), 600, 400));
-    drop(project.hold("arxiv-queue/queue.lock"));
+    drop(project.hold(StateFile::QueueLock));
     let before = project.queue_files();
 
     let run = fetch(
@@ -772,7 +773,7 @@ fn a_position_counts_expired_absent_and_live_tickets_correctly() {
     project.seed_ticket("2-bbbbbb", &SeededTicket::absent(&graphs(), 200, 100));
     project.seed_ticket("3-cccccc", &SeededTicket::live(&graphs(), 50));
     let _live = project.hold_ticket("3-cccccc");
-    let _arxiv = project.hold("arxiv.lock");
+    let _arxiv = project.hold(StateFile::ServingLock);
 
     let run = fetch(&project, &server, &GRAPHS_QUERY, &budget("33100"));
 
@@ -854,9 +855,9 @@ fn a_ticket_presented_while_live_elsewhere_exits_2() {
 fn an_unusable_queue_ends_a_contended_call_in_lock_contention() {
     let project = Project::new();
     let server = server_with(vec![(query(), feed("search-3.xml"))]);
-    std::fs::create_dir_all(project.queue_dir().join("queue.lock"))
+    std::fs::create_dir_all(project.arxiv_state(StateFile::QueueLock))
         .expect("an unusable queue lock");
-    let _arxiv = project.hold("arxiv.lock");
+    let _arxiv = project.hold(StateFile::ServingLock);
 
     let run = fetch(&project, &server, &GRAPHS_QUERY, &budget("33100"));
 

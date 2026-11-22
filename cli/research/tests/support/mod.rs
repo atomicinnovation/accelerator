@@ -31,11 +31,24 @@ use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Place;
 use research::sources::queue::Position;
+use research::sources::queue::Queue;
+use research::sources::queue::Standing;
 use research::sources::queue::Ticket;
 use research::sources::queue::TicketRejection;
 use research::sources::request::ArxivId;
 use research::sources::request::UpstreamRequest;
 use research::sources::schedule::Deadline;
+
+const ARXIV_SPACING: Duration = secs(3);
+
+/// A queue of `standings`, beside the tickets whose records could not be
+/// parsed.
+pub const fn queue_of(
+    standings: Vec<Standing>,
+    unparsed: Vec<Ticket>,
+) -> Queue {
+    Queue::new(standings, unparsed)
+}
 
 pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -244,6 +257,11 @@ impl RecordingGate {
             timeline,
             ..Self::default()
         }
+    }
+
+    /// A gate on `timeline` that paces as arXiv's does.
+    pub fn paced_as_arxiv(timeline: Timeline) -> Self {
+        Self::on(timeline).spacing(ARXIV_SPACING)
     }
 
     #[must_use]

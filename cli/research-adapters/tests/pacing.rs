@@ -17,11 +17,14 @@ use research::sources::schedule::Deadline;
 use research_adapters::pacing::FilePacingGate;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
+use support::arxiv_gate;
 use support::millis;
 use support::secs;
+use support::PacingRecord;
 use support::RecordedDiagnostics;
 use support::RecordingClock;
 use support::Scratch;
+use support::StateFile;
 
 struct Harness {
     scratch: Scratch,
@@ -39,11 +42,7 @@ impl Harness {
     }
 
     fn gate(&self) -> FilePacingGate {
-        FilePacingGate::new(
-            self.scratch.dir(),
-            self.clock.clone(),
-            self.diagnostics.clone(),
-        )
+        arxiv_gate(&self.scratch, self.clock.clone(), self.diagnostics.clone())
     }
 
     fn deadline(&self, total: Duration) -> Deadline {
@@ -84,38 +83,30 @@ impl Harness {
         last_finish: Option<SystemTime>,
         not_before: Option<SystemTime>,
     ) {
-        let millis = |at: Option<SystemTime>| {
-            at.map_or_else(|| "null".to_owned(), |at| millis(at).to_string())
-        };
-        self.scratch.write(
-            "arxiv-pacing",
-            &format!(
-                "{{\"last_sent_ms\":{},\"last_finish_ms\":{},\
-                 \"not_before_ms\":{}}}",
-                millis(last_sent),
-                millis(last_finish),
-                millis(not_before)
-            ),
-        );
+        self.scratch.write_pacing(&PacingRecord {
+            last_sent,
+            last_finish,
+            not_before,
+        });
     }
 
     fn stored_last_sent_ms(&self) -> Option<u64> {
-        let state: serde_json::Value = serde_json::from_str(
-            &self.scratch.read("arxiv-pacing").expect("a pacing state"),
-        )
-        .expect("JSON pacing state");
-        state["last_sent_ms"].as_u64()
+        self.scratch.stored_pacing()["last_sent_ms"].as_u64()
+    }
+
+    fn state(&self, file: StateFile) -> std::path::PathBuf {
+        self.scratch.arxiv_state(file)
     }
 
     fn hold_lock(&self) -> File {
-        let lock = self.scratch.open("arxiv.lock");
+        let lock = self.scratch.open(self.state(StateFile::ServingLock));
         flock(&lock, FlockOperation::NonBlockingLockExclusive)
             .expect("the test holds the lock");
         lock
     }
 
     fn lock_is_free(&self) -> bool {
-        let lock = self.scratch.open("arxiv.lock");
+        let lock = self.scratch.open(self.state(StateFile::ServingLock));
         flock(&lock, FlockOperation::NonBlockingLockExclusive).is_ok()
     }
 }
@@ -153,13 +144,9 @@ fn a_last_finish_in_the_future_waits_at_most_three_seconds() {
 #[test]
 fn a_state_written_before_last_sent_was_recorded_still_spaces_the_request() {
     let harness = Harness::new();
-    harness.scratch.write(
-        "arxiv-pacing",
-        &format!(
-            "{{\"last_finish_ms\":{},\"not_before_ms\":null}}",
-            millis(harness.clock.wall_now() - secs(1))
-        ),
-    );
+    harness
+        .scratch
+        .write_pacing_without_last_sent(harness.clock.wall_now() - secs(1));
 
     harness.pass(None).expect("admitted");
 
@@ -169,7 +156,9 @@ fn a_state_written_before_last_sent_was_recorded_still_spaces_the_request() {
 #[test]
 fn a_corrupt_state_file_counts_as_no_previous_request() {
     let harness = Harness::new();
-    harness.scratch.write("arxiv-pacing", "{not json");
+    harness
+        .scratch
+        .write(harness.state(StateFile::Pacing), "{not json");
 
     harness.pass(None).expect("admitted");
 
@@ -230,7 +219,8 @@ fn a_stored_deferral_more_than_thirty_seconds_ahead_is_discarded() {
 #[test]
 fn a_failed_state_write_is_reported_and_the_attempt_still_runs() {
     let harness = Harness::new();
-    harness.scratch.mkdir("arxiv-pacing");
+    let pacing = harness.state(StateFile::Pacing);
+    harness.scratch.mkdir(&pacing);
     let ran = Cell::new(false);
 
     harness
@@ -247,7 +237,9 @@ fn a_failed_state_write_is_reported_and_the_attempt_still_runs() {
     let reported = harness.diagnostics.lines();
     assert_eq!(reported.len(), 2, "{reported:?}");
     assert!(
-        reported.iter().all(|line| line.contains("arxiv-pacing")),
+        reported
+            .iter()
+            .all(|line| line.contains(&pacing.display().to_string())),
         "{reported:?}"
     );
 }
@@ -259,8 +251,9 @@ fn every_request_sent_appends_one_line_to_the_request_log() {
     harness.pass(None).expect("admitted");
     harness.pass(None).expect("admitted");
 
-    assert_eq!(harness.scratch.lines("arxiv-requests.log").len(), 2);
-    assert!(harness.scratch.lines("arxiv-contention.log").is_empty());
+    let lines = |file| harness.scratch.lines(harness.state(file));
+    assert_eq!(lines(StateFile::RequestLog).len(), 2);
+    assert!(lines(StateFile::ContentionLog).is_empty());
 }
 
 #[test]
@@ -290,7 +283,8 @@ fn a_wait_the_deadline_cannot_admit_refuses_without_running() {
 #[test]
 fn a_lock_that_cannot_open_still_serves_a_spaced_turn_and_reports_it() {
     let harness = Harness::new();
-    harness.scratch.mkdir("arxiv.lock");
+    let lock = harness.state(StateFile::ServingLock);
+    harness.scratch.mkdir(&lock);
     harness.pass(None).expect("admitted");
     harness.clock.advance(secs(1));
 
@@ -300,8 +294,10 @@ fn a_lock_that_cannot_open_still_serves_a_spaced_turn_and_reports_it() {
     let reported = harness.diagnostics.lines();
     assert_eq!(reported.len(), 2, "{reported:?}");
     assert!(
-        reported.iter().all(|line| line.contains("arxiv.lock")
-            && line.contains("pacing without the lock")),
+        reported
+            .iter()
+            .all(|line| line.contains(&lock.display().to_string())
+                && line.contains("pacing without the lock")),
         "{reported:?}"
     );
 }

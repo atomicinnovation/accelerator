@@ -10,7 +10,6 @@ use std::time::Instant;
 
 use research::sources::classify::Reason;
 use research::sources::fetch::Clock;
-use research::sources::queue::ArxivQueue as _;
 use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Nonce;
@@ -27,14 +26,14 @@ use research_adapters::queue::random_nonce;
 use research_adapters::queue::FileArxivQueue;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
+use support::arxiv_queue;
+use support::join_queue;
 use support::secs;
 use support::RecordedDiagnostics;
 use support::RecordingClock;
 use support::Scratch;
 use support::TicketRecord;
 use support::GRAPHS;
-
-const SPACING: Duration = secs(3);
 
 fn search(query: &str, limit: &str) -> Binding {
     Binding::of(&ArxivRequest::Search {
@@ -74,7 +73,7 @@ impl Harness {
 
     fn queue(&self) -> FileArxivQueue {
         let issued = self.issued.clone();
-        FileArxivQueue::new(
+        arxiv_queue(
             &self.scratch.dir(),
             self.clock.clone(),
             self.diagnostics.clone(),
@@ -152,11 +151,11 @@ fn join_as<'q>(
     binding: &Binding,
     presented: Option<&str>,
 ) -> Joining<'q> {
-    queue.join(
+    join_queue(
+        queue,
         binding,
         presented.map(ticket).as_ref(),
         &harness.deadline(),
-        SPACING,
     )
 }
 
@@ -299,11 +298,11 @@ fn a_mismatch_leaves_every_queue_file_unchanged() {
     let before = harness.scratch.queue_files();
     let queue = harness.queue();
 
-    let joining = queue.join(
+    let joining = join_queue(
+        &queue,
         &search("graphs", "5"),
         Some(&ticket("5-eeeeee")),
         &harness.deadline(),
-        SPACING,
     );
 
     assert!(matches!(
@@ -631,7 +630,7 @@ fn a_probe_that_has_unlocked_but_kept_its_file_open_does_not_block_own() {
 }
 
 fn real_time_queue(scratch: &Scratch) -> FileArxivQueue {
-    FileArxivQueue::new(
+    arxiv_queue(
         &scratch.dir(),
         Rc::new(SystemClock),
         Rc::new(RecordedDiagnostics::default()),
@@ -661,11 +660,11 @@ fn own_succeeds_once_a_briefly_held_shared_lock_is_released() {
     hold_shared_for(&harness.scratch, "1-aaaaaa", Duration::from_millis(5));
     let queue = real_time_queue(&harness.scratch);
 
-    let joining = queue.join(
+    let joining = join_queue(
+        &queue,
         &graphs(),
         Some(&ticket("1-aaaaaa")),
         &real_time_deadline(),
-        SPACING,
     );
 
     assert_eq!(queued(joining).ticket(), &ticket("1-aaaaaa"));
@@ -696,11 +695,11 @@ fn own_fails_when_a_shared_lock_outlasts_its_patience() {
     let queue = real_time_queue(&harness.scratch);
     let started = Instant::now();
 
-    let joining = queue.join(
+    let joining = join_queue(
+        &queue,
         &graphs(),
         Some(&ticket("1-aaaaaa")),
         &real_time_deadline(),
-        SPACING,
     );
 
     assert_eq!(unheld_ticket(&joining).as_deref(), Some("1-aaaaaa"));
@@ -892,10 +891,10 @@ fn a_queue_lock_held_past_the_serving_window_joins_unqueued() {
     let queue = harness.queue();
     let deadline = harness.deadline();
 
-    let joining = queue.join(&graphs(), None, &deadline, SPACING);
+    let joining = join_queue(&queue, &graphs(), None, &deadline);
 
     assert!(matches!(joining, Joining::Unqueued));
-    assert!(deadline.admits_attempt_after(harness.clock.now(), SPACING));
+    assert!(deadline.admits_attempt_after(harness.clock.now(), secs(3)));
 }
 
 #[test]
@@ -944,7 +943,7 @@ fn an_unlistable_queue_reports_once_and_is_front() {
     let queue = harness.queue();
     let place = queued(join(&harness, &queue, None));
     let directory = harness.scratch.queue_directory();
-    let moved = directory.with_file_name("arxiv-queue-moved");
+    let moved = directory.with_file_name("moved-queue");
     std::fs::rename(&directory, &moved).expect("move the queue away");
     std::fs::write(&directory, b"not a directory").expect("block the queue");
     let before = harness.reported().len();
@@ -1004,17 +1003,17 @@ fn concurrent_joins_issue_distinct_consecutive_numbers() {
             let issued = issued.clone();
             let research = research.clone();
             joiners.spawn(move || {
-                let queue = FileArxivQueue::new(
+                let queue = arxiv_queue(
                     &research,
                     Rc::new(SystemClock),
                     Rc::new(RecordedDiagnostics::default()),
                     Box::new(random_nonce),
                 );
-                let place = queued(queue.join(
+                let place = queued(join_queue(
+                    &queue,
                     &graphs(),
                     None,
                     &real_time_deadline(),
-                    SPACING,
                 ));
                 issued.send(place.ticket().number()).expect("send");
             });

@@ -69,8 +69,6 @@ fn lookup(id: &str) -> ArxivRequest {
     ArxivRequest::Lookup(ArxivId::parse(id).expect("valid"))
 }
 
-const SPACING: Duration = secs(3);
-
 struct Harness {
     timeline: Timeline,
     clock: RecordingClock,
@@ -87,7 +85,7 @@ impl Harness {
         let timeline = Timeline::default();
         Self {
             clock: RecordingClock::on(timeline.clone()),
-            gate: RecordingGate::on(timeline.clone()).spacing(SPACING),
+            gate: RecordingGate::paced_as_arxiv(timeline.clone()),
             queue: ScriptedQueue::on(timeline.clone()),
             timeline,
             contention: RecordingContention::default(),

@@ -19,6 +19,7 @@ use support::search_binding;
 use support::spawn_in_real_time;
 use support::Project;
 use support::SeededTicket;
+use support::StateFile;
 
 const SPACING: Duration = Duration::from_secs(3);
 
@@ -106,7 +107,7 @@ fn served_order(server: &MockHTTPServer) -> Vec<String> {
 }
 
 fn hold_arxiv(project: &Project) -> File {
-    project.hold("arxiv.lock")
+    project.hold(StateFile::ServingLock)
 }
 
 #[test]

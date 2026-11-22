@@ -13,6 +13,7 @@ use support::page_of;
 use support::search_binding;
 use support::Project;
 use support::SeededTicket;
+use support::StateFile;
 use support::SELECT;
 
 const KEY: &str = "openalex-sentinel-key";
@@ -860,7 +861,7 @@ fn an_openalex_fetch_ignores_a_held_arxiv_lock_and_queue() {
     let project = Project::new();
     let server =
         server_with(works(), json(200, openalex_fixture("search-30.json")));
-    let _arxiv = project.hold("arxiv.lock");
+    let _arxiv = project.hold(StateFile::ServingLock);
     let graphs = search_binding("graphs", 10);
     project.seed_ticket("1-aaaaaa", &SeededTicket::live(&graphs, 10));
     let _live = project.hold_ticket("1-aaaaaa");
