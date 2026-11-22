@@ -69,6 +69,15 @@ pub struct AvailableProfiles {
     pub unallocatable: Vec<String>,
 }
 
+#[must_use]
+pub fn missing_profiles_dir(profiles_dir: &Path) -> kernel::Error {
+    kernel::Error::Failed(format!(
+        "E_TOPIC_RESEARCH_PROFILES: no profiles directory at {}; reinstall \
+         the plugin",
+        profiles_dir.display()
+    ))
+}
+
 /// Every profile with a skill under `profiles_dir`, sorted.
 ///
 /// # Errors
@@ -78,12 +87,9 @@ pub fn available_profiles<F: DirReader + FileReader>(
     profiles_dir: &Path,
     fs: &F,
 ) -> Result<AvailableProfiles, kernel::Error> {
-    let mut entries = fs.list(profiles_dir)?.ok_or_else(|| {
-        kernel::Error::Failed(format!(
-            "no profiles directory at {}",
-            profiles_dir.display()
-        ))
-    })?;
+    let mut entries = fs
+        .list(profiles_dir)?
+        .ok_or_else(|| missing_profiles_dir(profiles_dir))?;
     entries.sort();
     let mut profiles = AvailableProfiles::default();
     for entry in entries {

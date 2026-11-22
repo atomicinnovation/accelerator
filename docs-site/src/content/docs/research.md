@@ -650,7 +650,7 @@ form).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set, and with
-`E_RESEARCH_PLUGIN_ROOT` when `ACCELERATOR_PLUGIN_ROOT` is not set.
+`E_TOPIC_RESEARCH_PLUGIN_ROOT` when `ACCELERATOR_PLUGIN_ROOT` is not set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
@@ -783,7 +783,8 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
-| `E_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
+| `E_TOPIC_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
+| `E_TOPIC_RESEARCH_PROFILES` | the plugin root holds no `skills/research/profiles` | reinstall the plugin |
 
 ### `research topic report-path`
 
@@ -959,8 +960,8 @@ Each exit code below exits `1`:
 |---|---|---|
 | `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
 | none; the message names `manifest.md` | the manifest is missing, records no `status`, or records one outside `briefed`, `outlined`, `researching`, `synthesised` and `complete` | restore the manifest's `status` |
-| `E_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
-| none; the message names the profiles directory | the plugin root holds no `skills/research/profiles`, checked before any gate | reinstall the plugin |
+| `E_TOPIC_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
+| `E_TOPIC_RESEARCH_PROFILES` | the plugin root holds no `skills/research/profiles`, checked before any gate | reinstall the plugin |
 | none; the message names the path | a directory or file of the set cannot be read | make it readable, then re-run |
 
 ## Sources metadata

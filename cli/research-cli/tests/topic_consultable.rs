@@ -97,7 +97,8 @@ fn consultable_names_a_missing_profiles_directory_before_any_gate(
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains(&format!(
-            "no profiles directory at {}",
+            "E_TOPIC_RESEARCH_PROFILES: no profiles directory at {}; \
+             reinstall the plugin",
             project.root.join("skills/research/profiles").display()
         )),
         "{stderr}"

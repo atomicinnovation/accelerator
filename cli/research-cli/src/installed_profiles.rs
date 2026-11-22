@@ -8,15 +8,15 @@ const PROFILES_IN_PLUGIN: &str = "skills/research/profiles";
 ///
 /// # Errors
 ///
-/// `E_RESEARCH_PLUGIN_ROOT` when no plugin root is set.
+/// `E_TOPIC_RESEARCH_PLUGIN_ROOT` when no plugin root is set.
 pub fn profiles_dir(plugin_root: Option<PathBuf>) -> Result<PathBuf, String> {
     plugin_root
         .filter(|root| !root.as_os_str().is_empty())
         .map(|root| root.join(PROFILES_IN_PLUGIN))
         .ok_or_else(|| {
-            "E_RESEARCH_PLUGIN_ROOT: ACCELERATOR_PLUGIN_ROOT is not set, so \
-             the research profiles cannot be found; run accelerator through \
-             its launcher"
+            "E_TOPIC_RESEARCH_PLUGIN_ROOT: ACCELERATOR_PLUGIN_ROOT is not set, \
+             so the research profiles cannot be found; run accelerator \
+             through its launcher"
                 .to_owned()
         })
 }

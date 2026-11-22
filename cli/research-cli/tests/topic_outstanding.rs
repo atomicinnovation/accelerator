@@ -452,7 +452,10 @@ fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
 
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.starts_with("E_RESEARCH_PLUGIN_ROOT: "), "{stderr}");
+    assert!(
+        stderr.starts_with("E_TOPIC_RESEARCH_PLUGIN_ROOT: "),
+        "{stderr}"
+    );
     assert!(stderr.contains(PLUGIN_ROOT), "{stderr}");
     assert!(output.stdout.is_empty());
     Ok(())
@@ -2713,7 +2716,10 @@ fn a_start_that_cannot_plan_still_reports_its_concurrency_notices(
         )),
         "{stderr}"
     );
-    assert!(stderr.contains("no profiles directory at"), "{stderr}");
+    assert!(
+        stderr.contains("E_TOPIC_RESEARCH_PROFILES: no profiles directory at"),
+        "{stderr}"
+    );
     assert!(output.stdout.is_empty());
     Ok(())
 }

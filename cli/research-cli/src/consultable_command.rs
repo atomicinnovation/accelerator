@@ -10,6 +10,7 @@ use corpus_adapters::YamlFrontmatter;
 use research::topic::consultation::Consultation;
 use research::topic::consultation::Refusal;
 use research_adapters::topic::level_notes_of;
+use research_adapters::topic::missing_profiles_dir;
 use research_adapters::topic::read_counts;
 use research_adapters::topic::read_plan;
 use research_adapters::topic::read_set_status;
@@ -35,10 +36,7 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
     fs: &F,
 ) -> Result<Printed, String> {
     if !fs.is_dir(profiles_dir) {
-        return Err(format!(
-            "no profiles directory at {}",
-            profiles_dir.display()
-        ));
+        return Err(missing_profiles_dir(profiles_dir).to_string());
     }
     let status = read_set_status(set_root, fs, &YamlFrontmatter)
         .map_err(|error| error.to_string())?;
