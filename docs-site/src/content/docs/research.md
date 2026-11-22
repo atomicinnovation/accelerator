@@ -633,6 +633,10 @@ It reads the installed profiles from `skills/research/profiles` under
 `ACCELERATOR_PLUGIN_ROOT`, which the `accelerator` launcher sets, as
 `consultable` does.
 
+A question asked again in a later round is planned once, under the index
+its first asking holds: a profile only the later asking names becomes one
+more pair of that focus area, and a skip only it names is reported too.
+
 It prints JSON whose fields are listed below: `items` (each outline item's
 `line`, `question`, and `complete`), `pairs` (each outstanding pair's
 `question`, `profile`, and absolute `path`), `skipped` (with a `reason`),
@@ -881,8 +885,9 @@ It applies three gates in order and stops at the first that fails:
 1. `status`: the manifest's `status` is `synthesised` or `complete`.
 2. `freshness`: the set is `fresh`, as [`counts`](#research-topic-counts)
    judges it.
-3. `conducted`: no outline pair is unanswered, and no item is held back
-   because every pair it names is skipped.
+3. `conducted`: no outline pair is unanswered, and no item is held back:
+   none asks a question whose every pair is skipped, and none is left
+   without a finding index.
 
 It prints one of:
 
@@ -898,7 +903,8 @@ It prints one of:
   "consultable": false,
   "gate": "conducted",
   "unanswered": [{ "question": "…", "profile": "openalex" }],
-  "held_back": [{ "question": "…", "reasons": ["…"] }]
+  "held_back": [{ "question": "…", "reasons": ["…"] }],
+  "warnings": ["…"]
 }
 ```
 
@@ -906,7 +912,8 @@ It prints one of:
 absolute paths of the findings `counts` counts and of the reports it counts,
 as `outstanding` prints its paths. `mismatches` reads as `counts` prints it,
 and each `held_back` item's `reasons` read as `outstanding`'s
-`skipped[].reason`. The command reads `synthesis.md`, `findings/` and
+`skipped[].reason`, or say no finding index is left. `warnings` reads as
+`outstanding` prints its warnings, and gates nothing. The command reads `synthesis.md`, `findings/` and
 `reports/` only past the status gate, and the outline and profiles only past
 the freshness gate; it fails before any gate when the plugin holds no
 profiles directory.

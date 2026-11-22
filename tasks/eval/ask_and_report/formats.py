@@ -30,9 +30,7 @@ FRESHNESS_REFUSAL = (
     "{question} again."
 )
 CONDUCTED_REFUSAL = "{verb} refused: {slug} is not fully conducted."
-HELD_BACK = (
-    "Held back by a profile the brief does not name or no skill installs:"
-)
+HELD_BACK = "Held back from research:"
 HELD_BACK_ITEM = "- {question}: {reasons}"
 HELD_BACK_RECOVERY = (
     "Add the profile to the brief's `source_profiles`, or fix its name in "
@@ -40,6 +38,8 @@ HELD_BACK_RECOVERY = (
 )
 STILL_TO_RESEARCH = "Still to research:"
 UNANSWERED_ITEM = "- {question} ({profile})"
+PLAN_WARNINGS = "Planning warnings:"
+PLAN_WARNING_ITEM = "- {warning}"
 CONDUCT_SYNTHESISE_AGAIN = (
     "Run conduct {slug}, then synthesise {slug}, then {verb} {slug} "
     "{question} again."

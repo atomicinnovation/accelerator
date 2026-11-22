@@ -1842,8 +1842,8 @@ impl core::fmt::Debug for research::topic::consultation::Documents
 pub fn research::topic::consultation::Documents::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::consultation::Documents
 pub struct research::topic::consultation::HeldBackItem
+pub research::topic::consultation::HeldBackItem::hold_back: research::topic::plan::HoldBack
 pub research::topic::consultation::HeldBackItem::question: alloc::string::String
-pub research::topic::consultation::HeldBackItem::skips: alloc::vec::Vec<research::topic::plan::Skip>
 impl core::clone::Clone for research::topic::consultation::HeldBackItem
 pub fn research::topic::consultation::HeldBackItem::clone(&self) -> research::topic::consultation::HeldBackItem
 impl core::cmp::Eq for research::topic::consultation::HeldBackItem
@@ -2285,6 +2285,17 @@ pub fn research::topic::outline::Pair::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::marker::StructuralPartialEq for research::topic::outline::Pair
 pub const research::topic::outline::DEFAULT_PROFILE: &str
 pub mod research::topic::plan
+pub enum research::topic::plan::HoldBack
+pub research::topic::plan::HoldBack::IndexesExhausted
+pub research::topic::plan::HoldBack::Skipped(alloc::vec::Vec<research::topic::plan::Skip>)
+impl core::clone::Clone for research::topic::plan::HoldBack
+pub fn research::topic::plan::HoldBack::clone(&self) -> research::topic::plan::HoldBack
+impl core::cmp::Eq for research::topic::plan::HoldBack
+impl core::cmp::PartialEq for research::topic::plan::HoldBack
+pub fn research::topic::plan::HoldBack::eq(&self, other: &research::topic::plan::HoldBack) -> bool
+impl core::fmt::Debug for research::topic::plan::HoldBack
+pub fn research::topic::plan::HoldBack::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::HoldBack
 pub enum research::topic::plan::SkipReason
 pub research::topic::plan::SkipReason::NotInBrief
 pub research::topic::plan::SkipReason::NotInstalled
@@ -2315,9 +2326,9 @@ pub fn research::topic::plan::Warning::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::marker::StructuralPartialEq for research::topic::plan::Warning
 pub struct research::topic::plan::ItemStatus
 pub research::topic::plan::ItemStatus::complete: bool
+pub research::topic::plan::ItemStatus::held_back: core::option::Option<research::topic::plan::HoldBack>
 pub research::topic::plan::ItemStatus::line: usize
 pub research::topic::plan::ItemStatus::question: alloc::string::String
-pub research::topic::plan::ItemStatus::repeat: bool
 impl core::clone::Clone for research::topic::plan::ItemStatus
 pub fn research::topic::plan::ItemStatus::clone(&self) -> research::topic::plan::ItemStatus
 impl core::cmp::Eq for research::topic::plan::ItemStatus

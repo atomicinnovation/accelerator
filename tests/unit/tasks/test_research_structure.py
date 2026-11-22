@@ -2020,8 +2020,19 @@ def test_the_held_back_group_comes_first() -> None:
         formats.CONDUCTED_REFUSAL,
         formats.CONDUCT_SYNTHESISE_AGAIN,
     )
-    assert template.index("Held back by") < template.index(
+    assert template.index(formats.HELD_BACK) < template.index(
         formats.STILL_TO_RESEARCH
+    )
+
+
+def test_the_planning_warnings_come_after_the_still_to_research_group() -> None:
+    template = _section(
+        _consult(),
+        formats.CONDUCTED_REFUSAL,
+        formats.CONDUCT_SYNTHESISE_AGAIN,
+    )
+    assert template.index(formats.STILL_TO_RESEARCH) < template.index(
+        formats.PLAN_WARNINGS
     )
 
 
@@ -2065,6 +2076,7 @@ def test_the_conducted_refusal_groups_unanswered_and_held_back_items() -> None:
         "`unanswered`",
         "`held_back`",
         "`reasons`",
+        "`warnings`",
         _skipped_pair_recovery(),
         formats.CONDUCTED_REFUSAL,
         formats.HELD_BACK,
@@ -2154,6 +2166,8 @@ ASK_FORMATS = (
     formats.HELD_BACK_RECOVERY,
     formats.STILL_TO_RESEARCH,
     formats.UNANSWERED_ITEM,
+    formats.PLAN_WARNINGS,
+    formats.PLAN_WARNING_ITEM,
     formats.CONDUCT_SYNTHESISE_AGAIN,
     formats.COVERAGE,
     formats.COVERED,

@@ -274,7 +274,7 @@ pub fn read_set_status<F: FileReader>(
 }
 
 /// The set's round plan as a query reads it: at the default depth, with no
-/// run's claims.
+/// run's claims, beside what the reading could not express in the plan.
 ///
 /// # Errors
 ///
@@ -285,7 +285,7 @@ pub fn read_plan<F: DirReader + FileReader + DirectoryProbe>(
     fs: &F,
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
-) -> Result<RoundPlan, kernel::Error> {
+) -> Result<PlanReading, kernel::Error> {
     let reading = read_round_inputs(
         set_root,
         profiles_dir,
@@ -295,7 +295,16 @@ pub fn read_plan<F: DirReader + FileReader + DirectoryProbe>(
         parser,
         unicode,
     )?;
-    Ok(RoundPlan::of(&reading.inputs, unicode))
+    Ok(PlanReading {
+        plan: RoundPlan::of(&reading.inputs, unicode),
+        warnings: reading.warnings,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct PlanReading {
+    pub plan: RoundPlan,
+    pub warnings: Vec<ReadingWarning>,
 }
 
 fn fields_of<F: FileReader>(
@@ -1291,7 +1300,8 @@ mod tests {
             &fs,
             &YamlFrontmatter,
             &UnicodeTables,
-        )?;
+        )?
+        .plan;
 
         assert_eq!(plan, plan_of(&fs)?);
         Ok(())

@@ -9,6 +9,7 @@ use corpus::scan::FileReader;
 use corpus_adapters::YamlFrontmatter;
 use research::topic::consultation::Consultation;
 use research::topic::consultation::Refusal;
+use research::topic::plan::HoldBack;
 use research_adapters::topic::read_counts;
 use research_adapters::topic::read_plan;
 use research_adapters::topic::read_set_status;
@@ -41,27 +42,40 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
     }
     let status = read_set_status(set_root, fs, &YamlFrontmatter)
         .map_err(|error| error.to_string())?;
+    let mut warnings = Vec::new();
     let verdict = Consultation::judge(
         status,
         || read_counts(set_root, fs, &YamlFrontmatter),
         || {
-            read_plan(
+            let reading = read_plan(
                 set_root,
                 profiles_dir,
                 fs,
                 &YamlFrontmatter,
                 &UnicodeTables,
-            )
+            )?;
+            warnings = reading
+                .plan
+                .warnings
+                .iter()
+                .map(plan_wording::warning)
+                .chain(reading.warnings.iter().map(ToString::to_string))
+                .collect();
+            Ok(reading.plan)
         },
     )
     .map_err(|error| error.to_string())?;
     Ok(Printed {
-        stdout: format!("{}\n", rendered(&verdict, set_root)),
+        stdout: format!("{}\n", rendered(&verdict, &warnings, set_root)),
         stderr: String::new(),
     })
 }
 
-fn rendered(verdict: &Consultation, set_root: &Path) -> Value {
+fn rendered(
+    verdict: &Consultation,
+    warnings: &[String],
+    set_root: &Path,
+) -> Value {
     let absolute = |relative: &String| {
         set_root.join(relative).to_string_lossy().into_owned()
     };
@@ -107,13 +121,21 @@ fn rendered(verdict: &Consultation, set_root: &Path) -> Value {
                 .iter()
                 .map(|item| json!({
                     "question": item.question,
-                    "reasons": item
-                        .skips
-                        .iter()
-                        .map(plan_wording::skip_reason)
-                        .collect::<Vec<_>>(),
+                    "reasons": hold_back_reasons(&item.hold_back),
                 }))
                 .collect::<Vec<_>>(),
+            "warnings": warnings,
         }),
+    }
+}
+
+fn hold_back_reasons(hold_back: &HoldBack) -> Vec<String> {
+    match hold_back {
+        HoldBack::Skipped(skips) => {
+            skips.iter().map(plan_wording::skip_reason).collect()
+        }
+        HoldBack::IndexesExhausted => {
+            vec!["no finding index is left to allocate to it".to_owned()]
+        }
     }
 }

@@ -711,6 +711,10 @@
   `question`. A pair whose depth research was interrupted part-way keeps a
   `<stem>.levels/` tree under the old stem, which `conduct` no longer finds,
   so it researches that pair again from the start.
+- **`conduct` researches a profile a repeated question adds.** A question
+  asked again in a later round with a profile its first asking did not name
+  now plans that pair under the first asking's index, where it was never
+  planned, so `ask` and `report` refuse the set until it is conducted.
 - **`visualiser.idle_timeout` is parsed by `jiff`, not `humantime`.**
   `humantime` is unmaintained (RUSTSEC-2026-0542). Hours, minutes, seconds
   and smaller units read as before, and a day or week counts as 24 hours or

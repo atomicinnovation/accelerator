@@ -3,6 +3,7 @@
 //! next.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use crate::topic::claims::ClaimedIndexes;
 use crate::topic::claims::IndexClaim;
@@ -52,15 +53,22 @@ pub struct RoundPlan {
 
 /// Whether an outline item is complete: it has at least one eligible pair,
 /// and a retained finding answers every one.
-///
-/// A repeat asks a question an earlier item already asks, so its pairs and
-/// skips are that item's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemStatus {
     pub line: usize,
     pub question: String,
     pub complete: bool,
-    pub repeat: bool,
+    pub held_back: Option<HoldBack>,
+}
+
+/// Why `conduct` cannot finish an item, though it may have no pair left to
+/// research.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HoldBack {
+    /// Every profile any asking of its question names is skipped; only the
+    /// question's first such asking is held back.
+    Skipped(Vec<Skip>),
+    IndexesExhausted,
 }
 
 /// A pair no retained finding answers yet, under the stem its finding and
@@ -147,12 +155,50 @@ impl RoundInputs {
     }
 }
 
+fn held_back(planned: Vec<(&OutlineItem, ItemPlanning)>) -> Vec<ItemStatus> {
+    let researchable: BTreeSet<NormalisedQuestion> = planned
+        .iter()
+        .filter(|(_, planning)| planning.researchable)
+        .map(|(_, planning)| planning.question.clone())
+        .collect();
+    let mut held_back_by_skips = BTreeSet::new();
+    planned
+        .into_iter()
+        .map(|(item, planning)| {
+            let held_back = if planning.exhausted {
+                Some(HoldBack::IndexesExhausted)
+            } else if !researchable.contains(&planning.question)
+                && held_back_by_skips.insert(planning.question.clone())
+            {
+                Some(HoldBack::Skipped(planning.skips))
+            } else {
+                None
+            };
+            ItemStatus {
+                line: item.line,
+                question: item.question.clone(),
+                complete: planning.complete,
+                held_back,
+            }
+        })
+        .collect()
+}
+
 struct Planner<'a> {
     inputs: &'a RoundInputs,
     unicode: &'a dyn UnicodeText,
     tree_claims: Vec<IndexClaim>,
     next_unclaimed: Option<u32>,
     claimed: BTreeMap<NormalisedQuestion, Option<u32>>,
+    seen: BTreeSet<(NormalisedQuestion, String)>,
+}
+
+struct ItemPlanning {
+    question: NormalisedQuestion,
+    complete: bool,
+    researchable: bool,
+    skips: Vec<Skip>,
+    exhausted: bool,
 }
 
 impl<'a> Planner<'a> {
@@ -178,6 +224,7 @@ impl<'a> Planner<'a> {
             next_unclaimed: highest
                 .map_or(Some(1), |index| index.checked_add(1)),
             claimed: BTreeMap::new(),
+            seen: BTreeSet::new(),
         }
     }
 
@@ -195,20 +242,15 @@ impl<'a> Planner<'a> {
             trims: Vec::new(),
             claims: ClaimedIndexes::default(),
         };
+        let mut planned = Vec::new();
         for item in &self.inputs.outline.items {
             if item.names_profiles_unseparated() {
                 plan.warnings
                     .push(Warning::UnseparatedProfiles { line: item.line });
             }
-            let repeat = self.asked_earlier(&item.question);
-            let complete = self.plan_item(item, &mut plan);
-            plan.items.push(ItemStatus {
-                line: item.line,
-                question: item.question.clone(),
-                complete,
-                repeat,
-            });
+            planned.push((item, self.plan_item(item, &mut plan)));
         }
+        plan.items = held_back(planned);
         plan.warnings.extend(self.unmatched_findings());
         for (question, index) in &self.claimed {
             if let Some(index) = index {
@@ -218,67 +260,99 @@ impl<'a> Planner<'a> {
         plan
     }
 
-    fn asked_earlier(&self, question: &str) -> bool {
-        self.claimed.contains_key(&self.normalised(question))
-    }
-
-    fn plan_item(&mut self, item: &OutlineItem, plan: &mut RoundPlan) -> bool {
+    fn plan_item(
+        &mut self,
+        item: &OutlineItem,
+        plan: &mut RoundPlan,
+    ) -> ItemPlanning {
         let question = self.normalised(&item.question);
-        let first_sighting = !self.claimed.contains_key(&question);
         let mut eligible = 0;
         let mut outstanding = Vec::new();
+        let mut unplanned = Vec::new();
+        let mut skips = Vec::new();
         for profile in item.profiles() {
+            let first_of_pair =
+                self.seen.insert((question.clone(), profile.to_owned()));
             if let Some(reason) = self.ineligibility(profile) {
-                if first_sighting {
-                    plan.skipped.push(Skip {
-                        pair: item.pair(profile),
-                        reason,
-                    });
+                let skip = Skip {
+                    pair: item.pair(profile),
+                    reason,
+                };
+                if first_of_pair {
+                    plan.skipped.push(skip.clone());
                 }
+                skips.push(skip);
                 continue;
             }
             eligible += 1;
             match self.answer(&question, profile) {
-                Some(finding) if first_sighting => {
+                Some(finding) if first_of_pair => {
                     plan.shallow.extend(self.shallow(finding));
                 }
                 Some(_) => {}
-                None => outstanding.push(profile),
-            }
-        }
-        if first_sighting {
-            let index = if outstanding.is_empty() {
-                None
-            } else {
-                self.claim_index(&question)
-            };
-            if !outstanding.is_empty() && index.is_none() {
-                plan.warnings.push(Warning::IndexesExhausted {
-                    question: item.question.clone(),
-                });
-            }
-            self.claimed.insert(question, index);
-            if let Some(index) = index {
-                for profile in outstanding.iter().copied() {
-                    let Some(stem) = item.stem_at(index, profile) else {
-                        continue;
-                    };
-                    let Derivation {
-                        stage,
-                        trims,
-                        worst_case,
-                    } = self.derivation_for(&stem, &item.question);
-                    plan.trims.extend(trims);
-                    plan.pairs.push(OutstandingPair {
-                        pair: item.pair(profile),
-                        stem,
-                        stage,
-                        worst_case,
-                    });
+                None => {
+                    outstanding.push(profile);
+                    if first_of_pair {
+                        unplanned.push(profile);
+                    }
                 }
             }
         }
-        eligible > 0 && outstanding.is_empty()
+        let index = if unplanned.is_empty() {
+            *self.claimed.entry(question.clone()).or_insert(None)
+        } else {
+            self.index_for(&question)
+        };
+        if !unplanned.is_empty() && index.is_none() {
+            plan.warnings.push(Warning::IndexesExhausted {
+                question: item.question.clone(),
+            });
+        }
+        if let Some(index) = index {
+            self.plan_pairs(item, index, &unplanned, plan);
+        }
+        ItemPlanning {
+            question,
+            complete: eligible > 0 && outstanding.is_empty(),
+            researchable: eligible > 0,
+            skips,
+            exhausted: !outstanding.is_empty() && index.is_none(),
+        }
+    }
+
+    fn index_for(&mut self, question: &NormalisedQuestion) -> Option<u32> {
+        if let Some(Some(index)) = self.claimed.get(question) {
+            return Some(*index);
+        }
+        let index = self.claim_index(question);
+        self.claimed.insert(question.clone(), index);
+        index
+    }
+
+    fn plan_pairs(
+        &self,
+        item: &OutlineItem,
+        index: u32,
+        profiles: &[&str],
+        plan: &mut RoundPlan,
+    ) {
+        for profile in profiles.iter().copied() {
+            let Some(stem) = item.stem_at(index, profile) else {
+                continue;
+            };
+            let Derivation {
+                stage,
+                trims,
+                worst_case,
+            } = self.derivation_for(&stem, &item.question);
+            plan.trims.extend(trims);
+            plan.pairs.push(OutstandingPair {
+                pair: item.pair(profile),
+                stem,
+                stage,
+                worst_case,
+            });
+        }
     }
 
     fn derivation_for(&self, stem: &Stem, question: &str) -> Derivation {
@@ -384,6 +458,7 @@ impl<'a> Planner<'a> {
 mod tests {
     use std::collections::BTreeMap;
 
+    use super::HoldBack;
     use super::OutstandingPair;
     use super::RoundInputs;
     use super::RoundPlan;
@@ -781,11 +856,114 @@ mod tests {
     }
 
     #[test]
-    fn a_later_asking_of_a_question_is_a_repeat() {
-        let plan = plan(&inputs(outline(&["- [ ] A? B?", "- [ ] A?   B?"])));
-        let repeats: Vec<bool> =
-            plan.items.iter().map(|item| item.repeat).collect();
-        assert_eq!(repeats, [false, true]);
+    fn a_repeat_naming_a_new_profile_plans_it_under_the_first_askings_index() {
+        let mut inputs = inputs(outline(&[
+            "- [x] A? — profiles: web",
+            "- [ ] A? — profiles: web, openalex",
+        ]));
+        inputs.findings = vec![retained("01-a-web.md", "A?", "web")];
+        let plan = plan(&inputs);
+        assert_eq!(
+            paths(&plan),
+            expected(&[("openalex", "findings/01-a-openalex.md")])
+        );
+        let complete: Vec<bool> =
+            plan.items.iter().map(|item| item.complete).collect();
+        assert_eq!(complete, [true, false]);
+    }
+
+    #[test]
+    fn a_repeat_plans_no_pair_an_earlier_asking_planned() {
+        let plan = plan(&inputs(outline(&[
+            "- [ ] A? — profiles: web",
+            "- [ ] A?   — profiles: web, openalex",
+        ])));
+        assert_eq!(
+            paths(&plan),
+            expected(&[
+                ("web", "findings/01-a-web.md"),
+                ("openalex", "findings/01-a-openalex.md"),
+            ])
+        );
+    }
+
+    #[test]
+    fn a_repeat_reports_a_skip_its_first_asking_does_not() {
+        let mut inputs = inputs(outline(&[
+            "- [x] A? — profiles: web",
+            "- [ ] A? — profiles: web, crossref",
+        ]));
+        inputs.findings = vec![retained("01-a-web.md", "A?", "web")];
+        inputs.source_profiles.push("crossref".into());
+        assert_eq!(
+            plan(&inputs).skipped,
+            vec![Skip {
+                pair: pair("A?", "crossref"),
+                reason: SkipReason::NotInstalled,
+            }]
+        );
+    }
+
+    #[test]
+    fn an_item_whose_pairs_are_all_skipped_is_held_back_by_its_skips() {
+        let mut inputs = inputs(outline(&["- [ ] A? — profiles: arxiv"]));
+        inputs.source_profiles = vec!["web".into()];
+        assert_eq!(
+            plan(&inputs).items[0].held_back,
+            Some(HoldBack::Skipped(vec![Skip {
+                pair: pair("A?", "arxiv"),
+                reason: SkipReason::NotInBrief,
+            }]))
+        );
+    }
+
+    #[test]
+    fn a_question_another_asking_can_research_is_never_held_back_by_skips() {
+        let mut inputs = inputs(outline(&[
+            "- [x] A? — profiles: web",
+            "- [ ] A? — profiles: arxiv",
+            "- [ ] B? — profiles: arxiv",
+            "- [ ] B? — profiles: web",
+        ]));
+        inputs.source_profiles = vec!["web".into()];
+        inputs.findings = vec![retained("01-a-web.md", "A?", "web")];
+        let held_back: Vec<bool> = plan(&inputs)
+            .items
+            .iter()
+            .map(|item| item.held_back.is_some())
+            .collect();
+        assert_eq!(held_back, [false, false, false, false]);
+    }
+
+    #[test]
+    fn a_question_is_held_back_by_skips_once_however_often_it_is_asked() {
+        let mut inputs = inputs(outline(&[
+            "- [ ] A? — profiles: arxiv",
+            "- [ ] A? — profiles: arxiv",
+        ]));
+        inputs.source_profiles = vec!["web".into()];
+        let held_back: Vec<bool> = plan(&inputs)
+            .items
+            .iter()
+            .map(|item| item.held_back.is_some())
+            .collect();
+        assert_eq!(held_back, [true, false]);
+    }
+
+    #[test]
+    fn an_item_left_without_an_index_is_held_back_by_exhaustion() {
+        let mut inputs = inputs(outline(&["- [ ] M?"]));
+        inputs.levels = levels("4294967295-x-web", None, Vec::new());
+        assert_eq!(
+            plan(&inputs).items[0].held_back,
+            Some(HoldBack::IndexesExhausted)
+        );
+    }
+
+    #[test]
+    fn an_item_with_an_outstanding_pair_is_not_held_back() {
+        let plan = plan(&inputs(outline(&["- [ ] A?"])));
+        assert_eq!(plan.items[0].held_back, None);
     }
 
     #[test]

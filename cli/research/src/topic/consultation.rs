@@ -7,8 +7,8 @@ use crate::topic::layout::FINDINGS;
 use crate::topic::layout::REPORTS;
 use crate::topic::lifecycle::SetStatus;
 use crate::topic::outline::Pair;
+use crate::topic::plan::HoldBack;
 use crate::topic::plan::RoundPlan;
-use crate::topic::plan::Skip;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Consultation {
@@ -37,12 +37,10 @@ pub enum Refusal {
     },
 }
 
-/// An outline item that is not complete although no pair of it is left to
-/// research, with the pairs of it `conduct` skips.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeldBackItem {
     pub question: String,
-    pub skips: Vec<Skip>,
+    pub hold_back: HoldBack,
 }
 
 impl Consultation {
@@ -94,18 +92,11 @@ impl Refusal {
         let held_back: Vec<HeldBackItem> = plan
             .items
             .iter()
-            .filter(|item| !item.complete && !item.repeat)
-            .filter(|item| {
-                !unanswered.iter().any(|pair| pair.question == item.question)
-            })
-            .map(|item| HeldBackItem {
-                question: item.question.clone(),
-                skips: plan
-                    .skipped
-                    .iter()
-                    .filter(|skip| skip.pair.question == item.question)
-                    .cloned()
-                    .collect(),
+            .filter_map(|item| {
+                Some(HeldBackItem {
+                    question: item.question.clone(),
+                    hold_back: item.held_back.clone()?,
+                })
             })
             .collect();
         (!unanswered.is_empty() || !held_back.is_empty()).then_some(
@@ -136,6 +127,7 @@ mod tests {
     use crate::topic::layout::stem::Stem;
     use crate::topic::lifecycle::SetStatus;
     use crate::topic::outline::Pair;
+    use crate::topic::plan::HoldBack;
     use crate::topic::plan::ItemStatus;
     use crate::topic::plan::OutstandingPair;
     use crate::topic::plan::RoundPlan;
@@ -183,7 +175,7 @@ mod tests {
                 line: 3,
                 question: QUESTION.to_owned(),
                 complete,
-                repeat: false,
+                held_back: None,
             }],
             pairs: Vec::new(),
             skipped: Vec::new(),
@@ -298,58 +290,48 @@ mod tests {
         );
     }
 
+    fn held_back_by(hold_back: HoldBack) -> RoundPlan {
+        let mut plan = plan(false);
+        plan.items[0].held_back = Some(hold_back);
+        plan
+    }
+
     #[test]
-    fn an_item_with_only_skipped_pairs_holds_the_set_back() {
-        let mut skipped = plan(false);
-        skipped.skipped.push(skip("arxiv"));
+    fn an_item_held_back_by_its_skips_holds_the_set_back() {
+        let skips = HoldBack::Skipped(vec![skip("arxiv")]);
 
         assert_eq!(
-            judged(SetStatus::Synthesised, fresh(), skipped),
+            judged(
+                SetStatus::Synthesised,
+                fresh(),
+                held_back_by(skips.clone())
+            ),
             Ok(Consultation::Refused(Refusal::Conducted {
                 unanswered: Vec::new(),
                 held_back: vec![HeldBackItem {
                     question: QUESTION.to_owned(),
-                    skips: vec![skip("arxiv")],
+                    hold_back: skips,
                 }],
             }))
         );
     }
 
-    fn repeated(mut plan: RoundPlan, complete: bool) -> RoundPlan {
-        plan.items.push(ItemStatus {
-            line: 9,
-            question: "How do   agents plan?".to_owned(),
-            complete,
-            repeat: true,
-        });
-        plan
-    }
-
     #[test]
-    fn a_repeat_of_an_unanswered_question_is_not_held_back_again() {
+    fn an_item_left_without_an_index_holds_the_set_back() {
         assert_eq!(
             judged(
                 SetStatus::Synthesised,
                 fresh(),
-                repeated(with_unanswered_pair(plan(false)), false)
+                held_back_by(HoldBack::IndexesExhausted)
             ),
             Ok(Consultation::Refused(Refusal::Conducted {
-                unanswered: vec![pair("openalex")],
-                held_back: Vec::new(),
+                unanswered: Vec::new(),
+                held_back: vec![HeldBackItem {
+                    question: QUESTION.to_owned(),
+                    hold_back: HoldBack::IndexesExhausted,
+                }],
             }))
         );
-    }
-
-    #[test]
-    fn a_repeat_asking_for_more_profiles_holds_nothing_back() {
-        assert!(matches!(
-            judged(
-                SetStatus::Synthesised,
-                fresh(),
-                repeated(plan(true), false)
-            ),
-            Ok(Consultation::Open(_))
-        ));
     }
 
     #[test]

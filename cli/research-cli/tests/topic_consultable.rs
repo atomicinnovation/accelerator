@@ -200,6 +200,7 @@ fn consultable_holds_back_an_item_with_only_skipped_pairs(
             "gate": "conducted",
             "unanswered": [],
             "held_back": [{"question": ARXIV_ITEM, "reasons": skipped_reasons}],
+            "warnings": [],
         })
     );
     assert!(!skipped_reasons.is_empty());
@@ -241,7 +242,54 @@ fn consultable_lists_an_unanswered_pair() -> Result<(), TestError> {
                 "profile": "web",
             }],
             "held_back": [],
+            "warnings": [],
         })
+    );
+    Ok(())
+}
+
+#[test]
+fn consultable_lists_a_profile_a_repeated_question_adds(
+) -> Result<(), TestError> {
+    let project = Project::multiround()?;
+    project.edit(
+        "brief.md",
+        "source_profiles: [\"web\"]",
+        "source_profiles: [\"web\", \"openalex\"]",
+    )?;
+    project.append_to_outline(
+        "- [ ] What is the first focus area? — profiles: web, openalex",
+    )?;
+
+    let verdict = project.consultable()?;
+
+    assert_eq!(verdict["gate"], json!("conducted"), "{verdict}");
+    assert_eq!(
+        verdict["unanswered"],
+        json!([{
+            "question": "What is the first focus area?",
+            "profile": "openalex",
+        }])
+    );
+    assert_eq!(verdict["held_back"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_conducted_refusal_carries_the_plans_warnings() -> Result<(), TestError> {
+    let project = Project::multiround()?;
+    project.append_to_outline("- [ ] Why plan at all? profiles: web")?;
+
+    let verdict = project.consultable()?;
+
+    assert_eq!(verdict["gate"], json!("conducted"), "{verdict}");
+    let warnings = verdict["warnings"].as_array().ok_or("warnings")?;
+    assert_eq!(warnings.len(), 1, "{verdict}");
+    assert!(
+        warnings[0]
+            .as_str()
+            .is_some_and(|warning| warning.contains("names 'profiles:'")),
+        "{verdict}"
     );
     Ok(())
 }
