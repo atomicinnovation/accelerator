@@ -598,7 +598,7 @@ granted by a permission rule that reaches the researcher subagent.
 which researchers it spawns inherit. Any other skill that injects any profile
 must grant the same rule, and a contract test enforces this for skills in this
 repository. The academic profiles search and look up through it, and
-`web-profile` uses it for `fetch web metadata`.
+`web-profile` uses it for `fetch web metadata` and `fetch doi metadata`.
 
 Where that grant does not reach the researcher, add the rule to the project's
 allow rules:
@@ -1076,6 +1076,10 @@ block: a nested `key: value` list directly under its line.
   record or page it cites, unchanged and in emitted order, and writes a
   block from nothing else. The composer and `synthesise` cite each source
   once, so a merged entry's block carries every key its citations carry.
+- **Sources cited by DOI.** For a web source cited by DOI, the block holds
+  the `web metadata` entries, then the `doi metadata` entries. `publisher`
+  comes from `doi metadata`. Every key `doi metadata` records ranks after
+  every key `web metadata` records, so the emitted order is the table order.
 - **Shape.** Keys are lowercase `snake_case`, values are single-line, and a
   key with no value is omitted. `url`, title and venue stay on the entry
   line and never appear in the block.
@@ -1096,7 +1100,7 @@ block: a nested `key: value` list directly under its line.
 | `accessed`         | date            | The UTC date of the CLI call the map came from                              |
 | `type`             | bibliographic   |                                                                             |
 | `authors`          | bibliographic   |                                                                             |
-| `publisher`        | bibliographic   |                                                                             |
+| `publisher`        | bibliographic   | The name Crossref holds, runs of whitespace collapsed                       |
 | `volume`           | bibliographic   |                                                                             |
 | `issue`            | bibliographic   |                                                                             |
 | `pages`            | bibliographic   |                                                                             |

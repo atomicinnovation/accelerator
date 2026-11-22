@@ -2978,3 +2978,35 @@ def test_the_verdict_is_taken_again_before_the_first_write() -> None:
         "`Bash(accelerator research topic consultable *)`",
     ):
         assert phrase in consult, f"the re-check lacks {phrase!r}"
+
+
+def _docs_sources_metadata() -> str:
+    return _section(
+        _prose(DOCS_RESEARCH),
+        "## Sources metadata",
+        "## Citing a source once",
+        path=DOCS_RESEARCH,
+    )
+
+
+def test_the_docs_describe_the_combined_block_for_a_source_cited_by_doi() -> (
+    None
+):
+    docs = _docs_sources_metadata()
+    for sentence in (
+        "For a web source cited by DOI, the block holds the `web metadata` "
+        "entries, then the `doi metadata` entries.",
+        "`publisher` comes from `doi metadata`.",
+        "Every key `doi metadata` records ranks after every key "
+        "`web metadata` records, so the emitted order is the table order.",
+        "| `publisher` | bibliographic | The name Crossref holds, runs of "
+        "whitespace collapsed |",
+    ):
+        assert sentence in docs, f"the docs must state {sentence!r}"
+
+
+def test_the_docs_grant_the_fetch_for_both_web_profile_commands() -> None:
+    assert (
+        "`web-profile` uses it for `fetch web metadata` and "
+        "`fetch doi metadata`"
+    ) in _prose(DOCS_RESEARCH)
