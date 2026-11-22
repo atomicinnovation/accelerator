@@ -27,6 +27,7 @@ from tasks.eval.ask_and_report.verdicts import (
     Sources,
     Writes,
 )
+from tasks.eval.documents.frontmatter import read_fields
 from tasks.eval.documents.rule import RULE, cite_once, key_order
 from tasks.eval.documents.sources import Citation, parse_sources
 from tasks.eval.toolchain import Toolchain
@@ -171,26 +172,11 @@ def _merged_sources(set_root: Path, plugin_root: Path) -> list[Citation]:
 
 
 def _source_problems(sources: Sources, merged: Sequence[Citation]) -> list[str]:
-    problems = []
-    for expected in sources.entries:
-        selected = [c for c in merged if expected.marker in c.render()]
-        if len(selected) != 1:
-            problems.append(
-                f"sources: {expected.marker} selects {len(selected)} of the "
-                "rule's merged sources, not one"
-            )
-            continue
-        if str(selected[0].tier) != expected.tier:
-            problems.append(
-                f"sources: the rule merges {expected.marker} to "
-                f"{selected[0].tier}, not {expected.tier}"
-            )
-        if expected.block is not None and selected[0].block != expected.block:
-            problems.append(
-                f"sources: the rule gives {expected.marker} the block "
-                f"{selected[0].block}, not {expected.block}"
-            )
-    return problems
+    return [
+        f"sources: in the rule's merge, {mismatch}"
+        for expected in sources.entries
+        for mismatch in expected.mismatches(merged)
+    ]
 
 
 def _report_path(scenario: Scenario, root: Path, toolchain: Toolchain) -> str:
@@ -204,14 +190,18 @@ def _report_path(scenario: Scenario, root: Path, toolchain: Toolchain) -> str:
     )
 
 
-def _new_report_problems(
-    writes: Writes, scenario: Scenario, root: Path, toolchain: Toolchain
-) -> list[str]:
-    new = [
+def _new_reports(writes: Writes, root: Path) -> list[str]:
+    return [
         path
         for path in writes.paths
         if path.startswith("reports/") and not (root / SET / path).exists()
     ]
+
+
+def _new_report_problems(
+    writes: Writes, scenario: Scenario, root: Path, toolchain: Toolchain
+) -> list[str]:
+    new = _new_reports(writes, root)
     if not new:
         return []
     named = _report_path(scenario, root, toolchain)
@@ -223,26 +213,15 @@ def _new_report_problems(
 
 
 def _kept_problems(report: Report, root: Path) -> list[str]:
-    began = (root / SET / report.path).read_text()
-    frontmatter = began.split("\n---\n", 1)[0]
+    began = read_fields((root / SET / report.path).read_text())
     return [
         f"keeps {key}, which {report.path} does not have at the start"
         for key in report.kept
-        if not any(
-            line.startswith(f"{key}: ") for line in frontmatter.splitlines()
-        )
+        if key not in began
     ]
 
 
 _DERIVED_IN_MANIFEST = ("round_count", "finding_count", "report_count")
-
-
-def _new_reports(writes: Writes, root: Path) -> int:
-    return sum(
-        1
-        for path in writes.paths
-        if path.startswith("reports/") and not (root / SET / path).exists()
-    )
 
 
 def _count_problems(
@@ -253,7 +232,9 @@ def _count_problems(
     problems: list[str] = []
     for turn in scenario.turns:
         written += sum(
-            _new_reports(c, root) for c in turn.expect if isinstance(c, Writes)
+            len(_new_reports(c, root))
+            for c in turn.expect
+            if isinstance(c, Writes)
         )
         expected = derived | {"report_count": derived["report_count"] + written}
         for criterion in turn.expect:

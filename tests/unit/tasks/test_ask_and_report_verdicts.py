@@ -6,6 +6,7 @@ import pytest
 from tasks.eval.ask_and_report import verdicts
 from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.turns import Exited, FileState, TurnRecord
+from tasks.eval.documents.sources import Citation, TierText
 from tasks.eval.headless.transcript import Event, Text, ToolCall
 
 SLUG = "llm-agent-planning"
@@ -609,6 +610,58 @@ def test_a_malformed_expectation_raises(expect: dict) -> None:
         verdicts.parse_criteria(expect)
 
 
+def _beside_a_report(sources: object) -> dict:
+    return {"report": {"path": "r.md"}, "sources": sources}
+
+
+@pytest.mark.parametrize(
+    "expect",
+    [
+        {"gaps": {"keyword": "ranking"}},
+        {"gaps": ["ranking"]},
+        {"gaps": [{"keyword": 1}]},
+        {"gaps": [{"keyword": "ranking", "tier": 3}]},
+        {"gaps": [{"keyword": "ranking", "colour": "red"}]},
+        _beside_a_report({"marker": "W3004", "tier": "tier-3"}),
+        _beside_a_report([{"marker": 3004, "tier": "tier-3"}]),
+        _beside_a_report([{"marker": "W3004", "tier": 3}]),
+        _beside_a_report(
+            [{"marker": "W3004", "tier": "tier-3", "block": [["by"]]}]
+        ),
+        _beside_a_report(
+            [{"marker": "W3004", "tier": "tier-3", "block": [["by", 1]]}]
+        ),
+        _beside_a_report(
+            [{"marker": "W3004", "tier": "tier-3", "colour": "red"}]
+        ),
+        {"manifest": {"fields": {}, "lists_reports": "false"}},
+        {"manifest": {"fields": {}, "lists_reports": 0}},
+        {"manifest": {"fields": ["status"], "lists_reports": True}},
+        {"manifest": {"fields": {}, "lists_reports": True, "colour": "red"}},
+    ],
+    ids=[
+        "gaps-not-a-list",
+        "gap-not-a-mapping",
+        "gap-keyword-not-a-string",
+        "gap-tier-not-a-string",
+        "gap-key",
+        "sources-not-a-list",
+        "source-marker-not-a-string",
+        "source-tier-not-a-string",
+        "source-block-pair-short",
+        "source-block-value-not-a-string",
+        "source-key",
+        "manifest-lists-reports-a-string",
+        "manifest-lists-reports-a-number",
+        "manifest-fields-not-a-mapping",
+        "manifest-key",
+    ],
+)
+def test_a_malformed_gaps_sources_or_manifest_raises(expect: dict) -> None:
+    with pytest.raises((ValueError, TypeError)):
+        verdicts.parse_criteria(expect)
+
+
 def _reading(*paths: str, text: str = "") -> TurnRecord:
     reads = tuple(
         ToolCall("Read", {"file_path": path}, by_subagent=False)
@@ -645,3 +698,42 @@ def test_a_turn_that_read_or_repeats_a_level_note_fails_unread(
 def test_level_notes_are_a_judgement() -> None:
     (criterion,) = verdicts.parse_criteria({"level_notes": "unread"})
     assert criterion.is_judgement
+
+
+def _citation(url: str, tier: str, *block: tuple[str, str]) -> Citation:
+    return Citation("Leaderboard", url, TierText.parse(tier), None, block)
+
+
+CITED = _citation("https://openalex.org/W3004", "tier-3", ("doi", "10.5/x"))
+
+
+def test_a_source_entry_meets_the_one_citation_it_selects() -> None:
+    entry = verdicts.SourceEntry("W3004", "tier-3", (("doi", "10.5/x"),))
+
+    assert entry.mismatches([CITED]) == []
+
+
+def test_a_source_entry_selecting_no_citation_or_several_says_how_many() -> (
+    None
+):
+    entry = verdicts.SourceEntry("W3004", "tier-3")
+    again = _citation("https://openalex.org/W3004/x", "tier-1")
+
+    assert entry.mismatches([]) == ["expected one W3004 entry, got 0"]
+    assert entry.mismatches([CITED, again]) == [
+        "expected one W3004 entry, got 2"
+    ]
+
+
+def test_a_source_entry_names_the_tier_and_block_it_expected() -> None:
+    entry = verdicts.SourceEntry("W3004", "tier-1", (("doi", "10.5/y"),))
+
+    assert entry.mismatches([CITED]) == [
+        "expected W3004 at 'tier-1', got 'tier-3'",
+        "expected W3004 with the block (('doi', '10.5/y'),), "
+        "got (('doi', '10.5/x'),)",
+    ]
+
+
+def test_a_source_entry_declaring_no_block_ignores_the_block() -> None:
+    assert verdicts.SourceEntry("W3004", "tier-3").mismatches([CITED]) == []

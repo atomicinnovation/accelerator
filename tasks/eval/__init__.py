@@ -4,7 +4,10 @@ from pathlib import Path
 from invoke import Context, task
 from invoke.exceptions import Exit
 
-from tasks.eval.ask_and_report.orchestration import run_ask_and_report
+from tasks.eval.ask_and_report.orchestration import (
+    RunMode,
+    run_ask_and_report,
+)
 from tasks.eval.citing_once.fixtures import load_fixtures
 from tasks.eval.citing_once.runs import (
     fixture_problems,
@@ -131,6 +134,5 @@ def ask_and_report(
         jobs=jobs,
         model=model,
         config_dir=config_dir,
-        check_only=check_only,
-        rerun_errored=rerun_errored,
+        mode=RunMode.chosen(check_only=check_only, rerun_errored=rerun_errored),
     )

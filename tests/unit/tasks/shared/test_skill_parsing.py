@@ -239,3 +239,33 @@ def test_allowed_tools_are_read_whatever_the_list_s_layout(
 def test_a_frontmatter_declaring_no_allowed_tools_is_refused() -> None:
     with pytest.raises(ValueError, match="allowed-tools"):
         frontmatter_allowed_tools("---\nname: x\n---\nallowed-tools:\n")
+
+
+@pytest.mark.parametrize(
+    ("inline", "expected"),
+    [
+        ("[]", []),
+        ("[ ]", []),
+        ("[Read(/x/**)]", ["Read(/x/**)"]),
+        (
+            "[\"Bash(accelerator config *)\", 'Read(/x/**)']",
+            ["Bash(accelerator config *)", "Read(/x/**)"],
+        ),
+        ("[Read(/x/**), Write(/y/**),]", ["Read(/x/**)", "Write(/y/**)"]),
+        ("[ Read(/x/**) ,  Write(/y/**) ]  ", ["Read(/x/**)", "Write(/y/**)"]),
+    ],
+    ids=[
+        "empty list",
+        "blank list",
+        "single item",
+        "quoted items",
+        "trailing comma",
+        "surrounding whitespace",
+    ],
+)
+def test_an_inline_allowed_tools_list_yields_each_rule(
+    inline: str, expected: list[str]
+) -> None:
+    text = f"---\nname: x\nallowed-tools: {inline}\nmodel: y\n---\nBody\n"
+
+    assert frontmatter_allowed_tools(text) == expected

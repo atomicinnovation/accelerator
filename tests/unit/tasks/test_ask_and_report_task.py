@@ -308,3 +308,16 @@ def test_a_re_check_that_finds_no_session_on_disk_fails(
         evals.ask_and_report(Context(), out=str(tmp_path), check_only=True)
 
     assert refused.value.code == 1
+
+
+def test_a_re_check_cannot_also_rerun_errored_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    gates = Gates(monkeypatch, refuse_at="")
+
+    with pytest.raises(Exit, match="--check-only or --rerun-errored, not both"):
+        evals.ask_and_report(
+            Context(), out=str(tmp_path), check_only=True, rerun_errored=True
+        )
+
+    assert gates.reached == []

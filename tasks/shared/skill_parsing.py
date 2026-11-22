@@ -67,6 +67,12 @@ def frontmatter_bash_rules(text: str) -> list[str]:
     return rules
 
 
+def _inline_rules(inline: str) -> list[str]:
+    listed = inline.removeprefix("[").removesuffix("]").split(",")
+    unquoted = (item.strip().strip("\"'") for item in listed)
+    return [rule for rule in unquoted if rule]
+
+
 def frontmatter_allowed_tools(text: str) -> list[str]:
     """Every rule the frontmatter's ``allowed-tools`` list declares.
 
@@ -79,12 +85,7 @@ def frontmatter_allowed_tools(text: str) -> list[str]:
             continue
         inline = match.group(1).strip()
         if inline:
-            return [
-                rule.strip()
-                for rule in inline.removeprefix("[")
-                .removesuffix("]")
-                .split(",")
-            ]
+            return _inline_rules(inline)
         rules: list[str] = []
         for item in lines[at + 1 :]:
             listed = _LIST_ITEM.match(item)

@@ -7,7 +7,6 @@ which a scenario must therefore run three times.
 """
 
 import fnmatch
-import json
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -23,8 +22,9 @@ from tasks.eval.ask_and_report.turns import (
     changed,
     main_text,
 )
+from tasks.eval.documents.frontmatter import read_fields
 from tasks.eval.documents.rule import normalised_url
-from tasks.eval.documents.sources import parse_sources
+from tasks.eval.documents.sources import Citation, parse_sources
 from tasks.eval.headless.transcript import ToolCall
 
 type CoverageValue = Literal["answered", "partial", "unanswered"]
@@ -57,20 +57,6 @@ def _set_relative(paths: Sequence[str]) -> list[str]:
 def _text(snapshot: Snapshot, path: str) -> str | None:
     state = snapshot.get(_in_set(path))
     return state.text if state else None
-
-
-def _frontmatter(document: str) -> dict[str, Any]:
-    _, _, rest = document.partition("---\n")
-    block, _, _ = rest.partition("\n---")
-    fields: dict[str, Any] = {}
-    for line in block.splitlines():
-        key, separator, value = line.partition(": ")
-        if separator:
-            try:
-                fields[key] = json.loads(value)
-            except json.JSONDecodeError:
-                fields[key] = value
-    return fields
 
 
 def _sections(document: str) -> dict[str, str]:
@@ -114,6 +100,40 @@ def _strings(value: object, what: str) -> tuple[str, ...]:
     ):
         raise TypeError(f"{what} must be a list of strings, not {value!r}")
     return tuple(value)
+
+
+def _string(value: object, what: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{what} must be a string, not {value!r}")
+    return value
+
+
+def _boolean(value: object, what: str) -> bool:
+    if not isinstance(value, bool):
+        raise TypeError(f"{what} must be true or false, not {value!r}")
+    return value
+
+
+def _mapping(value: object, what: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise TypeError(f"{what} must be an object, not {value!r}")
+    return value
+
+
+def _mappings(
+    value: object, what: str, keys: set[str]
+) -> tuple[Mapping[str, Any], ...]:
+    if not isinstance(value, list):
+        raise TypeError(f"{what}s must be a list, not {value!r}")
+    entries = tuple(_mapping(entry, what) for entry in value)
+    for entry in entries:
+        only(entry, keys, what)
+    return entries
+
+
+def _pair(value: object) -> tuple[str, str]:
+    key, entry = _strings(value, "a block pair")
+    return key, entry
 
 
 @dataclass(frozen=True)
@@ -217,10 +237,18 @@ class Gaps:
     gaps: tuple[Gap, ...]
 
     @classmethod
-    def parse(cls, value: list[Mapping[str, str]]) -> Gaps:
-        for gap in value:
-            only(gap, {"keyword", "tier"}, "gap")
-        return cls(tuple(Gap(g["keyword"], g.get("tier")) for g in value))
+    def parse(cls, value: object) -> Gaps:
+        return cls(
+            tuple(
+                Gap(
+                    _string(gap["keyword"], "a gap keyword"),
+                    _string(gap["tier"], "a gap tier")
+                    if "tier" in gap
+                    else None,
+                )
+                for gap in _mappings(value, "gap", {"keyword", "tier"})
+            )
+        )
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
         items = _block(formats.lines(turn.text), formats.GAPS)
@@ -392,7 +420,7 @@ class Report:
         document = _text(turn.after, self.path)
         if document is None:
             return [f"expected {self.path}, got no such file"]
-        written = _frontmatter(document)
+        written = read_fields(document)
         sections = _sections(document)
         failures = [
             f"expected {key} {value!r}, got {written.get(key)!r}"
@@ -416,7 +444,7 @@ class Report:
             for word in words
             if word.casefold() not in sections.get(section, "").casefold()
         ]
-        began = _frontmatter(_text(turn.initial, self.path) or "")
+        began = read_fields(_text(turn.initial, self.path) or "")
         failures += [
             f"expected {key} kept as {began.get(key)!r}, "
             f"got {written.get(key)!r}"
@@ -434,6 +462,24 @@ class SourceEntry:
     tier: str
     block: tuple[tuple[str, str], ...] | None = None
 
+    def mismatches(self, citations: Sequence[Citation]) -> list[str]:
+        selected = [c for c in citations if self.marker in c.render()]
+        if len(selected) != 1:
+            return [f"expected one {self.marker} entry, got {len(selected)}"]
+        [citation] = selected
+        failures = []
+        if str(citation.tier) != self.tier:
+            failures.append(
+                f"expected {self.marker} at {self.tier!r}, "
+                f"got {str(citation.tier)!r}"
+            )
+        if self.block is not None and citation.block != self.block:
+            failures.append(
+                f"expected {self.marker} with the block {self.block}, "
+                f"got {citation.block}"
+            )
+        return failures
+
 
 @dataclass(frozen=True)
 class Sources:
@@ -442,22 +488,22 @@ class Sources:
     entries: tuple[SourceEntry, ...]
 
     @classmethod
-    def parse(cls, value: list[Mapping[str, Any]], path: str) -> Sources:
-        for entry in value:
-            only(entry, {"marker", "tier", "block"}, "source")
+    def parse(cls, value: object, path: str) -> Sources:
         return cls(
             path=path,
             entries=tuple(
                 SourceEntry(
-                    marker=entry["marker"],
-                    tier=entry["tier"],
+                    marker=_string(entry["marker"], "a source marker"),
+                    tier=_string(entry["tier"], "a source tier"),
                     block=(
-                        tuple((k, v) for k, v in entry["block"])
+                        tuple(_pair(pair) for pair in entry["block"])
                         if "block" in entry
                         else None
                     ),
                 )
-                for entry in value
+                for entry in _mappings(
+                    value, "source", {"marker", "tier", "block"}
+                )
             ),
         )
 
@@ -469,17 +515,11 @@ class Sources:
             written = parse_sources(document)
         except ValueError as unreadable:
             return [f"expected readable Sources, got {unreadable}"]
-        failures: list[str] = []
-        for expected in self.entries:
-            selected = [c for c in written if expected.marker in c.render()]
-            if len(selected) != 1:
-                failures.append(
-                    f"expected one {expected.marker} entry, got {len(selected)}"
-                )
-                continue
-            failures += _expected(expected.tier, str(selected[0].tier))
-            if expected.block is not None:
-                failures += _expected(expected.block, selected[0].block)
+        failures = [
+            mismatch
+            for expected in self.entries
+            for mismatch in expected.mismatches(written)
+        ]
         cited = {
             normalised_url(citation.url)
             for path in _set_relative(list(turn.after))
@@ -503,11 +543,14 @@ class Manifest:
     @classmethod
     def parse(cls, value: Mapping[str, Any]) -> Manifest:
         only(value, {"fields", "lists_reports"}, "manifest")
-        return cls(dict(value["fields"]), bool(value["lists_reports"]))
+        return cls(
+            dict(_mapping(value["fields"], "manifest fields")),
+            _boolean(value["lists_reports"], "lists_reports"),
+        )
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
         document = _text(turn.after, "manifest.md") or ""
-        written = _frontmatter(document)
+        written = read_fields(document)
         failures = [
             f"expected {key} {value!r}, got {written.get(key)!r}"
             for key, value in self.fields.items()
@@ -590,7 +633,7 @@ class AppendedRound:
         failures += [
             f"expected {key} advanced"
             for key in FIELDS_ADVANCED
-            if _frontmatter(after).get(key) == _frontmatter(before).get(key)
+            if read_fields(after).get(key) == read_fields(before).get(key)
         ]
         proposed = (
             _proposal_items(main_text(turn.earlier[-1]))
@@ -612,9 +655,7 @@ class NextSteps:
 
     @classmethod
     def parse(cls, value: object) -> NextSteps:
-        if not isinstance(value, bool):
-            raise TypeError(f"next_steps must be true or false, not {value!r}")
-        return cls(value)
+        return cls(_boolean(value, "next_steps"))
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
         named = any(
