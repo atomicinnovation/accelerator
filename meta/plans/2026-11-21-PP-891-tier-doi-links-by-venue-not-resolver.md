@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T14:25:00+00:00"
+last_updated: "2026-11-22T15:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1570,24 +1570,60 @@ release-guard checks, the same way the other `*_API_URL` variables are.
 
 The implementer re-checks the line references before editing.
 
+### Outcome
+
+Phase 4 landed in six commits. The suites run 1296 tests, and
+`mise run check` exits 0. Live calls printed the expected documents, and
+ten in a loop each sent one request with no retry. The two-title journal
+fixture is live (`10.4213/tmf1151`). Departures from the plan:
+
+- **No `contact` parameter yet**: `UpstreamRequest::crossref_work(api,
+  doi)` takes no contact address; phase 5 adds `ContactAddress` and the
+  parameter together.
+- **Placement**: `CrossrefDecoder`, `DoiFetch`, `DoiPorts` and `fetch_doi`
+  live in `fetch.rs` beside the other families. `DoiPorts` lists its ports
+  flat, as `ArxivPorts` does, since `QueuePorts` is crate-private.
+  `Publisher` is a value type in `metadata`, and `Venue` one in `crossref`.
+- **`Argument::Doi`**: a DOI mismatch names `differing: doi`, and the
+  issued call reads `metadata <canonical DOI>`.
+- **`FetchedDoi` carries its `Service`**, so rendering takes `source` and
+  the rejection prefix from it, and phase 5 can name the polite pool.
+- **Usage lines**: `UnknownFamily` derives its list from `Family::ALL`.
+  `LimitNotApplicable` is unchanged, as `--limit` still applies only to
+  openalex and arxiv.
+- **Release guard**: it scans only for the loopback marker and lists no
+  `*_API_URL` variable, so `ACCELERATOR_CROSSREF_API_URL` joined only the
+  loopback endpoints and the test `support` commands.
+- **Granting the fetch**: the `research.md` sentence naming `fetch doi
+  metadata` waits for phase 7, when the web profile first calls it.
+- **Help**: the queue paragraph's last sentence reads "Treat any status
+  other than ok, unavailable or waiting as unavailable", so the pinned
+  phrase stays on one wrapped line.
+- **Tests**: the backoff test re-presents its ticket at 250 s, 500 s and
+  750 s before 901 s, since a ticket that ended over 300 s earlier expires
+  and rejoins rather than passing its cap. The `Retry-After` test answers
+  A's 429 after 1 s. Only the public rate test runs alone, and only the
+  public concurrency and `Retry-After` tests join the `real-time` group;
+  the polite, `not-an-address` and mixed-pool tests arrive in phase 5.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p research -p research-adapters -p accelerator-research --features accelerator-research/test-loopback`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check`
-- [ ] `mise run test:integration:release-guard`
-- [ ] `mise run docs:check`
-- [ ] `mise run check`
+- [x] `cd cli && cargo nextest run -p research -p research-adapters -p accelerator-research --features accelerator-research/test-loopback`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check`
+- [x] `mise run test:integration:release-guard`
+- [x] `mise run docs:check`
+- [x] `mise run check`
 
 #### Manual Verification
 
-- [ ] A live `accelerator research fetch doi metadata '10.1145/371920.372066'`
+- [x] A live `accelerator research fetch doi metadata '10.1145/371920.372066'`
       prints the expected venue and `publisher`.
-- [ ] A live `fetch doi metadata 'https://doi.org/10.48550/arXiv.1706.03762'`
+- [x] A live `fetch doi metadata 'https://doi.org/10.48550/arXiv.1706.03762'`
       prints `{"status":"ok","metadata":{}}`.
-- [ ] Ten live calls in a loop never draw a 429.
+- [x] Ten live calls in a loop never draw a 429.
 
 ---
 
