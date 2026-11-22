@@ -299,7 +299,8 @@ fn crossref_throttling_is_retried_as_rate_limiting_with_its_hint() {
 
 #[test]
 fn crossref_server_errors_and_transport_failures_are_retried() {
-    for response in [status(503), Response::ConnectionFailed, Response::TimedOut]
+    for response in
+        [status(503), Response::ConnectionFailed, Response::TimedOut]
     {
         assert_eq!(
             crossref(response.clone()),

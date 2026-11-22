@@ -67,6 +67,10 @@ impl SourceMetadata {
         self.record("accessed", date.to_string());
     }
 
+    pub fn record_publisher(&mut self, publisher: &Publisher) {
+        self.record("publisher", publisher.0.clone());
+    }
+
     pub fn entries(&self) -> impl Iterator<Item = (&str, &str)> {
         self.entries
             .iter()
@@ -82,6 +86,28 @@ impl SourceMetadata {
             .partition_point(|(present, _)| rank(present) < rank(key));
         self.entries.insert(at, (key.to_owned(), value));
     }
+}
+
+/// A publisher's name, with runs of whitespace read as one space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Publisher(String);
+
+impl Publisher {
+    /// `None` for a name that is blank once its whitespace is collapsed.
+    pub fn parse(raw: &str) -> Option<Self> {
+        collapsed_whitespace(raw).map(Self)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// `text` with every run of whitespace read as one space and none at its
+/// ends, or `None` when nothing else remains.
+pub(crate) fn collapsed_whitespace(text: &str) -> Option<String> {
+    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!collapsed.is_empty()).then_some(collapsed)
 }
 
 fn rank(key: &str) -> usize {

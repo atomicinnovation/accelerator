@@ -1,6 +1,7 @@
 #![allow(clippy::expect_used)]
 
 use research::sources::metadata::date::PartialDate;
+use research::sources::metadata::Publisher;
 use research::sources::metadata::SourceMetadata;
 use research::sources::metadata::RECOMMENDED_KEYS;
 use research::sources::request::ArxivId;
@@ -86,4 +87,28 @@ fn the_recommended_keys_are_the_vocabulary_table_in_order() {
             "pdf_url",
         ]
     );
+}
+
+#[test]
+fn a_publisher_lists_after_the_dates() {
+    let mut metadata = SourceMetadata::default();
+    metadata.record_publisher(&Publisher::parse("ACM").expect("a publisher"));
+    metadata.record_accessed(date("2027-01-15"));
+
+    assert_eq!(
+        entries(&metadata),
+        [("accessed", "2027-01-15"), ("publisher", "ACM")]
+    );
+}
+
+#[test]
+fn a_publisher_has_its_whitespace_collapsed() {
+    let publisher = Publisher::parse("  Springer \n Nature  ").expect("valid");
+
+    assert_eq!(publisher.as_str(), "Springer Nature");
+}
+
+#[test]
+fn a_blank_publisher_is_no_publisher() {
+    assert_eq!(Publisher::parse(" \t "), None);
 }

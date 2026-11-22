@@ -684,6 +684,46 @@ impl core::marker::StructuralPartialEq for research::sources::classify::Received
 pub fn research::sources::classify::arxiv(response: research::sources::classify::Response) -> research::sources::classify::Verdict
 pub fn research::sources::classify::crossref(response: research::sources::classify::Response) -> research::sources::classify::Verdict
 pub fn research::sources::classify::openalex(response: research::sources::classify::Response, verb: research::sources::request::Verb, key: core::option::Option<&research::sources::request::KeySource>) -> research::sources::classify::Verdict
+pub mod research::sources::crossref
+pub struct research::sources::crossref::CrossrefWork
+pub research::sources::crossref::CrossrefWork::container_titles: alloc::vec::Vec<alloc::string::String>
+pub research::sources::crossref::CrossrefWork::kind: core::option::Option<alloc::string::String>
+pub research::sources::crossref::CrossrefWork::publisher: core::option::Option<alloc::string::String>
+impl core::clone::Clone for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::clone(&self) -> research::sources::crossref::CrossrefWork
+impl core::cmp::Eq for research::sources::crossref::CrossrefWork
+impl core::cmp::PartialEq for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::eq(&self, other: &research::sources::crossref::CrossrefWork) -> bool
+impl core::default::Default for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::default() -> research::sources::crossref::CrossrefWork
+impl core::fmt::Debug for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::CrossrefWork
+pub struct research::sources::crossref::DoiMetadata
+pub research::sources::crossref::DoiMetadata::metadata: research::sources::metadata::SourceMetadata
+pub research::sources::crossref::DoiMetadata::venue: core::option::Option<research::sources::crossref::Venue>
+impl core::clone::Clone for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::clone(&self) -> research::sources::crossref::DoiMetadata
+impl core::cmp::Eq for research::sources::crossref::DoiMetadata
+impl core::cmp::PartialEq for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::eq(&self, other: &research::sources::crossref::DoiMetadata) -> bool
+impl core::default::Default for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::default() -> research::sources::crossref::DoiMetadata
+impl core::fmt::Debug for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::DoiMetadata
+pub struct research::sources::crossref::Venue(_)
+impl research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::as_str(&self) -> &str
+impl core::clone::Clone for research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::clone(&self) -> research::sources::crossref::Venue
+impl core::cmp::Eq for research::sources::crossref::Venue
+impl core::cmp::PartialEq for research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::eq(&self, other: &research::sources::crossref::Venue) -> bool
+impl core::fmt::Debug for research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::Venue
+pub fn research::sources::crossref::normalise(work: &research::sources::crossref::CrossrefWork) -> research::sources::crossref::DoiMetadata
 pub mod research::sources::fetch
 pub enum research::sources::fetch::ArxivAnswer
 pub research::sources::fetch::ArxivAnswer::Failed(research::sources::classify::FetchError)
@@ -871,6 +911,18 @@ impl core::fmt::Display for research::sources::metadata::date::PartialDate
 pub fn research::sources::metadata::date::PartialDate::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::metadata::date::PartialDate
 impl core::marker::StructuralPartialEq for research::sources::metadata::date::PartialDate
+pub struct research::sources::metadata::Publisher(_)
+impl research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::as_str(&self) -> &str
+pub fn research::sources::metadata::Publisher::parse(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::clone(&self) -> research::sources::metadata::Publisher
+impl core::cmp::Eq for research::sources::metadata::Publisher
+impl core::cmp::PartialEq for research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::eq(&self, other: &research::sources::metadata::Publisher) -> bool
+impl core::fmt::Debug for research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::metadata::Publisher
 pub struct research::sources::metadata::SourceMetadata
 impl research::sources::metadata::SourceMetadata
 pub fn research::sources::metadata::SourceMetadata::entries(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&str, &str)>
@@ -879,6 +931,7 @@ pub fn research::sources::metadata::SourceMetadata::record_arxiv_id(&mut self, i
 pub fn research::sources::metadata::SourceMetadata::record_doi(&mut self, doi: &research::sources::request::Doi)
 pub fn research::sources::metadata::SourceMetadata::record_openalex_id(&mut self, id: &research::sources::request::WorkId)
 pub fn research::sources::metadata::SourceMetadata::record_published(&mut self, date: research::sources::metadata::date::PartialDate)
+pub fn research::sources::metadata::SourceMetadata::record_publisher(&mut self, publisher: &research::sources::metadata::Publisher)
 pub fn research::sources::metadata::SourceMetadata::record_updated(&mut self, date: research::sources::metadata::date::PartialDate)
 impl core::clone::Clone for research::sources::metadata::SourceMetadata
 pub fn research::sources::metadata::SourceMetadata::clone(&self) -> research::sources::metadata::SourceMetadata

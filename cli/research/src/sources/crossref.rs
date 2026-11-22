@@ -1,0 +1,60 @@
+//! What Crossref holds for a DOI: the venue a journal or proceedings article
+//! was published in, and the publisher of any work.
+
+use crate::sources::metadata::collapsed_whitespace;
+use crate::sources::metadata::Publisher;
+use crate::sources::metadata::SourceMetadata;
+
+/// Crossref's types whose container is a peer-reviewed venue. A chapter's
+/// container is its book, and a posted preprint's its server.
+const VENUE_TYPES: [&str; 2] = ["journal-article", "proceedings-article"];
+
+/// The fields of a Crossref work the venue and publisher are read from.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CrossrefWork {
+    pub kind: Option<String>,
+    pub container_titles: Vec<String>,
+    pub publisher: Option<String>,
+}
+
+/// The journal or proceedings a work was published in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Venue(String);
+
+impl Venue {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// What `doi metadata` reports; the default is a DOI Crossref holds no
+/// record for.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DoiMetadata {
+    pub metadata: SourceMetadata,
+    pub venue: Option<Venue>,
+}
+
+pub fn normalise(work: &CrossrefWork) -> DoiMetadata {
+    let mut metadata = SourceMetadata::default();
+    if let Some(publisher) =
+        work.publisher.as_deref().and_then(Publisher::parse)
+    {
+        metadata.record_publisher(&publisher);
+    }
+    DoiMetadata {
+        metadata,
+        venue: venue_of(work),
+    }
+}
+
+fn venue_of(work: &CrossrefWork) -> Option<Venue> {
+    let is_venue_type = work
+        .kind
+        .as_deref()
+        .is_some_and(|kind| VENUE_TYPES.contains(&kind));
+    if !is_venue_type {
+        return None;
+    }
+    collapsed_whitespace(work.container_titles.first()?).map(Venue)
+}

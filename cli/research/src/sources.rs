@@ -5,6 +5,7 @@
 mod admission;
 pub mod arxiv;
 pub mod classify;
+pub mod crossref;
 pub mod fetch;
 pub mod metadata;
 pub mod openalex;
