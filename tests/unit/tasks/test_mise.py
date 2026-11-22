@@ -459,7 +459,7 @@ def test_a_test_rollup_says_it_ignores_filter(mise, rollup):
     description = mise["tasks"][rollup]["description"]
 
     assert "takes no options, so --filter is ignored" in description
-    assert "test:unit:cli --filter" in description
+    assert "pass --filter to one of its leaf tasks" in description
 
 
 _PYTEST_LANES = {
