@@ -807,7 +807,9 @@ they share, the citing-once rule or the model.
   - Every turn loads project settings only (`--setting-sources project`) and
     no MCP server (`--strict-mcp-config`). Its `--allowedTools` is the skill's
     declared grant, its `${CLAUDE_PLUGIN_ROOT}` filled in, less `research
-    fetch`, plus `Skill`, since a skill's own grant lasts one query.
+    fetch`, re-passed on every turn since a skill's own grant lasts one
+    query. It holds no `Skill`: the opening slash command loads the skill
+    without one, so a turn holds no more than a user's session would.
   - Sessions inherit the environment and config dir unless `--config-dir`
     names one. Under project-only settings, authenticate with that config
     dir's own login or provider variables exported in the shell;

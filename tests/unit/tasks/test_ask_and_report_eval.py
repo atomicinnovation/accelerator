@@ -312,8 +312,7 @@ GRANT = (
     "Bash(accelerator corpus metadata derive),"
     "Bash(accelerator corpus frontmatter validate *),"
     "Bash(accelerator research topic *),"
-    "Read(/<plugin_root>/skills/research/outputters/citing-once/**),"
-    "Skill"
+    "Read(/<plugin_root>/skills/research/outputters/citing-once/**)"
 )
 
 

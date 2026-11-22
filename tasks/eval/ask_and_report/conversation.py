@@ -42,12 +42,11 @@ def research_topic_grant(plugin_root: Path) -> tuple[str, ...]:
     ``--allowedTools`` expands no variable, so the plugin root is filled in
     as Claude Code fills it into the skill's own grant.
     """
-    declared = [
+    return tuple(
         rule.replace(PLUGIN_ROOT, str(plugin_root))
         for rule in _declared_grant(plugin_root / SKILL)
         if rule != UNUSED_GRANT
-    ]
-    return (*declared, "Skill")
+    )
 
 
 def session_flags(model: str | None) -> list[str]:

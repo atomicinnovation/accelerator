@@ -26,6 +26,8 @@ class Toolchain:
     launcher: Path
     corpus: Path
     research: Path
+    vcs: Path
+    migrate: Path
 
     @classmethod
     def debug(cls, root: Path) -> Toolchain:
@@ -36,6 +38,8 @@ class Toolchain:
             launcher=debug / LAUNCHER.name,
             corpus=debug / _subbinary("accelerator-corpus"),
             research=debug / _subbinary("accelerator-research"),
+            vcs=debug / _subbinary("accelerator-vcs"),
+            migrate=debug / _subbinary("accelerator-migrate"),
         )
 
     def session_env(self) -> dict[str, str]:
@@ -56,6 +60,8 @@ class Toolchain:
             "ACCELERATOR_LAUNCHER_BIN": str(self.launcher),
             "ACCELERATOR_CORPUS_BIN": str(self.corpus),
             "ACCELERATOR_RESEARCH_BIN": str(self.research),
+            "ACCELERATOR_VCS_BIN": str(self.vcs),
+            "ACCELERATOR_MIGRATE_BIN": str(self.migrate),
         }
 
 

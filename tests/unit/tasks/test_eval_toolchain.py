@@ -46,6 +46,8 @@ def test_the_toolchain_is_the_workspace_s_debug_builds(tmp_path: Path) -> None:
         launcher=debug / "accelerator",
         corpus=debug / "accelerator-corpus",
         research=debug / "accelerator-research",
+        vcs=debug / "accelerator-vcs",
+        migrate=debug / "accelerator-migrate",
     )
 
 
@@ -62,6 +64,8 @@ def test_a_session_env_points_the_launcher_at_the_debug_builds(
     assert env["ACCELERATOR_LAUNCHER_BIN"] == str(toolchain.launcher)
     assert env["ACCELERATOR_CORPUS_BIN"] == str(toolchain.corpus)
     assert env["ACCELERATOR_RESEARCH_BIN"] == str(toolchain.research)
+    assert env["ACCELERATOR_VCS_BIN"] == str(toolchain.vcs)
+    assert env["ACCELERATOR_MIGRATE_BIN"] == str(toolchain.migrate)
     assert env["PATH"] == f"{tmp_path / 'bin'}:/usr/bin"
 
 

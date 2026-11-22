@@ -96,11 +96,15 @@ _EVAL_CLI_DEV_BUILDS = {
         _LAUNCHER,
         "build:cli:corpus:dev",
         "build:cli:research:dev",
+        "build:cli:vcs:dev",
+        "build:cli:migrate:dev",
     },
     "eval:citing-once": {
         _LAUNCHER,
         "build:cli:corpus:dev",
         "build:cli:research:dev",
+        "build:cli:vcs:dev",
+        "build:cli:migrate:dev",
     },
 }
 
