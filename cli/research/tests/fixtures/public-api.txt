@@ -864,6 +864,8 @@ pub fn research::sources::fetch::ConfirmationCache::recall(&self, entry: &resear
 pub fn research::sources::fetch::ConfirmationCache::record(&self, entry: &research::sources::request::ArxivId, withdrawn: bool)
 pub trait research::sources::fetch::ContentionLog
 pub fn research::sources::fetch::ContentionLog::record(&self, contention: research::sources::ports::Contention)
+pub trait research::sources::fetch::CrossrefDecoder
+pub fn research::sources::fetch::CrossrefDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::crossref::CrossrefWork, research::sources::fetch::DecodeFailure>
 pub trait research::sources::fetch::OpenAlexDecoder
 pub fn research::sources::fetch::OpenAlexDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::openalex::Work, research::sources::fetch::DecodeFailure>
 pub fn research::sources::fetch::OpenAlexDecoder::works(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::openalex::Work>, research::sources::fetch::DecodeFailure>

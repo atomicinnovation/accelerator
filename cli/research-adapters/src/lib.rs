@@ -9,6 +9,7 @@ pub mod clock;
 pub mod conduct;
 pub mod confirmations;
 pub mod contention;
+pub mod crossref_json;
 pub mod diagnostics;
 pub mod host_form;
 pub mod host_resolver;

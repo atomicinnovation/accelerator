@@ -22,6 +22,7 @@ use crate::sources::classify;
 use crate::sources::classify::ClientRejection;
 use crate::sources::classify::FetchError;
 use crate::sources::classify::Reason;
+use crate::sources::crossref::CrossrefWork;
 use crate::sources::metadata::date::PartialDate;
 use crate::sources::openalex;
 use crate::sources::openalex::Work;
@@ -76,6 +77,13 @@ pub trait ArxivDecoder {
         &self,
         body: &[u8],
     ) -> Result<Vec<RawVersion>, DecodeFailure>;
+}
+
+pub trait CrossrefDecoder {
+    /// # Errors
+    ///
+    /// A [`DecodeFailure`] when the body is not a Crossref work message.
+    fn work(&self, body: &[u8]) -> Result<CrossrefWork, DecodeFailure>;
 }
 
 /// Withdrawal verdicts already confirmed, keyed by the identifier as the feed

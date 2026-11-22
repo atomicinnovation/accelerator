@@ -117,7 +117,7 @@
         Module((
             name: "research_adapters_decoders_spawn_nothing",
             matches: Module(
-                "^research_adapters::(openalex_json|arxiv_xml|web_html)($|::)"
+                "^research_adapters::(openalex_json|arxiv_xml|web_html|crossref_json)($|::)"
             ),
             rules: [
                 RestrictImports(
