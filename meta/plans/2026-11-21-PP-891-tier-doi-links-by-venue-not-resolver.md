@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T09:41:20+00:00"
+last_updated: "2026-11-22T10:33:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -366,7 +366,7 @@ the `doi.org` cause, and records what the closing run needs.
 #### Manual Verification
 
 - [x] A counting baseline is recorded, with the item author's sign-off.
-- [ ] The `WebFetch` redirect behaviour and the Claude Code versions are
+- [x] The `WebFetch` redirect behaviour and the Claude Code versions are
       recorded.
 - [x] The non-resolver page, its DOI, its Crossref venue and the expected tier
       are recorded.

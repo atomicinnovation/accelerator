@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers", "cli", "crossref"]
-last_updated: "2026-11-22T09:41:20+00:00"
+last_updated: "2026-11-22T10:33:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -562,7 +562,10 @@ entries.
   both.
 - `WebFetch` on Claude Code `2.1.330` returns a cross-host `302 Found` to
   `https://dl.acm.org/doi/<DOI>` for both resolver URLs, without following
-  it, so the landing host is `dl.acm.org`. Not yet checked on v2.1.144.
+  it, so the landing host is `dl.acm.org`. Claude Code `2.1.144`, the
+  plugin's minimum, behaves the same in a headless run: both URLs report
+  `REDIRECT DETECTED` with `Status: 302 Found` and the same redirect URL.
+  There is no gap, so the profile needs no no-redirect sentence.
 - Non-resolver page for the closing run:
   `https://www.nature.com/articles/nature14539`. `fetch web metadata`
   prints `doi: 10.1038/nature14539`. Crossref holds that DOI as a
