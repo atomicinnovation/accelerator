@@ -27,6 +27,7 @@ use research::sources::request::parse_ticket;
 use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
 use research::sources::request::ArxivRequest;
+use research::sources::request::Doi;
 use research::sources::request::Family;
 use research::sources::request::Limit;
 use research::sources::request::RequestError;
@@ -270,6 +271,42 @@ fn a_search_and_a_lookup_differ_only_by_verb() {
     assert_eq!(graphs().differing(&lookup("2608.21129")), [Argument::Verb]);
 }
 
+fn doi_metadata(doi: &str) -> Binding {
+    Binding::DoiMetadata(Doi::parse(doi).expect("a DOI"))
+}
+
+#[test]
+fn a_doi_binding_matches_its_call_whatever_the_dois_letter_case() {
+    assert!(doi_metadata("10.48550/arXiv.1706.03762")
+        .differing(&doi_metadata("10.48550/arxiv.1706.03762"))
+        .is_empty());
+}
+
+#[test]
+fn a_doi_binding_with_another_doi_differs_by_its_doi() {
+    assert_eq!(
+        doi_metadata("10.1145/371920.372066")
+            .differing(&doi_metadata("10.1145/3448016.3457556")),
+        [Argument::Doi]
+    );
+}
+
+#[test]
+fn a_doi_binding_and_an_arxiv_binding_differ_only_by_verb() {
+    assert_eq!(
+        doi_metadata("10.1145/371920.372066").differing(&graphs()),
+        [Argument::Verb]
+    );
+}
+
+#[test]
+fn a_doi_binding_names_its_call_by_its_canonical_doi() {
+    assert_eq!(
+        doi_metadata("10.48550/arXiv.1706.03762").to_string(),
+        "metadata 10.48550/arxiv.1706.03762"
+    );
+}
+
 #[test]
 fn an_argument_is_named_as_the_profile_spells_it() {
     assert_eq!(
@@ -277,10 +314,11 @@ fn an_argument_is_named_as_the_profile_spells_it() {
             Argument::Verb,
             Argument::Query,
             Argument::Id,
-            Argument::Limit
+            Argument::Limit,
+            Argument::Doi,
         ]
         .map(Argument::code),
-        ["verb", "query", "id", "--limit"]
+        ["verb", "query", "id", "--limit", "doi"]
     );
 }
 

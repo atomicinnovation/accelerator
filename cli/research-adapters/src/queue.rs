@@ -38,6 +38,7 @@ use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
+use research::sources::request::Doi;
 use research::sources::request::Limit;
 use research::sources::schedule::Deadline;
 use research::sources::service::Service;
@@ -712,6 +713,7 @@ struct PresentedOnly {
 enum StoredBinding {
     Search { query: String, limit: u8 },
     Lookup { id: String },
+    Metadata { doi: String },
 }
 
 impl Record {
@@ -762,6 +764,9 @@ impl From<&Binding> for StoredBinding {
                 limit: limit.get(),
             },
             Binding::ArxivLookup(id) => Self::Lookup { id: id.to_string() },
+            Binding::DoiMetadata(doi) => Self::Metadata {
+                doi: doi.canonical(),
+            },
         }
     }
 }
@@ -776,6 +781,7 @@ impl StoredBinding {
             Self::Lookup { id } => {
                 Binding::ArxivLookup(ArxivId::parse(id).ok()?)
             }
+            Self::Metadata { doi } => Binding::DoiMetadata(Doi::parse(doi)?),
         })
     }
 }

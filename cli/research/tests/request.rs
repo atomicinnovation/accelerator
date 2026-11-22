@@ -6,6 +6,7 @@ use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
 use research::sources::request::ArxivRequest;
 use research::sources::request::Doi;
+use research::sources::request::DoiRequest;
 use research::sources::request::Endpoint;
 use research::sources::request::Family;
 use research::sources::request::FetchRequest;
@@ -763,4 +764,113 @@ fn the_production_endpoints_are_the_public_apis() {
     assert_eq!(Endpoint::openalex().as_str(), "https://api.openalex.org");
     assert_eq!(Endpoint::arxiv_api().as_str(), "https://export.arxiv.org");
     assert_eq!(Endpoint::arxiv_oai().as_str(), "https://oaipmh.arxiv.org");
+    assert_eq!(
+        Endpoint::crossref_api().as_str(),
+        "https://api.crossref.org"
+    );
+}
+
+const PROCEEDINGS_DOI: &str = "10.1145/371920.372066";
+
+fn doi_request(
+    verb: &str,
+    words: &[&str],
+    limit: Option<&str>,
+) -> Result<DoiRequest, RequestError> {
+    DoiRequest::parse(verb, &terms(words), limit)
+}
+
+#[test]
+fn a_doi_request_reads_every_form_of_its_doi_alike() {
+    let bare = doi_request("metadata", &[PROCEEDINGS_DOI], None)
+        .expect("a DOI request");
+    for form in [
+        "https://doi.org/10.1145/371920.372066",
+        "https://dx.doi.org/10.1145/371920.372066",
+        "doi:10.1145/371920.372066",
+    ] {
+        assert_eq!(doi_request("metadata", &[form], None), Ok(bare.clone()));
+    }
+    assert_eq!(bare.doi(), &Doi::parse(PROCEEDINGS_DOI).expect("a DOI"));
+}
+
+#[test]
+fn a_doi_request_refuses_what_is_not_a_doi_naming_it() {
+    assert_eq!(
+        doi_request("metadata", &["not-a-doi"], None)
+            .map_err(|error| error.to_string()),
+        Err(
+            "E_DOI_MALFORMED: expected a DOI such as 10.1145/371920.372066 \
+             or https://doi.org/10.1145/371920.372066 (got 'not-a-doi')"
+                .to_owned()
+        )
+    );
+}
+
+#[test]
+fn a_doi_request_needs_exactly_one_doi_and_no_limit() {
+    let one_doi = "E_RESEARCH_USAGE: metadata needs exactly one DOI";
+    for (words, limit, message) in [
+        (&[][..], None, one_doi),
+        (&[PROCEEDINGS_DOI, PROCEEDINGS_DOI][..], None, one_doi),
+        (
+            &[PROCEEDINGS_DOI][..],
+            Some("3"),
+            "E_RESEARCH_USAGE: --limit applies only to openalex and arxiv \
+             fetches",
+        ),
+    ] {
+        assert_eq!(
+            doi_request("metadata", words, limit)
+                .map_err(|error| error.to_string()),
+            Err(message.to_owned()),
+            "{words:?} {limit:?}"
+        );
+    }
+}
+
+#[test]
+fn a_doi_request_supports_only_metadata() {
+    assert_eq!(
+        doi_request("lookup", &[PROCEEDINGS_DOI], None)
+            .map_err(|error| error.to_string()),
+        Err(
+            "E_RESEARCH_USAGE: unknown verb 'lookup' (doi supports metadata)"
+                .to_owned()
+        )
+    );
+}
+
+#[test]
+fn a_crossref_work_request_names_the_doi_in_its_path_and_has_no_query() {
+    let request = UpstreamRequest::crossref_work(
+        &Endpoint::crossref_api(),
+        &Doi::parse(PROCEEDINGS_DOI).expect("a DOI"),
+    );
+
+    assert_eq!(
+        request.url(),
+        "https://api.crossref.org/works/10.1145/371920.372066"
+    );
+    assert!(!request.url().contains('?'));
+}
+
+#[test]
+fn a_crossref_work_request_asks_for_json_as_accelerator_with_no_bearer() {
+    let request = UpstreamRequest::crossref_work(
+        &Endpoint::crossref_api(),
+        &Doi::parse(PROCEEDINGS_DOI).expect("a DOI"),
+    );
+
+    assert_eq!(
+        request.headers(),
+        [
+            (
+                "User-Agent",
+                format!("accelerator-research/{}", env!("CARGO_PKG_VERSION"))
+            ),
+            ("Accept", "application/json".to_owned()),
+        ]
+    );
+    assert_eq!(request.bearer(), None);
 }

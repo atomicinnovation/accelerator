@@ -11,6 +11,7 @@ use crate::sources::web::page_url::PageUrlError;
 pub const USER_AGENT: &str =
     concat!("accelerator-research/", env!("CARGO_PKG_VERSION"));
 const ATOM: &str = "application/atom+xml";
+const JSON: &str = "application/json";
 const OPENALEX_SELECT: &str = "id,doi,display_name,type,authorships,\
                                primary_location,is_retracted,\
                                abstract_inverted_index,publication_date";
@@ -25,9 +26,11 @@ pub enum RequestError {
     MissingQuery,
     MissingId,
     MissingUrl,
+    MissingDoi,
     EmptyQuery,
     MalformedArxivId(String),
     MalformedOpenAlexId(String),
+    MalformedDoi(String),
     MalformedUrl(PageUrlError),
     TicketMalformed(Family, String),
     TicketNotQueued,
@@ -63,6 +66,8 @@ impl fmt::Display for RequestError {
             }
             Self::MissingUrl => formatter
                 .write_str("E_RESEARCH_USAGE: metadata needs exactly one URL"),
+            Self::MissingDoi => formatter
+                .write_str("E_RESEARCH_USAGE: metadata needs exactly one DOI"),
             Self::EmptyQuery => formatter.write_str(
                 "E_RESEARCH_USAGE: the query is empty once reserved \
                  characters are removed",
@@ -76,6 +81,12 @@ impl fmt::Display for RequestError {
                 formatter,
                 "E_OPENALEX_ID_MALFORMED: expected W123, \
                  https://openalex.org/W123, or a DOI (got '{id}')"
+            ),
+            Self::MalformedDoi(raw) => write!(
+                formatter,
+                "E_DOI_MALFORMED: expected a DOI such as \
+                 10.1145/371920.372066 or \
+                 https://doi.org/10.1145/371920.372066 (got '{raw}')"
             ),
             Self::MalformedUrl(rule) => write!(
                 formatter,
@@ -779,6 +790,38 @@ impl WebRequest {
     }
 }
 
+/// A request for what Crossref holds about one DOI.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DoiRequest(Doi);
+
+impl DoiRequest {
+    /// # Errors
+    ///
+    /// A [`RequestError`] naming the first argument found invalid.
+    pub fn parse(
+        verb: &str,
+        terms: &[String],
+        limit: Option<&str>,
+    ) -> Result<Self, RequestError> {
+        if Verb::parse(verb) != Some(Verb::Metadata) {
+            return Err(RequestError::unknown_verb(Family::Doi, verb));
+        }
+        if limit.is_some() {
+            return Err(RequestError::LimitNotApplicable);
+        }
+        let [doi] = terms else {
+            return Err(RequestError::MissingDoi);
+        };
+        Doi::parse(doi)
+            .map(Self)
+            .ok_or_else(|| RequestError::MalformedDoi(doi.to_owned()))
+    }
+
+    pub const fn doi(&self) -> &Doi {
+        &self.0
+    }
+}
+
 /// The name of the credential rung that supplied a key, reported when the
 /// key is rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -844,6 +887,10 @@ impl Endpoint {
         Self::new("https://oaipmh.arxiv.org")
     }
 
+    pub fn crossref_api() -> Self {
+        Self::new("https://api.crossref.org")
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -871,6 +918,18 @@ impl UpstreamRequest {
                 )
                 .fixed("metadataPrefix", "arXivRaw"),
         )
+    }
+
+    /// Crossref's record of `doi`, asked for anonymously.
+    pub fn crossref_work(api: &Endpoint, doi: &Doi) -> Self {
+        Self {
+            url: Query::at(api, &format!("/works/{}", doi.encoded())).finish(),
+            headers: vec![
+                ("User-Agent", USER_AGENT.to_owned()),
+                ("Accept", JSON.to_owned()),
+            ],
+            bearer: None,
+        }
     }
 
     fn arxiv(url: Query) -> Self {

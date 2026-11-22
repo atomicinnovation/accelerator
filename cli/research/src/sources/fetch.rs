@@ -7,6 +7,7 @@ pub use crate::sources::ports::Cause;
 pub use crate::sources::ports::Clock;
 pub use crate::sources::ports::Contention;
 pub use crate::sources::ports::ContentionLog;
+pub use crate::sources::ports::Diagnostics;
 pub use crate::sources::ports::OutOfBudget;
 pub use crate::sources::ports::PacingGate;
 pub use crate::sources::ports::ServingTurn;
@@ -22,7 +23,9 @@ use crate::sources::classify;
 use crate::sources::classify::ClientRejection;
 use crate::sources::classify::FetchError;
 use crate::sources::classify::Reason;
+use crate::sources::crossref;
 use crate::sources::crossref::CrossrefWork;
+use crate::sources::crossref::DoiMetadata;
 use crate::sources::metadata::date::PartialDate;
 use crate::sources::openalex;
 use crate::sources::openalex::Work;
@@ -33,6 +36,7 @@ use crate::sources::record::Record;
 use crate::sources::request::ApiKey;
 use crate::sources::request::ArxivId;
 use crate::sources::request::ArxivRequest;
+use crate::sources::request::Doi;
 use crate::sources::request::Endpoint;
 use crate::sources::request::Family;
 use crate::sources::request::OpenAlexRequest;
@@ -137,6 +141,22 @@ pub struct ArxivFetch<'a> {
     pub oai: &'a Endpoint,
 }
 
+pub struct DoiPorts<'a> {
+    pub transport: &'a dyn Transport,
+    pub decoder: &'a dyn CrossrefDecoder,
+    pub clock: &'a dyn Clock,
+    pub gate: &'a dyn PacingGate,
+    pub queue: &'a dyn ServiceQueue,
+    pub contention: &'a dyn ContentionLog,
+    pub diagnostics: &'a dyn Diagnostics,
+}
+
+pub struct DoiFetch<'a> {
+    pub doi: &'a Doi,
+    pub presented: Option<&'a Ticket>,
+    pub api: &'a Endpoint,
+}
+
 pub fn fetch_openalex(
     fetch: &OpenAlexFetch<'_>,
     ports: &OpenAlexPorts<'_>,
@@ -215,6 +235,54 @@ pub fn fetch_arxiv(
         },
         deadline,
         &mut |attempts| served(attempts, fetch, ports),
+    )
+}
+
+/// Fetches what Crossref holds for a DOI once the call's turn in its pool's
+/// queue comes.
+///
+/// Only a usage error may fail a DOI call, so a record that cannot be read
+/// leaves Crossref unavailable, and is reported so that a change to
+/// Crossref's schema can be told apart from an outage.
+pub fn fetch_doi(
+    fetch: &DoiFetch<'_>,
+    ports: &DoiPorts<'_>,
+    deadline: &Deadline,
+) -> Queued<DoiMetadata> {
+    queued(
+        &Binding::DoiMetadata(fetch.doi.clone()),
+        fetch.presented,
+        &QueuePorts {
+            transport: ports.transport,
+            clock: ports.clock,
+            gate: ports.gate,
+            queue: ports.queue,
+            contention: ports.contention,
+        },
+        deadline,
+        &mut |attempts| {
+            let settled = attempts.until_settled(
+                &UpstreamRequest::crossref_work(fetch.api, fetch.doi),
+                &classify::crossref,
+                &mut |body| Ok(ports.decoder.work(&body)),
+            )?;
+            Ok(match settled {
+                Settled::Delivered(Ok(work)) => Ok(crossref::normalise(&work)),
+                Settled::Delivered(Err(_)) => {
+                    ports.diagnostics.report(&format!(
+                        "research fetch: doi metadata {}: Crossref returned a \
+                         record that could not be read",
+                        fetch.doi.canonical()
+                    ));
+                    Err(Unavailable::new(Reason::UpstreamError))
+                }
+                Settled::Empty => Ok(DoiMetadata::default()),
+                Settled::Unavailable(unavailable) => Err(unavailable),
+                Settled::Failed(_) => {
+                    Err(Unavailable::new(Reason::UpstreamError))
+                }
+            })
+        },
     )
 }
 

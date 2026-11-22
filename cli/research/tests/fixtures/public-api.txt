@@ -807,6 +807,18 @@ impl core::fmt::Debug for research::sources::ports::Attempted
 pub fn research::sources::ports::Attempted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::ports::Attempted
 impl core::marker::StructuralPartialEq for research::sources::ports::Attempted
+pub struct research::sources::fetch::DoiFetch<'a>
+pub research::sources::fetch::DoiFetch::api: &'a research::sources::request::Endpoint
+pub research::sources::fetch::DoiFetch::doi: &'a research::sources::request::Doi
+pub research::sources::fetch::DoiFetch::presented: core::option::Option<&'a research::sources::queue::Ticket>
+pub struct research::sources::fetch::DoiPorts<'a>
+pub research::sources::fetch::DoiPorts::clock: &'a dyn research::sources::ports::Clock
+pub research::sources::fetch::DoiPorts::contention: &'a dyn research::sources::ports::ContentionLog
+pub research::sources::fetch::DoiPorts::decoder: &'a dyn research::sources::fetch::CrossrefDecoder
+pub research::sources::fetch::DoiPorts::diagnostics: &'a dyn research::sources::ports::Diagnostics
+pub research::sources::fetch::DoiPorts::gate: &'a dyn research::sources::ports::PacingGate
+pub research::sources::fetch::DoiPorts::queue: &'a dyn research::sources::queue::ServiceQueue
+pub research::sources::fetch::DoiPorts::transport: &'a dyn research::sources::ports::Transport
 pub struct research::sources::fetch::OpenAlexFetch<'a>
 pub research::sources::fetch::OpenAlexFetch::api: &'a research::sources::request::Endpoint
 pub research::sources::fetch::OpenAlexFetch::key: core::option::Option<&'a research::sources::request::ApiKey>
@@ -866,6 +878,8 @@ pub trait research::sources::fetch::ContentionLog
 pub fn research::sources::fetch::ContentionLog::record(&self, contention: research::sources::ports::Contention)
 pub trait research::sources::fetch::CrossrefDecoder
 pub fn research::sources::fetch::CrossrefDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::crossref::CrossrefWork, research::sources::fetch::DecodeFailure>
+pub trait research::sources::fetch::Diagnostics
+pub fn research::sources::fetch::Diagnostics::report(&self, line: &str)
 pub trait research::sources::fetch::OpenAlexDecoder
 pub fn research::sources::fetch::OpenAlexDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::openalex::Work, research::sources::fetch::DecodeFailure>
 pub fn research::sources::fetch::OpenAlexDecoder::works(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::openalex::Work>, research::sources::fetch::DecodeFailure>
@@ -877,6 +891,7 @@ pub fn research::sources::fetch::ServingTurn::paced(&self, attempt: &mut dyn cor
 pub trait research::sources::fetch::Transport
 pub fn research::sources::fetch::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
 pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::serving::Queued<research::sources::fetch::ArxivAnswer>
+pub fn research::sources::fetch::fetch_doi(fetch: &research::sources::fetch::DoiFetch<'_>, ports: &research::sources::fetch::DoiPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::serving::Queued<research::sources::crossref::DoiMetadata>
 pub fn research::sources::fetch::fetch_openalex(fetch: &research::sources::fetch::OpenAlexFetch<'_>, ports: &research::sources::fetch::OpenAlexPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
 pub mod research::sources::metadata
 pub mod research::sources::metadata::date
@@ -1166,6 +1181,7 @@ pub trait research::sources::ports::Transport
 pub fn research::sources::ports::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
 pub mod research::sources::queue
 pub enum research::sources::queue::Argument
+pub research::sources::queue::Argument::Doi
 pub research::sources::queue::Argument::Id
 pub research::sources::queue::Argument::Limit
 pub research::sources::queue::Argument::Query
@@ -1186,6 +1202,7 @@ pub research::sources::queue::Binding::ArxivLookup(research::sources::request::A
 pub research::sources::queue::Binding::ArxivSearch
 pub research::sources::queue::Binding::ArxivSearch::limit: research::sources::request::Limit
 pub research::sources::queue::Binding::ArxivSearch::query: research::sources::request::ArxivQuery
+pub research::sources::queue::Binding::DoiMetadata(research::sources::request::Doi)
 impl research::sources::queue::Binding
 pub fn research::sources::queue::Binding::differing(&self, other: &Self) -> alloc::vec::Vec<research::sources::queue::Argument>
 pub fn research::sources::queue::Binding::of(request: &research::sources::request::ArxivRequest) -> Self
@@ -1545,8 +1562,10 @@ pub research::sources::request::RequestError::EmptyQuery
 pub research::sources::request::RequestError::LimitNotApplicable
 pub research::sources::request::RequestError::LimitOutOfRange(alloc::string::String)
 pub research::sources::request::RequestError::MalformedArxivId(alloc::string::String)
+pub research::sources::request::RequestError::MalformedDoi(alloc::string::String)
 pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string::String)
 pub research::sources::request::RequestError::MalformedUrl(research::sources::web::page_url::PageUrlError)
+pub research::sources::request::RequestError::MissingDoi
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
 pub research::sources::request::RequestError::MissingUrl
@@ -1649,11 +1668,24 @@ pub fn research::sources::request::Doi::eq(&self, other: &research::sources::req
 impl core::fmt::Debug for research::sources::request::Doi
 pub fn research::sources::request::Doi::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::request::Doi
+pub struct research::sources::request::DoiRequest(_)
+impl research::sources::request::DoiRequest
+pub const fn research::sources::request::DoiRequest::doi(&self) -> &research::sources::request::Doi
+pub fn research::sources::request::DoiRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::DoiRequest
+pub fn research::sources::request::DoiRequest::clone(&self) -> research::sources::request::DoiRequest
+impl core::cmp::Eq for research::sources::request::DoiRequest
+impl core::cmp::PartialEq for research::sources::request::DoiRequest
+pub fn research::sources::request::DoiRequest::eq(&self, other: &research::sources::request::DoiRequest) -> bool
+impl core::fmt::Debug for research::sources::request::DoiRequest
+pub fn research::sources::request::DoiRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::DoiRequest
 pub struct research::sources::request::Endpoint(_)
 impl research::sources::request::Endpoint
 pub fn research::sources::request::Endpoint::arxiv_api() -> Self
 pub fn research::sources::request::Endpoint::arxiv_oai() -> Self
 pub fn research::sources::request::Endpoint::as_str(&self) -> &str
+pub fn research::sources::request::Endpoint::crossref_api() -> Self
 pub fn research::sources::request::Endpoint::new(base: &str) -> Self
 pub fn research::sources::request::Endpoint::openalex() -> Self
 impl core::clone::Clone for research::sources::request::Endpoint
@@ -1711,6 +1743,7 @@ impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexQ
 pub struct research::sources::request::UpstreamRequest
 impl research::sources::request::UpstreamRequest
 pub fn research::sources::request::UpstreamRequest::bearer(&self) -> core::option::Option<&str>
+pub fn research::sources::request::UpstreamRequest::crossref_work(api: &research::sources::request::Endpoint, doi: &research::sources::request::Doi) -> Self
 pub fn research::sources::request::UpstreamRequest::headers(&self) -> &[(&'static str, alloc::string::String)]
 pub fn research::sources::request::UpstreamRequest::url(&self) -> &str
 pub fn research::sources::request::UpstreamRequest::withdrawal_confirmation(oai: &research::sources::request::Endpoint, id: &research::sources::request::ArxivId) -> Self

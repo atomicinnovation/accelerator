@@ -11,6 +11,7 @@ use crate::sources::classify::Reason;
 use crate::sources::request::ArxivId;
 use crate::sources::request::ArxivQuery;
 use crate::sources::request::ArxivRequest;
+use crate::sources::request::Doi;
 use crate::sources::request::Family;
 use crate::sources::request::Limit;
 use crate::sources::schedule::Deadline;
@@ -121,6 +122,7 @@ impl fmt::Display for Ticket {
 pub enum Binding {
     ArxivSearch { query: ArxivQuery, limit: Limit },
     ArxivLookup(ArxivId),
+    DoiMetadata(Doi),
 }
 
 /// An argument a re-presentation can get wrong.
@@ -130,6 +132,7 @@ pub enum Argument {
     Query,
     Id,
     Limit,
+    Doi,
 }
 
 impl Argument {
@@ -139,6 +142,7 @@ impl Argument {
             Self::Query => "query",
             Self::Id => "id",
             Self::Limit => "--limit",
+            Self::Doi => "doi",
         }
     }
 }
@@ -176,6 +180,12 @@ impl Binding {
                 .then_some(Argument::Id)
                 .into_iter()
                 .collect(),
+            (Self::DoiMetadata(doi), Self::DoiMetadata(other_doi)) => {
+                (doi.canonical() != other_doi.canonical())
+                    .then_some(Argument::Doi)
+                    .into_iter()
+                    .collect()
+            }
             _ => vec![Argument::Verb],
         }
     }
@@ -192,6 +202,9 @@ impl fmt::Display for Binding {
                 limit.get()
             ),
             Self::ArxivLookup(id) => write!(formatter, "lookup {id}"),
+            Self::DoiMetadata(doi) => {
+                write!(formatter, "metadata {}", doi.canonical())
+            }
         }
     }
 }
