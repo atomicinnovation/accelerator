@@ -105,14 +105,10 @@ test('every wire classification token is reachable through classifyUrl', () => {
   }
 });
 
-function fakeRequest(url, isNavigation = true) {
-  return { url: () => url, isNavigationRequest: () => isNavigation };
-}
-
 test('classifyNavigationRequest aborts a refused navigation with its class', () => {
   for (const item of CORPUS.policy) {
     const decision = classifyNavigationRequest(
-      fakeRequest(item.url),
+      { url: item.url, isNavigation: true },
       allowancesOf(item)
     );
     if (item.verdict === 'accepted') {
@@ -148,10 +144,10 @@ test('classifyLocation folds a links destination to a boolean', () => {
 
 test('classifyNavigationRequest continues every non-navigation request', () => {
   // A subresource to an internal host is not a navigation, so it is not the
-  // route handler's concern — only navigations and followed links are classified.
+  // interceptor's concern — only navigations and followed links are classified.
   for (const url of ['http://169.254.169.254/', 'https://example.com/app.js']) {
     assert.deepEqual(
-      classifyNavigationRequest(fakeRequest(url, false), {
+      classifyNavigationRequest({ url, isNavigation: false }, {
         allowInternal: false,
         allowInsecureScheme: false,
       }),

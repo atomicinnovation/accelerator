@@ -17,21 +17,17 @@ import { applyHeader, shouldAttachHeader } from './auth-header.js';
 
 const NAVIGATION_RESOURCE_TYPE = 'Document';
 
-function asPlaywrightRequest({ request, resourceType }) {
-  return {
-    url: () => request.url,
-    isNavigationRequest: () => resourceType === NAVIGATION_RESOURCE_TYPE,
-  };
-}
-
-function navigationDecision(event, getAllowances) {
+function navigationDecision({ request, resourceType }, getAllowances) {
   try {
     return classifyNavigationRequest(
-      asPlaywrightRequest(event),
+      {
+        url: request.url,
+        isNavigation: resourceType === NAVIGATION_RESOURCE_TYPE,
+      },
       getAllowances()
     );
   } catch {
-    return { abort: true, classification: 'malformed', url: event.request.url };
+    return { abort: true, classification: 'malformed', url: request.url };
   }
 }
 
