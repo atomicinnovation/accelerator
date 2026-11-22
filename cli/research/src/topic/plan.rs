@@ -66,8 +66,8 @@ pub struct ItemStatus {
 /// research.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HoldBack {
-    /// Every profile any asking of its question names is skipped; only the
-    /// question's first such asking is held back.
+    /// Every profile any asking of its question names is skipped. Only the
+    /// question's first asking is held back, carrying every asking's skips.
     Skipped(Vec<Skip>),
     IndexesExhausted,
 }
@@ -162,19 +162,23 @@ fn held_back(planned: Vec<(&OutlineItem, ItemPlanning)>) -> Vec<ItemStatus> {
         .filter(|(_, planning)| planning.researchable)
         .map(|(_, planning)| planning.question.clone())
         .collect();
-    let mut held_back_by_skips = BTreeSet::new();
+    let mut skips_by_question = skips_by_question(&planned);
+    let mut held_back_questions = BTreeSet::new();
     planned
         .into_iter()
         .map(|(item, planning)| {
-            let held_back = if planning.exhausted {
+            let reason = if planning.exhausted {
                 Some(HoldBack::IndexesExhausted)
-            } else if !researchable.contains(&planning.question)
-                && held_back_by_skips.insert(planning.question.clone())
-            {
-                Some(HoldBack::Skipped(planning.skips))
-            } else {
+            } else if researchable.contains(&planning.question) {
                 None
+            } else {
+                skips_by_question
+                    .remove(&planning.question)
+                    .map(HoldBack::Skipped)
             };
+            let held_back = reason.filter(|_| {
+                held_back_questions.insert(planning.question.clone())
+            });
             ItemStatus {
                 line: item.line,
                 question: item.question.clone(),
@@ -183,6 +187,21 @@ fn held_back(planned: Vec<(&OutlineItem, ItemPlanning)>) -> Vec<ItemStatus> {
             }
         })
         .collect()
+}
+
+fn skips_by_question(
+    planned: &[(&OutlineItem, ItemPlanning)],
+) -> BTreeMap<NormalisedQuestion, Vec<Skip>> {
+    let mut skips: BTreeMap<NormalisedQuestion, Vec<Skip>> = BTreeMap::new();
+    for (_, planning) in planned {
+        let question = skips.entry(planning.question.clone()).or_default();
+        for skip in &planning.skips {
+            if !question.contains(skip) {
+                question.push(skip.clone());
+            }
+        }
+    }
+    skips
 }
 
 struct Planner<'a> {
@@ -965,6 +984,46 @@ mod tests {
         assert_eq!(
             plan(&inputs).items[0].held_back,
             Some(HoldBack::IndexesExhausted)
+        );
+    }
+
+    #[test]
+    fn a_question_exhausted_at_each_asking_is_held_back_once() {
+        let mut inputs = inputs(outline(&["- [ ] M?", "- [ ] M?"]));
+        inputs.levels = levels("4294967295-x-web", None, Vec::new());
+        let plan = plan(&inputs);
+        assert_eq!(
+            plan.items
+                .iter()
+                .map(|item| item.held_back.clone())
+                .collect::<Vec<_>>(),
+            [Some(HoldBack::IndexesExhausted), None]
+        );
+    }
+
+    #[test]
+    fn a_question_skipped_at_each_asking_is_held_back_by_every_skip() {
+        let mut inputs = inputs(outline(&[
+            "- [ ] A? — profiles: crossref",
+            "- [ ] A? — profiles: pubmed",
+        ]));
+        inputs
+            .source_profiles
+            .extend(["crossref".into(), "pubmed".into()]);
+        let skip = |profile: &str| Skip {
+            pair: pair("A?", profile),
+            reason: SkipReason::NotInstalled,
+        };
+        let plan = plan(&inputs);
+        assert_eq!(
+            plan.items
+                .iter()
+                .map(|item| item.held_back.clone())
+                .collect::<Vec<_>>(),
+            [
+                Some(HoldBack::Skipped(vec![skip("crossref"), skip("pubmed")])),
+                None
+            ]
         );
     }
 
