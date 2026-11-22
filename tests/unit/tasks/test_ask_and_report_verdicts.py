@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -5,7 +6,7 @@ import pytest
 from tasks.eval.ask_and_report import verdicts
 from tasks.eval.ask_and_report.layout import SET
 from tasks.eval.ask_and_report.turns import FileState, TurnRecord
-from tasks.eval.headless.transcript import Event, Text
+from tasks.eval.headless.transcript import Event, Text, ToolCall
 
 SLUG = "llm-agent-planning"
 S = SET.as_posix()
@@ -587,3 +588,41 @@ def test_each_criterion_type_says_whether_it_is_a_judgement(
 def test_a_malformed_expectation_raises(expect: dict) -> None:
     with pytest.raises((ValueError, TypeError, KeyError)):
         verdicts.parse_criteria(expect)
+
+
+def _reading(*paths: str, text: str = "") -> TurnRecord:
+    reads = tuple(
+        ToolCall("Read", {"file_path": path}, by_subagent=False)
+        for path in paths
+    )
+    record = _turn(text)
+    return replace(record, events=(*reads, *record.events))
+
+
+LEVEL_NOTE = f"{S}/findings/01-x-web.levels/1.md"
+
+
+def test_a_turn_reading_a_level_note_meets_read() -> None:
+    assert not _fails({"level_notes": "read"}, _reading(LEVEL_NOTE))
+
+
+def test_a_turn_reading_only_findings_fails_read() -> None:
+    assert _fails(
+        {"level_notes": "read"}, _reading(f"{S}/findings/01-x-web.md")
+    )
+
+
+@pytest.mark.parametrize(
+    "record",
+    [_reading(LEVEL_NOTE), _reading(text="Lanternfish plans 400 steps.")],
+    ids=["read", "canary"],
+)
+def test_a_turn_that_read_or_repeats_a_level_note_fails_unread(
+    record: TurnRecord,
+) -> None:
+    assert _fails({"level_notes": "unread"}, record)
+
+
+def test_level_notes_are_a_judgement() -> None:
+    (criterion,) = verdicts.parse_criteria({"level_notes": "unread"})
+    assert criterion.is_judgement

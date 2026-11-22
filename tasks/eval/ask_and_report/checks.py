@@ -24,7 +24,6 @@ from tasks.eval.headless.transcript import (
 )
 
 RESEARCH_TOPIC = "accelerator:research-topic"
-CANARY = "Lanternfish"
 SPAWNS = frozenset({"Agent", "Task"})
 SEARCHES = frozenset({"Read", "Grep", "Glob"})
 WRITES = frozenset({"Write", "Edit"})
@@ -93,12 +92,12 @@ def _searched(call: ToolCall) -> list[str]:
 
 
 def _search_failures(call: ToolCall, bounds: Bounds) -> Iterator[str]:
-    if any(
+    if call.name != "Read" and any(
         part.endswith(".levels")
         for named in _named_paths(call)
         for part in Path(named).parts
     ):
-        yield f"reads under .levels: {call.input}"
+        yield f"searches under .levels: {call.input}"
     for searched in _searched(call):
         if not bounds.holds(bounds.resolved(searched)):
             yield f"reads outside the project: {searched}"
@@ -201,8 +200,6 @@ def _event_failures(
     match event:
         case ToolCall():
             yield from _call_failures(event, record, bounds)
-        case Text(text=said) | ToolResult(content=said) if CANARY in said:
-            yield "repeats the level-note canary"
         case Init():
             own = [
                 Path(path).resolve()

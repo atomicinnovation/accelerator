@@ -19,7 +19,8 @@
               "plan"
             ],
             "offers": "reject",
-            "writes": []
+            "writes": [],
+            "level_notes": "unread"
           }
         }
       ]

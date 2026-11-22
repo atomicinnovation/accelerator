@@ -904,7 +904,12 @@ It prints one of:
 {
   "consultable": true,
   "findings": ["<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.md"],
-  "reports": ["<set>/reports/how-do-llm-agents-plan-multi-step-tasks.md"]
+  "reports": ["<set>/reports/how-do-llm-agents-plan-multi-step-tasks.md"],
+  "level_notes": {
+    "<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.md": [
+      "<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.levels/1.md"
+    ]
+  }
 }
 { "consultable": false, "gate": "status", "status": "researching" }
 { "consultable": false, "gate": "freshness", "mismatches": ["…"] }
@@ -919,15 +924,20 @@ It prints one of:
 
 `gate` is one of `status`, `freshness` and `conducted`. An open set lists the
 absolute paths of the findings `counts` counts and of the reports it counts,
-as `outstanding` prints its paths. `mismatches` reads as `counts` prints it,
-and each `held_back` item's `reasons` read as `outstanding`'s
-`skipped[].reason`, or say no finding index is left. `warnings` reads as
-`outstanding` prints its warnings, and gates nothing. The command reads `synthesis.md`, `findings/` and
-`reports/` only past the status gate, and the outline and profiles only past
-the freshness gate; it fails before any gate when the plugin holds no
-profiles directory.
-It reads no concurrency, depth or search cap, so a bad
-`research.topic.concurrency` never refuses it.
+as `outstanding` prints its paths, and `level_notes` maps each finding
+composed from a `.levels/` tree to its notes in lineage order: `ask` and
+`report` read them only before calling a part of the question a gap, since a
+composed finding can leave out a source its notes hold. `mismatches` reads as
+`counts` prints it, and each `held_back` item's `reasons` read as
+`outstanding`'s `skipped[].reason`, or say no finding index is left.
+`warnings` reads as `outstanding` prints its warnings, and gates nothing.
+
+The command fails before any gate when the plugin holds no profiles
+directory. It reads `synthesis.md`, `findings/` and `reports/` only past the
+status gate, the outline and profiles only past the freshness gate, and the
+listed findings' `.levels/` trees only for an open set. It reads no
+concurrency, depth or search cap, so a bad `research.topic.concurrency` never
+refuses it.
 
 The command writes nothing, and its JSON only ever gains fields. It exits
 `0` for any verdict.

@@ -295,6 +295,29 @@ fn a_conducted_refusal_carries_the_plans_warnings() -> Result<(), TestError> {
 }
 
 #[test]
+fn an_open_verdict_lists_each_findings_level_notes() -> Result<(), TestError> {
+    let project = Project::multiround()?;
+    let levels = "findings/01-first-focus.levels";
+    project.write(&format!("{TOPICS}/{SET}/{levels}/2-1.md"), "")?;
+    project.write(&format!("{TOPICS}/{SET}/{levels}/1.md"), "")?;
+    project.write(&format!("{TOPICS}/{SET}/{levels}/.draft.md"), "")?;
+
+    let verdict = project.consultable()?;
+
+    assert_eq!(verdict["consultable"], json!(true), "{verdict}");
+    assert_eq!(
+        verdict["level_notes"],
+        json!({
+            project.absolute("findings/01-first-focus.md"): [
+                project.absolute(&format!("{levels}/1.md")),
+                project.absolute(&format!("{levels}/2-1.md")),
+            ],
+        })
+    );
+    Ok(())
+}
+
+#[test]
 fn consultable_opens_a_synthesised_fully_conducted_set() -> Result<(), TestError>
 {
     let project = Project::multiround()?;
@@ -329,6 +352,11 @@ fn consultable_lists_the_documents_to_read() -> Result<(), TestError> {
                 project.absolute("findings/03-third-focus.md"),
             ],
             "reports": [project.absolute("reports/how-agents-plan.md")],
+            "level_notes": {
+                project.absolute("findings/01-first-focus.md"): [
+                    project.absolute("findings/01-first-focus.levels/1.md"),
+                ],
+            },
         })
     );
     assert_eq!(counts["derived"]["report_count"], json!(1));

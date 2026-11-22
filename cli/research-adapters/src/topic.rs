@@ -173,6 +173,30 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     })
 }
 
+/// The set-relative paths of the level notes a finding was composed from,
+/// in lineage order, or none when it has no `.levels/` tree.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when the finding's `.levels/` cannot be listed.
+pub fn level_notes_of<F: DirReader + DirectoryProbe>(
+    set_root: &Path,
+    finding: &str,
+    fs: &F,
+) -> Result<Vec<String>, kernel::Error> {
+    let Some(stem) = finding.strip_suffix(NOTE_SUFFIX) else {
+        return Ok(Vec::new());
+    };
+    let levels = format!("{FINDINGS}/{stem}{LEVELS_SUFFIX}");
+    let entries = DirectoryEntries::of(&set_root.join(&levels), fs)?;
+    Ok(entries
+        .files
+        .into_iter()
+        .filter(|name| note_lineage(name).is_some())
+        .map(|name| format!("{levels}/{name}"))
+        .collect())
+}
+
 /// The names under the set's `reports/`, or none when it has no `reports/`.
 ///
 /// # Errors

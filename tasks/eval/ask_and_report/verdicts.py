@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, get_args
 
 from tasks.eval.ask_and_report import formats
-from tasks.eval.ask_and_report.layout import SET, SLUG, is_finding
+from tasks.eval.ask_and_report.layout import CANARY, SET, SLUG, is_finding
 from tasks.eval.ask_and_report.parsing import one_of, only
 from tasks.eval.ask_and_report.turns import (
     Snapshot,
@@ -25,9 +25,11 @@ from tasks.eval.ask_and_report.turns import (
 )
 from tasks.eval.documents.rule import normalised_url
 from tasks.eval.documents.sources import parse_sources
+from tasks.eval.headless.transcript import ToolCall
 
 type CoverageValue = Literal["answered", "partial", "unanswered"]
 type Offered = Literal["accept", "pick", "proposal", "reject", "none"]
+type LevelNotesRead = Literal["read", "unread"]
 
 SLOT_LINE = "- {source-metadata}"
 LISTED_REPORTS = "- **Reports**: `reports/`"
@@ -617,6 +619,32 @@ class NextSteps:
         return _expected(self.present, named)
 
 
+@dataclass(frozen=True)
+class LevelNotes:
+    is_judgement: ClassVar[bool] = True
+    value: LevelNotesRead
+
+    @classmethod
+    def parse(cls, value: object) -> LevelNotes:
+        return cls(
+            one_of(value, get_args(LevelNotesRead.__value__), "level notes")
+        )
+
+    def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
+        read = any(
+            isinstance(event, ToolCall)
+            and event.name == "Read"
+            and ".levels/" in str(event.input.get("file_path", ""))
+            for event in turn.events
+        )
+        if self.value == "read":
+            return [] if read else ["expected a level note to be read"]
+        failures = ["expected no level note read"] if read else []
+        if CANARY in turn.text:
+            failures.append("repeats the level-note canary")
+        return failures
+
+
 type StandaloneCriterion = (
     Refusal
     | Coverage
@@ -631,6 +659,7 @@ type StandaloneCriterion = (
     | Proposal
     | AppendedRound
     | NextSteps
+    | LevelNotes
 )
 
 type Criterion = StandaloneCriterion | Sources
@@ -649,6 +678,7 @@ STANDALONE_CRITERIA: dict[str, type[StandaloneCriterion]] = {
     "proposal": Proposal,
     "appended_round": AppendedRound,
     "next_steps": NextSteps,
+    "level_notes": LevelNotes,
 }
 
 CRITERIA: dict[str, type[Criterion]] = {

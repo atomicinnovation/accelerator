@@ -105,12 +105,11 @@ def test_a_path_through_a_symlinked_root_is_inside(
 @pytest.mark.parametrize(
     "call",
     [
-        _call("Read", file_path="findings/01-x-web.levels/1.md"),
         _call("Glob", pattern="**/*.levels/*.md"),
         _call("Grep", pattern="x", path="findings/01-x-web.levels"),
         _call("Grep", pattern="x", glob="01-x-web.levels/*"),
     ],
-    ids=["read", "glob", "grep-path", "grep-glob"],
+    ids=["glob", "grep-path", "grep-glob"],
 )
 def test_a_search_naming_a_levels_directory_fails(
     bounds: checks.Bounds, call: ToolCall
@@ -187,17 +186,18 @@ def test_a_search_listing_level_notes_fails(
     )
 
 
+def test_reading_a_level_note_is_no_failure(bounds: checks.Bounds) -> None:
+    read = _call("Read", file_path=f"{SET_PATH}/findings/01-x-web.levels/1.md")
+
+    assert _failures(_turn(read), bounds) == []
+
+
 @pytest.mark.parametrize(
     ("event", "named"),
     [
         (_call("Skill", skill="other:skill"), "other:skill"),
         (_call("Agent", subagent_type="general-purpose"), "spawns"),
         (_call("Task", subagent_type="general-purpose"), "spawns"),
-        (Text("Lanternfish lets agents plan.", by_subagent=False), "canary"),
-        (
-            ToolResult("t", "Lanternfish", is_error=False, by_subagent=False),
-            "canary",
-        ),
         (
             Result(
                 is_error=False,
@@ -207,7 +207,7 @@ def test_a_search_listing_level_notes_fails(
             "denied",
         ),
     ],
-    ids=["skill", "agent", "task", "canary-text", "canary-result", "denial"],
+    ids=["skill", "agent", "task", "denial"],
 )
 def test_each_forbidden_event_fails(
     bounds: checks.Bounds, event: Event, named: str

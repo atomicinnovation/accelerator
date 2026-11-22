@@ -2095,12 +2095,21 @@ def test_consulting_reads_the_rule_with_the_read_tool_before_judging() -> None:
     assert consult.index(CITING_ONCE_PATH) < consult.index("Coverage:")
 
 
-def test_consulting_reads_findings_never_level_notes_and_spawns_nothing() -> (
-    None
-):
+def test_consulting_reads_level_notes_only_to_settle_a_gap() -> None:
     consult = _consult()
-    assert "nothing under `.levels/`" in consult
+    assert "nothing under `.levels/` yet" in consult
     assert "spawning nothing" in consult
+    judge = _section(consult, "**Judge coverage.**", "**Present.**")
+    for phrase in (
+        "Before calling a part a gap",
+        "the verdict's `level_notes`",
+        "never for a covered part",
+    ):
+        assert phrase in judge, f"the gap step lacks {phrase!r}"
+
+
+def test_report_cites_the_level_note_sources_it_counted() -> None:
+    assert "or a level note you read" in _sources_sub_step()
 
 
 def test_consulting_reads_the_verdict_s_findings() -> None:
@@ -2306,7 +2315,7 @@ def test_report_names_the_citing_once_rule_s_path() -> None:
 
 def test_report_cites_every_source_behind_its_gaps() -> None:
     report = _report()
-    assert "including two citations of one source in one finding" in report
+    assert "including two citations of one source in one document" in report
     assert "behind its gaps" in report
 
 
@@ -2323,7 +2332,7 @@ def test_report_merges_each_source_across_every_finding_it_reads() -> None:
     sources = _sources_sub_step()
     assert (
         "every citation of each source the report cites, across every "
-        "finding it reads"
+        "finding and level note it reads"
     ) in sources
     assert "across the findings the report draws on" not in sources
 

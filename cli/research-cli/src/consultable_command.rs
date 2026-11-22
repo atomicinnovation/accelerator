@@ -10,6 +10,7 @@ use corpus_adapters::YamlFrontmatter;
 use research::topic::consultation::Consultation;
 use research::topic::consultation::Refusal;
 use research::topic::plan::HoldBack;
+use research_adapters::topic::level_notes_of;
 use research_adapters::topic::read_counts;
 use research_adapters::topic::read_plan;
 use research_adapters::topic::read_set_status;
@@ -65,15 +66,44 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
         },
     )
     .map_err(|error| error.to_string())?;
+    let level_notes = match &verdict {
+        Consultation::Open(documents) => {
+            level_notes(set_root, documents.findings(), fs)?
+        }
+        Consultation::Refused(_) => Vec::new(),
+    };
     Ok(Printed {
-        stdout: format!("{}\n", rendered(&verdict, &warnings, set_root)),
+        stdout: format!(
+            "{}\n",
+            rendered(&verdict, &warnings, &level_notes, set_root)
+        ),
         stderr: String::new(),
     })
+}
+
+type LevelNotes = Vec<(String, Vec<String>)>;
+
+fn level_notes<F: DirReader + DirectoryProbe>(
+    set_root: &Path,
+    findings: &[String],
+    fs: &F,
+) -> Result<LevelNotes, String> {
+    let mut composed = Vec::new();
+    for finding in findings {
+        let name = finding.rsplit('/').next().unwrap_or(finding);
+        let notes = level_notes_of(set_root, name, fs)
+            .map_err(|error| error.to_string())?;
+        if !notes.is_empty() {
+            composed.push((finding.clone(), notes));
+        }
+    }
+    Ok(composed)
 }
 
 fn rendered(
     verdict: &Consultation,
     warnings: &[String],
+    level_notes: &LevelNotes,
     set_root: &Path,
 ) -> Value {
     let absolute = |relative: &String| {
@@ -85,10 +115,20 @@ fn rendered(
                 documents.findings().iter().map(absolute).collect();
             let reports: Vec<_> =
                 documents.reports().iter().map(absolute).collect();
+            let level_notes: serde_json::Map<String, Value> = level_notes
+                .iter()
+                .map(|(finding, notes)| {
+                    (
+                        absolute(finding),
+                        notes.iter().map(absolute).collect::<Value>(),
+                    )
+                })
+                .collect();
             json!({
                 "consultable": true,
                 "findings": findings,
                 "reports": reports,
+                "level_notes": level_notes,
             })
         }
         Consultation::Refused(Refusal::Status { status }) => json!({

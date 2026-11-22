@@ -678,7 +678,9 @@
   coverage as `answered`, `partial` or `unanswered`, naming the sources and
   tiers behind each part, and for a partial or unanswered question proposes a
   new outline round, which it appends and reopens the set for only on
-  confirmation. Claude Code keeps a skill's grant only until your next
+  confirmation. Before calling a part a gap it reads the level notes behind
+  the findings bearing on it, so a source a composed finding left out still
+  counts. Claude Code keeps a skill's grant only until your next
   reply, so the commands `ask` runs after one ask for permission, and a
   headless session denies them. Adding
   `Bash(accelerator corpus metadata derive)`,

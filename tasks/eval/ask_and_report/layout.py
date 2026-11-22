@@ -5,6 +5,7 @@ from pathlib import Path
 SLUG = "llm-agent-planning"
 SET = Path("meta/research/topics") / SLUG
 REFERENCE_CORPUS = Path("skills/research/research-topic/evals")
+CANARY = "Lanternfish"
 
 
 def is_finding(path: str) -> bool:

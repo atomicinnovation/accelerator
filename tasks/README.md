@@ -784,7 +784,7 @@ directory.
 #### eval:ask-and-report
 
 `eval:ask-and-report` checks research-topic's `ask` and `report` verbs across
-108 multi-turn sessions over a reference corpus, in about 18 minutes at the
+111 multi-turn sessions over a reference corpus, in about 18 minutes at the
 default `--jobs 6`. Run it after changing either verb, the consulting steps
 they share, the citing-once rule or the model.
 
@@ -816,11 +816,14 @@ they share, the citing-once rule or the model.
 - **Judging** matches the fixed lines the skill prints
   (`tasks/eval/ask_and_report/formats.py`), with no model-graded judge. Each
   turn's criteria (`verdicts.py`) read its text, events and snapshot diff.
-  Every turn also meets the global checks (`checks.py`): no `.levels/` read,
-  no read outside the project but the rule, no other skill or plugin, no
-  spawn, no canary, coverage only after reading the rule, writes only where
+  Every turn also meets the global checks (`checks.py`): no search under
+  `.levels/`, no read outside the project but the rule, no other skill or
+  plugin, no spawn, coverage only after reading the rule, writes only where
   declared, no permission denial, and only one simple command from a strict
-  Bash allow-list. A broken check ends the conversation at that turn.
+  Bash allow-list. A broken check ends the conversation at that turn. Level
+  notes are read only to settle a gap, so a scenario declares whether a turn
+  reads one (`level_notes`); the canary in the reference corpus's level notes
+  marks a turn that repeats one it should not have read.
 - **Errored or failed.** A turn is errored when it exits non-zero, times out,
   leaves no log or exit status, logs no init event, or ends `is_error`. A
   session that broke a criterion or check is failed; otherwise one with an

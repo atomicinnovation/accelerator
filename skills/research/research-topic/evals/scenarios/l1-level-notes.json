@@ -1,0 +1,26 @@
+{
+  "family": "L1",
+  "title": "A level note closes a gap its finding leaves",
+  "scenarios": [
+    {
+      "name": "l1-steps-without-error",
+      "verb": "ask",
+      "question": "How many steps can an agent that decomposes its task plan without an error?",
+      "times": 3,
+      "setup": {
+        "variant": "base"
+      },
+      "gate": "open",
+      "turns": [
+        {
+          "expect": {
+            "coverage": "answered",
+            "level_notes": "read",
+            "offers": "reject",
+            "writes": []
+          }
+        }
+      ]
+    }
+  ]
+}
