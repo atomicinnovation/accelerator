@@ -237,6 +237,7 @@ PAGE_MODEL_SUITES = (
     "review-notes",
     "target-renames",
     "readiness",
+    "file-navigator",
 )
 TESTS = Path(__file__).resolve().parent
 
@@ -269,6 +270,7 @@ def test_both_layouts_carry_the_page_models_the_reviewer_works_through(
             "ReviewNotes",
             "TargetRenames",
             "Readiness",
+            "FileNavigator",
         ):
             assert html.index(model) < html.index("window.APP"), model
 
