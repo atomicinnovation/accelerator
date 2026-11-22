@@ -457,6 +457,27 @@ def test_a_filtered_design_automation_run_of_no_test_names_the_lane(
 
 @pytest.mark.usefixtures("runtime_trees")
 @pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
+@pytest.mark.parametrize(
+    "directive", ["# SKIP", "# SKIP not on this host", "# TODO"]
+)
+def test_a_filtered_design_automation_run_of_only_unrun_tests_names_the_lane(
+    context, mise_task, directive
+):
+    _, suites = _DESIGN_AUTOMATION_LANES[mise_task]
+    tap = _tap(
+        [f"a selected test {directive}", *map(str, suites[1:])],
+        passed=len(suites) - 1,
+        skipped=1,
+    )
+
+    with pytest.raises(Exit) as exc_info:
+        _run_design_automation(context, mise_task, tap, filter_="x")
+
+    assert str(exc_info.value) == Selection("x").nothing_selected(mise_task)
+
+
+@pytest.mark.usefixtures("runtime_trees")
+@pytest.mark.parametrize("mise_task", sorted(_DESIGN_AUTOMATION_LANES))
 def test_an_unfiltered_design_automation_run_keeps_its_floors(
     context, mise_task
 ):

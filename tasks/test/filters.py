@@ -62,7 +62,8 @@ _LIBTEST_RESULT = re.compile(
 _VITEST_TESTS_SUMMARY = re.compile(r"^\s*Tests\s+(?P<counts>.*)$", re.MULTILINE)
 _VITEST_TESTS_RUN = re.compile(r"(?P<count>\d+) (?:passed|failed)\b")
 _TAP_TOP_LEVEL_POINT = re.compile(
-    r"^(?:not )?ok \d+ - (?P<name>.*)$", re.MULTILINE
+    r"^(?:not )?ok \d+ - (?P<name>.*?)(?P<directive> # (?i:SKIP|TODO)\b.*)?$",
+    re.MULTILINE,
 )
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -185,11 +186,12 @@ def node_tests_run(tap: str, suites: Sequence[Path]) -> int:
     """Count the tests a `node --test` run reported.
 
     Node reports a suite file in which no test ran as a passing test named
-    after the file, so those points are not tests.
+    after the file, so those points are not tests. Nor are skipped or todo
+    points, since neither can fail the run.
     """
     suite_names = {str(suite) for suite in suites}
     return sum(
         1
         for point in _TAP_TOP_LEVEL_POINT.finditer(tap)
-        if point["name"] not in suite_names
+        if point["name"] not in suite_names and point["directive"] is None
     )
