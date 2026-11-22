@@ -649,7 +649,8 @@ and `search_cap` (its `searches`, and the `source` they came from, in the same
 form).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know. It exits `1` with
-`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set, and with
+`E_RESEARCH_PLUGIN_ROOT` when `ACCELERATOR_PLUGIN_ROOT` is not set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
@@ -782,6 +783,7 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
+| `E_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
 
 ### `research topic report-path`
 

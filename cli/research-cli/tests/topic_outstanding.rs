@@ -439,6 +439,26 @@ fn an_unresolvable_set_exits_1() -> Result<(), TestError> {
 }
 
 #[test]
+fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
+{
+    let slug = "topic-research-multiprofile-set";
+    let project = Project::new("no-plugin-root")?.with_fixture_set(slug)?;
+
+    let output = command_without_an_inherited_cap()
+        .env_remove(PLUGIN_ROOT)
+        .current_dir(&project.root)
+        .args(["topic", "outstanding", slug])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.starts_with("E_RESEARCH_PLUGIN_ROOT: "), "{stderr}");
+    assert!(stderr.contains(PLUGIN_ROOT), "{stderr}");
+    assert!(output.stdout.is_empty());
+    Ok(())
+}
+
+#[test]
 fn every_allocated_path_is_a_finding_path_the_guard_admits(
 ) -> Result<(), TestError> {
     let slug = "topic-research-multiprofile-set";
