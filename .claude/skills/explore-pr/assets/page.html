@@ -152,6 +152,8 @@ table.data tr:last-child td { border-bottom: 0; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
 .loc { font-family: var(--f-mono); font-size: 12.5px; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
 .loc:hover { text-decoration: underline; }
+.loc.act { font-family: var(--f-body); font-size: 12px; font-weight: 500; }
+#file-pane:focus, #commit-pane:focus { outline: none; }
 
 /* Chips */
 .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; border-radius: 999px; padding: 2px 8px; border: 1px solid currentColor; white-space: nowrap; line-height: 1.5; }
@@ -719,7 +721,7 @@ function undoLast() {
 let toastTimer = null;
 function showToast(message, { undo = false } = {}) {
   const toast = $('#undo-toast');
-  toast.innerHTML = `<span>${esc(message)}</span>${undo ? '<button type="button" class="loc" data-undo>Undo</button>' : ''}`;
+  toast.innerHTML = `<span>${esc(message)}</span>${undo ? '<button type="button" class="loc act" data-undo>Undo</button>' : ''}`;
   toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.hidden = true; }, TOAST_MS);
@@ -2267,7 +2269,7 @@ const RISK_EDGE_TITLE = `Each row's edge is the highest risk in it: ${RISKS.map(
 function riskToggleHtml() {
   const shown = NavigatorPrefs.get().showRisk;
   const label = shown ? `Risk <span class="risk-key" aria-hidden="true">${RISKS.map(([risk]) => `<i class="k-${risk}"></i>`).join('')}</span>` : 'Show risk';
-  return `<button type="button" class="loc" data-toggle-risk aria-pressed="${shown}" title="${shown ? esc(RISK_EDGE_TITLE) : 'Edge each row with the highest risk in it'}">${label}</button>`;
+  return `<button type="button" class="loc act" data-toggle-risk aria-pressed="${shown}" title="${shown ? esc(RISK_EDGE_TITLE) : 'Edge each row with the highest risk in it'}">${label}</button>`;
 }
 function toggleRiskEdges() {
   NavigatorPrefs.set({ showRisk: !NavigatorPrefs.get().showRisk });
@@ -2280,8 +2282,8 @@ function navigatorHtml(route) {
       <div class="nav-head"><input type="search" id="fq" placeholder="Filter paths: src *.rs !test" value="${esc(nav.query)}" aria-label="Filter paths">
       <div class="nav-prefs"><label>Group ${prefSelect('groupBy', GROUP_BY)}</label><label>Sort ${prefSelect('sortBy', SORT_BY)}</label></div>
       <div class="facets" id="nav-facets">${facetsHtml(route, FileNavigator.facetCounts(entriesOn(route), filters[route], nav.query))}</div>
-      <div class="small nav-count"><div class="nav-line" id="nav-summary"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc" data-clear-facets ${anyFacetChosen(route) ? '' : 'disabled'}>Clear</button><button type="button" class="loc" data-collapse-read>Collapse read</button>${riskToggleHtml()}</span></div>
-        <div class="nav-line bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><span class="nav-actions"><button type="button" class="loc" data-bulk="ok">Reviewed</button><button type="button" class="loc" data-bulk="skip">Skimmed</button><button type="button" class="loc" data-bulk="">Clear</button><button type="button" class="loc" data-deselect aria-label="Deselect every file" title="Deselect every file">✕</button></span></div></div></div>
+      <div class="small nav-count"><div class="nav-line" id="nav-summary"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc act" data-clear-facets ${anyFacetChosen(route) ? '' : 'disabled'}>Clear</button><button type="button" class="loc act" data-collapse-read>Collapse read</button>${riskToggleHtml()}</span></div>
+        <div class="nav-line bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><span class="nav-actions"><button type="button" class="loc act" data-bulk="ok">Reviewed</button><button type="button" class="loc act" data-bulk="skip">Skimmed</button><button type="button" class="loc act" data-bulk="">Clear</button><button type="button" class="loc act" data-deselect aria-label="Deselect every file" title="Deselect every file">✕</button></span></div></div></div>
       <div role="tree" aria-label="${route === 'commits' ? 'Commits and the files they change' : 'Changed files'}" id="nav-tree" class="${NavigatorPrefs.get().showRisk ? 'show-risk' : ''}" data-group-by="${NavigatorPrefs.get().groupBy}">${body.tree}</div>
     </div><div class="nav-resizer" role="separator" aria-orientation="vertical" aria-label="Width of the file list" tabindex="0" title="Drag to widen the file list; double-click to reset"></div></details>`;
 }
@@ -2375,7 +2377,7 @@ function filePane(path) {
     <div class="md">${md(f.summary)}</div>
     <div class="row small">${CH[f.chapter] ? `<span class="muted">Chapter</span> <a href="#tour-${f.chapter}">${esc(CH[f.chapter].title)}</a>` : ''}${ghAnchor(path)}</div>
     ${commitsTouching(path)}
-    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span></span></div>
+    <div class="row small"><span data-coverage-summary="${esc(path)}"></span><button type="button" class="loc act" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span></span></div>
     ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
     <div class="code tall" id="file-code" data-path="${esc(path)}"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
 }
@@ -2577,7 +2579,7 @@ function commitRowsHtml(commit, file) {
 }
 function commitFileBlock(commit, file) {
   const path = commitFilePath(file), subject = verdictOfKey('commits', `${commit.sha}:${path}`);
-  return `<div class="code tall" data-commit-file="${esc(path)}"><div class="code-head"><span class="path">${file.previous ? `${esc(short(file.previous))} → ` : ''}${esc(short(file.path))}</span><span class="muted tnum">+${fmt(file.add)} −${fmt(file.del)}</span>${D && D[file.headPath] ? `<button class="loc" data-open="${esc(file.headPath)}" data-line="" data-side="new">in All files</button>` : ''}</div>
+  return `<div class="code tall" data-commit-file="${esc(path)}"><div class="code-head"><span class="path">${file.previous ? `${esc(short(file.previous))} → ` : ''}${esc(short(file.path))}</span><span class="muted tnum">+${fmt(file.add)} −${fmt(file.del)}</span>${D && D[file.headPath] ? `<button class="loc act" data-open="${esc(file.headPath)}" data-line="" data-side="new">in All files</button>` : ''}</div>
     <div class="commit-file-ctl">${ctl(subject.target, subject.kind, subject.meta)}</div>
     ${file.binary ? '<div class="muted small" style="padding:12px 14px">A binary file.</div>' : `<table>${commitRowsHtml(commit, file)}</table>`}</div>`;
 }
@@ -2593,7 +2595,7 @@ function commitPane(sha) {
     ${body ? `<div class="commit-msg">${esc(body)}</div>` : ''}
     <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>K</kbd> and <kbd>J</kbd></span>
       ${c.merge ? '' : `<span class="spacer"></span><span class="seg" role="group" aria-label="Show"><button type="button" class="t-info" data-commit-pane="one" aria-pressed="${mode === 'one'}">One file</button><button type="button" class="t-info" data-commit-pane="whole" aria-pressed="${mode === 'whole'}">Whole commit</button></span>`}</div>
-    ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
+    ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc act" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
     ${ctl('commit:' + sha, 'commit', { label: `Commit ${shortSha(sha)}: ${c.subject}`, where: shortSha(sha) })}`}</div>`;
   if (c.merge) return head + `<div class="empty">A merge commit: it brings in changes from elsewhere, so it is not reviewed here.</div>`;
   if (!d || !window.ReviewCoverage) return head + `<div class="loading">Loading the commit…</div>`;
@@ -2827,6 +2829,17 @@ function stepTreeFocus(by) {
   const rows = treeRows();
   focusTreeRow(rows[rows.indexOf(focusedTreeRow()) + by]);
 }
+function focusFileList() {
+  const drawer = $('.nav-drawer');
+  if (drawer) drawer.open = true;
+  focusTreeRow($('#nav-tree .fl-item[aria-current="true"]') || $('#nav-tree .fl-item[tabindex="0"]') || $('#nav-tree .fl-item'));
+}
+function focusContent() {
+  const pane = $(currentRoute === 'commits' ? '#commit-pane' : '#file-pane');
+  if (!pane) return;
+  pane.tabIndex = -1;
+  pane.focus({ preventScroll: true });
+}
 const folderRow = id => $(`#nav-tree [data-toggle-node="${CSS.escape(id)}"]`);
 function collapseFocused() {
   const row = focusedTreeRow();
@@ -2854,7 +2867,7 @@ function helpHtml() {
     if (!group) groups.push(group = { name: b.group, bindings: [] });
     group.bindings.push(b);
   });
-  return `<div class="keys-head"><h2 id="keys-help-title">Keyboard shortcuts</h2><button type="button" class="loc" data-close-help>Close</button></div>
+  return `<div class="keys-head"><h2 id="keys-help-title">Keyboard shortcuts</h2><button type="button" class="loc act" data-close-help>Close</button></div>
     <div class="keys-groups">${groups.map(group => `<section><h3>${esc(group.name)}</h3><dl>${group.bindings.map(b => `<dt>${b.keys.map(key => `<kbd>${esc(KEY_NAMES[key] || key)}</kbd>`).join(' ')}</dt><dd>${esc(b.label)}</dd>`).join('')}</dl></section>`).join('')}</div>
     <label class="small keys-advance"><input type="checkbox" data-advance ${NavigatorPrefs.get().advance ? 'checked' : ''}> After <kbd>r</kbd> or <kbd>s</kbd>, move on to the next file still to read</label>`;
 }
@@ -2904,6 +2917,8 @@ const COMMANDS = {
   help: openHelp,
   'close-help': closeHelp,
   'blur-field': () => document.activeElement.blur(),
+  'focus-files': focusFileList,
+  'focus-content': focusContent,
   'tree-next': () => stepTreeFocus(1),
   'tree-previous': () => stepTreeFocus(-1),
   'tree-collapse': collapseFocused,

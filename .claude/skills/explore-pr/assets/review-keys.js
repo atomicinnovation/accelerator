@@ -28,6 +28,8 @@
     binding(['u'], 'toggle-still-to-read', 'Finding files', 'Show only files still to read, or every file'),
     binding(['g'], 'cycle-grouping', 'Finding files', 'Group the files the next way'),
     binding(['?'], 'help', 'Finding files', 'Show these shortcuts'),
+    binding(['f'], 'focus-files', 'Finding files', 'Put the keyboard in the file list'),
+    binding(['c'], 'focus-content', 'Finding files', 'Put the keyboard back in the code'),
     binding(['ArrowDown'], 'tree-next', 'In the file list', 'Next row', { inTree: true }),
     binding(['ArrowUp'], 'tree-previous', 'In the file list', 'Previous row', { inTree: true }),
     binding(['ArrowLeft'], 'tree-collapse', 'In the file list', 'Collapse the folder, or go to its parent', { inTree: true }),

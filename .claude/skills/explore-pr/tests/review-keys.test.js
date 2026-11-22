@@ -12,7 +12,7 @@ const ON_BOTH = {
   j: 'next-file', k: 'previous-file', ']': 'next-chunk', '[': 'previous-chunk', n: 'next-unread', N: 'previous-unread',
   m: 'mark-chunk', M: 'mark-file', r: 'reviewed', s: 'skimmed', i: 'issue', Backspace: 'clear-verdict', z: 'undo',
   x: 'toggle-selected', X: 'select-shown', Escape: 'deselect', '/': 'focus-search', u: 'toggle-still-to-read',
-  g: 'cycle-grouping', '?': 'help',
+  g: 'cycle-grouping', '?': 'help', f: 'focus-files', c: 'focus-content',
 };
 
 test('each shortcut resolves to its command in All files and By commit', () => {
@@ -88,4 +88,11 @@ test('every binding is labelled and grouped, and no key is bound twice on a view
       assert.equal(new Set(keys).size, keys.length, `${route} ${tree}`);
     }
   }
+});
+
+test('f and c move the keyboard between the file list and the code, even from the list', () => {
+  const tree = on('files', { treeFocused: true });
+
+  assert.equal(commandFor('f', tree), 'focus-files');
+  assert.equal(commandFor('c', tree), 'focus-content');
 });

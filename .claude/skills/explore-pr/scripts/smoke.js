@@ -615,6 +615,10 @@ const KEYS_PROBE = `(async () => {
   press('ArrowLeft', folder); await settle();
   const arrowCollapses = document.querySelector('#nav-tree [data-toggle-node="' + CSS.escape(folder.dataset.toggleNode) + '"]').getAttribute('aria-expanded') === 'false';
   press('ArrowRight', document.activeElement); await settle();
+  press('f'); await settle();
+  const fFocusesList = !!document.activeElement.closest('#nav-tree') && document.activeElement.getAttribute('aria-current') === 'true';
+  press('c', document.activeElement); await settle();
+  const cFocusesCode = document.activeElement === document.querySelector('#file-pane');
   let commitKeys = null, commitFileKeys = null;
   if ((api.content.commits || []).length > 1) {
     location.hash = 'commits'; await settle(700);
@@ -634,7 +638,7 @@ const KEYS_PROBE = `(async () => {
       commitFileKeys = api.navigator.current() === inCommit[1] && block.dataset.commitFile === inCommit[1].slice(many.sha.length + 1) && top >= bar && top - bar <= 16;
     }
   }
-  return { file: start, jMoves, kReturns, chunkCursor, chunkMarked, markUndone, issueNoted, fieldLeft, issueUndone, helpOpens, helpCloses, advances, xSelects, escapeDeselects, uNarrows, gCycles, arrowMoves, arrowCollapses, commitKeys, commitFileKeys };
+  return { file: start, jMoves, kReturns, chunkCursor, chunkMarked, markUndone, issueNoted, fieldLeft, issueUndone, helpOpens, helpCloses, advances, xSelects, escapeDeselects, uNarrows, gCycles, arrowMoves, arrowCollapses, fFocusesList, cFocusesCode, commitKeys, commitFileKeys };
 })()`;
 
 const COMMIT_NAVIGATOR_PROBE = `(async () => {
@@ -798,7 +802,7 @@ async function main() {
   const bulk = report.bulk || {};
   const bulkHolds = !!bulk.skipped || !!(bulk.barShown && bulk.issueKept && bulk.othersReviewed && bulk.folderRead && bulk.toastSays && bulk.selectionCleared && bulk.undone);
   const keys = report.keys || {};
-  const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.commitKeys !== false && keys.commitFileKeys !== false);
+  const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.fFocusesList && keys.cFocusesCode && keys.commitKeys !== false && keys.commitFileKeys !== false);
   const commitNavigator = report.commitNavigator || {};
   const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne && commitNavigator.longLinesCut !== false);
   const findings = report.findings || {};

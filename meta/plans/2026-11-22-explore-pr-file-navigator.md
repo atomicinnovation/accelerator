@@ -158,6 +158,7 @@ All paths are relative to `.claude/skills/explore-pr/`. `P` means
 | `u` | Toggle the Still to read filter |
 | `g` | Cycle Group by |
 | `?` | Show every shortcut |
+| `f` / `c` | Put the keyboard in the file list, on the current row / back in the code |
 | Arrow keys | Move, collapse and expand while the tree has focus |
 
 Verify with the automated criteria in each phase and the manual steps at the
