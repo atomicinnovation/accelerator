@@ -315,3 +315,18 @@ test('no file has changed since this head', () => {
 test('every file has changed since a head the page has no lineage for', () => {
   assert.deepEqual(ReviewCoverage.filesChangedSince(['src/a.rs', 'src/b.rs'], 'unknown', HEAD, LINEAGE), ['src/a.rs', 'src/b.rs']);
 });
+
+test('a chunk is a run of changed rows, unbroken by the annotations inside it', () => {
+  const kinds = ['context', 'changed', 'annotation', 'changed', 'context', 'changed', 'gap', 'changed', 'changed'];
+
+  assert.deepEqual(ReviewCoverage.chunksOf(kinds), [{ first: 1, last: 3 }, { first: 5, last: 5 }, { first: 7, last: 8 }]);
+});
+
+test('an annotation after the last changed row of a run does not end the chunk on itself', () => {
+  assert.deepEqual(ReviewCoverage.chunksOf(['changed', 'annotation', 'context']), [{ first: 0, last: 0 }]);
+});
+
+test('rows with nothing changed have no chunks', () => {
+  assert.deepEqual(ReviewCoverage.chunksOf(['context', 'annotation', 'gap']), []);
+  assert.deepEqual(ReviewCoverage.chunksOf([]), []);
+});

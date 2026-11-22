@@ -228,9 +228,25 @@
     return origins;
   }
 
+  function chunksOf(kinds) {
+    const chunks = [];
+    let open = null;
+    kinds.forEach((kind, index) => {
+      if (kind === 'changed') {
+        if (open) open.last = index;
+        else open = { first: index, last: index };
+      } else if (kind !== 'annotation' && open) {
+        chunks.push(open);
+        open = null;
+      }
+    });
+    if (open) chunks.push(open);
+    return chunks;
+  }
+
   const ReviewCoverage = {
     changedLinesOf, readingClaimsIn, fileCoverage, coveredElsewhere,
-    withLinesMarked, lineMarkClaims, claimedLines, carriedOver, standingClaim, changedSince, filesChangedSince, commitLines, commitClaims, commitCoverage, readersAt, originsOf,
+    withLinesMarked, lineMarkClaims, claimedLines, carriedOver, standingClaim, changedSince, filesChangedSince, commitLines, commitClaims, commitCoverage, readersAt, originsOf, chunksOf,
   };
   if (typeof module === 'object' && module.exports) module.exports = ReviewCoverage;
   else root.ReviewCoverage = ReviewCoverage;

@@ -239,6 +239,7 @@ PAGE_MODEL_SUITES = (
     "readiness",
     "file-navigator",
     "bulk-verdicts",
+    "review-keys",
 )
 TESTS = Path(__file__).resolve().parent
 
@@ -273,6 +274,7 @@ def test_both_layouts_carry_the_page_models_the_reviewer_works_through(
             "Readiness",
             "FileNavigator",
             "BulkVerdicts",
+            "ReviewKeys",
         ):
             assert html.index(model) < html.index("window.APP"), model
 

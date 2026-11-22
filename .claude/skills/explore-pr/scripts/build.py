@@ -58,6 +58,7 @@ TARGET_RENAMES_MODEL = ASSETS / "target-renames.js"
 READINESS_MODEL = ASSETS / "readiness.js"
 FILE_NAVIGATOR_MODEL = ASSETS / "file-navigator.js"
 BULK_VERDICTS_MODEL = ASSETS / "bulk-verdicts.js"
+REVIEW_KEYS_MODEL = ASSETS / "review-keys.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -2234,6 +2235,7 @@ def with_page_models(page: str, views: list[str]) -> str:
         READINESS_MODEL,
         FILE_NAVIGATOR_MODEL,
         BULK_VERDICTS_MODEL,
+        REVIEW_KEYS_MODEL,
     )
     styles = f"<style>{(KIT / 'lib/diagram.css').read_text()}</style>"
     scripts = "".join(inline_script(model.read_text()) for model in models)
