@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T10:39:49+00:00"
+last_updated: "2026-11-22T10:53:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -422,19 +422,20 @@ the old release's queue state as a fixture.
 | Behaviour | Covering test(s) |
 |---|---|
 | Pacing: 3 s after the previous finish, across processes | `C/arxiv_pacing.rs` `a_second_process_waits_for_the_first_processs_response_to_finish`, `sequential_calls_are_spaced_three_seconds_apart`; `A/pacing.rs` spacing tests |
-| Pacing: one request at a time | `C/arxiv_pacing.rs:118, 150`; `C/fetch_arxiv.rs:361` |
+| Pacing: one request at a time | `C/arxiv_pacing.rs:121, 153`; `C/fetch_arxiv.rs:362` |
 | Retry-After shared across processes | `C/fetch_arxiv.rs` `a_throttled_call_defers_the_next_calls_first_request`; **new** `C/arxiv_pacing.rs` `a_throttled_call_defers_a_concurrent_process` |
-| `waiting` and `--ticket`, position | `C/fetch_arxiv.rs:404, 450, 472, 485, 504, 768`; `C/arxiv_queue.rs:113, 133, 157` |
-| 100 s invocation bound | `R/arxiv_fetch.rs:550-628`; **new** `C/fetch_arxiv.rs` `a_call_queued_behind_a_live_ticket_returns_waiting_within_100_s` (LoggingClock, production budget) |
-| `unavailable` `upstream_error` | `C/fetch_arxiv.rs:181`; **new** `C/fetch_arxiv.rs` `a_query_answered_503_until_retries_run_out_is_unavailable_upstream_error` |
-| `unavailable` `rate_limited` | `C/fetch_arxiv.rs:313` |
-| `unavailable` `rate_limited` + `lock_contention` | `C/fetch_arxiv.rs:722, 854` |
-| Last retry's reason carried past the cap | `C/fetch_arxiv.rs:873` (`upstream_error`); **new** `C/fetch_arxiv.rs` `a_ticket_whose_last_attempt_was_throttled_reports_rate_limited_past_its_cap` |
-| Ticket cap (900 s) | `C/fetch_arxiv.rs:706, 722`; `R/queue.rs:380, 390, 418` |
-| `E_ARXIV_TICKET_MALFORMED`, exit 2 | `C/fetch_arxiv.rs:784` |
-| `E_ARXIV_TICKET_MISMATCH`, exit 2 | `C/fetch_arxiv.rs:547, 604, 619, 631` |
-| `E_ARXIV_TICKET_LIVE`, exit 2 | `C/fetch_arxiv.rs:816` |
-| 404 / other 4xx exit 1 | **new** `C/fetch_arxiv.rs` `a_lookup_answered_404_fails_with_a_client_error` and `…_400_…` |
+| `waiting` and `--ticket`, position | `C/fetch_arxiv.rs:405, 451, 473, 486, 505, 769`; `C/arxiv_queue.rs:114, 134, 158` |
+| 100 s invocation bound | `R/arxiv_fetch.rs:548-626`; **new** `C/fetch_arxiv.rs` `a_call_queued_behind_a_live_ticket_returns_waiting_within_100_s` (LoggingClock, production budget) |
+| `unavailable` `upstream_error` | `C/fetch_arxiv.rs:182`; **new** `C/fetch_arxiv.rs` `a_query_answered_503_until_retries_run_out_is_unavailable_upstream_error` |
+| `unavailable` `rate_limited` | `C/fetch_arxiv.rs:314` |
+| `unavailable` `rate_limited` + `lock_contention` | `C/fetch_arxiv.rs:723, 855` |
+| Last retry's reason carried past the cap | `C/fetch_arxiv.rs:874` (`upstream_error`); **new** `C/fetch_arxiv.rs` `a_ticket_whose_last_attempt_was_throttled_reports_rate_limited_past_its_cap` |
+| Ticket cap (900 s) | `C/fetch_arxiv.rs:707, 723`; `R/queue.rs:383, 393, 421` |
+| `E_ARXIV_TICKET_MALFORMED`, exit 2 | `C/fetch_arxiv.rs:785`; **new** `C/fetch_arxiv.rs` `a_malformed_ticket_is_reported_as_exactly_one_line` |
+| `E_ARXIV_TICKET_MISMATCH`, exit 2 | `C/fetch_arxiv.rs:548, 605, 620, 632`; **new** `C/fetch_arxiv.rs` `a_mismatch_is_reported_as_exactly_one_line_naming_the_issued_call` |
+| `E_ARXIV_TICKET_LIVE`, exit 2 | `C/fetch_arxiv.rs:817`; **new** `C/fetch_arxiv.rs` `a_live_ticket_is_reported_as_exactly_one_line` |
+| 404 / other 4xx exit 1 | **new** `C/fetch_arxiv.rs` `a_lookup_answered_404_fails_with_a_client_error` and `a_lookup_answered_400_fails_with_a_client_error` |
+| Whole stderr summary lines | **new** `C/fetch_arxiv.rs`: `waiting` in `a_call_queued_behind_a_live_ticket_returns_waiting_within_100_s`; `unavailable (…) after N attempts` in `a_query_answered_503_until_retries_run_out_is_unavailable_upstream_error`; `failed after …` in the 404 and 400 tests |
 
 The implementer re-checks the line references at the start of the phase and
 updates this table if they have moved.
@@ -499,9 +500,12 @@ line equality for every arXiv stderr line:
 
 **Capture**:
 1. In a scratch project, use the current `accelerator-research` binary built
-   with `test-loopback`, pointed at a mock arXiv that stalls.
-2. Make one arXiv lookup with a call budget short enough
-   (`ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS`) that it returns `waiting`.
+   with `test-loopback`, pointed at a mock arXiv that answers `503` with
+   `Retry-After: 30`. A stalling mock with a budget short enough to return
+   `waiting` never sends, so it leaves no `arxiv-pacing` to capture.
+2. Make one arXiv lookup with a 35 s call budget
+   (`ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS`): it sends once, cannot fit
+   the retry, and returns `waiting`.
 3. Copy `<paths.tmp>/research/arxiv-queue/` and `arxiv-pacing` into the
    fixture, and save the printed ticket in `ticket.txt`.
 4. Delete the `.lock` files: a live lock cannot be captured.
@@ -510,16 +514,16 @@ line equality for every arXiv stderr line:
 
 #### Automated Verification
 
-- [ ] The CLI tests pass:
-      `cd cli && cargo nextest run -p research -p research-adapters -p research-cli --features research-cli/test-loopback`
-- [ ] No test body outside `support` names an arXiv state file:
+- [x] The CLI tests pass:
+      `cd cli && cargo nextest run -p research -p research-adapters -p accelerator-research --features accelerator-research/test-loopback`
+- [x] No test body outside `support` names an arXiv state file:
       `rg -n '["/]arxiv(\.lock|-pacing|-requests\.log|-contention\.log|-queue/?")' cli/research-cli/tests cli/research-adapters/tests --glob '!**/support/**' --glob '!**/fixtures/**'`
       prints nothing.
-- [ ] `mise run cli:check` passes.
+- [x] `mise run cli:check` passes.
 
 #### Manual Verification
 
-- [ ] The mapping table above is current, with every **new** test named as
+- [x] The mapping table above is current, with every **new** test named as
       written.
 
 ---
@@ -1099,7 +1103,7 @@ Update any structure-test pin on the old path.
 #### Automated Verification
 
 - [ ] The domain, adapter and CLI suites pass:
-      `cd cli && cargo nextest run -p research -p research-adapters -p research-cli --features research-cli/test-loopback`
+      `cd cli && cargo nextest run -p research -p research-adapters -p accelerator-research --features accelerator-research/test-loopback`
 - [ ] The phase 2 CLI tests pass with only `support/` files changed in
       `cli/research-cli/tests`, apart from the new legacy and provenance
       tests. Check with `jj diff --stat cli/research-cli/tests`.
@@ -1472,7 +1476,7 @@ The implementer re-checks the line references before editing.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p research -p research-adapters -p research-cli --features research-cli/test-loopback`
+- [ ] `cd cli && cargo nextest run -p research -p research-adapters -p accelerator-research --features accelerator-research/test-loopback`
 - [ ] `mise run public-api:update && mise run public-api:check`
 - [ ] `mise run pup:check`
 - [ ] `mise run test:integration:release-guard`
@@ -1742,7 +1746,7 @@ that `crossref.mailto` (3 concurrent) reduces contention across projects.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p research -p research-cli -p config -p launcher --features research-cli/test-loopback`
+- [ ] `cd cli && cargo nextest run -p research -p accelerator-research -p config -p launcher --features accelerator-research/test-loopback`
 - [ ] `mise run public-api:update && mise run public-api:check`
 - [ ] `mise run pup:check`
 - [ ] `mise run docs:check`
@@ -1787,7 +1791,7 @@ with `OPENALEX_SELECT`):
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p research-cli --features test-loopback -E 'test(search_and_every_form_of_lookup)'`
+- [ ] `cd cli && cargo nextest run -p accelerator-research --features test-loopback -E 'test(search_and_every_form_of_lookup)'`
 - [ ] `mise run check`
 
 ---
