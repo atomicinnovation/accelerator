@@ -62,12 +62,15 @@ def playwright_environment(free_port: Callable[[], int]) -> dict[str, str]:
     }
 
 
+_UNFILTERED = Selection()
+
+
 def docker_visual_command(
     base_url: str,
     image: str,
     update: bool,
     cache_deps: bool = False,
-    grep: str | None = None,
+    selection: Selection = _UNFILTERED,
 ) -> str:
     """Assemble the `docker run` command for the visual-regression specs.
 
@@ -79,7 +82,7 @@ def docker_visual_command(
         "--project visual-regression"
     )
     pw = command_line(
-        pw, "--update-snapshots" if update else "", Selection(grep).playwright()
+        pw, "--update-snapshots" if update else "", selection.playwright()
     )
     # No locale-gen: C.UTF-8 is pre-generated in every Playwright image and the
     # rendering locale is Chromium's explicit en-US (see
@@ -175,7 +178,7 @@ def visualiser_docker(
                     image=playwright_image(),
                     update=update,
                     cache_deps=cache_deps,
-                    grep=filter_,
+                    selection=selection,
                 ),
                 # Live Docker/npm output locally; piped (no PTY) on the
                 # headless CI runner so the container exit code is reliably
