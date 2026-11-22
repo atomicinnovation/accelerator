@@ -30,6 +30,7 @@ function interceptor({
   authHeader = null,
   getAllowances = () => allowances,
   refusedMethod = null,
+  refusedMethods = refusedMethod ? [refusedMethod] : [],
 } = {}) {
   const refusals = [];
   const sent = [];
@@ -43,7 +44,7 @@ function interceptor({
   const refusal = new Error(`${refusedMethod} refused`);
   const send = async (method, params) => {
     sent.push({ method, params });
-    if (method === refusedMethod) throw refusal;
+    if (refusedMethods.includes(method)) throw new Error(`${method} refused`);
   };
   return {
     refusals,
@@ -213,4 +214,18 @@ test('a hop whose continuation is refused is failed rather than left paused', as
     requestId: 'interception-1',
     errorReason: 'Failed',
   });
+});
+
+test('a hop already gone when its failure is refused reports the continuation refusal', async () => {
+  const { pause, sent, refusal } = interceptor({
+    refusedMethod: 'Fetch.continueRequest',
+    refusedMethods: ['Fetch.continueRequest', 'Fetch.failRequest'],
+  });
+
+  await assert.rejects(pause(hop({ url: 'https://app.example.com/' })), refusal);
+
+  assert.deepEqual(
+    sent.map(({ method }) => method),
+    ['Fetch.continueRequest', 'Fetch.failRequest']
+  );
 });
