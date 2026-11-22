@@ -19,6 +19,7 @@ import pytest
 from tasks.eval.ask_and_report import formats
 from tasks.shared.skill_parsing import (
     fenced_block_commands,
+    fenced_blocks,
     frontmatter_bash_rules,
 )
 
@@ -1869,15 +1870,308 @@ def test_the_web_profile_grants_the_fetch() -> None:
     assert "web" in _fetch_granting_profiles()
 
 
-def test_the_web_profile_fetches_only_metadata_by_a_quoted_url() -> None:
+DOI_METADATA = f"{FETCH}doi metadata "
+WEB_PROFILE_COMMANDS = (
+    re.compile(rf"{WEB_METADATA}'[^']+'"),
+    re.compile(rf"{DOI_METADATA}'[^']+'( --ticket \S+)?"),
+)
+MARKDOWN = "markdown"
+
+
+def _web_profile_blocks() -> list[tuple[str, str]]:
     _, body = _split(_read(_web_profile()))
-    commands = fenced_block_commands(body)
+    return fenced_blocks(body)
+
+
+def _web_profile_commands() -> list[str]:
+    return [
+        first_line
+        for language, first_line in _web_profile_blocks()
+        if language != MARKDOWN
+    ]
+
+
+def _web_profile_examples() -> list[str]:
+    return [
+        first_line
+        for language, first_line in _web_profile_blocks()
+        if language == MARKDOWN
+    ]
+
+
+def test_the_web_profile_runs_only_quoted_metadata_fetches() -> None:
+    commands = _web_profile_commands()
     assert commands, "the web profile shows no metadata fetch to run"
     for command in commands:
-        assert re.fullmatch(rf"{WEB_METADATA}'[^']+'", command), (
+        assert any(form.fullmatch(command) for form in WEB_PROFILE_COMMANDS), (
             f"the web profile runs something other than a quoted metadata "
             f"fetch: {command}"
         )
+
+
+def test_the_web_profile_shows_the_doi_fetch_and_its_re_presentation() -> None:
+    commands = _web_profile_commands()
+    assert f"{DOI_METADATA}'DOI'" in commands
+    assert any(
+        command.startswith(DOI_METADATA) and "--ticket" in command
+        for command in commands
+    ), "the web profile shows no fenced DOI re-presentation for the guard"
+
+
+def _web_metadata_section() -> str:
+    return _section(
+        _prose(_web_profile()),
+        "## Metadata",
+        "## Untrusted-Content Contract",
+        path=_profile_skill("web"),
+    )
+
+
+def _web_tiers_section() -> str:
+    return _section(
+        _prose(_web_profile()),
+        "## Reputation Tiers",
+        "## Search Budget",
+        path=_profile_skill("web"),
+    )
+
+
+def _in_order(text: str, phrases: tuple[str, ...]) -> list[int]:
+    for phrase in phrases:
+        assert phrase in text, f"the web profile must state {phrase!r}"
+    return [text.index(phrase) for phrase in phrases]
+
+
+def test_the_web_profile_names_the_resolvers_never_a_venue() -> None:
+    assert (
+        "`doi.org` and `dx.doi.org` are resolvers, never a venue: never "
+        "record either as a source's venue, and never tier a source by "
+        "either."
+    ) in _web_tiers_section()
+    assert (
+        "`doi.org` and `dx.doi.org` are **resolvers**"
+    ) in _web_metadata_section()
+
+
+def test_the_web_profile_runs_its_metadata_steps_in_order() -> None:
+    positions = _in_order(
+        _web_metadata_section(),
+        (
+            "1. Run its web metadata fetch",
+            "2. For a resolver URL, `WebFetch` it to learn its landing host",
+            "3. Run the DOI metadata fetch on the `doi` that `web metadata` "
+            "printed",
+            "4. A source reaching neither branch is tiered by its own domain.",
+        ),
+    )
+    assert positions == sorted(positions)
+
+
+def test_the_web_profile_runs_doi_metadata_on_any_declared_doi() -> None:
+    assert (
+        "Run the DOI metadata fetch on the `doi` that `web metadata` printed, "
+        "whatever the page's host"
+    ) in _web_metadata_section()
+
+
+def test_the_web_profile_runs_doi_metadata_on_a_failed_resolver_url() -> None:
+    assert (
+        "When `web metadata` printed no `doi`, or failed, and the cited URL "
+        "is a resolver URL, run it on that URL instead."
+    ) in _web_metadata_section()
+
+
+def test_the_web_profile_fetches_every_resolver_url_for_its_landing_host() -> (
+    None
+):
+    metadata = _web_metadata_section()
+    for rule in (
+        "`WebFetch` it to learn its landing host, once per source; an earlier "
+        "fetch of the same URL in this research node counts.",
+        "Never infer the landing host without this fetch.",
+    ):
+        assert rule in metadata, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_lets_a_resolver_fetch_past_the_boundary() -> None:
+    family = _section(
+        _prose(_web_profile()),
+        "## Source Family",
+        "## Metadata",
+        path=_profile_skill("web"),
+    )
+    for rule in (
+        "A `WebFetch` of a resolver URL you cite is a fetch of the cited "
+        "source, not of a URL a fetched page names, so the last rule does "
+        "not forbid it.",
+        "The landing host comes from the redirect that fetch reports, and "
+        "needs no second fetch.",
+        "Fetch the landing page itself only to read content you cite from it",
+    ):
+        assert rule in family, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_times_out_and_quotes_every_doi_call() -> None:
+    metadata = _web_metadata_section()
+    for rule in (
+        "with each `'` in it written as `%27`",
+        "pass a Bash `timeout` of 120000 ms",
+        "Both rules apply to every `fetch web metadata` and "
+        "`fetch doi metadata` call, `--ticket` re-presentations included.",
+    ):
+        assert rule in metadata, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_re_presents_a_waiting_doi_call() -> None:
+    waiting = _section(
+        _web_metadata_section(),
+        "**Waiting**",
+        "**Usage errors**",
+        path=_profile_skill("web"),
+    )
+    for phrase in (
+        '"status":"waiting"',
+        "Re-run the same call at once with `--ticket` set to the `ticket` "
+        "from the latest `waiting` output",
+        "Never change the DOI while re-presenting.",
+        "Repeat until the status is not `waiting`",
+        "After 20 consecutive `waiting` results, handle the call as a "
+        "printed `unavailable`, recording no `reason`",
+    ):
+        assert phrase in waiting, f"the Waiting rule lacks {phrase!r}"
+    outcome = _section(
+        _prose(_web_profile()), "## Outcome", "**Pages**", path=_web_profile()
+    )
+    assert "`waiting` is never an end" in outcome
+
+
+def test_the_web_profile_handles_each_doi_usage_error() -> None:
+    errors = _section(
+        _web_metadata_section(),
+        "**Usage errors**",
+        "**Warnings**",
+        path=_profile_skill("web"),
+    )
+    for rule in (
+        "`E_DOI_TICKET_LIVE`: another process holds your ticket. End as "
+        "Failed.",
+        "`E_DOI_TICKET_MALFORMED` or `E_DOI_TICKET_MISMATCH`: correct the "
+        "call and continue.",
+        "`E_DOI_MALFORMED`: handle the source as for a printed `unavailable`.",
+    ):
+        assert rule in errors, f"the web profile must state {rule!r}"
+    assert (
+        "**Failed** — a call exited `2` with `E_DOI_TICKET_LIVE`. Write no "
+        "file; your summary returns the CLI's `E_*` line verbatim."
+    ) in _prose(_web_profile())
+
+
+def test_the_web_profile_repeats_each_warning_once() -> None:
+    metadata = _web_metadata_section()
+    for rule in (
+        "a `warning:` line the CLI writes on stderr never changes a call's "
+        "outcome",
+        "Repeat each distinct one once, verbatim, in your summary",
+    ):
+        assert rule in metadata, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_copies_both_maps_unchanged_in_order() -> None:
+    assert (
+        "the block holds the `web metadata` entries first, then the "
+        "`doi metadata` entries, each copied unchanged and in emitted order"
+    ) in _web_metadata_section()
+
+
+def test_the_web_profile_templates_a_source_cited_by_doi() -> None:
+    examples = _web_profile_examples()
+    assert "- [{title}]({cited URL}) — {tier} — {venue}" in examples
+    _, body = _split(_read(_web_profile()))
+    assert body.index("  - {web metadata key}: {value}") < body.index(
+        "  - {doi metadata key}: {value}"
+    ), "the template must put the web metadata entries first"
+    worked = [line for line in examples if "(https://doi.org/" in line]
+    assert worked, "the web profile gives no worked doi.org example"
+    for line in worked:
+        assert not line.endswith("doi.org"), f"doi.org is a venue in {line}"
+
+
+def test_the_web_profile_keeps_each_kind_of_link() -> None:
+    metadata = _web_metadata_section()
+    for rule in (
+        "A resolver-URL source keeps the resolver URL as its link, never the "
+        "landing page's URL.",
+        "A non-resolver page that declares a DOI keeps its own URL.",
+        "Both use this template.",
+    ):
+        assert rule in metadata, f"the web profile must state {rule!r}"
+
+
+def test_the_web_profile_tiers_by_the_first_branch_that_applies() -> None:
+    positions = _in_order(
+        _web_tiers_section(),
+        (
+            "1. A `venue` printed by an `ok` `doi metadata` is a journal or "
+            "proceedings title: record it as the venue, at tier-1.",
+            "2. A `publisher` printed by an `ok` `doi metadata` without a "
+            "`venue`: record the publisher as the venue, at tier-2",
+            "3. Otherwise, when `doi metadata` was `ok` with neither or "
+            "`unavailable`, record the landing host as the venue, tiered by "
+            "the domain rules above, so `arxiv.org` is tier-2.",
+            "4. With no landing host known, record no venue: the source is "
+            "tier-3, cited by its resolver URL.",
+        ),
+    )
+    assert positions == sorted(positions)
+    assert "Rules 1 and 2 override every domain rule" in _web_tiers_section()
+
+
+def test_the_web_profile_defines_the_landing_host() -> None:
+    tiers = _web_tiers_section()
+    for rule in (
+        "The **landing host** of a resolver URL is the host of the first "
+        "redirect `doi.org` returns, never of a later hop.",
+        "For a page that is not a resolver URL, the landing host is that "
+        "page's own host.",
+    ):
+        assert rule in tiers, f"the web profile must state {rule!r}"
+
+
+@pytest.mark.parametrize(
+    ("cited", "outcome"),
+    [
+        (
+            "`https://doi.org/10.1145/371920.372066`",
+            "`Proceedings of the 10th international conference on World Wide "
+            "Web`, tier-1 |",
+        ),
+        (
+            "`https://doi.org/10.1007/978-1-349-06671-1_23`",
+            "`Palgrave Macmillan UK`, tier-2 |",
+        ),
+        (
+            "`https://doi.org/10.48550/arXiv.1706.03762`",
+            "`arxiv.org`, tier-2 |",
+        ),
+        (
+            "a resolver URL `doi.org` cannot redirect",
+            "`unavailable` | none | no venue, tier-3 |",
+        ),
+    ],
+    ids=["venue", "publisher", "landing-host", "no-venue"],
+)
+def test_the_web_profile_works_an_example_of_each_branch(
+    cited: str, outcome: str
+) -> None:
+    tiers = _web_tiers_section()
+    assert "Each example keeps the resolver URL as its link" in tiers
+    rows = [
+        line
+        for line in _read(_web_profile()).splitlines()
+        if line.startswith(f"| {cited} |")
+    ]
+    assert len(rows) == 1, f"the web profile must work one {cited} example"
+    assert rows[0].endswith(outcome)
 
 
 def test_a_failed_metadata_fetch_costs_only_the_block() -> None:

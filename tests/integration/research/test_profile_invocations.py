@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from tasks.shared.skill_parsing import fenced_block_commands
+from tasks.shared.skill_parsing import fenced_blocks
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GUARD = Path(
@@ -26,7 +26,15 @@ GUARD = Path(
 )
 WORKED_QUERY = re.compile(r"`'([^`]*)'`")
 SEARCHING_FAMILIES = {"openalex", "arxiv"}
-FEWEST_INVOCATIONS = {"openalex": 3, "arxiv": 3, "web": 1}
+FEWEST_INVOCATIONS = {"openalex": 3, "arxiv": 3, "web": 3}
+
+
+def _fenced_commands(text: str) -> list[str]:
+    return [
+        first_line
+        for language, first_line in fenced_blocks(text)
+        if language != "markdown"
+    ]
 
 
 def _invocations(family: str) -> list[str]:
@@ -34,12 +42,12 @@ def _invocations(family: str) -> list[str]:
         REPO_ROOT / f"skills/research/profiles/{family}-profile/SKILL.md"
     ).read_text(encoding="utf-8")
     if family not in SEARCHING_FAMILIES:
-        return fenced_block_commands(text)
+        return _fenced_commands(text)
     worked = [
         f"accelerator research fetch {family} search '{query}'"
         for query in WORKED_QUERY.findall(text)
     ]
-    return fenced_block_commands(text) + worked
+    return _fenced_commands(text) + worked
 
 
 def _guard(command: str, cwd: Path) -> subprocess.CompletedProcess[str]:
