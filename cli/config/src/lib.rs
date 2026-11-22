@@ -15,6 +15,7 @@ pub mod legacy;
 pub mod legacy_alias;
 pub mod level;
 pub mod node;
+pub mod open_setting;
 pub mod paths;
 pub mod precedence;
 pub mod provenance;
