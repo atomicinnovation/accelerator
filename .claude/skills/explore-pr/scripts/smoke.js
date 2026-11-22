@@ -27,7 +27,8 @@
 // into the next commit, that a verdict on a file in a commit reads only that
 // file's lines, that the pane shows one file or the whole commit, that a line
 // too long to read is cut short, that the file list widens and resets, that
-// risk edges show only when asked for, that a
+// risk edges show only when asked for, that on a touch screen every
+// selection checkbox shows without a hover, that a
 // !term search excludes
 // paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
@@ -697,6 +698,12 @@ const COMMIT_NAVIGATOR_PROBE = `(async () => {
   return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, wholeShowsAll, oneShowsOne, longLinesCut };
 })()`;
 
+const TOUCH_PROBE = `(async () => {
+  location.hash = 'files'; await new Promise(r => setTimeout(r, 500));
+  const picks = [...document.querySelectorAll('#nav-tree .pick')];
+  return { hoverNone: matchMedia('(hover: none)').matches, mobile: matchMedia('(pointer: coarse)').matches, picks: picks.length, picksShown: picks.length > 0 && picks.every(box => getComputedStyle(box).visibility === 'visible') };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -780,6 +787,9 @@ async function main() {
       const width = await cdp.evaluate('document.documentElement.scrollWidth');
       if (width > 400) report.overflow.push({ route, scrollWidth: width });
     }
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    report.touch = await cdp.evaluate(TOUCH_PROBE);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
     if (options.shots) {
       await cdp.evaluate("location.hash = 'overview'");
       await sleep(500);
@@ -815,6 +825,8 @@ async function main() {
   const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.fFocusesList && keys.cFocusesCode && keys.commitKeys !== false && keys.commitFileKeys !== false);
   const commitNavigator = report.commitNavigator || {};
   const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne && commitNavigator.longLinesCut !== false);
+  const touch = report.touch || {};
+  const touchHolds = !!touch.picksShown;
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
@@ -822,7 +834,7 @@ async function main() {
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = touchHolds && navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

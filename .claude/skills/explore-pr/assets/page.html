@@ -390,7 +390,9 @@ details[open] > summary { margin-bottom: 8px; }
 #nav-tree .fl-item { position: relative; grid-template-columns: 10px 28px minmax(0, 1fr) auto; gap: 6px; padding: 3px 6px 3px calc(8px + var(--depth, 0) * 14px); font-size: 12px; }
 #nav-tree .fl-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 #nav-tree .pick { margin: 0; visibility: hidden; cursor: pointer; }
-#nav-tree .nav-row:hover .pick, #nav-tree .pick:focus-visible, #nav-tree.selecting .pick { visibility: visible; }
+#nav-tree .pick:focus-visible, #nav-tree.selecting .pick { visibility: visible; }
+@media (hover: hover) { #nav-tree .nav-row:hover .pick { visibility: visible; } }
+@media (hover: none) { #nav-tree .pick { visibility: visible; } }
 #nav-tree .nm { direction: ltr; }
 #nav-tree .nm .base, #nav-tree .nm .dir { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #nav-tree .nm .dir { direction: rtl; text-align: left; color: var(--ink-3); font-size: 10.5px; }
