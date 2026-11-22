@@ -22,7 +22,6 @@ use research::sources::classify::Reason;
 use research::sources::fetch::Clock;
 use research::sources::queue::is_abandoned;
 use research::sources::queue::is_served_given;
-use research::sources::queue::ArxivQueue;
 use research::sources::queue::Binding;
 use research::sources::queue::Contender;
 use research::sources::queue::Joining;
@@ -32,6 +31,7 @@ use research::sources::queue::Position;
 use research::sources::queue::Presence;
 use research::sources::queue::Presentation;
 use research::sources::queue::Queue;
+use research::sources::queue::ServiceQueue;
 use research::sources::queue::Standing;
 use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
@@ -375,14 +375,14 @@ impl FileArxivQueue {
     }
 }
 
-impl ArxivQueue for FileArxivQueue {
+impl ServiceQueue for FileArxivQueue {
     fn join(
         &self,
         binding: &Binding,
         presented: Option<&Ticket>,
         deadline: &Deadline,
-        spacing: Duration,
     ) -> Joining<'_> {
+        let spacing = Service::Arxiv.pacing().interval();
         let Some(_queue_lock) =
             self.bookkept(deadline, Bound::ServingWindow(spacing))
         else {

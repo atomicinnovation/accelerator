@@ -2,41 +2,127 @@
 //! and a waiting ticket, and one non-secret stderr line for a call that did
 //! not deliver.
 
+use research::sources::classify::FetchError;
+use research::sources::fetch::ArxivAnswer;
 use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
+use research::sources::fetch::Unavailable;
 use research::sources::metadata::SourceMetadata;
+use research::sources::queue::Position;
 use research::sources::queue::RejectedTicket;
+use research::sources::queue::Ticket;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
 use research::sources::request::Family;
+use research::sources::service::Service;
+use research::sources::serving::Queued;
 use serde::ser::SerializeMap;
 use serde::Serialize;
 use serde::Serializer;
 
 use crate::fetch_command::FetchedRecords;
+use crate::fetch_command::RecordsOutcome;
+
+/// How a records call ended, read the same way whichever source it asked.
+enum Ending<'a> {
+    Records(&'a [Record]),
+    Failed(&'a FetchError),
+    Unavailable {
+        source: &'static str,
+        unavailable: Unavailable,
+    },
+    Waiting {
+        source: &'static str,
+        ticket: &'a Ticket,
+        position: Position,
+    },
+    Rejected(RejectedTicket),
+}
+
+fn ending(fetched: &FetchedRecords) -> Ending<'_> {
+    match &fetched.outcome {
+        RecordsOutcome::Direct(FetchOutcome::Records(records)) => {
+            Ending::Records(records)
+        }
+        RecordsOutcome::Direct(FetchOutcome::Failed(error)) => {
+            Ending::Failed(error)
+        }
+        RecordsOutcome::Direct(FetchOutcome::Unavailable(unavailable)) => {
+            Ending::Unavailable {
+                source: fetched.family.code(),
+                unavailable: *unavailable,
+            }
+        }
+        RecordsOutcome::Queued { service, queued } => {
+            queued_ending(*service, queued, |answer| match answer {
+                ArxivAnswer::Records(records) => Ending::Records(records),
+                ArxivAnswer::Failed(error) => Ending::Failed(error),
+            })
+        }
+    }
+}
+
+/// The one reading of every queue state, for any family a service serves.
+fn queued_ending<'a, T>(
+    service: Service,
+    queued: &'a Queued<T>,
+    served: impl FnOnce(&'a T) -> Ending<'a>,
+) -> Ending<'a> {
+    match queued {
+        Queued::Served(answer) => served(answer),
+        Queued::Unavailable(unavailable) => Ending::Unavailable {
+            source: service.source(),
+            unavailable: *unavailable,
+        },
+        Queued::Waiting { ticket, position } => Ending::Waiting {
+            source: service.source(),
+            ticket,
+            position: *position,
+        },
+        Queued::Rejected(rejection) => Ending::Rejected(RejectedTicket {
+            presented_to: service.ticket_family(),
+            rejection: rejection.clone(),
+        }),
+    }
+}
 
 /// The stdout document, or `None` for a failed or rejected call, which
 /// prints only its diagnostics.
 pub fn document(fetched: &FetchedRecords) -> Option<String> {
-    let document = match &fetched.outcome {
-        FetchOutcome::Records(records) => Document::Ok {
+    let document = match ending(fetched) {
+        Ending::Records(records) => Document::Ok {
             records: records.iter().map(RecordJson::from).collect(),
         },
-        FetchOutcome::Unavailable(unavailable) => Document::Unavailable {
-            source: fetched.family.code(),
+        Ending::Unavailable {
+            source,
+            unavailable,
+        } => Document::Unavailable {
+            source,
             reason: unavailable.reason().code(),
             authenticated: (fetched.family == Family::OpenAlex)
                 .then_some(fetched.authenticated),
             cause: unavailable.cause().map(Cause::code),
         },
-        FetchOutcome::Waiting { ticket, position } => Document::Waiting {
-            source: fetched.family.code(),
+        Ending::Waiting {
+            source,
+            ticket,
+            position,
+        } => Document::Waiting {
+            source,
             ticket: ticket.to_string(),
             position: position.get(),
         },
-        FetchOutcome::Failed(_) | FetchOutcome::Rejected(_) => return None,
+        Ending::Failed(_) | Ending::Rejected(_) => return None,
     };
     serde_json::to_string(&document).ok()
+}
+
+/// The upstream's own error line for a call that failed.
+pub fn failure(fetched: &FetchedRecords) -> Option<String> {
+    match ending(fetched) {
+        Ending::Failed(error) => Some(error.to_string()),
+        _ => None,
+    }
 }
 
 pub fn web_document(metadata: &SourceMetadata) -> Option<String> {
@@ -55,25 +141,21 @@ struct WebDocument<'a> {
 
 /// The usage line for a ticket presented in a way the queue refuses.
 pub fn rejection(fetched: &FetchedRecords) -> Option<String> {
-    let FetchOutcome::Rejected(rejection) = &fetched.outcome else {
-        return None;
-    };
-    Some(
-        RejectedTicket {
-            presented_to: fetched.family,
-            rejection: rejection.clone(),
-        }
-        .to_string(),
-    )
+    match ending(fetched) {
+        Ending::Rejected(rejected) => Some(rejected.to_string()),
+        _ => None,
+    }
 }
 
 /// The line naming the source, verb and final status of a call that did not
 /// deliver records: with its attempts, or for a waiting call its position
 /// and the ticket to re-present.
 pub fn summary(fetched: &FetchedRecords) -> Option<String> {
-    let status = match &fetched.outcome {
-        FetchOutcome::Records(_) | FetchOutcome::Rejected(_) => return None,
-        FetchOutcome::Waiting { ticket, position } => {
+    let status = match ending(fetched) {
+        Ending::Records(_) | Ending::Rejected(_) => return None,
+        Ending::Waiting {
+            ticket, position, ..
+        } => {
             return Some(format!(
                 "research fetch: {} {} waiting at position {}; re-present \
                  with --ticket {ticket}",
@@ -82,10 +164,10 @@ pub fn summary(fetched: &FetchedRecords) -> Option<String> {
                 position.get(),
             ))
         }
-        FetchOutcome::Unavailable(unavailable) => {
+        Ending::Unavailable { unavailable, .. } => {
             format!("unavailable ({})", unavailable.reason().code())
         }
-        FetchOutcome::Failed(_) => "failed".to_owned(),
+        Ending::Failed(_) => "failed".to_owned(),
     };
     let attempts = match fetched.attempts {
         1 => "1 attempt".to_owned(),

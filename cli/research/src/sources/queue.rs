@@ -527,16 +527,15 @@ fn latest_end(presented_at: SystemTime, now: SystemTime) -> SystemTime {
     now.min(presented_at + LONGEST_INVOCATION)
 }
 
-/// Where an arXiv call waits its turn across invocations.
-pub trait ArxivQueue {
+/// Where a service's call waits its turn across invocations.
+pub trait ServiceQueue {
     /// Waits for the queue no longer than leaves the deadline a serving
-    /// window of `spacing` and one request.
+    /// window of the service's interval and one request.
     fn join(
         &self,
         binding: &Binding,
         presented: Option<&Ticket>,
         deadline: &Deadline,
-        spacing: Duration,
     ) -> Joining<'_>;
 }
 

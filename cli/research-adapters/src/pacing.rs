@@ -12,7 +12,9 @@ use research::sources::fetch::Clock;
 use research::sources::fetch::PacingGate;
 use research::sources::fetch::ServingTurn;
 use research::sources::fetch::WaitTooLong;
+use research::sources::pacing::Pacing;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use rustix::io::Errno;
@@ -28,8 +30,8 @@ use crate::scratch::ScratchDir;
 pub struct NoPacing;
 
 impl PacingGate for NoPacing {
-    fn spacing(&self) -> Duration {
-        Duration::ZERO
+    fn pacing(&self) -> Pacing {
+        Pacing::UNPACED
     }
 
     fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
@@ -131,8 +133,8 @@ impl FilePacingGate {
 }
 
 impl PacingGate for FilePacingGate {
-    fn spacing(&self) -> Duration {
-        SPACING
+    fn pacing(&self) -> Pacing {
+        Service::Arxiv.pacing()
     }
 
     /// A filesystem that cannot lock still gets a turn, so pacing still
@@ -291,6 +293,7 @@ mod tests {
 
     use research::sources::fetch::Attempted;
     use research::sources::fetch::PacingGate as _;
+    use research::sources::pacing::Pacing;
     use research::sources::schedule::Deadline;
 
     use super::NoPacing;
@@ -315,6 +318,6 @@ mod tests {
 
         assert_eq!(passed, Ok(()));
         assert_eq!(runs, 1);
-        assert_eq!(NoPacing.spacing(), Duration::ZERO);
+        assert_eq!(NoPacing.pacing(), Pacing::UNPACED);
     }
 }

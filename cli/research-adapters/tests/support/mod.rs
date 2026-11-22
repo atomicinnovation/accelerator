@@ -14,10 +14,10 @@ use std::time::Instant;
 use std::time::SystemTime;
 
 use research::sources::fetch::Clock;
-use research::sources::queue::ArxivQueue as _;
 use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Nonce;
+use research::sources::queue::ServiceQueue as _;
 use research::sources::queue::Ticket;
 use research::sources::schedule::Deadline;
 use research_adapters::contention::FileContentionLog;
@@ -25,8 +25,6 @@ use research_adapters::diagnostics::Diagnostics;
 use research_adapters::pacing::FilePacingGate;
 use research_adapters::queue::FileArxivQueue;
 use research_adapters::scratch::ScratchDir;
-
-const ARXIV_SPACING: Duration = secs(3);
 
 pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -154,14 +152,14 @@ pub fn arxiv_queue(
     FileArxivQueue::new(research, clock, diagnostics, nonces)
 }
 
-/// Joins `queue` as an arXiv call would, with arXiv's spacing.
+/// Joins `queue` as an arXiv call would.
 pub fn join_queue<'q>(
     queue: &'q FileArxivQueue,
     binding: &Binding,
     presented: Option<&Ticket>,
     deadline: &Deadline,
 ) -> Joining<'q> {
-    queue.join(binding, presented, deadline, ARXIV_SPACING)
+    queue.join(binding, presented, deadline)
 }
 
 /// A project root holding the `research` scratch directory the adapters

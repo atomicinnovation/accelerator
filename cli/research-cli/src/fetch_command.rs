@@ -17,6 +17,7 @@ use config_adapters::credentials::CredentialPorts;
 use research::sources::classify::Response;
 use research::sources::fetch::fetch_arxiv;
 use research::sources::fetch::fetch_openalex;
+use research::sources::fetch::ArxivAnswer;
 use research::sources::fetch::ArxivDecoder;
 use research::sources::fetch::ArxivFetch;
 use research::sources::fetch::ArxivPorts;
@@ -30,7 +31,7 @@ use research::sources::fetch::OpenAlexPorts;
 use research::sources::fetch::PacingGate;
 use research::sources::fetch::Transport;
 use research::sources::metadata::SourceMetadata;
-use research::sources::queue::ArxivQueue;
+use research::sources::queue::ServiceQueue;
 use research::sources::queue::Ticket;
 use research::sources::request::ApiKey;
 use research::sources::request::ArxivRequest;
@@ -42,6 +43,8 @@ use research::sources::request::UpstreamRequest;
 use research::sources::request::Verb;
 use research::sources::request::WebRequest;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
+use research::sources::serving::Queued;
 use research::sources::web::fetch::WebFailure;
 
 use crate::context::ProjectContext;
@@ -82,7 +85,7 @@ pub struct ArxivAdapters {
     pub decoder: Box<dyn ArxivDecoder>,
     pub gate: Box<dyn PacingGate>,
     pub confirmations: Box<dyn ConfirmationCache>,
-    pub queue: Box<dyn ArxivQueue>,
+    pub queue: Box<dyn ServiceQueue>,
     pub contention: Box<dyn ContentionLog>,
 }
 
@@ -100,7 +103,18 @@ pub struct FetchedRecords {
     pub verb: Verb,
     pub authenticated: bool,
     pub attempts: usize,
-    pub outcome: FetchOutcome,
+    pub outcome: RecordsOutcome,
+}
+
+/// An unqueued source's outcome, or the outcome of a call that waited in a
+/// service's queue.
+#[derive(Debug)]
+pub enum RecordsOutcome {
+    Direct(FetchOutcome),
+    Queued {
+        service: Service,
+        queued: Queued<ArxivAnswer>,
+    },
 }
 
 /// # Errors
@@ -159,7 +173,7 @@ fn from_openalex(
         verb: request.verb(),
         authenticated: key.is_some(),
         attempts: transport.sent.get(),
-        outcome,
+        outcome: RecordsOutcome::Direct(outcome),
     }
 }
 
@@ -193,7 +207,10 @@ fn from_arxiv(
         verb: call.request.verb(),
         authenticated: false,
         attempts: transport.sent.get(),
-        outcome,
+        outcome: RecordsOutcome::Queued {
+            service: Service::Arxiv,
+            queued: outcome,
+        },
     }
 }
 
@@ -316,6 +333,7 @@ mod tests {
     use research::sources::classify::Reason;
     use research::sources::classify::Received;
     use research::sources::classify::Response;
+    use research::sources::fetch::ArxivAnswer;
     use research::sources::fetch::Attempted;
     use research::sources::fetch::Clock;
     use research::sources::fetch::ConfirmationCache;
@@ -327,17 +345,20 @@ mod tests {
     use research::sources::fetch::Transport;
     use research::sources::fetch::Unavailable;
     use research::sources::fetch::WaitTooLong;
-    use research::sources::queue::ArxivQueue;
+    use research::sources::pacing::Pacing;
     use research::sources::queue::Binding;
     use research::sources::queue::Joining;
     use research::sources::queue::Place;
     use research::sources::queue::Position;
+    use research::sources::queue::ServiceQueue;
     use research::sources::queue::Ticket;
     use research::sources::request::ArxivId;
     use research::sources::request::Endpoint;
     use research::sources::request::FetchRequest;
     use research::sources::request::UpstreamRequest;
     use research::sources::schedule::Deadline;
+    use research::sources::service::Service;
+    use research::sources::serving::Queued;
     use research::sources::web::fetch::HostResolver;
     use research::sources::web::fetch::PageRequest;
     use research::sources::web::fetch::PageResponse;
@@ -355,6 +376,7 @@ mod tests {
     use super::FetchedRecords;
     use super::OpenAlexAdapters;
     use super::OpenAlexCall;
+    use super::RecordsOutcome;
     use super::SourceCall;
     use crate::context::ProjectContext;
     use crate::web_command::WebAdapters;
@@ -515,8 +537,8 @@ mod tests {
     struct CountingGate(Rc<Cell<usize>>);
 
     impl PacingGate for CountingGate {
-        fn spacing(&self) -> Duration {
-            secs(3)
+        fn pacing(&self) -> Pacing {
+            Service::Arxiv.pacing()
         }
 
         fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
@@ -540,13 +562,12 @@ mod tests {
 
     struct AlwaysFront;
 
-    impl ArxivQueue for AlwaysFront {
+    impl ServiceQueue for AlwaysFront {
         fn join(
             &self,
             _binding: &Binding,
             _presented: Option<&Ticket>,
             _deadline: &Deadline,
-            _spacing: Duration,
         ) -> Joining<'_> {
             Joining::Queued(Box::new(FrontPlace(
                 Ticket::parse("1-000001").expect("a ticket"),
@@ -752,7 +773,9 @@ mod tests {
 
     fn unavailable(fetched: &FetchedRecords) -> Unavailable {
         match fetched.outcome {
-            FetchOutcome::Unavailable(unavailable) => unavailable,
+            RecordsOutcome::Direct(FetchOutcome::Unavailable(unavailable)) => {
+                unavailable
+            }
             ref other => panic!("expected unavailable, got {other:?}"),
         }
     }
@@ -827,7 +850,11 @@ mod tests {
 
         let fetched = call.run().expect("a fetch");
 
-        let FetchOutcome::Records(records) = &fetched.outcome else {
+        let RecordsOutcome::Queued {
+            queued: Queued::Served(ArxivAnswer::Records(records)),
+            ..
+        } = &fetched.outcome
+        else {
             panic!("expected records, got {:?}", fetched.outcome);
         };
         assert_eq!(records.len(), 1);

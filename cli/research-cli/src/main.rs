@@ -38,7 +38,6 @@ use corpus_adapters::RealFs;
 use corpus_adapters::SystemClock as CorpusClock;
 use research::conduct::ledger::RunId;
 use research::sources::fetch::Clock;
-use research::sources::fetch::FetchOutcome;
 use research::sources::metadata::SourceMetadata;
 use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
@@ -395,8 +394,8 @@ fn report(fetched: &FetchedRecords) -> ExitCode {
     if let Some(rejection) = render::rejection(fetched) {
         return usage(&rejection);
     }
-    if let FetchOutcome::Failed(error) = &fetched.outcome {
-        eprintln!("{error}");
+    if let Some(failure) = render::failure(fetched) {
+        eprintln!("{failure}");
     }
     if let Some(summary) = render::summary(fetched) {
         eprintln!("{summary}");

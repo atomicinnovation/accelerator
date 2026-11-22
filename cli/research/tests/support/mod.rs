@@ -26,21 +26,21 @@ use research::sources::fetch::ServingTurn;
 use research::sources::fetch::Transport;
 use research::sources::fetch::WaitTooLong;
 use research::sources::openalex::Work;
-use research::sources::queue::ArxivQueue;
+use research::sources::pacing::Pacing;
 use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Place;
 use research::sources::queue::Position;
 use research::sources::queue::Provenance;
 use research::sources::queue::Queue;
+use research::sources::queue::ServiceQueue;
 use research::sources::queue::Standing;
 use research::sources::queue::Ticket;
 use research::sources::queue::TicketRejection;
 use research::sources::request::ArxivId;
 use research::sources::request::UpstreamRequest;
 use research::sources::schedule::Deadline;
-
-const ARXIV_SPACING: Duration = secs(3);
+use research::sources::service::Service;
 
 /// A queue of `standings`, beside the tickets whose records could not be
 /// parsed.
@@ -248,9 +248,8 @@ pub fn retry_after(code: u16, seconds: u64) -> Response {
 /// Serves a turn at once unless scripted to stay busy, runs every attempt
 /// unless scripted to refuse one, and records each deferral the domain asks
 /// it to persist.
-#[derive(Default)]
 pub struct RecordingGate {
-    spacing: Duration,
+    pacing: Pacing,
     busy_for: Cell<usize>,
     refuse_from_attempt: Option<usize>,
     turns: Cell<usize>,
@@ -258,6 +257,21 @@ pub struct RecordingGate {
     deferrals: RefCell<Vec<Option<SystemTime>>>,
     serving: Cell<bool>,
     timeline: Timeline,
+}
+
+impl Default for RecordingGate {
+    fn default() -> Self {
+        Self {
+            pacing: Pacing::UNPACED,
+            busy_for: Cell::default(),
+            refuse_from_attempt: None,
+            turns: Cell::default(),
+            attempts: Cell::default(),
+            deferrals: RefCell::default(),
+            serving: Cell::default(),
+            timeline: Timeline::default(),
+        }
+    }
 }
 
 impl RecordingGate {
@@ -270,12 +284,12 @@ impl RecordingGate {
 
     /// A gate on `timeline` that paces as arXiv's does.
     pub fn paced_as_arxiv(timeline: Timeline) -> Self {
-        Self::on(timeline).spacing(ARXIV_SPACING)
+        Self::on(timeline).pacing(Service::Arxiv.pacing())
     }
 
     #[must_use]
-    pub const fn spacing(mut self, spacing: Duration) -> Self {
-        self.spacing = spacing;
+    pub const fn pacing(mut self, pacing: Pacing) -> Self {
+        self.pacing = pacing;
         self
     }
 
@@ -316,8 +330,8 @@ impl RecordingGate {
 }
 
 impl PacingGate for RecordingGate {
-    fn spacing(&self) -> Duration {
-        self.spacing
+    fn pacing(&self) -> Pacing {
+        self.pacing
     }
 
     fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
@@ -578,13 +592,12 @@ impl ScriptedQueue {
     }
 }
 
-impl ArxivQueue for ScriptedQueue {
+impl ServiceQueue for ScriptedQueue {
     fn join(
         &self,
         _binding: &Binding,
         _presented: Option<&Ticket>,
         _deadline: &Deadline,
-        _spacing: Duration,
     ) -> Joining<'_> {
         match self.verdict.clone() {
             ScriptedJoin::Queued => {
