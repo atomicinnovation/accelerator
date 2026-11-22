@@ -51,6 +51,17 @@ fn a_family_names_itself_for_callers_and_for_readers() {
 }
 
 #[test]
+fn the_doi_family_names_itself_but_is_not_yet_accepted_from_callers() {
+    assert_eq!(Family::Doi.code(), "doi");
+    assert_eq!(Family::Doi.to_string(), "DOI");
+    assert_eq!(
+        Family::parse("doi"),
+        Err(RequestError::UnknownFamily("doi".to_owned()))
+    );
+    assert!(!Family::ALL.contains(&Family::Doi));
+}
+
+#[test]
 fn a_verb_names_itself_as_callers_spell_it() {
     assert_eq!(Verb::Search.code(), "search");
     assert_eq!(Verb::Lookup.code(), "lookup");

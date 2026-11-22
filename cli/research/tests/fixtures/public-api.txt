@@ -934,6 +934,38 @@ pub fn research::sources::openalex::Work::fmt(&self, f: &mut core::fmt::Formatte
 impl core::marker::StructuralPartialEq for research::sources::openalex::Work
 pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
 pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
+pub mod research::sources::pacing
+pub enum research::sources::pacing::SpacedFrom
+pub research::sources::pacing::SpacedFrom::PreviousFinish
+pub research::sources::pacing::SpacedFrom::PreviousStart
+pub research::sources::pacing::SpacedFrom::PreviousStart::slots: core::num::nonzero::NonZeroU8
+impl core::clone::Clone for research::sources::pacing::SpacedFrom
+pub fn research::sources::pacing::SpacedFrom::clone(&self) -> research::sources::pacing::SpacedFrom
+impl core::cmp::Eq for research::sources::pacing::SpacedFrom
+impl core::cmp::PartialEq for research::sources::pacing::SpacedFrom
+pub fn research::sources::pacing::SpacedFrom::eq(&self, other: &research::sources::pacing::SpacedFrom) -> bool
+impl core::fmt::Debug for research::sources::pacing::SpacedFrom
+pub fn research::sources::pacing::SpacedFrom::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::SpacedFrom
+impl core::marker::StructuralPartialEq for research::sources::pacing::SpacedFrom
+pub struct research::sources::pacing::Pacing
+impl research::sources::pacing::Pacing
+pub const research::sources::pacing::Pacing::UNPACED: Self
+pub fn research::sources::pacing::Pacing::admission_poll(&self) -> core::time::Duration
+pub const fn research::sources::pacing::Pacing::interval(&self) -> core::time::Duration
+pub const fn research::sources::pacing::Pacing::previous_finish(interval: core::time::Duration) -> Self
+pub const fn research::sources::pacing::Pacing::previous_start(interval: core::time::Duration, slots: core::num::nonzero::NonZeroU8) -> Self
+pub const fn research::sources::pacing::Pacing::slots(&self) -> core::num::nonzero::NonZeroU8
+pub const fn research::sources::pacing::Pacing::spaced_from(&self) -> research::sources::pacing::SpacedFrom
+impl core::clone::Clone for research::sources::pacing::Pacing
+pub fn research::sources::pacing::Pacing::clone(&self) -> research::sources::pacing::Pacing
+impl core::cmp::Eq for research::sources::pacing::Pacing
+impl core::cmp::PartialEq for research::sources::pacing::Pacing
+pub fn research::sources::pacing::Pacing::eq(&self, other: &research::sources::pacing::Pacing) -> bool
+impl core::fmt::Debug for research::sources::pacing::Pacing
+pub fn research::sources::pacing::Pacing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::Pacing
+impl core::marker::StructuralPartialEq for research::sources::pacing::Pacing
 pub mod research::sources::queue
 pub enum research::sources::queue::Argument
 pub research::sources::queue::Argument::Id
@@ -1202,6 +1234,7 @@ pub fn research::sources::request::ArxivRequest::fmt(&self, f: &mut core::fmt::F
 impl core::marker::StructuralPartialEq for research::sources::request::ArxivRequest
 pub enum research::sources::request::Family
 pub research::sources::request::Family::Arxiv
+pub research::sources::request::Family::Doi
 pub research::sources::request::Family::OpenAlex
 pub research::sources::request::Family::Web
 impl research::sources::request::Family
@@ -1498,6 +1531,41 @@ pub struct research::sources::schedule::RetrySchedule
 impl research::sources::schedule::RetrySchedule
 pub fn research::sources::schedule::RetrySchedule::deferral_after(retry: research::sources::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::time::Duration
 pub fn research::sources::schedule::RetrySchedule::wait_before(retry: research::sources::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::option::Option<core::time::Duration>
+pub mod research::sources::service
+pub enum research::sources::service::CrossrefPool
+pub research::sources::service::CrossrefPool::Polite
+pub research::sources::service::CrossrefPool::Public
+impl core::clone::Clone for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::clone(&self) -> research::sources::service::CrossrefPool
+impl core::cmp::Eq for research::sources::service::CrossrefPool
+impl core::cmp::PartialEq for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::eq(&self, other: &research::sources::service::CrossrefPool) -> bool
+impl core::fmt::Debug for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for research::sources::service::CrossrefPool
+impl core::marker::StructuralPartialEq for research::sources::service::CrossrefPool
+pub enum research::sources::service::Service
+pub research::sources::service::Service::Arxiv
+pub research::sources::service::Service::Crossref(research::sources::service::CrossrefPool)
+impl research::sources::service::Service
+pub const research::sources::service::Service::ALL: [Self; 3]
+pub const fn research::sources::service::Service::code(self) -> &'static str
+pub const fn research::sources::service::Service::pacing(self) -> research::sources::pacing::Pacing
+pub const fn research::sources::service::Service::source(self) -> &'static str
+pub const fn research::sources::service::Service::ticket_family(self) -> research::sources::request::Family
+impl core::clone::Clone for research::sources::service::Service
+pub fn research::sources::service::Service::clone(&self) -> research::sources::service::Service
+impl core::cmp::Eq for research::sources::service::Service
+impl core::cmp::PartialEq for research::sources::service::Service
+pub fn research::sources::service::Service::eq(&self, other: &research::sources::service::Service) -> bool
+impl core::fmt::Debug for research::sources::service::Service
+pub fn research::sources::service::Service::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::service::Service
+pub fn research::sources::service::Service::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for research::sources::service::Service
+impl core::marker::StructuralPartialEq for research::sources::service::Service
 pub mod research::sources::tier
 pub const fn research::sources::tier::arxiv_tier(withdrawn: bool) -> research::sources::record::Tier
 pub fn research::sources::tier::openalex_tier(work: &research::sources::openalex::Work) -> research::sources::record::Tier

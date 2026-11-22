@@ -139,6 +139,7 @@ pub enum Family {
     OpenAlex,
     Arxiv,
     Web,
+    Doi,
 }
 
 impl Family {
@@ -162,13 +163,14 @@ impl Family {
             Self::OpenAlex => "openalex",
             Self::Arxiv => "arxiv",
             Self::Web => "web",
+            Self::Doi => "doi",
         }
     }
 
     pub const fn verbs(self) -> &'static [Verb] {
         match self {
             Self::OpenAlex | Self::Arxiv => &[Verb::Search, Verb::Lookup],
-            Self::Web => &[Verb::Metadata],
+            Self::Web | Self::Doi => &[Verb::Metadata],
         }
     }
 }
@@ -179,6 +181,7 @@ impl fmt::Display for Family {
             Self::OpenAlex => "OpenAlex",
             Self::Arxiv => "arXiv",
             Self::Web => "web",
+            Self::Doi => "DOI",
         })
     }
 }
@@ -643,6 +646,9 @@ impl FetchRequest {
                 Self::Arxiv(ArxivRequest::parse(verb, terms, limit)?)
             }
             Family::Web => Self::Web(WebRequest::parse(verb, terms, limit)?),
+            Family::Doi => {
+                return Err(RequestError::UnknownFamily(family.to_owned()))
+            }
         })
     }
 
