@@ -252,6 +252,30 @@ def _with_turn(scenario: Scenario, at: int, expect: dict) -> Scenario:
             },
             "revision",
         ),
+        (
+            "r1-c5-partial",
+            1,
+            {
+                "writes": [],
+                "manifest": {
+                    "fields": {"report_count": 2},
+                    "lists_reports": True,
+                },
+            },
+            "report_count",
+        ),
+        (
+            "r1-c5-partial",
+            1,
+            {
+                "writes": [],
+                "report": {
+                    "path": "reports/x.md",
+                    "fields": {"rounds_covered": 2},
+                },
+            },
+            "rounds_covered",
+        ),
     ],
     ids=[
         "freshness-names",
@@ -260,6 +284,8 @@ def _with_turn(scenario: Scenario, at: int, expect: dict) -> Scenario:
         "source-marker",
         "report-path",
         "kept-field",
+        "report-count",
+        "rounds-covered",
     ],
 )
 def test_a_planted_expectation_is_a_problem(

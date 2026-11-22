@@ -21,6 +21,7 @@ from tasks.eval.ask_and_report.scenarios import (
 )
 from tasks.eval.ask_and_report.verdicts import (
     Criterion,
+    Manifest,
     Refusal,
     Report,
     Sources,
@@ -233,6 +234,50 @@ def _kept_problems(report: Report, root: Path) -> list[str]:
     ]
 
 
+_DERIVED_IN_MANIFEST = ("round_count", "finding_count", "report_count")
+
+
+def _new_reports(writes: Writes, root: Path) -> int:
+    return sum(
+        1
+        for path in writes.paths
+        if path.startswith("reports/") and not (root / SET / path).exists()
+    )
+
+
+def _count_problems(
+    scenario: Scenario, root: Path, toolchain: Toolchain
+) -> list[str]:
+    derived = _research_topic(toolchain, root, "counts")["derived"]
+    written = 0
+    problems: list[str] = []
+    for turn in scenario.turns:
+        written += sum(
+            _new_reports(c, root) for c in turn.expect if isinstance(c, Writes)
+        )
+        expected = derived | {"report_count": derived["report_count"] + written}
+        for criterion in turn.expect:
+            if isinstance(criterion, Manifest):
+                problems += [
+                    f"expects manifest {key} {criterion.fields[key]!r}, "
+                    f"but counts derives {expected[key]}"
+                    for key in _DERIVED_IN_MANIFEST
+                    if key in criterion.fields
+                    and criterion.fields[key] != expected[key]
+                ]
+            if (
+                isinstance(criterion, Report)
+                and "rounds_covered" in criterion.fields
+                and criterion.fields["rounds_covered"] != derived["round_count"]
+            ):
+                problems.append(
+                    f"expects rounds_covered "
+                    f"{criterion.fields['rounds_covered']!r}, but counts "
+                    f"derives round {derived['round_count']}"
+                )
+    return problems
+
+
 def expectation_problems(
     scenario: Scenario, root: Path, toolchain: Toolchain
 ) -> list[str]:
@@ -241,7 +286,9 @@ def expectation_problems(
     A Sources expectation must be the rule's merge of every finding's
     citations, a freshness refusal must name exactly the mismatches
     ``consultable`` prints, a new report must take the path ``report-path``
-    prints, and a kept field must be in the report before any turn.
+    prints, a kept field must be in the report before any turn, and a
+    manifest count or a report's ``rounds_covered`` must be what ``counts``
+    derives, with each new report the turns write added to ``report_count``.
     """
     problems: list[str] = []
     criteria = _criteria(scenario)
@@ -265,6 +312,7 @@ def expectation_problems(
             )
         if isinstance(criterion, Report) and criterion.kept:
             problems += _kept_problems(criterion, root)
+    problems += _count_problems(scenario, root, toolchain)
     return problems
 
 
