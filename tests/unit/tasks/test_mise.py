@@ -632,3 +632,14 @@ def test_every_multi_test_leaf_declares_a_filter(mise):
 
 def test_every_task_that_takes_no_filter_exists(mise):
     assert _test_tasks(mise) >= _TAKES_NO_FILTER
+
+
+def test_every_filtered_leaf_has_its_help_compared_with_invoke_s(mise):
+    compared = set(_PYTEST_LANES) | set(_CARGO_AND_NODE_LANES)
+    compared.add("test:unit:cli")
+
+    assert _test_tasks(mise) - _TAKES_NO_FILTER <= compared, (
+        "a test:* leaf taking --filter has no check that its mise help "
+        "matches the invoke task's; add it to _PYTEST_LANES or "
+        "_CARGO_AND_NODE_LANES"
+    )
