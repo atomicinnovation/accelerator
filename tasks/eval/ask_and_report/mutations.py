@@ -112,4 +112,13 @@ def parse_mutation(data: Mapping[str, object]) -> Mutation:
         raise ValueError(
             f"a {type(mutation).__name__} cannot take {sorted(rest)}"
         )
+    for path in _paths_of(mutation):
+        if Path(path).is_absolute() or ".." in Path(path).parts:
+            raise ValueError(f"{path} reaches outside the set")
     return mutation
+
+
+def _paths_of(mutation: Mutation) -> tuple[str, ...]:
+    if isinstance(mutation, Rename):
+        return (mutation.path, mutation.to)
+    return (mutation.path,)

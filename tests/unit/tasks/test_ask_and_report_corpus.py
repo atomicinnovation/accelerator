@@ -113,6 +113,23 @@ def test_a_mutation_naming_a_missing_file_raises(
         mutation.apply(set_root)
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"remove": "/etc/hosts"},
+        {"remove": "../manifest.md"},
+        {"rename": "brief.md", "to": "../../escaped.md"},
+        {"append": "findings/../../x.md", "text": "t"},
+    ],
+    ids=["absolute", "dotdot", "rename-target", "inner-dotdot"],
+)
+def test_a_mutation_reaching_outside_the_set_is_refused(
+    data: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError, match="outside the set"):
+        parse_mutation(data)
+
+
 def test_set_naming_a_missing_field_raises(set_root: Path) -> None:
     with pytest.raises(ValueError, match="round_count"):
         SetField("manifest.md", "round_count", 2).apply(set_root)
