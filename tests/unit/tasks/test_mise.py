@@ -540,6 +540,10 @@ _PYTEST_LANES = {
         "test.integration.evals",
         test_integration.evals,
     ),
+    "test:integration:eval-fixtures": (
+        "test.integration.eval-fixtures",
+        test_integration.eval_fixtures,
+    ),
     "test:integration:pup": ("test.integration.pup", test_integration.pup),
     "test:integration:hooks": (
         "test.integration.hooks",

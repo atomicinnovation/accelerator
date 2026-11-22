@@ -445,7 +445,10 @@ run = "invoke test.integration.conformance"
 [tasks."test:integration:eval-fixtures"]
 description = "Run the ask-and-report reference corpus pre-flight: every variant validates, and every scenario reaches its declared gate and setup (debug launcher, corpus and research builds; no model)"
 depends = ["build:cli:dev", "build:cli:corpus:dev", "build:cli:research:dev"]
-run = "invoke test.integration.eval-fixtures"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'gate'"
+'''
+run = 'invoke test.integration.eval-fixtures ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:deny"]
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
