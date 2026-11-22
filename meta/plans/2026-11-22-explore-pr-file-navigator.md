@@ -5,12 +5,12 @@ title: "explore-pr File Navigator Implementation Plan"
 date: "2026-11-22T00:12:56+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "done"
 relates_to: ["plan:2026-11-19-explore-pr-review-deck-restructure"]
 tags: ["explore-pr", "skills", "review", "visualisation"]
 revision: "bb0c42be9b90b46eae811ec2804a0baf293daa06"
 repository: "accelerator"
-last_updated: "2026-11-22T00:12:56+00:00"
+last_updated: "2026-11-22T14:07:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
