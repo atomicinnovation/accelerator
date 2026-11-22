@@ -274,6 +274,64 @@ fn a_work_is_looked_up_by_id_by_openalex_url_and_by_doi() {
 }
 
 #[test]
+fn search_and_every_form_of_lookup_agree_on_tier_venue_and_signals() {
+    const DOI: &str = "10.1145/3448016.3457556";
+    const WORK: &str = "W3176171201";
+    let server = MockHTTPServer::start();
+    server.route(works(), json(200, openalex_fixture("parity-search.json")));
+    server.route(
+        RequestKey::get(&format!("/works/doi:{DOI}")),
+        json(200, openalex_fixture("parity-doi.json")),
+    );
+    server.route(
+        RequestKey::get(&format!("/works/{WORK}")),
+        json(200, openalex_fixture("parity-wid.json")),
+    );
+    let project = Project::new();
+    let doi_url = format!("https://doi.org/{DOI}");
+
+    let classifications = [
+        vec!["search", "consistency completeness kafka"],
+        vec!["lookup", DOI],
+        vec!["lookup", &doi_url],
+        vec!["lookup", WORK],
+    ]
+    .map(|args| {
+        let run = fetch(
+            &project,
+            &server,
+            &[&["openalex"], args.as_slice()].concat(),
+            &[],
+        );
+        assert_eq!(run.code, Some(0), "{args:?}: {}", run.stderr);
+        let record = run.json()["records"]
+            .as_array()
+            .and_then(|records| {
+                records
+                    .iter()
+                    .find(|record| record["url"] == doi_url)
+                    .cloned()
+            })
+            .unwrap_or_else(|| panic!("{args:?}: no record for {DOI}"));
+        (
+            record["tier"].clone(),
+            record["venue"].clone(),
+            record["venue_signals"].clone(),
+        )
+    });
+
+    let (tier, venue, _) = &classifications[0];
+    assert_eq!(tier, "tier-1");
+    assert_eq!(
+        venue,
+        "ACM SIGMOD International Conference on Management of Data (SIGMOD)"
+    );
+    for classification in &classifications[1..] {
+        assert_eq!(classification, &classifications[0]);
+    }
+}
+
+#[test]
 fn a_lookup_miss_is_ok_with_no_records() {
     let server = server_with(peerj(), Route::Status(404));
 

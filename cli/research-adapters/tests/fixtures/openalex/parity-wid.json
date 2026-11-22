@@ -1,0 +1,854 @@
+{
+ "id": "https://openalex.org/W3176171201",
+ "doi": "https://doi.org/10.1145/3448016.3457556",
+ "display_name": "Consistency and Completeness: Rethinking Distributed Stream Processing in Apache Kafka",
+ "type": "conference-paper",
+ "authorships": [
+  {
+   "author_position": "first",
+   "author": {
+    "id": "https://openalex.org/A5070703157",
+    "display_name": "Guozhang Wang",
+    "orcid": "https://orcid.org/0009-0004-9903-9438",
+    "observed_orcids": [
+     "https://orcid.org/0009-0004-9903-9438",
+     "https://orcid.org/0009-0007-5026-9963"
+    ]
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Guozhang Wang",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5100333510",
+    "display_name": "Lei Chen",
+    "orcid": "https://orcid.org/0000-0002-8000-7872",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-8000-7872"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I1299907687",
+     "display_name": "Bloomberg (United States)",
+     "ror": "https://ror.org/02rdpzb15",
+     "country_code": "US",
+     "type": "company",
+     "lineage": [
+      "https://openalex.org/I1299907687"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Lei Chen",
+   "raw_affiliation_strings": [
+    "Bloomberg L.P., San Francisco, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Bloomberg L.P., San Francisco, CA, USA",
+     "institution_ids": [
+      "https://openalex.org/I1299907687"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5024265186",
+    "display_name": "Ayusman Dikshit",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Ayusman Dikshit",
+   "raw_affiliation_strings": [
+    "Expedia Group, Gurgaon, India"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Expedia Group, Gurgaon, India",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5049588318",
+    "display_name": "Jason Gustafson",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Jason Gustafson",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5100688832",
+    "display_name": "Boyang Chen",
+    "orcid": "https://orcid.org/0009-0000-1043-0977",
+    "observed_orcids": [
+     "https://orcid.org/0009-0000-1043-0977"
+    ]
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Boyang Chen",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5059803641",
+    "display_name": "Matthias J. Sax",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Matthias J. Sax",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": null,
+    "display_name": "John Roesler",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "John Roesler",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5025876165",
+    "display_name": "Sophie Blee-Goldman",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Sophie Blee-Goldman",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5083495623",
+    "display_name": "Bruno Cadonna",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Bruno Cadonna",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": null,
+    "display_name": "Apurva Mehta",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Apurva Mehta",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5001335241",
+    "display_name": "Varun Madan",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Varun Madan",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  },
+  {
+   "author_position": "last",
+   "author": {
+    "id": "https://openalex.org/A5009094344",
+    "display_name": "Jun Rao",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "contributor_roles": [],
+   "raw_author_name": "Jun Rao",
+   "raw_affiliation_strings": [
+    "Confluent Inc., Mountain View, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Confluent Inc., Mountain View, CA, USA",
+     "institution_ids": []
+    }
+   ]
+  }
+ ],
+ "primary_location": {
+  "id": "doi:10.1145/3448016.3457556",
+  "doi": "https://doi.org/10.1145/3448016.3457556",
+  "is_oa": true,
+  "landing_page_url": "https://doi.org/10.1145/3448016.3457556",
+  "pdf_url": "https://dl.acm.org/doi/pdf/10.1145/3448016.3457556",
+  "source": {
+   "id": "https://openalex.org/S4393915683",
+   "display_name": "ACM SIGMOD International Conference on Management of Data (SIGMOD)",
+   "issn_l": "0730-8078",
+   "issn": [
+    "0730-8078"
+   ],
+   "is_oa": false,
+   "is_in_doaj": false,
+   "is_core": false,
+   "listed_in": [
+    "norway-1"
+   ],
+   "host_organization": "https://openalex.org/P4310319798",
+   "host_organization_name": "Association for Computing Machinery",
+   "host_organization_lineage": [
+    "https://openalex.org/P4310319798"
+   ],
+   "host_organization_lineage_names": [
+    "Association for Computing Machinery"
+   ],
+   "type": "conference"
+  },
+  "license": "cc-by-sa",
+  "license_id": "https://openalex.org/licenses/cc-by-sa",
+  "version": "publishedVersion",
+  "is_accepted": true,
+  "is_published": true,
+  "raw_source_name": "Proceedings of the 2021 International Conference on Management of Data",
+  "raw_type": "proceedings-article"
+ },
+ "is_retracted": false,
+ "abstract_inverted_index": {
+  "An": [
+   0
+  ],
+  "increasingly": [
+   1
+  ],
+  "important": [
+   2
+  ],
+  "system": [
+   3
+  ],
+  "requirement": [
+   4
+  ],
+  "for": [
+   5,
+   99
+  ],
+  "distributed": [
+   6
+  ],
+  "stream": [
+   7,
+   100,
+   124
+  ],
+  "processing": [
+   8,
+   125,
+   133,
+   141,
+   166
+  ],
+  "applications": [
+   9
+  ],
+  "is": [
+   10,
+   167
+  ],
+  "to": [
+   11,
+   54,
+   57,
+   80,
+   116,
+   159,
+   169
+  ],
+  "provide": [
+   12
+  ],
+  "strong": [
+   13
+  ],
+  "correctness": [
+   14,
+   118
+  ],
+  "guarantees": [
+   15
+  ],
+  "under": [
+   16
+  ],
+  "unexpected": [
+   17
+  ],
+  "failures": [
+   18
+  ],
+  "and": [
+   19,
+   51,
+   60,
+   67,
+   84,
+   112,
+   144,
+   153,
+   192,
+   198
+  ],
+  "out-of-order": [
+   20,
+   178
+  ],
+  "data": [
+   21
+  ],
+  "so": [
+   22
+  ],
+  "that": [
+   23
+  ],
+  "its": [
+   24,
+   105,
+   196
+  ],
+  "results": [
+   25,
+   171
+  ],
+  "can": [
+   26,
+   87
+  ],
+  "be": [
+   27
+  ],
+  "authoritative": [
+   28
+  ],
+  "(not": [
+   29
+  ],
+  "needing": [
+   30
+  ],
+  "complementary": [
+   31
+  ],
+  "batch": [
+   32
+  ],
+  "results).": [
+   33
+  ],
+  "Although": [
+   34
+  ],
+  "existing": [
+   35
+  ],
+  "systems": [
+   36
+  ],
+  "have": [
+   37
+  ],
+  "put": [
+   38
+  ],
+  "a": [
+   39,
+   71,
+   122
+  ],
+  "lot": [
+   40
+  ],
+  "of": [
+   41
+  ],
+  "effort": [
+   42
+  ],
+  "into": [
+   43
+  ],
+  "addressing": [
+   44
+  ],
+  "some": [
+   45
+  ],
+  "specific": [
+   46
+  ],
+  "issues,": [
+   47
+  ],
+  "such": [
+   48
+  ],
+  "as": [
+   49,
+   109,
+   135,
+   149,
+   172,
+   174
+  ],
+  "consistency": [
+   50,
+   83
+  ],
+  "completeness,": [
+   52,
+   85
+  ],
+  "how": [
+   53,
+   183
+  ],
+  "enable": [
+   55
+  ],
+  "users": [
+   56
+  ],
+  "make": [
+   58
+  ],
+  "flexible": [
+   59,
+   197
+  ],
+  "transparent": [
+   61
+  ],
+  "trade-off": [
+   62
+  ],
+  "decisions": [
+   63
+  ],
+  "among": [
+   64
+  ],
+  "correctness,": [
+   65
+  ],
+  "performance,": [
+   66
+  ],
+  "cost": [
+   68
+  ],
+  "still": [
+   69
+  ],
+  "remains": [
+   70
+  ],
+  "practical": [
+   72
+  ],
+  "challenge.": [
+   73
+  ],
+  "Specifically,": [
+   74
+  ],
+  "similar": [
+   75
+  ],
+  "mechanisms": [
+   76
+  ],
+  "are": [
+   77,
+   147,
+   157
+  ],
+  "usually": [
+   78
+  ],
+  "applied": [
+   79
+  ],
+  "tackle": [
+   81
+  ],
+  "both": [
+   82
+  ],
+  "which": [
+   86,
+   102,
+   139
+  ],
+  "result": [
+   88,
+   145
+  ],
+  "in": [
+   89,
+   128,
+   138,
+   187
+  ],
+  "unnecessary": [
+   90
+  ],
+  "performance": [
+   91,
+   193
+  ],
+  "penalties.": [
+   92
+  ],
+  "We": [
+   93,
+   180
+  ],
+  "present": [
+   94
+  ],
+  "Apache": [
+   95,
+   129
+  ],
+  "Kafka's": [
+   96
+  ],
+  "core": [
+   97
+  ],
+  "design": [
+   98
+  ],
+  "processing,": [
+   101
+  ],
+  "relies": [
+   103
+  ],
+  "on": [
+   104
+  ],
+  "persistent": [
+   106
+  ],
+  "log": [
+   107,
+   150
+  ],
+  "architecture": [
+   108
+  ],
+  "the": [
+   110,
+   132
+  ],
+  "storage": [
+   111
+  ],
+  "inter-processor": [
+   113
+  ],
+  "communication": [
+   114
+  ],
+  "layers": [
+   115
+  ],
+  "achieve": [
+   117
+  ],
+  "guarantees.": [
+   119
+  ],
+  "Kafka": [
+   120,
+   184
+  ],
+  "Streams,": [
+   121
+  ],
+  "scalable": [
+   123
+  ],
+  "client": [
+   126
+  ],
+  "library": [
+   127
+  ],
+  "Kafka,": [
+   130
+  ],
+  "defines": [
+   131
+  ],
+  "logic": [
+   134
+  ],
+  "read-process-write": [
+   136
+  ],
+  "cycles": [
+   137
+  ],
+  "all": [
+   140
+  ],
+  "state": [
+   142
+  ],
+  "updates": [
+   143
+  ],
+  "outputs": [
+   146
+  ],
+  "captured": [
+   148
+  ],
+  "appends.": [
+   151
+  ],
+  "Idempotent": [
+   152
+  ],
+  "transactional": [
+   154
+  ],
+  "write": [
+   155
+  ],
+  "protocols": [
+   156
+  ],
+  "utilized": [
+   158
+  ],
+  "guarantee": [
+   160
+  ],
+  "exactly-once": [
+   161
+  ],
+  "semantics.": [
+   162
+  ],
+  "Furthermore,": [
+   163
+  ],
+  "revision-based": [
+   164
+  ],
+  "speculative": [
+   165
+  ],
+  "employed": [
+   168
+  ],
+  "emit": [
+   170
+  ],
+  "soon": [
+   173
+  ],
+  "possible": [
+   175
+  ],
+  "while": [
+   176
+  ],
+  "handling": [
+   177
+  ],
+  "data.": [
+   179
+  ],
+  "also": [
+   181
+  ],
+  "demonstrate": [
+   182
+  ],
+  "Streams": [
+   185
+  ],
+  "behaves": [
+   186
+  ],
+  "practice": [
+   188
+  ],
+  "with": [
+   189
+  ],
+  "large-scale": [
+   190
+  ],
+  "deployments": [
+   191
+  ],
+  "insights": [
+   194
+  ],
+  "exhibiting": [
+   195
+  ],
+  "low-overhead": [
+   199
+  ],
+  "trade-offs.": [
+   200
+  ]
+ },
+ "publication_date": "2021-06-09"
+}
