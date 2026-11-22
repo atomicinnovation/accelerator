@@ -2616,7 +2616,7 @@ the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 
 ------------------------------------------------------------------------------
-form_urlencoded 1.2.2
+form_urlencoded 1.2.3
 ------------------------------------------------------------------------------
 License: MIT
 Source: https://github.com/servo/rust-url
@@ -13912,7 +13912,7 @@ Source: https://github.com/briansmith/untrusted
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ------------------------------------------------------------------------------
-url 2.5.8
+url 2.5.9
 ------------------------------------------------------------------------------
 License: MIT
 Source: https://github.com/servo/rust-url
