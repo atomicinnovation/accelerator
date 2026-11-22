@@ -4,7 +4,11 @@ from pathlib import Path
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
+from tasks.shared.paths import (
+    CARGO_TOML,
+    CLI_TARGET_DIR,
+    CLI_WORKSPACE_CARGO_TOML,
+)
 from tasks.test.cli import _MANIFEST
 from tasks.test.filters import (
     LIBTEST_INTEGRATION_FILTER_HELP,
@@ -255,6 +259,10 @@ _PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 # them when present rather than paying a second materialisation.
 _RUNTIME_TREES = ("driver", "browser")
 
+# The launcher's default cache root is the plugin's own bin/, which the
+# entrypoint suite running beside this lane asserts nothing writes into.
+_RUNTIME_TREE_CACHE = CLI_TARGET_DIR / "design-automation-cache"
+
 # Today's executed total across the two runtime suites. An at-least floor,
 # mirroring the unit lane: this lane sits outside the enforced gate, so a
 # case-count floor and a bare-return guard are its only defence against a suite
@@ -284,7 +292,10 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
             for artifact, path in exported.items()
         }
 
-    launcher_env = accelerator_env()
+    launcher_env = {
+        **accelerator_env(),
+        "ACCELERATOR_CACHE_DIR": str(_RUNTIME_TREE_CACHE),
+    }
     ensured = context.run(
         f"{shlex.quote(launcher_env['ACCELERATOR_BIN'])} cache ensure "
         + " ".join(_RUNTIME_TREES),

@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 from invoke import Context, Exit, Result
 
+from tasks.shared.paths import CLI_TARGET_DIR
 from tasks.test import integration
 from tasks.test.helpers import accelerator_env
 
@@ -67,7 +70,23 @@ def test_unexported_trees_are_ensured_together_by_the_dev_launcher(
 
     ensure = context.run.call_args_list[0]
     assert ensure.args[0] == "/dev/launcher cache ensure driver browser"
-    assert ensure.kwargs["env"] == accelerator_env()
+    assert ensure.kwargs["env"].items() >= accelerator_env().items()
+
+
+def test_the_trees_are_materialised_outside_the_shipped_bin(
+    context, monkeypatch, trees
+):
+    driver, browser = trees
+    monkeypatch.delenv("ACCELERATOR_TREE_DRIVER", raising=False)
+    monkeypatch.delenv("ACCELERATOR_TREE_BROWSER", raising=False)
+    context.run.side_effect = [_ensured(driver, browser), Result(stdout=_TAP)]
+
+    integration.design_automation(context)
+
+    cache = Path(
+        context.run.call_args_list[0].kwargs["env"]["ACCELERATOR_CACHE_DIR"]
+    )
+    assert cache.is_relative_to(CLI_TARGET_DIR)
     assert _suite_environment(context) == {
         "ACCELERATOR_TREE_DRIVER": str(driver),
         "ACCELERATOR_TREE_BROWSER": str(browser),
