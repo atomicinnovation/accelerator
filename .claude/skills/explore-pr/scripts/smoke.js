@@ -47,7 +47,8 @@
 // at the end and no catalogue of cards. Findings lists every observation, its
 // source filter narrows the list, and a chapter's finding opens in Findings.
 // Readiness draws the gates its model works out, turns the design gate when a
-// decision is disagreed with, and its verdict control drives the top bar. Your
+// decision is disagreed with, its high-risk gate opens All files on exactly
+// the high-risk files still to read, and its verdict control drives the top bar. Your
 // notes saves what is typed in its freeform box and in a card's note, puts the
 // freeform notes first in the export, and keeps the focus while it saves.
 // A view with figures is captured at full height, in tiles 5,000 px tall when it
@@ -280,7 +281,16 @@ const READINESS_PROBE = `(async () => {
   approve().click(); await settle();
   const chipFollows = document.getElementById('decision-chip').textContent === 'Approve';
   store.put('decision', 'decision', { status: before }, {});
-  return { gatesMatch, designTurns, chipFollows };
+  const highRisk = content.files.filter(f => f.risk === 'high' && (api.coverageOf(f.path) || {}).state !== 'read').map(f => f.path);
+  let highRiskOpens = null;
+  if (highRisk.length) {
+    location.hash = 'readiness'; await settle();
+    document.querySelector('#gates [data-gate="high-risk"] [data-jump]').click(); await settle(700);
+    const shown = [...document.querySelectorAll('#nav-tree .nav-file')].map(row => row.dataset.file);
+    highRiskOpens = location.hash === '#files' && shown.length === highRisk.length && shown.every(path => highRisk.includes(path));
+    document.querySelector('[data-clear-facets]').click(); await settle();
+  }
+  return { gatesMatch, designTurns, chipFollows, highRiskOpens };
 })()`;
 
 const FINDINGS_PROBE = `(async () => {
@@ -808,7 +818,7 @@ async function main() {
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
-  const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows);
+  const readinessHolds = !!(readiness.gatesMatch && readiness.designTurns !== false && readiness.chipFollows && readiness.highRiskOpens !== false);
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);

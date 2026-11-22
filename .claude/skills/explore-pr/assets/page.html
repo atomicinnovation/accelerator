@@ -1570,6 +1570,7 @@ document.addEventListener('click', e => {
   const route = a.dataset.jump, filter = JSON.parse(a.dataset.filter || '{}');
   if (route === 'findings' && (C.findingAliases || {})[filter.q]) filter.q = C.findingAliases[filter.q];
   if (BLANK_FILTERS[route]) filters[route] = { ...BLANK_FILTERS[route], ...filter };
+  if (NAVIGATED.includes(route)) { navOf(route).query = ''; navOf(route).selection.keys.clear(); }
   if (route === 'ledger') ledgerFilter = { facets: {}, concern: '', status: '', ...filter };
   if (location.hash !== '#' + route) location.hash = route; else render();
 });

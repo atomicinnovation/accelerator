@@ -908,9 +908,9 @@ that every file row shown is high-risk and not read in full.
 
 #### Automated Verification
 
-- [ ] The `readiness` node suite passes
-- [ ] Every command under Shared verification commands passes
-- [ ] The smoke report has `readiness` holding and `ok: true`
+- [x] The `readiness` node suite passes
+- [x] Every command under Shared verification commands passes
+- [x] The smoke report has `readiness` holding and `ok: true`
 
 #### Manual Verification
 

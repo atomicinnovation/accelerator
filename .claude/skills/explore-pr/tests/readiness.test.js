@@ -56,6 +56,12 @@ test('high-risk files: one not read in full needs you, all read is met', () => {
   assert.equal(stateOf('high-risk', { files: [{ path: 'b.rs', risk: 'low' }] }), undefined);
 });
 
+test('high-risk files open All files on the high-risk files still to read', () => {
+  assert.deepEqual(gateOf('high-risk', FILES, {}, { 'a.rs': { state: 'partly' } }).jump, {
+    route: 'files', filter: { risk: ['high'], progress: ['unread', 'partial'] },
+  });
+});
+
 test('high-risk files: before the code loads, a file verdict stands for reading it', () => {
   assert.equal(stateOf('high-risk', FILES, { 'file:a.rs': { status: 'ok' } }), 'met');
 });
