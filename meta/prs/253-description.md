@@ -14,7 +14,7 @@ pr_number: 253
 tags: ["build-system", "testing", "design", "playwright", "security", "ci"]
 revision: "670894e5472d31e455ae643d5b41efeae29921d6"
 repository: "accelerator"
-last_updated: "2026-11-22T00:00:09+00:00"
+last_updated: "2026-11-22T00:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -76,7 +76,10 @@ origin was reaching the target of a cross-origin redirect.
   `<browser tree>/chrome-headless-shell` as the browser, as the executor gives
   them to the daemon.
 - The lane resolves both trees, through the `build:cli:dev` launcher's
-  `cache ensure driver browser` when the launcher has not exported them.
+  `cache ensure driver browser` when the launcher has not exported them,
+  into `cli/target/design-automation-cache/` rather than the launcher's
+  default cache root, the shipped `bin/`, which the `entrypoint` suite
+  asserts nothing writes into.
 - The lane joins `test:integration`, so it runs in the default task and on
   both CI legs.
 - `bin/trees/` is gitignored; it was the one launcher cache entry missing.
@@ -135,7 +138,8 @@ noise; the two run records are under `meta/measurements/`.
   `Content-Security-Policy: sandbox` page was rejected as the substitute:
   `location.origin` reports the URL's origin there, and making it opaque
   would change crawl semantics for sandboxed pages.
-- **CI time.** The integration job now downloads the driver and browser trees
-  on each run (about 45 s cold locally); `bin/trees/` is not cached.
+- **CI time.** The integration job downloads the driver and browser trees
+  whenever `cli/target/design-automation-cache/` is cold (about 45 s locally);
+  whether the cargo cache step keeps that directory was not checked.
 - The executor repair could stand as its own PR if you would rather review
   the security fix apart from the filters work.
