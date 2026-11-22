@@ -5,7 +5,7 @@ title: "Runtime Preflight References the Deleted package-lock Namespace"
 date: "2026-09-05T21:30:25+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "bug"
 priority: "medium"
 blocks: ["work-item:PP-738"]
@@ -13,8 +13,9 @@ relates_to: ["work-item:PP-778", "work-item:PP-726"]
 external_id: "PP-805"
 aliases: ["0275"]
 tags: []
-last_updated: "2026-09-05T21:30:25+00:00"
+last_updated: "2026-11-22T01:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Done in PR #253: the preflight resolves the driver and browser trees, and the executor was repaired against Playwright 1.64.1."
 schema_version: 1
 ---
 # PP-805: Runtime Preflight References the Deleted package-lock Namespace
@@ -73,16 +74,24 @@ Fix:
 
 ## Acceptance Criteria
 
-- [ ] Given a provisioned vendored runtime (driver and browser), when
+- [x] Given a provisioned vendored runtime (driver and browser), when
       `mise run test:integration:design-automation` runs, then all runtime
       suites execute and pass — no `ENOENT`, no zero-executed lane.
-- [ ] Given `package-lock.json` is absent, when the preflight runs, then it
+      *As built (PR #253):* 38 of 38 pass, locally and on both CI legs.
+- [x] Given `package-lock.json` is absent, when the preflight runs, then it
       never references that file and resolves via `ACCELERATOR_TREE_DRIVER`.
-- [ ] Given the harness forks the daemon, when it launches, then Chromium starts
+      *As built:* it resolves `ACCELERATOR_TREE_DRIVER` and
+      `ACCELERATOR_TREE_BROWSER`, which the lane sets from `cache ensure`.
+- [x] Given the harness forks the daemon, when it launches, then Chromium starts
       via the vendored browser executable with no lockhash namespace.
-- [ ] Given the 0206 `daemon-runtime.test.js` cases (redirect hop, per-request
+      *As built:* `<browser tree>/chrome-headless-shell`, passed as
+      `ACCELERATOR_DESIGN_BROWSER_EXECUTABLE`.
+- [x] Given the 0206 `daemon-runtime.test.js` cases (redirect hop, per-request
       scope, sub-frame isolation, out-of-window redirect, click-triggered
       navigation), when the lane runs, then they execute and pass.
+      *As built:* the redirect-hop cases first failed against Playwright
+      1.64.1, which routes only a redirect chain's first hop; the daemon now
+      intercepts every hop through CDP's `Fetch` domain, and all pass.
 
 ## Dependencies
 
