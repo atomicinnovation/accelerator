@@ -1965,8 +1965,10 @@ def test_consulting_runs_each_command_bare() -> None:
     for phrase in (
         "with no redirect such as `2>/dev/null`",
         "run no command this section does not name, such as `echo` or `true`",
-        "Print a refusal or an answer straight after the last command it "
-        "needs, with no command in between, not even a no-op",
+        "Write a refusal or an answer in your reply, never through a shell "
+        "command, straight after the last command it needs, with no command "
+        "in between, not even a no-op",
+        "To print a line, here and below, is to write it in your reply",
     ):
         assert phrase in consult, f"consulting must forbid {phrase!r}"
 
