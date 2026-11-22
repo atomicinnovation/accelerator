@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T16:00:00+00:00"
+last_updated: "2026-11-22T17:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1890,15 +1890,42 @@ each pool's spacing between request starts (210 ms with one in flight;
 section rather than repeating the resolution chain. The Limits bullet notes
 that `crossref.mailto` (3 concurrent) reduces contention across projects.
 
+### Outcome
+
+Phase 5 landed in seven commits. The workspace suite runs 8650 tests, and
+`mise run check` and `mise run docs:check` exit 0. The bare `mise run` has
+not been run for this phase, and neither manual check has been run.
+Departures from the plan:
+
+- **No unreadable-config CLI test**: an unreadable or malformed
+  `config.local.md` fails every queued call with exit 1 before the contact
+  is resolved, because the project's `paths.tmp` is read first, as it is
+  for arXiv. `ContactWarning::Unreadable` and its wording are pinned by
+  unit tests only, as agreed with the plan's author.
+- **Mock server fix**: `http-test-support` held its routes lock while
+  sleeping out a `Delayed` route, so delayed responses were answered one
+  at a time. A new harness test pins concurrent answers; the polite
+  concurrency test depends on it.
+- **Credential marker**: `ExtraKey::credential` is a `bool`, set through an
+  `ExtraKey::credential` constructor. `TokenKeys::declared` names an
+  unmarked key "not a declared credential".
+- **`CrossrefContact`** also exposes `address()` and `warning()`. `DoiCall`
+  carries the contact, and `DoiFetch` gains `contact`. `queued_context`
+  takes the already opened `ProjectContext`.
+- **Docs**: the configure skill's reference sits inside a fenced block on
+  the generated page, so it has no `#crossref` anchor; `research.md` links
+  the page and names the section. The admission window in "The fetch
+  queue" gives the polite pool's 30.102 s.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p research -p accelerator-research -p config -p launcher --features accelerator-research/test-loopback`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check`
-- [ ] `mise run docs:check`
-- [ ] `mise run check`
+- [x] `cd cli && cargo nextest run -p research -p accelerator-research -p config -p launcher --features accelerator-research/test-loopback`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check`
+- [x] `mise run docs:check`
+- [x] `mise run check`
 
 #### Manual Verification
 
