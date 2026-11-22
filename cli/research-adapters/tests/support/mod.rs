@@ -20,10 +20,11 @@ use research::sources::queue::Nonce;
 use research::sources::queue::ServiceQueue as _;
 use research::sources::queue::Ticket;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
 use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::pacing::FilePacingGate;
-use research_adapters::queue::FileArxivQueue;
+use research_adapters::queue::FileServiceQueue;
 use research_adapters::scratch::ScratchDir;
 
 pub const fn secs(seconds: u64) -> Duration {
@@ -97,7 +98,7 @@ impl Diagnostics for RecordedDiagnostics {
     }
 }
 
-/// A file or directory of arXiv's queue and pacing state.
+/// A file or directory of a service's queue and pacing state.
 #[derive(Debug, Clone, Copy)]
 pub enum StateFile {
     ServingLock,
@@ -108,13 +109,13 @@ pub enum StateFile {
 }
 
 impl StateFile {
-    const fn arxiv_name(self) -> &'static str {
+    const fn name(self) -> &'static str {
         match self {
-            Self::ServingLock => "arxiv.lock",
-            Self::Pacing => "arxiv-pacing",
-            Self::RequestLog => "arxiv-requests.log",
-            Self::ContentionLog => "arxiv-contention.log",
-            Self::Queue => "arxiv-queue",
+            Self::ServingLock => "serving-0.lock",
+            Self::Pacing => "pacing",
+            Self::RequestLog => "requests.log",
+            Self::ContentionLog => "contention.log",
+            Self::Queue => "queue",
         }
     }
 }
@@ -132,7 +133,7 @@ pub fn arxiv_gate(
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
 ) -> FilePacingGate {
-    FilePacingGate::new(scratch.dir(), clock, diagnostics)
+    FilePacingGate::new(Service::Arxiv, &scratch.dir(), clock, diagnostics)
 }
 
 pub fn arxiv_contention_log(
@@ -140,7 +141,7 @@ pub fn arxiv_contention_log(
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
 ) -> FileContentionLog {
-    FileContentionLog::new(scratch.dir(), clock, diagnostics)
+    FileContentionLog::new(Service::Arxiv, &scratch.dir(), clock, diagnostics)
 }
 
 pub fn arxiv_queue(
@@ -148,13 +149,13 @@ pub fn arxiv_queue(
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
     nonces: Box<dyn Fn() -> Nonce>,
-) -> FileArxivQueue {
-    FileArxivQueue::new(research, clock, diagnostics, nonces)
+) -> FileServiceQueue {
+    FileServiceQueue::new(Service::Arxiv, research, clock, diagnostics, nonces)
 }
 
 /// Joins `queue` as an arXiv call would.
 pub fn join_queue<'q>(
-    queue: &'q FileArxivQueue,
+    queue: &'q FileServiceQueue,
     binding: &Binding,
     presented: Option<&Ticket>,
     deadline: &Deadline,
@@ -183,8 +184,15 @@ impl Scratch {
         self.root.path().join("tmp/research")
     }
 
+    pub fn service_state(&self, service: Service, file: StateFile) -> PathBuf {
+        self.directory()
+            .join("services")
+            .join(service.code())
+            .join(file.name())
+    }
+
     pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
-        self.directory().join(file.arxiv_name())
+        self.service_state(Service::Arxiv, file)
     }
 
     pub fn queue_directory(&self) -> PathBuf {

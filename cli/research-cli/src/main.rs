@@ -45,6 +45,7 @@ use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
 use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
@@ -58,7 +59,7 @@ use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
 use research_adapters::page_transport::HttpPageTransport;
 use research_adapters::queue::random_nonce;
-use research_adapters::queue::FileArxivQueue;
+use research_adapters::queue::FileServiceQueue;
 use research_adapters::scratch::ScratchDir;
 use research_adapters::transport::HttpTransport;
 
@@ -347,7 +348,8 @@ fn source_call(
                     transport: Box::new(transport),
                     decoder: Box::new(XmlArxivDecoder),
                     gate: Box::new(FilePacingGate::new(
-                        research.clone(),
+                        Service::Arxiv,
+                        &research,
                         clock.clone(),
                         diagnostics.clone(),
                     )),
@@ -355,14 +357,16 @@ fn source_call(
                         research.clone(),
                         diagnostics.clone(),
                     )),
-                    queue: Box::new(FileArxivQueue::new(
+                    queue: Box::new(FileServiceQueue::new(
+                        Service::Arxiv,
                         &research,
                         clock.clone(),
                         diagnostics.clone(),
                         Box::new(random_nonce),
                     )),
                     contention: Box::new(FileContentionLog::new(
-                        research,
+                        Service::Arxiv,
+                        &research,
                         clock.clone(),
                         diagnostics,
                     )),

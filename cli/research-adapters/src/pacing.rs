@@ -1,6 +1,5 @@
 //! Pacing gates: none for sources that meter by budget, and a file-locked
-//! one for arXiv, which asks every client for one request at a time, three
-//! seconds apart.
+//! one for each queued service, paced as that service asks.
 
 use std::fs::File;
 use std::rc::Rc;
@@ -52,9 +51,9 @@ impl ServingTurn for Unpaced {
     }
 }
 
-const LOCK: &str = "arxiv.lock";
-const STATE: &str = "arxiv-pacing";
-const REQUEST_LOG: &str = "arxiv-requests.log";
+const LOCK: &str = "serving-0.lock";
+const STATE: &str = "pacing";
+const REQUEST_LOG: &str = "requests.log";
 
 const SPACING: Duration = Duration::from_secs(3);
 /// A send is stamped before its request leaves, so its arrival at arXiv is
@@ -73,6 +72,7 @@ const DEFERRAL_CEILING: Duration = Duration::from_secs(30);
 /// Its waits run on the caller's clock, so time spent here is spent from
 /// the same deadline the caller measures.
 pub struct FilePacingGate {
+    service: Service,
     scratch: ScratchDir,
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
@@ -80,12 +80,14 @@ pub struct FilePacingGate {
 
 impl FilePacingGate {
     pub fn new(
-        scratch: ScratchDir,
+        service: Service,
+        research: &ScratchDir,
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
     ) -> Self {
         Self {
-            scratch,
+            service,
+            scratch: research.service_state(service),
             clock,
             diagnostics,
         }
@@ -119,8 +121,10 @@ impl FilePacingGate {
     }
 
     fn report(&self, detail: &str) {
-        self.diagnostics
-            .report(&format!("research fetch: arxiv {detail}"));
+        self.diagnostics.report(&format!(
+            "research fetch: {} {detail}",
+            self.service.code()
+        ));
     }
 
     fn unlocked_turn(&self, detail: &str) -> Box<dyn ServingTurn + '_> {
@@ -134,7 +138,7 @@ impl FilePacingGate {
 
 impl PacingGate for FilePacingGate {
     fn pacing(&self) -> Pacing {
-        Service::Arxiv.pacing()
+        self.service.pacing()
     }
 
     /// A filesystem that cannot lock still gets a turn, so pacing still

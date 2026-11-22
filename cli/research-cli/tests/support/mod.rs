@@ -12,6 +12,7 @@ use std::process::Command;
 use std::process::Stdio;
 
 use http_test_support::MockHTTPServer;
+use research::sources::service::Service;
 use vcs_test_support::hermetic::Hermetic;
 
 pub const SELECT: &str = "select=id,doi,display_name,type,authorships,\
@@ -103,7 +104,7 @@ pub fn page_of(names: &[&str]) -> String {
     format!("{{\"meta\":{{}},\"results\":[{works}]}}")
 }
 
-/// A file or directory of arXiv's queue and pacing state.
+/// A file or directory of a service's queue and pacing state.
 #[derive(Debug, Clone, Copy)]
 pub enum StateFile {
     ServingLock,
@@ -115,14 +116,14 @@ pub enum StateFile {
 }
 
 impl StateFile {
-    const fn arxiv_name(self) -> &'static str {
+    const fn name(self) -> &'static str {
         match self {
-            Self::ServingLock => "arxiv.lock",
-            Self::Pacing => "arxiv-pacing",
-            Self::RequestLog => "arxiv-requests.log",
-            Self::ContentionLog => "arxiv-contention.log",
-            Self::Queue => "arxiv-queue",
-            Self::QueueLock => "arxiv-queue/queue.lock",
+            Self::ServingLock => "serving-0.lock",
+            Self::Pacing => "pacing",
+            Self::RequestLog => "requests.log",
+            Self::ContentionLog => "contention.log",
+            Self::Queue => "queue",
+            Self::QueueLock => "queue/queue.lock",
         }
     }
 }
@@ -199,8 +200,15 @@ impl Project {
         self.root.join(".accelerator/tmp/research")
     }
 
+    pub fn service_state(&self, service: Service, file: StateFile) -> PathBuf {
+        self.research_scratch()
+            .join("services")
+            .join(service.code())
+            .join(file.name())
+    }
+
     pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
-        self.research_scratch().join(file.arxiv_name())
+        self.service_state(Service::Arxiv, file)
     }
 
     pub fn queue_dir(&self) -> PathBuf {

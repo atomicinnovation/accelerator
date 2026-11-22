@@ -23,7 +23,7 @@ use research::sources::request::Limit;
 use research::sources::schedule::Deadline;
 use research_adapters::clock::SystemClock;
 use research_adapters::queue::random_nonce;
-use research_adapters::queue::FileArxivQueue;
+use research_adapters::queue::FileServiceQueue;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use support::arxiv_queue;
@@ -71,7 +71,7 @@ impl Harness {
         }
     }
 
-    fn queue(&self) -> FileArxivQueue {
+    fn queue(&self) -> FileServiceQueue {
         let issued = self.issued.clone();
         arxiv_queue(
             &self.scratch.dir(),
@@ -139,7 +139,7 @@ fn queued<'q>(joining: Joining<'q>) -> Box<dyn Place + 'q> {
 
 fn join<'q>(
     harness: &Harness,
-    queue: &'q FileArxivQueue,
+    queue: &'q FileServiceQueue,
     presented: Option<&str>,
 ) -> Joining<'q> {
     join_as(harness, queue, &graphs(), presented)
@@ -147,7 +147,7 @@ fn join<'q>(
 
 fn join_as<'q>(
     harness: &Harness,
-    queue: &'q FileArxivQueue,
+    queue: &'q FileServiceQueue,
     binding: &Binding,
     presented: Option<&str>,
 ) -> Joining<'q> {
@@ -629,7 +629,7 @@ fn a_probe_that_has_unlocked_but_kept_its_file_open_does_not_block_own() {
     assert_eq!(place.ticket(), &ticket("1-aaaaaa"));
 }
 
-fn real_time_queue(scratch: &Scratch) -> FileArxivQueue {
+fn real_time_queue(scratch: &Scratch) -> FileServiceQueue {
     arxiv_queue(
         &scratch.dir(),
         Rc::new(SystemClock),

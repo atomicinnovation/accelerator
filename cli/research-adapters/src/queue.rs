@@ -1,5 +1,5 @@
-//! The arXiv fetch queue on disk: one record and one lock file per ticket,
-//! and a bookkeeping lock every write happens under.
+//! A service's fetch queue on disk: one record and one lock file per
+//! ticket, and a bookkeeping lock every write happens under.
 //!
 //! A ticket is live while its call holds an exclusive `flock` on the
 //! ticket's lock file. Probes take only a momentary shared lock, so probers
@@ -50,7 +50,7 @@ use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
 use crate::scratch::ScratchDir;
 
-const QUEUE_DIRECTORY: &str = "arxiv-queue";
+const QUEUE_DIRECTORY: &str = "queue";
 const QUEUE_LOCK: &str = "queue.lock";
 const SCHEMA_VERSION: u32 = 1;
 
@@ -64,7 +64,8 @@ pub fn random_nonce() -> Nonce {
     Nonce::from_bits(rand::random())
 }
 
-pub struct FileArxivQueue {
+pub struct FileServiceQueue {
+    service: Service,
     scratch: ScratchDir,
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
@@ -72,15 +73,17 @@ pub struct FileArxivQueue {
     unprobeable_reported: RefCell<HashSet<Ticket>>,
 }
 
-impl FileArxivQueue {
+impl FileServiceQueue {
     pub fn new(
+        service: Service,
         research: &ScratchDir,
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
         nonces: Box<dyn Fn() -> Nonce>,
     ) -> Self {
         Self {
-            scratch: research.nested(QUEUE_DIRECTORY),
+            service,
+            scratch: research.service_state(service).nested(QUEUE_DIRECTORY),
             clock,
             diagnostics,
             nonces,
@@ -370,19 +373,21 @@ impl FileArxivQueue {
     }
 
     fn report(&self, detail: &str) {
-        self.diagnostics
-            .report(&format!("research fetch: arxiv queue {detail}"));
+        self.diagnostics.report(&format!(
+            "research fetch: {} queue {detail}",
+            self.service.code()
+        ));
     }
 }
 
-impl ServiceQueue for FileArxivQueue {
+impl ServiceQueue for FileServiceQueue {
     fn join(
         &self,
         binding: &Binding,
         presented: Option<&Ticket>,
         deadline: &Deadline,
     ) -> Joining<'_> {
-        let spacing = Service::Arxiv.pacing().interval();
+        let spacing = self.service.pacing().interval();
         let Some(_queue_lock) =
             self.bookkept(deadline, Bound::ServingWindow(spacing))
         else {
@@ -440,7 +445,7 @@ impl ServiceQueue for FileArxivQueue {
 }
 
 struct FilePlace<'q> {
-    queue: &'q FileArxivQueue,
+    queue: &'q FileServiceQueue,
     ticket: Ticket,
     _lock: File,
     position: Position,
@@ -538,7 +543,7 @@ impl Place for FilePlace<'_> {
         let now = self.queue.clock.wall_now();
         is_served_given(
             ahead.iter().map(|ticket| self.contender(ticket, now)),
-            Service::Arxiv.pacing().slots(),
+            self.queue.service.pacing().slots(),
             now,
         )
     }
