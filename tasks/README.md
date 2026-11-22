@@ -961,6 +961,13 @@ and fails naming whichever is missing:
 - `bash`
 - `zsh` — preinstalled on macOS; `apt-get install zsh` on Debian and Ubuntu
 
+`test:integration:design-automation` needs the vendored Playwright driver and
+Chromium trees pinned in `pins.toml`. On a cold
+`cli/target/design-automation-cache/`, after a fresh clone, a `cargo clean` or
+a pin bump, the lane downloads them (~325 MB) from the artefact host, so
+`test:integration` and the bare `mise run` need the network that first time.
+CI keeps the directory in an `actions/cache` keyed on `pins.toml`.
+
 ### Opt-in research lanes
 
 Two research lanes stay out of the `test:integration` roll-up and the bare

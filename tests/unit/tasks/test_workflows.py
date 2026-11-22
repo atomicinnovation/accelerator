@@ -722,6 +722,22 @@ def test_the_cpu_count_report_is_the_host_task(wf):
     assert step["run"] == "mise run host:cpu-counts"
 
 
+_RUNTIME_TREE_CACHE = "Cache the design-automation runtime trees"
+
+
+def test_the_integration_job_restores_the_runtime_trees_before_the_tests(wf):
+    job = wf["jobs"]["test-integration"]
+    cache = job["steps"][_step_index(job, _RUNTIME_TREE_CACHE)]
+
+    assert _step_action(cache) == "actions/cache"
+    assert cache["with"]["path"] == "cli/target/design-automation-cache"
+    assert "hashFiles('pins.toml')" in cache["with"]["key"]
+    assert "runner.os" in cache["with"]["key"]
+    assert _step_index(job, _RUNTIME_TREE_CACHE) < _step_index(
+        job, "Run integration tests"
+    )
+
+
 # --- Pull-request contention -------------------------------------------
 
 PUSH_ONLY = "github.event_name == 'push'"

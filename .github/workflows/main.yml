@@ -107,6 +107,15 @@ jobs:
             cli
             cli -> target/release-guard
 
+      # The design-automation lane's vendored driver and browser trees are a
+      # ~325 MB download from the artefact host and not Cargo artefacts, so
+      # rust-cache is not relied on to keep them.
+      - name: Cache the design-automation runtime trees
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: cli/target/design-automation-cache
+          key: design-automation-trees-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pins.toml') }}
+
       # test:integration:research runs the research guard's verdicts under
       # zsh as well as bash; macOS ships zsh, ubuntu does not.
       - name: Install zsh

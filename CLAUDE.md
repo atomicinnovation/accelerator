@@ -20,7 +20,10 @@ plain library crate.
 the full local CI mirror: it builds the frontend + dev server, applies all
 formatters and safe lint fixes, runs every lint and type-check, and runs the
 entire test suite. It is heavy (reformats in place, compiles Rust several
-times). A change is not finished until this is green.
+times), and the first run after a fresh clone or a pin bump downloads ~325 MB
+of Playwright runtime trees, so it needs the network (see "System
+prerequisites" in `tasks/README.md`). A change is not finished until this is
+green.
 
 Two faster entry points exist and should be your inner loop:
 
