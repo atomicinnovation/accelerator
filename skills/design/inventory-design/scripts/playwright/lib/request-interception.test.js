@@ -77,17 +77,22 @@ test('a main-frame navigation to a link-local host is failed and recorded', asyn
   assert.equal(refusals[0].url, 'http://169.254.169.254/');
 });
 
-test('a redirect hop is judged like the hop that led to it', async () => {
+test('a redirect hop is judged on its own, not by the hop that led to it', async () => {
   const { pause, sent, refusals } = interceptor();
 
+  await pause(hop({ url: `${LOCATION_ORIGIN}/start` }));
   await pause(
     hop({
       url: 'http://169.254.169.254/',
-      redirectedRequestId: 'interception-0',
+      redirectedRequestId: 'interception-1',
     })
   );
 
-  assert.equal(sent[0].method, 'Fetch.failRequest');
+  assert.deepEqual(
+    sent.map(({ method }) => method),
+    ['Fetch.continueRequest', 'Fetch.failRequest']
+  );
+  assert.equal(refusals.length, 1);
   assert.equal(refusals[0].classification, 'link-local');
 });
 
