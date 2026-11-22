@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T22:15:00+00:00"
+last_updated: "2026-11-22T23:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2162,18 +2162,44 @@ commands. Every one must pass the built guard.
 
 Then `mise run docs:generate`.
 
+### Outcome
+
+Phase 7 landed in five commits: the parser change, the web profile, the
+finding outputter, research-topic, and `research.md`.
+
+- **Parser.** `fenced_blocks` in `tasks/shared/skill_parsing.py` returns each
+  block's language tag with its first line. It returns plain pairs, since the
+  module is pinned to import only `re` and `fnmatch`. The structure test and
+  the profile invocation test skip `markdown` blocks with it.
+- **Examples.** The publisher-only example is `10.1007/978-1-349-06671-1_23`
+  (`Palgrave Macmillan UK`, from the phase 4 book-chapter fixture). The
+  combined-block example is `https://doi.org/10.1371/journal.pone.0000308`
+  (`PLoS ONE`). Every landing host in the table was checked live against
+  `doi.org`'s first redirect.
+- **Failed outcome.** The web profile gains a **Failed** outcome for
+  `E_DOI_TICKET_LIVE`. It also handles any other `doi metadata` status, any
+  unnamed non-zero exit, and a refused call as `unavailable`.
+- **Publisher value form.** `publisher` gets its value form in `research.md`
+  only. The finding outputter's table is unchanged.
+
+The first bare `mise run` failed only on the CLI coverage floor (lines
+91.82%), with every test passing. After `cargo llvm-cov clean --workspace`,
+coverage read 94.34%. One rerun of the lane hit a load flake in
+`polite_pool_calls_start_no_more_than_ten_a_second` (11 starts in a second);
+the test passed 6 of 6 runs alone. The next full `mise run` exited 0.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] `mise run test:integration:research`
-- [ ] `mise run check`
-- [ ] `mise run` exits 0 (full local CI mirror, including `docs:check`).
+- [x] `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] `mise run test:integration:research`
+- [x] `mise run check`
+- [x] `mise run` exits 0 (full local CI mirror, including `docs:check`).
 
 #### Manual Verification
 
-- [ ] A reading of the web profile from start to finish gives one unambiguous
+- [x] A reading of the web profile from start to finish gives one unambiguous
       path for each of the four branches.
 
 ---
