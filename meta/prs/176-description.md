@@ -14,7 +14,7 @@ pr_number: 176
 tags: ["research", "research-topic", "ask", "report", "eval"]
 revision: "34b7d2125394b8132e9a6422427b73385f2dfac5"
 repository: "accelerator"
-last_updated: "2026-11-17T05:15:07+00:00"
+last_updated: "2026-11-22T01:26:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -39,36 +39,41 @@ refine loop that the build verbs left open.
   run the three gates via `research topic consultable`, read only what it
   lists, answer with per-part coverage (`answered` / `partial` /
   `unanswered`) and tiered sources, and propose focus areas that are
-  appended to `outline.md` as a new round only on confirmation. The
-  `freshness` and `conducted` refusals end by naming the retry:
-  `…then {verb} {slug} {question} again.`
+  appended to `outline.md` as a new round only on confirmation. Before
+  calling a part a gap, both read the level notes `consultable` lists under
+  the findings bearing on it. Every refusal ends by naming the retry:
+  `…then {verb} {slug} {question} again.` The verdict is taken again before
+  the first write after a reply.
 - **`ask`** — answers in conversation and writes nothing unless a proposal
   is confirmed.
 - **`report`** — on acceptance writes the report, sets the manifest's
   `report_count` to the `derived.report_count` that `research topic counts`
   prints, and offers to rewrite an existing report on the same question in
-  place rather than add a near-duplicate.
+  place rather than add a near-duplicate. `accept` writes a new report at
+  either prompt.
 - `conduct`, `synthesise` and `finalise` now take their counts and the
   freshness gate from the CLI instead of counting files in prose.
 - A scoped `Read` grant on the citing-once rule removes its permission
-  prompt. A denied post-reply command names the narrow allow rules the skill
-  itself grants.
+  prompt. A denied post-reply command names four narrow allow rules, the
+  research ones limited to `consultable` and `counts`.
 
 ### CLI (`cli/research*`, `cli/corpus*`)
 
 - `research topic report-path SLUG QUESTION` — the path a new report takes:
   a question slug cut before the word that would pass 60 characters (or at
-  60 when that cut would keep only the first word), with the first free
-  `-2`, `-3`, … suffix (`ReportSlug`, `layout/slug.rs`).
+  60 when that cut would leave 40 or fewer, the rule finding stems now share),
+  with the first free `-2`, `-3`, … suffix (`ReportSlug`, `TakenNames`,
+  `layout/slug.rs`).
 - `research topic counts SLUG` — disk-derived round, finding and report
   counts beside the manifest's and synthesis's, with fixed wording per
-  mismatch. Only `FreshnessCount`s gate freshness; `report_count` is
-  informational (`topic/counts.rs`).
-- `research topic consultable SLUG --profiles-dir DIR` — the gates in order
-  status → freshness → fully conducted, printing the first failure or the
-  documents to read (`topic/consultation.rs`). The plan marks an item that
-  repeats an earlier item's question, so only a question's first asking can
-  be held back.
+  mismatch. Only `FreshnessCount`s gate freshness; a drifted
+  `report_count` is a non-gating `notices` sentence (`topic/counts.rs`).
+- `research topic consultable SLUG` — the gates in order status →
+  freshness → fully conducted, printing the first failure or the documents
+  to read, level notes included (`topic/consultation.rs`). It and
+  `outstanding` find the profiles under `ACCELERATOR_PLUGIN_ROOT`. Each plan
+  item carries its own `HoldBack`, and a repeated question's added profile is
+  planned under its first asking's index.
 - `research::topic::lifecycle::SetStatus` models the set's statuses, pinned
   by an adapter test to the corpus schema's `status_vocab`;
   `topic::layout::{FINDINGS, REPORTS}` name the set's directories once.
@@ -82,7 +87,7 @@ refine loop that the build verbs left open.
 
 ### Eval and test infrastructure (`tasks/eval/`, `tests/`)
 
-- `mise run eval:ask-and-report` — 111 multi-turn headless sessions across
+- `mise run eval:ask-and-report` — 119 multi-turn headless sessions across
   57 scenarios (`evals/scenarios/*.json`) over a reference corpus
   (`evals/project/`), each turn judged against the criteria it declares plus
   global read-bound and write checks. Start-up gates: marker, version,
@@ -122,20 +127,23 @@ refine loop that the build verbs left open.
 ## Testing
 
 - [x] `mise run` (full local CI mirror, including `check` and the
-  eval-fixtures pre-flight) exited 0 at `a50bcb38`, the branch tip before
-  this description
-- [x] `mise run eval:ask-and-report` — run 5 passed 111/111 before the
-  review fixes; after them (new refusal recovery lines, allow-rule wording,
-  a preamble sentence and the harness refactors), `--family G2,G3,R1,E2,P1`
-  passed 40/40 on Claude Code 2.1.322
-- [x] Permission probe rows recorded on Claude Code 2.1.144 and 2.1.316
-- [x] Smoke test on scratch copies of the reference corpus, as headless
-  sessions on Claude Code 2.1.322: `report` accept writes the report and
-  `report_count: 1`, a second `report` on the same question lists it as
-  equivalent and `decline` writes nothing; `ask` confirming a proposal
-  appends only `## Round 4` and reopens the set to `researching`; `report`
-  on a `researching` set refuses and writes nothing. Both written projects
-  validate
+  eval-fixtures pre-flight) exited 0 at the branch tip
+- [x] `mise run eval:ask-and-report`, all 119 sessions on Claude Code
+  2.1.330 after the second review pass: 116 passed and 3 failed, each by
+  running a stray no-op shell command (`echo skip`, `true`, and
+  `consultable … 2>/dev/null`) that the Bash allow-list check rejects. The
+  38 sessions that errored at the account's usage limit were rerun with
+  `--rerun-errored`; L1 passed 3/3 on a fresh run after its level note was
+  given a sourced claim
+- [x] `mise run eval:citing-once` passed 36/36 on Claude Code 2.1.330, its
+  first run since its session code moved into `tasks/eval/headless`
+- [x] Permission probe rows recorded on Claude Code 2.1.144 and 2.1.316; a
+  probe turn on 2.1.330 ran the skill with no `Skill` grant and no denial
+- [x] The smoke test's flows are eval scenarios on this head: `report`
+  writes a report and `report_count` (R1), a second `report` lists the
+  equivalent report and `decline` writes nothing (E1), a confirmed proposal
+  appends one round and reopens the set (P1), and a `researching` set is
+  refused (G1)
 
 ## Notes for Reviewers
 
@@ -159,9 +167,9 @@ refine loop that the build verbs left open.
   (~1.8k), reference corpus fixtures and scenario JSON. The production
   surface is `SKILL.md`, `cli/research{,-adapters,-cli}` and the
   frontmatter validation changes in `cli/corpus`.
-- **Follow-up, not in this PR:** `conduct` never plans the profiles a
-  repeated question adds in a later round. That behaviour predates this PR;
-  `consultable` now agrees with it rather than reporting an empty hold-back.
+- ⚠️ **Long finding stems:** a question slugging past 60 characters now cuts
+  at a word. A `.levels/` tree an interrupted deep run left under the old
+  stem is researched again (CHANGELOG Changed).
 - 0281's frontmatter `status` is still `ready`; move it on after merge.
 
 https://claude.ai/code/session_01HEhrwSoJjp31mZmAMH7LFR
