@@ -21,7 +21,7 @@ use kernel::TEMP_PREFIX;
 use research::sources::classify::Reason;
 use research::sources::fetch::Clock;
 use research::sources::queue::is_abandoned;
-use research::sources::queue::is_front_given;
+use research::sources::queue::is_served_given;
 use research::sources::queue::ArxivQueue;
 use research::sources::queue::Binding;
 use research::sources::queue::Contender;
@@ -39,6 +39,7 @@ use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
 use research::sources::request::Limit;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use rustix::io::Errno;
@@ -153,7 +154,7 @@ impl FileArxivQueue {
                     .standing(ticket.clone(), self.presence_of(ticket, record))
             })
             .collect();
-        Queue::new(standings, snapshot.set_aside.clone())
+        Queue::new(standings, snapshot.set_aside.clone(), Vec::new())
     }
 
     fn presence_of(&self, ticket: &Ticket, record: &Record) -> Presence {
@@ -535,8 +536,9 @@ impl Place for FilePlace<'_> {
             .collect();
         ahead.sort_by_key(|ticket| Reverse(ticket.number()));
         let now = self.queue.clock.wall_now();
-        is_front_given(
+        is_served_given(
             ahead.iter().map(|ticket| self.contender(ticket, now)),
+            Service::Arxiv.pacing().slots(),
             now,
         )
     }
@@ -708,11 +710,11 @@ impl Record {
 impl From<&Binding> for StoredBinding {
     fn from(binding: &Binding) -> Self {
         match binding {
-            Binding::Search { query, limit } => Self::Search {
+            Binding::ArxivSearch { query, limit } => Self::Search {
                 query: query.spelled().to_owned(),
                 limit: limit.get(),
             },
-            Binding::Lookup(id) => Self::Lookup { id: id.to_string() },
+            Binding::ArxivLookup(id) => Self::Lookup { id: id.to_string() },
         }
     }
 }
@@ -720,11 +722,13 @@ impl From<&Binding> for StoredBinding {
 impl StoredBinding {
     fn to_binding(&self) -> Option<Binding> {
         Some(match self {
-            Self::Search { query, limit } => Binding::Search {
+            Self::Search { query, limit } => Binding::ArxivSearch {
                 query: ArxivQuery::parse(query).ok()?,
                 limit: Limit::try_from(*limit).ok()?,
             },
-            Self::Lookup { id } => Binding::Lookup(ArxivId::parse(id).ok()?),
+            Self::Lookup { id } => {
+                Binding::ArxivLookup(ArxivId::parse(id).ok()?)
+            }
         })
     }
 }

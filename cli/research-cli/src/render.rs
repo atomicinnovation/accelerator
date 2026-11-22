@@ -5,8 +5,7 @@
 use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
 use research::sources::metadata::SourceMetadata;
-use research::sources::queue::Binding;
-use research::sources::queue::TicketRejection;
+use research::sources::queue::RejectedTicket;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
 use research::sources::request::Family;
@@ -59,39 +58,13 @@ pub fn rejection(fetched: &FetchedRecords) -> Option<String> {
     let FetchOutcome::Rejected(rejection) = &fetched.outcome else {
         return None;
     };
-    Some(match rejection {
-        TicketRejection::Mismatch {
-            ticket,
-            issued,
-            differing,
-        } => {
-            let differing = differing
-                .iter()
-                .map(|argument| argument.code())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!(
-                "E_ARXIV_TICKET_MISMATCH: ticket {ticket} was issued for {} \
-                 (differing: {differing}); re-present it with that call, or \
-                 drop --ticket",
-                call_as_typed(issued)
-            )
+    Some(
+        RejectedTicket {
+            presented_to: fetched.family,
+            rejection: rejection.clone(),
         }
-        TicketRejection::AlreadyLive(ticket) => format!(
-            "E_ARXIV_TICKET_LIVE: ticket {ticket} is already being presented \
-             by another call; use that call's output, or re-present it once \
-             that call has returned"
-        ),
-    })
-}
-
-fn call_as_typed(binding: &Binding) -> String {
-    match binding {
-        Binding::Search { query, limit } => {
-            format!("search '{}' --limit {}", query.spelled(), limit.get())
-        }
-        Binding::Lookup(id) => format!("lookup {id}"),
-    }
+        .to_string(),
+    )
 }
 
 /// The line naming the source, verb and final status of a call that did not

@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use crate::sources::queue::MalformedTicket;
 use crate::sources::queue::Ticket;
 use crate::sources::web::page_url::PageUrl;
 use crate::sources::web::page_url::PageUrlError;
@@ -28,7 +29,7 @@ pub enum RequestError {
     MalformedArxivId(String),
     MalformedOpenAlexId(String),
     MalformedUrl(PageUrlError),
-    TicketMalformed(String),
+    TicketMalformed(Family, String),
     TicketNotQueued,
 }
 
@@ -81,10 +82,11 @@ impl fmt::Display for RequestError {
                 "E_WEB_URL_MALFORMED: the URL is not a fetchable http(s) URL: \
                  {rule}"
             ),
-            Self::TicketMalformed(ticket) => write!(
+            Self::TicketMalformed(family, ticket) => write!(
                 formatter,
-                "E_ARXIV_TICKET_MALFORMED: expected a ticket such as \
-                 42-9f1c2a (got '{ticket}')"
+                "E_{}_TICKET_MALFORMED: expected a ticket such as 42-9f1c2a \
+                 (got '{ticket}')",
+                family.code().to_ascii_uppercase()
             ),
             Self::TicketNotQueued => formatter.write_str(
                 "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches",
@@ -130,7 +132,11 @@ pub fn parse_ticket(
     if family != Family::Arxiv {
         return Err(RequestError::TicketNotQueued);
     }
-    Ticket::parse(raw).map(Some)
+    Ticket::parse(raw)
+        .map(Some)
+        .map_err(|MalformedTicket(raw)| {
+            RequestError::TicketMalformed(family, raw)
+        })
 }
 
 /// A source the fetcher can reach: a scholarly index, or a public page.

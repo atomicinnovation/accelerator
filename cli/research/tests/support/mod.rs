@@ -31,6 +31,7 @@ use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Place;
 use research::sources::queue::Position;
+use research::sources::queue::Provenance;
 use research::sources::queue::Queue;
 use research::sources::queue::Standing;
 use research::sources::queue::Ticket;
@@ -47,7 +48,15 @@ pub const fn queue_of(
     standings: Vec<Standing>,
     unparsed: Vec<Ticket>,
 ) -> Queue {
-    Queue::new(standings, unparsed)
+    Queue::new(standings, unparsed, Vec::new())
+}
+
+/// A queue of `standings` that also knows tickets other queues issued.
+pub const fn queue_with_foreign(
+    standings: Vec<Standing>,
+    foreign: Vec<(Ticket, Provenance)>,
+) -> Queue {
+    Queue::new(standings, Vec::new(), foreign)
 }
 
 pub const fn secs(seconds: u64) -> Duration {

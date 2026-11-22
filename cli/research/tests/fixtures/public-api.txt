@@ -1032,10 +1032,10 @@ pub fn research::sources::queue::Argument::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::Copy for research::sources::queue::Argument
 impl core::marker::StructuralPartialEq for research::sources::queue::Argument
 pub enum research::sources::queue::Binding
-pub research::sources::queue::Binding::Lookup(research::sources::request::ArxivId)
-pub research::sources::queue::Binding::Search
-pub research::sources::queue::Binding::Search::limit: research::sources::request::Limit
-pub research::sources::queue::Binding::Search::query: research::sources::request::ArxivQuery
+pub research::sources::queue::Binding::ArxivLookup(research::sources::request::ArxivId)
+pub research::sources::queue::Binding::ArxivSearch
+pub research::sources::queue::Binding::ArxivSearch::limit: research::sources::request::Limit
+pub research::sources::queue::Binding::ArxivSearch::query: research::sources::request::ArxivQuery
 impl research::sources::queue::Binding
 pub fn research::sources::queue::Binding::differing(&self, other: &Self) -> alloc::vec::Vec<research::sources::queue::Argument>
 pub fn research::sources::queue::Binding::of(request: &research::sources::request::ArxivRequest) -> Self
@@ -1046,6 +1046,8 @@ impl core::cmp::PartialEq for research::sources::queue::Binding
 pub fn research::sources::queue::Binding::eq(&self, other: &research::sources::queue::Binding) -> bool
 impl core::fmt::Debug for research::sources::queue::Binding
 pub fn research::sources::queue::Binding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::Binding
+pub fn research::sources::queue::Binding::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Binding
 pub enum research::sources::queue::Joining<'q>
 pub research::sources::queue::Joining::OverCap
@@ -1086,8 +1088,23 @@ pub fn research::sources::queue::Presentation::eq(&self, other: &research::sourc
 impl core::fmt::Debug for research::sources::queue::Presentation
 pub fn research::sources::queue::Presentation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Presentation
+pub enum research::sources::queue::Provenance
+pub research::sources::queue::Provenance::IssuedBeforeUpgrade
+pub research::sources::queue::Provenance::IssuedElsewhere(research::sources::request::Family)
+impl core::clone::Clone for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::clone(&self) -> research::sources::queue::Provenance
+impl core::cmp::Eq for research::sources::queue::Provenance
+impl core::cmp::PartialEq for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::eq(&self, other: &research::sources::queue::Provenance) -> bool
+impl core::fmt::Debug for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::queue::Provenance
+impl core::marker::StructuralPartialEq for research::sources::queue::Provenance
 pub enum research::sources::queue::TicketRejection
 pub research::sources::queue::TicketRejection::AlreadyLive(research::sources::queue::Ticket)
+pub research::sources::queue::TicketRejection::Foreign
+pub research::sources::queue::TicketRejection::Foreign::provenance: research::sources::queue::Provenance
+pub research::sources::queue::TicketRejection::Foreign::ticket: research::sources::queue::Ticket
 pub research::sources::queue::TicketRejection::Mismatch
 pub research::sources::queue::TicketRejection::Mismatch::differing: alloc::vec::Vec<research::sources::queue::Argument>
 pub research::sources::queue::TicketRejection::Mismatch::issued: research::sources::queue::Binding
@@ -1113,10 +1130,21 @@ impl core::fmt::Debug for research::sources::queue::Contender
 pub fn research::sources::queue::Contender::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::queue::Contender
 impl core::marker::StructuralPartialEq for research::sources::queue::Contender
+pub struct research::sources::queue::MalformedTicket(pub alloc::string::String)
+impl core::clone::Clone for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::clone(&self) -> research::sources::queue::MalformedTicket
+impl core::cmp::Eq for research::sources::queue::MalformedTicket
+impl core::cmp::PartialEq for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::eq(&self, other: &research::sources::queue::MalformedTicket) -> bool
+impl core::fmt::Debug for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::MalformedTicket
 pub struct research::sources::queue::Nonce(_)
 impl research::sources::queue::Nonce
 pub const fn research::sources::queue::Nonce::from_bits(bits: u32) -> Self
-pub fn research::sources::queue::Nonce::from_hex(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::queue::Nonce::from_hex(raw: &str) -> core::result::Result<Self, research::sources::queue::MalformedTicket>
 impl core::clone::Clone for research::sources::queue::Nonce
 pub fn research::sources::queue::Nonce::clone(&self) -> research::sources::queue::Nonce
 impl core::cmp::Eq for research::sources::queue::Nonce
@@ -1146,7 +1174,7 @@ impl core::marker::StructuralPartialEq for research::sources::queue::Position
 pub struct research::sources::queue::Queue
 impl research::sources::queue::Queue
 pub fn research::sources::queue::Queue::expired(&self, now: std::time::SystemTime) -> alloc::vec::Vec<research::sources::queue::Ticket>
-pub const fn research::sources::queue::Queue::new(standings: alloc::vec::Vec<research::sources::queue::Standing>, unparsed: alloc::vec::Vec<research::sources::queue::Ticket>) -> Self
+pub const fn research::sources::queue::Queue::new(standings: alloc::vec::Vec<research::sources::queue::Standing>, unparsed: alloc::vec::Vec<research::sources::queue::Ticket>, foreign: alloc::vec::Vec<(research::sources::queue::Ticket, research::sources::queue::Provenance)>) -> Self
 pub fn research::sources::queue::Queue::next_number(&self) -> u64
 pub fn research::sources::queue::Queue::position_of(&self, ticket: &research::sources::queue::Ticket, now: std::time::SystemTime) -> research::sources::queue::Position
 pub fn research::sources::queue::Queue::present(&self, presented: core::option::Option<&research::sources::queue::Ticket>, binding: &research::sources::queue::Binding, now: std::time::SystemTime) -> research::sources::queue::Presentation
@@ -1159,6 +1187,19 @@ pub fn research::sources::queue::Queue::eq(&self, other: &research::sources::que
 impl core::fmt::Debug for research::sources::queue::Queue
 pub fn research::sources::queue::Queue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Queue
+pub struct research::sources::queue::RejectedTicket
+pub research::sources::queue::RejectedTicket::presented_to: research::sources::request::Family
+pub research::sources::queue::RejectedTicket::rejection: research::sources::queue::TicketRejection
+impl core::clone::Clone for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::clone(&self) -> research::sources::queue::RejectedTicket
+impl core::cmp::Eq for research::sources::queue::RejectedTicket
+impl core::cmp::PartialEq for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::eq(&self, other: &research::sources::queue::RejectedTicket) -> bool
+impl core::fmt::Debug for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::RejectedTicket
 pub struct research::sources::queue::Standing
 pub research::sources::queue::Standing::binding: research::sources::queue::Binding
 pub research::sources::queue::Standing::issued_at: std::time::SystemTime
@@ -1179,7 +1220,7 @@ impl research::sources::queue::Ticket
 pub const fn research::sources::queue::Ticket::is_ahead_of(&self, other: &Self) -> bool
 pub const fn research::sources::queue::Ticket::issue(number: u64, nonce: research::sources::queue::Nonce) -> Self
 pub const fn research::sources::queue::Ticket::number(&self) -> u64
-pub fn research::sources::queue::Ticket::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::queue::Ticket::parse(raw: &str) -> core::result::Result<Self, research::sources::queue::MalformedTicket>
 impl core::clone::Clone for research::sources::queue::Ticket
 pub fn research::sources::queue::Ticket::clone(&self) -> research::sources::queue::Ticket
 impl core::cmp::Eq for research::sources::queue::Ticket
@@ -1204,7 +1245,7 @@ pub fn research::sources::queue::Place::leave(self: alloc::boxed::Box<Self>, dea
 pub fn research::sources::queue::Place::step_aside(self: alloc::boxed::Box<Self>, last_retryable: core::option::Option<research::sources::classify::Reason>, deadline: &research::sources::schedule::Deadline) -> research::sources::queue::Position
 pub fn research::sources::queue::Place::ticket(&self) -> &research::sources::queue::Ticket
 pub fn research::sources::queue::is_abandoned(issued_at: std::time::SystemTime, now: std::time::SystemTime) -> bool
-pub fn research::sources::queue::is_front_given(ahead: impl core::iter::traits::collect::IntoIterator<Item = research::sources::queue::Contender>, now: std::time::SystemTime) -> bool
+pub fn research::sources::queue::is_served_given(ahead: impl core::iter::traits::collect::IntoIterator<Item = research::sources::queue::Contender>, slots: core::num::nonzero::NonZeroU8, now: std::time::SystemTime) -> bool
 pub mod research::sources::record
 pub enum research::sources::record::Tier
 pub research::sources::record::Tier::One
@@ -1359,7 +1400,7 @@ pub research::sources::request::RequestError::MalformedUrl(research::sources::we
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
 pub research::sources::request::RequestError::MissingUrl
-pub research::sources::request::RequestError::TicketMalformed(alloc::string::String)
+pub research::sources::request::RequestError::TicketMalformed(research::sources::request::Family, alloc::string::String)
 pub research::sources::request::RequestError::TicketNotQueued
 pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
 pub research::sources::request::RequestError::UnknownVerb

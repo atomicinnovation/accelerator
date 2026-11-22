@@ -3,19 +3,23 @@
 mod support;
 
 use std::cell::Cell;
+use std::num::NonZeroU8;
 use std::time::Duration;
 use std::time::SystemTime;
 
 use research::sources::classify::Reason;
 use research::sources::queue::is_abandoned;
-use research::sources::queue::is_front_given;
+use research::sources::queue::is_served_given;
 use research::sources::queue::Argument;
 use research::sources::queue::Binding;
 use research::sources::queue::Contender;
+use research::sources::queue::MalformedTicket;
 use research::sources::queue::Nonce;
 use research::sources::queue::Presence;
 use research::sources::queue::Presentation;
+use research::sources::queue::Provenance;
 use research::sources::queue::Queue;
+use research::sources::queue::RejectedTicket;
 use research::sources::queue::Standing;
 use research::sources::queue::Ticket;
 use research::sources::queue::TicketRejection;
@@ -27,6 +31,9 @@ use research::sources::request::Family;
 use research::sources::request::Limit;
 use research::sources::request::RequestError;
 use support::queue_of;
+use support::queue_with_foreign;
+
+const ONE_SLOT: NonZeroU8 = NonZeroU8::MIN;
 
 const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -203,7 +210,7 @@ fn malformed_tickets_are_refused() {
     ] {
         assert_eq!(
             Ticket::parse(text),
-            Err(RequestError::TicketMalformed(text.to_owned())),
+            Err(MalformedTicket(text.to_owned())),
             "{text:?}"
         );
     }
@@ -476,8 +483,12 @@ fn position_counts_every_unexpired_ticket_ahead_live_or_absent() {
 
 #[test]
 fn an_absent_ticket_ahead_does_not_hold_the_front() {
-    assert!(is_front_given([absent(ago(20))], now()));
-    assert!(!is_front_given([absent(ago(20)), live(ago(10))], now()));
+    assert!(is_served_given([absent(ago(20))], ONE_SLOT, now()));
+    assert!(!is_served_given(
+        [absent(ago(20)), live(ago(10))],
+        ONE_SLOT,
+        now()
+    ));
 }
 
 #[test]
@@ -485,8 +496,8 @@ fn a_resumed_ticket_outranks_every_later_ticket() {
     let resumed = ticket("2-bbbbbb");
 
     assert!(resumed.is_ahead_of(&ticket("3-cccccc")));
-    assert!(is_front_given([absent(ago(400))], now()));
-    assert!(!is_front_given([live(ago(400))], now()));
+    assert!(is_served_given([absent(ago(400))], ONE_SLOT, now()));
+    assert!(!is_served_given([live(ago(400))], ONE_SLOT, now()));
 }
 
 #[test]
@@ -521,18 +532,27 @@ fn the_next_number_follows_an_unparsed_highest_ticket() {
 
 #[test]
 fn the_front_is_decided_by_the_first_live_unabandoned_contender() {
-    assert!(is_front_given([], now()));
-    assert!(is_front_given([absent(ago(10)), absent(ago(5))], now()));
-    assert!(!is_front_given([absent(ago(10)), live(ago(5))], now()));
+    assert!(is_served_given([], ONE_SLOT, now()));
+    assert!(is_served_given(
+        [absent(ago(10)), absent(ago(5))],
+        ONE_SLOT,
+        now()
+    ));
+    assert!(!is_served_given(
+        [absent(ago(10)), live(ago(5))],
+        ONE_SLOT,
+        now()
+    ));
 }
 
 #[test]
-fn is_front_given_reads_no_contender_past_the_first_that_blocks() {
+fn is_served_given_reads_no_contender_past_the_first_that_blocks() {
     let read = Cell::new(0);
     let contenders = [absent(ago(10)), live(ago(5)), live(ago(3))];
 
-    let front = is_front_given(
+    let front = is_served_given(
         contenders.into_iter().inspect(|_| read.set(read.get() + 1)),
+        ONE_SLOT,
         now(),
     );
 
@@ -542,26 +562,38 @@ fn is_front_given_reads_no_contender_past_the_first_that_blocks() {
 
 #[test]
 fn a_live_ticket_issued_1000_s_ago_still_holds_the_front() {
-    assert!(!is_front_given([live(ago(1000))], now()));
+    assert!(!is_served_given([live(ago(1000))], ONE_SLOT, now()));
     assert!(!is_abandoned(ago(1000), now()));
 }
 
 #[test]
 fn at_1001_s_it_is_abandoned_and_no_longer_holds_the_front() {
-    assert!(is_front_given([live(ago(1001))], now()));
+    assert!(is_served_given([live(ago(1001))], ONE_SLOT, now()));
     assert!(is_abandoned(ago(1001), now()));
 }
 
 #[test]
 fn an_unprobeable_contender_holds_the_front_for_one_invocation_after_presentation(
 ) {
-    assert!(!is_front_given([unprobeable(ago(500), ago(100))], now()));
-    assert!(is_front_given([unprobeable(ago(500), ago(101))], now()));
+    assert!(!is_served_given(
+        [unprobeable(ago(500), ago(100))],
+        ONE_SLOT,
+        now()
+    ));
+    assert!(is_served_given(
+        [unprobeable(ago(500), ago(101))],
+        ONE_SLOT,
+        now()
+    ));
 }
 
 #[test]
 fn an_unprobeable_contender_presented_moments_ago_yields_once_abandoned() {
-    assert!(is_front_given([unprobeable(ago(1001), ago(0))], now()));
+    assert!(is_served_given(
+        [unprobeable(ago(1001), ago(0))],
+        ONE_SLOT,
+        now()
+    ));
 }
 
 #[test]
@@ -654,5 +686,225 @@ fn a_stamp_later_than_now_neither_expires_nor_passes_the_cap() {
     assert_eq!(
         present(&queue, "3-aaaaaa", &graphs()),
         Presentation::Resume(ticket("3-aaaaaa"))
+    );
+}
+
+const THREE_SLOTS: NonZeroU8 = NonZeroU8::MIN.saturating_add(2);
+
+#[test]
+fn with_three_slots_two_unended_tickets_ahead_still_leave_one_served() {
+    let ahead = [live(ago(30)), live(ago(20))];
+
+    assert!(is_served_given(ahead, THREE_SLOTS, now()));
+}
+
+#[test]
+fn with_three_slots_the_third_unended_ticket_ahead_blocks() {
+    let ahead = [live(ago(30)), live(ago(20)), live(ago(10))];
+
+    assert!(!is_served_given(ahead, THREE_SLOTS, now()));
+}
+
+#[test]
+fn ended_tickets_ahead_never_count_against_the_slots() {
+    let mixed = [
+        absent(ago(40)),
+        live(ago(30)),
+        absent(ago(25)),
+        live(ago(20)),
+        absent(ago(15)),
+    ];
+
+    assert!(is_served_given(mixed, THREE_SLOTS, now()));
+    assert!(!is_served_given(mixed, ONE_SLOT, now()));
+    assert!(is_served_given(
+        [absent(ago(40)), absent(ago(30))],
+        ONE_SLOT,
+        now()
+    ));
+}
+
+#[test]
+fn is_served_given_reads_no_contender_past_the_last_slot_it_fills() {
+    let read = Cell::new(0);
+    let contenders =
+        [live(ago(30)), live(ago(20)), live(ago(10)), live(ago(5))];
+
+    let served = is_served_given(
+        contenders.into_iter().inspect(|_| read.set(read.get() + 1)),
+        THREE_SLOTS,
+        now(),
+    );
+
+    assert!(!served);
+    assert_eq!(read.get(), 3);
+}
+
+fn issued_elsewhere(text: &str) -> (Ticket, Provenance) {
+    (ticket(text), Provenance::IssuedElsewhere(Family::Doi))
+}
+
+#[test]
+fn a_ticket_issued_by_another_family_is_rejected_for_arxiv() {
+    let queue =
+        queue_with_foreign(Vec::new(), vec![issued_elsewhere("7-cccccc")]);
+
+    assert_eq!(
+        present(&queue, "7-cccccc", &graphs()),
+        Presentation::Rejected(TicketRejection::Foreign {
+            ticket: ticket("7-cccccc"),
+            provenance: Provenance::IssuedElsewhere(Family::Doi),
+        })
+    );
+}
+
+#[test]
+fn a_ticket_issued_before_the_upgrade_is_rejected() {
+    let queue = queue_with_foreign(
+        Vec::new(),
+        vec![(ticket("1-e85851"), Provenance::IssuedBeforeUpgrade)],
+    );
+
+    assert_eq!(
+        present(&queue, "1-e85851", &lookup("2608.21129")),
+        Presentation::Rejected(TicketRejection::Foreign {
+            ticket: ticket("1-e85851"),
+            provenance: Provenance::IssuedBeforeUpgrade,
+        })
+    );
+}
+
+#[test]
+fn an_own_ticket_with_the_same_text_as_a_foreign_one_resumes() {
+    let queue = queue_with_foreign(
+        vec![Seed::new("7-cccccc", 60).ended(30).standing()],
+        vec![issued_elsewhere("7-cccccc")],
+    );
+
+    assert_eq!(
+        present(&queue, "7-cccccc", &graphs()),
+        Presentation::Resume(ticket("7-cccccc"))
+    );
+}
+
+#[test]
+fn an_own_ticket_long_expired_still_never_falls_back_to_a_foreign_match() {
+    let queue = queue_with_foreign(
+        vec![Seed::new("7-cccccc", 2000).ended(1000).standing()],
+        vec![issued_elsewhere("7-cccccc")],
+    );
+
+    assert_eq!(present(&queue, "7-cccccc", &graphs()), Presentation::Join);
+}
+
+#[test]
+fn a_ticket_known_to_no_queue_joins_beside_foreign_ones() {
+    let queue =
+        queue_with_foreign(Vec::new(), vec![issued_elsewhere("7-cccccc")]);
+
+    assert_eq!(present(&queue, "8-dddddd", &graphs()), Presentation::Join);
+}
+
+fn line(presented_to: Family, rejection: TicketRejection) -> String {
+    RejectedTicket {
+        presented_to,
+        rejection,
+    }
+    .to_string()
+}
+
+#[test]
+fn a_mismatch_names_the_call_the_ticket_was_issued_for() {
+    assert_eq!(
+        line(
+            Family::Arxiv,
+            TicketRejection::Mismatch {
+                ticket: ticket("3-aaaaaa"),
+                issued: search("attention heads", "5"),
+                differing: vec![Argument::Query, Argument::Limit],
+            }
+        ),
+        "E_ARXIV_TICKET_MISMATCH: ticket 3-aaaaaa was issued for search \
+         'attention heads' --limit 5 (differing: query, --limit); re-present \
+         it with that call, or drop --ticket"
+    );
+    assert_eq!(
+        line(
+            Family::Arxiv,
+            TicketRejection::Mismatch {
+                ticket: ticket("3-aaaaaa"),
+                issued: lookup("2608.21129"),
+                differing: vec![Argument::Verb],
+            }
+        ),
+        "E_ARXIV_TICKET_MISMATCH: ticket 3-aaaaaa was issued for lookup \
+         2608.21129 (differing: verb); re-present it with that call, or drop \
+         --ticket"
+    );
+}
+
+#[test]
+fn a_foreign_ticket_is_a_mismatch_of_the_family_it_was_presented_to() {
+    assert_eq!(
+        line(
+            Family::Arxiv,
+            TicketRejection::Foreign {
+                ticket: ticket("7-cccccc"),
+                provenance: Provenance::IssuedElsewhere(Family::Doi),
+            }
+        ),
+        "E_ARXIV_TICKET_MISMATCH: ticket 7-cccccc was issued by fetch doi; \
+         drop --ticket and re-run the call"
+    );
+    assert_eq!(
+        line(
+            Family::Doi,
+            TicketRejection::Foreign {
+                ticket: ticket("7-cccccc"),
+                provenance: Provenance::IssuedElsewhere(Family::Arxiv),
+            }
+        ),
+        "E_DOI_TICKET_MISMATCH: ticket 7-cccccc was issued by fetch arxiv; \
+         drop --ticket and re-run the call"
+    );
+    assert_eq!(
+        line(
+            Family::Arxiv,
+            TicketRejection::Foreign {
+                ticket: ticket("1-e85851"),
+                provenance: Provenance::IssuedBeforeUpgrade,
+            }
+        ),
+        "E_ARXIV_TICKET_MISMATCH: ticket 1-e85851 was issued before this \
+         release; drop --ticket and re-run the call"
+    );
+}
+
+#[test]
+fn a_live_ticket_is_refused_under_the_family_it_was_presented_to() {
+    let live =
+        |family| line(family, TicketRejection::AlreadyLive(ticket("3-aaaaaa")));
+
+    assert_eq!(
+        live(Family::Arxiv),
+        "E_ARXIV_TICKET_LIVE: ticket 3-aaaaaa is already being presented by \
+         another call; use that call's output, or re-present it once that \
+         call has returned"
+    );
+    assert!(live(Family::Doi).starts_with("E_DOI_TICKET_LIVE: ticket 3-aaaaaa"));
+}
+
+#[test]
+fn a_malformed_ticket_is_refused_under_the_family_it_was_presented_to() {
+    assert_eq!(
+        parse_ticket(Family::Arxiv, Some("42")),
+        Err(RequestError::TicketMalformed(
+            Family::Arxiv,
+            "42".to_owned()
+        ))
+    );
+    assert_eq!(
+        RequestError::TicketMalformed(Family::Doi, "42".to_owned()).to_string(),
+        "E_DOI_TICKET_MALFORMED: expected a ticket such as 42-9f1c2a (got '42')"
     );
 }
