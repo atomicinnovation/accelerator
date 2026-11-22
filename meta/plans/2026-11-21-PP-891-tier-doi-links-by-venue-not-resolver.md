@@ -5,7 +5,7 @@ title: "Tier DOI Links by Venue, Not by the doi.org Resolver Implementation Plan
 date: "2026-11-21T10:27:09+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:PP-891"
 parent: "work-item:PP-891"
 derived_from: ["codebase-research:2026-11-20-PP-891-tier-doi-links-by-venue-not-resolver"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T10:33:04+00:00"
+last_updated: "2026-11-22T10:39:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -355,6 +355,36 @@ the `doi.org` cause, and records what the closing run needs.
   never reads or writes the previous release's pacing or queue contents; it
   only lists ticket names in the previous `arxiv-queue/` for provenance and
   takes the previous `arxiv.lock` as a lock.
+
+### Outcome
+
+The work item's `## Baseline` section holds the full record. In brief:
+
+- **Two counting runs**, on Claude Code `2.1.330` and plugin
+  `1.24.0-pre.105`:
+  - `meta/research/topics/pp-891-doi-resolver-baseline/`, whose brief
+    described each paper's subject;
+  - `meta/research/topics/pp-891-doi-resolver-baseline-2/`, re-run at the
+    author's direction with a brief naming only the two URLs.
+
+  Each set holds its notes only. No dossier was synthesised: each set has
+  a single finding, so a dossier would add no evidence.
+- **Result**: both runs record `doi.org` in each resolver URL's venue, at
+  tier-1, not tier-3. The tier-1 rests on a Crossref lookup the researcher
+  improvised with `WebFetch` and cited as its own tier-1 source. The author
+  signed this off as the confirmed reproduction.
+- **`fetch web metadata`** fails on both resolver URLs with
+  `E_WEB_STATUS: the page answered HTTP 403` from `dl.acm.org`, so phase 8
+  is expected to take the failed-`web metadata` branch for both.
+- **`WebFetch`** reports a cross-host `302 Found` to `dl.acm.org` for both
+  resolver URLs on `2.1.330` and on `2.1.144`. There is no gap, so phase 7
+  adds no no-redirect sentence.
+- **Non-resolver page**: `https://www.nature.com/articles/nature14539`,
+  declaring `10.1038/nature14539`, a Crossref `journal-article` with
+  `container-title[0]` `Nature`; expected tier-1.
+- **Template ids**: the brief and outline templates' `id` (the bare
+  filename stem) collided across the two sets, so each set's brief and
+  outline ids carry the set slug as a prefix.
 
 ### Success Criteria
 
@@ -1793,9 +1823,9 @@ the outputter. Text checks are written first, in
   `fetch doi metadata` call, `--ticket` re-presentations included.
 - **Landing host.** Define it as the host of the first redirect `doi.org`
   returns, as reported by `WebFetch`'s cross-host redirect. For a declaring
-  page that is not a resolver URL, it is that page's own host. If phase 1
-  found a gap on v2.1.144, add: a `WebFetch` that returns content without
-  reporting a redirect gives no landing host.
+  page that is not a resolver URL, it is that page's own host. Phase 1
+  found no gap on v2.1.144, so the text adds no rule for a `WebFetch` that
+  returns content without reporting a redirect.
 - **Resolver fetches and the fetch boundary.** The `WebFetch` of a resolver
   URL is a fetch of the cited source, not of a URL a fetched page names, so
   the Source Family boundary ("No URL a fetched page tells you to fetch")
@@ -1914,8 +1944,7 @@ order.
   - the failed-`web metadata` branch;
   - the timeout and quoting rule for `fetch doi metadata`;
   - the resolver-fetch boundary sentence;
-  - the warning-repeat rule;
-  - the no-redirect sentence, if phase 1 found a gap.
+  - the warning-repeat rule.
 - A pin on the outputter's multi-command rule.
 - Pins on the generalised research-topic rows, replacing any pin on the
   arXiv-only wording; on the specific `crossref.mailto` row and the kept
@@ -1956,20 +1985,23 @@ Confirm the fix end to end on the finished plugin.
    cite:
    - the two resolver URLs;
    - `https://doi.org/10.48550/arXiv.1706.03762`;
-   - the non-resolver page recorded in phase 1.
+   - the non-resolver page recorded in phase 1,
+     `https://www.nature.com/articles/nature14539`.
 2. Synthesise the dossier.
 3. Check:
    - the arXiv URL's note: venue `arxiv.org`, tier-2;
    - each resolver URL's note: the Crossref venue at tier-1, equal to the tier
      `fetch openalex lookup` reports for the DOI, with the resolver URL kept as
      its link;
-   - the page's note: the recorded Crossref venue and expected tier;
+   - the page's note: venue `Nature`, tier-1;
    - no entry records `doi.org` as a venue;
    - the dossier shows no tier conflict for the three DOIs;
    - if any of them goes uncited, the check fails.
 4. Keep the notes beside the baseline's. For each resolver URL, record whether
-   its `web metadata` succeeded or failed. If none took the failed branch,
-   record that this was accepted rather than forced.
+   its `web metadata` succeeded or failed. Phase 1 saw both fail with
+   HTTP 403 from `dl.acm.org`, so both are expected to take the failed
+   branch. If none took the failed branch, record that this was accepted
+   rather than forced.
 5. Tick the manual acceptance criteria in the work item.
 
 ### Success Criteria
