@@ -777,9 +777,11 @@ and `research topic counts`. Run each command as its own Bash call, never joined
 to another by `&&`, `;`, `|` or a newline: Claude Code approves each part of a
 joined command on its own, so it prompts. Run each bare, with no redirect such
 as `2>/dev/null`, and run no command this section does not name, such as `echo`
-or `true`: the skill's grant covers neither, so each prompts too. Read every
-file with the Read tool, never through a shell command — no `cd`, `cat`, `sed`,
-`grep`, `ls` or loop.
+or `true`: the skill's grant covers neither, so each prompts too. Print a
+refusal or an answer straight after the last command it needs, with no command
+in between, not even a no-op such as `printf ''`. Read every file with the Read
+tool, never through a shell command — no `cd`, `cat`, `sed`, `grep`, `ls` or
+loop.
 
 At a prompt that guards a write — accept, pick or confirm — a reply that does
 not clearly choose one of its options re-asks that prompt and writes nothing.
