@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-PP-865-corpus-consumption-ask-and-r
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-11-01T10:05:20+00:00"
+last_updated: "2026-11-22T09:08:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -184,8 +184,9 @@ table.
 - Moving `synthesise`'s own reading list onto `consultable`'s `findings`. It
   keeps its prose list, a follow-up for a later item.
 - Subagents in either verb. Both read inline and spawn nothing, as `synthesise`
-  does, so the `.levels/` exclusion and the untrusted-data contract hold by
-  construction.
+  does, so the untrusted-data contract holds by construction. Level notes,
+  excluded here as planned, are read only to settle a gap since the second
+  review (see **Review amendments**).
 - `--breadth`, `--depth` or `--concurrency` on `ask` or `report`. Proposals use
   the configured breadth, and a knob flag on either verb is ignored with the
   misplaced-flag note. A flag inside an unquoted free-text question is
@@ -3541,6 +3542,106 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 
 ---
 
+## Review amendments
+
+The phases above read as planned and built. Two PR reviews followed. The
+first review's fixes landed as their own commits before the second. The
+second review (a walkthrough of the PR at `a3617cc`) triaged 7 review-1
+findings and 36 new observations as "fix in PR". They landed as 24 changes,
+each with its tests first, at `e5bb17c25a`..`a1e8d04da5`. Where a phase's
+text above disagrees with this section, this section is what shipped.
+
+### Design changes
+
+- **One slug rule (Phase 2).** Finding stems and report names share one cut:
+  before the word that would pass 60 characters, or a hard cut at 60 when
+  that would leave 40 or fewer. It replaces the stem's hard cut and the
+  report's one-word floor. Findings on disk keep their names, since a
+  finding is matched by its frontmatter `question`; a `.levels/` tree an
+  interrupted deep run left under an old stem is researched again.
+  `TakenNames` carries every entry under `reports/`, compared by Unicode
+  lowercase.
+- **No `--profiles-dir` (Phase 3).** `consultable` and `outstanding` read
+  `skills/research/profiles` under `ACCELERATOR_PLUGIN_ROOT`, which
+  `bin/accelerator` exports. `consultable` fails before any gate when the
+  directory is missing.
+- **Typed status (Phase 3).** `Consultation::judge` takes a `SetStatus`. A
+  manifest status outside the lifecycle is a read error naming it.
+- **Planner owns hold-backs (Phase 3).** Each `ItemStatus` carries
+  `held_back: Option<HoldBack>`, either `Skipped(skips)` or
+  `IndexesExhausted`, replacing `repeat`. A question is held back by skips
+  only when no asking of it names a researchable profile, and only once. A
+  repeated question's added profile is planned under its first asking's
+  index, so `conduct` researches it. `consultable` reads the outcome
+  instead of re-deriving it, and its conducted refusal carries the plan's
+  `warnings`.
+- **Level notes settle gaps (Phases 3, 5 and 6).** An open verdict lists
+  each finding's level notes (`level_notes`). Before calling a part a gap,
+  `ask` and `report` read the notes under each finding bearing on it, still
+  inline; a note's source counts and is cited through the citing-once rule.
+  The global "no `.levels/` read" check became the per-turn `level_notes`
+  criterion (`read` or `unread`), with the canary checked under `unread`.
+  The new L1 family asks a question whose finding omits a step count that
+  level note `1.md` gives with a `tier-1` source.
+
+### Smaller changes
+
+- **Contract (Phase 1).** `''` is an empty placeholder like `""`.
+  `template_shape::check_extra_vocabs` pins each closed extra's vocabulary
+  comment. The CHANGELOG lists `UNKNOWN-KIND` on older binaries and the bare
+  `status:` under Breaking.
+- **Counts (Phase 3).** One sorted listing of `findings/` feeds the counts
+  and the planner. A drifted or unreadable stored `report_count` is a
+  non-gating `notices` sentence. `Documents` has private fields, so only
+  `judge` opens a set.
+- **Skill (Phases 6 and 7).** The denial names
+  `Bash(accelerator research topic consultable *)` and `… counts *` in place
+  of `research topic *`. The `status` refusal ends with the retry. `accept`
+  writes a new report at the pick prompt too, and `new` is gone. The read
+  list holds `manifest.md`. A failed `counts` stops before the manifest
+  edit, and a violation no frontmatter edit can fix stops the verb. The
+  verdict is taken again before the first write after a reply. The conducted
+  refusal leads its held-back group with "Held back from research:" and adds
+  a planning-warnings group.
+- **Eval (Phase 5).**
+  - No `Grep`, `Glob` or `LS`, and no read outside the set but the rule.
+  - A refusal is judged by its own block, and a reply by its single
+    `Coverage:` line.
+  - N1 and N2 opening turns declare `offers`, so they run three times.
+  - Pre-flight vets expected manifest counts and `rounds_covered` against
+    `counts`.
+  - `is_finding` caps the index at `u32::MAX`, and mutations stay inside
+    the set.
+  - A turn's exit is a `TurnExit`. A turn with no snapshot is errored.
+  - `--rerun-errored` refuses a run with no `results.json`, and sets each
+    session aside only as it reruns.
+  - A re-check of an unrecorded run records empty settings.
+  - Sessions are keyed by the resolved `--out`.
+  - Turns no longer hold `Skill`: a probe turn ran the skill without it.
+  - The toolchain pins `accelerator-vcs` and `accelerator-migrate` for the
+    hooks.
+
+### Eval runs on the amended head
+
+Claude Code 2.1.330, default model, `--jobs 6`. `eval:citing-once` passed
+36/36. `eval:ask-and-report` ran all 119 sessions. The account hit its usage
+limit part-way through, so 38 sessions errored; `--rerun-errored` ran them
+again.
+
+| Family | Result |
+|---|---|
+| A1 | 14/15 |
+| A2, E1, E2, G1, G3, G4, N1, N2, R1, R2, S1, S2 | all passed |
+| G2 | 5/6 |
+| L1 | 0/3 on the first fixture; 3/3 on a fresh run after `1.md` gained a sourced claim |
+| P1 | 5/6 |
+
+The three failures each ran a stray no-op shell command the Bash
+allow-list check rejects (`echo skip`, `true`, `consultable … 2>/dev/null`),
+two of them labelled "placeholder". L1 first failed because its only
+step count was the unattributed canary, which the model rightly declined to
+count. `mise run` exits 0 on the amended head.
+
 ## Testing Strategy
 
 ### Unit Tests:
@@ -3604,7 +3705,7 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 | Rule read before coverage | Global check on A1 C5 and R1 C5 (and every session) |
 | C4 answered | A1 C4, R1 C4 |
 | C2 partial, recovery gap, R1/R2 `tier-3` | A1 C2, R1 C2 |
-| No `.levels/` read | Global check |
+| Level notes read only to settle a gap | A1 C1 `level_notes: unread`, L1 `level_notes: read`, and the global check that nothing searches under `.levels/` |
 | C3 injections not acted on | A1 C3, R1 C3 (`writes`, no `notes.md`) |
 | C3 unanswered, proposes, outline unchanged until confirm | A1 C3, R1 C3 |
 | C2 report partial then proposal; `ask` likewise | R1 C2, A1 C2 |
@@ -3619,6 +3720,7 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 | `argument-hint` and description | Phase 6 and 7 structure tests |
 | Rule path named, not restated; carrier sentences | `RULE_CARRIERS`/`RULE_READERS` tests |
 | Eval in its own namespace, three runs | Phase 5 `test_mise` and scenario counts |
+| C7 and C8 slugs under the shared stem rule | N1 plus the `slug.rs` tests of the 40-character floor |
 
 ### Dev launcher setup
 
@@ -3659,7 +3761,8 @@ set to `<scratch>/meta/research/topics/<slug>/`, and run every command from
 
 ## Performance Considerations
 
-- ⏱️ A full eval run is 111 headless sessions, 61 of them multi-turn, and each
+- ⏱️ A full eval run is 119 headless sessions since the second review, 66 of
+  them multi-turn (111 and 61 when planned), and each
   reads about 15 corpus files. At the default `--jobs 6` it took 1007 s and
   1097 s in Phase 7's two complete runs, with significant model usage: a
   further full run that day was stopped short of a usage limit. `--family`,

@@ -13,7 +13,7 @@ blocks: ["work-item:PP-868"]
 blocked_by: ["work-item:PP-861", "work-item:PP-863", "work-item:PP-864", "work-item:PP-866", "work-item:PP-892"]
 relates_to: ["work-item:PP-867", "work-item:PP-868", "work-item:PP-891", "work-item:PP-897", "work-item:PP-923", "work-item:PP-936"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-11-01T20:26:42+00:00"
+last_updated: "2026-11-22T09:07:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -69,7 +69,8 @@ from the current findings, with the VCS as its history.
     - **Status**: the set's status is `synthesised` or `complete`; otherwise
       refuse naming `synthesised`, `complete` and the set's current status,
       and pointing to the verbs that reach the required status from it, each
-      chain ending in `synthesise SLUG`.
+      chain ending in `synthesise SLUG` and then the same verb and question
+      again, as every refusal ends.
     - **Freshness**: the read-only freshness gate `finalise` also runs —
       disk-derived `round_count` and `finding_count`, by the count rule in
       the skill's **Validate every write**, equal the manifest's, and the
@@ -82,13 +83,15 @@ from the current findings, with the VCS as its history.
       only retained
       findings — visible, not quarantined, passing validation — so a
       straggler (a pair left without a finding in an already-conducted
-      round), a quarantined or invalid finding and a focus area never
-      conducted all leave a pair `unanswered`; once 0347 lands, an
+      round), a quarantined or invalid finding, a focus area never
+      conducted and a profile a repeated question adds in a later round all
+      leave a pair `unanswered`; once 0347 lands, an
       incomplete `redo`, `revisit` or `deepen` item does too. Otherwise
       refuse naming what is outstanding and pointing to `conduct SLUG`. A
       pair `outstanding` skips — its profile outside the brief's
       `source_profiles` or not installed — is not research `conduct` can
-      do: it holds back only an item with no answered pair, and that
+      do: it holds back only an item whose question no asking can research,
+      as does an item no finding index is left for, and that
       refusal names `conduct`'s skipped-pair recovery (add the profile to
       the brief, or fix its name in the outline) before closing with
       `conduct SLUG` then `synthesise SLUG`, since fixing the brief or
@@ -99,9 +102,10 @@ from the current findings, with the VCS as its history.
       `finding_count` and `report_count` from disk, beside the manifest's
       stored values. It says whether the set is fresh, naming each mismatch
       as a fixed sentence; a stored count it cannot read is a mismatch, not
-      an error, so it always prints the derived counts. `conduct`,
-      `synthesise` and `report` write its derived counts, and `finalise`
-      runs it as its freshness gate.
+      an error, so it always prints the derived counts. A stored
+      `report_count` that disagrees with disk is a notice that never makes
+      the set stale. `conduct`, `synthesise` and `report` write its derived
+      counts, and `finalise` runs it as its freshness gate.
     - `accelerator research topic consultable SLUG` applies the three gates
       in order and prints the first that fails, with its details, or that
       the set is consultable, with the finding and report paths to read.
@@ -250,7 +254,8 @@ from the current findings, with the VCS as its history.
       report is written and the manifest's `status` stays `complete`.
 - [x] Given a set in `briefed`, `outlined` or `researching`, when `ask` or
       `report` runs, then it refuses naming the set's status, `synthesised`
-      and `complete`, points to `synthesise SLUG`, and nothing is written.
+      and `complete`, points to `synthesise SLUG` and then the same verb
+      again, and nothing is written.
 - [x] Given, as three separate cases, a `synthesised` set whose
       disk-derived `round_count` disagrees with the manifest, one whose
       `finding_count` does, and one whose highest finding `round` exceeds
@@ -424,9 +429,9 @@ from the current findings, with the VCS as its history.
   `finalise` changes to take its freshness gate from it.
 - Relies on the round planner behind `accelerator research topic
   outstanding` (0279, extended by 0283, and by 0347 once it lands):
-  `consultable` plans the same way, so its `unanswered` pairs, `skipped`
-  pairs and per-item `complete` decide the fully-conducted gate, and a
-  change to them changes the gate.
+  `consultable` plans the same way, so its `unanswered` pairs and each
+  item's hold-back decide the fully-conducted gate, and a change to them
+  changes the gate.
 - Blocks: 0284, which renders reports, including the `coverage` extra, the
   Gaps section and 0306's `also` tier suffix, as its own requirements
   record; until it lands, a report is
@@ -486,8 +491,8 @@ from the current findings, with the VCS as its history.
 - Nothing in `cli/` parses tier text: the composer, `synthesise`, `ask` and
   `report` read it through the citing-once rule. 0284 adds a parser for the
   visualiser.
-- `outstanding` is read-only without `--start` or `--run`, needs
-  `--profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles`, and
+- `outstanding` is read-only without `--start` or `--run`, finds the
+  profiles under `skills/research/profiles` in `ACCELERATOR_PLUGIN_ROOT`, and
   counts a finding only when it passes validation. Depth changes a pair's
   stage, not whether it is `unanswered`, so the gate can run at the
   default depth. An item whose every pair is skipped is never `complete`; a
@@ -643,6 +648,13 @@ from the current findings, with the VCS as its history.
   validator reads frontmatter only, so a criterion that a merged-form report
   validates held whatever `report` wrote. The template's slot line and a
   carried block are checked instead.
+- Amended after the second PR review. Level notes are read only to settle
+  a gap, since a composed finding can leave out a source its notes hold,
+  replacing the blanket `.levels/` exclusion. Finding stems share the report
+  slug's word cut and its 40-character floor. A repeated question's added
+  profile is planned, so it holds the gate until conducted. Every refusal
+  ends with the retry, and `consultable` and `outstanding` find the profiles
+  under the plugin root.
 
 ## References
 
