@@ -343,9 +343,9 @@ whole call is `unavailable`: an unconfirmed withdrawal is never cited as
 
 Each queued service keeps its pacing state under
 `<paths.tmp>/research/services/<service>/` (`paths.tmp` defaults to
-`.accelerator/tmp`): arXiv's under `services/arxiv/`, and Crossref's public
-pool's under `services/crossref-public/`. OpenAlex is not paced; its budget is
-enforced server-side.
+`.accelerator/tmp`): arXiv's under `services/arxiv/`, and Crossref's pools'
+under `services/crossref-public/` and `services/crossref-polite/`. OpenAlex
+is not paced; its budget is enforced server-side.
 
 arXiv admits one request every three seconds, one connection at a time. A
 service serves as many calls at once as it has serving slots, each an
@@ -371,6 +371,23 @@ As arXiv's, each send is confirmed against the last request actually sent,
 and a `429` defers every waiting process by its `Retry-After`. The two
 services never wait on each other's slots or deferrals.
 
+### Crossref pools
+
+A DOI call uses one of two Crossref pools, each with its own queue, pacing
+and state directory:
+
+| Pool   | Spacing between request starts | In flight | State directory              |
+|--------|--------------------------------|-----------|------------------------------|
+| public | 210 ms                         | 1         | `services/crossref-public/`  |
+| polite | 102 ms                         | up to 3   | `services/crossref-polite/`  |
+
+A call uses the polite pool when `crossref.mailto`, or its override
+`ACCELERATOR_CROSSREF_MAILTO`, holds a plausible contact address, which it
+sends in the `User-Agent`. Otherwise it uses the public pool anonymously. The
+two pools never wait on each other. The `crossref` section of
+[`/accelerator:configure`](reference/skills/config/configure.md) gives how
+the address is resolved and checked.
+
 ### The fetch queue
 
 arXiv and DOI calls take turns, each service's in its own first-in,
@@ -379,7 +396,8 @@ first-out queue of tickets under `services/<service>/queue/`:
 - **Whole-call admission.** A ticket is admitted once fewer tickets ahead of
   it are still running than the service has slots, a slot is free, and its
   budget still covers its service's spacing and one 30 s request: for arXiv,
-  at least 33 s of its 100 s, and for Crossref's public pool 30.21 s. It then holds its slot for every request, retry and
+  at least 33 s of its 100 s, and for Crossref's public and polite pools
+  30.21 s and 30.102 s. It then holds its slot for every request, retry and
   backoff it makes, including arXiv's withdrawal confirmations, and checks
   the same serving window before each attempt.
 - **`waiting`.** A call that runs out of budget, before or after admission,
@@ -410,7 +428,7 @@ Its `contention.log` records one line per call that ended in
 | Kind              | Means                                      | Next step                                                                                                   |
 |-------------------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------|
 | `ticket_past_cap` | The ticket waited past its 900 s cap       | Avoid overlapping `conduct` runs in one project, or re-run once the other run has finished                  |
-| `queue_unusable`  | The call ran out of budget with no place to keep | Check that the service's `services/<service>/queue/` (for arXiv, `services/arxiv/queue/`; for DOI calls, `services/crossref-public/queue/`) is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
+| `queue_unusable`  | The call ran out of budget with no place to keep | Check that the service's `services/<service>/queue/` (for arXiv, `services/arxiv/queue/`; for DOI calls, `services/crossref-public/queue/` or `services/crossref-polite/queue/`) is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
 
 ### Limits
 
@@ -433,7 +451,9 @@ Its `contention.log` records one line per call that ended in
   call recreates it, empty, until a later release stops taking it.
 - Crossref's limits apply per IP address, but pacing is coordinated only
   within one project, so research running in several projects at once can
-  draw `429`s, which the retries absorb.
+  draw `429`s, which the retries absorb. Setting `crossref.mailto` moves
+  calls to the polite pool, whose higher limits (3 in flight) reduce that
+  contention.
 - A ticket that has just found itself admitted takes its slot a moment
   later. An earlier ticket re-presented in that moment can be passed for one
   turn; spacing is unaffected.
