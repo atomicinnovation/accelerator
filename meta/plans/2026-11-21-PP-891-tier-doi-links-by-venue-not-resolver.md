@@ -1927,7 +1927,7 @@ not been run for this phase. Departures from the plan:
 
 #### Automated Verification
 
-- [x] `cd cli && cargo nextest run -p research -p accelerator-research -p config -p launcher --features accelerator-research/test-loopback`
+- [x] `cd cli && cargo nextest run -p research -p accelerator-research -p config -p accelerator --features accelerator-research/test-loopback`
 - [x] `mise run public-api:update && mise run public-api:check`
 - [x] `mise run pup:check`
 - [x] `mise run docs:check`
