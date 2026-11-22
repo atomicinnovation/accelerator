@@ -1,13 +1,16 @@
-//! How a round plan's warnings, trims, skipped pairs and refused notes read
-//! to whoever runs `conduct`.
+//! How a round plan's warnings, trims, skipped pairs, held-back items and
+//! refused notes read to whoever runs `conduct`, `ask` or `report`.
 
 use research::topic::evidence::NoteRejection;
+use research::topic::plan::HoldBack;
 use research::topic::plan::Skip;
 use research::topic::plan::SkipReason;
 use research::topic::plan::Warning;
 use research::topic::question::PlainQuestionRule;
 use research::topic::question::LONGEST_PLAIN_QUESTION;
 use research::topic::tree::Trim;
+
+const NO_INDEX_LEFT: &str = "no finding index is left to allocate to";
 
 pub fn warning(warning: &Warning) -> String {
     match warning {
@@ -18,9 +21,12 @@ pub fn warning(warning: &Warning) -> String {
         Warning::UnmatchedFinding { name, question } => format!(
             "finding {name} answers '{question}', which no outline item asks"
         ),
-        Warning::IndexesExhausted { question } => format!(
-            "no finding index is left to allocate to '{question}', so it is \
-             not planned"
+        Warning::IndexesExhausted { question } => {
+            format!("{NO_INDEX_LEFT} '{question}', so it is not planned")
+        }
+        Warning::UnallocatableProfile { name } => format!(
+            "profile '{name}' has a name outside [a-z0-9-], so no finding \
+             can be named for it and it is not offered"
         ),
     }
 }
@@ -35,6 +41,46 @@ pub fn trim(trim: &Trim) -> String {
         trim.cap,
         trim.trimmed()
     )
+}
+
+pub fn hold_back_reasons(hold_back: &HoldBack) -> Vec<String> {
+    match hold_back {
+        HoldBack::Skipped(skips) => skips.iter().map(skip_reason).collect(),
+        HoldBack::IndexesExhausted => vec![format!("{NO_INDEX_LEFT} it")],
+    }
+}
+
+pub fn hold_back_recoveries(hold_back: &HoldBack) -> Vec<String> {
+    let recoveries = match hold_back {
+        HoldBack::Skipped(skips) => skips.iter().map(skip_recovery).collect(),
+        HoldBack::IndexesExhausted => vec![
+            "Remove or renumber the finding or .levels/ tree that claims the \
+             highest index, so an index is left to allocate."
+                .to_owned(),
+        ],
+    };
+    recoveries
+        .into_iter()
+        .fold(Vec::new(), |mut distinct, recovery| {
+            if !distinct.contains(&recovery) {
+                distinct.push(recovery);
+            }
+            distinct
+        })
+}
+
+fn skip_recovery(skip: &Skip) -> String {
+    let profile = &skip.pair.profile;
+    match skip.reason {
+        SkipReason::NotInBrief => format!(
+            "Add '{profile}' to the brief's source_profiles, or fix its name \
+             in the outline."
+        ),
+        SkipReason::NotInstalled => format!(
+            "Install the '{profile}-profile' skill, or name an installed \
+             profile in the outline."
+        ),
+    }
 }
 
 pub fn skip_reason(skip: &Skip) -> String {
@@ -96,12 +142,14 @@ mod tests {
     use research::topic::layout::note_ref::NoteRef;
     use research::topic::layout::stem::Stem;
     use research::topic::outline::Pair;
+    use research::topic::plan::HoldBack;
     use research::topic::plan::Skip;
     use research::topic::plan::SkipReason;
     use research::topic::plan::Warning;
     use research::topic::question::PlainQuestionRule;
     use research::topic::tree::Trim;
 
+    use super::hold_back_recoveries;
     use super::rejection;
     use super::skip_reason;
     use super::trim;
@@ -228,5 +276,34 @@ mod tests {
         for (given, text) in rows {
             assert_eq!(rejection(&given), text);
         }
+    }
+
+    fn skip(profile: &str, reason: SkipReason) -> Skip {
+        Skip {
+            pair: Pair {
+                question: "A?".to_owned(),
+                profile: profile.to_owned(),
+            },
+            reason,
+        }
+    }
+
+    #[test]
+    fn each_skip_reason_names_its_own_recovery_once() {
+        let hold_back = HoldBack::Skipped(vec![
+            skip("crossref", SkipReason::NotInstalled),
+            skip("pubmed", SkipReason::NotInBrief),
+            skip("crossref", SkipReason::NotInstalled),
+        ]);
+
+        assert_eq!(
+            hold_back_recoveries(&hold_back),
+            [
+                "Install the 'crossref-profile' skill, or name an installed \
+                 profile in the outline.",
+                "Add 'pubmed' to the brief's source_profiles, or fix its name \
+                 in the outline.",
+            ]
+        );
     }
 }

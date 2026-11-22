@@ -124,6 +124,17 @@ def skill_invocation(context: Context) -> None:
     context.run("uv run pytest tests/integration/skill-invocation -v")
 
 
+@task(help={"filter_": pytest_filter_help("gate")})
+def eval_fixtures(context: Context, filter_: str | None = None) -> None:
+    """Pre-flight the ask-and-report reference corpus on debug CLI builds."""
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/eval-fixtures -v",
+        mise_task="test:integration:eval-fixtures",
+        filter_=filter_,
+    )
+
+
 @task
 def deny(context: Context) -> None:
     """cargo-deny native-tls/OpenSSL ban regression (offline fixtures)."""

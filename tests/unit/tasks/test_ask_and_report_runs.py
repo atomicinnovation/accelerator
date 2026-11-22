@@ -1,0 +1,466 @@
+import json
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from tasks.eval.ask_and_report import runs
+from tasks.eval.ask_and_report.scenarios import load_scenario_files
+from tasks.eval.toolchain import Toolchain
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+EVALS = REPO_ROOT / "skills/research/research-topic/evals"
+RULE = REPO_ROOT / "skills/research/outputters/citing-once/SKILL.md"
+TOOLCHAIN = Toolchain.debug(REPO_ROOT)
+FILES = load_scenario_files(EVALS / "scenarios")
+SLUG = "llm-agent-planning"
+BRIEFED = (
+    f"ask refused: {SLUG} is briefed; it needs synthesised or complete. "
+    f"Run outline {SLUG}, then conduct {SLUG}, then synthesise {SLUG}, "
+    f"then ask {SLUG} How do LLM agents plan multi-step tasks? again."
+)
+ANSWERED = (
+    "Agents plan by decomposition.\n\nCoverage: answered\nCovered:\n"
+    "- planning: Hierarchical Task Planning (tier-1)\n\n"
+    "Reply accept to write reports/how-do-llm-agents-plan-multi-step-tasks.md,"
+    " reject to propose research instead, or decline to write nothing."
+)
+
+
+def _line(record: dict) -> str:
+    return json.dumps(record)
+
+
+def _log(*, text: str = "", read_rule: bool = False, bash: str = "") -> str:
+    lines = [
+        _line(
+            {
+                "type": "system",
+                "subtype": "init",
+                "session_id": "s",
+                "model": "claude-test",
+                "plugins": [{"name": "accelerator", "path": str(REPO_ROOT)}],
+            }
+        )
+    ]
+    calls = []
+    if read_rule:
+        calls.append(("Read", {"file_path": str(RULE)}))
+    if bash:
+        calls.append(("Bash", {"command": bash}))
+    lines += [
+        _line(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": name,
+                            "name": name,
+                            "input": i,
+                        }
+                    ]
+                },
+            }
+        )
+        for name, i in calls
+    ]
+    if text:
+        lines.append(
+            _line(
+                {
+                    "type": "assistant",
+                    "message": {"content": [{"type": "text", "text": text}]},
+                }
+            )
+        )
+    lines.append(
+        _line({"type": "result", "is_error": False, "permission_denials": []})
+    )
+    return "\n".join(lines) + "\n"
+
+
+class Scripted:
+    """Answer each turn with its scripted log and exit, or a timeout."""
+
+    def __init__(self, *turns: tuple[str, int | str]) -> None:
+        self.turns = list(turns)
+        self.commands: list[list[str]] = []
+
+    def __call__(self, command, root, log, env) -> int:
+        self.commands.append(command)
+        text, outcome = self.turns[len(self.commands) - 1]
+        log.write_text(text)
+        log.with_suffix(".err").write_text("boom\n")
+        if outcome == "timeout":
+            raise subprocess.TimeoutExpired(command, 1)
+        return int(outcome)
+
+
+def _plan(tmp_path: Path, name: str) -> runs.SessionPlan:
+    return next(
+        plan
+        for plan in runs.plan_sessions(FILES, tmp_path)
+        if plan.scenario.name == name
+    )
+
+
+def _session(tmp_path: Path, name: str, runner: Scripted) -> runs.SessionPlan:
+    plan = _plan(tmp_path, name)
+    runs.run_planned(
+        plan,
+        plugin_root=REPO_ROOT,
+        flags=[],
+        env={},
+        run=runner,
+    )
+    return plan
+
+
+def _judge(plan: runs.SessionPlan) -> runs.SessionResult:
+    return runs.judge(plan, REPO_ROOT, validate=lambda path: None)
+
+
+def test_the_full_run_plans_every_session_in_its_own_directory(
+    tmp_path: Path,
+) -> None:
+    plans = runs.plan_sessions(FILES, tmp_path)
+
+    assert len(plans) == 119
+    assert len({plan.directory for plan in plans}) == 119
+    assert _plan(tmp_path, "a1-c2-partial").directory == (
+        tmp_path / "A1" / "a1-c2-partial" / "run-1"
+    )
+
+
+def test_family_verb_and_scenario_filters_combine(tmp_path: Path) -> None:
+    by_family = runs.plan_sessions(FILES, tmp_path, families=("G1", "S1"))
+    by_verb = runs.plan_sessions(
+        FILES, tmp_path, families=("G1", "S1"), verbs=("ask",)
+    )
+    by_name = runs.plan_sessions(
+        FILES, tmp_path, verbs=("ask",), scenarios=("s1-complete-ask",)
+    )
+
+    assert len(by_family) == 12
+    assert {p.scenario.verb for p in by_verb} == {"ask"}
+    assert len(by_verb) == 6
+    assert [p.directory.name for p in by_name] == ["run-1", "run-2", "run-3"]
+
+
+def test_a_filter_matching_nothing_is_named_beside_the_valid_names() -> None:
+    problems = runs.unmatched_filters(
+        FILES, families=("r1", "G1"), verbs=("asks",), scenarios=("nope",)
+    )
+
+    assert len(problems) == 3
+    family, verb, scenario = problems
+    assert family.startswith("--family r1 matches no scenario file; valid: ")
+    assert "G1" in family
+    assert verb == "--verb asks matches no scenario; valid: ask, report"
+    assert scenario.startswith("--scenario nope matches no scenario; valid: ")
+    assert "s1-complete-ask" in scenario
+
+
+def test_filter_names_that_each_match_a_scenario_raise_no_problem() -> None:
+    assert (
+        runs.unmatched_filters(
+            FILES,
+            families=("G1",),
+            verbs=("ask", "report"),
+            scenarios=("s1-complete-ask",),
+        )
+        == []
+    )
+
+
+def test_a_re_check_judges_only_sessions_on_disk(tmp_path: Path) -> None:
+    plans = runs.plan_sessions(FILES, tmp_path, families=("G1",))
+    plans[2].directory.mkdir(parents=True)
+
+    assert runs.sessions_on_disk(plans) == [plans[2]]
+
+
+def test_a_session_meeting_its_criteria_passes(tmp_path: Path) -> None:
+    plan = _session(
+        tmp_path, "g1-briefed-ask", Scripted((_log(text=BRIEFED), 0))
+    )
+
+    result = _judge(plan)
+
+    assert result.status == "passed", result.failures
+
+
+def test_a_wrong_refusal_fails_with_a_located_line(tmp_path: Path) -> None:
+    plan = _session(tmp_path, "g1-briefed-ask", Scripted((_log(text="No."), 0)))
+
+    result = _judge(plan)
+
+    assert result.status == "failed"
+    log = plan.directory / "turn-1.jsonl"
+    assert result.failures[0].startswith(f"{plan.directory} turn 1 refusal: ")
+    assert result.failures[0].endswith(f"({log})")
+
+
+def test_an_errored_turn_skips_its_criteria(tmp_path: Path) -> None:
+    plan = _session(tmp_path, "g1-briefed-ask", Scripted((_log(text="No."), 1)))
+
+    result = _judge(plan)
+
+    assert result.status == "errored"
+    assert result.failures == []
+    assert result.errored == [
+        runs.ErroredTurn(1, "exit code 1", plan.directory / "turn-1.err")
+    ]
+
+
+def test_a_resumed_turn_exiting_with_an_empty_log_errors_the_session(
+    tmp_path: Path,
+) -> None:
+    plan = _session(
+        tmp_path,
+        "r2-decline",
+        Scripted((_log(text=ANSWERED, read_rule=True), 0), ("", 1)),
+    )
+
+    assert _judge(plan).status == "errored"
+
+
+def test_a_criterion_broken_before_a_timeout_stays_failed(
+    tmp_path: Path,
+) -> None:
+    plan = _session(
+        tmp_path,
+        "r2-decline",
+        Scripted((_log(text="No answer."), 0), ("", "timeout")),
+    )
+
+    result = _judge(plan)
+
+    assert result.status == "failed"
+    assert result.errored == [
+        runs.ErroredTurn(2, "timeout", plan.directory / "turn-2.err")
+    ]
+
+
+def test_a_broken_turn_check_stops_the_session_and_fails_it(
+    tmp_path: Path,
+) -> None:
+    runner = Scripted((_log(text=ANSWERED, read_rule=True, bash="ls"), 0))
+    plan = _session(tmp_path, "r2-decline", runner)
+
+    result = _judge(plan)
+
+    assert len(runner.commands) == 1
+    assert (plan.directory / "turn-2.exit").read_text() == "not-run"
+    assert result.status == "failed"
+    assert any("allow-list" in failure for failure in result.failures)
+
+
+def test_a_session_that_never_started_is_errored(tmp_path: Path) -> None:
+    plan = _plan(tmp_path, "g1-briefed-ask")
+    plan.directory.mkdir(parents=True)
+
+    assert _judge(plan).status == "errored"
+
+
+def _write_outcomes(tmp_path: Path) -> dict[str, runs.SessionPlan]:
+    return {
+        "passed": _session(
+            tmp_path, "g1-briefed-ask", Scripted((_log(text=BRIEFED), 0))
+        ),
+        "failed": _session(
+            tmp_path, "g1-briefed-report", Scripted((_log(text="No."), 0))
+        ),
+        "errored": _session(
+            tmp_path, "g1-outlined-ask", Scripted((_log(text="No."), 1))
+        ),
+    }
+
+
+def test_only_errored_sessions_are_planned_again_and_none_moves_yet(
+    tmp_path: Path,
+) -> None:
+    sessions = _write_outcomes(tmp_path)
+    on_disk = runs.sessions_on_disk(runs.plan_sessions(FILES, tmp_path))
+
+    replanned = runs.errored_sessions(on_disk, REPO_ROOT, TOOLCHAIN)
+
+    assert replanned == [sessions["errored"]]
+    for session in sessions.values():
+        assert (session.directory / "turn-1.exit").exists()
+
+
+def _running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[bool, list[str]]]:
+    seen: list[tuple[bool, list[str]]] = []
+
+    def run_planned(plan, *args) -> None:
+        seen.append(
+            (
+                plan.directory.exists(),
+                sorted(p.name for p in plan.directory.parent.iterdir()),
+            )
+        )
+
+    monkeypatch.setattr(runs, "run_planned", run_planned)
+    return seen
+
+
+def test_a_rerun_sets_each_session_aside_only_as_it_reruns_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    errored = _write_outcomes(tmp_path)["errored"]
+    seen = _running(monkeypatch)
+
+    runs.run_eval([errored], REPO_ROOT, [], {}, jobs=1, replacing=True)
+
+    assert seen == [(False, ["run-1.errored-1"])]
+
+
+def test_a_second_set_aside_takes_the_next_free_suffix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    errored = _write_outcomes(tmp_path)["errored"]
+    (errored.directory.parent / "run-1.errored-1").mkdir()
+    _running(monkeypatch)
+
+    runs.run_eval([errored], REPO_ROOT, [], {}, jobs=1, replacing=True)
+
+    assert (errored.directory.parent / "run-1.errored-2").is_dir()
+
+
+def test_sessions_are_planned_under_the_resolved_out_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    plans = runs.plan_sessions(FILES, Path("out"))
+
+    assert plans[0].directory.is_relative_to(tmp_path.resolve() / "out")
+
+
+def test_a_run_whose_settings_were_never_recorded_constrains_no_rerun() -> None:
+    unrecorded = runs.RunSettings("", "", "")
+    given = runs.RunSettings("2.1.316", "claude-test", "/config")
+
+    assert runs.settings_conflict(unrecorded, given) is None
+
+
+def test_results_record_the_run_s_settings(tmp_path: Path) -> None:
+    settings = runs.RunSettings("2.1.300", "claude-test", "/config")
+    runs.save_results([], tmp_path, settings)
+
+    assert runs.load_settings(tmp_path) == settings
+
+
+def test_a_narrowed_save_keeps_the_run_s_other_sessions(
+    tmp_path: Path,
+) -> None:
+    settings = runs.RunSettings("2.1.300", "claude-test", "/config")
+    first = runs.SessionResult("a/run-1", "A1", "a")
+    second = runs.SessionResult("b/run-1", "B1", "b")
+    runs.save_results([first, second], tmp_path, settings)
+
+    rejudged = runs.SessionResult("b/run-1", "B1", "b", failures=["x"])
+    runs.save_results([rejudged], tmp_path, settings)
+
+    recorded = json.loads((tmp_path / runs.RESULTS).read_text())["sessions"]
+    assert [(s["session"], s["status"]) for s in recorded] == [
+        ("a/run-1", "passed"),
+        ("b/run-1", "failed"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        runs.RunSettings("2.1.300", "other", ""),
+        runs.RunSettings("2.1.300", "", "/elsewhere"),
+        runs.RunSettings("2.1.316", "", ""),
+    ],
+    ids=["model", "config-dir", "claude-version"],
+)
+def test_a_rerun_refuses_settings_that_differ_from_the_run_s(
+    given: runs.RunSettings,
+) -> None:
+    recorded = runs.RunSettings("2.1.300", "claude-test", "/config")
+
+    assert runs.settings_conflict(recorded, given)
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        runs.RunSettings("2.1.300", "", ""),
+        runs.RunSettings("2.1.300", "claude-test", "/config"),
+    ],
+    ids=["none-given", "same-given"],
+)
+def test_a_rerun_takes_the_run_s_settings_when_none_differ(
+    given: runs.RunSettings,
+) -> None:
+    recorded = runs.RunSettings("2.1.300", "claude-test", "/config")
+
+    assert runs.settings_conflict(recorded, given) is None
+
+
+def test_the_summary_ends_with_each_errored_turn_and_the_rerun_command(
+    tmp_path: Path,
+) -> None:
+    sessions = _write_outcomes(tmp_path)
+    plans = list(sessions.values())
+    results = [_judge(plan) for plan in plans]
+    settings = runs.RunSettings("2.1.300", "claude-test", "/config")
+
+    lines = runs.summary(plans, results, tmp_path, settings).splitlines()
+
+    errored = sessions["errored"].directory
+    assert "| G1 | 1/3 | 1 | 1 |" in lines
+    assert lines[-2:] == [
+        f"{errored} turn 1 errored: exit code 1 ({errored / 'turn-1.err'})",
+        "mise run eval:ask-and-report --rerun-errored "
+        f"--out {tmp_path} --model claude-test --config-dir /config",
+    ]
+
+
+def test_a_summary_with_no_errored_session_names_no_rerun(
+    tmp_path: Path,
+) -> None:
+    plan = _session(
+        tmp_path, "g1-briefed-ask", Scripted((_log(text=BRIEFED), 0))
+    )
+    settings = runs.RunSettings("2.1.300", "", "")
+
+    text = runs.summary([plan], [_judge(plan)], tmp_path, settings)
+
+    assert "--rerun-errored" not in text
+
+
+def test_a_result_records_the_model_each_session_ran(tmp_path: Path) -> None:
+    plan = _session(
+        tmp_path, "g1-briefed-ask", Scripted((_log(text=BRIEFED), 0))
+    )
+
+    assert _judge(plan).models == ["claude-test"]
+
+
+def test_one_session_s_harness_error_leaves_the_rest_to_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plans = runs.plan_sessions(FILES, tmp_path, families=("G1",))
+    ran: list[str] = []
+
+    def run_planned(plan, *args) -> None:
+        ran.append(plan.scenario.name)
+        if plan is plans[0]:
+            raise RuntimeError("harness bug")
+
+    monkeypatch.setattr(runs, "run_planned", run_planned)
+
+    with pytest.raises(RuntimeError, match="harness bug"):
+        runs.run_eval(plans, REPO_ROOT, [], {}, jobs=1)
+
+    assert len(ran) == len(plans)

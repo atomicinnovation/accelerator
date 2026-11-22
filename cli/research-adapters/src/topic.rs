@@ -1,8 +1,10 @@
-//! Reading a `topic-research` set from disk into the inputs its round plan
-//! is derived from.
+//! Reading a `topic-research` set from disk.
+//!
+//! The set's files give the inputs its round plan is derived from, the counts
+//! they hold beside those its manifest and synthesis record, and the status
+//! its consultation is judged on.
 
 use std::collections::BTreeMap;
-use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -18,18 +20,34 @@ use corpus::Mapping;
 use corpus::Scalar;
 use research::topic::claims::ClaimedIndexes;
 use research::topic::claims::IndexClaim;
+use research::topic::counts::CountedFindings;
+use research::topic::counts::CountedReports;
+use research::topic::counts::CountsReading;
+use research::topic::counts::StoredCount;
+use research::topic::counts::StoredCounts;
 use research::topic::evidence::Digest;
 use research::topic::evidence::Finding;
 use research::topic::evidence::LevelNote;
 use research::topic::evidence::LevelNoteFields;
 use research::topic::evidence::LevelsDirectory;
 use research::topic::evidence::NoteRejection;
+use research::topic::layout::entry::is_finding_entry;
 use research::topic::layout::lineage::Lineage;
+use research::topic::layout::note_ref::NoteRef;
+use research::topic::layout::slug::TakenNames;
 use research::topic::layout::stem::Stem;
+use research::topic::layout::BRIEF;
+use research::topic::layout::FINDINGS;
+use research::topic::layout::MANIFEST;
+use research::topic::layout::OUTLINE;
+use research::topic::layout::REPORTS;
+use research::topic::layout::SYNTHESIS;
+use research::topic::lifecycle::SetStatus;
 use research::topic::outline::Outline;
 use research::topic::outline::Pair;
 use research::topic::outline::DEFAULT_PROFILE;
 use research::topic::plan::RoundInputs;
+use research::topic::plan::RoundPlan;
 use research::topic::question::UnicodeText;
 use research::topic::tree::Depth;
 use sha2::Digest as _;
@@ -55,6 +73,15 @@ pub struct AvailableProfiles {
     pub unallocatable: Vec<String>,
 }
 
+#[must_use]
+pub fn missing_profiles_dir(profiles_dir: &Path) -> kernel::Error {
+    kernel::Error::Failed(format!(
+        "E_TOPIC_RESEARCH_PROFILES: no profiles directory at {}; reinstall \
+         the plugin",
+        profiles_dir.display()
+    ))
+}
+
 /// Every profile with a skill under `profiles_dir`, sorted.
 ///
 /// # Errors
@@ -64,12 +91,9 @@ pub fn available_profiles<F: DirReader + FileReader>(
     profiles_dir: &Path,
     fs: &F,
 ) -> Result<AvailableProfiles, kernel::Error> {
-    let mut entries = fs.list(profiles_dir)?.ok_or_else(|| {
-        kernel::Error::Failed(format!(
-            "no profiles directory at {}",
-            profiles_dir.display()
-        ))
-    })?;
+    let mut entries = fs
+        .list(profiles_dir)?
+        .ok_or_else(|| missing_profiles_dir(profiles_dir))?;
     entries.sort();
     let mut profiles = AvailableProfiles::default();
     for entry in entries {
@@ -84,30 +108,6 @@ pub fn available_profiles<F: DirReader + FileReader>(
         }
     }
     Ok(profiles)
-}
-
-/// Something about the set on disk the round plan cannot express.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReadingWarning {
-    UnallocatableProfile { name: String },
-}
-
-impl fmt::Display for ReadingWarning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnallocatableProfile { name } => write!(
-                f,
-                "profile '{name}' has a name outside [a-z0-9-], so no finding \
-                 can be named for it and it is not offered"
-            ),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RoundReading {
-    pub inputs: RoundInputs,
-    pub warnings: Vec<ReadingWarning>,
 }
 
 /// The outline, findings, quarantine markers, level notes and brief
@@ -128,36 +128,236 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     fs: &F,
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
-) -> Result<RoundReading, kernel::Error> {
+) -> Result<RoundInputs, kernel::Error> {
     let outline = fs
-        .read(&set_root.join("outline.md"))?
+        .read(&set_root.join(OUTLINE))?
         .map_or_else(Outline::default, |text| Outline::parse(&text));
     let source_profiles = fs
-        .read(&set_root.join("brief.md"))?
+        .read(&set_root.join(BRIEF))?
         .and_then(|text| {
             string_list(&frontmatter(&text, parser)?, "source_profiles")
         })
         .unwrap_or_else(|| vec![DEFAULT_PROFILE.to_owned()]);
-    let listing =
-        read_findings(&set_root.join("findings"), fs, parser, unicode)?;
+    let listing = read_findings(&set_root.join(FINDINGS), fs, parser, unicode)?;
     let profiles = available_profiles(profiles_dir, fs)?;
-    Ok(RoundReading {
-        inputs: RoundInputs {
-            outline,
-            findings: listing.findings,
-            quarantined: listing.quarantined,
-            source_profiles,
-            available_profiles: profiles.names,
-            levels: listing.levels,
-            depth,
-            claims,
-        },
-        warnings: profiles
-            .unallocatable
-            .into_iter()
-            .map(|name| ReadingWarning::UnallocatableProfile { name })
-            .collect(),
+    Ok(RoundInputs {
+        outline,
+        findings: listing.findings,
+        quarantined: listing.quarantined,
+        source_profiles,
+        available_profiles: profiles.names,
+        unallocatable_profiles: profiles.unallocatable,
+        levels: listing.levels,
+        depth,
+        claims,
     })
+}
+
+/// The level notes in a stem's `.levels/` tree, or none when it has no
+/// tree.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when the finding's `.levels/` cannot be listed.
+pub fn level_notes_of<F: DirReader + DirectoryProbe>(
+    set_root: &Path,
+    stem: &Stem,
+    fs: &F,
+) -> Result<Vec<NoteRef>, kernel::Error> {
+    let levels = format!("{FINDINGS}/{stem}{LEVELS_SUFFIX}");
+    Ok(files_in(&set_root.join(levels), fs)?
+        .iter()
+        .filter_map(|name| note_lineage(name))
+        .map(|lineage| NoteRef {
+            stem: stem.clone(),
+            lineage,
+        })
+        .collect())
+}
+
+/// The names under the set's `reports/`, or none when it has no `reports/`.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when `reports/` exists but cannot be listed.
+pub fn taken_report_names<F: DirReader>(
+    set_root: &Path,
+    fs: &F,
+) -> Result<TakenNames, kernel::Error> {
+    Ok(TakenNames::listed(
+        fs.list(&set_root.join(REPORTS))?.unwrap_or_default(),
+    ))
+}
+
+/// The counts the files in the set's `findings/` and `reports/` give, beside
+/// the manifest's `round_count`, `finding_count` and `report_count` and
+/// `synthesis.md`'s `rounds_covered`.
+///
+/// A directory is never counted, whatever its name. A stored value is read
+/// as a whole number, bare or quoted; one that is absent is missing, and any
+/// other is unreadable rather than an error.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when a directory cannot be listed or a file read fails
+/// for a reason other than absence.
+pub fn read_counts<F: DirReader + FileReader + DirectoryProbe>(
+    set_root: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+) -> Result<CountsReading, kernel::Error> {
+    let findings_dir = set_root.join(FINDINGS);
+    let entries = files_in(&findings_dir, fs)?;
+    let entries: Vec<&str> = entries.iter().map(String::as_str).collect();
+    let findings = CountedFindings::of(&entries, |name| {
+        let fields = fields_of(&findings_dir.join(name), fs, parser)?;
+        Ok::<_, kernel::Error>(match stored_count(fields.as_ref(), "round") {
+            StoredCount::Count(round) => Some(round),
+            StoredCount::Missing | StoredCount::Unreadable(_) => None,
+        })
+    })?;
+    let reports = files_in(&set_root.join(REPORTS), fs)?;
+    let reports: Vec<&str> = reports.iter().map(String::as_str).collect();
+    let manifest = fields_of(&set_root.join(MANIFEST), fs, parser)?;
+    let synthesis = fields_of(&set_root.join(SYNTHESIS), fs, parser)?;
+    Ok(CountsReading {
+        stored: StoredCounts {
+            round_count: stored_count(manifest.as_ref(), "round_count"),
+            finding_count: stored_count(manifest.as_ref(), "finding_count"),
+            report_count: stored_count(manifest.as_ref(), "report_count"),
+            rounds_covered: stored_count(synthesis.as_ref(), "rounds_covered"),
+        },
+        findings,
+        reports: CountedReports::of(&reports),
+    })
+}
+
+/// The entries directly in one directory, sorted and split once into files
+/// and directories, so every reader of the directory sees the same files.
+struct DirectoryEntries {
+    files: Vec<String>,
+    directories: Vec<String>,
+}
+
+impl DirectoryEntries {
+    fn of<F: DirReader + DirectoryProbe>(
+        dir: &Path,
+        fs: &F,
+    ) -> Result<Self, kernel::Error> {
+        let mut names = fs.list(dir)?.unwrap_or_default();
+        names.sort_unstable();
+        let (directories, files) = names
+            .into_iter()
+            .partition(|name| fs.is_dir(&dir.join(name)));
+        Ok(Self { files, directories })
+    }
+}
+
+fn files_in<F: DirReader + DirectoryProbe>(
+    dir: &Path,
+    fs: &F,
+) -> Result<Vec<String>, kernel::Error> {
+    Ok(DirectoryEntries::of(dir, fs)?.files)
+}
+
+/// The `status` the set's manifest records.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when `manifest.md` cannot be read, records no
+/// `status`, or records one outside a set's lifecycle.
+pub fn read_set_status<F: FileReader>(
+    set_root: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+) -> Result<SetStatus, kernel::Error> {
+    let manifest = set_root.join(MANIFEST);
+    let recorded = fields_of(&manifest, fs, parser)?
+        .and_then(|fields| string(&fields, "status"))
+        .ok_or_else(|| {
+            kernel::Error::Failed(format!(
+                "no status recorded in {}",
+                manifest.display()
+            ))
+        })?;
+    SetStatus::named(&recorded).ok_or_else(|| {
+        kernel::Error::Failed(format!(
+            "{} records status '{recorded}', which is not a topic-research \
+             status",
+            manifest.display()
+        ))
+    })
+}
+
+/// The set's round plan as a query reads it: at the default depth, with no
+/// run's claims.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when [`read_round_inputs`] fails.
+pub fn read_plan<F: DirReader + FileReader + DirectoryProbe>(
+    set_root: &Path,
+    profiles_dir: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+    unicode: &dyn UnicodeText,
+) -> Result<RoundPlan, kernel::Error> {
+    let inputs = read_round_inputs(
+        set_root,
+        profiles_dir,
+        Depth::default(),
+        ClaimedIndexes::default(),
+        fs,
+        parser,
+        unicode,
+    )?;
+    Ok(RoundPlan::of(&inputs, unicode))
+}
+
+fn fields_of<F: FileReader>(
+    path: &Path,
+    fs: &F,
+    parser: &dyn FrontmatterParser,
+) -> Result<Option<Mapping>, kernel::Error> {
+    Ok(fs.read(path)?.and_then(|text| frontmatter(&text, parser)))
+}
+
+fn stored_count(fields: Option<&Mapping>, key: &str) -> StoredCount {
+    let Some(value) = fields.and_then(|fields| fields.get(key)) else {
+        return StoredCount::Missing;
+    };
+    match value {
+        FrontmatterValue::Scalar(Scalar::Null) => StoredCount::Missing,
+        FrontmatterValue::Scalar(Scalar::Int(number)) => u32::try_from(*number)
+            .map_or_else(
+                |_| StoredCount::Unreadable(number.to_string()),
+                StoredCount::Count,
+            ),
+        FrontmatterValue::Scalar(Scalar::String(text)) => whole_number(text)
+            .map_or_else(
+                || StoredCount::Unreadable(text.clone()),
+                StoredCount::Count,
+            ),
+        FrontmatterValue::Scalar(Scalar::Bool(flag)) => {
+            StoredCount::Unreadable(flag.to_string())
+        }
+        FrontmatterValue::Scalar(Scalar::Float(number)) => {
+            StoredCount::Unreadable(format!("{number:?}"))
+        }
+        FrontmatterValue::Sequence(_) => {
+            StoredCount::Unreadable("a list".to_owned())
+        }
+        FrontmatterValue::Mapping(_) => {
+            StoredCount::Unreadable("a mapping".to_owned())
+        }
+    }
+}
+
+fn whole_number(text: &str) -> Option<u32> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
 }
 
 struct FindingsListing {
@@ -172,14 +372,24 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<FindingsListing, kernel::Error> {
-    let mut names = fs.list(findings_dir)?.unwrap_or_default();
-    names.sort();
+    let entries = DirectoryEntries::of(findings_dir, fs)?;
     let mut listing = FindingsListing {
         findings: Vec::new(),
         quarantined: Vec::new(),
         levels: Vec::new(),
     };
-    for name in names {
+    for name in entries.directories {
+        if let Some(stem) = levels_stem(&name) {
+            listing.levels.push(read_levels_directory(
+                &findings_dir.join(&name),
+                stem,
+                fs,
+                parser,
+                unicode,
+            )?);
+        }
+    }
+    for name in entries.files {
         let path = findings_dir.join(&name);
         if name.starts_with('.') {
             if name.ends_with(QUARANTINE_SUFFIX) {
@@ -192,11 +402,7 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
                     unicode,
                 ));
             }
-        } else if let Some(stem) = levels_stem(&name, &path, fs) {
-            listing
-                .levels
-                .push(read_levels_directory(&path, stem, fs, parser, unicode)?);
-        } else if is_markdown(&path) {
+        } else if is_finding_entry(&name) {
             listing
                 .findings
                 .push(read_finding(&path, &name, fs, parser, unicode)?);
@@ -205,18 +411,8 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
     Ok(listing)
 }
 
-fn levels_stem<F: DirectoryProbe>(
-    name: &str,
-    path: &Path,
-    fs: &F,
-) -> Option<Stem> {
-    let stem = Stem::parse(name.strip_suffix(LEVELS_SUFFIX)?)?;
-    fs.is_dir(path).then_some(stem)
-}
-
-fn is_markdown(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+fn levels_stem(name: &str) -> Option<Stem> {
+    Stem::parse(name.strip_suffix(LEVELS_SUFFIX)?)
 }
 
 fn read_finding<F: FileReader>(
@@ -411,11 +607,14 @@ mod tests {
     use corpus::scan::DirectoryProbe;
     use corpus::scan::FileReader;
     use research::topic::claims::ClaimedIndexes;
+    use research::topic::counts::CountsReading;
+    use research::topic::counts::StoredCount;
     use research::topic::evidence::Digest;
     use research::topic::evidence::LevelNote;
     use research::topic::evidence::LevelsDirectory;
     use research::topic::evidence::NoteRejection;
     use research::topic::layout::lineage::Lineage;
+    use research::topic::layout::note_ref::NoteRef;
     use research::topic::layout::stem::Stem;
     use research::topic::plan::RoundPlan;
     use research::topic::tree::Depth;
@@ -424,9 +623,14 @@ mod tests {
 
     use corpus_adapters::YamlFrontmatter;
 
+    use super::level_notes_of;
+    use super::read_counts;
+    use super::read_plan;
     use super::read_round_inputs;
-    use super::ReadingWarning;
+    use super::read_set_status;
+    use super::taken_report_names;
     use crate::unicode_text::UnicodeTables;
+    use research::topic::lifecycle::SetStatus;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -434,10 +638,22 @@ mod tests {
     const PROFILES: &str = "/profiles";
     const LEVELS: &str = "/set/findings/01-a-web.levels";
 
+    #[test]
+    fn the_set_lifecycle_is_the_manifest_s_status_vocabulary() {
+        let names: Vec<&str> =
+            SetStatus::ALL.into_iter().map(SetStatus::name).collect();
+        let row = corpus::frontmatter_validation::schema::row_for(
+            "topic-research",
+            "manifest",
+        );
+        assert_eq!(Some(names.as_slice()), row.map(|row| row.status_vocab));
+    }
+
     #[derive(Default)]
     struct StubFs {
         files: BTreeMap<PathBuf, String>,
         dirs: BTreeSet<PathBuf>,
+        failing: BTreeSet<PathBuf>,
     }
 
     impl StubFs {
@@ -458,6 +674,21 @@ mod tests {
             self
         }
 
+        fn failing_at(mut self, path: &str) -> Self {
+            self.failing.insert(PathBuf::from(path));
+            self
+        }
+
+        fn failure_at(&self, path: &Path) -> Result<(), kernel::Error> {
+            if self.failing.contains(path) {
+                return Err(kernel::Error::Failed(format!(
+                    "{} is unreadable",
+                    path.display()
+                )));
+            }
+            Ok(())
+        }
+
         fn with_web_profile(self) -> Self {
             self.with_file(&format!("{PROFILES}/web-profile/SKILL.md"), "web")
         }
@@ -468,6 +699,7 @@ mod tests {
             &self,
             dir: &Path,
         ) -> Result<Option<Vec<String>>, kernel::Error> {
+            self.failure_at(dir)?;
             if !self.dirs.contains(dir) {
                 return Ok(None);
             }
@@ -485,6 +717,7 @@ mod tests {
 
     impl FileReader for StubFs {
         fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+            self.failure_at(path)?;
             Ok(self.files.get(path).cloned())
         }
     }
@@ -536,7 +769,6 @@ mod tests {
             &YamlFrontmatter,
             &UnicodeTables,
         )?
-        .inputs
         .levels)
     }
 
@@ -801,32 +1033,41 @@ mod tests {
             &UnicodeTables,
         )?;
 
-        assert_eq!(reading.inputs.available_profiles, vec!["web".to_owned()]);
-        assert_eq!(
-            reading.warnings,
-            vec![ReadingWarning::UnallocatableProfile {
-                name: "Web_X".to_owned()
-            }]
-        );
+        assert_eq!(reading.available_profiles, vec!["web".to_owned()]);
+        assert_eq!(reading.unallocatable_profiles, vec!["Web_X".to_owned()]);
         Ok(())
+    }
+
+    fn finding(depth: &str) -> String {
+        format!(
+            "---\ntype: \"topic-research\"\nid: \"01-a-web\"\n\
+             title: \"A\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
+             author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
+             status: \"complete\"\nkind: \"finding\"\nround: 1\n\
+             question: \"A?\"\nsource_profile: \"web\"\n{depth}\
+             tags: [\"research\"]\n\
+             last_updated: \"2026-09-27T00:00:00+00:00\"\n\
+             last_updated_by: \"Fixture Author\"\nschema_version: 1\n\
+             ---\n"
+        )
+    }
+
+    fn plan_of(fs: &StubFs) -> Result<RoundPlan, TestError> {
+        let inputs = read_round_inputs(
+            Path::new(SET),
+            Path::new(PROFILES),
+            Depth::default(),
+            ClaimedIndexes::default(),
+            fs,
+            &YamlFrontmatter,
+            &UnicodeTables,
+        )?;
+        Ok(RoundPlan::of(&inputs, &UnicodeTables))
     }
 
     #[test]
     fn a_findings_depth_is_read_from_its_frontmatter() -> Result<(), TestError>
     {
-        let finding = |depth: &str| {
-            format!(
-                "---\ntype: \"topic-research\"\nid: \"01-a-web\"\n\
-                 title: \"A\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
-                 author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
-                 status: \"complete\"\nkind: \"finding\"\nround: 1\n\
-                 question: \"A?\"\nsource_profile: \"web\"\n{depth}\
-                 tags: [\"research\"]\n\
-                 last_updated: \"2026-09-27T00:00:00+00:00\"\n\
-                 last_updated_by: \"Fixture Author\"\nschema_version: 1\n\
-                 ---\n"
-            )
-        };
         for (field, shallow) in
             [("depth: 3\n", false), ("depth: 12\n", false), ("", true)]
         {
@@ -840,13 +1081,326 @@ mod tests {
                 &fs,
                 &YamlFrontmatter,
                 &UnicodeTables,
-            )?
-            .inputs;
+            )?;
 
             let plan = RoundPlan::of(&inputs, &UnicodeTables);
 
             assert_eq!(!plan.shallow.is_empty(), shallow, "{field:?}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn an_unnumbered_markdown_entry_is_neither_counted_nor_planned(
+    ) -> Result<(), TestError> {
+        let fs = set_with(StubFs::default())
+            .with_file("/set/findings/notes.md", &finding(""));
+
+        let plan = plan_of(&fs)?;
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(plan.pairs.len(), 1, "{plan:?}");
+        assert_eq!(counts.findings.finding_count(), 0);
+        Ok(())
+    }
+
+    fn counts_of(fs: &StubFs) -> Result<CountsReading, TestError> {
+        Ok(read_counts(Path::new(SET), fs, &YamlFrontmatter)?)
+    }
+
+    fn frontmatter_of(fields: &str) -> String {
+        format!("---\n{fields}---\n")
+    }
+
+    fn manifest(fields: &str) -> StubFs {
+        StubFs::default()
+            .with_dir("/set/findings")
+            .with_file("/set/manifest.md", &frontmatter_of(fields))
+    }
+
+    #[test]
+    fn a_quoted_whole_number_is_a_stored_count() -> Result<(), TestError> {
+        let fs = manifest("round_count: \"3\"\nfinding_count: 0\n");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.stored.round_count, StoredCount::Count(3));
+        assert_eq!(counts.stored.finding_count, StoredCount::Count(0));
+        Ok(())
+    }
+
+    #[test]
+    fn a_stored_value_that_is_no_whole_number_is_unreadable(
+    ) -> Result<(), TestError> {
+        let fs = manifest("round_count: \"three\"\nfinding_count: -1\n")
+            .with_file(
+                "/set/synthesis.md",
+                &frontmatter_of("rounds_covered: \"two\"\n"),
+            );
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(
+            counts.stored.round_count,
+            StoredCount::Unreadable("three".to_owned())
+        );
+        assert_eq!(
+            counts.stored.finding_count,
+            StoredCount::Unreadable("-1".to_owned())
+        );
+        assert_eq!(
+            counts.stored.rounds_covered,
+            StoredCount::Unreadable("two".to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_stored_value_of_another_shape_is_unreadable_by_its_shape(
+    ) -> Result<(), TestError> {
+        for (written, rendered) in [
+            ("true", "true"),
+            ("[1]", "a list"),
+            ("{a: 1}", "a mapping"),
+            ("\"99999999999\"", "99999999999"),
+            ("99999999999", "99999999999"),
+        ] {
+            let fs = manifest(&format!("round_count: {written}\n"));
+
+            let counts = counts_of(&fs)?;
+
+            assert_eq!(
+                counts.stored.round_count,
+                StoredCount::Unreadable(rendered.to_owned()),
+                "{written}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_whole_valued_float_is_unreadable_as_written() -> Result<(), TestError>
+    {
+        let fs = manifest("round_count: 3.0\n");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(
+            counts.stored.round_count,
+            StoredCount::Unreadable("3.0".to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_absent_stored_value_is_missing() -> Result<(), TestError> {
+        let without_rounds_covered = manifest("round_count: 0\n").with_file(
+            "/set/synthesis.md",
+            &frontmatter_of("kind: \"synthesis\"\n"),
+        );
+
+        let counts = counts_of(&without_rounds_covered)?;
+        let unsynthesised = counts_of(&manifest("round_count: 0\n"))?;
+
+        assert_eq!(counts.stored.finding_count, StoredCount::Missing);
+        assert_eq!(counts.stored.report_count, StoredCount::Missing);
+        assert_eq!(counts.stored.rounds_covered, StoredCount::Missing);
+        assert_eq!(unsynthesised.stored.rounds_covered, StoredCount::Missing);
+        Ok(())
+    }
+
+    #[test]
+    fn a_findings_quoted_round_is_read() -> Result<(), TestError> {
+        let fs = manifest("").with_file(
+            "/set/findings/01-a-web.md",
+            &frontmatter_of("round: \"2\"\n"),
+        );
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.findings.round_count(), 2);
+        assert_eq!(counts.findings.finding_count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn the_counted_reports_come_from_reports() -> Result<(), TestError> {
+        let fs = manifest("report_count: 1\n")
+            .with_file("/set/reports/a.md", "")
+            .with_file("/set/reports/.draft.md", "");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.reports.names(), ["a.md"]);
+        assert_eq!(counts.stored.report_count, StoredCount::Count(1));
+        Ok(())
+    }
+
+    #[test]
+    fn a_directory_named_like_a_document_is_not_counted(
+    ) -> Result<(), TestError> {
+        let fs = manifest("report_count: 1\n")
+            .with_file(
+                "/set/findings/01-a-web.md",
+                &frontmatter_of("round: 1\n"),
+            )
+            .with_dir("/set/findings/02-b-web.md")
+            .with_file("/set/reports/a.md", "")
+            .with_dir("/set/reports/b.md");
+
+        let counts = counts_of(&fs)?;
+
+        assert_eq!(counts.findings.finding_count(), 1);
+        assert_eq!(counts.reports.names(), ["a.md"]);
+        Ok(())
+    }
+
+    #[test]
+    fn the_planner_reads_no_directory_as_a_finding() -> Result<(), TestError> {
+        let fs =
+            set_with(StubFs::default()).with_dir("/set/findings/02-b-web.md");
+
+        let reading = read_round_inputs(
+            Path::new(SET),
+            Path::new(PROFILES),
+            Depth::default(),
+            ClaimedIndexes::default(),
+            &fs,
+            &YamlFrontmatter,
+            &UnicodeTables,
+        )?;
+
+        assert_eq!(reading.findings, Vec::new());
+        Ok(())
+    }
+
+    #[test]
+    fn a_sets_status_is_its_manifests() -> Result<(), TestError> {
+        let fs = manifest("status: \"synthesised\"\n");
+
+        assert_eq!(
+            read_set_status(Path::new(SET), &fs, &YamlFrontmatter)?,
+            SetStatus::Synthesised
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_status_outside_the_lifecycle_is_named_in_the_error() {
+        let fs = manifest("status: \"drafted\"\n");
+
+        let read = read_set_status(Path::new(SET), &fs, &YamlFrontmatter);
+
+        assert!(
+            read.as_ref()
+                .is_err_and(|error| error.to_string().contains("'drafted'")),
+            "{read:?}"
+        );
+    }
+
+    #[test]
+    fn a_set_without_a_status_has_none_to_read() {
+        for fs in [manifest("round_count: 0\n"), StubFs::default()] {
+            assert!(
+                read_set_status(Path::new(SET), &fs, &YamlFrontmatter).is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn a_sets_plan_is_read_at_the_default_depth_with_no_claims(
+    ) -> Result<(), TestError> {
+        let fs = set_with(StubFs::default());
+
+        let plan = read_plan(
+            Path::new(SET),
+            Path::new(PROFILES),
+            &fs,
+            &YamlFrontmatter,
+            &UnicodeTables,
+        )?;
+
+        assert_eq!(plan, plan_of(&fs)?);
+        Ok(())
+    }
+
+    #[test]
+    fn an_unlistable_findings_directory_fails_the_count() {
+        let fs = manifest("").failing_at("/set/findings");
+
+        assert!(read_counts(Path::new(SET), &fs, &YamlFrontmatter).is_err());
+    }
+
+    #[test]
+    fn an_unreadable_finding_fails_the_count() {
+        let fs = manifest("")
+            .with_file(
+                "/set/findings/01-a-web.md",
+                &frontmatter_of("round: 1\n"),
+            )
+            .failing_at("/set/findings/01-a-web.md");
+
+        assert!(read_counts(Path::new(SET), &fs, &YamlFrontmatter).is_err());
+    }
+
+    #[test]
+    fn a_findings_level_notes_are_its_tree_s_canonical_notes(
+    ) -> Result<(), TestError> {
+        let fs = StubFs::default()
+            .with_file(&format!("{LEVELS}/1.md"), "")
+            .with_file(&format!("{LEVELS}/2-1.md"), "")
+            .with_file(&format!("{LEVELS}/.2-2.md.invalid"), "")
+            .with_file(&format!("{LEVELS}/notes.txt"), "")
+            .with_dir(&format!("{LEVELS}/3-1-1.md"));
+        let stem = Stem::parse("01-a-web").ok_or("a stem")?;
+
+        let notes = level_notes_of(Path::new(SET), &stem, &fs)?;
+
+        let at = |lineage: &str| {
+            Lineage::parse(lineage).map(|lineage| NoteRef {
+                stem: stem.clone(),
+                lineage,
+            })
+        };
+        assert_eq!(
+            notes,
+            [at("1"), at("2-1")]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_finding_without_a_tree_has_no_level_notes() -> Result<(), TestError> {
+        let stem = Stem::parse("01-a-web").ok_or("a stem")?;
+
+        let notes = level_notes_of(Path::new(SET), &stem, &StubFs::default())?;
+
+        assert!(notes.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_set_without_reports_lists_none() -> Result<(), TestError> {
+        let fs = set_with(StubFs::default());
+
+        assert!(taken_report_names(Path::new(SET), &fs)?.names().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn every_entry_under_reports_is_listed() -> Result<(), TestError> {
+        let fs = set_with(StubFs::default())
+            .with_file("/set/reports/a.md", "")
+            .with_file("/set/reports/.draft.md", "")
+            .with_dir("/set/reports/b.md");
+
+        assert_eq!(
+            taken_report_names(Path::new(SET), &fs)?.names(),
+            [".draft.md", "a.md", "b.md"]
+        );
         Ok(())
     }
 }

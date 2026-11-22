@@ -3,12 +3,13 @@
 
 use crate::topic::layout::lineage::Lineage;
 use crate::topic::layout::stem::Stem;
+use crate::topic::layout::FINDINGS;
 
 /// Whether `relative`, a `/`-separated path below the topics directory, is
 /// exactly `<set>/findings/<stem>.md` with a visible set.
 pub fn is_finding_path(relative: &str) -> bool {
     let segments: Vec<&str> = relative.split('/').collect();
-    let [set, "findings", name] = segments.as_slice() else {
+    let [set, FINDINGS, name] = segments.as_slice() else {
         return false;
     };
     is_visible(set) && name.strip_suffix(".md").is_some_and(is_stem)
@@ -18,7 +19,7 @@ pub fn is_finding_path(relative: &str) -> bool {
 /// `<set>/findings/<stem>.levels/<lineage>.md` with a visible set.
 pub fn is_level_note_path(relative: &str) -> bool {
     let segments: Vec<&str> = relative.split('/').collect();
-    let [set, "findings", levels, name] = segments.as_slice() else {
+    let [set, FINDINGS, levels, name] = segments.as_slice() else {
         return false;
     };
     is_visible(set)

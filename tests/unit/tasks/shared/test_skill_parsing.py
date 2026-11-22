@@ -16,6 +16,7 @@ from tasks.shared.skill_parsing import (
     PLUGIN_PREFIX,
     covered_by,
     fenced_block_commands,
+    frontmatter_allowed_tools,
     frontmatter_bash_rules,
     frontmatter_name,
     has_bare_bash,
@@ -213,3 +214,58 @@ def test_the_parsing_leaf_imports_nothing_but_re_and_fnmatch() -> None:
         re.findall(r"^(?:from|import) (\S+)", _MODULE.read_text(), re.MULTILINE)
     )
     assert imports == {"fnmatch", "re"}
+
+
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "allowed-tools:\n  - Bash(accelerator config *)\n  - Read(/x/**)\n",
+        "allowed-tools:\n    - Bash(accelerator config *)\n    - Read(/x/**)\n",
+        "allowed-tools: [Bash(accelerator config *), Read(/x/**)]\n",
+    ],
+    ids=["two-space list", "four-space list", "inline list"],
+)
+def test_allowed_tools_are_read_whatever_the_list_s_layout(
+    frontmatter: str,
+) -> None:
+    text = f"---\nname: x\n{frontmatter}model: y\n---\nBody\n"
+
+    assert frontmatter_allowed_tools(text) == [
+        "Bash(accelerator config *)",
+        "Read(/x/**)",
+    ]
+
+
+def test_a_frontmatter_declaring_no_allowed_tools_is_refused() -> None:
+    with pytest.raises(ValueError, match="allowed-tools"):
+        frontmatter_allowed_tools("---\nname: x\n---\nallowed-tools:\n")
+
+
+@pytest.mark.parametrize(
+    ("inline", "expected"),
+    [
+        ("[]", []),
+        ("[ ]", []),
+        ("[Read(/x/**)]", ["Read(/x/**)"]),
+        (
+            "[\"Bash(accelerator config *)\", 'Read(/x/**)']",
+            ["Bash(accelerator config *)", "Read(/x/**)"],
+        ),
+        ("[Read(/x/**), Write(/y/**),]", ["Read(/x/**)", "Write(/y/**)"]),
+        ("[ Read(/x/**) ,  Write(/y/**) ]  ", ["Read(/x/**)", "Write(/y/**)"]),
+    ],
+    ids=[
+        "empty list",
+        "blank list",
+        "single item",
+        "quoted items",
+        "trailing comma",
+        "surrounding whitespace",
+    ],
+)
+def test_an_inline_allowed_tools_list_yields_each_rule(
+    inline: str, expected: list[str]
+) -> None:
+    text = f"---\nname: x\nallowed-tools: {inline}\nmodel: y\n---\nBody\n"
+
+    assert frontmatter_allowed_tools(text) == expected

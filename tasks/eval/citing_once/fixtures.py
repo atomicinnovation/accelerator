@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from tasks.eval.citing_once.sources import Citation, parse_sources
+from tasks.eval.documents.sources import Citation, parse_sources
 
 type Carrier = Literal["composer", "synthesise"]
 

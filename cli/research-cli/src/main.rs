@@ -3,23 +3,28 @@
 
 mod cli;
 mod concurrency_wording;
+mod consultable_command;
 mod context;
+mod counts_command;
+mod counts_wording;
 mod fetch_command;
 mod guard;
 mod harness_setting;
+mod installed_profiles;
 mod ledger_wording;
 #[cfg(feature = "test-loopback")]
 mod loopback;
 mod plan_wording;
 mod render;
+mod report_path_command;
 mod search_cap;
 mod search_wording;
 mod subagent_cap;
 mod topic_command;
+mod topic_set;
 mod web_command;
 mod write_target;
 
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -71,9 +76,9 @@ use crate::fetch_command::OpenAlexCall;
 use crate::fetch_command::SourceCall;
 use crate::topic_command::OutstandingFlags;
 use crate::topic_command::PlanRequest;
-use crate::topic_command::Printed;
 use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
+use crate::topic_set::Printed;
 use crate::web_command::WebAdapters;
 
 // A release build that turns debug assertions back on slips past this guard, so
@@ -174,7 +179,6 @@ fn topic(action: TopicAction) -> ExitCode {
     let printed = match action {
         TopicAction::Outstanding {
             slug,
-            profiles_dir,
             depth,
             concurrency,
             start,
@@ -189,10 +193,16 @@ fn topic(action: TopicAction) -> ExitCode {
             spawned.as_deref(),
             &withhold_profile,
         )
-        .and_then(|flags| outstanding(&slug, &profiles_dir, flags)),
+        .and_then(|flags| outstanding(&slug, flags)),
         TopicAction::EndRun { slug, run } => {
             topic_command::parse_run(&run).and_then(|run| end_run(&slug, &run))
         }
+        TopicAction::ReportPath { slug, question } => {
+            report_path_command::parse_question(&question)
+                .and_then(|question| report_path(&slug, &question))
+        }
+        TopicAction::Counts { slug } => counts(&slug),
+        TopicAction::Consultable { slug } => consultable(&slug),
     };
     match printed {
         Ok(printed) => {
@@ -204,13 +214,10 @@ fn topic(action: TopicAction) -> ExitCode {
     }
 }
 
-fn outstanding(
-    slug: &str,
-    profiles_dir: &Path,
-    flags: OutstandingFlags,
-) -> Result<Printed, String> {
+fn outstanding(slug: &str, flags: OutstandingFlags) -> Result<Printed, String> {
+    let profiles_dir = installed_profiles_dir()?;
     let (cwd, project) = working_project()?;
-    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
     let concurrency = topic_command::resolve_concurrency(
         flags.requested_concurrency,
         || {
@@ -243,7 +250,7 @@ fn outstanding(
     };
     topic_command::run_outstanding(
         &set_root,
-        profiles_dir,
+        &profiles_dir,
         &request,
         &RealFs,
         &FileCorpusStore::new(&set_root),
@@ -252,13 +259,36 @@ fn outstanding(
 
 fn end_run(slug: &str, run: &RunId) -> Result<Printed, String> {
     let (cwd, project) = working_project()?;
-    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
     topic_command::run_end_run(
         &set_root,
         run,
         &RealFs,
         &FileCorpusStore::new(&set_root),
     )
+}
+
+fn report_path(slug: &str, question: &str) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
+    report_path_command::run_report_path(&set_root, question, &RealFs)
+}
+
+fn counts(slug: &str) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
+    counts_command::run_counts(&set_root, &RealFs)
+}
+
+fn consultable(slug: &str) -> Result<Printed, String> {
+    let profiles_dir = installed_profiles_dir()?;
+    let (cwd, project) = working_project()?;
+    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
+    consultable_command::run_consultable(&set_root, &profiles_dir, &RealFs)
+}
+
+fn installed_profiles_dir() -> Result<PathBuf, String> {
+    installed_profiles::profiles_dir(config_adapters::plugin_root_from_env())
 }
 
 fn minted_run() -> Result<RunId, String> {

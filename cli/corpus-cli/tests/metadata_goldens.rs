@@ -124,6 +124,35 @@ fn a_jj_repository_satisfies_the_helper_contract() -> Result<(), TestError> {
     Ok(())
 }
 
+#[test]
+fn a_git_repository_names_its_configured_author() -> Result<(), TestError> {
+    let work = tempdir("git-author")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.git(&["init", "--quiet"], &repo)?;
+    env.git(&["config", "--local", "user.name", "Git Author"], &repo)?;
+
+    assert!(derive_in(&repo, &env)?.contains("Author: Git Author\n"));
+    Ok(())
+}
+
+#[test]
+fn a_jj_repository_names_its_configured_author() -> Result<(), TestError> {
+    let work = tempdir("jj-author")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.jj(&["git", "init", "--colocate"], &repo)?;
+
+    let block = derive_in(&repo, &env)?;
+    assert!(
+        block.lines().any(|line| line == "Author: Fixture"),
+        "expected the jj config's user name:\n{block}"
+    );
+    Ok(())
+}
+
 /// The `%Y-%m-%d-%H%M%S` shape. The renderer itself is pinned digit-for-digit
 /// against a fixed instant in `corpus-adapters`; `derive_at` builds its own
 /// `SystemClock`, so through the compiled binary only the shape is observable.
@@ -292,6 +321,7 @@ fn outside_a_repository_the_provenance_lines_are_omitted(
     assert!(block.contains("Current Date/Time (UTC): "));
     assert!(!block.contains("Current Revision:"));
     assert!(!block.contains("Repository Name:"));
+    assert!(!block.contains("Author:"));
     Ok(())
 }
 

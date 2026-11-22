@@ -40,6 +40,7 @@ corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
 
 [dev-dependencies]
+kernel = { path = "../kernel" }
 http-test-support = { path = "../http-test-support" }
 rustix = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }

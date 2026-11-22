@@ -7,19 +7,23 @@ to reach the scholarly literature. `research fetch` queries OpenAlex and arXiv
 and returns normalised records, each carrying a reputation tier the CLI
 derives, and through `web metadata` reads the metadata a public page declares
 about itself. `research guard` is a `PreToolUse` hook that confines the researcher
-agent to that fetch and to writing its own finding. `research topic
-outstanding` plans a `conduct` round from a topic's set on disk. All three are
-plumbing: the source profiles invoke `research fetch` through fenced
-command blocks (see [Anatomy of a skill
-invocation](internals.md#anatomy-of-a-skill-invocation)), `conduct` calls
-`research topic outstanding`, and Claude Code runs `research guard` on every
-tool call that could run a command or write a file.
+agent to that fetch and to writing its own finding. `research topic` reads a
+topic's set on disk. Each is plumbing: the source profiles invoke `research
+fetch` through fenced command blocks (see [Anatomy of a skill
+invocation](internals.md#anatomy-of-a-skill-invocation)); `conduct` calls
+`research topic outstanding`; `report` calls `research topic report-path`;
+`conduct`, `synthesise`, `finalise` and `report` call `research topic counts`;
+`ask` and `report` call `research topic consultable`; and Claude Code runs
+`research guard` on every tool call that could run a command or write a file.
 Running `fetch` by hand is mainly useful for reproducing what a researcher saw.
 
 | Verb                | What it does                                                         |
 |---------------------|----------------------------------------------------------------------|
 | `fetch`             | Search or look up scholarly records, tiered, or read a page's declared metadata, within a 100 s deadline |
 | `topic outstanding` | List a round's outstanding (focus area, profile) pairs as JSON       |
+| `topic report-path` | Print the path a new report on a question takes                      |
+| `topic counts`      | Print the counts a set's files give beside those it records, as JSON |
+| `topic consultable` | Print whether `ask` and `report` may consult a set, as JSON          |
 | `guard`             | Judge one hook call, blocking a researcher outside its confinement   |
 
 See [Internals](internals.md#terminal-invocation) for how to reach
@@ -570,13 +574,53 @@ the researcher agent follows: `web-profile` (web search and fetch, and
   [Web search quota](#web-search-quota).
 
 Each pair's finding lives at `findings/<nn>-<question-slug>-<profile>.md`,
-where every profile of one focus area shares its `<nn>`. The finding's
+where every profile of one focus area shares its `<nn>`.
+
+#### Question slugs
+
+A question slug lowercases the question, keeps its ASCII letters and digits,
+and joins each run of them with `-`. A slug longer than 60 characters is cut
+before the word that would pass 60, or at 60 when that cut would leave 40
+characters or fewer; a cut never ends in `-`. Finding stems and report names
+share the rule. A question with no ASCII letter or digit slugs to `focus-area`
+in a stem.
+
+The finding's
 `question` and `source_profile` frontmatter, not its filename, identify the
 pair: sets written before profiles existed hold one `findings/<nn>-<slug>.md`
 per focus area, and still count as their `web` pair. Consumers group findings
-by frontmatter, never by parsing the filename. Consumers read only the
-top-level `findings/*.md`: a `<stem>.levels/` directory holds working notes,
-never findings.
+by frontmatter, never by parsing the filename. A finding is a visible
+`<nn>-*.md` directly in `findings/`, as [`research topic
+counts`](#research-topic-counts) counts it: a `<stem>.levels/` directory holds
+working notes, never findings.
+
+## `topic`
+
+`research topic` reads a topic's set on disk for `research-topic`, so the
+skill never derives a path or a plan by hand. Every subcommand takes the set
+by its slug, its directory, or a path inside it.
+
+**Permissions after a reply.** Claude Code grants a skill's commands only
+until your next reply. After you confirm a research proposal or accept a
+report, `ask` and `report` re-run `research topic consultable` before their
+first write, then derive metadata and validate what they write, and `report`
+also runs `research topic counts`, so those commands prompt for permission,
+and a headless session denies them. Add these four rules to your project's
+allow rules to avoid the prompt; they cover only the commands that run after
+a reply:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(accelerator corpus metadata derive)",
+      "Bash(accelerator corpus frontmatter validate *)",
+      "Bash(accelerator research topic consultable *)",
+      "Bash(accelerator research topic counts *)"
+    ]
+  }
+}
+```
 
 ### `research topic outstanding`
 
@@ -584,8 +628,16 @@ never findings.
 findings go, rather than allocating paths itself:
 
 ```bash
-accelerator research topic outstanding SLUG --profiles-dir DIR
+accelerator research topic outstanding SLUG
 ```
+
+It reads the installed profiles from `skills/research/profiles` under
+`ACCELERATOR_PLUGIN_ROOT`, which the `accelerator` launcher sets, as
+`consultable` does.
+
+A question asked again in a later round is planned once, under the index
+its first asking holds: a profile only the later asking names becomes one
+more pair of that focus area, and a skip only it names is reported too.
 
 It prints JSON whose fields are listed below: `items` (each outline item's
 `line`, `question`, and `complete`), `pairs` (each outstanding pair's
@@ -597,7 +649,8 @@ and `search_cap` (its `searches`, and the `source` they came from, in the same
 form).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know. It exits `1` with
-`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set, and with
+`E_TOPIC_RESEARCH_PLUGIN_ROOT` when `ACCELERATOR_PLUGIN_ROOT` is not set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
@@ -664,7 +717,7 @@ The run flags exist for `conduct`. `--start` begins a run and returns its
 as spawned. `--withhold-profile P`, which needs `--run` and may be repeated,
 withholds researcher spawns of profile `P` for the rest of the run; the run
 ledger keeps each withheld profile until `end-run`, so a later `--run` need
-not repeat the flag. A profile with no skill under `--profiles-dir` exits 1 with
+not repeat the flag. A profile the plugin installs no skill for exits 1 with
 `E_TOPIC_RESEARCH_WITHHOLD_PROFILE`. Compositions are still offered. During a
 run the JSON also carries `run`, `batch` (the number the next `--spawned` must
 pass), `withheld` (the profiles the run withholds, sorted) and `unexpected` (the
@@ -730,6 +783,186 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
+| `E_TOPIC_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
+| `E_TOPIC_RESEARCH_PROFILES` | the plugin root holds no `skills/research/profiles` | reinstall the plugin |
+
+### `research topic report-path`
+
+`report` asks the research CLI where a new report goes, rather than slugging
+the question itself:
+
+```bash
+accelerator research topic report-path SLUG 'QUESTION'
+```
+
+It prints one line, the absolute path `reports/<question-slug>.md` under the
+set. The slug follows the [question slug rule](#question-slugs), and a
+question with no ASCII letter or digit slugs to `report`. When any entry in
+`reports/` already holds that name, compared without regard to case, the
+path takes the first free `-2`, `-3`, … suffix. The question may be one
+quoted argument or separate words, which are joined with single spaces. The
+command writes nothing, and creates no `reports/`.
+
+#### Exit codes
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_QUESTION` | the question is missing or blank | pass the question |
+| `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
+
+### `research topic counts`
+
+`conduct`, `synthesise`, `finalise` and `report` ask the research CLI for a
+set's counts, rather than counting its files themselves:
+
+```bash
+accelerator research topic counts SLUG
+```
+
+The counts derive from disk by one rule:
+
+- `finding_count` counts each visible `<nn>-*.md` file directly in
+  `findings/`, the extension in any case. A directory, whatever its name, a
+  dot-prefixed `.invalid` quarantine marker and an unnumbered name never
+  count.
+- `round_count` is the highest `round` those findings record, or `0` when
+  none does.
+- `report_count` counts each visible `*.md` file directly in `reports/`.
+
+It prints JSON beside the values the set records:
+
+```json
+{
+  "derived": { "round_count": 2, "finding_count": 10, "report_count": 0 },
+  "stored": {
+    "round_count": 3,
+    "finding_count": 10,
+    "report_count": null,
+    "rounds_covered": 3
+  },
+  "fresh": false,
+  "mismatches": ["manifest.md records round_count 3 but the findings reach round 2"],
+  "notices": []
+}
+```
+
+`stored` holds the manifest's `round_count`, `finding_count` and
+`report_count` and `synthesis.md`'s `rounds_covered`, each a whole number,
+bare or quoted, or `null` when it is missing or not a whole number. The set
+is `fresh` when the manifest's round and finding counts equal `derived` and
+`rounds_covered` reaches the derived round; a missing `rounds_covered`
+covers round 0. Freshness asks whether any finding lies beyond what the
+synthesis covers, so a `rounds_covered` ahead of the derived round, which
+leaves no finding uncovered, is still fresh. `report_count` never bears on
+freshness, since a report is not evidence a synthesis draws on: read
+`derived.report_count` for how many reports a set holds. A recorded
+`report_count` that disagrees with it, or is not a whole number, is one
+sentence in `notices`, such as `manifest.md records report_count 4 but 3
+reports are on disk`; a missing one is no notice, since the field is
+optional. Each disagreement that bears on freshness is one sentence in
+`mismatches`:
+
+| Mismatch | Sentence |
+|---|---|
+| a stored count is missing | `manifest.md records no finding_count` |
+| a stored value is not a whole number | `manifest.md records round_count 'three', which is not a whole number` |
+| the round count disagrees | `manifest.md records round_count 3 but the findings reach round 2` |
+| the finding count disagrees | `manifest.md records finding_count 9 but 3 findings are on disk` |
+| the synthesis is behind | `the findings reach round 2 but synthesis.md covers up to round 1` |
+
+The command writes nothing, and its JSON only ever gains fields. It exits
+`0` whatever the counts, a missing or unreadable stored value included.
+
+#### Exit codes
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
+| none; the message names the path | a directory or file of the set cannot be read | make it readable, then re-run |
+
+### `research topic consultable`
+
+`ask` and `report` ask the research CLI whether a set may be consulted, and
+which documents to read, rather than judging the gates themselves:
+
+```bash
+accelerator research topic consultable SLUG
+```
+
+It applies three gates in order and stops at the first that fails:
+
+1. `status`: the manifest's `status` is `synthesised` or `complete`.
+2. `freshness`: the set is `fresh`, as [`counts`](#research-topic-counts)
+   judges it.
+3. `conducted`: no outline pair is unanswered, and no item is held back:
+   none asks a question whose every pair is skipped, and none is left
+   without a finding index.
+
+It prints one of:
+
+```jsonc
+{
+  "consultable": true,
+  "findings": ["<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.md"],
+  "reports": ["<set>/reports/how-do-llm-agents-plan-multi-step-tasks.md"],
+  "level_notes": {
+    "<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.md": [
+      "<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.levels/1.md"
+    ]
+  },
+  "highest_round": 2
+}
+{ "consultable": false, "gate": "status", "status": "researching" }
+{ "consultable": false, "gate": "freshness", "mismatches": ["…"] }
+{
+  "consultable": false,
+  "gate": "conducted",
+  "unanswered": [{ "question": "…", "profile": "openalex" }],
+  "held_back": [{ "question": "…", "reasons": ["…"], "recoveries": ["…"] }],
+  "warnings": ["…"]
+}
+```
+
+`gate` is one of `status`, `freshness` and `conducted`. An open set lists the
+absolute paths of the findings `counts` counts and of the reports it counts,
+as `outstanding` prints its paths, and `level_notes` maps each finding
+composed from a `.levels/` tree to its notes in lineage order: `ask` and
+`report` read them only before calling a part of the question a gap, since a
+composed finding can leave out a source its notes hold. `highest_round` is
+the number of the outline's highest `## Round N` heading, or `null` when it
+has none; a proposal numbers its round after it, and a re-check that finds it
+changed knows another session appended a round. `mismatches` reads as
+`counts` prints it, and each `held_back` item's `reasons` read as
+`outstanding`'s `skipped[].reason`, or say no finding index is left. Its
+`recoveries` name the fix for each distinct reason: add a profile to the
+brief, install its skill, or renumber what claims the highest index.
+`warnings` reads as `outstanding` prints its warnings, and gates nothing.
+
+The command fails before any gate when the plugin holds no profiles
+directory. It reads `synthesis.md`, `findings/` and `reports/` only past the
+status gate, the outline and profiles only past the freshness gate, and the
+listed findings' `.levels/` trees only for an open set. It reads no
+concurrency, depth or search cap, so a bad `research.topic.concurrency` never
+refuses it.
+
+The command writes nothing, and its JSON only ever gains fields. It exits
+`0` for any verdict.
+
+#### Exit codes
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
+| none; the message names `manifest.md` | the manifest is missing, records no `status`, or records one outside `briefed`, `outlined`, `researching`, `synthesised` and `complete` | restore the manifest's `status` |
+| `E_TOPIC_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
+| `E_TOPIC_RESEARCH_PROFILES` | the plugin root holds no `skills/research/profiles`, checked before any gate | reinstall the plugin |
+| none; the message names the path | a directory or file of the set cannot be read | make it readable, then re-run |
 
 ## Sources metadata
 
