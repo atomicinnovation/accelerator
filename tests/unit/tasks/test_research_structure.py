@@ -2359,9 +2359,10 @@ def test_report_rewrites_only_a_listed_report_and_re_asks_an_unclear_pick() -> (
     for phrase in (
         "only a report listed under",
         "by its number",
-        "bare `accept`",
+        "`accept` writes a new report at either prompt",
     ):
         assert phrase in choice
+    assert "bare `accept`" not in choice
 
 
 def test_a_decline_writes_nothing_and_proposes_nothing() -> None:

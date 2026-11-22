@@ -15,7 +15,7 @@ ACCEPT = (
 )
 PICK = (
     "Reply rewrite 1 (or another listed number) to rewrite that report in "
-    "place, new to write reports/how-do-x-2.md, reject to propose research "
+    "place, accept to write reports/how-do-x-2.md, reject to propose research "
     "instead, or decline to write nothing."
 )
 CONFIRM = (

@@ -475,7 +475,7 @@ def test_the_shipped_scenarios_plan_every_acceptance_session() -> None:
     assert sessions == {
         "A1": 15,
         "A2": 3,
-        "E1": 18,
+        "E1": 15,
         "E2": 3,
         "G1": 6,
         "G2": 6,
@@ -489,7 +489,7 @@ def test_the_shipped_scenarios_plan_every_acceptance_session() -> None:
         "S1": 6,
         "S2": 6,
     }
-    assert sum(sessions.values()) == 111
+    assert sum(sessions.values()) == 108
 
 
 def test_every_shipped_scenario_parses_under_a_unique_name() -> None:

@@ -989,7 +989,7 @@ anything.
    Equivalent reports:
    {n}. reports/{file}.md — {question}
 
-   Reply rewrite 1 (or another listed number) to rewrite that report in place, new to write reports/{new}.md, reject to propose research instead, or decline to write nothing.
+   Reply rewrite 1 (or another listed number) to rewrite that report in place, accept to write reports/{new}.md, reject to propose research instead, or decline to write nothing.
    ```
 
    numbering the reports from 1, and otherwise:
@@ -999,11 +999,10 @@ anything.
    ```
 
    Write nothing until the user replies. A rewrite targets only a report
-   listed under `Equivalent reports:`, by its number. A bare `accept` at the
-   pick prompt chooses none of its options, so it re-asks as **Consulting the
-   corpus** says. A rejection writes no report, and research is proposed as
-   for `unanswered`. A `decline` writes nothing, proposes nothing and ends
-   the verb.
+   listed under `Equivalent reports:`, by its number; `accept` writes a new
+   report at either prompt. A rejection writes no report, and research is
+   proposed as for `unanswered`. A `decline` writes nothing, proposes
+   nothing and ends the verb.
 5. **Write the report** the user accepted — the picked report, rewritten in
    place, or a new one at the printed path — from the **Report template**,
    after deriving metadata.

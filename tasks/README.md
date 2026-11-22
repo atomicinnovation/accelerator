@@ -784,7 +784,7 @@ directory.
 #### eval:ask-and-report
 
 `eval:ask-and-report` checks research-topic's `ask` and `report` verbs across
-111 multi-turn sessions over a reference corpus, in about 18 minutes at the
+108 multi-turn sessions over a reference corpus, in about 18 minutes at the
 default `--jobs 6`. Run it after changing either verb, the consulting steps
 they share, the citing-once rule or the model.
 

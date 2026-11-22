@@ -69,7 +69,8 @@ PROMPTS: dict[Offer, str] = {
     ),
     "pick": (
         "Reply rewrite 1 (or another listed number) to rewrite that report "
-        "in place, new to write reports/{new}.md, reject to propose research "
+        "in place, accept to write reports/{new}.md, reject to propose "
+        "research "
         "instead, or decline to write nothing."
     ),
     "proposal": (

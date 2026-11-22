@@ -19,7 +19,7 @@ type Gate = Literal["status", "freshness", "conducted", "held_back", "open"]
 type Verb = Literal["ask", "report"]
 type Variant = Literal["base", "equivalence", "rewrite"]
 type TemplateTier = Literal["user", "config"]
-type Reply = Literal["accept", "new", "reject", "confirm", "decline"]
+type Reply = Literal["accept", "reject", "confirm", "decline"]
 
 
 @dataclass(frozen=True)

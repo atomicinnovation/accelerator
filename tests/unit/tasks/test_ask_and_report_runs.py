@@ -126,8 +126,8 @@ def test_the_full_run_plans_every_session_in_its_own_directory(
 ) -> None:
     plans = runs.plan_sessions(FILES, tmp_path)
 
-    assert len(plans) == 111
-    assert len({plan.directory for plan in plans}) == 111
+    assert len(plans) == 108
+    assert len({plan.directory for plan in plans}) == 108
     assert _plan(tmp_path, "a1-c2-partial").directory == (
         tmp_path / "A1" / "a1-c2-partial" / "run-1"
     )

@@ -55,34 +55,6 @@
       ]
     },
     {
-      "name": "e1-work-out-plans-bare-accept",
-      "verb": "report",
-      "question": "How do LLM agents work out plans for multi-step tasks?",
-      "times": 3,
-      "setup": {
-        "variant": "equivalence"
-      },
-      "gate": "open",
-      "turns": [
-        {
-          "expect": {
-            "equivalents": [
-              "reports/how-do-llm-agents-plan-multi-step-tasks.md"
-            ],
-            "offers": "pick",
-            "writes": []
-          }
-        },
-        {
-          "reply": "accept",
-          "expect": {
-            "writes": [],
-            "offers": "pick"
-          }
-        }
-      ]
-    },
-    {
       "name": "e1-context-limits",
       "verb": "report",
       "question": "How do agents plan tasks within context limits?",
@@ -163,7 +135,7 @@
           }
         },
         {
-          "reply": "new",
+          "reply": "accept",
           "expect": {
             "writes": [
               "reports/how-do-llm-agents-plan-multi-step-tasks-2.md",
