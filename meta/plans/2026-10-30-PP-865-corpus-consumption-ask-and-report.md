@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-29-PP-865-corpus-consumption-ask-and-r
 tags: ["research", "research-topic", "ask", "report", "citing-once", "frontmatter-schema", "eval"]
 revision: "6b2de2c825cc255b06383b1f2b3f7bf61607bf74"
 repository: "accelerator"
-last_updated: "2026-11-22T09:08:23+00:00"
+last_updated: "2026-11-22T22:01:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3544,12 +3544,16 @@ defaulting to `FIXTURE`, reaches both `Fixture.read(path)` and
 
 ## Review amendments
 
-The phases above read as planned and built. Two PR reviews followed. The
+The phases above read as planned and built. Three PR reviews followed. The
 first review's fixes landed as their own commits before the second. The
 second review (a walkthrough of the PR at `a3617cc`) triaged 7 review-1
 findings and 36 new observations as "fix in PR". They landed as 24 changes,
-each with its tests first, at `e5bb17c25a`..`a1e8d04da5`. Where a phase's
-text above disagrees with this section, this section is what shipped.
+each with its tests first, at `e5bb17c25a`..`a1e8d04da5`. The third review
+(`meta/reviews/prs/176-review-2.md`) raised 10 inline findings and 29 in its
+body; their fixes landed at `46e50a49cd`..`aef1785c71` (see **Third review**).
+Where a phase's text above disagrees with this section, this section is what
+shipped, and where the third review's subsection disagrees with the
+second's, the third's is what shipped.
 
 ### Design changes
 
@@ -3641,6 +3645,91 @@ allow-list check rejects (`echo skip`, `true`, `consultable … 2>/dev/null`),
 two of them labelled "placeholder". L1 first failed because its only
 step count was the unattributed canary, which the model rightly declined to
 count. `mise run` exits 0 on the amended head.
+
+### Third review
+
+#### Design changes
+
+- **The re-check compares against the last verdict (Phases 3 and 6).** The
+  open verdict prints `highest_round`, the outline's highest `## Round N`,
+  parsed by `Outline::highest_round` and carried through `RoundPlan` into
+  `Documents`. Before the first write after each reply, the verb takes the
+  verdict again and stops if it no longer opens the set or its `reports` or
+  `highest_round` differ from the last verdict's, counting a report the verb
+  wrote since as its own. A proposal numbers its round from
+  `highest_round`. A partial `report` followed by a confirmed proposal no
+  longer trips over its own report.
+- **A recovery for each hold-back reason (Phases 3 and 6).** Each
+  `held_back` item carries `recoveries`, worded in `plan_wording` beside its
+  `reasons`: add the profile to the brief or fix its name, install its
+  `-profile` skill, or renumber what claims the highest index. The conducted
+  refusal prints each distinct one where it printed one line about the
+  brief. `formats.HELD_BACK_RECOVERY` became `{recovery}`.
+- **Repeated askings are held back once (Phase 3).** `item_statuses`
+  (formerly `held_back`) unions a question's skips across every asking and
+  holds back only its first asking, for either reason.
+- **Level notes come through the gates (Phase 3).**
+  `Consultation::judge` takes a fourth, lazy reader,
+  `FnOnce(&[Stem]) -> Result<Vec<NoteRef>, E>`, called only for an open set.
+  `Documents` holds the whole read scope as `ComposedFinding`s, sorted by
+  `Lineage`. `layout::entry::finding_stem` names a finding's stem whatever
+  its extension's case, and `level_notes_of` takes a `&Stem`.
+- **The plan's warnings ride on the refusal (Phase 3).** An unallocatable
+  profile is a plan `Warning` raised from `RoundInputs::unallocatable_profiles`;
+  `ReadingWarning`, `RoundReading` and `PlanReading` are gone, and
+  `Refusal::Conducted` carries `warnings`.
+
+#### Smaller changes
+
+- **CLI (Phase 3).**
+  - `CountField::ReportCount` names the report count, and both unreadable
+    sentences share one wording.
+  - `NO_INDEX_LEFT` words index exhaustion once, for the warning and the
+    hold-back.
+  - `layout` names `BRIEF`, `OUTLINE`, `MANIFEST` and `SYNTHESIS`.
+  - `Printed` and `resolve_set` live in `topic_set`.
+  - The plugin root comes from `config_adapters::plugin_root_from_env()`.
+  - The codes are `E_TOPIC_RESEARCH_PLUGIN_ROOT` and
+    `E_TOPIC_RESEARCH_PROFILES`, the latter worded once for `consultable`
+    and `outstanding`.
+- **Skill (Phase 6).** The permissions docs say why `consultable` needs an
+  allow rule. A consulting verb runs each command bare, with no redirect and
+  no command the section does not name, and writes its reply straight after
+  the last command it needs, never through a shell command; to print a line
+  is to write it in the reply.
+- **Eval (Phase 5).**
+  - A filter name matching no scenario is refused before any gate.
+  - `--check-only` needs `--out`, and a run or re-check that selects no
+    session fails.
+  - The run mode is a `RunMode`; `--check-only` with `--rerun-errored` is
+    refused.
+  - One new-report predicate, one sources matcher
+    (`SourceEntry.mismatches`) and one frontmatter reader
+    (`documents.frontmatter.read_fields`) serve the pre-flight and the
+    judges.
+  - `Gaps`, `Sources` and `Manifest` parse scenario JSON as strictly as
+    their siblings.
+- **Docs.** The CHANGELOG notes the old-stem `.levels/` tree, the dropped
+  `--profiles-dir` and the stem change in the upgrade-together note.
+
+#### Eval runs on the third review's head
+
+Claude Code 2.1.330, default model, `--jobs 6`, after the review fixes at
+`236cfa4249`:
+
+| Family | Result |
+|---|---|
+| P1 | 6/6 |
+| R1 | 15/15 |
+| G3 | 9/10 |
+
+The G3 failure ran `printf ''` between the last command and the refusal.
+The rule that the reply follows the last command (`f3acb6d23d`) led one run
+to send the refusal through `printf` instead, since the skill's "print" read
+as a shell instruction; defining "print" as writing in the reply
+(`aef1785c71`) brought G3 to 10/10. `mise run` exits 0 at `236cfa4249`; the
+two later commits change only `SKILL.md` and its structure test, and the
+Python suite passes on them. The other families were not re-run.
 
 ## Testing Strategy
 

@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-10-30-PP-865-corpus-consumption-ask-and-report"
 tags: ["research", "research-topic", "ask", "report", "eval"]
-last_updated: "2026-11-01T19:33:43+00:00"
+last_updated: "2026-11-22T22:01:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -135,3 +135,45 @@ behaves as planned.
 - Fix 0281's requirement at `:85-92` and `research.md:782` to match what
   shipped.
 - 0281's frontmatter `status` is still `ready`. Move it on once the PR lands.
+
+### Since this validation
+
+This report validated the plan at `28f83f9ec3`. Three PR reviews followed,
+and the plan's **Review amendments** section records what each changed;
+where that section and the phases disagree, it is what shipped. The result
+stays a pass: every change refines a planned behaviour, and none removes
+one.
+
+Each potential issue above is resolved:
+
+- **`--check-only` and recorded settings.** A re-check keeps the run's
+  recorded settings and records empty ones for an unrecorded run
+  (`test_a_re_check_keeps_the_run_s_recorded_settings`). It now needs
+  `--out`, and fails when it finds no session to judge.
+- **Float counts.** A stored float is printed with its decimal (`{number:?}`).
+- **Directories named like documents.** The adapter lists only files, so a
+  directory is never counted, whatever its name.
+- **The probe.** Any denial fails it, naming the tool.
+- **Read-bounds gaps.** Turns hold no `Grep`, `Glob` or `LS`, and no read
+  outside the set is allowed but the citing-once rule.
+- **0281's contradiction.** The requirement now closes the held-back refusal
+  with `conduct` then `synthesise`, naming the recovery for each reason an
+  item is held back.
+- **The `counts` docs.** They list `report` among its callers.
+
+`list_reports` is now `taken_report_names`. The recommendations above are
+done, and 0281's `status` is `done`.
+
+Verification since:
+
+- ✓ `mise run` exited 0 at `236cfa4249`. The two later commits change only
+  `SKILL.md` and its structure test, and the Python suite passes on them.
+- ✓ `mise run eval:ask-and-report` passed all 119 sessions on the second
+  review's head but for three stray no-op commands, once L1's level note
+  gained a sourced claim. After the third review
+  it passed P1 6/6 and R1 15/15, and G3 10/10 at `aef1785c71`. A full
+  119-session run has not been repeated since the third review.
+- The manual smoke test above stays unticked. Its three flows run as eval
+  scenarios instead: R1 (a report and its `report_count`), P1 (a confirmed
+  proposal appends one round and reopens the set) and G1 (a `researching`
+  set is refused).

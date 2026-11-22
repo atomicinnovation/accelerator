@@ -13,7 +13,7 @@ blocks: ["work-item:PP-868"]
 blocked_by: ["work-item:PP-861", "work-item:PP-863", "work-item:PP-864", "work-item:PP-866", "work-item:PP-892"]
 relates_to: ["work-item:PP-867", "work-item:PP-868", "work-item:PP-891", "work-item:PP-897", "work-item:PP-923", "work-item:PP-936"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-11-22T09:07:52+00:00"
+last_updated: "2026-11-22T22:01:49+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -92,10 +92,11 @@ from the current findings, with the VCS as its history.
       `source_profiles` or not installed — is not research `conduct` can
       do: it holds back only an item whose question no asking can research,
       as does an item no finding index is left for, and that
-      refusal names `conduct`'s skipped-pair recovery (add the profile to
-      the brief, or fix its name in the outline) before closing with
-      `conduct SLUG` then `synthesise SLUG`, since fixing the brief or
-      outline leaves the pair for `conduct` to research.
+      refusal names the recovery for each reason an item is held back (add
+      the profile to the brief or fix its name in the outline, install its
+      `-profile` skill, or renumber what claims the highest index) before
+      closing with `conduct SLUG` then `synthesise SLUG`, since fixing what
+      held the item back leaves its pairs for `conduct` to research.
   - The CLI owns the count rule and the gates, so no verb counts files or
     orders gates itself. Neither command writes anything:
     - `accelerator research topic counts SLUG` derives `round_count`,
@@ -108,7 +109,9 @@ from the current findings, with the VCS as its history.
       counts, and `finalise` runs it as its freshness gate.
     - `accelerator research topic consultable SLUG` applies the three gates
       in order and prints the first that fails, with its details, or that
-      the set is consultable, with the finding and report paths to read.
+      the set is consultable, with the finding and report paths to read,
+      each composed finding's level notes, and the outline's highest round,
+      which a proposal numbers from.
   - Both read `synthesis.md` and exactly the findings `consultable` lists —
     those `finding_count` counts — never a `.invalid` quarantine marker.
     Before calling a part of the question a gap, both read the level notes
@@ -207,6 +210,11 @@ from the current findings, with the VCS as its history.
     exactly as `outline` does, as the verb's last write — after any report
     and its `report_count` edit. Without confirmation nothing more is
     written.
+  - Before the first write after each reply, the verb takes the verdict
+    again and stops, writing nothing, when the set is no longer
+    consultable or its reports or highest round differ from the last
+    verdict's other than by a report the verb itself wrote: another
+    session changed the set while the user replied.
   - After a confirmed append, the verb names the next steps: `conduct
     SLUG`, `synthesise SLUG`, then the same `ask` or `report` again. A
     declined proposal ends the verb with nothing more named.
@@ -271,7 +279,8 @@ from the current findings, with the VCS as its history.
 - [x] Given the base corpus with an item naming only `arxiv`, which the
       brief's `source_profiles` do not name, added by hand to its highest
       round, when `ask` or `report` runs, then it refuses naming that item
-      and the skipped-pair recovery, closes with `conduct SLUG` then
+      and the recovery for its reason (add `arxiv` to the brief, or fix its
+      name in the outline), closes with `conduct SLUG` then
       `synthesise SLUG` as every not-fully-conducted refusal does, and
       nothing is written.
 - [x] Given the base corpus with `arxiv` added to the profiles of C4's focus
@@ -655,6 +664,15 @@ from the current findings, with the VCS as its history.
   profile is planned, so it holds the gate until conducted. Every refusal
   ends with the retry, and `consultable` and `outstanding` find the profiles
   under the plugin root.
+- Amended after the third PR review. A held-back item's refusal names the
+  recovery for each of its reasons rather than one line about the brief,
+  since that line cannot fix a missing profile skill or an exhausted index.
+  The re-check before a write compares against the last verdict, so a
+  report the verb wrote itself does not stop a confirmed proposal, and
+  `consultable` prints the outline's highest round so the proposal and the
+  re-check number from one command. The verbs run each command bare and
+  write their reply straight after the last one, never through a shell
+  command.
 
 ## References
 
