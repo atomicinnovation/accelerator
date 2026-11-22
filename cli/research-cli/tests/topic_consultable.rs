@@ -357,6 +357,7 @@ fn consultable_lists_the_documents_to_read() -> Result<(), TestError> {
                     project.absolute("findings/01-first-focus.levels/1.md"),
                 ],
             },
+            "highest_round": 2,
         })
     );
     assert_eq!(counts["derived"]["report_count"], json!(1));

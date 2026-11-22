@@ -129,6 +129,7 @@ fn rendered(
                 "findings": findings,
                 "reports": reports,
                 "level_notes": level_notes,
+                "highest_round": documents.highest_round(),
             })
         }
         Consultation::Refused(Refusal::Status { status }) => json!({

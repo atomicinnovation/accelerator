@@ -7,6 +7,7 @@ use crate::topic::layout::stem::Stem;
 /// The profile an outline item is researched through when it names none.
 pub const DEFAULT_PROFILE: &str = "web";
 
+const ROUND_HEADING: &str = "## Round ";
 const SUFFIX_KEYWORD: &str = "profiles:";
 const SUFFIX_SEPARATORS: [&str; 3] = ["—", "–", "--"];
 
@@ -20,6 +21,7 @@ pub struct Pair {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Outline {
     pub items: Vec<OutlineItem>,
+    highest_round: Option<u32>,
 }
 
 impl Outline {
@@ -31,8 +33,21 @@ impl Outline {
             .enumerate()
             .filter_map(|(index, text)| OutlineItem::parse(index + 1, text))
             .collect();
-        Self { items }
+        let highest_round = text.lines().filter_map(round_numbered).max();
+        Self {
+            items,
+            highest_round,
+        }
     }
+
+    #[must_use]
+    pub const fn highest_round(&self) -> Option<u32> {
+        self.highest_round
+    }
+}
+
+fn round_numbered(line: &str) -> Option<u32> {
+    line.trim().strip_prefix(ROUND_HEADING)?.trim().parse().ok()
 }
 
 /// One focus area: the one-based line it is on, its question, and the
@@ -188,6 +203,21 @@ mod tests {
     fn a_line_that_is_not_a_checkbox_is_not_an_item() {
         for line in ["## Round 1", "- plain bullet", "- [y] Why?", ""] {
             assert!(only_item(line).is_none(), "{line:?}");
+        }
+    }
+
+    #[test]
+    fn an_outline_numbers_from_its_highest_round_heading() {
+        let outline = Outline::parse(
+            "## Round 1\n- [x] A?\n## Round 3\n- [ ] B?\n## Round 2\n",
+        );
+        assert_eq!(outline.highest_round(), Some(3));
+    }
+
+    #[test]
+    fn an_outline_without_a_round_heading_has_no_highest_round() {
+        for text in ["- [ ] A?", "## Round\n## Round two\n# Round 4", ""] {
+            assert_eq!(Outline::parse(text).highest_round(), None, "{text:?}");
         }
     }
 

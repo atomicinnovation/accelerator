@@ -2598,12 +2598,16 @@ def test_a_violation_frontmatter_cannot_fix_stops_the_verb() -> None:
     assert "`UNKNOWN-KIND`" in validate
 
 
+def test_a_proposal_numbers_from_the_verdicts_highest_round() -> None:
+    assert "where `N` is the verdict's `highest_round`" in _consult()
+
+
 def test_the_verdict_is_taken_again_before_the_first_write() -> None:
     consult = _consult()
     for phrase in (
-        "Before the first write after a reply, take the verdict again",
-        "its `reports` differ",
-        "highest `## Round` heading",
+        "Before the first write after each reply, take the verdict again",
+        "its `reports` or `highest_round` differ from the last verdict's",
+        "A report this verb wrote since that verdict",
         "`Bash(accelerator research topic consultable *)`",
     ):
         assert phrase in consult, f"the re-check lacks {phrase!r}"

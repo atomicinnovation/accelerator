@@ -909,7 +909,8 @@ It prints one of:
     "<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.md": [
       "<set>/findings/01-how-do-llm-agents-decompose-and-plan-multi-step-tasks-web.levels/1.md"
     ]
-  }
+  },
+  "highest_round": 2
 }
 { "consultable": false, "gate": "status", "status": "researching" }
 { "consultable": false, "gate": "freshness", "mismatches": ["…"] }
@@ -927,7 +928,10 @@ absolute paths of the findings `counts` counts and of the reports it counts,
 as `outstanding` prints its paths, and `level_notes` maps each finding
 composed from a `.levels/` tree to its notes in lineage order: `ask` and
 `report` read them only before calling a part of the question a gap, since a
-composed finding can leave out a source its notes hold. `mismatches` reads as
+composed finding can leave out a source its notes hold. `highest_round` is
+the number of the outline's highest `## Round N` heading, or `null` when it
+has none; a proposal numbers its round after it, and a re-check that finds it
+changed knows another session appended a round. `mismatches` reads as
 `counts` prints it, and each `held_back` item's `reasons` read as
 `outstanding`'s `skipped[].reason`, or say no finding index is left.
 `warnings` reads as `outstanding` prints its warnings, and gates nothing.

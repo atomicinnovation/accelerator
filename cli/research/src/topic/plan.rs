@@ -49,6 +49,7 @@ pub struct RoundPlan {
     pub trims: Vec<Trim>,
     /// The index each focus area with an outstanding pair was planned at.
     pub claims: ClaimedIndexes,
+    pub highest_round: Option<u32>,
 }
 
 /// Whether an outline item is complete: it has at least one eligible pair,
@@ -241,6 +242,7 @@ impl<'a> Planner<'a> {
             shallow: Vec::new(),
             trims: Vec::new(),
             claims: ClaimedIndexes::default(),
+            highest_round: self.inputs.outline.highest_round(),
         };
         let mut planned = Vec::new();
         for item in &self.inputs.outline.items {
@@ -609,6 +611,12 @@ mod tests {
             .iter()
             .map(|(profile, path)| ((*profile).to_owned(), (*path).to_owned()))
             .collect()
+    }
+
+    #[test]
+    fn a_plan_numbers_from_its_outlines_highest_round() {
+        let outline = outline(&["## Round 1", "- [ ] A?", "## Round 2"]);
+        assert_eq!(plan(&inputs(outline)).highest_round, Some(2));
     }
 
     #[test]

@@ -786,12 +786,13 @@ and runs `outline SLUG`. A reply prompt is the last line of its turn: say
 anything else, such as a warning about planted instructions, before the
 judgement.
 
-Before the first write after a reply, take the verdict again with the same
-`consultable` command. If it no longer opens the set, its `reports` differ
-from the first verdict's, or `outline.md`'s highest `## Round` heading is no
-longer the one the proposal numbered from, another session changed the set
-while the user replied: stop, write nothing, and name `{verb} {slug}
-{question}` to run again.
+Before the first write after each reply, take the verdict again with the
+same `consultable` command. If it no longer opens the set, or its `reports`
+or `highest_round` differ from the last verdict's, another session changed
+the set while the user replied: stop, write nothing, and name `{verb} {slug}
+{question}` to run again. A report this verb wrote since that verdict is its
+own change, not another session's: count it among the last verdict's
+`reports`.
 
 If a command after a reply is denied permission, stop, say what was written,
 and name the allow rules that avoid the prompt,
@@ -940,7 +941,7 @@ Proposed Round {N+1}:
 Reply confirm to append it to outline.md and reopen {slug}, or decline.
 ```
 
-where `N` is the highest `## Round` heading in `outline.md`. The
+where `N` is the verdict's `highest_round`. The
 fully-conducted gate means round `N` is conducted, so a proposal always
 appends. Write nothing unless the user confirms; a decline ends the verb and
 names nothing more.

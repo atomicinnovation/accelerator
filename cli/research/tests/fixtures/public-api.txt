@@ -1833,6 +1833,7 @@ impl core::marker::StructuralPartialEq for research::topic::consultation::Refusa
 pub struct research::topic::consultation::Documents
 impl research::topic::consultation::Documents
 pub fn research::topic::consultation::Documents::findings(&self) -> &[alloc::string::String]
+pub const fn research::topic::consultation::Documents::highest_round(&self) -> core::option::Option<u32>
 pub fn research::topic::consultation::Documents::reports(&self) -> &[alloc::string::String]
 impl core::clone::Clone for research::topic::consultation::Documents
 pub fn research::topic::consultation::Documents::clone(&self) -> research::topic::consultation::Documents
@@ -2261,6 +2262,7 @@ pub mod research::topic::outline
 pub struct research::topic::outline::Outline
 pub research::topic::outline::Outline::items: alloc::vec::Vec<research::topic::outline::OutlineItem>
 impl research::topic::outline::Outline
+pub const fn research::topic::outline::Outline::highest_round(&self) -> core::option::Option<u32>
 pub fn research::topic::outline::Outline::parse(text: &str) -> Self
 impl core::clone::Clone for research::topic::outline::Outline
 pub fn research::topic::outline::Outline::clone(&self) -> research::topic::outline::Outline
@@ -2382,6 +2384,7 @@ impl core::fmt::Debug for research::topic::plan::RoundInputs
 pub fn research::topic::plan::RoundInputs::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct research::topic::plan::RoundPlan
 pub research::topic::plan::RoundPlan::claims: research::topic::claims::ClaimedIndexes
+pub research::topic::plan::RoundPlan::highest_round: core::option::Option<u32>
 pub research::topic::plan::RoundPlan::items: alloc::vec::Vec<research::topic::plan::ItemStatus>
 pub research::topic::plan::RoundPlan::pairs: alloc::vec::Vec<research::topic::plan::OutstandingPair>
 pub research::topic::plan::RoundPlan::shallow: alloc::vec::Vec<research::topic::plan::ShallowFinding>

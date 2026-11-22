@@ -299,6 +299,7 @@ mod tests {
             shallow: Vec::new(),
             trims: Vec::new(),
             claims: ClaimedIndexes::default(),
+            highest_round: Some(1),
         }
     }
 

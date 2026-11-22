@@ -16,12 +16,14 @@ pub enum Consultation {
     Refused(Refusal),
 }
 
-/// The set-relative paths a consultation reads; only [`Consultation::judge`]
-/// builds them, so a set is opened only through its gates.
+/// The set-relative paths a consultation reads, and the outline round a
+/// proposal numbers from; only [`Consultation::judge`] builds them, so a set
+/// is opened only through its gates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Documents {
     findings: Vec<String>,
     reports: Vec<String>,
+    highest_round: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,10 +66,11 @@ impl Consultation {
                 mismatches: freshness.mismatches,
             }));
         }
-        if let Some(refusal) = Refusal::conducted(&read_plan()?) {
+        let plan = read_plan()?;
+        if let Some(refusal) = Refusal::conducted(&plan) {
             return Ok(Self::Refused(refusal));
         }
-        Ok(Self::Open(Documents::of(&reading)))
+        Ok(Self::Open(Documents::of(&reading, plan.highest_round)))
     }
 }
 
@@ -82,7 +85,12 @@ impl Documents {
         &self.reports
     }
 
-    fn of(reading: &CountsReading) -> Self {
+    #[must_use]
+    pub const fn highest_round(&self) -> Option<u32> {
+        self.highest_round
+    }
+
+    fn of(reading: &CountsReading, highest_round: Option<u32>) -> Self {
         let under = |directory: &str, names: &[String]| {
             names
                 .iter()
@@ -92,6 +100,7 @@ impl Documents {
         Self {
             findings: under(FINDINGS, reading.findings.names()),
             reports: under(REPORTS, reading.reports.names()),
+            highest_round,
         }
     }
 }
@@ -194,6 +203,7 @@ mod tests {
             shallow: Vec::new(),
             trims: Vec::new(),
             claims: ClaimedIndexes::default(),
+            highest_round: Some(1),
         }
     }
 
@@ -366,6 +376,7 @@ mod tests {
                     "findings/02-b-web.md".to_owned(),
                 ],
                 reports: vec!["reports/a.md".to_owned()],
+                highest_round: Some(1),
             }))
         );
     }

@@ -672,7 +672,8 @@
 - **`accelerator research topic consultable SLUG`**
   judges whether a set may be consulted: its status, its freshness and
   whether every outline pair is answered, in that order. It prints the first
-  gate that fails, or the findings and reports to read.
+  gate that fails, or the findings and reports to read and the outline's
+  highest round.
 - **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from
   a synthesised, fresh, fully conducted set in conversation. It states its
   coverage as `answered`, `partial` or `unanswered`, naming the sources and
