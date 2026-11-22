@@ -25,7 +25,9 @@
 // open and close their list, move on after a verdict and step between
 // commits, that By commit opens only the selected commit, that j crosses
 // into the next commit, that a verdict on a file in a commit reads only that
-// file's lines, and that the pane shows one file or the whole commit, that a
+// file's lines, that the pane shows one file or the whole commit, that a line
+// too long to read is cut short, that the file list widens and resets, that
+// risk edges show only when asked for, that a
 // !term search excludes
 // paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
@@ -504,7 +506,20 @@ const NAVIGATOR_PROBE = `(async () => {
   const navigatorStays = nav.scrollTop === kept;
   const paneBelowTopBar = paneTop >= barBottom && paneTop - barBottom <= 16;
   choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
-  return { file: nested.path, layer, treeDrawn, collapseHides, openingReveals, roleNarrows, controlsStay, excludes, totalsInPlace, pillsStay, flattened, filtersPinned, navigatorStays, paneBelowTopBar };
+  const handle = document.querySelector('.nav-resizer'), drawerWidth = () => Math.round(document.querySelector('.nav-drawer').getBoundingClientRect().width);
+  const narrow = drawerWidth();
+  handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })); await settle();
+  const widens = drawerWidth() === narrow + 24;
+  handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await settle();
+  const resets = drawerWidth() === narrow;
+  const edged = () => [...document.querySelectorAll('#nav-tree .fl-item')].filter(row => getComputedStyle(row, '::before').content !== 'none').length;
+  const picks = [...document.querySelectorAll('#nav-tree .pick')].map(box => Math.round(box.getBoundingClientRect().left));
+  const picksAligned = picks.length > 1 && picks.every(left => left === picks[0]);
+  const quietByDefault = edged() === 0;
+  document.querySelector('[data-toggle-risk]').click(); await settle();
+  const riskEdges = quietByDefault && edged() === document.querySelectorAll('#nav-tree .fl-item').length;
+  document.querySelector('[data-toggle-risk]').click(); await settle();
+  return { file: nested.path, layer, treeDrawn, collapseHides, openingReveals, roleNarrows, controlsStay, excludes, totalsInPlace, pillsStay, flattened, filtersPinned, navigatorStays, paneBelowTopBar, widens, resets, riskEdges, picksAligned };
 })()`;
 
 const BULK_PROBE = `(async () => {
@@ -659,7 +674,13 @@ const COMMIT_NAVIGATOR_PROBE = `(async () => {
   const wholeShowsAll = document.querySelectorAll('#commit-code > .code').length === commit.files.length;
   document.querySelector('[data-commit-pane="one"]').click(); await settle();
   const oneShowsOne = document.querySelectorAll('#commit-code > .code').length === 1;
-  return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, wholeShowsAll, oneShowsOne };
+  const longest = Object.entries(api.diff).map(([path, f]) => [path, Math.max(0, ...(f.hunks || []).flatMap(h => h.l.map(l => l.length)))]).sort((a, b) => b[1] - a[1])[0];
+  let longLinesCut = null;
+  if (longest && longest[1] > 2000) {
+    api.openFile(longest[0], null, 'new'); await settle(700);
+    longLinesCut = [...document.querySelectorAll('#file-code td.src')].every(td => td.textContent.length <= 2100) && !!document.querySelector('#file-code td.src .cut');
+  }
+  return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, wholeShowsAll, oneShowsOne, longLinesCut };
 })()`;
 
 const UNFOLD_PROBE = `(async () => {
@@ -773,13 +794,13 @@ async function main() {
   const design = report.design || {};
   const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
   const navigator = report.navigator || {};
-  const navigatorHolds = !!navigator.skipped || !!(navigator.treeDrawn && navigator.collapseHides && navigator.openingReveals && navigator.roleNarrows && navigator.controlsStay && navigator.excludes && navigator.totalsInPlace && navigator.pillsStay && navigator.flattened && navigator.filtersPinned && navigator.navigatorStays && navigator.paneBelowTopBar);
+  const navigatorHolds = !!navigator.skipped || !!(navigator.treeDrawn && navigator.collapseHides && navigator.openingReveals && navigator.roleNarrows && navigator.controlsStay && navigator.excludes && navigator.totalsInPlace && navigator.pillsStay && navigator.flattened && navigator.filtersPinned && navigator.navigatorStays && navigator.paneBelowTopBar && navigator.widens && navigator.resets && navigator.riskEdges && navigator.picksAligned);
   const bulk = report.bulk || {};
   const bulkHolds = !!bulk.skipped || !!(bulk.barShown && bulk.issueKept && bulk.othersReviewed && bulk.folderRead && bulk.toastSays && bulk.selectionCleared && bulk.undone);
   const keys = report.keys || {};
   const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.commitKeys !== false && keys.commitFileKeys !== false);
   const commitNavigator = report.commitNavigator || {};
-  const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne);
+  const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne && commitNavigator.longLinesCut !== false);
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};

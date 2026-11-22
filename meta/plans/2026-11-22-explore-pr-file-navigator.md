@@ -857,6 +857,30 @@ movement are the same code in both views.
 
 ---
 
+## Refinements after Phase 4
+
+Agreed with the user after reviewing Phase 4:
+
+- A "Show risk" toggle beside Clear and Collapse read, off by default and
+  kept per viewer, draws a straight bar at every row's left edge in the
+  colour of the highest risk in it;
+  while on, it reads "Risk" with the four tier swatches and names them in its
+  title. It replaces a dot on high-risk folders; an edge on every row by
+  default proved distracting.
+- Names in the list are a size smaller, folder names are not bold, rows have
+  less vertical padding, and the count reads "47/47 files" so the control
+  row fits the narrowest list. Selection checkboxes sit in one column; the
+  indentation is inside each row. Keyboard focus is an inset outline, so the
+  list's edge never clips it.
+- On wide screens the list widens by dragging its edge, or with the arrow
+  keys on that edge; double-clicking resets it. The width is kept per viewer.
+- The rail, the list and the page hide their scroll bars.
+- A line over 1,000 characters is not highlighted, and one over 2,000 is cut
+  short with a count of what is left. A 282,187-character JSON line had made
+  opening By commit draw about 65,000 nodes; it now draws about 1,200.
+
+---
+
 ## Phase 5: Filtered links from Readiness
 
 ### Overview
