@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T12:20:24+00:00"
+last_updated: "2026-11-22T12:46:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -544,10 +544,9 @@ behaviour the item claims but the code lacks. In brief:
   ticket.
 - **Plan corrections**: the CLI crate's package is `accelerator-research`,
   not `research-cli`. Every phase's test commands now use that name.
-- **`mise run check`**: everything passes except `deny:check`, which fails
-  on trunk as well because of RUSTSEC-2026-0592 against `url 2.5.8`. The
-  phase 3 `mise run check` criterion is blocked until `url` is updated or
-  the advisory is allowed.
+- **`mise run check`**: `deny:check` failed, on trunk as well, because of
+  RUSTSEC-2026-0592 against `url 2.5.8`. Updating to `url 2.5.9` cleared
+  it, and `mise run check` now exits 0.
 
 ### Success Criteria
 
