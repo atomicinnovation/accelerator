@@ -5,14 +5,14 @@ title: "Build the VCS test fixtures once per test run"
 date: "2026-10-28T16:18:46+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-953"
 relates_to: ["work-item:PP-794", "work-item:PP-955", "work-item:PP-956", "work-item:PP-958", "work-item:PP-960", "work-item:PP-962", "work-item:PP-943"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["performance", "testing", "rust", "vcs"]
-last_updated: "2026-11-20T23:00:00+00:00"
+last_updated: "2026-11-22T10:38:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-957"
