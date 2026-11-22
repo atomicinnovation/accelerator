@@ -1,22 +1,17 @@
 //! The `research topic` command layer for `outstanding` and `end-run`.
 //!
 //! It renders a set's round plan as the JSON `research-topic`'s `conduct`
-//! consumes, keeps the run ledger `conduct` holds between plans, and resolves
-//! the set and prints the output every `research topic` subcommand shares.
+//! consumes, and keeps the run ledger `conduct` holds between plans.
 
 use std::fmt::Write as _;
 use std::num::NonZeroU32;
 use std::path::Path;
-use std::path::PathBuf;
 
 use corpus::scan::DirReader;
 use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
 use corpus::AtomicWrite;
-use corpus::DocTypeKey;
 use corpus::FileRemove;
-use corpus_adapters::resolve::resolve_document;
-use corpus_adapters::resolve::Resolution;
 use corpus_adapters::YamlFrontmatter;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
@@ -59,43 +54,12 @@ use serde_json::json;
 use serde_json::Value;
 
 use crate::concurrency_wording;
-use crate::context::ProjectContext;
 use crate::ledger_wording;
 use crate::plan_wording;
 use crate::search_cap::EnvironmentSearchCap;
 use crate::search_wording;
 use crate::subagent_cap::EnvironmentCap;
-
-const DOC_TYPE: &str = "topic-research";
-
-/// What one call prints: the plan on stdout, its warnings on stderr.
-#[derive(Debug, Default)]
-pub struct Printed {
-    pub stdout: String,
-    pub stderr: String,
-}
-
-/// The canonical root of the set `slug` names.
-///
-/// # Errors
-///
-/// A message when the configured directory cannot be read, or when `slug`
-/// resolves to no set.
-pub fn resolve_set(
-    project: &ProjectContext,
-    cwd: &Path,
-    slug: &str,
-) -> Result<PathBuf, String> {
-    let sets = project.type_dir(DocTypeKey::TopicResearch)?;
-    let Resolution::Resolved(set_root) =
-        resolve_document(cwd, DOC_TYPE, slug, |_| Ok(sets))
-    else {
-        return Err(format!(
-            "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"
-        ));
-    };
-    Ok(set_root)
-}
+use crate::topic_set::Printed;
 
 /// Whether a plan belongs to a `conduct` run, and which.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -13,7 +13,7 @@ use serde_json::json;
 use serde_json::Value;
 
 use crate::counts_wording;
-use crate::topic_command::Printed;
+use crate::topic_set::Printed;
 
 /// Prints the set's derived and stored counts and whether they agree.
 ///

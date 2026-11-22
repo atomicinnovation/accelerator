@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use crate::counts_wording;
 use crate::plan_wording;
-use crate::topic_command::Printed;
+use crate::topic_set::Printed;
 
 /// Prints the set's consultation verdict: open with the documents to read,
 /// or the first gate it fails.

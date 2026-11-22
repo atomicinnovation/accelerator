@@ -159,7 +159,9 @@ impl RoundInputs {
     }
 }
 
-fn held_back(planned: Vec<(&OutlineItem, ItemPlanning)>) -> Vec<ItemStatus> {
+fn item_statuses(
+    planned: Vec<(&OutlineItem, ItemPlanning)>,
+) -> Vec<ItemStatus> {
     let researchable: BTreeSet<NormalisedQuestion> = planned
         .iter()
         .filter(|(_, planning)| planning.researchable)
@@ -274,7 +276,7 @@ impl<'a> Planner<'a> {
             }
             planned.push((item, self.plan_item(item, &mut plan)));
         }
-        plan.items = held_back(planned);
+        plan.items = item_statuses(planned);
         plan.warnings.extend(self.unmatched_findings());
         plan.warnings.extend(
             self.inputs.unallocatable_profiles.iter().map(|name| {

@@ -6,7 +6,7 @@ use corpus::scan::DirReader;
 use research::topic::layout::slug::ReportSlug;
 use research_adapters::topic::taken_report_names;
 
-use crate::topic_command::Printed;
+use crate::topic_set::Printed;
 
 /// The question as one string, its words joined with single spaces.
 ///
