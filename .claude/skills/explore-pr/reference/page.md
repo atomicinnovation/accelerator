@@ -12,13 +12,13 @@ not shown.
 | Section | View | Gives the reviewer |
 |---|---|---|
 | Start | Overview | The change at a glance as a figure, the design summary with a link to the article, a readiness strip (the recommendation and the gates by state, linking to Readiness), where you are, what changes, breaking changes before and after, accepted risks, CI |
-| Start | Design | The design as an article: headed sections of prose, figures, short anchored code excerpts that claim no lines as read, and asides linking the decisions and abstractions to their entries in Reference; then the sign-off on the design as a whole. Without an article, the summary, the figures and links to the catalogues |
+| Start | Design | The design as an article: headed sections of prose, figures, short anchored code excerpts that claim no lines as read, and asides that open the decisions and abstractions in place; then the sign-off on the design as a whole. Without an article, the summary, the figures and links to the catalogues |
 | Start | Attention map | A treemap of every changed line, shaded by risk, and a review-time budget |
 | Read | Guided tour | Chapters by design concept in reading order, each opening with its figures, then a strip naming the decisions and abstractions it introduces, then the terms it uses; code at every stop as the evidence, each naming what it is evidence for, setting out in full each decision and abstraction it is the first to show, its role in the design, why it is shaped this way, what breaks if it is wrong and what to check, with the lines that matter marked; invariants with the tests that pin them; a sign-off question per chapter |
 | Read | By commit | The All files navigator with each commit, in order, as a row holding the tree of the files it changes; the selected commit open and the rest folded. Beside it the commit's message and one of its files, or the whole commit, stepped through with `j`/`k` across commits and `J`/`K` between them; a verdict on a file within a commit reads only that commit's lines of it; lines marked one at a time, by block, by a file or a commit verdict, shared with All files and the tour; lines a later commit superseded shown but not counted |
 | Read | All files | A navigator of every changed file: a directory tree by default, or grouped by role, chapter, risk or change type; sorted by path, lines still to read, size, risk, reading order or first commit; narrowed by progress, verdict, role, risk, change, chapter, what mentions it, commit and a path search, each choice counted; each folder totalling what is read beneath it; each row edged, when asked for, in the colour of the highest risk in it; the list widened by dragging its edge. Files can be selected one at a time, by shift-click range or by folder, and given Reviewed, Skimmed or no verdict together, leaving any file with an Issue as it is, with Undo. Keyboard shortcuts (`?` lists them) move between files, chunks of changed lines and unread lines, mark a chunk or the rest of a file read, give verdicts, raise an issue noting the chunk, select, filter and move through the tree. Beside it, annotated diffs showing which changed lines are read and which are still to read, marked one at a time, by block or from the tour, the ledger, a commit or a file verdict, with the commits that changed each file |
 | Interact | Custom views | Whatever this PR needs: a simulator, a stepper, a state machine, an explorer |
-| Decide | Readiness | The skill's recommended verdict, its assessment and the conditions that would change it, with each cited item linked; the gates worked out from the content and your records, each with its state, what is outstanding and a link that opens the matching catalogue already filtered; your own verdict and what stands in the way |
+| Decide | Readiness | The skill's recommended verdict, its assessment and the conditions that would change it, with each cited item linked; the gates worked out from the content and your records, each with its state, what is outstanding, each item linked and marked with your verdict on it, and a link that opens the matching catalogue already filtered; your own verdict and what stands in the way |
 | Decide | Your notes | Everything recorded, copyable as Markdown |
 | Reference | Findings | One set of findings from the prior review, the reading passes and the design pass, each with its source, filterable by it: each prior finding with an independent verdict against the code, each observation with what it builds on and where else it was raised, every one with its level (design or implementation) and a triage control. Each chapter lists the findings in it compactly |
 | Reference | Decisions | Every design decision with its control, filterable by assessment, chapter and your verdict; fit with the existing architecture; where the next change goes |
@@ -28,9 +28,32 @@ not shown.
 | Reference | Domain terms | The change's vocabulary |
 | Reference | The ledger | Every call site of the PR's riskiest class of operation: what guards it, what is held, what races it, what pins it |
 
+## Links and where they land
+
+Every item has an address, `#<view>/<item id>`: `#decisions/dec-cap-depth`,
+`#tour-claims/stop-claims-s1`. Opening one lands the item just below the top
+bar and any filters, outlined for a moment. Back returns a view to where it was
+scrolled; a new view opens at its top.
+
+A link to a decision, abstraction, invariant, risk or finding opens it in
+place rather than leaving the page: a popover beside the link on a wide
+screen, the card unfolded below its paragraph on a phone. The card carries its
+review control and a link to open it in its catalogue. Esc, Close, the link
+again or, for a popover, a click elsewhere closes it. A link to a stop or a
+chapter navigates.
+
+Every link to an item that takes a verdict (a stop, chapter, decision,
+invariant, finding or ledger row) starts with a mark: an empty ring until the
+reviewer records a verdict, then a filled dot in that verdict's tone carrying
+✓, ?, ✕, ↻ or –, so it reads without colour. A stop whose lines were all read
+elsewhere is marked read. Marks follow every verdict as it is given, wherever
+it is given.
+
 A link into a catalogue can open it already filtered: an element with
 `data-jump="<route>"` and `data-filter="<json>"` sets that catalogue's filters
-before it opens. An old link to `#criteria` opens Tests.
+before it opens. On a phone a catalogue's filters fold into one row naming how
+many are set and how many items are shown. An old link to `#criteria` opens
+Tests.
 
 ## Bundled files
 
@@ -42,6 +65,8 @@ rebuilding them. Paths are relative to the skill directory.
 | `assets/page.html` | The page shell: every core view including Design, the two figures the page draws itself (a comparison of two others, and raw SVG); every other figure is drawn by the diagram kit, the abstraction-collaboration diagram, review controls, highlighting, the treemap, the extension API |
 | `assets/review-coverage.js` | Which changed lines the reviewer's verdicts have read, and which of them a verdict from an earlier head still covers, inlined into every build |
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
+| `assets/item-addresses.js` | The address of a view and an item within it, `#<view>/<item id>`, inlined into every build |
+| `assets/verdict-marks.js` | Every review control's verdicts, the target each linked item's verdict is recorded under, and the mark a link carries for it, inlined into every build |
 | `assets/stop-evidence.js` | Which decisions, abstractions, invariants and risks each stop carries, and which stops show each of them, inlined into every build |
 | `assets/review-sections.js` | Which views the rail shows, in which of its five sections, and which route a retired hash now opens, inlined into every build |
 | `assets/readiness.js` | The readiness gates, each met, needing the reviewer or not met, worked out from the content and the reviewer's records, inlined into every build |
@@ -59,7 +84,7 @@ rebuilding them. Paths are relative to the skill directory.
 | `scripts/parse_review.py` | `content/findings.json` from a review-pr review |
 | `scripts/criteria_map.py` | `content/criteria.json` from a plan's acceptance-criterion map |
 | `scripts/build.py` | The standalone page, or the hosted layout, with every reference checked and every stop and ledger row compared with the code it quotes; `--reanchor` moves those whose code shifted |
-| `scripts/smoke.js` | Headless-Chrome check of every route, custom views included: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, every kit diagram put through the kit's own checks (text inside its box, nothing overlapping, tracing, a box's ↗ control following its link), a stop named in prose linking to its chapter at that stop, a stop naming everything it carries and each name opening what it names, every line a stop focuses on marked in its code, a verdict from an earlier head leaving rewritten lines unread, each catalogue drawing one card per item and a verdict given in one showing at the stop that first carries it, the design article drawn whole with its excerpts resolved, every observation listed in Findings and narrowed by source, the readiness gates matching their model and following a verdict, the verdict control driving the top bar, each decision met once in the tour, screenshots (a tall view in 5,000 px tiles); fails rather than hangs when Chrome stops answering |
+| `scripts/smoke.js` | Headless-Chrome check of every route, custom views included: errors, unresolved code, phone-width overflow, lines read flowing between the tour and All files, every kit diagram put through the kit's own checks (text inside its box, nothing overlapping, tracing, a box's ↗ control following its link), a stop named in prose linking to its chapter at that stop, a stop naming everything it carries and each name opening what it names in place, a decision named in the design opening in a popover whose verdict marks every link to it, Back returning a view to where it was scrolled, every link to an item that takes a verdict carrying its mark, every line a stop focuses on marked in its code, a verdict from an earlier head leaving rewritten lines unread, each catalogue drawing one card per item and a verdict given in one showing at the stop that first carries it, the design article drawn whole with its excerpts resolved, every observation listed in Findings and narrowed by source, the readiness gates matching their model and following a verdict, the verdict control driving the top bar, each decision met once in the tour, at phone width the top bar on one line, a catalogue's filters folded and stuck below it, an item opened by its address landing below both and a peek unfolding below its paragraph, screenshots (a tall view in 5,000 px tiles); fails rather than hangs when Chrome stops answering |
 | `scripts/capture.js` | The smoke check's limits on Chrome: the tiles a tall screenshot is taken in, and the deadline on every DevTools call |
 | `reference/` | The content model, the reading-pass and design-pass briefs, and the custom-view guide |
 | `examples/` | A real chapter at the expected standard, with its figures, abstractions and decisions; a real design article, written by the design pass for PR 250 (`examples/design-article.json`); and the PR 170 prune simulator with its specification |

@@ -55,7 +55,8 @@ view looks and behaves like the rest of the page:
 | `content`, `diff` | The assembled content model and the diff (`diff` may be null while it loads) |
 | `figure(spec)` | A `matrix`, `tree` or `timeline`, written as its notation's reference says, rendered as HTML at once, so a view can draw one from the state it computes |
 | `diagram(spec)`, `drawInto(element, spec)` | Any diagram the kit draws, laid out in the page from a spec the view computes (see "Drawing a diagram from state") |
-| `md(text, inline)`, `esc(text)` | Markdown and HTML escaping |
+| `md(text, inline)`, `esc(text)` | Markdown and HTML escaping. A stop, chapter, decision, invariant or abstraction named in the text becomes a link; each but an abstraction carries a mark showing the reviewer's verdict on it, and a decision, invariant or abstraction opens in place |
+| `refreshMarks(element)` | Paints the verdict marks in HTML the view put in the page after `mount`; until then they stay hidden |
 | `codeSlice(path, start, end, side)` | A highlighted diff slice with links to the file view |
 | `locBtn(path, line)`, `whereBtn('path:line')`, `testRef('path::name')` | Links that open the file view at a line |
 | `sevChip(level)`, `fmt(n)`, `plural(n, word)` | Chips and numbers in the page's style |

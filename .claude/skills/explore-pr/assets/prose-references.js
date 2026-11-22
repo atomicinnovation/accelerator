@@ -12,14 +12,24 @@
   const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const tagName = token => (token.match(/^<\/?\s*([A-Za-z0-9]+)/) || [])[1]?.toLowerCase();
   const isClosing = token => token.startsWith('</');
-  const ENTRIES = { decision: ['#decisions', 'dec-'], abstraction: ['#abstractions', 'abs-'], invariant: ['#invariants', 'inv-'] };
+  const ENTRIES = { decision: ['decisions', 'dec-'], abstraction: ['abstractions', 'abs-'], invariant: ['invariants', 'inv-'] };
+
+  const ItemAddresses = root.ItemAddresses || require('./item-addresses.js');
+  const VerdictMarks = root.VerdictMarks || require('./verdict-marks.js');
+
+  const hrefTo = (view, item) => escapeHtml('#' + ItemAddresses.to(view, item));
+  function markSlot(kind, id) {
+    const target = VerdictMarks.targetOf(kind, id);
+    return target ? `<span class="mark" data-mark-of="${escapeHtml(target)}"></span>` : '';
+  }
 
   function entryLinks(declared, except) {
     const links = new Map();
     (declared || []).filter(item => ENTRIES[item.kind] && item.id !== except).forEach(item => {
-      const [route, prefix] = ENTRIES[item.kind];
+      const [view, prefix] = ENTRIES[item.kind];
       const label = escapeHtml(String(item.label || item.id).replace(/`/g, ''));
-      links.set(item.id, `<a class="ref" href="${route}" data-scroll-to="${prefix}${escapeHtml(item.id)}">${label}</a>`);
+      const peek = escapeHtml(`${item.kind}:${item.id}`);
+      links.set(item.id, `<a class="ref" href="${hrefTo(view, prefix + item.id)}" data-peek="${peek}">${markSlot(item.kind, item.id)}${label}</a>`);
     });
     return links;
   }
@@ -27,11 +37,11 @@
   function targets(chapters) {
     const chapterLinks = new Map(), stopLinks = new Map();
     chapters.forEach((chapter, i) => {
-      const href = `#tour-${escapeHtml(chapter.id)}`;
-      chapterLinks.set(chapter.id, `<a class="ref" href="${href}">${escapeHtml(chapter.title || chapter.id)}</a>`);
+      const view = `tour-${chapter.id}`;
+      chapterLinks.set(chapter.id, `<a class="ref" href="${hrefTo(view)}">${markSlot('chapter', chapter.id)}${escapeHtml(chapter.title || chapter.id)}</a>`);
       (chapter.stops || []).forEach((stop, j) => {
         const label = escapeHtml(`${i + 1}.${j + 1} ${stop.title || stop.id}`);
-        stopLinks.set(stop.id, `<a class="ref" href="${href}" data-scroll-stop="${escapeHtml(stop.id)}">${label}</a>`);
+        stopLinks.set(stop.id, `<a class="ref" href="${hrefTo(view, 'stop-' + stop.id)}">${markSlot('stop', stop.id)}${label}</a>`);
       });
     });
     return { chapterLinks, stopLinks };
