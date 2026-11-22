@@ -539,9 +539,9 @@ test('a cross-origin navigate carries no bearer to the off-site origin', { timeo
 });
 
 test('a cross-origin redirect does not leak the header to the target', { timeout: 30000 }, async () => {
-  // A boundary assertion, not mutation-resistant: the browser does not forward
-  // Authorization across origins on a redirect, so no bearer is present on the B
-  // hop to strip. It still catches an origin-blind injection mutant.
+  // The regression test for the redirect leak: Playwright's route.continue
+  // carried its header override onto every later hop, so the bearer reached
+  // the cross-origin target. Each Fetch hop is judged and authenticated alone.
   await withDaemon(async info => {
     const bSeen = [];
     await withServer(recorder(bSeen), async bUrl => {
