@@ -69,6 +69,14 @@ impl SeededTicket<'_> {
     }
 }
 
+fn now_ms() -> u64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .expect("after the epoch")
+        .as_millis();
+    u64::try_from(now).expect("milliseconds fit")
+}
+
 fn epoch_ms() -> u64 {
     CLOCK_EPOCH_MS.parse().expect("an epoch in milliseconds")
 }
@@ -126,6 +134,30 @@ impl StateFile {
             Self::QueueLock => "queue/queue.lock",
         }
     }
+}
+
+/// A file or directory the previous release kept arXiv's state in.
+#[derive(Debug, Clone, Copy)]
+pub enum LegacyFile {
+    Queue,
+    Pacing,
+    Lock,
+}
+
+impl LegacyFile {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Queue => "arxiv-queue",
+            Self::Pacing => "arxiv-pacing",
+            Self::Lock => "arxiv.lock",
+        }
+    }
+}
+
+/// One live ticket per serving slot at the front of a service's queue,
+/// held until dropped, so every call joining behind it waits.
+pub struct Barrier {
+    _tickets: Vec<File>,
 }
 
 /// A scratch project: a repository directory with an `.accelerator/`
@@ -211,8 +243,65 @@ impl Project {
         self.service_state(Service::Arxiv, file)
     }
 
+    pub fn legacy_arxiv_state(&self, file: LegacyFile) -> PathBuf {
+        self.research_scratch().join(file.name())
+    }
+
+    /// Copies the previous release's captured arXiv state into this
+    /// project, and returns the ticket it printed.
+    pub fn seed_legacy_fixture(&self) -> String {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/legacy-arxiv-queue");
+        let queue = self.legacy_arxiv_state(LegacyFile::Queue);
+        std::fs::create_dir_all(&queue).expect("mkdir the legacy queue");
+        for entry in std::fs::read_dir(fixture.join(LegacyFile::Queue.name()))
+            .expect("list the fixture queue")
+        {
+            let entry = entry.expect("an entry");
+            std::fs::copy(entry.path(), queue.join(entry.file_name()))
+                .expect("copy a ticket record");
+        }
+        std::fs::copy(
+            fixture.join(LegacyFile::Pacing.name()),
+            self.legacy_arxiv_state(LegacyFile::Pacing),
+        )
+        .expect("copy the legacy pacing");
+        std::fs::read_to_string(fixture.join("ticket.txt"))
+            .expect("the fixture's ticket")
+            .trim()
+            .to_owned()
+    }
+
+    /// Holds a lock the previous release kept, as one of its calls would.
+    pub fn hold_legacy(&self, file: LegacyFile) -> File {
+        Self::hold_path(&self.legacy_arxiv_state(file))
+    }
+
+    /// Fills every serving slot of `service` with a live ticket issued
+    /// just now, ahead of any call the test then starts.
+    pub fn hold_barrier(&self, service: Service) -> Barrier {
+        let queue = self.service_queue_dir(service);
+        let tickets = (1..=service.pacing().slots().get())
+            .map(|slot| {
+                let ticket = format!("{slot}-{slot:06x}");
+                Self::seed_ticket_into(
+                    &queue,
+                    &ticket,
+                    &SeededTicket::live(&search_binding("barrier", 10), 0),
+                    now_ms(),
+                );
+                Self::hold_path(&queue.join(format!("{ticket}.lock")))
+            })
+            .collect();
+        Barrier { _tickets: tickets }
+    }
+
     pub fn queue_dir(&self) -> PathBuf {
-        let queue = self.arxiv_state(StateFile::Queue);
+        self.service_queue_dir(Service::Arxiv)
+    }
+
+    fn service_queue_dir(&self, service: Service) -> PathBuf {
+        let queue = self.service_state(service, StateFile::Queue);
         std::fs::create_dir_all(&queue).expect("mkdir the queue");
         queue
     }
@@ -223,19 +312,20 @@ impl Project {
 
     /// Seeds a ticket for calls on the real clock, relative to now.
     pub fn seed_ticket_now(&self, ticket: &str, seeded: &SeededTicket<'_>) {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .expect("after the epoch")
-            .as_millis();
-        self.seed_ticket_before(
-            ticket,
-            seeded,
-            u64::try_from(now).expect("milliseconds fit"),
-        );
+        self.seed_ticket_before(ticket, seeded, now_ms());
     }
 
     fn seed_ticket_before(
         &self,
+        ticket: &str,
+        seeded: &SeededTicket<'_>,
+        now_ms: u64,
+    ) {
+        Self::seed_ticket_into(&self.queue_dir(), ticket, seeded, now_ms);
+    }
+
+    fn seed_ticket_into(
+        queue: &Path,
         ticket: &str,
         seeded: &SeededTicket<'_>,
         now_ms: u64,
@@ -248,7 +338,7 @@ impl Project {
             .last_retryable
             .map_or_else(|| "null".to_owned(), |code| format!("{code:?}"));
         std::fs::write(
-            self.queue_dir().join(format!("{ticket}.json")),
+            queue.join(format!("{ticket}.json")),
             format!(
                 "{{\"schema_version\":1,\"issued_ms\":{},\
                  \"presented_ms\":{},\"ended_ms\":{ended},\

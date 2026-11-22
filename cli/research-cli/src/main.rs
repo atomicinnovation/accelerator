@@ -45,22 +45,21 @@ use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
-use research::sources::service::Service;
 use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
-use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::diagnostics::Stderr;
 use research_adapters::host_resolver::DnsHostResolver;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
-use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
 use research_adapters::page_transport::HttpPageTransport;
 use research_adapters::queue::random_nonce;
-use research_adapters::queue::FileServiceQueue;
 use research_adapters::scratch::ScratchDir;
+use research_adapters::services::AdapterContext;
+use research_adapters::services::PreviousRelease;
+use research_adapters::services::ServiceAdapters;
 use research_adapters::transport::HttpTransport;
 
 use crate::cli::Cli;
@@ -340,6 +339,18 @@ fn source_call(
                 .map_err(|error| failure(&error.to_string()))?;
             let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
             let research = ScratchDir::new(&project.root, &scratch);
+            let arxiv = ServiceAdapters::for_arxiv(
+                &AdapterContext {
+                    research: research.clone(),
+                    clock: clock.clone(),
+                    diagnostics: diagnostics.clone(),
+                    nonces: Rc::new(random_nonce),
+                },
+                Some(PreviousRelease {
+                    queue: research.nested("arxiv-queue"),
+                    lock: research.path("arxiv.lock"),
+                }),
+            );
             SourceCall::Arxiv(
                 ArxivCall { request, presented },
                 ArxivAdapters {
@@ -347,29 +358,13 @@ fn source_call(
                     oai: endpoints.arxiv_oai,
                     transport: Box::new(transport),
                     decoder: Box::new(XmlArxivDecoder),
-                    gate: Box::new(FilePacingGate::new(
-                        Service::Arxiv,
-                        &research,
-                        clock.clone(),
-                        diagnostics.clone(),
-                    )),
+                    gate: Box::new(arxiv.gate),
                     confirmations: Box::new(FileConfirmationCache::new(
-                        research.clone(),
-                        diagnostics.clone(),
-                    )),
-                    queue: Box::new(FileServiceQueue::new(
-                        Service::Arxiv,
-                        &research,
-                        clock.clone(),
-                        diagnostics.clone(),
-                        Box::new(random_nonce),
-                    )),
-                    contention: Box::new(FileContentionLog::new(
-                        Service::Arxiv,
-                        &research,
-                        clock.clone(),
+                        research,
                         diagnostics,
                     )),
+                    queue: Box::new(arxiv.queue),
+                    contention: Box::new(arxiv.contention),
                 },
             )
         }

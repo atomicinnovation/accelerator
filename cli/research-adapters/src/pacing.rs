@@ -3,6 +3,9 @@
 
 use std::cell::Cell;
 use std::fs::File;
+use std::fs::OpenOptions;
+use std::path::Path;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -74,11 +77,16 @@ fn serving_lock(slot: u8) -> String {
 /// against the last actual send, so spacing holds between real sends. Its
 /// waits run on the caller's clock, so time spent here is spent from the
 /// same deadline the caller measures.
+///
+/// A companion lock is taken too, while serving, for as long as another
+/// release paces the same service through it; the gate never reads or
+/// writes anything else of that release's.
 pub struct FilePacingGate {
     service: Service,
     scratch: ScratchDir,
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
+    companion_locks: Vec<PathBuf>,
 }
 
 impl FilePacingGate {
@@ -87,12 +95,14 @@ impl FilePacingGate {
         research: &ScratchDir,
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
+        companion_locks: Vec<PathBuf>,
     ) -> Self {
         Self {
             service,
             scratch: research.service_state(service),
             clock,
             diagnostics,
+            companion_locks,
         }
     }
 
@@ -103,14 +113,44 @@ impl FilePacingGate {
         ));
     }
 
-    fn turn(&self, slot: Option<File>) -> Box<dyn ServingTurn + '_> {
-        Box::new(Turn {
+    /// A turn on `slot`, or `None` while a companion lock is busy, which
+    /// gives the slot back at once.
+    fn turn(&self, slot: Option<File>) -> Option<Box<dyn ServingTurn + '_>> {
+        let mut companions = Vec::new();
+        for path in &self.companion_locks {
+            match Self::companion(path) {
+                Ok(lock) => companions.push(lock),
+                Err(Companion::Busy) => return None,
+                Err(Companion::Unusable(error)) => self.report(&format!(
+                    "could not lock {}: {error}; serving without it",
+                    path.display()
+                )),
+            }
+        }
+        Some(Box::new(Turn {
             gate: self,
             _slot: slot,
-        })
+            _companions: companions,
+        }))
     }
 
-    fn unlocked_turn(&self, detail: &str) -> Box<dyn ServingTurn + '_> {
+    /// Opened or created as the release that owns it opens it, so the two
+    /// can never race on its first creation.
+    fn companion(path: &Path) -> Result<File, Companion> {
+        let lock = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(path)
+            .map_err(|error| Companion::Unusable(error.to_string()))?;
+        match flock(&lock, FlockOperation::NonBlockingLockExclusive) {
+            Ok(()) => Ok(lock),
+            Err(Errno::WOULDBLOCK) => Err(Companion::Busy),
+            Err(errno) => Err(Companion::Unusable(errno.to_string())),
+        }
+    }
+
+    fn unlocked_turn(&self, detail: &str) -> Option<Box<dyn ServingTurn + '_>> {
         self.report(&format!("{detail}; pacing without the lock"));
         self.turn(None)
     }
@@ -135,16 +175,16 @@ impl PacingGate for FilePacingGate {
             let name = serving_lock(slot);
             let lock = match self.scratch.open(&name) {
                 Ok(lock) => lock,
-                Err(error) => return Some(self.unlocked_turn(&error)),
+                Err(error) => return self.unlocked_turn(&error),
             };
             match flock(&lock, FlockOperation::NonBlockingLockExclusive) {
-                Ok(()) => return Some(self.turn(Some(lock))),
+                Ok(()) => return self.turn(Some(lock)),
                 Err(Errno::WOULDBLOCK) => {}
                 Err(errno) => {
-                    return Some(self.unlocked_turn(&format!(
+                    return self.unlocked_turn(&format!(
                         "could not lock {}: {errno}",
                         self.scratch.path(&name).display()
-                    )))
+                    ))
                 }
             }
         }
@@ -152,9 +192,15 @@ impl PacingGate for FilePacingGate {
     }
 }
 
+enum Companion {
+    Busy,
+    Unusable(String),
+}
+
 struct Turn<'g> {
     gate: &'g FilePacingGate,
     _slot: Option<File>,
+    _companions: Vec<File>,
 }
 
 impl ServingTurn for Turn<'_> {

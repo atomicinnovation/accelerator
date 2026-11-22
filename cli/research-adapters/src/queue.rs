@@ -30,6 +30,7 @@ use research::sources::queue::Place;
 use research::sources::queue::Position;
 use research::sources::queue::Presence;
 use research::sources::queue::Presentation;
+use research::sources::queue::Provenance;
 use research::sources::queue::Queue;
 use research::sources::queue::ServiceQueue;
 use research::sources::queue::Standing;
@@ -64,9 +65,16 @@ pub fn random_nonce() -> Nonce {
     Nonce::from_bits(rand::random())
 }
 
+/// A directory of tickets another queue issued, listed only to refuse them.
+pub struct ForeignSource {
+    pub directory: ScratchDir,
+    pub provenance: Provenance,
+}
+
 pub struct FileServiceQueue {
     service: Service,
     scratch: ScratchDir,
+    foreign_sources: Vec<ForeignSource>,
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
     nonces: Box<dyn Fn() -> Nonce>,
@@ -80,15 +88,42 @@ impl FileServiceQueue {
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
         nonces: Box<dyn Fn() -> Nonce>,
+        foreign_sources: Vec<ForeignSource>,
     ) -> Self {
         Self {
             service,
-            scratch: research.service_state(service).nested(QUEUE_DIRECTORY),
+            scratch: Self::directory_of(service, research),
+            foreign_sources,
             clock,
             diagnostics,
             nonces,
             unprobeable_reported: RefCell::default(),
         }
+    }
+
+    pub fn directory_of(service: Service, research: &ScratchDir) -> ScratchDir {
+        research.service_state(service).nested(QUEUE_DIRECTORY)
+    }
+
+    /// The tickets other queues issued, read by name alone: their
+    /// directories are never locked, written or pruned. One that cannot be
+    /// listed contributes nothing.
+    fn foreign_tickets(&self) -> Vec<(Ticket, Provenance)> {
+        let mut foreign = Vec::new();
+        for source in &self.foreign_sources {
+            match source.directory.names() {
+                Ok(names) => foreign.extend(
+                    names
+                        .iter()
+                        .filter_map(|name| ticket_named(name, RECORD))
+                        .map(|ticket| (ticket, source.provenance)),
+                ),
+                Err(error) => self.report(&format!(
+                    "{error}; a ticket it issued would join afresh"
+                )),
+            }
+        }
+        foreign
     }
 
     /// The bookkeeping lock, retried while `bound` allows; `None` when the
@@ -148,7 +183,11 @@ impl FileServiceQueue {
         Ok(snapshot)
     }
 
-    fn queue_of(&self, snapshot: &Snapshot) -> Queue {
+    fn queue_of(
+        &self,
+        snapshot: &Snapshot,
+        foreign: Vec<(Ticket, Provenance)>,
+    ) -> Queue {
         let standings = snapshot
             .records
             .iter()
@@ -157,7 +196,7 @@ impl FileServiceQueue {
                     .standing(ticket.clone(), self.presence_of(ticket, record))
             })
             .collect();
-        Queue::new(standings, snapshot.set_aside.clone(), Vec::new())
+        Queue::new(standings, snapshot.set_aside.clone(), foreign)
     }
 
     fn presence_of(&self, ticket: &Ticket, record: &Record) -> Presence {
@@ -400,7 +439,10 @@ impl ServiceQueue for FileServiceQueue {
                 return Joining::Unqueued;
             }
         };
-        let queue = self.queue_of(&snapshot);
+        let foreign = presented
+            .map(|_| self.foreign_tickets())
+            .unwrap_or_default();
+        let queue = self.queue_of(&snapshot, foreign);
         let now = self.clock.wall_now();
         match queue.present(presented, binding, now) {
             Presentation::Rejected(rejection) => Joining::Rejected(rejection),
@@ -564,7 +606,7 @@ impl Place for FilePlace<'_> {
                 return self.position;
             }
         };
-        let queue = self.queue.queue_of(&snapshot);
+        let queue = self.queue.queue_of(&snapshot, Vec::new());
         let now = self.queue.clock.wall_now();
         self.queue.housekeeping(&snapshot, &queue, now);
         if let Some(record) = snapshot.record(&self.ticket) {
@@ -588,7 +630,7 @@ impl Place for FilePlace<'_> {
         };
         match self.queue.snapshot() {
             Ok(snapshot) => {
-                let queue = self.queue.queue_of(&snapshot);
+                let queue = self.queue.queue_of(&snapshot, Vec::new());
                 let now = self.queue.clock.wall_now();
                 self.queue.housekeeping(&snapshot, &queue, now);
             }

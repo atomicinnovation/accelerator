@@ -26,8 +26,11 @@ use research::sources::service::Service;
 use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::pacing::FilePacingGate;
+use research_adapters::queue::random_nonce;
 use research_adapters::queue::FileServiceQueue;
 use research_adapters::scratch::ScratchDir;
+use research_adapters::services::AdapterContext;
+use research_adapters::services::PreviousRelease;
 
 pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -150,7 +153,58 @@ pub fn service_gate(
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
 ) -> FilePacingGate {
-    FilePacingGate::new(service, research, clock, diagnostics)
+    FilePacingGate::new(service, research, clock, diagnostics, Vec::new())
+}
+
+/// A gate that also takes each of `companions` while it serves.
+pub fn gate_with_companions(
+    service: Service,
+    research: &ScratchDir,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+    companions: Vec<PathBuf>,
+) -> FilePacingGate {
+    FilePacingGate::new(service, research, clock, diagnostics, companions)
+}
+
+/// What every service's adapters share, over `scratch`.
+pub fn adapter_context(
+    scratch: &Scratch,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> AdapterContext {
+    AdapterContext {
+        research: scratch.dir(),
+        clock,
+        diagnostics,
+        nonces: Rc::new(random_nonce),
+    }
+}
+
+/// The previous release's arXiv state, where it kept it.
+pub fn previous_release(scratch: &Scratch) -> PreviousRelease {
+    PreviousRelease {
+        queue: scratch.dir().nested("arxiv-queue"),
+        lock: scratch.legacy_arxiv_state(LegacyFile::Lock),
+    }
+}
+
+/// A file or directory the previous release kept arXiv's state in.
+#[derive(Debug, Clone, Copy)]
+pub enum LegacyFile {
+    Queue,
+    Pacing,
+    Lock,
+}
+
+impl LegacyFile {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Queue => "arxiv-queue",
+            Self::Pacing => "arxiv-pacing",
+            Self::Lock => "arxiv.lock",
+        }
+    }
 }
 
 /// Reports nowhere, for a gate built inside another caller's sleep.
@@ -252,7 +306,14 @@ pub fn arxiv_queue(
     diagnostics: Rc<dyn Diagnostics>,
     nonces: Box<dyn Fn() -> Nonce>,
 ) -> FileServiceQueue {
-    FileServiceQueue::new(Service::Arxiv, research, clock, diagnostics, nonces)
+    FileServiceQueue::new(
+        Service::Arxiv,
+        research,
+        clock,
+        diagnostics,
+        nonces,
+        Vec::new(),
+    )
 }
 
 /// Joins `queue` as an arXiv call would.
@@ -295,6 +356,39 @@ impl Scratch {
 
     pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
         self.service_state(Service::Arxiv, file)
+    }
+
+    pub fn legacy_arxiv_state(&self, file: LegacyFile) -> PathBuf {
+        self.directory().join(file.name())
+    }
+
+    /// Writes a ticket record into `service`'s queue, as a call of that
+    /// service would have left it.
+    pub fn seed_service_ticket(&self, service: Service, ticket: &str) {
+        Self::seed_record_in(
+            &self.service_state(service, StateFile::Queue),
+            ticket,
+        );
+    }
+
+    /// Writes a ticket record where the previous release kept its queue.
+    pub fn seed_legacy_ticket(&self, ticket: &str) {
+        Self::seed_record_in(
+            &self.legacy_arxiv_state(LegacyFile::Queue),
+            ticket,
+        );
+    }
+
+    fn seed_record_in(directory: &Path, ticket: &str) {
+        std::fs::create_dir_all(directory).expect("mkdir queue");
+        std::fs::write(
+            directory.join(format!("{ticket}.json")),
+            format!(
+                "{{\"schema_version\":1,\"issued_ms\":0,\"presented_ms\":0,\
+                 \"ended_ms\":0,\"last_retryable\":null,{GRAPHS}}}"
+            ),
+        )
+        .expect("seed a ticket");
     }
 
     pub fn queue_directory(&self) -> PathBuf {

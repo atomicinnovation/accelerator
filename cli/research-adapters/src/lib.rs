@@ -17,6 +17,7 @@ pub mod pacing;
 pub mod page_transport;
 pub mod queue;
 pub mod scratch;
+pub mod services;
 pub mod topic;
 pub mod transport;
 pub mod unicode_text;

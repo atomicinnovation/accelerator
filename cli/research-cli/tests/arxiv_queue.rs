@@ -15,11 +15,15 @@ use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use support::arxiv_fixture;
+use support::assert_golden;
+use support::fetch;
 use support::search_binding;
 use support::spawn_in_real_time;
+use support::LegacyFile;
 use support::Project;
 use support::SeededTicket;
 use support::StateFile;
+use support::CALL_BUDGET_MS;
 
 const SPACING: Duration = Duration::from_secs(3);
 
@@ -189,4 +193,73 @@ fn a_killed_waiter_frees_its_place_at_once() {
     assert_eq!(finish(resumed)["status"], "ok");
     assert_eq!(finish(later)["status"], "ok");
     assert_eq!(served_order(&server), ["beta", "alpha", "gamma"]);
+}
+
+fn oai() -> RequestKey {
+    RequestKey::get("/oai")
+}
+
+fn withdrawn_lookup_server() -> MockHTTPServer {
+    let server = MockHTTPServer::start();
+    for (key, fixture) in [
+        (query(), "lookup-2608.21129.xml"),
+        (oai(), "oai-2608.21129.xml"),
+    ] {
+        server.route(
+            key,
+            Route::Bytes {
+                status: 200,
+                body: arxiv_fixture(fixture).into_bytes(),
+            },
+        );
+    }
+    server
+}
+
+#[test]
+fn a_ticket_from_the_previous_release_is_a_mismatch_and_a_fresh_call_is_served()
+{
+    let project = Project::new();
+    let ticket = project.seed_legacy_fixture();
+    let server = withdrawn_lookup_server();
+
+    let rejected = fetch(
+        &project,
+        &server,
+        &["arxiv", "lookup", "2608.21129", "--ticket", &ticket],
+        &[],
+    );
+    assert_eq!(rejected.code, Some(2), "{}", rejected.stderr);
+    assert!(
+        rejected
+            .stderr
+            .lines()
+            .any(|line| line.starts_with("E_ARXIV_TICKET_MISMATCH")),
+        "{}",
+        rejected.stderr
+    );
+    assert_eq!(server.hits(&query()) + server.hits(&oai()), 0);
+
+    let fresh =
+        fetch(&project, &server, &["arxiv", "lookup", "2608.21129"], &[]);
+    assert_eq!(fresh.code, Some(0), "{}", fresh.stderr);
+    assert_golden("arxiv-lookup-withdrawn.json", &fresh.stdout);
+}
+
+#[test]
+fn an_arxiv_call_waits_while_an_older_release_holds_arxiv_lock() {
+    let project = Project::new();
+    let server = server();
+    let _older = project.hold_legacy(LegacyFile::Lock);
+
+    let run = fetch(
+        &project,
+        &server,
+        &["arxiv", "search", "alpha"],
+        &[(CALL_BUDGET_MS, "40000")],
+    );
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(run.json()["status"], "waiting", "{}", run.stdout);
+    assert_eq!(server.hits(&query()), 0);
 }

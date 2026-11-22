@@ -22,11 +22,13 @@ use research_adapters::scratch::ScratchDir;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use support::arxiv_gate;
+use support::gate_with_companions;
 use support::millis;
 use support::secs;
 use support::service_gate;
 use support::write_pacing_at;
 use support::HookedClock;
+use support::LegacyFile;
 use support::PacingRecord;
 use support::RecordedDiagnostics;
 use support::RecordingClock;
@@ -791,4 +793,107 @@ fn a_pacing_file_of_another_shape_counts_as_no_previous_request() {
         assert!(pool.clock.slept().is_empty(), "{shape}");
         assert_eq!(pool.diagnostics.lines().len(), 1, "{shape}");
     }
+}
+
+/// An arXiv gate that also takes the previous release's lock.
+struct Upgrading {
+    pool: Pool,
+}
+
+impl Upgrading {
+    fn new() -> Self {
+        Self {
+            pool: Pool::of(Service::Arxiv),
+        }
+    }
+
+    fn legacy_lock(&self) -> std::path::PathBuf {
+        self.pool.scratch.legacy_arxiv_state(LegacyFile::Lock)
+    }
+
+    fn gate(&self) -> FilePacingGate {
+        gate_with_companions(
+            Service::Arxiv,
+            &self.pool.scratch.dir(),
+            self.pool.clock.shared(),
+            self.pool.diagnostics.clone(),
+            vec![self.legacy_lock()],
+        )
+    }
+
+    /// Holds the lock as an older release's arXiv call would.
+    fn hold_as_older_release(&self) -> File {
+        let lock = self.pool.scratch.open(self.legacy_lock());
+        flock(&lock, FlockOperation::NonBlockingLockExclusive)
+            .expect("the older release holds arxiv.lock");
+        lock
+    }
+
+    fn older_release_can_lock(&self) -> bool {
+        let lock = self.pool.scratch.open(self.legacy_lock());
+        flock(&lock, FlockOperation::NonBlockingLockExclusive).is_ok()
+    }
+}
+
+#[test]
+fn an_older_release_holding_its_lock_keeps_a_new_release_call_waiting() {
+    let upgrading = Upgrading::new();
+    let _older = upgrading.hold_as_older_release();
+
+    assert!(upgrading.gate().try_serve().is_none());
+    assert!(upgrading.pool.is_free(StateFile::ServingLock));
+    assert!(upgrading.pool.diagnostics.lines().is_empty());
+}
+
+#[test]
+fn a_new_release_turn_keeps_an_older_release_call_waiting() {
+    let upgrading = Upgrading::new();
+    let gate = upgrading.gate();
+
+    let turn = gate.try_serve().expect("a free slot");
+    let older_blocked = !upgrading.older_release_can_lock();
+    drop(turn);
+
+    assert!(older_blocked);
+    assert!(upgrading.older_release_can_lock());
+}
+
+#[test]
+fn an_absent_companion_lock_is_created_without_a_diagnostic() {
+    let upgrading = Upgrading::new();
+
+    let turn = upgrading.gate().try_serve().map(drop);
+
+    assert!(turn.is_some());
+    assert!(upgrading.legacy_lock().is_file());
+    assert!(upgrading.pool.diagnostics.lines().is_empty());
+}
+
+#[test]
+fn a_companion_lock_that_cannot_open_still_serves_with_one_diagnostic() {
+    let upgrading = Upgrading::new();
+    upgrading.pool.scratch.mkdir(upgrading.legacy_lock());
+
+    let gate = upgrading.gate();
+    let turn = gate.try_serve();
+
+    assert!(turn.is_some());
+    let reported = upgrading.pool.diagnostics.lines();
+    assert_eq!(reported.len(), 1, "{reported:?}");
+    assert!(
+        reported[0].contains(&upgrading.legacy_lock().display().to_string()),
+        "{reported:?}"
+    );
+}
+
+#[test]
+fn a_degraded_slot_lock_still_waits_for_a_busy_companion() {
+    let upgrading = Upgrading::new();
+    upgrading
+        .pool
+        .scratch
+        .mkdir(upgrading.pool.state(StateFile::ServingLock));
+    let _older = upgrading.hold_as_older_release();
+
+    assert!(upgrading.gate().try_serve().is_none());
 }
