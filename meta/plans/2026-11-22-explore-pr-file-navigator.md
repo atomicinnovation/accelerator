@@ -115,7 +115,9 @@ All paths are relative to `.claude/skills/explore-pr/`. `P` means
 - Each folder row totals its subtree: the read share, the number of files, the
   highest risk, and the number of verdicts of each kind.
 - Above the tree:
-  - a Group by control (Tree, Role, Chapter, Risk, Change);
+  - a Group by control (Tree, None, Role, Chapter, Risk, Change). None lists
+    every matching file flat, each named by file and directory, so a sort runs
+    across all of them;
   - a Sort control (Path, Still to read, Size, Risk, Reading order, First
     commit);
   - facet chips (Progress, Your verdict, Role, Risk, Change, Chapter,
@@ -336,6 +338,8 @@ exported.
     counts, the highest for risk, the earliest for order.
 - Each folder carries totals:
   `{ files, changed, read, highestRisk, verdicts: { ok, skip, issue, none } }`.
+- `groupBy: 'none'` gives every file in one flat list, named by its path and
+  sorted across all of them.
 - Any other `groupBy` gives one top-level group per value, each holding a
   directory tree of its files.
   - Groups follow `groups[groupBy]` order: manifest layers, tour chapters,
@@ -367,9 +371,13 @@ exported.
 - `BLANK_FILTERS.files` takes `FileNavigator.BLANK`. `fileQuery` and
   `unreadOnly` are removed. The Still to read checkbox becomes the Progress
   chip with `unread` and `partial` chosen.
-- `vFiles` draws `#navigator`, which contains:
+- `vFiles` draws `#navigator` as a pinned header (search, Group by, Sort,
+  facets, count) above a tree that scrolls on its own. Facet values with no
+  files look the same as the rest, showing 0. The navigator contains:
   - the controls row (Group by, Sort, path search);
-  - facet chips as `<details>` menus of checkboxes with counts;
+  - facet chips, each opening a pop-over menu of checkboxes with counts that
+    floats over the tree. Ticking a box updates counts and ticks in place and
+    redraws only the tree, so no control moves;
   - "Showing N of M files";
   - the tree as `role="tree"` with `role="treeitem"` rows.
 - Rows:
@@ -387,6 +395,9 @@ exported.
 - The filtered set is fixed when the filters change. A file that stops
   matching after a verdict stays visible, dimmed with `.stale`, until the next
   filter change, so the list does not move under the reviewer.
+- Choosing a file leaves the navigator's scroll position alone and scrolls
+  the page so the file's summary sits just below the top bar. The pane has a
+  minimum height of one screen, so that position is always reachable.
 - At phone width, `#navigator` sits above the pane inside a
   `<details open>` drawer and closes when a file is opened.
 
@@ -420,12 +431,12 @@ bundled files.
 
 #### Automated Verification
 
-- [ ] The `file-navigator` node suite passes:
+- [x] The `file-navigator` node suite passes:
   `node --test .claude/skills/explore-pr/tests/file-navigator.test.js`
-- [ ] Both layouts inline the model:
+- [x] Both layouts inline the model:
   `uv run --with pytest python -m pytest -q .claude/skills/explore-pr/tests/test_build.py`
-- [ ] Every command under Shared verification commands passes
-- [ ] The smoke report has `navigator` holding and `ok: true`
+- [x] Every command under Shared verification commands passes
+- [x] The smoke report has `navigator` holding and `ok: true`
 
 #### Manual Verification
 

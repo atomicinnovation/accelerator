@@ -343,8 +343,42 @@ details[open] > summary { margin-bottom: 8px; }
 .cov { width: 28px; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; display: block; }
 .cov i { display: block; height: 100%; width: 0; background: var(--ok); }
 .cov.s-issue i { background: var(--bad); }
-.file-list .unread-only { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--ink-2); margin: 0 2px 6px; }
-.file-list .unread-only input { width: auto; margin: 0; }
+.nav-drawer { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + 12px); min-width: 0; }
+.nav-drawer > summary { display: none; }
+.nav-drawer .file-list { position: static; }
+.nav-prefs { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin: 0 2px 6px; }
+.nav-prefs select { font: inherit; padding: 2px 4px; border: 1px solid var(--rule); border-radius: 5px; background: var(--panel); color: var(--ink); }
+.facets { display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-start; margin: 0 2px 6px; --pill-h: 22px; }
+.facet { height: var(--pill-h); }
+.facet > summary { list-style: none; cursor: pointer; font-size: 12px; box-sizing: border-box; height: var(--pill-h); line-height: calc(var(--pill-h) - 2px); padding: 0 9px; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink-2); white-space: nowrap; }
+.facet > summary::-webkit-details-marker { display: none; }
+.facet > summary b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.facet > summary b.none { visibility: hidden; }
+.facet.active > summary, .facet[open] > summary { border-color: var(--accent); color: var(--ink); }
+.facet-opts { position: fixed; z-index: 40; display: grid; align-content: start; gap: 1px; padding: 6px; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--shadow); overflow-y: auto; }
+.facet-opts [data-facet-count] { color: var(--ink-3); }
+.nav-actions { display: inline-flex; gap: 10px; }
+.nav-actions .loc[disabled] { opacity: .4; cursor: default; }
+.facet-opts label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; font-size: 12.5px; padding: 2px 4px; border-radius: 4px; cursor: pointer; }
+.facet-opts label:hover { background: var(--panel-2); }
+.facet-opts label span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-list .facet-opts input { width: auto; margin: 0; }
+.nav-count { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline; margin: 0 2px 4px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.nav-count #nav-count { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#navigator { display: flex; flex-direction: column; overflow: hidden; gap: 0; }
+.nav-head { flex: none; padding-bottom: 4px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+#nav-tree { display: grid; gap: 1px; align-content: start; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#nav-tree .fl-item { grid-template-columns: 10px 28px minmax(0, 1fr) auto; gap: 6px; padding-left: calc(4px + var(--depth, 0) * 14px); }
+#nav-tree .nm { direction: ltr; }
+#nav-tree .nm .base, #nav-tree .nm .dir { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#nav-tree .nm .dir { direction: rtl; text-align: left; color: var(--ink-3); font-size: 11px; }
+#file-pane { min-height: calc(100vh - var(--top-h) - 24px); align-content: start; }
+#nav-tree .fl-item.stale { opacity: .5; }
+.nav-folder .nm { font-weight: 600; }
+.nav-group .nm { font-family: var(--f-body); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.chev { justify-self: center; width: 0; height: 0; border-style: solid; border-width: 4px 0 4px 6px; border-color: transparent transparent transparent currentColor; color: var(--ink-3); transform: rotate(90deg); }
+[aria-expanded="false"] > .chev { transform: none; }
+.nav-folder[data-risk="high"] .ct::before, .nav-group[data-risk="high"] .ct::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--risk-high); margin-right: 5px; vertical-align: 1px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.s-ok { background: var(--ok); } .dot.s-issue { background: var(--bad); } .dot.s-skip { background: var(--none); }
 .dot.s-none { background: transparent; border: 1px solid var(--ink-3); }
@@ -411,8 +445,9 @@ details[open] > summary { margin-bottom: 8px; }
 
 @media (max-width: 980px) {
   .stop, .sim-layout, .files-layout { grid-template-columns: minmax(0, 1fr); }
-  .stop-note, .file-list { position: static; max-height: none; }
-  .file-list { max-height: 320px; }
+  .stop-note, .file-list, .nav-drawer { position: static; max-height: none; }
+  .file-list { max-height: 420px; }
+  .nav-drawer > summary { display: block; cursor: pointer; font-weight: 600; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); margin-bottom: 6px; }
 }
 @media (max-width: 760px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
@@ -875,6 +910,7 @@ function refreshCoverage(recorded) {
   });
   refreshLineMarks(recorded);
   refreshCommitCoverage(recorded);
+  refreshNavigator();
 }
 
 /* ---------- Line marks ---------- */
@@ -1350,6 +1386,7 @@ const BLANK_FILTERS = {
   decisions: { assessment: '', chapter: '', verdict: '' },
   abstractions: { status: '', chapter: '' },
   invariants: { holds: '', pinned: '', chapter: '', verdict: '' },
+  files: FileNavigator.BLANK,
 };
 const filters = Object.fromEntries(Object.entries(BLANK_FILTERS).map(([route, blank]) => [route, { ...blank }]));
 const jumpLink = (route, filter, label, attrs = '') => `<a href="#${route}" data-jump="${route}" data-filter="${esc(JSON.stringify(filter))}"${attrs}>${label}</a>`;
@@ -1817,22 +1854,182 @@ function vTests() {
 }
 
 /* Files */
-let fileQuery = '';
-let unreadOnly = false;
+const NAVIGATOR_DEFAULTS = { groupBy: 'tree', sortBy: 'path', collapsed: {}, advance: true, commitPane: 'one' };
+const NavigatorPrefs = {
+  held: null,
+  key: () => `explore-pr-nav:${C.pr.repo || ''}#${C.pr.number}`,
+  get() {
+    if (this.held) return this.held;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(this.key()) || '{}') || {}; } catch (e) { saved = {}; }
+    this.held = { ...NAVIGATOR_DEFAULTS, ...saved };
+    return this.held;
+  },
+  set(patch) {
+    this.held = { ...this.get(), ...patch };
+    try { localStorage.setItem(this.key(), JSON.stringify(this.held)); } catch (e) { /* storage unavailable */ }
+  },
+};
+const collapsedOn = route => new Set(NavigatorPrefs.get().collapsed[route] || []);
+const keepCollapsed = (route, ids) => NavigatorPrefs.set({ collapsed: { ...NavigatorPrefs.get().collapsed, [route]: [...ids] } });
+const GROUP_BY = [['tree', 'Tree'], ['none', 'None'], ['layer', 'Role'], ['chapter', 'Chapter'], ['risk', 'Risk'], ['change', 'Change']];
+const SORT_BY = [['path', 'Path'], ['unread', 'Still to read'], ['size', 'Size'], ['risk', 'Risk'], ['reading', 'Reading order'], ['commit', 'First commit']];
+const FACET_UI = [
+  ['progress', 'Progress', () => [['unread', 'not started'], ['partial', 'partly read'], ['read', 'read']]],
+  ['verdict', 'Your verdict', () => [['none', 'none'], ...KINDS.file.opts.map(([value, label]) => [value, label])]],
+  ['layer', 'Role', () => layersList()],
+  ['risk', 'Risk', () => RISKS.map(([risk]) => [risk, risk])],
+  ['change', 'Change', () => [['added', 'added'], ['modified', 'modified'], ['deleted', 'deleted'], ['binary', 'binary']]],
+  ['chapter', 'Chapter', () => C.chapters.map(c => [c.id, c.title])],
+  ['mentions', 'Mentioned in', () => [['stop', 'a tour stop'], ['ledger', 'a ledger row'], ['finding', 'a finding']]],
+  ['commit', 'Commit', () => C.commits.filter(c => !c.merge).map(c => [c.sha, `${shortSha(c.sha)} ${c.subject}`])],
+];
+const STILL_TO_READ = ['unread', 'partial'];
+
+let entriesMemo = { at: '', entries: [] };
+function fileEntries() {
+  const recorded = recordedClaims();
+  const at = `${Store.version}:${COMMITS.length}:${D ? 'diff' : ''}`;
+  if (entriesMemo.at === at) return entriesMemo.entries;
+  const mentions = {}, readingOrder = {}, commits = {}, firstCommit = {};
+  const mention = (path, kind) => { if (path) (mentions[path] = mentions[path] || new Set()).add(kind); };
+  C.chapters.forEach((ch, i) => (ch.stops || []).forEach((s, j) => {
+    mention(s.file, 'stop');
+    if (readingOrder[s.file] == null) readingOrder[s.file] = i * 10000 + j;
+  }));
+  C.ledger.forEach(l => mention(l.file, 'ledger'));
+  C.findings.forEach(f => mention(f.file, 'finding'));
+  COMMITS.forEach(c => (c.files || []).forEach(f => {
+    if (!f.headPath) return;
+    (commits[f.headPath] = commits[f.headPath] || []).push(c.sha);
+    if (firstCommit[f.headPath] == null) firstCommit[f.headPath] = commitIndex(c.sha);
+  }));
+  const chapterAt = Object.fromEntries(C.chapters.map((c, i) => [c.id, i]));
+  const entries = C.files.map(f => {
+    const d = D && D[f.path], cov = coverageOf(f.path, recorded);
+    return {
+      path: f.path, layer: f.layer, risk: f.risk, chapter: f.chapter || '',
+      readingOrder: readingOrder[f.path] ?? (f.chapter in chapterAt ? chapterAt[f.chapter] * 10000 + 9999 : null),
+      firstCommit: firstCommit[f.path] ?? null,
+      changes: [f.status || (d && d.status) || 'modified', ...(d && d.binary ? ['binary'] : [])],
+      add: f.add, del: f.del,
+      coverage: cov ? { changed: cov.changed, read: cov.read, state: cov.state } : { changed: 0, read: 0, state: 'unread' },
+      verdict: Store.get('file:' + f.path).status || '',
+      mentions: [...(mentions[f.path] || [])], commits: commits[f.path] || [],
+    };
+  });
+  entriesMemo = { at, entries };
+  return entries;
+}
+
+let navQuery = '';
+let navShown = { key: '', paths: new Set() };
 let selectedFile = null;
+function shownEntries() {
+  const entries = fileEntries();
+  const key = JSON.stringify([filters.files, navQuery, !!D, COMMITS.length]);
+  if (navShown.key !== key) navShown = { key, paths: new Set(entries.filter(e => FileNavigator.matches(e, filters.files, navQuery)).map(e => e.path)) };
+  return entries.filter(e => navShown.paths.has(e.path));
+}
+const navGroups = () => ({ layer: layersList(), chapter: C.chapters.map(c => [c.id, c.title]) });
+function fileTree() {
+  const { groupBy, sortBy } = NavigatorPrefs.get();
+  return FileNavigator.treeOf(shownEntries(), { groupBy, sortBy, groups: navGroups() });
+}
+const folderShare = t => (t.changed ? 100 * t.read / t.changed : 0);
+const folderCount = t => (t.changed ? `${fmt(t.read)}/${fmt(t.changed)}` : plural(t.files, 'file'));
+const folderTitle = (node, t) => `${node.path || node.name}: ${plural(t.files, 'file')}; ${fmt(t.read)} of ${plural(t.changed, 'changed line')} read; ${t.verdicts.ok} reviewed, ${t.verdicts.skip} skimmed, ${t.verdicts.issue} with an issue; highest risk ${t.highestRisk}`;
+function fileNameHtml(name) {
+  const cut = name.lastIndexOf('/') + 1;
+  return cut ? `<span class="base">${esc(name.slice(cut))}</span><span class="dir"><bdi>${esc(name.slice(0, cut))}</bdi></span>` : esc(name);
+}
+function navRowHtml({ node, depth }, collapsed) {
+  const at = `role="treeitem" aria-level="${depth + 1}" style="--depth:${depth}"`;
+  if (node.kind === 'file') {
+    const f = node.entry;
+    return `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span aria-hidden="true"></span><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`;
+  }
+  const t = node.totals;
+  return `<button type="button" class="fl-item nav-${node.kind}" ${at} aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}" data-risk="${esc(t.highestRisk)}" title="${esc(folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"><i style="width:${folderShare(t)}%"></i></span><span class="nm">${esc(node.name)}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${folderCount(t)}</span></button>`;
+}
+function facetsHtml(counts) {
+  return FACET_UI.map(([facet, label, options]) => {
+    const opts = options();
+    if (!opts.length) return '';
+    const chosen = filters.files[facet];
+    return `<details class="facet${chosen.length ? ' active' : ''}" data-facet="${facet}"><summary>${esc(label)} <b data-facet-chosen class="${chosen.length ? '' : 'none'}">${chosen.length}</b></summary><div class="facet-opts" role="group" aria-label="${esc(label)}">${opts.map(([value, text]) => `<label><input type="checkbox" data-facet-value="${esc(value)}" ${chosen.includes(value) ? 'checked' : ''}><span>${esc(text)}</span><span class="tnum" data-facet-count>${fmt(counts[facet][value] || 0)}</span></label>`).join('')}</div></details>`;
+  }).join('');
+}
+const anyFacetChosen = () => FileNavigator.FACETS.some(facet => filters.files[facet].length);
+function refreshFacets() {
+  const counts = FileNavigator.facetCounts(fileEntries(), filters.files, navQuery);
+  $$('#nav-facets [data-facet]').forEach(facet => {
+    const name = facet.dataset.facet, chosen = filters.files[name];
+    const mark = $('[data-facet-chosen]', facet);
+    mark.textContent = chosen.length;
+    mark.classList.toggle('none', !chosen.length);
+    facet.classList.toggle('active', chosen.length > 0);
+    $$('[data-facet-value]', facet).forEach(box => {
+      const value = box.dataset.facetValue, n = counts[name][value] || 0;
+      box.checked = chosen.includes(value);
+      $('[data-facet-count]', box.closest('label')).textContent = fmt(n);
+    });
+  });
+  const clear = $('[data-clear-facets]');
+  if (clear) clear.disabled = !anyFacetChosen();
+}
+function treeBody() {
+  const entries = fileEntries(), tree = fileTree(), collapsed = collapsedOn('files');
+  return {
+    count: `${fmt(FileNavigator.fileOrder(tree).length)} of ${plural(entries.length, 'file')}`,
+    tree: FileNavigator.rowsOf(tree, collapsed).map(row => navRowHtml(row, collapsed)).join('') || '<div class="muted small">No files match these filters.</div>',
+  };
+}
+function renderTree() {
+  if (!$('#nav-tree')) return;
+  const body = treeBody();
+  $('#nav-count').textContent = body.count;
+  $('#nav-tree').dataset.groupBy = NavigatorPrefs.get().groupBy;
+  $('#nav-tree').innerHTML = body.tree;
+  refreshControls();
+}
+function refreshNavigator() {
+  const treeEl = $('#nav-tree');
+  if (!treeEl) return;
+  const folders = {};
+  const walk = nodes => nodes.forEach(node => { if (node.kind !== 'file') { folders[node.id] = node; walk(node.children); } });
+  walk(fileTree());
+  $$('[data-toggle-node]', treeEl).forEach(row => {
+    const node = folders[row.dataset.toggleNode];
+    if (!node) return;
+    $('[data-folder-of] i', row).style.width = `${folderShare(node.totals)}%`;
+    $('[data-folder-count-of]', row).textContent = folderCount(node.totals);
+    row.title = folderTitle(node, node.totals);
+  });
+  const byPath = Object.fromEntries(fileEntries().map(e => [e.path, e]));
+  $$('.nav-file', treeEl).forEach(row => row.classList.toggle('stale', !FileNavigator.matches(byPath[row.dataset.file], filters.files, navQuery)));
+  refreshFacets();
+}
+function revealInNavigator(path) {
+  const ancestors = FileNavigator.ancestorsOf(fileTree(), path);
+  const collapsed = collapsedOn('files');
+  if (ancestors.some(id => collapsed.has(id))) { ancestors.forEach(id => collapsed.delete(id)); keepCollapsed('files', collapsed); }
+}
+const prefSelect = (pref, options) => `<select data-nav-pref="${pref}" aria-label="${pref === 'groupBy' ? 'Group by' : 'Sort by'}">${options.map(([value, label]) => `<option value="${value}" ${NavigatorPrefs.get()[pref] === value ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
 function vFiles() {
   if (pendingOpen) selectedFile = pendingOpen.path;
   if (!selectedFile || !FILE[selectedFile]) selectedFile = (C.files.find(f => f.risk === 'high') || C.files[0]).path;
-  const recorded = recordedClaims();
-  const stillToRead = f => { const cov = coverageOf(f.path, recorded); return !cov || cov.state !== 'read'; };
-  const list = layersList().map(([id, label]) => {
-    const fs = C.files.filter(f => f.layer === id && (!fileQuery || f.path.toLowerCase().includes(fileQuery.toLowerCase())) && (!unreadOnly || stillToRead(f)));
-    if (!fs.length) return '';
-    return `<div class="fl-group">${label}</div>` + fs.map(f => `<button type="button" class="fl-item" data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${esc(short(f.path))}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`).join('');
-  }).join('');
+  revealInNavigator(selectedFile);
+  const body = treeBody();
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
-    <p class="lede">The bar beside each file is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a run of unread lines from the link above it; press <kbd>n</kbd> to jump to the next line still to read. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
-    <div class="files-layout"><div class="file-list"><input type="search" id="fq" placeholder="Filter files" value="${esc(fileQuery)}" aria-label="Filter files"><label class="unread-only"><input type="checkbox" id="unread-only" ${unreadOnly ? 'checked' : ''}> Still to read</label>${list}</div>
+    <p class="lede">The files sit in a tree by directory: group them another way, sort them, or narrow them by progress, verdict, role, risk, chapter or commit. The bar beside each file or folder is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a run of unread lines from the link above it; press <kbd>n</kbd> to jump to the next line still to read. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <div class="files-layout"><details class="nav-drawer" open><summary>Files</summary><div class="file-list" id="navigator">
+      <div class="nav-head"><input type="search" id="fq" placeholder="Filter paths: src *.rs !test" value="${esc(navQuery)}" aria-label="Filter paths">
+      <div class="nav-prefs"><label>Group ${prefSelect('groupBy', GROUP_BY)}</label><label>Sort ${prefSelect('sortBy', SORT_BY)}</label></div>
+      <div class="facets" id="nav-facets">${facetsHtml(FileNavigator.facetCounts(fileEntries(), filters.files, navQuery))}</div>
+      <div class="small nav-count"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc" data-clear-facets ${anyFacetChosen() ? '' : 'disabled'}>Clear</button><button type="button" class="loc" data-collapse-read>Collapse read</button></span></div></div>
+      <div role="tree" aria-label="Changed files" id="nav-tree" data-group-by="${NavigatorPrefs.get().groupBy}">${body.tree}</div>
+    </div></details>
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
 }
 function annotationsFor(path) {
@@ -1883,17 +2080,108 @@ function filePane(path) {
 }
 after.files = () => {
   const fq = $('#fq');
-  fq.addEventListener('input', () => { fileQuery = fq.value; clearTimeout(fq._t); fq._t = setTimeout(() => { const pos = fq.selectionStart; render(); const n = $('#fq'); n.focus(); n.setSelectionRange(pos, pos); }, 200); });
-  $('#unread-only').addEventListener('change', e => { unreadOnly = e.target.checked; render(); });
-  $$('.fl-item').forEach(b => b.addEventListener('click', () => { selectedFile = b.dataset.file; pendingOpen = null; $$('.fl-item').forEach(x => x.setAttribute('aria-current', String(x === b))); $('#file-pane').innerHTML = filePane(selectedFile); refreshControls(); $('#file-pane').scrollIntoView({ block: 'start' }); }));
+  fq.addEventListener('input', () => { clearTimeout(fq._t); fq._t = setTimeout(() => { navQuery = fq.value; renderTree(); }, 200); });
   if (pendingOpen && pendingOpen.line) {
     const key = pendingOpen.side === 'old' ? 'o' : 'n';
     const tr = $(`#file-code tr[data-${key}="${pendingOpen.line}"]`);
     if (tr) { tr.scrollIntoView({ block: 'center' }); tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 1600); }
-  } else if (pendingOpen) $('#file-pane').scrollIntoView({ block: 'start' });
-  const cur = $('.fl-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+  } else if (pendingOpen) bringBelowTopBar($('#file-pane'));
+  const cur = $('.nav-file[aria-current="true"]'); if (cur) keepInNavigator(cur);
   pendingOpen = null;
 };
+const TOP_BAR_CLEARANCE = 12;
+function bringBelowTopBar(el) {
+  const bar = $('.topbar');
+  window.scrollBy({ top: el.getBoundingClientRect().top - (bar ? bar.getBoundingClientRect().bottom : 0) - TOP_BAR_CLEARANCE });
+}
+function keepInNavigator(row) {
+  const nav = $('#nav-tree'), shown = nav.getBoundingClientRect(), at = row.getBoundingClientRect();
+  if (at.top < shown.top) nav.scrollTop -= shown.top - at.top;
+  else if (at.bottom > shown.bottom) nav.scrollTop += at.bottom - shown.bottom;
+}
+const narrowLayout = () => window.matchMedia('(max-width: 980px)').matches;
+function showFile(path) {
+  selectedFile = path;
+  pendingOpen = null;
+  $$('.nav-file').forEach(row => row.setAttribute('aria-current', String(row.dataset.file === path)));
+  $('#file-pane').innerHTML = filePane(path);
+  refreshControls();
+  if (narrowLayout()) $('.nav-drawer').open = false;
+  bringBelowTopBar($('#file-pane'));
+}
+function toggleNode(id) {
+  const collapsed = collapsedOn('files');
+  if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+  keepCollapsed('files', collapsed);
+  renderTree();
+}
+function collapseRead() {
+  const byPath = Object.fromEntries(fileEntries().map(e => [e.path, e]));
+  const collapsed = collapsedOn('files');
+  const walk = nodes => nodes.forEach(node => {
+    if (node.kind === 'file') return;
+    if (FileNavigator.filesUnder(node).every(path => FileNavigator.progressOf(byPath[path]) === 'read')) collapsed.add(node.id);
+    else walk(node.children);
+  });
+  walk(fileTree());
+  keepCollapsed('files', collapsed);
+  renderTree();
+}
+function chooseFacetValue(facet, value, chosen) {
+  const values = filters.files[facet].filter(v => v !== value);
+  filters.files = { ...filters.files, [facet]: chosen ? [...values, value] : values };
+  renderTree();
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#navigator')) return;
+  const toggle = e.target.closest('[data-toggle-node]');
+  if (toggle) { toggleNode(toggle.dataset.toggleNode); return; }
+  const file = e.target.closest('.nav-file[data-file]');
+  if (file) { showFile(file.dataset.file); return; }
+  if (e.target.closest('[data-collapse-read]')) { collapseRead(); return; }
+  if (e.target.closest('[data-clear-facets]')) { filters.files = { ...FileNavigator.BLANK }; renderTree(); }
+});
+document.addEventListener('change', e => {
+  const box = e.target.closest('#nav-facets [data-facet-value]');
+  if (box) { chooseFacetValue(box.closest('[data-facet]').dataset.facet, box.dataset.facetValue, box.checked); return; }
+  const pref = e.target.closest('#navigator [data-nav-pref]');
+  if (pref) { NavigatorPrefs.set({ [pref.dataset.navPref]: pref.value }); renderTree(); }
+});
+const FACET_MENU_GAP = 4, FACET_MENU_MIN = 160, FACET_MENU_MAX = 320, FACET_MENU_WIDTH = 280, VIEWPORT_MARGIN = 8;
+function placeFacetMenu(facet) {
+  const menu = $('.facet-opts', facet), chip = $('summary', facet).getBoundingClientRect();
+  const width = Math.min(FACET_MENU_WIDTH, window.innerWidth - 2 * VIEWPORT_MARGIN);
+  const below = window.innerHeight - chip.bottom - FACET_MENU_GAP - VIEWPORT_MARGIN;
+  const above = chip.top - FACET_MENU_GAP - VIEWPORT_MARGIN;
+  const opensUp = below < FACET_MENU_MIN && above > below;
+  Object.assign(menu.style, {
+    width: `${width}px`,
+    left: `${Math.max(VIEWPORT_MARGIN, Math.min(chip.left, window.innerWidth - width - VIEWPORT_MARGIN))}px`,
+    top: opensUp ? 'auto' : `${chip.bottom + FACET_MENU_GAP}px`,
+    bottom: opensUp ? `${window.innerHeight - chip.top + FACET_MENU_GAP}px` : 'auto',
+    maxHeight: `${Math.min(FACET_MENU_MAX, opensUp ? above : below)}px`,
+  });
+}
+const openFacetMenus = () => $$('#nav-facets [data-facet][open]');
+document.addEventListener('toggle', e => {
+  const facet = e.target.closest && e.target.closest('#nav-facets [data-facet]');
+  if (facet !== e.target || !facet.open) return;
+  openFacetMenus().filter(other => other !== facet).forEach(other => { other.open = false; });
+  placeFacetMenu(facet);
+}, true);
+document.addEventListener('click', e => {
+  openFacetMenus().filter(facet => !facet.contains(e.target)).forEach(facet => { facet.open = false; });
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = openFacetMenus();
+  if (!open.length) return;
+  open.forEach(facet => { facet.open = false; });
+  $('summary', open[0]).focus();
+});
+const placeOpenFacetMenus = () => openFacetMenus().forEach(placeFacetMenu);
+window.addEventListener('resize', placeOpenFacetMenus);
+document.addEventListener('scroll', placeOpenFacetMenus, true);
 document.addEventListener('click', e => {
   const button = e.target.closest('#file-code [data-unfold]');
   if (!button) return;

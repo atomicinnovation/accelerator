@@ -11,7 +11,16 @@
 // unread lines (in a file with three changed lines in a row; with none, that
 // check is skipped) and that the n key jumps to the next unread line. Needs Node
 // 22+ (global WebSocket). It unfolds a run of unchanged lines in a file
-// opened by link and in one picked from the file list. Last, it renders prose
+// opened by link and in one picked from the file list. In All files it checks
+// the navigator draws every file in a directory tree, that collapsing a folder
+// hides its files and opening one reveals it, that a Role facet narrows the
+// tree to that role and counts what it shows without moving the controls or
+// the tree, that opening a facet moves no other facet, that grouping by None
+// lists every file flat and sorted across them all, that the search and
+// facets stay in place while the list scrolls, that choosing a file
+// keeps the list's scroll and brings the file just below the top bar, that a
+// !term search excludes
+// paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
 // stop's link opens its chapter at that stop. It checks that a stop names
 // everything it carries, that each name opens what it names, and that every
@@ -427,6 +436,70 @@ const DIAGRAMS_PROBE = `(async () => {
   return { problems, tracing, linkOpens };
 })()`;
 
+const NAVIGATOR_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 400) => new Promise(r => setTimeout(r, ms));
+  location.hash = 'files'; await settle();
+  const choose = (pref, value) => { const select = document.querySelector('[data-nav-pref="' + pref + '"]'); select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); };
+  choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
+  const fileRows = () => [...document.querySelectorAll('#nav-tree .nav-file')];
+  const shownPaths = () => fileRows().map(row => row.dataset.file);
+  const folderHolding = path => [...document.querySelectorAll('#nav-tree .nav-folder')].find(row => path.startsWith(row.dataset.toggleNode.replace(/^folder::/, '')));
+  const nested = api.content.files.find(f => f.path.includes('/'));
+  if (!nested) return { skipped: 'no file in a directory' };
+  const everyFileDrawn = shownPaths().length === api.content.files.length;
+  const folder = folderHolding(nested.path);
+  const treeDrawn = !!folder && everyFileDrawn;
+  folder.click(); await settle();
+  const collapseHides = !shownPaths().includes(nested.path);
+  api.openFile(nested.path, null, 'new'); await settle(700);
+  const openingReveals = shownPaths().includes(nested.path);
+  const layers = [...new Set(api.content.files.map(f => f.layer))];
+  const layer = layers.find(id => api.content.files.some(f => f.layer !== id)) || layers[0];
+  const role = document.querySelector('#nav-facets [data-facet="layer"]');
+  role.open = true;
+  const box = role.querySelector('[data-facet-value="' + CSS.escape(layer) + '"]');
+  const chip = role.querySelector('summary'), chipTop = chip.getBoundingClientRect().top, treeTop = document.querySelector('#nav-tree').getBoundingClientRect().top;
+  box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); await settle();
+  const controlsStay = chip.isConnected && role.open && chip.getBoundingClientRect().top === chipTop && document.querySelector('#nav-tree').getBoundingClientRect().top === treeTop;
+  const ofLayer = new Set(api.content.files.filter(f => f.layer === layer).map(f => f.path));
+  const count = +document.querySelector('#nav-facets [data-facet="layer"] [data-facet-value="' + CSS.escape(layer) + '"]').closest('label').querySelector('[data-facet-count]').textContent.replace(/,/g, '');
+  const roleNarrows = shownPaths().length === ofLayer.size && shownPaths().every(path => ofLayer.has(path)) && count === ofLayer.size;
+  document.querySelector('[data-clear-facets]').click(); await settle();
+  const query = document.querySelector('#fq');
+  query.value = '!test'; query.dispatchEvent(new Event('input', { bubbles: true })); await settle(700);
+  const excludes = shownPaths().length > 0 && shownPaths().every(path => !/test/i.test(path));
+  query.value = ''; query.dispatchEvent(new Event('input', { bubbles: true })); await settle(700);
+  const inFolder = api.content.files.find(f => f.path.includes('/') && api.coverageOf(f.path) && api.coverageOf(f.path).changed);
+  const row = folderHolding(inFolder.path);
+  const before = row.querySelector('[data-folder-count-of]').textContent;
+  api.store.put('file:' + inFolder.path, 'file', { status: 'ok' }, {}); await settle();
+  const totalsInPlace = row.isConnected && row.querySelector('[data-folder-count-of]').textContent !== before;
+  api.store.put('file:' + inFolder.path, 'file', { status: '' }, {}); await settle();
+  const pillsAt = () => [...document.querySelectorAll('#nav-facets summary')].map(pill => { const at = pill.getBoundingClientRect(); return at.left + ',' + at.top; }).join(' ');
+  const pillsBefore = pillsAt();
+  const progress = document.querySelector('#nav-facets [data-facet="progress"]');
+  progress.querySelector('summary').click(); await settle();
+  const pillsStay = progress.open && pillsAt() === pillsBefore;
+  document.body.click(); await settle();
+  choose('groupBy', 'none'); choose('sortBy', 'size'); await settle();
+  const sizes = fileRows().map(row => { const f = api.content.files.find(each => each.path === row.dataset.file); return f.add + f.del; });
+  const flattened = !document.querySelector('#nav-tree .nav-folder, #nav-tree .nav-group') && sizes.length === api.content.files.length && sizes.every((n, i) => !i || sizes[i - 1] >= n);
+  const nav = document.querySelector('#nav-tree');
+  const searchTop = document.querySelector('#fq').getBoundingClientRect().top;
+  nav.scrollTop = nav.scrollHeight;
+  const filtersPinned = nav.scrollTop > 0 && document.querySelector('#fq').getBoundingClientRect().top === searchTop;
+  nav.scrollTop = Math.min(200, nav.scrollHeight - nav.clientHeight);
+  const kept = nav.scrollTop, frame = nav.getBoundingClientRect();
+  const inView = fileRows().filter(row => { const at = row.getBoundingClientRect(); return at.top >= frame.top && at.bottom <= frame.bottom; });
+  inView[inView.length - 1].click(); await settle();
+  const barBottom = document.querySelector('.topbar').getBoundingClientRect().bottom, paneTop = document.querySelector('#file-pane').getBoundingClientRect().top;
+  const navigatorStays = nav.scrollTop === kept;
+  const paneBelowTopBar = paneTop >= barBottom && paneTop - barBottom <= 16;
+  choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
+  return { file: nested.path, layer, treeDrawn, collapseHides, openingReveals, roleNarrows, controlsStay, excludes, totalsInPlace, pillsStay, flattened, filtersPinned, navigatorStays, paneBelowTopBar };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -490,6 +563,7 @@ async function main() {
     report.coverage = await cdp.evaluate(COVERAGE_PROBE);
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
+    report.navigator = await cdp.evaluate(NAVIGATOR_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
@@ -533,6 +607,8 @@ async function main() {
   const notesHold = !!(notes.generalSaved && notes.generalExported && notes.generalKeepsFocus && notes.cardSaved !== false && notes.cardKeepsFocus !== false);
   const design = report.design || {};
   const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
+  const navigator = report.navigator || {};
+  const navigatorHolds = !!navigator.skipped || !!(navigator.treeDrawn && navigator.collapseHides && navigator.openingReveals && navigator.roleNarrows && navigator.controlsStay && navigator.excludes && navigator.totalsInPlace && navigator.pillsStay && navigator.flattened && navigator.filtersPinned && navigator.navigatorStays && navigator.paneBelowTopBar);
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
@@ -540,7 +616,7 @@ async function main() {
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = navigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
