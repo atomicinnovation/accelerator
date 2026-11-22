@@ -12,9 +12,9 @@ relates_to: ["work-item:PP-22", "work-item:PP-868", "work-item:PP-916"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/176"
 pr_number: 176
 tags: ["research", "research-topic", "ask", "report", "eval"]
-revision: "34b7d2125394b8132e9a6422427b73385f2dfac5"
+revision: "dd50ea19766b634bd4c0d370043933fe2812b372"
 repository: "accelerator"
-last_updated: "2026-11-22T01:26:20+00:00"
+last_updated: "2026-11-22T09:13:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -109,9 +109,12 @@ refine loop that the build verbs left open.
 
 - `docs-site/.../research.md` documents `ask`, `report`, `report-path`,
   `counts` and `consultable`, with a settings snippet for the post-reply
-  allow rules; CHANGELOG entries under Added, Changed and Upgrade notes.
+  allow rules; CHANGELOG entries under Breaking, Added, Changed and Upgrade
+  notes.
 - Plan, research, plan review, validation and the first PR review for
-  0281; 0121, 0284 and 0330 brought into line.
+  0281; 0121, 0284 and 0330 brought into line. The plan's **Review
+  amendments** section and the work item record what the second review
+  pass changed.
 
 ## Context
 
@@ -123,11 +126,15 @@ refine loop that the build verbs left open.
 - Review: `meta/reviews/prs/176-review-1.md` (verdict: comment). Every
   inline thread is answered and resolved, and the body's findings are
   answered in one PR comment.
+- Second review pass: a walkthrough of the PR triaged 7 review-1 findings
+  and 36 new observations as fix-in-PR, resolved in 24 changes; the PR
+  comment of 2026-11-22 maps each to its commit.
 
 ## Testing
 
 - [x] `mise run` (full local CI mirror, including `check` and the
-  eval-fixtures pre-flight) exited 0 at the branch tip
+  eval-fixtures pre-flight) exited 0 at `09e0d6d586`; the one commit after
+  it changes only the plan and the work item, whose frontmatter validates
 - [x] `mise run eval:ask-and-report`, all 119 sessions on Claude Code
   2.1.330 after the second review pass: 116 passed and 3 failed, each by
   running a stray no-op shell command (`echo skip`, `true`, and
@@ -170,6 +177,5 @@ refine loop that the build verbs left open.
 - ⚠️ **Long finding stems:** a question slugging past 60 characters now cuts
   at a word. A `.levels/` tree an interrupted deep run left under the old
   stem is researched again (CHANGELOG Changed).
-- 0281's frontmatter `status` is still `ready`; move it on after merge.
 
 https://claude.ai/code/session_01HEhrwSoJjp31mZmAMH7LFR
