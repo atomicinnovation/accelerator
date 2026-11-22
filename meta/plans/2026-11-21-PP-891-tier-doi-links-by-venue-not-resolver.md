@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T10:53:41+00:00"
+last_updated: "2026-11-22T12:20:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -509,6 +509,45 @@ line equality for every arXiv stderr line:
 3. Copy `<paths.tmp>/research/arxiv-queue/` and `arxiv-pacing` into the
    fixture, and save the printed ticket in `ticket.txt`.
 4. Delete the `.lock` files: a live lock cannot be captured.
+
+### Outcome
+
+Every new test passed against the code as it stood, so none found a
+behaviour the item claims but the code lacks. In brief:
+
+- **State path helpers** phase 3 retargets:
+  - `StateFile` (`ServingLock`, `Pacing`, `RequestLog`, `ContentionLog`,
+    `Queue`, and in the CLI support also `QueueLock`);
+  - `Project::arxiv_state` and `Project::hold(StateFile)` in
+    `cli/research-cli/tests/support/mod.rs`;
+  - `Scratch::arxiv_state` in `cli/research-adapters/tests/support/mod.rs`.
+    Its file helpers (`write`, `read`, `mkdir`, `open`, `lines`) accept
+    either a name or the path that `arxiv_state` returns.
+- **Constructor and state-writer helpers**:
+  - adapter support: `arxiv_gate`, `arxiv_contention_log`, `arxiv_queue`,
+    `join_queue` (the only place arXiv's spacing reaches `join`),
+    `Scratch::write_pacing(&PacingRecord)`,
+    `Scratch::write_pacing_without_last_sent` (used only by the test phase 3
+    retires) and `Scratch::stored_pacing`;
+  - domain support: `queue_of` and `RecordingGate::paced_as_arxiv`.
+- **New CLI tests**: as named in the mapping table, plus whole-line stderr
+  tests `a_mismatch_is_reported_as_exactly_one_line_naming_the_issued_call`,
+  `a_malformed_ticket_is_reported_as_exactly_one_line` and
+  `a_live_ticket_is_reported_as_exactly_one_line`.
+  `a_throttled_call_defers_a_concurrent_process` takes about 7 s in real
+  time and passed 6 runs out of 6.
+- **Legacy fixture**: captured on plugin `1.24.0-pre.105`. It holds the ended
+  ticket `1-e85851` for `lookup 2608.21129`, with `last_retryable`
+  `upstream_error`, and an `arxiv-pacing` file with `last_sent_ms` and
+  `last_finish_ms` set and `not_before_ms` null, because a 503's
+  `Retry-After` is not shared with other calls. `ticket.txt` holds the
+  ticket.
+- **Plan corrections**: the CLI crate's package is `accelerator-research`,
+  not `research-cli`. Every phase's test commands now use that name.
+- **`mise run check`**: everything passes except `deny:check`, which fails
+  on trunk as well because of RUSTSEC-2026-0592 against `url 2.5.8`. The
+  phase 3 `mise run check` criterion is blocked until `url` is updated or
+  the advisory is allowed.
 
 ### Success Criteria
 
