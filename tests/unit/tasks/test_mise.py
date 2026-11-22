@@ -6,6 +6,7 @@ cannot be silently unwired from the read-only CI-mirror.
 """
 
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -432,7 +433,30 @@ def test_the_vitest_suite_waits_out_the_rust_compiling_unit_lanes(mise):
 _FILTER_FLAG = re.compile(
     r'flag "--filter <(?P<value>[a-z]+)>" help="(?P<help>[^"]*)"'
 )
-_FORWARDS_FILTER = '${usage_filter+--filter "$usage_filter"}'
+_FORWARDS_FILTER = '${usage_filter+--filter="$usage_filter"}'
+
+
+def _forwarded_arguments(environment: dict[str, str]) -> list[str]:
+    printed = subprocess.run(
+        ["sh", "-c", f'set -- {_FORWARDS_FILTER}; printf "%s\\0" "$#" "$@"'],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    _count, *arguments = printed.split("\0")[:-1]
+    return arguments
+
+
+@pytest.mark.parametrize("value", ["", "test(a) & test('b c')"])
+def test_the_forwarded_filter_reaches_invoke_as_given(value):
+    arguments = _forwarded_arguments({"usage_filter": value})
+
+    assert arguments in (["--filter", value], [f"--filter={value}"])
+
+
+def test_an_absent_filter_forwards_nothing():
+    assert _forwarded_arguments({}) == []
 
 
 def test_the_cli_lane_declares_filter_with_the_invoke_task_s_help(mise):

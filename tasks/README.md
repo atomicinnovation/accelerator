@@ -87,11 +87,13 @@ places and forwards it between them:
 - Declare the flag in the mise task's `usage`, e.g.
   `flag "--filter <filterset>" help="…"`. mise names the variable after the
   flag's long name (`usage_filter`), not after its value placeholder.
-- Forward it with `${usage_filter+--filter "$usage_filter"}`. mise leaves the
+- Forward it with `${usage_filter+--filter="$usage_filter"}`. mise leaves the
   variable unset when the flag is absent, so this set (not non-empty) form
   passes `--filter ''` through to the task, which refuses it, rather than
-  silently running everything. The form survives values holding a space, `&`
-  or `'`.
+  silently running everything. Keep the `=`: mise runs `sh`, and macOS's
+  bash 3.2 `sh` drops a quoted empty word inside an unquoted `${…+…}`,
+  leaving invoke a bare `--filter`. The form survives values holding a space,
+  `&` or `'`.
 - Declare the option on the invoke task, with a trailing underscore when its
   name is a Python builtin: invoke maps a `filter_` parameter to `--filter`.
   Give it the same help as the mise flag.
