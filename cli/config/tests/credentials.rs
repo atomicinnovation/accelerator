@@ -864,3 +864,12 @@ fn a_resolved_secret_never_renders_itself_under_debug() {
 
     assert!(!format!("{resolved:?}").contains(SENTINEL));
 }
+
+#[test]
+fn a_ladder_climbs_only_from_a_key_the_catalogue_marks_as_a_credential() {
+    assert!(matches!(
+        TokenKeys::declared("crossref.mailto", "jira.token_cmd"),
+        Err(ConfigError::Invalid { .. })
+    ));
+    assert!(TokenKeys::declared("openalex.api_key", "jira.token_cmd").is_ok());
+}

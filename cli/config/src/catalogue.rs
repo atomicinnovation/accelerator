@@ -153,12 +153,16 @@ pub enum Trust {
 /// `overrides` are the environment variables that override the value, in
 /// precedence order. They are distinct from a command key's
 /// `admitted_environment`, which is what reaches the command's process.
+///
+/// A `credential` is a plaintext secret: only the credential ladder may
+/// resolve it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExtraKey {
     pub name: &'static str,
     pub trust: Trust,
     pub overrides: &'static [&'static str],
     pub recovery: Option<&'static str>,
+    pub credential: bool,
 }
 
 impl ExtraKey {
@@ -176,6 +180,17 @@ impl ExtraKey {
             trust,
             overrides,
             recovery: None,
+            credential: false,
+        }
+    }
+
+    const fn credential(
+        name: &'static str,
+        overrides: &'static [&'static str],
+    ) -> Self {
+        Self {
+            credential: true,
+            ..Self::overridden(name, Trust::Open, overrides)
         }
     }
 
@@ -214,11 +229,7 @@ pub const EXTRA_KEYS: &[ExtraKey] = &[
     ),
     ExtraKey::open("jira.site"),
     ExtraKey::open("jira.email"),
-    ExtraKey::overridden(
-        "jira.token",
-        Trust::Open,
-        &["ACCELERATOR_JIRA_TOKEN"],
-    ),
+    ExtraKey::credential("jira.token", &["ACCELERATOR_JIRA_TOKEN"]),
     ExtraKey::overridden(
         "jira.token_cmd",
         BASE_COMMAND,
@@ -227,32 +238,20 @@ pub const EXTRA_KEYS: &[ExtraKey] = &[
     ExtraKey::open("jira.project_key"),
     ExtraKey::open("linear.team_id"),
     ExtraKey::open("linear.team_key"),
-    ExtraKey::overridden(
-        "linear.token",
-        Trust::Open,
-        &["ACCELERATOR_LINEAR_TOKEN"],
-    ),
+    ExtraKey::credential("linear.token", &["ACCELERATOR_LINEAR_TOKEN"]),
     ExtraKey::overridden(
         "linear.token_cmd",
         BASE_COMMAND,
         &["ACCELERATOR_LINEAR_TOKEN_CMD"],
     ),
     ExtraKey::open("shortcut.team_key"),
-    ExtraKey::overridden(
-        "shortcut.token",
-        Trust::Open,
-        &["ACCELERATOR_SHORTCUT_TOKEN"],
-    ),
+    ExtraKey::credential("shortcut.token", &["ACCELERATOR_SHORTCUT_TOKEN"]),
     ExtraKey::overridden(
         "shortcut.token_cmd",
         BASE_COMMAND,
         &["ACCELERATOR_SHORTCUT_TOKEN_CMD"],
     ),
-    ExtraKey::overridden(
-        "github.token",
-        Trust::Open,
-        &["GH_TOKEN", "GITHUB_TOKEN"],
-    ),
+    ExtraKey::credential("github.token", &["GH_TOKEN", "GITHUB_TOKEN"]),
     ExtraKey {
         name: "github.token_cmd",
         trust: Trust::CommandConsent {
@@ -260,16 +259,18 @@ pub const EXTRA_KEYS: &[ExtraKey] = &[
         },
         overrides: &[],
         recovery: Some("GH_TOKEN"),
+        credential: false,
     },
-    ExtraKey::overridden(
-        "openalex.api_key",
-        Trust::Open,
-        &["ACCELERATOR_OPENALEX_API_KEY"],
-    ),
+    ExtraKey::credential("openalex.api_key", &["ACCELERATOR_OPENALEX_API_KEY"]),
     ExtraKey::overridden(
         "openalex.api_key_cmd",
         BASE_COMMAND,
         &["ACCELERATOR_OPENALEX_API_KEY_CMD"],
+    ),
+    ExtraKey::overridden(
+        "crossref.mailto",
+        Trust::Open,
+        &["ACCELERATOR_CROSSREF_MAILTO"],
     ),
     ExtraKey::open("visualiser.editor"),
     ExtraKey::open("visualiser.editor_project"),
@@ -676,6 +677,7 @@ mod tests {
                 &["ACCELERATOR_OPENALEX_API_KEY_CMD"],
                 None,
             ),
+            ("crossref.mailto", &["ACCELERATOR_CROSSREF_MAILTO"], None),
             ("visualiser.editor", &[], None),
             ("visualiser.editor_project", &[], None),
             ("visualiser.binary", &[], None),
@@ -690,6 +692,22 @@ mod tests {
             .map(|key| (key.name, key.overrides, key.recovery))
             .collect();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn exactly_the_plaintext_siblings_of_command_keys_are_credentials() {
+        for key in EXTRA_KEYS {
+            let has_command_sibling =
+                declared(&format!("{}_cmd", key.name)).is_some();
+            assert_eq!(key.credential, has_command_sibling, "{}", key.name);
+        }
+    }
+
+    #[test]
+    fn crossref_mailto_is_an_open_setting_that_is_no_credential() {
+        let key = declared("crossref.mailto");
+        assert_eq!(key.map(|key| key.trust), Some(Trust::Open));
+        assert_eq!(key.map(|key| key.credential), Some(false));
     }
 
     #[test]

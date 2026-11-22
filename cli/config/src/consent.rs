@@ -544,6 +544,7 @@ fn leaked(name: &str, trust: Trust) -> &'static ExtraKey {
         trust,
         overrides: &[],
         recovery: None,
+        credential: false,
     }))
 }
 

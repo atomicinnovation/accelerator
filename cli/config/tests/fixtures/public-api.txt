@@ -19,6 +19,7 @@ pub fn config::catalogue::Trust::fmt(&self, f: &mut core::fmt::Formatter<'_>) ->
 impl core::marker::Copy for config::catalogue::Trust
 impl core::marker::StructuralPartialEq for config::catalogue::Trust
 pub struct config::catalogue::ExtraKey
+pub config::catalogue::ExtraKey::credential: bool
 pub config::catalogue::ExtraKey::name: &'static str
 pub config::catalogue::ExtraKey::overrides: &'static [&'static str]
 pub config::catalogue::ExtraKey::recovery: core::option::Option<&'static str>
