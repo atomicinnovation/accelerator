@@ -441,12 +441,12 @@ bundled files.
 
 #### Manual Verification
 
-- [ ] On a PR with 100+ files, the tree opens readable without scrolling past
+- [x] On a PR with 100+ files, the tree opens readable without scrolling past
   folders that hold one file each.
-- [ ] Every Group by and Sort choice gives an order that makes sense, and
+- [x] Every Group by and Sort choice gives an order that makes sense, and
   switching between them keeps the open file.
-- [ ] The facet counts read correctly when two facets are combined.
-- [ ] At phone width, the drawer opens, picks a file and closes.
+- [x] The facet counts read correctly when two facets are combined.
+- [x] At phone width, the drawer opens, picks a file and closes.
 
 ---
 
@@ -552,11 +552,11 @@ first.
 
 #### Manual Verification
 
-- [ ] Selecting 200 lockfiles by folder and marking them Skimmed redraws once
+- [x] Selecting 200 lockfiles by folder and marking them Skimmed redraws once
   and feels immediate.
-- [ ] In a hosted artifact, a bulk write of 50+ files reaches the database.
+- [x] In a hosted artifact, a bulk write of 50+ files reaches the database.
   Reloading shows every verdict.
-- [ ] Undo after a bulk Clear brings back the notes as well as the statuses.
+- [x] Undo after a bulk Clear brings back the notes as well as the statuses.
 
 ---
 
@@ -702,12 +702,12 @@ ReviewKeys.commandFor(press, context)
 
 #### Manual Verification
 
-- [ ] A file can be read and given a verdict from the keyboard alone, from
+- [x] A file can be read and given a verdict from the keyboard alone, from
   the first chunk to the next file.
-- [ ] Typing in a note or the search never triggers a shortcut, and `Esc`
+- [x] Typing in a note or the search never triggers a shortcut, and `Esc`
   leaves the field.
 - [ ] A screen reader announces the tree's rows, levels and expanded states.
-- [ ] Turning off "Move on after a verdict" survives a reload.
+- [x] Turning off "Move on after a verdict" survives a reload.
 
 ---
 
@@ -848,13 +848,13 @@ movement are the same code in both views.
 
 #### Manual Verification
 
-- [ ] On a PR with 50+ commits, the commit list reads as a list. Opening a
+- [x] On a PR with 50+ commits, the commit list reads as a list. Opening a
   commit shows its files and nothing else expands.
-- [ ] Marking a file Reviewed in a commit leaves its lines from other commits
+- [x] Marking a file Reviewed in a commit leaves its lines from other commits
   unread in All files.
-- [ ] A file with only superseded lines in a commit can still be given a
+- [x] A file with only superseded lines in a commit can still be given a
   verdict, and that verdict doesn't count those lines.
-- [ ] Your notes lists commit-file notes under "Commit files".
+- [x] Your notes lists commit-file notes under "Commit files".
 
 ---
 
@@ -914,7 +914,7 @@ that every file row shown is high-risk and not read in full.
 
 #### Manual Verification
 
-- [ ] From Readiness, "Open the outstanding items" on the high-risk gate
+- [x] From Readiness, "Open the outstanding items" on the high-risk gate
   lands on exactly the files the gate counts.
 
 ---
