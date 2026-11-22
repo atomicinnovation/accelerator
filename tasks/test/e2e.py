@@ -15,22 +15,38 @@ from tasks.shared.playwright import (
     resolved_playwright_version,
 )
 from tasks.shared.ports import free_port
+from tasks.shared.selection import Selection
+from tasks.test.filters import (
+    PLAYWRIGHT_DOCKER_FILTER_HELP,
+    PLAYWRIGHT_HOST_FILTER_HELP,
+    command_line,
+    nothing_selected_when_playwright_finds_no_tests,
+    npm_script_options,
+    selection_from,
+)
 
 SERVER_BIN = CLI_TARGET_DIR / "debug/accelerator-visualiser"
 
 
-@task
-def visualiser(context: Context) -> None:
+@task(help={"filter_": PLAYWRIGHT_HOST_FILTER_HELP})
+def visualiser(context: Context, filter_: str | None = None) -> None:
     """E2E tests for the visualiser (Playwright).
 
     Requires build.frontend and build.server to have run first.
     When invoked via `mise run test:e2e:visualiser`, those build tasks
     are declared as dependencies and run automatically.
     """
-    context.run(
-        f"npm --prefix {FRONTEND} run test:e2e",
-        env=playwright_environment(free_port=free_port),
-    )
+    selection = selection_from(filter_)
+    with nothing_selected_when_playwright_finds_no_tests(
+        selection, "test:e2e:visualiser"
+    ):
+        context.run(
+            command_line(
+                f"npm --prefix {FRONTEND} run test:e2e",
+                npm_script_options(selection.playwright()),
+            ),
+            env=playwright_environment(free_port=free_port),
+        )
 
 
 def playwright_environment(free_port: Callable[[], int]) -> dict[str, str]:
@@ -46,8 +62,15 @@ def playwright_environment(free_port: Callable[[], int]) -> dict[str, str]:
     }
 
 
+_UNFILTERED = Selection()
+
+
 def docker_visual_command(
-    base_url: str, image: str, update: bool, cache_deps: bool = False
+    base_url: str,
+    image: str,
+    update: bool,
+    cache_deps: bool = False,
+    selection: Selection = _UNFILTERED,
 ) -> str:
     """Assemble the `docker run` command for the visual-regression specs.
 
@@ -58,8 +81,9 @@ def docker_visual_command(
         "npx playwright test --config playwright.docker.config.ts "
         "--project visual-regression"
     )
-    if update:
-        pw += " --update-snapshots"
+    pw = command_line(
+        pw, "--update-snapshots" if update else "", selection.playwright()
+    )
     # No locale-gen: C.UTF-8 is pre-generated in every Playwright image and the
     # rendering locale is Chromium's explicit en-US (see
     # tasks/shared/playwright.py).
@@ -97,9 +121,12 @@ def docker_visual_command(
     return shlex.join(args)
 
 
-@task
+@task(help={"filter_": PLAYWRIGHT_DOCKER_FILTER_HELP})
 def visualiser_docker(
-    context: Context, update: bool = False, cache_deps: bool = False
+    context: Context,
+    update: bool = False,
+    cache_deps: bool = False,
+    filter_: str | None = None,
 ) -> None:
     """Run the visual-regression specs in the pinned Playwright Docker image.
 
@@ -114,6 +141,13 @@ def visualiser_docker(
     emulated) `npm ci` each iteration; the default anonymous mask is used
     otherwise for correctness.
     """
+    selection = selection_from(filter_)
+    mise_task = (
+        "test:e2e:visualiser:docker:update"
+        if update
+        else "test:e2e:visualiser:docker"
+    )
+
     # Fail fast with an actionable message if Docker is unavailable, BEFORE
     # spending up to 60s bringing up the host server (and before leaving one
     # started). `docker info` is a cheap daemon-reachability probe.
@@ -135,16 +169,21 @@ def visualiser_docker(
         )
 
     def on_ready(port: str) -> None:
-        context.run(
-            docker_visual_command(
-                base_url=f"http://host.docker.internal:{port}",
-                image=playwright_image(),
-                update=update,
-                cache_deps=cache_deps,
-            ),
-            # Live Docker/npm output locally; piped (no PTY) on the headless CI
-            # runner so the container exit code is reliably propagated.
-            pty=sys.stdout.isatty(),
-        )
+        with nothing_selected_when_playwright_finds_no_tests(
+            selection, mise_task
+        ):
+            context.run(
+                docker_visual_command(
+                    base_url=f"http://host.docker.internal:{port}",
+                    image=playwright_image(),
+                    update=update,
+                    cache_deps=cache_deps,
+                    selection=selection,
+                ),
+                # Live Docker/npm output locally; piped (no PTY) on the
+                # headless CI runner so the container exit code is reliably
+                # propagated.
+                pty=sys.stdout.isatty(),
+            )
 
     run_against_host_server(server_bin=SERVER_BIN, on_ready=on_ready)

@@ -5,15 +5,15 @@ title: "Build the VCS Test Fixtures Once per Test Run Implementation Plan"
 date: "2026-11-18T19:51:03+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-957"
 parent: "work-item:PP-957"
 derived_from: ["codebase-research:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"]
-relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "work-item:PP-953", "work-item:PP-956", "work-item:PP-958", "work-item:PP-943"]
+relates_to: ["codebase-research:2026-10-28-full-build-duration-contention-and-slowness", "work-item:PP-953", "work-item:PP-956", "work-item:PP-958", "work-item:PP-943", "work-item:PP-805", "work-item:PP-778", "work-item:PP-738"]
 tags: ["build-system", "performance", "testing", "rust", "vcs", "nextest", "mise"]
 revision: "5acdef06a5f1d5abb03423a3667dd1bb5cb1a0b6"
 repository: "accelerator"
-last_updated: "2026-11-19T20:30:00+00:00"
+last_updated: "2026-11-22T01:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2559,23 +2559,54 @@ releases 0391 and gives 0361 its result.
 2. `mise run measure:build -- --isolate test:unit:cli --host-settings devtools --runs 3 --keep`
 3. `mise run measure:compare-builds -- meta/measurements/build_2026-11-18T123358Z_engywook_warm-no-op_devtools_isolated.json <after> --task test:unit:cli`
 
+*As run (2026-11-20, engywook):* 0371's Shortcut integration (PR #215) had
+landed on `main` since `287b6279`, adding about 300 tests, so step 1's fresh
+before-record was taken. It ran in a throwaway jj workspace at `a89415bf`
+with #247 and #249's code backed out (`meta/`, `.github/` and the version
+bump kept), and the workspace was removed afterwards; its raw run directory
+was kept under `.accelerator-measure/build/`. The harness attributes the
+before-record to `a89415bf` with "working copy did not match", because the
+backout was the jj working-copy change. Step 3 compared against both the
+fresh before-record and the 18 November baseline.
+
+- Before: `build_2026-11-20T124714Z_engywook_warm-no-op_devtools_isolated.json`
+- After: `build_2026-11-20T130237Z_engywook_warm-no-op_devtools_isolated.json`
+
 ### Success Criteria
 
 #### Manual Verification
 
-- [ ] The after-record's nextest summary line reports at least 7,727 tests
+- [x] The after-record's nextest summary line reports at least 7,727 tests
       run (or the fresh before-record's count).
-- [ ] The comparison's first line reports no differing condition.
-- [ ] The nextest-phase median is ≤ 156.9 s, and the task-duration median is
+      *As run:* 8,113 tests in every run, against the fresh before-record's
+      8,025.
+- [x] The comparison's first line reports no differing condition.
+      *As run:* `conditions match` against both the fresh before-record and
+      the 18 November baseline.
+- [x] The nextest-phase median is ≤ 156.9 s, and the task-duration median is
       ≤ 167.8 s, both "beyond" noise (or 25 s under a fresh before-record).
-- [ ] In the after-record, the cargo units show nothing compiled after the
+      *As run:* both bars met. Nextest phase 189.4 s → 143.0 s (−46.4 s);
+      task duration 198.3 s → 160.9 s (−37.3 s), both beyond noise. Against
+      the 18 November baseline: 181.9 s → 143.0 s and 192.8 s → 160.9 s,
+      also beyond noise.
+- [x] In the after-record, the cargo units show nothing compiled after the
       builder runs, in the nextest step, so the listing and nextest still
       fingerprint the same build.
-- [ ] If the task-duration median misses while the nextest phase meets its
+      *As run:* no cargo unit compiled in either record, and no `Compiling`
+      line follows the build step in any after run.
+- [x] If the task-duration median misses while the nextest phase meets its
       target, the build-step and digest times on the run's own line show
       where the serial overhead went. Record them.
-- [ ] The figures are recorded in the work item, and 0391's blocking edge is
+      *As run:* not triggered (the task-duration median met its bar). For
+      the record: build step 4.5–5.1 s, first digest 0.3–0.5 s, second
+      digest and removal 0.3–0.4 s and 0.3 s.
+- [x] The figures are recorded in the work item, and 0391's blocking edge is
       released.
+      *As run:* recorded in PP-957's Technical Notes. The `blocks` /
+      `blocked_by` edge between PP-957 and PP-943 (0391) is removed from
+      both items, and both are synced to Linear. The sync pushes titles
+      and descriptions only, so any blocking relation in Linear itself has
+      to be removed there by hand.
 
 ---
 
@@ -2589,6 +2620,32 @@ four bare `uv run pytest` leaves get invoke tasks so that each declares
 `filter_` the same way. Rebase onto 0364's `tasks/test/integration.py`
 changes first, and keep out of 0364's CI measurement windows.
 
+### As built
+
+- **No rebase was needed.** 0364 (PP-956) was already done, and its
+  `-n auto` on `test:integration:dev` was already on `main`.
+- **The table is in the work item** under Requirement 5. The cells this
+  phase leaves open (Vitest's "nothing matches" outcome and the malformed
+  examples for Vitest, node and Playwright) were marked there as still to
+  be confirmed. Phase 8 has since confirmed them and filled them in.
+- **One function runs every pytest lane.** Each lane does not add
+  `selection_from(filter_).pytest()` to its own command. Instead it calls
+  `run_pytest_lane(context, command, mise_task=…, filter_=…, env=…)` in
+  `tasks/test/filters.py`. That function builds the selection, appends
+  `-k`, runs the command and turns a filtered exit 5 into
+  `nothing_selected(mise_task)`. It catches invoke's `UnexpectedExit`
+  rather than running with `warn=True`, so an unfiltered run, or any other
+  failing exit, raises exactly what it raised before. It passes `env` only
+  when one is given, so `test_hooks_task_environment.py` still holds.
+- **The shared help text** is `PYTEST_FILTER_HELP` in the same module. Both
+  the invoke tasks and `test_mise.py` read it, so the mise flag's help
+  can't drift from it.
+- **The new invoke tasks** are `build_system` (invoke name `tasks`) in both
+  `unit.py` and `integration.py`, plus `frontend_licenses` and `vcs` in
+  `unit.py`.
+- **Selection** gains `pytest()`. `nextest()` and `pytest()` share a
+  private `_option(name)`.
+
 ### In-scope tasks (written into the work item)
 
 | Task | Runner | Filter syntax | Example | Malformed example | Runner when nothing matches |
@@ -2596,22 +2653,20 @@ changes first, and keep out of 0364's CI measurement windows.
 | `test:unit:cli` | nextest 0.9.138 | filterset (`-E`) | `binary_id(vcs-adapters::classify)` | `test(foo` | fails ("no tests to run"); the task's list sees it first |
 | `test:unit:tasks`, `test:unit:frontend-licenses`, `test:unit:vcs`, `test:integration:tasks` | pytest 9.0.3 | `-k` expression | `resume and not slow` | `foo and` | exit 5 |
 | `test:integration:dev`, `:entrypoint`, `:evals`, `:pup`, `:hooks`, `:research`, `:research-exhaustive` | pytest 9.0.3 | `-k` expression | `resume and not slow` | `foo and` | exit 5 |
-| `test:unit:visualiser`, `test:integration:visualiser` | libtest (cargo test) | substring of the test path | `path_normalisation` | none: any string is valid | exit 0, `0 passed` in every binary |
-| `test:integration:tracker-contract` | nextest 0.9.138 | filterset (`-E`), intersected with `binary(=contract)` | a `test(…)` naming one contract test | `test(foo` | fails ("no tests to run") |
-| `test:unit:frontend` | Vitest 3.2.4 | test-name regex (`-t`) | a regex naming one `describe` block | `(` | to confirm in Phase 8 |
-| `test:unit:design-automation`, `test:integration:design-automation` | `node --test` (node 22.22.2) | test-name regex (`--test-name-pattern`) | a regex naming one test | `(` | exit 0, `# pass 0` |
-| `test:e2e:visualiser`, `test:e2e:visualiser:docker`, `test:e2e:visualiser:docker:update` | Playwright 1.59.1 | title regex (`--grep`) | a regex naming one spec's title | `(` | fails ("No tests found") |
+| `test:unit:visualiser`, `test:integration:visualiser` | libtest (cargo test) | substring of the test path | `path_normalisation` (integration: `spa_route`) | none: any string is valid | exit 0, `0 passed` in every binary |
+| `test:integration:tracker-contract` | nextest 0.9.138 | filterset (`-E`), intersected with `binary(=contract)` | `test(the_conformance_set_passes_against_a_live_team)` | `test(foo` (confirmed: "failed to parse filterset") | exit 4 ("no tests to run") |
+| `test:unit:frontend` | Vitest 5.1.0 | test-name regex (`-t`) | `copyText` | `(` (confirmed: exit 1, "Invalid regular expression") | exit 0; the `Tests` summary line counts every test as skipped (`Tests  2697 skipped (2697)`) |
+| `test:unit:design-automation`, `test:integration:design-automation` | `node --test` (node 22.23.4) | test-name regex (`--test-name-pattern`) | `judges as the corpus says` (integration: `ping: exits 0`) | `(` (confirmed: exit 1, `ERR_INVALID_ARG_VALUE`) | exit 0, and each file with no matching test is reported as a passing test named after the file, so `# pass` is the file count rather than 0 |
+| `test:e2e:visualiser`, `test:e2e:visualiser:docker`, `test:e2e:visualiser:docker:update` | Playwright 1.59.1 | title regex (`--grep`), matched against the titles joined by spaces | `kanban renders all seven default columns` (Docker: `chip-showcase`) | `(` (confirmed: exit 1, "Invalid regular expression") | exit 1, "No tests found" |
 
 Whatever the runner does, every lane fails with `Selection.nothing_selected(task)`
 (`--filter '<expression>' selected no tests`) when a filter runs no test.
 The last column records what each lane has to translate or detect.
 
-The malformed examples for Vitest, node and Playwright are inferred. Phase 8's
-first step confirms each one fails. If a runner accepts its example, the
-table records that its syntax has no malformed form. Where the example is
-described rather than given, the lane's phase picks a real name from its
-suite, and checks by hand that it selects at least one test. Each lane's
-help carries its example.
+Phase 8's first step confirmed every malformed example above by running its
+runner, and replaced each described example with a real name from the
+lane's suite that selects at least one test. Each lane's help carries its
+example. The table matches the one in the work item.
 
 ### Changes Required
 
@@ -2676,20 +2731,26 @@ parses as TOML.
 
 #### Automated Verification
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_selection.py tests/unit/tasks/test_pytest_lanes.py tests/unit/tasks/test_mise.py tests/unit/tasks/test_dev_integration_task.py tests/unit/tasks/test_hooks_task_environment.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
 For each pytest lane:
 
-- [ ] `mise run <task> --help` lists `--filter` and names pytest's `-k`.
-- [ ] `mise run <task> --filter '<a name in the suite>'` runs fewer tests
+- [x] `mise run <task> --help` lists `--filter` and names pytest's `-k`.
+- [x] `mise run <task> --filter '<a name in the suite>'` runs fewer tests
       than the bare task, and all of them pass.
-- [ ] `mise run <task> --filter 'foo and'` fails (pytest exit 4).
-- [ ] `mise run <task> --filter 'no_such_test_xyz'` fails with `selected no
+      *As run:* each of the eleven lanes, filtered to one test name taken
+      from its collection, ran that test (four parametrised cases for
+      `entrypoint`) and deselected the rest, all passing.
+- [x] `mise run <task> --filter 'foo and'` fails (pytest exit 4).
+      *As run:* exit 4 in every lane but `test:integration:dev`, which
+      exits 3: under `-n auto`, xdist reports the `-k` usage error as an
+      internal error. The lane still fails.
+- [x] `mise run <task> --filter 'no_such_test_xyz'` fails with `selected no
       tests`.
 
 ---
@@ -2701,6 +2762,55 @@ For each pytest lane:
 `--filter` reaches the remaining lanes in each runner's own syntax. The
 design-automation lanes skip their pass-count and skip floors when filtered.
 The Docker Playwright command quotes the pattern for its inner `bash -c`.
+
+### As built
+
+- **Step 0 changed two detection mechanisms.** The findings are in the work
+  item's table.
+  - Vitest exits 0 when `-t` matches nothing. `test.unit.frontend` reads
+    the `Tests` summary line and counts its `passed` and `failed` numbers,
+    after stripping ANSI colour codes, because Vitest colours its summary
+    under `CI`. A filtered run with no summary line fails.
+  - `node --test` never reports `# pass 0`. A file in which no test
+    matches is reported as one passing test named after the file. The
+    design-automation lanes count the top-level TAP points that are not
+    named after a discovered suite, and raise `nothing_selected` when that
+    count is zero.
+- **Each runner's handling lives in `tasks/test/filters.py`.**
+  `run_libtest_lane` sums the `test result:` lines across every command it
+  runs, so the unit visualiser lane counts both feature sets together.
+  `run_nextest_lane` runs the tracker contract. `nothing_selected_on_exit`
+  is the exit-code translation that the pytest and nextest lanes share.
+  `nothing_selected_when_playwright_finds_no_tests` matches Playwright's
+  "No tests found" in stdout and stderr. `vitest_tests_run` and
+  `node_tests_run` read the summaries.
+- **Help strings are per lane** where the example differs: the unit and
+  integration visualiser lanes, the two design-automation lanes, and the
+  host and Docker Playwright lanes each name a test from their own suites.
+- **The visualiser integration example.** `spa_serving` names a test
+  binary, which libtest's filter does not see. `spa_route` names a test.
+- **Playwright's `--grep` matches the titles joined by spaces**, not by the
+  `›` its reporter prints.
+- **Beyond the plan: the design-automation runtime lane.** Running
+  `test:integration:design-automation` for this phase's checks showed it
+  failing all 37 of its tests on trunk, outside every build. Repairing it
+  completed PP-805, PP-778 and PP-738, all marked done:
+  - The suites take the driver and browser trees the lane resolves, in
+    place of the deleted `package-lock.json` namespace.
+  - The executor intercepts every request hop through CDP's `Fetch`
+    domain, because Playwright 1.64.1's `page.route` sees only a redirect
+    chain's first hop and carries header overrides onto later hops. That
+    closed a cross-origin bearer leak.
+  - `snapshot` returns an ARIA snapshot, since `page.accessibility` is gone,
+    and the `links` tests serve their fixture over loopback HTTP, because
+    `file://` is refused end to end.
+  - The lane joined the `test:integration` roll-up, and materialises its
+    trees under `cli/target/design-automation-cache/`: the launcher's
+    default root, the shipped `bin/`, tripped the `entrypoint` suite's
+    untouched-`bin/` guard on the first CI run.
+- **Landing.** Phases 6–8 and the lane repair are in PR #253 (open). CI
+  passed on both legs, with the runtime lane at 38 of 38 on
+  `ubuntu-latest`.
 
 ### Changes Required
 
@@ -2750,18 +2860,20 @@ lanes add npm's `--` separator themselves, and the Docker payload uses
   The test feeds exit 4, and any other non-zero exit is reported as today.
 - **`test.unit.frontend`.** `npm --prefix … run test -- -t '<filter>'`.
   With a filter, a run that executes no test raises
-  `Exit(selection.nothing_selected(<task>))`. Step 0's finding decides the
-  mechanism: if Vitest already fails, the lane translates that failure;
-  if it exits 0, the lane reads the test count from Vitest's summary line,
-  or adds `--reporter=json` if the summary line can't be relied on.
+  `Exit(selection.nothing_selected(<task>))`. Step 0 found that Vitest
+  exits 0, so the lane counts the `passed` and `failed` numbers on Vitest's
+  `Tests` summary line, after stripping ANSI colour codes. A filtered run
+  with no summary line fails.
 - **The design-automation lanes, filtered.** `node --test` gains
   `--test-name-pattern`, placed before the first test file, because node
   reads every argument after the first file as another file. The test
   asserts that order. A TAP result of `# pass 3`, `# fail 0` and
   `# skipped 102` passes, and one line is printed:
   `design-automation: pass-count and skip floors skipped for a filtered run`.
-  `# fail 1` still fails. `# pass 0` with `# fail 0` raises
-  `Exit(selection.nothing_selected(<task>))`.
+  `# fail 1` still fails. A run whose only top-level TAP points are named
+  after the discovered suite files ran no test, because node reports a
+  file with no matching test as a passing point named after the file. It
+  raises `Exit(selection.nothing_selected(<task>))`.
 - **The design-automation lanes, unfiltered.** The floors still apply.
 - **Every lane.** `filter_=""` exits with `--filter needs an expression` and
   runs nothing. Each lane's no-match message names its own mise task,
@@ -2809,10 +2921,10 @@ discovered files for `node --test`. `docker_visual_command` gains
 
 #### Automated Verification
 
-- [ ] The tests pass:
+- [x] The tests pass:
       `uv run pytest tests/unit/tasks/test_selection.py tests/unit/tasks/test_cargo_and_node_lanes.py tests/unit/tasks/test_e2e_docker.py tests/unit/tasks/test_mise.py -v`
-- [ ] The build-system checks pass: `mise run build-system:check`
-- [ ] The full local run passes: `mise run`
+- [x] The build-system checks pass: `mise run build-system:check`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
@@ -2820,14 +2932,34 @@ For each lane in the Phase 7 table, except `tracker-contract`, which needs
 credentials. Check its rendering in the unit tests, and run it by hand only
 where credentials are available:
 
-- [ ] `--help` lists `--filter` and names the syntax.
-- [ ] A subset filter runs fewer tests, and all of them pass. The Docker
+- [x] `--help` lists `--filter` and names the syntax.
+- [x] A subset filter runs fewer tests, and all of them pass. The Docker
       lanes are checked on a host with Docker; `:update` is checked with a
       filter that selects one snapshot, and its result is reverted.
-- [ ] Each lane's malformed example fails, or the work item's table records
-      that its syntax has no malformed form.
-- [ ] Each lane, given a filter that matches nothing, fails with `selected
-      no tests`.
+      *As run:* every lane but `test:integration:design-automation` ran a
+      passing subset. `:update`, filtered to
+      `chip-showcase \(light\) neutral @ sm$`, regenerated one snapshot
+      byte for byte, so there was nothing to revert.
+      `tracker-contract` ran without credentials against the in-memory
+      `RecordingTracker` binary: `test(a_failing_show_is_retryable)` ran 1
+      test with 16 skipped, and
+      `binary_id(tracker-test-support::contract)` ran that binary's 6
+      tests, all passing. The live Jira, Linear and Shortcut contract tests
+      need credentials and were not run.
+      `test:integration:design-automation` first failed all 37 of its
+      tests, filtered or not, because `runtime-preflight.js` still read the
+      `package-lock.json` that "Delete the Playwright bootstrap residue and
+      repoint the runtime lane" removed. Once the suites and the executor
+      were repaired, it passed all 38 of its tests unfiltered. Filtered to
+      `ping: exits 0`, it ran that test alone, passed, and skipped its
+      floors.
+- [x] Each lane's malformed example fails, or the work item's table records
+      that its syntax has no malformed form. *As run:* including
+      `tracker-contract`, whose filterset is parsed before any credential
+      is needed.
+- [x] Each lane, given a filter that matches nothing, fails with `selected
+      no tests`. *As run:* including `tracker-contract`, which exits 4
+      before any test needs credentials.
 
 ---
 
@@ -2837,6 +2969,21 @@ where credentials are available:
 
 Rewrite the guidance so that `--filter` is the supported way to run a subset
 of tests, and add a guard that every in-scope leaf keeps the option.
+
+### As built
+
+- **No roll-up test.** Phase 3 found that a run-less roll-up ignores extra
+  arguments even with an empty `usage`, so the roll-ups declare none and
+  `test_every_roll_up_refuses_a_filter` was not added. A companion guard,
+  `test_every_task_that_takes_no_filter_exists`, fails when an exempt name
+  goes stale.
+- **The roll-ups' descriptions** now say "pass --filter to one of its leaf
+  tasks" rather than pointing at `test:unit:cli --filter` alone.
+- **The "Coverage floor" hand-run steps are unchanged.** They need the
+  report a filtered run skips, so `--filter` does not apply to them.
+- **Over-building is documented.** "Running a subset of tests" notes that a
+  filter selecting a private-set test still builds the status-log set
+  (2.4–3.2 s on a loaded host), and that `& !binary_id(...)` avoids it.
 
 ### Changes Required
 
@@ -2881,9 +3028,9 @@ If Phase 3 gave the roll-ups an empty `usage`, a second test,
 - the exempt tasks;
 - the rule that a filter which runs no test fails the lane, and which lanes
   detect it from runner output text rather than an exit code (libtest's
-  `test result:` lines, node's TAP `# pass`, Playwright's "No tests found",
-  and Vitest's summary if Phase 8 finds it needs one), so a runner bump
-  knows to re-check them;
+  `test result:` lines, node's top-level TAP points against the suite file
+  names, Playwright's "No tests found" and Vitest's `Tests` summary line),
+  so a runner bump knows to re-check them;
 - the `cargo test` rule;
 - the last-resort note.
 
@@ -2894,16 +3041,16 @@ Link to it from "Shared VCS fixtures" and from "Task options". Point the
 
 #### Automated Verification
 
-- [ ] The guard passes: `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] The full local run passes: `mise run`
+- [x] The guard passes: `uv run pytest tests/unit/tasks/test_mise.py -v`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
-- [ ] Read `CLAUDE.md` and `tasks/README.md`. Together they direct readers
+- [x] Read `CLAUDE.md` and `tasks/README.md`. Together they direct readers
       to each task's `--filter`, including `test:unit:cli`'s; name the
       exempt tasks; rule out `cargo test`; and present direct runners only
       as a last resort.
-- [ ] Every filters-increment criterion in the work item is ticked, and the
+- [x] Every filters-increment criterion in the work item is ticked, and the
       work item can close.
 
 ---
@@ -3041,6 +3188,11 @@ These are listed per phase. The ones that can't be automated cheaply are:
   in every summary.
 - `cli/target/vcs-fixture-logs/` keeps the newest 20 logs. `cargo clean`
   removes them.
+- `test:integration` now runs `test:integration:design-automation`, which
+  needs the `build:cli:dev` launcher and, on a cold
+  `cli/target/design-automation-cache/`, downloads the driver and browser
+  trees (about 45 s). `cargo clean` removes the cache with the rest of
+  `cli/target/`.
 - **Rollback.** Revert Phase 2 or Phase 5's task change, and the consumers
   fall back to private builds with no further change, because nothing hands
   them a tree.
@@ -3048,6 +3200,9 @@ These are listed per phase. The ones that can't be automated cheaply are:
 ## References
 
 - Work item: `meta/work/PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
+- Pull requests: #247 (matrix), #249 (status-log), #253 (fixtures closure,
+  filters Phases 7–8, design-automation runtime lane)
+- Runtime-lane work items completed alongside Phase 8: PP-805, PP-778, PP-738
 - Research: `meta/research/codebase/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
 - Baseline: `meta/measurements/build_2026-11-18T123358Z_engywook_warm-no-op_devtools_isolated.json`
 - Coverage lane shape: `meta/plans/2026-11-13-PP-955-remove-repeated-work-from-the-rust-test-lanes.md`

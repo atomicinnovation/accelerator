@@ -5,15 +5,15 @@ title: "Runtime Test Lane Absent From Every Build"
 date: "2026-08-13T13:33:39+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:PP-860"
 relates_to: ["work-item:PP-726"]
 tags: ["ci", "testing", "design", "playwright"]
-last_updated: "2026-09-05T00:00:00+00:00"
+last_updated: "2026-11-22T01:00:00+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
+last_updated_note: "Done in PR #253: the lane joined test:integration rather than the container lane the 2026-08-20 decision named."
 schema_version: 1
 external_id: "PP-738"
 aliases: ["0208"]
@@ -103,20 +103,38 @@ harness — so this item stays open until the harness lands.
 - `test:unit:design-automation`, which already runs via the `test:unit` roll-up.
 - Provisioning a runtime for any other lane.
 
+## Resolution (2026-11-22)
+
+The container lane the decision above named was not built. The runtime is
+now vendored and materialised on demand by the launcher's `cache ensure`, so
+no harness is needed to provision it: PR #253 moved
+`test:integration:design-automation` into the `test:integration` roll-up,
+where the existing integration job runs it on both CI legs.
+
 ## Acceptance Criteria
 
-- [ ] Given a push to a branch, when CI runs, then the design-automation runtime
+- [x] Given a push to a branch, when CI runs, then the design-automation runtime
       suites execute and their result gates the build.
-- [ ] Given a CI environment with no Playwright runtime available, when the lane
+      *As built:* on a pull request, which is when the integration job runs;
+      38 of 38 passed on Ubuntu and macOS in PR #253.
+- [x] Given a CI environment with no Playwright runtime available, when the lane
       runs, then the job fails with a message naming the missing namespace — it
       does not skip, pass vacuously, or succeed with zero tests executed.
-- [ ] Given the lane executes, when it reports, then the count of executed tests
+      *As built:* the lane refuses with "the vendored Playwright <driver or
+      browser> tree is not available", naming the missing tree; the lockhash
+      namespace no longer exists.
+- [x] Given the lane executes, when it reports, then the count of executed tests
       is asserted against a floor, so a suite that silently stops being
       discovered fails the build.
-- [ ] `mise.toml:284-287`'s comment no longer says no CI lane provisions a
+      *As built:* the floor is 38 executed cases, with zero skips.
+- [x] `mise.toml:284-287`'s comment no longer says no CI lane provisions a
       runtime, or is replaced by one naming where the lane does run.
-- [ ] The repo's own CI documentation lists the new job alongside
+      *As built:* the comment was removed; the lane's place in the
+      `test:integration` roll-up says where it runs.
+- [x] The repo's own CI documentation lists the new job alongside
       `test-visual-regression` and `check-zero-spawn`.
+      *As built:* no new job exists to list; the lane runs inside the
+      existing integration job, and the repo keeps no list of CI jobs.
 
 ## Open Questions
 

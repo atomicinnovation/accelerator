@@ -314,28 +314,43 @@ run = "invoke vendor.guard-pins"
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
 depends = ["build:frontend"]
-run = "invoke test.unit.visualiser"
+usage = '''
+flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'path_normalisation'"
+'''
+run = 'invoke test.unit.visualiser ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit:frontend"]
 description = "Run visualiser frontend unit tests (Vitest)"
 depends = ["deps:install:node"]
 wait_for = ["test:unit:cli", "test:unit:visualiser"]
-run = "invoke test.unit.frontend"
+usage = '''
+flag "--filter <expression>" help="Vitest -t test-name regex selecting the tests to run, e.g. 'copyText'"
+'''
+run = 'invoke test.unit.frontend ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/unit/tasks -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'filter and not empty'"
+'''
+run = 'invoke test.unit.tasks ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit:frontend-licenses"]
 description = "Guard that every module in the built frontend bundle resolves to the --production licence closure (its own sourcemap build; no shipped dist/ dependency)"
 depends = ["deps:install:node", "deps:install:python"]
-run = "uv run pytest tests/unit/frontend -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'closure'"
+'''
+run = 'invoke test.unit.frontend-licenses ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit:vcs"]
 description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/unit/vcs -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'pattern'"
+'''
+run = 'invoke test.unit.vcs ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit:cli"]
 description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts, fails below COVERAGE_FLOOR; ACCELERATOR_COVERAGE=off drops to plain nextest)"
@@ -343,33 +358,42 @@ depends = ["deps:install:rust-components"]
 usage = '''
 flag "--filter <filterset>" help="nextest filterset selecting the tests to run (test() matches test names; binary_id() matches test binaries), e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips the coverage report, sweep and floor"
 '''
-run = 'invoke test.cli.run ${usage_filter+--filter "$usage_filter"}'
+run = 'invoke test.cli.run ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
-run = "uv run pytest tests/integration/tasks -v"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'partial'"
+'''
+run = 'invoke test.integration.tasks ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit:design-automation"]
 description = "Run the runtime-free Playwright-executor JavaScript suites"
-run = "invoke test.unit.design-automation"
+usage = '''
+flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'judges as the corpus says'"
+'''
+run = 'invoke test.unit.design-automation ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:unit"]
-description = "Run all unit tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
+description = "Run all unit tests in parallel; takes no options, so --filter is ignored (pass --filter to one of its leaf tasks)"
 depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:frontend-licenses", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
-# Deliberately absent from `test:integration` and the bare default task: these
-# suites need a bootstrapped Playwright runtime, which no CI lane provisions.
-# They fail rather than skip when one is missing, so an absent runtime is a
-# visible refusal instead of a silent pass.
 [tasks."test:integration:design-automation"]
-description = "Run the Playwright-executor suites that need a real runtime (opt-in)"
-run = "invoke test.integration.design-automation"
+description = "Run the Playwright-executor suites against the vendored driver and browser trees"
+depends = ["build:cli:dev"]
+usage = '''
+flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'ping: exits 0'"
+'''
+run = 'invoke test.integration.design-automation ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
 depends = ["build:server:dev", "build:cli:dev"]
-run = "invoke test.integration.visualiser"
+usage = '''
+flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'spa_route'"
+'''
+run = 'invoke test.integration.visualiser ${usage_filter+--filter="$usage_filter"}'
 
 # Deliberately absent from `test:integration` and the bare default task: it
 # waits on the OS's file notifications, which a loaded macOS fseventsd delays
@@ -382,7 +406,10 @@ run = "invoke test.integration.visualiser-os-watcher"
 [tasks."test:integration:dev"]
 description = "Run unified dev task integration tests (real circusd + Python fake processes)"
 depends = ["deps:install:python"]
-run = "invoke test.integration.dev"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'orphan'"
+'''
+run = 'invoke test.integration.dev ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:release-guard"]
 description = "Build the loopback-seamed CLIs as release binaries, with and without test-loopback, and run the release guard over them"
@@ -392,7 +419,10 @@ run = "invoke test.integration.release-guard"
 [tasks."test:integration:entrypoint"]
 description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)"
 depends = ["deps:install:python"]
-run = "invoke test.integration.entrypoint"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'launcher_removed'"
+'''
+run = 'invoke test.integration.entrypoint ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:skill-invocation"]
 description = "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment"
@@ -402,7 +432,10 @@ run = "invoke test.integration.skill-invocation"
 [tasks."test:integration:evals"]
 description = "Hold the CLI output skill evals quote to the built accelerator-work"
 depends = ["build:cli:work:dev"]
-run = "invoke test.integration.evals"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'quoted_block'"
+'''
+run = 'invoke test.integration.evals ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:conformance"]
 description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
@@ -467,22 +500,34 @@ run = "invoke eval.citing-once"
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
 depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
-run = "invoke test.integration.pup"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'adf_rule'"
+'''
+run = 'invoke test.integration.pup ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:tracker-contract"]
 description = "Run the RemoteTracker contract harness against a live tracker (opt-in: needs credentials, so it is out of the test:integration roll-up and out of default; filtered out of test:unit:cli by cli/.config/nextest.toml)"
 depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
-run = "invoke test.integration.tracker-contract"
+usage = '''
+flag "--filter <expression>" help="nextest filterset selecting the contract tests to run, e.g. 'test(the_conformance_set_passes_against_a_live_team)'"
+'''
+run = 'invoke test.integration.tracker-contract ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 depends = ["build:cli:dev", "build:cli:vcs:dev", "build:cli:research:dev"]
-run = "invoke test.integration.hooks"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'refused'"
+'''
+run = 'invoke test.integration.hooks ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:integration:research"]
 description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard"
 depends = ["build:cli:research:dev"]
-run = "invoke test.integration.research"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'profile_invocation'"
+'''
+run = 'invoke test.integration.research ${usage_filter+--filter="$usage_filter"}'
 
 # Deliberately absent from `test:integration` and the bare default task: it
 # splices every metacharacter at every position, which takes minutes rather
@@ -490,7 +535,10 @@ run = "invoke test.integration.research"
 [tasks."test:integration:research-exhaustive"]
 description = "Run the research guard's lexer differential at every splice position (opt-in: minutes)"
 depends = ["build:cli:research:dev"]
-run = "invoke test.integration.research-exhaustive"
+usage = '''
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'smuggles'"
+'''
+run = 'invoke test.integration.research-exhaustive ${usage_filter+--filter="$usage_filter"}'
 
 # Deliberately absent from `test:integration` and the bare default task: thirty
 # real-time fetch processes take minutes, and the default lane's queue tests
@@ -509,7 +557,7 @@ description = "Roll-up entry point for the gix/jj-lib link-ratio floor; see buil
 depends = ["build:cli:fixture-size"]
 
 [tasks."test:integration"]
-description = "Run all integration tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
+description = "Run all integration tests in parallel; takes no options, so --filter is ignored (pass --filter to one of its leaf tasks)"
 depends = [
     "test:integration:visualiser",
     "test:integration:dev",
@@ -523,29 +571,39 @@ depends = [
     "test:integration:research",
     "test:integration:fixture-size",
     "test:integration:release-guard",
+    "test:integration:design-automation",
 ]
 
 [tasks."test:e2e:visualiser"]
 description = "Run visualiser E2E tests (Playwright)"
 depends = ["deps:install:playwright", "build:frontend", "build:server:dev"]
-run = "invoke test.e2e.visualiser"
+usage = '''
+flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'kanban renders all seven default columns'"
+'''
+run = 'invoke test.e2e.visualiser ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:e2e:visualiser:docker"]
 description = "Run visual-regression specs in the pinned Playwright Docker image (compare)"
 depends = ["build:frontend", "build:server:dev"]
-run = "invoke test.e2e.visualiser-docker"
+usage = '''
+flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'chip-showcase'"
+'''
+run = 'invoke test.e2e.visualiser-docker ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:e2e:visualiser:docker:update"]
 description = "Regenerate the canonical Linux visual-regression baselines in the pinned Docker image"
 depends = ["build:frontend", "build:server:dev"]
-run = "invoke test.e2e.visualiser-docker --update"
+usage = '''
+flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'chip-showcase'"
+'''
+run = 'invoke test.e2e.visualiser-docker --update ${usage_filter+--filter="$usage_filter"}'
 
 [tasks."test:e2e"]
-description = "Run all E2E tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
+description = "Run all E2E tests in parallel; takes no options, so --filter is ignored (pass --filter to one of its leaf tasks)"
 depends = ["test:e2e:visualiser"]
 
 [tasks.test]
-description = "Run all tests in parallel; takes no options, so --filter is ignored (use test:unit:cli --filter)"
+description = "Run all tests in parallel; takes no options, so --filter is ignored (pass --filter to one of its leaf tasks)"
 depends = ["test:unit", "test:integration", "test:e2e"]
 
 [tasks."format:scripts:check"]

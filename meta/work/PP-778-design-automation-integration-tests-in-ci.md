@@ -5,14 +5,14 @@ title: "Design-Automation Integration Tests In CI"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:PP-860"
 tags: ["design", "ci", "testing"]
-last_updated: "2026-09-05T00:00:00+00:00"
+last_updated: "2026-11-22T01:00:00+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
+last_updated_note: "Done in PR #253: test:integration:design-automation joined the test:integration roll-up, so it runs and gates on both CI legs."
 schema_version: 1
 external_id: "PP-778"
 aliases: ["0248"]
@@ -41,7 +41,9 @@ any CI job, leaving a coverage gap.
 
 ## Acceptance Criteria
 
-- [ ] The design-automation integration tests run in CI and gate the build.
+- [x] The design-automation integration tests run in CI and gate the build.
+      *As built (PR #253):* the lane is in the `test:integration` roll-up;
+      CI's integration job ran it on Ubuntu and macOS, 38 of 38 passing.
 
 ## Open Questions
 

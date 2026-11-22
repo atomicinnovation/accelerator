@@ -6,13 +6,18 @@ cannot be silently unwired from the read-only CI-mirror.
 """
 
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
 import pytest
+from invoke import Context
 
 from tasks.shared.dev_builds import DEV_BUILDS
 from tasks.test import cli as test_cli
+from tasks.test import e2e as test_e2e
+from tasks.test import integration as test_integration
+from tasks.test import unit as test_unit
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
@@ -66,6 +71,7 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 # nothing.
 _CLI_DEV_BUILDS = {
     "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:design-automation": {_LAUNCHER},
     "test:integration:evals": {"build:cli:work:dev"},
     "test:integration:hooks": {
         _LAUNCHER,
@@ -90,8 +96,6 @@ _NO_LAUNCHER_NEEDED = {
     "tracker; reaches no accelerator binary",
     "test:integration:arxiv-queue-stress": "cargo nextest builds "
     "accelerator-research itself",
-    "test:integration:design-automation": "node --test against a Playwright "
-    "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
     "test:integration:visualiser-os-watcher": "cargo test builds the "
     "visualiser library itself; reaches no accelerator binary",
@@ -220,12 +224,6 @@ def test_every_cli_dev_leaf_names_a_dev_build(mise):
 # runs. Each exclusion carries its reason.
 _NOT_IN_INTEGRATION_ROLLUP = {
     "test:integration:pup": "needs the isolated nightly toolchain lane",
-    # Needs a bootstrapped Playwright runtime, which no CI lane provisions, so
-    # in the roll-up it would fail every build. It fails rather than skips
-    # without one, which keeps it runnable on demand and honest when the
-    # runtime is absent.
-    "test:integration:design-automation": "needs a Playwright runtime no CI "
-    "lane provisions; fails rather than skips without one",
     # It waits on the OS's file notifications, which a loaded macOS fseventsd
     # delays by minutes; in the roll-up it would time out whenever the default
     # task's other lanes saturate the machine. The scripted-event watcher and
@@ -435,7 +433,30 @@ def test_the_vitest_suite_waits_out_the_rust_compiling_unit_lanes(mise):
 _FILTER_FLAG = re.compile(
     r'flag "--filter <(?P<value>[a-z]+)>" help="(?P<help>[^"]*)"'
 )
-_FORWARDS_FILTER = '${usage_filter+--filter "$usage_filter"}'
+_FORWARDS_FILTER = '${usage_filter+--filter="$usage_filter"}'
+
+
+def _forwarded_arguments(environment: dict[str, str]) -> list[str]:
+    printed = subprocess.run(
+        ["sh", "-c", f'set -- {_FORWARDS_FILTER}; printf "%s\\0" "$#" "$@"'],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    _count, *arguments = printed.split("\0")[:-1]
+    return arguments
+
+
+@pytest.mark.parametrize("value", ["", "test(a) & test('b c')"])
+def test_the_forwarded_filter_reaches_invoke_as_given(value):
+    arguments = _forwarded_arguments({"usage_filter": value})
+
+    assert arguments in (["--filter", value], [f"--filter={value}"])
+
+
+def test_an_absent_filter_forwards_nothing():
+    assert _forwarded_arguments({}) == []
 
 
 def test_the_cli_lane_declares_filter_with_the_invoke_task_s_help(mise):
@@ -462,4 +483,222 @@ def test_a_test_rollup_says_it_ignores_filter(mise, rollup):
     description = mise["tasks"][rollup]["description"]
 
     assert "takes no options, so --filter is ignored" in description
-    assert "test:unit:cli --filter" in description
+    assert "pass --filter to one of its leaf tasks" in description
+
+
+_PYTEST_LANES = {
+    "test:unit:tasks": ("test.unit.tasks", test_unit.build_system),
+    "test:unit:frontend-licenses": (
+        "test.unit.frontend-licenses",
+        test_unit.frontend_licenses,
+    ),
+    "test:unit:vcs": ("test.unit.vcs", test_unit.vcs),
+    "test:integration:tasks": (
+        "test.integration.tasks",
+        test_integration.build_system,
+    ),
+    "test:integration:dev": ("test.integration.dev", test_integration.dev),
+    "test:integration:entrypoint": (
+        "test.integration.entrypoint",
+        test_integration.entrypoint,
+    ),
+    "test:integration:evals": (
+        "test.integration.evals",
+        test_integration.evals,
+    ),
+    "test:integration:pup": ("test.integration.pup", test_integration.pup),
+    "test:integration:hooks": (
+        "test.integration.hooks",
+        test_integration.hooks,
+    ),
+    "test:integration:research": (
+        "test.integration.research",
+        test_integration.research,
+    ),
+    "test:integration:research-exhaustive": (
+        "test.integration.research-exhaustive",
+        test_integration.research_exhaustive,
+    ),
+}
+
+
+@pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
+def test_a_pytest_lane_declares_filter_with_the_invoke_task_s_help(
+    mise, mise_task
+):
+    _, invoke_task = _PYTEST_LANES[mise_task]
+    [flag] = _FILTER_FLAG.finditer(mise["tasks"][mise_task]["usage"])
+
+    assert flag["value"] == "expression"
+    assert flag["help"] == invoke_task.help["filter_"]
+
+
+@pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
+def test_a_pytest_lane_forwards_filter_only_when_it_is_given(mise, mise_task):
+    invoke_name, _ = _PYTEST_LANES[mise_task]
+
+    assert mise["tasks"][mise_task]["run"] == (
+        f"invoke {invoke_name} {_FORWARDS_FILTER}"
+    )
+
+
+_FILTER_EXAMPLE = re.compile(r"e\.g\. '(?P<example>[^']+)'$")
+
+
+def _pytest_lane_test_path(invoke_task, mocker) -> str:
+    context = mocker.MagicMock(spec=Context)
+    invoke_task(context)
+    [command] = [call.args[0] for call in context.run.call_args_list]
+    [path] = [token for token in command.split() if token.startswith("tests/")]
+    return path
+
+
+@pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
+def test_a_pytest_lane_s_filter_example_selects_a_test_in_it(mise_task, mocker):
+    _, invoke_task = _PYTEST_LANES[mise_task]
+    example = _FILTER_EXAMPLE.search(invoke_task.help["filter_"])
+    assert example is not None
+
+    collected = subprocess.run(
+        [
+            "uv",
+            "run",
+            "pytest",
+            _pytest_lane_test_path(invoke_task, mocker),
+            "--collect-only",
+            "-q",
+            "-k",
+            example["example"],
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert collected.returncode == 0, collected.stdout + collected.stderr
+
+
+_CARGO_AND_NODE_LANES = {
+    "test:unit:visualiser": (
+        "test.unit.visualiser",
+        test_unit.visualiser,
+    ),
+    "test:integration:visualiser": (
+        "test.integration.visualiser",
+        test_integration.visualiser,
+    ),
+    "test:unit:frontend": (
+        "test.unit.frontend",
+        test_unit.frontend,
+    ),
+    "test:unit:design-automation": (
+        "test.unit.design-automation",
+        test_unit.design_automation,
+    ),
+    "test:integration:design-automation": (
+        "test.integration.design-automation",
+        test_integration.design_automation,
+    ),
+    "test:e2e:visualiser": (
+        "test.e2e.visualiser",
+        test_e2e.visualiser,
+    ),
+    "test:e2e:visualiser:docker": (
+        "test.e2e.visualiser-docker",
+        test_e2e.visualiser_docker,
+    ),
+    "test:e2e:visualiser:docker:update": (
+        "test.e2e.visualiser-docker --update",
+        test_e2e.visualiser_docker,
+    ),
+    "test:integration:tracker-contract": (
+        "test.integration.tracker-contract",
+        test_integration.tracker_contract,
+    ),
+}
+
+
+@pytest.mark.parametrize("mise_task", sorted(_CARGO_AND_NODE_LANES))
+def test_a_cargo_or_node_lane_declares_filter_with_the_invoke_task_s_help(
+    mise, mise_task
+):
+    _, invoke_task = _CARGO_AND_NODE_LANES[mise_task]
+    [flag] = _FILTER_FLAG.finditer(mise["tasks"][mise_task]["usage"])
+
+    assert flag["value"] == "expression"
+    assert flag["help"] == invoke_task.help["filter_"]
+
+
+@pytest.mark.parametrize("mise_task", sorted(_CARGO_AND_NODE_LANES))
+def test_a_cargo_or_node_lane_forwards_filter_only_when_it_is_given(
+    mise, mise_task
+):
+    invoke_name, _ = _CARGO_AND_NODE_LANES[mise_task]
+
+    assert mise["tasks"][mise_task]["run"] == (
+        f"invoke {invoke_name} {_FORWARDS_FILTER}"
+    )
+
+
+_EXEMPT_GUARDS = {
+    "test:integration:release-guard",
+    "test:integration:deny",
+    "test:integration:fixture-size",
+    "test:integration:measure",
+    "test:integration:skill-invocation",
+    "test:integration:conformance",
+}
+_SINGLE_TEST_LANES = {
+    "test:integration:visualiser-os-watcher",
+    "test:integration:arxiv-queue-stress",
+}
+_TEST_ROLL_UPS = {"test", "test:unit", "test:integration", "test:e2e"}
+_TAKES_NO_FILTER = _EXEMPT_GUARDS | _SINGLE_TEST_LANES | _TEST_ROLL_UPS
+
+
+def _test_tasks(mise: dict) -> set[str]:
+    return {
+        name
+        for name in mise["tasks"]
+        if name == "test" or name.startswith("test:")
+    }
+
+
+def _filter_gaps(task: dict) -> list[str]:
+    flags = list(_FILTER_FLAG.finditer(task.get("usage", "")))
+    gaps = []
+    if not flags:
+        gaps.append("declares no --filter in usage")
+    elif "e.g." not in flags[0]["help"]:
+        gaps.append("gives no e.g. example in its --filter help")
+    if _FORWARDS_FILTER not in task.get("run", ""):
+        gaps.append("does not forward $usage_filter")
+    return gaps
+
+
+def test_every_multi_test_leaf_declares_a_filter(mise):
+    gaps = {
+        name: _filter_gaps(mise["tasks"][name])
+        for name in sorted(_test_tasks(mise) - _TAKES_NO_FILTER)
+    }
+
+    assert not {name: gap for name, gap in gaps.items() if gap}, (
+        "every multi-test test:* leaf takes --filter; give it one, or add it "
+        "to the exempt guards or single-test lanes here"
+    )
+
+
+def test_every_task_that_takes_no_filter_exists(mise):
+    assert _test_tasks(mise) >= _TAKES_NO_FILTER
+
+
+def test_every_filtered_leaf_has_its_help_compared_with_invoke_s(mise):
+    compared = set(_PYTEST_LANES) | set(_CARGO_AND_NODE_LANES)
+    compared.add("test:unit:cli")
+
+    assert _test_tasks(mise) - _TAKES_NO_FILTER <= compared, (
+        "a test:* leaf taking --filter has no check that its mise help "
+        "matches the invoke task's; add it to _PYTEST_LANES or "
+        "_CARGO_AND_NODE_LANES"
+    )

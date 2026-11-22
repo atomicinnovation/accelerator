@@ -4,8 +4,9 @@
 //! needs a Playwright runtime, a browser or a network. The lifecycle after the
 //! spawn — leases and the daemon, against a stub `node` — belongs to
 //! `executor_runtime`. The properties of the real client — the pass-through of
-//! its exit status, streams and signal death — belong to the opt-in lane that
-//! provisions a real runtime, and are not faked here.
+//! its exit status, streams and signal death — belong to
+//! `test:integration:design-automation`, which provisions a real runtime, and
+//! are not faked here.
 
 use std::fs;
 use std::path::Path;

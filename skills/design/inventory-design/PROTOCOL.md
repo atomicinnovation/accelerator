@@ -203,7 +203,8 @@ message names host and pathname only — never a query string or fragment.
 
 ### `snapshot`
 
-Capture the accessibility tree of the current page.
+Capture the accessibility tree of the current page's body as a Playwright
+ARIA snapshot: YAML text naming each node's role and accessible name.
 
 **Request**
 
@@ -219,9 +220,7 @@ Capture the accessibility tree of the current page.
 ```json
 {
   "protocol": 1,
-  "snapshot": {
-    ...accessibility-tree
-  }
+  "snapshot": "- heading \"Fixture Page\" [level=1]\n- button \"Click Me\"\n..."
 }
 ```
 

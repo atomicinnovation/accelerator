@@ -87,11 +87,13 @@ places and forwards it between them:
 - Declare the flag in the mise task's `usage`, e.g.
   `flag "--filter <filterset>" help="…"`. mise names the variable after the
   flag's long name (`usage_filter`), not after its value placeholder.
-- Forward it with `${usage_filter+--filter "$usage_filter"}`. mise leaves the
+- Forward it with `${usage_filter+--filter="$usage_filter"}`. mise leaves the
   variable unset when the flag is absent, so this set (not non-empty) form
   passes `--filter ''` through to the task, which refuses it, rather than
-  silently running everything. The form survives values holding a space, `&`
-  or `'`.
+  silently running everything. Keep the `=`: mise runs `sh`, and macOS's
+  bash 3.2 `sh` drops a quoted empty word inside an unquoted `${…+…}`,
+  leaving invoke a bare `--filter`. The form survives values holding a space,
+  `&` or `'`.
 - Declare the option on the invoke task, with a trailing underscore when its
   name is a Python builtin: invoke maps a `filter_` parameter to `--filter`.
   Give it the same help as the mise flag.
@@ -106,8 +108,68 @@ only metadata (`about`, `long_about`) or nothing does not count. A roll-up
 that has only `depends` and no `run` (`test:unit`, `test:integration`,
 `test:e2e`, `test`) therefore ignores extra arguments silently:
 `mise run test:unit --filter x` runs the whole roll-up unfiltered. Each of
-those roll-ups says so in its description, which `mise tasks` shows. A mise bump must re-check that `usage_<name>` is still
-named after the flag's long name and still unset when the flag is absent.
+those roll-ups says so in its description, which `mise tasks` shows. A mise
+bump must re-check that `usage_<name>` is still named after the flag's long
+name and still unset when the flag is absent.
+
+Which lanes take `--filter`, in which syntax, is in "Running a subset of
+tests" below. `test_every_multi_test_leaf_declares_a_filter` in
+`tests/unit/tasks/test_mise.py` fails when a new `test:*` leaf has no
+`--filter`, until it gets one or joins that test's exempt set.
+
+### Running a subset of tests
+
+Every multi-test `test:*` leaf takes `--filter`, in its own runner's syntax.
+`mise run <task> --help` names the syntax and gives an example:
+
+| Task | Syntax | Example |
+|---|---|---|
+| `test:unit:cli` | nextest filterset | `binary_id(vcs-adapters::classify)` |
+| `test:integration:tracker-contract` | nextest filterset, within the contract binary | `test(the_conformance_set_passes_against_a_live_team)` |
+| `test:unit:tasks`, `:frontend-licenses`, `:vcs`; `test:integration:tasks`, `:dev`, `:entrypoint`, `:evals`, `:pup`, `:hooks`, `:research`, `:research-exhaustive` | pytest `-k` expression | `filter and not empty` (`test:unit:tasks`); each lane's `--help` names one of its own |
+| `test:unit:visualiser`, `test:integration:visualiser` | libtest substring of the test path | `path_normalisation`, `spa_route` |
+| `test:unit:frontend` | Vitest `-t` test-name regex | `copyText` |
+| `test:unit:design-automation`, `test:integration:design-automation` | node `--test-name-pattern` regex | `judges as the corpus says`, `ping: exits 0` |
+| `test:e2e:visualiser`, `:docker`, `:docker:update` | Playwright `--grep` regex over the titles joined by spaces | `kanban renders all seven default columns`, `chip-showcase` |
+
+These take no `--filter`:
+
+- **Guards:** `test:integration:release-guard`, `:deny`, `:fixture-size`,
+  `:measure`, `:skill-invocation` and `:conformance`.
+- **Single-test lanes:** `test:integration:visualiser-os-watcher` and
+  `:arxiv-queue-stress`.
+- **Roll-ups:** `test:unit`, `test:integration`, `test:e2e` and `test`. A
+  filter applies to a leaf only; a roll-up ignores `--filter` and runs
+  everything (see "Task options").
+
+A filter that runs no test fails the lane with `--filter '<expression>'
+selected no tests`, and an empty `--filter ''` is refused. `test:unit:cli`
+finds it in its `cargo nextest list` before building anything. The pytest
+lanes and `tracker-contract` read the runner's exit code. The others match
+the runner's output text, so a bump of that runner must re-check its lane:
+
+- **libtest:** the `test result:` lines, summed across every binary.
+- **Vitest:** the `Tests` summary line, after stripping ANSI colour codes.
+- **node:** the top-level TAP points, against the suite files' names, since
+  node reports a file with no matching test as a passing point named after
+  it.
+- **Playwright:** "No tests found".
+
+A filtered `test:unit:cli` builds a shared VCS family whenever a selected
+test's binary consumes it, even if that test never reads the family:
+`--filter 'test(the_log_is_capped_at_five_entries)'` still builds the
+status-log set (2.4–3.2 s on a loaded host). When a broad filter catches a
+consumer binary you do not need, `& !binary_id(<binary>)` drops that binary
+and, with it, its family's build.
+
+Plain `cargo test` is not a supported way to run the tests `test:unit:cli`
+runs (the `cli/` workspace apart from the visualiser): it builds no shared
+fixtures and does not give each test its own process as nextest does. The
+visualiser lanes run `cargo test` themselves, and are unaffected.
+
+Running a test runner directly is a last resort, for diagnosis. For `cli/`,
+`cargo nextest run` directly still passes: with nothing handed over, each
+test builds its fixtures privately and logs nothing.
 
 ### Surviving thin shell
 
@@ -348,7 +410,8 @@ nothing handed over, each test builds its own fixtures and logs nothing.
 `cargo nextest list` first, then builds only the families whose consumer
 binaries have a selected test, and skips the coverage report, sweep and
 floor. A filter that selects no test, or that nextest cannot parse, fails
-before anything is built.
+before anything is built. "Running a subset of tests" covers `--filter`
+across every lane, and why plain `cargo test` is not supported here.
 
 A nextest bump must re-check that nextest still sets `NEXTEST_BINARY_ID` and
 `NEXTEST_TEST_NAME` for every test, because every event's test and binary
@@ -897,6 +960,13 @@ and fails naming whichever is missing:
 
 - `bash`
 - `zsh` — preinstalled on macOS; `apt-get install zsh` on Debian and Ubuntu
+
+`test:integration:design-automation` needs the vendored Playwright driver and
+Chromium trees pinned in `pins.toml`. On a cold
+`cli/target/design-automation-cache/`, after a fresh clone, a `cargo clean` or
+a pin bump, the lane downloads them (~325 MB) from the artefact host, so
+`test:integration` and the bare `mise run` need the network that first time.
+CI keeps the directory in an `actions/cache` keyed on `pins.toml`.
 
 ### Opt-in research lanes
 

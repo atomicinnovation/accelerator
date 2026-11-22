@@ -4,15 +4,35 @@ from pathlib import Path
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
+from tasks.shared.paths import (
+    CARGO_TOML,
+    CLI_TARGET_DIR,
+    CLI_WORKSPACE_CARGO_TOML,
+)
 from tasks.test.cli import _MANIFEST
-from tasks.test.unit import _bare_returns_in_tests, _tap_counts
+from tasks.test.filters import (
+    LIBTEST_INTEGRATION_FILTER_HELP,
+    NEXTEST_CONTRACT_FILTER_HELP,
+    NODE_TEST_RUNTIME_FILTER_HELP,
+    command_line,
+    pytest_filter_help,
+    run_libtest_lane,
+    run_nextest_lane,
+    run_pytest_lane,
+    selection_from,
+)
 
+from .design_automation import (
+    PLAYWRIGHT_DIR,
+    bare_returns_in_tests,
+    refuse_filtered_run_that_ran_nothing,
+    tap_counts,
+)
 from .helpers import accelerator_env, repo_root
 
 
-@task
-def visualiser(context: Context) -> None:
+@task(help={"filter_": LIBTEST_INTEGRATION_FILTER_HELP})
+def visualiser(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the visualiser (its `tests/*.rs` targets).
 
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
@@ -25,11 +45,15 @@ def visualiser(context: Context) -> None:
     # compiled launcher, so they need it on the env (built by the build:cli:dev
     # mise dependency) rather than the signed-release bootstrap. The overlay is
     # passed to each child, not written into this process.
-    env = accelerator_env()
-    context.run(
-        f"cargo test --manifest-path {CARGO_TOML} --test '*' "
-        f"--no-default-features --features dev-frontend",
-        env=env,
+    run_libtest_lane(
+        context,
+        [
+            f"cargo test --manifest-path {CARGO_TOML} --test '*' "
+            f"--no-default-features --features dev-frontend"
+        ],
+        mise_task="test:integration:visualiser",
+        filter_=filter_,
+        env=accelerator_env(),
     )
 
 
@@ -51,20 +75,41 @@ def visualiser_os_watcher(context: Context) -> None:
     )
 
 
-@task
-def dev(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("orphan")})
+def dev(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the dev task (real circusd, fake processes)."""
-    context.run("uv run pytest tests/integration/dev -n auto -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/dev -n auto -v",
+        mise_task="test:integration:dev",
+        filter_=filter_,
+    )
 
 
-@task
-def entrypoint(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("launcher_removed")})
+def entrypoint(context: Context, filter_: str | None = None) -> None:
     """Hermetic tests for the bin/accelerator plugin entry point.
 
     Exercises the bootstrap end-to-end against a stubbed downloader and real
     minisign signatures verified by the real accelerator-verify shim.
     """
-    context.run("uv run pytest tests/integration/entrypoint -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/entrypoint -v",
+        mise_task="test:integration:entrypoint",
+        filter_=filter_,
+    )
+
+
+@task(name="tasks", help={"filter_": pytest_filter_help("partial")})
+def build_system(context: Context, filter_: str | None = None) -> None:
+    """Run the pytest integration tests for the invoke tasks."""
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/tasks -v",
+        mise_task="test:integration:tasks",
+        filter_=filter_,
+    )
 
 
 @task
@@ -85,19 +130,26 @@ def deny(context: Context) -> None:
     context.run("uv run pytest tests/integration/deny -v")
 
 
-@task
-def pup(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("adf_rule")})
+def pup(context: Context, filter_: str | None = None) -> None:
     """cargo-pup architecture regression (needs the nightly lane)."""
-    context.run("uv run pytest tests/integration/pup -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/pup -v",
+        mise_task="test:integration:pup",
+        filter_=filter_,
+    )
 
 
-@task
-def tracker_contract(context: Context) -> None:
+@task(help={"filter_": NEXTEST_CONTRACT_FILTER_HELP})
+def tracker_contract(context: Context, filter_: str | None = None) -> None:
     """Run the RemoteTracker contract harness (excluded from test:unit:cli)."""
-    context.run(
+    run_nextest_lane(
+        context,
         f"cargo nextest run --profile contract {_MANIFEST}",
+        mise_task="test:integration:tracker-contract",
+        filter_=filter_,
         env={"ACCELERATOR_TRACKER_CONTRACT": "1"},
-        pty=True,
     )
 
 
@@ -117,32 +169,42 @@ def conformance(context: Context) -> None:
     )
 
 
-@task
-def evals(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("quoted_block")})
+def evals(context: Context, filter_: str | None = None) -> None:
     """Hold the CLI output skill evals quote to what the CLI prints.
 
     Runs against the accelerator-work built by the build:cli:work:dev
     dependency.
     """
-    context.run("uv run pytest tests/integration/evals -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/evals -v",
+        mise_task="test:integration:evals",
+        filter_=filter_,
+    )
 
 
-@task
-def hooks(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("refused")})
+def hooks(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the hooks/ subtree.
 
     The suite runs the launcher, accelerator-vcs and accelerator-research
     built by the build:cli:dev, build:cli:vcs:dev and build:cli:research:dev
     dependencies.
     """
-    context.run("uv run pytest tests/integration/hooks -v")
+    run_pytest_lane(
+        context,
+        "uv run pytest tests/integration/hooks -v",
+        mise_task="test:integration:hooks",
+        filter_=filter_,
+    )
 
 
 _RESEARCH_DIFFERENTIAL = "uv run pytest tests/integration/research -v"
 
 
-@task
-def research(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("profile_invocation")})
+def research(context: Context, filter_: str | None = None) -> None:
     """Run the research guard's lexer differential against bash and zsh.
 
     Runs the measured baseline, the lexer-boundary rows, and a fixed-seed
@@ -150,7 +212,12 @@ def research(context: Context) -> None:
     build:cli:research:dev dependency, and every fetch the academic profiles
     show through the same guard.
     """
-    context.run(_RESEARCH_DIFFERENTIAL)
+    run_pytest_lane(
+        context,
+        _RESEARCH_DIFFERENTIAL,
+        mise_task="test:integration:research",
+        filter_=filter_,
+    )
 
 
 @task
@@ -164,11 +231,15 @@ def arxiv_queue_stress(context: Context) -> None:
     )
 
 
-@task
-def research_exhaustive(context: Context) -> None:
+@task(help={"filter_": pytest_filter_help("smuggles")})
+def research_exhaustive(context: Context, filter_: str | None = None) -> None:
     """Run the research guard's lexer differential at every position."""
-    context.run(
-        _RESEARCH_DIFFERENTIAL, env={"RESEARCH_DIFFERENTIAL_EXHAUSTIVE": "1"}
+    run_pytest_lane(
+        context,
+        _RESEARCH_DIFFERENTIAL,
+        mise_task="test:integration:research-exhaustive",
+        filter_=filter_,
+        env={"RESEARCH_DIFFERENTIAL_EXHAUSTIVE": "1"},
     )
 
 
@@ -181,69 +252,115 @@ _DESIGN_AUTOMATION_RUNTIME_SUITES = (
     "daemon-runtime.test.js",
 )
 
-_PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 
-# The launcher exports this on a tree-consuming dispatch; the lane reuses it
-# when present rather than paying a second materialisation.
-_DRIVER_TREE_ENV = "ACCELERATOR_TREE_DRIVER"
+# The vendored trees the runtime suites launch: the driver tree's
+# playwright-core, and the bundled browser. The launcher exports each as
+# ACCELERATOR_TREE_<ARTIFACT> on a tree-consuming dispatch; the lane reuses
+# them when present rather than paying a second materialisation.
+_RUNTIME_TREES = ("driver", "browser")
+
+# The launcher's default cache root is the plugin's own bin/, which the
+# entrypoint suite running beside this lane asserts nothing writes into.
+_RUNTIME_TREE_CACHE = CLI_TARGET_DIR / "design-automation-cache"
 
 # Today's executed total across the two runtime suites. An at-least floor,
-# mirroring the unit lane: this lane sits outside the enforced gate, so a
-# case-count floor and a bare-return guard are its only defence against a suite
-# quietly evaporating or a test body silently asserting nothing.
-_EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 37
+# mirroring the unit lane: `node --test` reports a vanished suite or an
+# early-returning test body as passing, so this floor and the bare-return guard
+# are what catch them.
+_EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 38
 
 
-def _resolve_driver_tree(context: Context) -> Path:
-    """Resolve the materialised driver tree, or refuse the lane.
+def _tree_variable(artifact: str) -> str:
+    return f"ACCELERATOR_TREE_{artifact.upper()}"
 
-    Prefers the launcher-exported driver-tree path; failing that, materialises
-    it through `accelerator cache ensure driver` and reads the tree path from
-    the tab-separated success line. An unresolvable runtime is a visible refusal
-    rather than a silent pass.
+
+def _resolve_runtime_trees(context: Context) -> dict[str, str]:
+    """Resolve the materialised runtime trees, or refuse the lane.
+
+    Prefers the launcher-exported tree paths; failing that, materialises them
+    through the `build:cli:dev` launcher's `cache ensure`. An unresolvable
+    runtime is a visible refusal rather than a silent pass.
     """
-    exported = os.environ.get(_DRIVER_TREE_ENV)
-    if exported and Path(exported).is_dir():
-        return Path(exported)
+    trees = _exported_runtime_trees() or _ensured_runtime_trees(context)
+    return {_tree_variable(artifact): path for artifact, path in trees.items()}
 
-    accelerator = repo_root() / "bin/accelerator"
+
+def _exported_runtime_trees() -> dict[str, str] | None:
+    exported = {
+        artifact: os.environ.get(_tree_variable(artifact), "")
+        for artifact in _RUNTIME_TREES
+    }
+    if all(path and Path(path).is_dir() for path in exported.values()):
+        return exported
+    return None
+
+
+def _ensured_runtime_trees(context: Context) -> dict[str, str]:
+    """Materialise the trees, reading each path from its success line."""
+    launcher_env = {
+        **accelerator_env(),
+        "ACCELERATOR_CACHE_DIR": str(_RUNTIME_TREE_CACHE),
+    }
     ensured = context.run(
-        f"{shlex.quote(str(accelerator))} cache ensure driver",
+        f"{shlex.quote(launcher_env['ACCELERATOR_BIN'])} cache ensure "
+        + " ".join(_RUNTIME_TREES),
         warn=True,
         hide=True,
+        env=launcher_env,
     )
-    tree: Path | None = None
-    if ensured is not None and ensured.exited == 0:
-        for line in ensured.stdout.splitlines():
-            fields = line.split("\t")
-            if len(fields) >= 2 and fields[0] == "driver":
-                tree = Path(fields[1])
-                break
-    if tree is None or not tree.is_dir():
-        raise Exit(
-            "the vendored Playwright driver tree is not available. Run "
-            "`accelerator cache ensure driver`, then retry. This lane fails "
-            "rather than skipping: a skipped runtime suite is "
-            "indistinguishable from a passing one.",
-            code=1,
+    if ensured is None or ensured.exited != 0:
+        raise _runtime_tree_unavailable(
+            _RUNTIME_TREES[0], None if ensured is None else ensured.stderr
         )
-    return tree
+    reported = {}
+    for line in ensured.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) >= 2 and fields[0] in _RUNTIME_TREES:
+            reported[fields[0]] = fields[1]
+    for artifact in _RUNTIME_TREES:
+        tree = reported.get(artifact)
+        if tree is None or not Path(tree).is_dir():
+            raise _runtime_tree_unavailable(artifact)
+    return reported
 
 
-@task
-def design_automation(context: Context) -> None:
-    """Run the Playwright-executor suites that need a real runtime (opt-in).
+def _runtime_tree_unavailable(
+    artifact: str, launcher_stderr: str | None = None
+) -> Exit:
+    launcher_said = (
+        [f"The launcher said:\n  {launcher_stderr.strip()}"]
+        if launcher_stderr
+        else []
+    )
+    return Exit(
+        "\n".join(
+            [
+                f"the vendored Playwright {artifact} tree is not available.",
+                *launcher_said,
+                "Fix the cause, then re-run "
+                "`mise run test:integration:design-automation`. This lane "
+                "fails rather than skipping: a skipped runtime suite is "
+                "indistinguishable from a passing one.",
+            ]
+        ),
+        code=1,
+    )
 
-    Deliberately outside `test:integration` and the bare default task: no CI
-    lane provisions a Playwright runtime. Rather than skip without one — which
-    is indistinguishable from passing — this refuses up front, following the
-    `docker info` preflight precedent in `tasks/test/e2e.py`.
+
+@task(help={"filter_": NODE_TEST_RUNTIME_FILTER_HELP})
+def design_automation(context: Context, filter_: str | None = None) -> None:
+    """Run the Playwright-executor suites against the vendored runtime.
+
+    Rather than skip without a runtime — which is indistinguishable from
+    passing — this refuses up front, following the `docker info` preflight
+    precedent in `tasks/test/e2e.py`.
     """
+    selection = selection_from(filter_)
     root = repo_root()
-    driver_tree = _resolve_driver_tree(context)
+    runtime_trees = _resolve_runtime_trees(context)
 
     suites = [
-        root / _PLAYWRIGHT_DIR / name
+        root / PLAYWRIGHT_DIR / name
         for name in _DESIGN_AUTOMATION_RUNTIME_SUITES
     ]
     missing = [str(path) for path in suites if not path.exists()]
@@ -253,7 +370,7 @@ def design_automation(context: Context) -> None:
         )
 
     for suite in suites:
-        offenders = _bare_returns_in_tests(suite.read_text())
+        offenders = bare_returns_in_tests(suite.read_text())
         if offenders:
             listed = "\n  ".join(offenders)
             raise Exit(
@@ -265,16 +382,26 @@ def design_automation(context: Context) -> None:
 
     discovered = " ".join(str(path) for path in suites)
     result = context.run(
-        f"node --test --test-reporter=tap {discovered}",
+        command_line(
+            "node --test --test-reporter=tap", selection.node_test(), discovered
+        ),
         warn=True,
         pty=False,
-        env={_DRIVER_TREE_ENV: str(driver_tree)},
+        env=runtime_trees,
     )
-    counts = _tap_counts(result.stdout)
+    counts = tap_counts(result.stdout)
     if counts["fail"]:
         raise Exit(
             f"{counts['fail']} design-automation runtime test(s) failed", code=1
         )
+    if selection.is_filtered:
+        refuse_filtered_run_that_ran_nothing(
+            selection,
+            "test:integration:design-automation",
+            result.stdout,
+            suites,
+        )
+        return
     if counts["skipped"]:
         raise Exit(
             f"{counts['skipped']} design-automation runtime test(s) skipped; "

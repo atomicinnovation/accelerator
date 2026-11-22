@@ -24,6 +24,7 @@ from tasks.shared.playwright import (
     PLAYWRIGHT_PLATFORM,
     resolved_playwright_version,
 )
+from tasks.shared.selection import Selection
 from tasks.test.e2e import docker_visual_command
 from tests.unit.tasks.shared.doubles import FakeClock, FakeProcs
 
@@ -115,6 +116,22 @@ class TestDockerVisualCommand:
         payload = self._tokens(update=True)[-1]
         assert payload.endswith("--update-snapshots")
         assert payload.startswith("npm ci && npx playwright test")
+
+    def test_grep_ends_the_payload_quoted_for_the_inner_bash(self):
+        payload = self._tokens(selection=Selection("a b's"))[-1]
+
+        assert payload.endswith(
+            "--project visual-regression --grep 'a b'\"'\"'s'"
+        )
+        assert shlex.split(payload)[-2:] == ["--grep", "a b's"]
+
+    def test_update_and_grep_are_carried_together(self):
+        payload = shlex.split(
+            self._tokens(update=True, selection=Selection("chip"))[-1]
+        )
+
+        assert "--update-snapshots" in payload
+        assert payload[-2:] == ["--grep", "chip"]
 
 
 # ─── run_against_host_server ─────────────────────────────────

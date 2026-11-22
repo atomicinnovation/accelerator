@@ -64,3 +64,46 @@ def test_nothing_selected_quotes_an_expression_holding_a_quote():
     message = Selection("test(it's)").nothing_selected("test:unit:cli")
 
     assert shlex.split(message)[:2] == ["--filter", "test(it's)"]
+
+
+def test_pytest_renders_the_expression_as_one_quoted_k_option():
+    assert Selection("a and not b").pytest() == "-k 'a and not b'"
+
+
+def test_pytest_renders_nothing_unfiltered():
+    assert Selection(None).pytest() == ""
+
+
+def test_the_pytest_rendering_splits_back_into_the_option_and_the_expression():
+    assert shlex.split(Selection("it's a").pytest()) == ["-k", "it's a"]
+
+
+_RENDERINGS = {
+    "libtest": [],
+    "vitest": ["-t"],
+    "node_test": ["--test-name-pattern"],
+    "playwright": ["--grep"],
+}
+
+
+@pytest.mark.parametrize("runner", sorted(_RENDERINGS))
+def test_each_runner_renders_nothing_unfiltered(runner):
+    assert getattr(Selection(None), runner)() == ""
+
+
+@pytest.mark.parametrize("runner", sorted(_RENDERINGS))
+def test_each_runner_renders_one_quoted_expression(runner):
+    assert getattr(Selection("a b"), runner)().endswith("'a b'")
+
+
+@pytest.mark.parametrize("runner", sorted(_RENDERINGS))
+def test_each_rendering_splits_back_into_its_option_and_the_expression(
+    runner,
+):
+    rendered = getattr(Selection("it's a b"), runner)()
+
+    assert shlex.split(rendered) == [*_RENDERINGS[runner], "it's a b"]
+
+
+def test_libtest_renders_the_bare_positional_filter():
+    assert Selection("path_normalisation").libtest() == "'path_normalisation'"

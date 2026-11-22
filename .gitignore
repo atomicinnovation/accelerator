@@ -61,6 +61,7 @@ bin/*.minisig
 bin/.accelerator-lock-*
 bin/.accelerator-unverified.log
 bin/.tmp-*
+bin/trees/
 
 # Release-only symbolication archives: `build:debug-archives` writes them into
 # the committed skill tree so the provenance glob covers them, and the release

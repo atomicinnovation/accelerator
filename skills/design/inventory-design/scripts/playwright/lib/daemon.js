@@ -10,13 +10,14 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
 import { readIdentity } from './identity-handoff.js';
-import { makeAuthHeaderHandler, parseAuthHeader } from './auth-header.js';
+import { parseAuthHeader } from './auth-header.js';
 import { LOCATION_URL_FIELD, AUTH_HEADER_FIELD } from './request-fields.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
-import { classifyLocation, classifyNavigationRequest } from './access-policy.js';
+import { classifyLocation } from './access-policy.js';
+import { interceptRequests } from './request-interception.js';
 
 // 10-min default balances cross-turn daemon reuse (Claude Code sessions
 // typically span minutes) against bounding the lifetime of an
@@ -198,8 +199,8 @@ export async function startDaemon({ stateDir }) {
 
   // ------ Browser / page --------------------------------------------------
 
-  async function ensureBrowser() {
-    if (browser) return;
+  async function ensurePage() {
+    if (page) return;
     const { chromium } = await importPlaywright({
       nsRoot: process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT,
     });
@@ -207,52 +208,42 @@ export async function startDaemon({ stateDir }) {
     // design.browser_path hatch. Passing it is what makes playwright-core skip
     // its own browser registry, so a sealed read-only tree is never consulted.
     const executablePath = process.env.ACCELERATOR_DESIGN_BROWSER_EXECUTABLE;
-    browser = await chromium.launch({ headless: true, executablePath });
-    const ctx = await browser.newContext();
-    page = await ctx.newPage();
-
-    // Two page-lifetime route handlers, co-located so their ordering is visible
-    // at the one point it matters. Playwright dispatches last-registered-first,
-    // so the classifier (registered second) runs first and the auth-header
-    // route (registered first) runs last. The classifier's allow path calls
-    // `fallback()`, which hands the request down to the earlier-registered
-    // auth-header route — the seam that lets navigation policy gate the request
-    // before the header is attached or stripped. Registering the auth-header
-    // route after the classifier would invert this: it would `continue()` first
-    // and the classifier would never run.
-    const installAuthHeader = makeAuthHeaderHandler(page, {
-      getExpectedOrigin: () => currentExpectedOrigin,
-      getAuthHeader: () => currentAuthHeader,
+    // The request interceptor sees only the page's own target. Site isolation
+    // would move a cross-site frame's navigations onto a target of its own, and
+    // a service worker's fetches never pass through the page at all, so both
+    // are kept off for every request to stay judged.
+    browser = await chromium.launch({
+      headless: true,
+      executablePath,
+      args: ['--disable-site-isolation-trials'],
     });
-    await installAuthHeader();
+    try {
+      const ctx = await browser.newContext({ serviceWorkers: 'block' });
+      const intercepted = await ctx.newPage();
 
-    // One handler for the page's whole life, so a redirect hop and a
-    // page-initiated navigation (a <meta refresh>, a scripted location change)
-    // are classified under the current request's allowances too, not only the
-    // initial URL. A refusal is recorded only for the main frame, so a sub-frame
-    // abort never masks the top-level result. The body fails closed: a thrown
-    // classifier error aborts as `malformed` rather than leaving the request
-    // unhandled to hang until the wall-clock.
-    await page.route('**/*', async route => {
-      let decision;
-      try {
-        decision = classifyNavigationRequest(
-          route.request(),
-          currentAllowances
-        );
-      } catch {
-        decision = {
-          abort: true,
-          classification: 'malformed',
-          url: route.request().url(),
-        };
-      }
-      if (decision.continue) return route.fallback();
-      if (route.request().frame() === page.mainFrame()) {
-        lastRefusal = decision;
-      }
-      return route.abort('blockedbyclient');
-    });
+      // A refusal is recorded only for the main frame, so a sub-frame abort
+      // never masks the top-level result.
+      await interceptRequests(intercepted, {
+        getAllowances: () => currentAllowances,
+        getExpectedOrigin: () => currentExpectedOrigin,
+        getAuthHeader: () => currentAuthHeader,
+        onMainFrameRefusal: refusal => {
+          lastRefusal = refusal;
+        },
+      });
+      page = intercepted;
+    } catch (error) {
+      // A page without its interceptor would navigate unjudged, so the next
+      // command starts again from a fresh browser rather than reusing it.
+      await discardBrowser();
+      throw error;
+    }
+  }
+
+  async function discardBrowser() {
+    const launched = browser;
+    browser = null;
+    try { await launched?.close(); } catch {}
   }
 
   // ------ Request handler -------------------------------------------------
@@ -325,7 +316,7 @@ export async function startDaemon({ stateDir }) {
     }
 
     // All remaining commands require the browser
-    await ensureBrowser();
+    await ensurePage();
     onBrowserReady?.();
 
     switch (cmd) {
@@ -345,8 +336,10 @@ export async function startDaemon({ stateDir }) {
       }
 
       case 'snapshot': {
-        const snap = await page.accessibility.snapshot();
-        return { protocol: PROTOCOL, snapshot: snap };
+        const snapshot = await page
+          .locator(':root')
+          .ariaSnapshot({ timeout: WALL_CLOCK_MS });
+        return { protocol: PROTOCOL, snapshot };
       }
 
       case 'links': {
@@ -575,7 +568,7 @@ export async function startDaemon({ stateDir }) {
           // Armed once the browser exists, not before the call: acquiring
           // Chromium can outrun any sane per-op budget, and charging a cold
           // start to the operation kills the daemon on its first browser
-          // command. The hook fires after `ensureBrowser`, so the commands that
+          // command. The hook fires after `ensurePage`, so the commands that
           // return before it — and a request arriving mid-shutdown — arm nothing.
           onBrowserReady: () => {
             if (isBlocking) armWallClock(parsed.command, res);

@@ -20,9 +20,29 @@ class Selection:
         return self.expression is not None
 
     def nextest(self) -> str:
+        return self._option("-E")
+
+    def pytest(self) -> str:
+        return self._option("-k")
+
+    def libtest(self) -> str:
         if self.expression is None:
             return ""
-        return f"-E {_quoted(self.expression)}"
+        return _quoted(self.expression)
+
+    def vitest(self) -> str:
+        return self._option("-t")
+
+    def node_test(self) -> str:
+        return self._option("--test-name-pattern")
+
+    def playwright(self) -> str:
+        return self._option("--grep")
+
+    def _option(self, name: str) -> str:
+        if self.expression is None:
+            return ""
+        return f"{name} {_quoted(self.expression)}"
 
     @property
     def flag(self) -> str:
