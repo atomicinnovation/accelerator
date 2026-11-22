@@ -16,6 +16,7 @@ from tasks.shared.skill_parsing import (
     PLUGIN_PREFIX,
     covered_by,
     fenced_block_commands,
+    fenced_blocks,
     frontmatter_allowed_tools,
     frontmatter_bash_rules,
     frontmatter_name,
@@ -189,6 +190,19 @@ def test_fenced_block_commands_ignores_a_blank_block() -> None:
 
 def test_fenced_block_commands_finds_none_with_no_fence() -> None:
     assert fenced_block_commands("just prose, no fences here\n") == []
+
+
+def test_fenced_blocks_carry_their_language_tag() -> None:
+    text = "```bash\ncommand\n```\n\n```markdown\n- entry\n```\n"
+    assert fenced_blocks(text) == [("bash", "command"), ("markdown", "- entry")]
+
+
+def test_an_untagged_fenced_block_has_no_language() -> None:
+    assert fenced_blocks("```\ncommand\n```\n") == [("", "command")]
+
+
+def test_fenced_blocks_ignore_a_blank_block() -> None:
+    assert fenced_blocks("```text\n\n```\n") == []
 
 
 def test_is_plugin_invocation() -> None:
