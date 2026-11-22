@@ -110,7 +110,8 @@ fn counts_reports_a_set_without_a_synthesis_stale() -> Result<(), TestError> {
         assert_eq!(
             counts["mismatches"],
             json!([
-                "the findings reach round 1 but synthesis.md covers up to round 0"
+                "the findings reach round 1 but synthesis.md covers up to \
+                 round 0"
             ]),
             "{slug}"
         );
@@ -130,7 +131,8 @@ fn counts_reads_past_an_unreadable_stored_count() -> Result<(), TestError> {
     assert_eq!(counts["fresh"], json!(false));
     assert_eq!(
         counts["mismatches"],
-        json!(["manifest.md records round_count 'three', which is not a whole number"])
+        json!(["manifest.md records round_count 'three', which is not a \
+                whole number"])
     );
     Ok(())
 }
@@ -165,7 +167,10 @@ fn counts_reads_past_an_unreadable_rounds_covered() -> Result<(), TestError> {
     assert_eq!(counts["stored"]["rounds_covered"], Value::Null);
     assert_eq!(
         counts["mismatches"],
-        json!(["synthesis.md records rounds_covered 'two', which is not a whole number"])
+        json!(
+            ["synthesis.md records rounds_covered 'two', which is not a \
+                whole number"]
+        )
     );
     Ok(())
 }
@@ -179,7 +184,8 @@ fn counts_escapes_an_unreadable_value() -> Result<(), TestError> {
 
     assert_eq!(
         counts["mismatches"],
-        json!(["manifest.md records round_count '3\\nx', which is not a whole number"])
+        json!(["manifest.md records round_count '3\\nx', which is not a \
+                whole number"])
     );
     Ok(())
 }

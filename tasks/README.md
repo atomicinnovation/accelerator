@@ -828,26 +828,25 @@ they share, the citing-once rule or the model.
   marks a turn that repeats one it should not have read.
 - **Errored or failed.** A turn is errored when it exits non-zero, times out,
   leaves no log, exit status or snapshot, logs no init event, or ends
-  `is_error`. A
-  session that broke a criterion or check is failed; otherwise one with an
-  errored turn is errored.
+  `is_error`. A session that broke a criterion or check is failed; otherwise one
+  with an errored turn is errored.
 
 `--family`, `--verb` and `--scenario` narrow a run and combine, `--jobs` sets
 how many sessions run at once, `--model` and `--config-dir` reach every turn,
-and `--check-only --out <dir>` re-judges a finished run, skipping every gate
-but the pre-flight. A filter name that matches no scenario is refused, with
-the valid names, before any gate, and a run or re-judge that selects no
-session fails rather than passing on nothing judged. Before any session, the
-task checks the marker, a Claude Code of at least 2.1.144, the pre-flight,
-then a one-turn authentication probe. `--rerun-errored --out <dir>` moves each errored session aside to
-`<session>.errored-<n>/` just before rerunning it, so an interrupted rerun
-leaves the rest in place, and reruns it with the run's recorded `--model` and
-`--config-dir`, refusing on another Claude Code version or on a run that
-never recorded its `results.json`. It never reruns a
-failed session: rerunning one until it passed would let a 2/3 judgement pass
-as 3/3. Both keep the run's recorded settings in `results.json`; a re-judge
-of a run that recorded none records empty settings, which constrain no
-rerun. A narrowed re-judge or rerun replaces only the sessions it judged.
+and `--check-only --out <dir>` re-judges a finished run, skipping every gate but
+the pre-flight. A filter name that matches no scenario is refused, with the
+valid names, before any gate, and a run or re-judge that selects no session
+fails rather than passing on nothing judged. Before any session, the task checks
+the marker, a Claude Code of at least 2.1.144, the pre-flight, then a one-turn
+authentication probe. `--rerun-errored --out <dir>` moves each errored session
+aside to `<session>.errored-<n>/` just before rerunning it, so an interrupted
+rerun leaves the rest in place, and reruns it with the run's recorded `--model`
+and `--config-dir`, refusing on another Claude Code version or on a run that
+never recorded its `results.json`. It never reruns a failed session: rerunning
+one until it passed would let a 2/3 judgement pass as 3/3. Both keep the run's
+recorded settings in `results.json`; a re-judge of a run that recorded none
+records empty settings, which constrain no rerun. A narrowed re-judge or rerun
+replaces only the sessions it judged.
 
 ### The runtime pin guard
 

@@ -341,8 +341,8 @@ fn check_extra_vocabs(
     }
 }
 
-/// An empty `""` or `''` is left to `EMPTY-PLACEHOLDER`, while a bare `key:` reads
-/// as the empty value, which lies outside every vocab.
+/// An empty `""` or `''` is left to `EMPTY-PLACEHOLDER`, while a bare `key:`
+/// reads as the empty value, which lies outside every vocab.
 fn vocab_value<'a>(
     entries: &'a [(String, String)],
     key: &str,

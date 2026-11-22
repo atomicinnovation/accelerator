@@ -211,8 +211,7 @@ mod tests {
     }
 
     #[test]
-    fn a_long_report_slug_is_cut_before_its_last_hyphen_within_sixty_one_characters(
-    ) {
+    fn a_long_report_slug_is_cut_before_the_word_that_would_pass_sixty() {
         assert_eq!(
             ReportSlug::from(C7).as_str(),
             "how-do-autonomous-language-model-agents-decompose-long"

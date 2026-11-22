@@ -658,37 +658,32 @@
   report's `coverage` must be `answered` or `partial`; any other value fails
   `corpus frontmatter validate` with `BAD-EXTRA-VALUE`, as a `status` outside
   its vocabulary fails with `BAD-STATUS`.
-- **`accelerator research topic report-path SLUG QUESTION`** prints the
-  absolute path a new report on the question takes:
-  `reports/<question-slug>.md`, cut before the word that would pass 60
-  characters, or at 60 when that would leave 40 or fewer. When that name is
-  taken, it appends the first free `-2`, `-3`, … suffix to the cut slug. It
-  writes nothing,
-  and exits `1` with `E_TOPIC_RESEARCH_QUESTION` for a missing or blank
-  question.
+- **`accelerator research topic report-path SLUG QUESTION`** prints the absolute
+  path a new report on the question takes: `reports/<question-slug>.md`, cut
+  before the word that would pass 60 characters, or at 60 when that would leave
+  40 or fewer. When that name is taken, it appends the first free `-2`, `-3`, …
+  suffix to the cut slug. It writes nothing, and exits `1` with
+  `E_TOPIC_RESEARCH_QUESTION` for a missing or blank question.
 - **`accelerator research topic counts SLUG`** prints the round, finding and
   report counts a set's files give beside those its manifest and synthesis
   record, whether they agree, and a fixed sentence for each disagreement.
-- **`accelerator research topic consultable SLUG`**
-  judges whether a set may be consulted: its status, its freshness and
-  whether every outline pair is answered, in that order. It prints the first
-  gate that fails, or the findings and reports to read and the outline's
-  highest round.
-- **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from
-  a synthesised, fresh, fully conducted set in conversation. It states its
+- **`accelerator research topic consultable SLUG`** judges whether a set may be
+  consulted: its status, its freshness and whether every outline pair is
+  answered, in that order. It prints the first gate that fails, or the findings
+  and reports to read and the outline's highest round.
+- **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from a
+  synthesised, fresh, fully conducted set in conversation. It states its
   coverage as `answered`, `partial` or `unanswered`, naming the sources and
   tiers behind each part, and for a partial or unanswered question proposes a
   new outline round, which it appends and reopens the set for only on
-  confirmation. Before calling a part a gap it reads the level notes behind
-  the findings bearing on it, so a source a composed finding left out still
-  counts. Claude Code keeps a skill's grant only until your next
-  reply, so the commands `ask` runs after one ask for permission, and a
-  headless session denies them. Adding
-  `Bash(accelerator corpus metadata derive)`,
+  confirmation. Before calling a part a gap it reads the level notes behind the
+  findings bearing on it, so a source a composed finding left out still counts.
+  Claude Code keeps a skill's grant only until your next reply, so the commands
+  `ask` runs after one ask for permission, and a headless session denies them.
+  Adding `Bash(accelerator corpus metadata derive)`,
   `Bash(accelerator corpus frontmatter validate *)`,
   `Bash(accelerator research topic consultable *)` and
-  `Bash(accelerator research topic counts *)` to your allow rules avoids
-  that.
+  `Bash(accelerator research topic counts *)` to your allow rules avoids that.
 - **research-topic grants a `Read` of the citing-once rule**, scoped to its
   directory in the plugin, so `synthesise`, `ask` and `report` read the rule
   without a permission prompt.

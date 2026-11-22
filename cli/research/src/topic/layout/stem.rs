@@ -3,9 +3,9 @@
 
 use std::fmt;
 use std::fmt::Display;
+use std::fmt::Formatter;
 
 use crate::topic::layout::FINDINGS;
-use std::fmt::Formatter;
 
 /// ASCII digits, a `-`, then a non-empty rest drawn from `[a-z0-9-]`.
 ///
