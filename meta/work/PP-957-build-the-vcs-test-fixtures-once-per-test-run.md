@@ -431,11 +431,14 @@ Mutation audit of today's consumers:
       `macos-latest` leg 8,113, each summary showing 1 matrix shared build
       with 19 adoptions, 1 status-log shared build with 7 adoptions and 10
       copies, and 4 private-set builds; the build step took 2.4 s and 5.0 s.
-- [ ] [filters] Given each task listed in Requirement 5, when it is run
+- [x] [filters] Given each task listed in Requirement 5, when it is run
       with `--help`, with a filter selecting a subset, and with its listed
       malformed expression, then its help lists `--filter` and names the
       syntax, fewer tests run and all of them pass, and the malformed
       expression fails the task.
+      Run lane by lane in Phases 7 and 8 of the plan. The live Jira, Linear
+      and Shortcut contract tests in `tracker-contract` need credentials and
+      were not run; its subset ran against the in-memory tracker.
 - [ ] [filters] Given the root `CLAUDE.md` and `tasks/README.md`, when they
       are read, then they direct readers to each task's `--filter`,
       including `test:unit:cli`'s, name the exempt tasks, rule out

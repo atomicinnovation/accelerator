@@ -2970,6 +2970,21 @@ where credentials are available:
 Rewrite the guidance so that `--filter` is the supported way to run a subset
 of tests, and add a guard that every in-scope leaf keeps the option.
 
+### As built
+
+- **No roll-up test.** Phase 3 found that a run-less roll-up ignores extra
+  arguments even with an empty `usage`, so the roll-ups declare none and
+  `test_every_roll_up_refuses_a_filter` was not added. A companion guard,
+  `test_every_task_that_takes_no_filter_exists`, fails when an exempt name
+  goes stale.
+- **The roll-ups' descriptions** now say "pass --filter to one of its leaf
+  tasks" rather than pointing at `test:unit:cli --filter` alone.
+- **The "Coverage floor" hand-run steps are unchanged.** They need the
+  report a filtered run skips, so `--filter` does not apply to them.
+- **Over-building is documented.** "Running a subset of tests" notes that a
+  filter selecting a private-set test still builds the status-log set
+  (2.4–3.2 s on a loaded host), and that `& !binary_id(...)` avoids it.
+
 ### Changes Required
 
 #### 1. A guard over the task tree (tests first)
@@ -3026,8 +3041,8 @@ Link to it from "Shared VCS fixtures" and from "Task options". Point the
 
 #### Automated Verification
 
-- [ ] The guard passes: `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] The full local run passes: `mise run`
+- [x] The guard passes: `uv run pytest tests/unit/tasks/test_mise.py -v`
+- [x] The full local run passes: `mise run`
 
 #### Manual Verification
 
