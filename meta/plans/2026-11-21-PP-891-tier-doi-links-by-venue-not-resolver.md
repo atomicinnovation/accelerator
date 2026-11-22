@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T15:30:00+00:00"
+last_updated: "2026-11-22T16:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1575,7 +1575,10 @@ The implementer re-checks the line references before editing.
 Phase 4 landed in six commits. The suites run 1296 tests, and
 `mise run check` exits 0. Live calls printed the expected documents, and
 ten in a loop each sent one request with no retry. The two-title journal
-fixture is live (`10.4213/tmf1151`). Departures from the plan:
+fixture is live (`10.4213/tmf1151`). Each commit refreshes its own share
+of the `public-api` snapshot and passes `public-api:check` alone; the live
+checks were re-run on a binary built from the rewritten tip. The bare
+`mise run` has not been run for this phase. Departures from the plan:
 
 - **No `contact` parameter yet**: `UpstreamRequest::crossref_work(api,
   doi)` takes no contact address; phase 5 adds `ContactAddress` and the
@@ -1659,8 +1662,10 @@ plausible when it has:
 - a non-empty local part with no `:`;
 - a domain that contains `.` and does not start or end with it.
 
-`UpstreamRequest::crossref_work` sets `User-Agent` to
-`"{USER_AGENT} (mailto:{address})"` when an address is present. The research
+`UpstreamRequest::crossref_work`, which phase 4 shipped as
+`crossref_work(api, doi)`, gains `contact: Option<&ContactAddress>` and sets
+`User-Agent` to `"{USER_AGENT} (mailto:{address})"` when an address is
+present. The research
 domain holds only `ContactAddress` and `CrossrefPool`; it names no config
 type, as `cli/pup.ron`'s research import rule requires.
 
@@ -1785,6 +1790,15 @@ adapters with `ServiceAdapters::for_crossref(contact.pool(), &context)`.
 `Service::Crossref(Polite)` already exists from phase 3, with its pacing
 (102 ms from the previous start, 3 slots) and code `crossref-polite`. This
 phase wires it to calls whose contact resolves; the adapters need no change.
+`main.rs` builds `ServiceAdapters::for_crossref` with the resolved pool and
+passes the same `Service` as `DoiAdapters::service`, which `FetchedDoi`
+already carries to rendering.
+
+**File**: `cli/.config/nextest.toml`
+**Changes**: the polite rate, `not-an-address` and mixed-pool tests join
+the public rate test's `threads-required = "num-test-threads"` override;
+the polite concurrency and polite `Retry-After` tests join the
+`real-time` group.
 
 **File**: `cli/research-cli/src/cli.rs`
 **Changes**: one `FETCH_HELP` sentence saying `crossref.mailto` selects
@@ -2058,7 +2072,12 @@ from the recovery table, so every warning appears in one place.
 `web metadata` entries, then the `doi metadata` entries), say that
 `publisher` comes from `doi metadata`, and say that every `doi`-recorded key
 ranks after every `web`-recorded key, so the emitted order is the table
-order.
+order. Give `publisher` its value form (the name Crossref holds, runs of
+whitespace collapsed).
+
+**File**: `docs-site/src/content/docs/research.md`, Granting the fetch
+**Changes**: `web-profile` uses the grant for `fetch web metadata` and
+`fetch doi metadata`, deferred from phase 4 until the profile calls it.
 
 #### 5. Tests
 
