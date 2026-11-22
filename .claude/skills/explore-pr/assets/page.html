@@ -224,7 +224,8 @@ table.data tr:last-child td { border-bottom: 0; }
 .code tr.blk td { padding: 2px 10px 2px 14px; background: var(--panel); font-family: var(--f-body); font-size: 11.5px; line-height: 1.6; }
 .code tr.blk button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
 .commit-msg { white-space: pre-wrap; font-size: 14px; color: var(--ink-2); max-width: 80ch; overflow-wrap: anywhere; }
-.fl-item.cm-item .nm { direction: ltr; font-family: var(--f-body); }
+.fl-item.cm-item .nm, #nav-tree .nav-commit .nm { direction: ltr; font-family: var(--f-body); font-weight: 600; }
+.commit-file-ctl { padding: 8px 14px; border-bottom: 1px solid var(--rule); background: var(--panel); }
 .commit-files { display: grid; gap: 14px; }
 .pager-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pager-row .btn[disabled] { opacity: .45; cursor: default; }
@@ -545,6 +546,7 @@ const KINDS = {
   finding: { label: 'Triage', opts: [['block', 'Block merge', 'bad'], ['fix-now', 'Fix in PR', 'warn'], ['follow-up', 'Follow-up', 'info'], ['reject', 'Reject', 'none']] },
   file: { label: 'File', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
   commit: { label: 'Commit', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
+  commitfile: { label: 'File in commit', opts: [['ok', 'Reviewed', 'ok'], ['skip', 'Skimmed', 'none'], ['issue', 'Issue', 'bad']] },
 };
 const Store = {
   mode: 'none', canWrite: true, version: 0, docs: new Map(), db: null, pending: new Map(), inflight: new Set(), reachable: true,
@@ -933,7 +935,12 @@ function recordedClaims() {
     .flatMap(d => ReviewCoverage.lineMarkClaims(d.target.slice('lines:'.length), currentMarks(d), { target: d.target, label: MARKED }));
   const commits = COMMITS.filter(c => Store.get('commit:' + c.sha).status)
     .flatMap(c => ReviewCoverage.commitClaims(c, { target: 'commit:' + c.sha, label: 'Commit ' + shortSha(c.sha) }));
-  claimsMemo = { at, claims: [...verdicts, ...marks, ...commits] };
+  const commitFiles = [...Store.docs.values()].filter(d => d.kind === 'commitfile' && d.status).flatMap(d => {
+    const [sha, path] = splitKey(d.target.slice('commitfile:'.length)), commit = COMMIT[sha];
+    const file = commit && commit.files.find(f => commitFilePath(f) === path);
+    return file ? ReviewCoverage.commitFileClaims(commit, file, { target: d.target, label: 'Commit ' + shortSha(sha) }) : [];
+  });
+  claimsMemo = { at, claims: [...verdicts, ...marks, ...commits, ...commitFiles] };
   return claimsMemo.claims;
 }
 const shortSha = sha => String(sha || '').slice(0, 7);
@@ -1451,6 +1458,7 @@ const BLANK_FILTERS = {
   abstractions: { status: '', chapter: '' },
   invariants: { holds: '', pinned: '', chapter: '', verdict: '' },
   files: FileNavigator.BLANK,
+  commits: FileNavigator.BLANK,
 };
 const filters = Object.fromEntries(Object.entries(BLANK_FILTERS).map(([route, blank]) => [route, { ...blank }]));
 const jumpLink = (route, filter, label, attrs = '') => `<a href="#${route}" data-jump="${route}" data-filter="${esc(JSON.stringify(filter))}"${attrs}>${label}</a>`;
@@ -1934,27 +1942,26 @@ const NavigatorPrefs = {
     try { localStorage.setItem(this.key(), JSON.stringify(this.held)); } catch (e) { /* storage unavailable */ }
   },
 };
-const collapsedOn = route => new Set(NavigatorPrefs.get().collapsed[route] || []);
-const keepCollapsed = (route, ids) => NavigatorPrefs.set({ collapsed: { ...NavigatorPrefs.get().collapsed, [route]: [...ids] } });
+const toggledOn = route => new Set(NavigatorPrefs.get().collapsed[route] || []);
+const keepToggled = (route, ids) => NavigatorPrefs.set({ collapsed: { ...NavigatorPrefs.get().collapsed, [route]: [...ids] } });
 const GROUP_BY = [['tree', 'Tree'], ['none', 'None'], ['layer', 'Role'], ['chapter', 'Chapter'], ['risk', 'Risk'], ['change', 'Change']];
 const SORT_BY = [['path', 'Path'], ['unread', 'Still to read'], ['size', 'Size'], ['risk', 'Risk'], ['reading', 'Reading order'], ['commit', 'First commit']];
-const FACET_UI = [
+const NAVIGATED = ['files', 'commits'];
+const facetUi = route => [
   ['progress', 'Progress', () => [['unread', 'not started'], ['partial', 'partly read'], ['read', 'read']]],
   ['verdict', 'Your verdict', () => [['none', 'none'], ...KINDS.file.opts.map(([value, label]) => [value, label])]],
   ['layer', 'Role', () => layersList()],
   ['risk', 'Risk', () => RISKS.map(([risk]) => [risk, risk])],
-  ['change', 'Change', () => [['added', 'added'], ['modified', 'modified'], ['deleted', 'deleted'], ['binary', 'binary']]],
+  ['change', 'Change', () => [['added', 'added'], ['modified', 'modified'], ['deleted', 'deleted'], ...(route === 'commits' ? [['renamed', 'renamed']] : []), ['binary', 'binary']]],
   ['chapter', 'Chapter', () => C.chapters.map(c => [c.id, c.title])],
   ['mentions', 'Mentioned in', () => [['stop', 'a tour stop'], ['ledger', 'a ledger row'], ['finding', 'a finding']]],
-  ['commit', 'Commit', () => C.commits.filter(c => !c.merge).map(c => [c.sha, `${shortSha(c.sha)} ${c.subject}`])],
+  ...(route === 'files' ? [['commit', 'Commit', () => C.commits.filter(c => !c.merge).map(c => [c.sha, `${shortSha(c.sha)} ${c.subject}`])]] : []),
 ];
 const STILL_TO_READ = ['unread', 'partial'];
 
-let entriesMemo = { at: '', entries: [] };
-function fileEntries() {
-  const recorded = recordedClaims();
-  const at = `${Store.version}:${COMMITS.length}:${D ? 'diff' : ''}`;
-  if (entriesMemo.at === at) return entriesMemo.entries;
+let factsMemo = { at: -1, facts: null };
+function pathFacts() {
+  if (factsMemo.at === COMMITS.length) return factsMemo.facts;
   const mentions = {}, readingOrder = {}, commits = {}, firstCommit = {};
   const mention = (path, kind) => { if (path) (mentions[path] = mentions[path] || new Set()).add(kind); };
   C.chapters.forEach((ch, i) => (ch.stops || []).forEach((s, j) => {
@@ -1969,40 +1976,93 @@ function fileEntries() {
     if (firstCommit[f.headPath] == null) firstCommit[f.headPath] = commitIndex(c.sha);
   }));
   const chapterAt = Object.fromEntries(C.chapters.map((c, i) => [c.id, i]));
-  const entries = C.files.map(f => {
-    const d = D && D[f.path], cov = coverageOf(f.path, recorded);
+  C.files.forEach(f => { if (readingOrder[f.path] == null && f.chapter in chapterAt) readingOrder[f.path] = chapterAt[f.chapter] * 10000 + 9999; });
+  factsMemo = { at: COMMITS.length, facts: { mentions, readingOrder, commits, firstCommit } };
+  return factsMemo.facts;
+}
+const coverageFacts = cov => (cov ? { changed: cov.changed, read: cov.read, state: cov.state } : { changed: 0, read: 0, state: 'unread' });
+
+const entriesMemo = { files: { at: '', entries: [] }, commits: { at: '', entries: [] } };
+function memoised(route, build) {
+  const at = `${Store.version}:${COMMITS.length}:${D ? 'diff' : ''}`;
+  if (entriesMemo[route].at !== at) entriesMemo[route] = { at, entries: build(recordedClaims()) };
+  return entriesMemo[route].entries;
+}
+const fileEntries = () => memoised('files', recorded => {
+  const { mentions, readingOrder, commits, firstCommit } = pathFacts();
+  return C.files.map(f => {
+    const d = D && D[f.path];
     return {
-      path: f.path, layer: f.layer, risk: f.risk, chapter: f.chapter || '',
-      readingOrder: readingOrder[f.path] ?? (f.chapter in chapterAt ? chapterAt[f.chapter] * 10000 + 9999 : null),
-      firstCommit: firstCommit[f.path] ?? null,
+      key: f.path, path: f.path, layer: f.layer, risk: f.risk, chapter: f.chapter || '',
+      readingOrder: readingOrder[f.path] ?? null, firstCommit: firstCommit[f.path] ?? null,
       changes: [f.status || (d && d.status) || 'modified', ...(d && d.binary ? ['binary'] : [])],
-      add: f.add, del: f.del,
-      coverage: cov ? { changed: cov.changed, read: cov.read, state: cov.state } : { changed: 0, read: 0, state: 'unread' },
+      add: f.add, del: f.del, coverage: coverageFacts(coverageOf(f.path, recorded)),
       verdict: Store.get('file:' + f.path).status || '',
       mentions: [...(mentions[f.path] || [])], commits: commits[f.path] || [],
     };
   });
-  entriesMemo = { at, entries };
-  return entries;
+});
+const COMMIT_CHANGE = { removed: 'deleted' };
+const commitFilePath = file => file.headPath || file.path;
+const commitEntries = () => memoised('commits', recorded => {
+  const { mentions, readingOrder } = pathFacts();
+  return COMMITS.filter(c => !c.merge).flatMap(c => (c.files || []).map(file => {
+    const path = commitFilePath(file), f = FILE[path] || {};
+    return {
+      key: `${c.sha}:${path}`, sha: c.sha, path, layer: f.layer || '', risk: f.risk, chapter: f.chapter || '',
+      readingOrder: readingOrder[path] ?? null, firstCommit: commitIndex(c.sha),
+      changes: [COMMIT_CHANGE[file.status] || file.status || 'modified', ...(file.binary ? ['binary'] : [])],
+      add: file.add, del: file.del, coverage: coverageFacts(ReviewCoverage.commitCoverage({ ...c, files: [file] }, recorded)),
+      verdict: Store.get(`commitfile:${c.sha}:${path}`).status || '',
+      mentions: [...(mentions[path] || [])], commits: [c.sha],
+    };
+  }));
+});
+const entriesOn = route => (route === 'commits' ? commitEntries() : fileEntries());
+
+const blankNavigation = () => ({ query: '', shown: { key: '', keys: new Set() }, selection: { keys: new Set(), anchor: null } });
+const navState = { files: blankNavigation(), commits: blankNavigation() };
+const navOf = (route = currentRoute) => navState[route];
+let selectedFile = null;
+let selectedCommitFile = null;
+const splitKey = key => { const at = key.indexOf(':'); return [key.slice(0, at), key.slice(at + 1)]; };
+const currentKey = (route = currentRoute) => (route === 'commits' ? (selectedCommit && selectedCommitFile ? `${selectedCommit}:${selectedCommitFile}` : null) : selectedFile);
+function verdictOfKey(route, key) {
+  if (route !== 'commits') return { target: 'file:' + key, kind: 'file', meta: { label: `File ${key}`, where: key } };
+  const [sha, path] = splitKey(key);
+  return { target: `commitfile:${sha}:${path}`, kind: 'commitfile', meta: { label: `${path} in ${shortSha(sha)}`, where: `${shortSha(sha)} ${path}` } };
 }
 
-let navQuery = '';
-let navShown = { key: '', paths: new Set() };
-let selectedFile = null;
-function shownEntries() {
-  const entries = fileEntries();
-  const key = JSON.stringify([filters.files, navQuery, !!D, COMMITS.length]);
-  if (navShown.key !== key) {
-    navShown = { key, paths: new Set(entries.filter(e => FileNavigator.matches(e, filters.files, navQuery)).map(e => e.path)) };
-    deselectHidden();
+function shownEntries(route = currentRoute) {
+  const entries = entriesOn(route), nav = navOf(route);
+  const key = JSON.stringify([filters[route], nav.query, !!D, COMMITS.length]);
+  if (nav.shown.key !== key) {
+    nav.shown = { key, keys: new Set(entries.filter(e => FileNavigator.matches(e, filters[route], nav.query)).map(e => e.key)) };
+    deselectHidden(route);
   }
-  return entries.filter(e => navShown.paths.has(e.path));
+  return entries.filter(e => nav.shown.keys.has(e.key));
 }
-const selection = { paths: new Set(), anchor: null };
-function deselectHidden() {
-  const hidden = [...selection.paths].filter(path => !navShown.paths.has(path));
+const navGroups = () => ({ layer: layersList(), chapter: C.chapters.map(c => [c.id, c.title]) });
+function navTree(route = currentRoute) {
+  const { groupBy, sortBy } = NavigatorPrefs.get(), options = { groupBy, sortBy, groups: navGroups() };
+  if (route !== 'commits') return FileNavigator.treeOf(shownEntries(route), options);
+  const bySha = {};
+  shownEntries(route).forEach(e => (bySha[e.sha] = bySha[e.sha] || []).push(e));
+  return FileNavigator.commitTreeOf(C.commits, bySha, options);
+}
+function collapsedIn(route, tree) {
+  const toggled = toggledOn(route);
+  if (route !== 'commits') return toggled;
+  const collapsed = new Set([...toggled].filter(id => !id.startsWith('commit:')));
+  tree.forEach(node => { if ((node.sha !== selectedCommit) !== toggled.has(node.id)) collapsed.add(node.id); });
+  return collapsed;
+}
+
+function deselectHidden(route) {
+  const { selection, shown } = navOf(route);
+  const hidden = [...selection.keys].filter(key => !shown.keys.has(key));
   if (!hidden.length) return;
-  hidden.forEach(path => selection.paths.delete(path));
+  hidden.forEach(key => selection.keys.delete(key));
   setTimeout(() => showToast(`${plural(hidden.length, 'selected file')} hidden by the filters ${hidden.length === 1 ? 'was' : 'were'} deselected`));
 }
 function foldersOf(nodes, found = {}) {
@@ -2012,13 +2072,13 @@ function foldersOf(nodes, found = {}) {
 function refreshSelection() {
   const treeEl = $('#nav-tree');
   if (!treeEl) return;
-  const chosen = selection.paths;
+  const chosen = navOf().selection.keys;
   treeEl.classList.toggle('selecting', chosen.size > 0);
   $$('[data-pick-file]', treeEl).forEach(box => { box.checked = chosen.has(box.dataset.pickFile); });
-  const folders = foldersOf(fileTree());
+  const folders = foldersOf(navTree());
   $$('[data-pick-node]', treeEl).forEach(box => {
     const under = FileNavigator.filesUnder(folders[box.dataset.pickNode] || { children: [] });
-    const picked = under.filter(path => chosen.has(path)).length;
+    const picked = under.filter(key => chosen.has(key)).length;
     box.checked = picked > 0 && picked === under.length;
     box.indeterminate = picked > 0 && picked < under.length;
   });
@@ -2026,29 +2086,32 @@ function refreshSelection() {
   $('#bulk-bar').hidden = chosen.size === 0;
   $('#bulk-count').textContent = `${fmt(chosen.size)} selected`;
 }
-function pickFile(path, picked, asRange) {
+function pickFile(key, picked, asRange) {
+  const selection = navOf().selection;
   const order = $$('#nav-tree .nav-file').map(row => row.dataset.file);
-  const from = order.indexOf(selection.anchor), to = order.indexOf(path);
-  const paths = asRange && from >= 0 && to >= 0 ? order.slice(Math.min(from, to), Math.max(from, to) + 1) : [path];
-  paths.forEach(each => (picked ? selection.paths.add(each) : selection.paths.delete(each)));
-  selection.anchor = path;
+  const from = order.indexOf(selection.anchor), to = order.indexOf(key);
+  const keys = asRange && from >= 0 && to >= 0 ? order.slice(Math.min(from, to), Math.max(from, to) + 1) : [key];
+  keys.forEach(each => (picked ? selection.keys.add(each) : selection.keys.delete(each)));
+  selection.anchor = key;
 }
 function pickFolder(id, picked) {
-  const folder = foldersOf(fileTree())[id];
-  if (folder) FileNavigator.filesUnder(folder).forEach(path => (picked ? selection.paths.add(path) : selection.paths.delete(path)));
+  const folder = foldersOf(navTree())[id], keys = navOf().selection.keys;
+  if (folder) FileNavigator.filesUnder(folder).forEach(key => (picked ? keys.add(key) : keys.delete(key)));
 }
 function clearSelection() {
-  selection.paths.clear();
+  const selection = navOf().selection;
+  selection.keys.clear();
   selection.anchor = null;
   refreshSelection();
 }
 const BULK_WORDS = { ok: 'Reviewed', skip: 'Skimmed' };
 function giveBulkVerdict(status) {
-  const fileTarget = path => 'file:' + path, metaOf = target => { const path = target.slice('file:'.length); return { label: `File ${path}`, where: path }; };
-  const { writes, skipped, undo } = BulkVerdicts.plan(target => Store.get(target), [...selection.paths].map(fileTarget), status);
+  const subjects = new Map([...navOf().selection.keys].map(key => verdictOfKey(currentRoute, key)).map(subject => [subject.target, subject]));
+  const { writes, skipped, undo } = BulkVerdicts.plan(target => Store.get(target), [...subjects.keys()], status);
+  const about = ({ target, patch }) => ({ target, patch, kind: subjects.get(target).kind, meta: subjects.get(target).meta });
   const label = status ? `Marked ${plural(writes.length, 'file')} ${BULK_WORDS[status]}` : `Cleared the verdict on ${plural(writes.length, 'file')}`;
-  Store.putMany(writes.map(write => ({ ...write, kind: 'file', meta: metaOf(write.target) })));
-  if (writes.length) UndoStack.push(label, undo.map(restore => ({ ...restore, kind: 'file', meta: metaOf(restore.target) })));
+  Store.putMany(writes.map(about));
+  if (writes.length) UndoStack.push(label, undo.map(about));
   clearSelection();
   const kept = skipped.length ? `${plural(skipped.length, 'file')} with an Issue left as ${skipped.length === 1 ? 'it was' : 'they were'}` : '';
   showToast([label, kept].filter(Boolean).join(' · '), { undo: writes.length > 0 });
@@ -2065,60 +2128,65 @@ document.addEventListener('click', e => {
   if (bulk) { giveBulkVerdict(bulk.dataset.bulk); return; }
   if (e.target.closest('#bulk-bar [data-deselect]')) clearSelection();
 });
-const navGroups = () => ({ layer: layersList(), chapter: C.chapters.map(c => [c.id, c.title]) });
-function fileTree() {
-  const { groupBy, sortBy } = NavigatorPrefs.get();
-  return FileNavigator.treeOf(shownEntries(), { groupBy, sortBy, groups: navGroups() });
-}
+
 const folderShare = t => (t.changed ? 100 * t.read / t.changed : 0);
 const folderCount = t => (t.changed ? `${fmt(t.read)}/${fmt(t.changed)}` : plural(t.files, 'file'));
-const folderTitle = (node, t) => `${node.path || node.name}: ${plural(t.files, 'file')}; ${fmt(t.read)} of ${plural(t.changed, 'changed line')} read; ${t.verdicts.ok} reviewed, ${t.verdicts.skip} skimmed, ${t.verdicts.issue} with an issue; highest risk ${t.highestRisk}`;
+const commitCount = t => (t.files ? `${fmt(t.files - t.verdicts.none)}/${plural(t.files, 'file')}` : '—');
+const folderTitle = (node, t) => `${node.path || node.name}: ${plural(t.files, 'file')}; ${fmt(t.read)} of ${plural(t.changed, 'changed line')} read; ${t.verdicts.ok} reviewed, ${t.verdicts.skip} skimmed, ${t.verdicts.issue} with an issue${t.highestRisk ? `; highest risk ${t.highestRisk}` : ''}`;
+const nodeCount = node => (node.kind === 'commit' ? (node.merge ? 'merge' : commitCount(node.totals)) : folderCount(node.totals));
+const entryCount = e => (e.coverage.changed ? `${fmt(e.coverage.read)}/${fmt(e.coverage.changed)}` : `+${fmt(e.add)}`);
+const entryShare = e => (e.coverage.changed ? 100 * e.coverage.read / e.coverage.changed : (FileNavigator.progressOf(e) === 'read' ? 100 : 0));
 function fileNameHtml(name) {
   const cut = name.lastIndexOf('/') + 1;
   return cut ? `<span class="base">${esc(name.slice(cut))}</span><span class="dir"><bdi>${esc(name.slice(0, cut))}</bdi></span>` : esc(name);
 }
 const pickBox = (attrs, label) => `<input type="checkbox" class="pick" ${attrs} aria-label="${esc(label)}" tabindex="-1">`;
 const navRow = (depth, pick, row) => `<div class="nav-row" role="none" style="--depth:${depth}">${pick}${row}</div>`;
-function navRowHtml({ node, depth }, collapsed) {
+function navRowHtml({ node, depth }, collapsed, route) {
   const at = `role="treeitem" aria-level="${depth + 1}"`;
   if (node.kind === 'file') {
-    const f = node.entry;
-    return navRow(depth, pickBox(`data-pick-file="${esc(f.path)}"`, `Select ${f.path}`), `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" tabindex="${f.path === selectedFile ? 0 : -1}" title="${esc(f.path)}"><span aria-hidden="true"></span><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`);
+    const e = node.entry, current = node.key === currentKey(route), status = verdictOfKey(route, node.key).target;
+    const coverage = route === 'files' ? ` data-coverage-of="${esc(e.path)}"` : '', count = route === 'files' ? ` data-coverage-count-of="${esc(e.path)}"` : '';
+    return navRow(depth, pickBox(`data-pick-file="${esc(node.key)}"`, `Select ${e.path}`), `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(node.key)}" aria-current="${current}" tabindex="${current ? 0 : -1}" title="${esc(e.path)}"><span aria-hidden="true"></span><span class="cov"${coverage} data-status-of="${esc(status)}"><i style="width:${entryShare(e)}%"></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct"${count} data-entry-count>${entryCount(e)}</span></button>`);
   }
-  const t = node.totals;
-  return navRow(depth, pickBox(`data-pick-node="${esc(node.id)}"`, `Select every file in ${node.path || node.name}`), `<button type="button" class="fl-item nav-${node.kind}" ${at} tabindex="-1" aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}" data-risk="${esc(t.highestRisk)}" title="${esc(folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"><i style="width:${folderShare(t)}%"></i></span><span class="nm">${esc(node.name)}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${folderCount(t)}</span></button>`);
+  const t = node.totals, isCommit = node.kind === 'commit';
+  const name = isCommit ? `${node.index + 1}. ${esc(node.name)}` : esc(node.name);
+  const commitAttrs = isCommit ? ` data-commit="${esc(node.sha)}" aria-current="${node.sha === selectedCommit}"` : '';
+  const status = isCommit ? ` data-status-of="commit:${esc(node.sha)}"` : '';
+  const pickLabel = isCommit ? `Select every file in commit ${node.index + 1}` : `Select every file in ${node.path || node.name}`;
+  return navRow(depth, pickBox(`data-pick-node="${esc(node.id)}"`, pickLabel), `<button type="button" class="fl-item nav-${node.kind}" ${at} tabindex="-1" aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}"${commitAttrs} data-risk="${esc(t.highestRisk || '')}" title="${esc(isCommit ? node.name : folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"${status}><i style="width:${folderShare(t)}%"></i></span><span class="nm">${name}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${nodeCount(node)}</span></button>`);
 }
-function facetsHtml(counts) {
-  return FACET_UI.map(([facet, label, options]) => {
+function facetsHtml(route, counts) {
+  return facetUi(route).map(([facet, label, options]) => {
     const opts = options();
     if (!opts.length) return '';
-    const chosen = filters.files[facet];
+    const chosen = filters[route][facet];
     return `<details class="facet${chosen.length ? ' active' : ''}" data-facet="${facet}"><summary>${esc(label)} <b data-facet-chosen class="${chosen.length ? '' : 'none'}">${chosen.length}</b></summary><div class="facet-opts" role="group" aria-label="${esc(label)}">${opts.map(([value, text]) => `<label><input type="checkbox" data-facet-value="${esc(value)}" ${chosen.includes(value) ? 'checked' : ''}><span>${esc(text)}</span><span class="tnum" data-facet-count>${fmt(counts[facet][value] || 0)}</span></label>`).join('')}</div></details>`;
   }).join('');
 }
-const anyFacetChosen = () => FileNavigator.FACETS.some(facet => filters.files[facet].length);
+const anyFacetChosen = (route = currentRoute) => FileNavigator.FACETS.some(facet => filters[route][facet].length);
 function refreshFacets() {
-  const counts = FileNavigator.facetCounts(fileEntries(), filters.files, navQuery);
+  const route = currentRoute, counts = FileNavigator.facetCounts(entriesOn(route), filters[route], navOf(route).query);
   $$('#nav-facets [data-facet]').forEach(facet => {
-    const name = facet.dataset.facet, chosen = filters.files[name];
+    const name = facet.dataset.facet, chosen = filters[route][name];
     const mark = $('[data-facet-chosen]', facet);
     mark.textContent = chosen.length;
     mark.classList.toggle('none', !chosen.length);
     facet.classList.toggle('active', chosen.length > 0);
     $$('[data-facet-value]', facet).forEach(box => {
-      const value = box.dataset.facetValue, n = counts[name][value] || 0;
+      const value = box.dataset.facetValue;
       box.checked = chosen.includes(value);
-      $('[data-facet-count]', box.closest('label')).textContent = fmt(n);
+      $('[data-facet-count]', box.closest('label')).textContent = fmt(counts[name][value] || 0);
     });
   });
   const clear = $('[data-clear-facets]');
-  if (clear) clear.disabled = !anyFacetChosen();
+  if (clear) clear.disabled = !anyFacetChosen(route);
 }
-function treeBody() {
-  const entries = fileEntries(), tree = fileTree(), collapsed = collapsedOn('files');
+function treeBody(route = currentRoute) {
+  const tree = navTree(route), collapsed = collapsedIn(route, tree);
   return {
-    count: `${fmt(FileNavigator.fileOrder(tree).length)} of ${plural(entries.length, 'file')}`,
-    tree: FileNavigator.rowsOf(tree, collapsed).map(row => navRowHtml(row, collapsed)).join('') || '<div class="muted small">No files match these filters.</div>',
+    count: `${fmt(FileNavigator.fileOrder(tree).length)} of ${plural(entriesOn(route).length, 'file')}`,
+    tree: FileNavigator.rowsOf(tree, collapsed).map(row => navRowHtml(row, collapsed, route)).join('') || '<div class="muted small">No files match these filters.</div>',
   };
 }
 function renderTree() {
@@ -2137,42 +2205,60 @@ function keepOneRowTabbable() {
 }
 function refreshNavigator() {
   const treeEl = $('#nav-tree');
-  if (!treeEl) return;
-  const folders = {};
-  const walk = nodes => nodes.forEach(node => { if (node.kind !== 'file') { folders[node.id] = node; walk(node.children); } });
-  walk(fileTree());
+  if (!treeEl || !NAVIGATED.includes(currentRoute)) return;
+  const folders = foldersOf(navTree());
   $$('[data-toggle-node]', treeEl).forEach(row => {
     const node = folders[row.dataset.toggleNode];
     if (!node) return;
     $('[data-folder-of] i', row).style.width = `${folderShare(node.totals)}%`;
-    $('[data-folder-count-of]', row).textContent = folderCount(node.totals);
-    row.title = folderTitle(node, node.totals);
+    $('[data-folder-count-of]', row).textContent = nodeCount(node);
+    if (node.kind !== 'commit') row.title = folderTitle(node, node.totals);
   });
-  const byPath = Object.fromEntries(fileEntries().map(e => [e.path, e]));
-  $$('.nav-file', treeEl).forEach(row => row.classList.toggle('stale', !FileNavigator.matches(byPath[row.dataset.file], filters.files, navQuery)));
+  const byKey = Object.fromEntries(entriesOn(currentRoute).map(e => [e.key, e]));
+  $$('.nav-file', treeEl).forEach(row => {
+    const e = byKey[row.dataset.file];
+    if (!e) return;
+    $('.cov i', row).style.width = `${entryShare(e)}%`;
+    $('[data-entry-count]', row).textContent = entryCount(e);
+    row.classList.toggle('stale', !FileNavigator.matches(e, filters[currentRoute], navOf().query));
+  });
   refreshFacets();
 }
-function revealInNavigator(path) {
-  const ancestors = FileNavigator.ancestorsOf(fileTree(), path);
-  const collapsed = collapsedOn('files');
-  if (ancestors.some(id => collapsed.has(id))) { ancestors.forEach(id => collapsed.delete(id)); keepCollapsed('files', collapsed); }
+function markCurrentRows() {
+  const key = currentKey();
+  $$('#nav-tree .fl-item').forEach(row => {
+    const current = row.dataset.file ? row.dataset.file === key : row.dataset.commit === selectedCommit;
+    if (row.dataset.file || row.dataset.commit) row.setAttribute('aria-current', String(current));
+    if (row.dataset.file) row.tabIndex = current ? 0 : -1;
+  });
+}
+function revealInNavigator(key, route = currentRoute) {
+  if (!key) return false;
+  const toggled = toggledOn(route), ancestors = FileNavigator.ancestorsOf(navTree(route), key);
+  const hidden = ancestors.filter(id => toggled.has(id));
+  hidden.forEach(id => toggled.delete(id));
+  if (hidden.length) keepToggled(route, toggled);
+  return hidden.length > 0;
 }
 const prefSelect = (pref, options) => `<select data-nav-pref="${pref}" aria-label="${pref === 'groupBy' ? 'Group by' : 'Sort by'}">${options.map(([value, label]) => `<option value="${value}" ${NavigatorPrefs.get()[pref] === value ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
+function navigatorHtml(route) {
+  const body = treeBody(route), nav = navOf(route);
+  return `<details class="nav-drawer" open><summary>${route === 'commits' ? 'Commits' : 'Files'}</summary><div class="file-list" id="navigator">
+      <div class="nav-head"><input type="search" id="fq" placeholder="Filter paths: src *.rs !test" value="${esc(nav.query)}" aria-label="Filter paths">
+      <div class="nav-prefs"><label>Group ${prefSelect('groupBy', GROUP_BY)}</label><label>Sort ${prefSelect('sortBy', SORT_BY)}</label></div>
+      <div class="facets" id="nav-facets">${facetsHtml(route, FileNavigator.facetCounts(entriesOn(route), filters[route], nav.query))}</div>
+      <div class="small nav-count"><div class="nav-line" id="nav-summary"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc" data-clear-facets ${anyFacetChosen(route) ? '' : 'disabled'}>Clear</button><button type="button" class="loc" data-collapse-read>Collapse read</button></span></div>
+        <div class="nav-line bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><span class="nav-actions"><button type="button" class="loc" data-bulk="ok">Reviewed</button><button type="button" class="loc" data-bulk="skip">Skimmed</button><button type="button" class="loc" data-bulk="">Clear</button><button type="button" class="loc" data-deselect aria-label="Deselect every file" title="Deselect every file">✕</button></span></div></div></div>
+      <div role="tree" aria-label="${route === 'commits' ? 'Commits and the files they change' : 'Changed files'}" id="nav-tree" data-group-by="${NavigatorPrefs.get().groupBy}">${body.tree}</div>
+    </div></details>`;
+}
 function vFiles() {
   if (pendingOpen) selectedFile = pendingOpen.path;
   if (!selectedFile || !FILE[selectedFile]) selectedFile = (C.files.find(f => f.risk === 'high') || C.files[0]).path;
-  revealInNavigator(selectedFile);
-  const body = treeBody();
+  revealInNavigator(selectedFile, 'files');
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
     <p class="lede">The files sit in a tree by directory: group them another way, sort them, or narrow them by progress, verdict, role, risk, chapter or commit. The bar beside each file or folder is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a run of unread lines from the link above it. Press <kbd>?</kbd> for keyboard shortcuts. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
-    <div class="files-layout"><details class="nav-drawer" open><summary>Files</summary><div class="file-list" id="navigator">
-      <div class="nav-head"><input type="search" id="fq" placeholder="Filter paths: src *.rs !test" value="${esc(navQuery)}" aria-label="Filter paths">
-      <div class="nav-prefs"><label>Group ${prefSelect('groupBy', GROUP_BY)}</label><label>Sort ${prefSelect('sortBy', SORT_BY)}</label></div>
-      <div class="facets" id="nav-facets">${facetsHtml(FileNavigator.facetCounts(fileEntries(), filters.files, navQuery))}</div>
-      <div class="small nav-count"><div class="nav-line" id="nav-summary"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc" data-clear-facets ${anyFacetChosen() ? '' : 'disabled'}>Clear</button><button type="button" class="loc" data-collapse-read>Collapse read</button></span></div>
-        <div class="nav-line bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><span class="nav-actions"><button type="button" class="loc" data-bulk="ok">Reviewed</button><button type="button" class="loc" data-bulk="skip">Skimmed</button><button type="button" class="loc" data-bulk="">Clear</button><button type="button" class="loc" data-deselect aria-label="Deselect every file" title="Deselect every file">✕</button></span></div></div></div>
-      <div role="tree" aria-label="Changed files" id="nav-tree" data-group-by="${NavigatorPrefs.get().groupBy}">${body.tree}</div>
-    </div></details>
+    <div class="files-layout">${navigatorHtml('files')}
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
 }
 function annotationsFor(path) {
@@ -2221,16 +2307,20 @@ function filePane(path) {
     ${ctl('file:' + path, 'file', { label: `File ${path}`, where: path })}</div>
     <div class="code tall" id="file-code" data-path="${esc(path)}"><div class="code-head"><span class="path">${esc(path)}</span></div>${body}</div>`;
 }
-after.files = () => {
+function afterNavigator() {
   const fq = $('#fq');
-  fq.addEventListener('input', () => { clearTimeout(fq._t); fq._t = setTimeout(() => { navQuery = fq.value; renderTree(); }, 200); });
+  fq.addEventListener('input', () => { clearTimeout(fq._t); fq._t = setTimeout(() => { navOf().query = fq.value; renderTree(); }, 200); });
+  const cur = $('#nav-tree .fl-item[aria-current="true"]');
+  if (cur) keepInNavigator(cur);
+  refreshSelection();
+}
+after.files = () => {
+  afterNavigator();
   if (pendingOpen && pendingOpen.line) {
     const key = pendingOpen.side === 'old' ? 'o' : 'n';
     const tr = $(`#file-code tr[data-${key}="${pendingOpen.line}"]`);
     if (tr) { tr.scrollIntoView({ block: 'center' }); tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 1600); }
   } else if (pendingOpen) bringBelowTopBar($('#file-pane'));
-  const cur = $('.nav-file[aria-current="true"]'); if (cur) keepInNavigator(cur);
-  refreshSelection();
   pendingOpen = null;
 };
 const TOP_BAR_CLEARANCE = 12;
@@ -2245,51 +2335,64 @@ function keepInList(row, list) {
 }
 const keepInNavigator = row => keepInList(row, $('#nav-tree'));
 const narrowLayout = () => window.matchMedia('(max-width: 980px)').matches;
+function closeDrawerWhenNarrow() {
+  if (narrowLayout() && $('.nav-drawer')) $('.nav-drawer').open = false;
+}
 function showFile(path) {
   selectedFile = path;
   pendingOpen = null;
-  $$('#nav-tree .fl-item').forEach(row => {
-    const current = row.dataset.file === path;
-    if (row.dataset.file) row.setAttribute('aria-current', String(current));
-    row.tabIndex = current ? 0 : -1;
-  });
+  markCurrentRows();
   placeChunkCursor(null);
   $('#file-pane').innerHTML = filePane(path);
   refreshControls();
-  if (narrowLayout()) $('.nav-drawer').open = false;
+  closeDrawerWhenNarrow();
   bringBelowTopBar($('#file-pane'));
 }
+function openKey(key) {
+  if (currentRoute === 'commits') openCommitFile(...splitKey(key));
+  else showFile(key);
+}
 function toggleNode(id) {
-  const collapsed = collapsedOn('files');
-  if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
-  keepCollapsed('files', collapsed);
+  const toggled = toggledOn(currentRoute);
+  if (toggled.has(id)) toggled.delete(id); else toggled.add(id);
+  keepToggled(currentRoute, toggled);
   renderTree();
 }
 function collapseRead() {
-  const byPath = Object.fromEntries(fileEntries().map(e => [e.path, e]));
-  const collapsed = collapsedOn('files');
+  const route = currentRoute, tree = navTree(route), collapsed = collapsedIn(route, tree), toggled = toggledOn(route);
+  const byKey = Object.fromEntries(entriesOn(route).map(e => [e.key, e]));
   const walk = nodes => nodes.forEach(node => {
     if (node.kind === 'file') return;
-    if (FileNavigator.filesUnder(node).every(path => FileNavigator.progressOf(byPath[path]) === 'read')) collapsed.add(node.id);
-    else walk(node.children);
+    const under = FileNavigator.filesUnder(node);
+    const read = under.length && under.every(key => FileNavigator.progressOf(byKey[key]) === 'read');
+    if (!read) { walk(node.children); return; }
+    if (collapsed.has(node.id)) return;
+    if (toggled.has(node.id)) toggled.delete(node.id);
+    else toggled.add(node.id);
   });
-  walk(fileTree());
-  keepCollapsed('files', collapsed);
+  walk(tree);
+  keepToggled(route, toggled);
   renderTree();
 }
 function chooseFacetValue(facet, value, chosen) {
-  const values = filters.files[facet].filter(v => v !== value);
-  filters.files = { ...filters.files, [facet]: chosen ? [...values, value] : values };
+  const values = filters[currentRoute][facet].filter(v => v !== value);
+  filters[currentRoute] = { ...filters[currentRoute], [facet]: chosen ? [...values, value] : values };
   renderTree();
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('#navigator')) return;
+  const commit = e.target.closest('.nav-commit[data-commit]');
+  if (commit) {
+    if (commit.dataset.commit === selectedCommit) toggleNode(commit.dataset.toggleNode);
+    else selectCommit(commit.dataset.commit);
+    return;
+  }
   const toggle = e.target.closest('[data-toggle-node]');
   if (toggle) { toggleNode(toggle.dataset.toggleNode); return; }
   const file = e.target.closest('.nav-file[data-file]');
-  if (file) { showFile(file.dataset.file); return; }
+  if (file) { openKey(file.dataset.file); return; }
   if (e.target.closest('[data-collapse-read]')) { collapseRead(); return; }
-  if (e.target.closest('[data-clear-facets]')) { filters.files = { ...FileNavigator.BLANK }; renderTree(); }
+  if (e.target.closest('[data-clear-facets]')) { filters[currentRoute] = { ...FileNavigator.BLANK }; renderTree(); }
 });
 document.addEventListener('change', e => {
   const box = e.target.closest('#nav-facets [data-facet-value]');
@@ -2358,14 +2461,22 @@ let selectedCommit = null;
 const commitIndex = sha => C.commits.findIndex(c => c.sha === sha);
 function commitsTouching(path) {
   const touching = COMMITS.filter(c => c.files.some(f => f.headPath === path));
-  return touching.length ? `<div class="row small"><span class="muted">Changed in</span>${touching.map(c => `<button type="button" class="loc" data-goto-commit="${esc(c.sha)}" title="${esc(c.subject)}">${esc(shortSha(c.sha))}</button>`).join('')}</div>` : '';
+  return touching.length ? `<div class="row small"><span class="muted">Changed in</span>${touching.map(c => `<button type="button" class="loc" data-goto-commit="${esc(c.sha)}" data-goto-file="${esc(path)}" title="${esc(c.subject)}">${esc(shortSha(c.sha))}</button>`).join('')}</div>` : '';
+}
+function chooseCommitFile() {
+  const paths = ((COMMIT[selectedCommit] || {}).files || []).map(commitFilePath);
+  if (paths.includes(selectedCommitFile)) return;
+  const prefix = selectedCommit + ':';
+  const shown = FileNavigator.fileOrder(navTree('commits')).filter(key => key.startsWith(prefix)).map(key => splitKey(key)[1]);
+  selectedCommitFile = shown[0] || paths[0] || null;
 }
 function vCommits() {
   if (!selectedCommit || commitIndex(selectedCommit) < 0) selectedCommit = (C.commits.find(c => !c.merge) || C.commits[0]).sha;
-  const list = C.commits.map((c, i) => `<button type="button" class="fl-item cm-item" data-commit="${esc(c.sha)}" aria-current="${c.sha === selectedCommit}" title="${esc(c.subject)}"><span class="cov" data-commit-coverage="${esc(c.sha)}" data-status-of="commit:${esc(c.sha)}"><i></i></span><span class="nm">${i + 1}. ${esc(c.subject)}</span><span class="ct" data-commit-count="${esc(c.sha)}">${c.merge ? 'merge' : `+${fmt(c.add)} −${fmt(c.del)}`}</span></button>`).join('');
+  chooseCommitFile();
+  revealInNavigator(currentKey('commits'), 'commits');
   return `<div class="view-head"><div class="eyebrow">By commit</div><h1>The change, one commit at a time</h1>
-    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a run of unread lines from the link above it, or give the whole commit a verdict; press <kbd>?</kbd> for keyboard shortcuts. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
-    <div class="files-layout"><div class="file-list">${list}</div><div class="stack" id="commit-pane">${commitPane(selectedCommit)}</div></div>`;
+    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made, each holding the files it changes. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a run of unread lines from the link above it, or give a file in the commit, or the whole commit, a verdict; press <kbd>?</kbd> for keyboard shortcuts. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
+    <div class="files-layout">${navigatorHtml('commits')}<div class="stack" id="commit-pane">${commitPane(selectedCommit)}</div></div>`;
 }
 function commitRowsHtml(commit, file) {
   const lines = ReviewCoverage.commitLines({ ...commit, files: [file] });
@@ -2391,46 +2502,91 @@ function commitRowsHtml(commit, file) {
   });
   return out;
 }
+function commitFileBlock(commit, file) {
+  const path = commitFilePath(file), subject = verdictOfKey('commits', `${commit.sha}:${path}`);
+  return `<div class="code tall" data-commit-file="${esc(path)}"><div class="code-head"><span class="path">${file.previous ? `${esc(short(file.previous))} → ` : ''}${esc(short(file.path))}</span><span class="muted tnum">+${fmt(file.add)} −${fmt(file.del)}</span>${D && D[file.headPath] ? `<button class="loc" data-open="${esc(file.headPath)}" data-line="" data-side="new">in All files</button>` : ''}</div>
+    <div class="commit-file-ctl">${ctl(subject.target, subject.kind, subject.meta)}</div>
+    ${file.binary ? '<div class="muted small" style="padding:12px 14px">A binary file.</div>' : `<table>${commitRowsHtml(commit, file)}</table>`}</div>`;
+}
 function commitPane(sha) {
   const i = commitIndex(sha), c = C.commits[i], d = COMMIT[sha];
   if (!c) return '';
   const body = String(c.message || '').split('\n').slice(1).join('\n').trim();
-  const prev = C.commits[i - 1], next = C.commits[i + 1];
+  const prev = C.commits[i - 1], next = C.commits[i + 1], mode = NavigatorPrefs.get().commitPane;
   const link = GH ? `<a href="${GH}/commit/${esc(sha)}" target="_blank" rel="noopener" class="mono">${esc(shortSha(sha))}</a>` : `<span class="mono">${esc(shortSha(sha))}</span>`;
   const head = `<div class="panel stack">
     <div class="eyebrow">Commit ${i + 1} of ${C.commits.length} · ${link}${c.author ? ' · ' + esc(c.author) : ''}${c.date ? ' · ' + esc(String(c.date).slice(0, 10)) : ''}</div>
     <h2>${esc(c.subject)}</h2>
     ${body ? `<div class="commit-msg">${esc(body)}</div>` : ''}
-    <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>K</kbd> and <kbd>J</kbd></span></div>
+    <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>K</kbd> and <kbd>J</kbd></span>
+      ${c.merge ? '' : `<span class="spacer"></span><span class="seg" role="group" aria-label="Show"><button type="button" class="t-info" data-commit-pane="one" aria-pressed="${mode === 'one'}">One file</button><button type="button" class="t-info" data-commit-pane="whole" aria-pressed="${mode === 'whole'}">Whole commit</button></span>`}</div>
     ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
     ${ctl('commit:' + sha, 'commit', { label: `Commit ${shortSha(sha)}: ${c.subject}`, where: shortSha(sha) })}`}</div>`;
   if (c.merge) return head + `<div class="empty">A merge commit: it brings in changes from elsewhere, so it is not reviewed here.</div>`;
   if (!d || !window.ReviewCoverage) return head + `<div class="loading">Loading the commit…</div>`;
-  const files = d.files.map(f => `<div class="code tall"><div class="code-head"><span class="path">${f.previous ? `${esc(short(f.previous))} → ` : ''}${esc(short(f.path))}</span><span class="muted tnum">+${fmt(f.add)} −${fmt(f.del)}</span>${D && D[f.headPath] ? `<button class="loc" data-open="${esc(f.headPath)}" data-line="" data-side="new">in All files</button>` : ''}</div>${f.binary ? '<div class="muted small" style="padding:12px 14px">A binary file.</div>' : `<table>${commitRowsHtml(d, f)}</table>`}</div>`).join('');
-  return head + `<div class="commit-files" id="commit-code">${files || '<div class="empty">This commit changes no file content.</div>'}</div>`;
+  const shown = mode === 'whole' ? d.files : d.files.filter(f => commitFilePath(f) === selectedCommitFile);
+  return head + `<div class="commit-files" id="commit-code">${shown.map(f => commitFileBlock(d, f)).join('') || '<div class="empty">This commit changes no file content.</div>'}</div>`;
 }
-function selectCommit(sha) {
-  selectedCommit = sha;
-  $$('.cm-item').forEach(x => x.setAttribute('aria-current', String(x.dataset.commit === sha)));
-  $('#commit-pane').innerHTML = commitPane(sha);
+const commitFileBlockOf = path => $(`#commit-code [data-commit-file="${CSS.escape(path || '')}"]`);
+function drawCommitPane() {
+  placeChunkCursor(null);
+  $('#commit-pane').innerHTML = commitPane(selectedCommit);
   refreshControls();
-  bringBelowTopBar($('#commit-pane'));
-  const cur = $('.cm-item[aria-current="true"]'); if (cur) keepInList(cur, cur.closest('.file-list'));
+}
+function selectCommit(sha, path = null) {
+  const toggled = toggledOn('commits');
+  if (toggled.delete('commit:' + sha)) keepToggled('commits', toggled);
+  selectedCommit = sha;
+  selectedCommitFile = path;
+  chooseCommitFile();
+  revealInNavigator(currentKey('commits'), 'commits');
+  renderTree();
+  drawCommitPane();
+  closeDrawerWhenNarrow();
+  const block = path && NavigatorPrefs.get().commitPane === 'whole' ? commitFileBlockOf(path) : null;
+  bringBelowTopBar(block || $('#commit-pane'));
+  const row = $('#nav-tree .nav-commit[aria-current="true"]');
+  if (row) keepInNavigator(row);
+}
+function openCommitFile(sha, path) {
+  if (sha !== selectedCommit) { selectCommit(sha, path); return; }
+  selectedCommitFile = path;
+  if (revealInNavigator(currentKey('commits'), 'commits')) renderTree();
+  markCurrentRows();
+  if (NavigatorPrefs.get().commitPane === 'one') drawCommitPane();
+  else placeChunkCursor(null);
+  closeDrawerWhenNarrow();
+  const block = commitFileBlockOf(path);
+  if (block) bringBelowTopBar(block);
+  const row = $(`#nav-tree .nav-file[data-file="${CSS.escape(currentKey('commits'))}"]`);
+  if (row) keepInNavigator(row);
+}
+function openCommit(sha, path = null) {
+  if (currentRoute === 'commits') { selectCommit(sha, path); return; }
+  selectedCommit = sha;
+  selectedCommitFile = path;
+  location.hash = 'commits';
 }
 function stepCommit(by) {
   const target = C.commits[commitIndex(selectedCommit) + by];
   if (target) selectCommit(target.sha);
 }
-after.commits = () => {
-  $$('.cm-item').forEach(b => b.addEventListener('click', () => selectCommit(b.dataset.commit)));
-  const cur = $('.cm-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
-};
+after.commits = afterNavigator;
 document.addEventListener('click', e => {
   const step = e.target.closest('[data-step-commit]');
   if (step) { stepCommit(+step.dataset.stepCommit); return; }
+  const mode = e.target.closest('[data-commit-pane]');
+  if (mode) {
+    NavigatorPrefs.set({ commitPane: mode.dataset.commitPane });
+    drawCommitPane();
+    const block = commitFileBlockOf(selectedCommitFile);
+    if (block) bringBelowTopBar(block);
+    return;
+  }
   const go = e.target.closest('[data-goto-commit]');
   if (!go) return;
   selectedCommit = go.dataset.gotoCommit;
+  selectedCommitFile = go.dataset.gotoFile || null;
   if (location.hash !== '#commits') location.hash = 'commits'; else render();
 });
 async function loadCommits() {
@@ -2448,8 +2604,6 @@ async function loadCommits() {
 
 /* Review keys */
 const KEY_NAMES = { Escape: 'Esc', Backspace: '⌫', ArrowDown: '↓', ArrowUp: '↑', ArrowLeft: '←', ArrowRight: '→' };
-const NAVIGATOR_COMMANDS = new Set(['toggle-selected', 'select-shown', 'deselect', 'focus-search', 'toggle-still-to-read', 'cycle-grouping', 'tree-next', 'tree-previous', 'tree-collapse', 'tree-expand']);
-const commandWorksOn = (command, route) => route === 'files' || !NAVIGATOR_COMMANDS.has(command);
 
 const codeBlocks = () => (currentRoute === 'files' ? $$('#file-code') : $$('#commit-code > .code'));
 function codeBlockIndex() {
@@ -2514,18 +2668,17 @@ function markFile() {
 }
 
 function verdictSubject() {
-  if (currentRoute === 'files') return selectedFile && { target: 'file:' + selectedFile, kind: 'file', meta: { label: `File ${selectedFile}`, where: selectedFile }, pane: '#file-pane' };
-  const c = C.commits[commitIndex(selectedCommit)];
-  return c && !c.merge && { target: 'commit:' + c.sha, kind: 'commit', meta: { label: `Commit ${shortSha(c.sha)}: ${c.subject}`, where: shortSha(c.sha) }, pane: '#commit-pane' };
+  const key = currentKey();
+  return key && { ...verdictOfKey(currentRoute, key), pane: currentRoute === 'commits' ? '#commit-pane' : '#file-pane' };
 }
 const VERDICT_WORDS = { ok: 'Reviewed', skip: 'Skimmed', issue: 'Issue', '': 'cleared' };
 function giveVerdict(status) {
-  if (currentRoute === 'files' && selection.paths.size && status !== 'issue') { giveBulkVerdict(status); return; }
+  if (navOf().selection.keys.size && status !== 'issue') { giveBulkVerdict(status); return; }
   const subject = verdictSubject();
   if (!subject) return;
   if ((Store.get(subject.target).status || '') !== status) changeUndoably(`${subject.meta.label}: ${VERDICT_WORDS[status]}`, [{ target: subject.target, kind: subject.kind, patch: { status }, meta: subject.meta }]);
   if (status === 'issue') openIssueNote(subject);
-  else if (status && currentRoute === 'files' && NavigatorPrefs.get().advance) advanceToUnreadFile();
+  else if (status && NavigatorPrefs.get().advance) advanceToUnreadFile();
 }
 function chunkRangesText(rows) {
   const ranges = [];
@@ -2553,44 +2706,30 @@ function openIssueNote(subject) {
   note.setSelectionRange(note.value.length, note.value.length);
 }
 
-function goToFile(path) {
-  const ancestors = FileNavigator.ancestorsOf(fileTree(), path), collapsed = collapsedOn('files');
-  if (ancestors.some(id => collapsed.has(id))) {
-    ancestors.forEach(id => collapsed.delete(id));
-    keepCollapsed('files', collapsed);
-    renderTree();
-  }
-  showFile(path);
-  const row = $(`#nav-tree .nav-file[data-file="${CSS.escape(path)}"]`);
+function goToKey(key) {
+  if (currentRoute === 'commits' && splitKey(key)[0] !== selectedCommit) { openKey(key); return; }
+  if (revealInNavigator(key)) renderTree();
+  openKey(key);
+  const row = $(`#nav-tree .nav-file[data-file="${CSS.escape(key)}"]`);
   if (row) keepInNavigator(row);
 }
 function advanceToUnreadFile() {
-  const order = FileNavigator.fileOrder(fileTree());
-  const byPath = Object.fromEntries(fileEntries().map(e => [e.path, e]));
-  const next = order.slice(order.indexOf(selectedFile) + 1).find(path => FileNavigator.progressOf(byPath[path]) !== 'read');
-  if (next) goToFile(next);
+  const order = FileNavigator.fileOrder(navTree());
+  const byKey = Object.fromEntries(entriesOn(currentRoute).map(e => [e.key, e]));
+  const next = order.slice(order.indexOf(currentKey()) + 1).find(key => FileNavigator.progressOf(byKey[key]) !== 'read');
+  if (next) goToKey(next);
   else showToast('Every file shown is read');
 }
-function stepCommitFile(by) {
-  const blocks = codeBlocks(), next = blocks[codeBlockIndex() + by];
-  placeChunkCursor(null);
-  if (next) { bringBelowTopBar(next); return; }
-  const target = C.commits[commitIndex(selectedCommit) + by];
-  if (!target) return;
-  selectCommit(target.sha);
-  const fresh = codeBlocks();
-  if (fresh.length) bringBelowTopBar(by > 0 ? fresh[0] : fresh[fresh.length - 1]);
-}
 function stepFile(by) {
-  if (currentRoute === 'commits') { stepCommitFile(by); return; }
-  const order = FileNavigator.fileOrder(fileTree()), at = order.indexOf(selectedFile);
+  const order = FileNavigator.fileOrder(navTree()), at = order.indexOf(currentKey());
   const next = order[at < 0 ? 0 : at + by];
-  if (next) goToFile(next);
+  if (next) goToKey(next);
 }
 
 const sameValues = (a, b) => a.length === b.length && a.every(value => b.includes(value));
 function toggleStillToRead() {
-  filters.files = { ...filters.files, progress: sameValues(filters.files.progress, STILL_TO_READ) ? [] : [...STILL_TO_READ] };
+  const shown = filters[currentRoute];
+  filters[currentRoute] = { ...shown, progress: sameValues(shown.progress, STILL_TO_READ) ? [] : [...STILL_TO_READ] };
   renderTree();
 }
 function cycleGrouping() {
@@ -2637,14 +2776,14 @@ function expandFocused() {
 let helpReturnsTo = null;
 function helpHtml() {
   const groups = [];
-  ReviewKeys.BINDINGS.filter(b => b.routes.includes(currentRoute) && commandWorksOn(b.command, currentRoute)).forEach(b => {
+  ReviewKeys.BINDINGS.filter(b => b.routes.includes(currentRoute)).forEach(b => {
     let group = groups.find(each => each.name === b.group);
     if (!group) groups.push(group = { name: b.group, bindings: [] });
     group.bindings.push(b);
   });
   return `<div class="keys-head"><h2 id="keys-help-title">Keyboard shortcuts</h2><button type="button" class="loc" data-close-help>Close</button></div>
     <div class="keys-groups">${groups.map(group => `<section><h3>${esc(group.name)}</h3><dl>${group.bindings.map(b => `<dt>${b.keys.map(key => `<kbd>${esc(KEY_NAMES[key] || key)}</kbd>`).join(' ')}</dt><dd>${esc(b.label)}</dd>`).join('')}</dl></section>`).join('')}</div>
-    <label class="small keys-advance"><input type="checkbox" data-advance ${NavigatorPrefs.get().advance ? 'checked' : ''}> After <kbd>r</kbd> or <kbd>s</kbd> in All files, move on to the next file still to read</label>`;
+    <label class="small keys-advance"><input type="checkbox" data-advance ${NavigatorPrefs.get().advance ? 'checked' : ''}> After <kbd>r</kbd> or <kbd>s</kbd>, move on to the next file still to read</label>`;
 }
 function openHelp() {
   const panel = $('#keys-help');
@@ -2683,9 +2822,9 @@ const COMMANDS = {
   issue: () => giveVerdict('issue'),
   'clear-verdict': () => giveVerdict(''),
   undo: undoLast,
-  'toggle-selected': () => { if (selectedFile) { pickFile(selectedFile, !selection.paths.has(selectedFile), false); refreshSelection(); } },
-  'select-shown': () => { FileNavigator.fileOrder(fileTree()).forEach(path => selection.paths.add(path)); refreshSelection(); },
-  deselect: () => { if (selection.paths.size) clearSelection(); },
+  'toggle-selected': () => { const key = currentKey(); if (key) { pickFile(key, !navOf().selection.keys.has(key), false); refreshSelection(); } },
+  'select-shown': () => { FileNavigator.fileOrder(navTree()).forEach(key => navOf().selection.keys.add(key)); refreshSelection(); },
+  deselect: () => { if (navOf().selection.keys.size) clearSelection(); },
   'focus-search': () => { const search = $('#fq'); search.focus(); search.select(); },
   'toggle-still-to-read': toggleStillToRead,
   'cycle-grouping': cycleGrouping,
@@ -2704,7 +2843,7 @@ document.addEventListener('keydown', e => {
     { key: e.key, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey, inField: !!(at && at.closest(TYPING)) },
     { route: currentRoute, treeFocused: !!(at && at.closest('#nav-tree')), helpOpen: !$('#keys-help').hidden, menuOpen: openFacetMenus().length > 0 },
   );
-  if (!command || !commandWorksOn(command, currentRoute)) return;
+  if (!command) return;
   e.preventDefault();
   COMMANDS[command]();
 });
@@ -2798,7 +2937,7 @@ after.notes = () => {
 
 /* ---------- Extension API ---------- */
 const source = () => (C.findingsMeta || {}).source || 'the earlier review';
-const api = () => ({ content: C, diff: D, commits: COMMIT, coverageOf: path => coverageOf(path), md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile });
+const api = () => ({ content: C, diff: D, commits: COMMIT, coverageOf: path => coverageOf(path), md, esc, fmt, plural, figure: figureHtml, diagram: liveDiagram, drawInto, codeSlice, locBtn, whereBtn, testRef, sevChip, ctl, store: Store, kinds: KINDS, rerender: render, openFile, openCommit, navigator: { order: () => FileNavigator.fileOrder(navTree()), current: () => currentKey() } });
 window.ExplorePR = {
   registerView(view) {
     if (!/^[A-Za-z0-9-]+$/.test(view.id || '')) throw new Error(`ExplorePR view id must be letters, digits and hyphens: ${view.id}`);

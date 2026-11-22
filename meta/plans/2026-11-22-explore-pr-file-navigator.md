@@ -758,6 +758,10 @@ ReviewCoverage.commitFileClaims(commit, file, by)
 FileNavigator.commitTreeOf(commits, entriesByCommit, options)
 ```
 
+Every file node carries a `key`: its path, or `<sha>:<path>` within a commit.
+`filesUnder`, `fileOrder` and `ancestorsOf` work in keys, so selection and
+movement are the same code in both views.
+
 **Tests first.**
 - One top-level `commit` node per commit, in order, carrying `sha`, index,
   subject and the merge flag.
@@ -799,8 +803,12 @@ FileNavigator.commitTreeOf(commits, entriesByCommit, options)
   - With `whole` it draws today's stack, each file with its own control.
 - **Verdicts**
   - A file in a commit without its own verdict, in a commit that has one,
-    shows the commit's verdict as "via commit" through the existing
-    `[data-via-note]` hint.
+    shows as read through its bar, which the commit verdict's claims fill.
+    The `[data-via-note]` hint is not used, because it reads only claims a
+    content item declares.
+  - Clicking a commit row selects it, or folds and unfolds it when it is
+    already selected. Every commit is folded unless selected; a stored
+    toggle flips that default, so All files' saved folds are unchanged.
   - Bulk actions, `r`, `s`, `i` and `Backspace` target
     `commitfile:<sha>:<path>`.
 - **Keys**
@@ -831,10 +839,10 @@ FileNavigator.commitTreeOf(commits, entriesByCommit, options)
 
 #### Automated Verification
 
-- [ ] The `review-coverage`, `file-navigator` and `review-notes` node suites
+- [x] The `review-coverage`, `file-navigator` and `review-notes` node suites
   pass
-- [ ] Every command under Shared verification commands passes
-- [ ] The smoke report has `commitNavigator` and `commits` holding and
+- [x] Every command under Shared verification commands passes
+- [x] The smoke report has `commitNavigator` and `commits` holding and
   `ok: true`
 
 #### Manual Verification

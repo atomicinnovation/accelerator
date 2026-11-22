@@ -23,7 +23,9 @@
 // with an Issue alone and that Undo reverses, that the shortcuts move between
 // files and chunks, mark a chunk and undo it, raise an issue noting the chunk,
 // open and close their list, move on after a verdict and step between
-// commits, that a
+// commits, that By commit opens only the selected commit, that j crosses
+// into the next commit, that a verdict on a file in a commit reads only that
+// file's lines, and that the pane shows one file or the whole commit, that a
 // !term search excludes
 // paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
@@ -165,14 +167,14 @@ const COMMITS_PROBE = `(async () => {
   const sel = (lp, lk) => 'tr[data-lp="' + CSS.escape(lp) + '"][data-lk="' + lk + '"]';
   const forget = target => api.store.put(target, target.split(':')[0], { status: '', lines: [] }, {});
   location.hash = 'commits'; await settle();
-  document.querySelector('[data-commit="' + row.sha + '"]').click(); await settle();
+  api.openCommit(row.sha, row.file.headPath || row.file.path); await settle();
   document.querySelector('#commit-code ' + sel(row.path, row.key) + ' td.ln').click(); await settle();
   api.openFile(row.path, +row.key.split(':')[1], row.key.startsWith('old') ? 'old' : 'new'); await settle();
   const commitReachesFiles = !!document.querySelector('#file-code ' + sel(row.path, row.key) + '.read');
   forget('lines:' + row.path);
   api.store.put('file:' + row.path, 'file', { status: 'ok' }, {});
   location.hash = 'commits'; await settle();
-  document.querySelector('[data-commit="' + row.sha + '"]').click(); await settle();
+  api.openCommit(row.sha, row.file.headPath || row.file.path); await settle();
   const filesReachCommits = !!document.querySelector('#commit-code ' + sel(row.path, row.key) + '.read');
   forget('file:' + row.path);
   api.openFile(row.path, null, 'new'); await settle();
@@ -601,23 +603,63 @@ const KEYS_PROBE = `(async () => {
   let commitKeys = null, commitFileKeys = null;
   if ((api.content.commits || []).length > 1) {
     location.hash = 'commits'; await settle(700);
-    const before = document.querySelector('.cm-item[aria-current="true"]').dataset.commit;
+    const selected = () => document.querySelector('#nav-tree .nav-commit[aria-current="true"]').dataset.commit;
+    const before = selected();
     press('J'); await settle();
-    const after = document.querySelector('.cm-item[aria-current="true"]').dataset.commit;
+    const after = selected();
     press('K'); await settle();
-    commitKeys = after !== before && document.querySelector('.cm-item[aria-current="true"]').dataset.commit === before;
-    const many = [...document.querySelectorAll('.cm-item')].find(item => { const c = api.commits[item.dataset.commit]; return c && c.files.length > 1; });
+    commitKeys = after !== before && selected() === before;
+    const many = Object.values(api.commits).find(c => !c.merge && c.files.length > 1);
     if (many) {
-      many.click(); await settle(700);
-      const blocks = () => [...document.querySelectorAll('#commit-code > .code')];
-      const bar = document.querySelector('.topbar').getBoundingClientRect().bottom;
+      api.openCommit(many.sha); await settle(700);
+      const inCommit = api.navigator.order().filter(key => key.startsWith(many.sha + ':'));
       press('j'); await settle();
-      press('j'); await settle();
-      const top = blocks()[1].getBoundingClientRect().top;
-      commitFileKeys = top >= bar && top - bar <= 16;
+      const block = document.querySelector('#commit-code > .code');
+      const bar = document.querySelector('.topbar').getBoundingClientRect().bottom, top = block.getBoundingClientRect().top;
+      commitFileKeys = api.navigator.current() === inCommit[1] && block.dataset.commitFile === inCommit[1].slice(many.sha.length + 1) && top >= bar && top - bar <= 16;
     }
   }
   return { file: start, jMoves, kReturns, chunkCursor, chunkMarked, markUndone, issueNoted, fieldLeft, issueUndone, helpOpens, helpCloses, advances, xSelects, escapeDeselects, uNarrows, gCycles, arrowMoves, arrowCollapses, commitKeys, commitFileKeys };
+})()`;
+
+const COMMIT_NAVIGATOR_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 400) => new Promise(r => setTimeout(r, ms));
+  const press = key => document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  if ((api.content.commits || []).length < 2) return { skipped: 'fewer than two commits' };
+  const reviewable = api.content.commits.filter(c => !c.merge && (api.commits[c.sha] || {}).files?.length);
+  const pair = reviewable.findIndex((c, i) => reviewable[i + 1] && api.commits[c.sha].files.length > 1);
+  if (pair < 0) return { skipped: 'no commit with two files before another' };
+  const first = reviewable[pair], second = reviewable[pair + 1];
+  api.openCommit(first.sha); await settle(700);
+  const expanded = [...document.querySelectorAll('#nav-tree .nav-commit[aria-expanded="true"]')].map(row => row.dataset.commit);
+  const onlySelectedOpen = expanded.length === 1 && expanded[0] === first.sha;
+  const order = api.navigator.order();
+  const lastOfFirst = order.filter(key => key.startsWith(first.sha + ':')).pop();
+  const firstOfSecond = order.find(key => key.startsWith(second.sha + ':'));
+  api.openCommit(first.sha, lastOfFirst.slice(first.sha.length + 1)); await settle();
+  press('j'); await settle();
+  const crossesCommits = api.navigator.current() === firstOfSecond;
+  const commit = api.commits[first.sha];
+  const counted = file => window.ReviewCoverage.commitLines({ ...commit, files: [file] }).filter(row => row.counted && api.diff[row.path]);
+  const [marked, other] = commit.files.filter(file => counted(file).length);
+  let verdictScoped = null;
+  if (marked && other) {
+    const path = marked.headPath || marked.path, otherPath = other.headPath || other.path;
+    const otherBefore = (api.coverageOf(otherPath) || {}).read;
+    const before = (api.coverageOf(path) || {}).read;
+    api.openCommit(first.sha, path); await settle();
+    press('r'); await settle();
+    verdictScoped = api.store.get('commitfile:' + first.sha + ':' + path).status === 'ok'
+      && api.coverageOf(path).read > before && (otherPath === path || api.coverageOf(otherPath).read === otherBefore);
+    api.store.put('commitfile:' + first.sha + ':' + path, 'commitfile', { status: '' }, {}); await settle();
+  }
+  api.openCommit(first.sha); await settle();
+  document.querySelector('[data-commit-pane="whole"]').click(); await settle();
+  const wholeShowsAll = document.querySelectorAll('#commit-code > .code').length === commit.files.length;
+  document.querySelector('[data-commit-pane="one"]').click(); await settle();
+  const oneShowsOne = document.querySelectorAll('#commit-code > .code').length === 1;
+  return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, wholeShowsAll, oneShowsOne };
 })()`;
 
 const UNFOLD_PROBE = `(async () => {
@@ -686,6 +728,7 @@ async function main() {
     report.navigator = await cdp.evaluate(NAVIGATOR_PROBE);
     report.bulk = await cdp.evaluate(BULK_PROBE);
     report.keys = await cdp.evaluate(KEYS_PROBE);
+    report.commitNavigator = await cdp.evaluate(COMMIT_NAVIGATOR_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
@@ -735,6 +778,8 @@ async function main() {
   const bulkHolds = !!bulk.skipped || !!(bulk.barShown && bulk.issueKept && bulk.othersReviewed && bulk.folderRead && bulk.toastSays && bulk.selectionCleared && bulk.undone);
   const keys = report.keys || {};
   const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.commitKeys !== false && keys.commitFileKeys !== false);
+  const commitNavigator = report.commitNavigator || {};
+  const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne);
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
@@ -742,7 +787,7 @@ async function main() {
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = navigatorHolds && bulkHolds && keysHold && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
