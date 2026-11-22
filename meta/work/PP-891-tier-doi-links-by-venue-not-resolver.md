@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers", "cli", "crossref"]
-last_updated: "2026-11-19T20:01:19+00:00"
+last_updated: "2026-11-22T09:41:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -65,9 +65,9 @@ field-selection hypothesis does not hold.
 A venue of `doi.org` matches the web profile's behaviour: it tiers by
 "domain or venue" and records the domain, and `doi.org` is not a recognised
 venue. The web profile has no rule that a DOI resolver URL stands for the
-publication behind it. The profiles say "Never re-judge a tier", so the
-composer agents that build findings from researchers' notes carry the tier-3
-forward. The conflict with the openalex tier-1 then surfaces where PP-892's
+publication behind it. The composer agents that build findings from
+researchers' notes carry each note's tier into the finding, so the tier-3 is
+carried forward. The conflict with the openalex tier-1 then surfaces where PP-892's
 citing-once rule merges the two records.
 
 Row 1 ("tier-3, no venue") does not fit the resolver explanation and is not
@@ -84,19 +84,25 @@ title where OpenAlex reports a short name such as WWW. When Crossref is
 `unavailable`, the landing-host and no-venue fallbacks below are accepted
 degradations, and the tier they give may still disagree.
 
-The web-profile route to `doi.org` has not been reproduced directly; it is
-inferred from the venue string (see Assumptions). A baseline run on the
-current plugin, required before any building, confirms or refutes the cause;
-the manual run before closing confirms the fix.
+The baseline run (see Baseline) reproduced the web-profile route to a
+`doi.org` venue directly; the manual run before closing confirms the fix.
 
-Reproduction (provisional, unconfirmed until the baseline replaces it):
+Reproduction (confirmed by the baseline; see Baseline):
 
 - Input: a web-profile `research-topic conduct` brief giving
   `https://doi.org/10.1145/371920.372066` and
-  `https://doi.org/10.1145/3448016.3457556` as sources to cite.
-- Action: run it on the current plugin.
+  `https://doi.org/10.1145/3448016.3457556` as sources to cite, and naming
+  nothing else about them.
+- Action: run it on `1.24.0-pre.105`.
 - Expected: each note records the conference venue at tier-1.
-- Suspected actual: each note records venue `doi.org` at tier-3.
+- Actual: each note records `doi.org` in its venue, for example
+  `doi.org → dl.acm.org (ACM Digital Library; WWW10 proceedings)`, with no
+  metadata block, because `fetch web metadata` gets HTTP 403 from
+  `dl.acm.org`. The tier is tier-1, but only because the researcher
+  improvised a `WebFetch` of `api.crossref.org` and cited the Crossref
+  record as a tier-1 source in its own right. No profile rule produces
+  that tier, so it is not reliable; the incident on `1.24.0-pre.74` gave
+  tier-3.
 
 ## Requirements
 
@@ -174,15 +180,33 @@ Reproduction (provisional, unconfirmed until the baseline replaces it):
   tickets left by the previous release are invalidated, not migrated: a
   ticket issued before the upgrade gets a ticket usage error
   (`E_ARXIV_TICKET_MISMATCH`, exit 2), and the caller re-runs without
-  `--ticket`. The new release keeps its queue state apart from the previous
-  release's, so processes of both releases running at once in one project
-  never read each other's state; their pacing is not shared during that
-  overlap, an accepted risk.
+  `--ticket`. The new release never reads or writes the previous release's
+  pacing or queue contents; it only lists ticket names in the previous
+  `arxiv-queue/` for provenance and takes the previous `arxiv.lock` as a
+  lock. Pacing is not shared while both releases run in one project, an
+  accepted risk.
+- Design choices settled in planning:
+  - ticket provenance comes from the directory a ticket is found in: a
+    ticket in another family's queue directory, or in the previous
+    release's `arxiv-queue/`, is a mismatch;
+  - all arXiv queue and pacing state moves to a per-service directory;
+  - the multi-process timing criteria run in real time;
+  - a Crossref 3xx or an undecodable body is `unavailable` with reason
+    `upstream_error`;
+  - a ticket re-presented after its pool changed joins the new pool
+    afresh;
+  - a DOI ticket matches its call whatever the DOI's letter case;
+  - the arXiv gate holds the legacy `arxiv.lock` while serving, so old and
+    new releases keep one arXiv connection at a time;
+  - the web profile repeats a CLI `warning:` line once in the researcher's
+    summary, and `conduct` lists each distinct warning once in its final
+    summary.
 - A new optional `crossref.mailto` setting holds that contact address,
   resolved from the `ACCELERATOR_CROSSREF_MAILTO` env var, then
   `config.local.md`, then `config.md`. The first source that holds a
   non-empty value (after trimming) is the one used; an empty value counts as
-  unset. A plausible address, once trimmed, has no whitespace, exactly one
+  unset. A plausible address, once trimmed, has only visible ASCII with no
+  `(`, `)` or `\` (so it can sit in a `User-Agent` comment), exactly one
   `@`, a non-empty local part containing no `:`, and a domain containing a
   dot that neither starts nor ends with one. When the value used is not
   plausible, the command prints a `warning:` and calls anonymously, without
@@ -251,8 +275,10 @@ Reproduction (provisional, unconfirmed until the baseline replaces it):
   profile names, each copied unchanged. The citing-once rule needs no
   change: its metadata merge already takes every key any citation carries
   and rewrites the merged block in canonical order.
-- A regression test in `cli/research` asserts that `search` and `lookup` (by
-  DOI, by `https://doi.org/` DOI, and by W-id) produce the same tier, venue
+- A regression test in `cli/research-cli/tests/fetch_openalex.rs` asserts
+  that `search` (the `/works` search endpoint with
+  `title_and_abstract.search`) and `lookup` (by DOI, by `https://doi.org/`
+  DOI, and by W-id) produce the same tier, venue
   and venue signals (the evidence about the venue that the CLI's tier is
   derived from) for the same work.
 
@@ -477,8 +503,9 @@ Reproduction (provisional, unconfirmed until the baseline replaces it):
 - [ ] `accelerator research fetch --help` names the `doi` family and its
       `metadata` verb, and lists `doi` among the families `--ticket` serves.
 - [ ] Given OpenAlex responses for `10.1145/3448016.3457556` recorded
-      separately from the `filter=doi:`, `/works/doi:` and `/works/W…`
-      endpoints, when the CLI tiers the work via `search`, `lookup <DOI>`,
+      separately from the `/works` search endpoint (with
+      `title_and_abstract.search`), `/works/doi:` and `/works/W…`, in a
+      test in `cli/research-cli/tests/fetch_openalex.rs`, when the CLI tiers the work via `search`, `lookup <DOI>`,
       `lookup https://doi.org/<DOI>` and `lookup <W-id>`, then all four
       records carry identical `tier`, `venue` and `venue_signals`, with
       tier-1 and the exact venue string the recorded fixture holds.
@@ -514,6 +541,36 @@ Reproduction (provisional, unconfirmed until the baseline replaces it):
       resolver URL whether its `web metadata` succeeded or failed. If no
       resolver URL takes the failed branch, that is recorded as accepted
       rather than forced. A single passing run is accepted.
+
+## Baseline
+
+Run on Claude Code `2.1.330` with plugin `1.24.0-pre.105`, web profile only,
+depth 1. Both runs count: each cites both resolver URLs as web-profile
+entries.
+
+| Run | Subject | Brief | Recorded venue and tier |
+|---|---|---|---|
+| 1 | `meta/research/topics/pp-891-doi-resolver-baseline/` | names each paper's subject | `doi.org / ACM, WWW 2001 proceedings`, tier-1; `doi.org / ACM, SIGMOD 2021 proceedings`, tier-1 |
+| 2 | `meta/research/topics/pp-891-doi-resolver-baseline-2/` | names only the two URLs | `doi.org → dl.acm.org (ACM Digital Library; WWW10 proceedings)`, tier-1; `doi.org → dl.acm.org (ACM Digital Library; SIGMOD '21 proceedings)`, tier-1 |
+
+- `doi.org` is recorded in every resolver URL's venue. The tier-3 drop did
+  not reproduce; the tier-1 rests on an improvised Crossref lookup, cited
+  as a separate tier-1 source, which no profile rule asks for.
+- `fetch web metadata` on both resolver URLs fails with
+  `E_WEB_STATUS: the page answered HTTP 403` from `dl.acm.org`, so the
+  closing run is expected to take the failed-`web metadata` branch for
+  both.
+- `WebFetch` on Claude Code `2.1.330` returns a cross-host `302 Found` to
+  `https://dl.acm.org/doi/<DOI>` for both resolver URLs, without following
+  it, so the landing host is `dl.acm.org`. Not yet checked on v2.1.144.
+- Non-resolver page for the closing run:
+  `https://www.nature.com/articles/nature14539`. `fetch web metadata`
+  prints `doi: 10.1038/nature14539`. Crossref holds that DOI as a
+  `journal-article` with `container-title[0]` `Nature` (publisher Springer
+  Science and Business Media LLC), so the expected tier is tier-1.
+
+Signed off by Toby Clemson on 2026-11-22: the baseline confirms the
+reproduction, and building proceeds.
 
 ## Open Questions
 
@@ -630,7 +687,7 @@ Reproduction (provisional, unconfirmed until the baseline replaces it):
   shared address in `config.md`.
 - OpenAlex request paths all use `OPENALEX_SELECT` (`request.rs`); venue
   signals come from `venue_signals` in `cli/research/src/sources/openalex.rs`.
-  The parity test belongs beside `cli/research/tests/openalex_fetch.rs`,
+  The parity test belongs in `cli/research-cli/tests/fetch_openalex.rs`,
   which has none today.
 
 ## Drafting Notes

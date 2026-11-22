@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T01:23:52+00:00"
+last_updated: "2026-11-22T09:41:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -360,15 +360,15 @@ the `doi.org` cause, and records what the closing run needs.
 
 #### Automated Verification
 
-- [ ] The work item still validates:
+- [x] The work item still validates:
       `accelerator corpus frontmatter validate --file meta/work/PP-891-tier-doi-links-by-venue-not-resolver.md`
 
 #### Manual Verification
 
-- [ ] A counting baseline is recorded, with the item author's sign-off.
+- [x] A counting baseline is recorded, with the item author's sign-off.
 - [ ] The `WebFetch` redirect behaviour and the Claude Code versions are
       recorded.
-- [ ] The non-resolver page, its DOI, its Crossref venue and the expected tier
+- [x] The non-resolver page, its DOI, its Crossref venue and the expected tier
       are recorded.
 
 ---
