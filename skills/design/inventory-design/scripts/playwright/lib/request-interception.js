@@ -61,11 +61,24 @@ export function makeRequestInterceptor({
         errorReason: 'BlockedByClient',
       });
     }
-    return send('Fetch.continueRequest', {
-      requestId,
-      headers: headersFor(event.request, getExpectedOrigin, getAuthHeader),
-    });
+    try {
+      return await send('Fetch.continueRequest', {
+        requestId,
+        headers: headersFor(event.request, getExpectedOrigin, getAuthHeader),
+      });
+    } catch (refusal) {
+      await failQuietly(send, requestId);
+      throw refusal;
+    }
   };
+}
+
+// The hop may already be gone, cancelled by the page, in which case Chromium
+// refuses the failure too and there is nothing left to release.
+async function failQuietly(send, requestId) {
+  try {
+    await send('Fetch.failRequest', { requestId, errorReason: 'Failed' });
+  } catch {}
 }
 
 export async function interceptRequests(page, options) {

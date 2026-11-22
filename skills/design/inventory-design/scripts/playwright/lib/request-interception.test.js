@@ -29,6 +29,7 @@ function interceptor({
   expectedOrigin = null,
   authHeader = null,
   getAllowances = () => allowances,
+  refusedMethod = null,
 } = {}) {
   const refusals = [];
   const sent = [];
@@ -39,12 +40,15 @@ function interceptor({
     getAuthHeader: () => authHeader,
     onMainFrameRefusal: refusal => refusals.push(refusal),
   });
+  const refusal = new Error(`${refusedMethod} refused`);
   const send = async (method, params) => {
     sent.push({ method, params });
+    if (method === refusedMethod) throw refusal;
   };
   return {
     refusals,
     sent,
+    refusal,
     pause: event => intercept(event, send),
   };
 }
@@ -185,4 +189,23 @@ test('a hop continues with its own headers when no header is configured', async 
   );
 
   assert.deepEqual(headersSent(sent), { authorization: 'pre-existing' });
+});
+
+test('a hop whose continuation is refused is failed rather than left paused', async () => {
+  const { pause, sent, refusal } = interceptor({
+    expectedOrigin: LOCATION_ORIGIN,
+    authHeader: BEARER,
+    refusedMethod: 'Fetch.continueRequest',
+  });
+
+  await assert.rejects(pause(hop({ url: 'https://app.example.com/' })), refusal);
+
+  assert.deepEqual(
+    sent.map(({ method }) => method),
+    ['Fetch.continueRequest', 'Fetch.failRequest']
+  );
+  assert.deepEqual(sent[1].params, {
+    requestId: 'interception-1',
+    errorReason: 'Failed',
+  });
 });
