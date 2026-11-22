@@ -6,7 +6,7 @@
       "name": "n2-user",
       "verb": "report",
       "question": "How do LLM agents plan multi-step tasks?",
-      "times": 1,
+      "times": 3,
       "setup": {
         "variant": "base",
         "templates": [
@@ -17,6 +17,7 @@
       "turns": [
         {
           "expect": {
+            "offers": "accept",
             "writes": []
           }
         },
@@ -41,7 +42,7 @@
       "name": "n2-user-and-config",
       "verb": "report",
       "question": "How do LLM agents plan multi-step tasks?",
-      "times": 1,
+      "times": 3,
       "setup": {
         "variant": "base",
         "templates": [
@@ -53,6 +54,7 @@
       "turns": [
         {
           "expect": {
+            "offers": "accept",
             "writes": []
           }
         },

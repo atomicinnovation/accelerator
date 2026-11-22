@@ -134,12 +134,20 @@ class Refusal:
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
         lines = formats.lines(turn.text)
-        said = "\n".join(lines)
         template = formats.REFUSALS[self.gate]
         known = {"verb": judging.verb, "slug": SLUG}
+        starts = [
+            at
+            for at, line in enumerate(lines)
+            if formats.matches(template, line, **known)
+        ]
+        said = "\n".join(lines[starts[0] :] if len(starts) == 1 else lines)
         failures = []
-        if not any(formats.matches(template, ln, **known) for ln in lines):
-            failures.append(f"expected the {self.gate} refusal, got {said!r}")
+        if len(starts) != 1:
+            failures.append(
+                f"expected one {self.gate} refusal, got {len(starts)} in "
+                f"{said!r}"
+            )
         failures += [
             f"expected {name!r} in the refusal"
             for name in self.names
@@ -167,15 +175,14 @@ class Coverage:
         )
 
     def judge(self, turn: TurnRecord, judging: Judging) -> list[str]:
-        stated = next(
-            (
-                found["answered_partial_unanswered"]
-                for line in formats.lines(turn.text)
-                if (found := formats.matches(formats.COVERAGE, line))
-            ),
-            None,
-        )
-        return _expected(self.value, stated)
+        stated = [
+            found["answered_partial_unanswered"]
+            for line in formats.lines(turn.text)
+            if (found := formats.matches(formats.COVERAGE, line))
+        ]
+        if len(stated) > 1:
+            return [f"expected one coverage line, got {stated!r}"]
+        return _expected(self.value, next(iter(stated), None))
 
 
 @dataclass(frozen=True)

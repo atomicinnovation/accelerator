@@ -324,6 +324,24 @@ PLANTED = [
         _wrote(REFUSAL, **{"notes.md": "x"}),
     ),
     ("coverage", {"coverage": "answered"}, _turn(JUDGED)),
+    (
+        "coverage-twice",
+        {"coverage": "partial"},
+        _turn(JUDGED + "\nCoverage: answered\n"),
+    ),
+    (
+        "refusal-names-before-it",
+        {"refusal": STATUS},
+        _turn(
+            "This set may still be researching.\n"
+            + REFUSAL.replace("is researching", "is briefed")
+        ),
+    ),
+    (
+        "refusal-twice",
+        {"refusal": STATUS},
+        _turn(REFUSAL + "\n" + REFUSAL.replace("researching", "briefed")),
+    ),
     ("coverage-missing", {"coverage": "answered"}, _turn("No judgement.")),
     ("covered-keyword", {"covered": ["benchmark"]}, _turn(JUDGED)),
     ("covered-block", {"covered": ["plan"]}, _turn("Coverage: unanswered")),
