@@ -123,6 +123,7 @@ class TurnRecord:
     events: tuple[Event, ...]
     logged: bool
     turn_exit: TurnExit | None
+    snapshotted: bool
     before: Snapshot
     after: Snapshot
     initial: Snapshot
@@ -170,6 +171,7 @@ class TurnHistory:
             events=tuple(events(log.read_text())) if log.exists() else (),
             logged=log.exists(),
             turn_exit=turn_exit,
+            snapshotted=taken.exists(),
             before=before,
             after=load_snapshot(taken) if taken.exists() else before,
             initial=self.initial,
@@ -190,6 +192,8 @@ def errored(record: TurnRecord) -> str | None:
             return TIMEOUT
         case Exited(code=code) if code != 0:
             return f"exit code {code}"
+    if not record.snapshotted:
+        return "no snapshot"
     if record.init is None:
         return "no init event"
     if record.result is not None and record.result.is_error:

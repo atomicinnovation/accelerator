@@ -125,6 +125,7 @@ def _turn(
         events=(Text(text, by_subagent=False),),
         logged=True,
         turn_exit=Exited(0),
+        snapshotted=True,
         before=before_files,
         after=_files(after) if after is not None else before_files,
         initial=_files(INITIAL),

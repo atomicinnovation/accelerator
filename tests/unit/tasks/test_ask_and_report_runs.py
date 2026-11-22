@@ -253,33 +253,74 @@ def _write_outcomes(tmp_path: Path) -> dict[str, runs.SessionPlan]:
     }
 
 
-def test_rerunning_errored_sessions_moves_only_those_aside(
+def test_only_errored_sessions_are_planned_again_and_none_moves_yet(
     tmp_path: Path,
 ) -> None:
     sessions = _write_outcomes(tmp_path)
     on_disk = runs.sessions_on_disk(runs.plan_sessions(FILES, tmp_path))
 
-    replanned = runs.set_aside_errored(on_disk, REPO_ROOT, TOOLCHAIN)
+    replanned = runs.errored_sessions(on_disk, REPO_ROOT, TOOLCHAIN)
 
-    errored = sessions["errored"].directory
     assert replanned == [sessions["errored"]]
-    assert not errored.exists()
-    assert (errored.parent / "run-1.errored-1" / "turn-1.exit").exists()
-    for kept in ("passed", "failed"):
-        assert (sessions[kept].directory / "turn-1.exit").exists()
+    for session in sessions.values():
+        assert (session.directory / "turn-1.exit").exists()
 
 
-def test_a_second_set_aside_takes_the_next_free_suffix(tmp_path: Path) -> None:
-    errored = _write_outcomes(tmp_path)["errored"].directory
-    (errored.parent / "run-1.errored-1").mkdir()
+def _running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[bool, list[str]]]:
+    seen: list[tuple[bool, list[str]]] = []
 
-    runs.set_aside_errored(
-        runs.sessions_on_disk(runs.plan_sessions(FILES, tmp_path)),
-        REPO_ROOT,
-        TOOLCHAIN,
-    )
+    def run_planned(plan, *args) -> None:
+        seen.append(
+            (
+                plan.directory.exists(),
+                sorted(p.name for p in plan.directory.parent.iterdir()),
+            )
+        )
 
-    assert (errored.parent / "run-1.errored-2").is_dir()
+    monkeypatch.setattr(runs, "run_planned", run_planned)
+    return seen
+
+
+def test_a_rerun_sets_each_session_aside_only_as_it_reruns_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    errored = _write_outcomes(tmp_path)["errored"]
+    seen = _running(monkeypatch)
+
+    runs.run_eval([errored], REPO_ROOT, [], {}, jobs=1, replacing=True)
+
+    assert seen == [(False, ["run-1.errored-1"])]
+
+
+def test_a_second_set_aside_takes_the_next_free_suffix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    errored = _write_outcomes(tmp_path)["errored"]
+    (errored.directory.parent / "run-1.errored-1").mkdir()
+    _running(monkeypatch)
+
+    runs.run_eval([errored], REPO_ROOT, [], {}, jobs=1, replacing=True)
+
+    assert (errored.directory.parent / "run-1.errored-2").is_dir()
+
+
+def test_sessions_are_planned_under_the_resolved_out_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    plans = runs.plan_sessions(FILES, Path("out"))
+
+    assert plans[0].directory.is_relative_to(tmp_path.resolve() / "out")
+
+
+def test_a_run_whose_settings_were_never_recorded_constrains_no_rerun() -> None:
+    unrecorded = runs.RunSettings("", "", "")
+    given = runs.RunSettings("2.1.316", "claude-test", "/config")
+
+    assert runs.settings_conflict(unrecorded, given) is None
 
 
 def test_results_record_the_run_s_settings(tmp_path: Path) -> None:

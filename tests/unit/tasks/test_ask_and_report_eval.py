@@ -242,6 +242,7 @@ def _record(
         events=tuple(events(log)) if log is not None else (),
         logged=log is not None,
         turn_exit=turn_exit,
+        snapshotted=True,
         before={},
         after={},
         initial={},
@@ -566,3 +567,12 @@ def test_a_record_whose_message_is_text_holds_no_blocks() -> None:
     )
 
     assert events(denied) == []
+
+
+def test_a_turn_that_left_no_snapshot_is_errored(tmp_path: Path) -> None:
+    (tmp_path / "turn-1.jsonl").write_text(_init())
+    history = turns.TurnHistory(tmp_path, initial={})
+
+    record = history.record(1, None, (), SUCCEEDED)
+
+    assert turns.errored(record) == "no snapshot"

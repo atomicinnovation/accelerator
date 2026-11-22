@@ -238,3 +238,24 @@ def test_a_run_that_started_claude_ends_with_the_reminder(
         evals.ask_and_report(Context())
 
     assert "rm .accelerator-dev-launcher" in capsys.readouterr().out
+
+
+def test_rerunning_a_run_that_recorded_nothing_names_its_missing_results(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    Gates(monkeypatch, refuse_at="")
+
+    with pytest.raises(Exit, match=runs.RESULTS):
+        evals.ask_and_report(Context(), out=str(tmp_path), rerun_errored=True)
+
+
+def test_a_re_check_of_an_unrecorded_run_records_no_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    Gates(monkeypatch, refuse_at="")
+
+    evals.ask_and_report(
+        Context(), out=str(tmp_path), check_only=True, model="claude-test"
+    )
+
+    assert runs.load_settings(tmp_path) == runs.RunSettings("", "", "")

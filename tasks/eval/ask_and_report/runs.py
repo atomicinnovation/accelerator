@@ -69,7 +69,12 @@ def plan_sessions(
     verbs: Sequence[str] = (),
     scenarios: Sequence[str] = (),
 ) -> list[SessionPlan]:
-    """Plan each scenario's runs, narrowed by every filter given."""
+    """Plan each scenario's runs, narrowed by every filter given.
+
+    Each session is keyed by its directory, so ``out`` is resolved: a rerun
+    given the run's directory spelled another way finds the same sessions.
+    """
+    out = out.resolve()
     return [
         SessionPlan(
             family=file.family,
@@ -238,16 +243,23 @@ def run_eval(
     flags: Sequence[str],
     env: dict[str, str],
     jobs: int,
+    replacing: bool = False,
 ) -> None:
     """Run every planned session, then raise the first harness error, if any.
 
     ``Executor.map`` would cancel every queued session at the first error.
+    When ``replacing``, each session's earlier attempt is set aside only as
+    it reruns, so an interrupted rerun leaves the rest where a re-check
+    finds them.
     """
+
+    def run(plan: SessionPlan) -> None:
+        if replacing and plan.directory.exists():
+            _set_aside(plan.directory)
+        run_planned(plan, plugin_root, flags, env)
+
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        futures = [
-            pool.submit(run_planned, plan, plugin_root, flags, env)
-            for plan in plans
-        ]
+        futures = [pool.submit(run, plan) for plan in plans]
     for future in futures:
         future.result()
 
@@ -261,23 +273,20 @@ def _set_aside(directory: Path) -> None:
     directory.rename(aside)
 
 
-def set_aside_errored(
+def errored_sessions(
     plans: Sequence[SessionPlan], plugin_root: Path, toolchain: Toolchain
 ) -> list[SessionPlan]:
-    """Move each errored session aside and return its plan to run again.
+    """Return the plan of each errored session, to run again.
 
     A session is re-judged from disk first, so an edited exit status counts.
     """
-    replanned = [
+    return [
         plan
         for plan, result in zip(
             plans, judge_all(plans, plugin_root, toolchain), strict=True
         )
         if result.status == "errored"
     ]
-    for plan in replanned:
-        _set_aside(plan.directory)
-    return replanned
 
 
 @dataclass(frozen=True)
@@ -290,8 +299,12 @@ class RunSettings:
 def settings_conflict(recorded: RunSettings, given: RunSettings) -> str | None:
     """Name a rerun setting that differs from the run it reruns, if any.
 
-    An empty model or config dir is not given, so it takes the run's.
+    An empty model or config dir is not given, so it takes the run's, and a
+    run that recorded no settings, as a re-check before any run records,
+    constrains nothing.
     """
+    if recorded == RunSettings("", "", ""):
+        return None
     for setting, offered, held in (
         ("--model", given.model, recorded.model),
         ("--config-dir", given.config_dir, recorded.config_dir),

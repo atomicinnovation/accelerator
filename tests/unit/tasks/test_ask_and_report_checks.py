@@ -54,6 +54,7 @@ def _turn(
         events=(_init(), *events),
         logged=True,
         turn_exit=Exited(0),
+        snapshotted=True,
         before={},
         after=after,
         initial={},

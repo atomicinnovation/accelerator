@@ -41,7 +41,15 @@ def _run_settings(
     rerun_errored: bool,
 ) -> ask_and_report_runs.RunSettings:
     recorded_run = (directory / ask_and_report_runs.RESULTS).exists()
-    if not (rerun_errored or (check_only and recorded_run)):
+    if rerun_errored and not recorded_run:
+        raise Exit(
+            f"{directory} holds no {ask_and_report_runs.RESULTS}, so its run "
+            "never finished; start it again without --rerun-errored",
+            code=1,
+        )
+    if check_only and not recorded_run:
+        return ask_and_report_runs.RunSettings("", "", "")
+    if not (rerun_errored or check_only):
         return given
     recorded = ask_and_report_runs.load_settings(directory)
     if rerun_errored and (
@@ -62,7 +70,7 @@ def _sessions_to_run(
         return []
     if not rerun_errored:
         return plans
-    errored = ask_and_report_runs.set_aside_errored(plans, root, toolchain)
+    errored = ask_and_report_runs.errored_sessions(plans, root, toolchain)
     print(f"Rerunning {len(errored)} errored sessions")
     return errored
 
@@ -121,7 +129,9 @@ def run_ask_and_report(
         )
         print(f"Sessions and results: {directory}")
         print(f"Planned sessions: {len(to_run)}")
-        ask_and_report_runs.run_eval(to_run, root, flags, env, jobs)
+        ask_and_report_runs.run_eval(
+            to_run, root, flags, env, jobs, replacing=rerun_errored
+        )
         results = ask_and_report_runs.judge_all(plans, root, toolchain)
         ask_and_report_runs.save_results(results, directory, settings)
         print(ask_and_report_runs.summary(plans, results, directory, settings))
