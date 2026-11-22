@@ -43,10 +43,19 @@ are intercepted or which initiators may carry the bearer:
 
 - **Unintercepted targets.** `interceptRequests` opens one CDP session on the
   first page and enables `Fetch` there. Popups (`window.open`, `target=_blank`),
-  out-of-process iframes, dedicated, shared and service workers, and websocket
-  upgrades run on other targets or outside `Fetch.requestPaused`, so the
-  navigation classifier never sees them. The bearer fails closed there: those
-  requests get no auth header. The navigation policy fails open.
+  shared workers and websocket upgrades run on other targets or outside
+  `Fetch.requestPaused`, so the navigation classifier never sees them. The
+  bearer fails closed there: those requests get no auth header. The navigation
+  policy fails open.
+- **Targets kept on the page by launch options.** PR #253's review found that
+  a single-target session misses an out-of-process iframe's later navigations,
+  which `page.route` had caught. The shipped chrome-headless-shell does not
+  site-isolate, so it had not regressed, but desktop Chrome through
+  `design.browser_path` does. The daemon now launches with
+  `--disable-site-isolation-trials`, which keeps cross-site frames on the page
+  target, and blocks service workers with `serviceWorkers: 'block'`, since
+  neither approach intercepted them. Dedicated workers' requests already pass
+  through the page target.
 - **Initiator-blind bearer.** `shouldAttachHeader(request.url, expectedOrigin)`
   attaches the bearer to any request whose URL is on the location origin,
   whoever initiated it. A cross-origin iframe on the crawled page that
@@ -59,8 +68,8 @@ are intercepted or which initiators may carry the bearer:
    the navigation classifier before it leaves the browser. The targets are:
    - the first page;
    - popups and new pages;
-   - out-of-process iframes;
-   - dedicated, shared and service workers.
+   - out-of-process iframes, if site isolation is ever turned back on;
+   - shared workers.
 2. A target the executor cannot intercept is refused rather than allowed to
    run unjudged. One example is a target type that `Target.setAutoAttach` does
    not cover.
@@ -79,8 +88,8 @@ are intercepted or which initiators may carry the bearer:
 - [ ] Given a crawled page with an out-of-process iframe whose document
       navigates to a refused host, when the crawl runs, then that navigation is
       blocked.
-- [ ] Given a crawled page that registers a service worker which fetches a
-      refused host, when the worker fetches, then the request is blocked.
+- [ ] Given a crawled page that registers a service worker, when the crawl
+      runs, then the worker is not registered, as today.
 - [ ] Given a cross-origin iframe on the crawled page that `fetch`es the
       location origin, when the request is sent, then it carries no bearer.
 - [ ] Given the crawled page's own script fetching the location origin, when
@@ -102,9 +111,10 @@ are intercepted or which initiators may carry the bearer:
   This is a security decision. It may warrant an ADR.
 - Should popups and new pages be crawled under the same allowances, or refused
   outright as outside the crawl's scope?
-- Should service workers be allowed at all during a crawl? Disabling them
-  (`ServiceWorker.disable`, or bypassing them through `Network.setBypassServiceWorker`) may be
-  simpler than intercepting them.
+- Should site isolation come back, with `Fetch` enabled on every attached
+  target, or should the crawl keep running without it? Running without it gives
+  up isolation's defence against cross-site memory leaks in a short-lived
+  browser that crawls one app.
 
 ## Dependencies
 

@@ -184,9 +184,10 @@ noise; the two run records are under `meta/measurements/`.
   per-operation wall clock. Not exercised against service workers or deep
   frame trees.
 - **Known gaps, drafted as a follow-up rather than fixed here.**
-  Interception covers only the first page's own target, so popups,
-  out-of-process iframes, workers and websockets skip the navigation policy
-  (the bearer fails closed there). The bearer is attached by request URL
+  Interception covers only the first page's own target. The daemon keeps
+  cross-site frames on it by launching with `--disable-site-isolation-trials`,
+  and blocks service workers, so popups, shared workers and websockets are what
+  skip the navigation policy (the bearer fails closed there). The bearer is attached by request URL
   whatever the initiator, so a cross-origin frame that fetches the location
   origin borrows it; `page.route` behaved the same, and it needs a security
   decision. Both are captured in

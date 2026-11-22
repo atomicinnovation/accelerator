@@ -1,4 +1,6 @@
-// Every request hop, redirects included, through CDP's Fetch domain.
+// Every request hop on the page's own target, redirects included, through CDP's
+// Fetch domain. Other targets go unjudged: the daemon keeps cross-site frames
+// on this one by launching without site isolation, and blocks service workers.
 //
 // Playwright's page.route sees only the first hop of a redirect chain and
 // carries its header overrides onto the hops after it, so through it a redirect

@@ -208,9 +208,17 @@ export async function startDaemon({ stateDir }) {
     // design.browser_path hatch. Passing it is what makes playwright-core skip
     // its own browser registry, so a sealed read-only tree is never consulted.
     const executablePath = process.env.ACCELERATOR_DESIGN_BROWSER_EXECUTABLE;
-    browser = await chromium.launch({ headless: true, executablePath });
+    // The request interceptor sees only the page's own target. Site isolation
+    // would move a cross-site frame's navigations onto a target of its own, and
+    // a service worker's fetches never pass through the page at all, so both
+    // are kept off for every request to stay judged.
+    browser = await chromium.launch({
+      headless: true,
+      executablePath,
+      args: ['--disable-site-isolation-trials'],
+    });
     try {
-      const ctx = await browser.newContext();
+      const ctx = await browser.newContext({ serviceWorkers: 'block' });
       const intercepted = await ctx.newPage();
 
       // One page-lifetime interceptor, so a redirect hop and a page-initiated

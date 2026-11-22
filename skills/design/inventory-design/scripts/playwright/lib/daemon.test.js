@@ -493,3 +493,36 @@ test('a browser whose request interception fails to start is closed and launched
     }
   });
 });
+
+test('the browser keeps cross-site frames on the intercepted page and blocks service workers', { timeout: 8000 }, async () => {
+  await withTmpDir(async dir => {
+    const log = resolve(dir, 'playwright.log');
+    const child = forkDaemon(dir, {
+      ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000',
+      ACCELERATOR_PLAYWRIGHT_NS_ROOT: pathResolve(
+        import.meta.dirname,
+        '__fixtures__/playwright-that-records-its-launch'
+      ),
+      FAKE_PLAYWRIGHT_LOG: log,
+    });
+    try {
+      const info = await waitForInfo(dir, 5000);
+      await send(info.url, { protocol: 1, command: 'navigate', url: 'https://app.example.com/' });
+
+      const recorded = Object.fromEntries(
+        readFileSync(log, 'utf8')
+          .trim()
+          .split('\n')
+          .map(line => JSON.parse(line))
+          .map(({ event, options }) => [event, options])
+      );
+      assert.ok(
+        recorded.launch.args?.includes('--disable-site-isolation-trials'),
+        JSON.stringify(recorded.launch)
+      );
+      assert.equal(recorded.newContext?.serviceWorkers, 'block');
+    } finally {
+      child.kill('SIGTERM');
+    }
+  });
+});
