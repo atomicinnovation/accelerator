@@ -26,6 +26,7 @@ use crate::web_command::WebAdapters;
 const OPENALEX_API_URL: &str = "ACCELERATOR_OPENALEX_API_URL";
 const ARXIV_API_URL: &str = "ACCELERATOR_ARXIV_API_URL";
 const ARXIV_OAI_URL: &str = "ACCELERATOR_ARXIV_OAI_URL";
+const CROSSREF_API_URL: &str = "ACCELERATOR_CROSSREF_API_URL";
 const CLOCK_LOG: &str = "ACCELERATOR_RESEARCH_TEST_CLOCK_LOG";
 const CLOCK_EPOCH: &str = "ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH";
 const CALL_BUDGET: &str = "ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS";
@@ -58,6 +59,15 @@ pub fn arxiv_api() -> Result<Endpoint, String> {
 /// The rejected value when the override is not a loopback URL.
 pub fn arxiv_oai() -> Result<Endpoint, String> {
     overridden(ARXIV_OAI_URL, Endpoint::arxiv_oai)
+}
+
+/// The Crossref REST API, overridden when the variable is set.
+///
+/// # Errors
+///
+/// The rejected value when the override is not a loopback URL.
+pub fn crossref_api() -> Result<Endpoint, String> {
+    overridden(CROSSREF_API_URL, Endpoint::crossref_api)
 }
 
 /// Only a loopback override is honoured, so it can never aim a key at a

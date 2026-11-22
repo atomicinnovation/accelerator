@@ -31,6 +31,12 @@ pub fn search_binding(query: &str, limit: u8) -> String {
     format!("\"verb\":\"search\",\"query\":{query:?},\"limit\":{limit}")
 }
 
+/// The stored arguments of a DOI metadata call, as a ticket record holds
+/// them.
+pub fn doi_binding(doi: &str) -> String {
+    format!("\"verb\":\"metadata\",\"doi\":{doi:?}")
+}
+
 /// A ticket record seeded relative to the test clock's epoch, which is
 /// every call's wall time when it joins the queue.
 pub struct SeededTicket<'a> {
@@ -91,6 +97,10 @@ pub fn arxiv_fixture(name: &str) -> String {
 
 pub fn web_fixture(name: &str) -> String {
     adapter_fixture("web", name)
+}
+
+pub fn crossref_fixture(name: &str) -> String {
+    adapter_fixture("crossref", name)
 }
 
 fn adapter_fixture(family: &str, name: &str) -> String {
@@ -310,6 +320,61 @@ impl Project {
         self.seed_ticket_before(ticket, seeded, epoch_ms());
     }
 
+    /// Seeds a ticket into `service`'s queue relative to the test clock's
+    /// epoch.
+    pub fn seed_service_ticket(
+        &self,
+        service: Service,
+        ticket: &str,
+        seeded: &SeededTicket<'_>,
+    ) {
+        Self::seed_ticket_into(
+            &self.service_queue_dir(service),
+            ticket,
+            seeded,
+            epoch_ms(),
+        );
+    }
+
+    /// Holds a ticket in `service`'s queue, as the call presenting it
+    /// would.
+    pub fn hold_service_ticket(&self, service: Service, ticket: &str) -> File {
+        Self::hold_path(
+            &self
+                .service_queue_dir(service)
+                .join(format!("{ticket}.lock")),
+        )
+    }
+
+    /// Records a `Retry-After` in `service`'s pacing that every caller must
+    /// honour until `seconds` after the test clock's epoch.
+    pub fn defer_service(&self, service: Service, seconds: u64) {
+        let path = self.service_state(service, StateFile::Pacing);
+        std::fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("mkdir service state");
+        std::fs::write(
+            path,
+            format!(
+                "{{\"schema_version\":1,\"last_sent_ms\":null,\
+                 \"next_free_ms\":null,\"last_finish_ms\":null,\
+                 \"not_before_ms\":{}}}",
+                epoch_ms() + seconds * 1000
+            ),
+        )
+        .expect("write pacing");
+    }
+
+    /// The send stamps `service`'s gate logged.
+    pub fn service_requests(&self, service: Service) -> Vec<u64> {
+        std::fs::read_to_string(
+            self.service_state(service, StateFile::RequestLog),
+        )
+        .unwrap_or_default()
+        .lines()
+        .map(|line| line.parse().expect("a stamp in milliseconds"))
+        .collect()
+    }
+
     /// Seeds a ticket for calls on the real clock, relative to now.
     pub fn seed_ticket_now(&self, ticket: &str, seeded: &SeededTicket<'_>) {
         self.seed_ticket_before(ticket, seeded, now_ms());
@@ -396,8 +461,13 @@ impl Project {
 
     /// The tickets with a record in the queue, in issue order.
     pub fn tickets(&self) -> Vec<String> {
+        self.service_tickets(Service::Arxiv)
+    }
+
+    /// The tickets with a record in `service`'s queue, in issue order.
+    pub fn service_tickets(&self, service: Service) -> Vec<String> {
         let mut tickets: Vec<(u64, String)> =
-            std::fs::read_dir(self.queue_dir())
+            std::fs::read_dir(self.service_queue_dir(service))
                 .expect("list the queue")
                 .filter_map(|entry| {
                     let name =
@@ -512,6 +582,7 @@ pub fn fetch_from(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
         .env_remove("ACCELERATOR_OPENALEX_API_URL")
         .env_remove("ACCELERATOR_ARXIV_API_URL")
         .env_remove("ACCELERATOR_ARXIV_OAI_URL")
+        .env_remove("ACCELERATOR_CROSSREF_API_URL")
         .stdin(Stdio::null());
     for (name, value) in env {
         command.env(name, value);
@@ -565,6 +636,7 @@ fn command(
         .env("ACCELERATOR_OPENALEX_API_URL", server.base_url())
         .env("ACCELERATOR_ARXIV_API_URL", server.base_url())
         .env("ACCELERATOR_ARXIV_OAI_URL", server.base_url())
+        .env("ACCELERATOR_CROSSREF_API_URL", server.base_url())
         .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_LOG")
         .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY")

@@ -82,7 +82,7 @@ fn an_unknown_family_or_verb_is_a_usage_error() {
     assert_usage_error(
         &["openAlex", "search", "graphs"],
         "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex, \
-         arxiv or web)",
+         arxiv, web or doi)",
     );
     assert_usage_error(
         &["openalex", "find", "graphs"],
@@ -140,10 +140,11 @@ fn help_documents_the_families_verbs_limit_range_and_deadline() {
         "arxiv",
         "search",
         "lookup",
+        "doi takes metadata",
         "1–25",
         "100 s",
         "--ticket",
-        "Re-present the ticket a waiting arXiv call printed",
+        "Re-present the ticket a waiting arXiv or DOI call printed",
         "waiting",
         "other than ok, unavailable or waiting",
         "clears once that call returns",
@@ -851,7 +852,7 @@ fn a_ticket_on_openalex_is_a_usage_error() {
     assert_eq!(run.code, Some(2));
     assert_eq!(
         run.stderr.trim(),
-        "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches"
+        "E_RESEARCH_USAGE: --ticket applies only to arxiv and doi fetches"
     );
     assert_eq!(server.hits(&works()), 0);
 }

@@ -45,10 +45,13 @@ use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
+use research::sources::service::CrossrefPool;
+use research::sources::service::Service;
 use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
+use research_adapters::crossref_json::JsonCrossrefDecoder;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::diagnostics::Stderr;
 use research_adapters::host_resolver::DnsHostResolver;
@@ -68,7 +71,10 @@ use crate::cli::TopicAction;
 use crate::context::ProjectContext;
 use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::ArxivCall;
+use crate::fetch_command::DoiAdapters;
+use crate::fetch_command::DoiCall;
 use crate::fetch_command::Fetched;
+use crate::fetch_command::FetchedDoi;
 use crate::fetch_command::FetchedRecords;
 use crate::fetch_command::OpenAlexAdapters;
 use crate::fetch_command::OpenAlexCall;
@@ -170,6 +176,7 @@ fn fetch(
     match fetch_command::run(clock.as_ref(), deadline, &call) {
         Ok(Fetched::Records(records)) => report(&records),
         Ok(Fetched::Page(page)) => report_page(page),
+        Ok(Fetched::Doi(doi)) => report_doi(&doi),
         Err(error) => failure(&error.to_string()),
     }
 }
@@ -331,21 +338,12 @@ fn source_call(
         FetchRequest::Arxiv(request) => {
             let endpoints =
                 selected_endpoints().map_err(|error| usage(&error))?;
-            let (_, project) =
-                working_project().map_err(|error| failure(&error))?;
+            let context = queued_context(clock)?;
             let transport = http_transport(deadline)?;
-            let scratch = project
-                .research_scratch()
-                .map_err(|error| failure(&error.to_string()))?;
-            let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
-            let research = ScratchDir::new(&project.root, &scratch);
+            let research = context.research.clone();
+            let diagnostics = context.diagnostics.clone();
             let arxiv = ServiceAdapters::for_arxiv(
-                &AdapterContext {
-                    research: research.clone(),
-                    clock: clock.clone(),
-                    diagnostics: diagnostics.clone(),
-                    nonces: Rc::new(random_nonce),
-                },
+                &context,
                 Some(PreviousRelease {
                     queue: research.nested("arxiv-queue"),
                     lock: research.path("arxiv.lock"),
@@ -372,6 +370,43 @@ fn source_call(
             request,
             selected_web_adapters().map_err(|error| usage(&error))?,
         ),
+        FetchRequest::Doi(request) => {
+            let endpoints =
+                selected_endpoints().map_err(|error| usage(&error))?;
+            let context = queued_context(clock)?;
+            let transport = http_transport(deadline)?;
+            let pool = CrossrefPool::Public;
+            let crossref = ServiceAdapters::for_crossref(pool, &context);
+            SourceCall::Doi(
+                DoiCall { request, presented },
+                DoiAdapters {
+                    service: Service::Crossref(pool),
+                    api: endpoints.crossref_api,
+                    transport: Box::new(transport),
+                    decoder: Box::new(JsonCrossrefDecoder),
+                    gate: Box::new(crossref.gate),
+                    queue: Box::new(crossref.queue),
+                    contention: Box::new(crossref.contention),
+                    diagnostics: context.diagnostics,
+                },
+            )
+        }
+    })
+}
+
+/// What every queued service's adapters share, rooted in the enclosing
+/// project's research scratch directory.
+fn queued_context(clock: &Rc<dyn Clock>) -> Result<AdapterContext, ExitCode> {
+    let (_, project) = working_project().map_err(|error| failure(&error))?;
+    let scratch = project
+        .research_scratch()
+        .map_err(|error| failure(&error.to_string()))?;
+    let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
+    Ok(AdapterContext {
+        research: ScratchDir::new(&project.root, &scratch),
+        clock: clock.clone(),
+        diagnostics,
+        nonces: Rc::new(random_nonce),
     })
 }
 
@@ -400,6 +435,19 @@ fn report(fetched: &FetchedRecords) -> ExitCode {
         eprintln!("{summary}");
     }
     render::document(fetched).map_or(ExitCode::FAILURE, |document| {
+        println!("{document}");
+        ExitCode::SUCCESS
+    })
+}
+
+fn report_doi(fetched: &FetchedDoi) -> ExitCode {
+    if let Some(rejection) = render::doi_rejection(fetched) {
+        return usage(&rejection);
+    }
+    if let Some(summary) = render::doi_summary(fetched) {
+        eprintln!("{summary}");
+    }
+    render::doi_document(fetched).map_or(ExitCode::FAILURE, |document| {
         println!("{document}");
         ExitCode::SUCCESS
     })
@@ -477,6 +525,7 @@ struct Endpoints {
     openalex_api: Endpoint,
     arxiv_api: Endpoint,
     arxiv_oai: Endpoint,
+    crossref_api: Endpoint,
 }
 
 #[cfg(feature = "test-loopback")]
@@ -485,6 +534,7 @@ fn selected_endpoints() -> Result<Endpoints, String> {
         openalex_api: loopback::openalex_api()?,
         arxiv_api: loopback::arxiv_api()?,
         arxiv_oai: loopback::arxiv_oai()?,
+        crossref_api: loopback::crossref_api()?,
     })
 }
 
@@ -495,5 +545,6 @@ fn selected_endpoints() -> Result<Endpoints, String> {
         openalex_api: Endpoint::openalex(),
         arxiv_api: Endpoint::arxiv_api(),
         arxiv_oai: Endpoint::arxiv_oai(),
+        crossref_api: Endpoint::crossref_api(),
     })
 }

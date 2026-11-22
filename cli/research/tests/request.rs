@@ -31,11 +31,12 @@ fn a_family_parses_only_from_its_exact_name() {
     assert_eq!(Family::parse("openalex"), Ok(Family::OpenAlex));
     assert_eq!(Family::parse("arxiv"), Ok(Family::Arxiv));
     assert_eq!(Family::parse("web"), Ok(Family::Web));
+    assert_eq!(Family::parse("doi"), Ok(Family::Doi));
     assert_eq!(
         Family::parse("openAlex").map_err(|error| error.to_string()),
         Err(
             "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex, \
-             arxiv or web)"
+             arxiv, web or doi)"
                 .to_owned()
         )
     );
@@ -52,14 +53,13 @@ fn a_family_names_itself_for_callers_and_for_readers() {
 }
 
 #[test]
-fn the_doi_family_names_itself_but_is_not_yet_accepted_from_callers() {
+fn the_doi_family_names_itself_and_is_accepted_from_callers() {
     assert_eq!(Family::Doi.code(), "doi");
     assert_eq!(Family::Doi.to_string(), "DOI");
     assert_eq!(
-        Family::parse("doi"),
-        Err(RequestError::UnknownFamily("doi".to_owned()))
+        Family::ALL,
+        [Family::OpenAlex, Family::Arxiv, Family::Web, Family::Doi]
     );
-    assert!(!Family::ALL.contains(&Family::Doi));
 }
 
 #[test]
@@ -74,6 +74,7 @@ const VERBS: [Verb; 3] = [Verb::Search, Verb::Lookup, Verb::Metadata];
 const fn a_valid_term_for(family: Family, verb: Verb) -> &'static str {
     match (family, verb) {
         (Family::Arxiv, Verb::Lookup) => "2608.21129",
+        (Family::Doi, _) => "10.1145/371920.372066",
         (_, Verb::Lookup) => "W1",
         (_, Verb::Search) => "graphs",
         (_, Verb::Metadata) => "https://example.org/",
@@ -189,6 +190,48 @@ fn a_malformed_page_url_is_distinguishable_from_a_usage_error() {
 }
 
 #[test]
+fn a_doi_metadata_request_carries_its_doi() {
+    assert_eq!(
+        FetchRequest::parse(
+            "doi",
+            "metadata",
+            &terms(&["https://doi.org/10.1145/371920.372066"]),
+            None
+        ),
+        Ok(FetchRequest::Doi(
+            DoiRequest::parse(
+                "metadata",
+                &terms(&["10.1145/371920.372066"]),
+                None
+            )
+            .expect("a DOI request")
+        ))
+    );
+}
+
+#[test]
+fn a_ticket_is_accepted_for_a_doi_request() {
+    assert_eq!(
+        parse_ticket(Family::Doi, Some("42-9f1c2a"))
+            .map(|ticket| ticket.map(|ticket| ticket.to_string())),
+        Ok(Some("42-9f1c2a".to_owned()))
+    );
+}
+
+#[test]
+fn a_malformed_ticket_on_a_doi_request_names_the_doi_family() {
+    assert_eq!(
+        parse_ticket(Family::Doi, Some("42"))
+            .map_err(|error| error.to_string()),
+        Err(
+            "E_DOI_TICKET_MALFORMED: expected a ticket such as 42-9f1c2a \
+             (got '42')"
+                .to_owned()
+        )
+    );
+}
+
+#[test]
 fn a_ticket_is_refused_for_a_web_request() {
     assert_eq!(
         parse_ticket(Family::Web, Some("42-9f1c2a")),
@@ -203,6 +246,7 @@ fn a_request_names_the_verb_it_was_parsed_from() {
         ("openalex", "lookup", "W1", Verb::Lookup),
         ("arxiv", "search", "graphs", Verb::Search),
         ("arxiv", "lookup", "2608.21129", Verb::Lookup),
+        ("doi", "metadata", "10.1145/371920.372066", Verb::Metadata),
     ] {
         let request = FetchRequest::parse(family, verb, &terms(&[term]), None)
             .expect("a valid request");
@@ -611,7 +655,7 @@ fn a_request_refuses_each_usage_error_naming_the_bad_value() {
             &["x"],
             None,
             "E_RESEARCH_USAGE: unknown family 'crossref' (expected openalex, \
-             arxiv or web)",
+             arxiv, web or doi)",
         ),
     ];
     for (family, verb, words, limit, message) in cases {

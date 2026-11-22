@@ -232,7 +232,7 @@ fn a_ticket_on_an_openalex_call_is_not_queued() {
     assert_eq!(refused, RequestError::TicketNotQueued);
     assert_eq!(
         refused.to_string(),
-        "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches"
+        "E_RESEARCH_USAGE: --ticket applies only to arxiv and doi fetches"
     );
 }
 

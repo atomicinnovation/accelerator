@@ -41,14 +41,14 @@ impl fmt::Display for RequestError {
         match self {
             Self::UnknownFamily(family) => write!(
                 formatter,
-                "E_RESEARCH_USAGE: unknown family '{family}' (expected \
-                 openalex, arxiv or web)"
+                "E_RESEARCH_USAGE: unknown family '{family}' (expected {})",
+                alternatives(Family::ALL.iter().map(|family| family.code())),
             ),
             Self::UnknownVerb { verb, family } => write!(
                 formatter,
                 "E_RESEARCH_USAGE: unknown verb '{verb}' ({} supports {})",
                 family.code(),
-                alternatives(family.verbs()),
+                alternatives(family.verbs().iter().map(|verb| verb.code())),
             ),
             Self::LimitOutOfRange(limit) => write!(
                 formatter,
@@ -100,7 +100,8 @@ impl fmt::Display for RequestError {
                 family.code().to_ascii_uppercase()
             ),
             Self::TicketNotQueued => formatter.write_str(
-                "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches",
+                "E_RESEARCH_USAGE: --ticket applies only to arxiv and doi \
+                 fetches",
             ),
         }
     }
@@ -117,8 +118,8 @@ impl RequestError {
     }
 }
 
-fn alternatives(verbs: &[Verb]) -> String {
-    let codes = verbs.iter().map(|verb| verb.code()).collect::<Vec<_>>();
+fn alternatives<'a>(codes: impl Iterator<Item = &'a str>) -> String {
+    let codes = codes.collect::<Vec<_>>();
     match codes.split_last() {
         Some((last, rest)) if !rest.is_empty() => {
             format!("{} or {last}", rest.join(", "))
@@ -127,7 +128,8 @@ fn alternatives(verbs: &[Verb]) -> String {
     }
 }
 
-/// The ticket a waiting arXiv call printed, re-presented by its caller.
+/// The ticket a waiting arXiv or DOI call printed, re-presented by its
+/// caller.
 ///
 /// # Errors
 ///
@@ -140,7 +142,7 @@ pub fn parse_ticket(
     let Some(raw) = raw else {
         return Ok(None);
     };
-    if family != Family::Arxiv {
+    if !matches!(family, Family::Arxiv | Family::Doi) {
         return Err(RequestError::TicketNotQueued);
     }
     Ticket::parse(raw)
@@ -160,7 +162,8 @@ pub enum Family {
 }
 
 impl Family {
-    pub const ALL: [Self; 3] = [Self::OpenAlex, Self::Arxiv, Self::Web];
+    pub const ALL: [Self; 4] =
+        [Self::OpenAlex, Self::Arxiv, Self::Web, Self::Doi];
 
     /// # Errors
     ///
@@ -170,6 +173,7 @@ impl Family {
             "openalex" => Ok(Self::OpenAlex),
             "arxiv" => Ok(Self::Arxiv),
             "web" => Ok(Self::Web),
+            "doi" => Ok(Self::Doi),
             _ => Err(RequestError::UnknownFamily(raw.to_owned())),
         }
     }
@@ -640,6 +644,7 @@ pub enum FetchRequest {
     OpenAlex(OpenAlexRequest),
     Arxiv(ArxivRequest),
     Web(WebRequest),
+    Doi(DoiRequest),
 }
 
 impl FetchRequest {
@@ -663,9 +668,7 @@ impl FetchRequest {
                 Self::Arxiv(ArxivRequest::parse(verb, terms, limit)?)
             }
             Family::Web => Self::Web(WebRequest::parse(verb, terms, limit)?),
-            Family::Doi => {
-                return Err(RequestError::UnknownFamily(family.to_owned()))
-            }
+            Family::Doi => Self::Doi(DoiRequest::parse(verb, terms, limit)?),
         })
     }
 
@@ -674,6 +677,7 @@ impl FetchRequest {
             Self::OpenAlex(_) => Family::OpenAlex,
             Self::Arxiv(_) => Family::Arxiv,
             Self::Web(_) => Family::Web,
+            Self::Doi(_) => Family::Doi,
         }
     }
 
@@ -681,7 +685,7 @@ impl FetchRequest {
         match self {
             Self::OpenAlex(request) => request.verb(),
             Self::Arxiv(request) => request.verb(),
-            Self::Web(WebRequest::Metadata(_)) => Verb::Metadata,
+            Self::Web(WebRequest::Metadata(_)) | Self::Doi(_) => Verb::Metadata,
         }
     }
 }

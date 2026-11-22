@@ -5,6 +5,7 @@
 //! the asked source's adapters, so the whole call runs against fakes.
 
 use std::cell::Cell;
+use std::rc::Rc;
 
 use config::consent;
 use config::consent::Refusal;
@@ -15,7 +16,9 @@ use config::credentials::TokenSource;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::credentials::CredentialPorts;
 use research::sources::classify::Response;
+use research::sources::crossref::DoiMetadata;
 use research::sources::fetch::fetch_arxiv;
+use research::sources::fetch::fetch_doi;
 use research::sources::fetch::fetch_openalex;
 use research::sources::fetch::ArxivAnswer;
 use research::sources::fetch::ArxivDecoder;
@@ -24,6 +27,10 @@ use research::sources::fetch::ArxivPorts;
 use research::sources::fetch::Clock;
 use research::sources::fetch::ConfirmationCache;
 use research::sources::fetch::ContentionLog;
+use research::sources::fetch::CrossrefDecoder;
+use research::sources::fetch::Diagnostics;
+use research::sources::fetch::DoiFetch;
+use research::sources::fetch::DoiPorts;
 use research::sources::fetch::FetchOutcome;
 use research::sources::fetch::OpenAlexDecoder;
 use research::sources::fetch::OpenAlexFetch;
@@ -35,6 +42,7 @@ use research::sources::queue::ServiceQueue;
 use research::sources::queue::Ticket;
 use research::sources::request::ApiKey;
 use research::sources::request::ArxivRequest;
+use research::sources::request::DoiRequest;
 use research::sources::request::Endpoint;
 use research::sources::request::Family;
 use research::sources::request::KeySource;
@@ -57,6 +65,7 @@ pub enum SourceCall {
     OpenAlex(OpenAlexCall, OpenAlexAdapters),
     Arxiv(ArxivCall, ArxivAdapters),
     Web(WebRequest, WebAdapters),
+    Doi(DoiCall, DoiAdapters),
 }
 
 /// The project is where the OpenAlex key is configured.
@@ -67,6 +76,11 @@ pub struct OpenAlexCall {
 
 pub struct ArxivCall {
     pub request: ArxivRequest,
+    pub presented: Option<Ticket>,
+}
+
+pub struct DoiCall {
+    pub request: DoiRequest,
     pub presented: Option<Ticket>,
 }
 
@@ -89,11 +103,33 @@ pub struct ArxivAdapters {
     pub contention: Box<dyn ContentionLog>,
 }
 
+/// The pool `service` names is the one `gate`, `queue` and `contention` were
+/// built for.
+pub struct DoiAdapters {
+    pub service: Service,
+    pub api: Endpoint,
+    pub transport: Box<dyn Transport>,
+    pub decoder: Box<dyn CrossrefDecoder>,
+    pub gate: Box<dyn PacingGate>,
+    pub queue: Box<dyn ServiceQueue>,
+    pub contention: Box<dyn ContentionLog>,
+    pub diagnostics: Rc<dyn Diagnostics>,
+}
+
 /// What the asked source answered.
 #[derive(Debug)]
 pub enum Fetched {
     Records(FetchedRecords),
     Page(Result<SourceMetadata, WebFailure>),
+    Doi(FetchedDoi),
+}
+
+/// A DOI call, however its queue or Crossref answered.
+#[derive(Debug)]
+pub struct FetchedDoi {
+    pub service: Service,
+    pub attempts: usize,
+    pub outcome: Queued<DoiMetadata>,
 }
 
 /// A records call that reached its source, however the source answered.
@@ -143,7 +179,41 @@ pub fn run(
         SourceCall::Web(request, adapters) => {
             Fetched::Page(web_command::run(request, adapters, clock, deadline))
         }
+        SourceCall::Doi(call, adapters) => {
+            Fetched::Doi(from_doi(clock, adapters, deadline, call))
+        }
     })
+}
+
+fn from_doi(
+    clock: &dyn Clock,
+    adapters: &DoiAdapters,
+    deadline: &Deadline,
+    call: &DoiCall,
+) -> FetchedDoi {
+    let transport = Counted::around(adapters.transport.as_ref());
+    let outcome = fetch_doi(
+        &DoiFetch {
+            doi: call.request.doi(),
+            presented: call.presented.as_ref(),
+            api: &adapters.api,
+        },
+        &DoiPorts {
+            transport: &transport,
+            decoder: adapters.decoder.as_ref(),
+            clock,
+            gate: adapters.gate.as_ref(),
+            queue: adapters.queue.as_ref(),
+            contention: adapters.contention.as_ref(),
+            diagnostics: adapters.diagnostics.as_ref(),
+        },
+        deadline,
+    );
+    FetchedDoi {
+        service: adapters.service,
+        attempts: transport.sent.get(),
+        outcome,
+    }
 }
 
 fn from_openalex(
@@ -706,7 +776,7 @@ mod tests {
         fn run(&self) -> Result<FetchedRecords, CredentialError> {
             self.fetch().map(|fetched| match fetched {
                 Fetched::Records(records) => records,
-                Fetched::Page(page) => panic!("expected records, got {page:?}"),
+                other => panic!("expected records, got {other:?}"),
             })
         }
 
@@ -763,6 +833,9 @@ mod tests {
                         transport: Box::new(NoPage),
                     },
                 ),
+                FetchRequest::Doi(_) => {
+                    unreachable!("the DOI call runs through the binary's tests")
+                }
             }
         }
 

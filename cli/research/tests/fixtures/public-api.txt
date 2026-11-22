@@ -1494,7 +1494,7 @@ pub research::sources::request::Family::Doi
 pub research::sources::request::Family::OpenAlex
 pub research::sources::request::Family::Web
 impl research::sources::request::Family
-pub const research::sources::request::Family::ALL: [Self; 3]
+pub const research::sources::request::Family::ALL: [Self; 4]
 pub const fn research::sources::request::Family::code(self) -> &'static str
 pub fn research::sources::request::Family::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
 pub const fn research::sources::request::Family::verbs(self) -> &'static [research::sources::request::Verb]
@@ -1511,6 +1511,7 @@ impl core::marker::Copy for research::sources::request::Family
 impl core::marker::StructuralPartialEq for research::sources::request::Family
 pub enum research::sources::request::FetchRequest
 pub research::sources::request::FetchRequest::Arxiv(research::sources::request::ArxivRequest)
+pub research::sources::request::FetchRequest::Doi(research::sources::request::DoiRequest)
 pub research::sources::request::FetchRequest::OpenAlex(research::sources::request::OpenAlexRequest)
 pub research::sources::request::FetchRequest::Web(research::sources::request::WebRequest)
 impl research::sources::request::FetchRequest
