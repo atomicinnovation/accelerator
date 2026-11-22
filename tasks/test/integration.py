@@ -278,20 +278,25 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
     """Resolve the materialised runtime trees, or refuse the lane.
 
     Prefers the launcher-exported tree paths; failing that, materialises them
-    through the `build:cli:dev` launcher's `cache ensure` and reads each tree
-    path from its tab-separated success line. An unresolvable runtime is a
-    visible refusal rather than a silent pass.
+    through the `build:cli:dev` launcher's `cache ensure`. An unresolvable
+    runtime is a visible refusal rather than a silent pass.
     """
+    trees = _exported_runtime_trees() or _ensured_runtime_trees(context)
+    return {_tree_variable(artifact): path for artifact, path in trees.items()}
+
+
+def _exported_runtime_trees() -> dict[str, str] | None:
     exported = {
         artifact: os.environ.get(_tree_variable(artifact), "")
         for artifact in _RUNTIME_TREES
     }
     if all(path and Path(path).is_dir() for path in exported.values()):
-        return {
-            _tree_variable(artifact): path
-            for artifact, path in exported.items()
-        }
+        return exported
+    return None
 
+
+def _ensured_runtime_trees(context: Context) -> dict[str, str]:
+    """Materialise the trees, reading each path from its success line."""
     launcher_env = {
         **accelerator_env(),
         "ACCELERATOR_CACHE_DIR": str(_RUNTIME_TREE_CACHE),
@@ -303,36 +308,43 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
         hide=True,
         env=launcher_env,
     )
-    resolved: dict[str, str] = {}
-    launcher_said: list[str] = []
-    if ensured is not None and ensured.exited == 0:
-        for line in ensured.stdout.splitlines():
-            fields = line.split("\t")
-            if len(fields) >= 2 and fields[0] in _RUNTIME_TREES:
-                resolved[fields[0]] = fields[1]
-    elif ensured is not None:
-        launcher_said = [f"The launcher said:\n  {ensured.stderr.strip()}"]
+    if ensured is None or ensured.exited != 0:
+        raise _runtime_tree_unavailable(
+            _RUNTIME_TREES[0], None if ensured is None else ensured.stderr
+        )
+    reported = {}
+    for line in ensured.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) >= 2 and fields[0] in _RUNTIME_TREES:
+            reported[fields[0]] = fields[1]
     for artifact in _RUNTIME_TREES:
-        tree = resolved.get(artifact)
+        tree = reported.get(artifact)
         if tree is None or not Path(tree).is_dir():
-            raise Exit(
-                "\n".join(
-                    [
-                        f"the vendored Playwright {artifact} tree is not "
-                        "available.",
-                        *launcher_said,
-                        "Fix the cause, then re-run "
-                        "`mise run test:integration:design-automation`. This "
-                        "lane fails rather than skipping: a skipped runtime "
-                        "suite is indistinguishable from a passing one.",
-                    ]
-                ),
-                code=1,
-            )
-    return {
-        _tree_variable(artifact): resolved[artifact]
-        for artifact in _RUNTIME_TREES
-    }
+            raise _runtime_tree_unavailable(artifact)
+    return reported
+
+
+def _runtime_tree_unavailable(
+    artifact: str, launcher_stderr: str | None = None
+) -> Exit:
+    launcher_said = (
+        [f"The launcher said:\n  {launcher_stderr.strip()}"]
+        if launcher_stderr
+        else []
+    )
+    return Exit(
+        "\n".join(
+            [
+                f"the vendored Playwright {artifact} tree is not available.",
+                *launcher_said,
+                "Fix the cause, then re-run "
+                "`mise run test:integration:design-automation`. This lane "
+                "fails rather than skipping: a skipped runtime suite is "
+                "indistinguishable from a passing one.",
+            ]
+        ),
+        code=1,
+    )
 
 
 @task(help={"filter_": NODE_TEST_RUNTIME_FILTER_HELP})
