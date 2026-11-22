@@ -105,3 +105,27 @@ def test_a_tree_the_ensure_step_does_not_report_refuses_the_lane(
 
     with pytest.raises(Exit, match="browser tree is not available"):
         integration.design_automation(context)
+
+
+def _failed_ensure(monkeypatch, context, stderr):
+    monkeypatch.delenv("ACCELERATOR_TREE_DRIVER", raising=False)
+    monkeypatch.delenv("ACCELERATOR_TREE_BROWSER", raising=False)
+    context.run.return_value = Result(stdout="", stderr=stderr, exited=1)
+
+
+def test_a_failed_ensure_step_shows_the_launcher_s_reason(context, monkeypatch):
+    _failed_ensure(monkeypatch, context, "artefact host unreachable\n")
+
+    with pytest.raises(Exit, match="artefact host unreachable"):
+        integration.design_automation(context)
+
+
+def test_a_failed_ensure_step_points_back_at_the_lane(context, monkeypatch):
+    _failed_ensure(monkeypatch, context, "artefact host unreachable\n")
+
+    with pytest.raises(Exit) as exc_info:
+        integration.design_automation(context)
+
+    message = str(exc_info.value)
+    assert "mise run test:integration:design-automation" in message
+    assert "accelerator cache ensure" not in message

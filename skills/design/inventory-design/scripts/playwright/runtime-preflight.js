@@ -27,7 +27,10 @@ function requireTree(variable, member) {
   assert.ok(
     existsSync(resolve(tree, member)),
     `${variable} (${tree}) holds no ${member}. Run ` +
-      '`accelerator cache repair`; this lane does not skip.'
+      '`accelerator cache repair` against the cache root holding it ' +
+      '(`ACCELERATOR_CACHE_DIR=cli/target/design-automation-cache` when ' +
+      '`mise run test:integration:design-automation` materialised it); ' +
+      'this lane does not skip.'
   );
   return resolve(tree, member);
 }

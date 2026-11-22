@@ -304,19 +304,29 @@ def _resolve_runtime_trees(context: Context) -> dict[str, str]:
         env=launcher_env,
     )
     resolved: dict[str, str] = {}
+    launcher_said: list[str] = []
     if ensured is not None and ensured.exited == 0:
         for line in ensured.stdout.splitlines():
             fields = line.split("\t")
             if len(fields) >= 2 and fields[0] in _RUNTIME_TREES:
                 resolved[fields[0]] = fields[1]
+    elif ensured is not None:
+        launcher_said = [f"The launcher said:\n  {ensured.stderr.strip()}"]
     for artifact in _RUNTIME_TREES:
         tree = resolved.get(artifact)
         if tree is None or not Path(tree).is_dir():
             raise Exit(
-                f"the vendored Playwright {artifact} tree is not available. "
-                f"Run `accelerator cache ensure {' '.join(_RUNTIME_TREES)}`, "
-                "then retry. This lane fails rather than skipping: a skipped "
-                "runtime suite is indistinguishable from a passing one.",
+                "\n".join(
+                    [
+                        f"the vendored Playwright {artifact} tree is not "
+                        "available.",
+                        *launcher_said,
+                        "Fix the cause, then re-run "
+                        "`mise run test:integration:design-automation`. This "
+                        "lane fails rather than skipping: a skipped runtime "
+                        "suite is indistinguishable from a passing one.",
+                    ]
+                ),
                 code=1,
             )
     return {
