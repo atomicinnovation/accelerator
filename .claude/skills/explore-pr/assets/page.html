@@ -326,6 +326,8 @@ details[open] > summary { margin-bottom: 8px; }
 .r-skim { background: var(--risk-skim); color: var(--risk-skim-ink); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); align-items: center; }
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.toast { position: fixed; z-index: 60; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 14px; align-items: center; max-width: min(560px, calc(100vw - 32px)); background: var(--ink); color: var(--panel); border-radius: 8px; box-shadow: var(--shadow); padding: 10px 14px; font-size: 13.5px; }
+.toast .loc { color: var(--panel); font-weight: 600; text-decoration: underline; }
 .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--shadow); padding: 10px 12px; font-size: 13px; max-width: 340px; display: grid; gap: 4px; }
 .budget { display: flex; height: 30px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--panel); }
 .budget > div { display: flex; align-items: center; padding: 0 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 0; }
@@ -363,12 +365,17 @@ details[open] > summary { margin-bottom: 8px; }
 .facet-opts label:hover { background: var(--panel-2); }
 .facet-opts label span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-list .facet-opts input { width: auto; margin: 0; }
-.nav-count { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline; margin: 0 2px 4px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.nav-count #nav-count { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-count { margin: 0 2px 4px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.nav-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline; }
+.nav-line > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bulk-bar > :first-child { color: var(--ink); font-weight: 600; }
 #navigator { display: flex; flex-direction: column; overflow: hidden; gap: 0; }
 .nav-head { flex: none; padding-bottom: 4px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
 #nav-tree { display: grid; gap: 1px; align-content: start; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-#nav-tree .fl-item { grid-template-columns: 10px 28px minmax(0, 1fr) auto; gap: 6px; padding-left: calc(4px + var(--depth, 0) * 14px); }
+#nav-tree .nav-row { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; padding-left: calc(var(--depth, 0) * 14px); }
+#nav-tree .fl-item { grid-template-columns: 10px 28px minmax(0, 1fr) auto; gap: 6px; padding-left: 4px; }
+#nav-tree .pick { margin: 0; visibility: hidden; cursor: pointer; }
+#nav-tree .nav-row:hover .pick, #nav-tree .pick:focus-visible, #nav-tree.selecting .pick { visibility: visible; }
 #nav-tree .nm { direction: ltr; }
 #nav-tree .nm .base, #nav-tree .nm .dir { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #nav-tree .nm .dir { direction: rtl; text-align: left; color: var(--ink-3); font-size: 11px; }
@@ -480,6 +487,7 @@ details[open] > summary { margin-bottom: 8px; }
   <main id="main"><div class="loading">Loading the pull request…</div></main>
 </div>
 <div class="tip" id="tip" hidden></div>
+<div class="toast" id="undo-toast" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -562,12 +570,19 @@ const Store = {
     onStateChange();
   },
   put(target, kind, patch, meta, opts = {}) {
-    if (!this.canWrite) return;
-    const cur = this.get(target);
-    const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, ...(opts.preserveHead ? {} : headOfVerdict(target, cur, patch)), updatedAt: new Date().toISOString() };
-    this.docs.set(target, doc);
+    this.putMany([{ target, kind, patch, meta }], opts);
+  },
+  putMany(entries, opts = {}) {
+    if (!this.canWrite || !entries.length) return;
+    const updatedAt = new Date().toISOString();
+    for (const { target, kind, patch, meta } of entries) {
+      const cur = this.get(target);
+      const doc = { target, kind, status: cur.status || '', note: cur.note || '', ...meta, ...patch, ...(opts.preserveHead ? {} : headOfVerdict(target, cur, patch)), updatedAt };
+      this.docs.set(target, doc);
+      if (this.mode === 'db') this.pending.set(target, doc);
+    }
     this.version++;
-    if (this.mode === 'db') { this.pending.set(target, doc); this.flush(target); }
+    if (this.mode === 'db') entries.forEach(({ target }) => this.flush(target));
     else { try { localStorage.setItem(this.key, JSON.stringify(Object.fromEntries(this.docs))); } catch (e) { /* storage unavailable */ } }
     onStateChange();
   },
@@ -649,7 +664,42 @@ document.addEventListener('click', e => {
   }
   const v = b.dataset.v;
   const cur = Store.get(target).status;
-  Store.put(target, kind, { status: cur === v ? '' : v }, meta);
+  const change = { target, kind, patch: { status: cur === v ? '' : v }, meta };
+  if (UNDOABLE_KINDS.has(kind)) changeUndoably(`${meta.label || target}: ${cur === v ? 'cleared' : b.textContent}`, [change]);
+  else Store.put(target, kind, change.patch, meta);
+});
+const UNDO_DEPTH = 20, TOAST_MS = 8000;
+const UNDOABLE_KINDS = new Set(['file', 'commit', 'commitfile']);
+const UndoStack = {
+  changes: [],
+  push(label, undo) {
+    this.changes.push({ label, undo });
+    if (this.changes.length > UNDO_DEPTH) this.changes.shift();
+  },
+  pop() { return this.changes.pop(); },
+};
+function changeUndoably(label, changes) {
+  const written = Object.fromEntries(changes.map(({ target, kind, meta }) => [target, { kind, meta }]));
+  const undo = BulkVerdicts.undoOf(target => Store.get(target), changes.map(change => change.target));
+  Store.putMany(changes);
+  UndoStack.push(label, undo.map(restore => ({ ...restore, ...written[restore.target] })));
+}
+function undoLast() {
+  const last = UndoStack.pop();
+  if (!last) { showToast('Nothing to undo'); return; }
+  Store.putMany(last.undo, { preserveHead: true });
+  showToast(`Undone: ${last.label}`);
+}
+let toastTimer = null;
+function showToast(message, { undo = false } = {}) {
+  const toast = $('#undo-toast');
+  toast.innerHTML = `<span>${esc(message)}</span>${undo ? '<button type="button" class="loc" data-undo>Undo</button>' : ''}`;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, TOAST_MS);
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-undo]')) undoLast();
 });
 const noteTimers = new Map();
 document.addEventListener('input', e => {
@@ -968,12 +1018,14 @@ function markRows(rows, marked) {
     const group = groups.get(tr.dataset.lp) || groups.set(tr.dataset.lp, { new: [], old: [] }).get(tr.dataset.lp);
     group[side].push(+line);
   });
-  for (const [path, sides] of groups) {
+  const changes = [...groups].map(([path, sides]) => {
     const target = 'lines:' + path;
     let lines = currentMarks({ lines: [], ...Store.get(target), target });
     for (const side of ['new', 'old']) if (sides[side].length) lines = ReviewCoverage.withLinesMarked(lines, side, sides[side], marked);
-    Store.put(target, 'lines', { lines, status: lines.length ? 'marked' : '' }, { label: `Lines you marked in ${path}`, where: path });
-  }
+    return { target, kind: 'lines', patch: { lines, status: lines.length ? 'marked' : '' }, meta: { label: `Lines you marked in ${path}`, where: path } };
+  });
+  const count = rows.length;
+  if (changes.length) changeUndoably(`${marked ? 'Marked' : 'Unmarked'} ${plural(count, 'line')}`, changes);
 }
 function flashRow(tr) { tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 900); }
 let markAnchor = null;
@@ -1928,9 +1980,79 @@ let selectedFile = null;
 function shownEntries() {
   const entries = fileEntries();
   const key = JSON.stringify([filters.files, navQuery, !!D, COMMITS.length]);
-  if (navShown.key !== key) navShown = { key, paths: new Set(entries.filter(e => FileNavigator.matches(e, filters.files, navQuery)).map(e => e.path)) };
+  if (navShown.key !== key) {
+    navShown = { key, paths: new Set(entries.filter(e => FileNavigator.matches(e, filters.files, navQuery)).map(e => e.path)) };
+    deselectHidden();
+  }
   return entries.filter(e => navShown.paths.has(e.path));
 }
+const selection = { paths: new Set(), anchor: null };
+function deselectHidden() {
+  const hidden = [...selection.paths].filter(path => !navShown.paths.has(path));
+  if (!hidden.length) return;
+  hidden.forEach(path => selection.paths.delete(path));
+  setTimeout(() => showToast(`${plural(hidden.length, 'selected file')} hidden by the filters ${hidden.length === 1 ? 'was' : 'were'} deselected`));
+}
+function foldersOf(nodes, found = {}) {
+  nodes.forEach(node => { if (node.kind !== 'file') { found[node.id] = node; foldersOf(node.children, found); } });
+  return found;
+}
+function refreshSelection() {
+  const treeEl = $('#nav-tree');
+  if (!treeEl) return;
+  const chosen = selection.paths;
+  treeEl.classList.toggle('selecting', chosen.size > 0);
+  $$('[data-pick-file]', treeEl).forEach(box => { box.checked = chosen.has(box.dataset.pickFile); });
+  const folders = foldersOf(fileTree());
+  $$('[data-pick-node]', treeEl).forEach(box => {
+    const under = FileNavigator.filesUnder(folders[box.dataset.pickNode] || { children: [] });
+    const picked = under.filter(path => chosen.has(path)).length;
+    box.checked = picked > 0 && picked === under.length;
+    box.indeterminate = picked > 0 && picked < under.length;
+  });
+  $('#nav-summary').hidden = chosen.size > 0;
+  $('#bulk-bar').hidden = chosen.size === 0;
+  $('#bulk-count').textContent = `${fmt(chosen.size)} selected`;
+}
+function pickFile(path, picked, asRange) {
+  const order = $$('#nav-tree .nav-file').map(row => row.dataset.file);
+  const from = order.indexOf(selection.anchor), to = order.indexOf(path);
+  const paths = asRange && from >= 0 && to >= 0 ? order.slice(Math.min(from, to), Math.max(from, to) + 1) : [path];
+  paths.forEach(each => (picked ? selection.paths.add(each) : selection.paths.delete(each)));
+  selection.anchor = path;
+}
+function pickFolder(id, picked) {
+  const folder = foldersOf(fileTree())[id];
+  if (folder) FileNavigator.filesUnder(folder).forEach(path => (picked ? selection.paths.add(path) : selection.paths.delete(path)));
+}
+function clearSelection() {
+  selection.paths.clear();
+  selection.anchor = null;
+  refreshSelection();
+}
+const BULK_WORDS = { ok: 'Reviewed', skip: 'Skimmed' };
+function giveBulkVerdict(status) {
+  const fileTarget = path => 'file:' + path, metaOf = target => { const path = target.slice('file:'.length); return { label: `File ${path}`, where: path }; };
+  const { writes, skipped, undo } = BulkVerdicts.plan(target => Store.get(target), [...selection.paths].map(fileTarget), status);
+  const label = status ? `Marked ${plural(writes.length, 'file')} ${BULK_WORDS[status]}` : `Cleared the verdict on ${plural(writes.length, 'file')}`;
+  Store.putMany(writes.map(write => ({ ...write, kind: 'file', meta: metaOf(write.target) })));
+  if (writes.length) UndoStack.push(label, undo.map(restore => ({ ...restore, kind: 'file', meta: metaOf(restore.target) })));
+  clearSelection();
+  const kept = skipped.length ? `${plural(skipped.length, 'file')} with an Issue left as ${skipped.length === 1 ? 'it was' : 'they were'}` : '';
+  showToast([label, kept].filter(Boolean).join(' · '), { undo: writes.length > 0 });
+}
+document.addEventListener('click', e => {
+  const box = e.target.closest('#nav-tree .pick');
+  if (box) {
+    if (box.dataset.pickFile) pickFile(box.dataset.pickFile, box.checked, e.shiftKey);
+    else pickFolder(box.dataset.pickNode, box.checked);
+    refreshSelection();
+    return;
+  }
+  const bulk = e.target.closest('#bulk-bar [data-bulk]');
+  if (bulk) { giveBulkVerdict(bulk.dataset.bulk); return; }
+  if (e.target.closest('#bulk-bar [data-deselect]')) clearSelection();
+});
 const navGroups = () => ({ layer: layersList(), chapter: C.chapters.map(c => [c.id, c.title]) });
 function fileTree() {
   const { groupBy, sortBy } = NavigatorPrefs.get();
@@ -1943,14 +2065,16 @@ function fileNameHtml(name) {
   const cut = name.lastIndexOf('/') + 1;
   return cut ? `<span class="base">${esc(name.slice(cut))}</span><span class="dir"><bdi>${esc(name.slice(0, cut))}</bdi></span>` : esc(name);
 }
+const pickBox = (attrs, label) => `<input type="checkbox" class="pick" ${attrs} aria-label="${esc(label)}" tabindex="-1">`;
+const navRow = (depth, pick, row) => `<div class="nav-row" role="none" style="--depth:${depth}">${pick}${row}</div>`;
 function navRowHtml({ node, depth }, collapsed) {
-  const at = `role="treeitem" aria-level="${depth + 1}" style="--depth:${depth}"`;
+  const at = `role="treeitem" aria-level="${depth + 1}"`;
   if (node.kind === 'file') {
     const f = node.entry;
-    return `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span aria-hidden="true"></span><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`;
+    return navRow(depth, pickBox(`data-pick-file="${esc(f.path)}"`, `Select ${f.path}`), `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span aria-hidden="true"></span><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`);
   }
   const t = node.totals;
-  return `<button type="button" class="fl-item nav-${node.kind}" ${at} aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}" data-risk="${esc(t.highestRisk)}" title="${esc(folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"><i style="width:${folderShare(t)}%"></i></span><span class="nm">${esc(node.name)}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${folderCount(t)}</span></button>`;
+  return navRow(depth, pickBox(`data-pick-node="${esc(node.id)}"`, `Select every file in ${node.path || node.name}`), `<button type="button" class="fl-item nav-${node.kind}" ${at} aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}" data-risk="${esc(t.highestRisk)}" title="${esc(folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"><i style="width:${folderShare(t)}%"></i></span><span class="nm">${esc(node.name)}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${folderCount(t)}</span></button>`);
 }
 function facetsHtml(counts) {
   return FACET_UI.map(([facet, label, options]) => {
@@ -1992,6 +2116,7 @@ function renderTree() {
   $('#nav-tree').dataset.groupBy = NavigatorPrefs.get().groupBy;
   $('#nav-tree').innerHTML = body.tree;
   refreshControls();
+  refreshSelection();
 }
 function refreshNavigator() {
   const treeEl = $('#nav-tree');
@@ -2027,7 +2152,8 @@ function vFiles() {
       <div class="nav-head"><input type="search" id="fq" placeholder="Filter paths: src *.rs !test" value="${esc(navQuery)}" aria-label="Filter paths">
       <div class="nav-prefs"><label>Group ${prefSelect('groupBy', GROUP_BY)}</label><label>Sort ${prefSelect('sortBy', SORT_BY)}</label></div>
       <div class="facets" id="nav-facets">${facetsHtml(FileNavigator.facetCounts(fileEntries(), filters.files, navQuery))}</div>
-      <div class="small nav-count"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc" data-clear-facets ${anyFacetChosen() ? '' : 'disabled'}>Clear</button><button type="button" class="loc" data-collapse-read>Collapse read</button></span></div></div>
+      <div class="small nav-count"><div class="nav-line" id="nav-summary"><span id="nav-count">${body.count}</span><span class="nav-actions"><button type="button" class="loc" data-clear-facets ${anyFacetChosen() ? '' : 'disabled'}>Clear</button><button type="button" class="loc" data-collapse-read>Collapse read</button></span></div>
+        <div class="nav-line bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><span class="nav-actions"><button type="button" class="loc" data-bulk="ok">Reviewed</button><button type="button" class="loc" data-bulk="skip">Skimmed</button><button type="button" class="loc" data-bulk="">Clear</button><button type="button" class="loc" data-deselect aria-label="Deselect every file" title="Deselect every file">✕</button></span></div></div></div>
       <div role="tree" aria-label="Changed files" id="nav-tree" data-group-by="${NavigatorPrefs.get().groupBy}">${body.tree}</div>
     </div></details>
     <div class="stack" id="file-pane">${filePane(selectedFile)}</div></div>`;
@@ -2087,6 +2213,7 @@ after.files = () => {
     if (tr) { tr.scrollIntoView({ block: 'center' }); tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 1600); }
   } else if (pendingOpen) bringBelowTopBar($('#file-pane'));
   const cur = $('.nav-file[aria-current="true"]'); if (cur) keepInNavigator(cur);
+  refreshSelection();
   pendingOpen = null;
 };
 const TOP_BAR_CLEARANCE = 12;

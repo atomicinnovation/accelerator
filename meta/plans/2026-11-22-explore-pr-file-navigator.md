@@ -464,11 +464,11 @@ in-memory undo stack.
 (new)
 
 ```js
-BulkVerdicts.plan(records, targets, status)
-BulkVerdicts.undoOf(records, targets)
+BulkVerdicts.plan(recordOf, targets, status)
+BulkVerdicts.undoOf(recordOf, targets)
 ```
 
-`records` maps a target to its stored record. `plan` returns
+`recordOf` returns a target's stored record, `{}` when there is none. `plan` returns
 `{ writes: [{ target, patch }], skipped: [{ target, reason }], undo }`.
 
 **Tests first.**
@@ -514,8 +514,9 @@ BulkVerdicts.undoOf(records, targets)
 - The selection is a `Set` of paths per route. It survives re-renders. It is
   narrowed to visible files when the filters change, and the toast says how
   many files were dropped.
-- `#bulk-bar` (sticky at the top of the navigator) shows while the selection
-  is not empty: "N selected", Reviewed, Skimmed, Clear verdict, Deselect.
+- `#bulk-bar` takes the place of the count line in the pinned header while
+  the selection is not empty, at the same height, so nothing moves: "N
+  selected", Reviewed, Skimmed, Clear, and ✕ to deselect.
 - The verdict goes to `file:<path>`, with the same `meta` that `filePane`
   passes to `ctl`.
 
@@ -531,7 +532,8 @@ first.
 2. Selects a folder containing it.
 3. Marks the selection Reviewed.
 4. Checks every other file in the folder is `ok`, the Issue file is still
-   `issue`, and the folder total reads in full except for that file.
+   `issue`, and the folder total reads in full (an Issue counts its lines as
+   read too).
 5. Presses Undo and checks every record is back as it was.
 
 **File**: `reference/page.md`
@@ -542,10 +544,10 @@ first.
 
 #### Automated Verification
 
-- [ ] The `bulk-verdicts` node suite passes
-- [ ] Both layouts inline the model
-- [ ] Every command under Shared verification commands passes
-- [ ] The smoke report has `bulk` holding and `ok: true`
+- [x] The `bulk-verdicts` node suite passes
+- [x] Both layouts inline the model
+- [x] Every command under Shared verification commands passes
+- [x] The smoke report has `bulk` holding and `ok: true`
 
 #### Manual Verification
 

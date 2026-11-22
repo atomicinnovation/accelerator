@@ -19,6 +19,8 @@
 // lists every file flat and sorted across them all, that the search and
 // facets stay in place while the list scrolls, that choosing a file
 // keeps the list's scroll and brings the file just below the top bar, that a
+// folder's checkbox selects its files for one bulk verdict that leaves a file
+// with an Issue alone and that Undo reverses, that a
 // !term search excludes
 // paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
@@ -500,6 +502,35 @@ const NAVIGATOR_PROBE = `(async () => {
   return { file: nested.path, layer, treeDrawn, collapseHides, openingReveals, roleNarrows, controlsStay, excludes, totalsInPlace, pillsStay, flattened, filtersPinned, navigatorStays, paneBelowTopBar };
 })()`;
 
+const BULK_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 400) => new Promise(r => setTimeout(r, ms));
+  location.hash = 'files'; await settle();
+  const choose = (pref, value) => { const select = document.querySelector('[data-nav-pref="' + pref + '"]'); select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); };
+  choose('groupBy', 'tree'); choose('sortBy', 'path'); await settle();
+  const filesIn = row => api.content.files.map(f => f.path).filter(path => path.startsWith(row.dataset.toggleNode.replace(/^folder::/, '')));
+  const folder = [...document.querySelectorAll('#nav-tree .nav-folder')].find(row => filesIn(row).length >= 2);
+  if (!folder) return { skipped: 'no folder holding two files' };
+  const paths = filesIn(folder), flagged = paths[0];
+  api.store.put('file:' + flagged, 'file', { status: 'issue' }, {}); await settle();
+  const before = Object.fromEntries(paths.map(path => [path, api.store.get('file:' + path).status || '']));
+  const row = () => document.querySelector('#nav-tree [data-toggle-node="' + CSS.escape(folder.dataset.toggleNode) + '"]');
+  row().parentElement.querySelector('.pick').click(); await settle();
+  const barShown = !document.querySelector('#bulk-bar').hidden && document.querySelector('#bulk-count').textContent.startsWith(String(paths.length));
+  document.querySelector('#bulk-bar [data-bulk="ok"]').click(); await settle();
+  const issueKept = api.store.get('file:' + flagged).status === 'issue';
+  const othersReviewed = paths.slice(1).every(path => api.store.get('file:' + path).status === 'ok');
+  const [read, changed] = row().querySelector('[data-folder-count-of]').textContent.replace(/,/g, '').split('/').map(Number);
+  const folderRead = changed > 0 && read === changed;
+  const toast = document.querySelector('#undo-toast');
+  const toastSays = !toast.hidden && /with an Issue left as it was/.test(toast.textContent) && !!toast.querySelector('[data-undo]');
+  const selectionCleared = document.querySelector('#bulk-bar').hidden;
+  toast.querySelector('[data-undo]').click(); await settle();
+  const undone = paths.every(path => (api.store.get('file:' + path).status || '') === before[path]);
+  api.store.put('file:' + flagged, 'file', { status: '' }, {}); await settle();
+  return { folder: folder.dataset.toggleNode, files: paths.length, barShown, issueKept, othersReviewed, folderRead, toastSays, selectionCleared, undone };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -564,6 +595,7 @@ async function main() {
     report.commits = await cdp.evaluate(COMMITS_PROBE);
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
     report.navigator = await cdp.evaluate(NAVIGATOR_PROBE);
+    report.bulk = await cdp.evaluate(BULK_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
@@ -609,6 +641,8 @@ async function main() {
   const designHolds = !!design.skipped || !!(design.sections && design.excerptsResolved && design.signOff && design.noCatalogue);
   const navigator = report.navigator || {};
   const navigatorHolds = !!navigator.skipped || !!(navigator.treeDrawn && navigator.collapseHides && navigator.openingReveals && navigator.roleNarrows && navigator.controlsStay && navigator.excludes && navigator.totalsInPlace && navigator.pillsStay && navigator.flattened && navigator.filtersPinned && navigator.navigatorStays && navigator.paneBelowTopBar);
+  const bulk = report.bulk || {};
+  const bulkHolds = !!bulk.skipped || !!(bulk.barShown && bulk.issueKept && bulk.othersReviewed && bulk.folderRead && bulk.toastSays && bulk.selectionCleared && bulk.undone);
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
@@ -616,7 +650,7 @@ async function main() {
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = navigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = navigatorHolds && bulkHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;
