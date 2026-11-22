@@ -24,7 +24,8 @@
 // files and chunks, mark a chunk and undo it, raise an issue noting the chunk,
 // open and close their list, move on after a verdict and step between
 // commits, that By commit opens only the selected commit, that j crosses
-// into the next commit, that a verdict on a file in a commit reads only that
+// into the next commit, that a commit's chevron opens it without selecting it,
+// that a verdict on a file in a commit reads only that
 // file's lines, that the pane shows one file or the whole commit, that a line
 // too long to read is cut short, that the file list widens and resets, that
 // risk edges show only when asked for, that on a touch screen every
@@ -685,6 +686,11 @@ const COMMIT_NAVIGATOR_PROBE = `(async () => {
     api.store.put('commitfile:' + first.sha + ':' + path, 'commitfile', { status: '' }, {}); await settle();
   }
   api.openCommit(first.sha); await settle();
+  const commitRow = sha => document.querySelector('#nav-tree .nav-commit[data-commit="' + sha + '"]');
+  commitRow(second.sha).querySelector('.chev').click(); await settle();
+  const chevronOpensWithoutSelecting = commitRow(second.sha).getAttribute('aria-expanded') === 'true'
+    && commitRow(first.sha).getAttribute('aria-expanded') === 'true' && commitRow(first.sha).getAttribute('aria-current') === 'true';
+  commitRow(second.sha).querySelector('.chev').click(); await settle();
   document.querySelector('[data-commit-pane="whole"]').click(); await settle();
   const wholeShowsAll = document.querySelectorAll('#commit-code > .code').length === commit.files.length;
   document.querySelector('[data-commit-pane="one"]').click(); await settle();
@@ -695,7 +701,7 @@ const COMMIT_NAVIGATOR_PROBE = `(async () => {
     api.openFile(longest[0], null, 'new'); await settle(700);
     longLinesCut = [...document.querySelectorAll('#file-code td.src')].every(td => td.textContent.length <= 2100) && !!document.querySelector('#file-code td.src .cut');
   }
-  return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, wholeShowsAll, oneShowsOne, longLinesCut };
+  return { commit: first.sha, onlySelectedOpen, crossesCommits, verdictScoped, chevronOpensWithoutSelecting, wholeShowsAll, oneShowsOne, longLinesCut };
 })()`;
 
 const TOUCH_PROBE = `(async () => {
@@ -824,7 +830,7 @@ async function main() {
   const keys = report.keys || {};
   const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.fFocusesList && keys.cFocusesCode && keys.commitKeys !== false && keys.commitFileKeys !== false);
   const commitNavigator = report.commitNavigator || {};
-  const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne && commitNavigator.longLinesCut !== false);
+  const commitNavigatorHolds = !!commitNavigator.skipped || !!(commitNavigator.onlySelectedOpen && commitNavigator.crossesCommits && commitNavigator.verdictScoped !== false && commitNavigator.chevronOpensWithoutSelecting && commitNavigator.wholeShowsAll && commitNavigator.oneShowsOne && commitNavigator.longLinesCut !== false);
   const touch = report.touch || {};
   const touchHolds = !!touch.picksShown;
   const findings = report.findings || {};
