@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use research::sources::classify::arxiv;
+use research::sources::classify::crossref;
 use research::sources::classify::openalex;
 use research::sources::classify::ClientRejection;
 use research::sources::classify::FetchError;
@@ -264,5 +265,57 @@ fn each_failure_renders_its_coded_message() {
     ];
     for (error, message) in cases {
         assert_eq!(error.to_string(), message);
+    }
+}
+
+#[test]
+fn a_crossref_success_delivers_its_body() {
+    let delivered = Response::Received(Received {
+        body: b"{}".to_vec(),
+        ..Received::status(200)
+    });
+    assert_eq!(crossref(delivered), Verdict::Deliver(b"{}".to_vec()));
+}
+
+#[test]
+fn a_crossref_miss_is_empty() {
+    assert_eq!(crossref(status(404)), Verdict::Empty);
+}
+
+#[test]
+fn crossref_throttling_is_retried_as_rate_limiting_with_its_hint() {
+    let throttled = Response::Received(Received {
+        retry_after: Some(Duration::from_secs(5)),
+        ..Received::status(429)
+    });
+    assert_eq!(
+        crossref(throttled),
+        Verdict::Retry {
+            reason: Reason::RateLimited,
+            retry_after: Some(Duration::from_secs(5)),
+        }
+    );
+}
+
+#[test]
+fn crossref_server_errors_and_transport_failures_are_retried() {
+    for response in [status(503), Response::ConnectionFailed, Response::TimedOut]
+    {
+        assert_eq!(
+            crossref(response.clone()),
+            retry(Reason::UpstreamError),
+            "{response:?}"
+        );
+    }
+}
+
+#[test]
+fn any_other_crossref_answer_makes_the_source_unavailable() {
+    for code in [400, 403, 301] {
+        assert_eq!(
+            crossref(status(code)),
+            Verdict::Unavailable(Reason::UpstreamError),
+            "{code}"
+        );
     }
 }

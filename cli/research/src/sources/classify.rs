@@ -204,6 +204,28 @@ pub fn arxiv(response: Response) -> Verdict {
     }
 }
 
+/// Only a 404 or a 429 among Crossref's client errors has a meaning of its
+/// own; any other leaves its source unavailable rather than failing the call,
+/// as does an unfollowed redirect.
+pub fn crossref(response: Response) -> Verdict {
+    let received = match response {
+        Response::Received(received) => received,
+        Response::ConnectionFailed | Response::TimedOut => {
+            return upstream_error(None)
+        }
+    };
+    match received.status {
+        200..=299 => Verdict::Deliver(received.body),
+        404 => Verdict::Empty,
+        429 => Verdict::Retry {
+            reason: Reason::RateLimited,
+            retry_after: received.retry_after,
+        },
+        500..=599 => upstream_error(received.retry_after),
+        _ => Verdict::Unavailable(Reason::UpstreamError),
+    }
+}
+
 const fn shared(
     family: Family,
     status: u16,

@@ -682,6 +682,7 @@ impl core::fmt::Debug for research::sources::classify::Received
 pub fn research::sources::classify::Received::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::classify::Received
 pub fn research::sources::classify::arxiv(response: research::sources::classify::Response) -> research::sources::classify::Verdict
+pub fn research::sources::classify::crossref(response: research::sources::classify::Response) -> research::sources::classify::Verdict
 pub fn research::sources::classify::openalex(response: research::sources::classify::Response, verb: research::sources::request::Verb, key: core::option::Option<&research::sources::request::KeySource>) -> research::sources::classify::Verdict
 pub mod research::sources::fetch
 pub enum research::sources::fetch::ArxivAnswer
