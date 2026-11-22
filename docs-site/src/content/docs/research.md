@@ -921,7 +921,7 @@ It prints one of:
   "consultable": false,
   "gate": "conducted",
   "unanswered": [{ "question": "…", "profile": "openalex" }],
-  "held_back": [{ "question": "…", "reasons": ["…"] }],
+  "held_back": [{ "question": "…", "reasons": ["…"], "recoveries": ["…"] }],
   "warnings": ["…"]
 }
 ```
@@ -936,7 +936,9 @@ the number of the outline's highest `## Round N` heading, or `null` when it
 has none; a proposal numbers its round after it, and a re-check that finds it
 changed knows another session appended a round. `mismatches` reads as
 `counts` prints it, and each `held_back` item's `reasons` read as
-`outstanding`'s `skipped[].reason`, or say no finding index is left.
+`outstanding`'s `skipped[].reason`, or say no finding index is left. Its
+`recoveries` name the fix for each distinct reason: add a profile to the
+brief, install its skill, or renumber what claims the highest index.
 `warnings` reads as `outstanding` prints its warnings, and gates nothing.
 
 The command fails before any gate when the plugin holds no profiles

@@ -322,7 +322,7 @@
               "gate": "conducted",
               "names": [
                 "Which planning preprints appeared this year?",
-                "Add the profile to the brief's `source_profiles`, or fix its name in the outline.",
+                "Add 'arxiv' to the brief's source_profiles, or fix its name in the outline.",
                 "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [
@@ -357,7 +357,7 @@
               "gate": "conducted",
               "names": [
                 "Which planning preprints appeared this year?",
-                "Add the profile to the brief's `source_profiles`, or fix its name in the outline.",
+                "Add 'arxiv' to the brief's source_profiles, or fix its name in the outline.",
                 "Run conduct llm-agent-planning, then synthesise llm-agent-planning, then"
               ],
               "omits": [

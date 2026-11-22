@@ -2067,20 +2067,14 @@ def test_the_freshness_refusal_carries_the_verdict_s_mismatches() -> None:
         assert phrase in consult
 
 
-def _skipped_pair_recovery() -> str:
-    row = _section(_conduct(), "| a skipped pair |", "| a warning |")
-    start = row.index("the profile to the brief's")
-    return row[start:].rstrip(" |")
-
-
 def test_the_conducted_refusal_groups_unanswered_and_held_back_items() -> None:
     consult = _consult()
     for phrase in (
         "`unanswered`",
         "`held_back`",
         "`reasons`",
+        "`recoveries`",
         "`warnings`",
-        _skipped_pair_recovery(),
         formats.CONDUCTED_REFUSAL,
         formats.HELD_BACK,
         formats.STILL_TO_RESEARCH,

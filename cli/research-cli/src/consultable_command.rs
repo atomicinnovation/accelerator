@@ -162,6 +162,8 @@ fn rendered(
                 .map(|item| json!({
                     "question": item.question,
                     "reasons": plan_wording::hold_back_reasons(&item.hold_back),
+                    "recoveries":
+                        plan_wording::hold_back_recoveries(&item.hold_back),
                 }))
                 .collect::<Vec<_>>(),
             "warnings": warnings,

@@ -850,17 +850,18 @@ refusal writes nothing and ends the verb.
 - **`conducted`** — `unanswered` lists each pair still to research: a
   straggler, a quarantined or invalid finding, a focus area never
   conducted, or a profile a repeated question adds. `held_back` lists each
-  item `conduct` cannot finish, with its `reasons`: one whose question's
-  only pairs are skipped, their profile one the brief does not name or no
-  skill installs, or one left without a finding index. A skipped pair beside
-  an answered one holds nothing back. `warnings` lists what the plan could
-  not express, such as a `profiles:` suffix with no separator.
+  item `conduct` cannot finish, with its `reasons` and the `recoveries` that
+  fix them: one whose question's only pairs are skipped, their profile one
+  the brief does not name or no skill installs, or one left without a
+  finding index. A skipped pair beside an answered one holds nothing back.
+  `warnings` lists what the plan could not express, such as a `profiles:`
+  suffix with no separator.
 
   ```text
   {verb} refused: {slug} is not fully conducted.
   Held back from research:
   - {question}: {reasons}
-  Add the profile to the brief's `source_profiles`, or fix its name in the outline.
+  {recovery}
   Still to research:
   - {question} ({profile})
   Planning warnings:
@@ -869,14 +870,15 @@ refusal writes nothing and ends the verb.
   ```
 
   The held-back group has one line per `held_back` item, its `reasons`
-  separated by `; `, followed by the skipped-pair recovery. The
+  separated by `; `, followed by one `{recovery}` line for each distinct
+  entry of the items' `recoveries`, in the order they first appear. The
   still-to-research group has one line per `unanswered` pair, and the
   planning-warnings group one line per `warnings` entry. The held-back
-  group comes first, so a user who works down the lines fixes the brief or
-  outline before the one `conduct` that then covers both. Omit any group,
+  group comes first, so a user who works down the lines fixes what holds an
+  item back before the one `conduct` that then covers both. Omit any group,
   with its lead-in, when it is empty. The closing `Run conduct {slug}` line
-  ends every `conducted` refusal: fixing the brief or the outline turns a
-  held-back pair `unanswered`, so it too needs that `conduct`.
+  ends every `conducted` refusal: fixing what held an item back turns its
+  pairs `unanswered`, so they too need that `conduct`.
 
 **Read.** Read the citing-once rule with the Read tool at
 `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/SKILL.md`, then

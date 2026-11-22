@@ -34,10 +34,7 @@ FRESHNESS_REFUSAL = (
 CONDUCTED_REFUSAL = "{verb} refused: {slug} is not fully conducted."
 HELD_BACK = "Held back from research:"
 HELD_BACK_ITEM = "- {question}: {reasons}"
-HELD_BACK_RECOVERY = (
-    "Add the profile to the brief's `source_profiles`, or fix its name in "
-    "the outline."
-)
+HELD_BACK_RECOVERY = "{recovery}"
 STILL_TO_RESEARCH = "Still to research:"
 UNANSWERED_ITEM = "- {question} ({profile})"
 PLAN_WARNINGS = "Planning warnings:"

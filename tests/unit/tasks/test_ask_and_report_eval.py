@@ -136,12 +136,9 @@ def test_a_repeated_placeholder_matches_a_list_of_one_or_more() -> None:
 
 
 def test_a_template_with_inline_code_matches_its_plain_line() -> None:
-    line = (
-        "Add the profile to the brief's source_profiles, or fix its name in "
-        "the outline."
-    )
+    line = "Add arxiv to the brief's source_profiles."
 
-    assert formats.matches(formats.HELD_BACK_RECOVERY, line)
+    assert formats.matches("Add {p} to the brief's `source_profiles`.", line)
 
 
 def test_every_reply_prompt_is_one_line() -> None:

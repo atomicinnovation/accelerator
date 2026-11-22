@@ -199,7 +199,14 @@ fn consultable_holds_back_an_item_with_only_skipped_pairs(
             "consultable": false,
             "gate": "conducted",
             "unanswered": [],
-            "held_back": [{"question": ARXIV_ITEM, "reasons": skipped_reasons}],
+            "held_back": [{
+                "question": ARXIV_ITEM,
+                "reasons": skipped_reasons,
+                "recoveries": [
+                    "Add 'arxiv' to the brief's source_profiles, or fix its \
+                     name in the outline."
+                ],
+            }],
             "warnings": [],
         })
     );
@@ -225,6 +232,10 @@ fn an_item_left_without_a_finding_index_is_held_back_saying_so(
         json!([{
             "question": "Can the index run out?",
             "reasons": ["no finding index is left to allocate to it"],
+            "recoveries": [
+                "Remove or renumber the finding or .levels/ tree that claims \
+                 the highest index, so an index is left to allocate."
+            ],
         }])
     );
     Ok(())
