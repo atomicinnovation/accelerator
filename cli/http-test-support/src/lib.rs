@@ -433,12 +433,8 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             body: body.clone(),
         },
     );
-    let route = shared
-        .routes
-        .lock()
-        .expect("routes")
-        .get(&key)
-        .cloned()
+    let routed = shared.routes.lock().expect("routes").get(&key).cloned();
+    let route = routed
         .map(|route| match route.for_hit(index) {
             Route::ByBody(answer) => answer(&body),
             response => response,
