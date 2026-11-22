@@ -1805,7 +1805,7 @@ pub enum research::topic::consultation::Consultation
 pub research::topic::consultation::Consultation::Open(research::topic::consultation::Documents)
 pub research::topic::consultation::Consultation::Refused(research::topic::consultation::Refusal)
 impl research::topic::consultation::Consultation
-pub fn research::topic::consultation::Consultation::judge<E>(status: research::topic::lifecycle::SetStatus, read_counts: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::counts::CountsReading, E>, read_plan: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::plan::RoundPlan, E>) -> core::result::Result<Self, E>
+pub fn research::topic::consultation::Consultation::judge<E>(status: research::topic::lifecycle::SetStatus, read_counts: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::counts::CountsReading, E>, read_plan: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::plan::RoundPlan, E>, read_level_notes: impl core::ops::function::FnOnce(&[research::topic::layout::stem::Stem]) -> core::result::Result<alloc::vec::Vec<research::topic::layout::note_ref::NoteRef>, E>) -> core::result::Result<Self, E>
 impl core::clone::Clone for research::topic::consultation::Consultation
 pub fn research::topic::consultation::Consultation::clone(&self) -> research::topic::consultation::Consultation
 impl core::cmp::Eq for research::topic::consultation::Consultation
@@ -1830,8 +1830,20 @@ pub fn research::topic::consultation::Refusal::eq(&self, other: &research::topic
 impl core::fmt::Debug for research::topic::consultation::Refusal
 pub fn research::topic::consultation::Refusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::consultation::Refusal
+pub struct research::topic::consultation::ComposedFinding
+pub research::topic::consultation::ComposedFinding::finding: alloc::string::String
+pub research::topic::consultation::ComposedFinding::level_notes: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for research::topic::consultation::ComposedFinding
+pub fn research::topic::consultation::ComposedFinding::clone(&self) -> research::topic::consultation::ComposedFinding
+impl core::cmp::Eq for research::topic::consultation::ComposedFinding
+impl core::cmp::PartialEq for research::topic::consultation::ComposedFinding
+pub fn research::topic::consultation::ComposedFinding::eq(&self, other: &research::topic::consultation::ComposedFinding) -> bool
+impl core::fmt::Debug for research::topic::consultation::ComposedFinding
+pub fn research::topic::consultation::ComposedFinding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::consultation::ComposedFinding
 pub struct research::topic::consultation::Documents
 impl research::topic::consultation::Documents
+pub fn research::topic::consultation::Documents::composed(&self) -> &[research::topic::consultation::ComposedFinding]
 pub fn research::topic::consultation::Documents::findings(&self) -> &[alloc::string::String]
 pub const fn research::topic::consultation::Documents::highest_round(&self) -> core::option::Option<u32>
 pub fn research::topic::consultation::Documents::reports(&self) -> &[alloc::string::String]
@@ -2116,6 +2128,7 @@ pub fn research::topic::evidence::LevelsDirectory::fmt(&self, f: &mut core::fmt:
 impl core::marker::StructuralPartialEq for research::topic::evidence::LevelsDirectory
 pub mod research::topic::layout
 pub mod research::topic::layout::entry
+pub fn research::topic::layout::entry::finding_stem(name: &str) -> core::option::Option<research::topic::layout::stem::Stem>
 pub fn research::topic::layout::entry::is_finding_entry(name: &str) -> bool
 pub fn research::topic::layout::entry::is_report_entry(name: &str) -> bool
 pub mod research::topic::layout::finding_path

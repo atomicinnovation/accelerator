@@ -3,6 +3,9 @@
 
 use crate::topic::counts::CountsReading;
 use crate::topic::counts::Mismatch;
+use crate::topic::layout::entry::finding_stem;
+use crate::topic::layout::note_ref::NoteRef;
+use crate::topic::layout::stem::Stem;
 use crate::topic::layout::FINDINGS;
 use crate::topic::layout::REPORTS;
 use crate::topic::lifecycle::SetStatus;
@@ -23,7 +26,16 @@ pub enum Consultation {
 pub struct Documents {
     findings: Vec<String>,
     reports: Vec<String>,
+    composed: Vec<ComposedFinding>,
     highest_round: Option<u32>,
+}
+
+/// A finding composed from a `.levels/` tree, and that tree's notes in
+/// lineage order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComposedFinding {
+    pub finding: String,
+    pub level_notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +67,7 @@ impl Consultation {
         status: SetStatus,
         read_counts: impl FnOnce() -> Result<CountsReading, E>,
         read_plan: impl FnOnce() -> Result<RoundPlan, E>,
+        read_level_notes: impl FnOnce(&[Stem]) -> Result<Vec<NoteRef>, E>,
     ) -> Result<Self, E> {
         if !status.is_consultable() {
             return Ok(Self::Refused(Refusal::Status { status }));
@@ -70,7 +83,18 @@ impl Consultation {
         if let Some(refusal) = Refusal::conducted(&plan) {
             return Ok(Self::Refused(refusal));
         }
-        Ok(Self::Open(Documents::of(&reading, plan.highest_round)))
+        let stems: Vec<Stem> = reading
+            .findings
+            .names()
+            .iter()
+            .filter_map(|name| finding_stem(name))
+            .collect();
+        let level_notes = read_level_notes(&stems)?;
+        Ok(Self::Open(Documents::of(
+            &reading,
+            level_notes,
+            plan.highest_round,
+        )))
     }
 }
 
@@ -86,20 +110,54 @@ impl Documents {
     }
 
     #[must_use]
+    pub fn composed(&self) -> &[ComposedFinding] {
+        &self.composed
+    }
+
+    #[must_use]
     pub const fn highest_round(&self) -> Option<u32> {
         self.highest_round
     }
 
-    fn of(reading: &CountsReading, highest_round: Option<u32>) -> Self {
-        let under = |directory: &str, names: &[String]| {
-            names
-                .iter()
-                .map(|name| format!("{directory}/{name}"))
-                .collect()
-        };
+    fn of(
+        reading: &CountsReading,
+        mut level_notes: Vec<NoteRef>,
+        highest_round: Option<u32>,
+    ) -> Self {
+        let under =
+            |directory: &str, name: &String| format!("{directory}/{name}");
+        level_notes.sort();
+        let composed = reading
+            .findings
+            .names()
+            .iter()
+            .filter_map(|name| {
+                let stem = finding_stem(name)?;
+                let level_notes: Vec<String> = level_notes
+                    .iter()
+                    .filter(|note| note.stem == stem)
+                    .map(NoteRef::path)
+                    .collect();
+                (!level_notes.is_empty()).then(|| ComposedFinding {
+                    finding: under(FINDINGS, name),
+                    level_notes,
+                })
+            })
+            .collect();
         Self {
-            findings: under(FINDINGS, reading.findings.names()),
-            reports: under(REPORTS, reading.reports.names()),
+            findings: reading
+                .findings
+                .names()
+                .iter()
+                .map(|name| under(FINDINGS, name))
+                .collect(),
+            reports: reading
+                .reports
+                .names()
+                .iter()
+                .map(|name| under(REPORTS, name))
+                .collect(),
+            composed,
             highest_round,
         }
     }
@@ -130,8 +188,10 @@ impl Refusal {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use std::convert::Infallible;
 
+    use super::ComposedFinding;
     use super::Consultation;
     use super::Documents;
     use super::HeldBackItem;
@@ -144,6 +204,8 @@ mod tests {
     use crate::topic::counts::Mismatch;
     use crate::topic::counts::StoredCount;
     use crate::topic::counts::StoredCounts;
+    use crate::topic::layout::lineage::Lineage;
+    use crate::topic::layout::note_ref::NoteRef;
     use crate::topic::layout::stem::Stem;
     use crate::topic::lifecycle::SetStatus;
     use crate::topic::outline::Pair;
@@ -237,7 +299,19 @@ mod tests {
         counts: CountsReading,
         plan: RoundPlan,
     ) -> Verdict {
-        Consultation::judge(status, || Ok(counts), || Ok(plan))
+        Consultation::judge(
+            status,
+            || Ok(counts),
+            || Ok(plan),
+            |_| Ok(Vec::new()),
+        )
+    }
+
+    fn note(stem: &str, lineage: &str) -> NoteRef {
+        NoteRef {
+            stem: Stem::parse(stem).unwrap_or_else(|| unreachable!()),
+            lineage: Lineage::parse(lineage).unwrap_or_else(|| unreachable!()),
+        }
     }
 
     #[test]
@@ -376,9 +450,75 @@ mod tests {
                     "findings/02-b-web.md".to_owned(),
                 ],
                 reports: vec!["reports/a.md".to_owned()],
+                composed: Vec::new(),
                 highest_round: Some(1),
             }))
         );
+    }
+
+    #[test]
+    fn an_open_verdict_lists_each_findings_level_notes_in_lineage_order() {
+        let read_stems = RefCell::new(Vec::new());
+        let verdict: Verdict = Consultation::judge(
+            SetStatus::Complete,
+            || Ok(fresh()),
+            || Ok(plan(true)),
+            |stems: &[Stem]| {
+                read_stems.replace(stems.to_vec());
+                Ok(vec![
+                    note("02-b-web", "2-10"),
+                    note("02-b-web", "1"),
+                    note("02-b-web", "2-2"),
+                ])
+            },
+        );
+
+        let composed = match &verdict {
+            Ok(Consultation::Open(documents)) => documents.composed().to_vec(),
+            _ => Vec::new(),
+        };
+        assert_eq!(
+            read_stems.into_inner(),
+            [note("01-a-web", "1").stem, note("02-b-web", "1").stem]
+        );
+        assert_eq!(
+            composed,
+            [ComposedFinding {
+                finding: "findings/02-b-web.md".to_owned(),
+                level_notes: vec![
+                    "findings/02-b-web.levels/1.md".to_owned(),
+                    "findings/02-b-web.levels/2-2.md".to_owned(),
+                    "findings/02-b-web.levels/2-10.md".to_owned(),
+                ],
+            }]
+        );
+    }
+
+    #[test]
+    fn a_refused_set_never_reads_its_level_notes() {
+        let verdict: Verdict = Consultation::judge(
+            SetStatus::Synthesised,
+            || Ok(fresh()),
+            || Ok(with_unanswered_pair(plan(false))),
+            |_| Err("level notes read"),
+        );
+
+        assert!(matches!(
+            verdict,
+            Ok(Consultation::Refused(Refusal::Conducted { .. }))
+        ));
+    }
+
+    #[test]
+    fn a_failed_level_note_read_propagates() {
+        let verdict: Verdict = Consultation::judge(
+            SetStatus::Complete,
+            || Ok(fresh()),
+            || Ok(plan(true)),
+            |_| Err("level notes read"),
+        );
+
+        assert_eq!(verdict, Err("level notes read"));
     }
 
     #[test]
@@ -387,6 +527,7 @@ mod tests {
             SetStatus::Researching,
             || Err("counts read"),
             || Err("plan read"),
+            |_| Err("level notes read"),
         );
 
         assert_eq!(
@@ -403,11 +544,13 @@ mod tests {
             SetStatus::Synthesised,
             || Err("counts read"),
             || Ok(plan(true)),
+            |_| Ok(Vec::new()),
         );
         let plan_failed: Verdict = Consultation::judge(
             SetStatus::Synthesised,
             || Ok(fresh()),
             || Err("plan read"),
+            |_| Ok(Vec::new()),
         );
 
         assert_eq!(counts_failed, Err("counts read"));

@@ -34,6 +34,7 @@ use research::topic::evidence::LevelsDirectory;
 use research::topic::evidence::NoteRejection;
 use research::topic::layout::entry::is_finding_entry;
 use research::topic::layout::lineage::Lineage;
+use research::topic::layout::note_ref::NoteRef;
 use research::topic::layout::slug::TakenNames;
 use research::topic::layout::stem::Stem;
 use research::topic::layout::FINDINGS;
@@ -173,27 +174,25 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     })
 }
 
-/// The set-relative paths of the level notes a finding was composed from,
-/// in lineage order, or none when it has no `.levels/` tree.
+/// The level notes in a stem's `.levels/` tree, or none when it has no
+/// tree.
 ///
 /// # Errors
 ///
 /// A [`kernel::Error`] when the finding's `.levels/` cannot be listed.
 pub fn level_notes_of<F: DirReader + DirectoryProbe>(
     set_root: &Path,
-    finding: &str,
+    stem: &Stem,
     fs: &F,
-) -> Result<Vec<String>, kernel::Error> {
-    let Some(stem) = finding.strip_suffix(NOTE_SUFFIX) else {
-        return Ok(Vec::new());
-    };
+) -> Result<Vec<NoteRef>, kernel::Error> {
     let levels = format!("{FINDINGS}/{stem}{LEVELS_SUFFIX}");
-    let entries = DirectoryEntries::of(&set_root.join(&levels), fs)?;
-    Ok(entries
-        .files
-        .into_iter()
-        .filter(|name| note_lineage(name).is_some())
-        .map(|name| format!("{levels}/{name}"))
+    Ok(files_in(&set_root.join(levels), fs)?
+        .iter()
+        .filter_map(|name| note_lineage(name))
+        .map(|lineage| NoteRef {
+            stem: stem.clone(),
+            lineage,
+        })
         .collect())
 }
 
@@ -658,6 +657,7 @@ mod tests {
     use research::topic::evidence::LevelsDirectory;
     use research::topic::evidence::NoteRejection;
     use research::topic::layout::lineage::Lineage;
+    use research::topic::layout::note_ref::NoteRef;
     use research::topic::layout::stem::Stem;
     use research::topic::plan::RoundPlan;
     use research::topic::tree::Depth;
@@ -666,6 +666,7 @@ mod tests {
 
     use corpus_adapters::YamlFrontmatter;
 
+    use super::level_notes_of;
     use super::read_counts;
     use super::read_plan;
     use super::read_round_inputs;
@@ -1382,6 +1383,45 @@ mod tests {
             .failing_at("/set/findings/01-a-web.md");
 
         assert!(read_counts(Path::new(SET), &fs, &YamlFrontmatter).is_err());
+    }
+
+    #[test]
+    fn a_findings_level_notes_are_its_tree_s_canonical_notes(
+    ) -> Result<(), TestError> {
+        let fs = StubFs::default()
+            .with_file(&format!("{LEVELS}/1.md"), "")
+            .with_file(&format!("{LEVELS}/2-1.md"), "")
+            .with_file(&format!("{LEVELS}/.2-2.md.invalid"), "")
+            .with_file(&format!("{LEVELS}/notes.txt"), "")
+            .with_dir(&format!("{LEVELS}/3-1-1.md"));
+        let stem = Stem::parse("01-a-web").ok_or("a stem")?;
+
+        let notes = level_notes_of(Path::new(SET), &stem, &fs)?;
+
+        let at = |lineage: &str| {
+            Lineage::parse(lineage).map(|lineage| NoteRef {
+                stem: stem.clone(),
+                lineage,
+            })
+        };
+        assert_eq!(
+            notes,
+            [at("1"), at("2-1")]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_finding_without_a_tree_has_no_level_notes() -> Result<(), TestError> {
+        let stem = Stem::parse("01-a-web").ok_or("a stem")?;
+
+        let notes = level_notes_of(Path::new(SET), &stem, &StubFs::default())?;
+
+        assert!(notes.is_empty());
+        Ok(())
     }
 
     #[test]

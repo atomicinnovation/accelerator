@@ -63,46 +63,23 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
                 .collect();
             Ok(reading.plan)
         },
+        |stems| {
+            stems.iter().try_fold(Vec::new(), |mut notes, stem| {
+                notes.extend(level_notes_of(set_root, stem, fs)?);
+                Ok(notes)
+            })
+        },
     )
     .map_err(|error| error.to_string())?;
-    let level_notes = match &verdict {
-        Consultation::Open(documents) => {
-            level_notes(set_root, documents.findings(), fs)?
-        }
-        Consultation::Refused(_) => Vec::new(),
-    };
     Ok(Printed {
-        stdout: format!(
-            "{}\n",
-            rendered(&verdict, &warnings, &level_notes, set_root)
-        ),
+        stdout: format!("{}\n", rendered(&verdict, &warnings, set_root)),
         stderr: String::new(),
     })
-}
-
-type LevelNotes = Vec<(String, Vec<String>)>;
-
-fn level_notes<F: DirReader + DirectoryProbe>(
-    set_root: &Path,
-    findings: &[String],
-    fs: &F,
-) -> Result<LevelNotes, String> {
-    let mut composed = Vec::new();
-    for finding in findings {
-        let name = finding.rsplit('/').next().unwrap_or(finding);
-        let notes = level_notes_of(set_root, name, fs)
-            .map_err(|error| error.to_string())?;
-        if !notes.is_empty() {
-            composed.push((finding.clone(), notes));
-        }
-    }
-    Ok(composed)
 }
 
 fn rendered(
     verdict: &Consultation,
     warnings: &[String],
-    level_notes: &LevelNotes,
     set_root: &Path,
 ) -> Value {
     let absolute = |relative: &String| {
@@ -114,12 +91,13 @@ fn rendered(
                 documents.findings().iter().map(absolute).collect();
             let reports: Vec<_> =
                 documents.reports().iter().map(absolute).collect();
-            let level_notes: serde_json::Map<String, Value> = level_notes
+            let level_notes: serde_json::Map<String, Value> = documents
+                .composed()
                 .iter()
-                .map(|(finding, notes)| {
+                .map(|composed| {
                     (
-                        absolute(finding),
-                        notes.iter().map(absolute).collect::<Value>(),
+                        absolute(&composed.finding),
+                        composed.level_notes.iter().map(absolute).collect(),
                     )
                 })
                 .collect();
