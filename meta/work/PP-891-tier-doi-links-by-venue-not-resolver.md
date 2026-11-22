@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers", "cli", "crossref"]
-last_updated: "2026-11-22T10:33:04+00:00"
+last_updated: "2026-11-23T00:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -509,7 +509,7 @@ Reproduction (confirmed by the baseline; see Baseline):
       `lookup https://doi.org/<DOI>` and `lookup <W-id>`, then all four
       records carry identical `tier`, `venue` and `venue_signals`, with
       tier-1 and the exact venue string the recorded fixture holds.
-- [ ] Before any building, a baseline web-profile `research-topic conduct`
+- [x] Before any building, a baseline web-profile `research-topic conduct`
       run on the current plugin is given
       `https://doi.org/10.1145/371920.372066` and
       `https://doi.org/10.1145/3448016.3457556` in its brief as sources to
@@ -525,7 +525,7 @@ Reproduction (confirmed by the baseline; see Baseline):
       Context as the confirmed reproduction. The baseline notes also record
       the non-resolver page the closing run will use: its URL, the DOI it
       declares, and that DOI's Crossref venue and expected tier.
-- [ ] Before the item closes, a manual web-profile `research-topic conduct`
+- [x] Before the item closes, a manual web-profile `research-topic conduct`
       run on the finished change is given the same two resolver URLs, a
       `https://doi.org/10.48550/arXiv.…` URL and a non-resolver page
       recorded in the baseline notes, as sources to cite. The arXiv URL's
@@ -574,6 +574,37 @@ entries.
 
 Signed off by Toby Clemson on 2026-11-22: the baseline confirms the
 reproduction, and building proceeds.
+
+## Closing Run
+
+Run on Claude Code `2.1.330` against this branch's working tree: the skills
+loaded with `--plugin-dir` and `accelerator` resolved to the debug builds,
+with the installed prerelease plugin disabled. Web profile only, depth 1.
+One run, and it passes. Its subject was deleted afterwards as test residue,
+so this section is the record of the run.
+
+| Source | Venue and tier recorded | `fetch openalex lookup` |
+|---|---|---|
+| `https://doi.org/10.1145/371920.372066` | `Proceedings of the 10th international conference on World Wide Web`, tier-1, resolver URL as link | tier-1 |
+| `https://doi.org/10.1145/3448016.3457556` | `Proceedings of the 2021 International Conference on Management of Data`, tier-1, resolver URL as link | tier-1 |
+| `https://doi.org/10.48550/arXiv.1706.03762` | `arxiv.org`, tier-2 | — |
+| `https://www.nature.com/articles/nature14539` | `Nature`, tier-1, as the baseline expected | tier-1 |
+
+- No entry in the finding or the dossier records `doi.org` as a venue.
+  Each of the three DOIs is cited once in the dossier, with no `also`
+  suffix, so it shows no tier conflict.
+- `fetch web metadata` failed (exit 1) on both resolver URLs, as the
+  baseline predicted, so both took the failed branch. Their entries carry
+  only `publisher: ACM`. It succeeded on the arXiv and Nature URLs.
+- The researcher ran all four `fetch doi metadata` calls before its
+  `WebFetch` of the resolver URLs, against the profile's order. The tier
+  did not depend on it, since Crossref gave both ACM DOIs a venue.
+- The researcher also fetched both ACM DOIs' `api.crossref.org` records
+  itself and cited each as a separate tier-1 source, as in the baseline.
+  The tiers no longer rest on them.
+- A first attempt under auto mode wrote no finding: the auto mode classifier
+  gave no verdict on the researcher's `Write`. The passing run used
+  `acceptEdits`.
 
 ## Open Questions
 
