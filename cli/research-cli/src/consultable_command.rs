@@ -82,9 +82,9 @@ fn rendered(
     match verdict {
         Consultation::Open(documents) => {
             let findings: Vec<_> =
-                documents.findings.iter().map(absolute).collect();
+                documents.findings().iter().map(absolute).collect();
             let reports: Vec<_> =
-                documents.reports.iter().map(absolute).collect();
+                documents.reports().iter().map(absolute).collect();
             json!({
                 "consultable": true,
                 "findings": findings,

@@ -16,11 +16,12 @@ pub enum Consultation {
     Refused(Refusal),
 }
 
-/// The set-relative paths a consultation reads.
+/// The set-relative paths a consultation reads; only [`Consultation::judge`]
+/// builds them, so a set is opened only through its gates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Documents {
-    pub findings: Vec<String>,
-    pub reports: Vec<String>,
+    findings: Vec<String>,
+    reports: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +72,16 @@ impl Consultation {
 }
 
 impl Documents {
+    #[must_use]
+    pub fn findings(&self) -> &[String] {
+        &self.findings
+    }
+
+    #[must_use]
+    pub fn reports(&self) -> &[String] {
+        &self.reports
+    }
+
     fn of(reading: &CountsReading) -> Self {
         let under = |directory: &str, names: &[String]| {
             names

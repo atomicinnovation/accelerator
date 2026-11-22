@@ -1831,8 +1831,9 @@ impl core::fmt::Debug for research::topic::consultation::Refusal
 pub fn research::topic::consultation::Refusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::consultation::Refusal
 pub struct research::topic::consultation::Documents
-pub research::topic::consultation::Documents::findings: alloc::vec::Vec<alloc::string::String>
-pub research::topic::consultation::Documents::reports: alloc::vec::Vec<alloc::string::String>
+impl research::topic::consultation::Documents
+pub fn research::topic::consultation::Documents::findings(&self) -> &[alloc::string::String]
+pub fn research::topic::consultation::Documents::reports(&self) -> &[alloc::string::String]
 impl core::clone::Clone for research::topic::consultation::Documents
 pub fn research::topic::consultation::Documents::clone(&self) -> research::topic::consultation::Documents
 impl core::cmp::Eq for research::topic::consultation::Documents
