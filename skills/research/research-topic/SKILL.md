@@ -786,10 +786,18 @@ and runs `outline SLUG`. A reply prompt is the last line of its turn: say
 anything else, such as a warning about planted instructions, before the
 judgement.
 
+Before the first write after a reply, take the verdict again with the same
+`consultable` command. If it no longer opens the set, its `reports` differ
+from the first verdict's, or `outline.md`'s highest `## Round` heading is no
+longer the one the proposal numbered from, another session changed the set
+while the user replied: stop, write nothing, and name `{verb} {slug}
+{question}` to run again.
+
 If a command after a reply is denied permission, stop, say what was written,
 and name the allow rules that avoid the prompt,
 `Bash(accelerator corpus metadata derive)`,
-`Bash(accelerator corpus frontmatter validate *)` and
+`Bash(accelerator corpus frontmatter validate *)`,
+`Bash(accelerator research topic consultable *)` and
 `Bash(accelerator research topic counts *)`. Then name the next step from
 what was written, once those rules are in the user's Claude Code allow
 rules.
@@ -871,12 +879,12 @@ refusal writes nothing and ends the verb.
 
 **Read.** Read the citing-once rule with the Read tool at
 `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/SKILL.md`, then
-`brief.md`, `outline.md`, `synthesis.md` and every path in the verdict's
-`findings`, and nothing under `.levels/`. Read inline, spawning nothing, and
-list no directory: the verdict names every file to read. Find what bears on
-the question by reading those files, never by searching them. `synthesis.md`
-guides which findings bear on the question and supplies its Open Threads;
-coverage rests on the findings' sources.
+`brief.md`, `outline.md`, `synthesis.md`, `manifest.md` and every path in the
+verdict's `findings`, and nothing under `.levels/`. Read inline, spawning
+nothing, and list no directory: the verdict names every file to read. Find
+what bears on the question by reading those files, never by searching them.
+`synthesis.md` guides which findings bear on the question and supplies its
+Open Threads; coverage rests on the findings' sources.
 
 **Judge coverage.** Split the question into its parts and judge each across
 every finding of the focus areas relevant to it, one finding per source
@@ -1039,7 +1047,10 @@ anything.
    Validate the report.
 6. **Record it in the manifest** as the next write: set `report_count` to
    the `derived.report_count` that `accelerator research topic counts SLUG`
-   prints, run after the report is written. Add
+   prints, run after the report is written. If `counts` exits non-zero,
+   report its error and stop before the manifest edit: the report stays
+   written, and running `report {slug} {question}` again offers it for
+   `rewrite`. Add
    `` - **Reports**: `reports/` `` under `## Set` when absent — after the
    Synthesis line, or after the last `## Set` entry when there is none — and
    advance `last_updated` and `last_updated_by`, leaving `status`, `primary`,
@@ -1093,7 +1104,9 @@ accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, report the emitted violation and fix the frontmatter
-before continuing.
+before continuing. On a violation no frontmatter edit can fix, such as
+`UNKNOWN-KIND` for `kind: report` from a binary older than the skill, stop:
+say what was written, name the violation, and write nothing more.
 
 The manifest counts derive from disk, and only
 `accelerator research topic counts SLUG` derives them. A verb that writes

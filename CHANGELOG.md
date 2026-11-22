@@ -682,7 +682,8 @@
   reply, so the commands `ask` runs after one ask for permission, and a
   headless session denies them. Adding
   `Bash(accelerator corpus metadata derive)`,
-  `Bash(accelerator corpus frontmatter validate *)` and
+  `Bash(accelerator corpus frontmatter validate *)`,
+  `Bash(accelerator research topic consultable *)` and
   `Bash(accelerator research topic counts *)` to your allow rules avoids
   that.
 - **research-topic grants a `Read` of the citing-once rule**, scoped to its
@@ -700,7 +701,7 @@
   thing, so you can rewrite that one in place instead, and a reply that
   chooses an option may also name relationships for the report's
   `relates_to`. As with `ask`, the commands it runs after a reply ask for
-  permission, and a headless session denies them; the same three allow rules
+  permission, and a headless session denies them; the same four allow rules
   avoid that.
 
 ### Changed

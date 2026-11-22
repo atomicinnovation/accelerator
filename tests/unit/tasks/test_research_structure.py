@@ -2570,3 +2570,31 @@ def test_consulting_finds_what_bears_on_the_question_by_reading() -> None:
         "Find what bears on the question by reading those files, never by "
         "searching them"
     ) in read
+
+
+def test_the_read_step_reads_the_manifest() -> None:
+    read = _section(_consult(), "**Read.**", "**Judge coverage.**")
+    assert "`manifest.md`" in read
+
+
+def test_a_failed_counts_stops_report_before_the_manifest_edit() -> None:
+    record = _report_step("**Record it in the manifest**", "**Partial.**")
+    assert "If `counts` exits non-zero" in record
+    assert "stop before the manifest edit" in record
+
+
+def test_a_violation_frontmatter_cannot_fix_stops_the_verb() -> None:
+    validate = _validate_every_write()
+    assert "a violation no frontmatter edit can fix" in validate
+    assert "`UNKNOWN-KIND`" in validate
+
+
+def test_the_verdict_is_taken_again_before_the_first_write() -> None:
+    consult = _consult()
+    for phrase in (
+        "Before the first write after a reply, take the verdict again",
+        "its `reports` differ",
+        "highest `## Round` heading",
+        "`Bash(accelerator research topic consultable *)`",
+    ):
+        assert phrase in consult, f"the re-check lacks {phrase!r}"
