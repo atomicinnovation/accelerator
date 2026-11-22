@@ -221,12 +221,8 @@ export async function startDaemon({ stateDir }) {
       const ctx = await browser.newContext({ serviceWorkers: 'block' });
       const intercepted = await ctx.newPage();
 
-      // One page-lifetime interceptor, so a redirect hop and a page-initiated
-      // navigation (a <meta refresh>, a scripted location change) are
-      // classified under the current request's allowances too, not only the
-      // initial URL, and the auth header is decided per hop against the
-      // location origin. A refusal is recorded only for the main frame, so a
-      // sub-frame abort never masks the top-level result.
+      // A refusal is recorded only for the main frame, so a sub-frame abort
+      // never masks the top-level result.
       await interceptRequests(intercepted, {
         getAllowances: () => currentAllowances,
         getExpectedOrigin: () => currentExpectedOrigin,
