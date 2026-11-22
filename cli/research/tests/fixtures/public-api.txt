@@ -1857,6 +1857,7 @@ impl core::marker::StructuralPartialEq for research::topic::consultation::HeldBa
 pub mod research::topic::counts
 pub enum research::topic::counts::CountField
 pub research::topic::counts::CountField::Manifest(research::topic::counts::FreshnessCount)
+pub research::topic::counts::CountField::ReportCount
 pub research::topic::counts::CountField::RoundsCovered
 impl research::topic::counts::CountField
 pub const fn research::topic::counts::CountField::document(self) -> &'static str

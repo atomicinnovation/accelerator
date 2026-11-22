@@ -100,6 +100,7 @@ pub enum FreshnessCount {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CountField {
     Manifest(FreshnessCount),
+    ReportCount,
     RoundsCovered,
 }
 
@@ -109,6 +110,7 @@ impl CountField {
         match self {
             Self::Manifest(FreshnessCount::RoundCount) => "round_count",
             Self::Manifest(FreshnessCount::FindingCount) => "finding_count",
+            Self::ReportCount => "report_count",
             Self::RoundsCovered => "rounds_covered",
         }
     }
@@ -116,7 +118,7 @@ impl CountField {
     #[must_use]
     pub const fn document(self) -> &'static str {
         match self {
-            Self::Manifest(_) => "manifest.md",
+            Self::Manifest(_) | Self::ReportCount => "manifest.md",
             Self::RoundsCovered => "synthesis.md",
         }
     }
@@ -264,6 +266,12 @@ mod tests {
     use super::ReportCountDrift;
     use super::StoredCount;
     use super::StoredCounts;
+
+    #[test]
+    fn the_report_count_is_named_by_its_manifest_field() {
+        assert_eq!(CountField::ReportCount.document(), "manifest.md");
+        assert_eq!(CountField::ReportCount.key(), "report_count");
+    }
 
     fn findings(rounds: &[(&str, Option<u32>)]) -> CountedFindings {
         let names: Vec<&str> = rounds.iter().map(|(name, _)| *name).collect();

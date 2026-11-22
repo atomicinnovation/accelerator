@@ -240,6 +240,28 @@ fn counts_notes_a_drifted_report_count_without_going_stale(
 }
 
 #[test]
+fn counts_notes_an_unreadable_report_count_escaped() -> Result<(), TestError> {
+    let project = Project::with_fixture_set(MULTIROUND)?;
+    project.edit(
+        "manifest.md",
+        "finding_count: 3",
+        "finding_count: 3\nreport_count: \"x\\ny\"",
+    )?;
+
+    let counts = project.counts(MULTIROUND)?;
+
+    assert_eq!(counts["fresh"], json!(true), "{counts}");
+    assert_eq!(
+        counts["notices"],
+        json!([
+            "manifest.md records report_count 'x\\ny', which is not a whole \
+             number"
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn counts_writes_nothing() -> Result<(), TestError> {
     let project = Project::with_fixture_set(MULTIROUND)?;
     let before = tree(&project.root)?;

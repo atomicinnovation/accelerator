@@ -12,12 +12,7 @@ pub fn mismatch(mismatch: &Mismatch) -> String {
             let field = CountField::Manifest(*count);
             format!("{} records no {}", field.document(), field.key())
         }
-        Mismatch::Unreadable { field, raw } => format!(
-            "{} records {} '{}', which is not a whole number",
-            field.document(),
-            field.key(),
-            raw.escape_debug()
-        ),
+        Mismatch::Unreadable { field, raw } => unreadable(*field, raw),
         Mismatch::Disagrees {
             count,
             stored,
@@ -47,15 +42,22 @@ pub fn mismatch(mismatch: &Mismatch) -> String {
 }
 
 pub fn report_count_drift(drift: &ReportCountDrift) -> String {
+    let field = CountField::ReportCount;
     match drift {
         ReportCountDrift::Disagrees { stored, derived } => format!(
-            "manifest.md records report_count {stored} but {derived} reports \
-             are on disk"
+            "{} records {} {stored} but {derived} reports are on disk",
+            field.document(),
+            field.key()
         ),
-        ReportCountDrift::Unreadable(raw) => format!(
-            "manifest.md records report_count '{}', which is not a whole \
-             number",
-            raw.escape_debug()
-        ),
+        ReportCountDrift::Unreadable(raw) => unreadable(field, raw),
     }
+}
+
+fn unreadable(field: CountField, raw: &str) -> String {
+    format!(
+        "{} records {} '{}', which is not a whole number",
+        field.document(),
+        field.key(),
+        raw.escape_debug()
+    )
 }
