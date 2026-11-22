@@ -230,18 +230,32 @@ pub fn read_counts<F: DirReader + FileReader + DirectoryProbe>(
     })
 }
 
+/// The entries directly in one directory, sorted and split once into files
+/// and directories, so every reader of the directory sees the same files.
+struct DirectoryEntries {
+    files: Vec<String>,
+    directories: Vec<String>,
+}
+
+impl DirectoryEntries {
+    fn of<F: DirReader + DirectoryProbe>(
+        dir: &Path,
+        fs: &F,
+    ) -> Result<Self, kernel::Error> {
+        let mut names = fs.list(dir)?.unwrap_or_default();
+        names.sort_unstable();
+        let (directories, files) = names
+            .into_iter()
+            .partition(|name| fs.is_dir(&dir.join(name)));
+        Ok(Self { files, directories })
+    }
+}
+
 fn files_in<F: DirReader + DirectoryProbe>(
     dir: &Path,
     fs: &F,
 ) -> Result<Vec<String>, kernel::Error> {
-    let mut files: Vec<String> = fs
-        .list(dir)?
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|name| !fs.is_dir(&dir.join(name)))
-        .collect();
-    files.sort_unstable();
-    Ok(files)
+    Ok(DirectoryEntries::of(dir, fs)?.files)
 }
 
 /// The `status` the set's manifest records.
@@ -365,14 +379,24 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<FindingsListing, kernel::Error> {
-    let mut names = fs.list(findings_dir)?.unwrap_or_default();
-    names.sort();
+    let entries = DirectoryEntries::of(findings_dir, fs)?;
     let mut listing = FindingsListing {
         findings: Vec::new(),
         quarantined: Vec::new(),
         levels: Vec::new(),
     };
-    for name in names {
+    for name in entries.directories {
+        if let Some(stem) = levels_stem(&name) {
+            listing.levels.push(read_levels_directory(
+                &findings_dir.join(&name),
+                stem,
+                fs,
+                parser,
+                unicode,
+            )?);
+        }
+    }
+    for name in entries.files {
         let path = findings_dir.join(&name);
         if name.starts_with('.') {
             if name.ends_with(QUARANTINE_SUFFIX) {
@@ -385,10 +409,6 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
                     unicode,
                 ));
             }
-        } else if let Some(stem) = levels_stem(&name, &path, fs) {
-            listing
-                .levels
-                .push(read_levels_directory(&path, stem, fs, parser, unicode)?);
         } else if is_finding_entry(&name) {
             listing
                 .findings
@@ -398,13 +418,8 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
     Ok(listing)
 }
 
-fn levels_stem<F: DirectoryProbe>(
-    name: &str,
-    path: &Path,
-    fs: &F,
-) -> Option<Stem> {
-    let stem = Stem::parse(name.strip_suffix(LEVELS_SUFFIX)?)?;
-    fs.is_dir(path).then_some(stem)
+fn levels_stem(name: &str) -> Option<Stem> {
+    Stem::parse(name.strip_suffix(LEVELS_SUFFIX)?)
 }
 
 fn read_finding<F: FileReader>(
@@ -1253,6 +1268,25 @@ mod tests {
 
         assert_eq!(counts.findings.finding_count(), 1);
         assert_eq!(counts.reports.names(), ["a.md"]);
+        Ok(())
+    }
+
+    #[test]
+    fn the_planner_reads_no_directory_as_a_finding() -> Result<(), TestError> {
+        let fs =
+            set_with(StubFs::default()).with_dir("/set/findings/02-b-web.md");
+
+        let reading = read_round_inputs(
+            Path::new(SET),
+            Path::new(PROFILES),
+            Depth::default(),
+            ClaimedIndexes::default(),
+            &fs,
+            &YamlFrontmatter,
+            &UnicodeTables,
+        )?;
+
+        assert_eq!(reading.inputs.findings, Vec::new());
         Ok(())
     }
 
