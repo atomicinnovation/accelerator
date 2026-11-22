@@ -935,6 +935,19 @@ impl core::marker::StructuralPartialEq for research::sources::openalex::Work
 pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
 pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
 pub mod research::sources::pacing
+pub enum research::sources::pacing::Confirmation
+pub research::sources::pacing::Confirmation::Deferred(research::sources::pacing::PacingState)
+pub research::sources::pacing::Confirmation::Send(research::sources::pacing::PacingState)
+pub research::sources::pacing::Confirmation::WaitUntil(std::time::SystemTime)
+impl core::clone::Clone for research::sources::pacing::Confirmation
+pub fn research::sources::pacing::Confirmation::clone(&self) -> research::sources::pacing::Confirmation
+impl core::cmp::Eq for research::sources::pacing::Confirmation
+impl core::cmp::PartialEq for research::sources::pacing::Confirmation
+pub fn research::sources::pacing::Confirmation::eq(&self, other: &research::sources::pacing::Confirmation) -> bool
+impl core::fmt::Debug for research::sources::pacing::Confirmation
+pub fn research::sources::pacing::Confirmation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::Confirmation
+impl core::marker::StructuralPartialEq for research::sources::pacing::Confirmation
 pub enum research::sources::pacing::SpacedFrom
 pub research::sources::pacing::SpacedFrom::PreviousFinish
 pub research::sources::pacing::SpacedFrom::PreviousStart
@@ -966,6 +979,41 @@ impl core::fmt::Debug for research::sources::pacing::Pacing
 pub fn research::sources::pacing::Pacing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::pacing::Pacing
 impl core::marker::StructuralPartialEq for research::sources::pacing::Pacing
+pub struct research::sources::pacing::PacingState
+pub research::sources::pacing::PacingState::last_finish: core::option::Option<std::time::SystemTime>
+pub research::sources::pacing::PacingState::last_sent: core::option::Option<std::time::SystemTime>
+pub research::sources::pacing::PacingState::next_free: core::option::Option<std::time::SystemTime>
+pub research::sources::pacing::PacingState::not_before: core::option::Option<std::time::SystemTime>
+impl research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::confirm(self, pacing: &research::sources::pacing::Pacing, reservation: &research::sources::pacing::Reservation, now: std::time::SystemTime) -> research::sources::pacing::Confirmation
+pub fn research::sources::pacing::PacingState::defer(self, until: std::time::SystemTime, now: std::time::SystemTime) -> Self
+pub const fn research::sources::pacing::PacingState::finish(self, at: std::time::SystemTime) -> Self
+pub fn research::sources::pacing::PacingState::release(self, pacing: &research::sources::pacing::Pacing, reservation: &research::sources::pacing::Reservation) -> Self
+pub fn research::sources::pacing::PacingState::reserve(self, pacing: &research::sources::pacing::Pacing, now: std::time::SystemTime) -> (research::sources::pacing::Reservation, Self)
+pub fn research::sources::pacing::PacingState::trust(self, pacing: &research::sources::pacing::Pacing, now: std::time::SystemTime) -> Self
+impl core::clone::Clone for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::clone(&self) -> research::sources::pacing::PacingState
+impl core::cmp::Eq for research::sources::pacing::PacingState
+impl core::cmp::PartialEq for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::eq(&self, other: &research::sources::pacing::PacingState) -> bool
+impl core::default::Default for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::default() -> research::sources::pacing::PacingState
+impl core::fmt::Debug for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::PacingState
+impl core::marker::StructuralPartialEq for research::sources::pacing::PacingState
+pub struct research::sources::pacing::Reservation
+impl research::sources::pacing::Reservation
+pub const fn research::sources::pacing::Reservation::send_at(&self) -> std::time::SystemTime
+impl core::clone::Clone for research::sources::pacing::Reservation
+pub fn research::sources::pacing::Reservation::clone(&self) -> research::sources::pacing::Reservation
+impl core::cmp::Eq for research::sources::pacing::Reservation
+impl core::cmp::PartialEq for research::sources::pacing::Reservation
+pub fn research::sources::pacing::Reservation::eq(&self, other: &research::sources::pacing::Reservation) -> bool
+impl core::fmt::Debug for research::sources::pacing::Reservation
+pub fn research::sources::pacing::Reservation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::Reservation
+impl core::marker::StructuralPartialEq for research::sources::pacing::Reservation
 pub mod research::sources::queue
 pub enum research::sources::queue::Argument
 pub research::sources::queue::Argument::Id
