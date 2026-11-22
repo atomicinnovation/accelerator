@@ -262,7 +262,7 @@ pub fn fetch_doi(
         deadline,
         &mut |attempts| {
             let settled = attempts.until_settled(
-                &UpstreamRequest::crossref_work(fetch.api, fetch.doi),
+                &UpstreamRequest::crossref_work(fetch.api, fetch.doi, None),
                 &classify::crossref,
                 &mut |body| Ok(ports.decoder.work(&body)),
             )?;

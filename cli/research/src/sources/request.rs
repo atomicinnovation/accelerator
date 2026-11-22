@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use crate::sources::crossref::ContactAddress;
 use crate::sources::queue::MalformedTicket;
 use crate::sources::queue::Ticket;
 use crate::sources::web::page_url::PageUrl;
@@ -924,12 +925,21 @@ impl UpstreamRequest {
         )
     }
 
-    /// Crossref's record of `doi`, asked for anonymously.
-    pub fn crossref_work(api: &Endpoint, doi: &Doi) -> Self {
+    /// Crossref's record of `doi`, asked for anonymously unless a `contact`
+    /// is given.
+    pub fn crossref_work(
+        api: &Endpoint,
+        doi: &Doi,
+        contact: Option<&ContactAddress>,
+    ) -> Self {
+        let user_agent = contact.map_or_else(
+            || USER_AGENT.to_owned(),
+            |address| format!("{USER_AGENT} (mailto:{})", address.as_str()),
+        );
         Self {
             url: Query::at(api, &format!("/works/{}", doi.encoded())).finish(),
             headers: vec![
-                ("User-Agent", USER_AGENT.to_owned()),
+                ("User-Agent", user_agent),
                 ("Accept", JSON.to_owned()),
             ],
             bearer: None,

@@ -1,6 +1,10 @@
+#![allow(clippy::expect_used)]
+
 use research::sources::crossref::normalise;
+use research::sources::crossref::ContactAddress;
 use research::sources::crossref::CrossrefWork;
 use research::sources::crossref::DoiMetadata;
+use research::sources::crossref::Implausible;
 use research::sources::crossref::Venue;
 
 fn work(kind: &str, titles: &[&str], publisher: Option<&str>) -> CrossrefWork {
@@ -122,4 +126,56 @@ fn a_miss_is_empty_metadata_with_no_venue() {
 
     assert_eq!(venue(&miss), None);
     assert_eq!(entries(&miss), []);
+}
+
+fn contact(raw: &str) -> Option<String> {
+    ContactAddress::parse(raw)
+        .expect("a plausible address")
+        .map(|address| address.as_str().to_owned())
+}
+
+#[test]
+fn a_plausible_address_is_a_contact() {
+    assert_eq!(
+        contact("research@example.org").as_deref(),
+        Some("research@example.org")
+    );
+}
+
+#[test]
+fn a_contact_address_is_trimmed() {
+    assert_eq!(
+        contact(" research@example.org ").as_deref(),
+        Some("research@example.org")
+    );
+}
+
+#[test]
+fn a_blank_address_is_no_contact() {
+    assert_eq!(contact(""), None);
+    assert_eq!(contact(" "), None);
+}
+
+#[test]
+fn an_implausible_address_is_refused() {
+    for raw in [
+        "not-an-address",
+        "a@b",
+        "a@.org",
+        "a@example.",
+        "@example.org",
+        "a@b@example.org",
+        "research @example.org",
+        "mailto:x@example.org",
+        "ré@example.org",
+        "a(b)@example.org",
+        "a\\b@example.org",
+        "a\u{7f}b@example.org",
+    ] {
+        assert_eq!(
+            ContactAddress::parse(raw),
+            Err(Implausible),
+            "'{raw}' is implausible"
+        );
+    }
 }

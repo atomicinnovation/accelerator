@@ -1,5 +1,6 @@
 #![allow(clippy::expect_used)]
 
+use research::sources::crossref::ContactAddress;
 use research::sources::request::parse_ticket;
 use research::sources::request::ApiKey;
 use research::sources::request::ArxivId;
@@ -890,6 +891,7 @@ fn a_crossref_work_request_names_the_doi_in_its_path_and_has_no_query() {
     let request = UpstreamRequest::crossref_work(
         &Endpoint::crossref_api(),
         &Doi::parse(PROCEEDINGS_DOI).expect("a DOI"),
+        None,
     );
 
     assert_eq!(
@@ -904,6 +906,7 @@ fn a_crossref_work_request_asks_for_json_as_accelerator_with_no_bearer() {
     let request = UpstreamRequest::crossref_work(
         &Endpoint::crossref_api(),
         &Doi::parse(PROCEEDINGS_DOI).expect("a DOI"),
+        None,
     );
 
     assert_eq!(
@@ -917,4 +920,28 @@ fn a_crossref_work_request_asks_for_json_as_accelerator_with_no_bearer() {
         ]
     );
     assert_eq!(request.bearer(), None);
+}
+
+#[test]
+fn a_crossref_work_request_with_a_contact_names_it_in_its_user_agent_only() {
+    let contact = ContactAddress::parse("research@example.org")
+        .expect("plausible")
+        .expect("present");
+    let request = UpstreamRequest::crossref_work(
+        &Endpoint::crossref_api(),
+        &Doi::parse(PROCEEDINGS_DOI).expect("a DOI"),
+        Some(&contact),
+    );
+
+    assert_eq!(
+        request.headers().first(),
+        Some(&(
+            "User-Agent",
+            format!(
+                "accelerator-research/{} (mailto:research@example.org)",
+                env!("CARGO_PKG_VERSION")
+            )
+        ))
+    );
+    assert!(!request.url().contains("research@example.org"));
 }

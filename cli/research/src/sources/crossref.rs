@@ -58,3 +58,54 @@ fn venue_of(work: &CrossrefWork) -> Option<Venue> {
     }
     collapsed_whitespace(work.container_titles.first()?).map(Venue)
 }
+
+/// An address Crossref can reach the caller at, sent so that it serves the
+/// call from its polite pool.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContactAddress(String);
+
+/// A configured contact that could not be a working address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Implausible;
+
+impl ContactAddress {
+    /// The trimmed address, or `None` when `raw` is blank.
+    ///
+    /// The address travels inside a `User-Agent` comment, so it is held to
+    /// visible ASCII with nothing that could end or escape that comment.
+    ///
+    /// # Errors
+    ///
+    /// [`Implausible`] when the trimmed value is not a plausible address.
+    pub fn parse(raw: &str) -> Result<Option<Self>, Implausible> {
+        let address = raw.trim();
+        if address.is_empty() {
+            return Ok(None);
+        }
+        if is_plausible(address) {
+            Ok(Some(Self(address.to_owned())))
+        } else {
+            Err(Implausible)
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+fn is_plausible(address: &str) -> bool {
+    let fits_a_comment = address.chars().all(|character| {
+        character.is_ascii_graphic() && !matches!(character, '(' | ')' | '\\')
+    });
+    let Some((local, domain)) = address.split_once('@') else {
+        return false;
+    };
+    fits_a_comment
+        && !local.is_empty()
+        && !local.contains(':')
+        && !domain.contains('@')
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+}

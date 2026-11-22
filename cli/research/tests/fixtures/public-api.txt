@@ -685,6 +685,18 @@ pub fn research::sources::classify::arxiv(response: research::sources::classify:
 pub fn research::sources::classify::crossref(response: research::sources::classify::Response) -> research::sources::classify::Verdict
 pub fn research::sources::classify::openalex(response: research::sources::classify::Response, verb: research::sources::request::Verb, key: core::option::Option<&research::sources::request::KeySource>) -> research::sources::classify::Verdict
 pub mod research::sources::crossref
+pub struct research::sources::crossref::ContactAddress(_)
+impl research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::as_str(&self) -> &str
+pub fn research::sources::crossref::ContactAddress::parse(raw: &str) -> core::result::Result<core::option::Option<Self>, research::sources::crossref::Implausible>
+impl core::clone::Clone for research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::clone(&self) -> research::sources::crossref::ContactAddress
+impl core::cmp::Eq for research::sources::crossref::ContactAddress
+impl core::cmp::PartialEq for research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::eq(&self, other: &research::sources::crossref::ContactAddress) -> bool
+impl core::fmt::Debug for research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::ContactAddress
 pub struct research::sources::crossref::CrossrefWork
 pub research::sources::crossref::CrossrefWork::container_titles: alloc::vec::Vec<alloc::string::String>
 pub research::sources::crossref::CrossrefWork::kind: core::option::Option<alloc::string::String>
@@ -712,6 +724,16 @@ pub fn research::sources::crossref::DoiMetadata::default() -> research::sources:
 impl core::fmt::Debug for research::sources::crossref::DoiMetadata
 pub fn research::sources::crossref::DoiMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::crossref::DoiMetadata
+pub struct research::sources::crossref::Implausible
+impl core::clone::Clone for research::sources::crossref::Implausible
+pub fn research::sources::crossref::Implausible::clone(&self) -> research::sources::crossref::Implausible
+impl core::cmp::Eq for research::sources::crossref::Implausible
+impl core::cmp::PartialEq for research::sources::crossref::Implausible
+pub fn research::sources::crossref::Implausible::eq(&self, other: &research::sources::crossref::Implausible) -> bool
+impl core::fmt::Debug for research::sources::crossref::Implausible
+pub fn research::sources::crossref::Implausible::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::crossref::Implausible
+impl core::marker::StructuralPartialEq for research::sources::crossref::Implausible
 pub struct research::sources::crossref::Venue(_)
 impl research::sources::crossref::Venue
 pub fn research::sources::crossref::Venue::as_str(&self) -> &str
@@ -1744,7 +1766,7 @@ impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexQ
 pub struct research::sources::request::UpstreamRequest
 impl research::sources::request::UpstreamRequest
 pub fn research::sources::request::UpstreamRequest::bearer(&self) -> core::option::Option<&str>
-pub fn research::sources::request::UpstreamRequest::crossref_work(api: &research::sources::request::Endpoint, doi: &research::sources::request::Doi) -> Self
+pub fn research::sources::request::UpstreamRequest::crossref_work(api: &research::sources::request::Endpoint, doi: &research::sources::request::Doi, contact: core::option::Option<&research::sources::crossref::ContactAddress>) -> Self
 pub fn research::sources::request::UpstreamRequest::headers(&self) -> &[(&'static str, alloc::string::String)]
 pub fn research::sources::request::UpstreamRequest::url(&self) -> &str
 pub fn research::sources::request::UpstreamRequest::withdrawal_confirmation(oai: &research::sources::request::Endpoint, id: &research::sources::request::ArxivId) -> Self
