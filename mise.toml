@@ -332,7 +332,7 @@ run = 'invoke test.unit.frontend ${usage_filter+--filter="$usage_filter"}'
 description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'filter and not empty'"
 '''
 run = 'invoke test.unit.tasks ${usage_filter+--filter="$usage_filter"}'
 
@@ -340,7 +340,7 @@ run = 'invoke test.unit.tasks ${usage_filter+--filter="$usage_filter"}'
 description = "Guard that every module in the built frontend bundle resolves to the --production licence closure (its own sourcemap build; no shipped dist/ dependency)"
 depends = ["deps:install:node", "deps:install:python"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'closure'"
 '''
 run = 'invoke test.unit.frontend-licenses ${usage_filter+--filter="$usage_filter"}'
 
@@ -348,7 +348,7 @@ run = 'invoke test.unit.frontend-licenses ${usage_filter+--filter="$usage_filter
 description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
 depends = ["deps:install:python"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'pattern'"
 '''
 run = 'invoke test.unit.vcs ${usage_filter+--filter="$usage_filter"}'
 
@@ -364,7 +364,7 @@ run = 'invoke test.cli.run ${usage_filter+--filter="$usage_filter"}'
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'partial'"
 '''
 run = 'invoke test.integration.tasks ${usage_filter+--filter="$usage_filter"}'
 
@@ -407,7 +407,7 @@ run = "invoke test.integration.visualiser-os-watcher"
 description = "Run unified dev task integration tests (real circusd + Python fake processes)"
 depends = ["deps:install:python"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'orphan'"
 '''
 run = 'invoke test.integration.dev ${usage_filter+--filter="$usage_filter"}'
 
@@ -420,7 +420,7 @@ run = "invoke test.integration.release-guard"
 description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)"
 depends = ["deps:install:python"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'launcher_removed'"
 '''
 run = 'invoke test.integration.entrypoint ${usage_filter+--filter="$usage_filter"}'
 
@@ -433,7 +433,7 @@ run = "invoke test.integration.skill-invocation"
 description = "Hold the CLI output skill evals quote to the built accelerator-work"
 depends = ["build:cli:work:dev"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'quoted_block'"
 '''
 run = 'invoke test.integration.evals ${usage_filter+--filter="$usage_filter"}'
 
@@ -501,7 +501,7 @@ run = "invoke eval.citing-once"
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
 depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'adf_rule'"
 '''
 run = 'invoke test.integration.pup ${usage_filter+--filter="$usage_filter"}'
 
@@ -517,7 +517,7 @@ run = 'invoke test.integration.tracker-contract ${usage_filter+--filter="$usage_
 description = "Run hooks integration tests"
 depends = ["build:cli:dev", "build:cli:vcs:dev", "build:cli:research:dev"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'refused'"
 '''
 run = 'invoke test.integration.hooks ${usage_filter+--filter="$usage_filter"}'
 
@@ -525,7 +525,7 @@ run = 'invoke test.integration.hooks ${usage_filter+--filter="$usage_filter"}'
 description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard"
 depends = ["build:cli:research:dev"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'profile_invocation'"
 '''
 run = 'invoke test.integration.research ${usage_filter+--filter="$usage_filter"}'
 
@@ -536,7 +536,7 @@ run = 'invoke test.integration.research ${usage_filter+--filter="$usage_filter"}
 description = "Run the research guard's lexer differential at every splice position (opt-in: minutes)"
 depends = ["build:cli:research:dev"]
 usage = '''
-flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'resume and not slow'"
+flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'smuggles'"
 '''
 run = 'invoke test.integration.research-exhaustive ${usage_filter+--filter="$usage_filter"}'
 

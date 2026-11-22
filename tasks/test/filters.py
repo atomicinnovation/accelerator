@@ -7,10 +7,10 @@ from invoke import Context, Exit, UnexpectedExit
 
 from tasks.shared.selection import Selection
 
-PYTEST_FILTER_HELP = (
-    "pytest -k expression selecting the tests to run, "
-    "e.g. 'resume and not slow'"
-)
+
+def pytest_filter_help(example: str) -> str:
+    return f"pytest -k expression selecting the tests to run, e.g. '{example}'"
+
 
 NEXTEST_CONTRACT_FILTER_HELP = (
     "nextest filterset selecting the contract tests to run, e.g. "

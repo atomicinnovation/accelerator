@@ -11,10 +11,10 @@ from .design_automation import (
 from .filters import (
     LIBTEST_UNIT_FILTER_HELP,
     NODE_TEST_UNIT_FILTER_HELP,
-    PYTEST_FILTER_HELP,
     VITEST_FILTER_HELP,
     command_line,
     npm_script_options,
+    pytest_filter_help,
     run_libtest_lane,
     run_pytest_lane,
     selection_from,
@@ -62,7 +62,9 @@ def frontend(context: Context, filter_: str | None = None) -> None:
         raise Exit(selection.nothing_selected("test:unit:frontend"), code=1)
 
 
-@task(name="tasks", help={"filter_": PYTEST_FILTER_HELP})
+@task(
+    name="tasks", help={"filter_": pytest_filter_help("filter and not empty")}
+)
 def build_system(context: Context, filter_: str | None = None) -> None:
     """Run the pytest unit tests for the invoke tasks."""
     run_pytest_lane(
@@ -73,7 +75,7 @@ def build_system(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("closure")})
 def frontend_licenses(context: Context, filter_: str | None = None) -> None:
     """Guard the built frontend bundle's licence closure."""
     run_pytest_lane(
@@ -84,7 +86,7 @@ def frontend_licenses(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("pattern")})
 def vcs(context: Context, filter_: str | None = None) -> None:
     """Run the pytest unit tests for the VCS test-support fixtures."""
     run_pytest_lane(

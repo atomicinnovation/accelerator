@@ -14,8 +14,8 @@ from tasks.test.filters import (
     LIBTEST_INTEGRATION_FILTER_HELP,
     NEXTEST_CONTRACT_FILTER_HELP,
     NODE_TEST_RUNTIME_FILTER_HELP,
-    PYTEST_FILTER_HELP,
     command_line,
+    pytest_filter_help,
     run_libtest_lane,
     run_nextest_lane,
     run_pytest_lane,
@@ -75,7 +75,7 @@ def visualiser_os_watcher(context: Context) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("orphan")})
 def dev(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the dev task (real circusd, fake processes)."""
     run_pytest_lane(
@@ -86,7 +86,7 @@ def dev(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("launcher_removed")})
 def entrypoint(context: Context, filter_: str | None = None) -> None:
     """Hermetic tests for the bin/accelerator plugin entry point.
 
@@ -101,7 +101,7 @@ def entrypoint(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task(name="tasks", help={"filter_": PYTEST_FILTER_HELP})
+@task(name="tasks", help={"filter_": pytest_filter_help("partial")})
 def build_system(context: Context, filter_: str | None = None) -> None:
     """Run the pytest integration tests for the invoke tasks."""
     run_pytest_lane(
@@ -130,7 +130,7 @@ def deny(context: Context) -> None:
     context.run("uv run pytest tests/integration/deny -v")
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("adf_rule")})
 def pup(context: Context, filter_: str | None = None) -> None:
     """cargo-pup architecture regression (needs the nightly lane)."""
     run_pytest_lane(
@@ -169,7 +169,7 @@ def conformance(context: Context) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("quoted_block")})
 def evals(context: Context, filter_: str | None = None) -> None:
     """Hold the CLI output skill evals quote to what the CLI prints.
 
@@ -184,7 +184,7 @@ def evals(context: Context, filter_: str | None = None) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("refused")})
 def hooks(context: Context, filter_: str | None = None) -> None:
     """Integration tests for the hooks/ subtree.
 
@@ -203,7 +203,7 @@ def hooks(context: Context, filter_: str | None = None) -> None:
 _RESEARCH_DIFFERENTIAL = "uv run pytest tests/integration/research -v"
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("profile_invocation")})
 def research(context: Context, filter_: str | None = None) -> None:
     """Run the research guard's lexer differential against bash and zsh.
 
@@ -231,7 +231,7 @@ def arxiv_queue_stress(context: Context) -> None:
     )
 
 
-@task(help={"filter_": PYTEST_FILTER_HELP})
+@task(help={"filter_": pytest_filter_help("smuggles")})
 def research_exhaustive(context: Context, filter_: str | None = None) -> None:
     """Run the research guard's lexer differential at every position."""
     run_pytest_lane(

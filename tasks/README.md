@@ -126,7 +126,7 @@ Every multi-test `test:*` leaf takes `--filter`, in its own runner's syntax.
 |---|---|---|
 | `test:unit:cli` | nextest filterset | `binary_id(vcs-adapters::classify)` |
 | `test:integration:tracker-contract` | nextest filterset, within the contract binary | `test(the_conformance_set_passes_against_a_live_team)` |
-| `test:unit:tasks`, `:frontend-licenses`, `:vcs`; `test:integration:tasks`, `:dev`, `:entrypoint`, `:evals`, `:pup`, `:hooks`, `:research`, `:research-exhaustive` | pytest `-k` expression | `resume and not slow` |
+| `test:unit:tasks`, `:frontend-licenses`, `:vcs`; `test:integration:tasks`, `:dev`, `:entrypoint`, `:evals`, `:pup`, `:hooks`, `:research`, `:research-exhaustive` | pytest `-k` expression | `filter and not empty` (`test:unit:tasks`); each lane's `--help` names one of its own |
 | `test:unit:visualiser`, `test:integration:visualiser` | libtest substring of the test path | `path_normalisation`, `spa_route` |
 | `test:unit:frontend` | Vitest `-t` test-name regex | `copyText` |
 | `test:unit:design-automation`, `test:integration:design-automation` | node `--test-name-pattern` regex | `judges as the corpus says`, `ping: exits 0` |

@@ -11,13 +11,13 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from invoke import Context
 
 from tasks.shared.dev_builds import DEV_BUILDS
 from tasks.test import cli as test_cli
 from tasks.test import e2e as test_e2e
 from tasks.test import integration as test_integration
 from tasks.test import unit as test_unit
-from tasks.test.filters import PYTEST_FILTER_HELP
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
@@ -487,18 +487,37 @@ def test_a_test_rollup_says_it_ignores_filter(mise, rollup):
 
 
 _PYTEST_LANES = {
-    "test:unit:tasks": "test.unit.tasks",
-    "test:unit:frontend-licenses": "test.unit.frontend-licenses",
-    "test:unit:vcs": "test.unit.vcs",
-    "test:integration:tasks": "test.integration.tasks",
-    "test:integration:dev": "test.integration.dev",
-    "test:integration:entrypoint": "test.integration.entrypoint",
-    "test:integration:evals": "test.integration.evals",
-    "test:integration:pup": "test.integration.pup",
-    "test:integration:hooks": "test.integration.hooks",
-    "test:integration:research": "test.integration.research",
+    "test:unit:tasks": ("test.unit.tasks", test_unit.build_system),
+    "test:unit:frontend-licenses": (
+        "test.unit.frontend-licenses",
+        test_unit.frontend_licenses,
+    ),
+    "test:unit:vcs": ("test.unit.vcs", test_unit.vcs),
+    "test:integration:tasks": (
+        "test.integration.tasks",
+        test_integration.build_system,
+    ),
+    "test:integration:dev": ("test.integration.dev", test_integration.dev),
+    "test:integration:entrypoint": (
+        "test.integration.entrypoint",
+        test_integration.entrypoint,
+    ),
+    "test:integration:evals": (
+        "test.integration.evals",
+        test_integration.evals,
+    ),
+    "test:integration:pup": ("test.integration.pup", test_integration.pup),
+    "test:integration:hooks": (
+        "test.integration.hooks",
+        test_integration.hooks,
+    ),
+    "test:integration:research": (
+        "test.integration.research",
+        test_integration.research,
+    ),
     "test:integration:research-exhaustive": (
-        "test.integration.research-exhaustive"
+        "test.integration.research-exhaustive",
+        test_integration.research_exhaustive,
     ),
 }
 
@@ -507,17 +526,57 @@ _PYTEST_LANES = {
 def test_a_pytest_lane_declares_filter_with_the_invoke_task_s_help(
     mise, mise_task
 ):
+    _, invoke_task = _PYTEST_LANES[mise_task]
     [flag] = _FILTER_FLAG.finditer(mise["tasks"][mise_task]["usage"])
 
     assert flag["value"] == "expression"
-    assert flag["help"] == PYTEST_FILTER_HELP
+    assert flag["help"] == invoke_task.help["filter_"]
 
 
 @pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
 def test_a_pytest_lane_forwards_filter_only_when_it_is_given(mise, mise_task):
+    invoke_name, _ = _PYTEST_LANES[mise_task]
+
     assert mise["tasks"][mise_task]["run"] == (
-        f"invoke {_PYTEST_LANES[mise_task]} {_FORWARDS_FILTER}"
+        f"invoke {invoke_name} {_FORWARDS_FILTER}"
     )
+
+
+_FILTER_EXAMPLE = re.compile(r"e\.g\. '(?P<example>[^']+)'$")
+
+
+def _pytest_lane_test_path(invoke_task, mocker) -> str:
+    context = mocker.MagicMock(spec=Context)
+    invoke_task(context)
+    [command] = [call.args[0] for call in context.run.call_args_list]
+    [path] = [token for token in command.split() if token.startswith("tests/")]
+    return path
+
+
+@pytest.mark.parametrize("mise_task", sorted(_PYTEST_LANES))
+def test_a_pytest_lane_s_filter_example_selects_a_test_in_it(mise_task, mocker):
+    _, invoke_task = _PYTEST_LANES[mise_task]
+    example = _FILTER_EXAMPLE.search(invoke_task.help["filter_"])
+    assert example is not None
+
+    collected = subprocess.run(
+        [
+            "uv",
+            "run",
+            "pytest",
+            _pytest_lane_test_path(invoke_task, mocker),
+            "--collect-only",
+            "-q",
+            "-k",
+            example["example"],
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert collected.returncode == 0, collected.stdout + collected.stderr
 
 
 _CARGO_AND_NODE_LANES = {
