@@ -20,7 +20,10 @@
 // facets stay in place while the list scrolls, that choosing a file
 // keeps the list's scroll and brings the file just below the top bar, that a
 // folder's checkbox selects its files for one bulk verdict that leaves a file
-// with an Issue alone and that Undo reverses, that a
+// with an Issue alone and that Undo reverses, that the shortcuts move between
+// files and chunks, mark a chunk and undo it, raise an issue noting the chunk,
+// open and close their list, move on after a verdict and step between
+// commits, that a
 // !term search excludes
 // paths, and that a verdict updates a folder's totals in place. Last, it renders prose
 // naming a stop and its chapter, and checks both become links and that the
@@ -531,6 +534,92 @@ const BULK_PROBE = `(async () => {
   return { folder: folder.dataset.toggleNode, files: paths.length, barShown, issueKept, othersReviewed, folderRead, toastSays, selectionCleared, undone };
 })()`;
 
+const KEYS_PROBE = `(async () => {
+  const api = window.ExplorePR.api;
+  const settle = (ms = 350) => new Promise(r => setTimeout(r, ms));
+  const press = (key, on = document.body) => on.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  location.hash = 'files'; await settle();
+  const choose = (pref, value) => { const select = document.querySelector('[data-nav-pref="' + pref + '"]'); select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); };
+  choose('groupBy', 'none'); choose('sortBy', 'path'); await settle();
+  const rows = () => [...document.querySelectorAll('#nav-tree .nav-file')];
+  const current = () => (document.querySelector('#nav-tree .nav-file[aria-current="true"]') || {}).dataset?.file;
+  const unreadFiles = rows().map(row => row.dataset.file).filter(path => { const cov = api.coverageOf(path); return cov && cov.changed && cov.read === 0; });
+  if (unreadFiles.length < 3) return { skipped: 'fewer than three unread files' };
+  const start = unreadFiles[0];
+  rows().find(row => row.dataset.file === start).click(); await settle();
+  const order = rows().map(row => row.dataset.file), at = order.indexOf(start);
+  press('j'); await settle();
+  const jMoves = current() === order[at + 1];
+  press('k'); await settle();
+  const kReturns = current() === start;
+  press(']'); await settle();
+  const cursor = () => [...document.querySelectorAll('#file-code tr.chunk-cursor')];
+  const chunkCursor = cursor().length > 0;
+  press('m'); await settle();
+  const chunkMarked = cursor().length > 0 && cursor().every(tr => tr.classList.contains('read'));
+  press('z'); await settle();
+  const markUndone = cursor().every(tr => tr.classList.contains('unread'));
+  press('i'); await settle();
+  const note = document.querySelector('#file-pane .ctl[data-ctl="file:' + CSS.escape(start) + '"] textarea');
+  const issueNoted = api.store.get('file:' + start).status === 'issue' && /^(head|base) \\d+/.test(note.value) && note.value.endsWith(': ') && document.activeElement === note;
+  press('Escape', note); await settle();
+  const fieldLeft = document.activeElement !== note;
+  press('z'); await settle(900);
+  const issueUndone = !api.store.get('file:' + start).status;
+  api.store.put('file:' + start, 'file', { note: '' }, {}); await settle();
+  press('?'); await settle();
+  const helpOpens = !document.querySelector('#keys-help').hidden && document.querySelectorAll('#keys-help dt').length > 10;
+  press('Escape'); await settle();
+  const helpCloses = document.querySelector('#keys-help').hidden;
+  press('r'); await settle();
+  const advances = api.store.get('file:' + start).status === 'ok' && current() !== start && unreadFiles.includes(current());
+  press('z'); await settle();
+  api.store.put('file:' + start, 'file', { status: '' }, {}); await settle();
+  press('x'); await settle();
+  const xSelects = !document.querySelector('#bulk-bar').hidden;
+  press('Escape'); await settle();
+  const escapeDeselects = document.querySelector('#bulk-bar').hidden;
+  const shownBefore = rows().length;
+  api.store.put('file:' + order[0], 'file', { status: 'ok' }, {}); await settle();
+  press('u'); await settle();
+  const uNarrows = rows().length < shownBefore && !rows().some(row => row.dataset.file === order[0]);
+  press('u'); await settle();
+  api.store.put('file:' + order[0], 'file', { status: '' }, {}); await settle();
+  choose('groupBy', 'tree'); await settle();
+  press('g'); await settle();
+  const gCycles = document.querySelector('[data-nav-pref="groupBy"]').value === 'none' && !document.querySelector('#nav-tree .nav-folder');
+  choose('groupBy', 'tree'); await settle();
+  const treeRow = document.querySelector('#nav-tree .fl-item[tabindex="0"]');
+  treeRow.focus();
+  press('ArrowDown', treeRow); await settle();
+  const arrowMoves = document.activeElement !== treeRow && document.activeElement.classList.contains('fl-item');
+  const folder = document.querySelector('#nav-tree .nav-folder[aria-expanded="true"]');
+  folder.focus();
+  press('ArrowLeft', folder); await settle();
+  const arrowCollapses = document.querySelector('#nav-tree [data-toggle-node="' + CSS.escape(folder.dataset.toggleNode) + '"]').getAttribute('aria-expanded') === 'false';
+  press('ArrowRight', document.activeElement); await settle();
+  let commitKeys = null, commitFileKeys = null;
+  if ((api.content.commits || []).length > 1) {
+    location.hash = 'commits'; await settle(700);
+    const before = document.querySelector('.cm-item[aria-current="true"]').dataset.commit;
+    press('J'); await settle();
+    const after = document.querySelector('.cm-item[aria-current="true"]').dataset.commit;
+    press('K'); await settle();
+    commitKeys = after !== before && document.querySelector('.cm-item[aria-current="true"]').dataset.commit === before;
+    const many = [...document.querySelectorAll('.cm-item')].find(item => { const c = api.commits[item.dataset.commit]; return c && c.files.length > 1; });
+    if (many) {
+      many.click(); await settle(700);
+      const blocks = () => [...document.querySelectorAll('#commit-code > .code')];
+      const bar = document.querySelector('.topbar').getBoundingClientRect().bottom;
+      press('j'); await settle();
+      press('j'); await settle();
+      const top = blocks()[1].getBoundingClientRect().top;
+      commitFileKeys = top >= bar && top - bar <= 16;
+    }
+  }
+  return { file: start, jMoves, kReturns, chunkCursor, chunkMarked, markUndone, issueNoted, fieldLeft, issueUndone, helpOpens, helpCloses, advances, xSelects, escapeDeselects, uNarrows, gCycles, arrowMoves, arrowCollapses, commitKeys, commitFileKeys };
+})()`;
+
 const UNFOLD_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const settle = () => new Promise(r => setTimeout(r, 500));
@@ -596,6 +685,7 @@ async function main() {
     report.unfold = await cdp.evaluate(UNFOLD_PROBE);
     report.navigator = await cdp.evaluate(NAVIGATOR_PROBE);
     report.bulk = await cdp.evaluate(BULK_PROBE);
+    report.keys = await cdp.evaluate(KEYS_PROBE);
     report.references = await cdp.evaluate(REFERENCES_PROBE);
     report.evidence = await cdp.evaluate(EVIDENCE_PROBE);
     report.catalogue = await cdp.evaluate(CATALOGUE_PROBE);
@@ -643,6 +733,8 @@ async function main() {
   const navigatorHolds = !!navigator.skipped || !!(navigator.treeDrawn && navigator.collapseHides && navigator.openingReveals && navigator.roleNarrows && navigator.controlsStay && navigator.excludes && navigator.totalsInPlace && navigator.pillsStay && navigator.flattened && navigator.filtersPinned && navigator.navigatorStays && navigator.paneBelowTopBar);
   const bulk = report.bulk || {};
   const bulkHolds = !!bulk.skipped || !!(bulk.barShown && bulk.issueKept && bulk.othersReviewed && bulk.folderRead && bulk.toastSays && bulk.selectionCleared && bulk.undone);
+  const keys = report.keys || {};
+  const keysHold = !!keys.skipped || !!(keys.jMoves && keys.kReturns && keys.chunkCursor && keys.chunkMarked && keys.markUndone && keys.issueNoted && keys.fieldLeft && keys.issueUndone && keys.helpOpens && keys.helpCloses && keys.advances && keys.xSelects && keys.escapeDeselects && keys.uNarrows && keys.gCycles && keys.arrowMoves && keys.arrowCollapses && keys.commitKeys !== false && keys.commitFileKeys !== false);
   const findings = report.findings || {};
   const findingsHold = !!findings.skipped || !!(findings.listed && findings.narrowed && findings.opensItsFinding);
   const readiness = report.readiness || {};
@@ -650,7 +742,7 @@ async function main() {
   const diagrams = report.diagrams || {};
   const tracesHold = !diagrams.tracing || !!diagrams.tracing.skipped || !!(diagrams.tracing.traces && diagrams.tracing.clears);
   const diagramsHold = !!diagrams.skipped || (Object.values(diagrams.problems || { none: ['not checked'] }).every(found => !found.length) && tracesHold && diagrams.linkOpens !== false);
-  report.ok = navigatorHolds && bulkHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
+  report.ok = navigatorHolds && bulkHolds && keysHold && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));
   process.exitCode = report.ok ? 0 : 1;

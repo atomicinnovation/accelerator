@@ -694,10 +694,10 @@ ReviewKeys.commandFor(press, context)
 
 #### Automated Verification
 
-- [ ] The `review-keys` and `review-coverage` node suites pass
-- [ ] Both layouts inline the model
-- [ ] Every command under Shared verification commands passes
-- [ ] The smoke report has `keys` and `commits` holding and `ok: true`
+- [x] The `review-keys` and `review-coverage` node suites pass
+- [x] Both layouts inline the model
+- [x] Every command under Shared verification commands passes
+- [x] The smoke report has `keys` and `commits` holding and `ok: true`
 
 #### Manual Verification
 

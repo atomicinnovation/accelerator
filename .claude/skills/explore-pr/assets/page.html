@@ -326,6 +326,17 @@ details[open] > summary { margin-bottom: 8px; }
 .r-skim { background: var(--risk-skim); color: var(--risk-skim-ink); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); align-items: center; }
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.keys-help { position: fixed; z-index: 70; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow-y: auto; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow); padding: 18px 20px; display: grid; gap: 14px; }
+.keys-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.keys-head h2 { margin: 0; font-size: 1.1rem; }
+.keys-groups { display: grid; gap: 16px 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.keys-groups h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.keys-groups dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 12px; margin: 0; font-size: 13px; align-items: baseline; }
+.keys-groups dt { white-space: nowrap; }
+.keys-groups dd { margin: 0; color: var(--ink-2); }
+.keys-advance { display: flex; gap: 6px; align-items: center; color: var(--ink-2); }
+.code tr.chunk-cursor td.mk, .code tr.chunk-cursor td.src { background-image: linear-gradient(color-mix(in srgb, var(--accent) 13%, transparent), color-mix(in srgb, var(--accent) 13%, transparent)); }
+.code tr.chunk-cursor td.src { box-shadow: inset -4px 0 0 var(--accent); }
 .toast { position: fixed; z-index: 60; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 14px; align-items: center; max-width: min(560px, calc(100vw - 32px)); background: var(--ink); color: var(--panel); border-radius: 8px; box-shadow: var(--shadow); padding: 10px 14px; font-size: 13.5px; }
 .toast .loc { color: var(--panel); font-weight: 600; text-decoration: underline; }
 .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--shadow); padding: 10px 12px; font-size: 13px; max-width: 340px; display: grid; gap: 4px; }
@@ -488,6 +499,7 @@ details[open] > summary { margin-bottom: 8px; }
 </div>
 <div class="tip" id="tip" hidden></div>
 <div class="toast" id="undo-toast" role="status" hidden></div>
+<div class="keys-help" id="keys-help" role="dialog" aria-labelledby="keys-help-title" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -2071,10 +2083,10 @@ function navRowHtml({ node, depth }, collapsed) {
   const at = `role="treeitem" aria-level="${depth + 1}"`;
   if (node.kind === 'file') {
     const f = node.entry;
-    return navRow(depth, pickBox(`data-pick-file="${esc(f.path)}"`, `Select ${f.path}`), `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" title="${esc(f.path)}"><span aria-hidden="true"></span><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`);
+    return navRow(depth, pickBox(`data-pick-file="${esc(f.path)}"`, `Select ${f.path}`), `<button type="button" class="fl-item nav-file" ${at} data-file="${esc(f.path)}" aria-current="${f.path === selectedFile}" tabindex="${f.path === selectedFile ? 0 : -1}" title="${esc(f.path)}"><span aria-hidden="true"></span><span class="cov" data-coverage-of="${esc(f.path)}" data-status-of="file:${esc(f.path)}"><i></i></span><span class="nm">${fileNameHtml(node.name)}</span><span class="ct" data-coverage-count-of="${esc(f.path)}">+${fmt(f.add)}</span></button>`);
   }
   const t = node.totals;
-  return navRow(depth, pickBox(`data-pick-node="${esc(node.id)}"`, `Select every file in ${node.path || node.name}`), `<button type="button" class="fl-item nav-${node.kind}" ${at} aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}" data-risk="${esc(t.highestRisk)}" title="${esc(folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"><i style="width:${folderShare(t)}%"></i></span><span class="nm">${esc(node.name)}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${folderCount(t)}</span></button>`);
+  return navRow(depth, pickBox(`data-pick-node="${esc(node.id)}"`, `Select every file in ${node.path || node.name}`), `<button type="button" class="fl-item nav-${node.kind}" ${at} tabindex="-1" aria-expanded="${!collapsed.has(node.id)}" data-toggle-node="${esc(node.id)}" data-risk="${esc(t.highestRisk)}" title="${esc(folderTitle(node, t))}"><span class="chev" aria-hidden="true"></span><span class="cov" data-folder-of="${esc(node.id)}"><i style="width:${folderShare(t)}%"></i></span><span class="nm">${esc(node.name)}</span><span class="ct" data-folder-count-of="${esc(node.id)}">${folderCount(t)}</span></button>`);
 }
 function facetsHtml(counts) {
   return FACET_UI.map(([facet, label, options]) => {
@@ -2115,8 +2127,13 @@ function renderTree() {
   $('#nav-count').textContent = body.count;
   $('#nav-tree').dataset.groupBy = NavigatorPrefs.get().groupBy;
   $('#nav-tree').innerHTML = body.tree;
+  keepOneRowTabbable();
   refreshControls();
   refreshSelection();
+}
+function keepOneRowTabbable() {
+  const rows = $$('#nav-tree .fl-item');
+  if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;
 }
 function refreshNavigator() {
   const treeEl = $('#nav-tree');
@@ -2147,7 +2164,7 @@ function vFiles() {
   revealInNavigator(selectedFile);
   const body = treeBody();
   return `<div class="view-head"><div class="eyebrow">All files</div><h1>Every file, with the review overlaid</h1>
-    <p class="lede">The files sit in a tree by directory: group them another way, sort them, or narrow them by progress, verdict, role, risk, chapter or commit. The bar beside each file or folder is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a run of unread lines from the link above it; press <kbd>n</kbd> to jump to the next line still to read. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
+    <p class="lede">The files sit in a tree by directory: group them another way, sort them, or narrow them by progress, verdict, role, risk, chapter or commit. The bar beside each file or folder is how much of its change you have read: a tour stop, ledger row or file you give a verdict counts its lines as read, and in the code an amber edge marks each changed line still to read, and a green edge, a tick and faded text each line already read. Click a line number to mark that line read, shift-click to mark a range, or mark a run of unread lines from the link above it. Press <kbd>?</kbd> for keyboard shortcuts. Badges mark tour stops (<span class="gut">S</span>), ledger rows (<span class="gut k-ledger">L</span>) and prior findings (<span class="gut k-finding">F</span>). Long unchanged runs are folded.</p></div>
     <div class="files-layout"><details class="nav-drawer" open><summary>Files</summary><div class="file-list" id="navigator">
       <div class="nav-head"><input type="search" id="fq" placeholder="Filter paths: src *.rs !test" value="${esc(navQuery)}" aria-label="Filter paths">
       <div class="nav-prefs"><label>Group ${prefSelect('groupBy', GROUP_BY)}</label><label>Sort ${prefSelect('sortBy', SORT_BY)}</label></div>
@@ -2217,20 +2234,26 @@ after.files = () => {
   pendingOpen = null;
 };
 const TOP_BAR_CLEARANCE = 12;
+const topBarBottom = () => { const bar = $('.topbar'); return bar ? bar.getBoundingClientRect().bottom : 0; };
 function bringBelowTopBar(el) {
-  const bar = $('.topbar');
-  window.scrollBy({ top: el.getBoundingClientRect().top - (bar ? bar.getBoundingClientRect().bottom : 0) - TOP_BAR_CLEARANCE });
+  window.scrollBy({ top: el.getBoundingClientRect().top - topBarBottom() - TOP_BAR_CLEARANCE });
 }
-function keepInNavigator(row) {
-  const nav = $('#nav-tree'), shown = nav.getBoundingClientRect(), at = row.getBoundingClientRect();
-  if (at.top < shown.top) nav.scrollTop -= shown.top - at.top;
-  else if (at.bottom > shown.bottom) nav.scrollTop += at.bottom - shown.bottom;
+function keepInList(row, list) {
+  const shown = list.getBoundingClientRect(), at = row.getBoundingClientRect();
+  if (at.top < shown.top) list.scrollTop -= shown.top - at.top;
+  else if (at.bottom > shown.bottom) list.scrollTop += at.bottom - shown.bottom;
 }
+const keepInNavigator = row => keepInList(row, $('#nav-tree'));
 const narrowLayout = () => window.matchMedia('(max-width: 980px)').matches;
 function showFile(path) {
   selectedFile = path;
   pendingOpen = null;
-  $$('.nav-file').forEach(row => row.setAttribute('aria-current', String(row.dataset.file === path)));
+  $$('#nav-tree .fl-item').forEach(row => {
+    const current = row.dataset.file === path;
+    if (row.dataset.file) row.setAttribute('aria-current', String(current));
+    row.tabIndex = current ? 0 : -1;
+  });
+  placeChunkCursor(null);
   $('#file-pane').innerHTML = filePane(path);
   refreshControls();
   if (narrowLayout()) $('.nav-drawer').open = false;
@@ -2303,6 +2326,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   const open = openFacetMenus();
   if (!open.length) return;
+  e.stopImmediatePropagation();
   open.forEach(facet => { facet.open = false; });
   $('summary', open[0]).focus();
 });
@@ -2319,21 +2343,8 @@ document.addEventListener('click', e => {
   refreshCoverage(recordedClaims());
 });
 document.addEventListener('click', e => {
-  if (e.target.closest('[data-next-unread]')) nextUnread();
+  if (e.target.closest('[data-next-unread]')) stepUnread(1);
 });
-document.addEventListener('keydown', e => {
-  if (e.key !== 'n' || e.metaKey || e.ctrlKey || e.altKey || !['files', 'commits'].includes(currentRoute)) return;
-  if (e.target.closest && e.target.closest('input, textarea, select')) return;
-  nextUnread();
-});
-function nextUnread() {
-  const unread = $$('#main tr.unread[data-lk]:not(.superseded)');
-  if (!unread.length) return;
-  const next = unread.find(tr => tr.getBoundingClientRect().top > window.innerHeight / 2 + 4) || unread[0];
-  next.scrollIntoView({ block: 'center' });
-  next.classList.add('flash');
-  setTimeout(() => next.classList.remove('flash'), 1600);
-}
 document.addEventListener('click', e => {
   const s = e.target.closest('[data-scroll-stop],[data-scroll-ledger],[data-scroll-to]');
   if (!s) return;
@@ -2353,7 +2364,7 @@ function vCommits() {
   if (!selectedCommit || commitIndex(selectedCommit) < 0) selectedCommit = (C.commits.find(c => !c.merge) || C.commits[0]).sha;
   const list = C.commits.map((c, i) => `<button type="button" class="fl-item cm-item" data-commit="${esc(c.sha)}" aria-current="${c.sha === selectedCommit}" title="${esc(c.subject)}"><span class="cov" data-commit-coverage="${esc(c.sha)}" data-status-of="commit:${esc(c.sha)}"><i></i></span><span class="nm">${i + 1}. ${esc(c.subject)}</span><span class="ct" data-commit-count="${esc(c.sha)}">${c.merge ? 'merge' : `+${fmt(c.add)} −${fmt(c.del)}`}</span></button>`).join('');
   return `<div class="view-head"><div class="eyebrow">By commit</div><h1>The change, one commit at a time</h1>
-    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a run of unread lines from the link above it, or give the whole commit a verdict; press <kbd>n</kbd> for the next line still to read and <kbd>j</kbd> and <kbd>k</kbd> for the next and previous commit. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
+    <p class="lede">The ${plural(C.commits.length, 'commit')} in the order they were made. A line here is the same line in All files and the guided tour: read it in one place and it reads as read in all of them. Click a line number to mark that line, shift-click to mark a range, mark a run of unread lines from the link above it, or give the whole commit a verdict; press <kbd>?</kbd> for keyboard shortcuts. A line a later commit rewrote, or that only an earlier commit added, is superseded: you can read and mark it, but it is not counted, because what merges is the code at head.</p></div>
     <div class="files-layout"><div class="file-list">${list}</div><div class="stack" id="commit-pane">${commitPane(selectedCommit)}</div></div>`;
 }
 function commitRowsHtml(commit, file) {
@@ -2390,7 +2401,7 @@ function commitPane(sha) {
     <div class="eyebrow">Commit ${i + 1} of ${C.commits.length} · ${link}${c.author ? ' · ' + esc(c.author) : ''}${c.date ? ' · ' + esc(String(c.date).slice(0, 10)) : ''}</div>
     <h2>${esc(c.subject)}</h2>
     ${body ? `<div class="commit-msg">${esc(body)}</div>` : ''}
-    <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>k</kbd> and <kbd>j</kbd></span></div>
+    <div class="pager-row small"><button type="button" class="btn" data-step-commit="-1" ${prev ? '' : 'disabled'}>← Previous</button><button type="button" class="btn" data-step-commit="1" ${next ? '' : 'disabled'}>Next →</button><span class="muted">or press <kbd>K</kbd> and <kbd>J</kbd></span></div>
     ${c.merge ? '' : `<div class="row small"><span data-commit-summary="${esc(sha)}"></span><button type="button" class="loc" data-next-unread title="Jump to the next line still to read (n)">Next unread</button><kbd>n</kbd><span class="read-key"><span><i class="k-unread"></i>still to read</span><span><i class="k-read"></i>read</span><span><i class="k-superseded"></i>superseded, not counted</span></span></div>
     ${ctl('commit:' + sha, 'commit', { label: `Commit ${shortSha(sha)}: ${c.subject}`, where: shortSha(sha) })}`}</div>`;
   if (c.merge) return head + `<div class="empty">A merge commit: it brings in changes from elsewhere, so it is not reviewed here.</div>`;
@@ -2403,8 +2414,8 @@ function selectCommit(sha) {
   $$('.cm-item').forEach(x => x.setAttribute('aria-current', String(x.dataset.commit === sha)));
   $('#commit-pane').innerHTML = commitPane(sha);
   refreshControls();
-  $('#commit-pane').scrollIntoView({ block: 'start' });
-  const cur = $('.cm-item[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+  bringBelowTopBar($('#commit-pane'));
+  const cur = $('.cm-item[aria-current="true"]'); if (cur) keepInList(cur, cur.closest('.file-list'));
 }
 function stepCommit(by) {
   const target = C.commits[commitIndex(selectedCommit) + by];
@@ -2422,11 +2433,6 @@ document.addEventListener('click', e => {
   selectedCommit = go.dataset.gotoCommit;
   if (location.hash !== '#commits') location.hash = 'commits'; else render();
 });
-document.addEventListener('keydown', e => {
-  if (currentRoute !== 'commits' || e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest('input, textarea, select'))) return;
-  if (e.key === 'j') stepCommit(1);
-  else if (e.key === 'k') stepCommit(-1);
-});
 async function loadCommits() {
   try {
     const data = window.__EXPLORE_COMMITS || await (await fetch('commits.json')).json();
@@ -2439,6 +2445,269 @@ async function loadCommits() {
     $$('#commit-pane .loading').forEach(el => { el.textContent = 'The commits could not be loaded. Reload to try again.'; });
   }
 }
+
+/* Review keys */
+const KEY_NAMES = { Escape: 'Esc', Backspace: '⌫', ArrowDown: '↓', ArrowUp: '↑', ArrowLeft: '←', ArrowRight: '→' };
+const NAVIGATOR_COMMANDS = new Set(['toggle-selected', 'select-shown', 'deselect', 'focus-search', 'toggle-still-to-read', 'cycle-grouping', 'tree-next', 'tree-previous', 'tree-collapse', 'tree-expand']);
+const commandWorksOn = (command, route) => route === 'files' || !NAVIGATOR_COMMANDS.has(command);
+
+const codeBlocks = () => (currentRoute === 'files' ? $$('#file-code') : $$('#commit-code > .code'));
+function codeBlockIndex() {
+  const line = topBarBottom() + 24;
+  return codeBlocks().filter(block => block.getBoundingClientRect().top <= line).length - 1;
+}
+const currentCodeBlock = () => codeBlocks()[Math.max(0, codeBlockIndex())] || null;
+
+const ROW_KINDS = [['tr[data-lk]', 'changed'], ['tr.anno, tr.blk', 'annotation'], ['tr.gap', 'gap']];
+const rowKind = tr => (ROW_KINDS.find(([selector]) => tr.matches(selector)) || [null, 'context'])[1];
+function chunksIn(block) {
+  return $$('table', block).flatMap(table => {
+    const rows = [...table.rows];
+    return ReviewCoverage.chunksOf(rows.map(rowKind)).map(({ first, last }) => rows.slice(first, last + 1).filter(tr => tr.matches('tr[data-lk]')));
+  });
+}
+const allChunks = () => codeBlocks().flatMap(chunksIn);
+let cursorRow = null;
+const cursorChunk = () => (cursorRow && cursorRow.isConnected ? allChunks().find(rows => rows.includes(cursorRow)) || null : null);
+function placeChunkCursor(rows) {
+  $$('tr.chunk-cursor').forEach(tr => tr.classList.remove('chunk-cursor'));
+  cursorRow = rows ? rows[0] : null;
+  if (rows) rows.forEach(tr => tr.classList.add('chunk-cursor'));
+}
+function stepChunk(by) {
+  const chunks = allChunks();
+  const at = chunks.findIndex(rows => rows.includes(cursorRow));
+  const below = topBarBottom();
+  const next = at >= 0 ? chunks[at + by]
+    : by > 0 ? chunks.find(rows => rows[0].getBoundingClientRect().top > below)
+    : [...chunks].reverse().find(rows => rows[0].getBoundingClientRect().top < window.innerHeight);
+  if (!next) return;
+  placeChunkCursor(next);
+  next[0].scrollIntoView({ block: 'center' });
+}
+function stepUnread(by) {
+  const unread = $$('#main tr.unread[data-lk]:not(.superseded)');
+  if (!unread.length) return;
+  const middle = window.innerHeight / 2;
+  const target = by > 0
+    ? unread.find(tr => tr.getBoundingClientRect().top > middle + 4) || unread[0]
+    : [...unread].reverse().find(tr => tr.getBoundingClientRect().top < middle - 4) || unread[unread.length - 1];
+  target.scrollIntoView({ block: 'center' });
+  target.classList.add('flash');
+  setTimeout(() => target.classList.remove('flash'), 1600);
+  placeChunkCursor(allChunks().find(rows => rows.includes(target)) || null);
+}
+function markChunk() {
+  if (!cursorChunk()) stepChunk(1);
+  const rows = cursorChunk();
+  if (!rows || !Store.canWrite) return;
+  const byPath = claimsByPath(recordedClaims());
+  if (rows.every(tr => readersOfRow(tr, byPath).includes(MARKED))) { markRows(rows, false); return; }
+  const unread = rows.filter(tr => tr.classList.contains('unread'));
+  if (unread.length) markRows(unread, true);
+  else rows.forEach(flashRow);
+}
+function markFile() {
+  const block = currentCodeBlock();
+  const unread = block ? $$('tr.unread[data-lk]', block) : [];
+  if (unread.length) markRows(unread, true);
+}
+
+function verdictSubject() {
+  if (currentRoute === 'files') return selectedFile && { target: 'file:' + selectedFile, kind: 'file', meta: { label: `File ${selectedFile}`, where: selectedFile }, pane: '#file-pane' };
+  const c = C.commits[commitIndex(selectedCommit)];
+  return c && !c.merge && { target: 'commit:' + c.sha, kind: 'commit', meta: { label: `Commit ${shortSha(c.sha)}: ${c.subject}`, where: shortSha(c.sha) }, pane: '#commit-pane' };
+}
+const VERDICT_WORDS = { ok: 'Reviewed', skip: 'Skimmed', issue: 'Issue', '': 'cleared' };
+function giveVerdict(status) {
+  if (currentRoute === 'files' && selection.paths.size && status !== 'issue') { giveBulkVerdict(status); return; }
+  const subject = verdictSubject();
+  if (!subject) return;
+  if ((Store.get(subject.target).status || '') !== status) changeUndoably(`${subject.meta.label}: ${VERDICT_WORDS[status]}`, [{ target: subject.target, kind: subject.kind, patch: { status }, meta: subject.meta }]);
+  if (status === 'issue') openIssueNote(subject);
+  else if (status && currentRoute === 'files' && NavigatorPrefs.get().advance) advanceToUnreadFile();
+}
+function chunkRangesText(rows) {
+  const ranges = [];
+  rows.map(tr => tr.dataset.lk.split(':')).forEach(([side, line]) => {
+    const n = +line, last = ranges[ranges.length - 1];
+    if (last && last.side === side && last.end === n - 1) last.end = n;
+    else ranges.push({ side, start: n, end: n });
+  });
+  return ranges.map(rangeText).join(', ');
+}
+function openIssueNote(subject) {
+  const box = $(`${subject.pane} .ctl[data-ctl="${CSS.escape(subject.target)}"]`);
+  if (!box) return;
+  const note = $('textarea[data-note]', box), toggle = $('[data-note-toggle]', box);
+  note.hidden = false;
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.textContent = 'Note';
+  const chunk = cursorChunk();
+  if (chunk) {
+    const lead = `${chunkRangesText(chunk)}: `;
+    note.value = note.value.trim() ? `${note.value.trimEnd()}\n${lead}` : lead;
+    note.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  note.focus();
+  note.setSelectionRange(note.value.length, note.value.length);
+}
+
+function goToFile(path) {
+  const ancestors = FileNavigator.ancestorsOf(fileTree(), path), collapsed = collapsedOn('files');
+  if (ancestors.some(id => collapsed.has(id))) {
+    ancestors.forEach(id => collapsed.delete(id));
+    keepCollapsed('files', collapsed);
+    renderTree();
+  }
+  showFile(path);
+  const row = $(`#nav-tree .nav-file[data-file="${CSS.escape(path)}"]`);
+  if (row) keepInNavigator(row);
+}
+function advanceToUnreadFile() {
+  const order = FileNavigator.fileOrder(fileTree());
+  const byPath = Object.fromEntries(fileEntries().map(e => [e.path, e]));
+  const next = order.slice(order.indexOf(selectedFile) + 1).find(path => FileNavigator.progressOf(byPath[path]) !== 'read');
+  if (next) goToFile(next);
+  else showToast('Every file shown is read');
+}
+function stepCommitFile(by) {
+  const blocks = codeBlocks(), next = blocks[codeBlockIndex() + by];
+  placeChunkCursor(null);
+  if (next) { bringBelowTopBar(next); return; }
+  const target = C.commits[commitIndex(selectedCommit) + by];
+  if (!target) return;
+  selectCommit(target.sha);
+  const fresh = codeBlocks();
+  if (fresh.length) bringBelowTopBar(by > 0 ? fresh[0] : fresh[fresh.length - 1]);
+}
+function stepFile(by) {
+  if (currentRoute === 'commits') { stepCommitFile(by); return; }
+  const order = FileNavigator.fileOrder(fileTree()), at = order.indexOf(selectedFile);
+  const next = order[at < 0 ? 0 : at + by];
+  if (next) goToFile(next);
+}
+
+const sameValues = (a, b) => a.length === b.length && a.every(value => b.includes(value));
+function toggleStillToRead() {
+  filters.files = { ...filters.files, progress: sameValues(filters.files.progress, STILL_TO_READ) ? [] : [...STILL_TO_READ] };
+  renderTree();
+}
+function cycleGrouping() {
+  const ids = GROUP_BY.map(([id]) => id), next = ids[(ids.indexOf(NavigatorPrefs.get().groupBy) + 1) % ids.length];
+  NavigatorPrefs.set({ groupBy: next });
+  $('[data-nav-pref="groupBy"]').value = next;
+  renderTree();
+}
+
+const treeRows = () => $$('#nav-tree .fl-item');
+function focusedTreeRow() {
+  const row = document.activeElement && document.activeElement.closest('.nav-row');
+  return row ? $('.fl-item', row) : null;
+}
+function focusTreeRow(row) {
+  if (!row) return;
+  treeRows().forEach(each => { each.tabIndex = each === row ? 0 : -1; });
+  row.focus({ preventScroll: true });
+  keepInNavigator(row);
+}
+function stepTreeFocus(by) {
+  const rows = treeRows();
+  focusTreeRow(rows[rows.indexOf(focusedTreeRow()) + by]);
+}
+const folderRow = id => $(`#nav-tree [data-toggle-node="${CSS.escape(id)}"]`);
+function collapseFocused() {
+  const row = focusedTreeRow();
+  if (!row) return;
+  if (row.dataset.toggleNode && row.getAttribute('aria-expanded') === 'true') {
+    toggleNode(row.dataset.toggleNode);
+    focusTreeRow(folderRow(row.dataset.toggleNode));
+    return;
+  }
+  const rows = treeRows(), level = +row.getAttribute('aria-level');
+  focusTreeRow(rows.slice(0, rows.indexOf(row)).reverse().find(each => +each.getAttribute('aria-level') < level));
+}
+function expandFocused() {
+  const row = focusedTreeRow();
+  if (!row || !row.dataset.toggleNode || row.getAttribute('aria-expanded') !== 'false') return;
+  toggleNode(row.dataset.toggleNode);
+  focusTreeRow(folderRow(row.dataset.toggleNode));
+}
+
+let helpReturnsTo = null;
+function helpHtml() {
+  const groups = [];
+  ReviewKeys.BINDINGS.filter(b => b.routes.includes(currentRoute) && commandWorksOn(b.command, currentRoute)).forEach(b => {
+    let group = groups.find(each => each.name === b.group);
+    if (!group) groups.push(group = { name: b.group, bindings: [] });
+    group.bindings.push(b);
+  });
+  return `<div class="keys-head"><h2 id="keys-help-title">Keyboard shortcuts</h2><button type="button" class="loc" data-close-help>Close</button></div>
+    <div class="keys-groups">${groups.map(group => `<section><h3>${esc(group.name)}</h3><dl>${group.bindings.map(b => `<dt>${b.keys.map(key => `<kbd>${esc(KEY_NAMES[key] || key)}</kbd>`).join(' ')}</dt><dd>${esc(b.label)}</dd>`).join('')}</dl></section>`).join('')}</div>
+    <label class="small keys-advance"><input type="checkbox" data-advance ${NavigatorPrefs.get().advance ? 'checked' : ''}> After <kbd>r</kbd> or <kbd>s</kbd> in All files, move on to the next file still to read</label>`;
+}
+function openHelp() {
+  const panel = $('#keys-help');
+  helpReturnsTo = document.activeElement;
+  panel.innerHTML = helpHtml();
+  panel.hidden = false;
+  $('[data-close-help]', panel).focus();
+}
+function closeHelp() {
+  $('#keys-help').hidden = true;
+  if (helpReturnsTo && helpReturnsTo.isConnected) helpReturnsTo.focus({ preventScroll: true });
+}
+document.addEventListener('click', e => {
+  const panel = $('#keys-help');
+  if (panel.hidden) return;
+  if (e.target.closest('[data-close-help]') || !panel.contains(e.target)) closeHelp();
+});
+document.addEventListener('change', e => {
+  const advance = e.target.closest('#keys-help [data-advance]');
+  if (advance) NavigatorPrefs.set({ advance: advance.checked });
+});
+
+const COMMANDS = {
+  'next-file': () => stepFile(1),
+  'previous-file': () => stepFile(-1),
+  'next-commit': () => stepCommit(1),
+  'previous-commit': () => stepCommit(-1),
+  'next-chunk': () => stepChunk(1),
+  'previous-chunk': () => stepChunk(-1),
+  'next-unread': () => stepUnread(1),
+  'previous-unread': () => stepUnread(-1),
+  'mark-chunk': markChunk,
+  'mark-file': markFile,
+  reviewed: () => giveVerdict('ok'),
+  skimmed: () => giveVerdict('skip'),
+  issue: () => giveVerdict('issue'),
+  'clear-verdict': () => giveVerdict(''),
+  undo: undoLast,
+  'toggle-selected': () => { if (selectedFile) { pickFile(selectedFile, !selection.paths.has(selectedFile), false); refreshSelection(); } },
+  'select-shown': () => { FileNavigator.fileOrder(fileTree()).forEach(path => selection.paths.add(path)); refreshSelection(); },
+  deselect: () => { if (selection.paths.size) clearSelection(); },
+  'focus-search': () => { const search = $('#fq'); search.focus(); search.select(); },
+  'toggle-still-to-read': toggleStillToRead,
+  'cycle-grouping': cycleGrouping,
+  help: openHelp,
+  'close-help': closeHelp,
+  'blur-field': () => document.activeElement.blur(),
+  'tree-next': () => stepTreeFocus(1),
+  'tree-previous': () => stepTreeFocus(-1),
+  'tree-collapse': collapseFocused,
+  'tree-expand': expandFocused,
+};
+const TYPING = 'input:not([type="checkbox"]), textarea, select, [contenteditable="true"]';
+document.addEventListener('keydown', e => {
+  const at = e.target instanceof Element ? e.target : null;
+  const command = ReviewKeys.commandFor(
+    { key: e.key, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey, inField: !!(at && at.closest(TYPING)) },
+    { route: currentRoute, treeFocused: !!(at && at.closest('#nav-tree')), helpOpen: !$('#keys-help').hidden, menuOpen: openFacetMenus().length > 0 },
+  );
+  if (!command || !commandWorksOn(command, currentRoute)) return;
+  e.preventDefault();
+  COMMANDS[command]();
+});
 
 /* Terms */
 function vTerms() {
