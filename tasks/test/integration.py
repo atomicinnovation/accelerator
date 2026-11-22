@@ -21,12 +21,13 @@ from tasks.test.filters import (
     run_pytest_lane,
     selection_from,
 )
-from tasks.test.unit import (
-    _bare_returns_in_tests,
-    _tap_counts,
-    report_filtered_design_automation_run,
-)
 
+from .design_automation import (
+    PLAYWRIGHT_DIR,
+    bare_returns_in_tests,
+    refuse_filtered_run_that_ran_nothing,
+    tap_counts,
+)
 from .helpers import accelerator_env, repo_root
 
 
@@ -251,7 +252,6 @@ _DESIGN_AUTOMATION_RUNTIME_SUITES = (
     "daemon-runtime.test.js",
 )
 
-_PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 
 # The vendored trees the runtime suites launch: the driver tree's
 # playwright-core, and the bundled browser. The launcher exports each as
@@ -348,7 +348,7 @@ def design_automation(context: Context, filter_: str | None = None) -> None:
     runtime_trees = _resolve_runtime_trees(context)
 
     suites = [
-        root / _PLAYWRIGHT_DIR / name
+        root / PLAYWRIGHT_DIR / name
         for name in _DESIGN_AUTOMATION_RUNTIME_SUITES
     ]
     missing = [str(path) for path in suites if not path.exists()]
@@ -358,7 +358,7 @@ def design_automation(context: Context, filter_: str | None = None) -> None:
         )
 
     for suite in suites:
-        offenders = _bare_returns_in_tests(suite.read_text())
+        offenders = bare_returns_in_tests(suite.read_text())
         if offenders:
             listed = "\n  ".join(offenders)
             raise Exit(
@@ -377,13 +377,13 @@ def design_automation(context: Context, filter_: str | None = None) -> None:
         pty=False,
         env=runtime_trees,
     )
-    counts = _tap_counts(result.stdout)
+    counts = tap_counts(result.stdout)
     if counts["fail"]:
         raise Exit(
             f"{counts['fail']} design-automation runtime test(s) failed", code=1
         )
     if selection.is_filtered:
-        report_filtered_design_automation_run(
+        refuse_filtered_run_that_ran_nothing(
             selection,
             "test:integration:design-automation",
             result.stdout,
