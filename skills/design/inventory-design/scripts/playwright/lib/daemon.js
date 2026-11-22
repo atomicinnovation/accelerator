@@ -341,7 +341,7 @@ export async function startDaemon({ stateDir }) {
 
       case 'snapshot': {
         const snapshot = await page
-          .locator('body')
+          .locator(':root')
           .ariaSnapshot({ timeout: WALL_CLOCK_MS });
         return { protocol: PROTOCOL, snapshot };
       }

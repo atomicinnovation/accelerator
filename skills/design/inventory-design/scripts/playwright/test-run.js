@@ -176,6 +176,28 @@ test('navigate then snapshot returns the page as an ARIA snapshot', { timeout: 3
   });
 });
 
+test('snapshot answers promptly for a document without a body', { timeout: 30000 }, async () => {
+  requireRuntime();
+  await withTmpDir(async stateDir => {
+    const child = spawnDaemon(stateDir, { ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS: '15000' });
+    try {
+      const info = await waitForInfo(stateDir);
+      await withFixtureServer(async fixtureUrl => {
+        await send(info.url, { protocol: 1, command: 'navigate', url: fixtureUrl });
+        await send(info.url, { protocol: 1, command: 'evaluate', expression: 'document.body.remove()' });
+
+        const started = Date.now();
+        const snapRes = await send(info.url, { protocol: 1, command: 'snapshot' });
+
+        assert.equal(typeof snapRes.snapshot, 'string', JSON.stringify(snapRes));
+        assert.ok(Date.now() - started < 5000, `took ${Date.now() - started}ms`);
+      });
+    } finally {
+      child.kill('SIGTERM');
+    }
+  });
+});
+
 test('screenshot writes a non-empty PNG to the output root', { timeout: 30000 }, async () => {
   requireRuntime();
   await withTmpDir(async stateDir => {
