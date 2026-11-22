@@ -748,16 +748,17 @@ citing-once rule (`skills/research/outputters/citing-once/SKILL.md`) across
 36 sessions. Run it after changing the rule, a carrier (the `composer` agent,
 `synthesise`, or the finding outputter), or the model.
 
-- **Dev toolchain.** Sessions and the judge run the working tree's debug
-  builds of the launcher and the `corpus` and `research` sub-binaries
+- **Dev toolchain.** Sessions and the judge run the working tree's debug builds
+  of the launcher and the `corpus` and `research` sub-binaries
   (`tasks/eval/toolchain.py`), since `synthesise` calls subcommands a released
   binary may lack. The launcher runs them only beside the gitignored
   `.accelerator-dev-launcher` marker, the operator's consent to unverified
-  binaries: the task refuses without it, never creates or removes it, and
-  reminds you to remove it, since `mise run` fails while it exists. A
-  session's `PATH` starts with this checkout's `bin/`, so an installed
-  launcher earlier on it, such as a `~/.local/bin/accelerator` link, cannot
-  run a released CLI in its place.
+  binaries: a run refuses without it, though a `--check-only` re-judge starts no
+  session and does not need it. The task never creates or removes it, and
+  reminds you to remove it, since `mise run` fails while it exists. A session's
+  `PATH` starts with this checkout's `bin/`, so an installed launcher earlier on
+  it, such as a `~/.local/bin/accelerator` link, cannot run a released CLI in
+  its place.
 
 - **Fixtures** live beside the rule, in `evals/*.json`: each composition lists
   its criteria, each criterion its citations, the note or finding each sits

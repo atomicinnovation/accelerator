@@ -461,7 +461,9 @@
   paths their findings go to, so `conduct` no longer allocates finding paths
   itself. A question's `.levels/` tree now outranks a lower quarantine marker
   for its index, so a set holding both resumes the tree rather than starting
-  afresh at the marker's index.
+  afresh at the marker's index. It finds the installed profiles under
+  `ACCELERATOR_PLUGIN_ROOT`; the `--profiles-dir` flag earlier 1.24.0
+  pre-releases took is gone, so drop it from any script that passes it.
 - **`research topic outstanding` plans deepened research.** `--depth N`
   (1 to 10) reports each pair's `stage`, the level-note `nodes` it still
   needs or the `notes` its composer reads, `trims` and `shallow` findings;
@@ -710,7 +712,8 @@
   written keep their names, since a finding is matched by its frontmatter
   `question`. A pair whose depth research was interrupted part-way keeps a
   `<stem>.levels/` tree under the old stem, which `conduct` no longer finds,
-  so it researches that pair again from the start.
+  so it researches that pair again from the start; the old tree stays on disk
+  and can be deleted once the pair is researched again.
 - **`conduct` researches a profile a repeated question adds.** A question
   asked again in a later round with a profile its first asking did not name
   now plans that pair under the first asking's index, where it was never
@@ -1337,7 +1340,9 @@
   the outset. The field is optional, so an override without it still writes
   valid manifests.
 - **Upgrade a shared corpus together before committing a report.** An
-  older binary rejects the `report` kind as `UNKNOWN-KIND` (see Breaking).
+  older binary rejects the `report` kind as `UNKNOWN-KIND` (see Breaking),
+  and computes a different stem for a long question, so teammates on either
+  side of the upgrade redo each other's part-way deep research (see Changed).
 
 - **Reload every session sharing a relocated root within 14 days of
   upgrading.** Launchers from earlier 1.24.0 pre-releases write no claims, so
