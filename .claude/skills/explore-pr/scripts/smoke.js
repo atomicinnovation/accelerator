@@ -51,7 +51,10 @@
 // gates link each outstanding item, and the rail marks each chapter. At phone
 // width the top bar keeps to one line, a catalogue's filters fold and stick
 // below it, an item opened by its address lands below both, and a peek unfolds
-// below its paragraph.
+// below its paragraph with no card inside it drawing an edge of its own. In
+// every kind of peek, and in the invariants catalogue, an item's text keeps
+// most of the width, with its review control flowed beneath it, and a comma in
+// a list of tests stays on the line of the test before it.
 // Each catalogue in Reference draws one card per item, and a verdict given to a
 // decision there shows at the stop that first carries it. The design reads as
 // its article: every section drawn, every excerpt's code resolved, the sign-off
@@ -389,6 +392,52 @@ const PHONE_PROBE = `(async () => {
       link.click(); await settle();
       result.peekCloses = !document.querySelector('#main .peek.peek-inline');
     }
+  }
+  const abstractionView = ['design', 'abstractions'].find(route => routes.includes(route));
+  if (abstractionView) {
+    location.hash = abstractionView; await settle();
+    const link = document.querySelector('#main a[data-peek^="abstraction:"]');
+    if (link) {
+      link.click(); await settle();
+      const cards = [...document.querySelectorAll('.peek > :not(.peek-foot)')];
+      result.peekedCardsUnedged = cards.length > 0 && cards.every(card => getComputedStyle(card).boxShadow === 'none');
+      link.click(); await settle();
+    }
+  }
+  const FULL_WIDTH_SHARE = 0.75;
+  const textShare = (text, within) => text.getBoundingClientRect().width / (within.clientWidth - parseFloat(getComputedStyle(within).paddingLeft) - parseFloat(getComputedStyle(within).paddingRight));
+  const pendingKinds = new Set(['decision', 'abstraction', 'invariant', 'risk', 'finding']);
+  const cramped = [];
+  for (const view of ['design', ...(window.ExplorePR.api.content.chapters || []).map(chapter => 'tour-' + chapter.id)]) {
+    if (!pendingKinds.size) break;
+    if (view === 'design' && !routes.includes('design')) continue;
+    location.hash = view; await settle();
+    for (const kind of [...pendingKinds]) {
+      const link = document.querySelector('#main a[data-peek^="' + kind + ':"]');
+      if (!link) continue;
+      pendingKinds.delete(kind);
+      link.click(); await settle();
+      const peek = document.querySelector('.peek');
+      const text = peek && peek.querySelector('.md');
+      if (text && textShare(text, peek) < FULL_WIDTH_SHARE) cramped.push(kind + ' ' + Math.round(100 * textShare(text, peek)) + '%');
+      link.click(); await settle();
+    }
+  }
+  result.peekTextFullWidth = !cramped.length;
+  result.crampedPeeks = cramped;
+  if (routes.includes('invariants')) {
+    location.hash = 'invariants'; await settle();
+    const invariant = document.querySelector('#main .inv');
+    if (invariant) result.invariantTextFullWidth = textShare(invariant.querySelector('.md'), invariant) >= FULL_WIDTH_SHARE;
+    const walker = document.createTreeWalker(document.querySelector('#main'), NodeFilter.SHOW_TEXT, { acceptNode: node => (node.textContent.trim() === ',' && node.previousElementSibling ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) });
+    const strayCommas = [];
+    for (let comma = walker.nextNode(); comma; comma = walker.nextNode()) {
+      const range = document.createRange(); range.selectNodeContents(comma);
+      const at = [...range.getClientRects()].pop(), item = [...comma.previousElementSibling.getClientRects()].pop();
+      if (at && item && Math.abs(at.bottom - item.bottom) > 4) strayCommas.push(comma.previousElementSibling.textContent);
+    }
+    result.commasStayWithTheirItem = !strayCommas.length;
+    result.strayCommas = strayCommas.slice(0, 3);
   }
   return result;
 })()`;
@@ -986,7 +1035,7 @@ async function main() {
   const marks = report.marks || {};
   const marksHold = !!(marks.unfilled && !marks.unfilled.length && !marks.unmarked.length && marks.outstandingLinked && marks.railMarked);
   const phone = report.phone || {};
-  const phoneHolds = !!phone.topBarOneLine && ['filtersFolded', 'filtersUnfold', 'filtersBelowTopBar', 'itemBelowBars', 'peeksInline', 'peekCloses'].every(check => phone[check] !== false);
+  const phoneHolds = !!phone.topBarOneLine && ['filtersFolded', 'filtersUnfold', 'filtersBelowTopBar', 'itemBelowBars', 'peeksInline', 'peekCloses', 'peekedCardsUnedged', 'peekTextFullWidth', 'invariantTextFullWidth', 'commasStayWithTheirItem'].every(check => phone[check] !== false);
   report.ok = peekHolds && restoreHolds && marksHold && phoneHolds && touchHolds && navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;
   if (missing.length) report.incomplete = missing;
   console.log(JSON.stringify(report, null, 1));

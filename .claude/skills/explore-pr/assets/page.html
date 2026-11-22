@@ -318,6 +318,7 @@ details[open] > summary { margin-bottom: 8px; }
 .filters label { font-size: 12.5px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
 .filters select, .filters input[type="search"] { font: inherit; font-size: 13.5px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .count-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pinned-by { display: grid; gap: 2px; justify-items: start; min-width: 0; flex-basis: 100%; }
 .filters-toggle { display: none; }
 .view :is([id^="stop-"], [id^="dec-"], [id^="abs-"], [id^="inv-"], [id^="risk-"], [id^="f-"], [id^="l-"]) { scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--top-h) + var(--filters-h) + 16px); }
 
@@ -333,7 +334,8 @@ details[open] > summary { margin-bottom: 8px; }
 
 /* Peeks */
 .peek { display: grid; gap: 10px; background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; padding: 12px; min-width: 0; text-align: left; font-size: 15px; white-space: normal; }
-.peek > article, .peek > .inv, .peek > .table-wrap { border: 0; padding: 0; background: none; }
+.peek > article, .peek > .inv { border: 0; padding: 0; background: none; box-shadow: none; }
+.peek > .inv { grid-template-columns: minmax(0, 1fr); }
 .peek-pop { position: absolute; z-index: 45; width: min(560px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 14px 36px rgba(0, 0, 0, .22); }
 .peek-inline { flex-basis: 100%; width: 100%; margin: 10px 0; border-left: 3px solid var(--accent); }
 .peek-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; border-top: 1px solid var(--rule); padding-top: 8px; }
@@ -493,9 +495,9 @@ details[open] > summary { margin-bottom: 8px; }
 .fig.wide { grid-column: 1 / -1; }
 .abs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 .abs { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
-.abs.t-new { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-.abs.t-changed { border-color: var(--warn); box-shadow: inset 3px 0 0 var(--warn); }
-.abs.t-removed { border-style: dashed; border-color: var(--bad); }
+.abs:where(.t-new) { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.abs:where(.t-changed) { border-color: var(--warn); box-shadow: inset 3px 0 0 var(--warn); }
+.abs:where(.t-removed) { border-style: dashed; border-color: var(--bad); }
 .dec-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
 .fcompare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
 .fside { display: grid; gap: 8px; min-width: 0; align-content: start; border: 1px dashed var(--rule); border-radius: 8px; padding: 10px; }
@@ -518,7 +520,7 @@ details[open] > summary { margin-bottom: 8px; }
   .rail-head, .rail a.sub, .rail-path { display: none; }
   .rail a { white-space: nowrap; }
   .meters { display: none; }
-  .ba { grid-template-columns: minmax(0, 1fr); }
+  .ba, .inv { grid-template-columns: minmax(0, 1fr); }
   .ba > div:nth-child(odd) { border-right: 0; }
   .chapter-card { grid-template-columns: 34px minmax(0, 1fr); }
   .chapter-card .meta { grid-column: 2; justify-items: start; text-align: left; }
@@ -1158,6 +1160,7 @@ function parseWhere(w) {
   return { path: p, line: +m[2], end: m[3] ? +m[3] : +m[2] };
 }
 const whereBtn = w => { const p = parseWhere(w); return p ? locBtn(p.path, p.line) : (w ? `<code>${esc(w)}</code>` : ''); };
+const pinnedBy = (label, tests) => `<span class="pinned-by"><span class="muted">${label}</span>${tests.map(testRef).join('')}</span>`;
 function testRef(t) {
   const s = typeof t === 'string' ? t : `${t.file}::${t.name}`;
   const [file, name] = s.split('::');
@@ -1897,9 +1900,12 @@ const chapterLink = id => (CH[id] ? `<a href="#tour-${esc(id)}">${markSlot('chap
 function invariantRow({ item: v, chapter }, opts = {}) {
   const ch = CH[chapter] || { title: chapter };
   return `<div class="inv" id="inv-${esc(v.id || '')}"><div class="stack" style="gap:6px"><div class="md">${md(v.text, false, v.id)}</div>
-      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? `<span class="muted">pinned by</span> ${v.pinnedBy.map(testRef).join(', ')}` : '<span class="muted">no pinning test named</span>'}${opts.withChapter ? chapterLink(chapter) : ''}</div>
+      <div class="row small">${v.holds ? `<span class="chip c-${v.holds === 'yes' ? 'yes' : v.holds === 'partly' ? 'partly' : 'question'}">reading pass: ${esc(v.holds)}</span>` : ''}${whereBtn(v.where)}${(v.pinnedBy || []).length ? pinnedBy('pinned by', v.pinnedBy) : '<span class="muted">no pinning test named</span>'}${opts.withChapter ? chapterLink(chapter) : ''}</div>
       ${v.why ? `<div class="small md muted">${md(v.why, false, v.id)}</div>` : ''}</div>
       <div>${ctl('inv:' + v.id, 'invariant', { label: `${ch.title}: ${v.text}`, where: v.where })}</div></div>`;
+}
+function riskCard({ item: r, chapter }) {
+  return `<article class="stack"><div class="row">${sevChip(r.level)}${chapterLink(chapter)}</div><div class="md">${md(r.text)}</div><div class="row small">${whereBtn(r.where)}${(r.refs || []).map(id => findingLink(id)).join(' ')}</div></article>`;
 }
 function riskRow({ item: r, chapter }, opts = {}) {
   return `<tr id="risk-${esc(r.id || '')}"><td>${sevChip(r.level)}</td><td class="md small">${md(r.text)}</td><td class="small">${whereBtn(r.where)}</td><td class="small">${(r.refs || []).map(id => findingLink(id)).join(' ')}</td>${opts.withChapter ? `<td class="small">${chapterLink(chapter)}</td>` : ''}</tr>`;
@@ -1966,7 +1972,7 @@ function ledgerCard(l) {
     </div>
     ${l.concurrency ? `<div class="small"><span class="eyebrow">${esc(lab.concurrency || 'Concurrency')}</span><div class="md">${md(l.concurrency)}</div></div>` : ''}
     ${l.concern ? `<div class="check"><div class="eyebrow">Concern</div><div class="md small">${md(l.concern.text)}</div></div>` : ''}
-    <div class="row small">${(l.tests || []).length ? `<span class="muted">Pinned by</span> ${l.tests.map(testRef).join(', ')}` : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => findingLink(id)).join(' ')}</div>
+    <div class="row small">${(l.tests || []).length ? pinnedBy('Pinned by', l.tests) : '<span class="muted">No pinning test named.</span>'}${(l.findings || []).map(id => findingLink(id)).join(' ')}</div>
     <details><summary>Show the code</summary>${codeSlice(l.file, l.start ?? l.line, l.end ?? l.line, 'new', { pad: 6 })}</details>
     ${ctl('ledger:' + l.id, 'ledger', { label: `${l.id} ${l.op}: ${l.subject}`, where: l.start ? `${l.file}:${l.start}-${l.end}` : `${l.file}:${l.line}` })}
   </article>`;
@@ -2685,7 +2691,7 @@ const PEEK_CARDS = {
   decision: id => DECISION[id] && decisionCard(withItsChapter(DECISION[id]), { compact: true }),
   abstraction: id => ABSTRACTION[id] && abstractionCard({ item: ABSTRACTION[id].item, chapters: ABSTRACTION[id].chapters.map(c => CH[c]).filter(Boolean) }, { compact: true }),
   invariant: id => { const entry = catalogueEntry(CATALOGUE.invariants, id); return entry && invariantRow(entry); },
-  risk: id => { const entry = catalogueEntry(CATALOGUE.risks, id); return entry && `<div class="table-wrap"><table class="data"><tbody>${riskRow(entry, { withChapter: true })}</tbody></table></div>`; },
+  risk: id => { const entry = catalogueEntry(CATALOGUE.risks, id); return entry && riskCard(entry); },
   finding: id => F[id] && findingRow(F[id]),
 };
 function peekContent(kind, id) {
