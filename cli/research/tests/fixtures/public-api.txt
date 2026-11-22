@@ -2250,8 +2250,12 @@ pub fn research::topic::layout::stem::Stem::fmt(&self, formatter: &mut core::fmt
 impl core::hash::Hash for research::topic::layout::stem::Stem
 pub fn research::topic::layout::stem::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::topic::layout::stem::Stem
+pub const research::topic::layout::BRIEF: &str
 pub const research::topic::layout::FINDINGS: &str
+pub const research::topic::layout::MANIFEST: &str
+pub const research::topic::layout::OUTLINE: &str
 pub const research::topic::layout::REPORTS: &str
+pub const research::topic::layout::SYNTHESIS: &str
 pub mod research::topic::lifecycle
 pub enum research::topic::lifecycle::SetStatus
 pub research::topic::lifecycle::SetStatus::Briefed

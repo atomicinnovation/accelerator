@@ -36,8 +36,12 @@ use research::topic::layout::lineage::Lineage;
 use research::topic::layout::note_ref::NoteRef;
 use research::topic::layout::slug::TakenNames;
 use research::topic::layout::stem::Stem;
+use research::topic::layout::BRIEF;
 use research::topic::layout::FINDINGS;
+use research::topic::layout::MANIFEST;
+use research::topic::layout::OUTLINE;
 use research::topic::layout::REPORTS;
+use research::topic::layout::SYNTHESIS;
 use research::topic::lifecycle::SetStatus;
 use research::topic::outline::Outline;
 use research::topic::outline::Pair;
@@ -126,10 +130,10 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     unicode: &dyn UnicodeText,
 ) -> Result<RoundInputs, kernel::Error> {
     let outline = fs
-        .read(&set_root.join("outline.md"))?
+        .read(&set_root.join(OUTLINE))?
         .map_or_else(Outline::default, |text| Outline::parse(&text));
     let source_profiles = fs
-        .read(&set_root.join("brief.md"))?
+        .read(&set_root.join(BRIEF))?
         .and_then(|text| {
             string_list(&frontmatter(&text, parser)?, "source_profiles")
         })
@@ -214,8 +218,8 @@ pub fn read_counts<F: DirReader + FileReader + DirectoryProbe>(
     })?;
     let reports = files_in(&set_root.join(REPORTS), fs)?;
     let reports: Vec<&str> = reports.iter().map(String::as_str).collect();
-    let manifest = fields_of(&set_root.join("manifest.md"), fs, parser)?;
-    let synthesis = fields_of(&set_root.join("synthesis.md"), fs, parser)?;
+    let manifest = fields_of(&set_root.join(MANIFEST), fs, parser)?;
+    let synthesis = fields_of(&set_root.join(SYNTHESIS), fs, parser)?;
     Ok(CountsReading {
         stored: StoredCounts {
             round_count: stored_count(manifest.as_ref(), "round_count"),
@@ -267,7 +271,7 @@ pub fn read_set_status<F: FileReader>(
     fs: &F,
     parser: &dyn FrontmatterParser,
 ) -> Result<SetStatus, kernel::Error> {
-    let manifest = set_root.join("manifest.md");
+    let manifest = set_root.join(MANIFEST);
     let recorded = fields_of(&manifest, fs, parser)?
         .and_then(|fields| string(&fields, "status"))
         .ok_or_else(|| {

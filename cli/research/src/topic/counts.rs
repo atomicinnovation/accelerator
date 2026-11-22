@@ -3,6 +3,8 @@
 
 use crate::topic::layout::entry::is_finding_entry;
 use crate::topic::layout::entry::is_report_entry;
+use crate::topic::layout::MANIFEST;
+use crate::topic::layout::SYNTHESIS;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CountedFindings {
@@ -118,8 +120,8 @@ impl CountField {
     #[must_use]
     pub const fn document(self) -> &'static str {
         match self {
-            Self::Manifest(_) | Self::ReportCount => "manifest.md",
-            Self::RoundsCovered => "synthesis.md",
+            Self::Manifest(_) | Self::ReportCount => MANIFEST,
+            Self::RoundsCovered => SYNTHESIS,
         }
     }
 }
