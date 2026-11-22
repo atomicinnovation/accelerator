@@ -53,7 +53,8 @@ the syntax and gives an example. A filter that runs no test fails the lane.
 
 - **Exempt:** the guards (`test:integration:release-guard`, `:deny`,
   `:fixture-size`, `:measure`, `:skill-invocation`, `:conformance`) and the
-  single-test lanes (`:visualiser-os-watcher`, `:arxiv-queue-stress`).
+  single-test lanes (`test:integration:visualiser-os-watcher`,
+  `:arxiv-queue-stress`).
 - **Leaves only:** the roll-ups (`test`, `test:unit`, `test:integration`,
   `test:e2e`) ignore `--filter` and run everything.
 - **Not `cargo test`:** plain `cargo test` is not a supported way to run the

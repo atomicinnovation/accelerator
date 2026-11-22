@@ -141,9 +141,10 @@ These take no `--filter`:
   everything (see "Task options").
 
 A filter that runs no test fails the lane with `--filter '<expression>'
-selected no tests`, and an empty `--filter ''` is refused. The pytest and
-nextest lanes read this from the runner's exit code. The others match the
-runner's output text, so a bump of that runner must re-check its lane:
+selected no tests`, and an empty `--filter ''` is refused. `test:unit:cli`
+finds it in its `cargo nextest list` before building anything. The pytest
+lanes and `tracker-contract` read the runner's exit code. The others match
+the runner's output text, so a bump of that runner must re-check its lane:
 
 - **libtest:** the `test result:` lines, summed across every binary.
 - **Vitest:** the `Tests` summary line, after stripping ANSI colour codes.
@@ -153,17 +154,18 @@ runner's output text, so a bump of that runner must re-check its lane:
 - **Playwright:** "No tests found".
 
 A filtered `test:unit:cli` builds a shared VCS family whenever a selected
-test's binary consumes it, even if that test does not, so `-E
-'test(the_log_is_capped_at_five_entries)'` still builds the status-log set
-(2.4–3.2 s on a loaded host). Append `& !binary_id(<binary>)` to a broader
-filter to leave a consumer binary out.
+test's binary consumes it, even if that test never reads the family:
+`--filter 'test(the_log_is_capped_at_five_entries)'` still builds the
+status-log set (2.4–3.2 s on a loaded host). When a broad filter catches a
+consumer binary you do not need, `& !binary_id(<binary>)` drops that binary
+and, with it, its family's build.
 
 Plain `cargo test` is not a supported way to run the tests `test:unit:cli`
 runs (the `cli/` workspace apart from the visualiser): it builds no shared
 fixtures and does not give each test its own process as nextest does. The
 visualiser lanes run `cargo test` themselves, and are unaffected.
 
-Running a runner directly is a last resort, for diagnosis. For `cli/`,
+Running a test runner directly is a last resort, for diagnosis. For `cli/`,
 `cargo nextest run` directly still passes: with nothing handed over, each
 test builds its fixtures privately and logs nothing.
 
