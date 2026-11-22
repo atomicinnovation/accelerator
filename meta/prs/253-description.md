@@ -14,7 +14,7 @@ pr_number: 253
 tags: ["build-system", "testing", "design", "playwright", "security", "ci"]
 revision: "670894e5472d31e455ae643d5b41efeae29921d6"
 repository: "accelerator"
-last_updated: "2026-11-22T00:40:00+00:00"
+last_updated: "2026-11-22T01:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -100,7 +100,8 @@ noise; the two run records are under `meta/measurements/`.
 - Plan: `meta/plans/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`,
   Phases 6–8 with their "As built" notes; Phase 9 (guidance) follows
 - Earlier increments: #247, #249
-- The runtime-lane repair covers PP-805, PP-738 and PP-778, still drafts
+- The runtime-lane repair completes PP-805, PP-738 and PP-778, marked done
+  in this PR
 
 ## Testing
 
@@ -120,8 +121,11 @@ noise; the two run records are under `meta/measurements/`.
 - [x] `tracker-contract` subset run against the in-memory `RecordingTracker`
       binary; the live Jira, Linear and Shortcut tests need credentials and
       were not run
-- [ ] CI's Ubuntu integration leg: the first run of `chrome-headless-shell`
-      on `ubuntu-latest`; not verified locally
+- [x] CI's integration job runs the lane on both legs: 38 passed, 0
+      failed, 0 skipped on `ubuntu-latest`, the first run of
+      `chrome-headless-shell` there. The first CI run failed the
+      `entrypoint` suite's untouched-`bin/` guard, because the lane wrote
+      `bin/trees`; the trees now go under `cli/target/`
 
 ## Notes for Reviewers
 
