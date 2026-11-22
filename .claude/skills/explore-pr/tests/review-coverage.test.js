@@ -330,3 +330,30 @@ test('rows with nothing changed have no chunks', () => {
   assert.deepEqual(ReviewCoverage.chunksOf(['context', 'annotation', 'gap']), []);
   assert.deepEqual(ReviewCoverage.chunksOf([]), []);
 });
+
+const FILE_BY = { target: 'commitfile:c1abcdef0000:src/a.rs', label: 'Commit c1abcde' };
+
+test('a verdict on one file in a commit claims that file’s lines in the whole diff and its own superseded lines', () => {
+  const [file] = COMMIT.files;
+
+  assert.deepEqual(ReviewCoverage.commitFileClaims(COMMIT, file, FILE_BY), [
+    { path: 'src/a.rs', keys: new Set(['old:2', 'new:2']), by: FILE_BY },
+    { path: 'commit:c1abcdef0000:src/a.rs', whole: true, by: FILE_BY },
+  ]);
+});
+
+test('a commit claims what a verdict on each of its files would', () => {
+  assert.deepEqual(
+    ReviewCoverage.commitClaims(COMMIT, COMMIT_BY),
+    COMMIT.files.flatMap(file => ReviewCoverage.commitFileClaims(COMMIT, file, COMMIT_BY)),
+  );
+});
+
+test('a verdict on one file in a commit leaves the commit’s other files unread', () => {
+  const claims = ReviewCoverage.commitFileClaims(COMMIT, COMMIT.files[0], FILE_BY);
+  const coverage = ReviewCoverage.commitCoverage(COMMIT, claims);
+
+  assert.equal(coverage.state, 'partial');
+  assert.equal(coverage.read, 2);
+  assert.equal(coverage.changed, 3);
+});

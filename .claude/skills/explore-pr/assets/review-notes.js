@@ -12,6 +12,7 @@
     ['Tour stops', 'stop', ['issue', 'question', 'ok', '']],
     ['Files', 'file', ['issue', 'ok', 'skip', '']],
     ['Commits', 'commit', ['issue', 'ok', 'skip', '']],
+    ['Commit files', 'commitfile', ['issue', 'ok', 'skip', '']],
   ];
   const SUMMARISED_ELSEWHERE = new Set(['lines']);
   const VERDICT = 'decision';

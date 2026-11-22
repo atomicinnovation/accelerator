@@ -253,3 +253,55 @@ test('the files under a folder are every file beneath it', () => {
 
   assert.deepEqual(FileNavigator.filesUnder(src), ['src/deep/b.rs', 'src/a.rs']);
 });
+
+const COMMITS = [{ sha: 'c1', subject: 'Add the store', merge: false }, { sha: 'c2', subject: 'Merge main', merge: true }, { sha: 'c3', subject: 'Wire it in', merge: false }];
+const BY_COMMIT = { c1: [entry('src/store.rs'), entry('src/lib.rs')], c3: [entry('src/lib.rs'), entry('README.md')] };
+const commitTree = (options = {}) => FileNavigator.commitTreeOf(COMMITS, BY_COMMIT, { groupBy: 'tree', sortBy: 'path', groups: {}, ...options });
+
+test('each commit is a top-level node, in order, holding the tree of its files', () => {
+  const nodes = commitTree();
+
+  assert.deepEqual(nodes.map(node => [node.kind, node.sha, node.index, node.name, node.merge]), [
+    ['commit', 'c1', 0, 'Add the store', false], ['commit', 'c2', 1, 'Merge main', true], ['commit', 'c3', 2, 'Wire it in', false],
+  ]);
+  assert.deepEqual(labelsOf(FileNavigator.rowsOf(nodes[0].children, new Set())), ['src/', '  lib.rs', '  store.rs']);
+});
+
+test('a commit with no matching files is kept, empty, so the commits never have gaps', () => {
+  assert.deepEqual(commitTree()[1].children, []);
+});
+
+test('a commit carries the totals of its files', () => {
+  assert.equal(commitTree()[0].totals.files, 2);
+});
+
+test('the file order runs through every commit, naming each file by its commit', () => {
+  assert.deepEqual(FileNavigator.fileOrder(commitTree()), ['c1:src/lib.rs', 'c1:src/store.rs', 'c3:src/lib.rs', 'c3:README.md']);
+});
+
+test('a collapsed commit hides its files', () => {
+  const nodes = commitTree();
+
+  assert.deepEqual(labelsOf(FileNavigator.rowsOf(nodes, new Set([nodes[0].id, nodes[2].id]))), ['Add the store', 'Merge main', 'Wire it in']);
+});
+
+test('the same directory in two commits is two folders', () => {
+  const [first, , third] = commitTree();
+
+  assert.notEqual(first.children[0].id, third.children[0].id);
+});
+
+test('the ancestors of a file in a commit are its commit and its folders', () => {
+  const [first] = commitTree();
+
+  assert.deepEqual(FileNavigator.ancestorsOf(commitTree(), 'c1:src/store.rs'), [first.id, first.children[0].id]);
+  assert.deepEqual(FileNavigator.ancestorsOf(commitTree(), 'c3:README.md'), [commitTree()[2].id]);
+});
+
+test('a file is known by its path, or within a commit by its commit and path', () => {
+  const [file] = tree([entry('src/a.rs')])[0].children;
+  const [commit] = commitTree();
+
+  assert.equal(file.key, 'src/a.rs');
+  assert.deepEqual(FileNavigator.filesUnder(commit.children[0]), ['c1:src/lib.rs', 'c1:src/store.rs']);
+});

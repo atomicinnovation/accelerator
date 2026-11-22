@@ -88,7 +88,7 @@
       || a.name.localeCompare(b.name, 'en-GB');
   }
 
-  function folderTree(entries, scope, sortBy) {
+  function folderTree(entries, scope, sortBy, keyPrefix) {
     const top = { folders: new Map(), files: [] };
     for (const entry of entries) {
       const parts = entry.path.split('/');
@@ -110,7 +110,7 @@
         const children = build(inner, path);
         return { kind: 'folder', id: `folder:${scope}:${path}`, path, name, children, totals: summed(children) };
       });
-      const files = folder.files.map(entry => ({ kind: 'file', id: `file:${scope}:${entry.path}`, path: entry.path, name: entry.path.slice(prefix.length), entry, totals: fileTotals(entry) }));
+      const files = folder.files.map(entry => ({ kind: 'file', id: `file:${scope}:${entry.path}`, key: keyPrefix + entry.path, path: entry.path, name: entry.path.slice(prefix.length), entry, totals: fileTotals(entry) }));
       return [...folders, ...files].sort(order);
     };
     return build(top, '');
@@ -124,15 +124,15 @@
   };
   const DEFAULT_GROUPS = { risk: RISKS.map(risk => [risk, risk]), change: CHANGES.map(change => [change, change]) };
 
-  function flatList(entries, sortBy) {
-    return entries.map(entry => ({ kind: 'file', id: `file::${entry.path}`, path: entry.path, name: entry.path, entry, totals: fileTotals(entry) }))
+  function flatList(entries, scope, sortBy, keyPrefix) {
+    return entries.map(entry => ({ kind: 'file', id: `file:${scope}:${entry.path}`, key: keyPrefix + entry.path, path: entry.path, name: entry.path, entry, totals: fileTotals(entry) }))
       .sort(bySort(sortBy));
   }
 
-  function treeOf(entries, { groupBy = 'tree', sortBy = 'path', groups = {} } = {}) {
-    if (groupBy === 'none') return flatList(entries, sortBy);
+  function treeOf(entries, { groupBy = 'tree', sortBy = 'path', groups = {}, scope = '', keyPrefix = '' } = {}) {
+    if (groupBy === 'none') return flatList(entries, scope, sortBy, keyPrefix);
     const keyOf = GROUP_KEY[groupBy];
-    if (!keyOf) return folderTree(entries, '', sortBy);
+    if (!keyOf) return folderTree(entries, scope, sortBy, keyPrefix);
     const known = groups[groupBy] || DEFAULT_GROUPS[groupBy] || [];
     const byKey = new Map();
     entries.forEach(entry => { const key = keyOf(entry); (byKey.get(key) || byKey.set(key, []).get(key)).push(entry); });
@@ -140,8 +140,15 @@
     if (byKey.has('') && !order.includes('')) order.push('');
     const labelOf = key => (known.find(([id]) => id === key) || [])[1] || (key === '' && groupBy === 'chapter' ? OUTSIDE_THE_TOUR : key);
     return order.map(key => {
-      const children = folderTree(byKey.get(key), key, sortBy);
-      return { kind: 'group', id: `group:${groupBy}:${key}`, name: labelOf(key), key, children, totals: summed(children) };
+      const children = folderTree(byKey.get(key), scope + key, sortBy, keyPrefix);
+      return { kind: 'group', id: `group:${scope}${groupBy}:${key}`, name: labelOf(key), key, children, totals: summed(children) };
+    });
+  }
+
+  function commitTreeOf(commits, entriesByCommit, options = {}) {
+    return commits.map(({ sha, subject, merge }, index) => {
+      const children = treeOf(entriesByCommit[sha] || [], { ...options, scope: `${sha}/`, keyPrefix: `${sha}:` });
+      return { kind: 'commit', id: `commit:${sha}`, sha, index, name: subject, merge: !!merge, children, totals: summed(children) };
     });
   }
 
@@ -153,19 +160,19 @@
     return rows;
   }
 
-  const filesUnder = node => (node.kind === 'file' ? [node.path] : node.children.flatMap(filesUnder));
+  const filesUnder = node => (node.kind === 'file' ? [node.key] : node.children.flatMap(filesUnder));
   const fileOrder = nodes => nodes.flatMap(filesUnder);
 
-  function ancestorsOf(nodes, filePath) {
+  function ancestorsOf(nodes, key) {
     for (const node of nodes) {
-      if (node.kind === 'file') { if (node.path === filePath) return []; continue; }
-      const below = ancestorsOf(node.children, filePath);
-      if (below.length || node.children.some(child => child.kind === 'file' && child.path === filePath)) return [node.id, ...below];
+      if (node.kind === 'file') continue;
+      const below = ancestorsOf(node.children, key);
+      if (below.length || node.children.some(child => child.kind === 'file' && child.key === key)) return [node.id, ...below];
     }
     return [];
   }
 
-  const FileNavigator = { BLANK, FACETS, parseQuery, matches, facetCounts, treeOf, rowsOf, fileOrder, ancestorsOf, filesUnder, progressOf };
+  const FileNavigator = { BLANK, FACETS, parseQuery, matches, facetCounts, treeOf, commitTreeOf, rowsOf, fileOrder, ancestorsOf, filesUnder, progressOf };
   if (typeof module === 'object' && module.exports) module.exports = FileNavigator;
   else root.FileNavigator = FileNavigator;
 })(typeof window !== 'undefined' ? window : globalThis);
