@@ -47,6 +47,11 @@ pub fn run_counts<F: DirReader + FileReader + DirectoryProbe>(
             .iter()
             .map(counts_wording::mismatch)
             .collect::<Vec<_>>(),
+        "notices": reading
+            .report_count_drift()
+            .iter()
+            .map(counts_wording::report_count_drift)
+            .collect::<Vec<_>>(),
     });
     Ok(Printed {
         stdout: format!("{rendered}\n"),

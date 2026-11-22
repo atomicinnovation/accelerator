@@ -4,6 +4,7 @@
 use research::topic::counts::CountField;
 use research::topic::counts::FreshnessCount;
 use research::topic::counts::Mismatch;
+use research::topic::counts::ReportCountDrift;
 
 pub fn mismatch(mismatch: &Mismatch) -> String {
     match mismatch {
@@ -41,6 +42,20 @@ pub fn mismatch(mismatch: &Mismatch) -> String {
             "the findings reach round {derived} but {} covers up to round \
              {covered}",
             CountField::RoundsCovered.document()
+        ),
+    }
+}
+
+pub fn report_count_drift(drift: &ReportCountDrift) -> String {
+    match drift {
+        ReportCountDrift::Disagrees { stored, derived } => format!(
+            "manifest.md records report_count {stored} but {derived} reports \
+             are on disk"
+        ),
+        ReportCountDrift::Unreadable(raw) => format!(
+            "manifest.md records report_count '{}', which is not a whole \
+             number",
+            raw.escape_debug()
         ),
     }
 }

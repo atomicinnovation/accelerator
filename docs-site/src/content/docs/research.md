@@ -838,7 +838,8 @@ It prints JSON beside the values the set records:
     "rounds_covered": 3
   },
   "fresh": false,
-  "mismatches": ["manifest.md records round_count 3 but the findings reach round 2"]
+  "mismatches": ["manifest.md records round_count 3 but the findings reach round 2"],
+  "notices": []
 }
 ```
 
@@ -847,9 +848,16 @@ It prints JSON beside the values the set records:
 bare or quoted, or `null` when it is missing or not a whole number. The set
 is `fresh` when the manifest's round and finding counts equal `derived` and
 `rounds_covered` reaches the derived round; a missing `rounds_covered`
-covers round 0. `report_count` never bears on freshness: the stored value
-is informational, so read `derived.report_count` for how many reports a set
-holds. Each disagreement is one sentence in `mismatches`:
+covers round 0. Freshness asks whether any finding lies beyond what the
+synthesis covers, so a `rounds_covered` ahead of the derived round, which
+leaves no finding uncovered, is still fresh. `report_count` never bears on
+freshness, since a report is not evidence a synthesis draws on: read
+`derived.report_count` for how many reports a set holds. A recorded
+`report_count` that disagrees with it, or is not a whole number, is one
+sentence in `notices`, such as `manifest.md records report_count 4 but 3
+reports are on disk`; a missing one is no notice, since the field is
+optional. Each disagreement that bears on freshness is one sentence in
+`mismatches`:
 
 | Mismatch | Sentence |
 |---|---|

@@ -1902,6 +1902,19 @@ pub fn research::topic::counts::Mismatch::eq(&self, other: &research::topic::cou
 impl core::fmt::Debug for research::topic::counts::Mismatch
 pub fn research::topic::counts::Mismatch::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::counts::Mismatch
+pub enum research::topic::counts::ReportCountDrift
+pub research::topic::counts::ReportCountDrift::Disagrees
+pub research::topic::counts::ReportCountDrift::Disagrees::derived: u32
+pub research::topic::counts::ReportCountDrift::Disagrees::stored: u32
+pub research::topic::counts::ReportCountDrift::Unreadable(alloc::string::String)
+impl core::clone::Clone for research::topic::counts::ReportCountDrift
+pub fn research::topic::counts::ReportCountDrift::clone(&self) -> research::topic::counts::ReportCountDrift
+impl core::cmp::Eq for research::topic::counts::ReportCountDrift
+impl core::cmp::PartialEq for research::topic::counts::ReportCountDrift
+pub fn research::topic::counts::ReportCountDrift::eq(&self, other: &research::topic::counts::ReportCountDrift) -> bool
+impl core::fmt::Debug for research::topic::counts::ReportCountDrift
+pub fn research::topic::counts::ReportCountDrift::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::counts::ReportCountDrift
 pub enum research::topic::counts::StoredCount
 pub research::topic::counts::StoredCount::Count(u32)
 pub research::topic::counts::StoredCount::Missing
@@ -1947,6 +1960,7 @@ pub research::topic::counts::CountsReading::reports: research::topic::counts::Co
 pub research::topic::counts::CountsReading::stored: research::topic::counts::StoredCounts
 impl research::topic::counts::CountsReading
 pub fn research::topic::counts::CountsReading::freshness(&self) -> research::topic::counts::Freshness
+pub fn research::topic::counts::CountsReading::report_count_drift(&self) -> core::option::Option<research::topic::counts::ReportCountDrift>
 impl core::clone::Clone for research::topic::counts::CountsReading
 pub fn research::topic::counts::CountsReading::clone(&self) -> research::topic::counts::CountsReading
 impl core::cmp::Eq for research::topic::counts::CountsReading

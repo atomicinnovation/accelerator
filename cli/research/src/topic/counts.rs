@@ -216,10 +216,36 @@ pub struct CountsReading {
     pub reports: CountedReports,
 }
 
+/// A stored `report_count` that disagrees with the reports on disk: worth
+/// telling the user, but never a reason to call the set stale, since a
+/// report is not evidence a synthesis draws on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReportCountDrift {
+    Disagrees { stored: u32, derived: u32 },
+    Unreadable(String),
+}
+
 impl CountsReading {
     #[must_use]
     pub fn freshness(&self) -> Freshness {
         Freshness::assess(&self.stored, &self.findings)
+    }
+
+    #[must_use]
+    pub fn report_count_drift(&self) -> Option<ReportCountDrift> {
+        let derived = self.reports.report_count();
+        match &self.stored.report_count {
+            StoredCount::Count(stored) if *stored != derived => {
+                Some(ReportCountDrift::Disagrees {
+                    stored: *stored,
+                    derived,
+                })
+            }
+            StoredCount::Unreadable(raw) => {
+                Some(ReportCountDrift::Unreadable(raw.clone()))
+            }
+            StoredCount::Count(_) | StoredCount::Missing => None,
+        }
     }
 }
 
@@ -231,9 +257,11 @@ mod tests {
     use super::CountField;
     use super::CountedFindings;
     use super::CountedReports;
+    use super::CountsReading;
     use super::Freshness;
     use super::FreshnessCount;
     use super::Mismatch;
+    use super::ReportCountDrift;
     use super::StoredCount;
     use super::StoredCounts;
 
@@ -481,5 +509,51 @@ mod tests {
 
         assert!(equal.is_fresh(), "{equal:?}");
         assert!(beyond.is_fresh(), "{beyond:?}");
+    }
+
+    fn reading_with_report_count(report_count: StoredCount) -> CountsReading {
+        CountsReading {
+            stored: StoredCounts {
+                report_count,
+                ..agreeing()
+            },
+            findings: two_rounds_of_two_findings(),
+            reports: CountedReports::of(&["a.md"]),
+        }
+    }
+
+    #[test]
+    fn a_disagreeing_report_count_drifts_but_stays_fresh() {
+        let reading = reading_with_report_count(StoredCount::Count(3));
+
+        assert_eq!(
+            reading.report_count_drift(),
+            Some(ReportCountDrift::Disagrees {
+                stored: 3,
+                derived: 1
+            })
+        );
+        assert!(reading.freshness().is_fresh());
+    }
+
+    #[test]
+    fn an_unreadable_report_count_drifts() {
+        let reading =
+            reading_with_report_count(StoredCount::Unreadable("x".into()));
+
+        assert_eq!(
+            reading.report_count_drift(),
+            Some(ReportCountDrift::Unreadable("x".into()))
+        );
+    }
+
+    #[test]
+    fn an_agreeing_or_missing_report_count_does_not_drift() {
+        for report_count in [StoredCount::Count(1), StoredCount::Missing] {
+            assert_eq!(
+                reading_with_report_count(report_count).report_count_drift(),
+                None
+            );
+        }
     }
 }
