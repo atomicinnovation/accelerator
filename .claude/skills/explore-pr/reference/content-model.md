@@ -54,13 +54,15 @@ level:
   across `design.json` and every chapter: the first declaration describes
   it, its collaborators are all of theirs, and it links to every chapter
   that declares it.
-- **Decisions and abstractions are met at the stop that first carries
-  them.** A chapter opens with a strip naming what it introduces and
-  decides; each decision is set out in full, with its control, at the first
-  stop in tour order that carries it, and each abstraction as a card there.
-  So order the stops that a decision's first carrying stop is where it is
-  best explained. The catalogues in Reference hold every one of them again,
-  and a decision's verdict is the same wherever its control is drawn.
+- **A stop names what it shows in one strip, and the tour badges where it
+  shows each first.** A chapter opens with a strip naming what it
+  introduces and decides, its domain terms included. Above each stop, a
+  strip names the decisions, abstractions, invariants and risks it carries
+  and the domain terms it uses; each opens in place, with its review control
+  where it takes one, and the stop in tour order that first shows it badges
+  it "new here". So order the stops that a decision's first carrying stop is
+  where it is best explained. The catalogues in Reference hold every one of
+  them again, and a decision's verdict is the same wherever it is given.
 - **Stops are evidence for the design**, chosen to show where a responsibility
   lives or how a decision is enforced, not to walk every hunk. Every stop
   names what it is evidence for (`carries`) and the role its code plays in
@@ -162,9 +164,11 @@ first and written second:
 - Lead with the point; 1–3 sentences per field of a stop. Quantify. Name
   specifics (`store.rs:212`, not "the relevant code").
 - Use the PR's own domain terms, one term per concept, exactly as the code
-  names them. Define each in its chapter's `domain`. The page shows the
-  chapter's terms straight after its figures, before any of its prose, so
-  each meaning must stand on its own.
+  names them. Define each in its chapter's `domain`. The page names the
+  chapter's terms in its opening strip, and shows a term at every stop whose
+  code names its `code` identifier or whose text uses the term, unless an
+  abstraction there already names it. Each meaning opens on its own, so it
+  must stand on its own; a stop need not define a term it uses.
 - Refer to a stop by its id (`claims-s3`) and to a chapter as chapter
   `claims` or the `claims` chapter, in backticks. The page replaces each with
   a link named by the stop's number and title or the chapter's title, so
