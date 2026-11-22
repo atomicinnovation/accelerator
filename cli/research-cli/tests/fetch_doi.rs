@@ -15,6 +15,7 @@ use research::sources::metadata::RECOMMENDED_KEYS;
 use research::sources::service::CrossrefPool;
 use research::sources::service::Service;
 use support::arxiv_fixture;
+use support::config_with;
 use support::crossref_fixture;
 use support::doi_binding;
 use support::fetch;
@@ -30,6 +31,8 @@ use support::CALL_BUDGET_MS;
 use support::CLOCK_EPOCH_MS;
 
 const PUBLIC: Service = Service::Crossref(CrossrefPool::Public);
+const POLITE: Service = Service::Crossref(CrossrefPool::Polite);
+const MAILTO: &str = "ACCELERATOR_CROSSREF_MAILTO";
 const PROCEEDINGS: &str = "10.1145/371920.372066";
 const PROCEEDINGS_OK: &str = "{\"status\":\"ok\",\"metadata\":{\"publisher\":\
                               \"ACM\"},\"venue\":\"Proceedings of the 10th \
@@ -824,4 +827,173 @@ fn public_pool_calls_never_overlap_in_flight() {
             pair[1] - pair[0]
         );
     }
+}
+
+fn polite_with(
+    project: &Project,
+    server: &MockHTTPServer,
+    env: &[(&str, &str)],
+) -> Run {
+    fetch(project, server, &["doi", "metadata", PROCEEDINGS], env)
+}
+
+fn user_agent(server: &MockHTTPServer) -> String {
+    server
+        .last_header(&works(PROCEEDINGS), "User-Agent")
+        .expect("a User-Agent")
+}
+
+fn anonymous() -> String {
+    format!("accelerator-research/{}", env!("CARGO_PKG_VERSION"))
+}
+
+fn identified_as(address: &str) -> String {
+    format!("{} (mailto:{address})", anonymous())
+}
+
+fn mailto(address: &str) -> String {
+    config_with("crossref", &format!("  mailto: '{address}'\n"))
+}
+
+fn warnings(run: &Run) -> Vec<&str> {
+    run.stderr
+        .lines()
+        .filter(|line| line.starts_with("warning:"))
+        .collect()
+}
+
+#[test]
+fn a_contact_address_travels_in_the_user_agent_and_never_in_the_url() {
+    let project = Project::new();
+    let server = proceedings_server();
+
+    let run =
+        polite_with(&project, &server, &[(MAILTO, "research@example.org")]);
+
+    assert_printed(&run, PROCEEDINGS_OK);
+    assert_eq!(user_agent(&server), identified_as("research@example.org"));
+    assert_eq!(server.queries(&works(PROCEEDINGS)), [None]);
+    assert_eq!(project.service_requests(POLITE).len(), 1);
+}
+
+#[test]
+fn a_call_with_no_contact_prints_what_a_polite_call_prints() {
+    let project = Project::new();
+    let server = proceedings_server();
+
+    let run = polite_with(&project, &server, &[]);
+
+    assert_printed(&run, PROCEEDINGS_OK);
+    assert_eq!(user_agent(&server), anonymous());
+    assert_eq!(warnings(&run), Vec::<&str>::new());
+}
+
+#[test]
+fn an_implausible_contact_warns_once_and_calls_anonymously() {
+    for value in [
+        "not-an-address",
+        "a@b",
+        "a@.org",
+        "a@example.",
+        "@example.org",
+        "a@b@example.org",
+        "research @example.org",
+        "mailto:x@example.org",
+    ] {
+        let project = Project::new();
+        let server = proceedings_server();
+
+        let run = polite_with(&project, &server, &[(MAILTO, value)]);
+
+        assert_printed(&run, PROCEEDINGS_OK);
+        assert_eq!(user_agent(&server), anonymous(), "{value}");
+        let warned = warnings(&run);
+        assert_eq!(warned.len(), 1, "{value}: {}", run.stderr);
+        assert!(warned[0].contains(MAILTO), "{}", warned[0]);
+        assert!(warned[0].contains(&format!("'{value}'")), "{}", warned[0]);
+    }
+}
+
+#[test]
+fn a_blank_contact_calls_anonymously_without_a_warning() {
+    for value in ["", " "] {
+        let project = Project::new().shared_config(&mailto(value));
+        let server = proceedings_server();
+
+        let run = polite_with(&project, &server, &[]);
+
+        assert_printed(&run, PROCEEDINGS_OK);
+        assert_eq!(user_agent(&server), anonymous());
+        assert_eq!(warnings(&run), Vec::<&str>::new());
+    }
+}
+
+#[test]
+fn a_blank_environment_variable_falls_through_to_the_shared_config() {
+    let project = Project::new().shared_config(&mailto("research@example.org"));
+    let server = proceedings_server();
+
+    let run = polite_with(&project, &server, &[(MAILTO, " ")]);
+
+    assert_eq!(user_agent(&server), identified_as("research@example.org"));
+    assert_eq!(warnings(&run), Vec::<&str>::new());
+}
+
+#[test]
+fn the_environment_then_the_personal_then_the_shared_config_supply_the_contact()
+{
+    let everywhere = Project::new()
+        .personal_config(&mailto("personal@example.org"), 0o600)
+        .shared_config(&mailto("team@example.org"));
+    let server = proceedings_server();
+    polite_with(&everywhere, &server, &[(MAILTO, "env@example.org")]);
+    assert_eq!(user_agent(&server), identified_as("env@example.org"));
+
+    let both_files = Project::new()
+        .personal_config(&mailto("personal@example.org"), 0o600)
+        .shared_config(&mailto("team@example.org"));
+    let server = proceedings_server();
+    polite_with(&both_files, &server, &[]);
+    assert_eq!(user_agent(&server), identified_as("personal@example.org"));
+
+    let shared_only = Project::new().shared_config(&mailto("team@example.org"));
+    let server = proceedings_server();
+    polite_with(&shared_only, &server, &[]);
+    assert_eq!(user_agent(&server), identified_as("team@example.org"));
+}
+
+#[test]
+fn an_implausible_environment_variable_never_falls_through_to_the_config() {
+    let project = Project::new().shared_config(&mailto("research@example.org"));
+    let server = proceedings_server();
+
+    let run = polite_with(&project, &server, &[(MAILTO, "not-an-address")]);
+
+    assert_printed(&run, PROCEEDINGS_OK);
+    assert_eq!(user_agent(&server), anonymous());
+    let warned = warnings(&run);
+    assert_eq!(warned.len(), 1, "{}", run.stderr);
+    assert!(warned[0].contains(MAILTO), "{}", warned[0]);
+}
+
+#[test]
+fn a_public_ticket_presented_with_a_contact_joins_the_polite_pool_afresh() {
+    let project = Project::new();
+    let server = proceedings_server();
+    project.seed_service_ticket(
+        PUBLIC,
+        "1-aaaaaa",
+        &SeededTicket::absent(&doi_binding(PROCEEDINGS), 20, 10),
+    );
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(PROCEEDINGS, "1-aaaaaa"),
+        &[(MAILTO, "research@example.org")],
+    );
+
+    assert_printed(&run, PROCEEDINGS_OK);
+    assert_eq!(project.service_requests(POLITE).len(), 1);
+    assert_eq!(project.service_requests(PUBLIC).len(), 0);
 }

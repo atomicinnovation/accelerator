@@ -39,8 +39,9 @@ doi metadata prints {\"status\":\"ok\",\"metadata\":{…},\"venue\":\"…\"}: ve
 the first container title of a journal or proceedings article, absent for
 any other type, and metadata maps the publisher, whose key follows every key
 web metadata prints in canonical order. A DOI Crossref holds no record for
-prints {\"status\":\"ok\",\"metadata\":{}}. It asks only Crossref, with no key,
-and prints {\"status\":\"unavailable\",\"source\":\"crossref\",\"reason\":…} with a
+prints {\"status\":\"ok\",\"metadata\":{}}. It asks only Crossref, with no key;
+setting crossref.mailto to a contact address selects Crossref's faster pool.
+It prints {\"status\":\"unavailable\",\"source\":\"crossref\",\"reason\":…} with a
 reason of rate_limited or upstream_error when Crossref cannot answer or
 rejects the request. A DOI it cannot parse exits 2 with E_DOI_MALFORMED.
 
@@ -228,6 +229,14 @@ mod tests {
         for named in ["venue", "publisher", "crossref", "E_DOI_MALFORMED"] {
             assert!(paragraph.contains(named), "{named} in {paragraph:?}");
         }
+    }
+
+    #[test]
+    fn the_doi_metadata_paragraph_says_crossref_mailto_selects_the_faster_pool()
+    {
+        let paragraph = paragraph_naming("doi metadata prints");
+        assert!(paragraph.contains("crossref.mailto"), "{paragraph:?}");
+        assert!(paragraph.contains("faster pool"), "{paragraph:?}");
     }
 
     fn family_clauses() -> Vec<&'static str> {

@@ -517,8 +517,8 @@ fn set_mode(path: &Path, mode: u32) {
 #[cfg(not(unix))]
 const fn set_mode(_path: &Path, _mode: u32) {}
 
-pub fn config_with(section: &str) -> String {
-    format!("---\nopenalex:\n{section}---\n")
+pub fn config_with(name: &str, section: &str) -> String {
+    format!("---\n{name}:\n{section}---\n")
 }
 
 pub struct Run {
@@ -641,6 +641,7 @@ fn command(
         .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY_CMD")
+        .env_remove("ACCELERATOR_CROSSREF_MAILTO")
         .stdin(Stdio::null());
     command
 }

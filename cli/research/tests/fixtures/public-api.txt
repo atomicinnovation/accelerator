@@ -831,6 +831,7 @@ impl core::marker::Copy for research::sources::ports::Attempted
 impl core::marker::StructuralPartialEq for research::sources::ports::Attempted
 pub struct research::sources::fetch::DoiFetch<'a>
 pub research::sources::fetch::DoiFetch::api: &'a research::sources::request::Endpoint
+pub research::sources::fetch::DoiFetch::contact: core::option::Option<&'a research::sources::crossref::ContactAddress>
 pub research::sources::fetch::DoiFetch::doi: &'a research::sources::request::Doi
 pub research::sources::fetch::DoiFetch::presented: core::option::Option<&'a research::sources::queue::Ticket>
 pub struct research::sources::fetch::DoiPorts<'a>

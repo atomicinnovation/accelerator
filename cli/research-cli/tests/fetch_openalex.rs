@@ -576,8 +576,10 @@ fn each_rung_of_the_ladder_supplies_the_key() {
     );
     assert_eq!(
         authorization(
-            &Project::new()
-                .personal_config(&config_with("  api_key: k3\n"), 0o600),
+            &Project::new().personal_config(
+                &config_with("openalex", "  api_key: k3\n"),
+                0o600
+            ),
             &[]
         ),
         Some(bearer("k3"))
@@ -585,7 +587,7 @@ fn each_rung_of_the_ladder_supplies_the_key() {
     assert_eq!(
         authorization(
             &Project::new().personal_config(
-                &config_with("  api_key_cmd: printf k4\n"),
+                &config_with("openalex", "  api_key_cmd: printf k4\n"),
                 0o600
             ),
             &[]
@@ -594,7 +596,8 @@ fn each_rung_of_the_ladder_supplies_the_key() {
     );
     assert_eq!(
         authorization(
-            &Project::new().shared_config(&config_with("  api_key: k5\n")),
+            &Project::new()
+                .shared_config(&config_with("openalex", "  api_key: k5\n")),
             &[]
         ),
         Some(bearer("k5"))
@@ -605,7 +608,7 @@ fn each_rung_of_the_ladder_supplies_the_key() {
 fn a_personal_config_without_a_key_leaves_the_call_keyless() {
     let project = Project::new()
         .personal_config("---\n---\n", 0o600)
-        .shared_config(&config_with("  api_key: shared\n"));
+        .shared_config(&config_with("openalex", "  api_key: shared\n"));
 
     assert_eq!(authorization(&project, &[]), None);
 }
@@ -615,7 +618,10 @@ fn a_personal_config_without_a_key_beside_a_shared_key_command_is_refused() {
     assert_refused(
         &Project::new()
             .personal_config("---\n---\n", 0o600)
-            .shared_config(&config_with("  api_key_cmd: printf k\n")),
+            .shared_config(&config_with(
+                "openalex",
+                "  api_key_cmd: printf k\n",
+            )),
         "E_CONSENT_KEY_TEAM_LEVEL: openalex.api_key_cmd",
     );
 }
@@ -624,8 +630,8 @@ fn a_personal_config_without_a_key_beside_a_shared_key_command_is_refused() {
 fn a_shared_key_command_beside_a_personal_key_warns_and_fetches() {
     let server = server_with(works(), search_page());
     let project = Project::new()
-        .personal_config(&config_with("  api_key: mine\n"), 0o600)
-        .shared_config(&config_with("  api_key_cmd: printf k\n"));
+        .personal_config(&config_with("openalex", "  api_key: mine\n"), 0o600)
+        .shared_config(&config_with("openalex", "  api_key_cmd: printf k\n"));
 
     let run = fetch(&project, &server, &["openalex", "search", "x"], &[]);
 
@@ -643,7 +649,7 @@ fn a_shared_key_command_beside_a_personal_key_warns_and_fetches() {
 fn an_environment_key_resolves_beside_an_insecure_personal_config() {
     let server = server_with(works(), search_page());
     let project = Project::new()
-        .personal_config(&config_with("  api_key: mine\n"), 0o644);
+        .personal_config(&config_with("openalex", "  api_key: mine\n"), 0o644);
 
     let run = fetch(
         &project,
@@ -663,8 +669,14 @@ fn an_environment_key_resolves_beside_an_insecure_personal_config() {
 #[test]
 fn a_tracked_personal_key_command_beside_a_shared_one_is_fatal_and_warns() {
     let project = Project::under_git()
-        .personal_config(&config_with("  api_key_cmd: printf k\n"), 0o600)
-        .shared_config(&config_with("  api_key_cmd: printf shared\n"))
+        .personal_config(
+            &config_with("openalex", "  api_key_cmd: printf k\n"),
+            0o600,
+        )
+        .shared_config(&config_with(
+            "openalex",
+            "  api_key_cmd: printf shared\n",
+        ))
         .track_personal_config();
 
     assert_refused(
@@ -680,10 +692,13 @@ fn a_personal_key_command_runs_outside_the_project_in_a_fresh_directory() {
     let record = tempfile::tempdir().expect("a record directory");
     let recorded = record.path().join("cwd");
     let project = Project::new().personal_config(
-        &config_with(&format!(
-            "  api_key_cmd: pwd > {} && printf k\n",
-            recorded.display()
-        )),
+        &config_with(
+            "openalex",
+            &format!(
+                "  api_key_cmd: pwd > {} && printf k\n",
+                recorded.display()
+            ),
+        ),
         0o600,
     );
 
@@ -709,8 +724,8 @@ fn no_key_anywhere_leaves_the_call_keyless() {
 #[test]
 fn a_shared_key_command_is_refused_before_any_request() {
     let server = server_with(works(), search_page());
-    let project =
-        Project::new().shared_config(&config_with("  api_key_cmd: printf k\n"));
+    let project = Project::new()
+        .shared_config(&config_with("openalex", "  api_key_cmd: printf k\n"));
 
     let run = fetch(&project, &server, &["openalex", "search", "x"], &[]);
 
@@ -728,7 +743,7 @@ fn a_shared_key_command_is_refused_before_any_request() {
 fn a_hanging_key_command_times_out_within_the_budget_left() {
     let server = server_with(works(), search_page());
     let project = Project::new().personal_config(
-        &config_with("  api_key_cmd: sleep 60 & wait\n"),
+        &config_with("openalex", "  api_key_cmd: sleep 60 & wait\n"),
         0o600,
     );
     let started = std::time::Instant::now();
@@ -753,8 +768,8 @@ fn a_hanging_key_command_times_out_within_the_budget_left() {
 
 #[test]
 fn an_environment_key_outranks_a_shared_key_command() {
-    let project =
-        Project::new().shared_config(&config_with("  api_key_cmd: printf k\n"));
+    let project = Project::new()
+        .shared_config(&config_with("openalex", "  api_key_cmd: printf k\n"));
 
     assert_eq!(
         authorization(&project, &[("ACCELERATOR_OPENALEX_API_KEY", "env")]),
@@ -778,13 +793,19 @@ fn assert_refused(project: &Project, message: &str) {
 fn a_tracked_personal_config_supplying_a_key_is_refused() {
     assert_refused(
         &Project::under_git()
-            .personal_config(&config_with("  api_key: leaked\n"), 0o600)
+            .personal_config(
+                &config_with("openalex", "  api_key: leaked\n"),
+                0o600,
+            )
             .track_personal_config(),
         "E_TOKEN_FROM_TRACKED_FILE: openalex.api_key",
     );
     assert_refused(
         &Project::under_git()
-            .personal_config(&config_with("  api_key_cmd: printf k\n"), 0o600)
+            .personal_config(
+                &config_with("openalex", "  api_key_cmd: printf k\n"),
+                0o600,
+            )
             .track_personal_config(),
         "E_CONSENT_KEY_TRACKED: openalex.api_key_cmd",
     );
@@ -794,7 +815,10 @@ fn a_tracked_personal_config_supplying_a_key_is_refused() {
 fn a_group_readable_personal_config_supplying_a_key_is_refused() {
     assert_refused(
         &Project::under_git()
-            .personal_config(&config_with("  api_key: leaked\n"), 0o640)
+            .personal_config(
+                &config_with("openalex", "  api_key: leaked\n"),
+                0o640,
+            )
             .track_personal_config(),
         "E_LOCAL_PERMS_INSECURE",
     );

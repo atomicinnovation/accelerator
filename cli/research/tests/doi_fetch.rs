@@ -82,6 +82,7 @@ impl Harness {
                 doi: &Doi::parse("10.1145/371920.372066").expect("a DOI"),
                 presented: None,
                 api: &Endpoint::new("https://crossref.test"),
+                contact: None,
             },
             &DoiPorts {
                 transport,

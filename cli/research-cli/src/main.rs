@@ -7,6 +7,7 @@ mod consultable_command;
 mod context;
 mod counts_command;
 mod counts_wording;
+mod crossref_contact;
 mod fetch_command;
 mod guard;
 mod harness_setting;
@@ -31,6 +32,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use clap::Parser as _;
+use config_adapters::credentials::SystemEnvironment;
 use corpus::Clock as _;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::FileCorpusStore;
@@ -45,7 +47,6 @@ use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
-use research::sources::service::CrossrefPool;
 use research::sources::service::Service;
 use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
@@ -69,6 +70,7 @@ use crate::cli::Cli;
 use crate::cli::Command;
 use crate::cli::TopicAction;
 use crate::context::ProjectContext;
+use crate::crossref_contact::CrossrefContact;
 use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::ArxivCall;
 use crate::fetch_command::DoiAdapters;
@@ -338,7 +340,9 @@ fn source_call(
         FetchRequest::Arxiv(request) => {
             let endpoints =
                 selected_endpoints().map_err(|error| usage(&error))?;
-            let context = queued_context(clock)?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let context = queued_context(clock, &project)?;
             let transport = http_transport(deadline)?;
             let research = context.research.clone();
             let diagnostics = context.diagnostics.clone();
@@ -373,12 +377,25 @@ fn source_call(
         FetchRequest::Doi(request) => {
             let endpoints =
                 selected_endpoints().map_err(|error| usage(&error))?;
-            let context = queued_context(clock)?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let context = queued_context(clock, &project)?;
             let transport = http_transport(deadline)?;
-            let pool = CrossrefPool::Public;
+            let contact = CrossrefContact::resolved(
+                &SystemEnvironment,
+                project.config.as_ref(),
+            );
+            if let Some(warning) = contact.warning() {
+                eprintln!("{warning}");
+            }
+            let pool = contact.pool();
             let crossref = ServiceAdapters::for_crossref(pool, &context);
             SourceCall::Doi(
-                DoiCall { request, presented },
+                DoiCall {
+                    request,
+                    presented,
+                    contact: contact.address().cloned(),
+                },
                 DoiAdapters {
                     service: Service::Crossref(pool),
                     api: endpoints.crossref_api,
@@ -396,8 +413,10 @@ fn source_call(
 
 /// What every queued service's adapters share, rooted in the enclosing
 /// project's research scratch directory.
-fn queued_context(clock: &Rc<dyn Clock>) -> Result<AdapterContext, ExitCode> {
-    let (_, project) = working_project().map_err(|error| failure(&error))?;
+fn queued_context(
+    clock: &Rc<dyn Clock>,
+    project: &ProjectContext,
+) -> Result<AdapterContext, ExitCode> {
     let scratch = project
         .research_scratch()
         .map_err(|error| failure(&error.to_string()))?;

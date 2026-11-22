@@ -16,6 +16,7 @@ use config::credentials::TokenSource;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::credentials::CredentialPorts;
 use research::sources::classify::Response;
+use research::sources::crossref::ContactAddress;
 use research::sources::crossref::DoiMetadata;
 use research::sources::fetch::fetch_arxiv;
 use research::sources::fetch::fetch_doi;
@@ -82,6 +83,7 @@ pub struct ArxivCall {
 pub struct DoiCall {
     pub request: DoiRequest,
     pub presented: Option<Ticket>,
+    pub contact: Option<ContactAddress>,
 }
 
 pub struct OpenAlexAdapters {
@@ -197,6 +199,7 @@ fn from_doi(
             doi: call.request.doi(),
             presented: call.presented.as_ref(),
             api: &adapters.api,
+            contact: call.contact.as_ref(),
         },
         &DoiPorts {
             transport: &transport,

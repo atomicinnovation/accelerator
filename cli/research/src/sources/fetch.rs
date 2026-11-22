@@ -24,6 +24,7 @@ use crate::sources::classify::ClientRejection;
 use crate::sources::classify::FetchError;
 use crate::sources::classify::Reason;
 use crate::sources::crossref;
+use crate::sources::crossref::ContactAddress;
 use crate::sources::crossref::CrossrefWork;
 use crate::sources::crossref::DoiMetadata;
 use crate::sources::metadata::date::PartialDate;
@@ -155,6 +156,7 @@ pub struct DoiFetch<'a> {
     pub doi: &'a Doi,
     pub presented: Option<&'a Ticket>,
     pub api: &'a Endpoint,
+    pub contact: Option<&'a ContactAddress>,
 }
 
 pub fn fetch_openalex(
@@ -262,7 +264,11 @@ pub fn fetch_doi(
         deadline,
         &mut |attempts| {
             let settled = attempts.until_settled(
-                &UpstreamRequest::crossref_work(fetch.api, fetch.doi, None),
+                &UpstreamRequest::crossref_work(
+                    fetch.api,
+                    fetch.doi,
+                    fetch.contact,
+                ),
                 &classify::crossref,
                 &mut |body| Ok(ports.decoder.work(&body)),
             )?;
