@@ -1960,6 +1960,15 @@ def test_consulting_runs_each_command_as_its_own_call() -> None:
     ) in _consult()
 
 
+def test_consulting_runs_each_command_bare() -> None:
+    consult = _consult()
+    for phrase in (
+        "with no redirect such as `2>/dev/null`",
+        "run no command this section does not name, such as `echo` or `true`",
+    ):
+        assert phrase in consult, f"consulting must forbid {phrase!r}"
+
+
 def test_consulting_reads_every_set_file_with_the_read_tool() -> None:
     consult = _consult()
     assert "Read every file with the Read tool" in consult
