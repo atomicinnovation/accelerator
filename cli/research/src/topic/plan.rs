@@ -33,6 +33,8 @@ pub struct RoundInputs {
     pub source_profiles: Vec<String>,
     /// The profiles with an installed `<name>-profile` skill.
     pub available_profiles: Vec<String>,
+    /// Installed profiles whose name no stem can end in, so none is offered.
+    pub unallocatable_profiles: Vec<String>,
     pub levels: Vec<LevelsDirectory>,
     pub depth: Depth,
     /// The indexes the run planning this round has already claimed.
@@ -108,6 +110,7 @@ pub enum Warning {
     UnseparatedProfiles { line: usize },
     UnmatchedFinding { name: String, question: String },
     IndexesExhausted { question: String },
+    UnallocatableProfile { name: String },
 }
 
 impl RoundPlan {
@@ -273,6 +276,11 @@ impl<'a> Planner<'a> {
         }
         plan.items = held_back(planned);
         plan.warnings.extend(self.unmatched_findings());
+        plan.warnings.extend(
+            self.inputs.unallocatable_profiles.iter().map(|name| {
+                Warning::UnallocatableProfile { name: name.clone() }
+            }),
+        );
         for (question, index) in &self.claimed {
             if let Some(index) = index {
                 plan.claims.claim(question.clone(), *index);
@@ -612,6 +620,7 @@ mod tests {
                 "openalex".into(),
                 "arxiv".into(),
             ],
+            unallocatable_profiles: Vec::new(),
             levels: Vec::new(),
             depth: Depth::default(),
             claims: ClaimedIndexes::default(),
@@ -630,6 +639,18 @@ mod tests {
             .iter()
             .map(|(profile, path)| ((*profile).to_owned(), (*path).to_owned()))
             .collect()
+    }
+
+    #[test]
+    fn an_installed_profile_no_stem_can_name_is_the_plans_last_warning() {
+        let mut inputs = inputs(outline(&["- [ ] Why? profiles: arxiv"]));
+        inputs.unallocatable_profiles = vec!["Web_X".into()];
+        assert_eq!(
+            plan(&inputs).warnings.last(),
+            Some(&Warning::UnallocatableProfile {
+                name: "Web_X".to_owned()
+            })
+        );
     }
 
     #[test]

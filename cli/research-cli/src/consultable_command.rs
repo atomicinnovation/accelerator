@@ -42,26 +42,17 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
     }
     let status = read_set_status(set_root, fs, &YamlFrontmatter)
         .map_err(|error| error.to_string())?;
-    let mut warnings = Vec::new();
     let verdict = Consultation::judge(
         status,
         || read_counts(set_root, fs, &YamlFrontmatter),
         || {
-            let reading = read_plan(
+            read_plan(
                 set_root,
                 profiles_dir,
                 fs,
                 &YamlFrontmatter,
                 &UnicodeTables,
-            )?;
-            warnings = reading
-                .plan
-                .warnings
-                .iter()
-                .map(plan_wording::warning)
-                .chain(reading.warnings.iter().map(ToString::to_string))
-                .collect();
-            Ok(reading.plan)
+            )
         },
         |stems| {
             stems.iter().try_fold(Vec::new(), |mut notes, stem| {
@@ -72,16 +63,12 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
     )
     .map_err(|error| error.to_string())?;
     Ok(Printed {
-        stdout: format!("{}\n", rendered(&verdict, &warnings, set_root)),
+        stdout: format!("{}\n", rendered(&verdict, set_root)),
         stderr: String::new(),
     })
 }
 
-fn rendered(
-    verdict: &Consultation,
-    warnings: &[String],
-    set_root: &Path,
-) -> Value {
+fn rendered(verdict: &Consultation, set_root: &Path) -> Value {
     let absolute = |relative: &String| {
         set_root.join(relative).to_string_lossy().into_owned()
     };
@@ -125,6 +112,7 @@ fn rendered(
         Consultation::Refused(Refusal::Conducted {
             unanswered,
             held_back,
+            warnings,
         }) => json!({
             "consultable": false,
             "gate": "conducted",
@@ -144,7 +132,10 @@ fn rendered(
                         plan_wording::hold_back_recoveries(&item.hold_back),
                 }))
                 .collect::<Vec<_>>(),
-            "warnings": warnings,
+            "warnings": warnings
+                .iter()
+                .map(plan_wording::warning)
+                .collect::<Vec<_>>(),
         }),
     }
 }

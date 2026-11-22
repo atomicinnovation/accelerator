@@ -1818,6 +1818,7 @@ pub enum research::topic::consultation::Refusal
 pub research::topic::consultation::Refusal::Conducted
 pub research::topic::consultation::Refusal::Conducted::held_back: alloc::vec::Vec<research::topic::consultation::HeldBackItem>
 pub research::topic::consultation::Refusal::Conducted::unanswered: alloc::vec::Vec<research::topic::outline::Pair>
+pub research::topic::consultation::Refusal::Conducted::warnings: alloc::vec::Vec<research::topic::plan::Warning>
 pub research::topic::consultation::Refusal::Freshness
 pub research::topic::consultation::Refusal::Freshness::mismatches: alloc::vec::Vec<research::topic::counts::Mismatch>
 pub research::topic::consultation::Refusal::Status
@@ -2342,6 +2343,8 @@ impl core::marker::StructuralPartialEq for research::topic::plan::SkipReason
 pub enum research::topic::plan::Warning
 pub research::topic::plan::Warning::IndexesExhausted
 pub research::topic::plan::Warning::IndexesExhausted::question: alloc::string::String
+pub research::topic::plan::Warning::UnallocatableProfile
+pub research::topic::plan::Warning::UnallocatableProfile::name: alloc::string::String
 pub research::topic::plan::Warning::UnmatchedFinding
 pub research::topic::plan::Warning::UnmatchedFinding::name: alloc::string::String
 pub research::topic::plan::Warning::UnmatchedFinding::question: alloc::string::String
@@ -2390,6 +2393,7 @@ pub research::topic::plan::RoundInputs::levels: alloc::vec::Vec<research::topic:
 pub research::topic::plan::RoundInputs::outline: research::topic::outline::Outline
 pub research::topic::plan::RoundInputs::quarantined: alloc::vec::Vec<research::topic::claims::IndexClaim>
 pub research::topic::plan::RoundInputs::source_profiles: alloc::vec::Vec<alloc::string::String>
+pub research::topic::plan::RoundInputs::unallocatable_profiles: alloc::vec::Vec<alloc::string::String>
 impl core::clone::Clone for research::topic::plan::RoundInputs
 pub fn research::topic::plan::RoundInputs::clone(&self) -> research::topic::plan::RoundInputs
 impl core::default::Default for research::topic::plan::RoundInputs

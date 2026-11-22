@@ -315,7 +315,7 @@ where
     F: DirReader + FileReader + DirectoryProbe,
     S: AtomicWrite,
 {
-    let reading = read_round_inputs(
+    let inputs = read_round_inputs(
         set_root,
         profiles_dir,
         request.depth,
@@ -326,9 +326,9 @@ where
     )
     .map_err(|error| reported(&notices, &error.to_string()))?;
     let opened = opened
-        .settled(&reading.inputs, set_root)
+        .settled(&inputs, set_root)
         .map_err(|error| reported(&notices, &error))?;
-    let round = opened.planned_round(reading.inputs);
+    let round = opened.planned_round(inputs);
     let tree = unsearched_tree(&round.plan.pairs);
     if opened.is_starting() {
         notices
@@ -367,7 +367,6 @@ where
         .warnings
         .iter()
         .map(plan_wording::warning)
-        .chain(reading.warnings.iter().map(ToString::to_string))
         .chain(notices)
         .collect();
     let rendered = PlanOutput {

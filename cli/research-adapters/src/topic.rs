@@ -5,7 +5,6 @@
 //! its consultation is judged on.
 
 use std::collections::BTreeMap;
-use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -101,30 +100,6 @@ pub fn available_profiles<F: DirReader + FileReader>(
     Ok(profiles)
 }
 
-/// Something about the set on disk the round plan cannot express.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReadingWarning {
-    UnallocatableProfile { name: String },
-}
-
-impl fmt::Display for ReadingWarning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnallocatableProfile { name } => write!(
-                f,
-                "profile '{name}' has a name outside [a-z0-9-], so no finding \
-                 can be named for it and it is not offered"
-            ),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RoundReading {
-    pub inputs: RoundInputs,
-    pub warnings: Vec<ReadingWarning>,
-}
-
 /// The outline, findings, quarantine markers, level notes and brief
 /// profiles of the set rooted at `set_root`.
 ///
@@ -143,7 +118,7 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     fs: &F,
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
-) -> Result<RoundReading, kernel::Error> {
+) -> Result<RoundInputs, kernel::Error> {
     let outline = fs
         .read(&set_root.join("outline.md"))?
         .map_or_else(Outline::default, |text| Outline::parse(&text));
@@ -155,22 +130,16 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
         .unwrap_or_else(|| vec![DEFAULT_PROFILE.to_owned()]);
     let listing = read_findings(&set_root.join(FINDINGS), fs, parser, unicode)?;
     let profiles = available_profiles(profiles_dir, fs)?;
-    Ok(RoundReading {
-        inputs: RoundInputs {
-            outline,
-            findings: listing.findings,
-            quarantined: listing.quarantined,
-            source_profiles,
-            available_profiles: profiles.names,
-            levels: listing.levels,
-            depth,
-            claims,
-        },
-        warnings: profiles
-            .unallocatable
-            .into_iter()
-            .map(|name| ReadingWarning::UnallocatableProfile { name })
-            .collect(),
+    Ok(RoundInputs {
+        outline,
+        findings: listing.findings,
+        quarantined: listing.quarantined,
+        source_profiles,
+        available_profiles: profiles.names,
+        unallocatable_profiles: profiles.unallocatable,
+        levels: listing.levels,
+        depth,
+        claims,
     })
 }
 
@@ -311,7 +280,7 @@ pub fn read_set_status<F: FileReader>(
 }
 
 /// The set's round plan as a query reads it: at the default depth, with no
-/// run's claims, beside what the reading could not express in the plan.
+/// run's claims.
 ///
 /// # Errors
 ///
@@ -322,8 +291,8 @@ pub fn read_plan<F: DirReader + FileReader + DirectoryProbe>(
     fs: &F,
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
-) -> Result<PlanReading, kernel::Error> {
-    let reading = read_round_inputs(
+) -> Result<RoundPlan, kernel::Error> {
+    let inputs = read_round_inputs(
         set_root,
         profiles_dir,
         Depth::default(),
@@ -332,16 +301,7 @@ pub fn read_plan<F: DirReader + FileReader + DirectoryProbe>(
         parser,
         unicode,
     )?;
-    Ok(PlanReading {
-        plan: RoundPlan::of(&reading.inputs, unicode),
-        warnings: reading.warnings,
-    })
-}
-
-#[derive(Debug, Clone)]
-pub struct PlanReading {
-    pub plan: RoundPlan,
-    pub warnings: Vec<ReadingWarning>,
+    Ok(RoundPlan::of(&inputs, unicode))
 }
 
 fn fields_of<F: FileReader>(
@@ -659,7 +619,6 @@ mod tests {
     use super::read_round_inputs;
     use super::read_set_status;
     use super::taken_report_names;
-    use super::ReadingWarning;
     use crate::unicode_text::UnicodeTables;
     use research::topic::lifecycle::SetStatus;
 
@@ -800,7 +759,6 @@ mod tests {
             &YamlFrontmatter,
             &UnicodeTables,
         )?
-        .inputs
         .levels)
     }
 
@@ -1065,13 +1023,8 @@ mod tests {
             &UnicodeTables,
         )?;
 
-        assert_eq!(reading.inputs.available_profiles, vec!["web".to_owned()]);
-        assert_eq!(
-            reading.warnings,
-            vec![ReadingWarning::UnallocatableProfile {
-                name: "Web_X".to_owned()
-            }]
-        );
+        assert_eq!(reading.available_profiles, vec!["web".to_owned()]);
+        assert_eq!(reading.unallocatable_profiles, vec!["Web_X".to_owned()]);
         Ok(())
     }
 
@@ -1098,8 +1051,7 @@ mod tests {
             fs,
             &YamlFrontmatter,
             &UnicodeTables,
-        )?
-        .inputs;
+        )?;
         Ok(RoundPlan::of(&inputs, &UnicodeTables))
     }
 
@@ -1119,8 +1071,7 @@ mod tests {
                 &fs,
                 &YamlFrontmatter,
                 &UnicodeTables,
-            )?
-            .inputs;
+            )?;
 
             let plan = RoundPlan::of(&inputs, &UnicodeTables);
 
@@ -1309,7 +1260,7 @@ mod tests {
             &UnicodeTables,
         )?;
 
-        assert_eq!(reading.inputs.findings, Vec::new());
+        assert_eq!(reading.findings, Vec::new());
         Ok(())
     }
 
@@ -1357,8 +1308,7 @@ mod tests {
             &fs,
             &YamlFrontmatter,
             &UnicodeTables,
-        )?
-        .plan;
+        )?;
 
         assert_eq!(plan, plan_of(&fs)?);
         Ok(())

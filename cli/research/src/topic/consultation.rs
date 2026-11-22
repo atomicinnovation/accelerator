@@ -12,6 +12,7 @@ use crate::topic::lifecycle::SetStatus;
 use crate::topic::outline::Pair;
 use crate::topic::plan::HoldBack;
 use crate::topic::plan::RoundPlan;
+use crate::topic::plan::Warning;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Consultation {
@@ -49,6 +50,7 @@ pub enum Refusal {
     Conducted {
         unanswered: Vec<Pair>,
         held_back: Vec<HeldBackItem>,
+        warnings: Vec<Warning>,
     },
 }
 
@@ -181,6 +183,7 @@ impl Refusal {
             Self::Conducted {
                 unanswered,
                 held_back,
+                warnings: plan.warnings.clone(),
             },
         )
     }
@@ -215,6 +218,7 @@ mod tests {
     use crate::topic::plan::RoundPlan;
     use crate::topic::plan::Skip;
     use crate::topic::plan::SkipReason;
+    use crate::topic::plan::Warning;
     use crate::topic::tree::Stage;
     use crate::topic::tree::WorstCaseTree;
 
@@ -371,6 +375,19 @@ mod tests {
     }
 
     #[test]
+    fn a_conducted_refusal_carries_the_plans_warnings() {
+        let mut planned = with_unanswered_pair(plan(false));
+        let warning = Warning::UnseparatedProfiles { line: 3 };
+        planned.warnings.push(warning.clone());
+
+        assert!(matches!(
+            judged(SetStatus::Synthesised, fresh(), planned),
+            Ok(Consultation::Refused(Refusal::Conducted { warnings, .. }))
+                if warnings == [warning]
+        ));
+    }
+
+    #[test]
     fn an_unanswered_pair_holds_the_set_back() {
         assert_eq!(
             judged(
@@ -381,6 +398,7 @@ mod tests {
             Ok(Consultation::Refused(Refusal::Conducted {
                 unanswered: vec![pair("openalex")],
                 held_back: Vec::new(),
+                warnings: Vec::new(),
             }))
         );
     }
@@ -407,6 +425,7 @@ mod tests {
                     question: QUESTION.to_owned(),
                     hold_back: skips,
                 }],
+                warnings: Vec::new(),
             }))
         );
     }
@@ -425,6 +444,7 @@ mod tests {
                     question: QUESTION.to_owned(),
                     hold_back: HoldBack::IndexesExhausted,
                 }],
+                warnings: Vec::new(),
             }))
         );
     }

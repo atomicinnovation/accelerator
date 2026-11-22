@@ -24,6 +24,10 @@ pub fn warning(warning: &Warning) -> String {
         Warning::IndexesExhausted { question } => {
             format!("{NO_INDEX_LEFT} '{question}', so it is not planned")
         }
+        Warning::UnallocatableProfile { name } => format!(
+            "profile '{name}' has a name outside [a-z0-9-], so no finding \
+             can be named for it and it is not offered"
+        ),
     }
 }
 
