@@ -84,11 +84,11 @@ Every success criterion in the plan is ticked, and all 21 in the work item.
 
 #### Potential Issues:
 
-- Re-confirmed at `20ffd986`: `--filter ''` through mise fails in invoke's parser ("Flag <Argument:
-  filter_ (f)> needed value and was not given one!"), not with the task's
-  `--filter needs an expression`. It is the same on every lane, including
-  `test:unit:cli`. The lane still refuses rather than running everything, but
-  `tasks/README.md`'s "Task options" says the task itself refuses it.
+- Fixed since first validation: `--filter ''` through mise failed in invoke's
+  parser, because macOS's bash 3.2 `sh` dropped the quoted empty word in
+  `${usage_filter+--filter "$usage_filter"}`. All 21 lanes now forward
+  `--filter="$usage_filter"`, so the task refuses it with `--filter needs an
+  expression`. Pinned by `test_the_forwarded_filter_reaches_invoke_as_given`.
 - Fixed since first validation: a hop whose `Fetch.continueRequest` is
   refused was left paused until the 300 s wall clock; it is now failed with
   `Fetch.failRequest`. Pinned by "a hop whose continuation is refused is
@@ -123,7 +123,5 @@ Every success criterion in the plan is ticked, and all 21 in the work item.
 
 - Raise follow-up work for popup and OOPIF coverage and for the
   initiator-blind bearer.
-- Correct the README's empty-filter sentence, or catch the empty value before
-  invoke's parser does.
 - Move work item PP-957 from `ready` to `done` once PR #253 merges.
 - Merge PR #253.
