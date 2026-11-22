@@ -988,6 +988,20 @@ def test_lock_contention_row_names_re_running_conduct() -> None:
     assert "--concurrency" not in row
 
 
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "an arXiv or DOI fetch waited past its 900 s cap",
+        "or its service's queue was unusable",
+        "`<paths.tmp>/research/services/arxiv/contention.log`",
+        "`<paths.tmp>/research/services/crossref-public/contention.log`",
+        "`<paths.tmp>/research/services/crossref-polite/contention.log`",
+    ],
+)
+def test_lock_contention_row_covers_every_queued_service(fragment: str) -> None:
+    assert fragment in _lock_contention_row()
+
+
 CAPACITY_REASON = (
     "refused by the concurrent subagent limit — other subagents held the "
     "slots, or the harness cap is below the resolved concurrency"
@@ -1221,8 +1235,49 @@ def test_unrepresented_waiting_has_a_reason_row() -> None:
     assert any(
         line.lstrip().startswith("| `waiting` never re-presented |")
         and "re-run `conduct`" in line
+        and "its arXiv or DOI ticket" in line
         for line in _read(RESEARCH_TOPIC).splitlines()
     )
+
+
+def _rows_starting(prefix: str) -> list[str]:
+    return [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith(prefix)
+    ]
+
+
+def test_a_crossref_mailto_warning_has_its_own_row() -> None:
+    (row,) = _rows_starting(
+        "| a warning beginning `warning: crossref.mailto` |"
+    )
+    for step in (
+        "the warning verbatim",
+        "for an implausible address, correct or unset `crossref.mailto` in "
+        "`/accelerator:configure`'s `crossref` section",
+        "for an unreadable file, fix or remove the file it names",
+    ):
+        assert step in row, f"the crossref.mailto row must state {step!r}"
+
+
+def test_every_other_warning_keeps_the_generic_row() -> None:
+    assert _rows_starting("| a warning | the warning verbatim |")
+
+
+def test_conduct_collects_warnings_from_every_spawn_summary() -> None:
+    assert (
+        "Read every spawn's summary, whether or not the spawn succeeded, and "
+        "collect each `warning:` line it repeats."
+    ) in _check_step()
+
+
+def test_the_summary_lists_each_distinct_collected_warning_once() -> None:
+    assert (
+        "Then each skipped pair and each warning: the plans' warnings, then "
+        "each distinct `warning:` line collected in step 5, listed once and "
+        "followed by its next step from the table below."
+    ) in _summary()
 
 
 def test_the_researcher_follows_outcomes_that_repeat_a_call() -> None:

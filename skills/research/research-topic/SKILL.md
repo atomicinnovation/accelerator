@@ -505,7 +505,9 @@ allocate a finding or note path yourself.
    round rules unchanged, and a round runs only when it has a spawn to
    re-issue.
 
-5. **Check each spawn** once the whole batch returns:
+5. **Check each spawn** once the whole batch returns. Read every spawn's
+   summary, whether or not the spawn succeeded, and collect each `warning:`
+   line it repeats. Then:
 
    - A spawn that wrote **no file** (an unavailable source, a failed or
      denied fetch, an exhausted web search quota, a blocked command, an
@@ -628,8 +630,10 @@ allocate a finding or note path yourself.
          {stem}.levels/{lineage} records {recorded} follow-ups, over its cap
          of {cap}; trimmed {recorded − cap}".
 
-      Then each skipped pair and each warning. `conduct` never fails because
-      a source is unavailable.
+      Then each skipped pair and each warning: the plans' warnings, then each
+      distinct `warning:` line collected in step 5, listed once and followed
+      by its next step from the table below. `conduct` never fails because a
+      source is unavailable.
 
    | Reason | Next step |
    |---|---|
@@ -637,8 +641,8 @@ allocate a finding or note path yourself.
    | `budget_exhausted`, keyed | the key's daily budget is spent; re-run `conduct` after it resets |
    | `rate_limited`, `upstream_error` | re-run `conduct` later |
    | "web search quota exhausted" | the session's `WebSearch` quota ran out; follow its Recovery in **Halting failures** |
-   | `rate_limited` with `cause: lock_contention` | an arXiv fetch waited past its 900 s cap behind this and any concurrent `conduct` run's requests, or the arXiv queue was unusable; re-run `conduct`, which researches only the missing nodes; if it recurs, check `<paths.tmp>/research/services/arxiv/contention.log`, whose lines name `ticket_past_cap` or `queue_unusable`, and follow that kind's next step in the Pacing docs |
-   | `waiting` never re-presented | the researcher ended before its arXiv ticket was served; re-run `conduct`; a custom researcher must follow the profile's Waiting outcome |
+   | `rate_limited` with `cause: lock_contention` | an arXiv or DOI fetch waited past its 900 s cap behind this and any concurrent `conduct` run's requests, or its service's queue was unusable; re-run `conduct`, which researches only the missing nodes; if it recurs, check the service's log, `<paths.tmp>/research/services/arxiv/contention.log`, `<paths.tmp>/research/services/crossref-public/contention.log` or `<paths.tmp>/research/services/crossref-polite/contention.log`, whose lines name `ticket_past_cap` or `queue_unusable`, and follow that kind's next step in the Pacing docs |
+   | `waiting` never re-presented | the researcher ended before its arXiv or DOI ticket was served; re-run `conduct`; a custom researcher must follow the profile's Waiting rule |
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
    | `E_RESEARCH_GUARD_COMMAND` from a composer | the configured `agents.composer` tried to run a command; composers may only Read and Write |
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
@@ -647,6 +651,7 @@ allocate a finding or note path yourself.
    | "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished; the new run offers the spawn again. If it recurs with no other subagents running, check in turn: (1) `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it; (2) any `ACCELERATOR_SUBAGENT_CAP` is no higher than Claude Code's cap; (3) failing both, lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
    | a run that did not end | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
+   | a warning beginning `warning: crossref.mailto` | the warning verbatim; for an implausible address, correct or unset `crossref.mailto` in `/accelerator:configure`'s `crossref` section; for an unreadable file, fix or remove the file it names |
    | a warning | the warning verbatim |
 
 #### Halting failures
