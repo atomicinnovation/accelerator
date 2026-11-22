@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T12:46:33+00:00"
+last_updated: "2026-11-22T13:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1136,16 +1136,66 @@ check that a `doi metadata` call is unaffected by the same held lock.
 
 Update any structure-test pin on the old path.
 
+### Outcome
+
+Phase 3 landed in seven commits, each green on its own. The suites run
+1219 tests; the opt-in stress run passed in 117 s; a live
+`fetch arxiv lookup 1706.03762` wrote state only under
+`services/arxiv/`, beside an empty `arxiv.lock`. Departures from the
+plan:
+
+- **Foreign-ticket wording**: "was issued by fetch `<code>`" (for
+  example `fetch doi`), not "by a `<family>` fetch", which reads "a
+  arxiv" for arXiv.
+- **`MalformedTicket`**: `Ticket::parse` and `Nonce::from_hex` return a
+  family-less `MalformedTicket`, and `parse_ticket` maps it to
+  `RequestError::TicketMalformed(Family, String)`. The `R/queue.rs`
+  malformed-ticket pattern therefore names `MalformedTicket`, not
+  `TicketMalformed(Family::Arxiv, …)`.
+- **Names kept**: `Place::is_front` keeps its name; `Deadline` stays in
+  `schedule`. `serving`, `admission` and `ports` import from `schedule`,
+  `queue`, `pacing` and `request` as well as `ports` and `classify`;
+  each module's own test asserts it names no `sources::fetch` path.
+- **Visibility**: `admission` is a private module, so it adds no public
+  item.
+- **Extra public items**: `MalformedTicket`, `Pacing::previous_finish`,
+  `Pacing::previous_start`, `Display` for `Binding` (the call as typed,
+  used by `RejectedTicket`).
+- **`AdapterContext`** holds `research: ScratchDir` (which carries the
+  project root), `clock`, `diagnostics` and `nonces: Rc<dyn Fn() ->
+  Nonce>`. `FileServiceQueue::new` takes `Vec<ForeignSource>`, each a
+  directory and its `Provenance`.
+- **CLI rendering**: `FetchedRecords::outcome` is `RecordsOutcome`,
+  `Direct(FetchOutcome)` or `Queued { service, queued }`. `render` reads
+  both through one `Ending` view, and every queue state through a
+  generic `queued_ending<T>` that phase 4 reuses.
+- **Tests placed differently**: the `admission_poll` cases live in
+  `R/service.rs`. The pure `PreviousFinish` equivalents in `R/pacing.rs`
+  copy `a_first_request_waits_for_nothing`,
+  `a_request_is_spaced_three_seconds_after_the_last_finish`,
+  `a_last_finish_in_the_future_waits_at_most_three_seconds`, the three
+  deferral cases, `a_stored_deferral_more_than_thirty_seconds_ahead_is_discarded`,
+  the unfinished-send case, `a_send_stamped_ahead_of_now_waits_no_more_than_one_spaced_send`
+  and `spacing_runs_from_the_last_finish_when_it_follows_the_last_send`.
+- **`now` after `pacing.lock`**: under the virtual clock a gate that
+  read `now` early sends at the same moment as a correct one, so the
+  test's deciding assertion is that no wall-clock read happens while the
+  lock is held elsewhere.
+- **Legacy test**: the fresh call's stdout is pinned by a new golden,
+  `arxiv-lookup-withdrawn.json`. The held-`arxiv.lock` test uses a 40 s
+  budget; 32 s never admits arXiv's 3 s window plus a 30 s request, so it
+  would pass without the companion.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] The domain, adapter and CLI suites pass:
+- [x] The domain, adapter and CLI suites pass:
       `cd cli && cargo nextest run -p research -p research-adapters -p accelerator-research --features accelerator-research/test-loopback`
-- [ ] The phase 2 CLI tests pass with only `support/` files changed in
+- [x] The phase 2 CLI tests pass with only `support/` files changed in
       `cli/research-cli/tests`, apart from the new legacy and provenance
       tests. Check with `jj diff --stat cli/research-cli/tests`.
-- [ ] `jj diff cli/research/tests cli/research-adapters/tests` shows only:
+- [x] `jj diff cli/research/tests cli/research-adapters/tests` shows only:
       - `is_front_given` → `is_served_given(…, 1, …)`;
       - `ArxivQueue` → `ServiceQueue`, `FileArxivQueue` → `FileServiceQueue`;
       - in `R/arxiv_fetch.rs`, outcomes re-wrapped with the same expected
@@ -1164,23 +1214,23 @@ Update any structure-test pin on the old path.
         `a_state_written_before_last_sent_was_recorded_still_spaces_the_request`;
       - other `support/` changes (including the constructor and pacing-file
         helpers from phase 2 §1a), and new tests.
-- [ ] No test body outside `support` names a service state path:
+- [x] No test body outside `support` names a service state path:
       `rg -n '"services/|["/]arxiv(\.lock|-pacing|-requests\.log|-contention\.log|-queue/?")' cli/research-cli/tests cli/research-adapters/tests --glob '!**/support/**' --glob '!**/fixtures/**'`
       prints nothing.
-- [ ] The public API snapshot is refreshed and checked, and its diff names
+- [x] The public API snapshot is refreshed and checked, and its diff names
       only the types listed under §3:
       `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check`
-- [ ] The research structure tests pass:
+- [x] `mise run pup:check`
+- [x] The research structure tests pass:
       `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] `mise run docs:check`
-- [ ] `mise run check`
+- [x] `mise run docs:check`
+- [x] `mise run check`
 
 #### Manual Verification
 
-- [ ] `mise run test:integration:arxiv-queue-stress` passes (opt-in, real
+- [x] `mise run test:integration:arxiv-queue-stress` passes (opt-in, real
       clock).
-- [ ] A real arXiv `fetch arxiv lookup` in a scratch project writes state only
+- [x] A real arXiv `fetch arxiv lookup` in a scratch project writes state only
       under `.accelerator/tmp/research/services/arxiv/`, apart from creating
       the empty companion `.accelerator/tmp/research/arxiv.lock`.
 
