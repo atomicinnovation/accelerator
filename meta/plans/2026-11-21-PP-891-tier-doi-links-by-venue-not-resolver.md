@@ -1894,8 +1894,7 @@ that `crossref.mailto` (3 concurrent) reduces contention across projects.
 
 Phase 5 landed in seven commits. The workspace suite runs 8650 tests, and
 `mise run check` and `mise run docs:check` exit 0. The bare `mise run` has
-not been run for this phase, and neither manual check has been run.
-Departures from the plan:
+not been run for this phase. Departures from the plan:
 
 - **No unreadable-config CLI test**: an unreadable or malformed
   `config.local.md` fails every queued call with exit 1 before the contact
@@ -1916,6 +1915,13 @@ Departures from the plan:
   the generated page, so it has no `#crossref` anchor; `research.md` links
   the page and names the section. The admission window in "The fetch
   queue" gives the polite pool's 30.102 s.
+- **Manual checks**: Crossref names the pools `polite-single` and
+  `public-single` in `x-api-pool`, with `x-rate-limit-limit` 10 and 5 and
+  `x-concurrency-limit` 3 and 1. Live calls from a build of this branch
+  went to the polite pool with the address in the environment or
+  `config.md`, and to the public pool with one warning for
+  `not-an-address`. The `crossref` section was checked in the skill source
+  and the generated docs page, not through an installed `/configure`.
 
 ### Success Criteria
 
@@ -1929,10 +1935,10 @@ Departures from the plan:
 
 #### Manual Verification
 
-- [ ] With `crossref.mailto` set to a real address, a live call's response
+- [x] With `crossref.mailto` set to a real address, a live call's response
       carries Crossref's polite-pool header `x-api-pool: polite`, seen with
       `curl -sI -A "accelerator-research/x (mailto:<address>)" https://api.crossref.org/works/10.1145/371920.372066`.
-- [ ] `/accelerator:configure` shows the `crossref` section.
+- [x] `/accelerator:configure` shows the `crossref` section.
 
 ---
 
