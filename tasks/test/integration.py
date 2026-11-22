@@ -264,9 +264,9 @@ _RUNTIME_TREES = ("driver", "browser")
 _RUNTIME_TREE_CACHE = CLI_TARGET_DIR / "design-automation-cache"
 
 # Today's executed total across the two runtime suites. An at-least floor,
-# mirroring the unit lane: this lane sits outside the enforced gate, so a
-# case-count floor and a bare-return guard are its only defence against a suite
-# quietly evaporating or a test body silently asserting nothing.
+# mirroring the unit lane: `node --test` reports a vanished suite or an
+# early-returning test body as passing, so this floor and the bare-return guard
+# are what catch them.
 _EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 38
 
 
