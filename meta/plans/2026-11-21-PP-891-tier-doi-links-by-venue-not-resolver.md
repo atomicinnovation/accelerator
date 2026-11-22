@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T17:00:00+00:00"
+last_updated: "2026-11-22T18:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1968,12 +1968,21 @@ with `OPENALEX_SELECT`):
    `tier-1` and `venue` equal to the fixture's
    `primary_location.source.display_name`.
 
+### Outcome
+
+Phase 6 landed in one commit, and the test passed on its first run, so it
+found no bug. The work is `W3176171201`, with venue "ACM SIGMOD
+International Conference on Management of Data (SIGMOD)". The search fixture
+comes from the query `consistency completeness distributed stream processing
+kafka`, which returns this work first of two. A mutated `listed_in` in
+`parity-wid.json` made the test fail, so it detects divergence.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo nextest run -p accelerator-research --features test-loopback -E 'test(search_and_every_form_of_lookup)'`
-- [ ] `mise run check`
+- [x] `cd cli && cargo nextest run -p accelerator-research --features test-loopback -E 'test(search_and_every_form_of_lookup)'`
+- [x] `mise run check`
 
 ---
 
