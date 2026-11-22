@@ -1,6 +1,7 @@
 //! Pacing gates: none for sources that meter by budget, and a file-locked
 //! one for each queued service, paced as that service asks.
 
+use std::cell::Cell;
 use std::fs::File;
 use std::rc::Rc;
 use std::time::Duration;
@@ -11,13 +12,17 @@ use research::sources::fetch::Clock;
 use research::sources::fetch::PacingGate;
 use research::sources::fetch::ServingTurn;
 use research::sources::fetch::WaitTooLong;
+use research::sources::pacing::Confirmation;
 use research::sources::pacing::Pacing;
+use research::sources::pacing::PacingState;
+use research::sources::pacing::Reservation;
 use research::sources::schedule::Deadline;
 use research::sources::service::Service;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use rustix::io::Errno;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 
 use crate::clock::millis_since_epoch;
@@ -51,26 +56,24 @@ impl ServingTurn for Unpaced {
     }
 }
 
-const LOCK: &str = "serving-0.lock";
+const PACING_LOCK: &str = "pacing.lock";
 const STATE: &str = "pacing";
 const REQUEST_LOG: &str = "requests.log";
+const SCHEMA_VERSION: u32 = 1;
 
-const SPACING: Duration = Duration::from_secs(3);
-/// A send is stamped before its request leaves, so its arrival at arXiv is
-/// unobserved and can trail the stamp by more than the next request's does.
-const SEND_MARGIN: Duration = Duration::from_millis(100);
-const SPACED_SEND: Duration = SPACING.saturating_add(SEND_MARGIN);
-const DEFERRAL_CEILING: Duration = Duration::from_secs(30);
+fn serving_lock(slot: u8) -> String {
+    format!("serving-{slot}.lock")
+}
 
-/// Serialises arXiv calls across the project through an exclusive `flock`,
-/// held by each call's turn from its first request to its last.
+/// Paces one service's calls across the project.
 ///
-/// Spacing runs from the last request's finish, when arXiv has certainly
-/// seen it. A send with no finish after it, from a call killed mid-request,
-/// is spaced from the send instead, with a margin for its unseen arrival.
+/// Each call's turn holds one slot lock from its first request to its last.
+/// The pacing state is read and written only under the short `pacing.lock`.
 ///
-/// Its waits run on the caller's clock, so time spent here is spent from
-/// the same deadline the caller measures.
+/// Every send is reserved, slept towards outside the lock, then confirmed
+/// against the last actual send, so spacing holds between real sends. Its
+/// waits run on the caller's clock, so time spent here is spent from the
+/// same deadline the caller measures.
 pub struct FilePacingGate {
     service: Service,
     scratch: ScratchDir,
@@ -93,33 +96,6 @@ impl FilePacingGate {
         }
     }
 
-    fn stored(&self) -> PacingState {
-        self.scratch
-            .read(STATE)
-            .and_then(|bytes| {
-                serde_json::from_slice::<StoredState>(&bytes).ok()
-            })
-            .map_or_else(PacingState::default, |stored| {
-                PacingState::from(stored).trusted_at(self.clock.wall_now())
-            })
-    }
-
-    fn store(&self, state: PacingState) {
-        let written = serde_json::to_vec(&StoredState::from(state))
-            .map_err(|error| error.to_string())
-            .and_then(|bytes| self.scratch.replace_without_sync(STATE, &bytes));
-        if let Err(error) = written {
-            self.report(&error);
-        }
-    }
-
-    fn log_request(&self) {
-        let line = millis_since_epoch(self.clock.wall_now()).to_string();
-        if let Err(error) = self.scratch.append_line(REQUEST_LOG, &line) {
-            self.report(&error);
-        }
-    }
-
     fn report(&self, detail: &str) {
         self.diagnostics.report(&format!(
             "research fetch: {} {detail}",
@@ -127,12 +103,23 @@ impl FilePacingGate {
         ));
     }
 
+    fn turn(&self, slot: Option<File>) -> Box<dyn ServingTurn + '_> {
+        Box::new(Turn {
+            gate: self,
+            _slot: slot,
+        })
+    }
+
     fn unlocked_turn(&self, detail: &str) -> Box<dyn ServingTurn + '_> {
         self.report(&format!("{detail}; pacing without the lock"));
-        Box::new(ArxivTurn {
-            gate: self,
-            _lock: None,
-        })
+        self.turn(None)
+    }
+
+    fn log_request(&self, at: SystemTime) {
+        let line = millis_since_epoch(at).to_string();
+        if let Err(error) = self.scratch.append_line(REQUEST_LOG, &line) {
+            self.report(&error);
+        }
     }
 }
 
@@ -141,129 +128,231 @@ impl PacingGate for FilePacingGate {
         self.service.pacing()
     }
 
-    /// A filesystem that cannot lock still gets a turn, so pacing still
-    /// spaces this call's own requests.
+    /// Takes the first free slot. A filesystem that cannot lock still gets
+    /// a turn, so pacing still spaces this call's own requests.
     fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
-        let lock = match self.scratch.open(LOCK) {
-            Ok(lock) => lock,
-            Err(error) => return Some(self.unlocked_turn(&error)),
-        };
-        match flock(&lock, FlockOperation::NonBlockingLockExclusive) {
-            Ok(()) => Some(Box::new(ArxivTurn {
-                gate: self,
-                _lock: Some(lock),
-            })),
-            Err(Errno::WOULDBLOCK) => None,
-            Err(errno) => Some(self.unlocked_turn(&format!(
-                "could not lock {}: {errno}",
-                self.scratch.path(LOCK).display()
-            ))),
+        for slot in 0..self.service.pacing().slots().get() {
+            let name = serving_lock(slot);
+            let lock = match self.scratch.open(&name) {
+                Ok(lock) => lock,
+                Err(error) => return Some(self.unlocked_turn(&error)),
+            };
+            match flock(&lock, FlockOperation::NonBlockingLockExclusive) {
+                Ok(()) => return Some(self.turn(Some(lock))),
+                Err(Errno::WOULDBLOCK) => {}
+                Err(errno) => {
+                    return Some(self.unlocked_turn(&format!(
+                        "could not lock {}: {errno}",
+                        self.scratch.path(&name).display()
+                    )))
+                }
+            }
         }
+        None
     }
 }
 
-struct ArxivTurn<'g> {
+struct Turn<'g> {
     gate: &'g FilePacingGate,
-    _lock: Option<File>,
+    _slot: Option<File>,
 }
 
-impl ServingTurn for ArxivTurn<'_> {
+impl ServingTurn for Turn<'_> {
     fn paced(
         &self,
         attempt: &mut dyn FnMut() -> Attempted,
         deadline: &Deadline,
     ) -> Result<(), WaitTooLong> {
-        let gate = self.gate;
-        let wait = gate.stored().wait_at(gate.clock.wall_now());
-        if !deadline.admits_attempt_after(gate.clock.now(), wait) {
-            return Err(WaitTooLong);
-        }
-        if !wait.is_zero() {
-            gate.clock.sleep(wait);
-        }
-        gate.store(gate.stored().sent_at(gate.clock.wall_now()));
-        gate.log_request();
+        let call = PacedCall {
+            gate: self.gate,
+            pacing: self.gate.service.pacing(),
+            deadline,
+            reported: Cell::new(false),
+        };
+        let sent_at = call.sent()?;
+        self.gate.log_request(sent_at);
         let attempted = attempt();
-        let now = gate.clock.wall_now();
-        let finished = gate.stored().finished_at(now);
-        gate.store(attempted.defer_until.map_or(finished, |defer_until| {
-            finished.deferred_until(defer_until, now)
-        }));
+        call.finished(attempted.defer_until);
         Ok(())
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-struct PacingState {
-    last_sent: Option<SystemTime>,
-    last_finish: Option<SystemTime>,
-    not_before: Option<SystemTime>,
+/// One paced attempt's dealings with the shared pacing state. Each step
+/// reads the wall clock only once `pacing.lock` is held, so a send another
+/// process records while this one waits for the lock is never clamped back
+/// to a stale `now`.
+struct PacedCall<'a> {
+    gate: &'a FilePacingGate,
+    pacing: Pacing,
+    deadline: &'a Deadline,
+    reported: Cell<bool>,
 }
 
-impl PacingState {
-    /// A deferral further ahead than any this gate writes can only come
-    /// from a wall-clock step, so it is dropped rather than obeyed.
-    fn trusted_at(self, now: SystemTime) -> Self {
-        Self {
-            not_before: self
-                .not_before
-                .filter(|not_before| *not_before <= now + DEFERRAL_CEILING),
-            ..self
-        }
-    }
-
-    fn wait_at(self, now: SystemTime) -> Duration {
-        let until = |at: Option<SystemTime>, ceiling: Duration| {
-            at.and_then(|at| at.duration_since(now).ok())
-                .map_or(Duration::ZERO, |wait| wait.min(ceiling))
-        };
-        let spacing = match (self.last_sent, self.last_finish) {
-            (Some(sent), finish) if finish < Some(sent) => {
-                until(Some(sent + SPACED_SEND), SPACED_SEND)
+impl PacedCall<'_> {
+    /// Reserves, sleeps and confirms until the send is allowed, recording
+    /// it before returning when it was sent.
+    fn sent(&self) -> Result<SystemTime, WaitTooLong> {
+        loop {
+            let reservation = self.reserve_send()?;
+            if let Some(sent_at) = self.confirm_send(&reservation)? {
+                return Ok(sent_at);
             }
-            (_, finish) => {
-                until(finish.map(|finish| finish + SPACING), SPACING)
+        }
+    }
+
+    fn reserve_send(&self) -> Result<Reservation, WaitTooLong> {
+        let held = self.locked();
+        let now = self.gate.clock.wall_now();
+        let stored = self.stored();
+        let (reservation, reserved) =
+            stored.trust(&self.pacing, now).reserve(&self.pacing, now);
+        let wait = until(reservation.send_at(), now);
+        if !self.admits(wait) {
+            return Err(WaitTooLong);
+        }
+        if reserved != stored {
+            self.store(reserved);
+        }
+        drop(held);
+        self.sleep(wait);
+        Ok(reservation)
+    }
+
+    /// The send time once it is confirmed, or `None` when a deferral began
+    /// after the reservation and the send must be reserved again.
+    fn confirm_send(
+        &self,
+        reservation: &Reservation,
+    ) -> Result<Option<SystemTime>, WaitTooLong> {
+        loop {
+            let held = self.locked();
+            let now = self.gate.clock.wall_now();
+            let state = self.stored().trust(&self.pacing, now);
+            match state.confirm(&self.pacing, reservation, now) {
+                Confirmation::Send(sent) => {
+                    self.store(sent);
+                    return Ok(Some(now));
+                }
+                Confirmation::Deferred(released) => {
+                    self.store(released);
+                    return Ok(None);
+                }
+                Confirmation::WaitUntil(allowed) => {
+                    let wait = until(allowed, now);
+                    if !self.admits(wait) {
+                        self.store(state.release(&self.pacing, reservation));
+                        return Err(WaitTooLong);
+                    }
+                    drop(held);
+                    self.sleep(wait);
+                }
             }
+        }
+    }
+
+    fn finished(&self, defer_until: Option<SystemTime>) {
+        let _held = self.locked();
+        let now = self.gate.clock.wall_now();
+        let finished = self.stored().trust(&self.pacing, now).finish(now);
+        self.store(
+            defer_until.map_or(finished, |until| finished.defer(until, now)),
+        );
+    }
+
+    fn admits(&self, wait: Duration) -> bool {
+        self.deadline
+            .admits_attempt_after(self.gate.clock.now(), wait)
+    }
+
+    fn sleep(&self, wait: Duration) {
+        if !wait.is_zero() {
+            self.gate.clock.sleep(wait);
+        }
+    }
+
+    /// `pacing.lock`, held exclusively until dropped. A filesystem that
+    /// cannot lock still paces this call, reported once per call.
+    fn locked(&self) -> Option<File> {
+        let locked = self.gate.scratch.open(PACING_LOCK).and_then(|lock| {
+            flock(&lock, FlockOperation::LockExclusive)
+                .map(|()| lock)
+                .map_err(|errno| {
+                    format!(
+                        "could not lock {}: {errno}",
+                        self.gate.scratch.path(PACING_LOCK).display()
+                    )
+                })
+        });
+        locked
+            .map_err(|error| {
+                self.report_once(&format!("{error}; pacing without the lock"));
+            })
+            .ok()
+    }
+
+    /// A file that cannot be read at all counts as no previous request, as
+    /// one of another shape does, but only the latter is reported.
+    fn stored(&self) -> PacingState {
+        let Some(bytes) = self.gate.scratch.read(STATE) else {
+            return PacingState::default();
         };
-        let deferral = until(self.not_before, DEFERRAL_CEILING);
-        spacing.max(deferral)
+        serde_json::from_slice::<StoredState>(&bytes)
+            .ok()
+            .filter(|stored| stored.schema_version == SCHEMA_VERSION)
+            .map_or_else(
+                || {
+                    self.report_once(&format!(
+                        "{} is not a pacing state this release reads; \
+                         counting it as no previous request",
+                        self.gate.scratch.path(STATE).display()
+                    ));
+                    PacingState::default()
+                },
+                PacingState::from,
+            )
     }
 
-    const fn sent_at(self, sent: SystemTime) -> Self {
-        Self {
-            last_sent: Some(sent),
-            ..self
+    fn store(&self, state: PacingState) {
+        let written = serde_json::to_vec(&StoredState::from(state))
+            .map_err(|error| error.to_string())
+            .and_then(|bytes| {
+                self.gate.scratch.replace_without_sync(STATE, &bytes)
+            });
+        if let Err(error) = written {
+            self.gate.report(&error);
         }
     }
 
-    const fn finished_at(self, finish: SystemTime) -> Self {
-        Self {
-            last_finish: Some(finish),
-            ..self
-        }
-    }
-
-    /// Deferrals only move forward, so a shorter one never cuts short a
-    /// longer one another caller is still honouring.
-    fn deferred_until(self, defer_until: SystemTime, now: SystemTime) -> Self {
-        let latest = self
-            .not_before
-            .map_or(defer_until, |existing| existing.max(defer_until));
-        Self {
-            not_before: Some(latest.min(now + DEFERRAL_CEILING)),
-            ..self
+    fn report_once(&self, detail: &str) {
+        if !self.reported.replace(true) {
+            self.gate.report(detail);
         }
     }
 }
 
+fn until(at: SystemTime, now: SystemTime) -> Duration {
+    at.duration_since(now).unwrap_or(Duration::ZERO)
+}
+
+/// Every field is required, so a file from before reservations were
+/// recorded is not mistaken for one with no reservation.
 #[derive(Serialize, Deserialize)]
 struct StoredState {
-    #[serde(rename = "last_sent_ms", default)]
+    schema_version: u32,
+    #[serde(rename = "last_sent_ms", deserialize_with = "required")]
     last_sent: Option<u64>,
-    #[serde(rename = "last_finish_ms")]
+    #[serde(rename = "next_free_ms", deserialize_with = "required")]
+    next_free: Option<u64>,
+    #[serde(rename = "last_finish_ms", deserialize_with = "required")]
     last_finish: Option<u64>,
-    #[serde(rename = "not_before_ms")]
+    #[serde(rename = "not_before_ms", deserialize_with = "required")]
     not_before: Option<u64>,
+}
+
+fn required<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<u64>, D::Error> {
+    Option::deserialize(deserializer)
 }
 
 impl From<StoredState> for PacingState {
@@ -273,6 +362,7 @@ impl From<StoredState> for PacingState {
         };
         Self {
             last_sent: stored.last_sent.map(at),
+            next_free: stored.next_free.map(at),
             last_finish: stored.last_finish.map(at),
             not_before: stored.not_before.map(at),
         }
@@ -282,7 +372,9 @@ impl From<StoredState> for PacingState {
 impl From<PacingState> for StoredState {
     fn from(state: PacingState) -> Self {
         Self {
+            schema_version: SCHEMA_VERSION,
             last_sent: state.last_sent.map(millis_since_epoch),
+            next_free: state.next_free.map(millis_since_epoch),
             last_finish: state.last_finish.map(millis_since_epoch),
             not_before: state.not_before.map(millis_since_epoch),
         }

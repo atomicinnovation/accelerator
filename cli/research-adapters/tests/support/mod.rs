@@ -9,6 +9,8 @@ use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -101,7 +103,10 @@ impl Diagnostics for RecordedDiagnostics {
 /// A file or directory of a service's queue and pacing state.
 #[derive(Debug, Clone, Copy)]
 pub enum StateFile {
+    /// The first serving slot's lock, the only one a one-slot service has.
     ServingLock,
+    ServingSlot(u8),
+    PacingLock,
     Pacing,
     RequestLog,
     ContentionLog,
@@ -109,21 +114,24 @@ pub enum StateFile {
 }
 
 impl StateFile {
-    const fn name(self) -> &'static str {
+    fn name(self) -> String {
         match self {
-            Self::ServingLock => "serving-0.lock",
-            Self::Pacing => "pacing",
-            Self::RequestLog => "requests.log",
-            Self::ContentionLog => "contention.log",
-            Self::Queue => "queue",
+            Self::ServingLock => Self::ServingSlot(0).name(),
+            Self::ServingSlot(slot) => format!("serving-{slot}.lock"),
+            Self::PacingLock => "pacing.lock".to_owned(),
+            Self::Pacing => "pacing".to_owned(),
+            Self::RequestLog => "requests.log".to_owned(),
+            Self::ContentionLog => "contention.log".to_owned(),
+            Self::Queue => "queue".to_owned(),
         }
     }
 }
 
-/// The pacing state arXiv's gate persists between calls.
+/// The pacing state a service's gate persists between calls.
 #[derive(Default)]
 pub struct PacingRecord {
     pub last_sent: Option<SystemTime>,
+    pub next_free: Option<SystemTime>,
     pub last_finish: Option<SystemTime>,
     pub not_before: Option<SystemTime>,
 }
@@ -133,7 +141,101 @@ pub fn arxiv_gate(
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
 ) -> FilePacingGate {
-    FilePacingGate::new(Service::Arxiv, &scratch.dir(), clock, diagnostics)
+    service_gate(Service::Arxiv, &scratch.dir(), clock, diagnostics)
+}
+
+pub fn service_gate(
+    service: Service,
+    research: &ScratchDir,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> FilePacingGate {
+    FilePacingGate::new(service, research, clock, diagnostics)
+}
+
+/// Reports nowhere, for a gate built inside another caller's sleep.
+pub struct Silent;
+
+impl Diagnostics for Silent {
+    fn report(&self, _line: &str) {}
+}
+
+type Hook = Box<dyn FnOnce() + Send>;
+
+/// Virtual time any thread can read and advance. A registered hook runs
+/// inside the next sleep, before time advances, and another inside the next
+/// wall-clock read, so a test can act at exactly those moments.
+#[derive(Clone)]
+pub struct HookedClock(Arc<HookedTime>);
+
+struct HookedTime {
+    origin: Instant,
+    wall_origin: SystemTime,
+    elapsed: Mutex<Duration>,
+    slept: Mutex<Vec<Duration>>,
+    on_sleep: Mutex<Option<Hook>>,
+    on_wall_read: Mutex<Option<Hook>>,
+}
+
+impl HookedClock {
+    pub fn new() -> Self {
+        Self(Arc::new(HookedTime {
+            origin: Instant::now(),
+            wall_origin: SystemTime::UNIX_EPOCH + secs(1_800_000_000),
+            elapsed: Mutex::default(),
+            slept: Mutex::default(),
+            on_sleep: Mutex::default(),
+            on_wall_read: Mutex::default(),
+        }))
+    }
+
+    pub fn on_next_sleep(&self, hook: impl FnOnce() + Send + 'static) {
+        *self.0.on_sleep.lock().expect("hook") = Some(Box::new(hook));
+    }
+
+    pub fn on_next_wall_read(&self, hook: impl FnOnce() + Send + 'static) {
+        *self.0.on_wall_read.lock().expect("hook") = Some(Box::new(hook));
+    }
+
+    /// The wall time, read without running any hook.
+    pub fn current_wall(&self) -> SystemTime {
+        self.0.wall_origin + *self.0.elapsed.lock().expect("elapsed")
+    }
+
+    pub fn advance(&self, by: Duration) {
+        *self.0.elapsed.lock().expect("elapsed") += by;
+    }
+
+    pub fn slept(&self) -> Vec<Duration> {
+        self.0.slept.lock().expect("slept").clone()
+    }
+
+    pub fn shared(&self) -> Rc<dyn Clock> {
+        Rc::new(self.clone())
+    }
+}
+
+impl Clock for HookedClock {
+    fn now(&self) -> Instant {
+        self.0.origin + *self.0.elapsed.lock().expect("elapsed")
+    }
+
+    fn wall_now(&self) -> SystemTime {
+        let hook = self.0.on_wall_read.lock().expect("hook").take();
+        if let Some(hook) = hook {
+            hook();
+        }
+        self.current_wall()
+    }
+
+    fn sleep(&self, duration: Duration) {
+        self.0.slept.lock().expect("slept").push(duration);
+        let hook = self.0.on_sleep.lock().expect("hook").take();
+        if let Some(hook) = hook {
+            hook();
+        }
+        self.advance(duration);
+    }
 }
 
 pub fn arxiv_contention_log(
@@ -200,36 +302,28 @@ impl Scratch {
     }
 
     pub fn write_pacing(&self, record: &PacingRecord) {
-        let millis = |at: Option<SystemTime>| {
-            at.map_or_else(|| "null".to_owned(), |at| millis(at).to_string())
-        };
-        self.write(
-            self.arxiv_state(StateFile::Pacing),
-            &format!(
-                "{{\"last_sent_ms\":{},\"last_finish_ms\":{},\
-                 \"not_before_ms\":{}}}",
-                millis(record.last_sent),
-                millis(record.last_finish),
-                millis(record.not_before)
-            ),
-        );
+        self.write_service_pacing(Service::Arxiv, record);
     }
 
-    /// Writes pacing state in the shape stored before sends were recorded.
-    pub fn write_pacing_without_last_sent(&self, last_finish: SystemTime) {
-        self.write(
-            self.arxiv_state(StateFile::Pacing),
-            &format!(
-                "{{\"last_finish_ms\":{},\"not_before_ms\":null}}",
-                millis(last_finish)
-            ),
+    pub fn write_service_pacing(
+        &self,
+        service: Service,
+        record: &PacingRecord,
+    ) {
+        write_pacing_at(
+            &self.service_state(service, StateFile::Pacing),
+            record,
         );
     }
 
     pub fn stored_pacing(&self) -> serde_json::Value {
+        self.stored_service_pacing(Service::Arxiv)
+    }
+
+    pub fn stored_service_pacing(&self, service: Service) -> serde_json::Value {
         serde_json::from_str(
             &self
-                .read(self.arxiv_state(StateFile::Pacing))
+                .read(self.service_state(service, StateFile::Pacing))
                 .expect("a pacing state"),
         )
         .expect("JSON pacing state")
@@ -438,6 +532,28 @@ pub struct TicketRecord<'a> {
 
 pub const GRAPHS: &str =
     "\"verb\":\"search\",\"query\":\"graphs\",\"limit\":10";
+
+/// Writes a pacing file as a gate on another thread or process would.
+pub fn write_pacing_at(path: &Path, record: &PacingRecord) {
+    let millis = |at: Option<SystemTime>| {
+        at.map_or_else(|| "null".to_owned(), |at| millis(at).to_string())
+    };
+    std::fs::create_dir_all(path.parent().expect("a parent"))
+        .expect("mkdir service state");
+    std::fs::write(
+        path,
+        format!(
+            "{{\"schema_version\":1,\"last_sent_ms\":{},\
+             \"next_free_ms\":{},\"last_finish_ms\":{},\
+             \"not_before_ms\":{}}}",
+            millis(record.last_sent),
+            millis(record.next_free),
+            millis(record.last_finish),
+            millis(record.not_before)
+        ),
+    )
+    .expect("write pacing");
+}
 
 pub fn set_modified(path: &Path, modified: SystemTime) {
     File::options()

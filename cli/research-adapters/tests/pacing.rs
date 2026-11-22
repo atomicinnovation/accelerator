@@ -14,16 +14,24 @@ use research::sources::fetch::Clock as _;
 use research::sources::fetch::PacingGate as _;
 use research::sources::fetch::WaitTooLong;
 use research::sources::schedule::Deadline;
+use research::sources::service::CrossrefPool;
+use research::sources::service::Service;
+use research_adapters::diagnostics::Diagnostics;
 use research_adapters::pacing::FilePacingGate;
+use research_adapters::scratch::ScratchDir;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use support::arxiv_gate;
 use support::millis;
 use support::secs;
+use support::service_gate;
+use support::write_pacing_at;
+use support::HookedClock;
 use support::PacingRecord;
 use support::RecordedDiagnostics;
 use support::RecordingClock;
 use support::Scratch;
+use support::Silent;
 use support::StateFile;
 
 struct Harness {
@@ -87,6 +95,7 @@ impl Harness {
             last_sent,
             last_finish,
             not_before,
+            ..PacingRecord::default()
         });
     }
 
@@ -139,18 +148,6 @@ fn a_last_finish_in_the_future_waits_at_most_three_seconds() {
     harness.pass(None).expect("admitted");
 
     assert_eq!(harness.clock.slept(), [secs(3)]);
-}
-
-#[test]
-fn a_state_written_before_last_sent_was_recorded_still_spaces_the_request() {
-    let harness = Harness::new();
-    harness
-        .scratch
-        .write_pacing_without_last_sent(harness.clock.wall_now() - secs(1));
-
-    harness.pass(None).expect("admitted");
-
-    assert_eq!(harness.clock.slept(), [secs(2)]);
 }
 
 #[test]
@@ -404,7 +401,7 @@ fn last_sent_is_stored_before_the_attempt_runs() {
 }
 
 #[test]
-fn an_in_lock_wait_is_spent_from_the_callers_deadline() {
+fn an_out_of_lock_wait_is_spent_from_the_callers_deadline() {
     let harness = Harness::new();
     harness.store_state(None, Some(harness.clock.wall_now() + secs(12)));
     let deadline = harness.deadline(secs(100));
@@ -414,4 +411,384 @@ fn an_in_lock_wait_is_spent_from_the_callers_deadline() {
         .expect("admitted");
 
     assert_eq!(deadline.remaining(harness.clock.now()), secs(88));
+}
+
+#[test]
+fn a_corrupt_state_file_is_reported_once_per_paced_call() {
+    let harness = Harness::new();
+    harness
+        .scratch
+        .write(harness.state(StateFile::Pacing), "{not json");
+
+    harness.pass(None).expect("admitted");
+
+    let reported = harness.diagnostics.lines();
+    assert_eq!(reported.len(), 1, "{reported:?}");
+    assert!(reported[0].contains("pacing"), "{reported:?}");
+}
+
+const PUBLIC: Service = Service::Crossref(CrossrefPool::Public);
+const POLITE: Service = Service::Crossref(CrossrefPool::Polite);
+
+const fn ms(millis: u64) -> Duration {
+    Duration::from_millis(millis)
+}
+
+fn ms_since_epoch(at: SystemTime) -> u64 {
+    u64::try_from(millis(at)).expect("milliseconds fit")
+}
+
+/// A gate for any service on a clock other threads and hooks can share.
+struct Pool {
+    service: Service,
+    scratch: Scratch,
+    clock: HookedClock,
+    diagnostics: Rc<RecordedDiagnostics>,
+}
+
+impl Pool {
+    fn of(service: Service) -> Self {
+        Self {
+            service,
+            scratch: Scratch::new(),
+            clock: HookedClock::new(),
+            diagnostics: Rc::default(),
+        }
+    }
+
+    fn gate(&self) -> FilePacingGate {
+        service_gate(
+            self.service,
+            &self.scratch.dir(),
+            self.clock.shared(),
+            self.diagnostics.clone(),
+        )
+    }
+
+    fn deadline(&self, total: Duration, per_request: Duration) -> Deadline {
+        Deadline::starting(self.clock.now(), total, per_request)
+    }
+
+    fn state(&self, file: StateFile) -> std::path::PathBuf {
+        self.scratch.service_state(self.service, file)
+    }
+
+    fn store(&self, record: &PacingRecord) {
+        self.scratch.write_service_pacing(self.service, record);
+    }
+
+    fn stored(&self, key: &str) -> Option<u64> {
+        self.scratch.stored_service_pacing(self.service)[key].as_u64()
+    }
+
+    fn pacing_bytes(&self) -> Option<String> {
+        self.scratch.read(self.state(StateFile::Pacing))
+    }
+
+    fn sends(&self) -> Vec<u64> {
+        self.scratch
+            .lines(self.state(StateFile::RequestLog))
+            .iter()
+            .map(|line| line.parse().expect("a send in milliseconds"))
+            .collect()
+    }
+
+    fn pass(&self, deadline: &Deadline) -> Result<(), WaitTooLong> {
+        let gate = self.gate();
+        let turn = gate.try_serve().expect("a free slot");
+        turn.paced(&mut || Attempted { defer_until: None }, deadline)
+    }
+
+    fn hold(&self, file: StateFile) -> File {
+        let lock = self.scratch.open(self.state(file));
+        flock(&lock, FlockOperation::NonBlockingLockExclusive)
+            .expect("the test holds the lock");
+        lock
+    }
+
+    fn is_free(&self, file: StateFile) -> bool {
+        let lock = self.scratch.open(self.state(file));
+        flock(&lock, FlockOperation::NonBlockingLockExclusive).is_ok()
+    }
+
+    /// What another process's gate needs to pace the same service.
+    fn elsewhere(&self) -> Elsewhere {
+        Elsewhere {
+            service: self.service,
+            research: self.scratch.dir(),
+            clock: self.clock.clone(),
+            pacing: self.state(StateFile::Pacing),
+        }
+    }
+}
+
+/// Everything a gate built inside another caller's sleep, or on another
+/// thread, needs; all of it can cross threads.
+#[derive(Clone)]
+struct Elsewhere {
+    service: Service,
+    research: ScratchDir,
+    clock: HookedClock,
+    pacing: std::path::PathBuf,
+}
+
+impl Elsewhere {
+    fn gate(&self, diagnostics: Rc<dyn Diagnostics>) -> FilePacingGate {
+        service_gate(
+            self.service,
+            &self.research,
+            self.clock.shared(),
+            diagnostics,
+        )
+    }
+
+    fn send_once(&self) {
+        let gate = self.gate(Rc::new(Silent));
+        let turn = gate.try_serve().expect("a free slot");
+        let deadline =
+            Deadline::starting(self.clock.now(), secs(100), secs(30));
+        turn.paced(&mut || Attempted { defer_until: None }, &deadline)
+            .expect("admitted");
+    }
+
+    fn store(&self, record: &PacingRecord) {
+        write_pacing_at(&self.pacing, record);
+    }
+}
+
+#[test]
+fn with_three_slots_three_turns_are_served_and_a_fourth_is_not() {
+    let pool = Pool::of(POLITE);
+    let gate = pool.gate();
+
+    let first = gate.try_serve().expect("slot one");
+    let second = gate.try_serve().expect("slot two");
+    let third = gate.try_serve().expect("slot three");
+    assert!(gate.try_serve().is_none());
+
+    drop(second);
+    let again = gate.try_serve().expect("the freed slot");
+    assert!(gate.try_serve().is_none());
+    drop((first, third, again));
+}
+
+#[test]
+fn try_serve_is_none_while_other_holders_have_every_slot() {
+    let pool = Pool::of(POLITE);
+    let _held = [0, 1, 2].map(|slot| pool.hold(StateFile::ServingSlot(slot)));
+
+    assert!(pool.gate().try_serve().is_none());
+    assert!(pool.clock.slept().is_empty());
+}
+
+#[test]
+fn a_turn_holds_its_slot_between_attempts_until_dropped() {
+    let pool = Pool::of(POLITE);
+    let gate = pool.gate();
+    let turn = gate.try_serve().expect("a free slot");
+    let deadline = pool.deadline(secs(100), secs(30));
+
+    turn.paced(&mut || Attempted { defer_until: None }, &deadline)
+        .expect("admitted");
+    let held_between = !pool.is_free(StateFile::ServingSlot(0));
+    drop(turn);
+
+    assert!(held_between);
+    assert!(pool.is_free(StateFile::ServingSlot(0)));
+}
+
+#[test]
+fn an_unlockable_filesystem_still_serves_a_turn_with_three_slots() {
+    let pool = Pool::of(POLITE);
+    let lock = pool.state(StateFile::ServingSlot(0));
+    pool.scratch.mkdir(&lock);
+
+    pool.pass(&pool.deadline(secs(100), secs(30)))
+        .expect("admitted");
+
+    let reported = pool.diagnostics.lines();
+    assert_eq!(reported.len(), 1, "{reported:?}");
+    assert!(
+        reported[0].contains("pacing without the lock"),
+        "{reported:?}"
+    );
+}
+
+#[test]
+fn a_start_spaced_send_waits_one_interval_from_the_previous_send() {
+    let pool = Pool::of(PUBLIC);
+    let now = pool.clock.current_wall();
+    pool.store(&PacingRecord {
+        last_sent: Some(now - ms(100)),
+        last_finish: Some(now - ms(10)),
+        ..PacingRecord::default()
+    });
+
+    pool.pass(&pool.deadline(secs(100), secs(30)))
+        .expect("admitted");
+
+    assert_eq!(pool.clock.slept(), [ms(110)]);
+    assert_eq!(pool.sends(), [ms_since_epoch(now + ms(110))]);
+}
+
+#[test]
+fn a_start_spaced_wait_is_spent_from_the_callers_deadline() {
+    let pool = Pool::of(PUBLIC);
+    let now = pool.clock.current_wall();
+    pool.store(&PacingRecord {
+        last_sent: Some(now - ms(100)),
+        ..PacingRecord::default()
+    });
+    let deadline = pool.deadline(secs(100), secs(30));
+
+    pool.pass(&deadline).expect("admitted");
+
+    assert_eq!(deadline.remaining(pool.clock.now()), secs(100) - ms(110));
+}
+
+#[test]
+fn a_caller_reserving_inside_another_s_sleep_gets_the_next_interval() {
+    let pool = Pool::of(POLITE);
+    let now = pool.clock.current_wall();
+    pool.store(&PacingRecord {
+        last_sent: Some(now - ms(50)),
+        ..PacingRecord::default()
+    });
+    let other = pool.elsewhere();
+    pool.clock.on_next_sleep(move || other.send_once());
+
+    pool.pass(&pool.deadline(secs(100), secs(30)))
+        .expect("admitted");
+
+    let mut sends = pool.sends();
+    sends.sort_unstable();
+    assert_eq!(sends.len(), 2, "{sends:?}");
+    assert_eq!(sends[0], ms_since_epoch(now + ms(52 + 102)));
+    assert!(sends[1] - sends[0] >= 102, "{sends:?}");
+}
+
+#[test]
+fn a_deferral_written_inside_a_callers_sleep_holds_it_until_it_ends() {
+    let pool = Pool::of(PUBLIC);
+    let now = pool.clock.current_wall();
+    pool.store(&PacingRecord {
+        last_sent: Some(now - ms(100)),
+        ..PacingRecord::default()
+    });
+    let other = pool.elsewhere();
+    let deferred_until = now + secs(2);
+    pool.clock.on_next_sleep(move || {
+        other.store(&PacingRecord {
+            last_sent: Some(now - ms(100)),
+            next_free: Some(now + ms(320)),
+            not_before: Some(deferred_until),
+            ..PacingRecord::default()
+        });
+    });
+
+    pool.pass(&pool.deadline(secs(100), secs(30)))
+        .expect("admitted");
+
+    assert_eq!(pool.sends(), [ms_since_epoch(deferred_until)]);
+}
+
+#[test]
+fn a_call_refused_before_reserving_writes_nothing() {
+    let pool = Pool::of(PUBLIC);
+    let now = pool.clock.current_wall();
+    pool.store(&PacingRecord {
+        not_before: Some(now + secs(20)),
+        ..PacingRecord::default()
+    });
+    let before = pool.pacing_bytes();
+
+    let refused = pool.pass(&pool.deadline(secs(40), secs(30)));
+
+    assert_eq!(refused, Err(WaitTooLong));
+    assert_eq!(pool.pacing_bytes(), before);
+    assert!(pool.clock.slept().is_empty());
+}
+
+#[test]
+fn a_call_refused_after_waking_hands_its_reservation_back() {
+    let pool = Pool::of(PUBLIC);
+    let now = pool.clock.current_wall();
+    let send_at = now + ms(100);
+    pool.store(&PacingRecord {
+        last_sent: Some(now - ms(110)),
+        ..PacingRecord::default()
+    });
+    let other = pool.elsewhere();
+    pool.clock.on_next_sleep(move || {
+        other.store(&PacingRecord {
+            last_sent: Some(send_at),
+            next_free: Some(send_at + ms(210)),
+            ..PacingRecord::default()
+        });
+    });
+
+    let refused = pool.pass(&pool.deadline(secs(1), ms(700)));
+
+    assert_eq!(refused, Err(WaitTooLong));
+    assert_eq!(pool.stored("next_free_ms"), Some(ms_since_epoch(send_at)));
+    assert!(pool.sends().is_empty());
+}
+
+#[test]
+fn now_is_read_only_once_the_pacing_lock_is_held() {
+    let pool = Pool::of(PUBLIC);
+    let elsewhere = pool.elsewhere();
+    let pacing_lock = pool.hold(StateFile::PacingLock);
+    let (read_wall, wall_was_read) = std::sync::mpsc::channel();
+    pool.clock.on_next_wall_read(move || {
+        let _ = read_wall.send(());
+    });
+    let caller = {
+        let elsewhere = elsewhere.clone();
+        std::thread::spawn(move || {
+            elsewhere.send_once();
+            elsewhere.clock.slept()
+        })
+    };
+
+    let read_while_blocked =
+        wall_was_read.recv_timeout(std::time::Duration::from_millis(200));
+    pool.clock.advance(secs(1));
+    let other_send = pool.clock.current_wall();
+    elsewhere.store(&PacingRecord {
+        last_sent: Some(other_send),
+        ..PacingRecord::default()
+    });
+    drop(pacing_lock);
+    let slept = caller.join().expect("the caller finishes");
+
+    assert!(read_while_blocked.is_err(), "now was read before the lock");
+    assert_eq!(slept, [ms(210)]);
+    assert_eq!(pool.sends(), [ms_since_epoch(other_send + ms(210))]);
+}
+
+#[test]
+fn a_pacing_file_of_another_shape_counts_as_no_previous_request() {
+    for (shape, contents) in [
+        (
+            "another schema version",
+            "{\"schema_version\":2,\"last_sent_ms\":1800000000000,\
+             \"next_free_ms\":null,\"last_finish_ms\":null,\
+             \"not_before_ms\":null}",
+        ),
+        (
+            "no next_free_ms",
+            "{\"schema_version\":1,\"last_sent_ms\":1800000000000,\
+             \"last_finish_ms\":null,\"not_before_ms\":null}",
+        ),
+    ] {
+        let pool = Pool::of(PUBLIC);
+        pool.scratch.write(pool.state(StateFile::Pacing), contents);
+
+        pool.pass(&pool.deadline(secs(100), secs(30)))
+            .expect("admitted");
+
+        assert!(pool.clock.slept().is_empty(), "{shape}");
+        assert_eq!(pool.diagnostics.lines().len(), 1, "{shape}");
+    }
 }
