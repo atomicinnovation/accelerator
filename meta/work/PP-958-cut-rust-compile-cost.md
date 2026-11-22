@@ -115,6 +115,9 @@ dependencies could shorten links and hashing, but that has not been measured.
   warm no-op baseline, which 0361 measures its 200 s target against, is
   recorded at
   `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
+- Concurrent: 0391 may add a fixture builder or test binaries, which
+  changes the compile units this item counts. This item's before and after
+  cold records must not straddle a 0391 merge.
 - Blocks: none
 
 ## Assumptions
