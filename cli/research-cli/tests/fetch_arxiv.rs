@@ -902,3 +902,200 @@ fn a_ticket_over_the_cap_after_an_upstream_failure_is_unavailable_with_that_reas
     assert_eq!(server.hits(&query()), 0);
     assert!(project.contention_lines().is_empty());
 }
+
+fn stderr_lines(run: &Run) -> Vec<&str> {
+    run.stderr.lines().collect()
+}
+
+fn a_lookup_answered(status: u16) -> Run {
+    let server = server_with(vec![(query(), Route::Status(status))]);
+
+    let run = fetch(
+        &Project::new(),
+        &server,
+        &["arxiv", "lookup", WITHDRAWN],
+        &[],
+    );
+
+    assert_eq!(server.hits(&query()), 1);
+    run
+}
+
+#[test]
+fn a_lookup_answered_404_fails_with_a_client_error() {
+    let run = a_lookup_answered(404);
+
+    assert_eq!(run.code, Some(1));
+    assert_eq!(run.stdout, "");
+    assert_eq!(
+        stderr_lines(&run),
+        [
+            "E_RESEARCH_CLIENT_ERROR: arXiv rejected the request with HTTP 404",
+            "research fetch: arxiv lookup failed after 1 attempt",
+        ]
+    );
+}
+
+#[test]
+fn a_lookup_answered_400_fails_with_a_client_error() {
+    let run = a_lookup_answered(400);
+
+    assert_eq!(run.code, Some(1));
+    assert_eq!(run.stdout, "");
+    assert_eq!(
+        stderr_lines(&run),
+        [
+            "E_RESEARCH_CLIENT_ERROR: arXiv rejected the request with HTTP 400",
+            "research fetch: arxiv lookup failed after 1 attempt",
+        ]
+    );
+}
+
+#[test]
+fn a_query_answered_503_until_retries_run_out_is_unavailable_upstream_error() {
+    let server = server_with(vec![(query(), Route::Status(503))]);
+
+    let run = fetch(&Project::new(), &server, &GRAPHS_QUERY, &[]);
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(
+        run.json(),
+        serde_json::json!({
+            "status": "unavailable",
+            "source": "arxiv",
+            "reason": "upstream_error",
+        })
+    );
+    assert_eq!(server.hits(&query()), 4);
+    assert_eq!(
+        stderr_lines(&run),
+        ["research fetch: arxiv search unavailable (upstream_error) after 4 \
+          attempts"]
+    );
+}
+
+#[test]
+fn a_ticket_whose_last_attempt_was_throttled_reports_rate_limited_past_its_cap()
+{
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket(
+        "1-aaaaaa",
+        &SeededTicket {
+            last_retryable: Some("rate_limited"),
+            ..SeededTicket::absent(&graphs(), 901, 10)
+        },
+    );
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(
+        run.json(),
+        serde_json::json!({
+            "status": "unavailable",
+            "source": "arxiv",
+            "reason": "rate_limited",
+        })
+    );
+    assert_eq!(server.hits(&query()), 0);
+    assert!(project.contention_lines().is_empty());
+}
+
+#[test]
+fn a_call_queued_behind_a_live_ticket_returns_waiting_within_100_s() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::live(&graphs(), 10));
+    let _ahead = project.hold_ticket("1-aaaaaa");
+    let started = std::time::Instant::now();
+
+    let run = fetch(&project, &server, &GRAPHS_QUERY, &[]);
+
+    let elapsed = started.elapsed().as_millis();
+    let waited: u64 = run.waits.iter().sum();
+    let ticket = waiting(&run, 2);
+    assert!(
+        elapsed + u128::from(waited) <= 100_000,
+        "{elapsed} ms elapsed and {waited} ms waited"
+    );
+    assert_eq!(server.hits(&query()), 0);
+    assert_eq!(
+        stderr_lines(&run),
+        [format!(
+            "research fetch: arxiv search waiting at position 2; re-present \
+             with --ticket {ticket}"
+        )]
+    );
+}
+
+#[test]
+fn a_mismatch_is_reported_as_exactly_one_line_naming_the_issued_call() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("5-eeeeee", &SeededTicket::absent(&graphs(), 20, 10));
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&["arxiv", "lookup", WITHDRAWN], "5-eeeeee"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert_eq!(
+        stderr_lines(&run),
+        [
+            "E_ARXIV_TICKET_MISMATCH: ticket 5-eeeeee was issued for search \
+          'graphs' --limit 10 (differing: verb); re-present it with that \
+          call, or drop --ticket"
+        ]
+    );
+}
+
+#[test]
+fn a_malformed_ticket_is_reported_as_exactly_one_line() {
+    let run = fetch(
+        &Project::new(),
+        &MockHTTPServer::start(),
+        &presenting(&GRAPHS_QUERY, "42"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2));
+    assert_eq!(
+        stderr_lines(&run),
+        [
+            "E_ARXIV_TICKET_MALFORMED: expected a ticket such as 42-9f1c2a \
+          (got '42')"
+        ]
+    );
+}
+
+#[test]
+fn a_live_ticket_is_reported_as_exactly_one_line() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("4-dddddd", &SeededTicket::live(&graphs(), 20));
+    let _elsewhere = project.hold_ticket("4-dddddd");
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "4-dddddd"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2));
+    assert_eq!(
+        stderr_lines(&run),
+        ["E_ARXIV_TICKET_LIVE: ticket 4-dddddd is already being presented by \
+          another call; use that call's output, or re-present it once that \
+          call has returned"]
+    );
+}
