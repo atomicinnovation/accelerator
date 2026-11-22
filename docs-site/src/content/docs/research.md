@@ -604,9 +604,9 @@ by its slug, its directory, or a path inside it.
 until your next reply. `ask` and `report` derive metadata and validate what
 they write after you confirm a research proposal or accept a report, and
 `report` also runs `research topic counts` then, so those commands prompt for
-permission, and a headless session denies them. Add the three rules the skill
-itself grants for that work to your project's allow rules to avoid the
-prompt:
+permission, and a headless session denies them. Add these three rules to
+your project's allow rules to avoid the prompt; they cover only the commands
+that run after a reply:
 
 ```json
 {
@@ -614,7 +614,7 @@ prompt:
     "allow": [
       "Bash(accelerator corpus metadata derive)",
       "Bash(accelerator corpus frontmatter validate *)",
-      "Bash(accelerator research topic *)"
+      "Bash(accelerator research topic counts *)"
     ]
   }
 }

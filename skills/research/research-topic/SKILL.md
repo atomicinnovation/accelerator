@@ -790,8 +790,9 @@ If a command after a reply is denied permission, stop, say what was written,
 and name the allow rules that avoid the prompt,
 `Bash(accelerator corpus metadata derive)`,
 `Bash(accelerator corpus frontmatter validate *)` and
-`Bash(accelerator research topic *)`. Then name the next step from what was
-written, once those rules are in the user's Claude Code allow rules.
+`Bash(accelerator research topic counts *)`. Then name the next step from
+what was written, once those rules are in the user's Claude Code allow
+rules.
 Before the proposal's `outline.md` append, running `{verb} {slug} {question}`
 again finishes the work, and offers any report already written for
 `rewrite`. After the append, the rerun would stop at a gate, so name the

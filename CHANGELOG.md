@@ -683,7 +683,8 @@
   headless session denies them. Adding
   `Bash(accelerator corpus metadata derive)`,
   `Bash(accelerator corpus frontmatter validate *)` and
-  `Bash(accelerator research topic *)` to your allow rules avoids that.
+  `Bash(accelerator research topic counts *)` to your allow rules avoids
+  that.
 - **research-topic grants a `Read` of the citing-once rule**, scoped to its
   directory in the plugin, so `synthesise`, `ask` and `report` read the rule
   without a permission prompt.

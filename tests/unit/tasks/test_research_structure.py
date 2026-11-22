@@ -1984,9 +1984,10 @@ def test_a_denied_post_reply_command_names_the_allow_rules() -> None:
         "say what was written",
         "`Bash(accelerator corpus metadata derive)`",
         "`Bash(accelerator corpus frontmatter validate *)`",
-        "`Bash(accelerator research topic *)`",
+        "`Bash(accelerator research topic counts *)`",
     ):
         assert phrase in consult, f"a denied command must name {phrase!r}"
+    assert "`Bash(accelerator research topic *)`" not in consult
     before = _section(
         consult, "Before the proposal's `outline.md` append", "After the append"
     )
