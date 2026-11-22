@@ -42,7 +42,7 @@ pub fn run_consultable<F: DirReader + FileReader + DirectoryProbe>(
     let status = read_set_status(set_root, fs, &YamlFrontmatter)
         .map_err(|error| error.to_string())?;
     let verdict = Consultation::judge(
-        &status,
+        status,
         || read_counts(set_root, fs, &YamlFrontmatter),
         || {
             read_plan(
@@ -80,7 +80,7 @@ fn rendered(verdict: &Consultation, set_root: &Path) -> Value {
         Consultation::Refused(Refusal::Status { status }) => json!({
             "consultable": false,
             "gate": "status",
-            "status": status,
+            "status": status.name(),
         }),
         Consultation::Refused(Refusal::Freshness { mismatches }) => json!({
             "consultable": false,

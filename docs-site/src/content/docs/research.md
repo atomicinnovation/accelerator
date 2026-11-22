@@ -923,7 +923,7 @@ Each exit code below exits `1`:
 | Code | Cause | Recovery |
 |---|---|---|
 | `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
-| none; the message names `manifest.md` | the manifest is missing or records no `status` | restore the manifest's `status` |
+| none; the message names `manifest.md` | the manifest is missing, records no `status`, or records one outside `briefed`, `outlined`, `researching`, `synthesised` and `complete` | restore the manifest's `status` |
 | `E_RESEARCH_PLUGIN_ROOT` | `ACCELERATOR_PLUGIN_ROOT` is not set | run `accelerator` through its launcher, which sets it |
 | none; the message names the profiles directory | the plugin root holds no `skills/research/profiles`, checked before any gate | reinstall the plugin |
 | none; the message names the path | a directory or file of the set cannot be read | make it readable, then re-run |

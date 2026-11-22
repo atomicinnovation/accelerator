@@ -38,6 +38,7 @@ use research::topic::layout::slug::TakenNames;
 use research::topic::layout::stem::Stem;
 use research::topic::layout::FINDINGS;
 use research::topic::layout::REPORTS;
+use research::topic::lifecycle::SetStatus;
 use research::topic::outline::Outline;
 use research::topic::outline::Pair;
 use research::topic::outline::DEFAULT_PROFILE;
@@ -247,22 +248,29 @@ fn files_in<F: DirReader + DirectoryProbe>(
 ///
 /// # Errors
 ///
-/// A [`kernel::Error`] when `manifest.md` cannot be read or records no
-/// `status`.
+/// A [`kernel::Error`] when `manifest.md` cannot be read, records no
+/// `status`, or records one outside a set's lifecycle.
 pub fn read_set_status<F: FileReader>(
     set_root: &Path,
     fs: &F,
     parser: &dyn FrontmatterParser,
-) -> Result<String, kernel::Error> {
+) -> Result<SetStatus, kernel::Error> {
     let manifest = set_root.join("manifest.md");
-    fields_of(&manifest, fs, parser)?
+    let recorded = fields_of(&manifest, fs, parser)?
         .and_then(|fields| string(&fields, "status"))
         .ok_or_else(|| {
             kernel::Error::Failed(format!(
                 "no status recorded in {}",
                 manifest.display()
             ))
-        })
+        })?;
+    SetStatus::named(&recorded).ok_or_else(|| {
+        kernel::Error::Failed(format!(
+            "{} records status '{recorded}', which is not a topic-research \
+             status",
+            manifest.display()
+        ))
+    })
 }
 
 /// The set's round plan as a query reads it: at the default depth, with no
@@ -617,6 +625,7 @@ mod tests {
     use super::taken_report_names;
     use super::ReadingWarning;
     use crate::unicode_text::UnicodeTables;
+    use research::topic::lifecycle::SetStatus;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -1244,9 +1253,22 @@ mod tests {
 
         assert_eq!(
             read_set_status(Path::new(SET), &fs, &YamlFrontmatter)?,
-            "synthesised"
+            SetStatus::Synthesised
         );
         Ok(())
+    }
+
+    #[test]
+    fn a_status_outside_the_lifecycle_is_named_in_the_error() {
+        let fs = manifest("status: \"drafted\"\n");
+
+        let read = read_set_status(Path::new(SET), &fs, &YamlFrontmatter);
+
+        assert!(
+            read.as_ref()
+                .is_err_and(|error| error.to_string().contains("'drafted'")),
+            "{read:?}"
+        );
     }
 
     #[test]

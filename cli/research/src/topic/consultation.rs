@@ -26,7 +26,7 @@ pub struct Documents {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
     Status {
-        status: String,
+        status: SetStatus,
     },
     Freshness {
         mismatches: Vec<Mismatch>,
@@ -51,14 +51,12 @@ impl Consultation {
     /// Returns the error of the first reader that fails; a refused gate
     /// never calls the readers after it.
     pub fn judge<E>(
-        status: &str,
+        status: SetStatus,
         read_counts: impl FnOnce() -> Result<CountsReading, E>,
         read_plan: impl FnOnce() -> Result<RoundPlan, E>,
     ) -> Result<Self, E> {
-        if !SetStatus::named(status).is_some_and(SetStatus::is_consultable) {
-            return Ok(Self::Refused(Refusal::Status {
-                status: status.to_owned(),
-            }));
+        if !status.is_consultable() {
+            return Ok(Self::Refused(Refusal::Status { status }));
         }
         let reading = read_counts()?;
         let freshness = reading.freshness();
@@ -136,6 +134,7 @@ mod tests {
     use crate::topic::counts::StoredCount;
     use crate::topic::counts::StoredCounts;
     use crate::topic::layout::stem::Stem;
+    use crate::topic::lifecycle::SetStatus;
     use crate::topic::outline::Pair;
     use crate::topic::plan::ItemStatus;
     use crate::topic::plan::OutstandingPair;
@@ -220,26 +219,32 @@ mod tests {
         plan
     }
 
-    fn judged(status: &str, counts: CountsReading, plan: RoundPlan) -> Verdict {
+    fn judged(
+        status: SetStatus,
+        counts: CountsReading,
+        plan: RoundPlan,
+    ) -> Verdict {
         Consultation::judge(status, || Ok(counts), || Ok(plan))
     }
 
     #[test]
     fn a_set_before_synthesis_is_refused_on_status() {
-        for status in ["briefed", "outlined", "researching"] {
+        for status in [
+            SetStatus::Briefed,
+            SetStatus::Outlined,
+            SetStatus::Researching,
+        ] {
             assert_eq!(
                 judged(status, fresh(), plan(true)),
-                Ok(Consultation::Refused(Refusal::Status {
-                    status: status.to_owned()
-                })),
-                "{status}"
+                Ok(Consultation::Refused(Refusal::Status { status })),
+                "{status:?}"
             );
         }
     }
 
     #[test]
     fn a_synthesised_or_complete_set_passes_the_status_gate() {
-        for status in ["synthesised", "complete"] {
+        for status in [SetStatus::Synthesised, SetStatus::Complete] {
             let verdict = judged(status, fresh(), plan(true));
 
             assert!(
@@ -247,7 +252,7 @@ mod tests {
                     verdict,
                     Ok(Consultation::Refused(Refusal::Status { .. }))
                 ),
-                "{status}: {verdict:?}"
+                "{status:?}: {verdict:?}"
             );
         }
     }
@@ -255,7 +260,7 @@ mod tests {
     #[test]
     fn status_is_judged_before_freshness() {
         assert!(matches!(
-            judged("researching", stale(), plan(true)),
+            judged(SetStatus::Researching, stale(), plan(true)),
             Ok(Consultation::Refused(Refusal::Status { .. }))
         ));
     }
@@ -263,7 +268,11 @@ mod tests {
     #[test]
     fn freshness_is_judged_before_the_outline() {
         assert_eq!(
-            judged("synthesised", stale(), with_unanswered_pair(plan(false))),
+            judged(
+                SetStatus::Synthesised,
+                stale(),
+                with_unanswered_pair(plan(false))
+            ),
             Ok(Consultation::Refused(Refusal::Freshness {
                 mismatches: vec![Mismatch::Disagrees {
                     count: FreshnessCount::FindingCount,
@@ -277,7 +286,11 @@ mod tests {
     #[test]
     fn an_unanswered_pair_holds_the_set_back() {
         assert_eq!(
-            judged("synthesised", fresh(), with_unanswered_pair(plan(false))),
+            judged(
+                SetStatus::Synthesised,
+                fresh(),
+                with_unanswered_pair(plan(false))
+            ),
             Ok(Consultation::Refused(Refusal::Conducted {
                 unanswered: vec![pair("openalex")],
                 held_back: Vec::new(),
@@ -291,7 +304,7 @@ mod tests {
         skipped.skipped.push(skip("arxiv"));
 
         assert_eq!(
-            judged("synthesised", fresh(), skipped),
+            judged(SetStatus::Synthesised, fresh(), skipped),
             Ok(Consultation::Refused(Refusal::Conducted {
                 unanswered: Vec::new(),
                 held_back: vec![HeldBackItem {
@@ -316,7 +329,7 @@ mod tests {
     fn a_repeat_of_an_unanswered_question_is_not_held_back_again() {
         assert_eq!(
             judged(
-                "synthesised",
+                SetStatus::Synthesised,
                 fresh(),
                 repeated(with_unanswered_pair(plan(false)), false)
             ),
@@ -330,7 +343,11 @@ mod tests {
     #[test]
     fn a_repeat_asking_for_more_profiles_holds_nothing_back() {
         assert!(matches!(
-            judged("synthesised", fresh(), repeated(plan(true), false)),
+            judged(
+                SetStatus::Synthesised,
+                fresh(),
+                repeated(plan(true), false)
+            ),
             Ok(Consultation::Open(_))
         ));
     }
@@ -341,7 +358,7 @@ mod tests {
         answered.skipped.push(skip("arxiv"));
 
         assert!(matches!(
-            judged("synthesised", fresh(), answered),
+            judged(SetStatus::Synthesised, fresh(), answered),
             Ok(Consultation::Open(_))
         ));
     }
@@ -349,7 +366,7 @@ mod tests {
     #[test]
     fn an_open_verdict_carries_the_counted_documents() {
         assert_eq!(
-            judged("complete", fresh(), plan(true)),
+            judged(SetStatus::Complete, fresh(), plan(true)),
             Ok(Consultation::Open(Documents {
                 findings: vec![
                     "findings/01-a-web.md".to_owned(),
@@ -363,7 +380,7 @@ mod tests {
     #[test]
     fn a_refused_gate_never_reads_the_next_gates_input() {
         let verdict: Verdict = Consultation::judge(
-            "researching",
+            SetStatus::Researching,
             || Err("counts read"),
             || Err("plan read"),
         );
@@ -371,7 +388,7 @@ mod tests {
         assert_eq!(
             verdict,
             Ok(Consultation::Refused(Refusal::Status {
-                status: "researching".to_owned()
+                status: SetStatus::Researching
             }))
         );
     }
@@ -379,12 +396,12 @@ mod tests {
     #[test]
     fn a_failed_read_past_an_open_gate_propagates() {
         let counts_failed: Verdict = Consultation::judge(
-            "synthesised",
+            SetStatus::Synthesised,
             || Err("counts read"),
             || Ok(plan(true)),
         );
         let plan_failed: Verdict = Consultation::judge(
-            "synthesised",
+            SetStatus::Synthesised,
             || Ok(fresh()),
             || Err("plan read"),
         );

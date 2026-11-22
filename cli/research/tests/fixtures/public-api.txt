@@ -1805,7 +1805,7 @@ pub enum research::topic::consultation::Consultation
 pub research::topic::consultation::Consultation::Open(research::topic::consultation::Documents)
 pub research::topic::consultation::Consultation::Refused(research::topic::consultation::Refusal)
 impl research::topic::consultation::Consultation
-pub fn research::topic::consultation::Consultation::judge<E>(status: &str, read_counts: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::counts::CountsReading, E>, read_plan: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::plan::RoundPlan, E>) -> core::result::Result<Self, E>
+pub fn research::topic::consultation::Consultation::judge<E>(status: research::topic::lifecycle::SetStatus, read_counts: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::counts::CountsReading, E>, read_plan: impl core::ops::function::FnOnce() -> core::result::Result<research::topic::plan::RoundPlan, E>) -> core::result::Result<Self, E>
 impl core::clone::Clone for research::topic::consultation::Consultation
 pub fn research::topic::consultation::Consultation::clone(&self) -> research::topic::consultation::Consultation
 impl core::cmp::Eq for research::topic::consultation::Consultation
@@ -1821,7 +1821,7 @@ pub research::topic::consultation::Refusal::Conducted::unanswered: alloc::vec::V
 pub research::topic::consultation::Refusal::Freshness
 pub research::topic::consultation::Refusal::Freshness::mismatches: alloc::vec::Vec<research::topic::counts::Mismatch>
 pub research::topic::consultation::Refusal::Status
-pub research::topic::consultation::Refusal::Status::status: alloc::string::String
+pub research::topic::consultation::Refusal::Status::status: research::topic::lifecycle::SetStatus
 impl core::clone::Clone for research::topic::consultation::Refusal
 pub fn research::topic::consultation::Refusal::clone(&self) -> research::topic::consultation::Refusal
 impl core::cmp::Eq for research::topic::consultation::Refusal
