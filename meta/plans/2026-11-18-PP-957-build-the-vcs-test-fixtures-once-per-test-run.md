@@ -5,7 +5,7 @@ title: "Build the VCS Test Fixtures Once per Test Run Implementation Plan"
 date: "2026-11-18T19:51:03+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-957"
 parent: "work-item:PP-957"
 derived_from: ["codebase-research:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run"]
