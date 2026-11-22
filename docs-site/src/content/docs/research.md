@@ -601,12 +601,13 @@ skill never derives a path or a plan by hand. Every subcommand takes the set
 by its slug, its directory, or a path inside it.
 
 **Permissions after a reply.** Claude Code grants a skill's commands only
-until your next reply. `ask` and `report` derive metadata and validate what
-they write after you confirm a research proposal or accept a report, and
-`report` also runs `research topic counts` then, so those commands prompt for
-permission, and a headless session denies them. Add these four rules to
-your project's allow rules to avoid the prompt; they cover only the commands
-that run after a reply:
+until your next reply. After you confirm a research proposal or accept a
+report, `ask` and `report` re-run `research topic consultable` before their
+first write, then derive metadata and validate what they write, and `report`
+also runs `research topic counts`, so those commands prompt for permission,
+and a headless session denies them. Add these four rules to your project's
+allow rules to avoid the prompt; they cover only the commands that run after
+a reply:
 
 ```json
 {

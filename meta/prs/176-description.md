@@ -166,7 +166,7 @@ refine loop that the build verbs left open.
   user answers prompt for permission and are denied headless. The eval
   passes the skill's own declared grant (less the `research fetch` rule
   neither verb runs) as `--allowedTools`; the CHANGELOG tells users to add
-  the three rules that cover the post-reply commands.
+  the four rules that cover the post-reply commands.
 - The eval is deliberately outside `check`, `default` and `test`
   (`test_mise.py` pins this): it needs the `claude` CLI, network and model
   usage.
