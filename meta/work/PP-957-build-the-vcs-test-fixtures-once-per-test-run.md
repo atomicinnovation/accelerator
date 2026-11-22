@@ -439,7 +439,7 @@ Mutation audit of today's consumers:
       Run lane by lane in Phases 7 and 8 of the plan. The live Jira, Linear
       and Shortcut contract tests in `tracker-contract` need credentials and
       were not run; its subset ran against the in-memory tracker.
-- [ ] [filters] Given the root `CLAUDE.md` and `tasks/README.md`, when they
+- [x] [filters] Given the root `CLAUDE.md` and `tasks/README.md`, when they
       are read, then they direct readers to each task's `--filter`,
       including `test:unit:cli`'s, name the exempt tasks, rule out
       `cargo test`, and present running an underlying runner directly only

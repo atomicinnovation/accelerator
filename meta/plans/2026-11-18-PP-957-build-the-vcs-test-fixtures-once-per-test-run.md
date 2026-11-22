@@ -3046,11 +3046,11 @@ Link to it from "Shared VCS fixtures" and from "Task options". Point the
 
 #### Manual Verification
 
-- [ ] Read `CLAUDE.md` and `tasks/README.md`. Together they direct readers
+- [x] Read `CLAUDE.md` and `tasks/README.md`. Together they direct readers
       to each task's `--filter`, including `test:unit:cli`'s; name the
       exempt tasks; rule out `cargo test`; and present direct runners only
       as a last resort.
-- [ ] Every filters-increment criterion in the work item is ticked, and the
+- [x] Every filters-increment criterion in the work item is ticked, and the
       work item can close.
 
 ---
