@@ -30,11 +30,12 @@ from tasks.eval.ask_and_report.conversation import (
 from tasks.eval.ask_and_report.projects import build_project
 from tasks.eval.ask_and_report.scenarios import Scenario, ScenarioFile
 from tasks.eval.ask_and_report.turns import (
-    NOT_RUN,
+    NotRun,
     TurnHistory,
     TurnRecord,
     errored,
     load_snapshot,
+    read_exit,
     turn_file,
 )
 from tasks.eval.ask_and_report.verdicts import CRITERIA, Judging
@@ -125,10 +126,12 @@ def load_records(plan: SessionPlan) -> list[TurnRecord]:
     history = TurnHistory(plan.directory, load_snapshot(initial_file))
     for number, turn in enumerate(plan.scenario.turns, start=1):
         exit_file = turn_file(plan.directory, number, ".exit")
-        status = exit_file.read_text().strip() if exit_file.exists() else None
-        if status == NOT_RUN:
+        turn_exit = (
+            read_exit(exit_file.read_text()) if exit_file.exists() else None
+        )
+        if isinstance(turn_exit, NotRun):
             break
-        history.record(number, turn.reply, turn.writes, status)
+        history.record(number, turn.reply, turn.writes, turn_exit)
     return history.records
 
 

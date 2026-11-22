@@ -229,14 +229,19 @@ def test_a_snapshot_round_trips_through_its_file(tmp_path: Path) -> None:
     assert taken["a.md"].text == "text"
 
 
-def _record(log: str | None, exit_status: str | None = "0") -> turns.TurnRecord:
+SUCCEEDED = turns.Exited(0)
+
+
+def _record(
+    log: str | None, turn_exit: turns.TurnExit | None = SUCCEEDED
+) -> turns.TurnRecord:
     return turns.TurnRecord(
         number=1,
         reply=None,
         writes=(),
         events=tuple(events(log)) if log is not None else (),
         logged=log is not None,
-        exit_status=exit_status,
+        turn_exit=turn_exit,
         before={},
         after={},
         initial={},
@@ -245,20 +250,39 @@ def _record(log: str | None, exit_status: str | None = "0") -> turns.TurnRecord:
 
 
 @pytest.mark.parametrize(
-    ("log", "exit_status", "reason"),
+    ("log", "turn_exit", "reason"),
     [
-        (_init(), "1", "exit code 1"),
-        (_init(), "timeout", "timeout"),
-        (None, "0", "no log"),
+        (_init(), turns.Exited(1), "exit code 1"),
+        (_init(), turns.TimedOut(), "timeout"),
+        (None, turns.Exited(0), "no log"),
         (_init(), None, "no exit status"),
-        (_result(), "0", "no init event"),
-        ("\n".join([_init(), _result(is_error=True)]), "0", "is_error"),
+        (_result(), turns.Exited(0), "no init event"),
+        (
+            "\n".join([_init(), _result(is_error=True)]),
+            turns.Exited(0),
+            "is_error",
+        ),
     ],
 )
 def test_an_infrastructure_failure_errors_the_turn(
-    log: str | None, exit_status: str | None, reason: str
+    log: str | None, turn_exit: turns.TurnExit | None, reason: str
 ) -> None:
-    assert turns.errored(_record(log, exit_status)) == reason
+    assert turns.errored(_record(log, turn_exit)) == reason
+
+
+@pytest.mark.parametrize(
+    "turn_exit",
+    [turns.Exited(0), turns.Exited(2), turns.TimedOut(), turns.NotRun()],
+)
+def test_a_turn_exit_reads_back_as_it_was_recorded(
+    turn_exit: turns.TurnExit,
+) -> None:
+    assert turns.read_exit(turn_exit.recorded()) == turn_exit
+
+
+def test_an_unknown_exit_record_is_refused() -> None:
+    with pytest.raises(ValueError, match="maybe"):
+        turns.read_exit("maybe")
 
 
 def test_a_turn_with_no_text_is_not_errored() -> None:
@@ -468,7 +492,10 @@ def test_an_errored_turn_ends_the_conversation(
     records = _run(tmp_path, fake)
 
     assert len(fake.commands) == 2
-    assert [record.exit_status for record in records] == ["0", str(outcome)]
+    assert [record.turn_exit for record in records] == [
+        turns.Exited(0),
+        turns.Exited(1) if outcome == 1 else turns.TimedOut(),
+    ]
     assert (tmp_path / "turn-2.exit").read_text() == str(outcome)
     assert (tmp_path / "turn-3.exit").read_text() == "not-run"
     assert not (tmp_path / "turn-3.jsonl").exists()

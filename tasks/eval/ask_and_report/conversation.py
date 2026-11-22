@@ -7,8 +7,10 @@ from pathlib import Path
 
 from tasks.eval.ask_and_report.layout import SLUG
 from tasks.eval.ask_and_report.turns import (
-    NOT_RUN,
-    TIMEOUT,
+    Exited,
+    NotRun,
+    TimedOut,
+    TurnExit,
     TurnHistory,
     TurnRecord,
     errored,
@@ -100,12 +102,12 @@ def _run_turn(
     number: int,
     env: dict[str, str],
     run: Runner,
-) -> str:
+) -> TurnExit:
     log = turn_file(conversation.directory, number, ".jsonl")
     try:
-        return str(run(command, conversation.root, log, env))
+        return Exited(run(command, conversation.root, log, env))
     except subprocess.TimeoutExpired:
-        return TIMEOUT
+        return TimedOut()
 
 
 def run_conversation(
@@ -128,12 +130,14 @@ def run_conversation(
     stopped = False
     for number, prompt in enumerate(prompts, start=1):
         if stopped:
-            turn_file(directory, number, ".exit").write_text(NOT_RUN)
+            turn_file(directory, number, ".exit").write_text(
+                NotRun().recorded()
+            )
             continue
         build = opening_turn if number == 1 else resumed_turn
         command = build(prompt, conversation.session_id, flags)
-        status = _run_turn(command, conversation, number, env, run)
-        turn_file(directory, number, ".exit").write_text(status)
+        turn_exit = _run_turn(command, conversation, number, env, run)
+        turn_file(directory, number, ".exit").write_text(turn_exit.recorded())
         save_snapshot(
             snapshot(conversation.root), turn_file(directory, number, ".json")
         )
@@ -141,7 +145,7 @@ def run_conversation(
             number,
             reply=None if number == 1 else prompt,
             writes=conversation.writes[number - 1],
-            exit_status=status,
+            turn_exit=turn_exit,
         )
         stopped = errored(record) is not None or stops_after(record)
     return history.records

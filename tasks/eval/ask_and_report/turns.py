@@ -14,6 +14,43 @@ NOT_RUN = "not-run"
 
 
 @dataclass(frozen=True)
+class Exited:
+    code: int
+
+    def recorded(self) -> str:
+        return str(self.code)
+
+
+@dataclass(frozen=True)
+class TimedOut:
+    def recorded(self) -> str:
+        return TIMEOUT
+
+
+@dataclass(frozen=True)
+class NotRun:
+    """A turn after the conversation stopped, never sent."""
+
+    def recorded(self) -> str:
+        return NOT_RUN
+
+
+type TurnExit = Exited | TimedOut | NotRun
+
+
+def read_exit(recorded: str) -> TurnExit:
+    """Read a turn's ``.exit`` file back into how the turn ended."""
+    ended = recorded.strip()
+    if ended == TIMEOUT:
+        return TimedOut()
+    if ended == NOT_RUN:
+        return NotRun()
+    if ended.lstrip("-").isdigit():
+        return Exited(int(ended))
+    raise ValueError(f"no turn ends as {ended!r}")
+
+
+@dataclass(frozen=True)
 class FileState:
     digest: str
     text: str
@@ -85,7 +122,7 @@ class TurnRecord:
     writes: tuple[str, ...]
     events: tuple[Event, ...]
     logged: bool
-    exit_status: str | None
+    turn_exit: TurnExit | None
     before: Snapshot
     after: Snapshot
     initial: Snapshot
@@ -121,7 +158,7 @@ class TurnHistory:
         number: int,
         reply: str | None,
         writes: tuple[str, ...],
-        exit_status: str | None,
+        turn_exit: TurnExit | None,
     ) -> TurnRecord:
         before = self.records[-1].after if self.records else self.initial
         log = turn_file(self.directory, number, ".jsonl")
@@ -132,7 +169,7 @@ class TurnHistory:
             writes=writes,
             events=tuple(events(log.read_text())) if log.exists() else (),
             logged=log.exists(),
-            exit_status=exit_status,
+            turn_exit=turn_exit,
             before=before,
             after=load_snapshot(taken) if taken.exists() else before,
             initial=self.initial,
@@ -146,12 +183,13 @@ def errored(record: TurnRecord) -> str | None:
     """Name the infrastructure failure that errored a turn, if one did."""
     if not record.logged:
         return "no log"
-    if record.exit_status is None:
-        return "no exit status"
-    if record.exit_status == TIMEOUT:
-        return TIMEOUT
-    if record.exit_status != "0":
-        return f"exit code {record.exit_status}"
+    match record.turn_exit:
+        case None | NotRun():
+            return "no exit status"
+        case TimedOut():
+            return TIMEOUT
+        case Exited(code=code) if code != 0:
+            return f"exit code {code}"
     if record.init is None:
         return "no init event"
     if record.result is not None and record.result.is_error:

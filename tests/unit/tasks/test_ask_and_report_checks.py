@@ -5,7 +5,7 @@ import pytest
 
 from tasks.eval.ask_and_report import checks
 from tasks.eval.ask_and_report.layout import SET
-from tasks.eval.ask_and_report.turns import FileState, TurnRecord
+from tasks.eval.ask_and_report.turns import Exited, FileState, TurnRecord
 from tasks.eval.headless.transcript import (
     Event,
     Init,
@@ -53,7 +53,7 @@ def _turn(
         writes=writes,
         events=(_init(), *events),
         logged=True,
-        exit_status="0",
+        turn_exit=Exited(0),
         before={},
         after=after,
         initial={},

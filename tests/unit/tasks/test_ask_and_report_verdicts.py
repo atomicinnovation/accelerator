@@ -5,7 +5,7 @@ import pytest
 
 from tasks.eval.ask_and_report import verdicts
 from tasks.eval.ask_and_report.layout import SET
-from tasks.eval.ask_and_report.turns import FileState, TurnRecord
+from tasks.eval.ask_and_report.turns import Exited, FileState, TurnRecord
 from tasks.eval.headless.transcript import Event, Text, ToolCall
 
 SLUG = "llm-agent-planning"
@@ -124,7 +124,7 @@ def _turn(
         writes=(),
         events=(Text(text, by_subagent=False),),
         logged=True,
-        exit_status="0",
+        turn_exit=Exited(0),
         before=before_files,
         after=_files(after) if after is not None else before_files,
         initial=_files(INITIAL),
