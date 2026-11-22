@@ -83,6 +83,17 @@ async function failQuietly(send, requestId) {
   } catch {}
 }
 
+// A query string can carry a credential, so a logged hop keeps only its
+// origin and path.
+function hopName(url) {
+  try {
+    const { origin, pathname } = new URL(url);
+    return `${origin}${pathname}`;
+  } catch {
+    return 'a malformed URL';
+  }
+}
+
 export async function interceptRequests(page, options) {
   const cdp = await page.context().newCDPSession(page);
   const { frameTree } = await cdp.send('Page.getFrameTree');
@@ -94,7 +105,8 @@ export async function interceptRequests(page, options) {
   cdp.on('Fetch.requestPaused', event => {
     intercept(event, send).catch(error => {
       console.error(
-        `request interception error: ${error?.message ?? String(error)}`
+        `request interception error on ${hopName(event.request.url)}: ` +
+          `${error?.message ?? String(error)}`
       );
     });
   });

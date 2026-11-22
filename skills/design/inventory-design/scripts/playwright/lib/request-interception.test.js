@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { makeRequestInterceptor } from './request-interception.js';
+import {
+  interceptRequests,
+  makeRequestInterceptor,
+} from './request-interception.js';
 
 const MAIN_FRAME = 'main-frame';
 const SUB_FRAME = 'sub-frame';
@@ -228,4 +231,45 @@ test('a hop already gone when its failure is refused reports the continuation re
     sent.map(({ method }) => method),
     ['Fetch.continueRequest', 'Fetch.failRequest']
   );
+});
+
+function pageWhoseCdpRefuses(method) {
+  const listeners = {};
+  const cdp = {
+    on: (event, listener) => {
+      listeners[event] = listener;
+    },
+    send: async sent => {
+      if (sent === 'Page.getFrameTree') {
+        return { frameTree: { frame: { id: MAIN_FRAME } } };
+      }
+      if (sent === method) throw new Error(`${method} refused`);
+      return {};
+    },
+  };
+  const page = { context: () => ({ newCDPSession: async () => cdp }) };
+  return { page, pause: event => listeners['Fetch.requestPaused'](event) };
+}
+
+test('an interception error names the hop without its query', async () => {
+  const { page, pause } = pageWhoseCdpRefuses('Fetch.continueRequest');
+  await interceptRequests(page, {
+    getAllowances: () => ({ allowInternal: false, allowInsecureScheme: false }),
+    getExpectedOrigin: () => null,
+    getAuthHeader: () => null,
+    onMainFrameRefusal: () => {},
+  });
+  const logged = [];
+  const original = console.error;
+  console.error = message => logged.push(message);
+  try {
+    pause(hop({ url: 'https://app.example.com/orders?token=secret' }));
+    await new Promise(setImmediate);
+  } finally {
+    console.error = original;
+  }
+
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /https:\/\/app\.example\.com\/orders/);
+  assert.doesNotMatch(logged[0], /secret/);
 });
