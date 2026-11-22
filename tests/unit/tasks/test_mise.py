@@ -556,3 +556,55 @@ def test_a_cargo_or_node_lane_forwards_filter_only_when_it_is_given(
     assert mise["tasks"][mise_task]["run"] == (
         f"invoke {invoke_name} {_FORWARDS_FILTER}"
     )
+
+
+_EXEMPT_GUARDS = {
+    "test:integration:release-guard",
+    "test:integration:deny",
+    "test:integration:fixture-size",
+    "test:integration:measure",
+    "test:integration:skill-invocation",
+    "test:integration:conformance",
+}
+_SINGLE_TEST_LANES = {
+    "test:integration:visualiser-os-watcher",
+    "test:integration:arxiv-queue-stress",
+}
+_TEST_ROLL_UPS = {"test", "test:unit", "test:integration", "test:e2e"}
+_TAKES_NO_FILTER = _EXEMPT_GUARDS | _SINGLE_TEST_LANES | _TEST_ROLL_UPS
+
+
+def _test_tasks(mise: dict) -> set[str]:
+    return {
+        name
+        for name in mise["tasks"]
+        if name == "test" or name.startswith("test:")
+    }
+
+
+def _filter_gaps(task: dict) -> list[str]:
+    flags = list(_FILTER_FLAG.finditer(task.get("usage", "")))
+    gaps = []
+    if not flags:
+        gaps.append("declares no --filter in usage")
+    elif "e.g." not in flags[0]["help"]:
+        gaps.append("gives no e.g. example in its --filter help")
+    if _FORWARDS_FILTER not in task.get("run", ""):
+        gaps.append("does not forward $usage_filter")
+    return gaps
+
+
+def test_every_multi_test_leaf_declares_a_filter(mise):
+    gaps = {
+        name: _filter_gaps(mise["tasks"][name])
+        for name in sorted(_test_tasks(mise) - _TAKES_NO_FILTER)
+    }
+
+    assert not {name: gap for name, gap in gaps.items() if gap}, (
+        "every multi-test test:* leaf takes --filter; give it one, or add it "
+        "to the exempt guards or single-test lanes here"
+    )
+
+
+def test_every_task_that_takes_no_filter_exists(mise):
+    assert _test_tasks(mise) >= _TAKES_NO_FILTER
