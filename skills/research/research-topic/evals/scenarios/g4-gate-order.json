@@ -30,7 +30,7 @@
               "gate": "status",
               "names": [
                 "researching",
-                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning, then ask llm-agent-planning How do LLM agents plan multi-step tasks? again."
               ],
               "omits": [
                 "synthesis is stale",
@@ -69,7 +69,7 @@
               "gate": "status",
               "names": [
                 "researching",
-                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning."
+                "Run conduct llm-agent-planning to finish any outstanding research, then synthesise llm-agent-planning, then report llm-agent-planning How do LLM agents plan multi-step tasks? again."
               ],
               "omits": [
                 "synthesis is stale",

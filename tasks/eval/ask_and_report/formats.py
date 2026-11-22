@@ -14,14 +14,16 @@ STATUS_REFUSAL = (
     "{verb} refused: {slug} is {status}; it needs synthesised or complete. "
     "{recovery}"
 )
+_RETRY = "then {verb} {slug} {question} again."
 STATUS_RECOVERIES = {
     "briefed": (
-        "Run outline {slug}, then conduct {slug}, then synthesise {slug}."
+        "Run outline {slug}, then conduct {slug}, then synthesise {slug}, "
+        + _RETRY
     ),
-    "outlined": "Run conduct {slug}, then synthesise {slug}.",
+    "outlined": "Run conduct {slug}, then synthesise {slug}, " + _RETRY,
     "researching": (
         "Run conduct {slug} to finish any outstanding research, then "
-        "synthesise {slug}."
+        "synthesise {slug}, " + _RETRY
     ),
 }
 FRESHNESS_REFUSAL = (

@@ -825,9 +825,9 @@ refusal writes nothing and ends the verb.
 
   | Status | Recovery |
   |---|---|
-  | `briefed` | `Run outline {slug}, then conduct {slug}, then synthesise {slug}.` |
-  | `outlined` | `Run conduct {slug}, then synthesise {slug}.` |
-  | `researching` | `Run conduct {slug} to finish any outstanding research, then synthesise {slug}.` |
+  | `briefed` | `Run outline {slug}, then conduct {slug}, then synthesise {slug}, then {verb} {slug} {question} again.` |
+  | `outlined` | `Run conduct {slug}, then synthesise {slug}, then {verb} {slug} {question} again.` |
+  | `researching` | `Run conduct {slug} to finish any outstanding research, then synthesise {slug}, then {verb} {slug} {question} again.` |
 
 - **`freshness`** — the findings on disk disagree with the manifest's counts,
   or reach past the synthesis:

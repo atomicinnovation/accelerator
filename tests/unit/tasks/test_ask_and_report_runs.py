@@ -16,7 +16,8 @@ FILES = load_scenario_files(EVALS / "scenarios")
 SLUG = "llm-agent-planning"
 BRIEFED = (
     f"ask refused: {SLUG} is briefed; it needs synthesised or complete. "
-    f"Run outline {SLUG}, then conduct {SLUG}, then synthesise {SLUG}."
+    f"Run outline {SLUG}, then conduct {SLUG}, then synthesise {SLUG}, "
+    f"then ask {SLUG} How do LLM agents plan multi-step tasks? again."
 )
 ANSWERED = (
     "Agents plan by decomposition.\n\nCoverage: answered\nCovered:\n"

@@ -2051,7 +2051,9 @@ def test_the_status_gate_names_both_accepted_states_and_synthesise() -> None:
     consult = _consult()
     assert template in consult
     for status, recovery in formats.STATUS_RECOVERIES.items():
-        assert recovery.endswith("then synthesise {slug}.")
+        assert recovery.endswith(
+            "then synthesise {slug}, then {verb} {slug} {question} again."
+        )
         assert f"| `{status}` | `{recovery}` |" in consult
 
 
