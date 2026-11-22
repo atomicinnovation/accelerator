@@ -97,10 +97,16 @@ def run_ask_and_report(
 ) -> None:
     if rerun_errored and not out:
         raise Exit("--rerun-errored needs --out, the run to rerun", code=1)
+    if check_only and not out:
+        raise Exit("--check-only needs --out, the run to judge", code=1)
     evals = root / REFERENCE_CORPUS
+    files = load_scenario_files(evals / "scenarios")
+    if unmatched := ask_and_report_runs.unmatched_filters(
+        files, _names(family), _names(verb), _names(scenario)
+    ):
+        raise Exit("\n".join(unmatched), code=1)
     version = "" if check_only else _claude_version_allowed(root)
     toolchain = Toolchain.debug(root)
-    files = load_scenario_files(evals / "scenarios")
     if problems := preflight_problems(files, toolchain):
         raise Exit("\n".join(problems), code=1)
     directory = Path(out) if out else Path(tempfile.mkdtemp(prefix="ask-"))
@@ -124,6 +130,8 @@ def run_ask_and_report(
         )
         if check_only or rerun_errored:
             plans = ask_and_report_runs.sessions_on_disk(plans)
+        if not plans:
+            raise Exit(f"no session to judge under {directory}", code=1)
         to_run = _sessions_to_run(
             plans, root, toolchain, check_only, rerun_errored
         )

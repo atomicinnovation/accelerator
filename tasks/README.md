@@ -835,9 +835,11 @@ they share, the citing-once rule or the model.
 `--family`, `--verb` and `--scenario` narrow a run and combine, `--jobs` sets
 how many sessions run at once, `--model` and `--config-dir` reach every turn,
 and `--check-only --out <dir>` re-judges a finished run, skipping every gate
-but the pre-flight. Before any session, the task checks the marker, a Claude
-Code of at least 2.1.144, the pre-flight, then a one-turn authentication
-probe. `--rerun-errored --out <dir>` moves each errored session aside to
+but the pre-flight. A filter name that matches no scenario is refused, with
+the valid names, before any gate, and a run or re-judge that selects no
+session fails rather than passing on nothing judged. Before any session, the
+task checks the marker, a Claude Code of at least 2.1.144, the pre-flight,
+then a one-turn authentication probe. `--rerun-errored --out <dir>` moves each errored session aside to
 `<session>.errored-<n>/` just before rerunning it, so an interrupted rerun
 leaves the rest in place, and reruns it with the run's recorded `--model` and
 `--config-dir`, refusing on another Claude Code version or on a run that

@@ -149,6 +149,32 @@ def test_family_verb_and_scenario_filters_combine(tmp_path: Path) -> None:
     assert [p.directory.name for p in by_name] == ["run-1", "run-2", "run-3"]
 
 
+def test_a_filter_matching_nothing_is_named_beside_the_valid_names() -> None:
+    problems = runs.unmatched_filters(
+        FILES, families=("r1", "G1"), verbs=("asks",), scenarios=("nope",)
+    )
+
+    assert len(problems) == 3
+    family, verb, scenario = problems
+    assert family.startswith("--family r1 matches no scenario file; valid: ")
+    assert "G1" in family
+    assert verb == "--verb asks matches no scenario; valid: ask, report"
+    assert scenario.startswith("--scenario nope matches no scenario; valid: ")
+    assert "s1-complete-ask" in scenario
+
+
+def test_filter_names_that_each_match_a_scenario_raise_no_problem() -> None:
+    assert (
+        runs.unmatched_filters(
+            FILES,
+            families=("G1",),
+            verbs=("ask", "report"),
+            scenarios=("s1-complete-ask",),
+        )
+        == []
+    )
+
+
 def test_a_re_check_judges_only_sessions_on_disk(tmp_path: Path) -> None:
     plans = runs.plan_sessions(FILES, tmp_path, families=("G1",))
     plans[2].directory.mkdir(parents=True)

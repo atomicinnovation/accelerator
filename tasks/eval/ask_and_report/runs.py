@@ -91,6 +91,36 @@ def plan_sessions(
     ]
 
 
+def unmatched_filters(
+    files: Sequence[ScenarioFile],
+    families: Sequence[str] = (),
+    verbs: Sequence[str] = (),
+    scenarios: Sequence[str] = (),
+) -> list[str]:
+    """Name each filter value that selects nothing, beside the valid ones."""
+    every_scenario = [s for file in files for s in file.scenarios]
+    return [
+        f"{option} {name} matches no {matched}; valid: {', '.join(valid)}"
+        for option, names, matched, valid in (
+            ("--family", families, "scenario file", [f.family for f in files]),
+            (
+                "--verb",
+                verbs,
+                "scenario",
+                sorted({s.verb for s in every_scenario}),
+            ),
+            (
+                "--scenario",
+                scenarios,
+                "scenario",
+                [s.name for s in every_scenario],
+            ),
+        )
+        for name in names
+        if name not in valid
+    ]
+
+
 def sessions_on_disk(plans: Sequence[SessionPlan]) -> list[SessionPlan]:
     return [plan for plan in plans if plan.directory.exists()]
 

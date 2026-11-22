@@ -142,7 +142,12 @@ def test_any_other_probe_failure_names_the_command_and_status() -> None:
 class Gates:
     """Record each start-up gate the task reaches, refusing at one."""
 
-    def __init__(self, monkeypatch: pytest.MonkeyPatch, refuse_at: str) -> None:
+    def __init__(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        refuse_at: str,
+        sessions_on_disk: tuple[str, ...] = (),
+    ) -> None:
         self.reached: list[str] = []
         self.refuse_at = refuse_at
         for gate, module, name in (
@@ -153,6 +158,17 @@ class Gates:
             ("plan", orchestration.ask_and_report_runs, "plan_sessions"),
         ):
             monkeypatch.setattr(module, name, self._gate(gate))
+        if sessions_on_disk:
+            for name, value in (
+                ("sessions_on_disk", list(sessions_on_disk)),
+                ("judge_all", []),
+                ("summary", ""),
+            ):
+                monkeypatch.setattr(
+                    orchestration.ask_and_report_runs,
+                    name,
+                    lambda *args, value=value: value,
+                )
 
     def _gate(self, gate: str):
         def reach(*args, **kwargs):
@@ -198,7 +214,7 @@ def test_a_re_check_runs_only_the_pre_flight(
 def test_a_re_check_keeps_the_run_s_recorded_settings(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    Gates(monkeypatch, refuse_at="")
+    Gates(monkeypatch, refuse_at="", sessions_on_disk=("session",))
     recorded = runs.RunSettings("2.1.300", "claude-test", "/config")
     runs.save_results([], tmp_path, recorded)
 
@@ -252,10 +268,43 @@ def test_rerunning_a_run_that_recorded_nothing_names_its_missing_results(
 def test_a_re_check_of_an_unrecorded_run_records_no_settings(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    Gates(monkeypatch, refuse_at="")
+    Gates(monkeypatch, refuse_at="", sessions_on_disk=("session",))
 
     evals.ask_and_report(
         Context(), out=str(tmp_path), check_only=True, model="claude-test"
     )
 
     assert runs.load_settings(tmp_path) == runs.RunSettings("", "", "")
+
+
+def test_a_filter_matching_no_scenario_refuses_before_any_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gates = Gates(monkeypatch, refuse_at="")
+
+    with pytest.raises(Exit, match="--family r1 matches no scenario file"):
+        evals.ask_and_report(Context(), family="r1,G1")
+
+    assert gates.reached == []
+
+
+def test_a_re_check_needs_an_out_directory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gates = Gates(monkeypatch, refuse_at="")
+
+    with pytest.raises(Exit, match="--check-only needs --out"):
+        evals.ask_and_report(Context(), check_only=True)
+
+    assert gates.reached == []
+
+
+def test_a_re_check_that_finds_no_session_on_disk_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    Gates(monkeypatch, refuse_at="")
+
+    with pytest.raises(Exit, match="no session to judge") as refused:
+        evals.ask_and_report(Context(), out=str(tmp_path), check_only=True)
+
+    assert refused.value.code == 1
