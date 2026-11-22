@@ -92,9 +92,11 @@ list directly under its line. The block is optional, and an entry without one
 is valid. A researcher writes each block from the CLI's output, under the
 rules below.
 
-- Block lines are the CLI's `metadata` entries for the cited source, copied
-  unchanged and in emitted order. Never write a block line from anywhere
-  else: not from a page, an abstract, a record's other fields, or memory.
+- Block lines are the `metadata` entries of the CLI commands the profile
+  names for the cited source. Write them one after another in the order the
+  profile names, each copied unchanged and in emitted order. Never write a
+  block line from anywhere else: not from a page, an abstract, a record's
+  other fields, or memory.
 - Keys are lowercase `snake_case`, values are single-line, and a key with no
   value is omitted.
 - `url`, title and venue never appear in the block: they stay on the entry

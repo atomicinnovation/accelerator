@@ -1459,6 +1459,17 @@ def test_the_finding_outputter_documents_the_metadata_block() -> None:
         assert rule in outputter, f"the finding outputter must state {rule!r}"
 
 
+def test_the_finding_outputter_allows_a_block_from_several_commands() -> None:
+    outputter = _prose(FINDING_OUTPUTTER)
+    for rule in (
+        "Block lines are the `metadata` entries of the CLI commands the "
+        "profile names for the cited source.",
+        "Write them one after another in the order the profile names, each "
+        "copied unchanged and in emitted order.",
+    ):
+        assert rule in outputter, f"the finding outputter must state {rule!r}"
+
+
 def test_the_level_note_outputter_defers_to_the_metadata_block() -> None:
     outputter = _prose(LEVEL_NOTE_OUTPUTTER)
     assert "Sources metadata block" in outputter
