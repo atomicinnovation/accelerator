@@ -44,10 +44,28 @@ Two faster entry points exist and should be your inner loop:
 Enforcement is **CI-only — there are no pre-commit hooks.** Run `mise run fix &&
 mise run check` yourself before pushing.
 
-### Running a single test
+### Running a subset of tests
 
-The aggregate `mise run test:*` tasks have no name filter; drop to the
-underlying runner for one test.
+Every multi-test `mise run test:*` leaf takes `--filter`, in its runner's
+own syntax: a nextest filterset for `test:unit:cli`, a pytest `-k`
+expression for the pytest lanes, and so on. `mise run <task> --help` names
+the syntax and gives an example. A filter that runs no test fails the lane.
+
+- **Exempt:** the guards (`test:integration:release-guard`, `:deny`,
+  `:fixture-size`, `:measure`, `:skill-invocation`, `:conformance`) and the
+  single-test lanes (`:visualiser-os-watcher`, `:arxiv-queue-stress`).
+- **Leaves only:** the roll-ups (`test`, `test:unit`, `test:integration`,
+  `test:e2e`) ignore `--filter` and run everything.
+- **Not `cargo test`:** plain `cargo test` is not a supported way to run the
+  tests `test:unit:cli` runs (the `cli/` workspace apart from the
+  visualiser). It builds no shared VCS fixtures and lacks nextest's
+  process-per-test isolation. The visualiser lanes run `cargo test`
+  themselves, and are unaffected.
+- **Runners directly:** a last resort, for diagnosis. For `cli/`,
+  `cargo nextest run` directly still passes, building fixtures per test.
+
+The per-lane table, the exempt set and what each lane detects as "no tests
+selected" are in `tasks/README.md` under "Running a subset of tests".
 
 ## Architecture
 
