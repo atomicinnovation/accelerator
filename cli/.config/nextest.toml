@@ -10,13 +10,24 @@ default-filter = 'binary(=contract)'
 # Liveness assertions on real-time request starts hold only while nothing
 # else competes for the CPU, so each runs alone.
 [[profile.default.overrides]]
-filter = 'binary(=fetch_doi) & test(public_pool_calls_start_no_more_than_five_a_second_and_all_within_two)'
+filter = '''binary(=fetch_doi) & (
+    test(public_pool_calls_start_no_more_than_five_a_second_and_all_within_two)
+    | test(polite_pool_calls_all_start_within_a_second)
+    | test(polite_pool_calls_start_no_more_than_ten_a_second)
+    | test(an_implausible_contact_keeps_calls_to_the_public_limits)
+    | test(each_pool_keeps_to_its_own_limits_when_both_are_busy)
+)'''
 threads-required = "num-test-threads"
 
 # Real-time tests whose assertions leave wide slack may overlap the rest of
 # the suite, but not each other beyond a pair.
 [[profile.default.overrides]]
-filter = 'binary(=fetch_doi) & (test(public_pool_calls_never_overlap_in_flight) | test(a_retry_after_holds_back_every_caller_in_the_project))'
+filter = '''binary(=fetch_doi) & (
+    test(public_pool_calls_never_overlap_in_flight)
+    | test(a_retry_after_holds_back_every_caller_in_the_project)
+    | test(polite_pool_calls_keep_at_most_three_in_flight)
+    | test(a_retry_after_holds_back_every_polite_caller)
+)'''
 test-group = "real-time"
 
 [test-groups.real-time]

@@ -22,11 +22,13 @@ use support::fetch;
 use support::fetch_from;
 use support::search_binding;
 use support::spawn_in_real_time;
+use support::spawn_in_real_time_with;
 use support::web_fixture;
 use support::LegacyFile;
 use support::Project;
 use support::Run;
 use support::SeededTicket;
+use support::StateFile;
 use support::CALL_BUDGET_MS;
 use support::CLOCK_EPOCH_MS;
 
@@ -737,33 +739,87 @@ fn every_key_doi_metadata_prints_follows_every_key_web_metadata_prints() {
     );
 }
 
-/// Starts `calls` DOI calls behind a barrier holding every serving slot,
-/// releases it once all have joined, and returns the instants their
-/// requests arrived.
+/// Calls of one pool released together: `calls` lookups of `doi`, each run
+/// with `env`.
+struct Wave<'a> {
+    service: Service,
+    doi: &'a str,
+    env: &'a [(&'a str, &'a str)],
+    calls: usize,
+}
+
+impl Wave<'static> {
+    const fn anonymous(calls: usize) -> Self {
+        Self {
+            service: PUBLIC,
+            doi: PROCEEDINGS,
+            env: &[],
+            calls,
+        }
+    }
+
+    const fn polite(calls: usize) -> Self {
+        Self {
+            service: POLITE,
+            doi: PROCEEDINGS,
+            env: &[(MAILTO, "research@example.org")],
+            calls,
+        }
+    }
+}
+
+/// Starts every wave's calls behind barriers holding each pool's serving
+/// slots, releases them once all have joined, and returns the instants each
+/// wave's requests arrived.
+fn released_together(
+    project: &Project,
+    server: &MockHTTPServer,
+    waves: &[Wave<'_>],
+) -> Vec<Vec<Instant>> {
+    let barriers = waves
+        .iter()
+        .map(|wave| project.hold_barrier(wave.service))
+        .collect::<Vec<_>>();
+    let joined = waves
+        .iter()
+        .map(|wave| project.service_tickets(wave.service).len() + wave.calls)
+        .collect::<Vec<_>>();
+    let children = waves
+        .iter()
+        .flat_map(|wave| {
+            (0..wave.calls).map(|_| {
+                spawn_in_real_time_with(
+                    project,
+                    server,
+                    &["doi", "metadata", wave.doi],
+                    wave.env,
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    eventually("queued every call", || {
+        waves.iter().zip(&joined).all(|(wave, joined)| {
+            project.service_tickets(wave.service).len() == *joined
+        })
+    });
+    drop(barriers);
+    for child in children {
+        assert_eq!(finish(child)["status"], "ok");
+    }
+    waves
+        .iter()
+        .map(|wave| server.hit_instants(&works(wave.doi)))
+        .collect()
+}
+
 fn hits_released_together(
     project: &Project,
     server: &MockHTTPServer,
     calls: usize,
 ) -> Vec<Instant> {
-    let barrier = project.hold_barrier(PUBLIC);
-    let barrier_tickets = project.service_tickets(PUBLIC).len();
-    let children = (0..calls)
-        .map(|_| {
-            spawn_in_real_time(
-                project,
-                server,
-                &["doi", "metadata", PROCEEDINGS],
-            )
-        })
-        .collect::<Vec<_>>();
-    eventually("queued every call", || {
-        project.service_tickets(PUBLIC).len() == barrier_tickets + calls
-    });
-    drop(barrier);
-    for child in children {
-        assert_eq!(finish(child)["status"], "ok");
-    }
-    server.hit_instants(&works(PROCEEDINGS))
+    released_together(project, server, &[Wave::anonymous(calls)])
+        .pop()
+        .expect("one wave")
 }
 
 fn answered_after(delay: Duration) -> MockHTTPServer {
@@ -778,37 +834,61 @@ fn answered_after(delay: Duration) -> MockHTTPServer {
 
 #[test]
 fn public_pool_calls_start_no_more_than_five_a_second_and_all_within_two() {
-    const INTERVAL: Duration = Duration::from_millis(210);
     let project = Project::new();
     let server = answered_after(Duration::from_millis(50));
 
     let hits = hits_released_together(&project, &server, 10);
 
+    assert_public_limits(&hits);
+    assert_eq!(project.service_requests(PUBLIC).len(), 10);
+}
+
+const PUBLIC_INTERVAL: Duration = Duration::from_millis(210);
+const POLITE_INTERVAL: Duration = Duration::from_millis(102);
+
+fn assert_public_limits(hits: &[Instant]) {
     assert_eq!(hits.len(), 10);
+    assert_at_most_per_second(hits, 5);
+    assert_spread_within(hits, Duration::from_secs(2), PUBLIC_INTERVAL);
+}
+
+fn assert_polite_limits(hits: &[Instant]) {
+    assert_eq!(hits.len(), 10);
+    assert_at_most_per_second(hits, 10);
+    assert_spread_within(hits, Duration::from_secs(1), POLITE_INTERVAL);
+}
+
+fn assert_at_most_per_second(hits: &[Instant], limit: usize) {
     for (index, start) in hits.iter().enumerate() {
         let in_window = hits[index..]
             .iter()
             .take_while(|later| **later - *start < Duration::from_secs(1))
             .count();
         assert!(
-            in_window <= 5,
+            in_window <= limit,
             "{in_window} starts in a second from {index}"
         );
     }
-    let spread = hits[9] - hits[0];
+}
+
+/// Reports the slack left after the paced gaps, and the largest hand-off
+/// overhead beyond one interval, so drift shows before it flakes.
+fn assert_spread_within(hits: &[Instant], limit: Duration, interval: Duration) {
+    let last = hits.len() - 1;
+    let spread = hits[last] - hits[0];
     let largest_gap = hits
         .windows(2)
         .map(|pair| pair[1] - pair[0])
         .max()
         .expect("gaps");
+    let gaps = u32::try_from(last).expect("a few gaps");
     assert!(
-        spread < Duration::from_secs(2),
-        "the 10th started {spread:?} after the first: slack {:?}, largest \
+        spread < limit,
+        "the last started {spread:?} after the first: slack {:?}, largest \
          hand-off overhead {:?}",
-        Duration::from_secs(2).saturating_sub(INTERVAL * 9),
-        largest_gap.saturating_sub(INTERVAL)
+        limit.saturating_sub(interval * gaps),
+        largest_gap.saturating_sub(interval)
     );
-    assert_eq!(project.service_requests(PUBLIC).len(), 10);
 }
 
 #[test]
@@ -996,4 +1076,174 @@ fn a_public_ticket_presented_with_a_contact_joins_the_polite_pool_afresh() {
     assert_printed(&run, PROCEEDINGS_OK);
     assert_eq!(project.service_requests(POLITE).len(), 1);
     assert_eq!(project.service_requests(PUBLIC).len(), 0);
+}
+
+#[test]
+fn polite_pool_calls_all_start_within_a_second() {
+    let project = Project::new();
+    let server = answered_after(Duration::from_millis(50));
+
+    let hits = released_together(&project, &server, &[Wave::polite(10)])
+        .pop()
+        .expect("one wave");
+
+    assert_polite_limits(&hits);
+    assert_eq!(project.service_requests(POLITE).len(), 10);
+}
+
+#[test]
+fn polite_pool_calls_start_no_more_than_ten_a_second() {
+    let project = Project::new();
+    let server = answered_after(Duration::from_millis(50));
+
+    let hits = released_together(&project, &server, &[Wave::polite(21)])
+        .pop()
+        .expect("one wave");
+
+    assert_eq!(hits.len(), 21);
+    assert_at_most_per_second(&hits, 10);
+}
+
+#[test]
+fn an_implausible_contact_keeps_calls_to_the_public_limits() {
+    let project = Project::new();
+    let server = answered_after(Duration::from_millis(50));
+
+    let hits = released_together(
+        &project,
+        &server,
+        &[Wave {
+            env: &[(MAILTO, "not-an-address")],
+            ..Wave::anonymous(10)
+        }],
+    )
+    .pop()
+    .expect("one wave");
+
+    assert_public_limits(&hits);
+    assert_eq!(project.service_requests(PUBLIC).len(), 10);
+    assert_eq!(project.service_requests(POLITE).len(), 0);
+}
+
+#[test]
+fn each_pool_keeps_to_its_own_limits_when_both_are_busy() {
+    const ANONYMOUS_DOI: &str = "10.1145/3448016.3457556";
+    let project = Project::new();
+    let server = answered_after(Duration::from_millis(50));
+    server.route(
+        works(ANONYMOUS_DOI),
+        Route::Delayed {
+            delay: Duration::from_millis(50),
+            route: Box::new(record("proceedings-371920-372066.json")),
+        },
+    );
+
+    let hits = released_together(
+        &project,
+        &server,
+        &[
+            Wave::polite(10),
+            Wave {
+                doi: ANONYMOUS_DOI,
+                ..Wave::anonymous(10)
+            },
+        ],
+    );
+
+    assert_polite_limits(&hits[0]);
+    assert_public_limits(&hits[1]);
+    assert_eq!(project.service_requests(POLITE).len(), 10);
+    assert_eq!(project.service_requests(PUBLIC).len(), 10);
+}
+
+fn largest_overlap(hits: &[Instant], in_flight_for: Duration) -> usize {
+    hits.iter()
+        .map(|instant| {
+            hits.iter()
+                .filter(|start| {
+                    **start <= *instant && *instant < **start + in_flight_for
+                })
+                .count()
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+#[test]
+fn polite_pool_calls_keep_at_most_three_in_flight() {
+    const ANSWERED_AFTER: Duration = Duration::from_secs(2);
+    let project = Project::new();
+    let server = answered_after(ANSWERED_AFTER);
+
+    let hits = released_together(&project, &server, &[Wave::polite(10)])
+        .pop()
+        .expect("one wave");
+
+    assert_eq!(hits.len(), 10);
+    assert_eq!(largest_overlap(&hits, ANSWERED_AFTER), 3);
+}
+
+#[test]
+fn a_retry_after_holds_back_every_polite_caller() {
+    const RETRY_AFTER: Duration = Duration::from_secs(2);
+    const B: &str = "10.1145/3448016.3457556";
+    const C: &str = "10.4213/tmf1151";
+    let polite = [(MAILTO, "research@example.org")];
+    let project = Project::new();
+    let server = serving(
+        PROCEEDINGS,
+        Route::Sequence(vec![
+            throttled(RETRY_AFTER.as_secs()),
+            record("proceedings-371920-372066.json"),
+        ]),
+    );
+    for doi in [B, C] {
+        server.route(works(doi), record("proceedings-371920-372066.json"));
+    }
+
+    let a = spawn_in_real_time_with(
+        &project,
+        &server,
+        &["doi", "metadata", PROCEEDINGS],
+        &polite,
+    );
+    eventually("recorded A's deferral", || {
+        std::fs::read_to_string(
+            project.service_state(POLITE, StateFile::Pacing),
+        )
+        .ok()
+        .and_then(|pacing| {
+            serde_json::from_str::<serde_json::Value>(&pacing).ok()
+        })
+        .is_some_and(|pacing| pacing["not_before_ms"].is_u64())
+    });
+    let later = [B, C].map(|doi| {
+        spawn_in_real_time_with(
+            &project,
+            &server,
+            &["doi", "metadata", doi],
+            &polite,
+        )
+    });
+    assert_eq!(finish(a)["status"], "ok");
+    for child in later {
+        assert_eq!(finish(child)["status"], "ok");
+    }
+
+    let a_hits = server.hit_instants(&works(PROCEEDINGS));
+    assert_eq!(a_hits.len(), 2);
+    let throttled_at = a_hits[0];
+    for (caller, hits) in [
+        ("A's retry", vec![a_hits[1]]),
+        ("B", server.hit_instants(&works(B))),
+        ("C", server.hit_instants(&works(C))),
+    ] {
+        assert_eq!(hits.len(), 1, "{caller}");
+        let after = hits[0].saturating_duration_since(throttled_at);
+        assert!(
+            after >= RETRY_AFTER
+                && after < RETRY_AFTER + Duration::from_secs(1),
+            "{caller} arrived {after:?} after the 429"
+        );
+    }
 }
