@@ -14,7 +14,7 @@ pr_number: 253
 tags: ["build-system", "testing", "design", "playwright", "security", "ci"]
 revision: "ce6c14c3d2f9f283ca32dc2dfa7c60409158c3bf"
 repository: "accelerator"
-last_updated: "2026-11-22T12:16:10+00:00"
+last_updated: "2026-11-22T12:51:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -116,6 +116,7 @@ origin was reaching the target of a cross-origin redirect.
   `cli/Cargo.lock`, for RUSTSEC-2026-0592: `Url::origin()` overflows the
   stack on nested `blob:` URLs. The advisory landed after `main`'s last
   supply-chain run, so `main` fails `cargo deny` until this merges.
+- `licenses/accelerator-third-party-notices.txt` regenerated to match.
 
 ### Phase 6 record
 
@@ -170,8 +171,8 @@ noise; the two run records are under `meta/measurements/`.
       `chrome-headless-shell` there. The first CI run failed the
       `entrypoint` suite's untouched-`bin/` guard, because the lane wrote
       `bin/trees`; the trees now go under `cli/target/`
-- [x] `mise run deny:check` and `mise run cli:check` pass after the `url`
-      upgrade
+- [x] `mise run deny:check`, `mise run cli:check` and `mise run
+      notices:check` pass after the `url` upgrade
 - [ ] CI on the current head, which adds Phase 9, both interception fixes,
       the forwarding fix and the `url` upgrade
 
