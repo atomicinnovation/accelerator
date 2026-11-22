@@ -219,7 +219,7 @@ fn a_throttled_call_defers_a_concurrent_process() {
         &project,
         &server,
         &SEARCH,
-        &[(CALL_BUDGET_MS, "33100")],
+        &[(CALL_BUDGET_MS, "36000")],
     );
     wait_for_hits(&server, &query(), 1);
     let concurrent = spawn_in_real_time(&project, &server, &SEARCH);
