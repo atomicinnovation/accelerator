@@ -287,9 +287,7 @@ fn consultable(slug: &str) -> Result<Printed, String> {
 }
 
 fn installed_profiles_dir() -> Result<PathBuf, String> {
-    installed_profiles::profiles_dir(std::env::var_os(
-        "ACCELERATOR_PLUGIN_ROOT",
-    ))
+    installed_profiles::profiles_dir(config_adapters::plugin_root_from_env())
 }
 
 fn minted_run() -> Result<RunId, String> {

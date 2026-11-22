@@ -1,9 +1,7 @@
 //! Where the plugin installs its research profiles.
 
-use std::ffi::OsString;
 use std::path::PathBuf;
 
-const PLUGIN_ROOT: &str = "ACCELERATOR_PLUGIN_ROOT";
 const PROFILES_IN_PLUGIN: &str = "skills/research/profiles";
 
 /// The profiles directory under the plugin root the launcher exports.
@@ -11,16 +9,15 @@ const PROFILES_IN_PLUGIN: &str = "skills/research/profiles";
 /// # Errors
 ///
 /// `E_RESEARCH_PLUGIN_ROOT` when no plugin root is set.
-pub fn profiles_dir(plugin_root: Option<OsString>) -> Result<PathBuf, String> {
+pub fn profiles_dir(plugin_root: Option<PathBuf>) -> Result<PathBuf, String> {
     plugin_root
-        .filter(|root| !root.is_empty())
-        .map(|root| PathBuf::from(root).join(PROFILES_IN_PLUGIN))
+        .filter(|root| !root.as_os_str().is_empty())
+        .map(|root| root.join(PROFILES_IN_PLUGIN))
         .ok_or_else(|| {
-            format!(
-                "E_RESEARCH_PLUGIN_ROOT: {PLUGIN_ROOT} is not set, so the \
-                 research profiles cannot be found; run accelerator through \
-                 its launcher"
-            )
+            "E_RESEARCH_PLUGIN_ROOT: ACCELERATOR_PLUGIN_ROOT is not set, so \
+             the research profiles cannot be found; run accelerator through \
+             its launcher"
+                .to_owned()
         })
 }
 
