@@ -238,6 +238,7 @@ PAGE_MODEL_SUITES = (
     "target-renames",
     "readiness",
     "file-navigator",
+    "bulk-verdicts",
 )
 TESTS = Path(__file__).resolve().parent
 
@@ -271,6 +272,7 @@ def test_both_layouts_carry_the_page_models_the_reviewer_works_through(
             "TargetRenames",
             "Readiness",
             "FileNavigator",
+            "BulkVerdicts",
         ):
             assert html.index(model) < html.index("window.APP"), model
 
