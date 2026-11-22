@@ -61,6 +61,7 @@ BULK_VERDICTS_MODEL = ASSETS / "bulk-verdicts.js"
 REVIEW_KEYS_MODEL = ASSETS / "review-keys.js"
 ITEM_ADDRESSES_MODEL = ASSETS / "item-addresses.js"
 VERDICT_MARKS_MODEL = ASSETS / "verdict-marks.js"
+STOP_TERMS_MODEL = ASSETS / "stop-terms.js"
 TITLE_PLACEHOLDER = "__EXPLORE_PR_TITLE__"
 LIBRARIES = {
     "marked": (
@@ -2232,6 +2233,7 @@ def with_page_models(page: str, views: list[str]) -> str:
         VERDICT_MARKS_MODEL,
         PROSE_REFERENCES_MODEL,
         STOP_EVIDENCE_MODEL,
+        STOP_TERMS_MODEL,
         REVIEW_SECTIONS_MODEL,
         CATALOGUE_MODEL,
         REVIEW_NOTES_MODEL,
