@@ -23,6 +23,11 @@ _SOME_TESTS = (
     "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; "
     "9 filtered out; finished in 0.01s\n"
 )
+_ONLY_IGNORED_TESTS = (
+    "running 2 tests\n"
+    "test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; "
+    "10 filtered out; finished in 0.00s\n"
+)
 
 _LIBTEST_LANES = {
     "test:unit:visualiser": unit.visualiser,
@@ -84,6 +89,18 @@ def test_a_filtered_libtest_lane_running_no_test_names_the_lane(
 
     assert str(exc_info.value) == Selection("x").nothing_selected(mise_task)
     assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize("mise_task", sorted(_LIBTEST_LANES))
+def test_a_filtered_libtest_lane_selecting_only_ignored_tests_names_the_lane(
+    context, mise_task
+):
+    context.run.return_value = Result(stdout=_ONLY_IGNORED_TESTS)
+
+    with pytest.raises(Exit) as exc_info:
+        _LIBTEST_LANES[mise_task](context, filter_="x")
+
+    assert str(exc_info.value) == Selection("x").nothing_selected(mise_task)
 
 
 @pytest.mark.parametrize("mise_task", sorted(_LIBTEST_LANES))

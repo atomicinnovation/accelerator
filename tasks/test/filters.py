@@ -55,8 +55,7 @@ _NEXTEST_NO_TESTS_RUN = 4
 _PLAYWRIGHT_NO_TESTS_FOUND = "No tests found"
 
 _LIBTEST_RESULT = re.compile(
-    r"^test result: \w+\. (?P<passed>\d+) passed; (?P<failed>\d+) failed; "
-    r"(?P<ignored>\d+) ignored;",
+    r"^test result: \w+\. (?P<passed>\d+) passed; (?P<failed>\d+) failed;",
     re.MULTILINE,
 )
 
@@ -167,7 +166,7 @@ def run_libtest_lane(
 
 def libtest_tests_run(output: str) -> int:
     return sum(
-        int(result["passed"]) + int(result["failed"]) + int(result["ignored"])
+        int(result["passed"]) + int(result["failed"])
         for result in _LIBTEST_RESULT.finditer(output)
     )
 
