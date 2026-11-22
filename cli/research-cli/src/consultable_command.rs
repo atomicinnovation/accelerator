@@ -9,7 +9,6 @@ use corpus::scan::FileReader;
 use corpus_adapters::YamlFrontmatter;
 use research::topic::consultation::Consultation;
 use research::topic::consultation::Refusal;
-use research::topic::plan::HoldBack;
 use research_adapters::topic::level_notes_of;
 use research_adapters::topic::read_counts;
 use research_adapters::topic::read_plan;
@@ -162,21 +161,10 @@ fn rendered(
                 .iter()
                 .map(|item| json!({
                     "question": item.question,
-                    "reasons": hold_back_reasons(&item.hold_back),
+                    "reasons": plan_wording::hold_back_reasons(&item.hold_back),
                 }))
                 .collect::<Vec<_>>(),
             "warnings": warnings,
         }),
-    }
-}
-
-fn hold_back_reasons(hold_back: &HoldBack) -> Vec<String> {
-    match hold_back {
-        HoldBack::Skipped(skips) => {
-            skips.iter().map(plan_wording::skip_reason).collect()
-        }
-        HoldBack::IndexesExhausted => {
-            vec!["no finding index is left to allocate to it".to_owned()]
-        }
     }
 }

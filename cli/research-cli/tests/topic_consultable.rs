@@ -208,6 +208,29 @@ fn consultable_holds_back_an_item_with_only_skipped_pairs(
 }
 
 #[test]
+fn an_item_left_without_a_finding_index_is_held_back_saying_so(
+) -> Result<(), TestError> {
+    let project = Project::multiround()?;
+    project.append_to_outline("- [ ] Can the index run out?")?;
+    project.write(
+        &format!("{TOPICS}/{SET}/findings/4294967295-x-web.levels/1.md"),
+        "x",
+    )?;
+
+    let verdict = project.consultable()?;
+
+    assert_eq!(verdict["gate"], json!("conducted"), "{verdict}");
+    assert_eq!(
+        verdict["held_back"],
+        json!([{
+            "question": "Can the index run out?",
+            "reasons": ["no finding index is left to allocate to it"],
+        }])
+    );
+    Ok(())
+}
+
+#[test]
 fn consultable_ignores_the_concurrency_config() -> Result<(), TestError> {
     let project = Project::multiround()?;
     project.write(

@@ -1,13 +1,16 @@
-//! How a round plan's warnings, trims, skipped pairs and refused notes read
-//! to whoever runs `conduct`.
+//! How a round plan's warnings, trims, skipped pairs, held-back items and
+//! refused notes read to whoever runs `conduct`, `ask` or `report`.
 
 use research::topic::evidence::NoteRejection;
+use research::topic::plan::HoldBack;
 use research::topic::plan::Skip;
 use research::topic::plan::SkipReason;
 use research::topic::plan::Warning;
 use research::topic::question::PlainQuestionRule;
 use research::topic::question::LONGEST_PLAIN_QUESTION;
 use research::topic::tree::Trim;
+
+const NO_INDEX_LEFT: &str = "no finding index is left to allocate to";
 
 pub fn warning(warning: &Warning) -> String {
     match warning {
@@ -18,10 +21,9 @@ pub fn warning(warning: &Warning) -> String {
         Warning::UnmatchedFinding { name, question } => format!(
             "finding {name} answers '{question}', which no outline item asks"
         ),
-        Warning::IndexesExhausted { question } => format!(
-            "no finding index is left to allocate to '{question}', so it is \
-             not planned"
-        ),
+        Warning::IndexesExhausted { question } => {
+            format!("{NO_INDEX_LEFT} '{question}', so it is not planned")
+        }
     }
 }
 
@@ -35,6 +37,13 @@ pub fn trim(trim: &Trim) -> String {
         trim.cap,
         trim.trimmed()
     )
+}
+
+pub fn hold_back_reasons(hold_back: &HoldBack) -> Vec<String> {
+    match hold_back {
+        HoldBack::Skipped(skips) => skips.iter().map(skip_reason).collect(),
+        HoldBack::IndexesExhausted => vec![format!("{NO_INDEX_LEFT} it")],
+    }
 }
 
 pub fn skip_reason(skip: &Skip) -> String {
