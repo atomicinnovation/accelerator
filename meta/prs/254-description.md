@@ -10,9 +10,9 @@ relates_to: ["plan:2026-11-22-explore-pr-file-navigator"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/254"
 pr_number: 254
 tags: ["explore-pr", "skills", "review", "visualisation"]
-revision: "c67848c1474523cf533e47a3a650edececbe03ae"
+revision: "d7079708e6697cdacfabb52659034437220624d0"
 repository: "accelerator"
-last_updated: "2026-11-22T10:20:26+00:00"
+last_updated: "2026-11-22T12:52:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -87,6 +87,17 @@ Readiness link that opens it already filtered.
   282,187-character JSON line had made opening By commit draw about 65,000
   nodes. It now draws about 1,200, and style and layout fall from about
   135 ms to about 11 ms.
+- **Touch screens**: a row's selection checkbox appears on hover only where
+  a pointer can hover, and always shows on touch screens. Revealing it on
+  hover had made every file take two taps. A commit's chevron opens and
+  folds it without selecting it, with a larger target on touch screens.
+- **Short files in a commit**: the commit's file area takes at least a
+  screen's height, so `j` can always bring a short file up to just below the
+  top bar.
+- **Supply chain**: `url` moves to 2.5.9 (with `form_urlencoded` 1.2.3) in
+  `cli/Cargo.lock`, and the third-party notices follow. `cargo-deny` began
+  refusing `url` 2.5.8 for RUSTSEC-2026-0592, a stack overflow in
+  `Url::origin()` on nested `blob:` URLs. `main` has the same pin.
 - **Look**: names in the list are smaller and folder names are not bold. The
   selection checkboxes sit in one column. Keyboard focus is drawn inside
   each row. Action links use the body font. The rail, the file list and the
@@ -110,8 +121,8 @@ Readiness link that opens it already filtered.
 - [x] `uvx ruff format --check` is clean. `uvx ruff check` reports the same
   40 findings as on `main`, none in touched lines.
 - [x] The full `mise run` exits 0.
-- [x] `scripts/smoke.js` passes on a page built from PR #250 (47 files,
-  37 commits), with no errors and no sideways scroll at 400 px. Its new
+- [x] `scripts/smoke.js` passes on pages built from PR #250 (47 files,
+  37 commits) and PR #215 (234 files, 84 commits), with no errors and no sideways scroll at 400 px. Its new
   probes check:
   - the tree, filters, search and folder totals, and that nothing moves while
     filtering;
@@ -120,12 +131,15 @@ Readiness link that opens it already filtered.
   - By commit's per-file verdicts and its pane switch;
   - cut-short long lines, the resizable list, the risk toggle and checkbox
     alignment;
+  - checkboxes showing without hover on an emulated touch screen, and a
+    commit's chevron opening it without selecting it;
   - the Readiness link.
-- [ ] A PR with 100+ files and 50+ commits, by hand.
-- [ ] Phone width and dark mode, by eye.
+- [x] Every manual check in the plan except the screen reader, by hand, on a
+  hosted page built from PR #215 (234 files, 84 commits), on desktop and on
+  a phone, in light and dark mode.
+- [x] A bulk Reviewed on `cli/` (174 files) in that hosted page reached the
+  shared store: 162 verdicts read back after Undo and Clear tests.
 - [ ] A screen reader on the tree.
-- [ ] A bulk write of 50+ files in a hosted artifact, where each file is its
-  own database write.
 
 ## Notes for Reviewers
 
