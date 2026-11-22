@@ -72,8 +72,6 @@ def test_a_turn_inside_its_bounds_breaks_no_check(
         _call("Read", file_path=str(RULE)),
         _call("Read", file_path=str(bounds.root / SET / "brief.md")),
         _call("Read", file_path=f"{SET_PATH}/outline.md"),
-        _call("Glob", pattern="meta/**/*.md"),
-        _call("Grep", pattern="plan", path=str(bounds.root / SET)),
         _call("Bash", command=REPORT_PATH),
         _call(
             "Bash",
@@ -123,44 +121,34 @@ def test_a_search_naming_a_levels_directory_fails(
     "call",
     [
         _call("Glob", pattern="/etc/**"),
-        _call("Read", file_path="../outside.md"),
-        _call("Grep", pattern="x", path="/etc"),
+        _call("Glob", pattern="meta/**/*.md"),
+        _call("Grep", pattern="plan", path=f"{SET_PATH}/findings"),
         _call("Grep", pattern="x", glob="../../*.md"),
-        _call("Read", file_path=str(RULE.parent / "evals/x.json")),
-        _call("Glob", path=".", pattern="/etc/**"),
-        _call("Glob", pattern="meta/../../*.md"),
-        _call("Glob", pattern="meta/**/../../../../*.md"),
-        _call("Grep", pattern="x", glob="meta/../../*.md"),
+        _call("LS", path=SET_PATH),
     ],
-    ids=[
-        "absolute-glob",
-        "dotdot-read",
-        "grep-path",
-        "grep-glob",
-        "rule-dir",
-        "glob-path-and-absolute-pattern",
-        "glob-inner-dotdot",
-        "glob-dotdot-after-wildcard",
-        "grep-glob-inner-dotdot",
-    ],
+    ids=["absolute-glob", "project-glob", "set-grep", "grep-glob", "ls"],
 )
-def test_a_search_outside_the_project_fails(
-    bounds: checks.Bounds, call: ToolCall
-) -> None:
+def test_any_search_fails(bounds: checks.Bounds, call: ToolCall) -> None:
     assert any(
-        "outside the project" in failure
-        for failure in _failures(_turn(call), bounds)
+        "searches" in failure for failure in _failures(_turn(call), bounds)
     )
 
 
-def test_a_grep_glob_is_read_from_the_grep_s_own_path(
-    bounds: checks.Bounds,
-) -> None:
-    call = _call(
-        "Grep", pattern="x", path=f"{SET_PATH}/findings", glob="../*.md"
+@pytest.mark.parametrize(
+    "path",
+    [
+        "../outside.md",
+        str(RULE.parent / "evals/x.json"),
+        "meta/work/0900-llm-agent-planning.md",
+        "CLAUDE.md",
+    ],
+    ids=["dotdot", "rule-dir", "work-item", "project-root"],
+)
+def test_a_read_outside_the_set_fails(bounds: checks.Bounds, path: str) -> None:
+    assert any(
+        "outside the set" in failure
+        for failure in _failures(_turn(_call("Read", file_path=path)), bounds)
     )
-
-    assert _failures(_turn(call), bounds) == []
 
 
 @pytest.mark.parametrize("tool", ["Grep", "Glob"])

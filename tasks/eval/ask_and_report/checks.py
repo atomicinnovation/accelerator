@@ -25,9 +25,8 @@ from tasks.eval.headless.transcript import (
 
 RESEARCH_TOPIC = "accelerator:research-topic"
 SPAWNS = frozenset({"Agent", "Task"})
-SEARCHES = frozenset({"Read", "Grep", "Glob"})
+SEARCHES = frozenset({"Grep", "Glob", "LS"})
 WRITES = frozenset({"Write", "Edit"})
-GLOB_CHARACTERS = frozenset("*?[{")
 ALLOWED_COMMANDS = (
     ("accelerator", "corpus", "resolve"),
     ("accelerator", "corpus", "metadata", "derive"),
@@ -42,7 +41,7 @@ ALLOWED_COMMANDS = (
 
 @dataclass(frozen=True)
 class Bounds:
-    """Where a session may read and write: its project, and the rule."""
+    """Where a session may read: its set, and the rule."""
 
     root: Path
     plugin_root: Path
@@ -55,19 +54,10 @@ class Bounds:
         return (self.root / path).resolve()
 
     def holds(self, path: Path) -> bool:
-        return path.is_relative_to(self.root.resolve()) or path == self.rule
-
-
-def _reach(search_root: str, pattern: str) -> str:
-    """Find the highest directory a pattern can reach from its search root.
-
-    A wildcard part is taken to match no directory, so a ``..`` after it
-    climbs from the part before it, as far as the pattern can.
-    """
-    fixed = [
-        part for part in Path(pattern).parts if not GLOB_CHARACTERS & set(part)
-    ]
-    return str(Path(search_root, *fixed))
+        return (
+            path.is_relative_to((self.root / SET).resolve())
+            or path == self.rule
+        )
 
 
 def _named_paths(call: ToolCall) -> list[str]:
@@ -75,32 +65,20 @@ def _named_paths(call: ToolCall) -> list[str]:
     return [str(call.input[key]) for key in keys if key in call.input]
 
 
-def _searched(call: ToolCall) -> list[str]:
-    search_root = str(call.input.get("path", "."))
-    match call.name:
-        case "Read":
-            return [str(call.input.get("file_path", ""))]
-        case "Glob":
-            pattern = str(call.input.get("pattern", ""))
-            return [search_root, _reach(search_root, pattern)]
-        case "Grep":
-            reached = [search_root]
-            if "glob" in call.input:
-                reached.append(_reach(search_root, str(call.input["glob"])))
-            return reached
-    return []
-
-
-def _search_failures(call: ToolCall, bounds: Bounds) -> Iterator[str]:
-    if call.name != "Read" and any(
+def _search_failures(call: ToolCall) -> Iterator[str]:
+    yield f"searches instead of reading what the verdict names: {call.input}"
+    if any(
         part.endswith(".levels")
         for named in _named_paths(call)
         for part in Path(named).parts
     ):
         yield f"searches under .levels: {call.input}"
-    for searched in _searched(call):
-        if not bounds.holds(bounds.resolved(searched)):
-            yield f"reads outside the project: {searched}"
+
+
+def _read_failures(call: ToolCall, bounds: Bounds) -> Iterator[str]:
+    path = str(call.input.get("file_path", ""))
+    if not bounds.holds(bounds.resolved(path)):
+        yield f"reads outside the set: {path}"
 
 
 def _listed_level_notes(events: Sequence[Event]) -> Iterator[str]:
@@ -176,7 +154,9 @@ def _call_failures(
     call: ToolCall, record: TurnRecord, bounds: Bounds
 ) -> Iterator[str]:
     if call.name in SEARCHES:
-        yield from _search_failures(call, bounds)
+        yield from _search_failures(call)
+    if call.name == "Read":
+        yield from _read_failures(call, bounds)
     if call.name == "Skill":
         named = call.input.get("skill", call.input.get("command"))
         if named != RESEARCH_TOPIC:

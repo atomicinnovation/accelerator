@@ -816,8 +816,8 @@ they share, the citing-once rule or the model.
 - **Judging** matches the fixed lines the skill prints
   (`tasks/eval/ask_and_report/formats.py`), with no model-graded judge. Each
   turn's criteria (`verdicts.py`) read its text, events and snapshot diff.
-  Every turn also meets the global checks (`checks.py`): no search under
-  `.levels/`, no read outside the project but the rule, no other skill or
+  Every turn also meets the global checks (`checks.py`): no `Grep`, `Glob`
+  or `LS` search, no read outside the set but the rule, no other skill or
   plugin, no spawn, coverage only after reading the rule, writes only where
   declared, no permission denial, and only one simple command from a strict
   Bash allow-list. A broken check ends the conversation at that turn. Level
