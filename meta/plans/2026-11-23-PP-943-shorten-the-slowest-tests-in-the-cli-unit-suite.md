@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T18:05:00+00:00"
+last_updated: "2026-11-23T19:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -496,6 +496,24 @@ projection for their reused-state tests, `each_of` for their loops and
 `copy_private_tree` for their templates and oracle prefixes.
 Nothing else changes.
 
+**Landed** in changes `ysntqsyx` (`JjColocation`), `qpkmmznu` (`each_of`),
+`qvsuxtvl` (`copy_private_tree`) and `xlowttwq` (`RepositoryState`), with
+the full `mise run` green. It departs from the plan in four ways:
+
+- **Refusal message:** `TreeCopy::require_clean(copied, source)` replaces
+  the free `still_naming(source, named_by)`. `Workbench::copied` and
+  `copy_private_tree` both call it, and the workbench's message is
+  unchanged.
+- **Scan order:** `copy_part` now copies every entry before scanning any.
+  A top-level symlink to a later entry failed the scan, because
+  `files_naming` follows a root symlink.
+- **Git reader:** `git for-each-ref` lists branches and tags, and the
+  `cat-file --batch` session resolves `HEAD` and walks parents. No
+  `git log` or `rev-list` is spawned, so the budget is still two
+  processes.
+- **jj root commit:** the projection leaves it out (`all() ~ root()`), and
+  drops it from parent lists. It has no object in the git store.
+
 ### Changes Required
 
 #### 1. Colocation
@@ -690,15 +708,15 @@ copy off shared trees.
 
 #### Automated Verification
 
-- [ ] The new tests pass: `mise run test:unit:cli --filter
+- [x] The new tests pass: `mise run test:unit:cli --filter
       'binary_id(vcs-test-support::repository_state)'`, along with the
       crate's unit tests for the pure steps.
-- [ ] `mise run test:unit:cli --filter 'binary_id(vcs-test-support::copies)'`
+- [x] `mise run test:unit:cli --filter 'binary_id(vcs-test-support::copies)'`
       passes.
-- [ ] `mise run test:unit:tasks --filter test_fixture_builds` passes, with
+- [x] `mise run test:unit:tasks --filter test_fixture_builds` passes, with
       `copy_private_tree(` guarded.
-- [ ] CLI checks pass: `mise run cli:check`
-- [ ] `mise run` exits 0.
+- [x] CLI checks pass: `mise run cli:check`
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 
