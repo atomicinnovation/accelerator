@@ -5,13 +5,13 @@ title: "Tier DOI Links by Venue, Not by the doi.org Resolver"
 date: "2026-10-09T17:58:47+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "in-progress"
 kind: "bug"
 priority: "medium"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers", "cli", "crossref"]
-last_updated: "2026-11-23T00:50:00+00:00"
+last_updated: "2026-11-23T16:06:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -21,7 +21,7 @@ aliases: ["0305"]
 # PP-891: Tier DOI Links by Venue, Not by the doi.org Resolver
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -194,7 +194,7 @@ Reproduction (confirmed by the baseline; see Baseline):
   - a Crossref 3xx or an undecodable body is `unavailable` with reason
     `upstream_error`;
   - a ticket re-presented after its pool changed joins the new pool
-    afresh;
+    afresh, with one diagnostic naming the pool that issued it;
   - a DOI ticket matches its call whatever the DOI's letter case;
   - the arXiv gate holds the legacy `arxiv.lock` while serving, so old and
     new releases keep one arXiv connection at a time;
@@ -211,15 +211,23 @@ Reproduction (confirmed by the baseline; see Baseline):
   dot that neither starts nor ends with one. When the value used is not
   plausible, the command prints a `warning:` and calls anonymously, without
   falling through to a lower-precedence source; the setting never makes a
-  call fail. `/configure` documents the `crossref` section.
+  call fail. A config file that cannot be read stops the chain the same
+  way, and a source that holds a value leaves the files below it unread.
+  `/configure` documents the `crossref` section, and advises keeping a
+  personal address out of the shared `config.md`.
 - `accelerator research fetch --help` lists the `doi` family and its
   `metadata` verb, and names `doi` among the families `--ticket` serves.
 - The web profile instructs the researcher, for every cited page, to:
   - run `fetch web metadata` first, then `fetch doi metadata` on the DOI it
-    printed, or — when it printed none, or failed (for example on a landing
-    page that refuses the fetch), and the cited URL is a resolver URL —
-    on that URL; a source reaching neither branch is tiered by its own
-    domain, as today;
+    printed for a resolver URL or for a page that DOI is tied to, or — when
+    it printed none, or failed (for example on a landing page that refuses
+    the fetch), and the cited URL is a resolver URL — on that URL; a source
+    reaching neither branch is tiered by its own domain, as today;
+  - for a non-resolver page whose `web metadata` printed a DOI, `WebFetch`
+    `https://doi.org/{doi}` without following its redirect. The DOI is
+    **tied** to the page only when that fetch's landing host is the page's
+    own host. An untied DOI stays in the metadata block as inert text, so a
+    page never raises its own tier by declaring another publication's DOI;
   - for a resolver URL, `WebFetch` it after `fetch web metadata` and
     before `fetch doi metadata`, every time, to learn the landing host
     (step 3 below). The researcher never infers the landing host without
@@ -229,9 +237,9 @@ Reproduction (confirmed by the baseline; see Baseline):
     consecutive `waiting` results the researcher stops and handles the call
     as it would a printed `unavailable`. The researcher records no `reason`
     for this, since the CLI printed none;
-  - on `E_DOI_TICKET_LIVE`, write no file and return the CLI's `E_*` line
-    verbatim in the summary, as the arXiv profile does for
-    `E_ARXIV_TICKET_LIVE`. On `E_DOI_TICKET_MALFORMED` or
+  - on `E_DOI_TICKET_LIVE`, handle the source as for a printed
+    `unavailable`, recording no `reason`, since a metadata call never ends
+    the node. On `E_DOI_TICKET_MALFORMED` or
     `E_DOI_TICKET_MISMATCH`, correct the call and continue, as the arXiv
     profile does for its other usage errors. On `E_DOI_MALFORMED`, handle
     the source as for a printed `unavailable` (step 3 below);
@@ -256,7 +264,7 @@ Reproduction (confirmed by the baseline; see Baseline):
        researcher's `WebFetch` of the resolver
        URL reports it, because `WebFetch` returns a cross-host redirect
        instead of following it, so the host is known even when it then
-       refuses the fetch. For a DOI declared by a page that is not a
+       refuses the fetch. For a DOI tied to a page that is not a
        resolver URL, the landing host is that page's host. The host is
        tiered by the profile's existing domain rules, so `arxiv.org` is
        tier-2, matching the arXiv profile's tier for every preprint;
@@ -264,7 +272,8 @@ Reproduction (confirmed by the baseline; see Baseline):
        `doi.org` is unreachable): the venue is left unrecorded and the
        source is tier-3, cited by its resolver URL;
   - treat both kinds of source cited by DOI the same way: a resolver URL,
-    and a non-resolver page that declares a DOI. Both use the combined
+    and a non-resolver page whose declared DOI is tied to it. Both use the
+    combined
     `web metadata` + `doi metadata` template. A resolver URL keeps the
     resolver URL as the entry's link, never the landing page's URL, so the
     citing-once rule can still read the DOI from it whatever
@@ -284,14 +293,20 @@ Reproduction (confirmed by the baseline; see Baseline):
 
 ## Acceptance Criteria
 
-- [ ] The web profile's text names `doi.org` and `dx.doi.org` as resolvers
+- [x] The web profile's text names `doi.org` and `dx.doi.org` as resolvers
       that are never recorded as a venue.
-- [ ] The web profile's text directs a researcher to run
+- [x] The web profile's text directs a researcher to run
       `fetch web metadata` first for every cited page, then
-      `fetch doi metadata` on the DOI it printed, or — when it printed
-      none, or failed, and the cited URL is a resolver URL — on that URL; a
-      source reaching neither branch is tiered by its own domain.
-- [ ] The web profile's text directs a researcher to record and tier a
+      `fetch doi metadata` on the DOI it printed for a resolver URL or for
+      a page that DOI is tied to, or — when it printed none, or failed, and
+      the cited URL is a resolver URL — on that URL; a source reaching
+      neither branch is tiered by its own domain.
+- [x] The web profile's text directs the researcher, for a non-resolver
+      page whose `web metadata` printed a DOI, to `WebFetch`
+      `https://doi.org/{doi}` without following its redirect, treats the
+      DOI as tied only when that fetch lands on the page's own host, and
+      keeps an untied DOI in the metadata block as inert text.
+- [x] The web profile's text directs a researcher to record and tier a
       source that went through `fetch doi metadata` by the first that
       applies of: the printed `venue`; the printed `publisher`; the landing
       host (the host `doi.org` redirects to, or the declaring page's host)
@@ -299,18 +314,19 @@ Reproduction (confirmed by the baseline; see Baseline):
       landing host is known, no venue at tier-3 — never `doi.org`. The text
       states the tier-1 rule for a journal or proceedings title and the
       tier-2 rule for a publisher alone as explicit Reputation Tiers rules.
-- [ ] The web profile's text directs the researcher to `WebFetch` every
+- [x] The web profile's text directs the researcher to `WebFetch` every
       resolver URL, after `fetch web metadata` and before
       `fetch doi metadata`, to learn its landing host, and never to infer
       the landing host without that fetch.
-- [ ] The web profile's text directs the researcher, on
-      `E_DOI_TICKET_LIVE`, to write no file and return the CLI's `E_*` line
-      verbatim; on `E_DOI_TICKET_MALFORMED` or `E_DOI_TICKET_MISMATCH`, to
+- [x] The web profile's text directs the researcher, on
+      `E_DOI_TICKET_LIVE`, to handle the source as for `unavailable`,
+      recording no `reason`; on `E_DOI_TICKET_MALFORMED` or
+      `E_DOI_TICKET_MISMATCH`, to
       correct the call and continue; and on `E_DOI_MALFORMED`, to handle
       the source as for `unavailable`.
-- [ ] The web profile's text defines the landing host as the host of the
+- [x] The web profile's text defines the landing host as the host of the
       first redirect `doi.org` returns.
-- [ ] The web profile's text includes one worked example for each of the
+- [x] The web profile's text includes one worked example for each of the
       four venue branches, each with its resulting venue and tier:
       `10.1145/371920.372066`, venue `Proceedings of the 10th international
       conference on World Wide Web`, tier-1; a publisher-only DOI, venue
@@ -318,78 +334,80 @@ Reproduction (confirmed by the baseline; see Baseline):
       Crossref holds no record, venue `arxiv.org`, tier-2; and a resolver
       URL that
       `doi.org` cannot redirect, with Crossref `unavailable`, no venue at
-      tier-3. Every example keeps the resolver URL as its link.
-- [ ] The web profile's text includes a Waiting section that: re-runs the
+      tier-3. Every resolver-URL example keeps the resolver URL as its
+      link. A fifth example shows a page whose declared DOI is not tied to
+      it, tiered by its own domain.
+- [x] The web profile's text includes a Waiting section that: re-runs the
       same `fetch doi metadata` call at once with `--ticket` set to the
       latest `waiting` output's ticket; never changes the DOI while
       re-presenting; repeats until the status is not `waiting`; and after
       20 consecutive `waiting` results handles the call as a printed
       `unavailable`, recording no `reason` of its own.
-- [ ] The web profile's text directs the researcher to copy the
+- [x] The web profile's text directs the researcher to copy the
       `web metadata` and `doi metadata` entries unchanged and in emitted
       order.
-- [ ] The web profile's text includes a template for a source cited by DOI,
+- [x] The web profile's text includes a template for a source cited by DOI,
       with `web metadata` entries first and `doi metadata` entries after,
       and a worked example whose link is a `https://doi.org/…` URL and whose
       venue is not `doi.org`.
-- [ ] The web profile's text directs the researcher to keep the resolver URL
+- [x] The web profile's text directs the researcher to keep the resolver URL
       as the link of a resolver-URL source, and its own URL as the link of
       a non-resolver page that declares a DOI, and to use the combined
       template for both.
-- [ ] The finding outputter's metadata block rule allows entries from more
+- [x] The finding outputter's metadata block rule allows entries from more
       than one CLI command, written one after another in the order the
       profile names.
-- [ ] Given a recorded Crossref response for `10.1145/371920.372066`, when
+- [x] Given a recorded Crossref response for `10.1145/371920.372066`, when
       `fetch doi metadata '10.1145/371920.372066'` runs, then it exits 0,
       `venue` is `Proceedings of the 10th international conference on World
       Wide Web`, `metadata` holds only `publisher: ACM`, the output has no
       `tier` key, and the only outbound request goes to `api.crossref.org`
       with no `Authorization` or `Crossref-Plus-API-Token` header and no
       query parameters.
-- [ ] Given a recorded `journal-article` Crossref response whose
+- [x] Given a recorded `journal-article` Crossref response whose
       `container-title` holds two titles, when the command runs, then
       `venue` is the first.
-- [ ] Given a recorded `book-chapter` Crossref response with a
+- [x] Given a recorded `book-chapter` Crossref response with a
       `container-title` and a `publisher`, when the command runs, then it
       exits 0 with no `venue` key and `metadata` holding the `publisher`.
-- [ ] Given the recorded `10.1145/371920.372066` response, when the
+- [x] Given the recorded `10.1145/371920.372066` response, when the
       command is given
       `https://doi.org/10.1145/371920.372066` or
       `https://dx.doi.org/10.1145/371920.372066`, then its output is
       identical to the bare-DOI output.
-- [ ] Given recorded Crossref responses with a publisher and with
+- [x] Given recorded Crossref responses with a publisher and with
       `container-title` absent, and with it set to `[]`, when the command
       runs, then each exits 0 with no `venue` key and `metadata` holding the
       `publisher`.
-- [ ] Given a recorded Crossref response with neither `container-title` nor
+- [x] Given a recorded Crossref response with neither `container-title` nor
       `publisher`, when the command runs, then it exits 0 and prints
       `{"status":"ok","metadata":{}}` with no `venue`.
-- [ ] Given Crossref answers 404, when the command runs, then it exits 0
+- [x] Given Crossref answers 404, when the command runs, then it exits 0
       and prints `{"status":"ok","metadata":{}}` with no `venue`.
-- [ ] Given an injected clock and Crossref unreachable, when the command
+- [x] Given an injected clock and Crossref unreachable, when the command
       runs, then it exits 0 no later than 100 s on that clock and prints
       `{"status":"unavailable","source":"crossref",…}` with a reason of
       `upstream_error`.
-- [ ] Given an injected clock and Crossref answering caller A's request with
+- [x] Given an injected clock and Crossref answering caller A's request with
       429 and `Retry-After: 5`, where A and B are separate processes in the
       same project reading one project-scoped test clock, when A and B next
       request Crossref, then neither request is issued before 5 s after A
       received the 429, on that clock.
-- [ ] Given Crossref answering 400, when the command runs, then it exits 0
+- [x] Given Crossref answering 400, when the command runs, then it exits 0
       and prints `unavailable` with reason `upstream_error`.
-- [ ] Given an injected clock and Crossref answering every attempt with 503,
+- [x] Given an injected clock and Crossref answering every attempt with 503,
       when the command runs until its retries run out, then it exits 0 no
       later than 100 s on that clock and prints
       `{"status":"unavailable","source":"crossref","reason":"upstream_error"}`.
-- [ ] Given an injected clock and Crossref answering every attempt with 429,
+- [x] Given an injected clock and Crossref answering every attempt with 429,
       when the command runs until its retries run out, then it exits 0 no
       later than 100 s on that clock and prints `unavailable` with reason
       `rate_limited`.
-- [ ] Given an injected clock and Crossref answering 503 on every attempt
+- [x] Given an injected clock and Crossref answering 503 on every attempt
       but the last, which it answers 429, when retries run out, then the
       reason is `rate_limited`; with 429 on every attempt but a final 503,
       it is `upstream_error`.
-- [ ] Rate: given a project-scoped test clock read by at least two
+- [x] Rate: given a project-scoped test clock read by at least two
       separate processes in the same project, Crossref requests that each
       complete 50 ms after they start, and 10 queued calls spread across
       those processes, when they run, then with no `crossref.mailto` no
@@ -398,95 +416,104 @@ Reproduction (confirmed by the baseline; see Baseline):
       more than 10 start in any such window and all 10 start within
       [0, 1 s). With `crossref.mailto` set to `not-an-address`, the public
       limits apply.
-- [ ] Mixed pools: given the same setup, with one process whose
+- [x] Mixed pools: given the same setup, with one process whose
       `ACCELERATOR_CROSSREF_MAILTO` is `research@example.org` and one with
       none, each queuing 10 calls, when they run, then the anonymous
       process's requests keep to the public limits and the polite
       process's to the polite limits, each independently of the other.
-- [ ] Concurrency: given the same setup but with requests that each
+- [x] Concurrency: given the same setup but with requests that each
       complete 2 s after they start, when the 10 calls run, then with no
       `crossref.mailto` exactly one request is in flight at a time. With
       `crossref.mailto` set, no more than 3 are ever in flight, and 3 are
       in flight together at some point.
-- [ ] Given an injected clock and the arXiv queue honouring
+- [x] Given an injected clock and the arXiv queue honouring
       `Retry-After: 60` from t=0, when a Crossref call is issued at t=0
       with an empty Crossref queue, then its request starts before t=1 s.
       The same holds with the services swapped.
-- [ ] Given an injected clock and the queue held by another ticket past the
+- [x] Given an injected clock and the queue held by another ticket past the
       invocation's 100 s, when the command runs, then it exits 0 no later
       than 100 s on that clock and prints
       `{"status":"waiting","source":"crossref","ticket":…,"position":…}`
       with a position of at least 1.
-- [ ] Given the `waiting` ticket from the previous criterion, once the
+- [x] Given the `waiting` ticket from the previous criterion, once the
       other ticket holding the queue settles and Crossref returns the
       recorded `10.1145/371920.372066` response, when the call is
       re-presented with `--ticket`, then it prints the same `ok` output as
       an unqueued call.
-- [ ] Given a waiting Crossref ticket presented to an arXiv fetch, then the
+- [x] Given a waiting Crossref ticket presented to an arXiv fetch, then the
       command exits 2 with `E_ARXIV_TICKET_MISMATCH`. Given a waiting arXiv
       ticket presented to `fetch doi metadata`, or a Crossref ticket
       presented with a different DOI, then it exits 2 with
       `E_DOI_TICKET_MISMATCH`. None of these issues a request.
-- [ ] Given a malformed `--ticket` value, when `fetch doi metadata` runs,
+- [x] Given a malformed `--ticket` value, when `fetch doi metadata` runs,
       then it exits 2 with `E_DOI_TICKET_MALFORMED` and issues no request.
-- [ ] Given a Crossref ticket another call is presenting, when it is
+- [x] Given a Crossref ticket another call is presenting, when it is
       presented again, then the command exits 2 with `E_DOI_TICKET_LIVE`
       and issues no request.
-- [ ] Given an injected clock and a Crossref ticket still unsettled 900 s
+- [x] Given an injected clock and a Crossref ticket still unsettled 900 s
       after its issue, when it is re-presented, then the command exits 0 and
       prints `{"status":"unavailable","source":"crossref",…}` with a `cause`
       field of `lock_contention` and a `reason` of `rate_limited`.
-- [ ] Given an injected clock and a Crossref ticket whose last attempt
+- [x] Given an injected clock and a Crossref ticket whose last attempt
       answered 503, still unsettled 900 s after its issue, when it is
       re-presented, then the command prints `unavailable` with a `reason`
       of `upstream_error` and no `cause` field; when that last attempt
       answered 429, the `reason` is `rate_limited`, still with no `cause`.
-- [ ] Given an injected clock and an invocation still in retry backoff
+- [x] Given an injected clock and an invocation still in retry backoff
       after a 503 when its 100 s runs out, when the command returns, then
       it prints `waiting`, and if that ticket then expires unsettled the
       `reason` is `upstream_error` with no `cause`.
-- [ ] The web profile's text directs `fetch doi metadata` on any DOI
-      `fetch web metadata` printed, whatever the cited page's host.
-- [ ] The web profile's text directs that, when `fetch web metadata` fails
+- [x] The web profile's text directs `fetch doi metadata` on a DOI
+      `fetch web metadata` printed for a non-resolver page only when that
+      DOI is tied to the page.
+- [x] Given a DOI ticket issued in one Crossref pool and re-presented after
+      `crossref.mailto` selects the other, when the command runs, then the
+      call joins the other pool afresh and prints one diagnostic naming
+      the pool that issued the ticket.
+- [x] The web profile's text directs that, when `fetch web metadata` fails
       on a resolver URL (for example exits 1 because the landing page
       refuses the fetch), the researcher still runs `fetch doi metadata` on
       that URL.
-- [ ] Given `not-a-doi`, when the command runs, then it exits 2 with
+- [x] Given `not-a-doi`, when the command runs, then it exits 2 with
       `E_DOI_MALFORMED`.
-- [ ] Given `crossref.mailto` is `research@example.org`, when
+- [x] Given `crossref.mailto` is `research@example.org`, when
       `fetch doi metadata` runs, then the Crossref request's `User-Agent`
       carries `mailto:research@example.org` and no request URL contains the
       address.
-- [ ] Given no contact address is configured, when the command runs, then
+- [x] Given no contact address is configured, when the command runs, then
       the request carries no `mailto` and the output is the same as with
       one.
-- [ ] Given `crossref.mailto` is `not-an-address`, when the command runs,
+- [x] Given `crossref.mailto` is `not-an-address`, when the command runs,
       then it prints one `warning:` line on stderr, calls anonymously, and
       its exit status and stdout are unaffected. The same holds for `a@b`,
       `a@.org`, `a@example.`, `@example.org`, `a@b@example.org`,
       `research @example.org` and
       `mailto:x@example.org`, while ` research@example.org ` (trimmed) is
       accepted.
-- [ ] Given `crossref.mailto` set to an empty string or ` `, when the
+- [x] Given `crossref.mailto` set to an empty string or ` `, when the
       command runs, then it prints no `warning:` and calls anonymously, as
       if unset.
-- [ ] Given `ACCELERATOR_CROSSREF_MAILTO` set to ` ` and
+- [x] Given `ACCELERATOR_CROSSREF_MAILTO` set to ` ` and
       `research@example.org` in `config.md`, when the command runs, then it
       prints no `warning:` and the `User-Agent` carries
       `mailto:research@example.org`.
-- [ ] Given addresses in the env var, `config.local.md` and `config.md`,
+- [x] Given addresses in the env var, `config.local.md` and `config.md`,
       when the command runs, then it uses the env var's. Given only
       `config.local.md` and `config.md`, it uses `config.local.md`'s; given
       only `config.md`, it uses `config.md`'s.
-- [ ] Given `not-an-address` in the env var and `research@example.org` in
+- [x] Given `not-an-address` in the env var and `research@example.org` in
       `config.md`, when the command runs, then it prints one `warning:` and
       calls anonymously.
-- [ ] `/configure` documents `crossref.mailto`, its precedence and the
+- [x] Given an unreadable `config.local.md` and `research@example.org` in
+      `config.md`, when the setting resolves, then it reports the
+      unreadable file and does not read `config.md`. Given a value in a
+      higher source, an unreadable file below it is never read.
+- [x] `/configure` documents `crossref.mailto`, its precedence and the
       anonymous fallback.
-- [ ] A CLI test asserts that every key `fetch doi metadata` can print
+- [x] A CLI test asserts that every key `fetch doi metadata` can print
       follows every key `fetch web metadata` can print in `RECOMMENDED_KEYS`
       order.
-- [ ] Before the queue is generalised, each arXiv behaviour the queue
+- [x] Before the queue is generalised, each arXiv behaviour the queue
       requirement lists (pacing, `waiting`/`--ticket`, `unavailable`
       reasons, ticket cap, exit codes) has an arXiv test, with
       characterisation tests added for any gap. Before the refactor
@@ -494,15 +521,15 @@ Reproduction (confirmed by the baseline; see Baseline):
       `unavailable` reason and each `E_ARXIV_TICKET_*` exit) to the named
       test that covers it is recorded in the plan. Afterwards, those tests
       pass unchanged against the shared queue engine.
-- [ ] Given an arXiv ticket and queue state captured from the previous
+- [x] Given an arXiv ticket and queue state captured from the previous
       release as a committed fixture, when the ticket is re-presented after
       the upgrade, then the command exits 2 with `E_ARXIV_TICKET_MISMATCH`
       and issues no request, and a fresh call without `--ticket` prints the
       same `ok` output an unqueued call gives for a recorded arXiv
       response.
-- [ ] `accelerator research fetch --help` names the `doi` family and its
+- [x] `accelerator research fetch --help` names the `doi` family and its
       `metadata` verb, and lists `doi` among the families `--ticket` serves.
-- [ ] Given OpenAlex responses for `10.1145/3448016.3457556` recorded
+- [x] Given OpenAlex responses for `10.1145/3448016.3457556` recorded
       separately from the `/works` search endpoint (with
       `title_and_abstract.search`), `/works/doi:` and `/works/W…`, in a
       test in `cli/research-cli/tests/fetch_openalex.rs`, when the CLI tiers the work via `search`, `lookup <DOI>`,
@@ -606,6 +633,9 @@ so this section is the record of the run.
 - A first attempt under auto mode wrote no finding: the auto mode classifier
   gave no verdict on the researcher's `Write`. The passing run used
   `acceptEdits`.
+- The run predates the tied-DOI rule and the `E_DOI_TICKET_LIVE` handling
+  that the PR #258 review added. No live run has exercised either; both
+  rest on the web profile's structure pins.
 
 ## Open Questions
 

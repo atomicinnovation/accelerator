@@ -11,9 +11,9 @@ parent: "work-item:PP-891"
 derived_from: ["codebase-research:2026-11-20-PP-891-tier-doi-links-by-venue-not-resolver"]
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936", "plan:2026-10-06-PP-882-fair-arxiv-fetch-queue"]
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
-revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
+revision: "644120cb2bc7a2d8e4f77017963213c59d7592c3"
 repository: "accelerator"
-last_updated: "2026-11-23T01:19:08+00:00"
+last_updated: "2026-11-23T16:06:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2293,6 +2293,49 @@ characterise text already in place.
 - **Text.** The `research.md` intro names Crossref. Comments that restated
   code are gone. New structure pins cover the Pacing docs, the Crossref
   pools table, the `E_DOI_*` rows and `/configure`'s `crossref` section.
+
+---
+
+## PR Review Follow-ups
+
+The first review of PR #258 (`meta/reviews/prs/258-review-1.md`, verdict
+`COMMENT`) raised the findings below. The work item's requirements and
+criteria were amended to match.
+
+- **Tied DOIs.** A non-resolver page's declared DOI reaches the venue rules
+  only when a `WebFetch` of `https://doi.org/{doi}` lands on the page's own
+  host. An untied DOI stays in the metadata block as inert text, and a
+  fifth worked example shows an untied page tiered by its own domain.
+- **`E_DOI_TICKET_LIVE`.** The web profile handles it as an `unavailable`
+  source, recording no `reason`. The Failed outcome is gone, since a
+  metadata call never ends the node.
+- **Pool change.** A DOI ticket re-presented after `crossref.mailto`
+  selects the other pool joins that pool afresh
+  (`Presentation::JoinAfterPoolChange`), and the queue reports one
+  diagnostic naming the pool that issued it. Before, it lost its place
+  silently.
+- **Ports.** The ports are reached only through `sources::ports`, and
+  `sources::fetch` no longer re-exports them. The `cli/pup.ron` rule
+  `research_queue_engine_never_reaches_fetch` replaces the three
+  `include_str!` checks on `ports`, `serving` and `admission`.
+- **One source for each fact.** `Family::is_queued` derives the families
+  that take `--ticket` from `Service::ALL`. `DoiAdapters.service` comes from
+  the `ServiceAdapters` bundle, and `PreviousRelease::arxiv_layout` names
+  the legacy arXiv paths in the adapters.
+- **Ladder.** New tests pin that a rung holding a value leaves an
+  unreadable file below it unread. `/configure` states that an unreadable
+  file stops the ladder, and advises keeping a personal address out of
+  `config.md`.
+- **Changelog.** `CHANGELOG.md` records the command, the setting, the
+  web-profile tiering and the arXiv state move.
+- **Left as is.** A Crossref call keeps its serving slot through retry
+  backoff, which can stall the single public slot for up to 21 s.
+  `meta/notes/2026-11-23-release-the-serving-slot-during-backoff.md`
+  records why and what data would justify changing it.
+
+The bare `mise run` exits 0 on the review-response tip (`a58a1203`): 8482
+of 8482 CLI tests pass, 2 skipped. `/accelerator:configure help`, with this
+checkout loaded through `claude --plugin-dir`, shows the `crossref` section.
 
 ---
 

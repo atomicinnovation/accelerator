@@ -175,8 +175,8 @@ every queued service.
       exits 0: 8479 of 8479 CLI tests, CLI line coverage 94.42%.
 - [x] At `8c177921`, `mise run public-api:check`, `pup:check`,
       `docs:check` and `test:integration:release-guard` pass.
-- [ ] CI on the current tip, which adds the review response: pending when
-      this description was written. Not re-run locally.
+- [x] On the tip with the review response (`a58a1203`), the bare
+      `mise run` exits 0: 8482 of 8482 CLI tests, 2 skipped.
 - [x] `mise run test:integration:arxiv-queue-stress` (opt-in, real clock)
       passed in 117 s during phase 3.
 - [x] Mutation check: narrowing the polite interval to 90 ms fails the
@@ -192,8 +192,8 @@ every queued service.
       closing web-profile run recorded each ACM DOI's proceedings at
       tier-1, `arxiv.org` at tier-2 and `Nature` at tier-1, with no
       `doi.org` venue and no tier conflict.
-- [ ] `/accelerator:configure` shows the `crossref` section in an installed
-      plugin. Only the skill source and the generated docs were checked.
+- [x] `/accelerator:configure help`, with this checkout loaded through
+      `claude --plugin-dir`, shows the full `crossref` section.
 
 ## Notes for Reviewers
 

@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-11-21-PP-891-tier-doi-links-by-venue-not-resolver"
 tags: ["research", "research-cli", "queue", "crossref", "web-profile"]
-last_updated: "2026-11-23T01:19:08+00:00"
+last_updated: "2026-11-23T16:06:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -115,14 +115,38 @@ are not repeated here.
    - [x] the phase 1 baseline;
    - [x] the phase 8 closing run;
    - [x] live `doi metadata` calls on both pools.
-2. Outstanding:
-   - [ ] `/accelerator:configure` shows the `crossref` section in an
-     installed plugin. Phase 5 checked only the source and the generated
-     docs.
+   - [x] `/accelerator:configure help` shows the `crossref` section,
+     with this checkout loaded through `claude --plugin-dir`. The
+     installed `1.24.0-pre.112` lacks it until this branch is released.
 
 ### Recommendations:
 
 - Tick the work item's 53 automated acceptance criteria against this report
-  and move its `status` on. Both are left to the item's owner.
+  and move its `status` on. Done: every criterion is ticked, and the item
+  is `in-progress` until PR #258 merges.
 - Decide whether the web profile's step order needs a stated reason, or
-  whether the criterion should be relaxed.
+  whether the criterion should be relaxed. Still open.
+
+### After the PR #258 Review
+
+Rechecked at `a58a1203`, after the review response. The plan's "PR Review
+Follow-ups" section lists the changes. They go beyond the plan, and the
+work item's requirements and criteria were amended to match: a tied-DOI
+rule, `E_DOI_TICKET_LIVE` handled as `unavailable`, and a diagnostic when a
+DOI ticket changes pool. Three criteria were added for them.
+
+✓ The bare `mise run` exits 0: 8482 of 8482 CLI tests pass, 2 skipped.
+✓ `/accelerator:configure help` shows the `crossref` section.
+
+Status of the potential issues above:
+
+- **Step order.** Open, as above.
+- **Pool and `Service` kept consistent by convention.** Resolved:
+  `DoiAdapters.service` comes from the `ServiceAdapters` bundle built for
+  the pool.
+- **`release` after a `trust` clamp.** Unchanged, and accepted by the plan.
+- **Liveness retries.** Unchanged. No `FLAKY` line appeared in this run.
+
+The phase 8 closing run predates the review response, so no live run has
+exercised the tied-DOI rule or the new `E_DOI_TICKET_LIVE` handling. The
+result stays `pass`.
