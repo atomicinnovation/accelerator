@@ -12,9 +12,9 @@ relates_to: ["work-item:PP-888", "work-item:PP-897", "work-item:PP-936"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/258"
 pr_number: 258
 tags: ["research", "research-cli", "queue", "crossref", "web-profile", "config"]
-revision: "7f9da8cb1ca5907022a35d9d6676eaa973432f6f"
+revision: "644120cb2bc7a2d8e4f77017963213c59d7592c3"
 repository: "accelerator"
-last_updated: "2026-11-23T01:34:16+00:00"
+last_updated: "2026-11-23T16:06:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -53,6 +53,9 @@ every queued service.
 - **Exit 2.** Only `E_DOI_MALFORMED` and `E_DOI_TICKET_*`, both before any
   request.
 - **Tickets.** A DOI ticket matches its call whatever the DOI's letter case.
+  A ticket re-presented after `crossref.mailto` changed which pool serves
+  the call joins that pool afresh, with one diagnostic naming the pool that
+  issued it, rather than losing its place silently.
 
 ### Queue engine (`research`, `research-adapters`)
 
@@ -79,7 +82,17 @@ every queued service.
     listing the other queues' directories read-only.
   - While serving, the arXiv gate also takes the legacy `arxiv.lock` as a
     companion lock, so old and new releases keep one arXiv connection at a
-    time.
+    time. `PreviousRelease::arxiv_layout` names those legacy paths in the
+    adapters, not the composition root.
+- **Ports.** The engine's ports (`Clock`, `PacingGate`, `Transport`, …) are
+  reached only through `sources::ports`; `sources::fetch` no longer
+  re-exports them. A `cli/pup.ron` rule,
+  `research_queue_engine_never_reaches_fetch`, stops `ports`, `serving` and
+  `admission` importing the fetch workflow, replacing three `include_str!`
+  text checks.
+- **Single source of truth.** `Family::is_queued` derives which families
+  take `--ticket` from `Service::ALL`, and `DoiAdapters.service` comes from
+  the `ServiceAdapters` bundle built for it.
 
 ### Config: `crossref.mailto`
 
@@ -89,8 +102,12 @@ every queued service.
   then `config.md`; the first non-blank value wins. This uses a new generic
   `open_value` ladder in `config`.
 - **Implausible or unreadable value.** The call goes to the public pool
-  with one `warning:` line, never a failure. An implausible value does not
-  fall through to a lower rung.
+  with one `warning:` line, never a failure. Neither an implausible value
+  nor an unreadable file falls through to a lower rung, and a rung that
+  wins leaves the files below it unread.
+- **Shared addresses.** `/configure` advises putting a personal address in
+  `config.local.md` or the environment, since one in `config.md` goes out on
+  every collaborator's calls.
 - **Credential marker.** The catalogue now marks plaintext credentials, so
   a credential can never reach the open ladder.
 
@@ -100,11 +117,17 @@ every queued service.
   - Run order: `fetch web metadata`, then a `WebFetch` of a resolver URL to
     learn its landing host, then `fetch doi metadata` on the declared DOI
     (or the resolver URL when `web metadata` printed none or failed).
+  - Tied DOIs: a non-resolver page's declared DOI is used only when a
+    `WebFetch` of `https://doi.org/{doi}` lands on the page's own host. An
+    untied DOI stays in the metadata block as inert text, so a page cannot
+    raise its tier by declaring another publication's DOI.
   - Tiering: a printed venue is tier-1, and a printed publisher alone is
     tier-2. Otherwise the landing host is tiered under the domain rules,
     and with no landing host known the source gets no venue at tier-3.
   - The profile also adds Waiting, warning and `E_DOI_*` handling, a
-    combined metadata template and four worked examples.
+    combined metadata template and five worked examples, one of them an
+    untied page. `E_DOI_TICKET_LIVE` is handled as an `unavailable` source;
+    a metadata call never ends the node, so there is no Failed outcome.
 - **Finding outputter.** A metadata block may come from several CLI
   commands.
 - **`research-topic`.** Its recovery rows cover DOI tickets and the
@@ -112,7 +135,8 @@ every queued service.
   once in its final summary.
 - **Docs.** `research.md` rewrites its Pacing section and adds the
   `doi metadata` section and `E_DOI_*` codes. `/configure` gains a
-  `crossref` section.
+  `crossref` section. `CHANGELOG.md` records the command, the setting, the
+  web-profile tiering and the arXiv state move.
 
 ### Tests and tooling
 
@@ -147,10 +171,12 @@ every queued service.
 
 ## Testing
 
-- [x] The bare `mise run` exits 0: 8479 of 8479 CLI tests, CLI line
-      coverage 94.42%.
-- [x] `mise run public-api:check`, `pup:check`, `docs:check` and
-      `test:integration:release-guard` pass.
+- [x] At `8c177921` (before the review response), the bare `mise run`
+      exits 0: 8479 of 8479 CLI tests, CLI line coverage 94.42%.
+- [x] At `8c177921`, `mise run public-api:check`, `pup:check`,
+      `docs:check` and `test:integration:release-guard` pass.
+- [ ] CI on the current tip, which adds the review response: pending when
+      this description was written. Not re-run locally.
 - [x] `mise run test:integration:arxiv-queue-stress` (opt-in, real clock)
       passed in 117 s during phase 3.
 - [x] Mutation check: narrowing the polite interval to 90 ms fails the
@@ -171,6 +197,15 @@ every queued service.
 
 ## Notes for Reviewers
 
+- **Review 1.** `meta/reviews/prs/258-review-1.md` (verdict `COMMENT`). The
+  commits after the first description address its untied-DOI and
+  `E_DOI_TICKET_LIVE` findings, the missing changelog, the silent pool
+  flip, the ports re-exported through `fetch`, the restated `Service` and
+  queued families, and the untested ladder paths.
+- **Serving slot during backoff.** Left as is: a Crossref call keeps its
+  slot through the 3/6/12 s backoff, which can stall the single public slot
+  for up to 21 s. `meta/notes/2026-11-23-release-the-serving-slot-during-backoff.md`
+  records why and what data would justify changing it.
 - **Where to start.**
   - The pacing domain: `cli/research/src/sources/pacing.rs`, the methods
     `reserve`, `confirm`, `release` and `trust`.
@@ -192,7 +227,8 @@ every queued service.
     second at Crossref, which the retry path absorbs.
 - **Web-profile ordering.** The work item requires the resolver `WebFetch`
   to run before `fetch doi metadata`. In the closing run the researcher ran
-  them the other way round; the tier did not depend on it.
+  them the other way round; the tier did not depend on it. The closing run
+  predates the tied-DOI rule, which no live run has exercised.
 - **Releases.** Phases 4–7 should ship in one release: the command (phase 4)
   is unused until the profile text (phase 7) calls it.
 - **Incidental changes.**
