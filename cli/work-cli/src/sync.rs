@@ -9851,6 +9851,8 @@ mod tests {
         let dir = sync_repo();
         let tracker = draft_with_attempted_marker(dir.path());
         commit_all(dir.path());
+        let markers =
+            crate::test_support::pending_push_tree(dir.path(), "jira");
 
         let run = drive_sync_captured(
             dir.path(),
@@ -9869,6 +9871,10 @@ mod tests {
             run.err
         );
         assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+        assert_eq!(
+            crate::test_support::pending_push_tree(dir.path(), "jira"),
+            markers
+        );
     }
 
     fn conflicts_beside_an_attempted_create(
@@ -9887,20 +9893,25 @@ mod tests {
 
     #[test]
     fn a_previewed_refusal_outranks_a_conflict() {
-        let previewed = sync_repo();
-        let tracker = conflicts_beside_an_attempted_create(previewed.path());
-        let preview = drive_sync_captured(
-            previewed.path(),
-            &tracker,
-            &previewing(vec![]),
-        );
-        let applied = sync_repo();
-        let tracker = conflicts_beside_an_attempted_create(applied.path());
-        let run =
-            drive_sync_captured(applied.path(), &tracker, &sync_args(vec![]));
+        let preview =
+            preview_and_run(conflicts_beside_an_attempted_create, &[]);
 
         assert_eq!(preview.code, ExitCode::from(super::exit_codes::TERMINAL));
-        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+        assert!(
+            preview.out.contains("0003\tfailed\tunsynced\tterminal"),
+            "{}",
+            preview.out
+        );
+        assert!(
+            error_lines(&preview.err)
+                .iter()
+                .any(|line| line.starts_with(
+                    "error: 0003: create would fail: pending push refused \
+                 (prior-attempt-unknown): "
+                )),
+            "{}",
+            preview.err
+        );
     }
 
     #[test]
