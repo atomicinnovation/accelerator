@@ -108,6 +108,16 @@ pub struct PrivateBuild(pub(crate) ());
 pub trait SharedFamily: Sized {
     const FAMILY: Family;
 
+    /// What a build needs beyond a directory and a hermetic environment.
+    type Inputs;
+
+    /// The inputs the run's build step hands this family's builder.
+    ///
+    /// # Errors
+    ///
+    /// When an input the family needs is missing.
+    fn inputs_from_environment() -> Result<Self::Inputs, Error>;
+
     /// Takes over a tree the run's build step made, building nothing.
     ///
     /// # Errors
@@ -123,6 +133,7 @@ pub trait SharedFamily: Sized {
     fn build_privately(
         directory: &Path,
         hermetic: &Hermetic,
+        inputs: &Self::Inputs,
         token: PrivateBuild,
     ) -> Result<Self, Error>;
 }
@@ -147,6 +158,7 @@ pub trait CopyableFamily: SharedFamily {
         part: Self::Part,
         directory: &Path,
         hermetic: &Hermetic,
+        inputs: &Self::Inputs,
         token: PrivateBuild,
     ) -> Result<Self, Error>;
 

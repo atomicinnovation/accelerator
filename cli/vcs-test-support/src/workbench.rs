@@ -147,7 +147,9 @@ impl Workbench {
     ///
     /// When the workbench already holds a fixture, the handed tree is missing
     /// or cannot be adopted, or the private build fails.
-    pub fn shared<F: SharedFamily>(&self) -> Result<Held<'_, F>, Error> {
+    pub fn shared<F: SharedFamily<Inputs = ()>>(
+        &self,
+    ) -> Result<Held<'_, F>, Error> {
         let fixtures = BuiltFixtures::Shared(F::FAMILY);
         self.hand_out(fixtures, || {
             if let Some(tree) = self.handover.shared_tree(F::FAMILY) {
@@ -160,7 +162,12 @@ impl Workbench {
                 Ok((fixture, Acquisition::Adopted))
             } else {
                 self.build_privately(fixtures, |directory, hermetic| {
-                    F::build_privately(directory, hermetic, PrivateBuild(()))
+                    F::build_privately(
+                        directory,
+                        hermetic,
+                        &(),
+                        PrivateBuild(()),
+                    )
                 })
             }
         })
@@ -176,9 +183,23 @@ impl Workbench {
     /// When the workbench already holds a fixture, the handed tree is missing
     /// or cannot be adopted or copied, a copied file still names the shared
     /// tree, or the private build fails.
-    pub fn writable<F: CopyableFamily>(
+    pub fn writable<F: CopyableFamily + SharedFamily<Inputs = ()>>(
         &self,
         part: F::Part,
+    ) -> Result<Held<'_, F>, Error> {
+        self.writable_with::<F>(part, &())
+    }
+
+    /// As [`Self::writable`], for a family whose private build needs
+    /// `inputs`. A copy of the handed tree leaves them unused.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::writable`].
+    pub fn writable_with<F: CopyableFamily>(
+        &self,
+        part: F::Part,
+        inputs: &F::Inputs,
     ) -> Result<Held<'_, F>, Error> {
         let fixtures = BuiltFixtures::Shared(F::FAMILY);
         self.hand_out(fixtures, || {
@@ -190,6 +211,7 @@ impl Workbench {
                         part,
                         directory,
                         hermetic,
+                        inputs,
                         PrivateBuild(()),
                     )
                 })

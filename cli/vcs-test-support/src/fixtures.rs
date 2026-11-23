@@ -128,6 +128,11 @@ impl Matrix {
 
 impl SharedFamily for Matrix {
     const FAMILY: Family = Family::Matrix;
+    type Inputs = ();
+
+    fn inputs_from_environment() -> Result<(), Error> {
+        Ok(())
+    }
 
     fn adopt(tree: &Path) -> Result<Self, Error> {
         let base = tree.canonicalize().map_err(|error| {
@@ -140,6 +145,7 @@ impl SharedFamily for Matrix {
     fn build_privately(
         directory: &Path,
         hermetic: &Hermetic,
+        _inputs: &(),
         _token: PrivateBuild,
     ) -> Result<Self, Error> {
         Self::build_with(directory, hermetic)
