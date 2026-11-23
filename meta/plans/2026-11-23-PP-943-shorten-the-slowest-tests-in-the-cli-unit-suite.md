@@ -518,9 +518,14 @@ the full `mise run` green. It departs from the plan in four ways:
   masked `+`-joined list compared unequal across two builds about half the
   time. `IdMasking` now orders a joined list by position, and a swapped
   list compares equal.
-- **Gaps against the Reused state list:** file modes, git's index, and a
-  colocated jj repository's git refs and `HEAD` are not projected. No
-  target varies them, and a copy keeps `.git` byte for byte.
+- **Gaps closed after the manual check:** each file projects as a
+  `FileState` (`Regular`, `Executable` or `Symlink`, plus content), in
+  commits, on disk and in the index. A git repository, and a jj one
+  colocated with git, project a `GitSide`: `HEAD`, branches, tags and the
+  index. jj bookmarks move to their own `bookmarks` field.
+- **Process budget:** reading git's side costs a `for-each-ref` and an
+  `ls-files`. A projection spawns 2 processes for pure jj, 3 for git and
+  4 for colocated jj, still independent of the number of commits.
 
 ### Changes Required
 
@@ -577,9 +582,29 @@ from `src/lib.rs`
 pub struct RepositoryState {
     pub kind: RepositoryKind,
     pub commits: Vec<CommitState>,
-    pub references: BTreeMap<String, CommitPosition>,
+    pub bookmarks: BTreeMap<String, CommitPosition>,
+    pub git: Option<GitSide>,
     pub working_copy_parents: Vec<CommitPosition>,
-    pub working_copy: BTreeMap<String, String>,
+    pub working_copy: BTreeMap<String, FileState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitSide {
+    pub references: BTreeMap<String, CommitPosition>,
+    pub index: BTreeMap<String, FileState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FileState {
+    pub kind: FileKind,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FileKind {
+    Regular,
+    Executable,
+    Symlink,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -593,7 +618,7 @@ pub struct CommitState {
     pub position: CommitPosition,
     pub parents: Vec<CommitPosition>,
     pub description: String,
-    pub files: BTreeMap<String, String>,
+    pub files: BTreeMap<String, FileState>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -633,8 +658,9 @@ kind needs:
   never appear.
 - **No snapshot:** every `jj` call passes `--ignore-working-copy`, so
   reading never snapshots the working copy or records an operation.
-- **Batched reads:** each projection spawns at most 2 processes, whatever
-  the number of commits. Each per-kind reader is one function that issues
+- **Batched reads:** each projection spawns a fixed number of processes,
+  whatever the number of commits: 2 for pure jj, 3 for git and 4 for
+  colocated jj. Each per-kind reader is one function that issues
   both commands, so a reviewer can check the budget in one place. One
   `jj log -T` template (or `git log --format` for a git repository) gives
   every commit's IDs, parents, description and tree ID. One
@@ -728,7 +754,7 @@ copy off shared trees.
 
 #### Manual Verification
 
-- [ ] A reviewer checks the projection's fields against the work item's
+- [x] A reviewer checks the projection's fields against the work item's
       **Reused state** list.
 
 ---
@@ -1599,10 +1625,11 @@ Also to record:
   become 4 builds in the build step and 26 copies. That removes 182 of ~248
   `jj` spawns, but only 26 of 64 migrate runs: the 38 resumes and refusals
   remain, and they cost more than a `jj` spawn. The two reused-state tests
-  add 2 oracle prefixes, 4 shape finishes and 8 projections: ~34 spawns,
-  ~17 per test.
-- **Projection budget:** each `RepositoryState::of` spawns at most 2
-  processes (one `jj log -T`, one `git cat-file --batch`).
+  add 2 oracle prefixes, 4 shape finishes and 8 projections: ~42 spawns,
+  ~17 for the pure test and ~25 for the colocated one.
+- **Projection budget:** each `RepositoryState::of` spawns 2 processes for
+  pure jj (one `jj log -T`, one `git cat-file --batch`), 3 for git and 4
+  for colocated jj (adding `git for-each-ref` and `git ls-files`).
 - **Projected budget gate:** before step 4 of phase 6's tests, project
   `guarded_resume`'s charged figure at under-suite rates:
   1. Derive per-class under-suite rates. Time, alone, one `Stalled::on`
