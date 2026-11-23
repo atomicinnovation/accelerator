@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-936"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T21:27:22+00:00"
+last_updated: "2026-11-23T23:43:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -31,8 +31,8 @@ As someone reading topic research, I want to open a research set in the
 visualiser and read every document in it, so that I can follow a subject from
 its brief to its reports without leaving the visualiser.
 
-This item is a container. Seven child work items deliver it, and it is done
-when all seven are. It is the remaining work that closes PP-22, aside from
+This item is a container. Eight child work items deliver it, and it is done
+when all eight are. It is the remaining work that closes PP-22, aside from
 bugs already in progress; until it lands the visualiser shows a set's
 manifest alone.
 
@@ -69,27 +69,34 @@ The children deliver, between them:
 - A Sources parser in the `research` crate: the one Rust reading of a
   document's Sources section and its tier text.
 - A reference design for the set page, approved before the page is built.
+- A derived set response: the server works out, through the `research`
+  crate, what a set page shows beyond its member listing.
 - The topic-research set page: persistent set navigation beside one member
   at a time, showing status, the outline by round, focus areas and their
   findings, level notes, and reports, and updating live.
 - Sources rendering: each source's tier, venue, marks, and metadata shown as
   distinct elements wherever a topic-research document is shown.
 
-They are sequenced as follows. The reference design, the set model, and the
-Sources parser have no blockers and can start together.
+They are sequenced as follows. The link fix, the reference design, the set
+model, and the Sources parser have no work-item blockers and can start
+together.
 
 ```mermaid
 flowchart LR
   design[Reference design] --> page[Set page]
   design --> rendering[Sources rendering]
   model[Set model] --> routes[Member routes]
+  model --> derived[Derived set response]
+  derived --> page
+  derived --> rendering
+  fix[Link fix] --> routes
   model --> page
   model --> rendering
   routes --> page
   routes --> rendering
   parser[Sources parser] --> rendering
-  page --> done[PP-868 done]
-  rendering --> done
+  page --> rendering
+  rendering --> done[PP-868 done]
 ```
 
 ### Child work items
@@ -101,10 +108,11 @@ flowchart LR
 - PP-1000 — Sources Rendering in the Visualiser
 - PP-999 — Reference Design for the Topic-Research Set Page
 - PP-996 — Links to a Research Set or Design Inventory Open the Wrong One
+- PP-1002 — Derived Set Response for Topic Research
 
 ## Acceptance Criteria
 
-- [ ] All seven child work items are done.
+- [ ] All eight child work items are done.
 - [ ] Given a research set with a brief, an outline, findings with level
       notes, a synthesis, and reports, when its library entry is opened in
       the visualiser, then every one of those documents can be reached and
@@ -142,8 +150,8 @@ flowchart LR
 ## Technical Notes
 
 **Size**: XL — the sum of its children: reference design (M), set model (L),
-member routes (M), Sources parser (M), set page (L), and Sources rendering
-(M).
+member routes (M), link fix (S), Sources parser (M), derived set response
+(L), set page (L), and Sources rendering (M).
 
 - Technical detail lives in each child's Technical Notes.
 - Reviews of the children are in `meta/reviews/work/`.
@@ -155,7 +163,8 @@ member routes (M), Sources parser (M), set page (L), and Sources rendering
   and its earlier text is in version control.
 - Scope history: level notes, set statuses, live update, and member indexing
   were added when the item was enriched; the generic set model, the
-  design-inventory migration, and the unreadable and unmatched groups were
+  design-inventory migration, and the unplaced (first called unreadable)
+  and unmatched groups were
   added by the stress test; the review widened the parser to the whole
   Sources section and split out Sources rendering and the reference design.
 - The item stays a story holding stories, tasks, and a bug, at the author's
