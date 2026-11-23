@@ -348,10 +348,7 @@ fn source_call(
             let diagnostics = context.diagnostics.clone();
             let arxiv = ServiceAdapters::for_arxiv(
                 &context,
-                Some(PreviousRelease {
-                    queue: research.nested("arxiv-queue"),
-                    lock: research.path("arxiv.lock"),
-                }),
+                Some(PreviousRelease::arxiv_layout(&research)),
             );
             SourceCall::Arxiv(
                 ArxivCall { request, presented },

@@ -27,8 +27,17 @@ pub struct AdapterContext {
 
 /// Where the release before per-service state kept arXiv's queue and lock.
 pub struct PreviousRelease {
-    pub queue: ScratchDir,
-    pub lock: PathBuf,
+    queue: ScratchDir,
+    lock: PathBuf,
+}
+
+impl PreviousRelease {
+    pub fn arxiv_layout(research: &ScratchDir) -> Self {
+        Self {
+            queue: research.nested("arxiv-queue"),
+            lock: research.path("arxiv.lock"),
+        }
+    }
 }
 
 pub struct ServiceAdapters {

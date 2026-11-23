@@ -183,10 +183,7 @@ pub fn adapter_context(
 
 /// The previous release's arXiv state, where it kept it.
 pub fn previous_release(scratch: &Scratch) -> PreviousRelease {
-    PreviousRelease {
-        queue: scratch.dir().nested("arxiv-queue"),
-        lock: scratch.legacy_arxiv_state(LegacyFile::Lock),
-    }
+    PreviousRelease::arxiv_layout(&scratch.dir())
 }
 
 /// A file or directory the previous release kept arXiv's state in.
