@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-23T00:35:00+00:00"
+last_updated: "2026-11-23T00:50:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -362,13 +362,12 @@ The work item's `## Baseline` section holds the full record. In brief:
 
 - **Two counting runs**, on Claude Code `2.1.330` and plugin
   `1.24.0-pre.105`:
-  - `meta/research/topics/pp-891-doi-resolver-baseline/`, whose brief
-    described each paper's subject;
-  - `meta/research/topics/pp-891-doi-resolver-baseline-2/`, re-run at the
-    author's direction with a brief naming only the two URLs.
+  - one whose brief described each paper's subject;
+  - one re-run at the author's direction with a brief naming only the two
+    URLs.
 
-  Each set holds its notes only. No dossier was synthesised: each set has
-  a single finding, so a dossier would add no evidence.
+  No dossier was synthesised: each set had a single finding, so a dossier
+  would add no evidence. Both sets were deleted afterwards as test residue.
 - **Result**: both runs record `doi.org` in each resolver URL's venue, at
   tier-1, not tier-3. The tier-1 rests on a Crossref lookup the researcher
   improvised with `WebFetch` and cited as its own tier-1 source. The author

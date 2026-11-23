@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897", "work-item:PP-936"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers", "cli", "crossref"]
-last_updated: "2026-11-23T00:30:00+00:00"
+last_updated: "2026-11-23T00:50:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -546,12 +546,13 @@ Reproduction (confirmed by the baseline; see Baseline):
 
 Run on Claude Code `2.1.330` with plugin `1.24.0-pre.105`, web profile only,
 depth 1. Both runs count: each cites both resolver URLs as web-profile
-entries.
+entries. Their subjects were deleted afterwards as test residue, so this
+section is the record of the runs.
 
-| Run | Subject | Brief | Recorded venue and tier |
-|---|---|---|---|
-| 1 | `meta/research/topics/pp-891-doi-resolver-baseline/` | names each paper's subject | `doi.org / ACM, WWW 2001 proceedings`, tier-1; `doi.org / ACM, SIGMOD 2021 proceedings`, tier-1 |
-| 2 | `meta/research/topics/pp-891-doi-resolver-baseline-2/` | names only the two URLs | `doi.org → dl.acm.org (ACM Digital Library; WWW10 proceedings)`, tier-1; `doi.org → dl.acm.org (ACM Digital Library; SIGMOD '21 proceedings)`, tier-1 |
+| Run | Brief | Recorded venue and tier |
+|---|---|---|
+| 1 | names each paper's subject | `doi.org / ACM, WWW 2001 proceedings`, tier-1; `doi.org / ACM, SIGMOD 2021 proceedings`, tier-1 |
+| 2 | names only the two URLs | `doi.org → dl.acm.org (ACM Digital Library; WWW10 proceedings)`, tier-1; `doi.org → dl.acm.org (ACM Digital Library; SIGMOD '21 proceedings)`, tier-1 |
 
 - `doi.org` is recorded in every resolver URL's venue. The tier-3 drop did
   not reproduce; the tier-1 rests on an improvised Crossref lookup, cited
