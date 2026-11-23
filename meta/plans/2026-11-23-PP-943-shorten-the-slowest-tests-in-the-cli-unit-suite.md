@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T19:30:00+00:00"
+last_updated: "2026-11-23T21:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -497,8 +497,10 @@ projection for their reused-state tests, `each_of` for their loops and
 Nothing else changes.
 
 **Landed** in changes `ysntqsyx` (`JjColocation`), `qpkmmznu` (`each_of`),
-`qvsuxtvl` (`copy_private_tree`) and `xlowttwq` (`RepositoryState`), with
-the full `mise run` green. It departs from the plan in four ways:
+`qvsuxtvl` (`copy_private_tree`), `xlowttwq` (`RepositoryState`),
+`tlumpksx` (joined run bases), `znvwzrpz` (file kinds) and `ztuqlvkr` (the
+git side), with the full `mise run` green. The sections below describe
+what was built. It departs from the reviewed plan in six ways:
 
 - **Refusal message:** `TreeCopy::require_clean(copied, source)` replaces
   the free `still_naming(source, named_by)`. `Workbench::copied` and
@@ -507,25 +509,20 @@ the full `mise run` green. It departs from the plan in four ways:
 - **Scan order:** `copy_part` now copies every entry before scanning any.
   A top-level symlink to a later entry failed the scan, because
   `files_naming` follows a root symlink.
-- **Git reader:** `git for-each-ref` lists branches and tags, and the
-  `cat-file --batch` session resolves `HEAD` and walks parents. No
-  `git log` or `rev-list` is spawned, so the budget is still two
-  processes.
-- **jj root commit:** the projection leaves it out (`all() ~ root()`), and
-  drops it from parent lists. It has no object in the git store.
+- **Readers:** no `git log` or `rev-list` is spawned. The `cat-file
+  --batch` session resolves `HEAD` and walks parents itself. The jj
+  reader lists `all() ~ root()`, because the root commit has no object in
+  the git store.
 - **Joined run bases:** the manual check found that migrate writes a
   merge's run base in hash order (`RunBase::from_base_commits`), so a
   masked `+`-joined list compared unequal across two builds about half the
-  time. `IdMasking` now orders a joined list by position, and a swapped
-  list compares equal.
-- **Gaps closed after the manual check:** each file projects as a
-  `FileState` (`Regular`, `Executable` or `Symlink`, plus content), in
-  commits, on disk and in the index. A git repository, and a jj one
-  colocated with git, project a `GitSide`: `HEAD`, branches, tags and the
-  index. jj bookmarks move to their own `bookmarks` field.
+  time. `IdMasking` now orders a joined list by position.
+- **Gaps closed after the manual check:** files carry their kind, and git's
+  references and index are projected for a colocated jj repository as
+  well as a git one. jj bookmarks have their own field.
 - **Process budget:** reading git's side costs a `for-each-ref` and an
   `ls-files`. A projection spawns 2 processes for pure jj, 3 for git and
-  4 for colocated jj, still independent of the number of commits.
+  4 for colocated jj, instead of at most 2.
 
 ### Changes Required
 
@@ -575,7 +572,8 @@ one definition.
 #### 2. The projection
 
 **File**: `cli/vcs-test-support/src/repository_state.rs` (new), exported
-from `src/lib.rs`
+from `src/lib.rs`, with its steps in `repository_state/{order,masking,
+reading}.rs`
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -632,25 +630,33 @@ impl RepositoryState {
 The projection covers the following, with `git` and `jj` as each repository
 kind needs:
 
-- **Commits:** every visible commit (`jj log -r 'all()'`, or
-  `git rev-list` over the projected references), as a position in a total
+- **Commits:** every visible commit (`jj log -r 'all() ~ root()'`, or
+  every commit git's projected references reach), as a position in a total
   topological order. Parents come before children. Ties are broken by
   description, then file tree, then the parents' positions, then the
   sorted names of references pointing at the commit, then whether it is a
   working-copy parent. Commits still indistinguishable after that are
   refused with an error naming them, rather than ordered arbitrarily.
   Each commit carries its parents' positions, description and file tree
-  (path to content).
-- **References:** `HEAD`, `refs/heads/*` and `refs/tags/*`, and jj
-  bookmarks, each mapped to the position it points at. `refs/jj/*` is
-  excluded, because jj names those refs after commit hashes.
+  (path to `FileState`).
+- **Files:** each `FileState` is `Regular`, `Executable` or `Symlink`,
+  with its content, or a symlink's target.
+- **Bookmarks:** jj's local bookmarks, each mapped to the position it
+  points at.
+- **Git side:** for a git repository, or a jj one colocated with git,
+  `HEAD`, `refs/heads/*` and `refs/tags/*` by position, and every index
+  entry (`path (stage N)` for a conflicted stage). `refs/jj/*` is
+  excluded, because jj names those refs after commit hashes. A pure jj
+  repository has no git side.
 - **Working copy:** the working copy's parents, and every file on disk
-  outside `.git`, `.jj` and `hermetic-*` entries, with its content.
-- **Kind:** read from `.jj/repo/store/git_target` and the presence of
-  `.git`.
+  outside `.git`, `.jj` and `hermetic-*` entries.
+- **Kind:** jj when `.jj` is a directory, colocated when `.git` exists
+  beside it, and git when only `.git` exists. The backing store is read
+  from `.jj/repo/store/git_target`.
 - **Hidden IDs:** every full commit ID or change ID that appears in a
   file's content, alone or in a `+`-joined list, is replaced with
-  `<commit N>` or `<change N>`. This lets
+  `<commit N>` or `<change N>`, and a joined list is ordered by position,
+  since migrate orders it by hash. This lets
   `.accelerator/state/migrations-run.id` compare by graph position.
   Abbreviated IDs are not masked, so a file holding one makes two builds
   compare unequal, and fails loudly rather than passing.
@@ -660,16 +666,17 @@ kind needs:
   reading never snapshots the working copy or records an operation.
 - **Batched reads:** each projection spawns a fixed number of processes,
   whatever the number of commits: 2 for pure jj, 3 for git and 4 for
-  colocated jj. Each per-kind reader is one function that issues
-  both commands, so a reviewer can check the budget in one place. One
-  `jj log -T` template (or `git log --format` for a git repository) gives
-  every commit's IDs, parents, description and tree ID. One
+  colocated jj. Each per-kind reader is one function in `reading.rs`, so
+  a reviewer can check the budget in one place. One `jj log -T` template
+  gives every jj commit's IDs, parents, bookmarks and description. Git's
+  side adds `git for-each-ref` and `git ls-files --stage`. One
   `git cat-file --batch` session, against the backing git store
-  (`.jj/repo/store/git` under `Pure`), reads every tree and blob.
+  (`.jj/repo/store/git` under `Pure`), resolves `HEAD` and reads every
+  commit, tree and blob.
 
 `of` composes three seams, each tested on its own:
 
-- per-kind readers that return raw commits and references;
+- per-kind readers that return raw commits, bookmarks and git side;
 - a pure `ordered_positions` step;
 - a pure `IdMasking` step.
 
@@ -680,9 +687,9 @@ The pure steps need no `git` or `jj`.
 **File**: `cli/vcs-test-support/src/copies.rs`
 **Changes**: Add `copy_private_tree`, which copies every top-level entry of
 a tree the test built for itself through `copy_entry`, and fails unless the
-copy names nothing from the source. It also extracts `still_naming(source,
-named_by)`, the error message that `Workbench::copied` builds inline today
-(`workbench.rs:294-305`), so both callers share it.
+copy names nothing from the source. `TreeCopy::require_clean` takes over
+the error message that `Workbench::copied` built inline, so both callers
+share it.
 
 ```rust
 pub fn copy_private_tree(
@@ -692,11 +699,11 @@ pub fn copy_private_tree(
     let entries = top_level_entries(template)?;
     let names: Vec<&str> = entries.iter().map(String::as_str).collect();
     let copy = copy_part(template, &names, destination)?;
-    if copy.is_clean() {
-        Ok(copy.root)
-    } else {
-        Err(still_naming(template, &copy.named_by))
-    }
+    copy.require_clean(
+        "the copy",
+        format_args!("its template {}", template.display()),
+    )?;
+    Ok(copy.root)
 }
 ```
 
@@ -715,9 +722,15 @@ copy off shared trees.
 - A state differs when one thing differs, one case each: a description, a
   file's content, a commit's parents, a git ref or `HEAD`, a bookmark, a
   working-copy parent, or the kind.
+- A state differs on a file's kind: an executable bit in a commit, one on
+  disk only, and a symlink against a file naming its target.
+- Git's index: a staged change differs from the same change unstaged.
+- A colocated repository projects its git `HEAD`, branches and index, and
+  differs when its git `HEAD` or a git-only tag differs from jj's view.
 - A file holding a commit ID compares by position: equal across two builds,
-  and different when it names a different commit. The same holds for a
-  `+`-joined pair of IDs.
+  and different when it names a different commit. A `+`-joined pair
+  compares equal in either order, and differs when it names a different
+  set.
 - A `refs/jj/keep/<hash>` ref does not break equality.
 - Two sibling commits with equal descriptions and trees, told apart by a
   bookmark, project in the same order across two builds. Two that nothing
