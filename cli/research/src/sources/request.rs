@@ -6,6 +6,7 @@ use std::fmt;
 use crate::sources::crossref::ContactAddress;
 use crate::sources::queue::MalformedTicket;
 use crate::sources::queue::Ticket;
+use crate::sources::service::Service;
 use crate::sources::web::page_url::PageUrl;
 use crate::sources::web::page_url::PageUrlError;
 
@@ -43,13 +44,13 @@ impl fmt::Display for RequestError {
             Self::UnknownFamily(family) => write!(
                 formatter,
                 "E_RESEARCH_USAGE: unknown family '{family}' (expected {})",
-                alternatives(Family::ALL.iter().map(|family| family.code())),
+                listed(Family::ALL.iter().map(|family| family.code()), "or"),
             ),
             Self::UnknownVerb { verb, family } => write!(
                 formatter,
                 "E_RESEARCH_USAGE: unknown verb '{verb}' ({} supports {})",
                 family.code(),
-                alternatives(family.verbs().iter().map(|verb| verb.code())),
+                listed(family.verbs().iter().map(|verb| verb.code()), "or"),
             ),
             Self::LimitOutOfRange(limit) => write!(
                 formatter,
@@ -100,9 +101,16 @@ impl fmt::Display for RequestError {
                  (got '{ticket}')",
                 family.code().to_ascii_uppercase()
             ),
-            Self::TicketNotQueued => formatter.write_str(
-                "E_RESEARCH_USAGE: --ticket applies only to arxiv and doi \
-                 fetches",
+            Self::TicketNotQueued => write!(
+                formatter,
+                "E_RESEARCH_USAGE: --ticket applies only to {} fetches",
+                listed(
+                    Family::ALL
+                        .iter()
+                        .filter(|family| family.is_queued())
+                        .map(|family| family.code()),
+                    "and",
+                ),
             ),
         }
     }
@@ -119,11 +127,14 @@ impl RequestError {
     }
 }
 
-fn alternatives<'a>(codes: impl Iterator<Item = &'a str>) -> String {
+fn listed<'a>(
+    codes: impl Iterator<Item = &'a str>,
+    conjunction: &str,
+) -> String {
     let codes = codes.collect::<Vec<_>>();
     match codes.split_last() {
         Some((last, rest)) if !rest.is_empty() => {
-            format!("{} or {last}", rest.join(", "))
+            format!("{} {conjunction} {last}", rest.join(", "))
         }
         _ => codes.concat(),
     }
@@ -143,7 +154,7 @@ pub fn parse_ticket(
     let Some(raw) = raw else {
         return Ok(None);
     };
-    if !matches!(family, Family::Arxiv | Family::Doi) {
+    if !family.is_queued() {
         return Err(RequestError::TicketNotQueued);
     }
     Ticket::parse(raw)
@@ -187,6 +198,14 @@ impl Family {
             Self::Web => "web",
             Self::Doi => "doi",
         }
+    }
+
+    /// Whether a call on this family waits in a service's queue, and so
+    /// takes `--ticket`.
+    pub fn is_queued(self) -> bool {
+        Service::ALL
+            .iter()
+            .any(|service| service.ticket_family() == self)
     }
 
     pub const fn verbs(self) -> &'static [Verb] {

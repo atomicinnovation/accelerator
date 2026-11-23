@@ -20,6 +20,7 @@ use research::sources::request::RequestError;
 use research::sources::request::UpstreamRequest;
 use research::sources::request::Verb;
 use research::sources::request::WebRequest;
+use research::sources::service::Service;
 use research::sources::web::page_url::PageUrl;
 use research::sources::web::page_url::PageUrlError;
 
@@ -230,6 +231,16 @@ fn a_malformed_ticket_on_a_doi_request_names_the_doi_family() {
                 .to_owned()
         )
     );
+}
+
+#[test]
+fn a_family_is_queued_exactly_when_some_service_issues_its_tickets() {
+    for family in Family::ALL {
+        let issued = Service::ALL
+            .iter()
+            .any(|service| service.ticket_family() == family);
+        assert_eq!(family.is_queued(), issued, "{}", family.code());
+    }
 }
 
 #[test]
