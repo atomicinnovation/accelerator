@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 pub mod repo;
+pub mod unsynced_store;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;

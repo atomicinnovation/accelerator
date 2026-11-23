@@ -1136,3 +1136,172 @@ mod in_a_real_repository {
         Ok(())
     }
 }
+
+mod an_unsynced_store_writes_as_the_file_store_does {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt as _;
+    use std::path::Path;
+
+    use corpus::store::ExclusiveCreate;
+    use corpus::AtomicWrite;
+    use corpus::FileRemove;
+    use corpus::StoreError;
+    use corpus_adapters::FileCorpusStore;
+
+    use super::support::unsynced_store::UnsyncedStore;
+    use super::TestError;
+
+    trait Store: AtomicWrite + ExclusiveCreate + FileRemove {}
+    impl<S: AtomicWrite + ExclusiveCreate + FileRemove> Store for S {}
+
+    fn for_each_store(
+        case: impl Fn(&dyn Store, &Path) -> Result<(), TestError>,
+    ) -> Result<(), TestError> {
+        let synced = tempfile::tempdir()?;
+        case(&FileCorpusStore::new(synced.path()), synced.path())?;
+        let unsynced = tempfile::tempdir()?;
+        case(&UnsyncedStore::new(unsynced.path()), unsynced.path())
+    }
+
+    fn mode(path: &Path) -> Result<u32, TestError> {
+        Ok(fs::metadata(path)?.permissions().mode() & 0o777)
+    }
+
+    #[test]
+    fn a_write_replaces_the_whole_file_and_keeps_its_mode(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("item.md");
+            fs::write(&path, "old content that is longer")?;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o640))?;
+
+            store.write(&path, b"new")?;
+
+            assert_eq!(fs::read_to_string(&path)?, "new");
+            assert_eq!(mode(&path)?, 0o640);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_write_makes_missing_parents_and_a_file_at_the_umask_mode(
+    ) -> Result<(), TestError> {
+        let fresh = 0o666 & !store::current_umask();
+        for_each_store(|store, root| {
+            let path = root.join("a/b/item.md");
+
+            store.write(&path, b"new")?;
+
+            assert_eq!(fs::read_to_string(&path)?, "new");
+            assert_eq!(mode(&path)?, fresh);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn creating_an_existing_file_is_refused_and_leaves_it_untouched(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("lock");
+            fs::write(&path, "kept")?;
+
+            let refused = store.create_new(&path, b"replacement");
+
+            assert!(
+                matches!(refused, Err(StoreError::AlreadyExists { .. })),
+                "{refused:?}"
+            );
+            assert_eq!(fs::read_to_string(&path)?, "kept");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn creating_makes_missing_parents_and_a_file_at_the_umask_mode(
+    ) -> Result<(), TestError> {
+        let fresh = 0o666 & !store::current_umask();
+        for_each_store(|store, root| {
+            let path = root.join("a/b/lock");
+
+            store.create_new(&path, b"held")?;
+
+            assert_eq!(fs::read_to_string(&path)?, "held");
+            assert_eq!(mode(&path)?, fresh);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn creating_in_a_directory_that_cannot_be_written_is_not_writable(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let locked = root.join("locked");
+            fs::create_dir(&locked)?;
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o555))?;
+
+            let refused = store.create_new(&locked.join("lock"), b"held");
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o755))?;
+
+            assert!(
+                matches!(refused, Err(StoreError::NotWritable { .. })),
+                "{refused:?}"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_write_through_a_symlink_out_of_the_root_is_refused(
+    ) -> Result<(), TestError> {
+        let outside = tempfile::tempdir()?;
+        for_each_store(|store, root| {
+            std::os::unix::fs::symlink(outside.path(), root.join("escape"))?;
+
+            let write = store.write(&root.join("escape/item.md"), b"new");
+            let create = store.create_new(&root.join("escape/lock"), b"held");
+
+            assert!(
+                matches!(write, Err(StoreError::UnsafePath { .. })),
+                "{write:?}"
+            );
+            assert!(
+                matches!(create, Err(StoreError::UnsafePath { .. })),
+                "{create:?}"
+            );
+            Ok(())
+        })?;
+        assert_eq!(fs::read_dir(outside.path())?.count(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn removing_deletes_a_file_and_accepts_an_absent_one(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("item.md");
+            fs::write(&path, "gone")?;
+
+            store.remove(&path)?;
+            store.remove(&path)?;
+
+            assert!(!path.exists());
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_failed_write_leaves_no_temporary_behind() -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("lock");
+            fs::write(&path, "kept")?;
+
+            let _refused = store.create_new(&path, b"replacement");
+
+            let entries: Vec<_> = fs::read_dir(root)?
+                .map(|entry| entry.map(|entry| entry.file_name()))
+                .collect::<Result<_, _>>()?;
+            assert_eq!(entries, vec![std::ffi::OsString::from("lock")]);
+            Ok(())
+        })
+    }
+}
