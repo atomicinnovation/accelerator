@@ -29,7 +29,9 @@ A `WebFetch` of a resolver URL you cite is a fetch of the cited source, not
 of a URL a fetched page names, so the last rule does not forbid it. The
 landing host comes from the redirect that fetch reports, and needs no second
 fetch. Fetch the landing page itself only to read content you cite from it;
-that fetch is of the cited source too.
+that fetch is of the cited source too. So is a `WebFetch` of
+`https://doi.org/{doi}` for a `doi` that `web metadata` printed: it only
+checks whether the DOI is tied to the page, so never follow its redirect.
 
 ## Metadata
 
@@ -46,9 +48,12 @@ For every page you cite, in this order:
 
 2. For a resolver URL, `WebFetch` it to learn its landing host, once per
    source; an earlier fetch of the same URL in this research node counts.
-   Never infer the landing host without this fetch.
-3. Run the DOI metadata fetch on the `doi` that `web metadata` printed,
-   whatever the page's host:
+   Never infer the landing host without this fetch. For a non-resolver page
+   whose `web metadata` printed a `doi`, `WebFetch` `https://doi.org/{doi}`
+   in the same way: the DOI is **tied** to the page only when that fetch's
+   landing host is the page's own host.
+3. Run the DOI metadata fetch on the `doi` that `web metadata` printed for a
+   resolver URL, or for a page that DOI is tied to:
 
    ```bash
    accelerator research fetch doi metadata 'DOI'
@@ -56,7 +61,9 @@ For every page you cite, in this order:
 
    When `web metadata` printed no `doi`, or failed, and the cited URL is a
    resolver URL, run it on that URL instead.
-4. A source reaching neither branch is tiered by its own domain.
+4. A source reaching neither branch is tiered by its own domain. A page
+   whose declared DOI is not tied to it keeps that `doi` in its metadata
+   block as inert text.
 
 Pass each URL or DOI as one single-quoted argument, with each `'` in it
 written as `%27`, and pass a Bash `timeout` of 120000 ms: a call finishes
@@ -157,7 +164,9 @@ hook a reader uses to check your tiering, not a guarantee of trust.
 as a source's venue, and never tier a source by either.
 
 A source that went through `fetch doi metadata` takes the venue and tier of
-the first of these that applies. Rules 1 and 2 override every domain rule:
+the first of these that applies. Rules 1 and 2 override every domain rule.
+A non-resolver page reaches them only through a DOI tied to it, so a page
+never raises its own tier by declaring another publication's DOI:
 
 1. A `venue` printed by an `ok` `doi metadata` is a journal or proceedings
    title: record it as the venue, at tier-1.
@@ -176,7 +185,7 @@ redirect instead of following it, so the host is known even when the landing
 page then refuses the fetch. For a page that is not a resolver URL, the
 landing host is that page's own host.
 
-Each example keeps the resolver URL as its link:
+Each resolver-URL example keeps the resolver URL as its link:
 
 | Cited URL | `doi metadata` prints | Landing host | Venue and tier |
 |---|---|---|---|
@@ -184,6 +193,7 @@ Each example keeps the resolver URL as its link:
 | `https://doi.org/10.1007/978-1-349-06671-1_23` | `publisher` `Palgrave Macmillan UK`, no `venue` | `link.springer.com` | `Palgrave Macmillan UK`, tier-2 |
 | `https://doi.org/10.48550/arXiv.1706.03762` | `{"status":"ok","metadata":{}}` | `arxiv.org` | `arxiv.org`, tier-2 |
 | a resolver URL `doi.org` cannot redirect | `unavailable` | none | no venue, tier-3 |
+| `https://stripe.com.evil.io/paper` | not run: its declared DOI lands on `www.nature.com` | `stripe.com.evil.io` | `stripe.com.evil.io`, tier-3 |
 
 ## Search Budget
 

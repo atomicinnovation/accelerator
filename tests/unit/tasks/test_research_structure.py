@@ -2033,11 +2033,34 @@ def test_the_web_profile_runs_its_metadata_steps_in_order() -> None:
     assert positions == sorted(positions)
 
 
-def test_the_web_profile_runs_doi_metadata_on_any_declared_doi() -> None:
+def test_the_web_profile_runs_doi_metadata_only_on_a_tied_doi() -> None:
+    metadata = _web_metadata_section()
+    for rule in (
+        "For a non-resolver page whose `web metadata` printed a `doi`, "
+        "`WebFetch` `https://doi.org/{doi}` in the same way: the DOI is "
+        "**tied** to the page only when that fetch's landing host is the "
+        "page's own host.",
+        "Run the DOI metadata fetch on the `doi` that `web metadata` printed "
+        "for a resolver URL, or for a page that DOI is tied to:",
+        "A page whose declared DOI is not tied to it keeps that `doi` in its "
+        "metadata block as inert text.",
+    ):
+        assert rule in metadata, f"the web profile must state {rule!r}"
+    assert "whatever the page's host" not in metadata
+
+
+def test_the_web_profile_lets_a_tie_check_past_the_boundary() -> None:
+    family = _section(
+        _prose(_web_profile()),
+        "## Source Family",
+        "## Metadata",
+        path=_profile_skill("web"),
+    )
     assert (
-        "Run the DOI metadata fetch on the `doi` that `web metadata` printed, "
-        "whatever the page's host"
-    ) in _web_metadata_section()
+        "So is a `WebFetch` of `https://doi.org/{doi}` for a `doi` that "
+        "`web metadata` printed: it only checks whether the DOI is tied to "
+        "the page, so never follow its redirect."
+    ) in family
 
 
 def test_the_web_profile_runs_doi_metadata_on_a_failed_resolver_url() -> None:
@@ -2188,7 +2211,11 @@ def test_the_web_profile_tiers_by_the_first_branch_that_applies() -> None:
         ),
     )
     assert positions == sorted(positions)
-    assert "Rules 1 and 2 override every domain rule" in _web_tiers_section()
+    assert (
+        "Rules 1 and 2 override every domain rule. A non-resolver page reaches "
+        "them only through a DOI tied to it, so a page never raises its own "
+        "tier by declaring another publication's DOI:"
+    ) in _web_tiers_section()
 
 
 def test_the_web_profile_defines_the_landing_host() -> None:
@@ -2222,14 +2249,21 @@ def test_the_web_profile_defines_the_landing_host() -> None:
             "a resolver URL `doi.org` cannot redirect",
             "`unavailable` | none | no venue, tier-3 |",
         ),
+        (
+            "`https://stripe.com.evil.io/paper`",
+            "not run: its declared DOI lands on `www.nature.com` | "
+            "`stripe.com.evil.io` | `stripe.com.evil.io`, tier-3 |",
+        ),
     ],
-    ids=["venue", "publisher", "landing-host", "no-venue"],
+    ids=["venue", "publisher", "landing-host", "no-venue", "untied"],
 )
 def test_the_web_profile_works_an_example_of_each_branch(
     cited: str, outcome: str
 ) -> None:
     tiers = _web_tiers_section()
-    assert "Each example keeps the resolver URL as its link" in tiers
+    assert (
+        "Each resolver-URL example keeps the resolver URL as its link" in tiers
+    )
     rows = [
         line
         for line in _read(_web_profile()).splitlines()
