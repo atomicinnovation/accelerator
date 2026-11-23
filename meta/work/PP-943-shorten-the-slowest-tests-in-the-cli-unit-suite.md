@@ -12,7 +12,7 @@ parent: "work-item:PP-953"
 relates_to: ["work-item:PP-957", "work-item:PP-958", "work-item:PP-959", "work-item:PP-960", "work-item:PP-962"]
 external_id: "PP-943"
 tags: ["performance", "testing", "rust", "migrate", "vcs"]
-last_updated: "2026-11-23T11:39:41+00:00"
+last_updated: "2026-11-23T14:36:51+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 aliases: ["0391"]
@@ -162,7 +162,10 @@ figure of the target tests whose state it checks.
       test-seconds across the three runs is at most half the before figure,
       and the largest of its tests' durations is under 20 s.
 - [ ] **Tail-test timing.** Given the comparable records, when each tail
-      test's duration is read, then each of the three is at most half its
+      test's duration is read, then each `rekey_run` tail test is at most
+      half its before duration. The `matrix_private_build` test's median
+      alone duration is at most half its median alone duration alongside
+      the before record, and its after duration is no longer than its
       before duration.
 - [ ] **Split tests.** Given a target test that the change splits into
       successor tests, when its after duration is read, then it is the
@@ -354,6 +357,18 @@ figure of the target tests whose state it checks.
   tail test, so that test's after figure covers one more halt point than its
   before figure. The halving target stays as it is, and the plan records the
   extra pass beside the figure.
+- The baseline record
+  (`build_2026-11-23T140904Z_engywook_warm-no-op_devtools_isolated`, at
+  `f253d980e9`) and its alone runs put four targets under the half-ratio
+  line: the `guarded_resume` slowest test (13.6 s alone, 28.2 s under the
+  suite), `matrix_private_build` (7.5 s, 33.2 s), and the `rekey_run` kill
+  (11.6 s, 23.3 s) and edit-refusal (6.6 s, 17.9 s) tests. The author
+  reviewed them on 2026-11-23. The 20 s ceiling and both `rekey_run`
+  halving targets stay: the chosen approaches remove most of those tests'
+  `git` and `jj` spawns, which also cuts the contention they suffer.
+  `matrix_private_build`'s target moved to its alone duration, because
+  contention is 77% of its time under the suite and the change controls
+  only its own work; its under-suite duration must not grow.
 - The three binaries stay in one item: they share a measurement method and
   one before/after record pair. A delay in one binary delays the item's
   closure.
