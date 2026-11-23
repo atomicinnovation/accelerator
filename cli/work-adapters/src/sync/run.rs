@@ -17,6 +17,7 @@ use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::Unrenderable;
+use vcs::tracking::RepositoryTracking;
 use work::draft_id::DraftId;
 use work::inventory::CorpusInventory;
 use work::section_diff::SectionDiff;
@@ -1820,7 +1821,8 @@ impl LocalCreateInputs {
 fn previewed_outcome(
     create: &LocalCreate<'_>,
     request: &SyncRequest<'_>,
-    ports: &SyncPorts<'_>,
+    author: &dyn LocalAuthor,
+    tracking: &dyn RepositoryTracking,
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ItemOutcome {
@@ -1832,11 +1834,11 @@ fn previewed_outcome(
         let local_create = inputs.create_request(
             create,
             request,
-            ports.author,
+            author,
             carrier_of,
             attempted_at,
         );
-        let marker = MarkerReading::read(&local_create, ports.files.tracking);
+        let marker = MarkerReading::read(&local_create, tracking);
         unordered_create_decision(&local_create, &marker)
     });
     match decision {
@@ -2465,7 +2467,8 @@ fn execute<'a>(
             reported.push(create.report(previewed_outcome(
                 create,
                 request,
-                ports,
+                ports.author,
+                ports.files.tracking,
                 &carrier,
                 run_start_epoch,
             )));

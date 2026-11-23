@@ -171,8 +171,11 @@ The decision takes the whole `CreateFromLocalRequest`, although it reads only
 the item id, marker path, tracker name, `carrier_of`, `corpus_blocked_by` and
 the digest inputs. This is deliberate: both paths build the request through
 `LocalCreateInputs`, so `corpus_blocked_by` and `tracker_name` cannot drift
-between them. The decision is a free function with no ports, so it cannot
-write whatever the request carries.
+between them. The request still carries the `author` port, so nothing in the
+types stops the decision writing: it holds because the decision calls only
+`carrier_of`, and the preview passes it only `author` and `tracking` rather
+than every port. The CLI tests' `pending-push/` snapshots and the engine
+tests' send assertions pin it.
 
 ---
 
