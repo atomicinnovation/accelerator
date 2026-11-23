@@ -186,6 +186,16 @@ types stops the decision writing: it holds because the decision calls only
 than every port. The CLI tests' `pending-push/` snapshots and the engine
 tests' send assertions pin it.
 
+`MarkerReading`, the decision and `pending_push_refused` stay in `apply.rs`
+rather than moving beside `send_refusal.rs`, as review-2 suggested.
+`send_refusal.rs` is pure: it decides from values and reads nothing.
+`MarkerReading::read` reads the file system and asks `RepositoryTracking`,
+and the applier's ordered paths (`settle_order`, the relink's adopt arm) read
+markers through it too, so it belongs with the applier that owns markers.
+`run.rs` depends on three `pub(crate)` items, not on `ItemApplier`, and 0379's
+per-entry preview strategy is the place to settle where the shared gate
+lives.
+
 ---
 
 ## Phase 1: One Decision for a Bare Create
