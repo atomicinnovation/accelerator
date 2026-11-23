@@ -19,6 +19,8 @@ use std::process::ChildStdout;
 use std::process::Command;
 use std::process::Stdio;
 
+use super::FileKind;
+use super::FileState;
 use super::RawCommit;
 use super::RawRepository;
 use super::RepositoryKind;
@@ -311,7 +313,10 @@ impl ObjectStore {
         })
     }
 
-    fn files(&mut self, tree: &str) -> Result<BTreeMap<String, String>, Error> {
+    fn files(
+        &mut self,
+        tree: &str,
+    ) -> Result<BTreeMap<String, FileState>, Error> {
         let mut files = BTreeMap::new();
         self.add_files(tree, "", &mut files)?;
         Ok(files)
@@ -321,7 +326,7 @@ impl ObjectStore {
         &mut self,
         tree: &str,
         prefix: &str,
-        files: &mut BTreeMap<String, String>,
+        files: &mut BTreeMap<String, FileState>,
     ) -> Result<(), Error> {
         let object = self.of_kind(tree, "tree")?;
         let id_length = object.id.len() / 2;
@@ -336,13 +341,11 @@ impl ObjectStore {
                 }
                 "160000" => {}
                 mode => {
-                    let content = self.blob(&entry.id)?;
-                    let content = if mode == "120000" {
-                        format!("symlink to {content}")
-                    } else {
-                        content
+                    let file = FileState {
+                        kind: FileKind::of_git_mode(mode),
+                        content: self.blob(&entry.id)?,
                     };
-                    files.insert(path, content);
+                    files.insert(path, file);
                 }
             }
         }
@@ -428,4 +431,14 @@ fn hex(bytes: &[u8]) -> String {
         })
         .map(char::from)
         .collect()
+}
+
+impl FileKind {
+    fn of_git_mode(mode: &str) -> Self {
+        match mode {
+            "100755" => Self::Executable,
+            "120000" => Self::Symlink,
+            _ => Self::Regular,
+        }
+    }
 }

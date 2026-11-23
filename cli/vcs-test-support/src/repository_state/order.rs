@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use super::CommitPosition;
+use super::FileState;
 use super::RawCommit;
 use super::RawRepository;
 use crate::Error;
@@ -16,7 +17,7 @@ use crate::Error;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct TieBreak<'r> {
     description: &'r str,
-    files: &'r BTreeMap<String, String>,
+    files: &'r BTreeMap<String, FileState>,
     parents: Vec<CommitPosition>,
     references: Vec<&'r str>,
     is_working_copy_parent: bool,
@@ -130,6 +131,8 @@ mod tests {
     use super::ordered_positions;
     use crate::colocation::JjColocation;
     use crate::repository_state::CommitPosition;
+    use crate::repository_state::FileKind;
+    use crate::repository_state::FileState;
     use crate::repository_state::RawCommit;
     use crate::repository_state::RawRepository;
     use crate::repository_state::RepositoryKind;
@@ -153,7 +156,13 @@ mod tests {
 
     fn holding(content: &str, raw: RawCommit) -> RawCommit {
         RawCommit {
-            files: BTreeMap::from([("a".to_owned(), content.to_owned())]),
+            files: BTreeMap::from([(
+                "a".to_owned(),
+                FileState {
+                    kind: FileKind::Regular,
+                    content: content.to_owned(),
+                },
+            )]),
             ..raw
         }
     }

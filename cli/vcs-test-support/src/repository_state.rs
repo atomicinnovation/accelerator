@@ -7,6 +7,7 @@ mod reading;
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use walkdir::WalkDir;
@@ -23,7 +24,7 @@ pub struct RepositoryState {
     pub commits: Vec<CommitState>,
     pub references: BTreeMap<String, CommitPosition>,
     pub working_copy_parents: Vec<CommitPosition>,
-    pub working_copy: BTreeMap<String, String>,
+    pub working_copy: BTreeMap<String, FileState>,
 }
 
 impl RepositoryState {
@@ -69,8 +70,8 @@ impl RepositoryState {
                     files: commit
                         .files
                         .iter()
-                        .map(|(path, content)| {
-                            (path.clone(), masking.mask(content))
+                        .map(|(path, file)| {
+                            (path.clone(), file.masked(&masking))
                         })
                         .collect(),
                 })
@@ -126,11 +127,35 @@ pub struct CommitState {
     pub position: CommitPosition,
     pub parents: Vec<CommitPosition>,
     pub description: String,
-    pub files: BTreeMap<String, String>,
+    pub files: BTreeMap<String, FileState>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CommitPosition(pub usize);
+
+/// A file as git records it: its kind and, for a symlink, its target as
+/// content.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FileState {
+    pub kind: FileKind,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FileKind {
+    Regular,
+    Executable,
+    Symlink,
+}
+
+impl FileState {
+    fn masked(&self, masking: &IdMasking) -> Self {
+        Self {
+            kind: self.kind,
+            content: masking.mask(&self.content),
+        }
+    }
+}
 
 /// A commit as a reader finds it, before any ID is replaced by a position.
 #[derive(Debug)]
@@ -139,7 +164,7 @@ struct RawCommit {
     change: Option<String>,
     parents: Vec<String>,
     description: String,
-    files: BTreeMap<String, String>,
+    files: BTreeMap<String, FileState>,
 }
 
 /// A repository as a reader finds it, naming commits by ID.
@@ -151,12 +176,15 @@ struct RawRepository {
     working_copy_parents: Vec<String>,
 }
 
+/// The bit git reads to record a file as executable.
+const OWNER_EXECUTE: u32 = 0o100;
+
 /// Every file on disk outside the repository's own metadata and the hermetic
 /// environment's entries, keyed by its path beneath `root`.
 fn working_copy(
     root: &Path,
     masking: &IdMasking,
-) -> Result<BTreeMap<String, String>, Error> {
+) -> Result<BTreeMap<String, FileState>, Error> {
     let mut files = BTreeMap::new();
     let walk =
         WalkDir::new(root)
@@ -168,10 +196,24 @@ fn working_copy(
     for entry in walk {
         let entry = entry.map_err(|error| Error::message(error.to_string()))?;
         let file_type = entry.file_type();
-        let content = if file_type.is_symlink() {
-            format!("symlink to {}", fs::read_link(entry.path())?.display())
+        let file = if file_type.is_symlink() {
+            FileState {
+                kind: FileKind::Symlink,
+                content: fs::read_link(entry.path())?.display().to_string(),
+            }
         } else if file_type.is_file() {
-            String::from_utf8_lossy(&fs::read(entry.path())?).into_owned()
+            let executable = entry.path().metadata()?.permissions().mode()
+                & OWNER_EXECUTE
+                != 0;
+            FileState {
+                kind: if executable {
+                    FileKind::Executable
+                } else {
+                    FileKind::Regular
+                },
+                content: String::from_utf8_lossy(&fs::read(entry.path())?)
+                    .into_owned(),
+            }
         } else {
             continue;
         };
@@ -179,7 +221,7 @@ fn working_copy(
             .path()
             .strip_prefix(root)
             .map_err(|error| Error::message(error.to_string()))?;
-        files.insert(relative.display().to_string(), masking.mask(&content));
+        files.insert(relative.display().to_string(), file.masked(masking));
     }
     Ok(files)
 }

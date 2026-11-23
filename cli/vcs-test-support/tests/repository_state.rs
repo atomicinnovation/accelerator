@@ -1,7 +1,9 @@
 //! Two builds of one script project equal states, and a state differs when
 //! any one thing the projection covers differs.
 
+use std::collections::BTreeMap;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
@@ -9,6 +11,8 @@ use std::sync::atomic::Ordering;
 
 use vcs_test_support::colocation::JjColocation;
 use vcs_test_support::hermetic::Hermetic;
+use vcs_test_support::repository_state::FileKind;
+use vcs_test_support::repository_state::FileState;
 use vcs_test_support::repository_state::RepositoryKind;
 use vcs_test_support::repository_state::RepositoryState;
 use vcs_test_support::workbench::Workbench;
@@ -89,6 +93,13 @@ fn write(root: &Path, relative: &str, contents: &str) -> Result<(), TestError> {
     }
     fs::write(path, contents)?;
     Ok(())
+}
+
+fn content<'s>(
+    files: &'s BTreeMap<String, FileState>,
+    path: &str,
+) -> Option<&'s str> {
+    files.get(path).map(|file| file.content.as_str())
 }
 
 fn git_history(root: &Path, env: &Hermetic) -> Result<(), TestError> {
@@ -172,8 +183,11 @@ fn the_projection_holds_each_commit_s_files_description_and_parents(
     let third = &state.commits[2];
     assert_eq!(third.parents, [state.commits[1].position]);
     assert_eq!(
-        third.files.get("nested/b.txt").map(String::as_str),
-        Some("two\n")
+        third.files.get("nested/b.txt"),
+        Some(&FileState {
+            kind: FileKind::Regular,
+            content: "two\n".to_owned()
+        })
     );
     assert_eq!(state.references.get("main"), Some(&third.position));
     assert_eq!(state.working_copy_parents, [third.position]);
@@ -208,6 +222,68 @@ fn a_different_file_content_differs() -> Result<(), TestError> {
         .state()?;
 
     assert_ne!(base.commits, varied.commits);
+    Ok(())
+}
+
+#[test]
+fn an_executable_bit_in_a_commit_differs() -> Result<(), TestError> {
+    let base = Build::of(git_history)?.state()?;
+    let varied = Build::of(git_history)?
+        .then(|root, env| {
+            env.git(&["update-index", "--chmod=+x", "a.txt"], root)?;
+            env.git(&["commit", "-q", "--amend", "--no-edit"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    let executable =
+        varied.commits.last().and_then(|tip| tip.files.get("a.txt"));
+    assert_eq!(executable.map(|file| file.kind), Some(FileKind::Executable));
+    assert_ne!(base.commits, varied.commits);
+    assert_eq!(base.working_copy, varied.working_copy);
+    Ok(())
+}
+
+#[test]
+fn an_executable_bit_on_disk_differs() -> Result<(), TestError> {
+    let base = Build::of(jj_history(JjColocation::Pure))?.state()?;
+    let varied = Build::of(jj_history(JjColocation::Pure))?
+        .then(|root, _| {
+            fs::set_permissions(
+                root.join("a.txt"),
+                fs::Permissions::from_mode(0o755),
+            )?;
+            Ok(())
+        })?
+        .state()?;
+
+    assert_eq!(
+        varied.working_copy.get("a.txt").map(|file| file.kind),
+        Some(FileKind::Executable)
+    );
+    assert_ne!(base.working_copy, varied.working_copy);
+    assert_eq!(base.commits, varied.commits);
+    Ok(())
+}
+
+#[test]
+fn a_symlink_is_told_apart_from_a_file_naming_its_target(
+) -> Result<(), TestError> {
+    let link = Build::of(jj_history(JjColocation::Pure))?
+        .then(|root, _| {
+            std::os::unix::fs::symlink("a.txt", root.join("pointer"))?;
+            Ok(())
+        })?
+        .state()?;
+    let file = Build::of(jj_history(JjColocation::Pure))?
+        .then(|root, _| write(root, "pointer", "a.txt"))?
+        .state()?;
+
+    assert_eq!(
+        link.working_copy.get("pointer").map(|file| file.kind),
+        Some(FileKind::Symlink)
+    );
+    assert_ne!(link.working_copy, file.working_copy);
     Ok(())
 }
 
@@ -344,10 +420,7 @@ fn a_file_naming_a_commit_compares_by_its_position() -> Result<(), TestError> {
     let elsewhere = Build::of(recording_run_ids(&["@--"]))?.state()?;
 
     assert_eq!(first, second);
-    assert_eq!(
-        first.working_copy.get(RUN_ID).map(String::as_str),
-        Some("<commit 2>\n")
-    );
+    assert_eq!(content(&first.working_copy, RUN_ID), Some("<commit 2>\n"));
     assert_ne!(first, elsewhere);
     Ok(())
 }
@@ -446,7 +519,7 @@ fn reading_jj_never_snapshots_the_working_copy() -> Result<(), TestError> {
         state
             .working_copy
             .get("unsnapshotted.txt")
-            .map(String::as_str),
+            .map(|file| file.content.as_str()),
         Some("edited\n")
     );
     assert!(state
