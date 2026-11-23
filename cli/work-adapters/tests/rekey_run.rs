@@ -89,7 +89,13 @@ fn halt_at(repo: &Repo, at: usize) -> Result<(), TestError> {
 }
 
 fn mutations_of_a_whole_run() -> Result<usize, TestError> {
-    let repo = Repo::new()?;
+    mutations_of_a_whole_run_over(|_| Ok(()))
+}
+
+fn mutations_of_a_whole_run_over(
+    seed: impl FnOnce(&Repo) -> Result<(), TestError>,
+) -> Result<usize, TestError> {
+    let repo = Repo::seeded_with(seed)?;
     let mutations = Mutations::new(Fault::Never);
     Ports::new(&repo, &mutations).apply(&clean(&repo))?;
     Ok(mutations.count())
@@ -831,6 +837,7 @@ fn a_work_directory_the_run_cannot_lock_is_named() -> Result<(), TestError> {
 
 mod in_a_real_repository {
     use vcs_adapters::library::InProcessProbe;
+    use vcs_test_support::counted::each_of;
     use vcs_test_support::hermetic::assert_git_is_recent_enough;
     use vcs_test_support::hermetic::assert_jj_matches;
     use vcs_test_support::hermetic::Hermetic;
@@ -841,6 +848,7 @@ mod in_a_real_repository {
 
     use super::halted_at;
     use super::mutations_of_a_whole_run;
+    use super::mutations_of_a_whole_run_over;
     use super::request;
     use super::Fault;
     use super::Mutations;
@@ -851,10 +859,20 @@ mod in_a_real_repository {
     use super::RUN_PLAN;
     use super::SYNCED;
 
+    const SYNCED_ONLY: &str = "meta/notes/synced-only.md";
+
     #[derive(Clone, Copy, Debug)]
     enum Vcs {
         Git,
         Jj,
+    }
+
+    impl Vcs {
+        const ALL: [Self; 2] = [Self::Git, Self::Jj];
+    }
+
+    fn seed_synced_only(repo: &Repo) -> Result<(), TestError> {
+        repo.write(SYNCED_ONLY, "See PP-760.\n")
     }
 
     fn committed(vcs: Vcs) -> Result<(Repo, Hermetic), TestError> {
@@ -898,6 +916,45 @@ mod in_a_real_repository {
             Err(Some(halted)) if halted == at => Ok(()),
             other => Err(format!("expected a halt at {at}: {other:?}").into()),
         }
+    }
+
+    fn five_files_committed() -> Result<(Repo, Hermetic), TestError> {
+        let (repo, env) = committed(Vcs::Git)?;
+        seed_synced_only(&repo)?;
+        commit_everything(Vcs::Git, &repo, &env)?;
+        Ok((repo, env))
+    }
+
+    fn assert_counted_exactly(
+        count: usize,
+        build: impl Fn() -> Result<(Repo, Hermetic), TestError>,
+    ) -> Result<(), TestError> {
+        let (halting, _env) = build()?;
+        halt_at(&halting, count - 1)?;
+        let (completing, _env) = build()?;
+        let mutations = Mutations::new(Fault::HaltAt(count));
+        let ports = Ports::new(&completing, &mutations);
+
+        let outcome = halted_at(|| ports.apply(&InProcessProbe));
+
+        assert!(
+            matches!(outcome, Ok(Ok(RekeyReport::Rekeyed { resumed: false }))),
+            "halting at mutation {count}: {outcome:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_whole_run_makes_exactly_the_counted_mutations() -> Result<(), TestError>
+    {
+        let four_files = mutations_of_a_whole_run()?;
+        each_of(2, Vcs::ALL, |vcs| {
+            assert_counted_exactly(four_files, || committed(vcs))
+        })?;
+        assert_counted_exactly(
+            mutations_of_a_whole_run_over(seed_synced_only)?,
+            five_files_committed,
+        )
     }
 
     #[test]
@@ -948,12 +1005,9 @@ mod in_a_real_repository {
     #[test]
     fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
     ) -> Result<(), TestError> {
-        const SYNCED_ONLY: &str = "meta/notes/synced-only.md";
         let mut checked = 0;
-        for at in 0..mutations_of_a_whole_run()? {
-            let (repo, env) = committed(Vcs::Git)?;
-            repo.write(SYNCED_ONLY, "See PP-760.\n")?;
-            commit_everything(Vcs::Git, &repo, &env)?;
+        for at in 0..mutations_of_a_whole_run_over(seed_synced_only)? {
+            let (repo, _env) = five_files_committed()?;
             halt_at(&repo, at)?;
             let unreached = repo.read(SYNCED).is_some()
                 && repo.read(SYNCED_ONLY).as_deref() == Some("See PP-760.\n");

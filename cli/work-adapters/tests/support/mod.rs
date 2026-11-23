@@ -168,6 +168,14 @@ impl Repo {
         Ok(repo)
     }
 
+    pub fn seeded_with(
+        seed: impl FnOnce(&Self) -> Result<(), TestError>,
+    ) -> Result<Self, TestError> {
+        let repo = Self::new()?;
+        seed(&repo)?;
+        Ok(repo)
+    }
+
     pub fn root(&self) -> &Path {
         self.dir.path()
     }
