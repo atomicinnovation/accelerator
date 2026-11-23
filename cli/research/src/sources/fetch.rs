@@ -2,18 +2,13 @@
 //! retried on the schedule within the call's deadline, then decoded and
 //! normalised into records.
 
-pub use crate::sources::ports::Attempted;
-pub use crate::sources::ports::Cause;
-pub use crate::sources::ports::Clock;
-pub use crate::sources::ports::Contention;
-pub use crate::sources::ports::ContentionLog;
-pub use crate::sources::ports::Diagnostics;
-pub use crate::sources::ports::OutOfBudget;
-pub use crate::sources::ports::PacingGate;
-pub use crate::sources::ports::ServingTurn;
-pub use crate::sources::ports::Transport;
-pub use crate::sources::ports::Unavailable;
-pub use crate::sources::ports::WaitTooLong;
+use crate::sources::ports::Clock;
+use crate::sources::ports::ContentionLog;
+use crate::sources::ports::Diagnostics;
+use crate::sources::ports::OutOfBudget;
+use crate::sources::ports::PacingGate;
+use crate::sources::ports::Transport;
+use crate::sources::ports::Unavailable;
 
 use crate::sources::admission::admitted;
 use crate::sources::arxiv;

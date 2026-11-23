@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use research::sources::fetch::Clock;
+use research::sources::ports::Clock;
 use research::sources::queue::Nonce;
 use research::sources::queue::Provenance;
 use research::sources::service::CrossrefPool;

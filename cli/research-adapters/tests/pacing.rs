@@ -9,10 +9,10 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use research::sources::fetch::Attempted;
-use research::sources::fetch::Clock as _;
-use research::sources::fetch::PacingGate as _;
-use research::sources::fetch::WaitTooLong;
+use research::sources::ports::Attempted;
+use research::sources::ports::Clock as _;
+use research::sources::ports::PacingGate as _;
+use research::sources::ports::WaitTooLong;
 use research::sources::schedule::Deadline;
 use research::sources::service::CrossrefPool;
 use research::sources::service::Service;

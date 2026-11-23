@@ -19,7 +19,7 @@ use std::time::SystemTime;
 
 use kernel::TEMP_PREFIX;
 use research::sources::classify::Reason;
-use research::sources::fetch::Clock;
+use research::sources::ports::Clock;
 use research::sources::queue::is_abandoned;
 use research::sources::queue::is_served_given;
 use research::sources::queue::Binding;

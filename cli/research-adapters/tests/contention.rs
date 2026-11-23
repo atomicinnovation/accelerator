@@ -4,9 +4,9 @@ mod support;
 
 use std::rc::Rc;
 
-use research::sources::fetch::Clock as _;
-use research::sources::fetch::Contention;
-use research::sources::fetch::ContentionLog as _;
+use research::sources::ports::Clock as _;
+use research::sources::ports::Contention;
+use research::sources::ports::ContentionLog as _;
 use research::sources::queue::Ticket;
 use support::arxiv_contention_log;
 use support::millis;

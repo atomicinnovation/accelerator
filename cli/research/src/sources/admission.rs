@@ -29,12 +29,3 @@ pub fn admitted<'g>(
         clock.sleep(pacing.admission_poll());
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn admission_depends_on_no_fetch_workflow() {
-        assert!(!include_str!("admission.rs")
-            .contains(concat!("sources::", "fetch")));
-    }
-}

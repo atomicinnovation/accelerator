@@ -10,15 +10,15 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use research::sources::fetch::Attempted;
-use research::sources::fetch::Clock;
-use research::sources::fetch::PacingGate;
-use research::sources::fetch::ServingTurn;
-use research::sources::fetch::WaitTooLong;
 use research::sources::pacing::Confirmation;
 use research::sources::pacing::Pacing;
 use research::sources::pacing::PacingState;
 use research::sources::pacing::Reservation;
+use research::sources::ports::Attempted;
+use research::sources::ports::Clock;
+use research::sources::ports::PacingGate;
+use research::sources::ports::ServingTurn;
+use research::sources::ports::WaitTooLong;
 use research::sources::schedule::Deadline;
 use research::sources::service::Service;
 use rustix::fs::flock;
@@ -447,9 +447,9 @@ mod tests {
     use std::time::Duration;
     use std::time::Instant;
 
-    use research::sources::fetch::Attempted;
-    use research::sources::fetch::PacingGate as _;
     use research::sources::pacing::Pacing;
+    use research::sources::ports::Attempted;
+    use research::sources::ports::PacingGate as _;
     use research::sources::schedule::Deadline;
 
     use super::NoPacing;

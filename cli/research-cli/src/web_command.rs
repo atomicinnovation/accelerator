@@ -2,8 +2,8 @@
 //! fetched within the call's deadline. It reads no project, configuration or
 //! credential.
 
-use research::sources::fetch::Clock;
 use research::sources::metadata::SourceMetadata;
+use research::sources::ports::Clock;
 use research::sources::request::WebRequest;
 use research::sources::schedule::Deadline;
 use research::sources::web::fetch::fetch_page_metadata;

@@ -13,9 +13,9 @@ use network::host_reach::classify_address;
 use network::Host;
 use network::HostReach;
 
-use crate::sources::fetch::Clock;
 use crate::sources::metadata::date::PartialDate;
 use crate::sources::metadata::SourceMetadata;
+use crate::sources::ports::Clock;
 use crate::sources::schedule::Deadline;
 use crate::sources::web::declarations::PageDecoder;
 use crate::sources::web::extract::declared_metadata;

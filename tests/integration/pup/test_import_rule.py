@@ -1580,6 +1580,90 @@ def test_research_tracker_support_rule_permits_std_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# The research queue engine (`ports`, `serving`, `admission`) may import only
+# std and its sibling collaborators, never the `fetch` workflow that drives it.
+# Driven against a crate literally named `research` with a `sources` module
+# holding a stand-in `fetch` and `queue`.
+
+_RESEARCH_ENGINE_MODULES = ["ports", "serving", "admission"]
+
+_RESEARCH_DOMAIN_MANIFEST = """\
+[package]
+name = "research"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_RESEARCH_SOURCES = """\
+pub mod fetch {{
+    pub struct Workflow;
+}}
+pub mod queue {{
+    pub struct Ticket;
+}}
+pub mod {module};
+"""
+
+_ENGINE_IMPORTS_FETCH = (
+    "use crate::sources::fetch::Workflow;\n\n"
+    "pub fn make() -> Workflow {\n    Workflow\n}\n"
+)
+_ENGINE_IMPORTS_FETCH_THROUGH_SUPER = (
+    "use super::fetch::Workflow;\n\n"
+    "pub fn make() -> Workflow {\n    Workflow\n}\n"
+)
+_ENGINE_IMPORTS_A_COLLABORATOR = (
+    "use std::time::Duration;\n\nuse crate::sources::queue::Ticket;\n\n"
+    "pub fn make() -> (Duration, Ticket) {\n    (Duration::ZERO, Ticket)\n}\n"
+)
+
+
+def _write_research_engine_probe(root: Path, module: str, body: str) -> None:
+    (root / "Cargo.toml").write_text(
+        '[workspace]\nresolver = "2"\nmembers = ["research"]\n'
+    )
+    sources = root / "research/src/sources"
+    sources.mkdir(parents=True, exist_ok=True)
+    (root / "research/Cargo.toml").write_text(_RESEARCH_DOMAIN_MANIFEST)
+    (root / "research/src/lib.rs").write_text("pub mod sources;\n")
+    (sources / "mod.rs").write_text(_RESEARCH_SOURCES.format(module=module))
+    (sources / f"{module}.rs").write_text(body)
+
+
+@pytest.mark.parametrize("module", _RESEARCH_ENGINE_MODULES)
+@pytest.mark.parametrize(
+    "body",
+    [_ENGINE_IMPORTS_FETCH, _ENGINE_IMPORTS_FETCH_THROUGH_SUPER],
+    ids=["crate", "super"],
+)
+def test_research_engine_rule_rejects_importing_the_fetch_workflow(
+    tmp_path: Path, module: str, body: str
+) -> None:
+    _require_tools()
+    _write_research_engine_probe(tmp_path, module, body)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "research_queue_engine_never_reaches_fetch" in output, output
+
+
+@pytest.mark.parametrize("module", _RESEARCH_ENGINE_MODULES)
+def test_research_engine_rule_permits_its_collaborators(
+    tmp_path: Path, module: str
+) -> None:
+    _require_tools()
+    _write_research_engine_probe(
+        tmp_path, module, _ENGINE_IMPORTS_A_COLLABORATOR
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # The http-test-support std-only rule is driven against a workspace whose crates
 # are literally named `http-test-support` and `reqwest`, so the denied pattern
 # is exercised against a real resolved import. The stand-in `reqwest` crate is a

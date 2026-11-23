@@ -290,13 +290,3 @@ impl<'a> Attempts<'a> {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn the_engine_depends_on_no_fetch_workflow() {
-        assert!(
-            !include_str!("serving.rs").contains(concat!("sources::", "fetch"))
-        );
-    }
-}

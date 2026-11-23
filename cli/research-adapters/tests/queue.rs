@@ -9,7 +9,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use research::sources::classify::Reason;
-use research::sources::fetch::Clock;
+use research::sources::ports::Clock;
 use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Nonce;

@@ -13,7 +13,7 @@ use std::time::Instant;
 use std::time::SystemTime;
 
 use network::Host;
-use research::sources::fetch::Clock;
+use research::sources::ports::Clock;
 use research::sources::request::Endpoint;
 use research::sources::web::fetch::HostResolver;
 use research::sources::web::fetch::PageRequest;

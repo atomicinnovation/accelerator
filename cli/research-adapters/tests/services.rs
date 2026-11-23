@@ -4,8 +4,8 @@ mod support;
 
 use std::rc::Rc;
 
-use research::sources::fetch::Clock as _;
-use research::sources::fetch::PacingGate as _;
+use research::sources::ports::Clock as _;
+use research::sources::ports::PacingGate as _;
 use research::sources::queue::Binding;
 use research::sources::queue::Joining;
 use research::sources::queue::Provenance;

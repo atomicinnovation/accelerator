@@ -4,9 +4,9 @@
 
 use std::rc::Rc;
 
-use research::sources::fetch::Clock;
-use research::sources::fetch::Contention;
-use research::sources::fetch::ContentionLog;
+use research::sources::ports::Clock;
+use research::sources::ports::Contention;
+use research::sources::ports::ContentionLog;
 use research::sources::queue;
 use research::sources::service::Service;
 

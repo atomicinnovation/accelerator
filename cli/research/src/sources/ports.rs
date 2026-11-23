@@ -128,13 +128,3 @@ impl Unavailable {
         self.cause
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn the_ports_depend_on_no_fetch_workflow() {
-        assert!(
-            !include_str!("ports.rs").contains(concat!("sources::", "fetch"))
-        );
-    }
-}

@@ -15,7 +15,7 @@ use reqwest::Client;
 use reqwest::Url;
 use research::sources::classify::Received;
 use research::sources::classify::Response;
-use research::sources::fetch::Transport;
+use research::sources::ports::Transport;
 use research::sources::request::UpstreamRequest;
 use tokio::runtime::Runtime;
 
