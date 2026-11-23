@@ -105,8 +105,6 @@ pub struct ArxivAdapters {
     pub contention: Box<dyn ContentionLog>,
 }
 
-/// The pool `service` names is the one `gate`, `queue` and `contention` were
-/// built for.
 pub struct DoiAdapters {
     pub service: Service,
     pub api: Endpoint,

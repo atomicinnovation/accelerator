@@ -47,7 +47,6 @@ use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
-use research::sources::service::Service;
 use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
@@ -385,8 +384,8 @@ fn source_call(
             if let Some(warning) = contact.warning() {
                 eprintln!("{warning}");
             }
-            let pool = contact.pool();
-            let crossref = ServiceAdapters::for_crossref(pool, &context);
+            let crossref =
+                ServiceAdapters::for_crossref(contact.pool(), &context);
             SourceCall::Doi(
                 DoiCall {
                     request,
@@ -394,7 +393,7 @@ fn source_call(
                     contact: contact.address().cloned(),
                 },
                 DoiAdapters {
-                    service: Service::Crossref(pool),
+                    service: crossref.service,
                     api: endpoints.crossref_api,
                     transport: Box::new(transport),
                     decoder: Box::new(JsonCrossrefDecoder),

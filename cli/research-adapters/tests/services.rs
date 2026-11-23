@@ -117,6 +117,16 @@ fn foreign(text: &str, provenance: Provenance) -> TicketRejection {
 }
 
 #[test]
+fn each_bundle_names_the_service_it_was_built_for() {
+    let harness = Harness::new();
+
+    assert_eq!(harness.arxiv(false).service, Service::Arxiv);
+    for pool in [CrossrefPool::Public, CrossrefPool::Polite] {
+        assert_eq!(harness.crossref(pool).service, Service::Crossref(pool));
+    }
+}
+
+#[test]
 fn arxiv_s_gate_takes_the_previous_release_lock_only_while_upgrading() {
     let harness = Harness::new();
     let _older = harness.hold_legacy_lock();

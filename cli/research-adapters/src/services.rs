@@ -41,6 +41,7 @@ impl PreviousRelease {
 }
 
 pub struct ServiceAdapters {
+    pub service: Service,
     pub gate: FilePacingGate,
     pub queue: FileServiceQueue,
     pub contention: FileContentionLog,
@@ -77,6 +78,7 @@ impl ServiceAdapters {
         }
         let nonces = context.nonces.clone();
         Self {
+            service,
             gate: FilePacingGate::new(
                 service,
                 &context.research,
