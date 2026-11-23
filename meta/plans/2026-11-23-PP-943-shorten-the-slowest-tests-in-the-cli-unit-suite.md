@@ -513,6 +513,14 @@ the full `mise run` green. It departs from the plan in four ways:
   processes.
 - **jj root commit:** the projection leaves it out (`all() ~ root()`), and
   drops it from parent lists. It has no object in the git store.
+- **Joined run bases:** the manual check found that migrate writes a
+  merge's run base in hash order (`RunBase::from_base_commits`), so a
+  masked `+`-joined list compared unequal across two builds about half the
+  time. `IdMasking` now orders a joined list by position, and a swapped
+  list compares equal.
+- **Gaps against the Reused state list:** file modes, git's index, and a
+  colocated jj repository's git refs and `HEAD` are not projected. No
+  target varies them, and a copy keeps `.git` byte for byte.
 
 ### Changes Required
 
