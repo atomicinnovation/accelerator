@@ -2,7 +2,6 @@
 
 use research::sources::crossref::CrossrefWork;
 use research::sources::fetch::CrossrefDecoder as _;
-use research::sources::fetch::DecodeFailure;
 use research_adapters::crossref_json::JsonCrossrefDecoder;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -107,12 +106,19 @@ fn null_or_unexpected_fields_decode_as_absent() {
 }
 
 #[test]
-fn a_body_without_a_message_is_undecodable() {
-    for body in [&br#"{"status":"ok"}"#[..], b"Resource not found.", b""] {
-        assert_eq!(
-            JsonCrossrefDecoder.work(body),
-            Err(DecodeFailure::Undecodable),
-            "{}",
+fn a_body_without_a_message_is_unreadable_and_says_why() {
+    for (body, why) in [
+        (&br#"{"status":"ok"}"#[..], "missing field `message`"),
+        (b"Resource not found.", "expected value"),
+        (b"", "EOF while parsing"),
+    ] {
+        let failure = JsonCrossrefDecoder
+            .work(body)
+            .expect_err("unreadable")
+            .to_string();
+        assert!(
+            failure.contains(why),
+            "{}: {failure}",
             String::from_utf8_lossy(body)
         );
     }

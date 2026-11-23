@@ -27,6 +27,7 @@ use crate::sources::crossref;
 use crate::sources::crossref::ContactAddress;
 use crate::sources::crossref::CrossrefWork;
 use crate::sources::crossref::DoiMetadata;
+use crate::sources::crossref::UnreadableWork;
 use crate::sources::metadata::date::PartialDate;
 use crate::sources::openalex;
 use crate::sources::openalex::Work;
@@ -87,8 +88,8 @@ pub trait ArxivDecoder {
 pub trait CrossrefDecoder {
     /// # Errors
     ///
-    /// A [`DecodeFailure`] when the body is not a Crossref work message.
-    fn work(&self, body: &[u8]) -> Result<CrossrefWork, DecodeFailure>;
+    /// An [`UnreadableWork`] when the body is not a Crossref work message.
+    fn work(&self, body: &[u8]) -> Result<CrossrefWork, UnreadableWork>;
 }
 
 /// Withdrawal verdicts already confirmed, keyed by the identifier as the feed
@@ -274,10 +275,10 @@ pub fn fetch_doi(
             )?;
             Ok(match settled {
                 Settled::Delivered(Ok(work)) => Ok(crossref::normalise(&work)),
-                Settled::Delivered(Err(_)) => {
+                Settled::Delivered(Err(unreadable)) => {
                     ports.diagnostics.report(&format!(
                         "research fetch: doi metadata {}: Crossref returned a \
-                         record that could not be read",
+                         record that could not be read ({unreadable})",
                         fetch.doi.canonical()
                     ));
                     Err(Unavailable::new(Reason::UpstreamError))

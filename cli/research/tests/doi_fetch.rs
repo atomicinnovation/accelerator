@@ -7,10 +7,10 @@ use std::cell::RefCell;
 use research::sources::classify::Reason;
 use research::sources::crossref::CrossrefWork;
 use research::sources::crossref::DoiMetadata;
+use research::sources::crossref::UnreadableWork;
 use research::sources::crossref::Venue;
 use research::sources::fetch::fetch_doi;
 use research::sources::fetch::CrossrefDecoder;
-use research::sources::fetch::DecodeFailure;
 use research::sources::fetch::DoiFetch;
 use research::sources::fetch::DoiPorts;
 use research::sources::fetch::Unavailable;
@@ -29,15 +29,16 @@ use support::ScriptedTransport;
 use support::Timeline;
 
 const RECORD: &[u8] = b"record";
+const UNREADABLE: &str = "expected value at line 1 column 1";
 
 /// Decodes [`RECORD`] as a proceedings article; anything else is
-/// undecodable.
+/// unreadable, for [`UNREADABLE`]'s reason.
 struct StubCrossrefDecoder;
 
 impl CrossrefDecoder for StubCrossrefDecoder {
-    fn work(&self, body: &[u8]) -> Result<CrossrefWork, DecodeFailure> {
+    fn work(&self, body: &[u8]) -> Result<CrossrefWork, UnreadableWork> {
         if body != RECORD {
-            return Err(DecodeFailure::Undecodable);
+            return Err(UnreadableWork::new(UNREADABLE));
         }
         Ok(CrossrefWork {
             kind: Some("proceedings-article".to_owned()),
@@ -162,6 +163,7 @@ fn an_undecodable_record_is_unavailable_and_reported_once() {
         "{reported:?}"
     );
     assert!(reported[0].contains("could not be read"), "{reported:?}");
+    assert!(reported[0].contains(UNREADABLE), "{reported:?}");
 }
 
 #[test]

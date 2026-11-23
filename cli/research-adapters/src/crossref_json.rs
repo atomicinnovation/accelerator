@@ -5,17 +5,17 @@
 //! absent, but a body with no `message` object is undecodable.
 
 use research::sources::crossref::CrossrefWork;
+use research::sources::crossref::UnreadableWork;
 use research::sources::fetch::CrossrefDecoder;
-use research::sources::fetch::DecodeFailure;
 use serde::Deserialize;
 use serde_json::Value;
 
 pub struct JsonCrossrefDecoder;
 
 impl CrossrefDecoder for JsonCrossrefDecoder {
-    fn work(&self, body: &[u8]) -> Result<CrossrefWork, DecodeFailure> {
+    fn work(&self, body: &[u8]) -> Result<CrossrefWork, UnreadableWork> {
         let envelope: Envelope = serde_json::from_slice(body)
-            .map_err(|_| DecodeFailure::Undecodable)?;
+            .map_err(|error| UnreadableWork::new(error.to_string()))?;
         let message = envelope.message;
         Ok(CrossrefWork {
             kind: text(message.get("type")),

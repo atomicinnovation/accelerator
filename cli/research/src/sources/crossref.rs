@@ -1,6 +1,8 @@
 //! What Crossref holds for a DOI: the venue a journal or proceedings article
 //! was published in, and the publisher of any work.
 
+use std::fmt;
+
 use crate::sources::metadata::collapsed_whitespace;
 use crate::sources::metadata::Publisher;
 use crate::sources::metadata::SourceMetadata;
@@ -9,12 +11,27 @@ use crate::sources::metadata::SourceMetadata;
 /// container is its book, and a posted preprint's its server.
 const VENUE_TYPES: [&str; 2] = ["journal-article", "proceedings-article"];
 
-/// The fields of a Crossref work the venue and publisher are read from.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrossrefWork {
     pub kind: Option<String>,
     pub container_titles: Vec<String>,
     pub publisher: Option<String>,
+}
+
+/// Why a body Crossref delivered is not a work message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnreadableWork(String);
+
+impl UnreadableWork {
+    pub fn new(reason: impl Into<String>) -> Self {
+        Self(reason.into())
+    }
+}
+
+impl fmt::Display for UnreadableWork {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
 }
 
 /// The journal or proceedings a work was published in.
@@ -69,8 +86,6 @@ pub struct ContactAddress(String);
 pub struct Implausible;
 
 impl ContactAddress {
-    /// The trimmed address, or `None` when `raw` is blank.
-    ///
     /// The address travels inside a `User-Agent` comment, so it is held to
     /// visible ASCII with nothing that could end or escape that comment.
     ///
