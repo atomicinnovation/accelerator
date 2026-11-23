@@ -1003,10 +1003,13 @@ lists only those that change.
 
 #### Manual Verification
 
-- [ ] Three alone runs of `work-adapters::rekey_run`, with each
+- [x] Three alone runs of `work-adapters::rekey_run`, with each
       reused-state test charged to its tail test, show the kill test at or
       under 5.8 s and the edit-refusal test at or under 3.3 s. This is an
-      early signal, not a criterion.
+      early signal, not a criterion. At `mwtvsvpx` the kill test met it
+      (5.2 s) and the edit-refusal test missed it (3.7 s). On 2026-11-23
+      the author accepted the miss: phase 7's under-suite figure, against
+      ≤ 8.95 s, decides the target.
 
 ---
 
