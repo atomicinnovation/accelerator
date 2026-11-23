@@ -146,6 +146,15 @@ reproduction below.
   with a `--resolve` order is checked against its marker only on the run, and
   the skill says so.
 - Running `create_inputs` in the preview for ordered creates or relinks.
+- Matching the run where identity settlement moves a key this run. The run
+  rewrites a followed item's `external_id` from its old key to its new one
+  before rediscovering the corpus; the preview does not, and `SettledView`
+  follows only new keys. So when a bare create's digest-matching `Created`
+  marker records the old key of an item followed away this run, the preview
+  still finds that item carrying the key and reports `already-written` (exit
+  71), while the run finds no carrier and links the old key. The preview's
+  answer is the safer of the two, and the case needs a marker and a key move
+  in one run; following old keys in `SettledView` would close it.
 - Changing the action word or column 4 for a reused `Created` marker. The
   preview and the run already agree on it.
 - The `#\tdiscovery\tskipped\tpending-push` record. It is built while the run
