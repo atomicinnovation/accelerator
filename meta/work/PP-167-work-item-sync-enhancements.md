@@ -282,8 +282,8 @@ Resolved during refinement (2026-08-30):
 - 0296 — Sync round-trip defects between local work items and the tracker
   (body equivalence, title-line stripping, corpus recovery, digest-recipe
   migration); lands before 0320 and 0290.
-- 0320 — Linear push corrupts markdown content (push-side fixes for the three
-  meaning-changing rewrites); blocked by 0296.
+- 0320 — Linear push corrupts markdown content (push-side fixes for the two
+  meaning-changing rewrites); 0296 done.
 - 0321 — Sync authority model between local work items and the tracker (ADR
   ratifying or revising 0296's representation rule).
 - 0335 — Remove the legacy sync digest recipe (once no unmarked
