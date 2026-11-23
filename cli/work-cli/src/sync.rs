@@ -9735,10 +9735,9 @@ mod tests {
         (normalise(&run.out), normalise(&run.err))
     }
 
-    fn preview_and_run(
-        seed: fn(&Path) -> Rc<RecordingTracker>,
-        targets: &[&str],
-    ) -> CapturedRun {
+    type Seeding = fn(&Path) -> Rc<RecordingTracker>;
+
+    fn preview_and_run(seed: Seeding, targets: &[&str]) -> CapturedRun {
         let targets: Vec<String> =
             targets.iter().map(|&id| id.to_owned()).collect();
         let previewed = sync_repo();
@@ -9821,16 +9820,32 @@ mod tests {
 
     #[test]
     fn a_preview_and_the_run_report_the_same_create_failure() {
-        for seed in [
-            draft_with_attempted_marker,
-            draft_with_unreadable_marker,
-            draft_with_mismatched_marker,
-            draft_whose_marker_key_another_item_carries,
-            draft_reusing_beside_a_malformed_item,
-            draft_with_unparseable_frontmatter,
-        ] {
+        let seedings: [(Seeding, u8); 6] = [
+            (draft_with_attempted_marker, super::exit_codes::TERMINAL),
+            (draft_with_unreadable_marker, super::exit_codes::TERMINAL),
+            (draft_with_mismatched_marker, super::exit_codes::TERMINAL),
+            (
+                draft_whose_marker_key_another_item_carries,
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                draft_reusing_beside_a_malformed_item,
+                super::exit_codes::REJECTED,
+            ),
+            (
+                draft_with_unparseable_frontmatter,
+                super::exit_codes::REJECTED,
+            ),
+        ];
+        for (seed, exit_code) in seedings {
             let preview = preview_and_run(seed, &[]);
 
+            assert_eq!(
+                preview.code,
+                ExitCode::from(exit_code),
+                "{}",
+                preview.err
+            );
             assert!(
                 preview.out.contains("0001\tfailed\tunsynced\t"),
                 "{}",
