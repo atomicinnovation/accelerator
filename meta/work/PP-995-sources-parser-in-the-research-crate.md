@@ -12,11 +12,11 @@ kind: "task"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T21:27:22+00:00"
+last_updated: "2026-11-23T23:43:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-1000"]
-relates_to: ["work-item:PP-892", "work-item:PP-864", "work-item:PP-1001", "work-item:PP-924", "work-item:PP-891", "work-item:PP-897"]
+relates_to: ["work-item:PP-892", "work-item:PP-864", "work-item:PP-1002", "work-item:PP-924", "work-item:PP-891", "work-item:PP-897", "work-item:PP-994"]
 ---
 # PP-995: Sources Parser in the Research Crate
 
@@ -33,7 +33,9 @@ sources and their tiers the same way.
 
 Two parsers deliver it: the **Sources parser**, which reads a document's
 Sources section into structured entries, and the **tier-text parser**, which
-it calls for each entry's tier text. No Rust code parses either today: the
+it calls for each entry's tier text. Beside the entries, the Sources
+parser returns the section's state, the lines it could not read, and the
+section's line span. No Rust code parses either today: the
 grammar is defined in the citing-once and finding-outputter skills and
 implemented only in Python eval tooling. Until Sources rendering
 (PP-1000) can call these parsers, a document's Sources show as literal
@@ -41,10 +43,10 @@ text.
 
 ## Context
 
-Child of PP-868 — Topic-Research Set Detail Page, one of its six children,
+Child of PP-868 — Topic-Research Set Detail Page, one of its eight children,
 with no blockers.
 
-A Sources entry reads `- [Title](drafts/url) — tier text — venue`. Tier text is a
+A Sources entry reads `- [Title](url) — tier text — venue`. Tier text is a
 base tier (`tier-1`, `tier-2`, `tier-3`) with an optional parenthesised
 suffix whose parts are joined by `; ` in a fixed order: `retracted`,
 `withdrawn`, then an `also` list of further tiers joined by `, `. The
@@ -61,13 +63,25 @@ The research crate has `enum Tier` with `Display` only. The eval tooling's
 ## Requirements
 
 - Read the Sources section of a document body and return its entries in
-  written order, each with its title, URL, tier, optional venue, and
-  metadata block as key-value pairs in written order.
+  written order, each with its title, URL, optional venue, metadata block
+  as key-value pairs in written order, and one of two things for its tier:
+  a **parsed tier text**, or the rejected tier text as written.
 - Report the section's state with the entries: **absent** when the document
   has no Sources section, **declared empty** when the section holds a
   `None found.` line and no entry, and **present** otherwise.
+- Report the section's **line span** with the entries, whenever the
+  section is not absent: the line of the `## Sources` heading and the line
+  after the section's last line, so a caller can drop the section from a
+  body without reading the grammar itself. Lines are numbered from 1, and
+  the span's end is exclusive.
 - Return a source listed twice as two entries.
-- Attach each metadata block line to the entry above it.
+- Attach each metadata block line to the entry above it, under the
+  adjacency condition the line rules below give; a block line that fails
+  it is an unread line.
+- Return no serialisable types: a caller maps the result to its own wire
+  shape.
+- Report an unread line, and return rejected tier text, as written once a
+  trailing carriage return is dropped.
 - Return an entry whose tier text is rejected with that text as written in
   place of a parsed tier, so one bad tier does not lose the entry or the
   section.
@@ -97,21 +111,30 @@ The research crate has `enum Tier` with `Display` only. The eval tooling's
 ### Line rules
 
 The Sources parser reads lines as follows. Matches are exact: a line that
-does not match a rule exactly is an unread line.
+does not match a rule exactly is an unread line. One trailing carriage
+return is dropped from a line before matching, so a document with CRLF line
+endings reads as one with LF. Nothing else is trimmed: a trailing space
+breaks a match.
 
 - The section opens at the first line reading exactly `## Sources` and
   closes at the next `## ` heading or the end of the document. A later
   `## Sources` heading starts no second section. A deeper heading inside the
   section is an unread line.
-- A line is an **entry** when it reads `- [title](drafts/url) — ` followed by
-  text. The tier text is the text up to the next ` — ` or the end of the
+- A line is an **entry** when it reads `- [title](url) — ` followed by
+  text. The title is one or more characters and may itself hold brackets:
+  it ends at the last `](` for which the rest of the line still reads as an
+  entry, so a `](` later in the line, in the venue, does not end it. The
+  URL is one or more characters, none of them a `)` or whitespace. The tier text is the text up to the next ` — ` or the end of the
   line, taken exactly, with no trimming. Anything after that ` — ` is the
   venue, which may itself contain ` — `; nothing after it means no venue.
-- A line is a **block line** when it reads two spaces, `- `, a lowercase
-  snake_case key, `: `, and a non-empty value. The key ends at the first
-  `: `. It attaches to the entry above it when only that entry's own block
-  lines and blank lines lie between; otherwise it is an unread line. A key
-  given twice yields two pairs.
+- A line is a **block line** when it reads two spaces, `- `, a key, `: `,
+  and a value. The key is a lowercase letter followed by any number of
+  lowercase letters, digits, and underscores (`[a-z][a-z0-9_]*`), and ends
+  at the first `: `. The value is the rest of the line, kept as written,
+  and holds at least one character that is not whitespace. A block line
+  attaches to the entry above it when only that entry's own block lines
+  and blank or whitespace-only lines lie between; otherwise it is an
+  unread line. A key given twice yields two pairs.
 - Blank and whitespace-only lines are ignored. A line reading exactly
   `None found.` is not an unread line; it marks the section declared empty
   when no entry is present.
@@ -162,7 +185,7 @@ does not match a rule exactly is an unread line.
       entries are returned.
 - [ ] Given three entries whose second reads `— tier-4 —`, then three
       entries are returned in order, the second carrying `tier-4` as written
-      in place of a parsed tier.
+      in place of a parsed tier text.
 - [ ] Given a Sources section with a blank line after the heading, between
       two entries, and before the next heading, then both entries are
       returned and no unread line is reported.
@@ -172,7 +195,7 @@ does not match a rule exactly is an unread line.
 - [ ] Given `- [T](https://a.example/)` with nothing after the link, then no
       entry is returned for it and it is reported as an unread line.
 - [ ] Given `- [T](https://a.example/) — blog.example`, then an entry is
-      returned carrying `blog.example` as written in place of a parsed tier,
+      returned carrying `blog.example` as written in place of a parsed tier text,
       with no venue.
 - [ ] Given `- [T](https://a.example/) — tier-2 — Journal — Series B`, then
       the venue is `Journal — Series B`.
@@ -209,10 +232,12 @@ does not match a rule exactly is an unread line.
       `tier-3 (withdrawn; also tier-1)`, then the first parses to base
       `tier-3` with both marks, and the second to base `tier-3`, withdrawn,
       with `also` tier `tier-1`.
-- [ ] A test outside the `research` crate parses a document body into
-      entries, unread lines, and a section state, and parses a tier text,
-      using only the crate's public exports; the public-API snapshot shows
-      both.
+- [ ] An integration test under the `research` crate's own `tests/`
+      directory, compiled against the crate's public exports alone, parses a
+      document body into entries, unread lines, a section state, and a
+      line span, and parses a tier text; the public-API snapshot shows both parsers, and
+      its diff holds additions only, with the lines for `Tier` and `Record`
+      unchanged. This item adds no dependency edge between crates.
 - [ ] Given `tier-1 (retracted)`, `tier-3 (also tier-3)`, and
       `tier-3 (also tier-1, tier-2)`, then each is accepted and parses to
       the base, marks, and `also` tiers as written.
@@ -229,6 +254,41 @@ does not match a rule exactly is an unread line.
       them, and a block line before the first entry, then both entries are
       returned and the two other lines are reported as unread, each as
       written.
+- [ ] Given `- [A [draft]](https://a.example/) — tier-1`, then the entry's
+      title is `A [draft]`; given `- [](https://a.example/) — tier-1`,
+      `- [T]() — tier-1`, `- [T](https://a.example/x_(y)) — tier-1`, and
+      `- [T](https://a.example/a b) — tier-1`, then each is an unread line.
+- [ ] Given an entry followed by `  - doi2: 10.1/x`, then the entry carries
+      key `doi2`; given `  - _doi: 10.1/x`, `  - 2doi: 10.1/x`, and
+      `  - doi:   ` with only spaces after the colon, then each is an
+      unread line.
+- [ ] Given `- [T](https://a.example/) — tier-2 — see [x](https://b.example/)`,
+      then one entry is returned with title `T`, URL `https://a.example/`,
+      and venue `see [x](https://b.example/)`.
+- [ ] Given a document with CRLF line endings holding a Sources section of
+      two entries, a block line, and a line of prose, then its entries,
+      unread lines, section state, and line span equal those of the same
+      document with LF endings, and the reported prose line holds no
+      carriage return; given a heading `## Sources ` with a trailing
+      space, then the section is reported absent.
+- [ ] Given a document of ten lines whose `## Sources` heading is line 4
+      and whose next `## ` heading is line 8, then the span runs from line 4
+      up to, not including, line 8; given the Sources section runs to the
+      end of the document, then the span's end is line 11; given a section
+      holding only `None found.`, then a span is reported for it; given no
+      Sources section, then no span is reported. Removing the lines of the
+      first span from the ten-line document leaves lines 1 to 3 and 8 to
+      10.
+- [ ] Given a `## Sources` heading with nothing under it, then the section
+      is reported present, with no entries and no unread lines.
+- [ ] Given a Sources section holding `None found.` and a line of prose,
+      then the section is reported declared empty and the prose is the one
+      unread line; given a section holding only ` None found.`, with a
+      leading space, then that line is unread and the section is reported
+      present.
+- [ ] Given an entry, a blank line, a line of two spaces, then
+      `  - doi: 10.1/x`, then the entry carries the `doi` pair and no unread
+      line is reported.
 
 ## Open Questions
 
@@ -239,26 +299,42 @@ does not match a rule exactly is an unread line.
 - Blocked by: nothing.
 - Blocks: PP-1000, Sources rendering in the visualiser,
   which renders what this parser returns.
+- Informs, does not block: PP-994, whose member API shape takes the entry
+  shape as an input. The entry shape in Requirements is settled for that
+  purpose.
 - Upstream definitions: the citing-once skill (PP-892) for tier text, and
-  the finding-outputter skill for the entry and the metadata block. A
+  the finding-outputter skill for the entry and the metadata block, which
+  PP-936 added. A
   change to either must change these parsers and the Python eval parser by
-  hand; nothing enforces it. The two implementations share the accepted
-  tier texts and the entry and block-line shapes, and the cases in
-  `tests/unit/tasks/test_citing_once_rule.py` pass on both. They differ on
-  purpose in three places: a rejected tier keeps its entry here and fails
-  there, unread lines are reported here and fail there, and a block line
-  separated from its entry is unread here and attaches there. Where they
-  disagree, this item's rules win for the Rust parsers.
+  hand; nothing enforces it. The Python parser is looser, so it is no
+  oracle for what these parsers reject: it accepts any `; `-separated
+  suffix parts in any order (`tier-3 (unknown)`,
+  `tier-3 (withdrawn; retracted)`, `tier-3 (also tier-9)`, `tier-3 ()`)
+  and an empty block-line value, an empty title or URL, and a key that
+  starts with a digit or an underscore. The two also differ on purpose in
+  five places: a document with CRLF line endings is read here and yields
+  no section there, a rejected tier keeps its entry here and its line
+  matches no entry there,
+  unread lines are reported here and fail there, a block line separated
+  from its entry is unread here and attaches there, and an entry ending in
+  ` — ` has no venue here and is no entry there. Those cases apart, the
+  Python parser is expected to accept every tier text and line these
+  criteria accept; no criterion depends on that. Where the two disagree, this item's rules win for the Rust
+  parsers. Porting the Python test cases is not part of this task.
 - Wire shape: PP-1000 has not settled how sources reach the frontend.
-  These parsers return no section location and no serialisable types; the
-  visualiser server maps the result and handles the document body itself.
-- Shared file: the set page (PP-1001) also changes the `research`
-  crate's public-API snapshot; whichever lands second regenerates it.
+  These parsers return no serialisable types; the visualiser server maps
+  the result. They do return the section's line span, which PP-1000's
+  server uses to drop the literal section from the body it serves, so no
+  second reading of the section boundary is written.
+- Shared file: the derived set response (PP-1002) also changes the
+  `research` crate's public-API snapshot; whichever lands second
+  regenerates it.
 - Unread lines: PP-1000 shows them in a collapsed notice, so the
   report has a consumer; it needs each line as written, in order.
 - Related, still draft: PP-924 adds metadata keys. The Sources parser needs
-  no change provided its keys stay lowercase snake_case with single-line
-  values, as the finding-outputter skill requires today.
+  no change provided its keys match `[a-z][a-z0-9_]*` and its values stay
+  on one line, as the finding-outputter skill requires today. PP-924 does
+  not yet record this condition.
 - Related, still draft: PP-891 and PP-897 change which tier a source is
   given, not the grammar.
 
@@ -269,7 +345,7 @@ does not match a rule exactly is an unread line.
   and a block line separated from its entry is unread.
 - Both parsers live in the `research` crate beside `Tier`. The visualiser
   server does not depend on `research` today; the dependency lint permits
-  that edge, and Sources rendering or the set page adds it.
+  that edge, and the derived set response (PP-1002) adds it.
 - The Python eval parser stays as it is: eval tooling does not call Rust.
 
 ## Technical Notes
@@ -311,12 +387,28 @@ implementation of both to compare against.
   Strict shape is what lets round-trip hold for every accepted text.
 - Returning a rejected tier as written, not failing the entry, was agreed
   with the author on 2026-11-23; the Python reference fails instead.
-- A second review on 2026-11-23 added the line rules. Where the item was
-  silent they follow the Python reference: `None found.` is ignored, a
-  block line attaches to the most recent entry, and the section closes at
-  the next `## ` heading.
+- A second review on 2026-11-23 added the line rules. Of the rules it took
+  from the Python reference, one still holds: the section closes at the
+  next `## ` heading. The other two were superseded by the third review.
 - A third review on 2026-11-23 added the section state, the exact-match
-  rule, and the adjacency rule for block lines.
+  rule, and the adjacency rule for block lines. It replaced two rules of
+  the second review: `None found.` now marks the section declared empty,
+  where it had been ignored, and a block line separated from its entry is
+  now unread, where it had attached to the most recent entry.
+- A fourth review on 2026-11-23 restored `(url)` in the entry shape, where
+  a path rewrite had left `(drafts/url)`; named the parsed tier text as
+  what an entry carries; placed the export test inside the crate; and
+  added criteria for an empty section, `None found.` beside prose, and
+  blank lines before a block line. The author then confirmed the token
+  rules: what a title, a URL, a key, and a value may hold, and that one
+  trailing carriage return is dropped and nothing else trimmed. A URL
+  holding a `)` therefore makes its line unread, a limit the Python
+  reference shares. The line span was added the same day, at the author's
+  direction, so that PP-1000 can hide the literal section.
+- A re-review on 2026-11-23 settled the title rule where a venue holds a
+  markdown link (the line is an entry, as the Python pattern reads it),
+  stated the value rule as "at least one", numbered the span from 1 with
+  an exclusive end, and said what "as written" means for a CRLF line.
 - A review on 2026-11-23 enumerated the rule's examples in the criteria,
   narrowed the Summary to Rust consumers, and replaced "no other Rust code
   parses tier text", which was already true, with the export criterion.
@@ -325,8 +417,9 @@ implementation of both to compare against.
 
 - Parent: PP-868
 - Related: PP-892 (defines the citing-once rule and the `also` suffix),
-  PP-864 (introduced tier text), PP-1000 (the consumer), PP-1001
-  (shares the public-API snapshot), PP-924, PP-891, PP-897
+  PP-864 (introduced tier text), PP-1000 (the consumer), PP-1002
+  (shares the public-API snapshot), PP-994 (its member API shape takes
+  this parser's entry shape as an input), PP-924, PP-891, PP-897
 - Python reference: `tasks/eval/documents/sources.py`
 - `skills/research/outputters/citing-once/SKILL.md`
 - `skills/research/outputters/finding-outputter/SKILL.md`

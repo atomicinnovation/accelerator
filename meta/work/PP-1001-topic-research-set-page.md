@@ -11,12 +11,13 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
-blocked_by: ["work-item:PP-994", "work-item:PP-999", "work-item:PP-998"]
+blocked_by: ["work-item:PP-994", "work-item:PP-999", "work-item:PP-998", "work-item:PP-1002"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T21:18:04+00:00"
+last_updated: "2026-11-23T23:43:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-relates_to: ["work-item:PP-1000", "work-item:PP-923", "work-item:PP-997"]
+blocks: ["work-item:PP-1000"]
+relates_to: ["work-item:PP-923", "work-item:PP-997"]
 ---
 # PP-1001: Topic-Research Set Page
 
@@ -34,12 +35,15 @@ its brief to its reports without leaving the visualiser.
 A set-level page represents a whole research set — the manifest, the brief,
 the outline, its findings and their level notes, the synthesis, and any
 reports — and navigates into each, replacing the shared `LibraryDocView` for
-topic-research entries. It is the visible work that closes PP-22.
+topic-research entries. The page renders the derived set response, which
+the server builds through the `research` crate in a separate story,
+PP-1002. It is the visible work that closes PP-22.
 
 ## Context
 
 Child of PP-868 — Topic-Research Set Detail Page. It is one of PP-868's
-six children, built on the set model (PP-994) and the member routes (PP-998). Rendering each
+eight children, built on the set model (PP-994), the member routes
+(PP-998), and the derived set response (PP-1002). Rendering each
 document's Sources is a separate story, PP-1000.
 
 Today the visualiser renders a set's `manifest.md` alone, through the shared
@@ -64,7 +68,10 @@ rules for "the document being read" cover it too. An **outline item** is
 one checkbox line under one `## Round N` heading: it owns a question, a
 checkbox state, and assigned profiles. A **focus area** is a question,
 together with every outline item that asks it; one asked in two rounds is
-one focus area with two outline items. A **pair** is one outline item with
+one focus area with two outline items, shown under each round that asks
+it. Two outline items ask the same question when their questions are equal
+under the comparison that places findings, given below. A **pair** is one
+outline item with
 one of its assigned profiles. A finding answers every pair of its focus
 area that names its profile, in whichever round, so a round-1 `web` finding
 shows `web` as researched on a round-3 item asking the same question. A level note's **lineage** is its
@@ -82,9 +89,9 @@ and the author approves. Its views are listed in that task's Requirements.
 
 - A topic-research library entry opens the set page, whose navigation links
   to `manifest.md`, `brief.md`, `outline.md`, each finding, `synthesis.md`,
-  and each report. A finding's level notes are linked from that finding
-  once it, or one of its level notes, is the open document, not from the
-  set-level navigation.
+  and each report. A finding's level notes are linked beneath that
+  finding's navigation entry while it, or one of its level notes, is the
+  open document; no other finding's level notes are shown.
 - Default to the member named by `manifest.md`'s `primary` (`brief.md`
   before a synthesis exists, `synthesis.md` after). When `primary` is absent
   or names a missing file, default to `brief.md`; when `brief.md` is missing
@@ -103,7 +110,8 @@ and the author approves. Its views are listed in that task's Requirements.
   `round_count`, or when the set is reopened.
 - Show a set-level error state when `manifest.md` has unparseable
   frontmatter or a `status` outside the five, with the set's members still
-  listed. At the set's own URL the error state overrides `primary`: the
+  listed. Under it the derived set response carries no status, no stale
+  mark, and no reopened mark, and the page shows none. At the set's own URL the error state overrides `primary`: the
   brief is the open document, or none when there is no brief. A member URL
   loaded directly still shows that member, with the error state beside it.
 - Give every mark and state a text label, worded as in the approved export.
@@ -120,8 +128,9 @@ and the author approves. Its views are listed in that task's Requirements.
   skipped (not in the brief's `source_profiles`). A finding wins: a profile
   the brief omits but that has a finding is researched. A brief with no
   `source_profiles` skips nothing.
-- Place findings through the planner's rule in `cli/research`, not a rule of
-  the visualiser's own, at two levels. A finding **belongs to a focus area**
+- Place findings as the derived set response places them, through the
+  planner's rule in `cli/research` and not a rule of the visualiser's own,
+  at two levels. A finding **belongs to a focus area**
   when its question equals the focus area's after Unicode compatibility
   folding and whitespace collapsing. A finding **answers a pair** when it
   belongs to the focus area and its `source_profile` is the pair's profile.
@@ -151,58 +160,73 @@ and the author approves. Its views are listed in that task's Requirements.
   stale means only this.
 - While the set is reopened, mark every report "may be out of date: the set
   has been reopened". A report that is also stale shows both marks.
-- Show each report's `coverage` (`answered` or `partial`) and render a
-  `partial` report's Gaps section.
+- Show each report's `coverage` (`answered` or `partial`) as a label on
+  its entry in the navigation. A `partial` report's Gaps section is part
+  of the report and is rendered there when the report is the open member.
 
 ### Visual regression
 
-- Add a visual-regression baseline for each of the reference design's views
-  1 to 5 and 7 to 9, and for view 6 with its Sources region masked. The
-  tiered-sources baseline belongs to PP-1000.
+- Add twelve visual-regression baselines, one for each of the reference
+  design's views 1, 2, 3, 4a, 4b, 4c, 5, 6a, 7, 8a, 8b, and 9. Views 6b and 6c
+  are Sources states and belong to PP-1000. View 6a's Sources region is
+  masked; PP-1000, which lands after this page, replaces that baseline
+  with one that shows the region.
 
 ### Sources
 
-- If PP-1000 has landed first, render the Sources of every member that
-  lists them through its shared component.
-- If this page lands first, a member's Sources read as literal markdown, and
-  PP-1000 adds the component to this page's member view and its
-  criterion for it.
+- Show a member's Sources as literal markdown. PP-1000, which lands after
+  this page, adds its Sources component to this page's member view, and
+  PP-1000's own criteria cover that.
 
-### Server
+### What the page takes from the response
 
-- Derive on the server, through the `research` crate, what the page shows
-  beyond members: the outline's rounds and items, focus areas with the
-  findings that belong to them, each pair's state, the unmatched findings,
-  the set's status, and the stale and reopened marks. Serve it to the page
-  alongside the member listing.
-- Add the `research` exports this needs: the planner's question comparison,
-  the outline grammar, `SetStatus`, and freshness.
+- Render what the derived set response (PP-1002) returns, and derive
+  none of it on the page: the outline's rounds and items, focus areas with
+  the findings that belong to them, each pair's state, the unmatched
+  findings, the unplaced members with each one's reason, each finding's
+  level notes in lineage order, the set's status, the stale mark on the
+  synthesis and on each report, and the reopened mark. The rules stated in
+  the other sections for those items describe what that response returns;
+  PP-1002 owns them, and the page shows the result.
+- Decide three things on the page, and no others: the default open
+  document, from `primary` and its fallbacks; the override of `primary`
+  under a set-level error; and reading an unstamped `depth` as 1.
+- Show the reopened mark where the reference design puts it: as the
+  per-report text, and beside the set's status.
 - Choose the set page for a doc type by reading its presentation
   declaration, never its name.
 
-### Unreadable members
+### Unplaced members
 
-- List a member the page cannot place in an unreadable group with its path
-  and the reason, one of four: unparseable frontmatter; a `kind` that is not
+- List a member the page cannot place in an **unplaced** group with its
+  path and the reason, one of four: unparseable frontmatter; a `kind` that is not
   one of the six member kinds, which includes `kind: manifest` on a document
   that is not the root; no `kind`, which includes a document with no
   frontmatter at all; or a document whose `kind` does not belong in its
   directory, by the layout in the set contract (a `kind: finding` under
   `reports/`, for example).
-- Never fail the page for an unreadable member.
+- Link each entry in the unplaced group to its member's URL. An unplaced
+  member can still be read: opening it shows its body, titled as the plain
+  member view titles it (its own title, or its filename when its
+  frontmatter is malformed or absent), with its reason beside it. Only
+  its place in the set is unknown.
+- Never fail the page for an unplaced member.
 
 ### Live change
 
 - Update the navigation without a reload as members are added or removed,
   raising no toast.
-- Update what the page derives from the set without a reload: the status
+- Update what the page shows from the derived set response without a
+  reload, by re-requesting it when a change event arrives: the status
   and stale marks when the manifest changes, checkbox states when the
   outline changes, and a profile's state when its finding arrives.
 - When the document being read changes on disk, show the new content and
   raise the visualiser's external-edit toast, without moving the reader's
   position.
-- When the document being read is removed, stay on its URL and show a removed
-  state linking back to the set.
+- When the document being read is removed, stay on its URL and show a
+  removed state linking back to the set, in place of the plain view's
+  not-found state. The toast that says the document was deleted still
+  appears.
 
 ## Acceptance Criteria
 
@@ -210,7 +234,8 @@ and the author approves. Its views are listed in that task's Requirements.
       and reports, when its library entry is opened, then the set navigation
       links to the manifest, the brief, the outline, each finding, the
       synthesis, and each report, and to no level note; when a finding is
-      opened, then its level notes are linked.
+      opened, then its level notes are linked; when one of its level notes
+      is loaded directly, then that finding's level notes are linked.
 - [ ] Given `primary: synthesis.md`, then the page opens on the synthesis;
       given `primary: brief.md`, on the brief; given a `primary` naming a
       missing file, or no `primary`, on the brief.
@@ -224,10 +249,15 @@ and the author approves. Its views are listed in that task's Requirements.
       the synthesis is marked stale; given a synthesis with `rounds_covered: 2`
       and a manifest with `round_count: 3`, then it is marked stale; given
       `status: synthesised` and equal counts, then it is not.
-- [ ] Given a set whose `manifest.md` has unclosed frontmatter, or a `status`
-      outside the five, when its library entry is opened, then the page shows
+- [ ] Given a set whose `manifest.md` has unclosed frontmatter, or has
+      `status: bogus` with `primary: synthesis.md` and a `synthesis.md`
+      present, when its library entry is opened, then the page shows
       a set-level error state naming the manifest, still lists the set's
-      members, and has the brief as the open document.
+      members, and has the brief as the open document; given the same set
+      with no `brief.md`, then no document is open and the document area
+      shows the set-level error state alone; given a finding's URL loaded
+      directly in that set, then the finding shows with the error state
+      beside it.
 - [ ] Given an outline with `## Round 1` and `## Round 2`, then the page shows
       each round's outline items under its round, each with its own checkbox
       state.
@@ -252,8 +282,9 @@ and the author approves. Its views are listed in that task's Requirements.
       focus area.
 - [ ] Given a finding whose `question` differs from an outline item's only by
       whitespace or Unicode compatibility form, then it shows under that
-      item's focus area; given one that differs by case or punctuation, then
-      it does not.
+      item's focus area; given one that differs by case, or by a punctuation
+      mark that compatibility folding does not unify, such as a trailing
+      `?` against none, then it does not.
 - [ ] Given the same question asked in rounds 1 and 3, ticked in round 1 and
       unticked in round 3, then the page shows one focus area under both
       rounds, with the same findings and each round's own checkbox state.
@@ -261,13 +292,6 @@ and the author approves. Its views are listed in that task's Requirements.
       lists it in an unmatched group, and the finding stays readable.
 - [ ] Given two findings answering one question for one profile, then the
       page shows both under that focus area.
-- [ ] This story adds a table of question pairs beside the planner's tests,
-      holding at least a whitespace-only difference, a compatibility-form
-      difference, a case difference, a punctuation difference, and a
-      compatibility-form punctuation mark. The planner's test and the
-      visualiser's test both read that one file, and the page places a
-      finding under a focus area exactly when the planner reports the pair
-      equal.
 - [ ] Given a finding with `depth: 3`, then the page shows depth 3; given a
       finding with no `depth`, then it shows depth 1.
 - [ ] Given a finding with level notes `1`, `2-1`, `2-2`, and `2-10`, then the
@@ -284,28 +308,36 @@ and the author approves. Its views are listed in that task's Requirements.
       reopened set and a report whose `rounds_covered` is below
       `round_count`, then that report shows both that mark and the stale
       mark.
-- [ ] Given a report with `coverage: partial` and a Gaps section, then the
-      page shows its coverage and its Gaps; given `coverage: answered`, it
-      shows the coverage and no Gaps.
-- [ ] Given a member with unparseable frontmatter, then the page lists it in
-      an unreadable group with its path and that reason, and every other
-      document in the set stays readable.
+- [ ] Given a report with `coverage: partial` and a Gaps section, then its
+      navigation entry shows `partial`, and when the report is opened its
+      Gaps section is rendered in the report; given `coverage: answered`,
+      then its entry shows `answered`.
+- [ ] Given a member at `findings/x.md` with unparseable frontmatter, then
+      the page lists it in the unplaced group with its path and that
+      reason, as a link; when the link is followed, then the page shows the
+      member's body, titled `x.md`, with the reason beside it; and every
+      other document in the set opens as it does without that member.
 - [ ] Given a member whose `kind` is not one of the six member kinds,
-      `kind: manifest` among them, then it is listed in the unreadable group
+      `kind: manifest` among them, then it is listed in the unplaced group
       with that reason; given a member with no `kind`, or with no
-      frontmatter at all, with the no-`kind` reason; given a `kind: finding` document under `reports/`,
-      with the reason that its kind does not belong there. The four reasons
-      read differently.
+      frontmatter at all, with the no-`kind` reason; given a
+      `kind: finding` document under `reports/`, with the reason that its
+      kind does not belong there. The four reasons read differently, and
+      each reason is the one the derived set response gives.
 - [ ] Given the document being read changes on disk, then the new content
       appears without a reload, the "External edit detected" toast appears
-      naming that document's path, and, the reader having scrolled away
-      from the top, the content that was in view stays in view.
+      naming that document's path, and the reader's place is kept: given
+      the reader has scrolled to a heading in the lower half of the document
+      and a paragraph is inserted above it on disk, then that heading is
+      still within the viewport after the update.
 - [ ] Given the document being read is removed from disk, then the page
-      stays on its URL and shows a removed state linking back to the set.
+      stays on its URL and shows a removed state linking back to the set,
+      and the toast naming its path says it was deleted.
 - [ ] Given documents are added to an open set, then the navigation shows
-      them without a reload and raises no toast; given a member that is not
-      being read is removed, then it leaves the navigation without a reload
-      and raises no toast.
+      them without a reload, and when their links have appeared no toast
+      has appeared; given a member that is not being read is removed, then
+      it leaves the navigation without a reload, and when its link has gone
+      no toast has appeared.
 - [ ] Given the URL of the manifest, the brief, the outline, a finding, a
       level note, the synthesis, or a report, when it is loaded directly,
       then the set page shows that document with the set navigation present;
@@ -315,6 +347,8 @@ and the author approves. Its views are listed in that task's Requirements.
       `arxiv` finding for that question is added, then `arxiv` shows as
       researched without a reload; given the manifest's `status` changes on
       disk, then the shown status and stale marks change without a reload;
+      given the manifest's `round_count` rises above a report's
+      `rounds_covered`, then that report is marked stale without a reload;
       given an outline item is ticked on disk, then its checkbox state
       changes without a reload.
 - [ ] Given a brief with no `source_profiles`, then no profile shows as
@@ -324,21 +358,34 @@ and the author approves. Its views are listed in that task's Requirements.
 - [ ] Given a finding with an extra field `state: superseded`, and one with
       an unrecognised `source_profile` value, then each shows under its
       focus area and its body is readable.
-- [ ] A visual-regression baseline exists for each of the reference design's
-      views 1 to 5 and 7 to 9, and for view 6 with its Sources region
-      masked; the author has accepted each against the export, recorded as a
-      dated line in this work item's Drafting Notes.
-- [ ] If PP-1000 landed first: a finding open in the set page shows
-      each source's tier and venue as separate elements, as at its plain
-      member URL. If this page lands first: a finding's Sources render as
-      literal markdown, and this criterion passes on that.
-- [ ] Given a set with one round, two outline items, and three findings,
-      then the server's response for the set holds the round, both items
-      with their checkbox states and profile states, each finding under its
-      focus area, the set's status, and whether the synthesis is stale.
+- [ ] Twelve visual-regression baselines exist, one for each of the
+      reference design's views 1, 2, 3, 4a, 4b, 4c, 5, 6a, 7, 8a, 8b, and 9;
+      view 6a's has its Sources region masked. The author has accepted
+      each against
+      the export, recorded as a dated line in this work item's Drafting
+      Notes with the commit of the approved export.
+- [ ] Given a finding whose Sources hold `— tier-2 — blog.example`, open in
+      the set page, then its Sources section renders as a markdown list
+      with that entry text as written.
+- [ ] Given a derived set response a test supplies that contradicts the
+      set's files on each derived item (a pair skipped, a finding unmatched,
+      a finding under a focus area whose question it does not match, a
+      member unplaced, level notes out of lineage order, a status other
+      than the manifest's, a synthesis and a report stale where the counts
+      are equal, and a `synthesised` set marked reopened), then the page
+      shows the response's version of each.
+- [ ] Test level: a criterion whose Given names a response is verified with
+      a supplied response. A criterion whose Given names files or
+      frontmatter is verified end to end, against a fixture set on disk
+      through the real server, and so also exercises PP-1002.
+- [ ] Given a doc type declared only in test code with the set-page
+      presentation, then its library entry opens the set page; given one
+      declared with the entry-point presentation, then it does not. Outside
+      tests, the code that chooses the page contains neither `TopicResearch`
+      nor `topic-research`.
 - [ ] The page's marks and states each carry a text label equal to the
       approved export's: the five statuses, stale, the reopened mark,
-      researched, outstanding, skipped, the four unreadable reasons,
+      researched, outstanding, skipped, unplaced and its four reasons,
       unmatched, removed, not-found, and the set-level error.
 - [ ] Given a set of 60 findings, 600 level notes, and 10 reports, when the
       set page opens, then it requests no level note's body until that
@@ -347,12 +394,14 @@ and the author approves. Its views are listed in that task's Requirements.
 
 ## Open Questions
 
-- None of this story's own. It inherits two, each owned elsewhere: the
-  member API shape (PP-994) and the member route shape
-  (PP-998). The reference design's export is committed under
-  `meta/prototypes/`, per PP-999.
-- The shape of the derived set response is settled with the member API
-  shape, at planning.
+- Awaiting the author's confirmation, and stated as settled in
+  Requirements until then: with no brief under a set-level error the
+  document area shows the error state alone; the reader's place is kept
+  by content, not scroll offset; the deletion toast still appears beside
+  the removed state; and the reopened mark also shows beside the status.
+- It inherits three more, each owned elsewhere: the
+  member API shape (PP-994), the member route shape (PP-998), and the
+  shape of the derived set response (PP-1002).
 
 ## Dependencies
 
@@ -363,30 +412,36 @@ and the author approves. Its views are listed in that task's Requirements.
   parsed frontmatter, a malformed or absent mark, and set-relative paths,
   even under a malformed root), the presentation declaration, and change
   events carrying a member's path.
-- Not blocked by Sources rendering (PP-1000), which can land before or
-  after this page. Whichever lands second wires the shared Sources
-  component into the set page's member view; until then a member's Sources
-  read as literal text.
-- Two upstream open questions are settled before this story is planned:
-  the member API shape (PP-994), which must leave room for the
-  derived set response above, and the member route shape (PP-998).
+- Blocks: PP-1000, Sources rendering, which wires its Sources component
+  into this page's member view and takes views 6a, 6b, and 6c here. Until
+  it lands, a member's Sources read as literal text.
+- Blocked by: PP-1002, the derived set response, for everything the
+  page shows beyond the member listing, and for the visualiser server's
+  dependency on the `research` crate.
+- Three upstream open questions are settled before this story is planned:
+  the member API shape (PP-994), the member route shape (PP-998), and the
+  shape of the derived set response (PP-1002).
 - Blocked by: PP-999, the reference design, approved before this page is
-  planned.
-- Blocks: the closure of PP-868 and, through it, PP-22, together with
-  PP-1000.
-- Existing code this page calls across a new crate edge: the planner's
-  join, the outline grammar, `SetStatus`, and freshness derivation in the
-  `research` crate. This story or PP-1000 adds the visualiser's
-  dependency on `research`, whichever lands first; this story adds the
-  exports those items need. The Sources parser (PP-995) changes the
-  same public-API snapshot, so whichever lands later regenerates it.
+  planned. Labels and view numbers are taken from its export at the
+  approved commit, which PP-999 commits under `meta/prototypes/`. Closing
+  this story also needs the author's acceptance of each baseline.
+- Through PP-1000, this story blocks the closure of PP-868 and PP-22.
+- Transitive, through PP-998: PP-996, whose slug-based link builder forms
+  the set and member links this page's navigation uses.
+- On-disk contract: beyond what the derived set response reads, the page
+  itself reads these frontmatter fields from the member listing, written
+  by the research-topic skill and its outputters per the set contract in
+  `skills/research/research-topic/SKILL.md`: `primary`, `question`,
+  `source_profile`, `depth`, `coverage`, `level`, and `follow_ups`. A
+  change to any of them must be matched here.
 - Related, still draft: PP-923 may add finding states. This page shows a
   finding in a state it does not know as readable; rendering new states
   distinctly is a follow-up to raise when PP-923 settles them, and PP-923
   does not yet record it.
-- Follow-up, not a blocker:
-  `drafts/../PP-997-stable-focus-area-identifiers-in-topic-research-sets.md`
-  replaces the question-text join with an explicit identifier.
+- Follow-up, not a blocker: PP-997 (stable focus-area identifiers)
+  replaces the question-text join with an explicit identifier. The join
+  lives in the derived set response (PP-1002), so the page changes
+  only if the response does.
 
 ## Assumptions
 
@@ -407,25 +462,16 @@ and the author approves. Its views are listed in that task's Requirements.
 
 ## Technical Notes
 
-**Size**: L — a new page with eight of the design's nine views and part of the ninth, a first dependency from the visualiser on the `research` crate, and
-visual-regression baselines for each view.
+**Size**: L — a new page covering twelve of the design's fourteen
+renderings, with live update and a visual-regression baseline for each of
+the twelve. The server and `research`-crate work it once held is
+PP-1002.
 
-- Delivery order: the `research` crate edge and the server response first;
-  then the page shell (navigation, default member, status, staleness,
-  reports, level notes, unreadable members, removed and error states, live
-  update); then the outline join (rounds, focus areas, profile states, the
-  unmatched group). The story stays whole.
+- Delivery order: the page shell first (navigation, default member,
+  status, staleness, reports, level notes, unplaced members, removed and
+  error states, live update); then the outline (rounds, focus areas,
+  profile states, the unmatched group).
 
-- The visualiser server does not depend on `research` today
-  (`cli/visualiser/server/Cargo.toml:24-33`). The dependency lint permits a
-  composition root to depend on a domain crate
-  (`tasks/lint/crate_dependencies.py:392-397`).
-- The planner's join: `NormalisedQuestion::of` in
-  `cli/research/src/topic/question.rs`, `Finding::answers` in
-  `evidence.rs:102`, and `Warning::UnmatchedFinding` in `plan.rs:111`.
-- The outline grammar is parsed in `cli/research/src/topic/outline.rs`; set
-  status is `SetStatus` in `lifecycle.rs`; freshness is derived in
-  `counts.rs:154-180`.
 - `LibraryDocView` resolves a document from the type listing by `type` and
   `fileSlug` (`frontend/src/routes/library/LibraryDocView.tsx:62-85`); the
   set page replaces it for topic research.
@@ -472,12 +518,44 @@ visual-regression baselines for each view.
 - Kept whole on 2026-11-23, at the author's direction, against a review
   suggestion to split the outline join from a flat-findings shell: the
   design is approved as one, and a flat shell is interim UI nobody designed.
+- A fourth review on 2026-11-23 added criteria for the presentation
+  declaration, the set-level error with no brief and at a member URL, level
+  notes linked from an open level note, and a `round_count` change; gave
+  the question table stated outcomes; spelled out the server-response
+  fixture; made the view 6 baseline follow landing order; and recorded the
+  on-disk contract, PP-996, and the shared table as dependencies. Two of
+  its rules are the drafting agent's calls, not yet confirmed by the
+  author: with no brief under a set-level error the document area shows
+  the error state alone, and the reader's place is kept by content, not by
+  scroll offset.
+- The unreadable group was renamed unplaced on 2026-11-23, at the author's
+  direction: such a member can be opened and read, and only its place in
+  the set is unknown. The server classifies it, and the kind-and-directory
+  rule is a fifth `research` export.
+- The server and `research`-crate slice was split into its own story,
+  PP-1002, on 2026-11-23, at the author's direction: the derived set
+  response, the five exports, the crate edge, and the table of question
+  comparisons moved there. This page renders the response and derives
+  nothing. The earlier decision stands that the page shell and the outline
+  stay together.
+- The landing order was fixed on 2026-11-23, at the author's direction:
+  this page lands before PP-1000 and blocks it. The page shows Sources as
+  literal markdown and masks view 6a's Sources region; PP-1000 does the
+  rest.
+- A re-review on 2026-11-23 found rules restated here that PP-1002
+  owns. The item now says which criteria run against a supplied response
+  and which end to end, widens the non-derivation criterion to every
+  derived item, and lists the three things the page decides itself. The
+  question table and the server-response fixture named in earlier notes
+  moved to PP-1002.
 
 ## References
 
 - Parent: PP-868, under the epic PP-22 (the topic-research skillset)
-- Blocked by: PP-994, PP-998, PP-999
+- Blocked by: PP-994, PP-998, PP-999, PP-1002 (derived set response)
+- Transitive prerequisite: PP-996 (set links built from the slug)
 - Follow-up: PP-997 (stable focus-area identifiers)
-- Related: PP-1000 (Sources rendering), PP-995 (Sources
+- Blocks: PP-1000 (Sources rendering)
+- Related: PP-995 (Sources
   parser), PP-862, PP-863, PP-864, PP-865, PP-867, PP-892, PP-936, PP-923
 - Set contract: `skills/research/research-topic/SKILL.md`
