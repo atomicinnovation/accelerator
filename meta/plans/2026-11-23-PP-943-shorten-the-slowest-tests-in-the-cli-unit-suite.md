@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T22:30:00+00:00"
+last_updated: "2026-11-23T23:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -782,7 +782,8 @@ repository once per VCS, and give every halt pass a copy. This is
 
 **Landed** in changes `rpslxtmv` (the halt count), `olroyumo` (counted
 loops), `qnwxvnop` (`Committed` and the reused-state tests) and `orlqwppk`
-(the switch, the landing commit), with the full `mise run` green. It
+(the switch), with the full `mise run` green. The fix below moved the
+landing commit to `mwtvsvpx`. It
 departs from the plan in two ways:
 
 - **Halt-count VCSs:** the exact-halt-count test checks the four-file
@@ -840,6 +841,38 @@ clobbering. Every test that builds `Ports`, in `rekey_run` and
 `rekey_execute`, stops exercising the real synced write path, which
 `store` and `corpus-adapters` test themselves. Contract tests run each case
 against both stores.
+
+**Contention after the syncs.** On one test thread the edit-refusal test
+takes 0.52 s and its reused-state test 0.20 s; on 16 they take 2.7 s and
+1.5 s. A `sample` under 16 threads put 58.8% of the test in
+`copy_private_tree` and 25.5% in removing tempdirs, both per-entry
+filesystem work. The five-file template held 94 entries, 59 of them git's
+sample hooks and loose objects.
+
+**Clone and trim.** On 2026-11-23 the author chose both:
+
+- **Directory clone:** `copy_part` clones each top-level directory whole
+  with `fclonefileat` on macOS. A clone keeps every entry's contents, mode
+  and times except each directory's modification time, which one walk
+  restores along with owner write. `EXDEV`, `ENOTSUP` and other platforms
+  fall back to copying entry by entry. `vcs-test-support` gains `rustix`.
+- **Trimmed templates:** git templates are initialised with `--template=`,
+  so they carry no sample hooks, and `Committed::packed` packs a copied
+  template's objects (jj's backing store included) with `git repack -a
+  -d`.
+
+The fix landed in `xnxxskun` (`UnsyncedStore`), `xnwoztqo` (`CountingStore`
+writes unsynced), `okymqnny` (the directory clone) and `mwtvsvpx` (trimmed
+templates, now the landing commit), with the full `mise run` green.
+
+Three alone runs at each step, charged (s, median):
+
+| Step | Kill test | Edit-refusal test | Load average |
+|---|---|---|---|
+| Copies with syncs (`orlqwppk`) | 16.9 | 13.0 | 3–22 |
+| Unsynced writes (`xnwoztqo`) | 5.6 | 4.2 | 11–12 |
+| Clone and trim (`mwtvsvpx`) | 5.2 | 3.7 | 26–30 |
+| Early signal | ≤ 5.8 | ≤ 3.3 | |
 
 ### Changes Required
 
@@ -1640,7 +1673,7 @@ Also to record:
 - each run's three per-family build lines, showing which family the build
   step waited on;
 - the three landing commits (phases 3, 4 and 6): phase 3 is
-  `orlqwppk`.
+  `mwtvsvpx`.
 
 ### Success Criteria
 
