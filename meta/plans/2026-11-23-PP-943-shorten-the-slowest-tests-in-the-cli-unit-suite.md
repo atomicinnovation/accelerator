@@ -5,7 +5,7 @@ title: "Shorten the Slowest Tests in the CLI Unit Suite Implementation Plan"
 date: "2026-11-23T14:36:51+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:PP-943"
 parent: "work-item:PP-943"
 derived_from: ["codebase-research:2026-11-23-PP-943-shorten-the-slowest-tests-in-the-cli-unit-suite"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T16:46:38+00:00"
+last_updated: "2026-11-23T18:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -259,6 +259,10 @@ Add `measure:test-durations`, which reads nextest `PASS` lines from a
 `measure:build` record's kept logs, or from alone-run logs, and prints the
 figures the PP-943 criteria compute. The phase changes no Rust.
 
+**Landed** in changes `unnvyztl` (the log parser) and `vxwmnlwm` (the
+task), with the full `mise run` green. Over the reference record it gives
+228.6 s and 34.7 s, the work item's figures.
+
 ### Changes Required
 
 #### 1. Log parsing and figures
@@ -298,6 +302,9 @@ class TimedRun:
     @classmethod
     def parse(cls, lines: Iterable[StampedLine]) -> "TimedRun": ...
 
+    @classmethod
+    def parse_unstamped(cls, text: str) -> "TimedRun": ...
+
     def last_finishers(self, count: int) -> list[PassedTest]: ...
 
 
@@ -331,11 +338,14 @@ class Charge:
   the binary's test-seconds within each run, then takes the median, as
   the work item combines figures.
 
-- **One log format:** `parse` takes the `StampedLine`s that
-  `timeline.read_stamped` produces and reads task output through
-  `timeline.attributed_lines`. The phase line is matched by
-  `timeline._NEXTEST_SUMMARY`, promoted to the public `NEXTEST_SUMMARY`.
-  Medians come from `tasks.shared.measurement.median`.
+- **Two entry points, one line reader:** `parse` takes the `StampedLine`s
+  that `timeline.read_stamped` produces from a record's logs, and
+  `parse_unstamped` takes an alone-run log's text. Both strip ANSI codes
+  (`timeline.ANSI_CSI`, promoted from `_ANSI_CSI`) and an optional
+  `[task]` prefix, so an alone log reads whether or not `mise` prefixed
+  it. The phase line is matched by `timeline._NEXTEST_SUMMARY`, promoted
+  to the public `NEXTEST_SUMMARY`. Medians come from
+  `tasks.shared.measurement.median`.
 - **Pass-like statuses:** `PASS`, `TRY n PASS` and `LEAK` count as passes,
   whatever the padding nextest gives the duration and counter fields.
   `FAIL`, `TRY n FAIL`, `SLOW` and `SIGTERM` lines are not passes.
@@ -358,23 +368,27 @@ class Charge:
   so it sets `__test__ = False`.
 
 **File**: `tasks/shared/build_measurement/timeline.py`
-**Changes**: Rename `_NEXTEST_SUMMARY` to `NEXTEST_SUMMARY`, and update its
-readers, including `test_session.py` and `test_log.py`.
+**Changes**: Rename `_NEXTEST_SUMMARY` to `NEXTEST_SUMMARY` and `_ANSI_CSI`
+to `ANSI_CSI`, and update their readers, including `test_session.py` and
+`test_log.py`.
 
 #### 2. The task
 
 **File**: `tasks/measure.py`
-**Changes**: Add `test_durations(context, record: str | None = None, log:
+**Changes**: Add `per_test_durations(context, record: str | None = None, log:
 list[str] | None = None, binary: list[str] | None = None, charge:
 list[str] | None = None, served_by: list[str] | None = None)`, declared
-with `iterable=["log", "binary", "charge", "served_by"]` and a `help`
-entry per option, as `compare_builds` is.
+with `name="test-durations"`, `iterable=["log", "binary", "charge",
+"served_by"]` and a `help` entry per option, as `compare_builds` is. The
+function's name avoids a `test_` prefix, which ruff and pytest read as a
+test.
 
 - `--record <run-id>` reads `run-*-test_unit_cli.log` under
   `.accelerator-measure/build/<run-id>/`.
-- `--log <path>` (repeatable) reads alone-run logs instead.
+- `--log <path or glob>` (repeatable) reads alone-run logs instead.
 - `--binary <id>` (repeatable) selects the binaries.
-- `--charge <checker>=<target>` (repeatable) adds the checker test's
+- `--charge '<binary> <checker>=<binary> <target>'` (repeatable), each
+  test named as nextest prints it, adds the checker test's
   duration to the target test's in each run, before the median. This
   applies the work item's rule that a state-equality test counts towards
   the figure of the target tests whose state it checks.
@@ -391,6 +405,7 @@ For each binary it prints:
 
 Refuse when:
 
+- no `--binary` is named, or both or neither of `--record` and `--log`;
 - a record or `--log` path matches no file;
 - a named binary has no pass line;
 - a `--charge` or `--served-by` value lacks `=`;
@@ -428,9 +443,10 @@ run command it pairs with.
 - A test missing from one of three runs takes the median of the other two,
   and its figure names the missing run.
 - `last_finishers(3)` returns the three highest completion positions.
-- A `shared VCS fixtures: stalled-migration set built in 2.4 s` line gives
-  the `Family.STALLED_MIGRATION` build, with and without a stamp prefix.
-  `family_build` takes the median across runs.
+- A `shared VCS fixtures: status-log set built in 2.4 s` line gives the
+  `Family.STATUS_LOG` build, with and without a stamp prefix, and the
+  combined `built in … digested in …` line names no family. `family_build`
+  takes the median across runs. Phase 5 adds the stalled-migration case.
 - A golden test over three trimmed logs copied from the baseline record
   reproduces its medians (197.5 s, 28.2 s, 33.2 s, 23.3 s and 17.9 s) and
   each binary's pass-line count per run.
@@ -440,10 +456,10 @@ run command it pairs with.
 - The task refuses an unknown run ID, a `--log` that matches no file, a
   binary with no pass line, a `--charge` or `--served-by` value without
   `=`, and a `--served-by` family that is unknown or has no build line.
-- Over a small fixture record with a stalled-migration build line, the
-  task run with one `--charge` and one
-  `--served-by <binary>=stalled-migration` prints the charged test
-  figure and the binary's figure with the family build added.
+- Over a small fixture record with a status-log build line, the task run
+  with one `--charge` and one `--served-by <binary>=status-log` prints the
+  charged test figure and the binary's figure with the family build added.
+  Phase 5 repeats this with `stalled-migration`.
 - Over a small fixture record, the task prints each binary's per-test
   medians, total, slowest test and last finishers.
 
@@ -1219,6 +1235,10 @@ Python:
   A missing `accelerator-migrate` in the listing fails with a cargo
   message.
 - `test_families.py`: each family's declared executables.
+- `test_test_durations.py`: a `shared VCS fixtures: stalled-migration set
+  built in 2.4 s` line gives the `Family.STALLED_MIGRATION` build, with and
+  without a stamp prefix. `test_measure.py`: `--served-by
+  <binary>=stalled-migration` adds that build to the binary's figure.
 - `test_consumers.py`: the family has no consumers yet.
 
 The real migrate binary first builds a stall in a test in phase 6, the
