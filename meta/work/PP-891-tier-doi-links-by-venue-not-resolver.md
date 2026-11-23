@@ -5,14 +5,14 @@ title: "Tier DOI Links by Venue, Not by the doi.org Resolver"
 date: "2026-10-09T17:58:47+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "in-progress"
 kind: "bug"
 priority: "medium"
 parent: "work-item:PP-22"
 blocked_by: ["work-item:PP-936"]
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-897"]
 tags: ["research", "deep-research", "web-profile", "openalex", "tiers"]
-last_updated: "2026-10-24T09:43:21+00:00"
+last_updated: "2026-11-23T16:13:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-891"
@@ -22,7 +22,7 @@ aliases: ["0305"]
 # PP-891: Tier DOI Links by Venue, Not by the doi.org Resolver
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 
