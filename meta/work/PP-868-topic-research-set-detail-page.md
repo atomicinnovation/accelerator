@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-936"]
 tags: ["research", "visualiser"]
-last_updated: "2026-10-29T19:53:05+00:00"
+last_updated: "2026-11-23T21:27:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -27,157 +27,146 @@ aliases: ["0284"]
 
 ## Summary
 
-A visualiser-only set-level detail page that represents a whole research set —
-the brief, the outline, its findings, the synthesis, and any reports — and
-navigates into each sub-document, replacing the flat shared `LibraryDocView` for
-topic-research entries. It reads `manifest.md`'s `primary` pointer to choose the
-default sub-document. This is the epic's designated descope candidate if it runs
-long, though until it lands no sub-document — findings, synthesis or reports —
-is reachable in the visualiser.
+As someone reading topic research, I want to open a research set in the
+visualiser and read every document in it, so that I can follow a subject from
+its brief to its reports without leaving the visualiser.
+
+This item is a container. Seven child work items deliver it, and it is done
+when all seven are. It is the remaining work that closes PP-22, aside from
+bugs already in progress; until it lands the visualiser shows a set's
+manifest alone.
 
 ## Context
 
-The page builds on the umbrella doc type + nested indexing (0278) and the
-round/focus-area structure (0279). A Claude Design prototype of the visualiser
-already exists but does not yet cover topic-research, so extending it is in-slice
-work: prototype the set-level page there first, then implement against the
-umbrella doc type and nested indexing.
+Every other slice of PP-22 has landed, so the set's on-disk contract is
+settled: seven document kinds (`manifest`, `brief`, `outline`, `finding`,
+`level-note`, `synthesis`, `report`) and five manifest statuses (`briefed`,
+`outlined`, `researching`, `synthesised`, `complete`).
+
+The visualiser indexes one entry per set, keyed on `manifest.md`, and renders
+it through the shared `LibraryDocView`. No other document in a set is
+indexed, and no route reaches one.
+
+The work was first written as one story. A stress test and a review on
+2026-11-23 widened it to a generic set model, because more multi-document
+doc types will follow, and split it into the children below. Each child
+carries its own requirements, acceptance criteria, and open questions; this
+item states only the outcome they add up to and how they depend on each
+other.
 
 ## Requirements
 
-- Serve a set's sibling documents to the detail page — a new set endpoint or an
-  augmented `/api/docs/{path}` detail response (see Open Questions).
-- Read `manifest.md`'s `primary` pointer to choose the default sub-document
-  (brief before a synthesis exists, synthesis after).
-- A topic-research library entry opens the set-level page linking to `brief.md`,
-  `outline.md`, each finding, `synthesis.md`, and each report.
-- Prototype the set-level page in Claude Design and review it before
-  implementation begins.
-- Group a focus area's findings together: since 0280 a focus area has one
-  finding per source profile, named `findings/<nn>-<question-slug>-<profile>.md`
-  with a shared `<nn>`. Group them by their `question` and `source_profile`
-  frontmatter, not by filename, so legacy `<nn>-<slug>.md` findings from
-  before 0280 group too. Show
-  each finding's profile, and read an outline item's `— profiles: …` suffix
-  (absent means `web`) as the focus area's assigned profiles, including those
-  not yet researched, accepting `—`, `–`, and `--` alike before `profiles:`.
-- Render each source's reputation tier (`tier-1`/`tier-2`/`tier-3`) and its
-  recorded domain or venue as a distinct visual element wherever a finding,
-  synthesis, or report lists Sources, for web and academic profiles alike,
-  including the `(retracted)` and `(withdrawn)` suffixes 0280 appends to
-  `tier-3`, and a `None found.` Sources section.
-- Show each report's `question`, and mark a report as stale when its
-  `rounds_covered` is below the manifest's `round_count`.
-- Show each report's `coverage` (`answered` or `partial`) and render a
-  `partial` report's Gaps section, as 0281 defines them.
-- Render 0306's merged tier form (e.g. `tier-3 (also tier-1)`) as the
-  weakest tier with the other tiers marked as a distinct element, including
-  the semicolon-joined forms that combine it with `retracted` or
-  `withdrawn`.
-- Parse tier text as a base tier and an optional parenthesised suffix of
-  `; `-separated parts, the last of which may be an `also` list separated by
-  `, `, so findings written before and after 0306 both render. Render a
-  source listed twice as two entries: depth-1 and pre-0306 findings, and a
-  dossier whose composer dropped a linking URL, can carry one.
-- The tier-text grammar has one owner in `cli/`, a parser whose test cases
-  are the citing-once rule's examples, and the visualiser renders what it
-  returns. 0281's `report` and `ask`, which land first, read tier text
-  through the citing-once rule instead, as `synthesise` does.
-- Treat 0348's optional source metadata block, the nested `key: value` list
-  under a Sources entry, as part of the entry above it.
+The children deliver, between them:
+
+- A generic set model: a doc type whose entries are directories is indexed
+  as a root plus member documents and assets, with members searchable,
+  served through an API, and updated live. Topic research and design
+  inventories both use it.
+- Member routes and a plain member view: each member document opens at its
+  own URL.
+- A fix to links that open the wrong set, which exists today and can land
+  first.
+- A Sources parser in the `research` crate: the one Rust reading of a
+  document's Sources section and its tier text.
+- A reference design for the set page, approved before the page is built.
+- The topic-research set page: persistent set navigation beside one member
+  at a time, showing status, the outline by round, focus areas and their
+  findings, level notes, and reports, and updating live.
+- Sources rendering: each source's tier, venue, marks, and metadata shown as
+  distinct elements wherever a topic-research document is shown.
+
+They are sequenced as follows. The reference design, the set model, and the
+Sources parser have no blockers and can start together.
+
+```mermaid
+flowchart LR
+  design[Reference design] --> page[Set page]
+  design --> rendering[Sources rendering]
+  model[Set model] --> routes[Member routes]
+  model --> page
+  model --> rendering
+  routes --> page
+  routes --> rendering
+  parser[Sources parser] --> rendering
+  page --> done[PP-868 done]
+  rendering --> done
+```
+
+### Child work items
+
+- PP-994 — Generic Set Model: Indexing and API
+- PP-998 — Set Member Routes and View
+- PP-995 — Sources Parser in the Research Crate
+- PP-1001 — Topic-Research Set Page
+- PP-1000 — Sources Rendering in the Visualiser
+- PP-999 — Reference Design for the Topic-Research Set Page
+- PP-996 — Links to a Research Set or Design Inventory Open the Wrong One
 
 ## Acceptance Criteria
 
-- [ ] The set-level page is prototyped in Claude Design and reviewed before
-      implementation begins.
-- [ ] A topic-research library entry opens a set-level detail page linking to
-      `brief.md`, `outline.md`, each finding, `synthesis.md`, and each report,
-      defaulting to the sub-document named by `manifest.md`'s `primary`.
-- [ ] Given a finding, synthesis, or report whose Sources carry
-      `— tier-N — <venue>` entries, when it renders on the set-level page, then
-      each source shows its tier as a distinct element alongside its venue, and
-      the three tiers are visually distinguishable without relying on colour
-      alone.
-- [ ] Given a focus area with `web` and `openalex` findings sharing `<nn>` and
-      an outline item `- [ ] <question> — profiles: web, openalex, arxiv`, then
-      the page shows one focus area with both findings labelled by profile and
-      `arxiv` as outstanding.
-- [ ] Given two findings with the same `question` frontmatter but differing
-      `<nn>` prefixes, then the page shows them under one focus area; given a
-      legacy `<nn>-<slug>.md` finding, then it shows under its question's
-      focus area.
-- [ ] Given outline items suffixed `— profiles: web, arxiv`,
-      `– profiles: web, arxiv`, and `-- profiles: web, arxiv`, then each is
-      read as assigning `web` and `arxiv`.
-- [ ] Given Sources entries reading `— tier-3 (retracted) —` and
-      `— tier-3 (withdrawn) —`, then each renders as `tier-3` with its
-      retraction or withdrawal marked as a distinct element.
-- [ ] Given a report with `rounds_covered: 2` in a set whose manifest has
-      `round_count: 3`, then the page lists the report under its question
-      and marks it stale; at `rounds_covered: 3` it is not marked.
-- [ ] Given a report with `coverage: partial` and a Gaps section, then the
-      page shows its coverage and its Gaps; given `coverage: answered`, it
-      shows the coverage and no Gaps.
-- [ ] Given a Sources entry reading `— tier-3 (also tier-1) —`, then it
-      renders as `tier-3` with `also tier-1` marked as a distinct element.
-- [ ] Given Sources entries reading `— tier-3 (also tier-2, tier-1) —` and
-      `— tier-3 (retracted; withdrawn; also tier-1) —`, then each renders as
-      `tier-3` with its retraction or withdrawal marker and its `also` tiers
-      as distinct elements.
-- [ ] Given a Sources entry followed by a nested `key: value` metadata list,
-      then the list renders as part of that entry, not as a separate entry.
+- [ ] All seven child work items are done.
+- [ ] Given a research set with a brief, an outline, findings with level
+      notes, a synthesis, and reports, when its library entry is opened in
+      the visualiser, then every one of those documents can be reached and
+      read without leaving the visualiser.
+- [ ] Given a finding open in the visualiser, then each of its sources shows
+      its tier and venue as distinct elements.
+- [ ] Given a `conduct` run writing to a set that is open in the visualiser,
+      then the new documents appear without a reload.
+- [ ] Given a design inventory, then its listing and its page show what they
+      showed before this work.
 
 ## Open Questions
 
-- Set-document API shape (planning-time): does the detail page get a new endpoint
-  that lists a research set's sub-documents, or does the existing
-  `/api/docs/{path}` detail response get augmented to include siblings? Both are
-  viable; decide during this slice's planning. This is the epic's one still-open
-  question.
+- None at this level. Each child carries its own.
 
 ## Dependencies
 
-- Blocked by: 0278 (umbrella doc type + nested indexing — recorded on 0278's
-  `blocks`), 0279 (round/focus-area structure the page shows — recorded on
-  0279's `blocks`), 0281 (the `report` kind and `reports/` layout — recorded
-  on 0281's `blocks`), including its `coverage` extra and Gaps section.
-- Related: 0306 adds the `also` tier suffix; this page renders it once 0306
-  lands, and until then no Sources entry carries it.
-- Related: 0348 adds the optional source metadata block under Sources
-  entries; until it lands, no entry carries one.
-- Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
-  the tier suffixes this page consumes. If this page is built before 0280 lands,
-  0280 owns updating it.
-- Related: 0283 adds `findings/<stem>.levels/` directories of `kind:
-  level-note` documents; the page enumerates only top-level `<nn>-*.md`
-  findings and excludes level notes.
+- Blocked by: nothing. PP-862, PP-863, PP-864, PP-865, PP-867, PP-892, and
+  PP-936 are done.
+- Blocks: the closure of PP-22.
+- Unblocks PP-134 (captured screenshots on design-inventory pages), which
+  is blocked by the set model, PP-994, alone.
+- Follow-up, not a blocker:
+  `PP-997-stable-focus-area-identifiers-in-topic-research-sets.md`
+  replaces the question-text join with an explicit identifier.
+- Abandoned: PP-792, a duplicate of PP-134.
 
 ## Assumptions
 
-- Deferral leaves the other slices shippable, but only on disk: the indexer
-  creates one entry per set, keyed on `manifest.md`, so the shared
-  `LibraryDocView` renders the manifest alone and no route reaches a set's
-  sub-documents until this page lands.
+- The children's acceptance criteria are the detailed statement of this
+  work. The criteria above check only that the parts add up.
+- Between the set model landing and the set page landing, a member opens as
+  a plain document with its Sources as literal text.
 
 ## Technical Notes
 
-- Unlike other doc types, `topic-research` needs this bespoke set-level detail
-  page rather than the shared `LibraryDocView`.
+**Size**: XL — the sum of its children: reference design (M), set model (L),
+member routes (M), Sources parser (M), set page (L), and Sources rendering
+(M).
+
+- Technical detail lives in each child's Technical Notes.
+- Reviews of the children are in `meta/reviews/work/`.
 
 ## Drafting Notes
 
-- This is the epic-level descope candidate — the only slice whose deferral leaves
-  the others fully shippable.
-- Multi-finding layout and tier suffixes added (2026-09-23) after 0280's review
-  made a finding one per (focus area, source profile).
-- Tier rendering moved here from 0280 (2026-09-22); until this page lands,
-  tiers remain readable as literal `— tier-N —` text in the shared
-  `LibraryDocView`, so a deferral still leaves them legible.
-- Extracted from source documents without interactive enrichment. Acceptance
-  criteria, dependencies, and kind may need refinement before promoting from
-  `draft` to `ready`.
+- Rewritten as a container on 2026-11-23 at the author's direction. The
+  requirements and 45 acceptance criteria it held moved into the children,
+  and its earlier text is in version control.
+- Scope history: level notes, set statuses, live update, and member indexing
+  were added when the item was enriched; the generic set model, the
+  design-inventory migration, and the unreadable and unmatched groups were
+  added by the stress test; the review widened the parser to the whole
+  Sources section and split out Sources rendering and the reference design.
+- The item stays a story holding stories, tasks, and a bug, at the author's
+  direction. If the tracker rejects that on sync, it becomes an epic or the
+  children move under PP-22.
+- The end-to-end criteria above are my summary of the children's; they add
+  no behaviour of their own.
 
 ## References
 
 - Source: `meta/work/PP-22-topic-research-skillset.md` (Slice 6)
-- Parent epic: 0121
+- Parent epic: PP-22
+- Related: PP-862, PP-863, PP-864, PP-865, PP-867, PP-892, PP-936, PP-134
+- Set contract: `skills/research/research-topic/SKILL.md`
