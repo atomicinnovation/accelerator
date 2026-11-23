@@ -144,6 +144,9 @@ fn copy_entry(source: &Path, copy: &Path) -> Result<(), Error> {
         )?;
         return Ok(());
     }
+    if file_type.is_dir() && cloned_whole(source, copy)? {
+        return restore_what_a_clone_drops(source, copy);
+    }
     if file_type.is_dir() {
         fs::create_dir(copy)?;
         for child in fs::read_dir(source)? {
@@ -163,4 +166,72 @@ fn copy_entry(source: &Path, copy: &Path) -> Result<(), Error> {
         FileTime::from_last_modification_time(&metadata),
     )?;
     Ok(())
+}
+
+/// A directory clone keeps every entry's contents, mode and times except
+/// each directory's modification time, which it sets to the moment of the
+/// clone.
+fn restore_what_a_clone_drops(source: &Path, copy: &Path) -> Result<(), Error> {
+    for entry in walkdir::WalkDir::new(copy) {
+        let entry = entry.map_err(|error| Error::message(error.to_string()))?;
+        if entry.path_is_symlink() {
+            continue;
+        }
+        let mode = entry
+            .metadata()
+            .map_err(|error| Error::message(error.to_string()))?
+            .permissions()
+            .mode();
+        if mode & OWNER_WRITE == 0 {
+            fs::set_permissions(
+                entry.path(),
+                fs::Permissions::from_mode(mode | OWNER_WRITE),
+            )?;
+        }
+        if entry.file_type().is_dir() {
+            let relative = entry
+                .path()
+                .strip_prefix(copy)
+                .map_err(|error| Error::message(error.to_string()))?;
+            let original = source.join(relative).symlink_metadata()?;
+            filetime::set_file_times(
+                entry.path(),
+                FileTime::from_last_access_time(&original),
+                FileTime::from_last_modification_time(&original),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn cloned_whole(source: &Path, copy: &Path) -> Result<bool, Error> {
+    use rustix::fs::fclonefileat;
+    use rustix::fs::CloneFlags;
+    use rustix::fs::Mode;
+    use rustix::fs::OFlags;
+    use rustix::io::Errno;
+
+    let (Some(parent), Some(name)) = (copy.parent(), copy.file_name()) else {
+        return Ok(false);
+    };
+    let open = |path: &Path| {
+        rustix::fs::open(
+            path,
+            OFlags::RDONLY | OFlags::DIRECTORY,
+            Mode::empty(),
+        )
+        .map_err(std::io::Error::from)
+    };
+    match fclonefileat(open(source)?, open(parent)?, name, CloneFlags::NOFOLLOW)
+    {
+        Ok(()) => Ok(true),
+        Err(Errno::XDEV | Errno::NOTSUP) => Ok(false),
+        Err(error) => Err(std::io::Error::from(error).into()),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn cloned_whole(_source: &Path, _copy: &Path) -> Result<bool, Error> {
+    Ok(false)
 }
