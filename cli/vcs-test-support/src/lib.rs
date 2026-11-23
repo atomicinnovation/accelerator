@@ -7,6 +7,7 @@
 
 pub mod colocation;
 pub mod copies;
+pub mod counted;
 pub mod family;
 pub mod fixture_log;
 pub mod fixtures;
