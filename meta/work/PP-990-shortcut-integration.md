@@ -7,20 +7,20 @@ title: "Shortcut Integration"
 date: "2026-11-13T22:45:09+00:00"
 author: "Tom Scott"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:PP-701"
 relates_to: ["work-item:PP-192", "work-item:PP-876", "work-item:PP-877"]
 tags: ["work-management", "integrations", "shortcut", "sync"]
-last_updated: "2026-11-13T22:45:09+00:00"
-last_updated_by: "Tom Scott"
+last_updated: "2026-11-23T14:44:28+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 # PP-990: Shortcut Integration
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Tom Scott
 

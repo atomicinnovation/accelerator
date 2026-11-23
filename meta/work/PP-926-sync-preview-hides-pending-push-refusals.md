@@ -5,14 +5,14 @@ title: "Sync Preview Hides Pending-Push Refusals"
 date: "2026-10-24T11:40:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "in-progress"
+status: "done"
 kind: "bug"
 priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-884", "work-item:PP-880", "work-item:PP-927"]
 tags: ["sync", "preview", "pending-push"]
-last_updated: "2026-11-17T14:14:34+00:00"
-last_updated_by: "Phil Helm"
+last_updated: "2026-11-23T14:44:28+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-926"
 aliases: ["0351"]
@@ -20,7 +20,7 @@ aliases: ["0351"]
 # PP-926: Sync Preview Hides Pending-Push Refusals
 
 **Kind**: Bug
-**Status**: In Progress
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
