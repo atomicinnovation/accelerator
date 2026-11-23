@@ -353,14 +353,14 @@ fn a_file_naming_a_commit_compares_by_its_position() -> Result<(), TestError> {
 }
 
 #[test]
-fn a_file_naming_joined_commits_compares_by_their_positions(
+fn a_file_naming_joined_commits_compares_by_their_positions_in_any_order(
 ) -> Result<(), TestError> {
     let first = Build::of(recording_run_ids(&["@-", "@--"]))?.state()?;
-    let second = Build::of(recording_run_ids(&["@-", "@--"]))?.state()?;
     let swapped = Build::of(recording_run_ids(&["@--", "@-"]))?.state()?;
+    let elsewhere = Build::of(recording_run_ids(&["@-", "@---"]))?.state()?;
 
-    assert_eq!(first, second);
-    assert_ne!(first, swapped);
+    assert_eq!(first, swapped);
+    assert_ne!(first, elsewhere);
     Ok(())
 }
 

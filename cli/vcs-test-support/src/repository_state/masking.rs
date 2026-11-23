@@ -2,6 +2,10 @@
 //! commits they name, so a file recording an ID compares by graph position.
 
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
+
+use regex::Captures;
+use regex::Regex;
 
 use super::CommitPosition;
 use super::RawCommit;
@@ -11,6 +15,9 @@ use super::RawCommit;
 ///
 /// Abbreviated IDs are deliberately left alone: a file holding one makes two
 /// builds compare unequal, which fails loudly rather than passing.
+///
+/// A `+`-joined list comes out ordered by position. Its writer orders it by
+/// hash, so two builds of one merge would otherwise list it differently.
 #[derive(Debug)]
 pub(super) struct IdMasking {
     replacements: Vec<(String, String)>,
@@ -38,11 +45,41 @@ impl IdMasking {
     }
 
     pub(super) fn mask(&self, text: &str) -> String {
-        self.replacements
+        let masked = self
+            .replacements
             .iter()
             .fold(text.to_owned(), |masked, (id, stand_in)| {
                 masked.replace(id.as_str(), stand_in)
+            });
+        JOINED_STAND_INS
+            .replace_all(&masked, |list: &Captures<'_>| {
+                let mut stand_ins: Vec<&str> = list[0].split('+').collect();
+                stand_ins.sort_by_key(|stand_in| StandIn::parse(stand_in));
+                stand_ins.join("+")
             })
+            .into_owned()
+    }
+}
+
+static JOINED_STAND_INS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"<(?:commit|change) \d+>(?:\+<(?:commit|change) \d+>)+")
+        .unwrap_or_else(|_| unreachable!("the pattern is a literal"))
+});
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct StandIn<'s> {
+    position: Option<usize>,
+    kind: &'s str,
+}
+
+impl<'s> StandIn<'s> {
+    fn parse(text: &'s str) -> Self {
+        let inner = text.trim_start_matches('<').trim_end_matches('>');
+        let (kind, position) = inner.split_once(' ').unwrap_or((inner, ""));
+        Self {
+            position: position.parse().ok(),
+            kind,
+        }
     }
 }
 
@@ -94,6 +131,14 @@ mod tests {
         assert_eq!(
             masking().mask(&format!("{FIRST_ID}+{SECOND_ID}")),
             "<commit 0>+<commit 1>"
+        );
+    }
+
+    #[test]
+    fn a_joined_list_is_ordered_by_position_whatever_order_names_it() {
+        assert_eq!(
+            masking().mask(&format!("{SECOND_ID}+{FIRST_ID}\n")),
+            "<commit 0>+<commit 1>\n"
         );
     }
 
