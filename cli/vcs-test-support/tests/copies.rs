@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use filetime::FileTime;
 use vcs_test_support::copies::copy_part;
+use vcs_test_support::copies::copy_private_tree;
 use walkdir::WalkDir;
 
 type TestError = Box<dyn std::error::Error>;
@@ -113,6 +114,13 @@ fn observe(tree: &Path) -> Result<Vec<Observed>, TestError> {
         });
     }
     Ok(observed)
+}
+
+fn beneath(tree: &Path) -> Result<Vec<Observed>, TestError> {
+    Ok(observe(tree)?
+        .into_iter()
+        .filter(|entry| entry.relative != Path::new(""))
+        .collect())
 }
 
 fn with_owner_write(observed: Vec<Observed>) -> Vec<Observed> {
@@ -223,5 +231,51 @@ fn a_copy_naming_no_path_is_clean() -> Result<(), TestError> {
     assert_eq!(copy.root, destination.path());
     assert!(copy.named_by.is_empty());
     assert!(copy.is_clean());
+    Ok(())
+}
+
+#[test]
+fn a_private_tree_copy_keeps_every_top_level_entry_s_contents_and_times(
+) -> Result<(), TestError> {
+    let source = Source::new()?;
+    let template = source.tree()?;
+    source.write("top.txt", "top\n")?;
+    source.write(".hidden/inside.txt", "inside\n")?;
+    source.write("nested/deeper/file.txt", "deep\n")?;
+    symlink("nested/deeper/file.txt", template.join("link"))?;
+    stamp_every_entry_distinctly(&template)?;
+    let destination = tempfile::tempdir()?;
+
+    let root = copy_private_tree(&template, destination.path())?;
+
+    assert_eq!(root, destination.path());
+    assert_eq!(beneath(&root)?, beneath(&template)?);
+    Ok(())
+}
+
+#[test]
+fn a_private_tree_naming_its_own_path_is_refused_naming_the_file(
+) -> Result<(), TestError> {
+    let source = Source::new()?;
+    let template = source.tree()?;
+    source.write("config", &format!("url = {}\n", template.display()))?;
+    source.write("innocent", "nothing here\n")?;
+    let destination = tempfile::tempdir()?;
+
+    let error = copy_private_tree(&template, destination.path())
+        .err()
+        .ok_or("it should fail")?;
+
+    let message = error.to_string();
+    assert!(
+        message.contains(&template.display().to_string()),
+        "{message}"
+    );
+    assert!(
+        message
+            .contains(&destination.path().join("config").display().to_string()),
+        "{message}"
+    );
+    assert!(!message.contains("innocent"), "{message}");
     Ok(())
 }

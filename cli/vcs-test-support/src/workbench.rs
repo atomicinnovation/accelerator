@@ -291,19 +291,10 @@ impl Workbench {
             copy: &copy.root,
             named_by: &copy.named_by,
         })?;
-        if !copy.is_clean() {
-            return Err(Error::message(format!(
-                "the copy of {} in {} still names the shared tree {} in: {}",
-                F::FAMILY,
-                copy.root.display(),
-                tree.display(),
-                copy.named_by
-                    .iter()
-                    .map(|path| path.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )));
-        }
+        copy.require_clean(
+            format_args!("the copy of {}", F::FAMILY),
+            format_args!("the shared tree {}", tree.display()),
+        )?;
         Ok(shared.rebased(tree, self.path(), &entries))
     }
 
