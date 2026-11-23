@@ -2576,6 +2576,7 @@ mod tests {
     use work::section_diff::SectionDiff;
     use work::sync::Action;
     use work::sync::FieldDelivery;
+    use work::sync::PendingPush;
     use work::sync::PendingPushOrder;
     use work::sync::PlannedAction;
     use work::sync::SyncState;
@@ -9564,6 +9565,415 @@ mod tests {
             );
             assert_eq!(dossier_text(dir.path(), "0001"), before);
             assert!(conflict_dossier_path(dir.path(), "0009").exists());
+        }
+    }
+
+    fn previewing(targets: Vec<String>) -> SyncArgs {
+        SyncArgs {
+            preview: true,
+            ..sync_args(targets)
+        }
+    }
+
+    fn marker_path(dir: &Path, id: &str) -> PathBuf {
+        dir.join(super::STATE_DIR)
+            .join(format!("integrations/jira/pending-push/{id}.json"))
+    }
+
+    fn seed_marker(dir: &Path, id: &str, content: &str) {
+        let marker = marker_path(dir, id);
+        std::fs::create_dir_all(marker.parent().expect("a parent"))
+            .expect("mkdir");
+        std::fs::write(&marker, content).expect("seed the marker");
+    }
+
+    fn draft_request(dir: &Path, id: &str) -> work::sync::RequestFingerprint {
+        let draft = std::fs::read_dir(dir.join("meta/work"))
+            .expect("the work directory")
+            .flatten()
+            .map(|entry| entry.path())
+            .find(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with(id))
+            })
+            .expect("the draft exists");
+        let content =
+            std::fs::read_to_string(draft).expect("the draft is readable");
+        let (_, body) =
+            work_adapters::sync::digest::split_frontmatter_and_body(&content)
+                .expect("the draft splits");
+        let fields = work_adapters::create_request_fields::read(&content)
+            .expect("the draft has create fields");
+        work::sync::RequestFingerprint {
+            digest: work_adapters::sync::pending_push::request_digest(
+                &fields.title,
+                &body,
+                &fields.kind,
+            ),
+            title: fields.title,
+            attempted_at: 1,
+            failure: None,
+        }
+    }
+
+    fn seed_attempted(dir: &Path, id: &str) {
+        seed_marker(
+            dir,
+            id,
+            &work_adapters::sync::pending_push::render(
+                &PendingPush::Attempted {
+                    request: draft_request(dir, id),
+                },
+            ),
+        );
+    }
+
+    fn seed_created(dir: &Path, id: &str, key: &str) {
+        seed_created_from(dir, id, key, draft_request(dir, id));
+    }
+
+    fn seed_created_from(
+        dir: &Path,
+        id: &str,
+        key: &str,
+        request: work::sync::RequestFingerprint,
+    ) {
+        seed_marker(
+            dir,
+            id,
+            &work_adapters::sync::pending_push::render(&PendingPush::Created {
+                request,
+                external_id: ExternalId::new(key.to_owned()),
+            }),
+        );
+    }
+
+    fn empty_tracker() -> Rc<RecordingTracker> {
+        Rc::new(RecordingTracker::holding(Vec::new()))
+    }
+
+    fn draft_with_attempted_marker(dir: &Path) -> Rc<RecordingTracker> {
+        unsynced_draft(dir);
+        seed_attempted(dir, "0001");
+        empty_tracker()
+    }
+
+    fn draft_with_unreadable_marker(dir: &Path) -> Rc<RecordingTracker> {
+        unsynced_draft(dir);
+        seed_marker(dir, "0001", "{ not a marker");
+        empty_tracker()
+    }
+
+    fn draft_with_mismatched_marker(dir: &Path) -> Rc<RecordingTracker> {
+        unsynced_draft(dir);
+        seed_created_from(
+            dir,
+            "0001",
+            "PP-5",
+            work::sync::RequestFingerprint {
+                digest: "a request since edited".to_owned(),
+                ..draft_request(dir, "0001")
+            },
+        );
+        empty_tracker()
+    }
+
+    fn draft_whose_marker_key_another_item_carries(
+        dir: &Path,
+    ) -> Rc<RecordingTracker> {
+        let tracker = edited_remotely_numbered(dir, &[("0002", "PP-5")]);
+        unsynced_draft(dir);
+        seed_created(dir, "0001", "PP-5");
+        tracker
+    }
+
+    fn draft_reusing_beside_a_malformed_item(
+        dir: &Path,
+    ) -> Rc<RecordingTracker> {
+        unsynced_draft(dir);
+        seed_created(dir, "0001", "PP-5");
+        std::fs::write(dir.join("meta/work/0002-garbled.md"), [0xff, 0xfe])
+            .expect("write the malformed item");
+        empty_tracker()
+    }
+
+    fn draft_with_unparseable_frontmatter(dir: &Path) -> Rc<RecordingTracker> {
+        std::fs::write(
+            dir.join("meta/work/0001-draft-one.md"),
+            "---\nid: \"0001\"\ntitle: [Draft\n---\n\nBody\n",
+        )
+        .expect("write work item");
+        empty_tracker()
+    }
+
+    fn draft_with_reusable_marker(dir: &Path) -> Rc<RecordingTracker> {
+        unsynced_draft(dir);
+        seed_created(dir, "0001", "PP-5");
+        empty_tracker()
+    }
+
+    fn draft_without_marker(dir: &Path) -> Rc<RecordingTracker> {
+        unsynced_draft(dir);
+        empty_tracker()
+    }
+
+    /// A run's output with its repository root and preview wording read as
+    /// an applied run's, so a preview compares line for line with a run.
+    fn as_applied(run: &CapturedRun, root: &Path) -> (String, String) {
+        let roots = [
+            root.canonicalize().expect("the root resolves"),
+            root.to_path_buf(),
+        ];
+        let normalise = |text: &str| {
+            roots
+                .iter()
+                .fold(text.to_owned(), |text, root| {
+                    text.replace(&root.display().to_string(), "<root>")
+                })
+                .replace("would fail", "failed")
+        };
+        (normalise(&run.out), normalise(&run.err))
+    }
+
+    type Seeding = fn(&Path) -> Rc<RecordingTracker>;
+
+    fn preview_and_run(seed: Seeding, targets: &[&str]) -> CapturedRun {
+        let targets: Vec<String> =
+            targets.iter().map(|&id| id.to_owned()).collect();
+        let previewed = sync_repo();
+        let tracker = seed(previewed.path());
+        let markers =
+            crate::test_support::pending_push_tree(previewed.path(), "jira");
+        let preview = drive_sync_captured(
+            previewed.path(),
+            &tracker,
+            &previewing(targets.clone()),
+        );
+        let applied = sync_repo();
+        let tracker = seed(applied.path());
+        let run =
+            drive_sync_captured(applied.path(), &tracker, &sync_args(targets));
+        assert_eq!(
+            as_applied(&preview, previewed.path()),
+            as_applied(&run, applied.path())
+        );
+        assert_eq!(preview.code, run.code);
+        assert_eq!(
+            crate::test_support::pending_push_tree(previewed.path(), "jira"),
+            markers
+        );
+        preview
+    }
+
+    #[test]
+    fn a_preview_reports_a_pending_push_refusal_as_the_run_would() {
+        let preview = preview_and_run(draft_with_attempted_marker, &["0001"]);
+
+        assert!(
+            preview.out.contains("0001\tfailed\tunsynced\tterminal"),
+            "{}",
+            preview.out
+        );
+        assert!(
+            error_lines(&preview.err)
+                .iter()
+                .any(|line| line.starts_with(
+                    "error: 0001: create would fail: pending push refused \
+                 (prior-attempt-unknown): "
+                )),
+            "{}",
+            preview.err
+        );
+        assert_eq!(preview.code, ExitCode::from(super::exit_codes::TERMINAL));
+    }
+
+    #[test]
+    fn a_whole_corpus_preview_ranks_a_refusal_above_the_discovery_deferral() {
+        let preview = preview_and_run(draft_with_attempted_marker, &[]);
+
+        assert_eq!(preview.code, ExitCode::from(super::exit_codes::TERMINAL));
+        assert!(
+            preview.out.contains("0001\tfailed\tunsynced\tterminal"),
+            "{}",
+            preview.out
+        );
+        assert!(
+            preview
+                .out
+                .lines()
+                .any(|line| line == "#\tdiscovery\tskipped\tpending-push"),
+            "{}",
+            preview.out
+        );
+    }
+
+    #[test]
+    fn a_pull_only_preview_plans_no_create_and_keeps_the_deferral() {
+        let dir = sync_repo();
+        let tracker = draft_with_attempted_marker(dir.path());
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                pull_only: true,
+                ..previewing(vec![])
+            },
+        );
+
+        assert!(run.out.contains("0001\tnoop\tunsynced\t-"), "{}", run.out);
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "#\tdiscovery\tskipped\tpending-push"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
+    fn a_preview_and_the_run_report_the_same_create_failure() {
+        let seedings: [(Seeding, u8); 6] = [
+            (draft_with_attempted_marker, super::exit_codes::TERMINAL),
+            (draft_with_unreadable_marker, super::exit_codes::TERMINAL),
+            (draft_with_mismatched_marker, super::exit_codes::TERMINAL),
+            (
+                draft_whose_marker_key_another_item_carries,
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                draft_reusing_beside_a_malformed_item,
+                super::exit_codes::REJECTED,
+            ),
+            (
+                draft_with_unparseable_frontmatter,
+                super::exit_codes::REJECTED,
+            ),
+        ];
+        for (seed, exit_code) in seedings {
+            let preview = preview_and_run(seed, &[]);
+
+            assert_eq!(
+                preview.code,
+                ExitCode::from(exit_code),
+                "{}",
+                preview.err
+            );
+            assert!(
+                preview.out.contains("0001\tfailed\tunsynced\t"),
+                "{}",
+                preview.out
+            );
+            assert!(
+                error_lines(&preview.err)
+                    .iter()
+                    .any(|line| line.starts_with("error: 0001: ")),
+                "{}",
+                preview.err
+            );
+        }
+    }
+
+    #[test]
+    fn a_preview_distrusts_a_committed_marker() {
+        let dir = sync_repo();
+        let tracker = draft_with_attempted_marker(dir.path());
+        commit_all(dir.path());
+        let markers =
+            crate::test_support::pending_push_tree(dir.path(), "jira");
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &previewing(vec!["0001".into()]),
+        );
+
+        assert!(
+            error_lines(&run.err).iter().any(|line| {
+                line.starts_with(
+                    "error: 0001: create would fail: pending push refused \
+                     (marker-unreadable): ",
+                ) && line.contains("marker is tracked by version control")
+            }),
+            "{}",
+            run.err
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
+        assert_eq!(
+            crate::test_support::pending_push_tree(dir.path(), "jira"),
+            markers
+        );
+    }
+
+    fn conflicts_beside_an_attempted_create(
+        dir: &Path,
+    ) -> Rc<RecordingTracker> {
+        let tracker = conflicts_with_dossiers(dir);
+        std::fs::write(
+            dir.join("meta/work/0003-draft-three.md"),
+            "---\nid: \"0003\"\ntitle: \"Draft three\"\nkind: task\n---\n\n\
+             Body\n",
+        )
+        .expect("write work item");
+        seed_attempted(dir, "0003");
+        tracker
+    }
+
+    #[test]
+    fn a_previewed_refusal_outranks_a_conflict() {
+        let preview =
+            preview_and_run(conflicts_beside_an_attempted_create, &[]);
+
+        assert_eq!(preview.code, ExitCode::from(super::exit_codes::TERMINAL));
+        assert!(
+            preview.out.contains("0003\tfailed\tunsynced\tterminal"),
+            "{}",
+            preview.out
+        );
+        assert!(
+            error_lines(&preview.err)
+                .iter()
+                .any(|line| line.starts_with(
+                    "error: 0003: create would fail: pending push refused \
+                 (prior-attempt-unknown): "
+                )),
+            "{}",
+            preview.err
+        );
+    }
+
+    #[test]
+    fn a_preview_without_a_refusal_is_a_clean_create() {
+        for seed in [draft_without_marker, draft_with_reusable_marker] {
+            let dir = sync_repo();
+            let tracker = seed(dir.path());
+            let markers =
+                crate::test_support::pending_push_tree(dir.path(), "jira");
+
+            let run = drive_sync_captured(
+                dir.path(),
+                &tracker,
+                &previewing(vec!["0001".into()]),
+            );
+
+            assert!(
+                run.out.contains("0001\tcreate-from-local\tunsynced\t-"),
+                "{}",
+                run.out
+            );
+            assert!(
+                !error_lines(&run.err)
+                    .iter()
+                    .any(|line| line.starts_with("error: 0001:")),
+                "{}",
+                run.err
+            );
+            assert_eq!(run.code, ExitCode::from(super::exit_codes::CLEAN));
+            assert_eq!(
+                crate::test_support::pending_push_tree(dir.path(), "jira"),
+                markers
+            );
         }
     }
 }

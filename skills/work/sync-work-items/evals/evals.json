@@ -24,6 +24,30 @@
         "questions.md is `none`",
         "commands.md shows the resolve exactly once and no `accelerator work sync` or `accelerator work rekey` after it"
       ]
+    },
+    {
+      "id": 3,
+      "name": "a_previewed_pending_push_refusal_goes_to_recovery",
+      "prompt": "Read skills/work/sync-work-items/SKILL.md fully. You are running the sync-work-items skill. The injected **ID pattern** is `{number}` and **Active integration** is `linear`. `${CLAUDE_PLUGIN_ROOT}` is the repository root.\n\nThe user runs `/sync-work-items --preview`. Run `accelerator work sync --preview`.\n\nSimulate it exiting 71 with this stdout:\n\n0001\tfailed\tunsynced\tterminal\n#\tdiscovery\tskipped\tpending-push\n#\tsummary\tsynced\t0\n\nand this stderr:\n\nerror: 0001: create would fail: pending push refused (prior-attempt-unknown): an earlier create attempted at 1763380800 has an unknown outcome (marker .accelerator/state/integrations/linear/pending-push/0001.json); search the tracker for this item, then settle with --resolve 0001=adopt:<KEY> if it exists or --resolve 0001=create if it does not\n\nThe work item `meta/work/0001-draft-one.md` has the title `Draft one`.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Stop when the skill stops or waits for the user. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.",
+      "expected_output": "The skill reads the failed row as a pending-push refusal, says 0001 needs attention, and follows the pending-push recovery: it asks the user to search the tracker for the item before offering an adopt or create order. It never offers a plain re-run and runs no sync beyond the preview.",
+      "files": [],
+      "expectations": [
+        "response.md says 0001 needs attention and quotes its cause, `pending push refused (prior-attempt-unknown)`",
+        "response.md asks the user to search the tracker for `Draft one` and names `--resolve 0001=adopt:<KEY>` for an issue found and `--resolve 0001=create` for none, offering no plain re-run",
+        "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "a_preview_of_an_ordered_create_says_it_cannot_confirm_it",
+      "prompt": "Read skills/work/sync-work-items/SKILL.md fully. You are running the sync-work-items skill. The injected **ID pattern** is `{number}` and **Active integration** is `linear`. `${CLAUDE_PLUGIN_ROOT}` is the repository root.\n\nAn earlier run refused 0001's pending push as `prior-attempt-unknown`. The user searched the tracker, found no issue for it, and asks to preview the create order first: run `accelerator work sync --preview --target 0001 --resolve 0001=create`.\n\nSimulate it exiting 0 with this stdout:\n\n0001\tcreate-from-local\tunsynced\t-\n#\tdiscovery\tskipped\ttargeted\n#\tsummary\tsynced\t0\n\nand empty stderr.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Stop when the skill stops or waits for the user. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.\n- questions.md: every AskUserQuestion you present, with its labels and descriptions, or `none`.",
+      "expected_output": "The skill presents the previewed create and tells the user the preview cannot confirm 0001, because a create with a --resolve order is checked against its marker only on the run. It runs no apply before the user confirms.",
+      "files": [],
+      "expectations": [
+        "response.md tells the user the preview cannot confirm 0001, because a create with a `--resolve` order is checked against its marker only on the run",
+        "response.md does not present 0001's create as certain to succeed",
+        "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`"
+      ]
     }
   ]
 }

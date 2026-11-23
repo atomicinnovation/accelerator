@@ -337,16 +337,27 @@ class TestDispatch:
     ) -> None:
         assert f"**{record}**" in output_section
 
-    def test_a_clean_preview_does_not_vouch_for_a_pending_push(
-        self, output_section: str
+    def test_a_preview_reports_a_refused_pending_push(
+        self, skill: str, output_section: str
     ) -> None:
-        text = _prose(output_section)
-        assert "A preview does not yet read a create's pending-push marker" in (
-            text
+        text = _prose(skill)
+        assert "A preview does not yet read" not in text
+        assert "pending-push/<id>.json" not in output_section
+        assert (
+            "every create without a `--resolve` order carries the "
+            "pending-push refusal" in text
         )
         assert (
-            "`<paths.integrations>/<work.integration>/pending-push/<id>.json`"
-            in text
+            "every create without a `--resolve` order carrying the failure "
+            "the run would meet" in text
+        )
+
+    def test_a_preview_of_an_ordered_create_is_flagged_as_unconfirmed(
+        self, skill: str
+    ) -> None:
+        assert (
+            "When a preview carries a `--resolve` order for a create, tell "
+            "the user the preview cannot confirm that item" in _prose(skill)
         )
 
     def test_every_unidentified_kind_is_advised(

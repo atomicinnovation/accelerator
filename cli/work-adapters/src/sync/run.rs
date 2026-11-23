@@ -17,6 +17,7 @@ use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::Unrenderable;
+use vcs::tracking::RepositoryTracking;
 use work::draft_id::DraftId;
 use work::inventory::CorpusInventory;
 use work::section_diff::SectionDiff;
@@ -39,12 +40,14 @@ use crate::create_request_fields;
 use crate::sync::adoption_records::AdoptionRecords;
 use crate::sync::adoption_records::UnretiredRecord;
 use crate::sync::apply::issue_title;
+use crate::sync::apply::unordered_create_decision;
 use crate::sync::apply::ApplierPorts;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::IncompleteCorpusDeferral;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::KeyCarrier;
+use crate::sync::apply::MarkerReading;
 use crate::sync::apply::OrderRefusal;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
@@ -1250,12 +1253,11 @@ impl LocalCreate<'_> {
         matches!(self.planned.action(), Action::Relink)
     }
 
-    /// The order a relink carries out; `None` for a plain create.
-    const fn relink_order(&self) -> Option<&PendingPushOrder> {
-        if self.relinks() {
-            self.planned.order()
-        } else {
-            None
+    const fn route(&self) -> CreateRoute<'_> {
+        match (self.relinks(), self.planned.order()) {
+            (_, None) => CreateRoute::Unordered,
+            (true, Some(order)) => CreateRoute::Relink(order),
+            (false, Some(order)) => CreateRoute::Ordered(order),
         }
     }
 
@@ -1278,6 +1280,24 @@ impl LocalCreate<'_> {
                 row.planned.with_order_of(&self.planned)
             },
             ..row
+        }
+    }
+}
+
+/// How a create reaches the tracker. The run and the preview both route on
+/// it, and a create's request carries exactly the order its route names.
+#[derive(Clone, Copy)]
+enum CreateRoute<'a> {
+    Unordered,
+    Ordered(&'a PendingPushOrder),
+    Relink(&'a PendingPushOrder),
+}
+
+impl<'a> CreateRoute<'a> {
+    const fn order(self) -> Option<&'a PendingPushOrder> {
+        match self {
+            Self::Unordered => None,
+            Self::Ordered(order) | Self::Relink(order) => Some(order),
         }
     }
 }
@@ -1435,33 +1455,20 @@ fn why_no_create(request: &SyncRequest<'_>, id: &str) -> OrderRefusal {
     )
 }
 
-/// The `(title, body, kind)` a create-from-local needs, read from the draft's
-/// own frontmatter and body.
-fn create_inputs(
-    item: &LocalItem,
-) -> Result<(String, String, String), ApplyError> {
-    let content = ItemAttempt::begin(&item.id).observe_local(
-        SyncOperation::ReadLocal,
-        || {
-            std::fs::read_to_string(&item.path).map_err(|error| {
-                if error.kind() == std::io::ErrorKind::InvalidData {
-                    StepError::Refused(ApplyError::LocalUnparseable {
-                        item_id: item.id.clone(),
-                        operation: SyncOperation::ReadLocal,
-                        detail: UnreadContent::Undecodable.to_string(),
-                    })
-                } else {
-                    StepError::Failed(error)
-                }
-            })
-        },
-    )?;
-    let (_, body) =
-        crate::sync::digest::split_frontmatter_and_body(&content)
-            .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
-    let fields = create_request_fields::read(&content)
-        .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
-    Ok((fields.title, body, fields.kind))
+fn read_local_content(item: &LocalItem) -> Result<String, ApplyError> {
+    ItemAttempt::begin(&item.id).observe_local(SyncOperation::ReadLocal, || {
+        std::fs::read_to_string(&item.path).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::InvalidData {
+                StepError::Refused(ApplyError::LocalUnparseable {
+                    item_id: item.id.clone(),
+                    operation: SyncOperation::ReadLocal,
+                    detail: UnreadContent::Undecodable.to_string(),
+                })
+            } else {
+                StepError::Failed(error)
+            }
+        })
+    })
 }
 
 /// A create report line, always `Unsynced`-stated so it renders as an action
@@ -1746,6 +1753,100 @@ impl CreateStatePaths {
     }
 }
 
+/// What a create-from-local is built from, read before any marker is: the
+/// draft's own title, body and kind, and where its create keeps its state.
+struct LocalCreateInputs {
+    title: String,
+    body: String,
+    kind: String,
+    paths: CreateStatePaths,
+}
+
+impl LocalCreateInputs {
+    fn gather(
+        create: &LocalCreate<'_>,
+        request: &SyncRequest<'_>,
+    ) -> Result<Self, ApplyError> {
+        let item = create.item;
+        let content = read_local_content(item)?;
+        let (_, body) = crate::sync::digest::split_frontmatter_and_body(
+            &content,
+        )
+        .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+        let fields = create_request_fields::read(&content)
+            .map_err(|error| unparseable_local(&item.id, error.to_string()))?;
+        let paths =
+            CreateStatePaths::for_item(request, &item.id).ok_or_else(|| {
+                ItemAttempt::begin(&item.id).io_failure(
+                    SyncOperation::MarkerWrite,
+                    "id cannot name a pending-push marker",
+                )
+            })?;
+        Ok(Self {
+            title: fields.title,
+            body,
+            kind: fields.kind,
+            paths,
+        })
+    }
+
+    fn create_request<'a>(
+        &'a self,
+        create: &'a LocalCreate<'_>,
+        sync: &'a SyncRequest<'_>,
+        author: &'a dyn LocalAuthor,
+        carrier_of: &'a dyn Fn(&ExternalId) -> Option<KeyCarrier>,
+        attempted_at: u64,
+    ) -> CreateFromLocalRequest<'a> {
+        let item = create.item;
+        CreateFromLocalRequest {
+            item_id: &item.id,
+            file_path: &item.path,
+            title: &self.title,
+            body: &self.body,
+            kind: &self.kind,
+            marker_path: &self.paths.marker,
+            adoption_record_path: &self.paths.adoption_record,
+            author,
+            carrier_of,
+            corpus_blocked_by: sync.inventory.blocking_fault(),
+            order: create.route().order(),
+            linked: item.external_id.as_ref(),
+            tracker_name: sync.integration,
+            attempted_at,
+        }
+    }
+}
+
+fn previewed_outcome(
+    create: &LocalCreate<'_>,
+    request: &SyncRequest<'_>,
+    author: &dyn LocalAuthor,
+    tracking: &dyn RepositoryTracking,
+    carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
+    attempted_at: u64,
+) -> ItemOutcome {
+    let CreateRoute::Unordered = create.route() else {
+        return ItemOutcome::NotApplied;
+    };
+    let inputs = LocalCreateInputs::gather(create, request);
+    let decision = inputs.and_then(|inputs| {
+        let local_create = inputs.create_request(
+            create,
+            request,
+            author,
+            carrier_of,
+            attempted_at,
+        );
+        let marker = MarkerReading::read(&local_create, tracking);
+        unordered_create_decision(&local_create, &marker)
+    });
+    match decision {
+        Ok(_) => ItemOutcome::NotApplied,
+        Err(error) => ItemOutcome::Failed(error),
+    }
+}
+
 fn apply_local_create(
     applier: &mut ItemApplier<'_, '_>,
     create: &LocalCreate<'_>,
@@ -1754,42 +1855,22 @@ fn apply_local_create(
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> (ReportedItem, Option<Adoption>) {
-    let item = create.item;
-    let (title, body, kind) = match create_inputs(item) {
+    let inputs = match LocalCreateInputs::gather(create, request) {
         Ok(inputs) => inputs,
         Err(error) => return (create.report(ItemOutcome::Failed(error)), None),
     };
-    let Some(state_paths) = CreateStatePaths::for_item(request, &item.id)
-    else {
-        return (
-            create.report(ItemOutcome::Failed(
-                ItemAttempt::begin(&item.id).io_failure(
-                    SyncOperation::MarkerWrite,
-                    "id cannot name a pending-push marker",
-                ),
-            )),
-            None,
-        );
-    };
-    let local_create = CreateFromLocalRequest {
-        item_id: &item.id,
-        file_path: &item.path,
-        title: &title,
-        body: &body,
-        kind: &kind,
-        marker_path: &state_paths.marker,
-        adoption_record_path: &state_paths.adoption_record,
+    let local_create = inputs.create_request(
+        create,
+        request,
         author,
         carrier_of,
-        corpus_blocked_by: request.inventory.blocking_fault(),
-        order: create.planned.order(),
-        linked: item.external_id.as_ref(),
-        tracker_name: request.integration,
         attempted_at,
-    };
-    let attempted = match create.relink_order() {
-        Some(order) => applier.relink(&local_create, order),
-        None => applier.create_from_local(&local_create),
+    );
+    let attempted = match create.route() {
+        CreateRoute::Relink(order) => applier.relink(&local_create, order),
+        CreateRoute::Ordered(_) | CreateRoute::Unordered => {
+            applier.create_from_local(&local_create)
+        }
     };
     match attempted.result {
         Ok(created) => (
@@ -2367,6 +2448,8 @@ fn execute<'a>(
     let reported_as = |item: ReportedItem| {
         noting_unsupported_recipe(item, &unsupported_recipe)
     };
+    let carrier =
+        |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
     if matches!(request.mode, RunMode::Preview) {
         let mut reported: Vec<ReportedItem> =
             validate_pushes(&plan, ports.tracker, &knowledge)
@@ -2381,7 +2464,14 @@ fn execute<'a>(
             ));
         }
         for create in &creates_from_local {
-            reported.push(create.report(ItemOutcome::NotApplied));
+            reported.push(create.report(previewed_outcome(
+                create,
+                request,
+                ports.author,
+                ports.files.tracking,
+                &carrier,
+                run_start_epoch,
+            )));
         }
         let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
         let dossiers =
@@ -2426,8 +2516,6 @@ fn execute<'a>(
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
     let mut adoptions = Vec::new();
-    let carrier =
-        |candidate: &ExternalId| carrier_of(request.corpus, settled, candidate);
 
     {
         let mut applier = ItemApplier::new(
