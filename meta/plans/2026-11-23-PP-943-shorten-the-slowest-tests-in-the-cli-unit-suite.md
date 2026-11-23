@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T23:45:00+00:00"
+last_updated: "2026-11-23T23:55:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1081,6 +1081,20 @@ Compare the private build with the matrix the run shares, falling back to
 an in-process `shared_build` when the run hands none over. This is the
 binary's landing commit.
 
+**Landed** in change `mvpknsxp`, with the full `mise run` green. Two
+departures:
+
+- **Boxed workbench:** `SharedMatrix::Adopted` holds a `Box<Workbench>`,
+  because clippy's `large_enum_variant` refuses a 320-byte variant beside a
+  24-byte one.
+- **Fixture-log doubles:** `test_log.py`'s `MATRIX_CONSUMERS` and the
+  adoption counts in `test_session.py` and `test_rust.py` name five matrix
+  consumers. The torn-line test derives its line number from the clean
+  run's length instead of a literal.
+
+Under the full suite at the landing commit it took 19.0 s (one run,
+against a 33.2 s baseline median).
+
 ### Changes Required
 
 #### 1. The test
@@ -1168,17 +1182,20 @@ criteria run the direct form once at landing.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli --filter
+- [x] `mise run test:unit:cli --filter
       'binary_id(vcs-test-support::matrix_private_build)'` passes, and the
       fixture log shows one adoption by this binary.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support
       --test matrix_private_build` passes through the fallback.
-- [ ] `mise run test:unit:tasks --filter test_consumers` passes.
-- [ ] `mise run` exits 0 at the landing commit.
+- [x] `mise run test:unit:tasks --filter test_consumers` passes.
+- [x] `mise run` exits 0 at the landing commit.
 
 #### Manual Verification
 
-- [ ] Three alone runs put the median at or under 3.75 s.
+- [x] Three alone runs put the median at or under 3.75 s. At
+      `mvpknsxp` they took 3.5 / 3.3 / 3.7 s (median 3.5 s), with the
+      build step's matrix build at 3.5 / 3.4 / 3.7 s beside them, at load
+      averages of 17–26.
 
 ---
 
@@ -1736,7 +1753,7 @@ Also to record:
 - each run's three per-family build lines, showing which family the build
   step waited on;
 - the three landing commits (phases 3, 4 and 6): phase 3 is
-  `mwtvsvpx`.
+  `mwtvsvpx` and phase 4 is `mvpknsxp`.
 
 ### Success Criteria
 
