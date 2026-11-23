@@ -3010,3 +3010,87 @@ def test_the_docs_grant_the_fetch_for_both_web_profile_commands() -> None:
         "`web-profile` uses it for `fetch web metadata` and "
         "`fetch doi metadata`"
     ) in _prose(DOCS_RESEARCH)
+
+
+def _docs_pacing() -> str:
+    return _section(
+        _prose(DOCS_RESEARCH),
+        "## Pacing",
+        "## Credentials",
+        path=DOCS_RESEARCH,
+    )
+
+
+def test_the_docs_keep_each_services_pacing_state_in_its_own_directory() -> (
+    None
+):
+    pacing = _docs_pacing()
+    for phrase in (
+        "`<paths.tmp>/research/services/<service>/`",
+        "`services/crossref-public/` and `services/crossref-polite/`",
+        "`serving-<i>.lock`",
+        "the short-lived `pacing.lock`, which no call holds while it waits",
+        "confirms it against the last request actually sent",
+        "never spacing, which every request confirms against the last one sent",
+    ):
+        assert phrase in pacing, f"the Pacing docs must state {phrase!r}"
+    assert "which the lock enforces on every request" not in pacing
+
+
+def test_the_docs_give_each_crossref_pools_spacing_and_directory() -> None:
+    pacing = _docs_pacing()
+    for row in (
+        "| public | 210 ms | 1 | `services/crossref-public/` |",
+        "| polite | 102 ms | up to 3 | `services/crossref-polite/` |",
+    ):
+        assert row in pacing, f"the Crossref pools table lacks {row!r}"
+    assert "`ACCELERATOR_CROSSREF_MAILTO`" in pacing
+
+
+def test_the_docs_tell_the_previous_releases_state_apart() -> None:
+    pacing = _docs_pacing()
+    for phrase in (
+        "every arXiv call also takes that version's `arxiv.lock`",
+        "`arxiv-pacing`, `arxiv-queue/`, `arxiv-requests.log` and "
+        "`arxiv-contention.log` under `<paths.tmp>/research/` can be deleted",
+        "`arxiv.lock` stays",
+    ):
+        assert phrase in pacing, f"the Limits docs must state {phrase!r}"
+
+
+def test_the_docs_list_every_doi_error_code() -> None:
+    docs = _prose(DOCS_RESEARCH)
+    for row in (
+        "| `E_DOI_MALFORMED` | 2 |",
+        "| `E_DOI_TICKET_MALFORMED`, `E_DOI_TICKET_MISMATCH`, "
+        "`E_DOI_TICKET_LIVE` | 2 |",
+        "a ticket another family's fetch or an earlier plugin version issued",
+    ):
+        assert row in docs, f"the E_* table lacks {row!r}"
+
+
+def _configure_crossref_section() -> str:
+    return _section(
+        _prose(CONFIGURE),
+        "### crossref",
+        "### templates",
+        path=CONFIGURE,
+    )
+
+
+def test_configure_documents_the_crossref_contact_address() -> None:
+    crossref = _configure_crossref_section()
+    for phrase in (
+        "| `mailto` | (empty) |",
+        "1. `ACCELERATOR_CROSSREF_MAILTO` env var. "
+        "2. `config.local.md` `crossref.mailto`. "
+        "3. `config.md` `crossref.mailto`.",
+        "A value that is not a plausible address does not fall through to a "
+        "lower rung.",
+        "has only visible ASCII with no `(`, `)` or `\\`, exactly one `@`, a "
+        "non-empty local part with no `:`, and a domain that contains a `.` "
+        "and neither starts nor ends with one.",
+        "The address is sent in the `User-Agent` header, never in a URL.",
+        "Only `crossref.mailto` is recognised.",
+    ):
+        assert phrase in crossref, f"configure's crossref lacks {phrase!r}"

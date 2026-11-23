@@ -3,11 +3,12 @@ title: Research CLI
 ---
 
 `accelerator research` is the sub-binary `/accelerator:research-topic` uses
-to reach the scholarly literature. `research fetch` queries OpenAlex and arXiv
-and returns normalised records, each carrying a reputation tier the CLI
-derives; through `web metadata` it reads the metadata a public page declares
-about itself, and through `doi metadata` it reports the venue and publisher
-Crossref holds for a DOI, never a tier. `research guard` is a `PreToolUse` hook
+to reach the scholarly literature. `research fetch` queries OpenAlex, arXiv
+and Crossref. Its OpenAlex and arXiv calls return normalised records, each
+carrying a reputation tier the CLI derives; through `web metadata` it reads
+the metadata a public page declares about itself, and through
+`doi metadata` it reports the venue and publisher Crossref holds for a DOI,
+never a tier. `research guard` is a `PreToolUse` hook
 that confines the researcher agent to that fetch and to writing its own
 finding. `research topic` reads a topic's set on disk. Each is plumbing: the
 source profiles invoke `research fetch` through fenced command blocks (see
