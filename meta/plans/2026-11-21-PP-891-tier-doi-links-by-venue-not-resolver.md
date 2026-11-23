@@ -5,7 +5,7 @@ title: "Tier DOI Links by Venue, Not by the doi.org Resolver Implementation Plan
 date: "2026-11-21T10:27:09+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-891"
 parent: "work-item:PP-891"
 derived_from: ["codebase-research:2026-11-20-PP-891-tier-doi-links-by-venue-not-resolver"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-23T00:50:00+00:00"
+last_updated: "2026-11-23T01:19:08+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2261,6 +2261,41 @@ the baseline's.
 
 ---
 
+## Validation Follow-ups
+
+The first validation
+(`meta/validations/2026-11-21-PP-891-tier-doi-links-by-venue-not-resolver-validation.md`)
+found the bare `mise run` failing on one liveness test, plus smaller issues.
+Each fix below was written test first, except the docs pins, which
+characterise text already in place.
+
+- **Rate and spread on recorded sends.** The public, polite,
+  `not-an-address` and mixed-pool rate tests now take their per-second
+  limits and their spread from the service's `requests.log`, not from the
+  mock's `hit_instants`. The gate logs each send with the confirmed `now`,
+  so the limits hold exactly there. Arrival at the server also carries each
+  process's connection set-up, which the plan already accepted as a risk.
+  Each test still checks that the mock saw every call.
+- **Liveness retries.** `threads-required` keeps these tests alone only
+  within nextest, while the bare `mise run` runs other lanes beside them. The
+  liveness override therefore gains `retries = 2`. Narrowing the polite
+  interval to 90 ms failed all three attempts with 12 sends in a second, so a
+  pacing regression is not hidden.
+- **Diagnostics.** A pacing-lock failure and a corrupt pacing file are each
+  reported once per `paced` call, rather than sharing one flag.
+- **Unreadable Crossref record.** `CrossrefDecoder::work` returns
+  `UnreadableWork`, carrying serde's reason, in place of `DecodeFailure`, and
+  the diagnostic names it.
+- **Implausible-address warning.** It shows control characters as escapes.
+- **Foreign queues.** They are listed only for a ticket absent from the
+  service's own queue, so resuming a call never reports an unlistable
+  foreign directory.
+- **Text.** The `research.md` intro names Crossref. Comments that restated
+  code are gone. New structure pins cover the Pacing docs, the Crossref
+  pools table, the `E_DOI_*` rows and `/configure`'s `crossref` section.
+
+---
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -2301,11 +2336,12 @@ the baseline's.
 - OpenAlex parity.
 - Profile invocations through the built guard.
 
-Real-time tests measure from the mock's `hit_instants` after releasing a
-barrier of one held ticket per serving slot that every invocation joined
-behind (the polite `Retry-After` test excepted). The liveness tests run
-alone (`threads-required = "num-test-threads"`); the wide-slack ones share a
-`real-time` group. All report their observed slack on failure.
+Real-time tests release a barrier of one held ticket per serving slot that
+every invocation joined behind (the polite `Retry-After` test excepted).
+Rate and spread are measured on the gate's recorded sends, overlap and
+deferrals on the mock's `hit_instants`. The liveness tests run alone
+(`threads-required = "num-test-threads"`) with two retries; the wide-slack
+ones share a `real-time` group. All report their observed slack on failure.
 
 ### Manual Testing Steps
 
