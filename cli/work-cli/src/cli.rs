@@ -157,9 +157,9 @@ pub enum Command {
     /// checked against its marker only on the run. The report on stdout is
     /// authoritative: check its `failed` rows and `#\tunidentified` records
     /// whatever the exit code, since a run that exits 4 can carry retryable
-    /// failures and a 71 run may also carry conflicts. Besides the item rows — whose actions include
-    /// `adopt` and `relink` — it prints `#\tunidentified\t<path>\t<kind>` for
-    /// each work file sync cannot use,
+    /// failures and a 71 run may also carry conflicts. Besides the item
+    /// rows — whose actions include `adopt` and `relink` — it prints
+    /// `#\tunidentified\t<path>\t<kind>` for each work file sync cannot use,
     /// `#\tkept-edits\t<id>\t<kind>\t<item-path>\t<copy-path>` for local
     /// edits a pull kept, `#\tadopt\t<id>\t<KEY>\t<title>` for each issue an
     /// adopt order links, and `#\tstale-dossier\t<id>\t<path>` for a conflict
