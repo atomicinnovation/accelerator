@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T21:00:00+00:00"
+last_updated: "2026-11-23T22:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -780,6 +780,37 @@ Fix the edit-refusal test's missing halt point, build each test's committed
 repository once per VCS, and give every halt pass a copy. This is
 `rekey_run`'s landing commit.
 
+**Landed** in changes `rpslxtmv` (the halt count), `olroyumo` (counted
+loops), `qnwxvnop` (`Committed` and the reused-state tests) and `orlqwppk`
+(the switch, the landing commit), with the full `mise run` green. It
+departs from the plan in two ways:
+
+- **Halt-count VCSs:** the exact-halt-count test checks the four-file
+  corpus under Git and jj and the five-file corpus under Git, the VCSs
+  each corpus's tail test uses.
+- **Single-VCS loop:** the edit-refusal reused-state test loops
+  `each_of(1, [Vcs::Git], …)`, so its one comparison is still counted.
+
+**Profile before switching** (instrumented, alone, sequential):
+
+| Step | Git | jj |
+|---|---|---|
+| Template build | 51–62 ms | 180–185 ms |
+| One copy | 15–16 ms | 26–31 ms |
+| Halt and resume, one pass | 122–158 ms | 115–126 ms |
+| One projection | 16–17 ms | 26–28 ms |
+
+Over 13 passes, rebuilding took 2.2–3.1 s (Git) and 4.0–6.9 s (jj), and
+copying a template took 1.7 s and 2.1–2.3 s.
+
+Projected charged figures, alone cost times the baseline under-suite/alone
+ratio: the kill test ≈ (4.2 s + 0.6 s reused) × 2.01 ≈ 9.6 s, against
+≤ 11.65 s; the edit-refusal test ≈ (2.25 s + 0.21 s reused) × 2.71 ≈
+6.7 s, against ≤ 8.95 s. The ratios are 23.3 / 11.6 (kill), 17.9 / 6.6
+(edit-refusal) and 91.3 / 45.4 (`rekey_run` binary-wide, from one alone
+run at `olroyumo`'s parent). The reused-state tests take the worse of
+their tail test's and the binary-wide ratio.
+
 ### Changes Required
 
 #### 1. Adopting a copy as a `Repo`
@@ -900,11 +931,11 @@ lists only those that change.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli --filter 'binary_id(work-adapters::rekey_run)'`
+- [x] `mise run test:unit:cli --filter 'binary_id(work-adapters::rekey_run)'`
       passes.
-- [ ] `mise run test:unit:tasks --filter test_fixture_builds` passes, with
+- [x] `mise run test:unit:tasks --filter test_fixture_builds` passes, with
       `copy_private_tree(` permitted in the support module.
-- [ ] `mise run` exits 0 at the landing commit, which is recorded under
+- [x] `mise run` exits 0 at the landing commit, which is recorded under
       Recorded Figures.
 
 #### Manual Verification
@@ -1578,7 +1609,8 @@ Also to record:
 - each after run's last three finishers and phase end;
 - each run's three per-family build lines, showing which family the build
   step waited on;
-- the three landing commits (phases 3, 4 and 6).
+- the three landing commits (phases 3, 4 and 6): phase 3 is
+  `orlqwppk`.
 
 ### Success Criteria
 
