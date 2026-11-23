@@ -1252,21 +1252,16 @@ impl LocalCreate<'_> {
         matches!(self.planned.action(), Action::Relink)
     }
 
-    /// The order a relink carries out; `None` for a plain create.
-    const fn relink_order(&self) -> Option<&PendingPushOrder> {
-        if self.relinks() {
-            self.planned.order()
-        } else {
-            None
+    const fn route(&self) -> CreateRoute<'_> {
+        match (self.relinks(), self.planned.order()) {
+            (_, None) => CreateRoute::Unordered,
+            (true, Some(order)) => CreateRoute::Relink(order),
+            (false, Some(order)) => CreateRoute::Ordered(order),
         }
     }
 
     const fn adopts(&self) -> bool {
         matches!(self.planned.order(), Some(PendingPushOrder::Adopt(_)))
-    }
-
-    const fn carries_order(&self) -> bool {
-        self.planned.order().is_some()
     }
 
     /// The create's report line, carrying the order that settled it; a
@@ -1284,6 +1279,24 @@ impl LocalCreate<'_> {
                 row.planned.with_order_of(&self.planned)
             },
             ..row
+        }
+    }
+}
+
+/// How a create reaches the tracker. The run and the preview both route on
+/// it, and a create's request carries exactly the order its route names.
+#[derive(Clone, Copy)]
+enum CreateRoute<'a> {
+    Unordered,
+    Ordered(&'a PendingPushOrder),
+    Relink(&'a PendingPushOrder),
+}
+
+impl<'a> CreateRoute<'a> {
+    const fn order(self) -> Option<&'a PendingPushOrder> {
+        match self {
+            Self::Unordered => None,
+            Self::Ordered(order) | Self::Relink(order) => Some(order),
         }
     }
 }
@@ -1796,7 +1809,7 @@ impl LocalCreateInputs {
             author,
             carrier_of,
             corpus_blocked_by: sync.inventory.blocking_fault(),
-            order: create.planned.order(),
+            order: create.route().order(),
             linked: item.external_id.as_ref(),
             tracker_name: sync.integration,
             attempted_at,
@@ -1811,9 +1824,9 @@ fn previewed_outcome(
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ItemOutcome {
-    if create.carries_order() {
+    let CreateRoute::Unordered = create.route() else {
         return ItemOutcome::NotApplied;
-    }
+    };
     let inputs = LocalCreateInputs::gather(create, request);
     let decision = inputs.and_then(|inputs| {
         let local_create = inputs.create_request(
@@ -1851,9 +1864,11 @@ fn apply_local_create(
         carrier_of,
         attempted_at,
     );
-    let attempted = match create.relink_order() {
-        Some(order) => applier.relink(&local_create, order),
-        None => applier.create_from_local(&local_create),
+    let attempted = match create.route() {
+        CreateRoute::Relink(order) => applier.relink(&local_create, order),
+        CreateRoute::Ordered(_) | CreateRoute::Unordered => {
+            applier.create_from_local(&local_create)
+        }
     };
     match attempted.result {
         Ok(created) => (
