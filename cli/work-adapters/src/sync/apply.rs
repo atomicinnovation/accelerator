@@ -730,10 +730,16 @@ pub(crate) enum UnorderedCreateDecision {
     ReuseId(ExternalId),
 }
 
+/// The decision for a create without an order; a request carrying one is
+/// settled by its order instead, and asking this of it is a bug.
 pub(crate) fn unordered_create_decision(
     request: &CreateFromLocalRequest<'_>,
     marker: &MarkerReading,
 ) -> Result<UnorderedCreateDecision, ApplyError> {
+    debug_assert!(
+        request.order.is_none(),
+        "an ordered create settles its order, not the unordered decision"
+    );
     let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
     match push_precondition(&marker.state(), &request.digest(), &is_carried) {
         PushPrecondition::Refuse(reason) => {
@@ -1795,5 +1801,64 @@ fn ensure_unchanged_since_classified(
         Err(ApplyError::LocalChangedSinceClassified {
             item_id: request.id.to_owned(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use tracker::ExternalId;
+    use work::sync::PendingPushOrder;
+
+    use super::unordered_create_decision;
+    use super::CreateFromLocalRequest;
+    use super::MarkerReading;
+    use crate::sync::create::AuthorError;
+    use crate::sync::create::AuthoredLocal;
+    use crate::sync::create::DiscoveredIssue;
+    use crate::sync::create::LocalAuthor;
+
+    struct NoAuthor;
+
+    impl LocalAuthor for NoAuthor {
+        fn author_from_remote(
+            &self,
+            _: &DiscoveredIssue,
+        ) -> Result<AuthoredLocal, AuthorError> {
+            unreachable!("the decision authors nothing")
+        }
+
+        fn link_external_id(
+            &self,
+            _: &Path,
+            _: &ExternalId,
+        ) -> Result<(), AuthorError> {
+            unreachable!("the decision links nothing")
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "an ordered create settles its order")]
+    fn an_unordered_decision_is_never_asked_of_an_ordered_create() {
+        let order = PendingPushOrder::Create;
+        let request = CreateFromLocalRequest {
+            item_id: "0001",
+            file_path: Path::new("0001.md"),
+            title: "Title",
+            body: "",
+            kind: "task",
+            marker_path: Path::new("pending-push/0001.json"),
+            adoption_record_path: Path::new("adoptions/0001.json"),
+            author: &NoAuthor,
+            carrier_of: &|_| None,
+            corpus_blocked_by: None,
+            order: Some(&order),
+            linked: None,
+            tracker_name: "linear",
+            attempted_at: 0,
+        };
+
+        let _ = unordered_create_decision(&request, &MarkerReading::Absent);
     }
 }
