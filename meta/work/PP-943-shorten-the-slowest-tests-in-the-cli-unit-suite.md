@@ -12,7 +12,7 @@ parent: "work-item:PP-953"
 relates_to: ["work-item:PP-957", "work-item:PP-958", "work-item:PP-959", "work-item:PP-960", "work-item:PP-962"]
 external_id: "PP-943"
 tags: ["performance", "testing", "rust", "migrate", "vcs"]
-last_updated: "2026-11-23T01:48:20+00:00"
+last_updated: "2026-11-23T11:39:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 aliases: ["0391"]
@@ -111,10 +111,15 @@ build of it takes 3.3 s alone and 35–47 s under the full suite.
 5. Shorten the three tail tests without dropping a VCS, a halt point or an
    assertion. The `matrix_private_build` test still compares a private
    build with a shared one.
-6. Each binary's change can land on its own; none waits on another. The
+6. The `rekey_run` test
+   `a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written`
+   halts at every mutation of the run it actually performs. Today it counts
+   its halt points from the four-file fixture, but it commits a fifth file,
+   `meta/notes/synced-only.md`, so its last halt point never runs.
+7. Each binary's change can land on its own; none waits on another. The
    timing targets are judged once, from the before record and the after
    record.
-7. A reused or more cheaply built starting state is the same state a
+8. A reused or more cheaply built starting state is the same state a
    from-scratch build gives.
 
 ## Acceptance Criteria
@@ -188,12 +193,12 @@ figure of the target tests whose state it checks.
       binaries at the before and after records' commits, when each test in
       the before list is looked up in the implementation plan, then the
       plan maps it, and each of its assertions, to the successor tests that
-      cover it, every successor appears in the after list, and the
-      `rekey_run` halt points are still derived from
-      `mutations_of_a_whole_run()` rather than fixed or sampled. A test
-      that loops over colocations, VCSs or halt points asserts the number
-      of iterations it completed against `COLOCATIONS.len()`, its VCS list
-      or `mutations_of_a_whole_run()`.
+      cover it, every successor appears in the after list, and each
+      `rekey_run` test's halt points are derived from the mutations of a
+      whole run over the corpus that test runs, rather than fixed or
+      sampled. A test that loops over colocations, VCSs or halt points
+      asserts the number of iterations it completed against
+      `COLOCATIONS.len()`, its VCS list or that mutation count.
 - [ ] **Reused state.** Given a target test whose starting state the change
       reuses or builds with fewer steps, when the suite runs, then a test
       asserts that the state matches one built from scratch, under each
@@ -314,7 +319,9 @@ figure of the target tests whose state it checks.
     every halt point in `0..mutations_of_a_whole_run()`, under Git and jj.
   - `rekey_run`
     `a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written`:
-    every halt point in `0..mutations_of_a_whole_run()`, under Git.
+    every halt point in `0..mutations_of_a_whole_run()`, under Git. After
+    the change (Requirement 6): every halt point of a whole run over its own
+    five-file corpus, one more than today.
   - `matrix_private_build`: the private matrix's shapes equal
     `shared_build`'s, and exactly one `private-build` event is logged for
     the `matrix` fixtures.
@@ -340,6 +347,13 @@ figure of the target tests whose state it checks.
 - The open question, whether to abandon the item if PP-957 removed most of
   the cost, was answered by the reference record: PP-957 cut about 30% and
   `guarded_resume` stayed the slowest binary.
+- Research
+  (`meta/research/codebase/2026-11-23-PP-943-shorten-the-slowest-tests-in-the-cli-unit-suite.md`)
+  found the edit-refusal test's last halt point never runs. The author chose
+  on 2026-11-23 to fix it here (Requirement 6). The fix adds one pass to a
+  tail test, so that test's after figure covers one more halt point than its
+  before figure. The halving target stays as it is, and the plan records the
+  extra pass beside the figure.
 - The three binaries stay in one item: they share a measurement method and
   one before/after record pair. A delay in one binary delays the item's
   closure.
