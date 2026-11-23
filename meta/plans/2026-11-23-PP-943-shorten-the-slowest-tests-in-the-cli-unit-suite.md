@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T23:30:00+00:00"
+last_updated: "2026-11-23T23:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -190,8 +190,9 @@ Verify with `mise run` (the bare default task), then the phase 7 checks.
 ### Key Discoveries
 
 - `copy_part` keeps times to the nanosecond, so git's and jj's stat caches
-  read a copy as unchanged (`cli/vcs-test-support/src/copies.rs:30-98`,
-  proved by `tests/copy_fidelity.rs:96-167`).
+  read a copy as unchanged (`cli/vcs-test-support/src/copies.rs:69-237`,
+  proved by `tests/copy_fidelity.rs:96-169`). Since phase 3 it clones each
+  directory whole on macOS.
 - `Workbench::writable` already does copy, named-by check and fixture-log
   `copy` event for any `CopyableFamily` (`workbench.rs:179-198,278-308`).
 - `States` is the copyable family to mirror: its manifest, `entries`,
@@ -206,6 +207,18 @@ Verify with `mise run` (the bare default task), then the phase 7 checks.
 - The stall leaves migrated files unsnapshotted on disk. Any jj read the
   equality projection makes must pass `--ignore-working-copy`, or it would
   snapshot them and change the state it reads.
+- **Alone runs are parallel.** A filtered run still runs the binary's
+  tests 16 at a time, and they slow each other 2.4–7×. Phase 3's tests
+  took 0.2–1.4 s each on one thread and 1.5–3.4 s on sixteen. A step
+  timed on its own undercounts its cost in an alone run.
+- **`fsync` serialises tests.** `store`'s atomic writes call
+  `File::sync_all` twice each, which on macOS is `F_FULLFSYNC`, a full
+  drive flush. It was 57.6% of a `rekey_run` pass, and parallel tests
+  queue behind each other's flushes. Migrate writes through the same
+  `store` crate.
+- **Copies cost per entry.** Once the syncs were gone, copying a template
+  and removing its tempdir were 84% of a pass under 16 threads. Fewer
+  entries, or a whole-directory clone, is what makes a copy cheap.
 
 ## What We're NOT Doing
 
@@ -781,10 +794,14 @@ repository once per VCS, and give every halt pass a copy. This is
 `rekey_run`'s landing commit.
 
 **Landed** in changes `rpslxtmv` (the halt count), `olroyumo` (counted
-loops), `qnwxvnop` (`Committed` and the reused-state tests) and `orlqwppk`
-(the switch), with the full `mise run` green. The fix below moved the
-landing commit to `mwtvsvpx`. It
-departs from the plan in two ways:
+loops), `qnwxvnop` (`Committed` and the reused-state tests), `orlqwppk`
+(the switch), `xnxxskun` and `xnwoztqo` (unsynced writes), `okymqnny` (the
+directory clone) and `mwtvsvpx` (trimmed templates, the landing commit),
+with the full `mise run` green at `orlqwppk` and at `mwtvsvpx`. The
+projection gate in step 5 passed but was wrong, and the last four changes
+are the fix the author chose once alone runs showed it; the sections below
+record why. Changes Required items 4–6 were added after review. Two smaller
+departures:
 
 - **Halt-count VCSs:** the exact-halt-count test checks the four-file
   corpus under Git and jj and the five-file corpus under Git, the VCSs
@@ -955,6 +972,41 @@ the five-file projection has two commits, as today's test builds, and
 that `each_of` ran two comparisons in the first test and one in the
 second.
 
+#### 4. Writing without syncing
+
+**File**: `cli/work-adapters/tests/support/unsynced_store.rs` (new),
+declared `pub mod` from `support/mod.rs`
+**Changes**: `UnsyncedStore` implements `AtomicWrite`, `ExclusiveCreate`
+and `FileRemove` as `FileCorpusStore` does, without syncing. `write` calls
+`store::replace_without_sync`; `create_new` checks containment with
+`store::ensure_contained`, stages a `kernel::TEMP_PREFIX` temporary and
+persists it without clobbering; `remove` delegates to `FileCorpusStore`.
+`CountingStore` wraps it in place of `FileCorpusStore`, so `rekey_run` and
+`rekey_execute` both write unsynced. `FileRecoveryCopies` and `Repo::new`'s
+baseline write still sync; neither showed in the profile.
+
+#### 5. Cloning whole directories
+
+**File**: `cli/vcs-test-support/src/copies.rs`, `Cargo.toml`
+**Changes**: `copy_entry` tries `cloned_whole` for a directory: on macOS,
+`rustix::fs::fclonefileat` with `CloneFlags::NOFOLLOW`. On success,
+`restore_what_a_clone_drops` walks the copy once, restoring each
+directory's times from its source and adding owner write where the source
+lacked it. `EXDEV` and `ENOTSUP`, and every other platform, fall back to
+the per-entry copy. Any other error fails the copy. The change reaches
+every `copy_part` caller, including `Workbench::writable` and phase 6's
+stall copies.
+
+#### 6. Trimmed templates
+
+**File**: `cli/work-adapters/tests/rekey_run.rs`
+**Changes**: `Committed::build` initialises git with `--template=`, so a
+template has no sample hooks. `Committed::packed` runs `git repack -a -d
+-q` against `.git`, or `.jj/repo/store/git` for jj; every template a test
+copies, and every reused-state build, is packed. `git repack -a -d` keeps
+every object a ref reaches, jj's `refs/jj/keep/*` included, and leaves
+unreachable loose objects alone.
+
 ### Tests (written first, in this order)
 
 1. The copy guard goes red on `Repo::copy_of`'s call until the support
@@ -976,11 +1028,18 @@ second.
    threshold, stop and revisit the approach with the author.
 6. Then switch both tail tests to `Committed`, keeping their assertions
    word for word.
+7. **Added after review:** `UnsyncedStore`'s eight contract tests, each
+   run against `FileCorpusStore` too, red until the type existed. The
+   switch of `CountingStore` onto it was a refactor under the green suite.
+8. **Added after review:** a bare directory clone turned the existing
+   `copies` and `copy_fidelity` tests red (directory times, sealed
+   directories); the restore walk turned them green. Trimming the
+   templates was a refactor under the green reused-state tests.
 
 ### Test mapping
 
-All 29 tests in `work-adapters::rekey_run` keep their names. The table
-lists only those that change.
+All 29 tests in `work-adapters::rekey_run` keep their names, and 11 are
+added, for 40. The table lists only those that change.
 
 | Before test | Successor | Assertions |
 |---|---|---|
@@ -989,6 +1048,7 @@ lists only those that change.
 | none | `…::a_whole_run_makes_exactly_the_counted_mutations` | new; halts at `count - 1` and completes under `HaltAt(count)`, for both corpora |
 | none | `…::the_kill_tests_copied_repository_matches_one_built_from_scratch` | new; Git and jj four-file states equal; charged to the kill test |
 | none | `…::the_edit_refusal_tests_copied_repository_matches_one_built_from_scratch` | new; Git five-file state equal, two commits; charged to the edit-refusal test |
+| none | eight `an_unsynced_store_writes_as_the_file_store_does::…` tests | new; each case passes for `FileCorpusStore` and `UnsyncedStore` alike |
 
 ### Success Criteria
 
@@ -1706,6 +1766,10 @@ Also to record:
   stable sibling order, and no snapshot.
 - `copy_private_tree`: fidelity, refusing a self-naming tree, and the
   copy guard.
+- `copy_part`'s directory clone, through the existing fidelity tests:
+  directory times, sealed directories and owner write.
+- `UnsyncedStore`'s contract, each case run against `FileCorpusStore`
+  too.
 - `Stall::build` against stub migrate executables: the shape and kind of
   each key, and both not-stalled failures.
 - The exact halt counts of both `rekey_run` corpora.
@@ -1743,12 +1807,16 @@ Also to record:
   for colocated jj (adding `git for-each-ref` and `git ls-files`).
 - **Projected budget gate:** before step 4 of phase 6's tests, project
   `guarded_resume`'s charged figure at under-suite rates:
-  1. Derive per-class under-suite rates. Time, alone, one `Stalled::on`
-     build (7 `jj` spawns and 1 migrate run) and one whole scenario,
-     counting its `jj` spawns and migrate runs. Solve the two equations
+  1. Derive per-class under-suite rates. Time one `Stalled::on` build (7
+     `jj` spawns and 1 migrate run) and one whole scenario, counting its
+     `jj` spawns and migrate runs, inside an alone run of the whole
+     binary, with its tests running in parallel, not on their own: phase
+     3's sequential profile undercounted 3–6×. Solve the two equations
      for the alone cost of a `jj` spawn and of a migrate run. Scale both
      by the binary's baseline under-suite/alone ratio (197.5 / 108.8 ≈
-     1.82). Write both rates here.
+     1.82). Write both rates here. Migrate's own writes go through
+     `store`'s synced path, which phase 3's `UnsyncedStore` does not
+     reach; profile a scenario for `fsync` before pricing it.
   2. Price the binary as it will be: the remaining spawns, the 26 copies,
      the two reused-state tests, and the family's build time.
   3. Price the slowest test the same way: the slowest scenario
@@ -1759,10 +1827,12 @@ Also to record:
      20 s, stop and bring the author the options rather than landing.
      The options are in-process projection reads, or revisiting the
      target under the work item's half-ratio review rule.
-- **`rekey_run`:** 39 passes today (26 kill, 13 edit-refusal) spawn ~169
-  processes. Afterwards, 3 template builds (two for the kill test, one for
-  the edit-refusal test) and 40 copies replace them. Phase 3 profiles a
-  pass's in-process share before switching.
+- **`rekey_run`:** 39 passes (26 kill, 13 edit-refusal) spawned ~169
+  processes. After phase 3, 3 packed template builds and 40 copies replace
+  them. Copying alone made both tail tests slower in alone runs; the
+  passes' `fsync`s and per-entry copy cost dominated, and phase 3's fix
+  removed both. Alone, `rekey_run`'s total test-seconds fell from 45.4 s to
+  26.5 s.
 - **Tail payoff:** with the three tail tests left out, the next finisher
   ends 7–9 s before the phase, so the phase can lose at most that much.
 - **Before phase 6:** phase 5's family is built in unfiltered runs with no
@@ -1773,7 +1843,9 @@ Also to record:
 
 - **Rollback:** each landing commit reverts on its own. Reverting phase 6
   leaves phase 5's family built without a consumer. Revert phase 5 with it,
-  or keep it if a follow-up will consume it.
+  or keep it if a follow-up will consume it. Phase 3's directory clone
+  (`okymqnny`) also reverts on its own; copies then fall back to copying
+  entry by entry.
 - **PP-958:** do not merge any phase to `main` while PP-958 has a before or
   after record outstanding.
 - **Cached runs:** none. The shared family is built from scratch in every
@@ -1786,5 +1858,5 @@ Also to record:
 - PP-957 plan: `meta/plans/2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-run.md`
 - Baseline record: `meta/measurements/build_2026-11-23T140904Z_engywook_warm-no-op_devtools_isolated.json`
 - Copyable family to mirror: `cli/vcs-test-support/src/status_log.rs:502-701`
-- Copy helper: `cli/vcs-test-support/src/copies.rs:43-98`
+- Copy helper: `cli/vcs-test-support/src/copies.rs:69-237`
 - Build step: `tasks/test/cli.py:289-333`, `tasks/shared/shared_fixtures/session.py:127-152`
