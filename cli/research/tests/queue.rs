@@ -31,6 +31,7 @@ use research::sources::request::Doi;
 use research::sources::request::Family;
 use research::sources::request::Limit;
 use research::sources::request::RequestError;
+use research::sources::service::CrossrefPool;
 use support::queue_of;
 use support::queue_with_foreign;
 
@@ -833,6 +834,22 @@ fn an_own_ticket_long_expired_still_never_falls_back_to_a_foreign_match() {
     );
 
     assert_eq!(present(&queue, "7-cccccc", &graphs()), Presentation::Join);
+}
+
+#[test]
+fn a_ticket_from_the_other_crossref_pool_joins_afresh_naming_that_pool() {
+    let queue = queue_with_foreign(
+        Vec::new(),
+        vec![(
+            ticket("5-bbbbbb"),
+            Provenance::IssuedInOtherPool(CrossrefPool::Polite),
+        )],
+    );
+
+    assert_eq!(
+        present(&queue, "5-bbbbbb", &graphs()),
+        Presentation::JoinAfterPoolChange(CrossrefPool::Polite)
+    );
 }
 
 #[test]

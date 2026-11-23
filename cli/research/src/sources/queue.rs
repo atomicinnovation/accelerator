@@ -15,6 +15,7 @@ use crate::sources::request::Doi;
 use crate::sources::request::Family;
 use crate::sources::request::Limit;
 use crate::sources::schedule::Deadline;
+use crate::sources::service::CrossrefPool;
 
 /// How long an absent ticket keeps its place after its last call ended.
 pub const EXPIRY: Duration = Duration::from_secs(300);
@@ -256,7 +257,24 @@ pub struct Contender {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Provenance {
     IssuedElsewhere(Family),
+    IssuedInOtherPool(CrossrefPool),
     IssuedBeforeUpgrade,
+}
+
+impl fmt::Display for Provenance {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IssuedElsewhere(issuer) => {
+                write!(formatter, "by fetch {}", issuer.code())
+            }
+            Self::IssuedInOtherPool(pool) => {
+                write!(formatter, "in Crossref's {} pool", pool.name())
+            }
+            Self::IssuedBeforeUpgrade => {
+                formatter.write_str("before this release")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -301,21 +319,11 @@ impl fmt::Display for RejectedTicket {
                      with that call, or drop --ticket"
                 )
             }
-            TicketRejection::Foreign { ticket, provenance } => {
-                let issued = match provenance {
-                    Provenance::IssuedElsewhere(issuer) => {
-                        format!("by fetch {}", issuer.code())
-                    }
-                    Provenance::IssuedBeforeUpgrade => {
-                        "before this release".to_owned()
-                    }
-                };
-                write!(
-                    formatter,
-                    "E_{family}_TICKET_MISMATCH: ticket {ticket} was issued \
-                     {issued}; drop --ticket and re-run the call"
-                )
-            }
+            TicketRejection::Foreign { ticket, provenance } => write!(
+                formatter,
+                "E_{family}_TICKET_MISMATCH: ticket {ticket} was issued \
+                 {provenance}; drop --ticket and re-run the call"
+            ),
             TicketRejection::AlreadyLive(ticket) => write!(
                 formatter,
                 "E_{family}_TICKET_LIVE: ticket {ticket} is already being \
@@ -329,6 +337,7 @@ impl fmt::Display for RejectedTicket {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Presentation {
     Join,
+    JoinAfterPoolChange(CrossrefPool),
     Resume(Ticket),
     Rejected(TicketRejection),
     OverCap {
@@ -341,7 +350,7 @@ pub enum Presentation {
 ///
 /// `unparsed` holds the tickets of records that could not be read, which
 /// still take part in numbering; `foreign` the tickets other queues issued,
-/// which are only ever refused.
+/// which are refused unless the other queue is a pool of the same service.
 ///
 /// Every elapsed time saturates at zero, so a stamp later than `now` reads
 /// as just stamped.
@@ -412,11 +421,15 @@ impl Queue {
         self.foreign
             .iter()
             .find(|(ticket, _)| ticket == presented)
-            .map_or(Presentation::Join, |(ticket, provenance)| {
-                Presentation::Rejected(TicketRejection::Foreign {
+            .map_or(Presentation::Join, |(ticket, provenance)| match provenance
+            {
+                Provenance::IssuedInOtherPool(pool) => {
+                    Presentation::JoinAfterPoolChange(*pool)
+                }
+                _ => Presentation::Rejected(TicketRejection::Foreign {
                     ticket: ticket.clone(),
                     provenance: *provenance,
-                })
+                }),
             })
     }
 

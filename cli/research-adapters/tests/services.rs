@@ -162,6 +162,34 @@ fn arxiv_refuses_a_ticket_issued_by_either_crossref_pool() {
 }
 
 #[test]
+fn a_ticket_from_the_other_crossref_pool_joins_afresh_with_one_diagnostic() {
+    let harness = Harness::new();
+    harness.scratch.seed_service_ticket(
+        Service::Crossref(CrossrefPool::Polite),
+        "5-bbbbbb",
+    );
+    let public = harness.crossref(PUBLIC);
+
+    let joined = public.queue.join(
+        &graphs(),
+        Some(&ticket("5-bbbbbb")),
+        &harness.deadline(),
+    );
+
+    let Joining::Queued(place) = joined else {
+        panic!("the ticket joins the public pool afresh");
+    };
+    assert_ne!(place.ticket(), &ticket("5-bbbbbb"));
+    assert_eq!(
+        harness.diagnostics.lines(),
+        vec!["research fetch: crossref-public queue ticket 5-bbbbbb was \
+             issued in Crossref's polite pool, which crossref.mailto no \
+             longer selects; joining afresh"
+            .to_owned()]
+    );
+}
+
+#[test]
 fn crossref_refuses_an_arxiv_ticket_but_not_the_other_pool_s() {
     let harness = Harness::new();
     harness

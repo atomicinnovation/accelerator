@@ -1090,6 +1090,14 @@ fn a_public_ticket_presented_with_a_contact_joins_the_polite_pool_afresh() {
     assert_printed(&run, PROCEEDINGS_OK);
     assert_eq!(project.service_requests(POLITE).len(), 1);
     assert_eq!(project.service_requests(PUBLIC).len(), 0);
+    assert!(
+        run.stderr.contains(
+            "ticket 1-aaaaaa was issued in Crossref's public pool, which \
+             crossref.mailto no longer selects; joining afresh"
+        ),
+        "{}",
+        run.stderr
+    );
 }
 
 #[test]

@@ -66,7 +66,7 @@ impl ServiceAdapters {
         context: &AdapterContext,
         previous_release: Option<PreviousRelease>,
     ) -> Self {
-        let mut foreign = other_family_queues(service, &context.research);
+        let mut foreign = foreign_queues(service, &context.research);
         let mut companions = Vec::new();
         if let Some(previous) = previous_release {
             foreign.push(ForeignSource {
@@ -102,18 +102,23 @@ impl ServiceAdapters {
     }
 }
 
-/// The queue of every service issuing another family's tickets. Pools of
-/// one family are not foreign to each other.
-fn other_family_queues(
+fn foreign_queues(
     service: Service,
     research: &ScratchDir,
 ) -> Vec<ForeignSource> {
     Service::ALL
         .into_iter()
-        .filter(|other| other.ticket_family() != service.ticket_family())
+        .filter(|other| *other != service)
         .map(|other| ForeignSource {
             directory: FileServiceQueue::directory_of(other, research),
-            provenance: Provenance::IssuedElsewhere(other.ticket_family()),
+            provenance: match other {
+                Service::Crossref(pool)
+                    if other.ticket_family() == service.ticket_family() =>
+                {
+                    Provenance::IssuedInOtherPool(pool)
+                }
+                _ => Provenance::IssuedElsewhere(other.ticket_family()),
+            },
         })
         .collect()
 }

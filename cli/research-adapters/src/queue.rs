@@ -446,7 +446,17 @@ impl ServiceQueue for FileServiceQueue {
             .unwrap_or_default();
         let queue = self.queue_of(&snapshot, foreign);
         let now = self.clock.wall_now();
-        match queue.present(presented, binding, now) {
+        let presentation = queue.present(presented, binding, now);
+        if let (Presentation::JoinAfterPoolChange(pool), Some(presented)) =
+            (&presentation, presented)
+        {
+            self.report(&format!(
+                "ticket {presented} was issued in Crossref's {} pool, which \
+                 crossref.mailto no longer selects; joining afresh",
+                pool.name()
+            ));
+        }
+        match presentation {
             Presentation::Rejected(rejection) => Joining::Rejected(rejection),
             Presentation::OverCap {
                 ticket,
@@ -459,7 +469,7 @@ impl ServiceQueue for FileServiceQueue {
                     last_retryable,
                 }
             }
-            Presentation::Join => {
+            Presentation::Join | Presentation::JoinAfterPoolChange(_) => {
                 self.housekeeping(&snapshot, &queue, now);
                 let ticket =
                     Ticket::issue(queue.next_number(), (self.nonces)());

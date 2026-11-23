@@ -25,6 +25,15 @@ pub enum CrossrefPool {
     Polite,
 }
 
+impl CrossrefPool {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Public => "public",
+            Self::Polite => "polite",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Service {
     Arxiv,

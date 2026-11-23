@@ -1278,6 +1278,7 @@ impl core::marker::Copy for research::sources::queue::Presence
 impl core::marker::StructuralPartialEq for research::sources::queue::Presence
 pub enum research::sources::queue::Presentation
 pub research::sources::queue::Presentation::Join
+pub research::sources::queue::Presentation::JoinAfterPoolChange(research::sources::service::CrossrefPool)
 pub research::sources::queue::Presentation::OverCap
 pub research::sources::queue::Presentation::OverCap::last_retryable: core::option::Option<research::sources::classify::Reason>
 pub research::sources::queue::Presentation::OverCap::ticket: research::sources::queue::Ticket
@@ -1294,6 +1295,7 @@ impl core::marker::StructuralPartialEq for research::sources::queue::Presentatio
 pub enum research::sources::queue::Provenance
 pub research::sources::queue::Provenance::IssuedBeforeUpgrade
 pub research::sources::queue::Provenance::IssuedElsewhere(research::sources::request::Family)
+pub research::sources::queue::Provenance::IssuedInOtherPool(research::sources::service::CrossrefPool)
 impl core::clone::Clone for research::sources::queue::Provenance
 pub fn research::sources::queue::Provenance::clone(&self) -> research::sources::queue::Provenance
 impl core::cmp::Eq for research::sources::queue::Provenance
@@ -1301,6 +1303,8 @@ impl core::cmp::PartialEq for research::sources::queue::Provenance
 pub fn research::sources::queue::Provenance::eq(&self, other: &research::sources::queue::Provenance) -> bool
 impl core::fmt::Debug for research::sources::queue::Provenance
 pub fn research::sources::queue::Provenance::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::queue::Provenance
 impl core::marker::StructuralPartialEq for research::sources::queue::Provenance
 pub enum research::sources::queue::TicketRejection
@@ -1845,6 +1849,8 @@ pub mod research::sources::service
 pub enum research::sources::service::CrossrefPool
 pub research::sources::service::CrossrefPool::Polite
 pub research::sources::service::CrossrefPool::Public
+impl research::sources::service::CrossrefPool
+pub const fn research::sources::service::CrossrefPool::name(self) -> &'static str
 impl core::clone::Clone for research::sources::service::CrossrefPool
 pub fn research::sources::service::CrossrefPool::clone(&self) -> research::sources::service::CrossrefPool
 impl core::cmp::Eq for research::sources::service::CrossrefPool

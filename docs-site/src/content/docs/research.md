@@ -408,7 +408,10 @@ first-out queue of tickets under `services/<service>/queue/`:
   `E_ARXIV_TICKET_MISMATCH` or `E_DOI_TICKET_MISMATCH`, named for the
   command it was presented to, as does a ticket another family's fetch or an
   earlier plugin version issued, and one another call is presenting exits 2
-  with `E_ARXIV_TICKET_LIVE` or `E_DOI_TICKET_LIVE`.
+  with `E_ARXIV_TICKET_LIVE` or `E_DOI_TICKET_LIVE`. A DOI ticket
+  re-presented after `crossref.mailto` changed which Crossref pool serves
+  the call joins that pool afresh, with a diagnostic naming the pool that
+  issued it.
 - **Expiry and the cap.** A ticket keeps its place for 300 s after its last
   call ended; after that it rejoins at the back with a fresh ticket. More than
   900 s after issue, a re-presentation ends `rate_limited` with

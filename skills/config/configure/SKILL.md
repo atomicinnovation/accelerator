@@ -1337,6 +1337,10 @@ goes to the public pool anonymously. It prints a `warning:` in two cases:
   The warning names the file and the reason. Lower rungs are not read, so
   the call uses the public pool even if `config.md` holds an address.
 
+Changing the setting while a DOI call is `waiting` moves that call to the
+other pool: its re-presented ticket joins afresh, and a diagnostic names the
+pool that issued it.
+
 The address is sent in the `User-Agent` header, never in a URL. It is not a
 secret, so it may be committed in `config.md` for the whole team.
 
