@@ -22,13 +22,14 @@ def chapter_layout():
     return body[body.index("return `") :]
 
 
-def test_a_chapter_defines_its_terms_before_the_prose_that_uses_them():
+def test_a_chapter_names_its_terms_in_its_strip_before_the_prose_using_them():
     layout = chapter_layout()
 
-    glossary = layout.index("Terms this chapter introduces")
-    assert layout.index('class="figs"') < glossary
+    strip = layout.index("designStrip(ch)")
+    assert "ch.domain" in renderer("designStrip")
+    assert "glossary" not in layout
     for prose in ("Why it exists", "${ba}"):
-        assert glossary < layout.index(prose), prose
+        assert strip < layout.index(prose), prose
 
 
 def test_a_chapter_names_what_it_introduces_in_a_strip_not_a_wall_of_cards():
@@ -37,18 +38,15 @@ def test_a_chapter_names_what_it_introduces_in_a_strip_not_a_wall_of_cards():
     assert "designSection" not in renderer("vChapter")
     strip = layout.index("designStrip(ch)")
     assert layout.index('class="figs"') < strip
-    assert strip < layout.index("Terms this chapter introduces")
 
 
-def test_a_stop_introduces_what_it_first_shows_before_its_role():
+def test_a_stop_badges_what_the_tour_shows_first_in_its_strip_not_cards():
     stop = stop_layout()
+    strip = renderer("stopStrip")
 
-    order = [
-        stop.index(part)
-        for part in ("Evidence for", "introducedHere(s)", "md(s.fit)")
-    ]
-    assert order == sorted(order)
-    assert "EVIDENCE.introducedAt(stop)" in renderer("introducedHere")
+    assert "introduced" not in stop
+    assert "firstHere: EVIDENCE.shownAt(item.id)[0] === stop.id" in strip
+    assert "stopTerms().firstAt(term) === stop.id" in strip
 
 
 def test_a_decision_met_in_the_tour_does_not_list_where_else_it_is_shown():
@@ -63,7 +61,7 @@ def test_what_a_stop_carries_peeks_at_its_entry_in_reference():
 
     assert "#tour-" not in link
     assert "data-peek" in link
-    assert "addressOf(route, prefix + carried.id)" in link
+    assert "itemAddress(carried.kind, carried.id)" in link
 
 
 def stop_layout():
@@ -72,11 +70,13 @@ def stop_layout():
     return shell[start : shell.index("const ba = ", start)]
 
 
-def test_a_stop_says_what_it_is_evidence_for_before_anything_else():
+def test_a_stop_says_what_it_shows_before_anything_else():
     stop = stop_layout()
+    strip = renderer("stopStrip")
 
-    assert "EVIDENCE.carriedBy(s)" in stop
-    assert stop.index("carriedLink") < stop.index("s.fit")
+    assert stop.index("stopStrip(s)") < stop.index("s.fit")
+    assert "EVIDENCE.carriedBy(stop)" in strip
+    assert "stopTerms().at(stop)" in strip
 
 
 def test_a_stop_gives_its_role_then_why_then_the_risk_then_the_checks():
@@ -122,7 +122,7 @@ def test_what_a_stop_carries_can_be_reached_from_it():
 
     for target in ('id="dec-', 'id="abs-', 'id="inv-', 'id="risk-'):
         assert target in shell, target
-    assert "prefix + id" in renderer("peekContent")
+    assert "anchor(id)" in renderer("peekContent")
     assert "landOnItem(currentItem)" in renderer("land")
 
 
@@ -155,11 +155,13 @@ def test_the_tests_catalogue_keeps_the_criteria_and_lists_every_test():
     assert "CATALOGUE.tests" in tests
 
 
-def test_a_chapter_draws_its_invariants_and_risks_as_the_catalogue_does():
+def test_a_chapter_lists_its_items_one_line_each_opening_in_place():
     chapter = renderer("vChapter")
 
-    assert "invariantRow(" in chapter
-    assert "riskRow(" in chapter
+    for kind in ("invariant", "risk", "test"):
+        assert f"peekLink('{kind}'" in chapter, kind
+    assert "invariantRow(" not in chapter
+    assert "riskRow(" not in chapter
 
 
 def test_a_link_can_open_any_catalogue_already_filtered():

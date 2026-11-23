@@ -35,9 +35,14 @@
 // naming a stop and its chapter, and checks both become links and that the
 // stop's link opens its chapter at that stop. It checks that a stop names
 // everything it carries, that each name opens what it names, and that every
-// line a stop says to focus on is marked in its code. Each decision's control
-// is met once in the tour, at the first stop that shows it; each chapter names
-// what it introduces in a strip and draws no wall of abstraction cards. It also records a file verdict,
+// line a stop says to focus on is marked in its code. A stop's notes share
+// one panel style, and its terms wrap side by side. A stop's strip names
+// everything it shows, domain terms its text uses included unless an
+// abstraction there already names them, badging what the
+// tour shows there first, and the stop holds no cards or controls but its own;
+// each chapter names what it introduces, its terms included, in one strip, and
+// lists its invariants, risks, findings and tests one line each, each opening
+// in place. It also records a file verdict,
 // pretends it was given at an earlier head, and checks that rewritten lines are
 // unread again and announced, that untouched ones stay read, and that only a
 // new verdict, not a note, moves the record to this head. Every diagram the
@@ -47,7 +52,9 @@
 // a verdict given there marks every link to it, and Esc or a click elsewhere
 // closes it. Following a link from part-way down a view and going Back returns
 // the view to where it was scrolled, while a new view opens at its top. Every
-// link to an item that takes a verdict carries a painted mark, the readiness
+// link to an item that takes a verdict carries a painted mark as tall as its
+// text, centred on its capital letters whether open or filled, as is every
+// "new here" badge, the readiness
 // gates link each outstanding item, and the rail marks each chapter. At phone
 // width the top bar keeps to one line, a catalogue's filters fold and stick
 // below it, an item opened by its address lands below both, and a peek unfolds
@@ -56,7 +63,7 @@
 // most of the width, with its review control flowed beneath it, and a comma in
 // a list of tests stays on the line of the test before it.
 // Each catalogue in Reference draws one card per item, and a verdict given to a
-// decision there shows at the stop that first carries it. The design reads as
+// decision there marks it at the stop that first carries it. The design reads as
 // its article: every section drawn, every excerpt's code resolved, the sign-off
 // at the end and no catalogue of cards. Findings lists every observation, its
 // source filter narrows the list, and a chapter's finding opens in Findings.
@@ -244,39 +251,77 @@ const EVIDENCE_PROBE = `(async () => {
   const api = window.ExplorePR.api;
   const chapters = api.content.chapters || [];
   const evidence = window.StopEvidence.index(api.content);
+  const termsInText = window.StopTerms.index(api.content, () => '');
   const chapter = chapters.find(each => (each.stops || []).some(stop => evidence.carriedBy(stop).length));
   if (!chapter) return { skipped: 'no stop carries anything the page declares' };
   const stop = chapter.stops.find(each => evidence.carriedBy(each).length);
   location.hash = 'tour-' + chapter.id; await settle();
   const shown = document.getElementById('stop-' + stop.id);
-  const links = shown ? [...shown.querySelectorAll('a.carried')] : [];
+  const links = shown ? [...shown.querySelectorAll('.carries a.carried:not(.k-term)')] : [];
   const named = links.length === evidence.carriedBy(stop).length;
   const pointed = chapters.flatMap(each => each.stops || []).filter(each => (each.focus || []).some(focus => focus.why));
   const focusMarked = pointed.every(each => {
     const there = document.getElementById('stop-' + each.id);
     return !there || !there.querySelector('.code table') || !!there.querySelector('tr.focus + tr.point');
   });
-  const decisions = window.Catalogue.of(api.content).decisions.map(each => each.item.id).filter(id => id && evidence.shownAt(id).length);
-  const controlsAt = Object.fromEntries(decisions.map(id => [id, []]));
-  const stripMissing = [], gridKept = [];
+  const LISTED = ['Invariants', 'Risks', 'Findings here', 'Tests that pin it'];
+  const NOTES = ['.fit', '.why', '.stop-risk', '.check'];
+  const panelOf = note => { const style = getComputedStyle(note); return [style.backgroundColor, style.borderLeftWidth, style.paddingLeft, style.borderTopRightRadius].join(' '); };
+  const notesUnpanelled = [], termsFullWidth = [];
+  const stripMissing = [], gridKept = [], stopsHoldCards = [], badgesWrong = [], termsMissing = [], sectionsNotListed = [], glossaryKept = [], termsNotInStrip = [], twinTerms = [];
+  const definedTerms = new Map(window.StopTerms.defined(api.content).map(term => [term.term.toLowerCase(), term]));
   for (const each of chapters) {
     location.hash = 'tour-' + each.id; await settle();
-    const introduces = (each.stops || []).some(one => evidence.introducedAt(one).length) || (each.decisions || []).length || (each.abstractions || []).length;
+    const introduces = (each.stops || []).some(one => evidence.introducedAt(one).length) || (each.decisions || []).length || (each.abstractions || []).length || (each.domain || []).length;
     if (introduces && !document.querySelector('#main .design-strip')) stripMissing.push(each.id);
     if (document.querySelector('#main .abs-grid')) gridKept.push(each.id);
-    decisions.forEach(id => document.querySelectorAll('#main .ctl[data-ctl="' + CSS.escape('design:' + id) + '"]')
-      .forEach(control => controlsAt[id].push((control.closest('.stop') || {}).id || 'outside a stop')));
+    document.querySelectorAll('#main .stop .ctl:not([data-ctl^="stop:"]), #main .stop .introduced').forEach(held => stopsHoldCards.push((held.closest('.stop') || {}).id));
+    (each.stops || []).forEach(one => {
+      const there = document.getElementById('stop-' + one.id);
+      if (!there) return;
+      there.querySelectorAll('.carries a.carried:not(.k-term)').forEach(link => {
+        const id = link.dataset.peek.slice(link.dataset.peek.indexOf(':') + 1);
+        const firstShownHere = evidence.shownAt(id)[0] === one.id;
+        if (firstShownHere !== !!link.querySelector('.new-here')) badgesWrong.push(one.id + ' ' + id);
+      });
+      const notes = NOTES.map(selector => there.querySelector('.stop-note ' + selector)).filter(Boolean);
+      const panels = new Set(notes.map(panelOf));
+      if (panels.size > 1 || notes.some(note => getComputedStyle(note).backgroundColor === 'rgba(0, 0, 0, 0)')) notesUnpanelled.push(one.id + ' ' + [...panels].join(' | '));
+      const strip = there.querySelector('.carries');
+      const termLinks = [...there.querySelectorAll('.carries a.k-term')];
+      if (strip && termLinks.length > 1 && termLinks.every(link => link.getBoundingClientRect().width > strip.clientWidth * 0.9)) termsFullWidth.push(one.id);
+      const shownAbstractions = [...there.querySelectorAll('.carries a.k-abstraction')].map(link => link.title);
+      window.StopTerms.withoutNamed(termsInText.at(one), shownAbstractions).forEach(term => {
+        if (!there.querySelector('.carries a.carried.k-term[data-peek="' + CSS.escape('term:' + term.term) + '"]')) termsMissing.push(one.id + ' ' + term.term);
+      });
+    });
+    [...document.querySelectorAll('#main .section')].forEach(section => {
+      const heading = (section.querySelector('h2') || {}).textContent;
+      if (!LISTED.includes(heading)) return;
+      const items = [...section.querySelectorAll('ul.item-list > li')];
+      if (section.querySelector('table, .inv, .ctl') || !items.length || items.some(item => !item.querySelector('a[data-peek]'))) sectionsNotListed.push(each.id + ' ' + heading);
+    });
+    if (document.querySelector('#main .glossary')) glossaryKept.push(each.id);
+    document.querySelectorAll('#main .carries, #main .design-strip').forEach(strip => {
+      const abstractions = [...strip.querySelectorAll('a.k-abstraction')].map(link => link.title);
+      strip.querySelectorAll('a.k-term').forEach(link => {
+        const term = definedTerms.get(link.dataset.peek.slice('term:'.length).toLowerCase());
+        if (term && !window.StopTerms.withoutNamed([term], abstractions).length) twinTerms.push(each.id + ' ' + term.term);
+      });
+    });
+    const definedHere = new Set((each.domain || []).map(term => term.term.toLowerCase())).size;
+    const stripped = document.querySelectorAll('#main .design-strip a.carried.k-term').length;
+    const twinned = window.StopTerms.withoutNamed([...definedTerms.values()].filter(term => (each.domain || []).some(own => own.term.toLowerCase() === term.term.toLowerCase())), [...document.querySelectorAll('#main .design-strip a.k-abstraction')].map(link => link.title));
+    if (stripped !== twinned.length) termsNotInStrip.push(each.id + ' ' + stripped + '/' + twinned.length);
   }
-  const misplaced = decisions.filter(id => controlsAt[id].length !== 1 || controlsAt[id][0] !== 'stop-' + evidence.shownAt(id)[0]);
-  const decisionsMetOnce = !misplaced.length;
   location.hash = 'tour-' + chapter.id; await settle();
-  const again = [...document.getElementById('stop-' + stop.id).querySelectorAll('a.carried')];
-  if (!named) return { named, focusMarked, decisionsMetOnce, stripMissing, gridKept };
+  const again = [...document.getElementById('stop-' + stop.id).querySelectorAll('.carries a.carried')];
+  if (!named) return { named, focusMarked, notesUnpanelled, termsFullWidth, stopsHoldCards, badgesWrong, termsMissing, sectionsNotListed, glossaryKept, termsNotInStrip, twinTerms, stripMissing, gridKept };
   again[0].click(); await settle();
   const peek = document.querySelector('.peek:not([hidden])[data-peek-of="' + CSS.escape(again[0].dataset.peek) + '"]');
-  const reachesWhatItCarries = !!peek && !!peek.querySelector('article, .inv, table') && location.hash === '#tour-' + chapter.id;
+  const reachesWhatItCarries = !!peek && !!peek.querySelector('article, .inv') && location.hash === '#tour-' + chapter.id;
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle();
-  return { stop: stop.id, named, focusMarked, reachesWhatItCarries, decisionsMetOnce, misplaced, stripMissing, gridKept };
+  return { stop: stop.id, named, focusMarked, reachesWhatItCarries, notesUnpanelled, termsFullWidth, stopsHoldCards, badgesWrong, termsMissing, sectionsNotListed, glossaryKept, termsNotInStrip, twinTerms, stripMissing, gridKept };
 })()`;
 
 const PEEK_PROBE = `(async () => {
@@ -337,9 +382,45 @@ const MARKS_PROBE = `(async () => {
   const views = ['design', 'tour-' + ((api.content.chapters || [])[0] || {}).id, 'readiness', 'findings', 'decisions'].filter(view => routes.includes(view) || view.startsWith('tour-'));
   const unfilled = [], unmarked = [];
   const ACTIONABLE = '#main a[data-peek^="decision:"], #main a[data-peek^="invariant:"], #main a[data-peek^="finding:"], #main a[href*="/stop-"]:not(.k-abstraction), #main a.ref[href^="#tour-"]';
+  const offTheLine = [];
+  const BASELINE_TOLERANCE = 1.5, SIZE_TOLERANCE = 1.5;
+  const KIND_OF_TARGET = { design: 'design', inv: 'invariant', stop: 'stop', chapter: 'chapter', finding: 'finding', ledger: 'ledger' };
+  const baselineBeside = element => {
+    const box = element.getBoundingClientRect();
+    const probe = document.createElement('span');
+    probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+    element.before(probe);
+    if (Math.abs(probe.getBoundingClientRect().left - box.left) > 1) element.after(probe);
+    const line = probe.getBoundingClientRect().top;
+    probe.remove();
+    return line;
+  };
+  const glyphs = document.createElement('canvas').getContext('2d');
+  const capHeightOf = element => { glyphs.font = getComputedStyle(element).font; return glyphs.measureText('H').actualBoundingBoxAscent; };
+  const measureOnTheLine = (view, state) => document.querySelectorAll('#main .mark[data-tone], #main .new-here').forEach(element => {
+    const box = element.getBoundingClientRect();
+    if (!box.height) return;
+    const text = element.parentElement, textSize = parseFloat(getComputedStyle(text).fontSize);
+    const capsCentre = baselineBeside(element) - capHeightOf(text) / 2;
+    const offset = (box.top + box.bottom) / 2 - capsCentre;
+    if (Math.abs(offset) > BASELINE_TOLERANCE || box.height > textSize + SIZE_TOLERANCE || (element.matches('.mark') && box.height < textSize - SIZE_TOLERANCE)) {
+      offTheLine.push(view + ' ' + state + ' ' + (element.dataset.markOf || 'new here') + ' ' + offset.toFixed(1) + 'px');
+    }
+  });
   for (const view of views) {
     location.hash = view; await settle();
     document.querySelectorAll('.mark[data-mark-of]').forEach(mark => { if (!mark.dataset.tone) unfilled.push(view + ' ' + mark.dataset.markOf); });
+    measureOnTheLine(view, 'open');
+    const targets = [...new Set([...document.querySelectorAll('#main .mark[data-mark-of]')].map(mark => mark.dataset.markOf))];
+    const kept = targets.map(target => [target, api.store.get(target).status || '']);
+    targets.forEach(target => {
+      const kind = KIND_OF_TARGET[target.slice(0, target.indexOf(':'))];
+      api.store.put(target, kind, { status: api.kinds[kind].opts[0][0] }, {});
+    });
+    await settle();
+    measureOnTheLine(view, 'filled');
+    kept.forEach(([target, status]) => api.store.put(target, KIND_OF_TARGET[target.slice(0, target.indexOf(':'))], { status }, {}));
+    await settle();
     document.querySelectorAll(ACTIONABLE).forEach(link => { if (!link.querySelector('.mark[data-tone]')) unmarked.push(view + ' ' + link.getAttribute('href')); });
   }
   location.hash = 'readiness'; await settle();
@@ -348,7 +429,7 @@ const MARKS_PROBE = `(async () => {
     .flatMap(gate => [...gate.querySelectorAll('li:not(.muted)')]);
   const outstandingLinked = outstanding.every(item => !!item.querySelector('a .mark[data-tone]'));
   const railMarked = [...document.querySelectorAll('#rail a.sub')].every(link => !!link.querySelector('.mark[data-tone]'));
-  return { unfilled: unfilled.slice(0, 10), unmarked: unmarked.slice(0, 10), outstandingLinked, outstandingCount: outstanding.length, railMarked };
+  return { unfilled: unfilled.slice(0, 10), unmarked: unmarked.slice(0, 10), offTheLine: offTheLine.slice(0, 10), outstandingLinked, outstandingCount: outstanding.length, railMarked };
 })()`;
 
 const PHONE_PROBE = `(async () => {
@@ -406,7 +487,7 @@ const PHONE_PROBE = `(async () => {
   }
   const FULL_WIDTH_SHARE = 0.75;
   const textShare = (text, within) => text.getBoundingClientRect().width / (within.clientWidth - parseFloat(getComputedStyle(within).paddingLeft) - parseFloat(getComputedStyle(within).paddingRight));
-  const pendingKinds = new Set(['decision', 'abstraction', 'invariant', 'risk', 'finding']);
+  const pendingKinds = new Set(['decision', 'abstraction', 'invariant', 'risk', 'finding', 'test', 'term']);
   const cramped = [];
   for (const view of ['design', ...(window.ExplorePR.api.content.chapters || []).map(chapter => 'tour-' + chapter.id)]) {
     if (!pendingKinds.size) break;
@@ -489,7 +570,7 @@ const FINDINGS_PROBE = `(async () => {
   document.querySelector('[data-ff="source"]').dispatchEvent(new Event('change', { bubbles: true })); await settle();
   const chapter = content.chapters.find(each => content.findings.some(finding => finding.chapter === each.id));
   location.hash = 'tour-' + chapter.id; await settle();
-  const link = document.querySelector('#main .finding-list a[data-peek^="finding:"]');
+  const link = document.querySelector('#main .item-list a[data-peek^="finding:"]');
   const wanted = link.dataset.peek.slice('finding:'.length);
   link.click(); await settle();
   const peek = document.querySelector('.peek:not([hidden])[data-peek-of="finding:' + CSS.escape(wanted) + '"]');
@@ -574,8 +655,8 @@ const CATALOGUE_PROBE = `(async () => {
   location.hash = 'decisions'; await settle();
   control().querySelector('button[data-v="question"]').click(); await settle();
   location.hash = 'tour-' + chapter.id; await settle();
-  const elsewhere = control();
-  const verdictTravels = !!elsewhere && elsewhere.querySelector('button[data-v="question"]').getAttribute('aria-pressed') === 'true';
+  const mark = document.querySelector('#stop-' + CSS.escape(firstStop) + ' .carries .mark[data-mark-of="' + CSS.escape(target) + '"]');
+  const verdictTravels = !!mark && mark.dataset.tone === 'warn';
   api.store.put(target, 'design', { status: '' }, {});
   return { counted, verdictTravels };
 })()`;
@@ -1002,7 +1083,7 @@ async function main() {
   const references = report.references || {};
   const referencesHold = !!references.skipped || !!(references.named && references.opensChapter && references.reachesStop);
   const evidence = report.evidence || {};
-  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries && evidence.decisionsMetOnce && !evidence.stripMissing.length && !evidence.gridKept.length);
+  const evidenceHolds = !!evidence.skipped || !!(evidence.named && evidence.focusMarked && evidence.reachesWhatItCarries && ['notesUnpanelled', 'termsFullWidth', 'stopsHoldCards', 'badgesWrong', 'termsMissing', 'sectionsNotListed', 'glossaryKept', 'termsNotInStrip', 'twinTerms', 'stripMissing', 'gridKept'].every(list => (evidence[list] || ['not checked']).length === 0));
   const heads = report.heads || {};
   const headsHold = !!heads.skipped || !!(heads.stamped && heads.rewrittenUnread && heads.marked && heads.announced && heads.untouchedCarried && heads.noteKeepsHead && heads.verdictRestamps);
   const catalogue = report.catalogue || {};
@@ -1033,7 +1114,7 @@ async function main() {
   const restore = report.restore || {};
   const restoreHolds = !!restore.skipped || !!(restore.left && restore.landsWhereItLeads && restore.restores && restore.newViewAtTop);
   const marks = report.marks || {};
-  const marksHold = !!(marks.unfilled && !marks.unfilled.length && !marks.unmarked.length && marks.outstandingLinked && marks.railMarked);
+  const marksHold = !!(marks.unfilled && !marks.unfilled.length && !marks.unmarked.length && !marks.offTheLine.length && marks.outstandingLinked && marks.railMarked);
   const phone = report.phone || {};
   const phoneHolds = !!phone.topBarOneLine && ['filtersFolded', 'filtersUnfold', 'filtersBelowTopBar', 'itemBelowBars', 'peeksInline', 'peekCloses', 'peekedCardsUnedged', 'peekTextFullWidth', 'invariantTextFullWidth', 'commasStayWithTheirItem'].every(check => phone[check] !== false);
   report.ok = peekHolds && restoreHolds && marksHold && phoneHolds && touchHolds && navigatorHolds && bulkHolds && keysHold && commitNavigatorHolds && diagramsHold && catalogueHolds && notesHold && designHolds && findingsHold && readinessHolds && headsHold && evidenceHolds && referencesHold && commitsHold && unfoldHolds && !report.errors.length && !report.overflow.length && !missing.length && Object.keys(report.routes).length > 0 && coverageHolds;

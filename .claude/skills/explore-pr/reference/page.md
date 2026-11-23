@@ -14,7 +14,7 @@ not shown.
 | Start | Overview | The change at a glance as a figure, the design summary with a link to the article, a readiness strip (the recommendation and the gates by state, linking to Readiness), where you are, what changes, breaking changes before and after, accepted risks, CI |
 | Start | Design | The design as an article: headed sections of prose, figures, short anchored code excerpts that claim no lines as read, and asides that open the decisions and abstractions in place; then the sign-off on the design as a whole. Without an article, the summary, the figures and links to the catalogues |
 | Start | Attention map | A treemap of every changed line, shaded by risk, and a review-time budget |
-| Read | Guided tour | Chapters by design concept in reading order, each opening with its figures, then a strip naming the decisions and abstractions it introduces, then the terms it uses; code at every stop as the evidence, each naming what it is evidence for, setting out in full each decision and abstraction it is the first to show, its role in the design, why it is shaped this way, what breaks if it is wrong and what to check, with the lines that matter marked; invariants with the tests that pin them; a sign-off question per chapter |
+| Read | Guided tour | Chapters by design concept in reading order, each opening with its figures, then a strip naming the decisions, abstractions and domain terms it introduces; code at every stop as the evidence, each topped by a strip naming what it shows (the decisions, abstractions, invariants and risks it carries and the domain terms it uses), each opening in place and badged "new here" where the tour shows it first, then its role in the design, why it is shaped this way, what breaks if it is wrong and what to check, with the lines that matter marked; its invariants, risks, findings and tests one line each, each opening in place; a sign-off question per chapter |
 | Read | By commit | The All files navigator with each commit, in order, as a row holding the tree of the files it changes; the selected commit open and the rest folded. Beside it the commit's message and one of its files, or the whole commit, stepped through with `j`/`k` across commits and `J`/`K` between them; a verdict on a file within a commit reads only that commit's lines of it; lines marked one at a time, by block, by a file or a commit verdict, shared with All files and the tour; lines a later commit superseded shown but not counted |
 | Read | All files | A navigator of every changed file: a directory tree by default, or grouped by role, chapter, risk or change type; sorted by path, lines still to read, size, risk, reading order or first commit; narrowed by progress, verdict, role, risk, change, chapter, what mentions it, commit and a path search, each choice counted; each folder totalling what is read beneath it; each row edged, when asked for, in the colour of the highest risk in it; the list widened by dragging its edge. Files can be selected one at a time, by shift-click range or by folder, and given Reviewed, Skimmed or no verdict together, leaving any file with an Issue as it is, with Undo. Keyboard shortcuts (`?` lists them) move between files, chunks of changed lines and unread lines, mark a chunk or the rest of a file read, give verdicts, raise an issue noting the chunk, select, filter and move through the tree. Beside it, annotated diffs showing which changed lines are read and which are still to read, marked one at a time, by block or from the tour, the ledger, a commit or a file verdict, with the commits that changed each file |
 | Interact | Custom views | Whatever this PR needs: a simulator, a stepper, a state machine, an explorer |
@@ -35,10 +35,11 @@ Every item has an address, `#<view>/<item id>`: `#decisions/dec-cap-depth`,
 bar and any filters, outlined for a moment. Back returns a view to where it was
 scrolled; a new view opens at its top.
 
-A link to a decision, abstraction, invariant, risk or finding opens it in
-place rather than leaving the page: a popover beside the link on a wide
-screen, the card unfolded below its paragraph on a phone. The card carries its
-review control and a link to open it in its catalogue. Esc, Close, the link
+A link to a decision, abstraction, invariant, risk, finding, test or domain
+term opens it in place rather than leaving the page: a popover beside the link
+on a wide screen, the card unfolded below its paragraph on a phone. The card
+carries its review control, where it takes one, and a link to open it in its
+catalogue. Esc, Close, the link
 again or, for a popover, a click elsewhere closes it. A link to a stop or a
 chapter navigates.
 
@@ -67,6 +68,7 @@ rebuilding them. Paths are relative to the skill directory.
 | `assets/prose-references.js` | Turns a stop id or a chapter named in prose into a link to it, named by the stop's number and title or the chapter's title, inlined into every build |
 | `assets/item-addresses.js` | The address of a view and an item within it, `#<view>/<item id>`, inlined into every build |
 | `assets/verdict-marks.js` | Every review control's verdicts, the target each linked item's verdict is recorded under, and the mark a link carries for it, inlined into every build |
+| `assets/stop-terms.js` | Which domain terms each stop shows, read from its code and its text, the first stop that shows each, and which terms an abstraction already names, inlined into every build |
 | `assets/stop-evidence.js` | Which decisions, abstractions, invariants and risks each stop carries, and which stops show each of them, inlined into every build |
 | `assets/review-sections.js` | Which views the rail shows, in which of its five sections, and which route a retired hash now opens, inlined into every build |
 | `assets/readiness.js` | The readiness gates, each met, needing the reviewer or not met, worked out from the content and the reviewer's records, inlined into every build |
