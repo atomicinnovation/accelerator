@@ -213,7 +213,8 @@ impl ServingTurn for Turn<'_> {
             gate: self.gate,
             pacing: self.gate.service.pacing(),
             deadline,
-            reported: Cell::new(false),
+            unlocked: Reported::default(),
+            unreadable_state: Reported::default(),
         };
         let sent_at = call.sent()?;
         self.gate.log_request(sent_at);
@@ -231,7 +232,8 @@ struct PacedCall<'a> {
     gate: &'a FilePacingGate,
     pacing: Pacing,
     deadline: &'a Deadline,
-    reported: Cell<bool>,
+    unlocked: Reported,
+    unreadable_state: Reported,
 }
 
 impl PacedCall<'_> {
@@ -331,7 +333,10 @@ impl PacedCall<'_> {
         });
         locked
             .map_err(|error| {
-                self.report_once(&format!("{error}; pacing without the lock"));
+                self.unlocked.once(
+                    self.gate,
+                    &format!("{error}; pacing without the lock"),
+                );
             })
             .ok()
     }
@@ -347,11 +352,14 @@ impl PacedCall<'_> {
             .filter(|stored| stored.schema_version == SCHEMA_VERSION)
             .map_or_else(
                 || {
-                    self.report_once(&format!(
-                        "{} is not a pacing state this release reads; \
-                         counting it as no previous request",
-                        self.gate.scratch.path(STATE).display()
-                    ));
+                    self.unreadable_state.once(
+                        self.gate,
+                        &format!(
+                            "{} is not a pacing state this release reads; \
+                             counting it as no previous request",
+                            self.gate.scratch.path(STATE).display()
+                        ),
+                    );
                     PacingState::default()
                 },
                 PacingState::from,
@@ -368,10 +376,16 @@ impl PacedCall<'_> {
             self.gate.report(&error);
         }
     }
+}
 
-    fn report_once(&self, detail: &str) {
-        if !self.reported.replace(true) {
-            self.gate.report(detail);
+/// One kind of diagnostic, written at most once per paced call.
+#[derive(Default)]
+struct Reported(Cell<bool>);
+
+impl Reported {
+    fn once(&self, gate: &FilePacingGate, detail: &str) {
+        if !self.0.replace(true) {
+            gate.report(detail);
         }
     }
 }

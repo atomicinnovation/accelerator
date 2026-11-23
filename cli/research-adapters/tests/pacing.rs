@@ -429,6 +429,32 @@ fn a_corrupt_state_file_is_reported_once_per_paced_call() {
     assert!(reported[0].contains("pacing"), "{reported:?}");
 }
 
+#[test]
+fn an_unlockable_pacing_lock_and_a_corrupt_state_file_are_each_reported() {
+    let harness = Harness::new();
+    harness.scratch.mkdir(harness.state(StateFile::PacingLock));
+    harness
+        .scratch
+        .write(harness.state(StateFile::Pacing), "{not json");
+
+    harness.pass(None).expect("admitted");
+
+    let reported = harness.diagnostics.lines();
+    assert_eq!(reported.len(), 2, "{reported:?}");
+    assert!(
+        reported
+            .iter()
+            .any(|line| line.contains("pacing without the lock")),
+        "{reported:?}"
+    );
+    assert!(
+        reported
+            .iter()
+            .any(|line| line.contains("not a pacing state")),
+        "{reported:?}"
+    );
+}
+
 const PUBLIC: Service = Service::Crossref(CrossrefPool::Public);
 const POLITE: Service = Service::Crossref(CrossrefPool::Polite);
 
