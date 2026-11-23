@@ -212,6 +212,27 @@ fn listing_another_queue_never_changes_it() {
 }
 
 #[test]
+fn a_ticket_the_queue_issued_resumes_without_listing_any_other_queue() {
+    let harness = Harness::new();
+    let legacy = harness.scratch.legacy_arxiv_state(LegacyFile::Queue);
+    harness.scratch.write(&legacy, "not a directory");
+    let arxiv = harness.arxiv(true);
+    let issued = match arxiv.queue.join(&graphs(), None, &harness.deadline()) {
+        Joining::Queued(place) => place.ticket().clone(),
+        _ => panic!("a fresh call queues"),
+    };
+
+    let resumed =
+        arxiv
+            .queue
+            .join(&graphs(), Some(&issued), &harness.deadline());
+
+    assert!(matches!(resumed, Joining::Queued(_)));
+    drop(resumed);
+    assert_eq!(harness.diagnostics.lines(), Vec::<String>::new());
+}
+
+#[test]
 fn an_unlistable_foreign_queue_leaves_the_ticket_to_join_with_one_diagnostic() {
     let harness = Harness::new();
     let legacy = harness.scratch.legacy_arxiv_state(LegacyFile::Queue);

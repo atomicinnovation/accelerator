@@ -441,6 +441,7 @@ impl ServiceQueue for FileServiceQueue {
             }
         };
         let foreign = presented
+            .filter(|ticket| snapshot.record(ticket).is_none())
             .map(|_| self.foreign_tickets())
             .unwrap_or_default();
         let queue = self.queue_of(&snapshot, foreign);
