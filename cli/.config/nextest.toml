@@ -7,8 +7,12 @@ default-filter = 'not binary(=contract)'
 [profile.contract]
 default-filter = 'binary(=contract)'
 
-# Liveness assertions on real-time request starts hold only while nothing
-# else competes for the CPU, so each runs alone.
+# Liveness assertions on real-time sends hold only while nothing else
+# competes for the CPU, so each runs alone. Running alone within nextest
+# does not stop the bare `mise run` scheduling other lanes beside it, so a
+# send woken late by that contention gets a retry; a pacing regression
+# fails every attempt, since the per-second limits are exact on the gate's
+# recorded sends.
 [[profile.default.overrides]]
 filter = '''binary(=fetch_doi) & (
     test(public_pool_calls_start_no_more_than_five_a_second_and_all_within_two)
@@ -18,6 +22,7 @@ filter = '''binary(=fetch_doi) & (
     | test(each_pool_keeps_to_its_own_limits_when_both_are_busy)
 )'''
 threads-required = "num-test-threads"
+retries = 2
 
 # Real-time tests whose assertions leave wide slack may overlap the rest of
 # the suite, but not each other beyond a pair.

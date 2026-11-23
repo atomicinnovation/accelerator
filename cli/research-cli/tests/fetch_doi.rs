@@ -839,28 +839,38 @@ fn public_pool_calls_start_no_more_than_five_a_second_and_all_within_two() {
 
     let hits = hits_released_together(&project, &server, 10);
 
-    assert_public_limits(&hits);
-    assert_eq!(project.service_requests(PUBLIC).len(), 10);
+    assert_eq!(hits.len(), 10);
+    assert_public_limits(&sends(&project, PUBLIC));
 }
 
 const PUBLIC_INTERVAL: Duration = Duration::from_millis(210);
 const POLITE_INTERVAL: Duration = Duration::from_millis(102);
 
-fn assert_public_limits(hits: &[Instant]) {
-    assert_eq!(hits.len(), 10);
-    assert_at_most_per_second(hits, 5);
-    assert_spread_within(hits, Duration::from_secs(2), PUBLIC_INTERVAL);
+/// The sends `service`'s gate recorded, in order. Pacing confirms each
+/// send against the last one recorded, so the pools' limits hold exactly
+/// here; arrival at the server also carries each process's connection
+/// set-up, which the pacing intervals' margins absorb only in part.
+fn sends(project: &Project, service: Service) -> Vec<Duration> {
+    let mut stamps = project.service_requests(service);
+    stamps.sort_unstable();
+    stamps.into_iter().map(Duration::from_millis).collect()
 }
 
-fn assert_polite_limits(hits: &[Instant]) {
-    assert_eq!(hits.len(), 10);
-    assert_at_most_per_second(hits, 10);
-    assert_spread_within(hits, Duration::from_secs(1), POLITE_INTERVAL);
+fn assert_public_limits(sends: &[Duration]) {
+    assert_eq!(sends.len(), 10);
+    assert_at_most_per_second(sends, 5);
+    assert_spread_within(sends, Duration::from_secs(2), PUBLIC_INTERVAL);
 }
 
-fn assert_at_most_per_second(hits: &[Instant], limit: usize) {
-    for (index, start) in hits.iter().enumerate() {
-        let in_window = hits[index..]
+fn assert_polite_limits(sends: &[Duration]) {
+    assert_eq!(sends.len(), 10);
+    assert_at_most_per_second(sends, 10);
+    assert_spread_within(sends, Duration::from_secs(1), POLITE_INTERVAL);
+}
+
+fn assert_at_most_per_second(sends: &[Duration], limit: usize) {
+    for (index, start) in sends.iter().enumerate() {
+        let in_window = sends[index..]
             .iter()
             .take_while(|later| **later - *start < Duration::from_secs(1))
             .count();
@@ -873,10 +883,14 @@ fn assert_at_most_per_second(hits: &[Instant], limit: usize) {
 
 /// Reports the slack left after the paced gaps, and the largest hand-off
 /// overhead beyond one interval, so drift shows before it flakes.
-fn assert_spread_within(hits: &[Instant], limit: Duration, interval: Duration) {
-    let last = hits.len() - 1;
-    let spread = hits[last] - hits[0];
-    let largest_gap = hits
+fn assert_spread_within(
+    sends: &[Duration],
+    limit: Duration,
+    interval: Duration,
+) {
+    let last = sends.len() - 1;
+    let spread = sends[last] - sends[0];
+    let largest_gap = sends
         .windows(2)
         .map(|pair| pair[1] - pair[0])
         .max()
@@ -1087,8 +1101,8 @@ fn polite_pool_calls_all_start_within_a_second() {
         .pop()
         .expect("one wave");
 
-    assert_polite_limits(&hits);
-    assert_eq!(project.service_requests(POLITE).len(), 10);
+    assert_eq!(hits.len(), 10);
+    assert_polite_limits(&sends(&project, POLITE));
 }
 
 #[test]
@@ -1101,7 +1115,9 @@ fn polite_pool_calls_start_no_more_than_ten_a_second() {
         .expect("one wave");
 
     assert_eq!(hits.len(), 21);
-    assert_at_most_per_second(&hits, 10);
+    let sent = sends(&project, POLITE);
+    assert_eq!(sent.len(), 21);
+    assert_at_most_per_second(&sent, 10);
 }
 
 #[test]
@@ -1120,8 +1136,8 @@ fn an_implausible_contact_keeps_calls_to_the_public_limits() {
     .pop()
     .expect("one wave");
 
-    assert_public_limits(&hits);
-    assert_eq!(project.service_requests(PUBLIC).len(), 10);
+    assert_eq!(hits.len(), 10);
+    assert_public_limits(&sends(&project, PUBLIC));
     assert_eq!(project.service_requests(POLITE).len(), 0);
 }
 
@@ -1150,10 +1166,9 @@ fn each_pool_keeps_to_its_own_limits_when_both_are_busy() {
         ],
     );
 
-    assert_polite_limits(&hits[0]);
-    assert_public_limits(&hits[1]);
-    assert_eq!(project.service_requests(POLITE).len(), 10);
-    assert_eq!(project.service_requests(PUBLIC).len(), 10);
+    assert_eq!(hits.iter().map(Vec::len).collect::<Vec<_>>(), [10, 10]);
+    assert_polite_limits(&sends(&project, POLITE));
+    assert_public_limits(&sends(&project, PUBLIC));
 }
 
 fn largest_overlap(hits: &[Instant], in_flight_for: Duration) -> usize {
