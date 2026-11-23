@@ -6032,6 +6032,96 @@ fn a_preview_leaves_an_ordered_create_to_its_order() -> Result<(), TestError> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy)]
+enum OrderedShape {
+    AdoptingCreate,
+    RecreatingCreate,
+    Relink,
+}
+
+impl OrderedShape {
+    const ALL: [Self; 3] =
+        [Self::AdoptingCreate, Self::RecreatingCreate, Self::Relink];
+
+    fn item(self, fixture: &Fixture) -> Result<LocalItem, TestError> {
+        match self {
+            Self::Relink => Ok(unconfirmed_link(fixture)?.0),
+            Self::AdoptingCreate | Self::RecreatingCreate => {
+                Ok(fixture.unsynced_item("0001", "Draft one")?)
+            }
+        }
+    }
+
+    fn order(self) -> PendingPushOrder {
+        match self {
+            Self::AdoptingCreate => adopt("ENG-7"),
+            Self::RecreatingCreate => PendingPushOrder::Create,
+            Self::Relink => adopt("ENG-8"),
+        }
+    }
+
+    fn row(self, report: &RunReport) -> &ReportedItem {
+        match self {
+            Self::Relink => relink_row(report),
+            Self::AdoptingCreate | Self::RecreatingCreate => {
+                only_row(report, "0001")
+            }
+        }
+    }
+}
+
+#[test]
+fn an_ordered_work_file_with_an_unclosed_fence_fails_only_on_the_run(
+) -> Result<(), TestError> {
+    for shape in OrderedShape::ALL {
+        for mode in [RunMode::Preview, RunMode::Apply] {
+            let fixture = Fixture::new()?;
+            let item = shape.item(&fixture)?;
+            std::fs::write(&item.path, "---\nid: \"0001\"\ntitle: Draft\n")?;
+            let tracker = two_issues();
+            let author = RecordingAuthor::new(fixture.dir.path());
+            let orders = orders(&[("0001", shape.order())]);
+
+            let report = run_ordered(
+                &fixture,
+                &tracker,
+                &author,
+                OrderedRun {
+                    mode,
+                    ..OrderedRun::over(std::slice::from_ref(&item), &orders)
+                },
+            )?;
+
+            let outcome = &shape.row(&report).outcome;
+            if matches!(mode, RunMode::Preview) {
+                assert!(
+                    matches!(outcome, ItemOutcome::NotApplied),
+                    "{shape:?}"
+                );
+            } else {
+                let error = match outcome {
+                    ItemOutcome::Failed(error) => Some(error),
+                    _ => None,
+                }
+                .expect("the run fails the work file");
+                assert_eq!(
+                    error.class(),
+                    FailureClass::Unparseable,
+                    "{shape:?}: {error}"
+                );
+                assert_eq!(
+                    error.operation(),
+                    SyncOperation::ParseLocal,
+                    "{shape:?}: {error}"
+                );
+            }
+            assert_nothing_sent(&tracker, &author);
+            assert_no_pending_push_touched(&fixture);
+        }
+    }
+    Ok(())
+}
+
 /// Each dossier with its file's modification time reduced to whether it was
 /// read, so dossiers from fixtures written moments apart compare equal.
 fn dossier_shapes(report: &RunReport) -> Vec<ConflictDossier> {
