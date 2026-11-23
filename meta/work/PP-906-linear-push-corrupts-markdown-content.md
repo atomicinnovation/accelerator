@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-880", "work-item:PP-760", "work-item:PP-876", "work-item:PP-907", "work-item:PP-885"]
 tags: ["sync", "linear", "bug", "markdown"]
-last_updated: "2026-11-23T18:30:00+00:00"
+last_updated: "2026-11-24T00:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-906"
@@ -31,8 +31,10 @@ markdown: a number alone on a wrapped line inside a list item becomes an
 ordered list, and bare dotted tokens such as `server.pid` become links.
 Local work items are hard-wrapped at 80 columns and name files freely, so
 every push risks these rewrites, and PP-880's equivalence treats them as real
-differences. Push will escape both constructs so that Linear reads them as
-plain text, leaving local files unchanged.
+differences. Every description sent to Linear will escape both constructs
+so that Linear reads them as plain text, leaving local files unchanged, and
+every push will warn when the tracker stores a body that no longer means
+what was sent.
 
 ## Context
 
@@ -100,9 +102,10 @@ The unescaped capture is `linear-rewrites/pushed.md` and its
 
 **Required behaviour**
 
-Push passes every body through an escaper before sending it. The escaper
+Every description sent to Linear passes through an escaper. The escaper
 walks the parsed text and applies two rules, the digit rule and the
-dotted-token rule.
+dotted-token rule. Should an escape ever change the CommonMark reading of
+the body, the escaper sends the body unescaped instead.
 
 - Digit rule: push escapes `<digits>.` as `<digits>\.` and `<digits>)` as
   `<digits>\)`, for one or more digits with no upper bound, where they are the
@@ -137,34 +140,62 @@ dotted-token rule.
   is not a scheme URL and stays subject to the dotted-token rule.
 - Escaping works on parsed text, never on raw markdown: text inside code
   spans, fenced or indented code, link text, link destinations, angle-bracket
-  autolinks and raw HTML is never escaped, and an escape already present is
-  never escaped again.
-- Every path that sends a local work item's body to Linear escapes:
-  `work create --push`, `work update --push`, the `sync` update, the `sync`
-  create of an unsynced item (the pending-push create PP-760 added), and
-  draft promotion (its create and its retitling update). Adoption sends no
-  body and is unaffected.
+  autolinks, HTML blocks and HTML tags is never escaped, and an escape
+  already present is never escaped again. Text between inline HTML tags is
+  Markdown text, where `\.` renders as `.`, and is escaped like any other.
+- The escape is Linear's Markdown dialect, applied where a description
+  becomes a Linear request, as Jira's client converts Markdown to ADF. Every
+  path that sends a description to Linear escapes: `work create --push`,
+  `work update --push`, the `sync` update, the `sync` create of an unsynced
+  item (the pending-push create PP-760 added), draft promotion (its create
+  and its retitling update), and the raw `accelerator linear create` (both
+  its work-item-file mode and `--title`/`--body-file`) and `accelerator
+  linear update` (`--description` and `--body-file`). Adoption sends no body
+  and is unaffected.
+- `accelerator linear create` and `update` gain `--verbatim`, which sends the
+  description exactly as given, so that captures can push unescaped bodies.
 - A pushed body read back from Linear is equivalent, under PP-880's
   definition, to the local body.
 - A remote description already corrupted is repaired by pushing its item
   with `accelerator work update <path> --push` and no other flags, which
   sends the escaped body whatever the baseline records and leaves the local
   file byte-identical; there is no bulk rewrite.
-- `accelerator linear update` gains `--body-file <path>`, sent verbatim like
-  `accelerator linear create --body-file`, so that captures can update an
-  issue with an unescaped or hand-escaped body. It conflicts with
-  `--description`.
+- `accelerator linear update` gains `--body-file <path>`, giving it the same
+  file input as `accelerator linear create`, `jira update` and `shortcut
+  update`. It is escaped like `--description`, and conflicts with it.
+- After every body push, to any tracker, the remote body read back is judged
+  against the body sent under PP-880's equivalence. When they differ, the
+  push reports a notice naming the item, the differing sections and each
+  changed line whose meaning differs, as sent and as stored (cosmetic
+  re-serialisations are left out), printed
+  as `warning: <id or path>: rewritten on push: <sections>` with a
+  `note:` lines saying the local file is unchanged, how to keep the meaning
+  now (backticks or rewording, then a push) and where to report it; the
+  baseline digests are recorded as before and the exit code is unchanged.
+  A verdict comes only from a read-back that directly follows a push
+  that landed in the same run; a promotion reports its last such verdict.
+- The item's baseline entry keeps a `rewritten_on_push` mark until a push is
+  stored faithfully, a pull brings the local file into agreement, or a sync
+  finds the local and remote bodies equivalent (for example after the
+  description is fixed by hand). `work list` shows it, and every later sync
+  repeats the notice. A title-only retitle or a create that reuses an
+  earlier run's issue sends no body and is not judged. The mark keeps at
+  most five changed lines of bounded length, and a create that relinks an
+  item to a new issue starts unmarked.
 
 **Out of scope**
 
 - The cosmetic re-serialisations PP-880 absorbs, including code-span
   indentation (`X07`, `X08`), which matches the CommonMark reading.
-- Jira.
-- Shortcut. Its parser has not been checked for the same rewrites.
+- Escaping for Jira.
+- Escaping for Shortcut. Its parser has not been checked for the same
+  rewrites.
 - Any change to local files.
-- Escaping in the raw `accelerator linear create` and `update` commands,
-  which keep sending bodies verbatim so that captures can push unescaped
-  bodies.
+- Escaping comments. `accelerator linear comment add` also sends Markdown,
+  but no capture shows whether Linear rewrites comments; a follow-up item
+  decides.
+- Changing the digests the baseline records, or sync's decisions, when a
+  push is read back rewritten.
 - The code-span table-cell damage PP-880 attributed to this item on PP-714
   (alias 0184). Its remote was repaired on 2026-10-15 and read back intact
   on 2026-11-23, and a verbatim push of the same table did not reproduce it,
@@ -217,8 +248,13 @@ Escaper output, tested in CI:
       the same markup.
 - [ ] Given `0160.` or `crates.io` inside a code span, a fenced block, an
       indented code block, link text, a link destination, an angle-bracket
-      autolink (`<https://crates.io>`) or raw HTML, when the body is escaped
-      for push, then it is sent unchanged.
+      autolink (`<https://crates.io>`), an HTML block or an HTML tag's
+      attributes, when the body is escaped for push, then it is sent
+      unchanged.
+- [ ] Given `<span>crates.io</span>`, when it is escaped for push, then it
+      is sent as `<span>crates\.io</span>`.
+- [ ] Given an escape that would change the CommonMark reading of the body,
+      when the body is escaped for push, then the body is sent unescaped.
 - [ ] Given a local body that already contains `crates\.io` or `0160\.`,
       when it is escaped for push, then the body sent is unchanged.
 - [ ] Given each fragment of the unescaped capture, when its escaped form is
@@ -236,14 +272,22 @@ Escaper output, tested in CI:
       and no other flags, then the escaped body is sent and the local file
       is byte-identical to the file before the push.
 - [ ] Given the same body, when it is sent with `accelerator linear create
-      --body-file` or `accelerator linear update --body-file`, then it is
-      sent unchanged.
+      <work-item-file>`, `accelerator linear create --body-file`, or
+      `accelerator linear update` with `--description` or `--body-file`,
+      then the escaped body is sent; with `--verbatim` added, it is sent
+      unchanged.
 - [ ] Given `accelerator linear update` with both `--body-file` and
       `--description`, when it runs, then it exits with a usage error and
       sends nothing.
 - [ ] Given the same body, when it is pushed through `work create --push`,
       `work update --push` and the `sync` update to a Jira or Shortcut
       recording tracker, then it is sent unchanged.
+- [ ] Given a push to any tracker whose read-back is not equivalent to the
+      local body, when it completes, then it warns naming the item and the
+      differing sections, records the baseline, marks the entry
+      `rewritten_on_push`, and exits as it would without the notice; a
+      read-back equivalent to the body sent gives no notice and clears the
+      mark.
 - [ ] Given each fragment of the unescaped capture, when it is escaped for
       push, then the output is byte-identical to its fragment in
       `escaped/pushed.md`.
@@ -348,21 +392,20 @@ Assumptions.
 
 ## Technical Notes
 
-- Every work-item push reaches Linear through `impl RemoteTracker for
-  LinearClient`'s `create` and `update` (`cli/linear-client/src/client.rs`),
-  which forward the body unchanged to `create_op` and `update_op`. The raw
-  `accelerator linear` commands call `create_op` and `update_op` directly.
-  Escaping in the two trait methods therefore covers every push path and
-  leaves the raw commands verbatim; Jira likewise converts its body in its
-  client, not in its `BodyDialect`.
+- Every description reaches Linear through `LinearClient`'s `create_op` and
+  `update_op` (`cli/linear-client/src/client.rs`): `impl RemoteTracker for
+  LinearClient` forwards to them, and the raw `accelerator linear` commands
+  call them directly. Escaping there covers every path, as Jira converts its
+  body in its client's `create_op` and `update_op`, not in its
+  `BodyDialect`.
 - `BodyDialect::as_pushed` can stay identity for Linear: an escape resolves
   away in the parse, and Linear reads the escaped text back without the
   backslash, so the canonical body and every digest are unchanged.
 - Only the `document` and `markdown` crates may depend on `pulldown-cmark`
   (`cli/deny.toml`). The escaper fits as `markdown::linear` beside PP-885's
   `markdown::github`, reusing its offset splicing and `continuation_start`,
-  but with `document::markdown`'s extension set (tables, task lists,
-  strikethrough), not `markdown::github`'s.
+  and reads Markdown through `document::markdown::events`, so it sees
+  exactly what PP-880's equivalence sees.
 - No test yet pins how `pulldown-cmark` ranges `Text` events around a
   backslash escape; the dotted-token rule depends on it.
 - `RecordingTracker` stands in for the whole `RemoteTracker`, so it never
@@ -377,9 +420,10 @@ Assumptions.
 - Linear's serialisation carries escapes such as `0160\.` (`R11`), and a
   pull writes it into the local file; a text-level escaper would turn these
   into `0160\\.`, a literal backslash.
-- If Linear widens its linkifier, a newly linked token surfaces as a conflict
-  on the item's next sync; the fix is a new capture fragment and a refresh
-  of the TLD snapshot.
+- If Linear widens its linkifier, a newly linked token is still agreed into
+  the baseline, so it never surfaces as a sync conflict; the post-push
+  read-back notice reports it, and the baseline mark keeps it visible. The fix is a new capture fragment, a refresh
+  of the TLD snapshot and a re-push.
 - The corrupted bodies were found by diffing local bodies against `accelerator
   linear show` descriptions after PP-880's normalisation.
 
@@ -394,7 +438,15 @@ Assumptions.
   remove a link a reader expects.
 - Dotted-token escaping matches Linear's linkifier rather than escaping every
   inner `.`, keeping Linear's stored markdown free of needless escapes at the
-  cost of a capture and of drift surfacing as conflicts.
+  cost of a capture and of drift, which the post-push read-back warning
+  reports.
+- On 2026-11-23, planning moved the escape from the `RemoteTracker` methods
+  to `create_op` and `update_op`, so every CLI path sending a description to
+  Linear behaves alike, as Jira's ADF conversion does; `--verbatim` replaced
+  "raw commands stay verbatim" as the capture escape hatch. The read-back
+  warning and the unescaped fallback were added because push baselining
+  otherwise hides any escaper miss; the notice is an item notice rather
+  than a failure, and the baseline mark persists it until resolved.
 - On 2026-11-23 PP-180, PP-733, PP-860 and PP-870 were repaired by hand:
   each local body, with only the rewritten tokens escaped, was sent with
   `accelerator linear update --title … --description …`, then a targeted
