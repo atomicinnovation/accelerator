@@ -891,7 +891,10 @@ mod in_a_real_repository {
             match vcs {
                 Vcs::Git => {
                     assert_git_is_recent_enough()?;
-                    env.git(&["init", "--quiet"], template.root())?;
+                    env.git(
+                        &["init", "--quiet", "--template="],
+                        template.root(),
+                    )?;
                 }
                 Vcs::Jj => {
                     assert_jj_matches("0.43.0")?;
@@ -908,6 +911,19 @@ mod in_a_real_repository {
         ) -> Result<Self, TestError> {
             seed(&self.template)?;
             commit_everything(self.vcs, &self.template, &self.env)?;
+            Ok(self)
+        }
+
+        /// Packs the objects a copy would otherwise clone one by one.
+        fn packed(self) -> Result<Self, TestError> {
+            let git_dir = match self.vcs {
+                Vcs::Git => ".git",
+                Vcs::Jj => ".jj/repo/store/git",
+            };
+            self.env.git(
+                &["--git-dir", git_dir, "repack", "-a", "-d", "-q"],
+                self.template.root(),
+            )?;
             Ok(self)
         }
 
@@ -1006,7 +1022,9 @@ mod in_a_real_repository {
     fn the_kill_tests_copied_repository_matches_one_built_from_scratch(
     ) -> Result<(), TestError> {
         each_of(2, Vcs::ALL, |vcs| -> Result<(), TestError> {
-            assert_copy_matches_a_fresh_build(|| Committed::build(vcs))?;
+            assert_copy_matches_a_fresh_build(|| {
+                Committed::build(vcs)?.packed()
+            })?;
             Ok(())
         })
     }
@@ -1016,7 +1034,9 @@ mod in_a_real_repository {
     ) -> Result<(), TestError> {
         each_of(1, [Vcs::Git], |vcs| -> Result<(), TestError> {
             let copied = assert_copy_matches_a_fresh_build(|| {
-                Committed::build(vcs)?.then_committing(seed_synced_only)
+                Committed::build(vcs)?
+                    .then_committing(seed_synced_only)?
+                    .packed()
             })?;
 
             assert_eq!(copied.commits.len(), 2);
@@ -1054,7 +1074,7 @@ mod in_a_real_repository {
         let halts = mutations_of_a_whole_run()?;
         let templates = Vcs::ALL
             .into_iter()
-            .map(Committed::build)
+            .map(|vcs| Committed::build(vcs)?.packed())
             .collect::<Result<Vec<_>, _>>()?;
         let passes = templates
             .iter()
@@ -1084,8 +1104,9 @@ mod in_a_real_repository {
     fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
     ) -> Result<(), TestError> {
         let halts = mutations_of_a_whole_run_over(seed_synced_only)?;
-        let template =
-            Committed::build(Vcs::Git)?.then_committing(seed_synced_only)?;
+        let template = Committed::build(Vcs::Git)?
+            .then_committing(seed_synced_only)?
+            .packed()?;
         let (mut checked, mut skipped) = (0, 0);
         each_of(halts, 0..halts, |at| -> Result<(), TestError> {
             let (repo, _env) = template.fresh_copy()?;
