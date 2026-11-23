@@ -1,6 +1,8 @@
 ---
 type: "work-item"
-id: "draft-tdjepd"
+id: "PP-991"
+external_id: "PP-991"
+aliases: ["draft-tdjepd"]
 title: "Apply the Design Crawl's Request Policy to Every Target and Initiator"
 date: "2026-11-22T12:15:57+00:00"
 author: "Toby Clemson"
@@ -14,7 +16,7 @@ last_updated: "2026-11-22T12:15:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
-# draft-tdjepd: Apply the Design Crawl's Request Policy to Every Target and Initiator
+# PP-991: Apply the Design Crawl's Request Policy to Every Target and Initiator
 
 **Kind**: Story
 **Status**: Draft
