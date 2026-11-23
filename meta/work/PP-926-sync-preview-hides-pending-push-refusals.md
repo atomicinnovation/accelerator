@@ -48,8 +48,8 @@ of `creates_from_local` is reported `NotApplied`
 run). Only the apply path evaluates `push_precondition`
 (`create_from_local` in `cli/work-adapters/src/sync/apply.rs`).
 
-This item covers a *bare create*: a create-from-local with no `--resolve`
-order. A create carrying a `--resolve <id>=adopt:<KEY>` or
+This item covers an *unordered create*: a create-from-local with no
+`--resolve` order. A create carrying a `--resolve <id>=adopt:<KEY>` or
 `--resolve <id>=create` order goes through `settle_order`, which the preview
 does not check either. Its local refusals belong with 0379's per-entry
 preview strategy and are out of scope here.
@@ -73,19 +73,19 @@ Expected: the preview reports the refusal the apply run would meet.
 
 Changes:
 
-- For each bare create, the preview reads the item's marker the way the apply
-  run does, including distrusting a marker that version control tracks or that
-  records a key the tracker could not have issued, and evaluates it with the
-  same precondition and key-carrier check.
+- For each unordered create, the preview reads the item's marker the way the
+  apply run does, including distrusting a marker that version control tracks or
+  that records a key the tracker could not have issued, and evaluates it with
+  the same precondition and key-carrier check.
 - A refusal is reported as the apply run reports it, with `failed` read as
   `would fail`: the row `<id>\tfailed\tunsynced\tterminal` and the stderr line
   `error: <id>: create would fail: pending push refused (<reason>): <detail>`,
   where `<detail>`, including any remedy hint, is the apply run's text.
 - A reusable `Created` marker whose reuse the apply run would defer because the
   corpus is incomplete is reported as the failure the apply run reports.
-- A bare create whose work file cannot be read or parsed, which the apply run
-  fails before it reads the marker, is reported as the failure the apply run
-  reports.
+- An unordered create whose work file cannot be read or parsed, which the
+  apply run fails before it reads the marker, is reported as the failure the
+  apply run reports.
 - A reusable `Created` marker the apply run would link previews exactly as the
   apply run reports it.
 - The preview's exit code follows the apply run's precedence,
@@ -135,10 +135,10 @@ directory has identical entries and bytes before and after the preview.
 - [ ] Given a reusable `Created` marker and a corpus with an unreadable work
       file, when a preview runs, then it reports the same `failed` row, error
       line and exit code as the apply run on a copy of the same fixture.
-- [ ] Given a bare create whose work file is undecodable or has frontmatter
-      that cannot be parsed, when a preview runs, then it reports the same
-      `failed` row, error line and exit code as the apply run on a copy of the
-      same fixture.
+- [ ] Given an unordered create whose work file is undecodable or has
+      frontmatter that cannot be parsed, when a preview runs, then it reports
+      the same `failed` row, error line and exit code as the apply run on a copy
+      of the same fixture.
 - [ ] Given a reusable `Created` marker and a complete corpus, when a preview
       runs, then the row is `<id>\tcreate-from-local\tunsynced\t-`, stderr has
       no `error: <id>:` line, and it exits 0.

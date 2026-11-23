@@ -21,20 +21,20 @@ schema_version: 1
 
 ## Overview
 
-`accelerator work sync --preview` reports every create-from-local as not
-applied without reading its pending-push marker, so it shows a clean create for
-an item the run will refuse. This plan moves the run's decision for a bare
-create into one function that the run and the preview both call. The preview
-then reports the run's failure in the run's words and returns the run's exit
-code. After that, the `/sync-work-items` skill's manual workaround is retired.
+`accelerator work sync --preview` reports every create-from-local as not applied
+without reading its pending-push marker, so it shows a clean create for an item
+the run will refuse. This plan moves the run's decision for an unordered create
+into one function that the run and the preview both call. The preview then
+reports the run's failure in the run's words and returns the run's exit code.
+After that, the `/sync-work-items` skill's manual workaround is retired.
 
 The work lands as one PR, in three phases. Each phase leaves the full suite
 green.
 
 ## Current State Analysis
 
-- A bare create is an unsynced item planned as a `Noop` with no `--resolve`
-  order (`create.planned.order().is_none()`). Only this path calls
+- An unordered create is an unsynced item planned as a `Noop` with no
+  `--resolve` order (`create.planned.order().is_none()`). Only this path calls
   `push_precondition` directly.
 - A create with a `--resolve` order, and a relink, go through `settle_order`.
   Its `order_precondition` calls `push_precondition`
@@ -102,13 +102,13 @@ green.
 
 ## Desired End State
 
-For every bare create, the preview reports exactly what the run would report
-for that item: the `failed` row, the error line (with `failed` read as `would
-fail`), and the exit code. The preview never touches `pending-push/`. With no
-marker, or with a reusable `Created` marker over a complete corpus, the preview
-output is unchanged. Creates with a `--resolve` order and relinks preview
-exactly as today. The skill, the CLI help, the user guide and the changelog
-describe the new behaviour.
+For every unordered create, the preview reports exactly what the run would
+report for that item: the `failed` row, the error line (with `failed` read as
+`would fail`), and the exit code. The preview never touches `pending-push/`.
+With no marker, or with a reusable `Created` marker over a complete corpus, the
+preview output is unchanged. Creates with a `--resolve` order and relinks
+preview exactly as today. The skill, the CLI help, the user guide and the
+changelog describe the new behaviour.
 
 Verify with `mise run` (the full default task) exiting 0, plus the manual
 reproduction below.
@@ -125,12 +125,12 @@ reproduction below.
 - `ItemAttempt::finish` leaves `PendingPushRefused` and `CorpusIncomplete`
   unchanged, because nothing has landed (`attempt.rs:189-230`). The error the
   decision returns is therefore exactly what the run reports.
-- A bare create's item has no `external_id`, so the run's leftover-marker
+- An unordered create's item has no `external_id`, so the run's leftover-marker
   removal (`leftover_attempts`, `run.rs:2413`) never reaches its marker. The
   preview can skip that step without splitting the modes.
-- A bare create row's dossier shape is `NotInConflict` whatever its outcome
-  (`cli/work-adapters/src/sync/dossiers.rs:93`). A `Failed` outcome touches no
-  dossier.
+- An unordered create row's dossier shape is `NotInConflict` whatever its
+  outcome (`cli/work-adapters/src/sync/dossiers.rs:93`). A `Failed` outcome
+  touches no dossier.
 - At engine level, `run_ordered` with `OrderedRun { mode: RunMode::Preview, ..
   }` (`cli/work-adapters/tests/sync_create.rs:3409-3487`) can set the mode,
   unusable files and marker tracking. Its `integration_state` port is the
@@ -149,7 +149,7 @@ reproduction below.
 - Matching the run where identity settlement moves a key this run. The run
   rewrites a followed item's `external_id` from its old key to its new one
   before rediscovering the corpus; the preview does not, and `SettledView`
-  follows only new keys. So when a bare create's digest-matching `Created`
+  follows only new keys. So when an unordered create's digest-matching `Created`
   marker records the old key of an item followed away this run, the preview
   still finds that item carrying the key and reports `already-written` (exit
   71), while the run finds no carrier and links the old key. The preview's
@@ -172,8 +172,8 @@ reproduction below.
    reading made at the call site. Lift the input gathering out of
    `apply_local_create` into a type both paths build. This is a refactor that
    the existing `sync_create.rs` tests protect.
-2. Make the preview call that function for each bare create, test first: the
-   failing engine-level and CLI-level tests come before the change.
+2. Make the preview call that function for each unordered create, test first:
+   the failing engine-level and CLI-level tests come before the change.
 3. Retire the workaround text and record the fix.
 
 The decision takes the whole `CreateFromLocalRequest`, although it reads only
@@ -198,7 +198,7 @@ lives.
 
 ---
 
-## Phase 1: One Decision for a Bare Create
+## Phase 1: One Decision for a Unordered Create
 
 ### Overview
 
@@ -208,7 +208,7 @@ an `ItemApplier`.
 
 ### Changes Required:
 
-#### 1. Marker reading and the bare-create decision
+#### 1. Marker reading and the unordered-create decision
 
 **File**: `cli/work-adapters/src/sync/apply.rs`
 **Changes**:
@@ -343,11 +343,11 @@ impl LocalCreateInputs {
 
 ---
 
-## Phase 2: The Preview Evaluates Each Bare Create
+## Phase 2: The Preview Evaluates Each Unordered Create
 
 ### Overview
 
-For each bare create, the preview gathers the create's inputs, reads its
+For each unordered create, the preview gathers the create's inputs, reads its
 marker and calls `unordered_create_decision`. It reports an `Err` as the failed
 row, and anything else as not applied. The tests below come first. Red tests
 fail until the preview branch changes. Guard tests pass throughout and protect
@@ -653,7 +653,7 @@ turns a retryable signal into one that must not be retried:
       pending-push refusal) and points to the recovery skill's pending-push
       recovery, without reading the marker itself.
 - [ ] Before merging, check whether 0377 has landed. If it has, update its
-      pinned preview row expectations for a bare create with a refused
+      pinned preview row expectations for an unordered create with a refused
       marker. If it has not, note on PR #224 that 0377 must pin the new row.
 
 ---
@@ -700,7 +700,7 @@ turns a retryable signal into one that must not be retried:
 
 ## Performance Considerations
 
-The preview now reads each bare create's work file and marker once. This is
+The preview now reads each unordered create's work file and marker once. This is
 the same work the run already does, so a preview's cost moves towards the
 run's. The new work makes no tracker calls.
 

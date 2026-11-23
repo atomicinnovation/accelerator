@@ -182,15 +182,15 @@ records this under both Fixed and Breaking.
 - **Departures from the plan:**
   - `settle_order` derives the digest itself, because clippy rejected the
     owned `String` parameter (`needless_pass_by_value`).
-  - `LocalCreate::route()` replaces the plan's `is_bare()`, and the
-    decision is `unordered_create_decision`, named by the order vocabulary
+  - `LocalCreate::route()` replaces the `is_bare()` the plan first proposed, and
+    the decision is `unordered_create_decision`, named by the order vocabulary
     rather than "bare".
   - The CLI comparison uses invalid frontmatter YAML, not an unclosed
     fence. In a full run, an unclosed fence is reported as an
     unidentified work file before any create is planned. The engine test
     still covers the unclosed fence.
 - **0377 and 0379** are both drafts on `main`, so this PR lands first.
-  - 0377 should pin the new `failed` row for a bare create with a refused
+  - 0377 should pin the new `failed` row for an unordered create with a refused
     marker.
   - 0379 should move `previewed_outcome` into the create's preview
     strategy.
