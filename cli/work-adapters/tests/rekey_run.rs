@@ -1052,14 +1052,19 @@ mod in_a_real_repository {
     fn a_run_killed_at_every_write_resumes_over_its_own_writes(
     ) -> Result<(), TestError> {
         let halts = mutations_of_a_whole_run()?;
-        let passes = Vcs::ALL
+        let templates = Vcs::ALL
             .into_iter()
-            .flat_map(|vcs| (0..halts).map(move |at| (vcs, at)));
+            .map(Committed::build)
+            .collect::<Result<Vec<_>, _>>()?;
+        let passes = templates
+            .iter()
+            .flat_map(|template| (0..halts).map(move |at| (template, at)));
         each_of(
             Vcs::ALL.len() * halts,
             passes,
-            |(vcs, at)| -> Result<(), TestError> {
-                let (repo, _env) = committed(vcs)?;
+            |(template, at)| -> Result<(), TestError> {
+                let vcs = template.vcs;
+                let (repo, _env) = template.fresh_copy()?;
                 halt_at(&repo, at)?;
                 let mutations = Mutations::new(Fault::Never);
                 let ports = Ports::new(&repo, &mutations);
@@ -1079,9 +1084,11 @@ mod in_a_real_repository {
     fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
     ) -> Result<(), TestError> {
         let halts = mutations_of_a_whole_run_over(seed_synced_only)?;
+        let template =
+            Committed::build(Vcs::Git)?.then_committing(seed_synced_only)?;
         let (mut checked, mut skipped) = (0, 0);
         each_of(halts, 0..halts, |at| -> Result<(), TestError> {
-            let (repo, _env) = five_files_committed()?;
+            let (repo, _env) = template.fresh_copy()?;
             halt_at(&repo, at)?;
             let unreached = repo.read(SYNCED).is_some()
                 && repo.read(SYNCED_ONLY).as_deref() == Some("See PP-760.\n");
