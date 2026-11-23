@@ -1342,7 +1342,9 @@ other pool: its re-presented ticket joins afresh, and a diagnostic names the
 pool that issued it.
 
 The address is sent in the `User-Agent` header, never in a URL. It is not a
-secret, so it may be committed in `config.md` for the whole team.
+secret, so it may be committed in `config.md` for the whole team. An address
+in `config.md` goes out on every collaborator's calls, so put a personal one
+in `config.local.md` or `ACCELERATOR_CROSSREF_MAILTO`.
 
 Example `config.md`:
 
