@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-880", "work-item:PP-760", "work-item:PP-876", "work-item:PP-907", "work-item:PP-885"]
 tags: ["sync", "linear", "bug", "markdown"]
-last_updated: "2026-11-23T15:20:00+00:00"
+last_updated: "2026-11-23T18:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-906"
@@ -30,7 +30,7 @@ Linear's parsing of a pushed `description` changes the meaning of two kinds of
 markdown: a number alone on a wrapped line inside a list item becomes an
 ordered list, and bare dotted tokens such as `server.pid` become links.
 Local work items are hard-wrapped at 80 columns and name files freely, so
-every push risks these rewrites, and PP-880's equivalence reports them as real
+every push risks these rewrites, and PP-880's equivalence treats them as real
 differences. Push will escape both constructs so that Linear reads them as
 plain text, leaving local files unchanged.
 
@@ -47,17 +47,21 @@ interrupt a paragraph only when it starts at `1`, and never links a bare
 domain-shaped token. Both rewrites can be prevented by escaping that is
 invisible to a CommonMark reader, so the fix belongs on the push side.
 
-Until then, every item whose remote body carries a rewrite stays conflicted
-on each sync (PP-880 defers PP-180, PP-733, PP-860 and PP-870 to this item),
-and its Linear description shows a stray list or links to hosts that do not
-exist.
+Until then, a pushed rewrite usually goes unnoticed. The sync that pushes an
+item records Linear's read-back as the remote baseline, so the item reports
+`synced` while its Linear description shows a stray list or links to hosts
+that do not exist. Sync never pushes such an item again on its own, and
+`--resolve` refuses it because it is not in conflict. PP-880 deferred
+PP-180, PP-733, PP-860 and PP-870 to this item; on 2026-11-23 all four
+reported `synced` with their rewrites still in Linear, and were repaired by
+hand (see Drafting Notes).
 
 ## Requirements
 
 **Defect 1 — a lone number on a wrapped line becomes an ordered list**
 
-- Reproduction: PP-180 has the list item `- The tier infrastructure …
-  owned by` wrapped onto a continuation line holding only `  0160.`; push it
+- Reproduction: push a list item wrapped onto a continuation line holding
+  only `  0160.`, as PP-180's `- The tier infrastructure … owned by` was
   (capture fragment `X09`).
 - Expected: the text `0160.` stays part of the list item.
 - Actual: Linear reads the line as an ordered list item and stores it as
@@ -68,10 +72,10 @@ exist.
 
 **Defect 2 — dotted tokens become links**
 
-- Reproduction: PP-860 contains bare `server.pid`; PP-870 contains bare
-  `jql.rs:167`; PP-733 contains bare `crates.io`; push any. Capture fragment
-  `R12` records `crates.io`; the other two come from diffing PP-860 and
-  PP-870 against their `accelerator linear show` descriptions.
+- Reproduction: push bare `server.pid`, `jql.rs:167` or `crates.io`, as
+  PP-860, PP-870 and PP-733 held. Capture fragment `R12` records
+  `crates.io`; the other two came from diffing PP-860 and PP-870 against
+  their `accelerator linear show` descriptions.
 - Expected: plain text.
 - Actual: `[server.pid](<http://server.pid>)`,
   `[jql.rs:167](<http://jql.rs:167>)` and `[crates.io](<http://crates.io>)`.
@@ -136,13 +140,20 @@ dotted-token rule.
   autolinks and raw HTML is never escaped, and an escape already present is
   never escaped again.
 - Every path that sends a local work item's body to Linear escapes:
-  `work create --push`, the `sync` update, and the draft promotion and
-  pending-push adoption paths PP-760 added.
+  `work create --push`, `work update --push`, the `sync` update, the `sync`
+  create of an unsynced item (the pending-push create PP-760 added), and
+  draft promotion (its create and its retitling update). Adoption sends no
+  body and is unaffected.
 - A pushed body read back from Linear is equivalent, under PP-880's
   definition, to the local body.
-- A remote description already corrupted is repaired when someone resolves
-  its item with `--resolve <id>=local` and the resulting push sends the
-  escaped body; there is no bulk rewrite.
+- A remote description already corrupted is repaired by pushing its item
+  with `accelerator work update <path> --push` and no other flags, which
+  sends the escaped body whatever the baseline records and leaves the local
+  file byte-identical; there is no bulk rewrite.
+- `accelerator linear update` gains `--body-file <path>`, sent verbatim like
+  `accelerator linear create --body-file`, so that captures can update an
+  issue with an unescaped or hand-escaped body. It conflicts with
+  `--description`.
 
 **Out of scope**
 
@@ -151,8 +162,13 @@ dotted-token rule.
 - Jira.
 - Shortcut. Its parser has not been checked for the same rewrites.
 - Any change to local files.
-- The raw `accelerator linear create` and `update` commands, which keep
-  sending `--body-file` verbatim so that captures can push unescaped bodies.
+- Escaping in the raw `accelerator linear create` and `update` commands,
+  which keep sending bodies verbatim so that captures can push unescaped
+  bodies.
+- The code-span table-cell damage PP-880 attributed to this item on PP-714
+  (alias 0184). Its remote was repaired on 2026-10-15 and read back intact
+  on 2026-11-23, and a verbatim push of the same table did not reproduce it,
+  so Linear's parser was not the cause.
 - Reporting the parser's behaviour upstream to Linear.
 
 ## Acceptance Criteria
@@ -209,17 +225,25 @@ Escaper output, tested in CI:
       parsed as CommonMark, then it is equivalent under PP-880 to the
       unescaped fragment.
 - [ ] Given a body needing both escapes, when it is pushed through
-      `work create --push`, the `sync` update, draft promotion and
-      pending-push adoption against a recording tracker (a test double that
+      `work create --push`, `work update --push`, the `sync` update, the
+      `sync` create of an unsynced item, and draft promotion's create and
+      retitling update against a recording tracker (a test double that
       keeps every request body it receives), then each sends the escaped
-      body, and the local file's body is byte-identical to its body before
-      the push.
+      body, and the local file is byte-identical to the file before the
+      push.
+- [ ] Given a synced item whose recorded baseline holds a corrupted remote
+      body, when it is pushed with `accelerator work update <path> --push`
+      and no other flags, then the escaped body is sent and the local file
+      is byte-identical to the file before the push.
 - [ ] Given the same body, when it is sent with `accelerator linear create
       --body-file` or `accelerator linear update --body-file`, then it is
       sent unchanged.
-- [ ] Given the same body, when it is pushed through `work create --push` and
-      the `sync` update to a Jira or Shortcut recording tracker, then it is
-      sent unchanged.
+- [ ] Given `accelerator linear update` with both `--body-file` and
+      `--description`, when it runs, then it exits with a usage error and
+      sends nothing.
+- [ ] Given the same body, when it is pushed through `work create --push`,
+      `work update --push` and the `sync` update to a Jira or Shortcut
+      recording tracker, then it is sent unchanged.
 - [ ] Given each fragment of the unescaped capture, when it is escaped for
       push, then the output is byte-identical to its fragment in
       `escaped/pushed.md`.
@@ -242,16 +266,21 @@ Linear's read-back, pinned from a committed live capture:
 
 Post-merge verification, run once by hand:
 
-The affected items are PP-180, PP-733, PP-860 and PP-870, plus any other
-conflicted item whose local body, diffed against its `accelerator linear
-show` description after PP-880's normalisation, shows one of the two
-rewrites. The PR lists the items checked.
+PP-180, PP-733, PP-860 and PP-870 were repaired by hand before this item
+landed. Any other affected item reports `synced` like they did, so it is
+found by its remote description, not by its sync status: an item is
+affected when its `accelerator linear show` description holds a link whose
+text is a bare dotted token, or a list item holding only a number where the
+local body has a wrapped continuation line. The PR lists every Linear-synced
+item checked and each one found.
 
-- [ ] Given each affected item, when it is resolved with `accelerator work
-      sync --resolve <id>=local`, then its next `accelerator work sync`
-      reports it `synced`, and its description as rendered in Linear's web
-      UI shows no stray list, no link on a dotted token and no backslash
-      before a `.` or `)`.
+- [ ] Given each affected item found, when it is pushed with `accelerator
+      work update <path> --push`, then its `accelerator linear show`
+      description holds neither rewrite, its local file is unchanged, and
+      its next `accelerator work sync` reports it `synced`.
+- [ ] Given PP-180, PP-733, PP-860, PP-870 and each item repaired above,
+      viewed in Linear's web UI, then its description shows no stray list,
+      no link on a dotted token and no backslash before a `.` or `)`.
 
 ## Open Questions
 
@@ -262,9 +291,10 @@ Assumptions.
 ## Dependencies
 
 - Blocked by: none (PP-880, which defines the equivalence, is done).
-- Blocks: none. Clearing the conflicts PP-880 defers to this item (PP-180,
-  PP-733, PP-860 and PP-870, named there by their aliases 0161, 0203, 0276
-  and 0293) is this item's post-merge verification.
+- Blocks: none. The items PP-880 defers to this item (PP-180, PP-733,
+  PP-860 and PP-870, named there by their aliases 0161, 0203, 0276 and
+  0293) are already repaired; finding and repairing any others is this
+  item's post-merge verification.
 - External: Linear's API-side description parser and linkifier. A change to
   either means re-capturing the `linear-rewrites` fragments and revisiting
   the escape rules.
@@ -303,9 +333,13 @@ Assumptions.
 ## Assumptions
 
 - Linear renders `\.` and `\)` as plain `.` and `)`, so the escapes are
-  invisible to people reading the issue in Linear. Viewing the escaped
-  capture in Linear's web UI confirms or refutes this; if it refutes it, the
-  item returns to drafting before the escaper is written.
+  invisible to people reading the issue in Linear. The API half is observed:
+  the four hand repairs on 2026-11-23 sent `server\.pid`, `jql\.rs:167`,
+  `crates\.io` and `  0160\.`, and `accelerator linear show` read each back
+  as plain text with no backslash, no link and no list. The web UI half is
+  unchecked; viewing the escaped capture there confirms or refutes it, and
+  if it refutes it, the item returns to drafting before the escaper is
+  written. `\)` has not been sent yet.
 - Linear links a bare dotted token when its last label is a TLD (`.pid` and
   `.rs` are real TLDs), using a list close enough to IANA's that the pinned
   snapshot predicts every captured fragment. If the unescaped capture
@@ -314,9 +348,29 @@ Assumptions.
 
 ## Technical Notes
 
-- `LinearClient` sends `body` unchanged in `create_op`
-  (`cli/linear-client/src/client.rs`) and `update`, and its `BodyDialect`
-  keeps the default identity `as_pushed`.
+- Every work-item push reaches Linear through `impl RemoteTracker for
+  LinearClient`'s `create` and `update` (`cli/linear-client/src/client.rs`),
+  which forward the body unchanged to `create_op` and `update_op`. The raw
+  `accelerator linear` commands call `create_op` and `update_op` directly.
+  Escaping in the two trait methods therefore covers every push path and
+  leaves the raw commands verbatim; Jira likewise converts its body in its
+  client, not in its `BodyDialect`.
+- `BodyDialect::as_pushed` can stay identity for Linear: an escape resolves
+  away in the parse, and Linear reads the escaped text back without the
+  backslash, so the canonical body and every digest are unchanged.
+- Only the `document` and `markdown` crates may depend on `pulldown-cmark`
+  (`cli/deny.toml`). The escaper fits as `markdown::linear` beside PP-885's
+  `markdown::github`, reusing its offset splicing and `continuation_start`,
+  but with `document::markdown`'s extension set (tables, task lists,
+  strikethrough), not `markdown::github`'s.
+- No test yet pins how `pulldown-cmark` ranges `Text` events around a
+  backslash escape; the dotted-token rule depends on it.
+- `RecordingTracker` stands in for the whole `RemoteTracker`, so it never
+  runs `LinearClient`'s escape. The recording-tracker criteria need the real
+  client against `MockGraphQLServer`, in `work-adapters` tests, since a CLI
+  subprocess refuses a loopback base.
+- `accelerator linear update` today takes the body only as
+  `--description <STRING>` (`cli/linear-cli/src/cli.rs`).
 - PP-880's equivalence merges adjacent text runs
   (`cli/corpus/src/body/canonical.rs`), so an escaped body and its unescaped
   local form compare equal and the baseline digest is unaffected.
@@ -341,6 +395,14 @@ Assumptions.
 - Dotted-token escaping matches Linear's linkifier rather than escaping every
   inner `.`, keeping Linear's stored markdown free of needless escapes at the
   cost of a capture and of drift surfacing as conflicts.
+- On 2026-11-23 PP-180, PP-733, PP-860 and PP-870 were repaired by hand:
+  each local body, with only the rewritten tokens escaped, was sent with
+  `accelerator linear update --title … --description …`, then a targeted
+  sync capped at zero pushes and pulls refreshed their baselines. No local
+  work item changed.
+- Pending-push adoption was dropped from the push paths: it links an
+  existing issue and compares bodies but never sends one. `work update
+  --push` was added; it was missing.
 
 ## References
 
@@ -352,6 +414,8 @@ Assumptions.
 - Related: PP-885 — Push PR Descriptions to GitHub Unwrapped
 - Related: PP-907 — Sync Authority Model Between Local Work Items and the
   Tracker
+- Research:
+  `meta/research/codebase/2026-11-23-PP-906-linear-push-corrupts-markdown-content.md`
 - Capture: `cli/work-adapters/tests/fixtures/linear-rewrites/README.md`
 - Allowlist:
   `cli/work-adapters/tests/fixtures/work-item-sync-recovery/README.md`
