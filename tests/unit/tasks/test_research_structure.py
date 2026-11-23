@@ -2119,17 +2119,16 @@ def test_the_web_profile_handles_each_doi_usage_error() -> None:
         path=_profile_skill("web"),
     )
     for rule in (
-        "`E_DOI_TICKET_LIVE`: another process holds your ticket. End as "
-        "Failed.",
+        "`E_DOI_TICKET_LIVE`: another process holds your ticket. Handle the "
+        "source as for a printed `unavailable`, recording no `reason`.",
         "`E_DOI_TICKET_MALFORMED` or `E_DOI_TICKET_MISMATCH`: correct the "
         "call and continue.",
         "`E_DOI_MALFORMED`: handle the source as for a printed `unavailable`.",
     ):
         assert rule in errors, f"the web profile must state {rule!r}"
-    assert (
-        "**Failed** — a call exited `2` with `E_DOI_TICKET_LIVE`. Write no "
-        "file; your summary returns the CLI's `E_*` line verbatim."
-    ) in _prose(_web_profile())
+    assert "**Failed**" not in _prose(_web_profile()), (
+        "a metadata call never ends a web node"
+    )
 
 
 def test_the_web_profile_repeats_each_warning_once() -> None:

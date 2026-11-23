@@ -84,7 +84,8 @@ accelerator research fetch doi metadata 'DOI' --ticket 42-9f1c2a
 
 **Usage errors** — `fetch doi metadata` exits `2` with one `E_*` line:
 
-- `E_DOI_TICKET_LIVE`: another process holds your ticket. End as Failed.
+- `E_DOI_TICKET_LIVE`: another process holds your ticket. Handle the source
+  as for a printed `unavailable`, recording no `reason`.
 - `E_DOI_TICKET_MALFORMED` or `E_DOI_TICKET_MISMATCH`: correct the call and
   continue.
 - `E_DOI_MALFORMED`: handle the source as for a printed `unavailable`.
@@ -212,7 +213,5 @@ End in exactly one of these. `waiting` is never an end; see Waiting above.
   one.
 - **Unreachable** — every search and fetch failed. Write no file; your
   summary names each failure.
-- **Failed** — a call exited `2` with `E_DOI_TICKET_LIVE`. Write no file;
-  your summary returns the CLI's `E_*` line verbatim.
 - **None found** — searches ran and nothing was relevant. Write the document
   with `None found.` under Sources.
