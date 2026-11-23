@@ -479,8 +479,14 @@ pub fn rekey_plan_unreadable(root: &Path) {
 /// nothing.
 #[must_use]
 pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
-    files_under(root, &root.join("meta"))
+    files_under(root, &root.join("meta"), |path| {
+        std::fs::read_to_string(path).ok()
+    })
 }
+
+/// A file's bytes, or why it could not be read, so a snapshot shows every
+/// file whatever its contents.
+pub type FileSnapshot = Result<Vec<u8>, std::io::ErrorKind>;
 
 /// Every pending-push marker `integration` keeps under `root`, by path, to
 /// show a run left them as they were.
@@ -488,7 +494,7 @@ pub fn meta_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
 pub fn pending_push_tree(
     root: &Path,
     integration: &str,
-) -> std::collections::BTreeMap<String, String> {
+) -> std::collections::BTreeMap<String, FileSnapshot> {
     files_under(
         root,
         &root
@@ -496,17 +502,20 @@ pub fn pending_push_tree(
             .join("integrations")
             .join(integration)
             .join("pending-push"),
+        |path| Some(std::fs::read(path).map_err(|error| error.kind())),
     )
 }
 
-fn files_under(
+fn files_under<T>(
     root: &Path,
     dir: &Path,
-) -> std::collections::BTreeMap<String, String> {
-    fn collect(
+    snapshot: fn(&Path) -> Option<T>,
+) -> std::collections::BTreeMap<String, T> {
+    fn collect<T>(
         root: &Path,
         dir: &Path,
-        tree: &mut std::collections::BTreeMap<String, String>,
+        snapshot: fn(&Path) -> Option<T>,
+        tree: &mut std::collections::BTreeMap<String, T>,
     ) {
         let Ok(entries) = std::fs::read_dir(dir) else {
             return;
@@ -514,16 +523,16 @@ fn files_under(
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                collect(root, &path, tree);
-            } else if let (Ok(relative), Ok(content)) =
-                (path.strip_prefix(root), std::fs::read_to_string(&path))
+                collect(root, &path, snapshot, tree);
+            } else if let (Ok(relative), Some(content)) =
+                (path.strip_prefix(root), snapshot(&path))
             {
                 tree.insert(relative.display().to_string(), content);
             }
         }
     }
     let mut tree = std::collections::BTreeMap::new();
-    collect(root, dir, &mut tree);
+    collect(root, dir, snapshot, &mut tree);
     tree
 }
 
@@ -582,5 +591,28 @@ pub fn documented_exit_code(line: &str) -> u8 {
         4
     } else {
         1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_marker_that_is_not_utf8_is_still_in_the_snapshot() {
+        let root = tempfile::tempdir().expect("a temporary root");
+        let pending_push = root
+            .path()
+            .join(crate::sync::STATE_DIR)
+            .join("integrations/jira/pending-push");
+        std::fs::create_dir_all(&pending_push).expect("a pending-push dir");
+        std::fs::write(pending_push.join("0001.json"), [0xff, 0xfe])
+            .expect("a marker");
+
+        let tree = super::pending_push_tree(root.path(), "jira");
+
+        let paths: Vec<&String> = tree.keys().collect();
+        assert_eq!(
+            paths,
+            [".accelerator/state/integrations/jira/pending-push/0001.json"]
+        );
     }
 }
