@@ -984,8 +984,14 @@ mod in_a_real_repository {
     #[test]
     fn a_run_killed_at_every_write_resumes_over_its_own_writes(
     ) -> Result<(), TestError> {
-        for vcs in [Vcs::Git, Vcs::Jj] {
-            for at in 0..mutations_of_a_whole_run()? {
+        let halts = mutations_of_a_whole_run()?;
+        let passes = Vcs::ALL
+            .into_iter()
+            .flat_map(|vcs| (0..halts).map(move |at| (vcs, at)));
+        each_of(
+            Vcs::ALL.len() * halts,
+            passes,
+            |(vcs, at)| -> Result<(), TestError> {
                 let (repo, _env) = committed(vcs)?;
                 halt_at(&repo, at)?;
                 let mutations = Mutations::new(Fault::Never);
@@ -997,22 +1003,24 @@ mod in_a_real_repository {
                     matches!(report, Ok(RekeyReport::Rekeyed { .. })),
                     "{vcs:?} halted at mutation {at}: {report:?}"
                 );
-            }
-        }
-        Ok(())
+                Ok(())
+            },
+        )
     }
 
     #[test]
     fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
     ) -> Result<(), TestError> {
-        let mut checked = 0;
-        for at in 0..mutations_of_a_whole_run_over(seed_synced_only)? {
+        let halts = mutations_of_a_whole_run_over(seed_synced_only)?;
+        let (mut checked, mut skipped) = (0, 0);
+        each_of(halts, 0..halts, |at| -> Result<(), TestError> {
             let (repo, _env) = five_files_committed()?;
             halt_at(&repo, at)?;
             let unreached = repo.read(SYNCED).is_some()
                 && repo.read(SYNCED_ONLY).as_deref() == Some("See PP-760.\n");
             if repo.read(RUN_PLAN).is_none() || !unreached {
-                continue;
+                skipped += 1;
+                return Ok(());
             }
             repo.write(SYNCED_ONLY, "See PP-760, edited since the halt.\n")?;
             let mutations = Mutations::new(Fault::Never);
@@ -1026,7 +1034,9 @@ mod in_a_real_repository {
                 "halted at mutation {at}"
             );
             checked += 1;
-        }
+            Ok(())
+        })?;
+        assert_eq!(checked + skipped, halts);
         assert!(checked > 0, "no halt left the synced entry unreached");
         Ok(())
     }
