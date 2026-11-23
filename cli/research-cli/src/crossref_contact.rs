@@ -22,7 +22,6 @@ pub enum CrossrefContact {
     AnonymousBecause(ContactWarning),
 }
 
-/// Why a configured contact could not be used.
 #[derive(Debug)]
 pub enum ContactWarning {
     Implausible {
@@ -85,10 +84,11 @@ impl fmt::Display for ContactWarning {
         match self {
             Self::Implausible { value, source } => write!(
                 formatter,
-                "warning: {KEY} from {source} ('{value}') is not a plausible \
+                "warning: {KEY} from {source} ('{}') is not a plausible \
                  address; calling Crossref anonymously without checking \
                  lower-precedence settings; correct or unset it (a blank \
-                 value falls through to the next setting)"
+                 value falls through to the next setting)",
+                control_characters_escaped(value)
             ),
             Self::Unreadable(UnreadableLevel { level, reason }) => {
                 let file = SettingSource::Level(*level);
@@ -101,6 +101,21 @@ impl fmt::Display for ContactWarning {
             }
         }
     }
+}
+
+/// The value as configured, with any character that could steer a terminal
+/// shown as its escape instead.
+fn control_characters_escaped(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                character.escape_default().to_string()
+            } else {
+                character.to_string()
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -276,6 +291,22 @@ mod tests {
                 ))
             );
         }
+    }
+
+    #[test]
+    fn an_implausible_warning_shows_control_characters_escaped() {
+        let contact = resolved(&Project {
+            environment: Some("a\u{1b}[2Jb@example.org".to_owned()),
+            ..Project::default()
+        });
+
+        let warning = contact.warning().expect("a warning").to_string();
+
+        assert!(!warning.contains('\u{1b}'), "{warning:?}");
+        assert!(
+            warning.contains(r"('a\u{1b}[2Jb@example.org')"),
+            "{warning:?}"
+        );
     }
 
     #[test]
