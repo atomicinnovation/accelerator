@@ -333,7 +333,7 @@ class TestTheSummary:
         log = _log(tmp_path, _a_clean_run())
 
         for line in log.summary(Path("/root")).lines():
-            assert not timeline._NEXTEST_SUMMARY.match(line)
+            assert not timeline.NEXTEST_SUMMARY.match(line)
             assert not timeline._FINISHED_IN.fullmatch(line)
 
 

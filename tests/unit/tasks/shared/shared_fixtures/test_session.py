@@ -241,7 +241,7 @@ class TestACleanRun:
             for line in lines
         )
         for line in lines:
-            assert not timeline._NEXTEST_SUMMARY.match(line)
+            assert not timeline.NEXTEST_SUMMARY.match(line)
             assert not timeline._FINISHED_IN.fullmatch(line)
 
 
