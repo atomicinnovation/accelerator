@@ -33,7 +33,12 @@ GUARDED_CALLS = {
     "copy_private_tree(": (
         "copies a tree without logging the copy; copy only a tree the test "
         "built for itself, from a file this guard permits",
-        frozenset({TESTS / "copies.rs"}),
+        frozenset(
+            {
+                TESTS / "copies.rs",
+                Path("cli/work-adapters/tests/support/mod.rs"),
+            }
+        ),
     ),
     **{
         f"{builder}(": (

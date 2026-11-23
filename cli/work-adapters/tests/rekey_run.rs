@@ -841,6 +841,7 @@ mod in_a_real_repository {
     use vcs_test_support::hermetic::assert_git_is_recent_enough;
     use vcs_test_support::hermetic::assert_jj_matches;
     use vcs_test_support::hermetic::Hermetic;
+    use vcs_test_support::repository_state::RepositoryState;
     use work::rekey::outcome::NotRekeyed;
     use work_adapters::rekey::run::Forcing;
     use work_adapters::rekey::run::RekeyAction;
@@ -875,21 +876,55 @@ mod in_a_real_repository {
         repo.write(SYNCED_ONLY, "See PP-760.\n")
     }
 
-    fn committed(vcs: Vcs) -> Result<(Repo, Hermetic), TestError> {
-        let repo = Repo::new()?;
-        let env = Hermetic::rooted_at(repo.root())?;
-        match vcs {
-            Vcs::Git => {
-                assert_git_is_recent_enough()?;
-                env.git(&["init", "--quiet"], repo.root())?;
+    /// The corpus committed under one VCS, kept as a template that each
+    /// pass of a test copies rather than rebuilds.
+    struct Committed {
+        template: Repo,
+        env: Hermetic,
+        vcs: Vcs,
+    }
+
+    impl Committed {
+        fn build(vcs: Vcs) -> Result<Self, TestError> {
+            let template = Repo::new()?;
+            let env = Hermetic::rooted_at(template.root())?;
+            match vcs {
+                Vcs::Git => {
+                    assert_git_is_recent_enough()?;
+                    env.git(&["init", "--quiet"], template.root())?;
+                }
+                Vcs::Jj => {
+                    assert_jj_matches("0.43.0")?;
+                    env.jj(&["git", "init", "--no-colocate"], template.root())?;
+                }
             }
-            Vcs::Jj => {
-                assert_jj_matches("0.43.0")?;
-                env.jj(&["git", "init", "--no-colocate"], repo.root())?;
-            }
+            commit_everything(vcs, &template, &env)?;
+            Ok(Self { template, env, vcs })
         }
-        commit_everything(vcs, &repo, &env)?;
-        Ok((repo, env))
+
+        fn then_committing(
+            self,
+            seed: impl FnOnce(&Repo) -> Result<(), TestError>,
+        ) -> Result<Self, TestError> {
+            seed(&self.template)?;
+            commit_everything(self.vcs, &self.template, &self.env)?;
+            Ok(self)
+        }
+
+        fn fresh_copy(&self) -> Result<(Repo, Hermetic), TestError> {
+            let copy = Repo::copy_of(&self.template)?;
+            let env = Hermetic::rooted_at(copy.root())?;
+            Ok((copy, env))
+        }
+
+        fn state(&self) -> Result<RepositoryState, TestError> {
+            Ok(RepositoryState::of(self.template.root(), &self.env)?)
+        }
+    }
+
+    fn committed(vcs: Vcs) -> Result<(Repo, Hermetic), TestError> {
+        let Committed { template, env, .. } = Committed::build(vcs)?;
+        Ok((template, env))
     }
 
     fn commit_everything(
@@ -955,6 +990,38 @@ mod in_a_real_repository {
             mutations_of_a_whole_run_over(seed_synced_only)?,
             five_files_committed,
         )
+    }
+
+    fn assert_copy_matches_a_fresh_build(
+        build: impl Fn() -> Result<Committed, TestError>,
+    ) -> Result<RepositoryState, TestError> {
+        let (copy, env) = build()?.fresh_copy()?;
+        let copied = RepositoryState::of(copy.root(), &env)?;
+
+        assert_eq!(copied, build()?.state()?);
+        Ok(copied)
+    }
+
+    #[test]
+    fn the_kill_tests_copied_repository_matches_one_built_from_scratch(
+    ) -> Result<(), TestError> {
+        each_of(2, Vcs::ALL, |vcs| -> Result<(), TestError> {
+            assert_copy_matches_a_fresh_build(|| Committed::build(vcs))?;
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn the_edit_refusal_tests_copied_repository_matches_one_built_from_scratch(
+    ) -> Result<(), TestError> {
+        each_of(1, [Vcs::Git], |vcs| -> Result<(), TestError> {
+            let copied = assert_copy_matches_a_fresh_build(|| {
+                Committed::build(vcs)?.then_committing(seed_synced_only)
+            })?;
+
+            assert_eq!(copied.commits.len(), 2);
+            Ok(())
+        })
     }
 
     #[test]
