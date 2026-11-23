@@ -925,8 +925,6 @@ impl UpstreamRequest {
         )
     }
 
-    /// Crossref's record of `doi`, asked for anonymously unless a `contact`
-    /// is given.
     pub fn crossref_work(
         api: &Endpoint,
         doi: &Doi,

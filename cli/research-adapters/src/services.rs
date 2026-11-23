@@ -26,7 +26,6 @@ pub struct AdapterContext {
 }
 
 /// Where the release before per-service state kept arXiv's queue and lock.
-/// Retiring it removes this and the argument that carries it.
 pub struct PreviousRelease {
     pub queue: ScratchDir,
     pub lock: PathBuf,

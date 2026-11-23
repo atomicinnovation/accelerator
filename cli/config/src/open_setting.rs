@@ -2,8 +2,9 @@
 //!
 //! The key's environment overrides come first, then `config.local.md`, then
 //! `config.md`. The first non-blank value wins, and the shared file is read
-//! whenever no higher rung holds one. Unlike the credential ladder, a chosen value is never refused and never
-//! falls through: judging it is the caller's business.
+//! whenever no higher rung holds one. Unlike the credential ladder, a chosen
+//! value is never refused and never falls through: judging it is the
+//! caller's business.
 
 use std::fmt;
 
@@ -35,7 +36,6 @@ impl OpenKey {
     }
 }
 
-/// Where an open setting's value was found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingSource {
     Environment(&'static str),
@@ -59,7 +59,6 @@ pub struct SettingValue {
     pub source: SettingSource,
 }
 
-/// A config level that could not be read while climbing the ladder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnreadableLevel {
     pub level: Level,

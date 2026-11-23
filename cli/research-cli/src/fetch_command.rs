@@ -126,7 +126,6 @@ pub enum Fetched {
     Doi(FetchedDoi),
 }
 
-/// A DOI call, however its queue or Crossref answered.
 #[derive(Debug)]
 pub struct FetchedDoi {
     pub service: Service,

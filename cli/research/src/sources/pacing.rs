@@ -57,7 +57,6 @@ impl Pacing {
         self.spaced_from
     }
 
-    /// How many calls may be served at once.
     pub const fn slots(&self) -> NonZeroU8 {
         match self.spaced_from {
             SpacedFrom::PreviousFinish => ONE_SLOT,
@@ -88,7 +87,6 @@ pub struct PacingState {
     pub not_before: Option<SystemTime>,
 }
 
-/// The time a caller was given to send at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Reservation {
     send_at: SystemTime,

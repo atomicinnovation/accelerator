@@ -130,7 +130,6 @@ fn upstream_reason_or_contention<T>(
     ))
 }
 
-/// Serves the call within one turn, which is released before this returns.
 fn served_when<T>(
     ready: &dyn Fn() -> bool,
     ports: &QueuePorts<'_>,
