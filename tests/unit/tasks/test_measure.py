@@ -111,6 +111,7 @@ from tasks.measure import (
 )
 from tasks.measure import build as build_task
 from tasks.measure import compare_builds as compare_builds_task
+from tasks.measure import per_test_durations as durations_task
 from tasks.shared.build_measurement.cache_states import BuildCacheState
 from tasks.shared.build_measurement.locations import RUN_DIRECTORY_ROOT
 from tasks.shared.build_measurement.measured_build import HostSettings
@@ -4075,3 +4076,159 @@ class TestCompareBuildsTask:
         assert parsed.args.previous.value == "before.json"
         assert parsed.args.current.value == "after.json"
         assert parsed.args.task.value == ["a", "b"]
+
+
+class TestTestDurationsTask:
+    RUN_ID = "build_2026-11-23T140904Z_host_warm-no-op_devtools_isolated"
+    BINARY = "accelerator-migrate::guarded_resume"
+
+    def record(self, monkeypatch, tmp_path, *runs: tuple[float, ...]):
+        monkeypatch.setattr(measure_module, "REPO_ROOT", tmp_path)
+        directory = tmp_path / RUN_DIRECTORY_ROOT / self.RUN_ID
+        directory.mkdir(parents=True)
+        for number, (build, scenario, checker) in enumerate(runs, start=1):
+            (directory / f"run-{number}-test_unit_cli.log").write_text(
+                f"3.0 [test:unit:cli] shared VCS fixtures: status-log set "
+                f"built in {build} s\n"
+                f"9.5 [test:unit:cli]         PASS [{scenario:>8.3f}s] "
+                f"(   1/   2) {self.BINARY} a_scenario\n"
+                f"9.9 [test:unit:cli]         PASS [{checker:>8.3f}s] "
+                f"(   2/   2) {self.BINARY} an_oracle\n"
+                "10.0 [test:unit:cli]      Summary [   1.000s] 2 tests run\n"
+            )
+        return self.RUN_ID
+
+    def test_a_record_prints_each_tests_figures_and_the_last_finishers(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        run_id = self.record(
+            monkeypatch, tmp_path, (1.0, 2.0, 1.0), (1.0, 4.0, 1.0)
+        )
+        durations_task(Context(), record=run_id, binary=[self.BINARY])
+        out = capsys.readouterr().out
+        assert "  a_scenario: 2.0 / 4.0 s, median 3.0 s" in out
+        assert "  total test-seconds: 3.0 / 5.0 s, median 4.0 s" in out
+        assert "  slowest test: a_scenario, median 3.0 s" in out
+        assert "run 2 phase ends at 10.0 s" in out
+        assert f"  (2) {self.BINARY} an_oracle: 1.0 s, finished at 9.9 s" in out
+
+    def test_a_charge_and_a_served_family_reach_the_figures(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        run_id = self.record(
+            monkeypatch, tmp_path, (10.0, 1.0, 5.0), (2.0, 3.0, 1.0)
+        )
+        durations_task(
+            Context(),
+            record=run_id,
+            binary=[self.BINARY],
+            charge=[f"{self.BINARY} an_oracle={self.BINARY} a_scenario"],
+            served_by=[f"{self.BINARY}=status-log"],
+        )
+        out = capsys.readouterr().out
+        assert (
+            "  a_scenario (charged with an_oracle): 6.0 / 4.0 s, median 5.0 s"
+        ) in out
+        assert (
+            "  total test-seconds with the status-log set's build: "
+            "16.0 / 6.0 s, median 11.0 s"
+        ) in out
+        assert "the status-log set built in 10.0 / 2.0 s, median 6.0 s" in out
+
+    def test_alone_logs_print_no_finishers(self, tmp_path, capsys):
+        log = tmp_path / "alone-1.log"
+        log.write_text(
+            f"        PASS [   2.000s] (   1/   1) {self.BINARY} a_scenario\n"
+        )
+        durations_task(
+            Context(), log=[str(tmp_path / "alone-*.log")], binary=[self.BINARY]
+        )
+        out = capsys.readouterr().out
+        assert "  a_scenario: 2.0 s, median 2.0 s" in out
+        assert "phase ends" not in out
+
+    def test_an_unknown_run_id_exits_one_naming_it(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(measure_module, "REPO_ROOT", tmp_path)
+        with pytest.raises(Exit, match="build_unknown") as refusal:
+            durations_task(
+                Context(), record="build_unknown", binary=[self.BINARY]
+            )
+        assert refusal.value.code == 1
+
+    def test_a_log_matching_no_file_exits_one_naming_it(self, tmp_path):
+        missing = str(tmp_path / "absent-*.log")
+        with pytest.raises(Exit, match=re.escape(missing)) as refusal:
+            durations_task(Context(), log=[missing], binary=[self.BINARY])
+        assert refusal.value.code == 1
+
+    def test_a_record_and_logs_together_exit_one(self, tmp_path):
+        with pytest.raises(Exit, match="--record or --log") as refusal:
+            durations_task(
+                Context(), record="r", log=["l"], binary=[self.BINARY]
+            )
+        assert refusal.value.code == 1
+
+    def test_no_binary_exits_one(self, monkeypatch, tmp_path):
+        run_id = self.record(monkeypatch, tmp_path, (1.0, 1.0, 1.0))
+        with pytest.raises(Exit, match="--binary") as refusal:
+            durations_task(Context(), record=run_id)
+        assert refusal.value.code == 1
+
+    @pytest.mark.parametrize(
+        ("options", "named"),
+        [
+            ({"binary": ["absent::binary"]}, "absent::binary"),
+            ({"charge": ["no equals sign"]}, "no equals sign"),
+            (
+                {"charge": [f"{BINARY} absent={BINARY} a_scenario"]},
+                "absent",
+            ),
+            ({"served_by": [f"{BINARY}"]}, BINARY),
+            ({"served_by": [f"{BINARY}=unknown"]}, "unknown"),
+            ({"served_by": [f"{BINARY}=matrix"]}, "the matrix"),
+        ],
+    )
+    def test_an_unusable_option_exits_one_naming_it(
+        self, monkeypatch, tmp_path, options, named
+    ):
+        run_id = self.record(monkeypatch, tmp_path, (1.0, 1.0, 1.0))
+        arguments = {"binary": [self.BINARY], **options}
+        with pytest.raises(Exit, match=re.escape(named)) as refusal:
+            durations_task(Context(), record=run_id, **arguments)
+        assert refusal.value.code == 1
+
+    def test_each_argument_has_help(self):
+        assert set(durations_task.help) == {
+            "record",
+            "log",
+            "binary",
+            "charge",
+            "served_by",
+        }
+
+    def test_repeated_flags_reach_the_task(self):
+        context = ParserContext(
+            name="measure.test-durations",
+            args=durations_task.get_arguments(),
+        )
+        [parsed] = Parser(contexts=[context]).parse_argv(
+            [
+                "measure.test-durations",
+                "--log",
+                "a.log",
+                "--log",
+                "b.log",
+                "--binary",
+                "x",
+                "--binary",
+                "y",
+                "--charge",
+                "c",
+                "--served-by",
+                "d",
+            ]
+        )
+        assert parsed.args.log.value == ["a.log", "b.log"]
+        assert parsed.args.binary.value == ["x", "y"]
+        assert parsed.args.charge.value == ["c"]
+        assert parsed.args.served_by.value == ["d"]

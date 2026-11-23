@@ -497,6 +497,11 @@ description = "Compare two measure:build records, previous then current: differi
 depends = ["deps:install:python"]
 run = "invoke measure.compare-builds"
 
+[tasks."measure:test-durations"]
+description = "Print per-test nextest durations from a measure:build --record or from alone-run --log files: each run's then the median, the binary total and slowest test, family build times, and a record's last finishers (--charge and --served-by combine figures within each run)"
+depends = ["deps:install:python"]
+run = "invoke measure.test-durations"
+
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
 # test roll-up, these evals: a run needs the claude CLI, network egress and
 # model usage. See tasks/README.md#the-eval-namespace.

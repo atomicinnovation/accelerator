@@ -509,7 +509,7 @@ contain.
 
 **Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host,
 `measure:build` is operator-run on a macOS host, and `measure:compare-builds`
-is operator-run on any host.
+and `measure:test-durations` are operator-run on any host.
 `test:integration:measure` is the namespace's owner against rot — n = 2, floors
 only, no gating figure — and belongs to its own non-blocking CI job, because a
 module no automated path executes rots invisibly against volatile external
@@ -659,6 +659,19 @@ words, and a process tracked by different patterns is named but not compared.
 `--task <name>` adds that task's duration and nextest-phase changes. The cargo
 unit totals, with their total, are compared when every run in each record agrees
 on them; otherwise the report names the record whose runs vary.
+
+**Per-test durations.** `measure:test-durations` reads nextest's pass lines
+(`PASS`, `TRY n PASS` and `LEAK`, the final attempt winning) and prints, for
+each `--binary`, every test's duration in each run and its median, the binary's
+total test-seconds and its slowest test. `--record <run id>` reads a run
+directory's `run-*-test_unit_cli.log` files and adds each run's phase end and
+last three finishers; `--log <path or glob>` reads alone-run logs instead,
+taken with `mise run test:unit:cli --filter 'binary_id(<binary>)' 2>&1 | tee
+<log>`. A figure is combined within each run before its median is taken:
+`--charge '<binary> <checker>=<binary> <target>'` adds a state-equality test's
+duration to the test whose state it checks, and `--served-by
+<binary>=<family>` adds a shared fixture family's build time, read from the
+build step's per-family `built in` lines, to the binary's test-seconds.
 
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs

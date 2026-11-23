@@ -451,19 +451,19 @@ run command it pairs with.
 
 #### Automated Verification
 
-- [ ] The new tests pass: `mise run test:unit:tasks --filter
+- [x] The new tests pass: `mise run test:unit:tasks --filter
       test_durations`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Over the baseline record, `mise run measure:test-durations --
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Over the baseline record, `mise run measure:test-durations --
       --record build_2026-11-23T140904Z_engywook_warm-no-op_devtools_isolated
       --binary accelerator-migrate::guarded_resume --binary
       vcs-test-support::matrix_private_build --binary work-adapters::rekey_run`
       reproduces the Current State tables.
-- [ ] `mise run` exits 0.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 
-- [ ] Over the reference record `build_2026-11-20T130237Z_…`, the output
+- [x] Over the reference record `build_2026-11-20T130237Z_…`, the output
       matches the work item's reference figures (228.6 s and 34.7 s).
 
 ---

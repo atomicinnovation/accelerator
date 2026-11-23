@@ -44,6 +44,14 @@ from tasks.shared.build_measurement.record import (
 from tasks.shared.build_measurement.reports import summary_report
 from tasks.shared.build_measurement.session import BuildPorts, measure_build
 from tasks.shared.build_measurement.settings import BuildSettings
+from tasks.shared.build_measurement.test_durations import (
+    Charge,
+    DurationFigures,
+    TimedRun,
+    duration_report,
+    parse_served_by,
+)
+from tasks.shared.build_measurement.timeline import read_stamped
 from tasks.shared.build_measurement.wiring import real_ports
 from tasks.shared.diagnostics import (
     DiagnosticRunner,
@@ -3800,3 +3808,91 @@ def compare_builds(
     print(
         comparison_report(compare_records(*records, tasks=task or ())), end=""
     )
+
+
+@task(
+    name="test-durations",
+    iterable=["log", "binary", "charge", "served_by"],
+    help={
+        "record": (
+            "A measure:build run id; reads its run-*-test_unit_cli.log "
+            "under .accelerator-measure/build/<run id>/."
+        ),
+        "log": (
+            "An alone-run log, or a glob of them, instead of a record; "
+            "repeat for several."
+        ),
+        "binary": "A nextest binary id to report; repeat for several.",
+        "charge": (
+            "'<binary> <checker>=<binary> <target>': add the checker "
+            "test's duration to the target's in each run; repeat for "
+            "several."
+        ),
+        "served_by": (
+            "'<binary>=<family>': add that shared fixture family's build "
+            "time to the binary's test-seconds in each run; repeat for "
+            "several."
+        ),
+    },
+)
+def per_test_durations(
+    context: Context,
+    record: str | None = None,
+    log: list[str] | None = None,
+    binary: list[str] | None = None,
+    charge: list[str] | None = None,
+    served_by: list[str] | None = None,
+) -> None:
+    """Print per-test durations, each run's then the median across runs.
+
+    For each `--binary`: every test's figures, the total test-seconds and
+    the slowest test. Then each shared fixture family's build time, and,
+    for a record, each run's phase end and last three finishers.
+    """
+    del context
+    if not binary:
+        raise Exit("name at least one --binary", code=1)
+    try:
+        figures = DurationFigures(
+            runs=_timed_runs(record, log or ()),
+            charges=[Charge.parse(each) for each in charge or ()],
+            served_by=dict(parse_served_by(each) for each in served_by or ()),
+        )
+        print(duration_report(figures, binary), end="")
+    except MeasurementRefusedError as error:
+        raise Exit(str(error), code=1) from error
+
+
+def _timed_runs(record: str | None, logs: Sequence[str]) -> list[TimedRun]:
+    if (record is None) == (not logs):
+        raise MeasurementRefusedError("read from either --record or --log")
+    if record is not None:
+        directory = REPO_ROOT / RUN_DIRECTORY_ROOT / record
+        paths = sorted(
+            directory.glob("run-*-test_unit_cli.log"), key=_run_number
+        )
+        if not paths:
+            raise MeasurementRefusedError(
+                f"no run-*-test_unit_cli.log under {directory}"
+            )
+        return [TimedRun.parse(read_stamped(_text(path))) for path in paths]
+    return [TimedRun.parse_unstamped(_text(path)) for path in _matched(logs)]
+
+
+def _run_number(path: Path) -> int:
+    return int(path.name.split("-")[1])
+
+
+def _matched(patterns: Sequence[str]) -> list[Path]:
+    paths: list[Path] = []
+    for pattern in patterns:
+        path = Path(pattern)
+        matched = sorted(path.parent.glob(path.name))
+        if not matched:
+            raise MeasurementRefusedError(f"no log matches {pattern}")
+        paths.extend(matched)
+    return paths
+
+
+def _text(path: Path) -> str:
+    return path.read_text(errors="replace", newline="")
