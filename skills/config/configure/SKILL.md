@@ -1334,7 +1334,8 @@ goes to the public pool anonymously. It prints a `warning:` in two cases:
   came from (`ACCELERATOR_CROSSREF_MAILTO`, `config.local.md` or `config.md`)
   and the value.
 - **Unreadable**: a config file could not be read while resolving the setting.
-  The warning names the file and the reason.
+  The warning names the file and the reason. Lower rungs are not read, so
+  the call uses the public pool even if `config.md` holds an address.
 
 The address is sent in the `User-Agent` header, never in a URL. It is not a
 secret, so it may be committed in `config.md` for the whole team.
