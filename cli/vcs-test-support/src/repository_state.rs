@@ -22,16 +22,26 @@ use masking::IdMasking;
 pub struct RepositoryState {
     pub kind: RepositoryKind,
     pub commits: Vec<CommitState>,
-    pub references: BTreeMap<String, CommitPosition>,
+    pub bookmarks: BTreeMap<String, CommitPosition>,
+    pub git: Option<GitSide>,
     pub working_copy_parents: Vec<CommitPosition>,
     pub working_copy: BTreeMap<String, FileState>,
+}
+
+/// What git records beside the commits, for a git repository or a jj one
+/// colocated with git.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitSide {
+    pub references: BTreeMap<String, CommitPosition>,
+    pub index: BTreeMap<String, FileState>,
 }
 
 impl RepositoryState {
     /// Projects the repository at `root`, reading through `hermetic`.
     ///
-    /// Reading never snapshots a jj working copy, and spawns at most two
-    /// processes whatever the number of commits.
+    /// Reading never snapshots a jj working copy. It spawns a fixed number
+    /// of processes whatever the number of commits: two for a pure jj
+    /// repository, three for git, and four for colocated jj.
     ///
     /// # Errors
     ///
@@ -46,13 +56,9 @@ impl RepositoryState {
         };
         let positions = order::ordered_positions(&raw)?;
         let masking = IdMasking::of(&raw.commits, &positions);
-        let working_copy = working_copy(root, &masking)?;
-        let position_of = |id: &String| {
-            positions.get(id).copied().ok_or_else(|| {
-                Error::message(format!(
-                    "{id} names no commit the projection holds"
-                ))
-            })
+        let projection = Projection {
+            positions: &positions,
+            masking: &masking,
         };
 
         let mut commits = raw
@@ -60,20 +66,10 @@ impl RepositoryState {
             .iter()
             .map(|commit| {
                 Ok(CommitState {
-                    position: position_of(&commit.id)?,
-                    parents: commit
-                        .parents
-                        .iter()
-                        .map(position_of)
-                        .collect::<Result<_, Error>>()?,
+                    position: projection.position_of(&commit.id)?,
+                    parents: projection.positions_of(&commit.parents)?,
                     description: commit.description.clone(),
-                    files: commit
-                        .files
-                        .iter()
-                        .map(|(path, file)| {
-                            (path.clone(), file.masked(&masking))
-                        })
-                        .collect(),
+                    files: projection.files(&commit.files),
                 })
             })
             .collect::<Result<Vec<_>, Error>>()?;
@@ -81,18 +77,62 @@ impl RepositoryState {
         Ok(Self {
             kind: raw.kind,
             commits,
-            references: raw
-                .references
-                .iter()
-                .map(|(name, id)| Ok((name.clone(), position_of(id)?)))
-                .collect::<Result<_, Error>>()?,
-            working_copy_parents: raw
-                .working_copy_parents
-                .iter()
-                .map(position_of)
-                .collect::<Result<_, Error>>()?,
-            working_copy,
+            bookmarks: projection.references(&raw.bookmarks)?,
+            git: raw
+                .git
+                .as_ref()
+                .map(|git| {
+                    Ok::<_, Error>(GitSide {
+                        references: projection.references(&git.references)?,
+                        index: projection.files(&git.index),
+                    })
+                })
+                .transpose()?,
+            working_copy_parents: projection
+                .positions_of(&raw.working_copy_parents)?,
+            working_copy: projection.files(&working_copy(root)?),
         })
+    }
+}
+
+/// Replaces the IDs a reader found with positions two builds agree on.
+struct Projection<'p> {
+    positions: &'p BTreeMap<String, CommitPosition>,
+    masking: &'p IdMasking,
+}
+
+impl Projection<'_> {
+    fn position_of(&self, id: &String) -> Result<CommitPosition, Error> {
+        self.positions.get(id).copied().ok_or_else(|| {
+            Error::message(format!("{id} names no commit the projection holds"))
+        })
+    }
+
+    fn positions_of(
+        &self,
+        ids: &[String],
+    ) -> Result<Vec<CommitPosition>, Error> {
+        ids.iter().map(|id| self.position_of(id)).collect()
+    }
+
+    fn references(
+        &self,
+        references: &BTreeMap<String, String>,
+    ) -> Result<BTreeMap<String, CommitPosition>, Error> {
+        references
+            .iter()
+            .map(|(name, id)| Ok((name.clone(), self.position_of(id)?)))
+            .collect()
+    }
+
+    fn files(
+        &self,
+        files: &BTreeMap<String, FileState>,
+    ) -> BTreeMap<String, FileState> {
+        files
+            .iter()
+            .map(|(path, file)| (path.clone(), file.masked(self.masking)))
+            .collect()
     }
 }
 
@@ -172,8 +212,15 @@ struct RawCommit {
 struct RawRepository {
     kind: RepositoryKind,
     commits: Vec<RawCommit>,
-    references: BTreeMap<String, String>,
+    bookmarks: BTreeMap<String, String>,
+    git: Option<RawGitSide>,
     working_copy_parents: Vec<String>,
+}
+
+#[derive(Debug)]
+struct RawGitSide {
+    references: BTreeMap<String, String>,
+    index: BTreeMap<String, FileState>,
 }
 
 /// The bit git reads to record a file as executable.
@@ -181,10 +228,7 @@ const OWNER_EXECUTE: u32 = 0o100;
 
 /// Every file on disk outside the repository's own metadata and the hermetic
 /// environment's entries, keyed by its path beneath `root`.
-fn working_copy(
-    root: &Path,
-    masking: &IdMasking,
-) -> Result<BTreeMap<String, FileState>, Error> {
+fn working_copy(root: &Path) -> Result<BTreeMap<String, FileState>, Error> {
     let mut files = BTreeMap::new();
     let walk =
         WalkDir::new(root)
@@ -221,7 +265,7 @@ fn working_copy(
             .path()
             .strip_prefix(root)
             .map_err(|error| Error::message(error.to_string()))?;
-        files.insert(relative.display().to_string(), file.masked(masking));
+        files.insert(relative.display().to_string(), file);
     }
     Ok(files)
 }

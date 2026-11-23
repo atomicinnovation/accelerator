@@ -11,8 +11,10 @@ use std::sync::atomic::Ordering;
 
 use vcs_test_support::colocation::JjColocation;
 use vcs_test_support::hermetic::Hermetic;
+use vcs_test_support::repository_state::CommitPosition;
 use vcs_test_support::repository_state::FileKind;
 use vcs_test_support::repository_state::FileState;
+use vcs_test_support::repository_state::GitSide;
 use vcs_test_support::repository_state::RepositoryKind;
 use vcs_test_support::repository_state::RepositoryState;
 use vcs_test_support::workbench::Workbench;
@@ -102,6 +104,16 @@ fn content<'s>(
     files.get(path).map(|file| file.content.as_str())
 }
 
+const fn git_side(state: &RepositoryState) -> Option<&GitSide> {
+    state.git.as_ref()
+}
+
+fn git_references(
+    state: &RepositoryState,
+) -> Option<&BTreeMap<String, CommitPosition>> {
+    git_side(state).map(|git| &git.references)
+}
+
 fn git_history(root: &Path, env: &Hermetic) -> Result<(), TestError> {
     env.git(&["init", "-q"], root)?;
     write(root, "a.txt", "one\n")?;
@@ -189,7 +201,8 @@ fn the_projection_holds_each_commit_s_files_description_and_parents(
             content: "two\n".to_owned()
         })
     );
-    assert_eq!(state.references.get("main"), Some(&third.position));
+    assert_eq!(state.bookmarks.get("main"), Some(&third.position));
+    assert_eq!(state.git, None);
     assert_eq!(state.working_copy_parents, [third.position]);
     assert_eq!(state.kind, RepositoryKind::Jj(JjColocation::Pure));
     Ok(())
@@ -307,7 +320,7 @@ fn different_parents_differ() -> Result<(), TestError> {
         .state()?;
 
     assert_ne!(base.commits, varied.commits);
-    assert_eq!(base.references, varied.references);
+    assert_eq!(base.bookmarks, varied.bookmarks);
     Ok(())
 }
 
@@ -321,7 +334,7 @@ fn a_different_git_reference_differs() -> Result<(), TestError> {
         })?
         .state()?;
 
-    assert_ne!(base.references, varied.references);
+    assert_ne!(git_references(&base), git_references(&varied));
     assert_eq!(base.commits, varied.commits);
     Ok(())
 }
@@ -336,9 +349,79 @@ fn a_different_head_differs() -> Result<(), TestError> {
         })?
         .state()?;
 
-    assert_ne!(base.references, varied.references);
+    assert_ne!(git_references(&base), git_references(&varied));
     assert_ne!(base.working_copy_parents, varied.working_copy_parents);
     assert_eq!(base.working_copy, varied.working_copy);
+    Ok(())
+}
+
+#[test]
+fn a_staged_change_differs_from_an_unstaged_one() -> Result<(), TestError> {
+    let edit = |root: &Path, _: &Hermetic| write(root, "a.txt", "changed\n");
+    let unstaged = Build::of(git_history)?.then(edit)?.state()?;
+    let staged = Build::of(git_history)?
+        .then(edit)?
+        .then(|root, env| {
+            env.git(&["add", "a.txt"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    let index = |state: &RepositoryState| {
+        git_side(state)
+            .and_then(|git| content(&git.index, "a.txt"))
+            .map(str::to_owned)
+    };
+    assert_eq!(index(&unstaged).as_deref(), Some("one\n"));
+    assert_eq!(index(&staged).as_deref(), Some("changed\n"));
+    assert_eq!(unstaged.working_copy, staged.working_copy);
+    assert_eq!(unstaged.commits, staged.commits);
+    Ok(())
+}
+
+#[test]
+fn a_colocated_repository_projects_its_git_head_references_and_index(
+) -> Result<(), TestError> {
+    let state = Build::of(jj_history(JjColocation::Colocated))?.state()?;
+
+    let git =
+        git_side(&state).ok_or("a colocated repository has a git side")?;
+    let third = state.commits.get(2).ok_or("three commits")?;
+    assert_eq!(git.references.get("HEAD"), Some(&third.position));
+    assert_eq!(git.references.get("refs/heads/main"), Some(&third.position));
+    assert_eq!(content(&git.index, "nested/b.txt"), Some("two\n"));
+    Ok(())
+}
+
+#[test]
+fn a_colocated_repository_s_different_git_head_differs() -> Result<(), TestError>
+{
+    let base = Build::of(jj_history(JjColocation::Colocated))?.state()?;
+    let varied = Build::of(jj_history(JjColocation::Colocated))?
+        .then(|root, env| {
+            env.git(&["update-ref", "--no-deref", "HEAD", "HEAD~1"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    assert_ne!(git_references(&base), git_references(&varied));
+    assert_eq!(base.bookmarks, varied.bookmarks);
+    assert_eq!(base.commits, varied.commits);
+    Ok(())
+}
+
+#[test]
+fn a_colocated_repository_s_git_only_tag_differs() -> Result<(), TestError> {
+    let base = Build::of(jj_history(JjColocation::Colocated))?.state()?;
+    let varied = Build::of(jj_history(JjColocation::Colocated))?
+        .then(|root, env| {
+            env.git(&["tag", "extra", "HEAD"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    assert_ne!(git_references(&base), git_references(&varied));
+    assert_eq!(base.bookmarks, varied.bookmarks);
     Ok(())
 }
 
@@ -355,7 +438,7 @@ fn a_different_bookmark_differs() -> Result<(), TestError> {
         })?
         .state()?;
 
-    assert_ne!(base.references, varied.references);
+    assert_ne!(base.bookmarks, varied.bookmarks);
     assert_eq!(base.commits, varied.commits);
     Ok(())
 }

@@ -1,8 +1,9 @@
 //! Reading a repository's commits and references as their IDs name them.
 //!
-//! Each reader spawns exactly two processes, whatever the number of commits:
-//! one listing, and one `git cat-file --batch` session that reads every
-//! commit, tree and blob.
+//! Each reader spawns a fixed number of processes, whatever the number of
+//! commits: a listing of the commits or references, a listing of git's index
+//! where there is one, and one `git cat-file --batch` session that reads
+//! every commit, tree and blob.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -22,6 +23,7 @@ use std::process::Stdio;
 use super::FileKind;
 use super::FileState;
 use super::RawCommit;
+use super::RawGitSide;
 use super::RawRepository;
 use super::RepositoryKind;
 use crate::colocation::JjColocation;
@@ -37,50 +39,24 @@ const JJ_LISTING: &str = r#"commit_id ++ "\x1f" ++ change_id ++ "\x1f"
     ++ if(current_working_copy, "working-copy") ++ "\x1f"
     ++ description ++ "\x1e""#;
 
-/// Reads a git repository's `HEAD`, branches and tags, and every commit they
-/// reach.
+/// Reads a git repository's `HEAD`, branches, tags and index, and every
+/// commit they reach.
 ///
 /// # Errors
 ///
-/// When git cannot list the references or read an object.
+/// When git cannot list the references or the index, or read an object.
 pub(super) fn git(
     root: &Path,
     hermetic: &Hermetic,
 ) -> Result<RawRepository, Error> {
-    let listing = hermetic.git(
-        &[
-            "for-each-ref",
-            "--format=%(refname)%00%(objectname)%00%(*objectname)",
-            "refs/heads",
-            "refs/tags",
-        ],
-        root,
-    )?;
     let mut store = ObjectStore::open(root, None, hermetic)?;
-
-    let mut references = BTreeMap::new();
-    for line in listing.lines() {
-        let mut fields = line.split('\0');
-        let (Some(name), Some(object), peeled) =
-            (fields.next(), fields.next(), fields.next())
-        else {
-            return Err(Error::message(format!("unreadable reference {line}")));
-        };
-        let target =
-            peeled.filter(|peeled| !peeled.is_empty()).unwrap_or(object);
-        references.insert(name.to_owned(), target.to_owned());
-    }
-    let mut working_copy_parents = Vec::new();
-    if let Some(head) =
-        store.object("HEAD")?.filter(|head| head.kind == "commit")
-    {
-        references.insert("HEAD".to_owned(), head.id.clone());
-        working_copy_parents.push(head.id);
-    }
+    let git = git_side(root, hermetic, &mut store)?;
+    let working_copy_parents: Vec<String> =
+        git.references.get(HEAD).cloned().into_iter().collect();
 
     let mut commits = Vec::new();
     let mut seen = BTreeSet::new();
-    let mut unread: Vec<String> = references.values().cloned().collect();
+    let mut unread: Vec<String> = git.references.values().cloned().collect();
     while let Some(id) = unread.pop() {
         if !seen.insert(id.clone()) {
             continue;
@@ -98,13 +74,80 @@ pub(super) fn git(
     Ok(RawRepository {
         kind: RepositoryKind::Git,
         commits,
-        references,
+        bookmarks: BTreeMap::new(),
+        git: Some(git),
         working_copy_parents,
     })
 }
 
-/// Reads every visible commit of a jj repository, its bookmarks and its
-/// working copy's parents, without snapshotting the working copy.
+const HEAD: &str = "HEAD";
+
+/// Reads git's `HEAD`, branches, tags and index, which `store` reads the
+/// objects of.
+fn git_side(
+    root: &Path,
+    hermetic: &Hermetic,
+    store: &mut ObjectStore,
+) -> Result<RawGitSide, Error> {
+    let references_listing = hermetic.git(
+        &[
+            "for-each-ref",
+            "--format=%(refname)%00%(objectname)%00%(*objectname)",
+            "refs/heads",
+            "refs/tags",
+        ],
+        root,
+    )?;
+    let index_listing = hermetic.git(&["ls-files", "--stage", "-z"], root)?;
+
+    let mut references = BTreeMap::new();
+    for line in references_listing.lines() {
+        let mut fields = line.split('\0');
+        let (Some(name), Some(object), peeled) =
+            (fields.next(), fields.next(), fields.next())
+        else {
+            return Err(Error::message(format!("unreadable reference {line}")));
+        };
+        let target =
+            peeled.filter(|peeled| !peeled.is_empty()).unwrap_or(object);
+        references.insert(name.to_owned(), target.to_owned());
+    }
+    if let Some(head) = store.object(HEAD)?.filter(|head| head.kind == "commit")
+    {
+        references.insert(HEAD.to_owned(), head.id);
+    }
+
+    let mut index = BTreeMap::new();
+    for entry in index_listing.split('\0').filter(|entry| !entry.is_empty()) {
+        let unreadable =
+            || Error::message(format!("unreadable index entry {entry}"));
+        let (staged, path) = entry.split_once('\t').ok_or_else(unreadable)?;
+        let [mode, id, stage] = staged.split(' ').collect::<Vec<_>>()[..]
+        else {
+            return Err(unreadable());
+        };
+        if mode == GITLINK_MODE {
+            continue;
+        }
+        let key = if stage == "0" {
+            path.to_owned()
+        } else {
+            format!("{path} (stage {stage})")
+        };
+        let file = FileState {
+            kind: FileKind::of_git_mode(mode),
+            content: store.blob(id)?,
+        };
+        index.insert(key, file);
+    }
+    Ok(RawGitSide { references, index })
+}
+
+const GITLINK_MODE: &str = "160000";
+
+/// Reads every visible commit of a jj repository, its bookmarks, its working
+/// copy's parents and, when colocated, its git side, without snapshotting
+/// the working copy.
 ///
 /// # Errors
 ///
@@ -130,14 +173,14 @@ pub(super) fn jj(
         ObjectStore::open(root, Some(&backing_store(root)?), hermetic)?;
 
     let mut commits = Vec::new();
-    let mut references = BTreeMap::new();
+    let mut bookmarks = BTreeMap::new();
     let mut working_copy_parents = Vec::new();
     for record in listing
         .split(RECORD)
         .filter(|record| !record.trim().is_empty())
     {
         let fields: Vec<&str> = record.split(FIELD).collect();
-        let [id, change, parents, bookmarks, working_copy, description] =
+        let [id, change, parents, bookmarked, working_copy, description] =
             fields.as_slice()
         else {
             return Err(Error::message(format!(
@@ -152,8 +195,8 @@ pub(super) fn jj(
             })
             .map(str::to_owned)
             .collect();
-        for bookmark in bookmarks.split(',').filter(|name| !name.is_empty()) {
-            references.insert(bookmark.to_owned(), id.clone());
+        for bookmark in bookmarked.split(',').filter(|name| !name.is_empty()) {
+            bookmarks.insert(bookmark.to_owned(), id.clone());
         }
         if !working_copy.is_empty() {
             working_copy_parents.clone_from(&parents);
@@ -167,10 +210,15 @@ pub(super) fn jj(
             files: store.files(&tree)?,
         });
     }
+    let git = match colocation {
+        JjColocation::Pure => None,
+        JjColocation::Colocated => Some(git_side(root, hermetic, &mut store)?),
+    };
     Ok(RawRepository {
         kind: RepositoryKind::Jj(colocation),
         commits,
-        references,
+        bookmarks,
+        git,
         working_copy_parents,
     })
 }
@@ -339,7 +387,7 @@ impl ObjectStore {
                 "40000" => {
                     self.add_files(&entry.id, &format!("{path}/"), files)?;
                 }
-                "160000" => {}
+                GITLINK_MODE => {}
                 mode => {
                     let file = FileState {
                         kind: FileKind::of_git_mode(mode),

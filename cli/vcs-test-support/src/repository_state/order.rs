@@ -115,7 +115,8 @@ fn references_by_commit(
     repository: &RawRepository,
 ) -> BTreeMap<&str, Vec<&str>> {
     let mut by_commit: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    for (name, id) in &repository.references {
+    let git_references = repository.git.iter().flat_map(|git| &git.references);
+    for (name, id) in repository.bookmarks.iter().chain(git_references) {
         by_commit
             .entry(id.as_str())
             .or_default()
@@ -171,7 +172,8 @@ mod tests {
         RawRepository {
             kind: RepositoryKind::Jj(JjColocation::Pure),
             commits,
-            references: BTreeMap::new(),
+            bookmarks: BTreeMap::new(),
+            git: None,
             working_copy_parents: Vec::new(),
         }
     }
@@ -181,7 +183,7 @@ mod tests {
         repository: RawRepository,
     ) -> RawRepository {
         RawRepository {
-            references: references
+            bookmarks: references
                 .iter()
                 .map(|&(name, id)| (name.to_owned(), id.to_owned()))
                 .collect(),
