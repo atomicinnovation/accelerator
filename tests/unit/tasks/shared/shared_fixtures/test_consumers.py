@@ -26,12 +26,13 @@ def test_every_consumer_consumes_one_or_more_shared_families():
     )
 
 
-def test_the_matrix_consumers_are_the_four_binaries_that_adopt_it():
+def test_the_matrix_consumers_are_the_five_binaries_that_adopt_it():
     assert consumers_of(Family.MATRIX) == {
         "vcs-adapters::classify",
         "vcs-adapters::queries",
         "vcs-adapters::scrub",
         "vcs-test-support::matrix",
+        "vcs-test-support::matrix_private_build",
     }
 
 

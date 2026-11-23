@@ -4,6 +4,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use serde_json::Value;
+use tempfile::TempDir;
 use vcs_test_support::family::Family;
 use vcs_test_support::family::SharedFamily;
 use vcs_test_support::fixture_log::FixtureLog;
@@ -38,6 +39,29 @@ fn shared_build(directory: &Path) -> Result<Matrix, TestError> {
     Ok(Matrix::adopt(&tree)?)
 }
 
+enum SharedMatrix {
+    Adopted(Box<Workbench>),
+    Built(TempDir),
+}
+
+impl SharedMatrix {
+    fn for_this_run() -> Result<Self, TestError> {
+        let handover = Handover::from_environment();
+        if handover.shared_tree(Family::Matrix).is_some() {
+            Ok(Self::Adopted(Box::new(Workbench::with(handover)?)))
+        } else {
+            Ok(Self::Built(tempfile::tempdir()?))
+        }
+    }
+
+    fn shapes(&self) -> Result<Vec<(String, String, PathBuf)>, TestError> {
+        match self {
+            Self::Adopted(run) => shapes(&*run.matrix()?),
+            Self::Built(directory) => shapes(&shared_build(directory.path())?),
+        }
+    }
+}
+
 fn events(log: &Path) -> Result<Vec<Value>, TestError> {
     fs::read_to_string(log)?
         .lines()
@@ -54,10 +78,11 @@ fn a_workbench_handed_no_matrix_builds_the_one_a_run_would_share(
         log: FixtureLog::at(&log),
         ..Handover::nothing()
     })?;
+    let shared = SharedMatrix::for_this_run()?;
 
     let private = workbench.matrix()?;
 
-    assert_eq!(shapes(&private)?, shapes(&shared_build(directory.path())?)?);
+    assert_eq!(shapes(&private)?, shared.shapes()?);
     let recorded = events(&log)?;
     assert_eq!(recorded.len(), 1);
     assert_eq!(recorded[0]["event"], "private-build");

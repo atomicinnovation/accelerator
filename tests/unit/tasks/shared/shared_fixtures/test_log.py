@@ -39,6 +39,7 @@ MATRIX_CONSUMERS = (
     "vcs-adapters::queries",
     "vcs-adapters::scrub",
     "vcs-test-support::matrix",
+    "vcs-test-support::matrix_private_build",
 )
 WORKBENCH_C = Path(
     "/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c"
@@ -413,12 +414,14 @@ class TestProblems:
     def test_a_line_that_does_not_parse_is_named_by_number(
         self, tmp_path: Path
     ):
-        log = _log(tmp_path, _a_clean_run())
+        clean = _a_clean_run()
+        log = _log(tmp_path, clean)
         with log.path.open("a") as file:
             file.write("{torn\n")
+        torn = len(clean) + 1
 
         assert log.problems(_finished()) == [
-            f"line 6 of the fixture log {log.path} does not parse"
+            f"line {torn} of the fixture log {log.path} does not parse"
         ]
 
     @pytest.mark.parametrize(

@@ -388,7 +388,7 @@ class TestTestUnitCli:
 
         out = capsys.readouterr().out
         assert (
-            "  matrix: 1 shared build, 4 adoptions, 0 copies, 0 private builds"
+            "  matrix: 1 shared build, 5 adoptions, 0 copies, 0 private builds"
         ) in out
         assert "  status-log set: 1 shared build" in out
 

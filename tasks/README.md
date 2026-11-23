@@ -379,7 +379,10 @@ copying, the workbench scans the copy for any file naming the shared tree
 (`path_scan::files_naming`); a hit is logged with the copy and fails the
 test, because the copy would read or write the shared tree through it. The
 matrix is never copied: it records absolute paths throughout, and every
-matrix consumer only reads it.
+matrix consumer only reads it. One consumer,
+`vcs-test-support::matrix_private_build`, adopts the matrix only to compare
+it with a private build, and builds a second one itself when nothing is
+handed over.
 
 The private sets (the cap, bookmark and parity states) are never shared.
 Pass their builder to the workbench, which builds the set in its directory

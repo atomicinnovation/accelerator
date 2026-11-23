@@ -188,7 +188,7 @@ class TestACleanRun:
         harness.run()
 
         assert list(harness.root.iterdir()) == []
-        assert "  matrix: 1 shared build, 4 adoptions" in harness.printed()
+        assert "  matrix: 1 shared build, 5 adoptions" in harness.printed()
 
     def test_prunes_old_logs(self, harness: Harness):
         logs = FixtureLogs(harness.logs)
