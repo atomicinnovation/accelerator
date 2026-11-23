@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-888", "work-i
 tags: ["research", "research-cli", "queue", "arxiv", "crossref", "openalex", "web-profile", "config"]
 revision: "f2aa3b66cc9d73c448de8124189608fddb95e9a9"
 repository: "accelerator"
-last_updated: "2026-11-22T23:45:00+00:00"
+last_updated: "2026-11-23T00:35:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2235,11 +2235,29 @@ Confirm the fix end to end on the finished plugin.
    rather than forced.
 5. Tick the manual acceptance criteria in the work item.
 
+### Outcome
+
+The closing run passed on its first completed attempt, against this branch's
+working tree, not a release. The skills loaded with `--plugin-dir`, and
+`accelerator` resolved to the debug builds through the dev-launcher
+overrides. Its subject was deleted afterwards as test residue, so the work
+item's Closing Run section is the record of the run, not notes kept beside
+the baseline's.
+
+- Both resolver URLs took the failed `web metadata` branch, as phase 1
+  predicted.
+- The session must run in `acceptEdits`, as the eval tasks do. Under auto
+  mode, the classifier gave no verdict on the researcher's `Write` of its
+  finding, and the run wrote nothing.
+- The researcher called `doi metadata` before the resolver `WebFetch`, against
+  the profile's order. It also cited both ACM DOIs' `api.crossref.org` records
+  as extra tier-1 sources. Neither affected a tier.
+
 ### Success Criteria
 
 #### Manual Verification
 
-- [ ] Every check above passes in one run, and the evidence is recorded in the
+- [x] Every check above passes in one run, and the evidence is recorded in the
       work item.
 
 ---
