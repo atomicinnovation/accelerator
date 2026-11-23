@@ -5,6 +5,7 @@
 //! `[features]` and CI's `--all-features` cannot turn a fixture feature on
 //! workspace-wide.
 
+pub mod colocation;
 pub mod copies;
 pub mod family;
 pub mod fixture_log;
