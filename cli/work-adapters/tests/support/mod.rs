@@ -36,6 +36,7 @@ use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::RecordingTracker;
+use unsynced_store::UnsyncedStore;
 use vcs::tracking::FileTracking;
 use vcs::tracking::RepositoryTracking;
 use vcs::tracking::RootsAnswer;
@@ -310,7 +311,7 @@ impl Mutations {
 }
 
 pub struct CountingStore<'m> {
-    inner: FileCorpusStore,
+    inner: UnsyncedStore,
     mutations: &'m Mutations,
 }
 
@@ -445,7 +446,7 @@ impl<'r> Ports<'r> {
         Self {
             repo,
             store: CountingStore {
-                inner: FileCorpusStore::new(repo.root()),
+                inner: UnsyncedStore::new(repo.root()),
                 mutations,
             },
             locks: LockdirLock::with_options(repo.work_dir(), FAST),
