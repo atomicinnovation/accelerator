@@ -360,9 +360,8 @@
 - **`work sync --preview` exits as the run would for a create it would
   fail.** For a create without a `--resolve` order, a preview that exited 0
   now exits 71 for a refused pending push, 75 for an unparseable work file or
-  a reuse blocked by one, and 70 for a work file that could not be read, an
-  id that cannot name a pending-push marker, or a reuse blocked by an
-  environment fault. A refusal outranks conflicts, so a preview that exited 4
+  a reuse blocked by one, and 70 for a work file that could not be read or a
+  reuse blocked by an environment fault. A refusal outranks conflicts, so a preview that exited 4
   exits 71 when it also plans a refused create, and a whole-corpus preview
   that exited 70 for the pending-push discovery deferral exits 71 when it
   plans the refused create; a `--pull-only` preview plans no creates and

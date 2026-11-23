@@ -9808,6 +9808,31 @@ mod tests {
     }
 
     #[test]
+    fn a_pull_only_preview_plans_no_create_and_keeps_the_deferral() {
+        let dir = sync_repo();
+        let tracker = draft_with_attempted_marker(dir.path());
+
+        let run = drive_sync_captured(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                pull_only: true,
+                ..previewing(vec![])
+            },
+        );
+
+        assert!(run.out.contains("0001\tnoop\tunsynced\t-"), "{}", run.out);
+        assert!(
+            run.out
+                .lines()
+                .any(|line| line == "#\tdiscovery\tskipped\tpending-push"),
+            "{}",
+            run.out
+        );
+        assert_eq!(run.code, ExitCode::from(super::exit_codes::RETRYABLE));
+    }
+
+    #[test]
     fn a_preview_and_the_run_report_the_same_create_failure() {
         let seedings: [(Seeding, u8); 6] = [
             (draft_with_attempted_marker, super::exit_codes::TERMINAL),
