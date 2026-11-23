@@ -58,6 +58,7 @@ def _shared_build(tree: Path = TREE) -> dict:
         "tree": str(tree),
         "git": "git version 2.50.1",
         "jj": "jj 0.43.0",
+        "seconds": 2.4,
     }
 
 
@@ -140,7 +141,9 @@ class TestTheSharedFormat:
         events = FixtureLog(LOG_FORMAT).read().events
 
         assert events == (
-            SharedBuild(Family.MATRIX, TREE, "git version 2.50.1", "jj 0.43.0"),
+            SharedBuild(
+                Family.MATRIX, TREE, "git version 2.50.1", "jj 0.43.0", 2.4
+            ),
             Adoption(
                 Family.MATRIX,
                 "vcs-adapters::classify",

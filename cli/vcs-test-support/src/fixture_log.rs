@@ -27,6 +27,7 @@ pub enum Event<'a> {
         tree: &'a Path,
         git: &'a str,
         jj: &'a str,
+        seconds: f64,
     },
     Adoption {
         family: Family,

@@ -21,6 +21,7 @@ from tasks.shared.shared_fixtures.log import (
     FinishedRun,
     FixtureLog,
     FixtureLogs,
+    SharedBuild,
     TreeDigests,
 )
 from tasks.shared.shared_fixtures.runs import (
@@ -150,6 +151,11 @@ class SharedFixtureSession:
             f"built in {built - started:.1f} s, "
             f"digested in {time.monotonic() - built:.1f} s"
         )
+        for event in log.read().events:
+            if isinstance(event, SharedBuild):
+                self._say(
+                    f"{event.family.heading} built in {event.seconds:.1f} s"
+                )
 
     def _finish(
         self,

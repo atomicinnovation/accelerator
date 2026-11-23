@@ -37,7 +37,7 @@ ABANDONED_RUN = "20261119T101500123456Z-0b6f9a0e-6c1d-4f0a-9d7e-2c1b3a4d5e6f"
 TIMEOUT = 5.0
 
 
-def _append(log: Path, event: Mapping[str, str]) -> None:
+def _append(log: Path, event: Mapping[str, object]) -> None:
     with log.open("a") as file:
         file.write(json.dumps(event) + "\n")
 
@@ -54,6 +54,7 @@ def build_that_logs(trees: Mapping[Family, Path], log: Path) -> None:
                 "tree": str(tree),
                 "git": "git version 2.50.1",
                 "jj": "jj 0.43.0",
+                "seconds": 2.4,
             },
         )
 
@@ -232,6 +233,8 @@ class TestACleanRun:
             )
             for line in lines
         )
+        assert "shared VCS fixtures: matrix built in 2.4 s" in lines
+        assert "shared VCS fixtures: status-log set built in 2.4 s" in lines
         assert any(
             re.fullmatch(
                 r"shared VCS fixtures: digested again in [\d.]+ s, "

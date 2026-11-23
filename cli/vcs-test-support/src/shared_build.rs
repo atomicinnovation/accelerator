@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::thread;
+use std::time::Instant;
 
 use crate::family::Family;
 use crate::fixture_log::Event;
@@ -106,7 +107,11 @@ impl SharedBuildRequest {
                 running.push((
                     family,
                     tree,
-                    scope.spawn(move || builder(family, tree)),
+                    scope.spawn(move || {
+                        let started = Instant::now();
+                        builder(family, tree)
+                            .map(|()| started.elapsed().as_secs_f64())
+                    }),
                 ));
             }
             running
@@ -118,12 +123,13 @@ impl SharedBuildRequest {
             .into_iter()
             .filter_map(|(family, tree, outcome)| {
                 let cause = match outcome {
-                    Ok(Ok(())) => log
+                    Ok(Ok(seconds)) => log
                         .record(&Event::SharedBuild {
                             family,
                             tree,
                             git: &versions.git,
                             jj: &versions.jj,
+                            seconds,
                         })
                         .err()?
                         .to_string(),

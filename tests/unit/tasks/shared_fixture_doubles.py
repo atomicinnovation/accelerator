@@ -73,7 +73,7 @@ def failed(stderr: str = "") -> MagicMock:
     return MagicMock(exited=1, stdout="", stderr=stderr)
 
 
-def _append(log: str, event: Mapping[str, str]) -> None:
+def _append(log: str, event: Mapping[str, object]) -> None:
     with Path(log).open("a") as file:
         file.write(json.dumps(event) + "\n")
 
@@ -126,6 +126,7 @@ class FakeSharedFixtures:
                         "tree": str(tree),
                         "git": "git version 2.50.1",
                         "jj": "jj 0.43.0",
+                        "seconds": 2.4,
                     },
                 )
         return passed()
