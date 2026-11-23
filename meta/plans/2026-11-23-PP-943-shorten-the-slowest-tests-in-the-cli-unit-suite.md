@@ -1816,7 +1816,8 @@ Also to record:
      by the binary's baseline under-suite/alone ratio (197.5 / 108.8 ≈
      1.82). Write both rates here. Migrate's own writes go through
      `store`'s synced path, which phase 3's `UnsyncedStore` does not
-     reach; profile a scenario for `fsync` before pricing it.
+     reach; profile a scenario for `fsync` before pricing it. The author
+     agreed this revised method on 2026-11-23.
   2. Price the binary as it will be: the remaining spawns, the 26 copies,
      the two reused-state tests, and the family's build time.
   3. Price the slowest test the same way: the slowest scenario
