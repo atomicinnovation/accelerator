@@ -21,7 +21,7 @@ const VARIABLE: &str = "ACCELERATOR_CROSSREF_MAILTO";
 struct Project {
     environment: BTreeMap<String, String>,
     personal: Option<BTreeMap<String, String>>,
-    team: BTreeMap<String, String>,
+    team: Option<BTreeMap<String, String>>,
 }
 
 impl Project {
@@ -44,7 +44,14 @@ impl Project {
     }
 
     fn with_team(mut self, value: &str) -> Self {
-        self.team.insert(KEY.to_owned(), value.to_owned());
+        self.team
+            .get_or_insert_with(BTreeMap::new)
+            .insert(KEY.to_owned(), value.to_owned());
+        self
+    }
+
+    fn with_unreadable_team(mut self) -> Self {
+        self.team = None;
         self
     }
 
@@ -66,16 +73,15 @@ impl ConfigAccess for Project {
         key: &Key,
         level: Option<Level>,
     ) -> Result<Resolved, ConfigError> {
-        let map = match level {
-            Some(Level::Personal) => {
-                self.personal.as_ref().ok_or_else(|| ConfigError::Io {
-                    path: Level::Personal.filename().to_owned(),
-                    detail: "boom".to_owned(),
-                })?
-            }
-            Some(Level::Team) => &self.team,
+        let (level, map) = match level {
+            Some(Level::Personal) => (Level::Personal, &self.personal),
+            Some(Level::Team) => (Level::Team, &self.team),
             None => unreachable!("the ladder always names a level"),
         };
+        let map = map.as_ref().ok_or_else(|| ConfigError::Io {
+            path: level.filename().to_owned(),
+            detail: "boom".to_owned(),
+        })?;
         Ok(map.get(&key.to_string()).map_or(Resolved::Absent, |value| {
             Resolved::Found(Value::Scalar(Scalar::String(value.clone())))
         }))
@@ -105,6 +111,7 @@ fn found(value: &str, source: SettingSource) -> SettingValue {
 fn readable() -> Project {
     Project {
         personal: Some(BTreeMap::new()),
+        team: Some(BTreeMap::new()),
         ..Project::default()
     }
 }
@@ -191,7 +198,7 @@ fn the_chosen_value_is_returned_whatever_it_holds() {
 
 #[test]
 fn an_unreadable_level_is_reported_with_its_reason() {
-    let project = Project::default()
+    let project = readable()
         .with_unreadable_personal()
         .with_team("team@example.org");
 
@@ -199,6 +206,36 @@ fn an_unreadable_level_is_reported_with_its_reason() {
 
     assert_eq!(unreadable.level, Level::Personal);
     assert!(matches!(unreadable.reason, ConfigError::Io { .. }));
+}
+
+#[test]
+fn an_environment_value_leaves_an_unreadable_personal_file_unread() {
+    let project = readable()
+        .with_environment("env@example.org")
+        .with_unreadable_personal();
+
+    assert_eq!(
+        project.resolved(),
+        Ok(Some(found(
+            "env@example.org",
+            SettingSource::Environment(VARIABLE)
+        )))
+    );
+}
+
+#[test]
+fn a_personal_value_leaves_an_unreadable_team_file_unread() {
+    let project = readable()
+        .with_personal("personal@example.org")
+        .with_unreadable_team();
+
+    assert_eq!(
+        project.resolved(),
+        Ok(Some(found(
+            "personal@example.org",
+            SettingSource::Level(Level::Personal)
+        )))
+    );
 }
 
 #[test]
