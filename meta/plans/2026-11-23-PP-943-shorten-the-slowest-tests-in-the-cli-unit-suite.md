@@ -811,6 +811,36 @@ ratio: the kill test ≈ (4.2 s + 0.6 s reused) × 2.01 ≈ 9.6 s, against
 run at `olroyumo`'s parent). The reused-state tests take the worse of
 their tail test's and the binary-wide ratio.
 
+**The projection missed.** It priced steps timed one after another, but an
+alone run still runs the binary's 32 tests in parallel. Three quiet alone
+runs at `orlqwppk`, charged, put the kill test at 16.9 s and the
+edit-refusal test at 13.0 s, slower than before (10.6 s and 5.5 s).
+
+**Where a pass goes.** A 3 s `sample` of 13 copied passes per VCS, run in
+sequence:
+
+| Cause | Share of the test thread |
+|---|---|
+| `fsync` (`File::sync_all`, `F_FULLFSYNC` on macOS) | 57.6% |
+| Copying a template | 16.9% |
+| Probe: jj working-copy state | 9.6% |
+| Removing tempdirs | 5.7% |
+
+795 of the 892 `fsync` samples are `store::atomic_write`'s two syncs,
+reached through `CountingStore`'s `FileCorpusStore`, and 97 are
+`store::atomic_create`'s directory sync. A full flush serialises at the
+drive, so parallel tests queue behind each other's flushes.
+
+**Unsynced writer.** On 2026-11-23 the author chose a test-side writer.
+`UnsyncedStore`, in the work-adapters test support module, replaces
+`FileCorpusStore` inside `CountingStore`. It keeps the store's
+containment, staging and modes and drops only the syncs: `write` calls
+`store::replace_without_sync`, and `create_new` stages and persists without
+clobbering. Every test that builds `Ports`, in `rekey_run` and
+`rekey_execute`, stops exercising the real synced write path, which
+`store` and `corpus-adapters` test themselves. Contract tests run each case
+against both stores.
+
 ### Changes Required
 
 #### 1. Adopting a copy as a `Repo`
