@@ -56,12 +56,12 @@ that has no `--resolve` order:
 +    else
 +      gather inputs                          # read + parse the work file
 +      MarkerReading::read                    # distrusts tracked / non-tracker keys
-+      bare_create_decision                   # shared with the run
++      unordered_create_decision              # shared with the run
 +        refusal | deferred reuse | unusable  → report Failed(error)
 +        Proceed | ReuseId                    → report NotApplied
 ```
 
-`MarkerReading::read` and `bare_create_decision` were previously inside
+`MarkerReading::read` and `unordered_create_decision` were previously inside
 the applier, and the run now calls the same shared functions. A refusal
 therefore previews exactly as the run reports it, with `failed` read as
 `would fail`.
@@ -145,14 +145,17 @@ records this under both Fixed and Breaking.
 ## Changes
 
 - **`work-adapters/src/sync/apply.rs`:**
-  - `MarkerReading::read` and `bare_create_decision` are lifted out of the
-    applier.
+  - `MarkerReading::read` and `unordered_create_decision` are lifted out of
+    the applier.
   - `settle_order` and `create_anew` now work out the request digest
     themselves.
 - **`work-adapters/src/sync/run.rs`:**
   - `LocalCreateInputs` (with `gather` and `create_request`) is shared by
     the run and the preview.
   - `previewed_outcome` is new.
+  - `CreateRoute` names how a create reaches the tracker: unordered,
+    ordered or relink. The run and the preview both route on it, and the
+    request's order is the one the route names.
   - The key-carrier closure moves above the preview branch, so a key this
     run's identity settlement follows is refused in both modes.
 - **Skill, help, guide:**
@@ -179,6 +182,9 @@ records this under both Fixed and Breaking.
 - **Departures from the plan:**
   - `settle_order` derives the digest itself, because clippy rejected the
     owned `String` parameter (`needless_pass_by_value`).
+  - `LocalCreate::route()` replaces the plan's `is_bare()`, and the
+    decision is `unordered_create_decision`, named by the order vocabulary
+    rather than "bare".
   - The CLI comparison uses invalid frontmatter YAML, not an unclosed
     fence. In a full run, an unclosed fence is reported as an
     unidentified work file before any create is planned. The engine test

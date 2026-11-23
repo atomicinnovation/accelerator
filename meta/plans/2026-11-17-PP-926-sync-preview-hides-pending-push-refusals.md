@@ -220,7 +220,7 @@ an `ItemApplier`.
   digest is computed today (`create_from_local_steps`,
   `create_marking_progress`).
 - Extract the `push_precondition` match from `create_from_local_steps` into
-  `bare_create_decision`, a pure function of the request and the marker
+  `unordered_create_decision`, a pure function of the request and the marker
   reading:
   - Refusals and the incomplete-corpus deferral come back as `Err`, built
     exactly as today.
@@ -228,7 +228,7 @@ an `ItemApplier`.
     the order, and matches on the decision to link or to create.
 
 ```rust
-pub(crate) enum BareCreateDecision {
+pub(crate) enum UnorderedCreateDecision {
     Proceed,
     ReuseId(ExternalId),
 }
@@ -240,10 +240,10 @@ impl MarkerReading {
     ) -> Self { … }
 }
 
-pub(crate) fn bare_create_decision(
+pub(crate) fn unordered_create_decision(
     request: &CreateFromLocalRequest<'_>,
     marker: &MarkerReading,
-) -> Result<BareCreateDecision, ApplyError> {
+) -> Result<UnorderedCreateDecision, ApplyError> {
     let is_carried = |key: &ExternalId| (request.carrier_of)(key).is_some();
     match push_precondition(&marker.state(), &request.digest(), &is_carried) {
         PushPrecondition::Refuse(reason) => {
@@ -255,9 +255,9 @@ pub(crate) fn bare_create_decision(
                 deferred: IncompleteCorpusDeferral::ReuseId(key),
                 blocking,
             }),
-            None => Ok(BareCreateDecision::ReuseId(key)),
+            None => Ok(UnorderedCreateDecision::ReuseId(key)),
         },
-        PushPrecondition::Proceed => Ok(BareCreateDecision::Proceed),
+        PushPrecondition::Proceed => Ok(UnorderedCreateDecision::Proceed),
     }
 }
 ```
@@ -273,11 +273,11 @@ if let Some(order) = request.order {
     let digest = request.digest();
     return self.settle_order(request, attempt, &marker, digest, order);
 }
-match bare_create_decision(request, &marker)? {
-    BareCreateDecision::ReuseId(key) => self
+match unordered_create_decision(request, &marker)? {
+    UnorderedCreateDecision::ReuseId(key) => self
         .link_and_baseline(request, attempt, &key)
         .map(CreatedLocally::from),
-    BareCreateDecision::Proceed => self
+    UnorderedCreateDecision::Proceed => self
         .create_marking_progress(request, attempt)
         .map(CreatedLocally::from),
 }
@@ -287,8 +287,12 @@ match bare_create_decision(request, &marker)? {
 
 **File**: `cli/work-adapters/src/sync/run.rs`
 **Changes**:
-- Add `LocalCreate::is_bare()` beside `relinks()` and `adopts()`: true when
-  the planned action carries no order.
+- Add `LocalCreate::route()` beside `relinks()` and `adopts()`, returning a
+  `CreateRoute`: `Unordered` when the planned action carries no order,
+  `Ordered(order)` for a create with one, `Relink(order)` for a relink. The
+  run and the preview both match on it, and `create_request` fills the
+  request's `order` from `CreateRoute::order()`, so the request carries an
+  order exactly when the route is not `Unordered`.
 - Introduce `LocalCreateInputs` to own the title, body, kind and state paths.
   - `gather` performs today's `create_inputs` read and the
     `CreateStatePaths::for_item` check, with today's failures.
@@ -344,7 +348,7 @@ impl LocalCreateInputs {
 ### Overview
 
 For each bare create, the preview gathers the create's inputs, reads its
-marker and calls `bare_create_decision`. It reports an `Err` as the failed
+marker and calls `unordered_create_decision`. It reports an `Err` as the failed
 row, and anything else as not applied. The tests below come first. Red tests
 fail until the preview branch changes. Guard tests pass throughout and protect
 the paths that must not change.
@@ -445,7 +449,10 @@ Red tests:
   - a digest-mismatched `Created` marker;
   - a `Created` marker whose key another item carries;
   - a reusable `Created` marker beside a malformed work file;
-  - a work file with an `id` and an unclosed frontmatter fence.
+  - a work file with an `id` and invalid frontmatter YAML. An unclosed fence
+    would not do here: a full run reports it as an `unidentified` record
+    before any create, so it never reaches the decision. The engine tests
+    cover the unclosed fence.
 - `a_preview_distrusts_a_committed_marker`: seeds a marker, runs `commit_all`,
   then previews. Asserts `marker-unreadable` with
   `marker is tracked by version control`.
@@ -476,7 +483,12 @@ let carrier =
 ```rust
 for create in &creates_from_local {
     reported.push(create.report(previewed_outcome(
-        create, request, ports, &carrier, run_start_epoch,
+        create,
+        request,
+        ports.author,
+        ports.files.tracking,
+        &carrier,
+        run_start_epoch,
     )));
 }
 ```
@@ -485,24 +497,25 @@ for create in &creates_from_local {
 fn previewed_outcome(
     create: &LocalCreate<'_>,
     request: &SyncRequest<'_>,
-    ports: &SyncPorts<'_>,
+    author: &dyn LocalAuthor,
+    tracking: &dyn RepositoryTracking,
     carrier_of: &dyn Fn(&ExternalId) -> Option<KeyCarrier>,
     attempted_at: u64,
 ) -> ItemOutcome {
-    if !create.is_bare() {
+    let CreateRoute::Unordered = create.route() else {
         return ItemOutcome::NotApplied;
-    }
+    };
     let inputs = LocalCreateInputs::gather(create, request);
     let decision = inputs.and_then(|inputs| {
         let local_create = inputs.create_request(
             create,
             request,
-            ports.author,
+            author,
             carrier_of,
             attempted_at,
         );
-        let marker = MarkerReading::read(&local_create, ports.files.tracking);
-        bare_create_decision(&local_create, &marker)
+        let marker = MarkerReading::read(&local_create, tracking);
+        unordered_create_decision(&local_create, &marker)
     });
     match decision {
         Ok(_) => ItemOutcome::NotApplied,
