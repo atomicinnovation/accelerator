@@ -1104,7 +1104,7 @@ against a 33.2 s baseline median).
 
 ```rust
 enum SharedMatrix {
-    Adopted(Workbench),
+    Adopted(Box<Workbench>),
     Built(TempDir),
 }
 
@@ -1112,7 +1112,7 @@ impl SharedMatrix {
     fn for_this_run() -> Result<Self, TestError> {
         let handover = Handover::from_environment();
         if handover.shared_tree(Family::Matrix).is_some() {
-            Ok(Self::Adopted(Workbench::with(handover)?))
+            Ok(Self::Adopted(Box::new(Workbench::with(handover)?)))
         } else {
             Ok(Self::Built(tempfile::tempdir()?))
         }
@@ -1120,7 +1120,7 @@ impl SharedMatrix {
 
     fn shapes(&self) -> Result<Vec<(String, String, PathBuf)>, TestError> {
         match self {
-            Self::Adopted(run) => shapes(&run.matrix()?),
+            Self::Adopted(run) => shapes(&*run.matrix()?),
             Self::Built(directory) => shapes(&shared_build(directory.path())?),
         }
     }
@@ -1161,6 +1161,14 @@ red until `consumers.py` changes).
 
 **File**: `tasks/README.md`
 **Changes**: Name the binary where the matrix's consumers are described.
+
+**Files**: `tests/unit/tasks/shared/shared_fixtures/test_log.py`,
+`test_session.py`, `tests/unit/tasks/test_rust.py`
+**Changes** (found by the first full `mise run`): `MATRIX_CONSUMERS` gains
+the binary, and the expected summaries count five matrix adoptions instead
+of four. `test_a_line_that_does_not_parse_is_named_by_number` takes its
+line number from the clean run's length, so a new consumer no longer
+moves it.
 
 `matrix_private_build.rs` already permits `Workbench::with(`, and
 `Workbench::with(Handover::from_environment())` is what `for_this_test`
@@ -1344,8 +1352,8 @@ non-unit `Inputs`, to exercise `writable_with`.
 **Changes**:
 
 - `SharedBuildRequest` is unchanged, so its struct literals in
-  `tests/shared_build.rs:22` and `tests/matrix_private_build.rs:32` keep
-  compiling whichever of phases 4 and 5 lands second.
+  `tests/shared_build.rs:22` and `tests/matrix_private_build.rs:33` keep
+  compiling.
 - Each family's dispatch arm resolves its inputs through
   `inputs_from_environment` before building. A failure there fails the
   build with the family's own message.
