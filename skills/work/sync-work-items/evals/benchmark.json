@@ -4,13 +4,15 @@
     "skill_path": "skills/work/sync-work-items",
     "executor_model": "claude-opus-5-5",
     "analyzer_model": "claude-opus-5-5",
-    "timestamp": "2026-11-20T00:00:00Z",
+    "timestamp": "2026-11-23T00:00:00Z",
     "evals_run": [
       "1",
-      "2"
+      "2",
+      "3",
+      "4"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
+    "skill_digest": "sha256:7813da3bd3857ba478db1dff2ee4e77bb36ccab8397e7db3e20c66a0d287b5fb"
   },
   "runs": [
     {
@@ -79,6 +81,68 @@
       ],
       "notes": [],
       "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "a_previewed_pending_push_refusal_goes_to_recovery",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
+      "expectations": [
+        {
+          "text": "response.md says 0001 needs attention and quotes its cause, `pending push refused (prior-attempt-unknown)`",
+          "passed": true,
+          "evidence": "\"Work item 0001 (\\\"Draft one\\\") needs attention: its pending push was refused.\" and quotes \"error: 0001: create would fail: pending push refused (prior-attempt-unknown): ...\""
+        },
+        {
+          "text": "response.md asks the user to search the tracker for `Draft one` and names `--resolve 0001=adopt:<KEY>` for an issue found and `--resolve 0001=create` for none, offering no plain re-run",
+          "passed": true,
+          "evidence": "\"please search Linear ... for an issue titled \\\"Draft one\\\"\"; found -> `accelerator work sync --target 0001 --resolve 0001=adopt:<KEY>`; none -> `--resolve 0001=create`; says \"a plain re-run will not fix it\" and offers no plain re-run"
+        },
+        {
+          "text": "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`",
+          "passed": true,
+          "evidence": "Only sync command is #1 `accelerator work sync --preview`; the other is `accelerator config path integrations`"
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:7813da3bd3857ba478db1dff2ee4e77bb36ccab8397e7db3e20c66a0d287b5fb"
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "a_preview_of_an_ordered_create_says_it_cannot_confirm_it",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      },
+      "expectations": [
+        {
+          "text": "response.md tells the user the preview cannot confirm 0001, because a create with a `--resolve` order is checked against its marker only on the run",
+          "passed": true,
+          "evidence": "\"a preview cannot confirm an item that has a `--resolve` order for a create. The engine checks that order against 0001's pending-push marker only during the real run.\""
+        },
+        {
+          "text": "response.md does not present 0001's create as certain to succeed",
+          "passed": true,
+          "evidence": "\"this clean preview does not guarantee the create will succeed. The real run may still refuse the order.\""
+        },
+        {
+          "text": "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`",
+          "passed": true,
+          "evidence": "commands.md lists only one command: `accelerator work sync --preview --target 0001 --resolve 0001=create`. The real run appears only in response.md as a proposed command waiting for the user's approval."
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:7813da3bd3857ba478db1dff2ee4e77bb36ccab8397e7db3e20c66a0d287b5fb"
     }
   ],
   "run_summary": {
@@ -94,6 +158,7 @@
   "notes": [
     "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone.",
     "Eval 1 was re-run and eval 2 (a needed re-key outside promotion recovery relays and stops) added with_skill on 2026-11-18, by claude-opus-5-5, after the E_REKEY_REQUIRED branch was reordered: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
-    "Evals 1 and 2 were re-run with_skill on 2026-11-20, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal and Shortcut was wired in: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full."
+    "Evals 1 and 2 were re-run with_skill on 2026-11-20, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal and Shortcut was wired in: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
+    "Evals 3 (a previewed pending-push refusal goes to recovery) and 4 (a preview of an ordered create says it cannot confirm it) were added and run with_skill on 2026-11-23, by claude-opus-5-5, to cover the preview behaviour PR #234 changes in the skill: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full. Evals 1 and 2 were not re-run, as neither touches the preview."
   ]
 }
