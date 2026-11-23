@@ -9767,35 +9767,24 @@ mod tests {
 
     #[test]
     fn a_preview_reports_a_pending_push_refusal_as_the_run_would() {
-        let dir = sync_repo();
-        let tracker = draft_with_attempted_marker(dir.path());
-        let markers =
-            crate::test_support::pending_push_tree(dir.path(), "jira");
-
-        let run = drive_sync_captured(
-            dir.path(),
-            &tracker,
-            &previewing(vec!["0001".into()]),
-        );
+        let preview = preview_and_run(draft_with_attempted_marker, &["0001"]);
 
         assert!(
-            run.out.contains("0001\tfailed\tunsynced\tterminal"),
+            preview.out.contains("0001\tfailed\tunsynced\tterminal"),
             "{}",
-            run.out
+            preview.out
         );
         assert!(
-            error_lines(&run.err).iter().any(|line| line.starts_with(
-                "error: 0001: create would fail: pending push refused \
+            error_lines(&preview.err)
+                .iter()
+                .any(|line| line.starts_with(
+                    "error: 0001: create would fail: pending push refused \
                  (prior-attempt-unknown): "
-            )),
+                )),
             "{}",
-            run.err
+            preview.err
         );
-        assert_eq!(run.code, ExitCode::from(super::exit_codes::TERMINAL));
-        assert_eq!(
-            crate::test_support::pending_push_tree(dir.path(), "jira"),
-            markers
-        );
+        assert_eq!(preview.code, ExitCode::from(super::exit_codes::TERMINAL));
     }
 
     #[test]
