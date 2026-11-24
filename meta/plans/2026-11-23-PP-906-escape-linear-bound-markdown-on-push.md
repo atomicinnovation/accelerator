@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T08:24:03+00:00"
+last_updated: "2026-11-24T08:38:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -791,7 +791,7 @@ rules read:
 **Changes**: An `assert_escapes(input, expected)` helper modelled on
 `assert_unwraps` (`markdown/src/tests.rs:50-78`). For LF and CRLF it checks:
 
-- **Rules.** Splicing `proposed_escapes(input)` into `input` gives
+- **Rules.** `with_escapes(input, proposed_escapes(input))` gives
   `expected`, before any fallback. An unchanged case therefore asserts the
   rules propose nothing, so a rule that over-reaches into code or an
   attribute fails here even though the fallback would hide it.
@@ -874,9 +874,10 @@ use crate::{Splice, spliced};
 pub use top_level_domains::is_top_level_domain;
 
 /// `markdown` with a backslash before each `.` or `)` that Linear's parser
-/// would read as an ordered-list marker or part of a link. Only backslashes
-/// are inserted; if any would change the CommonMark reading, `markdown` is
-/// returned unchanged.
+/// would read as an ordered-list marker or part of a link.
+///
+/// Only backslashes are inserted. If any would change how `document` reads
+/// the body, `markdown` is returned unchanged.
 #[must_use]
 pub fn escape_for_push(markdown: &str) -> String {
     escaped_or_original(markdown, proposed_escapes(markdown))
@@ -887,15 +888,19 @@ fn proposed_escapes(markdown: &str) -> Vec<Escape> {
     digit_rule::escapes(markdown, &events)
 }
 
-fn escaped_or_original(markdown: &str, mut escapes: Vec<Escape>) -> String {
-    escapes.sort_unstable();
-    escapes.dedup();
-    let escaped = spliced(markdown, escapes.into_iter().map(Escape::splice));
-    if reads_alike(markdown, &escaped) {
-        escaped
+fn escaped_or_original(markdown: &str, escapes: Vec<Escape>) -> String {
+    let candidate = with_escapes(markdown, escapes);
+    if reads_alike(markdown, &candidate) {
+        candidate
     } else {
         markdown.to_owned()
     }
+}
+
+fn with_escapes(markdown: &str, mut escapes: Vec<Escape>) -> String {
+    escapes.sort_unstable();
+    escapes.dedup();
+    spliced(markdown, escapes.into_iter().map(Escape::splice))
 }
 
 type Parsed = [(MarkdownEvent, Range<usize>)];
@@ -1101,8 +1106,8 @@ alike, and that splicing `proposed_escapes` alone equals `escape_for_push`'s
 output, so the fallback never fires on a real body. It asserts it read at
 least 300 bodies (402 exist today), so a wrong path cannot pass vacuously,
 and a failure names the offending work-item path, since new work items can
-fail this lane without any code change. `proposed_escapes` and `Escape`
-become private to `markdown::linear`.
+fail this lane without any code change. `proposed_escapes`, `with_escapes`
+and `Escape` stay private to `markdown::linear`.
 
 The CommonMark equivalence of each escaped fragment with its unescaped one is
 already pinned by phase 3's `body_equivalence.rs` test, against the same file
