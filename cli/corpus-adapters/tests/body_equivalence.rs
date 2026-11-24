@@ -16,8 +16,15 @@ struct Capture {
 }
 
 impl Capture {
-    fn load() -> Result<Self, TestError> {
-        let directory = fixtures().join("linear-rewrites");
+    fn unescaped() -> Result<Self, TestError> {
+        Self::load(&fixtures().join("linear-rewrites"))
+    }
+
+    fn escaped() -> Result<Self, TestError> {
+        Self::load(&fixtures().join("linear-rewrites/escaped"))
+    }
+
+    fn load(directory: &Path) -> Result<Self, TestError> {
         Ok(Self {
             pushed: std::fs::read_to_string(directory.join("pushed.md"))?,
             read_back: description(&directory.join("read-back.json"))?,
@@ -29,6 +36,10 @@ impl Capture {
             section(&self.pushed, name)?,
             section(&self.read_back, name)?,
         ))
+    }
+
+    fn codes(&self) -> Vec<String> {
+        codes(&self.pushed)
     }
 
     fn without(&self, names: &[&str]) -> (String, String) {
@@ -70,6 +81,19 @@ fn names(heading: &str, name: &str) -> bool {
         == Some(name)
 }
 
+fn codes(markdown: &str) -> Vec<String> {
+    sections(markdown)
+        .into_iter()
+        .filter_map(|(heading, _)| {
+            heading
+                .strip_prefix("## ")?
+                .split(' ')
+                .next()
+                .map(str::to_owned)
+        })
+        .collect()
+}
+
 fn section(markdown: &str, name: &str) -> Result<String, TestError> {
     sections(markdown)
         .into_iter()
@@ -97,7 +121,7 @@ fn equivalent_markdown(left: &str, right: &str) -> bool {
 }
 
 fn captured_row_is_noise(name: &str) -> Result<(), TestError> {
-    let (pushed, read_back) = Capture::load()?.fragments(name)?;
+    let (pushed, read_back) = Capture::unescaped()?.fragments(name)?;
     assert_ne!(pushed.trim(), read_back.trim(), "{name} was not rewritten");
     assert!(
         equivalent_markdown(&pushed, &read_back),
@@ -107,7 +131,7 @@ fn captured_row_is_noise(name: &str) -> Result<(), TestError> {
 }
 
 fn captured_row_differs(name: &str) -> Result<(), TestError> {
-    let (pushed, read_back) = Capture::load()?.fragments(name)?;
+    let (pushed, read_back) = Capture::unescaped()?.fragments(name)?;
     assert!(
         !equivalent_markdown(&pushed, &read_back),
         "{name}: {pushed:?} and {read_back:?} should differ"
@@ -326,7 +350,7 @@ fn strong_on_a_code_span_is_noise() {
 #[test]
 fn the_captured_push_and_read_back_differ_only_by_the_meaning_changing_rows(
 ) -> Result<(), TestError> {
-    let capture = Capture::load()?;
+    let capture = Capture::unescaped()?;
     assert!(!equivalent_markdown(&capture.pushed, &capture.read_back));
     let (pushed, read_back) = capture.without(&[
         "R12", "X09", "X10", "X11", "X14", "X15", "X16", "X17", "X19", "X20",
@@ -336,5 +360,39 @@ fn the_captured_push_and_read_back_differ_only_by_the_meaning_changing_rows(
         equivalent_markdown(&pushed, &read_back),
         "{pushed:?} and {read_back:?} should be equivalent"
     );
+    Ok(())
+}
+
+#[test]
+fn the_escaped_capture_covers_every_fragment() -> Result<(), TestError> {
+    let (unescaped, escaped) = (Capture::unescaped()?, Capture::escaped()?);
+    assert_eq!(escaped.codes(), unescaped.codes());
+    assert_eq!(codes(&escaped.read_back), unescaped.codes());
+    Ok(())
+}
+
+#[test]
+fn each_escaped_fragment_is_equivalent_to_its_unescaped_fragment(
+) -> Result<(), TestError> {
+    let (unescaped, escaped) = (Capture::unescaped()?, Capture::escaped()?);
+    for code in unescaped.codes() {
+        assert_noise(
+            &section(&unescaped.pushed, &code)?,
+            &section(&escaped.pushed, &code)?,
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn each_escaped_read_back_is_equivalent_to_its_unescaped_fragment(
+) -> Result<(), TestError> {
+    let (unescaped, escaped) = (Capture::unescaped()?, Capture::escaped()?);
+    for code in unescaped.codes() {
+        assert_noise(
+            &section(&unescaped.pushed, &code)?,
+            &section(&escaped.read_back, &code)?,
+        );
+    }
     Ok(())
 }
