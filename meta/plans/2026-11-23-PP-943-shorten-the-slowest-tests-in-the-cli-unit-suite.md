@@ -1890,6 +1890,25 @@ Also to record:
   gave 67.9 s (median, family build included), ≈ 123.6 s under the suite
   at × 1.82. The slowest test was 6.7 s, ≈ 12.2 s under the suite. The
   two reused-state tests took 5.3 s each, 15.6% of the total.
+
+  **Profile at `xurnrnyp`.** Scratch timers in three alone runs, at load
+  averages of 15–18, with 73–86 test-seconds per run:
+
+  | Class | Per run | Count | Median, 15 tests | Median, 1 test |
+  |---|---|---|---|---|
+  | `jj` spawns | 29–34 s | 86 | 258–354 ms | 15–85 ms |
+  | Copies | 12–15 s | 30 | 377–481 ms | 19.5 ms |
+  | Migrate runs | 13–16 s | 42 | 214–265 ms | 65–150 ms |
+  | Projections | 0.2 s | 4 | 41–49 ms | 23–26 ms |
+
+  About 15 s per run was not timed. The copy's path scan was ~25 ms of
+  each copy, and a sequential `cp -Rc` of one stall (160 entries) took
+  20 ms, so the copies cost what contention adds. With `store`'s and
+  `corpus-adapters`' syncs dropped in a scratch build, migrate fell to
+  8–10 s per run and copies to 8–10 s, but the binary's total only moved
+  to 65.6 s (median), at load averages of 31–44. No lever in the tests
+  alone closes the gap: the scenarios' own `jj` and migrate work, slowed
+  by parallel tests, is most of what remains.
   5. If the total exceeds half the before median, or any test reaches
      20 s, stop and bring the author the options rather than landing.
      The options are in-process projection reads, or revisiting the
