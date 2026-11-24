@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-998"
 work_item_id: "PP-998"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 2
 review_pass: 2
 tags: []
-last_updated: "2026-11-23T23:44:05+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -270,3 +270,9 @@ Made after pass 2 and not re-reviewed; the verdict above is the reviewers'.
 - 🟡 Lookup removal — Gone: the lookup is never removed.
 - 🟡 PP-134's planning gate — Stated here as a planning-order wait; PP-134 and PP-868 are not yet updated to match.
 - 🔵 Slug preconditions; deeper path under a non-set type; no redirect; where the route shape is recorded; plain view's production use — Addressed.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

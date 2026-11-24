@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-995"
 work_item_id: "PP-995"
 reviewer: "Toby Clemson"
-verdict: "COMMENT"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 2
 review_pass: 2
 tags: []
-last_updated: "2026-11-23T23:44:05+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -273,3 +273,9 @@ Made after pass 2 and not re-reviewed; the verdict above is the reviewers'.
 - 🟡 Title rule — Addressed: the title ends at the last `](` for which the rest of the line reads as an entry, with a criterion for a venue holding a link.
 - 🔵 Value rule; line-span base and declared-empty case; CRLF and "as written"; block-line bullet; PP-994 and PP-936 in Dependencies; Summary — Addressed.
 - Not addressed: round-trip display has no consumer; size M; PP-924 does not record its condition.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

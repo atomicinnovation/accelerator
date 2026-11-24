@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-994"
 work_item_id: "PP-994"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
 tags: []
-last_updated: "2026-11-23T21:18:33+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -394,3 +394,9 @@ drafting agent did, not a reviewer's judgement.
 - 🔵 Negative event assertions unbounded — Addressed with a sentinel write.
 - Not addressed: the presentation declaration still has no committed reader beyond the set page's new requirement; "as before" baselines for the design-inventory page.
 - The drafting agent's calls on this item were confirmed by the author on 2026-11-23.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

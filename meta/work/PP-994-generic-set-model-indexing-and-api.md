@@ -7,12 +7,12 @@ title: "Generic Set Model: Indexing and API"
 date: "2026-11-23T16:12:42+00:00"
 author: "Toby Clemson"
 producer: "refine-work-item"
-status: "draft"
+status: "ready"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T23:43:43+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-134", "work-item:PP-998", "work-item:PP-1001", "work-item:PP-1000", "work-item:PP-1002"]

@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-998"
 work_item_id: "PP-998"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 1
 tags: []
-last_updated: "2026-11-23T21:18:33+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -163,3 +163,9 @@ drafting agent did, not a reviewer's judgement.
 - 🔵 Route shape narrowed; set URL resolution stated positively; query invalidation and toast claims corrected; planning order; PP-134 — Addressed.
 - 🔵 Live-update, test-only doc type, "as before", no other set navigation — Addressed.
 - Not addressed: worked example URLs, which wait on the route shape.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

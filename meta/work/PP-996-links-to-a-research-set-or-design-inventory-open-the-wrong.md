@@ -7,14 +7,14 @@ title: "Links to a Research Set or Design Inventory Open the Wrong One"
 date: "2026-11-23T21:17:40+00:00"
 author: "Toby Clemson"
 producer: "refine-work-item"
-status: "draft"
+status: "ready"
 kind: "bug"
 priority: "high"
 parent: "work-item:PP-868"
 blocks: ["work-item:PP-998"]
 relates_to: ["work-item:PP-994"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T23:43:43+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---

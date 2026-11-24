@@ -7,7 +7,7 @@ title: "Derived Set Response for Topic Research"
 date: "2026-11-23T23:08:45+00:00"
 author: "Toby Clemson"
 producer: "refine-work-item"
-status: "draft"
+status: "ready"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
@@ -15,7 +15,7 @@ blocks: ["work-item:PP-1001", "work-item:PP-1000"]
 blocked_by: ["work-item:PP-994"]
 relates_to: ["work-item:PP-995", "work-item:PP-997", "work-item:PP-923"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T23:43:43+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
