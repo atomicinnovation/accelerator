@@ -35,7 +35,7 @@ pub fn linear_leaves_bare(text: &str, token: Range<usize>) -> bool {
         .is_some_and(|character| "-_:@/\\.".contains(character))
         || before.chars().rev().nth(1) == Some('\\');
     let precedes_a_cancelling_character = following
-        .is_some_and(|character| "_~-+=$|^<".contains(character))
+        .is_some_and(|character| "_~-+=$|^<`".contains(character))
         || (has_port && following == Some(':'));
     names_a_bare_file
         || !last_label.is_ascii()

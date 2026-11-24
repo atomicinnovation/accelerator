@@ -81,7 +81,7 @@ fn each_rewrite_reproduces_the_captured_linear_read_back(
     Ok(())
 }
 
-const DOTTED_TOKEN_GROUPS: [&str; 9] = [
+const DOTTED_TOKEN_GROUPS: [&str; 14] = [
     "ext",
     "md-name",
     "rs-name",
@@ -91,6 +91,11 @@ const DOTTED_TOKEN_GROUPS: [&str; 9] = [
     "labels",
     "numeric",
     "ports-paths",
+    "markup",
+    "remedy",
+    "nfd",
+    "nfc",
+    "marks",
 ];
 
 struct Probes {
@@ -163,6 +168,10 @@ fn the_simulator_links_what_linear_linked_in_every_dotted_token_probe(
         Probes::dotted_token_probes(
             "linear-autolink-probes/follow-ups.md",
             "linear-autolink-probes/follow-ups.read-back.json",
+        )?,
+        Probes::dotted_token_probes(
+            "linear-autolink-probes/split-tokens.md",
+            "linear-autolink-probes/split-tokens.read-back.json",
         )?,
         Probes::tld_sweep()?,
     ];

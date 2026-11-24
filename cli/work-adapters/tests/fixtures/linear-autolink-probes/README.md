@@ -1,6 +1,6 @@
 # Linear autolink and stray-list probes
 
-Five bodies were pushed to scratch issues in the `TES` team on 2026-11-24,
+Six bodies were pushed to scratch issues in the `TES` team on 2026-11-24,
 read back with `accelerator linear show`, projected through the allowlist in
 `../work-item-sync-recovery/README.md`, and deleted.
 
@@ -8,11 +8,13 @@ read back with `accelerator linear show`, projected through the allowlist in
 |---|---|---|---|
 | `probes.md` | `TES-33` by `issueCreate`, `TES-34` by `issueUpdate` | `probes.created.json`, `probes.updated.json` | `Q001`-`Q310` |
 | `follow-ups.md` | `TES-36` | `follow-ups.read-back.json` | `S001`-`S209` |
+| `split-tokens.md` | `TES-41` | `split-tokens.read-back.json` | `M001`-`M036`, `N001`-`N020` |
 | `entities.md` | `TES-39` | `entities.read-back.json` | `E001`-`E026` |
 | `entities.read-back.json`'s description | `TES-40` | `entities.second-push.read-back.json` | `E001`-`E026`, as a pull writes them |
 | `tld-sweep.md` | `TES-35` | `tld-sweep.read-back.json` | `x foo.<tld> y` for every label in `cli/markdown/src/linear/tlds-alpha-by-domain.txt` |
 
-Each probe in `probes.md`, `follow-ups.md` and `entities.md` sits under a `#### <code>
+Each probe in `probes.md`, `follow-ups.md`, `split-tokens.md` and
+`entities.md` sits under a `#### <code>
 <group>` heading; each sweep line is its own paragraph led by `T<nnnn>`.
 Create and update read back byte-identically, so both mutations share one
 parser.
@@ -25,10 +27,10 @@ A bare dotted token is linked as `[t](<http://t>)` when every condition holds:
 |---|---|---|
 | Last label | any IANA label in any case | bare `md` and `merck`, the only sweep exceptions (`T0731`, `T0741`); non-IANA labels |
 | `md` with a suffix | `foo.md:1`, `foo.md/`, `foo.md#x`, `foo.md?x`, `a@b.md` | `foo.md`, `a.b.md`, `www.md`, `foo.md:x` |
-| Labels | 1-63 characters of Unicode letters, digits, `-` inside, and `~` (`café.io`, `日本.jp`, `[\~a.io](<http://~a.io>)`) | a 64-character label, `_`, a leading or trailing `-`, an empty label |
+| Labels | 1-63 characters of Unicode letters, digits, combining marks, format characters, `-` inside, and `~` (`café.io` composed or decomposed, `日本.jp`, `हिन्दी.com`, `a` U+200D `.io`, `[\~a.io](<http://~a.io>)`) | a 64-character label, `_`, a leading or trailing `-`, an empty label |
 | Preceding character | whitespace and most punctuation: `( [ { < " ' * + = ; , ! ? # $ % & \| ^`, `—`, `’`, `«`, `…`, no-break space | `-`, `_`, `:`, `@`, `/`, `\`, `.` |
-| Following character | ends before `.` `,` `)` `]` `}` `>` `"` `'` `*` `:` `;` `!` `?` `…` `’`; extends over `:<port>`, `/path`, `?query`, `#fragment` | cancelled by `_`, `~`, `-`, `+`, `=`, `$`, `\|`, `^`, `<`, a digit or a letter |
-| Context | emphasis (`[**crates.io**](<http://crates.io>)`), headings, table cells, list items, blockquotes | code, `~~strikethrough~~`, a token touching an inline HTML tag |
+| Following character | ends before `.` `,` `)` `]` `}` `>` `"` `'` `*` `:` `;` `!` `?` `…` `’`; extends over `:<port>`, `/path`, `?query`, `#fragment` | cancelled by `_`, `~`, `-`, `+`, `=`, `$`, `\|`, `^`, `<`, `` ` ``, a digit or a letter |
+| Context | emphasis (`[**crates.io**](<http://crates.io>)`), headings, table cells, list items, blockquotes, emphasis touching it (`crates.io**z**`) | code, `~~strikethrough~~`, a token touching an inline HTML tag, a token split by inline markup |
 
 Scheme URLs are linked whole after any boundary, quotes and `URL:` included,
 when the scheme is `http`, `https` or `ftp` in any case, or the URL starts
@@ -37,6 +39,31 @@ when the scheme is `http`, `https` or `ftp` in any case, or the URL starts
 
 `local@host` is linked as `mailto:` when the host is a valid name, `md` hosts
 included. `mailto:` is kept in the link text when written.
+
+## Split tokens
+
+`split-tokens.md` sends dotted tokens broken by inline markup (group
+`markup`), eleven of them again with the dot escaped (`remedy`), and labels
+holding combining marks or format characters (groups `nfd`, `nfc` and
+`marks`).
+
+No token split by markup is linked: not `crates.**io**`, `**crates**.io`,
+`crates.i**o**`, `crates.*io*`, `crates.~~io~~`, `foo.<b>rs</b>`,
+`<b>foo</b>.rs`, `crates.<!-- c -->io`, ``foo.`rs` ``, `` `foo`.rs ``,
+`[foo](x).rs`, `foo.[rs](x)` nor `foo.<br>rs`. A whole token beside markup
+is linked (`M023` `crates.io**z**`, `M024` `**z**crates.io`), except before a
+code span: ``jql.rs`:167` `` is left bare (`M019`). Linear stores each
+`markup` probe as sent but for cosmetic rewrites: `crates**.io**`'s literal
+asterisks escaped, `_io_` as `*io*`, and a link destination in angle
+brackets. Each `remedy` probe is stored without its backslash.
+
+Linear reads a label whole when it holds a combining mark or a format
+character, whether the text is composed or decomposed:
+NFD `café.io`, `naïve.io`, `ñ.io` and `é.io`, `हिन्दी.com`, a leading mark
+(`N015`), a doubled mark (`N017`), an enclosing mark (`N018`) and a zero-width
+joiner (`N019`) are all linked, to the label's punycode. A mark opening the
+last label (`N016`) and a non-ASCII last label (`N008`, `N012`) are left
+bare. The escaped `N020` is stored as plain text.
 
 ## Escapes
 

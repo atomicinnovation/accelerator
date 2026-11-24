@@ -56,6 +56,11 @@ impl Corpus {
                 "linear-autolink-probes/follow-ups.md",
                 "linear-autolink-probes/follow-ups.read-back.json",
             )?,
+            probes(
+                "split tokens",
+                "linear-autolink-probes/split-tokens.md",
+                "linear-autolink-probes/split-tokens.read-back.json",
+            )?,
             Self {
                 name: "tld-sweep",
                 pushed: lines(&fixture("linear-autolink-probes/tld-sweep.md")?),
