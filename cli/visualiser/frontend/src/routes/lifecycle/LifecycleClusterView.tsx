@@ -201,7 +201,7 @@ interface TimelineStepProps {
 }
 
 function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
-  const fileSlug = fileSlugFromRelPath(entry.relPath);
+  const documentId = fileSlugFromRelPath(entry.relPath);
   const fmStatus =
     entry.frontmatterState === "parsed" ? entry.frontmatter.status : undefined;
   const fmVerdict =
@@ -215,8 +215,8 @@ function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
         <StageTile step={step} active />
       </span>
       <Link
-        to="/library/$type/$fileSlug"
-        params={{ type: entry.type, fileSlug }}
+        to="/library/$type/$documentId"
+        params={{ type: entry.type, documentId }}
         className={styles.tcard}
       >
         <div className={styles.tcardHead}>

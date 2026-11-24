@@ -57,7 +57,7 @@ function renderKanbanAt(
   }),
 ) {
   // Render KanbanBoard directly in a minimal router (the library doc route is
-  // registered so <Link to="/library/$type/$fileSlug"> resolves in tests).
+  // registered so <Link to="/library/$type/$documentId"> resolves in tests).
   const root = createRootRoute({ component: () => <Outlet /> });
   const kanbanRoute = createRoute({
     getParentRoute: () => root,
@@ -66,7 +66,7 @@ function renderKanbanAt(
   });
   const libraryDocRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: () => null,
   });
   const router = createRouter({

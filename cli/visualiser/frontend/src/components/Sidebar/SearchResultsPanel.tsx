@@ -66,8 +66,8 @@ export function SearchResultsPanel({ query }: { query: string }) {
             {results.map((r) => (
               <Link
                 key={`${r.docType}/${r.slug}`}
-                to="/library/$type/$fileSlug"
-                params={{ type: r.docType, fileSlug: r.slug }}
+                to="/library/$type/$documentId"
+                params={{ type: r.docType, documentId: r.slug }}
                 className={styles.searchRowLink}
                 role="option"
                 tabIndex={0}

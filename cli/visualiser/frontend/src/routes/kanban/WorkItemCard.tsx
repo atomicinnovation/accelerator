@@ -43,7 +43,7 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
   // drag affordance without misrepresenting the element as a button.
   const { role: _role, ...sortableAttributes } = attributes;
 
-  const fileSlug = fileSlugFromRelPath(entry.relPath);
+  const documentId = fileSlugFromRelPath(entry.relPath);
 
   // Combine dnd-kit's node ref with the board's focus-registry registration on
   // the same anchor element: dnd-kit needs the node for drag geometry; the board
@@ -94,8 +94,8 @@ export function WorkItemCard({ entry, now }: WorkItemCardProps) {
     <li className={styles.cardItem} data-relpath={entry.relPath}>
       <Link
         ref={setRefs}
-        to="/library/$type/$fileSlug"
-        params={{ type: "work-items", fileSlug }}
+        to="/library/$type/$documentId"
+        params={{ type: "work-items", documentId }}
         className={styles.cardLink}
         // While dragging, the lifted DragOverlay clone follows the cursor and
         // the source card stays in its slot (showing the dragging style), so the

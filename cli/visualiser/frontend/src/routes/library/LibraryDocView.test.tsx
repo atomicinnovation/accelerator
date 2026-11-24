@@ -6,7 +6,10 @@ import * as fetchModule from "../../api/fetch";
 import { makeIndexEntry, makeLifecycleCluster } from "../../api/test-fixtures";
 import type { IndexEntry } from "../../api/types";
 import { dispatchSseEvent } from "../../api/use-doc-events";
-import { MemoryRouter } from "../../test/router-helpers";
+import {
+  MemoryRouter,
+  renderWithRouterAndQueryAt,
+} from "../../test/router-helpers";
 import { LibraryDocView } from "./LibraryDocView";
 
 const mockEntry: IndexEntry = {
@@ -61,9 +64,28 @@ describe("LibraryDocView", () => {
       content: "Body text.",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
+    expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["id", "2026-01-01-foo-plan"],
+    ["slug", "foo"],
+    ["filename stem", "2026-01-01-foo"],
+  ])("opens a document addressed by its %s", async (_, documentId) => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      { ...mockEntry, id: "2026-01-01-foo-plan" },
+    ]);
+    vi.spyOn(fetchModule, "fetchDocContent").mockResolvedValue({
+      content: "Body text.",
+      etag: '"sha256-a"',
+    });
+    renderWithRouterAndQueryAt(
+      <LibraryDocView />,
+      `/library/plans/${documentId}`,
+    );
     expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
   });
 
@@ -73,7 +95,7 @@ describe("LibraryDocView", () => {
       content: "# Title",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     // 'draft' appears both in the chip strip and in the FrontmatterTable.
@@ -86,7 +108,7 @@ describe("LibraryDocView", () => {
       content: "# Foo Plan\nBody text here.",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     expect(await screen.findByText("Body text here.")).toBeInTheDocument();
@@ -94,7 +116,7 @@ describe("LibraryDocView", () => {
 
   it("renders the not-found surface when the slug does not match any entry", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([mockEntry]);
-    render(<LibraryDocView type="plans" fileSlug="nonexistent" />, {
+    render(<LibraryDocView type="plans" documentId="nonexistent" />, {
       wrapper: Wrapper,
     });
     expect(
@@ -122,7 +144,7 @@ describe("LibraryDocView", () => {
           /* pending forever */
         }),
     );
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     expect((await screen.findAllByText(/Loading…/i)).length).toBeGreaterThan(0);
@@ -132,7 +154,7 @@ describe("LibraryDocView", () => {
     vi.spyOn(fetchModule, "fetchDocs").mockRejectedValue(
       new Error("list-boom"),
     );
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     expect(
@@ -153,7 +175,7 @@ describe("LibraryDocView", () => {
     vi.spyOn(fetchModule, "fetchDocContent").mockRejectedValue(
       new Error("content-boom-distinct"),
     );
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     expect(
@@ -183,14 +205,14 @@ describe("LibraryDocView", () => {
     });
     // A matching null-slug entry resolves as a found document.
     const { unmount } = render(
-      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      <LibraryDocView type="plans" documentId="2026-01-01-foo" />,
       { wrapper: Wrapper },
     );
     expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
     unmount();
 
     // A non-matching slug under the same null-slug list falls to the 404.
-    render(<LibraryDocView type="plans" fileSlug="no-such-slug" />, {
+    render(<LibraryDocView type="plans" documentId="no-such-slug" />, {
       wrapper: Wrapper,
     });
     expect(
@@ -220,7 +242,7 @@ describe("LibraryDocView", () => {
       declaredOutbound: [],
       declaredInbound: [review],
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     // Option B: the inbound entry renders as a single declared-tagged row.
@@ -240,7 +262,7 @@ describe("LibraryDocView", () => {
     vi.spyOn(fetchModule, "fetchRelated").mockRejectedValue(
       new Error("related-boom"),
     );
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     expect(
@@ -271,7 +293,7 @@ describe("LibraryDocView", () => {
       declaredOutbound: [],
       declaredInbound: [],
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     const link = await screen.findByRole("link", { name: "Example decision" });
@@ -299,7 +321,7 @@ describe("LibraryDocView", () => {
       declaredInbound: [],
     });
     const { container } = render(
-      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      <LibraryDocView type="plans" documentId="2026-01-01-foo" />,
       { wrapper: Wrapper },
     );
     // Wait for the pending → unresolved flip after both fetchDocs
@@ -327,7 +349,7 @@ describe("LibraryDocView", () => {
       content: "# body",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     const banner = await screen.findByLabelText(/metadata header/i);
@@ -350,7 +372,7 @@ describe("LibraryDocView", () => {
         etag: '"sha256-a"',
       });
       const { unmount } = render(
-        <LibraryDocView type="plans" fileSlug={`2026-01-01-${state}`} />,
+        <LibraryDocView type="plans" documentId={`2026-01-01-${state}`} />,
         { wrapper: Wrapper },
       );
       await screen.findByRole("article");
@@ -371,7 +393,7 @@ describe("LibraryDocView", () => {
       content: "# Body",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     expect(
@@ -390,7 +412,7 @@ describe("LibraryDocView", () => {
       content: "# Body",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     await screen.findByLabelText(/metadata header/i);
@@ -408,7 +430,7 @@ describe("LibraryDocView", () => {
       content: "# Body",
       etag: '"sha256-a"',
     });
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
     await screen.findByRole("article");
@@ -423,7 +445,7 @@ describe("LibraryDocView", () => {
       etag: '"sha256-a"',
     });
     const { container } = render(
-      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      <LibraryDocView type="plans" documentId="2026-01-01-foo" />,
       { wrapper: Wrapper },
     );
     // Body still renders.
@@ -474,7 +496,7 @@ describe("LibraryDocView", () => {
     const { container } = render(
       <LibraryDocView
         type="work-items"
-        fileSlug="0078-detail-page-frontmatter-table"
+        documentId="0078-detail-page-frontmatter-table"
       />,
       { wrapper: Wrapper },
     );
@@ -506,7 +528,7 @@ describe("LibraryDocView", () => {
         </QueryClientProvider>
       );
     }
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: WrapperWithQC,
     });
     await screen.findByRole("article");
@@ -544,7 +566,7 @@ describe("LibraryDocView", () => {
         entries: [makeIndexEntry({ path: mockEntry.path })],
       }),
     ]);
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
 
@@ -577,7 +599,7 @@ describe("LibraryDocView", () => {
           /* pending forever */
         }),
     );
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
 
@@ -603,7 +625,7 @@ describe("LibraryDocView", () => {
     vi.spyOn(fetchModule, "fetchLifecycleClusters").mockRejectedValue(
       new Error("lifecycle-boom"),
     );
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
 
@@ -623,7 +645,7 @@ describe("LibraryDocView", () => {
       etag: '"sha256-a"',
     });
     const { container } = render(
-      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      <LibraryDocView type="plans" documentId="2026-01-01-foo" />,
       { wrapper: Wrapper },
     );
     await screen.findByText("Foo Plan");
@@ -651,7 +673,7 @@ describe("LibraryDocView", () => {
         }),
     );
     const { container } = render(
-      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      <LibraryDocView type="plans" documentId="2026-01-01-foo" />,
       { wrapper: Wrapper },
     );
     expect((await screen.findAllByText(/Loading…/i)).length).toBeGreaterThan(0);
@@ -672,7 +694,7 @@ describe("LibraryDocView", () => {
       declaredInbound: [],
     });
     // Default beforeEach stub resolves []; the doc is in no cluster.
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: Wrapper,
     });
 

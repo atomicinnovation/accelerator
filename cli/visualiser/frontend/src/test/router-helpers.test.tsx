@@ -12,8 +12,8 @@ describe("renderWithRouterAt", () => {
   it("resolves <Link> targets at the library doc route", async () => {
     renderWithRouterAt(
       <Link
-        to="/library/$type/$fileSlug"
-        params={{ type: "work-items", fileSlug: "0001-x" }}
+        to="/library/$type/$documentId"
+        params={{ type: "work-items", documentId: "0001-x" }}
       >
         work item link
       </Link>,

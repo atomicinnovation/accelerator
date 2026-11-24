@@ -38,7 +38,7 @@ function buildRouter(initial: string) {
     mk("/library", LABELS["/library"]),
     mk("/kanban", LABELS["/kanban"]),
     mk("/dev", LABELS["/dev"]),
-    mk("/library/$type/$fileSlug", "doc"),
+    mk("/library/$type/$documentId", "doc"),
   ]);
   return createRouter({
     routeTree: tree,

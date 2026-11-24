@@ -120,14 +120,14 @@ export function ActivityFeed() {
       ) : (
         <ul className={styles.list}>
           {rows.map((r) => {
-            const fileSlug = fileSlugFromRelPath(r.path);
+            const documentId = fileSlugFromRelPath(r.path);
             const label = labelFor(r.docType);
             const file = basename(r.path);
             return (
               <li key={activityRowId(r)}>
                 <Link
-                  to="/library/$type/$fileSlug"
-                  params={{ type: r.docType, fileSlug }}
+                  to="/library/$type/$documentId"
+                  params={{ type: r.docType, documentId }}
                   className={styles.row}
                   aria-label={`${label}, ${r.action}, ${file}`}
                 >

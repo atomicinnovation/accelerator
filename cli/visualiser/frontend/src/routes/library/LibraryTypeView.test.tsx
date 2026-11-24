@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { describe, expect, it, type Mock, vi } from "vitest";
@@ -485,6 +485,15 @@ describe("LibraryTypeView markSeen wiring", () => {
     renderAt("/library/work-items/some-slug", handle);
     await Promise.resolve();
     expect(handle.markSeen).not.toHaveBeenCalled();
+  });
+
+  it("child-doc URL renders the document in place of the listing", async () => {
+    renderAt("/library/work-items/some-slug", mockHandle());
+    await waitFor(() => expect(fetchModule.fetchDocs).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      screen.queryByRole("heading", { name: /no work items yet/i }),
+    ).toBeNull();
   });
 
   it("invalid type via router does not bump T", async () => {

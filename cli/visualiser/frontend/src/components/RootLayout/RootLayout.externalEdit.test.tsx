@@ -108,7 +108,7 @@ function renderSubstituteTree(
   };
   const docRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: Tree,
   });
   const indexRoute = createRoute({

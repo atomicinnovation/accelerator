@@ -62,7 +62,7 @@ function makeRouterWrapper(atUrl: string) {
   });
   const docRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: () => <Capture captureRef={captureRef} />,
   });
   const tree = root.addChildren([indexRoute, typeRoute, docRoute]);
@@ -110,6 +110,20 @@ describe("useActiveDocRelPath", () => {
       entry({ slug: "something-else", relPath: "meta/work/0007-foo.md" }),
     ]);
     const { captureRef } = renderAt("/library/work-items/0007-foo");
+    await waitFor(() =>
+      expect(captureRef.current).toBe("meta/work/0007-foo.md"),
+    );
+  });
+
+  it.each([
+    ["id", "0007"],
+    ["slug", "foo"],
+    ["filename stem", "0007-foo"],
+  ])("resolves a document addressed by its %s", async (_, documentId) => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      entry({ id: "0007", slug: "foo", relPath: "meta/work/0007-foo.md" }),
+    ]);
+    const { captureRef } = renderAt(`/library/work-items/${documentId}`);
     await waitFor(() =>
       expect(captureRef.current).toBe("meta/work/0007-foo.md"),
     );

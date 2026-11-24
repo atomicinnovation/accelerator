@@ -163,7 +163,7 @@ function insertWithEarliestRelPath<K>(
 
 /** Resolve one wiki-link target. Returns `{ href, title }` on hit,
  *  `null` on miss. The href follows the existing
- *  `/library/:type/:fileSlug` shape; `fileSlug` is derived from the
+ *  `/library/:type/:documentId` shape; `documentId` is derived from the
  *  entry's `relPath` so the filename's date or numeric prefix is
  *  preserved exactly.
  *
@@ -184,9 +184,9 @@ export function resolveWikiLink(
     entry = idx.workItemById.get(id.toLowerCase());
   }
   if (!entry) return null;
-  const fileSlug = fileSlugFromRelPath(entry.relPath);
+  const documentId = fileSlugFromRelPath(entry.relPath);
   return {
-    href: `/library/${entry.type}/${fileSlug}`,
+    href: `/library/${entry.type}/${documentId}`,
     title: entry.title,
   };
 }

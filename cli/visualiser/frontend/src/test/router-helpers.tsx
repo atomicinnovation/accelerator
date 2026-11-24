@@ -31,7 +31,7 @@ function buildTestRouter(ui: React.ReactNode, atUrl = "/") {
   });
   const libraryDocRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: () => <>{ui}</>,
   });
   // Mirror the production `/lifecycle/$slug` route so `<Link to="/lifecycle/$slug">`

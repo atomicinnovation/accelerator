@@ -3,7 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { fetchDocs } from "../../api/fetch";
 import { formatBytes, formatEtagShort } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import { resolveLibraryDocument } from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import { chipVariantFor } from "../../api/status-variant";
 import type { DocTypeKey } from "../../api/types";
@@ -54,17 +54,20 @@ function statusFromFrontmatter(frontmatter: unknown): unknown {
 
 interface Props {
   type?: DocTypeKey;
-  fileSlug?: string;
+  documentId?: string;
 }
 
-export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
+export function LibraryDocView({
+  type: propType,
+  documentId: propDocumentId,
+}: Props) {
   // See LibraryTypeView for the prop-or-param + narrowing rationale.
   const params = useParams({ strict: false }) as {
     type?: string;
-    fileSlug?: string;
+    documentId?: string;
   };
   const rawType = propType ?? params.type;
-  const fileSlug = propSlug ?? params.fileSlug ?? "";
+  const documentId = propDocumentId ?? params.documentId ?? "";
 
   const type: DocTypeKey | undefined =
     rawType && isDocTypeKey(rawType) ? rawType : undefined;
@@ -80,9 +83,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
     enabled: type !== undefined,
   });
 
-  const entry = entries.find(
-    (e) => e.slug === fileSlug || fileSlugFromRelPath(e.relPath) === fileSlug,
-  );
+  const entry = resolveLibraryDocument(entries, documentId);
 
   // The doc-view's read path: content + related, both gated on
   // `entry?.relPath`. Body rendering is *not* gated on the wiki-link
@@ -103,8 +104,8 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   if (type === undefined) {
     return <p role="alert">Unknown doc type: {String(rawType)}</p>;
   }
-  if (!fileSlug) {
-    return <p role="alert">Missing file slug.</p>;
+  if (!documentId) {
+    return <p role="alert">Missing document id.</p>;
   }
 
   // Fetch failures are not missing documents: they render the sibling
@@ -126,7 +127,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
   // True 404 — gated on `entries.length > 0` so loading/empty states fall
   // through to the Loading… default rather than rendering the not-found surface.
   if (!entry && entries.length > 0) {
-    return <NotFoundSurface missingSlug={fileSlug} knownType={type} />;
+    return <NotFoundSurface missingDocumentId={documentId} knownType={type} />;
   }
 
   let title: ReactNode = "Loading…";
