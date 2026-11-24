@@ -80,7 +80,8 @@ const ISSUES: &str = "https://github.com/atomicinnovation/accelerator/issues";
 
 /// The stderr block for one push `tracker` stored with a different
 /// meaning, each line naming `label`; every value is reduced to one line,
-/// since the stored text comes from the tracker.
+/// since the stored text comes from the tracker, and the sent and stored
+/// text keep each line boundary as a [`LINE_BOUNDARY`].
 #[must_use]
 pub fn rewrite_lines(
     notice: &RewriteNotice,
@@ -88,6 +89,7 @@ pub fn rewrite_lines(
     tracker: &str,
 ) -> Vec<String> {
     let shown = |text: &str| printable(&single_line(text));
+    let shown_lines = |text: &str| shown(&with_line_boundaries_marked(text));
     let label = shown(label);
     let note = |text: String| format!("note: {label}: {text}");
     let rewritten = &notice.lines;
@@ -101,8 +103,8 @@ pub fn rewrite_lines(
         note(format!(
             "{}: sent `{}`, stored `{}`",
             shown(&line.section),
-            shown(&line.sent),
-            shown(&line.stored)
+            shown_lines(&line.sent),
+            shown_lines(&line.stored)
         ))
     }));
     if rewritten.more > 0 {
@@ -132,6 +134,15 @@ pub fn rewrite_lines(
         )));
     }
     lines
+}
+
+/// How a notice shows a line break in sent or stored text. Not `\n`,
+/// which a reader could not tell from a backslash escape the text holds.
+const LINE_BOUNDARY: char = '⏎';
+
+fn with_line_boundaries_marked(text: &str) -> String {
+    text.replace("\r\n", "\n")
+        .replace(['\n', '\r'], &LINE_BOUNDARY.to_string())
 }
 
 /// As [`rewrite_lines`], naming the item's file relative to `repo_root`.
@@ -271,7 +282,23 @@ mod tests {
     }
 
     #[test]
-    fn a_multi_line_change_renders_on_one_line() {
+    fn merged_paragraphs_show_the_boundary_they_lost() {
+        for notice in [notice, still] {
+            let lines = rewrite_lines(
+                &notice(vec![changed("Notes", "a\n\nb", "a\r\nb")]),
+                "0001",
+                "linear",
+            );
+
+            assert_eq!(
+                lines[1],
+                "note: 0001: Notes: sent `a⏎⏎b`, stored `a⏎b`"
+            );
+        }
+    }
+
+    #[test]
+    fn a_multi_line_change_renders_on_one_line_marking_its_boundaries() {
         let lines = rewrite_lines(
             &notice(vec![changed(
                 "X09",
@@ -288,8 +315,8 @@ mod tests {
             .collect();
         assert_eq!(
             shown,
-            ["note: 0001: X09: sent `- owned by   0160. - next`, stored \
-              `* owned by   160.  * next`"]
+            ["note: 0001: X09: sent `- owned by⏎  0160.⏎- next`, stored \
+              `* owned by⏎  160. ⏎* next`"]
         );
         assert!(lines
             .iter()

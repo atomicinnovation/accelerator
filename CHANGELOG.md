@@ -388,9 +388,9 @@
   --push`, the description read back is compared with the one sent. When the
   tracker turned text into a link or a wrapped number into a list, stderr
   carries `warning: <id>: rewritten on push: <sections>`, a note per changed
-  line as sent and as stored (up to five), and how to keep the meaning. The
-  push still succeeds, its baseline is recorded as before, and the exit code is
-  unchanged. `/sync-work-items`, `/create-work-item` and
+  line as sent and as stored (up to five, each line break shown as `⏎`),
+  and how to keep the meaning. The push still succeeds, its baseline is
+  recorded as before, and the exit code is unchanged. `/sync-work-items`, `/create-work-item` and
   `/extract-work-items` relay the block. The item's entry in
   `last-sync.json` keeps a `rewritten_on_push` mark until a push is stored
   faithfully or a sync finds the local file and the remote agree: every
