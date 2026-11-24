@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T08:38:33+00:00"
+last_updated: "2026-11-24T10:03:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2123,7 +2123,12 @@ are not dotted-token rewrites.
 `tracker-test-support` as `pub fn linear_leaves_bare(text: &str, token:
 Range<usize>) -> bool`, with `LEFT_BARE_BY_LINEAR` folded into it.
 `linear_captures.rs`'s oracle calls it instead of its own copy, so the
-oracle and the simulator cannot drift apart.
+oracle and the simulator cannot drift apart. Two of its classes describe
+escapes rather than Linear: a token already holding an escape, and a
+non-ASCII last label, which the escaper counts as a TLD. Before folding them
+in, settle what the simulator does with a non-ASCII last label: Linear left
+`crates.ioé` bare (`Q180`), but the probes pushed no IDN top-level domain
+such as `рф`.
 
 #### 3. Implementation
 
@@ -2570,16 +2575,21 @@ condition with an explicit `if`, and ends by printing what it found.
   following text, and the negatives: interrupting lists, `2026.11`, code,
   links, HTML and existing escapes.
 - **Dotted-token rule.** Every class and boundary shape, case, partial
-  escapes, scheme URLs and their trailing punctuation, and inline markup.
+  escapes, scheme URLs and their trailing punctuation, numeric email hosts,
+  and inline markup; each of its steps on plain strings.
 - **Properties.** On every case: LF and CRLF, idempotence, and output minus
   inserted backslashes equals input.
 - **TLD snapshot.** Shape, size floor, and known members and non-members.
 
 ### Integration Tests:
 
-- **Captures.** The escaper reproduces `escaped/pushed.md`; its escaped
-  tokens match what Linear linked; escaped fragments and their read-backs
-  are equivalent to the unescaped fragments.
+- **Captures.** The escaper reproduces `escaped/pushed.md`; over both
+  captures and the probe corpus, it escapes every token Linear linked and
+  every lone number it listed, sends every scheme URL unchanged, and makes
+  only recorded over-escapes; escaped fragments and their read-backs are
+  equivalent to the unescaped fragments.
+- **Repository sweep.** Every `meta/work` body escapes without the fallback
+  firing.
 - **Push paths.** The `Tracker` × `PushEntryPoint` matrix, plus the
   `work-cli` create and update push tests, over real clients.
 - **Rewrite notice and mark.** Every push entry point notices a rewritten
