@@ -43,6 +43,9 @@ pub enum Command {
 }
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("description_input")
+    .args(["file", "body_file"])
+    .multiple(true))]
 pub struct CreateArgs {
     /// A work-item file whose frontmatter and body seed the issue.
     pub file: Option<PathBuf>,
@@ -52,6 +55,11 @@ pub struct CreateArgs {
     /// A Markdown body file for the no-file mode.
     #[arg(long)]
     pub body_file: Option<PathBuf>,
+    /// Send the description exactly as given, without the escaping that keeps
+    /// Linear from reading dotted tokens as links or wrapped numbers as lists.
+    /// For capturing what Linear's parser does.
+    #[arg(long, requires = "description_input")]
+    pub verbatim: bool,
     #[arg(long, short)]
     pub quiet: bool,
 }
@@ -75,6 +83,11 @@ pub struct UpdateArgs {
     pub assignee_id: Option<String>,
     #[arg(long)]
     pub priority: Option<i64>,
+    /// Send the description exactly as given, without the escaping that keeps
+    /// Linear from reading dotted tokens as links or wrapped numbers as lists.
+    /// For capturing what Linear's parser does.
+    #[arg(long, requires = "description_source")]
+    pub verbatim: bool,
     #[arg(long, short)]
     pub quiet: bool,
 }

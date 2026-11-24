@@ -323,7 +323,9 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
     };
     let fields = UpdateFields {
         title: args.title.as_deref(),
-        description: description.as_deref().map(Description::Markdown),
+        description: description
+            .as_deref()
+            .map(|text| sent_description(text, args.verbatim)),
         state_id: state_id.as_ref(),
         assignee_id: args.assignee_id.as_deref(),
         priority: args.priority,
@@ -381,6 +383,14 @@ fn read_body_file(
     })
 }
 
+const fn sent_description(text: &str, verbatim: bool) -> Description<'_> {
+    if verbatim {
+        Description::Verbatim(text)
+    } else {
+        Description::Markdown(text)
+    }
+}
+
 fn report_failed_update(failure: &LinearFailure) -> ExitCode {
     eprintln!("linear update failed");
     ExitCode::from(exit_codes::for_failure(failure))
@@ -413,7 +423,11 @@ fn run_create(args: &CreateArgs) -> ExitCode {
         Ok(built) => built.client,
         Err(code) => return code,
     };
-    match client.create_op(&title, Description::Markdown(&body), "story") {
+    match client.create_op(
+        &title,
+        sent_description(&body, args.verbatim),
+        "story",
+    ) {
         Ok(identifier) => {
             keywords::text_line(
                 keywords::Create::Created.keyword(),
