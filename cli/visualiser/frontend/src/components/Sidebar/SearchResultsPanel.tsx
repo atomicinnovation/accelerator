@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { libraryLink } from "../../api/library-document-address";
 import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
 import { useSearch } from "../../api/use-search";
 import { Glyph } from "../Glyph/Glyph";
@@ -65,9 +66,12 @@ export function SearchResultsPanel({ query }: { query: string }) {
           <div className={styles.searchList} role="listbox">
             {results.map((r) => (
               <Link
-                key={`${r.docType}/${r.slug}`}
-                to="/library/$type/$documentId"
-                params={{ type: r.docType, documentId: r.slug }}
+                key={r.relPath}
+                {...libraryLink({
+                  type: r.docType,
+                  id: r.id,
+                  relPath: r.relPath,
+                })}
                 className={styles.searchRowLink}
                 role="option"
                 tabIndex={0}

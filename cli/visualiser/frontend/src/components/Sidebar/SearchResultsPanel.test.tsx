@@ -101,16 +101,16 @@ describe("SearchResultsPanel", () => {
         docType: "plans",
         title: "First",
         slug: "first",
-        id: null,
-        relPath: "meta/first.md",
+        id: "2026-01-01-PP-1-first",
+        relPath: "meta/plans/2026-01-01-first.md",
         mtimeMs: 1,
       },
       {
         docType: "decisions",
         title: "Second",
         slug: "second",
-        id: null,
-        relPath: "meta/second.md",
+        id: "ADR-0002",
+        relPath: "meta/decisions/ADR-0002-second.md",
         mtimeMs: 2,
       },
       {
@@ -118,8 +118,16 @@ describe("SearchResultsPanel", () => {
         title: "Third",
         slug: "third",
         id: null,
-        relPath: "meta/third.md",
+        relPath: "meta/research/codebase/2026-01-03-third.md",
         mtimeMs: 3,
+      },
+      {
+        docType: "topic-research",
+        title: "Fourth",
+        slug: "fourth",
+        id: "b",
+        relPath: "meta/research/topics/b/manifest.md",
+        mtimeMs: 4,
       },
     ]);
     render(
@@ -135,14 +143,53 @@ describe("SearchResultsPanel", () => {
     // is still <a href> — native modifier-click / middle-click / Enter
     // semantics depend on that.
     const rows = screen.getAllByRole("option");
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
     expect(rows[0].tagName).toBe("A");
     expect(rows[0].hasAttribute("href")).toBe(true);
-    expect(rows[0].getAttribute("href")).toBe("/library/plans/first");
-    expect(rows[1].getAttribute("href")).toBe("/library/decisions/second");
-    expect(rows[2].getAttribute("href")).toBe(
-      "/library/codebase-research/third",
+    expect(rows[0].getAttribute("href")).toBe(
+      "/library/plans/2026-01-01-PP-1-first",
     );
+    expect(rows[1].getAttribute("href")).toBe("/library/decisions/ADR-0002");
+    expect(rows[2].getAttribute("href")).toBe(
+      "/library/codebase-research/2026-01-03-third",
+    );
+    expect(rows[3].getAttribute("href")).toBe("/library/topic-research/b");
+  });
+
+  it("renders rows that share a slug, each linking to its own id", async () => {
+    const qc = makeClient();
+    vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
+      {
+        docType: "plan-reviews",
+        title: "Foo review 1",
+        slug: "foo",
+        id: "2026-01-01-foo-review-1",
+        relPath: "meta/reviews/plans/2026-01-01-foo-review-1.md",
+        mtimeMs: 1,
+      },
+      {
+        docType: "plan-reviews",
+        title: "Foo review 2",
+        slug: "foo",
+        id: "2026-01-01-foo-review-2",
+        relPath: "meta/reviews/plans/2026-01-01-foo-review-2.md",
+        mtimeMs: 2,
+      },
+    ]);
+    render(
+      <Wrap qc={qc}>
+        <SearchResultsPanel query="foo" />
+      </Wrap>,
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    await flushMicrotasks();
+    const rows = screen.getAllByRole("option");
+    expect(rows.map((row) => row.getAttribute("href"))).toEqual([
+      "/library/plan-reviews/2026-01-01-foo-review-1",
+      "/library/plan-reviews/2026-01-01-foo-review-2",
+    ]);
   });
 
   it("each result row renders title and sentence-case label", async () => {
@@ -215,8 +262,8 @@ describe("SearchResultsPanel", () => {
         docType: "root-cause-analyses",
         title: "Bash prefix RCA",
         slug: "bash-prefix",
-        id: null,
-        relPath: "meta/bash-prefix.md",
+        id: "2026-06-10-bash-prefix",
+        relPath: "meta/research/issues/2026-06-10-bash-prefix.md",
         mtimeMs: 1,
       },
     ]);
@@ -231,7 +278,7 @@ describe("SearchResultsPanel", () => {
     await flushMicrotasks();
     const row = screen.getByRole("option");
     expect(row.getAttribute("href")).toBe(
-      "/library/root-cause-analyses/bash-prefix",
+      "/library/root-cause-analyses/2026-06-10-bash-prefix",
     );
     expect(screen.getByText("Root cause analysis")).toBeInTheDocument();
   });
