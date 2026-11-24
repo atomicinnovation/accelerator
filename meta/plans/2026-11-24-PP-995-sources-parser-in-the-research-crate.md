@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-1000", "work-item:PP-1002", "work-item:PP-994", "work
 tags: ["research", "visualiser", "sources", "tier-text"]
 revision: "83417415e7968e08d76e1b6aa8cf2c330dc34d59"
 repository: "accelerator"
-last_updated: "2026-11-24T12:58:30+00:00"
+last_updated: "2026-11-24T13:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -631,7 +631,12 @@ fields, methods and derived impls.
 
 - [x] Running the parser over a real finding under `meta/research/topics/`
       (via a throwaway, uncommitted test) yields the entries
-      the file shows, with no surprising unread lines.
+      the file shows, with no surprising unread lines. This workspace has no
+      `meta/research/topics/`, so it ran over the findings, reports and
+      syntheses under
+      `skills/research/research-topic/evals/variants/*/meta/research/topics/`:
+      every entry read as written, and the only unread lines were metadata
+      block lines, which Phase 3 reads.
 
 ---
 
