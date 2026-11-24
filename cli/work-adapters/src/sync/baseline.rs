@@ -658,6 +658,7 @@ mod tests {
     use super::Entry;
     use super::SyncStamps;
     use crate::sync::push_fidelity::ChangedLine;
+    use crate::sync::push_fidelity::ChangedLines;
     use crate::sync::push_fidelity::PushFidelity;
     use crate::sync::push_fidelity::RewrittenLines;
     use crate::sync::rewrite_mark::MarkChange;
@@ -1219,11 +1220,12 @@ mod tests {
             unreachable!("a split entry");
         };
         let rewrite = PushFidelity::Rewritten {
-            changes: vec![changed(
+            changes: changed(
                 "Notes",
                 "See crates.io.",
                 "See [crates.io](<http://crates.io>).",
-            )],
+            )
+            .into(),
         };
 
         let replaced = rendered_entry(Entry::Split(
@@ -1264,7 +1266,8 @@ mod tests {
 
         let after =
             split.marked(MarkChange::Judged(&PushFidelity::Rewritten {
-                changes: changes.clone(),
+                changes: ChangedLines::of(changes.clone())
+                    .unwrap_or_else(|| unreachable!("twelve changed lines")),
             }));
 
         let bounded = RewrittenLines::bounded(changes);

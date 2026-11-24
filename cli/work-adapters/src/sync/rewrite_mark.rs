@@ -74,9 +74,9 @@ impl RewriteMark {
         previous: Option<&Self>,
     ) -> Option<Self> {
         match fidelity {
-            PushFidelity::Rewritten { changes } => {
-                Some(Self::from(RewrittenLines::bounded(changes.clone())))
-            }
+            PushFidelity::Rewritten { changes } => Some(Self::from(
+                RewrittenLines::bounded(changes.as_slice().to_vec()),
+            )),
             PushFidelity::Preserved => None,
             PushFidelity::Unjudged => previous.cloned(),
         }
@@ -291,7 +291,7 @@ mod tests {
 
     fn rewritten(section: &str) -> PushFidelity {
         PushFidelity::Rewritten {
-            changes: vec![change(section)],
+            changes: change(section).into(),
         }
     }
 

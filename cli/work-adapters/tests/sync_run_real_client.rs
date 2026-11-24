@@ -3167,6 +3167,7 @@ fn promotion_escapes(
         } => vec![Noticed {
             path: None,
             lines: changes
+                .into_vec()
                 .into_iter()
                 .map(|line| (line.sent, line.stored))
                 .collect(),

@@ -19,7 +19,7 @@ use crate::sync::body_comparison::BodyComparison;
 pub enum PushFidelity {
     Preserved,
     Rewritten {
-        changes: Vec<ChangedLine>,
+        changes: ChangedLines,
     },
     /// Nothing could be judged: the remote was not read, has no Markdown
     /// form, or the tracker refuses the body sent.
@@ -33,6 +33,47 @@ pub struct ChangedLine {
     pub section: String,
     pub sent: String,
     pub stored: String,
+}
+
+/// The lines a rewrite changed: never none, since every rewrite lies
+/// somewhere in the body.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedLines(Vec<ChangedLine>);
+
+impl ChangedLines {
+    /// `lines`, unless there are none.
+    #[must_use]
+    pub fn of(lines: Vec<ChangedLine>) -> Option<Self> {
+        (!lines.is_empty()).then_some(Self(lines))
+    }
+
+    /// The whole body as sent and as stored, for a rewrite that no one
+    /// section holds, such as sections stored in another order.
+    #[must_use]
+    pub fn across_whole_body(sent: &str, stored: &str) -> Self {
+        let whole = |body: &str| body.trim_matches(['\n', '\r']).to_owned();
+        Self(vec![ChangedLine {
+            section: "(whole body)".to_owned(),
+            sent: whole(sent),
+            stored: whole(stored),
+        }])
+    }
+
+    #[must_use]
+    pub fn as_slice(&self) -> &[ChangedLine] {
+        &self.0
+    }
+
+    #[must_use]
+    pub fn into_vec(self) -> Vec<ChangedLine> {
+        self.0
+    }
+}
+
+impl From<ChangedLine> for ChangedLines {
+    fn from(line: ChangedLine) -> Self {
+        Self(vec![line])
+    }
 }
 
 /// How many changed lines a notice shows before counting the rest.
@@ -75,7 +116,7 @@ impl RewriteNotice {
             kind: RewriteKind::OnPush,
             path: path.to_path_buf(),
             external_id: external_id.clone(),
-            lines: RewrittenLines::bounded(changes),
+            lines: RewrittenLines::bounded(changes.into_vec()),
         })
     }
 }
@@ -153,13 +194,16 @@ impl BodyComparison<'_> {
         {
             return PushFidelity::Preserved;
         }
-        PushFidelity::Rewritten {
-            changes: self
-                .differing_sections_as_written(&local_body, &stored_body)
+        let changes = ChangedLines::of(
+            self.differing_sections_as_written(&local_body, &stored_body)
                 .iter()
                 .flat_map(|section| changed_lines(section, self))
                 .collect(),
-        }
+        )
+        .unwrap_or_else(|| {
+            ChangedLines::across_whole_body(&local_body, &stored_body)
+        });
+        PushFidelity::Rewritten { changes }
     }
 }
 

@@ -457,11 +457,12 @@ mod tests {
 
     fn rewrite() -> PushFidelity {
         PushFidelity::Rewritten {
-            changes: vec![ChangedLine {
+            changes: ChangedLine {
                 section: "Notes".to_owned(),
                 sent: "c".to_owned(),
                 stored: "d".to_owned(),
-            }],
+            }
+            .into(),
         }
     }
 

@@ -15,6 +15,7 @@ use work_adapters::sync::body_comparison::BodyComparison;
 use work_adapters::sync::push_fidelity::changed_lines;
 use work_adapters::sync::push_fidelity::meaningful_hunks;
 use work_adapters::sync::push_fidelity::ChangedLine;
+use work_adapters::sync::push_fidelity::ChangedLines;
 use work_adapters::sync::push_fidelity::PushFidelity;
 use work_adapters::sync::push_fidelity::RewriteKind;
 use work_adapters::sync::push_fidelity::RewriteNotice;
@@ -68,8 +69,11 @@ fn changed(section: &str, sent: &str, stored: &str) -> ChangedLine {
     }
 }
 
-const fn rewritten(changes: Vec<ChangedLine>) -> PushFidelity {
-    PushFidelity::Rewritten { changes }
+fn rewritten(changes: Vec<ChangedLine>) -> PushFidelity {
+    PushFidelity::Rewritten {
+        changes: ChangedLines::of(changes)
+            .unwrap_or_else(|| unreachable!("a rewrite has changed lines")),
+    }
 }
 
 struct Capture {
@@ -132,7 +136,7 @@ fn a_stray_list_is_a_rewrite() -> Result<(), TestError> {
     else {
         return Err("X09's read-back should be a rewrite".into());
     };
-    assert_eq!(changes.len(), 1);
+    assert_eq!(changes.as_slice().len(), 1);
     Ok(())
 }
 
@@ -332,8 +336,8 @@ fn jira_cosmetic_lines_are_not_reported() -> Result<(), TestError> {
     else {
         return Err("the linked token should be a rewrite".into());
     };
-    assert_eq!(changes.len(), 1);
-    assert_eq!(changes[0].sent, "See crates.io.");
+    assert_eq!(changes.as_slice().len(), 1);
+    assert_eq!(changes.as_slice()[0].sent, "See crates.io.");
     Ok(())
 }
 
@@ -383,5 +387,21 @@ fn a_rewritten_push_is_noticed_and_any_other_is_not() {
     assert_eq!(
         RewriteNotice::on_push(PushFidelity::Unjudged, path, &key),
         None
+    );
+}
+
+#[test]
+fn a_rewrite_no_one_section_holds_is_reported_over_the_whole_body() {
+    assert_eq!(
+        fidelity(
+            &plain(),
+            "## A\n\na\n\n## B\n\nb\n",
+            "## B\n\nb\n\n## A\n\na\n"
+        ),
+        rewritten(vec![changed(
+            "(whole body)",
+            "## A\n\na\n\n## B\n\nb",
+            "## B\n\nb\n\n## A\n\na"
+        )])
     );
 }

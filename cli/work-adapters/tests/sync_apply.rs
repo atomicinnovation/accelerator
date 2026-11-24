@@ -746,11 +746,12 @@ fn a_push_read_back_meaning_something_else_is_rewritten(
     assert_eq!(
         pushed_body_text(&fake)?,
         PushFidelity::Rewritten {
-            changes: vec![ChangedLine {
+            changes: ChangedLine {
                 section: "(preamble)".to_owned(),
                 sent: "Body text".to_owned(),
                 stored: "[Body text](<http://body.text>)".to_owned(),
-            }],
+            }
+            .into(),
         }
     );
     let (baseline, _) =
