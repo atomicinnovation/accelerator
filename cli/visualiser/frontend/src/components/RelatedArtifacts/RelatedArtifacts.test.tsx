@@ -256,6 +256,26 @@ describe("RelatedArtifacts", () => {
     expect(hrefOf("Bare plan")).toBe("/library/plans/foo");
   });
 
+  it("labels a related document with the identifier its URL uses", async () => {
+    const plan = makeIndexEntry({
+      type: "plans",
+      relPath: "meta/plans/2026-04-18-foo.md",
+      path: "/x/meta/plans/2026-04-18-foo.md",
+      id: null,
+      slug: "foo",
+      workItemId: null,
+      title: "Foo Plan",
+    });
+    await renderRouted(
+      <RelatedArtifacts related={{ ...empty, declaredOutbound: [plan] }} />,
+    );
+    expect(
+      within(screen.getByRole("link", { name: "Foo Plan" })).getByText(
+        "2026-04-18-foo",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("each row links to its document's library page", async () => {
     await renderRouted(
       <RelatedArtifacts

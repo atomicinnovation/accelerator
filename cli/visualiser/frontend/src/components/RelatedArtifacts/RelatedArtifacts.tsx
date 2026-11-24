@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { formatMtime } from "../../api/format";
 import {
-  descriptiveSlugOf,
+  displayedIdentifierOf,
   libraryLink,
 } from "../../api/library-document-address";
 import type { IndexEntry, RelatedArtifactsResponse } from "../../api/types";
@@ -81,7 +81,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
       <ul className={styles.list} data-testid="related-list">
         {rows.map(({ entry, kind }) => {
           const title = entry.title || entry.relPath;
-          const docId = entry.workItemId || descriptiveSlugOf(entry);
+          const identifier = displayedIdentifierOf(entry);
           return (
             <li
               key={entry.path}
@@ -112,7 +112,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
                       {DOC_TYPE_LABELS_SINGULAR[entry.type]}
                     </span>
                     <span className={styles.sep}>·</span>
-                    <span className={styles.id}>{docId}</span>
+                    <span className={styles.id}>{identifier}</span>
                     <span className={styles.sep}>·</span>
                     {/* mtime + tag stay together so the provenance tag never
                         orphans onto its own wrapped line. */}

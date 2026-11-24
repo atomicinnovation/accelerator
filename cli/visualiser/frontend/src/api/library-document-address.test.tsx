@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { renderWithRouterAt } from "../test/router-helpers";
 import {
   descriptiveSlugOf,
+  displayedIdentifierOf,
   documentIdOf,
   libraryHref,
   libraryLink,
@@ -231,6 +232,34 @@ describe("round trip", () => {
     for (const entry of entries) {
       expect(resolveLibraryDocument(entries, documentIdOf(entry))).toBe(entry);
     }
+  });
+});
+
+describe("displayedIdentifierOf", () => {
+  it("is a work item's ID", () => {
+    expect(
+      displayedIdentifierOf(
+        makeIndexEntry({
+          type: "work-items",
+          relPath: "meta/work/0042-foo.md",
+          id: "42",
+          workItemId: "0042",
+        }),
+      ),
+    ).toBe("0042");
+  });
+
+  it("is the document id its URL uses, not its slug", () => {
+    expect(
+      displayedIdentifierOf(
+        makeIndexEntry({
+          relPath: "meta/plans/2026-04-18-foo.md",
+          id: null,
+          slug: "foo",
+          workItemId: null,
+        }),
+      ),
+    ).toBe("2026-04-18-foo");
   });
 });
 

@@ -3,7 +3,10 @@ import { Link, useParams } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
 import { FetchError, fetchLifecycleCluster } from "../../api/fetch";
 import { formatMtime } from "../../api/format";
-import { documentIdOf, libraryLink } from "../../api/library-document-address";
+import {
+  displayedIdentifierOf,
+  libraryLink,
+} from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import { statusToVariant } from "../../api/status-variant";
 import {
@@ -207,7 +210,7 @@ function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
     entry.frontmatterState === "parsed" ? entry.frontmatter.verdict : undefined;
   const fmDate =
     entry.frontmatterState === "parsed" ? entry.frontmatter.date : undefined;
-  const id = entry.workItemId || documentIdOf(entry);
+  const identifier = displayedIdentifierOf(entry);
   return (
     <li className={styles.step} data-stage={step.docType}>
       <span className={styles.stepNode}>
@@ -238,7 +241,7 @@ function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
           </div>
         </div>
         <div className={styles.tcardBody}>
-          <span className={styles.tcardId}>{id}</span>
+          <span className={styles.tcardId}>{identifier}</span>
           {" · modified "}
           <time>{formatMtime(entry.mtimeMs)}</time>
         </div>

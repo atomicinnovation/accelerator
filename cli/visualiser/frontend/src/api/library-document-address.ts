@@ -16,6 +16,12 @@ export function documentIdOf(document: LibraryDocument): string {
   return document.id ?? filenameStemOf(document.relPath);
 }
 
+export function displayedIdentifierOf(
+  entry: LibraryDocument & Pick<IndexEntry, "workItemId">,
+): string {
+  return entry.workItemId || documentIdOf(entry);
+}
+
 export function libraryLink(document: LibraryDocument): LibraryLink {
   return {
     to: "/library/$type/$documentId",
