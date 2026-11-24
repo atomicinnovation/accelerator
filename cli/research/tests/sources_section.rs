@@ -1,19 +1,11 @@
 #![allow(clippy::expect_used)]
 
-use research::topic::sources_section::tier_text::TierText;
 use research::topic::sources_section::CitedSource;
 use research::topic::sources_section::LineSpan;
 use research::topic::sources_section::MetadataPair;
 use research::topic::sources_section::SourcesSection;
 use research::topic::sources_section::TierReading;
 use research::topic::sources_section::UnreadLine;
-
-fn reading(tier: &str) -> TierReading {
-    match TierText::parse(tier) {
-        Ok(tier_text) => TierReading::Parsed(tier_text),
-        Err(rejection) => TierReading::Rejected(rejection.into_text()),
-    }
-}
 
 fn entry(
     title: &str,
@@ -24,7 +16,7 @@ fn entry(
     CitedSource {
         title: title.to_owned(),
         url: url.to_owned(),
-        tier: reading(tier),
+        tier: TierReading::of(tier),
         venue: venue.map(str::to_owned),
         metadata: vec![],
     }

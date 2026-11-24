@@ -2661,6 +2661,8 @@ impl core::marker::StructuralPartialEq for research::topic::sources_section::Sou
 pub enum research::topic::sources_section::TierReading
 pub research::topic::sources_section::TierReading::Parsed(research::topic::sources_section::tier_text::TierText)
 pub research::topic::sources_section::TierReading::Rejected(alloc::string::String)
+impl research::topic::sources_section::TierReading
+pub fn research::topic::sources_section::TierReading::of(tier_text: &str) -> Self
 impl core::clone::Clone for research::topic::sources_section::TierReading
 pub fn research::topic::sources_section::TierReading::clone(&self) -> research::topic::sources_section::TierReading
 impl core::cmp::Eq for research::topic::sources_section::TierReading

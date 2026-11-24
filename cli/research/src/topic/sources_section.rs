@@ -283,7 +283,8 @@ pub enum TierReading {
 }
 
 impl TierReading {
-    fn of(tier_text: &str) -> Self {
+    #[must_use]
+    pub fn of(tier_text: &str) -> Self {
         TierText::parse(tier_text).map_or_else(
             |rejection| Self::Rejected(rejection.into_text()),
             Self::Parsed,
