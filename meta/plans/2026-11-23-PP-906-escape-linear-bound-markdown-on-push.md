@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T01:08:07+00:00"
+last_updated: "2026-11-24T01:22:39+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -622,21 +622,21 @@ do, so it is expected to be noise; the test decides.
 
 #### Automated Verification:
 
-- [ ] Snapshot and lookup tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
-- [ ] The simulator reproduces `X10`, `X12`, `X13` and `X15`: `mise run test:unit:cli --filter 'binary(linear_rewrites)'`
-- [ ] Capture equivalence tests pass: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
-- [ ] Public API snapshot matches: `mise run public-api:check`
-- [ ] `mise run` exits 0
+- [x] Snapshot and lookup tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
+- [x] The simulator reproduces `X10`, `X12`, `X13` and `X15`: `mise run test:unit:cli --filter 'binary(linear_rewrites)'`
+- [x] Capture equivalence tests pass: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
+- [x] Public API snapshot matches: `mise run public-api:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Live capture taken, allowlisted, committed and its issue deleted
-- [ ] README records the rewrite of `X10`-`X20` and the gate outcome
-- [ ] Gate: every linked token in `X10`-`X19` ends in a snapshot label, and
+- [x] Live capture taken, allowlisted, committed and its issue deleted
+- [x] README records the rewrite of `X10`-`X20` and the gate outcome
+- [x] Gate: every linked token in `X10`-`X19` ends in a snapshot label, and
       every unlinked token ending in one falls in an over-escape class the
       probe corpus records. If not, stop and return the dotted-token rule to
       drafting.
-- [ ] Gate: each linked span in `X10`-`X19` holds exactly the dotted token
+- [x] Gate: each linked span in `X10`-`X19` holds exactly the dotted token
       the rule finds in it, compared as phase 5's oracle compares them (a
       `mailto` link over `a@b.io` holds `b.io`, which passes). A linked span
       holding no rule token, or a different one, returns that shape to
