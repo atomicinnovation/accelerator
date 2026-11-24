@@ -42,6 +42,7 @@ jq = "1.7.1"
 
 [settings]
 experimental = true
+task.source_freshness_hash_contents = true
 # Hash-pin the aqua-backed tool artifacts via a committed mise.lock (regenerate
 # + commit on any [tools] edit). Repo-global, so it also pins the pre-existing
 # aqua:rhysd/actionlint. Does NOT cover the rustup-managed nightly
@@ -318,6 +319,25 @@ usage = '''
 flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'path_normalisation'"
 '''
 run = 'invoke test.unit.visualiser ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit:frontend"]
 description = "Run visualiser frontend unit tests (Vitest)"
@@ -327,6 +347,25 @@ usage = '''
 flag "--filter <expression>" help="Vitest -t test-name regex selecting the tests to run, e.g. 'copyText'"
 '''
 run = 'invoke test.unit.frontend ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit:tasks"]
 description = "Run pytest unit tests for invoke tasks"
@@ -335,6 +374,25 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'filter and not empty'"
 '''
 run = 'invoke test.unit.tasks ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit:frontend-licenses"]
 description = "Guard that every module in the built frontend bundle resolves to the --production licence closure (its own sourcemap build; no shipped dist/ dependency)"
@@ -343,6 +401,25 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'closure'"
 '''
 run = 'invoke test.unit.frontend-licenses ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit:vcs"]
 description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
@@ -351,6 +428,25 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'pattern'"
 '''
 run = 'invoke test.unit.vcs ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit:cli"]
 description = "Run cli/ workspace tests via nextest with coverage (clears old profile data, prints a totals line, sweeps superseded artefacts, fails below COVERAGE_FLOOR; ACCELERATOR_COVERAGE=off drops to plain nextest)"
@@ -359,6 +455,25 @@ usage = '''
 flag "--filter <filterset>" help="nextest filterset selecting the tests to run (test() matches test names; binary_id() matches test binaries), e.g. 'binary_id(vcs-adapters::classify)'; a filtered run skips the coverage report, sweep and floor"
 '''
 run = 'invoke test.cli.run ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
@@ -367,6 +482,25 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'partial'"
 '''
 run = 'invoke test.integration.tasks ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit:design-automation"]
 description = "Run the runtime-free Playwright-executor JavaScript suites"
@@ -374,6 +508,25 @@ usage = '''
 flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'judges as the corpus says'"
 '''
 run = 'invoke test.unit.design-automation ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel; takes no options, so --filter is ignored (pass --filter to one of its leaf tasks)"
@@ -386,6 +539,25 @@ usage = '''
 flag "--filter <expression>" help="node --test-name-pattern regex selecting the tests to run, e.g. 'ping: exits 0'"
 '''
 run = 'invoke test.integration.design-automation ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
@@ -394,6 +566,25 @@ usage = '''
 flag "--filter <expression>" help="libtest substring of the test path selecting the tests to run, e.g. 'spa_route'"
 '''
 run = 'invoke test.integration.visualiser ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 # Deliberately absent from `test:integration` and the bare default task: it
 # waits on the OS's file notifications, which a loaded macOS fseventsd delays
@@ -410,11 +601,49 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'orphan'"
 '''
 run = 'invoke test.integration.dev ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:release-guard"]
 description = "Build the loopback-seamed CLIs as release binaries, with and without test-loopback, and run the release guard over them"
 depends = ["deps:install:python"]
 run = "invoke test.integration.release-guard"
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:entrypoint"]
 description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)"
@@ -423,11 +652,49 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'launcher_removed'"
 '''
 run = 'invoke test.integration.entrypoint ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:skill-invocation"]
 description = "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment"
 depends = ["deps:install:python"]
 run = "invoke test.integration.skill-invocation"
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:evals"]
 description = "Hold the CLI output skill evals quote to the built accelerator-work"
@@ -436,11 +703,49 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'quoted_block'"
 '''
 run = 'invoke test.integration.evals ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:conformance"]
 description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
 depends = ["build:cli:dev", "build:cli:corpus:dev"]
 run = "invoke test.integration.conformance"
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:eval-fixtures"]
 description = "Run the ask-and-report reference corpus pre-flight: every variant validates, and every scenario reaches its declared gate and setup (debug launcher, corpus and research builds; no model)"
@@ -449,11 +754,49 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'gate'"
 '''
 run = 'invoke test.integration.eval-fixtures ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:deny"]
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
 depends = ["deps:install:python", "deps:install:cargo-sources"]
 run = "invoke test.integration.deny"
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
 # test:integration roll-up: a run needs a quiet host, a pinned PATH, network
@@ -547,6 +890,25 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'refused'"
 '''
 run = 'invoke test.integration.hooks ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:integration:research"]
 description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard"
@@ -555,6 +917,25 @@ usage = '''
 flag "--filter <expression>" help="pytest -k expression selecting the tests to run, e.g. 'profile_invocation'"
 '''
 run = 'invoke test.integration.research ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 # Deliberately absent from `test:integration` and the bare default task: it
 # splices every metacharacter at every position, which takes minutes rather
@@ -609,6 +990,25 @@ usage = '''
 flag "--filter <expression>" help="Playwright --grep regex selecting the tests to run, e.g. 'kanban renders all seven default columns'"
 '''
 run = 'invoke test.e2e.visualiser ${usage_filter+--filter="$usage_filter"}'
+sources = [
+  "**/*",
+  "!.git/**", "!.jj/**", "!.venv/**", "!.idea/**", "!.playwright-mcp/**",
+  "!.accelerator-measure/**", "!workspaces/**", "!**/*-workspace/**",
+  "!meta/eval-workspaces/**", "!cli/target/**", "!cli/.pup/**",
+  "!cli/shortcut-client/tests/captures/**",
+  "!cli/visualiser/frontend/node_modules/**", "!docs-site/node_modules/**",
+  "!docs-site/.astro/**", "!docs-site/src/content/docs/reference/skills/**",
+  "!**/dist/**", "!**/target/**", "!**/__pycache__/**", "!**/.pytest_cache/**",
+  "!**/test-results/**", "!**/*.tsbuildinfo", "!**/.e2e-port",
+  "!**/.conduct-run.json", "!**/.DS_Store", "!**/*.swp", "!**/*.debug.tar.gz",
+  "!.claude/scheduled_tasks.lock", "!.claude/settings.local.json",
+  "!.accelerator/config.local.md",
+  "!cli/visualiser/server/tests/fixtures/.accelerator/**",
+  "!bin/**", "bin/accelerator", "bin/accelerator-verify.vendored.sha256",
+  "bin/accelerator-verify-darwin-arm64", "bin/accelerator-verify-darwin-x64",
+  "bin/accelerator-verify-linux-arm64", "bin/accelerator-verify-linux-x64",
+]
+outputs = { auto = true }
 
 [tasks."test:e2e:visualiser:docker"]
 description = "Run visual-regression specs in the pinned Playwright Docker image (compare)"

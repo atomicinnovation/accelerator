@@ -171,6 +171,32 @@ Running a test runner directly is a last resort, for diagnosis. For `cli/`,
 `cargo nextest run` directly still passes: with nothing handed over, each
 test builds its fixtures privately and logs nothing.
 
+### Skipping unchanged test lanes
+
+Every test leaf in the `test` roll-up declares `sources` and
+`outputs = { auto = true }`. A lane that passed is skipped
+(`sources up-to-date, skipping`) until a file it reads changes, the way
+Turborepo skips a task whose inputs hash the same. mise keeps the record
+under `~/.local/state/mise/`, so it is per machine and never shared; CI
+starts empty and always runs everything.
+
+- **Inputs:** every lane declares the whole repository, minus build output,
+  installed dependencies and caches. Several suites read files far from
+  their own code (workflows, `README.md`, `meta/measurements/`), so a
+  narrower list risks a stale pass. Any edit therefore reruns every lane;
+  only a run on identical inputs is skipped. A path a run writes, such as
+  the visualiser server's state under its test fixtures, must be excluded,
+  or it shows up as lanes that never skip.
+- **Content, not timestamps:** `task.source_freshness_hash_contents`
+  compares file contents, so a checkout or formatter that rewrites a file
+  unchanged keeps its lanes skipped.
+- **Failures and filters:** a failed run is never recorded, and each
+  `--filter` value is recorded separately, so a filtered pass never marks
+  the full lane fresh.
+- **Rerunning anyway:** `mise run --force <task>` ignores the record. Use it
+  when a lane depends on something outside the repository, such as an
+  upgraded toolchain or a changed environment variable.
+
 ### Surviving thin shell
 
 The shell surface is two thin-wrapper files, enumerated in
