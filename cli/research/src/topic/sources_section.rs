@@ -324,11 +324,4 @@ impl LineSpan {
         let after = &body[lines::offset_of(body, self.end)..];
         (before, after)
     }
-
-    /// `body` must be the text the span was read from.
-    #[must_use]
-    pub fn remove_from(self, body: &str) -> String {
-        let (before, after) = self.split(body);
-        format!("{before}{after}")
-    }
 }

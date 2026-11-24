@@ -52,9 +52,9 @@ the library only, with no caller yet.
   its line number, as written and in order.
 - `LineSpan` runs from the heading to the first line after the section,
   trailing blank lines included. `split` returns the text before and after the
-  section as written, and `remove_from` joins the two. Line numbering and byte
-  offsets share one rule in `sources_section/lines.rs`, so the two cannot
-  disagree; CRLF documents read as their LF twins.
+  section as written. Line numbering and byte offsets share one rule in
+  `sources_section/lines.rs`, so the two cannot disagree; CRLF documents read
+  as their LF twins.
 - The public-API snapshot gains 118 lines, all under
   `research::topic::sources_section`; nothing existing changes.
 - PP-1000's server step now names `LineSpan::split` instead of
@@ -89,7 +89,7 @@ the library only, with no caller yet.
       `skills/research/research-topic/evals/variants/*/meta/research/topics/`
       (this workspace has no `meta/research/topics/`)
 - [ ] A real finding whose `## Sources` section is followed by another `## `
-      section, round-tripped through `split` and `remove_from` — all six eval
+      section, cut through `split` — all six eval
       files' sections run to the end of the file, so only unit tests cover a
       non-empty after-text today
 
@@ -99,10 +99,9 @@ the library only, with no caller yet.
   citing-once rule, such as `tier-1 (retracted)` or `tier-3 (also tier-3)`.
   Enforcing the rule is the writer's job; the reader's job is to round-trip
   what was written.
-- `split` and `remove_from` take any `&str`. Given a body other than the one
-  parsed they return a wrong cut rather than an error; they cannot panic,
-  since every offset lands after a `\n` or at the end of the body. The
-  precondition is in their docs.
+- `split` takes any `&str`. Given a body other than the one parsed it returns
+  a wrong cut rather than an error; it cannot panic, since every offset lands
+  after a `\n` or at the end of the body. The precondition is in its doc.
 - The reader does not know about fenced code blocks: a `## ` line or an
   entry-shaped line inside a fence counts as structure. The Sources grammar
   does not define fences.

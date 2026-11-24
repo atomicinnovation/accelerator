@@ -74,10 +74,10 @@ The research crate has `enum Tier` with `Display` only. The eval tooling's
   after the section's last line. Lines are numbered from 1 within the text
   the parser is given, which knows nothing of frontmatter, and the span's
   end is exclusive.
-- Let the line span remove the section from the text it was read from,
-  returning that text without the span's lines and with every other line,
-  its line ending included, unchanged. A caller drops the section this way
-  and never counts lines itself.
+- Let the line span cut the text it was read from around the section,
+  returning the text before the span's lines and the text after them, with
+  every line, its line ending included, unchanged. A caller replaces or
+  drops the section this way and never counts lines itself.
 - Return a source listed twice as two entries.
 - Attach each metadata block line to the entry above it, under the
   adjacency condition the line rules below give; a block line that fails
@@ -288,10 +288,10 @@ space breaks a match.
       `None found.`, then a span is reported for it; given no Sources
       section, then no span is reported.
 - [ ] Given the ten-line document whose span runs from line 4 to line 8,
-      when the span removes the section from it, then the text returned is
-      lines 1 to 3 then 8 to 10, each as written; given the same document
-      with CRLF line endings, then the text returned keeps every remaining
-      line's `\r\n` ending.
+      when the span cuts the document around the section, then the text
+      before is lines 1 to 3 and the text after is lines 8 to 10, each as
+      written; given the same document with CRLF line endings, then both
+      keep every line's `\r\n` ending.
 - [ ] Given a line of prose in a Sources section ending `\r\r\n`, then the
       reported unread line ends in exactly one carriage return.
 - [ ] Given a `## Sources` heading with nothing under it, then the section
@@ -339,10 +339,10 @@ space breaks a match.
 - Wire shape: PP-1000 has not settled how sources reach the frontend.
   These parsers return no serialisable types; the visualiser server maps
   the result. They do return the section's line span, which PP-1000's
-  server uses to drop the literal section from the body it serves: it
-  passes that body to the parser and removes the section through the
-  span, so no second reading of the section boundary or of lines is
-  written.
+  server uses to render the structured Sources where the literal section
+  sat in the body it serves: it passes that body to the parser and cuts
+  it around the section through the span, so no second reading of the
+  section boundary or of lines is written.
 - Shared file: the derived set response (PP-1002) also changes the
   `research` crate's public-API snapshot; whichever lands second
   regenerates it.
@@ -381,7 +381,8 @@ implementation of both to compare against.
     and a `TierReading`, either `Parsed(TierText)` or `Rejected(String)`.
   - `UnreadLine` holds a line number and the line as written.
   - `LineSpan` holds `start` and an exclusive `end`, and
-    `LineSpan::remove_from(body)` removes the section.
+    `LineSpan::split(body)` returns the text before and after the
+    section.
   - `tier_text::TierText::parse(text)` is the tier-text parser; its base
     and `also` tiers are `sources::record::Tier`.
   - A private `lines` module holds the line rule, shared by the parser
@@ -459,6 +460,10 @@ implementation of both to compare against.
   `\r`; the line span counts lines of the text given and removes the
   section itself; and the parsers live in `research::topic::sources_section`,
   with the section state modelled as an enum.
+- Decided with the author on 2026-11-24, after the first review of PR #262:
+  the line span cuts the text around the section with `split` alone and
+  no longer removes it. PP-1000, the only consumer, renders the structured
+  Sources in place, and no other story needs the section gone.
 
 ## References
 

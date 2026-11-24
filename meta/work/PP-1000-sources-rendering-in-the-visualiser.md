@@ -351,10 +351,10 @@ shared `LibraryDocView`, with three baselines taken in the set page.
   decides what a line is; the type names follow PP-995's
   `research::topic::sources_section`.
 - PP-995 landed on 2026-11-24 with `LineSpan::split`, which returns the
-  text before and after the section as written, alongside `remove_from`,
-  which joins the two. The server step now names `split`, so the structured
-  Sources can sit where the literal section did; `remove_from` remains for
-  callers that only need the section gone.
+  text before and after the section as written. The server step names
+  `split` in place of `remove_from`, so the structured Sources can sit
+  where the literal section did; PP-995 dropped `remove_from` after the
+  first review of PR #262, as no caller needs the section gone.
 
 ## References
 

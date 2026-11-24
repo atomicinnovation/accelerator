@@ -625,27 +625,6 @@ fn splitting_at_the_section_gives_the_text_before_and_after_it() {
 }
 
 #[test]
-fn removing_the_section_keeps_every_other_line_as_written() {
-    for separator in ["\n", "\r\n"] {
-        let body = TEN_LINES.join(separator);
-        let kept = [&TEN_LINES[..3], &TEN_LINES[7..]].concat();
-        assert_eq!(
-            span_read_from(&body).remove_from(&body),
-            kept.join(separator),
-            "{body:?}"
-        );
-    }
-
-    for body in running_to_the_end() {
-        assert_eq!(
-            span_read_from(&body).remove_from(&body),
-            "# Finding\n\nSome findings.\n",
-            "{body:?}"
-        );
-    }
-}
-
-#[test]
 fn cutting_a_body_other_than_the_one_parsed_never_panics() {
     let span = span_read_from(&TEN_LINES.join("\n"));
     for other in ["", "short", "é\né\né\né\né\né\né\né\né", "ééé\r\nü"]
@@ -654,7 +633,6 @@ fn cutting_a_body_other_than_the_one_parsed_never_panics() {
         assert!(other.starts_with(before), "{other:?}");
         assert!(other.ends_with(after), "{other:?}");
         assert!(before.len() + after.len() <= other.len(), "{other:?}");
-        assert!(span.remove_from(other).len() <= other.len(), "{other:?}");
     }
 }
 
@@ -728,5 +706,4 @@ fn the_citing_once_worked_example_reads_as_three_cited_sources() {
     let span = parsed.span().expect(&body);
     assert_eq!((span.start(), span.end()), (5, 14));
     assert_eq!(span.split(&body), (before, after));
-    assert_eq!(span.remove_from(&body), [before, after].concat());
 }
