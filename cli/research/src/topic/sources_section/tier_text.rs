@@ -26,17 +26,17 @@ impl TierText {
     /// [`NotTierText`], carrying the whole input, for text not of tier-text
     /// shape.
     pub fn parse(text: &str) -> Result<Self, NotTierText> {
-        let refused = || NotTierText(text.to_owned());
+        let rejected = || NotTierText(text.to_owned());
         let Some((base_text, suffix)) = text.split_once(' ') else {
-            return Tier::named(text).map(Self::bare).ok_or_else(refused);
+            return Tier::named(text).map(Self::bare).ok_or_else(rejected);
         };
-        let base = Tier::named(base_text).ok_or_else(refused)?;
+        let base = Tier::named(base_text).ok_or_else(rejected)?;
         let parenthesised = suffix
             .strip_prefix('(')
             .and_then(|inner| inner.strip_suffix(')'))
-            .ok_or_else(refused)?;
+            .ok_or_else(rejected)?;
         Self::with_parts_in_canonical_order(base, parenthesised)
-            .ok_or_else(refused)
+            .ok_or_else(rejected)
     }
 
     const fn bare(base: Tier) -> Self {

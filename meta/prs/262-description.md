@@ -37,7 +37,7 @@ the library only, with no caller yet.
   `tier-3 (retracted; withdrawn; also tier-2, tier-1)` into a base `Tier`,
   `retracted` and `withdrawn` marks and the `also` tiers. It checks shape and
   canonical order only, so `parse(s)?.to_string() == s` for every accepted
-  input; anything else is refused as `NotTierText`, carrying the whole input.
+  input; anything else is rejected as `NotTierText`, carrying the whole input.
 - `SourcesSection::parse` reads the first exactly named `## Sources` heading
   up to the next level-one or level-two heading, and yields one of three
   states: `Absent`, `DeclaredEmpty` (only `None found.`, no entries) or
