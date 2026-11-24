@@ -654,6 +654,19 @@ fn removing_the_section_keeps_every_other_line_as_written() {
 }
 
 #[test]
+fn cutting_a_body_other_than_the_one_parsed_never_panics() {
+    let span = span_read_from(&TEN_LINES.join("\n"));
+    for other in ["", "short", "é\né\né\né\né\né\né\né\né", "ééé\r\nü"]
+    {
+        let (before, after) = span.split(other);
+        assert!(other.starts_with(before), "{other:?}");
+        assert!(other.ends_with(after), "{other:?}");
+        assert!(before.len() + after.len() <= other.len(), "{other:?}");
+        assert!(span.remove_from(other).len() <= other.len(), "{other:?}");
+    }
+}
+
+#[test]
 fn the_citing_once_worked_example_reads_as_three_cited_sources() {
     let before = "# Finding\n\nThree citations of one source.\n\n";
     let sources = concat!(
