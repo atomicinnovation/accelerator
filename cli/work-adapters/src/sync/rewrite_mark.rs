@@ -226,6 +226,9 @@ impl MarkState {
         let marked =
             |mark: Option<RewriteMark>| mark.map_or(Self::Absent, Self::Marked);
         match change {
+            MarkChange::Judged(PushFidelity::Unjudged) | MarkChange::Keep => {
+                self.clone()
+            }
             MarkChange::Judged(fidelity) => {
                 marked(RewriteMark::after(fidelity, self.mark()))
             }
@@ -233,7 +236,6 @@ impl MarkState {
                 marked(RewriteMark::after(fidelity, None))
             }
             MarkChange::Clear => Self::Absent,
-            MarkChange::Keep => self.clone(),
         }
     }
 }
@@ -350,12 +352,16 @@ mod tests {
     }
 
     #[test]
-    fn rewrite_mark_after_an_unreadable_mark_is_kept_only_by_keep() {
+    fn an_unreadable_mark_survives_every_change_without_a_verdict() {
         let unreadable = MarkState::Unreadable(serde_json::json!("garbled"));
 
         assert_eq!(unreadable.after(MarkChange::Keep), unreadable);
         assert_eq!(
             unreadable.after(MarkChange::Judged(&PushFidelity::Unjudged)),
+            unreadable
+        );
+        assert_eq!(
+            unreadable.after(MarkChange::Judged(&PushFidelity::Preserved)),
             MarkState::Absent
         );
         assert_eq!(unreadable.after(MarkChange::Clear), MarkState::Absent);
