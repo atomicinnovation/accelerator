@@ -2,6 +2,7 @@
 
 mod digit_rule;
 mod dotted_tokens;
+mod link_nesting;
 mod scheme_urls;
 mod text_runs;
 mod top_level_domains;

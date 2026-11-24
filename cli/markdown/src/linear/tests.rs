@@ -3,6 +3,7 @@ use std::ops::Range;
 use document::markdown::{events, MarkdownEvent, MarkdownTag};
 
 use super::dotted_tokens::DottedToken;
+use super::link_nesting::LinkNesting;
 use super::scheme_urls::SchemeUrl;
 use super::text_runs::TextRun;
 use super::{
@@ -809,4 +810,34 @@ fn a_numeric_email_host_is_escaped() {
 #[test]
 fn a_bare_ip_address_is_left_alone() {
     assert_unescaped("1.2.3.4 127.0.0.1:8080");
+}
+
+fn link() -> MarkdownTag {
+    MarkdownTag::Link {
+        destination: "https://x.io".to_owned(),
+        title: String::new(),
+    }
+}
+
+#[test]
+fn text_is_inside_a_link_until_its_end() {
+    let mut nesting = LinkNesting::default();
+    nesting.observe(&MarkdownEvent::Start(link()));
+    nesting.observe(&MarkdownEvent::Start(MarkdownTag::Image {
+        destination: "a.png".to_owned(),
+        title: String::new(),
+    }));
+    nesting.observe(&MarkdownEvent::End(link()));
+    assert!(!nesting.is_outside());
+
+    nesting.observe(&MarkdownEvent::End(link()));
+    assert!(nesting.is_outside());
+}
+
+#[test]
+fn an_unmatched_link_end_leaves_text_outside_every_link() {
+    let mut nesting = LinkNesting::default();
+    nesting.observe(&MarkdownEvent::End(link()));
+    nesting.observe(&MarkdownEvent::Text("a".to_owned()));
+    assert!(nesting.is_outside());
 }

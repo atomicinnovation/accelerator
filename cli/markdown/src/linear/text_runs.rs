@@ -1,7 +1,8 @@
 //! Text as a reader sees it, with each character traced back to its source.
 
-use document::markdown::{MarkdownEvent, MarkdownTag};
+use document::markdown::MarkdownEvent;
 
+use super::link_nesting::LinkNesting;
 use super::Parsed;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,17 +24,12 @@ impl TextRun {
     pub(super) fn from_events(markdown: &str, events: &Parsed) -> Vec<Self> {
         let mut runs = Vec::new();
         let mut current = Self::default();
-        let mut link_depth = 0_usize;
+        let mut nesting = LinkNesting::default();
         for (event, range) in events {
+            nesting.observe(event);
             match event {
-                MarkdownEvent::Start(
-                    MarkdownTag::Link { .. } | MarkdownTag::Image { .. },
-                ) => link_depth += 1,
-                MarkdownEvent::End(
-                    MarkdownTag::Link { .. } | MarkdownTag::Image { .. },
-                ) => link_depth = link_depth.saturating_sub(1),
                 MarkdownEvent::Text(text)
-                    if link_depth == 0
+                    if nesting.is_outside()
                         && markdown.get(range.clone())
                             == Some(text.as_str()) =>
                 {
@@ -41,11 +37,9 @@ impl TextRun {
                         runs.push(std::mem::take(&mut current));
                     }
                     current.read(markdown, text, range.start);
-                    continue;
                 }
-                _ => {}
+                _ => runs.push(std::mem::take(&mut current)),
             }
-            runs.push(std::mem::take(&mut current));
         }
         runs.push(current);
         runs.retain(|run| !run.characters.is_empty());

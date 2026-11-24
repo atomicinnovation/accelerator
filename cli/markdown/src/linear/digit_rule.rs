@@ -1,8 +1,9 @@
 //! A lone number opening a continuation line, which Linear reads as an
 //! ordered-list item rather than as the paragraph's text.
 
-use document::markdown::{MarkdownEvent, MarkdownTag};
+use document::markdown::MarkdownEvent;
 
+use super::link_nesting::LinkNesting;
 use super::{Escape, Parsed};
 use crate::continuation_start;
 
@@ -18,26 +19,16 @@ pub(super) fn escapes(markdown: &str, events: &Parsed) -> Vec<Escape> {
 }
 
 fn continuation_lines(markdown: &str, events: &Parsed) -> Vec<usize> {
-    let mut link_depth = 0_usize;
+    let mut nesting = LinkNesting::default();
     let mut lines = Vec::new();
     for (index, (event, range)) in events.iter().enumerate() {
-        match event {
-            MarkdownEvent::Start(
-                MarkdownTag::Link { .. } | MarkdownTag::Image { .. },
-            ) => link_depth += 1,
-            MarkdownEvent::End(
-                MarkdownTag::Link { .. } | MarkdownTag::Image { .. },
-            ) => link_depth -= 1,
-            MarkdownEvent::SoftBreak | MarkdownEvent::HardBreak
-                if link_depth == 0 =>
-            {
-                if let Some((_, next)) = events.get(index + 1) {
-                    lines.push(continuation_start(
-                        markdown, range.end, next.start,
-                    ));
-                }
+        nesting.observe(event);
+        if matches!(event, MarkdownEvent::SoftBreak | MarkdownEvent::HardBreak)
+            && nesting.is_outside()
+        {
+            if let Some((_, next)) = events.get(index + 1) {
+                lines.push(continuation_start(markdown, range.end, next.start));
             }
-            _ => {}
         }
     }
     lines
