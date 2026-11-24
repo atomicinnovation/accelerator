@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-1000", "work-item:PP-1002", "work-item:PP-994", "work
 tags: ["research", "visualiser", "sources", "tier-text"]
 revision: "83417415e7968e08d76e1b6aa8cf2c330dc34d59"
 repository: "accelerator"
-last_updated: "2026-11-24T12:39:04+00:00"
+last_updated: "2026-11-24T12:58:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -620,16 +620,16 @@ fields, methods and derived impls.
 
 #### Automated Verification:
 
-- [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Tier-text tests still pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
-- [ ] Snapshot is current and additions only: `mise run public-api:check`, and `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] Import fence holds: `mise run pup:check`
-- [ ] Format and lint pass: `mise run cli:check`
-- [ ] Full suite green: `mise run`
+- [x] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
+- [x] Tier-text tests still pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
+- [x] Snapshot is current and additions only: `mise run public-api:check`, and `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [x] Import fence holds: `mise run pup:check`
+- [x] Format and lint pass: `mise run cli:check`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] Running the parser over a real finding under `meta/research/topics/`
+- [x] Running the parser over a real finding under `meta/research/topics/`
       (via a throwaway, uncommitted test) yields the entries
       the file shows, with no surprising unread lines.
 
