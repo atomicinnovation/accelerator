@@ -175,6 +175,8 @@ test builds its fixtures privately and logs nothing.
 
 Every test leaf in the `test` roll-up extends a task template that
 declares the files it reads as `sources`, with `outputs = { auto = true }`.
+The templates live in `.config/mise/conf.d/test-inputs.toml`, which mise
+merges into `mise.toml`.
 A lane that passed is skipped (`sources up-to-date, skipping`) until a file
 it reads changes, the way Turborepo skips a task whose inputs hash the
 same. mise keeps the record under `~/.local/state/mise/`, so it is per
@@ -190,14 +192,27 @@ machine and never shared; CI starts empty and always runs everything.
 | `test-support-inputs` | `test:unit:vcs`, `test:integration:dev` | Their own test directories and the VCS masks |
 | `design-automation-inputs` | `test:unit:design-automation` | The Playwright executor and the four files its suites read |
 
-Every template also includes the harness: `tasks/**/*.py` (`invoke`
-imports every task module), `mise.toml`, `mise.lock`, `mise.local.toml`,
-`pyproject.toml`, `uv.lock` and `tests/conftest.py`.
+Every template except `build-system-inputs`, which already covers the
+whole repository, starts with `{{vars.test_harness}}`: `tasks/**/*.py`
+(`invoke` imports every task module), the mise and uv config and
+lockfiles, and `tests/conftest.py`.
+
+A set of paths that more than one template uses is named once under
+`[vars]` in the same file, as a brace glob such as
+`"{keys/accelerator-release.pub,pins.toml}"`. A template includes it as
+`"{{vars.release_trust}}"` or excludes it as `"!{{vars.release_trust}}"`.
+Patterns are read in order and the last one to match a path wins, so a
+narrower exclusion must come after the broader inclusion it trims.
 
 - **A missing input is a stale pass.** When a test starts reading a file
-  outside its template, add the file to the template. A lane's own
-  `sources` replaces its template's list rather than adding to it. CI,
-  which never skips, is the backstop.
+  outside its template, add the file to the template, or to the named
+  set if every template using that set needs it. A template can't extend
+  another template, and a lane's own `sources` replaces its template's
+  list rather than adding to it. CI, which never skips, is the backstop.
+- **Never open a glob with `{{`.** mise renders `sources` as a template,
+  so a nested brace at the start of a group, such as `{{a,b},c}`, is read
+  as a template tag and fails. Nesting later in the group, as in
+  `{a,b-{c,d}}`, is fine.
 - **mise does not read `.gitignore` here,** so a path a run writes must be
   excluded in the template, or it shows up as lanes that never skip. The
   visualiser e2e suite edits its fixture work items mid-run and restores
