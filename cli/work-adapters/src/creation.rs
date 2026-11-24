@@ -67,6 +67,8 @@ use crate::sync::digest;
 use crate::sync::pending_push;
 use crate::sync::pending_push::Marker;
 use crate::sync::pending_push::MarkerError;
+use crate::sync::push_fidelity::PushFidelity;
+use crate::sync::push_fidelity::RewriteNotice;
 use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
@@ -163,6 +165,9 @@ pub struct PushReport {
     /// A line stderr carries as it is, beside an outcome that is not a
     /// failure.
     pub warning: Option<String>,
+    /// This create's push, when the tracker stored it with a different
+    /// meaning.
+    pub rewrite: Option<Box<RewriteNotice>>,
 }
 
 /// What a creation strategy left on disk, and what became of its push.
@@ -210,6 +215,7 @@ fn pushed(
             cause,
             details: Vec::new(),
             warning: None,
+            rewrite: None,
         }),
     }
 }
@@ -367,6 +373,9 @@ struct LegacyPush {
     cause: Option<String>,
     tracker: Option<Box<dyn RemoteTracker>>,
     marker: Option<PathBuf>,
+    /// Whether this run sent the create, rather than reusing an earlier
+    /// run's issue.
+    sent_create: bool,
 }
 
 impl LegacyPush {
@@ -380,6 +389,7 @@ impl LegacyPush {
             cause,
             tracker: None,
             marker: None,
+            sent_create: false,
         }
     }
 }
@@ -575,6 +585,7 @@ fn push_legacy_item(
             cause: None,
             tracker: (pushing.tracker)().ok(),
             marker: Some(marker_path),
+            sent_create: false,
         }),
         PushNext::Proceed => {
             pending_push::prepare_dir(&state.root, &state.name)
@@ -635,6 +646,7 @@ fn send_legacy_create(
                 cause: None,
                 tracker: Some(tracker),
                 marker: Some(marker.path.clone()),
+                sent_create: true,
             })
         }
         RemoteCreate::TrackerUnreachable => {
@@ -660,17 +672,16 @@ fn send_legacy_create(
     }
 }
 
-fn read_back_of(
+fn remote_hash_of(
     digester: &BaselineDigester<'_>,
-    tracker: &dyn RemoteTracker,
-    key: &ExternalId,
+    issue: Option<&tracker::RemoteIssue>,
 ) -> RemoteHash {
-    tracker.show(key).map_or(RemoteHash::Unknown, |issue| {
+    issue.map_or(RemoteHash::Unknown, |issue| {
         let (hash, fingerprints) = digester.remote(&issue.body);
         RemoteHash::Known(ReadBack {
             hash,
             fingerprints: Some(fingerprints),
-            updated: issue.updated,
+            updated: issue.updated.clone(),
         })
     })
 }
@@ -838,17 +849,27 @@ pub fn create_local_item(
             Some(cause),
         ));
     }
-    let (local, remote) = match push.tracker.as_deref() {
+    let (local, remote, fidelity) = match push.tracker.as_deref() {
         Some(tracker) => {
             let digester = BaselineDigester::new(tracker, creation.parser);
             let (legacy, fingerprints) =
                 digester.local(&item).map_err(|error| error.to_string())?;
+            let issue = tracker.show(&key).ok();
+            let fidelity = if push.sent_create {
+                digester.comparison().push_fidelity(
+                    &item,
+                    issue.as_ref().map(|issue| issue.body.as_str()),
+                )
+            } else {
+                PushFidelity::Unjudged
+            };
             (
                 LocalDigests {
                     legacy,
                     fingerprints: Some(fingerprints),
                 },
-                read_back_of(&digester, tracker, &key),
+                remote_hash_of(&digester, issue.as_ref()),
+                fidelity,
             )
         }
         None => (
@@ -858,6 +879,7 @@ pub fn create_local_item(
                 fingerprints: None,
             },
             RemoteHash::Unknown,
+            PushFidelity::Unjudged,
         ),
     };
     record_baseline_after_create(creation, pushing.state, &id, local, remote)?;
@@ -870,12 +892,21 @@ pub fn create_local_item(
         }
         .spend();
     }
-    Ok(pushed(
-        Some(target),
-        PushOutcome::WriteOnce,
-        Some(&key),
-        None,
+    let rewrite = RewriteNotice::on_push(fidelity, &target, &key);
+    Ok(with_rewrite(
+        pushed(Some(target), PushOutcome::WriteOnce, Some(&key), None),
+        rewrite,
     ))
+}
+
+fn with_rewrite(
+    mut created: CreationOutcome,
+    rewrite: Option<RewriteNotice>,
+) -> CreationOutcome {
+    if let Some(report) = created.push.as_mut() {
+        report.rewrite = rewrite.map(Box::new);
+    }
+    created
 }
 
 /// How an earlier create of the same content is still pending.
@@ -1226,7 +1257,8 @@ pub fn create_tracker_keyed_item(
             saved
         }
         DraftPromotionOutcome::Attempted(row) => {
-            promotion_outcome(*row, creation, &draft)
+            let rewrite = row.rewrite.clone();
+            with_rewrite(promotion_outcome(*row, creation, &draft), rewrite)
         }
     })
 }
