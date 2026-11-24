@@ -2628,6 +2628,13 @@ condition with an explicit `if`, and ends by printing what it found.
    For each lone-number hit, confirm the local body has a wrapped
    continuation line there; Linear drops leading zeros, so compare by
    position, not by digits.
+
+   The audit does not see table cells. Linear stores a cell's `\|` as a
+   bare `|` (phase 11's `E023`), so check by hand that the remote tables of
+   PP-87 and PP-22 (line 90 of each local file) hold the cells the local
+   file does. A push cannot repair a split table, since Linear strips the
+   escape again, so record either item split that way for manual
+   reconciliation.
 3. Record every item checked, each one found, each not-found item, the
    audit's `self-check ok` line and the commands run in the PR description.
 4. Write `repair.sh`, which repairs one item by id. It validates the id,
@@ -2714,6 +2721,9 @@ condition with an explicit `if`, and ends by printing what it found.
 
 - [ ] Every repaired item's description holds neither rewrite, its local file
       is byte-identical, and its next sync reports it `synced`
+- [ ] PP-87's and PP-22's remote tables were checked against their local
+      files, and either one split by a bare `|` is recorded for manual
+      reconciliation
 - [ ] PP-180, PP-733, PP-860, PP-870 and each repaired item show no stray
       list, no link on a dotted token and no backslash before `.` or `)`
 - [ ] The PR lists every item checked, each one found, each unreadable one,
