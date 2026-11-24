@@ -405,3 +405,11 @@ fn a_rewrite_no_one_section_holds_is_reported_over_the_whole_body() {
         )])
     );
 }
+
+#[test]
+fn merged_paragraphs_are_shown_with_the_lines_they_join() {
+    assert_eq!(
+        fidelity(&plain(), "a\n\nb\n", "a\nb\n"),
+        rewritten(vec![changed("(preamble)", "a\n\nb", "a\nb")])
+    );
+}

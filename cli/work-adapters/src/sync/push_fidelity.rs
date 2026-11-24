@@ -258,7 +258,10 @@ impl<'a> SectionLines<'a> {
         }
     }
 
-    /// Each run of adjacent changes, however many lines each side holds.
+    /// Each run of adjacent changes, however many lines each side holds,
+    /// widened over the unchanged lines around it while neither side holds
+    /// any text, so a change of line boundaries shows the lines it joins
+    /// or splits.
     fn hunks(&self) -> impl Iterator<Item = Hunk> + '_ {
         let mut hunks: Vec<(Range<usize>, Range<usize>)> = Vec::new();
         let mut open = false;
@@ -276,11 +279,42 @@ impl<'a> SectionLines<'a> {
             }
             open = true;
         }
-        hunks.into_iter().map(|(sent, stored)| Hunk {
-            sent: self.sent[sent.clone()].concat(),
-            stored: self.stored[stored].concat(),
-            sent_lines: sent,
+        hunks.into_iter().map(|(sent, stored)| {
+            let (sent, stored) = self.showing_text(sent, stored);
+            Hunk {
+                sent: self.sent[sent.clone()].concat(),
+                stored: self.stored[stored].concat(),
+                sent_lines: sent,
+            }
         })
+    }
+
+    fn showing_text(
+        &self,
+        mut sent: Range<usize>,
+        mut stored: Range<usize>,
+    ) -> (Range<usize>, Range<usize>) {
+        let is_blank =
+            |lines: &[&str]| lines.iter().all(|line| line.trim().is_empty());
+        while is_blank(&self.sent[sent.clone()])
+            && is_blank(&self.stored[stored.clone()])
+        {
+            let before = sent.start > 0 && stored.start > 0;
+            let after =
+                sent.end < self.sent.len() && stored.end < self.stored.len();
+            if !before && !after {
+                break;
+            }
+            if before {
+                sent.start -= 1;
+                stored.start -= 1;
+            }
+            if after {
+                sent.end += 1;
+                stored.end += 1;
+            }
+        }
+        (sent, stored)
     }
 
     /// The sent section with `hunk`'s stored lines in place of its sent
