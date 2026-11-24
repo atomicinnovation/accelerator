@@ -329,6 +329,22 @@ fn blank_and_whitespace_only_lines_are_ignored() {
 }
 
 #[test]
+fn a_level_one_heading_closes_the_section() {
+    let body = [
+        "## Sources",
+        "- [A](https://a.example/) — tier-1",
+        "",
+        "# Appendix",
+        "Text.",
+    ]
+    .join("\n");
+    let parsed = SourcesSection::parse(&body);
+    assert!(parsed.unread().is_empty());
+    let span = parsed.span().expect(&body);
+    assert_eq!((span.start(), span.end()), (1, 4));
+}
+
+#[test]
 fn only_the_first_exactly_named_section_is_read() {
     let body = [
         "## Sources",

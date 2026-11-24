@@ -9,7 +9,7 @@ use crate::topic::sources_section::lines::Line;
 use crate::topic::sources_section::tier_text::TierText;
 
 const SOURCES_HEADING: &str = "## Sources";
-const LEVEL_TWO_HEADING: &str = "## ";
+const CLOSING_HEADINGS: [&str; 2] = ["# ", "## "];
 const NONE_FOUND: &str = "None found.";
 const ENTRY_OPENING: &str = "- [";
 const TITLE_CLOSE: &str = "](";
@@ -44,7 +44,7 @@ impl SourcesSection {
         };
         let mut reading = SectionReading::opened_at(heading.number);
         lines
-            .take_while(|line| !line.text.starts_with(LEVEL_TWO_HEADING))
+            .take_while(|line| !closes_the_section(line.text))
             .for_each(|line| reading.read(&line));
         reading.closed()
     }
@@ -75,6 +75,12 @@ impl SourcesSection {
             Self::Absent => None,
         }
     }
+}
+
+fn closes_the_section(text: &str) -> bool {
+    CLOSING_HEADINGS
+        .iter()
+        .any(|heading| text.starts_with(heading))
 }
 
 struct SectionReading {

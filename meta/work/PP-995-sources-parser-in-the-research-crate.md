@@ -126,7 +126,7 @@ CRLF line endings reads as one with LF. Nothing else is trimmed: a trailing
 space breaks a match.
 
 - The section opens at the first line reading exactly `## Sources` and
-  closes at the next `## ` heading or the end of the document. A later
+  closes at the next `# ` or `## ` heading or the end of the document. A later
   `## Sources` heading starts no second section. A deeper heading inside the
   section is an unread line.
 - A line is an **entry** when it reads `- [title](url) — ` followed by
@@ -460,6 +460,9 @@ implementation of both to compare against.
   `\r`; the line span counts lines of the text given and removes the
   section itself; and the parsers live in `research::topic::sources_section`,
   with the section state modelled as an enum.
+- Decided with the author on 2026-11-24, after the first review of PR #262:
+  a level-one heading closes the section as a level-two heading does, as
+  it does in Markdown.
 - Decided with the author on 2026-11-24, after the first review of PR #262:
   the line span cuts the text around the section with `split` alone and
   no longer removes it. PP-1000, the only consumer, renders the structured

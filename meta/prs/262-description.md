@@ -39,8 +39,9 @@ the library only, with no caller yet.
   canonical order only, so `parse(s)?.to_string() == s` for every accepted
   input; anything else is refused as `NotTierText`, carrying the whole input.
 - `SourcesSection::parse` reads the first exactly named `## Sources` heading
-  up to the next level-two heading, and yields one of three states: `Absent`,
-  `DeclaredEmpty` (only `None found.`, no entries) or `Present`.
+  up to the next level-one or level-two heading, and yields one of three
+  states: `Absent`, `DeclaredEmpty` (only `None found.`, no entries) or
+  `Present`.
 - `CitedSource` reads `- [title](url) — tier — venue`. The title ends at the
   rightmost `](` that still yields an entry, so titles may hold brackets and
   venues may hold links or the `—` separator. A tier that is not tier text
