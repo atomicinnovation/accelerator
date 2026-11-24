@@ -854,3 +854,11 @@ fn an_unmatched_link_end_leaves_text_outside_every_link() {
     nesting.observe(&MarkdownEvent::Text("a".to_owned()));
     assert!(nesting.is_outside());
 }
+
+#[test]
+fn only_an_escape_that_changes_the_reading_is_abandoned() {
+    assert_eq!(
+        escape_for_push("See crates.io and [a.io]\n\n[a\\.io]: /u\n"),
+        "See crates\\.io and [a.io]\n\n[a\\.io]: /u\n"
+    );
+}

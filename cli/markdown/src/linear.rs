@@ -20,8 +20,8 @@ use self::text_runs::TextRun;
 /// `markdown` with a backslash before each `.` or `)` that Linear's parser
 /// would read as an ordered-list marker or part of a link.
 ///
-/// Only backslashes are inserted. If any would change how `document` reads
-/// the body, `markdown` is returned unchanged.
+/// Only backslashes are inserted, and none that would change how `document`
+/// reads the body.
 #[must_use]
 pub fn escape_for_push(markdown: &str) -> String {
     escaped_or_original(markdown, proposed_escapes(markdown))
@@ -45,18 +45,32 @@ pub fn dotted_tokens(text: &str) -> impl Iterator<Item = Range<usize>> {
 }
 
 fn escaped_or_original(markdown: &str, escapes: Vec<Escape>) -> String {
-    let candidate = with_escapes(markdown, escapes);
+    let escapes = in_source_order(escapes);
+    let candidate = with_escapes(markdown, escapes.clone());
     if reads_alike(markdown, &candidate) {
-        candidate
-    } else {
-        markdown.to_owned()
+        return candidate;
     }
+    let mut kept: Vec<Escape> = Vec::new();
+    for escape in escapes {
+        kept.push(escape);
+        if !reads_alike(markdown, &with_escapes(markdown, kept.clone())) {
+            kept.pop();
+        }
+    }
+    with_escapes(markdown, kept)
 }
 
-fn with_escapes(markdown: &str, mut escapes: Vec<Escape>) -> String {
+fn in_source_order(mut escapes: Vec<Escape>) -> Vec<Escape> {
     escapes.sort_unstable();
     escapes.dedup();
-    spliced(markdown, escapes.into_iter().map(Escape::splice))
+    escapes
+}
+
+fn with_escapes(markdown: &str, escapes: Vec<Escape>) -> String {
+    spliced(
+        markdown,
+        in_source_order(escapes).into_iter().map(Escape::splice),
+    )
 }
 
 fn reads_alike(original: &str, escaped: &str) -> bool {
