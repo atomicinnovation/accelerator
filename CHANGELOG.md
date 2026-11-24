@@ -367,6 +367,11 @@
   plans the refused create; a `--pull-only` preview plans no creates and
   still exits 70. A create with a `--resolve` order previews as before.
   Scripts that parse `work sync` exit codes need updating.
+- **`linear create` and `linear update` escape the description for Linear.**
+  A backslash goes before each `.` or `)` that Linear's parser would read as
+  a link (`crates.io`, `server.pid`) or as an ordered-list marker (a wrapped
+  line holding only `0160.`), and Linear stores the text without it. Pass
+  `--verbatim` to send the description exactly as given.
 
 ### Added
 
@@ -1094,6 +1099,14 @@
 
 ### Fixed
 
+- **Pushing to Linear no longer turns dotted tokens into links or wrapped
+  numbers into lists.** `work create --push`, `work update --push`,
+  `work sync` and draft promotion escape each description as
+  `linear create` and `linear update` do, so a pushed `crates.io` stays plain
+  text and a continuation line holding only `0160.` stays in its paragraph.
+  Local files and sync baselines are unchanged; run
+  `accelerator work update <path> --push` to repair an item Linear already
+  rewrote.
 - **New work items always carry `tags`.** `/create-work-item`,
   `/extract-work-items` and `/sync-work-items` (through `work create`,
   `work create-batch` and `work sync`) wrote no `tags` key for an item
