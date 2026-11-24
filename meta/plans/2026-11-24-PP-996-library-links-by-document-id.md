@@ -76,14 +76,18 @@ such as `x-review-1` and `x-review-2`.
   document's frontmatter `id`; the search row also carries `relPath`.
 - One module, `cli/visualiser/frontend/src/api/library-document-address.ts`,
   owns library addressing. It exports:
+  - `documentIdOf(document)`, the document's `id`, or its filename's stem
+    when it has none: the segment every link carries;
   - `libraryLink(document)`, returning
-    `{ to: "/library/$type/$documentId", params: { type, documentId } }`;
+    `{ to: "/library/$type/$documentId", params: { type, documentId } }`
+    with `documentId` from `documentIdOf`;
   - `libraryHref(link)`, rendering that target with the router's
     `interpolatePath`;
   - `resolveLibraryDocument(entries, documentId)`, matching `id`, then slug,
     then stem, each as a separate pass over the listing;
   - `descriptiveSlugOf(entry)`, the `slug ?? stem` that related items show
-    and not-found suggestions rank by.
+    and not-found suggestions rank by. It is a human-facing label, never an
+    address; links always carry `documentIdOf`.
 - All eight call sites link through `libraryLink`; related items render a
   router `<Link>`; wiki links use `libraryHref`.
 - The route parameter is `$documentId`.
@@ -91,8 +95,9 @@ such as `x-review-1` and `x-review-2`.
   row's doc type by `relPath`, and renders an unlinked row when the listing
   holds no such entry.
 - `path-utils.ts` is gone; the stem helper is private to the address module.
-- A boundary test fails if any non-test module other than the address
-  module assembles a `/library/$type/…` document target, or if the address
+- A boundary test fails if any production module other than the address
+  module assembles a `/library/<type>/<document>` target, defines a stem
+  helper or compares a URL segment against an entry, or if the address
   module names `TopicResearch`, `DesignInventories`, `topic-research` or
   `design-inventories`.
 
@@ -111,7 +116,7 @@ steps under Testing Strategy.
   `routes/library/recovery/use-nearby-slug-suggestions.ts:28-34`.
 - e2e specs that edit fixtures on disk restore them in `finally`
   (`frontend/e2e/kanban-conflict.spec.ts`). The global snapshot covers only
-  `meta/work/` (`e2e/global-setup.ts:17-26`).
+  `meta/work/` (`e2e/global-setup.ts:17-26`), so Phase 4 extends it.
 
 ## What We're NOT Doing
 
@@ -127,10 +132,14 @@ steps under Testing Strategy.
 - Showing slug-less documents in search. The projector's
   slug-required rule (`search.rs:84-91`) stays.
 - Changing how suggestions are ranked, or what ids related items and
-  lifecycle cards display (lifecycle shows the link's `documentId` where it
+  lifecycle cards display (lifecycle shows `documentIdOf(entry)` where it
   showed the stem; that equals the stem for any document without an `id`).
 - Reading non-string `id` values. Validation rejects an unquoted `id`, so
   the field is `None` for one.
+- Guaranteeing that a stem link round-trips for a document with no `id`.
+  Its stem can equal another document's slug, and the slug pass then opens
+  that document. Validation requires an `id`, so only an invalid corpus is
+  exposed.
 
 ## Implementation Approach
 
@@ -200,8 +209,10 @@ fn document_id(state: &FrontmatterState) -> Option<String> {
 }
 ```
 
-In the refactor step, have `plan_id_from_entry` read `entry.id`, and have the
-work-item branch's `raw_id` read the same helper.
+In the refactor step, have `plan_id_from_entry` read `entry.id`. Leave the
+work-item branch's `raw_id` reading the raw frontmatter value: it passes an
+empty `id` on to `work_item_identity`, which `document_id` would filter, so
+folding it onto the helper would change work-item identity.
 
 Add `id: None` to every `IndexEntry` literal: `src/test_support.rs` (both
 factories), `src/clusters.rs:242`, the `indexer.rs` test literals
@@ -247,10 +258,13 @@ now opens it.
 
 **File**: `cli/visualiser/frontend/src/api/types.ts` and `api/fetch.ts`
 
-- Add `id: string | null` to `IndexEntry`. Normalise a missing wire `id` to
-  `null` in `normaliseEntry`, as the other late fields are, and add it to the
-  `WireIndexEntry` omit list.
-- Add `id: string | null` and `relPath: string` to `SearchResult`.
+- Add `id: string | null` to `IndexEntry` (`types.ts`). Normalise a missing
+  wire `id` to `null` in `normaliseEntry`, to keep `IndexEntry` consistent
+  with its other late fields, and
+  add it to the `WireIndexEntry` omit list.
+- Add `id: string | null` and `relPath: string` to `SearchResult`
+  (`fetch.ts:242`). The server embeds its own frontend, so search rows
+  always come from the same build and need no older-server normalisation.
 - Add `id: null` to `makeIndexEntry` (`api/test-fixtures.ts`).
 
 #### 2. Failing resolver tests
@@ -261,6 +275,8 @@ now opens it.
 - The `id` wins over another entry whose slug equals it, even when the slug
   entry sorts first.
 - The slug matches when no `id` does. The stem matches when neither does.
+- The slug wins over another entry whose stem equals it, even when the stem
+  entry sorts first.
 - `review-2`'s stem opens `review-2` when `review-1` and `review-2` share a
   slug.
 - No match returns `undefined`.
@@ -290,8 +306,18 @@ export function resolveLibraryDocument(
 - `router.ts`: `path: "/$documentId"`, crumb `params.documentId`.
 - `src/test/router-helpers.tsx`: `/library/$type/$documentId`.
 - `LibraryDocView`: the prop and param become `documentId`. Replace the
-  `find` with `resolveLibraryDocument(entries, documentId)`. Pass
-  `missingSlug={documentId}` to `NotFoundSurface`.
+  `find` with `resolveLibraryDocument(entries, documentId)`. Rename
+  `NotFoundSurface`'s `missingSlug` prop to `missingDocumentId` and pass
+  `documentId`; ranking still compares it against descriptive slugs, so the
+  ranking helpers in `rank-slug-suggestions.ts` keep their names. Update
+  `NotFoundSurface.test.tsx` and `CatchAllNotFound.tsx` to the new name.
+- `LibraryTypeView` (`:106-118,168`): its `useParams({ strict: false })`
+  cast, `hasFileSlug` and the `<Outlet />` gate read `params.fileSlug`, and
+  the cast hides the rename from the type checker. Read `params.documentId`
+  and rename `hasFileSlug` to `hasDocumentId`. The existing child-document
+  test (`LibraryTypeView.test.tsx:481`) pins `hasDocumentId` only; extend it
+  to assert that the listing is absent at `/library/work-items/some-slug`,
+  which pins the `<Outlet />` gate.
 - `useActiveDocRelPath`: read `params.documentId` and call the resolver.
   Remove its doc comment's "intentionally not shared" paragraph, which the
   shared resolver makes false.
@@ -347,8 +373,14 @@ shares a slug.
   `meta/research/topics/b/manifest.md` gives
   `{ to: "/library/$type/$documentId", params: { type: "topic-research", documentId: "b" } }`.
 - An entry with no `id` at `meta/plans/foo.md` gives `documentId: "foo"`.
+- `documentIdOf` gives the `id`, or the stem when the `id` is null.
 - `libraryHref` renders `/library/plans/foo`, and percent-encodes a
   reserved character in an `id`.
+- `libraryHref(libraryLink(entry))` equals the `href` of a rendered
+  `<Link {...libraryLink(entry)}>`, for a plain `id` and one with a reserved
+  character, so a router upgrade cannot make the two forms drift.
+- For every entry in a listing with unique `id`s,
+  `resolveLibraryDocument(entries, documentIdOf(e))` returns `e`.
 - `descriptiveSlugOf` gives the slug, or the stem when the slug is null.
 
 #### 2. The builder
@@ -363,13 +395,14 @@ export interface LibraryLink {
   params: { type: DocTypeKey; documentId: string };
 }
 
+export function documentIdOf(document: LibraryDocument): string {
+  return document.id ?? filenameStemOf(document.relPath);
+}
+
 export function libraryLink(document: LibraryDocument): LibraryLink {
   return {
     to: "/library/$type/$documentId",
-    params: {
-      type: document.type,
-      documentId: document.id ?? filenameStemOf(document.relPath),
-    },
+    params: { type: document.type, documentId: documentIdOf(document) },
   };
 }
 
@@ -401,7 +434,7 @@ Each site's test starts by asserting the new href and failing. Then
   Rewrite the four existing href assertions (`:164-189`) to the builder's
   output.
 - **Lifecycle** (`LifecycleClusterView.tsx`). Use the builder. The display
-  id becomes `entry.workItemId || libraryLink(entry).params.documentId`.
+  id becomes `entry.workItemId || documentIdOf(entry)`.
   New cases in `LifecycleClusterView.test.tsx`: two inventories at
   `meta/research/design-inventories/<dir>/inventory.md` with
   `id: "<dir>"` link to `/library/design-inventories/<dir>`. A plan
@@ -410,7 +443,10 @@ Each site's test starts by asserting the new href and failing. Then
 - **Wiki links** (`wiki-links.ts`). `resolveWikiLink` returns
   `href: libraryHref(libraryLink(entry))`, and its doc comment drops the
   stem rationale. A work item `id: "0042"` gives
-  `/library/work-items/0042`. A decision with no `id` keeps its stem. Update
+  `/library/work-items/0042`. `[[ADR-0067]]` to a decision with
+  `id: "ADR-0067"` gives `/library/decisions/ADR-0067`, and
+  `LibraryDocView.test.tsx` opens that URL to the decision's title. A
+  decision with no `id` keeps its stem. Update
   `wiki-links.test.ts:231-271`, `use-wiki-link-resolver.test.tsx:59`,
   `wiki-link-plugin.test.ts:69,210,228` and `LibraryDocView.test.tsx:278,484`.
 - **Type listing** (`LibraryTypeView.tsx`). Use `libraryLink(entry)`. New
@@ -419,17 +455,25 @@ Each site's test starts by asserting the new href and failing. Then
 - **Search results** (`SearchResultsPanel.tsx`). Use
   `libraryLink({ type: r.docType, id: r.id, relPath: r.relPath })`, and key
   rows by `relPath`. Update the hrefs at `SearchResultsPanel.test.tsx:120-123,195`
-  to rows carrying an `id`, and add a set row with `id: "b"`.
+  to rows carrying an `id`, and add a set row with `id: "b"`. Two rows
+  sharing slug `foo` with different `id`s and `relPath`s both render, each
+  with its own href.
 - **Kanban** (`WorkItemCard.tsx`). Use `libraryLink(entry)`. In
   `KanbanBoard.test.tsx`, a card with `id: "0007"` links to
   `/library/work-items/0007`.
 - **Not-found suggestions**. Add `id: string | null` to `SlugCandidate`
-  (`rank-slug-suggestions.ts`) and fill `slug` with `descriptiveSlugOf(e)`
-  in `use-nearby-slug-suggestions.ts`. `NotFoundSurface` links with
+  (`rank-slug-suggestions.ts`), and in `use-nearby-slug-suggestions.ts`
+  build each candidate with `id: e.id` and `slug: descriptiveSlugOf(e)`.
+  Add `id: null` to the `cand()` defaults in
+  `rank-slug-suggestions.test.ts:11-19`. `NotFoundSurface` links with
   `libraryLink(s)` and keys rows by `relPath`. Ranking is unchanged. Rewrite
   the `SlugCandidate` doc comment so it no longer names
-  `fileSlugFromRelPath`. New test: a suggestion with `id: "x"` links to
-  `/library/<type>/x`.
+  `fileSlugFromRelPath`. New tests, driven through `NotFoundSurface` from a
+  mocked `fetchDocs` listing: a suggestion for an entry with `id: "x"` links to
+  `/library/<type>/x`, and two suggestions sharing a slug both render, each
+  linking to its own `id`.
+- **Lifecycle shared slugs**. In `LifecycleClusterView.test.tsx`, two
+  reviews in one cluster sharing a slug link to their own stems.
 
 #### 4. e2e
 
@@ -442,6 +486,8 @@ Each site's test starts by asserting the new href and failing. Then
 and `.../design-inventories/*/inventory.md`
 
 - Add a quoted `id`: the directory name for each set and each inventory.
+  These fixtures carry deliberately minimal frontmatter and are not
+  template-shaped, so only the `id` is added.
 
 **File**: `cli/visualiser/frontend/e2e/library-links.spec.ts` (new)
 
@@ -462,8 +508,8 @@ and `.../design-inventories/*/inventory.md`
 - [ ] e2e passes: `mise run test:e2e:visualiser`
 - [ ] Server tests still pass with the new fixture ids:
       `mise run test:unit:visualiser` and `mise run test:integration:visualiser`
-- [ ] Fixture frontmatter is valid:
-      `accelerator corpus frontmatter validate --file <each edited fixture>`
+- [ ] Each edited fixture's `id` is quoted and equals its directory name,
+      which the `library-links.spec.ts` link assertions confirm
 - [ ] Full default task passes: `mise run`
 
 #### Manual Verification:
@@ -504,7 +550,20 @@ Mock `fetchDocs` alongside `fetchActivity`, and render through
 - While the listing is pending, the row shows its text and has no link.
 - A row whose path is absent from the settled listing shows its text and
   has no link. Run this for a deleted set and for a deleted plan.
-- A live SSE row gains its link once the listing holds its entry.
+- A live row for a new document gains its link once the listing refetches.
+  Drive it through the real event path: deliver a doc-changed event through
+  the subscribe and `dispatchSseEvent` machinery, with `fetchDocs` returning
+  the new entry on refetch. `dispatchSseEvent` skips self-caused events, but
+  those come from the visualiser's own writes to documents already in the
+  listing, so no new entry depends on them.
+- An unlinked row's list item holds its visible text (doc-type label,
+  action, filename) and no `link`, and the row lacks the `.linkedRow`
+  class.
+
+**File**: `cli/visualiser/frontend/src/components/Sidebar/Sidebar.test.tsx`
+
+- Mock `fetchDocs` alongside `fetchActivity`, so the feed's listing queries
+  resolve in the sidebar tests.
 
 #### 2. The lookup
 
@@ -523,10 +582,12 @@ export function useActivityRowDocuments(
       queryFn: () => fetchDocs(type),
     })),
   });
-  return (row) =>
-    listings[docTypes.indexOf(row.docType)]?.data?.find(
-      (entry) => entry.relPath === row.path,
-    );
+  const entriesByPath = new Map<string, IndexEntry>(
+    listings.flatMap((listing) =>
+      (listing.data ?? []).map((entry) => [entry.relPath, entry] as const),
+    ),
+  );
+  return (row) => entriesByPath.get(row.path);
 }
 ```
 
@@ -540,11 +601,18 @@ wiring.
 
 Extract the row body (glyph, two lines) into an `ActivityRowContent`
 component. A row with an entry renders
-`<Link {...libraryLink(entry)} className={styles.row} aria-label=…>`. One
-without renders the same content in a `<div className={styles.row}>`. Keep
-the visible text and accessible label the same in both. Add an
-`unlinked` class only if the hover styling needs to differ; check the
-current CSS module.
+`<Link {...libraryLink(entry)} className={`${styles.row} ${styles.linkedRow}`} aria-label=…>`.
+One without renders the same content in a `<div className={styles.row}>`,
+with no `aria-label`, which ARIA prohibits on a generic element; a screen
+reader reads its text as part of the list item.
+
+**File**: `cli/visualiser/frontend/src/components/ActivityFeed/ActivityFeed.module.css`
+
+`.row:hover` and the `li:has(.row:hover)` border rules give every `.row`
+hover feedback. Move those hover rules onto `.linkedRow`, and leave the
+layout and the `.row [data-doc-type]` glyph rule on `.row`, so both rows
+share layout and monochrome glyphs and only a linked row shows a hover or
+focus affordance.
 
 #### 4. Retire `path-utils.ts`
 
@@ -552,28 +620,57 @@ Delete `api/path-utils.ts`. Its last importers are the activity feed, which
 now uses the builder, and any test that imported it.
 `use-active-doc-relpath.test.tsx:107` and
 `rank-slug-suggestions.test.ts:127` assert behaviour, not the helper;
-rewrite any direct import as a behaviour assertion.
+rewrite any direct import as a behaviour assertion, and drop the comment at
+`rank-slug-suggestions.test.ts:127` and any surviving `cross-refs.spec.ts`
+comment that names `fileSlugFromRelPath`.
 
 #### 5. Boundary test
 
-**File**: `cli/visualiser/frontend/src/api/library-document-address.boundary.test.ts`
+**Files**: `cli/visualiser/frontend/src/api/testing/library-addressing-boundary.ts`
+with its synthetic-source test beside it, and the production scan in
+`cli/visualiser/frontend/src/api/library-addressing-boundary.test.ts`. This
+follows `src/styles/testing/` (helpers and their tests) and
+`src/styles/migration.test.ts` (the scan, beside the code it guards).
 
-Read every non-test `src/**/*.{ts,tsx}` with
-`import.meta.glob(…, { query: "?raw", import: "default", eager: true })`.
-Assert that:
+Write this first in the phase. After Phase 3 it fails on `ActivityFeed.tsx`'s
+hand-built target and on `path-utils.ts`, and the rest of the phase turns it
+green.
 
-- no module but `library-document-address.ts` contains `/library/$type/` or
-  a template literal starting `` `/library/${ ``;
-- no module but it defines `filenameStemOf` or `fileSlugFromRelPath`;
-- no module but it contains `.slug ===` or `=== documentId`. Today
-  `.slug ===` appears only in the two resolvers this plan replaces. A broad
+The rules module exports
+`libraryAddressingViolations(sources: Record<string, string>): string[]`,
+which applies the rules below to a map of path to source text. Its test
+feeds it synthetic sources, one breaking each rule and one clean, and
+asserts each breach is reported and the clean source is not. A source of
+`` `/library/${dt.id}/` ``, the form `Sidebar.tsx:89-90` uses for a type
+path, is clean.
+
+The production scan reads the modules with
+`import.meta.glob(…, { query: "?raw", import: "default", eager: true })`
+over `src/**/*.{ts,tsx}`, excluding `**/*.test.{ts,tsx}`, `src/test/**`,
+`**/testing/**` and `**/test-fixtures.ts`. The rules module holds the
+patterns it hunts for, so it must sit under an excluded `testing/`
+directory. The test asserts the glob found `library-document-address.ts` and
+`ActivityFeed.tsx` and did not pick up the rules module, so a mis-scoped
+glob cannot pass, and that
+`libraryAddressingViolations` reports nothing. The rules, for every module
+but `library-document-address.ts`:
+
+- it contains neither `/library/$type/$` nor a template literal with two
+  interpolated segments after `/library/`, matched by
+  `` /`\/library\/\$\{[^}]*\}\/\$\{/ ``;
+- it defines neither `filenameStemOf` nor `fileSlugFromRelPath`;
+- it contains none of `.slug ===`, `=== documentId` and `documentId ===`.
+  Today these appear only in the two resolvers this plan replaces. A broad
   `.id ===` pattern would catch unrelated code such as `SortPill.tsx:33`, so
-  the test does not use it;
-- `library-document-address.ts` contains none of `TopicResearch`,
-  `DesignInventories`, `topic-research` and `design-inventories`.
+  the rule does not use it. This rule is a textual approximation of "no
+  other module matches a URL segment against an entry"; the resolver tests
+  carry the behaviour.
 
-`Sidebar.tsx:89-90` builds a type path, not a document path, so the first
-check matches only the document form. Allow-list nothing else.
+And for `library-document-address.ts` itself: it contains none of
+`TopicResearch`, `DesignInventories`, `topic-research` and
+`design-inventories`.
+
+Allow-list nothing.
 
 #### 6. e2e
 
@@ -584,6 +681,15 @@ check matches only the document form. Allow-list nothing else.
   activity row then links to `/library/topic-research/<dir>`, and following
   it shows that set's title.
 - Do the same for the two design inventories.
+- Each edit appends a body line, leaving titles and frontmatter unchanged, so
+  specs running alongside cannot observe it.
+
+**File**: `cli/visualiser/frontend/e2e/global-setup.ts` and its teardown
+
+Extend the fixture snapshot from `meta/work/` to also cover the four
+`research/topics/*/manifest.md` and the two
+`research/design-inventories/*/inventory.md` files, so an interrupted run
+cannot leave an edited manifest behind.
 
 ### Success Criteria:
 
@@ -593,7 +699,7 @@ check matches only the document form. Allow-list nothing else.
       `mise run test:unit:frontend`
 - [ ] e2e passes: `mise run test:e2e:visualiser`
 - [ ] No reference to `path-utils` remains:
-      `rg -n "path-utils|fileSlugFromRelPath|\\$fileSlug" cli/visualiser/frontend`
+      `rg -n "path-utils|fileSlug" --glob '!**/testing/**' cli/visualiser/frontend`
       prints nothing
 - [ ] Full default task passes: `mise run`
 
@@ -612,13 +718,15 @@ check matches only the document form. Allow-list nothing else.
 
 - Rust: the `id` field from frontmatter (present, absent, empty, nested
   manifest, work item), and `id` and `relPath` on search rows.
-- Address module: builder, `libraryHref` encoding, the resolver's pass
-  order and collisions, and `descriptiveSlugOf`.
+- Address module: `documentIdOf`, the builder, `libraryHref` encoding and
+  its parity with `<Link>`, the resolver's pass order, collisions and
+  round trip, and `descriptiveSlugOf`.
 - One behaviour test per call site through its rendered href, covering
   sets, inventories, shared slugs and documents with no `id`.
 - Activity feed: lookup across types, pending and missing entries, and
   live rows.
-- Boundary test for the work item's two structural criteria.
+- Boundary rules, tested against synthetic violating sources, then applied
+  to the production modules for the work item's two structural criteria.
 
 ### Integration Tests:
 
@@ -629,7 +737,7 @@ check matches only the document form. Allow-list nothing else.
 
 ### Manual Testing Steps:
 
-1. `mise run dev:up` against a repo with at least two topic-research sets
+1. `mise run dev` against a repo with at least two topic-research sets
    and two design inventories.
 2. Edit each set's `manifest.md`, and follow each activity row. Each opens
    its own set.
@@ -650,7 +758,12 @@ linear over one type's listing, as the single pass was.
 ## Migration Notes
 
 Existing URLs keep working: slug and stem URLs resolve through the
-resolver's later passes. Bookmarked `/library/topic-research/manifest` URLs
+resolver's later passes, unless another document of the same type has that
+slug or stem as its `id`, in which case the `id` pass opens that document.
+The corpus's id conventions (`ADR-NNNN`, `PP-NNN`, dated stems, directory
+names) make such a collision unlikely. Likewise a stem URL whose stem
+equals another document's slug now always opens the slug match, where the
+single pass opened whichever sorted first. Bookmarked `/library/topic-research/manifest` URLs
 keep opening the first set until PP-998. No data migration is needed.
 
 ## References
