@@ -250,11 +250,11 @@ fn a_synced_split_entry_advances_both_recipes_local_digests(
 
     assert_eq!(realigned, 1);
     let expected = digester().digests(&rendered, Some("Title\nBody\n"))?;
-    let Some(Entry::Split { legacy, split, .. }) = entry(&baseline)? else {
+    let Some(Entry::Split(entry)) = entry(&baseline)? else {
         return Err("the entry stays recipe 1".into());
     };
-    assert_eq!(legacy, expected.legacy);
-    assert_eq!(split, expected.split);
+    assert_eq!(entry.legacy(), &expected.legacy);
+    assert_eq!(entry.split(), &expected.split);
     Ok(())
 }
 

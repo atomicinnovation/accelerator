@@ -522,11 +522,11 @@ pub fn assert_recipe_one_entry(
     let recorded = BaselineDigester::new(dialect, &CommonMarkBody)
         .digests(local_content, remote_projection)
         .expect("the local content is well formed");
-    let Some(Entry::Split { legacy, split, .. }) = entry else {
+    let Some(Entry::Split(entry)) = entry else {
         panic!("expected a recipe-1 entry, found {entry:?}");
     };
-    assert_eq!(split, &recorded.split, "the split fingerprints");
-    assert_eq!(legacy, &recorded.legacy, "the legacy hashes");
+    assert_eq!(entry.split(), &recorded.split, "the split fingerprints");
+    assert_eq!(entry.legacy(), &recorded.legacy, "the legacy hashes");
 }
 
 /// `id`'s recipe-1 entry as a `last-sync.json` item fragment, recording

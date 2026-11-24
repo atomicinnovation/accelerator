@@ -6670,11 +6670,9 @@ mod tests {
             )
             .digests(&content, Some(remote_body))
             .expect("the pulled item is well formed");
-        let Some(work_adapters::sync::baseline::Entry::Split {
-            legacy,
-            split,
-            ..
-        }) = loaded.get("0001")
+        let Some((legacy, split)) = loaded
+            .get("0001")
+            .and_then(|entry| entry.legacy().zip(entry.split()))
         else {
             panic!("expected a recipe-1 entry for 0001");
         };

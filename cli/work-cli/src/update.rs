@@ -963,8 +963,9 @@ mod tests {
             .ok()
             .as_deref(),
         );
-        let Some(baseline::Entry::Split { legacy, split, .. }) =
-            baseline.get("0001")
+        let Some((legacy, split)) = baseline
+            .get("0001")
+            .and_then(|entry| entry.legacy().zip(entry.split()))
         else {
             panic!("a recipe-1 entry is recorded");
         };

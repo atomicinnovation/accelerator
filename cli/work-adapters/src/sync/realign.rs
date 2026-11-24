@@ -14,7 +14,6 @@ use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
 use tracker::BodyDialect;
 use work::sync::LegacyHashes;
-use work::sync::SplitFingerprints;
 
 use crate::sync::baseline;
 use crate::sync::baseline::Baseline;
@@ -231,24 +230,17 @@ fn realigned_entry(
                     },
                 })
         }
-        baseline::Entry::Split {
-            stamps,
-            legacy,
-            split,
-        } => {
+        baseline::Entry::Split(entry) => {
             let (_, pre_local) = digester.local(original).ok()?;
             let (new_hash, new_local) = digester.local(new_content).ok()?;
-            (split.local.as_ref() == Some(&pre_local) && new_local != pre_local)
-                .then(|| baseline::Entry::Split {
-                    stamps: stamps.clone(),
-                    legacy: LegacyHashes {
-                        local: Some(new_hash),
-                        ..legacy.clone()
-                    },
-                    split: SplitFingerprints {
-                        local: Some(new_local),
-                        ..split.clone()
-                    },
+            (entry.split().local.as_ref() == Some(&pre_local)
+                && new_local != pre_local)
+                .then(|| {
+                    baseline::Entry::Split(
+                        entry
+                            .clone()
+                            .with_local_fingerprints(new_hash, new_local),
+                    )
                 })
         }
         baseline::Entry::Unsupported { .. } => None,

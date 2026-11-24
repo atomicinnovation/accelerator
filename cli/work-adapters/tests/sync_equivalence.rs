@@ -173,7 +173,7 @@ fn each_named_legacy_unrenderable_remedy_settles_the_item() {
             (SyncState::Synced, Action::RecordBaseline),
             "reverting the edit lets the entry migrate"
         );
-        assert!(matches!(repo.entry(9), Some(Entry::Split { .. })));
+        assert!(matches!(repo.entry(9), Some(Entry::Split(_))));
 
         repo.write(9, edited);
         assert_eq!(
@@ -392,7 +392,7 @@ fn a_missing_entry_with_an_equivalent_remote_is_baselined_without_a_write() {
     );
     assert!(!repo.wrote_an_item());
     assert_eq!(repo.mutations(), []);
-    assert!(matches!(repo.entry(1), Some(Entry::Split { .. })));
+    assert!(matches!(repo.entry(1), Some(Entry::Split(_))));
     settles_item_one(&repo);
 }
 
@@ -480,7 +480,7 @@ fn an_empty_remote_hash_with_a_differing_remote_has_its_local_hash_emptied() {
             entry.legacy().and_then(|hashes| hashes.local.clone()),
             None
         );
-        if let Entry::Split { split, .. } = entry {
+        if let Some(split) = entry.split() {
             assert_eq!(split.local, None);
         }
     }
@@ -535,7 +535,7 @@ fn each_cosmetic_remote_rewrite_alone_is_synced_with_unchanged_hashes() {
         assert_eq!(repo.mutations(), [], "{rewrite:?}");
         assert!(!repo.wrote_an_item(), "{rewrite:?}");
         let fingerprints = |entry: Option<Entry>| match entry {
-            Some(Entry::Split { split, .. }) => split,
+            Some(Entry::Split(entry)) => entry.split().clone(),
             other => panic!("a recipe-1 entry, got {other:?}"),
         };
         assert_eq!(
@@ -920,7 +920,7 @@ fn a_legacy_entry_with_cosmetic_local_rewrites_sends_no_update_and_gains_the_rec
         (SyncState::LocallyModified, Action::RecordBaseline)
     );
     assert_eq!(repo.mutations(), []);
-    assert!(matches!(repo.entry(1), Some(Entry::Split { .. })));
+    assert!(matches!(repo.entry(1), Some(Entry::Split(_))));
     settles_item_one(&repo);
 }
 
@@ -1006,7 +1006,7 @@ fn an_untouched_legacy_item_with_an_autolinked_file_name_migrates_as_synced() {
         outcome_of(&applied(&repo), 1),
         (SyncState::Synced, Action::RecordBaseline)
     );
-    assert!(matches!(repo.entry(1), Some(Entry::Split { .. })));
+    assert!(matches!(repo.entry(1), Some(Entry::Split(_))));
     settles_item_one(&repo);
 }
 
@@ -1068,7 +1068,7 @@ fn an_untouched_legacy_jira_item_over_an_unrenderable_remote_migrates_and_then_s
     );
     assert!(!repo.wrote_an_item());
     assert_eq!(repo.mutations(), []);
-    assert!(matches!(repo.entry(1), Some(Entry::Split { .. })));
+    assert!(matches!(repo.entry(1), Some(Entry::Split(_))));
     settles_item_one(&repo);
 }
 

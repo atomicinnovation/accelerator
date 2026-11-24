@@ -14,6 +14,12 @@ use work::sync::LocalFingerprints;
 use work::sync::RemoteFingerprints;
 use work::sync::SplitFingerprints;
 
+use crate::sync::rewrite_mark::render_object;
+use crate::sync::rewrite_mark::render_string;
+use crate::sync::rewrite_mark::MarkChange;
+use crate::sync::rewrite_mark::MarkState;
+use crate::sync::rewrite_mark::RewriteMark;
+
 /// The digest recipe a baseline entry was recorded under. An entry with no
 /// `digest_recipe` key is the legacy recipe.
 pub struct DigestRecipe;
@@ -53,14 +59,193 @@ pub enum Entry {
         stamps: SyncStamps,
         legacy: LegacyHashes,
     },
-    Split {
-        stamps: SyncStamps,
-        legacy: LegacyHashes,
-        split: SplitFingerprints,
-    },
+    Split(SplitEntry),
     Unsupported {
         raw: Value,
     },
+}
+
+/// A recipe-1 entry, with the rewrite mark it carries and every key a later
+/// build wrote that this one does not know, so neither is lost on a write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SplitEntry {
+    stamps: SyncStamps,
+    legacy: LegacyHashes,
+    split: SplitFingerprints,
+    mark: MarkState,
+    unknown: BTreeMap<String, Value>,
+}
+
+impl SplitEntry {
+    const KNOWN_KEYS: [&'static str; 11] = [
+        DigestRecipe::KEY,
+        "local_body_hash",
+        "local_fields_hash",
+        "local_frontmatter_hash",
+        "local_hash",
+        "local_synced_at",
+        "remote_body_hash",
+        "remote_fields_hash",
+        "remote_hash",
+        "remote_updated_at",
+        RewriteMark::KEY,
+    ];
+
+    const fn unmarked(
+        stamps: SyncStamps,
+        legacy: LegacyHashes,
+        split: SplitFingerprints,
+    ) -> Self {
+        Self {
+            stamps,
+            legacy,
+            split,
+            mark: MarkState::Absent,
+            unknown: BTreeMap::new(),
+        }
+    }
+
+    #[must_use]
+    pub const fn stamps(&self) -> &SyncStamps {
+        &self.stamps
+    }
+
+    #[must_use]
+    pub const fn legacy(&self) -> &LegacyHashes {
+        &self.legacy
+    }
+
+    #[must_use]
+    pub const fn split(&self) -> &SplitFingerprints {
+        &self.split
+    }
+
+    #[must_use]
+    pub const fn mark(&self) -> &MarkState {
+        &self.mark
+    }
+
+    /// The same entry with its mark as `change` leaves it.
+    #[must_use]
+    pub fn marked(self, change: MarkChange<'_>) -> Self {
+        Self {
+            mark: self.mark.after(change),
+            ..self
+        }
+    }
+
+    /// The same entry with `previous`'s keys this build does not know.
+    #[must_use]
+    pub fn carrying_unknown_keys_of(self, previous: &Self) -> Self {
+        Self {
+            unknown: previous.unknown.clone(),
+            ..self
+        }
+    }
+
+    /// The same entry with its local digests moved to a new local file's.
+    #[must_use]
+    pub fn with_local_fingerprints(
+        self,
+        legacy_local: String,
+        local: LocalFingerprints,
+    ) -> Self {
+        Self {
+            legacy: LegacyHashes {
+                local: Some(legacy_local),
+                ..self.legacy
+            },
+            split: SplitFingerprints {
+                local: Some(local),
+                ..self.split
+            },
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn without_local_digests(self) -> Self {
+        Self {
+            legacy: LegacyHashes {
+                local: None,
+                ..self.legacy
+            },
+            split: SplitFingerprints {
+                local: None,
+                ..self.split
+            },
+            ..self
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_mark(self, mark: MarkState) -> Self {
+        Self { mark, ..self }
+    }
+
+    fn parse(
+        object: &Map<String, Value>,
+        stamps: SyncStamps,
+        legacy: LegacyHashes,
+    ) -> Self {
+        Self {
+            stamps,
+            legacy,
+            split: split_from(object),
+            mark: MarkState::parse(object),
+            unknown: object
+                .iter()
+                .filter(|(key, _)| !Self::KNOWN_KEYS.contains(&key.as_str()))
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect(),
+        }
+    }
+
+    fn render(&self) -> String {
+        let local = self.split.local.as_ref();
+        let remote = self.split.remote.as_ref();
+        let mut fields: BTreeMap<String, String> = self
+            .unknown
+            .iter()
+            .map(|(key, value)| (key.clone(), value.to_string()))
+            .collect();
+        for (key, value) in [
+            (DigestRecipe::KEY, DigestRecipe::CURRENT.to_string()),
+            (
+                "local_body_hash",
+                render_digest(local.map(|local| &local.body)),
+            ),
+            (
+                "local_fields_hash",
+                render_digest(local.map(|local| &local.fields)),
+            ),
+            (
+                "local_frontmatter_hash",
+                render_digest(local.map(|local| &local.frontmatter)),
+            ),
+            ("local_hash", render_digest(self.legacy.local.as_ref())),
+            ("local_synced_at", self.stamps.local_synced_at.to_string()),
+            (
+                "remote_body_hash",
+                render_digest(remote.map(|remote| &remote.body)),
+            ),
+            (
+                "remote_fields_hash",
+                render_digest(remote.map(|remote| &remote.fields)),
+            ),
+            ("remote_hash", render_digest(self.legacy.remote.as_ref())),
+            (
+                "remote_updated_at",
+                render_string(stamp_to_json(&self.stamps.remote_updated_at)),
+            ),
+        ] {
+            fields.insert(key.to_owned(), value);
+        }
+        if let Some(mark) = self.mark.rendered() {
+            fields.insert(RewriteMark::KEY.to_owned(), mark);
+        }
+        render_object(&fields)
+    }
 }
 
 impl Entry {
@@ -93,19 +278,18 @@ impl Entry {
         stamps: SyncStamps,
         fingerprints: DualRecipeFingerprints,
     ) -> Self {
-        Self::Split {
+        Self::Split(SplitEntry::unmarked(
             stamps,
-            legacy: fingerprints.legacy,
-            split: fingerprints.split,
-        }
+            fingerprints.legacy,
+            fingerprints.split,
+        ))
     }
 
     #[must_use]
     pub const fn stamps(&self) -> Option<&SyncStamps> {
         match self {
-            Self::Legacy { stamps, .. } | Self::Split { stamps, .. } => {
-                Some(stamps)
-            }
+            Self::Legacy { stamps, .. }
+            | Self::Split(SplitEntry { stamps, .. }) => Some(stamps),
             Self::Unsupported { .. } => None,
         }
     }
@@ -113,9 +297,8 @@ impl Entry {
     #[must_use]
     pub const fn legacy(&self) -> Option<&LegacyHashes> {
         match self {
-            Self::Legacy { legacy, .. } | Self::Split { legacy, .. } => {
-                Some(legacy)
-            }
+            Self::Legacy { legacy, .. }
+            | Self::Split(SplitEntry { legacy, .. }) => Some(legacy),
             Self::Unsupported { .. } => None,
         }
     }
@@ -123,7 +306,7 @@ impl Entry {
     #[must_use]
     pub const fn split(&self) -> Option<&SplitFingerprints> {
         match self {
-            Self::Split { split, .. } => Some(split),
+            Self::Split(SplitEntry { split, .. }) => Some(split),
             Self::Legacy { .. } | Self::Unsupported { .. } => None,
         }
     }
@@ -136,7 +319,7 @@ impl Entry {
             Self::Legacy { legacy, .. } => {
                 Some(BaselineFingerprints::Legacy(legacy.clone()))
             }
-            Self::Split { split, .. } => {
+            Self::Split(SplitEntry { split, .. }) => {
                 Some(BaselineFingerprints::Split(split.clone()))
             }
             Self::Unsupported { .. } => None,
@@ -155,30 +338,15 @@ impl Entry {
                     ..legacy
                 },
             },
-            Self::Split {
-                stamps,
-                legacy,
-                split,
-            } => Self::Split {
-                stamps,
-                legacy: LegacyHashes {
-                    local: None,
-                    ..legacy
-                },
-                split: SplitFingerprints {
-                    local: None,
-                    ..split
-                },
-            },
+            Self::Split(split) => Self::Split(split.without_local_digests()),
             unsupported @ Self::Unsupported { .. } => unsupported,
         }
     }
 
     const fn stamps_mut(&mut self) -> Option<&mut SyncStamps> {
         match self {
-            Self::Legacy { stamps, .. } | Self::Split { stamps, .. } => {
-                Some(stamps)
-            }
+            Self::Legacy { stamps, .. }
+            | Self::Split(SplitEntry { stamps, .. }) => Some(stamps),
             Self::Unsupported { .. } => None,
         }
     }
@@ -308,17 +476,11 @@ fn parse_entry(value: &Value, document_timestamp: u64) -> Option<Entry> {
     let legacy = legacy_from(object);
     Some(match object.get(DigestRecipe::KEY) {
         None => Entry::Legacy { stamps, legacy },
-        Some(marker) if is_supported_recipe(marker) => Entry::Split {
-            stamps,
-            legacy,
-            split: split_from(object),
-        },
+        Some(marker) if is_supported_recipe(marker) => {
+            Entry::Split(SplitEntry::parse(object, stamps, legacy))
+        }
         Some(_) => Entry::Unsupported { raw: value.clone() },
     })
-}
-
-fn render_string(value: &str) -> String {
-    serde_json::to_string(value).unwrap_or_default()
 }
 
 fn render_digest(digest: Option<&String>) -> String {
@@ -336,41 +498,10 @@ fn render_legacy(stamps: &SyncStamps, legacy: &LegacyHashes) -> String {
     )
 }
 
-fn render_split(
-    stamps: &SyncStamps,
-    legacy: &LegacyHashes,
-    split: &SplitFingerprints,
-) -> String {
-    let local = split.local.as_ref();
-    let remote = split.remote.as_ref();
-    format!(
-        "{{\"{}\":{},\"local_body_hash\":{},\"local_fields_hash\":{},\
-         \"local_frontmatter_hash\":{},\"local_hash\":{},\
-         \"local_synced_at\":{},\"remote_body_hash\":{},\
-         \"remote_fields_hash\":{},\"remote_hash\":{},\
-         \"remote_updated_at\":{}}}",
-        DigestRecipe::KEY,
-        DigestRecipe::CURRENT,
-        render_digest(local.map(|local| &local.body)),
-        render_digest(local.map(|local| &local.fields)),
-        render_digest(local.map(|local| &local.frontmatter)),
-        render_digest(legacy.local.as_ref()),
-        stamps.local_synced_at,
-        render_digest(remote.map(|remote| &remote.body)),
-        render_digest(remote.map(|remote| &remote.fields)),
-        render_digest(legacy.remote.as_ref()),
-        render_string(stamp_to_json(&stamps.remote_updated_at)),
-    )
-}
-
 fn render_entry(entry: &Entry) -> String {
     match entry {
         Entry::Legacy { stamps, legacy } => render_legacy(stamps, legacy),
-        Entry::Split {
-            stamps,
-            legacy,
-            split,
-        } => render_split(stamps, legacy, split),
+        Entry::Split(split) => split.render(),
         Entry::Unsupported { raw } => raw.to_string(),
     }
 }
@@ -506,6 +637,7 @@ mod tests {
 
     use serde_json::Value;
     use tracker::RemoteTimestamp;
+    use work::sync::DualRecipeFingerprints;
     use work::sync::LegacyHashes;
     use work::sync::LocalFingerprints;
     use work::sync::RemoteFingerprints;
@@ -516,6 +648,12 @@ mod tests {
     use super::Degradation;
     use super::Entry;
     use super::SyncStamps;
+    use crate::sync::push_fidelity::ChangedLine;
+    use crate::sync::push_fidelity::PushFidelity;
+    use crate::sync::push_fidelity::RewrittenLines;
+    use crate::sync::rewrite_mark::MarkChange;
+    use crate::sync::rewrite_mark::MarkState;
+    use crate::sync::rewrite_mark::RewriteMark;
 
     fn stamps(
         remote_updated_at: RemoteTimestamp,
@@ -539,27 +677,29 @@ mod tests {
     }
 
     fn split_entry() -> Entry {
-        Entry::Split {
-            stamps: stamps(
+        Entry::recorded(
+            stamps(
                 RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
                 1_699_000_000,
             ),
-            legacy: LegacyHashes {
-                local: Some("legacy-local".to_owned()),
-                remote: Some("legacy-remote".to_owned()),
+            DualRecipeFingerprints {
+                legacy: LegacyHashes {
+                    local: Some("legacy-local".to_owned()),
+                    remote: Some("legacy-remote".to_owned()),
+                },
+                split: SplitFingerprints {
+                    local: Some(LocalFingerprints {
+                        frontmatter: "frontmatter".to_owned(),
+                        fields: "local-fields".to_owned(),
+                        body: "local-body".to_owned(),
+                    }),
+                    remote: Some(RemoteFingerprints {
+                        body: "remote-body".to_owned(),
+                        fields: "remote-fields".to_owned(),
+                    }),
+                },
             },
-            split: SplitFingerprints {
-                local: Some(LocalFingerprints {
-                    frontmatter: "frontmatter".to_owned(),
-                    fields: "local-fields".to_owned(),
-                    body: "local-body".to_owned(),
-                }),
-                remote: Some(RemoteFingerprints {
-                    body: "remote-body".to_owned(),
-                    fields: "remote-fields".to_owned(),
-                }),
-            },
-        }
+        )
     }
 
     fn document_with(entry: &str) -> String {
@@ -887,10 +1027,261 @@ mod tests {
 
         let (entry, _) = read_one(&legacy_writer_output);
 
-        let Entry::Split { stamps, legacy, .. } = split_entry() else {
+        let Entry::Split(split) = split_entry() else {
             unreachable!("the fixture entry is split");
         };
-        assert_eq!(entry, Entry::Legacy { stamps, legacy });
+        assert_eq!(
+            entry,
+            Entry::Legacy {
+                stamps: split.stamps().clone(),
+                legacy: split.legacy().clone(),
+            }
+        );
+    }
+
+    const MARK: &str = "\"rewritten_on_push\":{\"lines\":[{\"section\":\
+        \"Notes\",\"sent\":\"See crates.io.\",\"stored\":\
+        \"See [crates.io](<http://crates.io>).\"}],\"more\":7}";
+
+    const UNMARKED: &str = "{\"digest_recipe\":1,\
+        \"local_body_hash\":\"local-body\",\
+        \"local_fields_hash\":\"local-fields\",\
+        \"local_frontmatter_hash\":\"frontmatter\",\
+        \"local_hash\":\"legacy-local\",\"local_synced_at\":1699000000,\
+        \"remote_body_hash\":\"remote-body\",\
+        \"remote_fields_hash\":\"remote-fields\",\
+        \"remote_hash\":\"legacy-remote\",\
+        \"remote_updated_at\":\"2026-06-01T00:00:00Z\"}";
+
+    fn with_key(unmarked: &str, member: &str) -> String {
+        let inner = unmarked
+            .strip_prefix('{')
+            .and_then(|rest| rest.strip_suffix('}'))
+            .expect("an object");
+        let mut members: Vec<&str> = inner.split(',').collect();
+        members.push(member);
+        members.sort_by_key(|member| member.split(':').next());
+        format!("{{{}}}", members.join(","))
+    }
+
+    fn changed(section: &str, sent: &str, stored: &str) -> ChangedLine {
+        ChangedLine {
+            section: section.to_owned(),
+            sent: sent.to_owned(),
+            stored: stored.to_owned(),
+        }
+    }
+
+    fn crates_io_mark(more: usize) -> RewriteMark {
+        RewriteMark::from(RewrittenLines {
+            sections: vec!["Notes".to_owned()],
+            lines: vec![changed(
+                "Notes",
+                "See crates.io.",
+                "See [crates.io](<http://crates.io>).",
+            )],
+            more,
+        })
+    }
+
+    fn marked(state: MarkState) -> Entry {
+        let Entry::Split(split) = split_entry() else {
+            unreachable!("the fixture entry is split");
+        };
+        Entry::Split(split.with_mark(state))
+    }
+
+    fn mark_of(entry: &Entry) -> &MarkState {
+        let Entry::Split(split) = entry else {
+            panic!("a split entry: {entry:?}");
+        };
+        split.mark()
+    }
+
+    #[test]
+    fn a_rewrite_mark_round_trips() {
+        let entry = marked(MarkState::Marked(crates_io_mark(7)));
+        let rendered = rendered_entry(entry.clone());
+
+        assert_eq!(rendered, with_key(UNMARKED, MARK));
+        assert_eq!(read_one(&rendered).0, entry);
+    }
+
+    #[test]
+    fn an_entry_without_the_mark_renders_as_before() {
+        assert_eq!(rendered_entry(split_entry()), UNMARKED);
+    }
+
+    #[test]
+    fn an_older_entry_reads_as_unmarked() {
+        let (entry, _) = read_one(UNMARKED);
+
+        assert_eq!(mark_of(&entry), &MarkState::Absent);
+    }
+
+    #[test]
+    fn mark_text_is_rendered_as_json_strings() {
+        let awkward = "quote \" slash \\ tab \t newline \n café —";
+        let mark = RewriteMark::from(RewrittenLines::bounded(vec![changed(
+            awkward, awkward, awkward,
+        )]));
+        let entry = marked(MarkState::Marked(mark));
+        let rendered = rendered_entry(entry.clone());
+
+        assert!(
+            serde_json::from_str::<Value>(&document_with(&rendered)).is_ok(),
+            "{rendered}"
+        );
+        assert_eq!(read_one(&rendered).0, entry);
+    }
+
+    #[test]
+    fn a_malformed_mark_is_kept_raw() {
+        for raw in [
+            "\"rewritten_on_push\":\"garbled\"",
+            "\"rewritten_on_push\":{\"more\":1}",
+            "\"rewritten_on_push\":{\"lines\":[{\"section\":\"Notes\",\
+             \"sent\":\"a\"}]}",
+            "\"rewritten_on_push\":{\"lines\":[{\"section\":\"Notes\",\
+             \"sent\":\"a\",\"stored\":3}]}",
+        ] {
+            let stored = with_key(UNMARKED, raw);
+            let (entry, _) = read_one(&stored);
+
+            assert!(
+                matches!(mark_of(&entry), MarkState::Unreadable(_)),
+                "{raw}"
+            );
+            assert_eq!(entry.split(), split_entry().split(), "{raw}");
+            let Entry::Split(split) = entry else {
+                unreachable!("a split entry");
+            };
+            let kept = split.marked(MarkChange::Keep);
+            assert_eq!(rendered_entry(Entry::Split(kept)), stored, "{raw}");
+        }
+    }
+
+    #[test]
+    fn a_mark_with_a_missing_or_wrong_more_reads_as_zero() {
+        for more in ["", ",\"more\":\"seven\"", ",\"more\":-1"] {
+            let raw = format!(
+                "\"rewritten_on_push\":{{\"lines\":[{{\"section\":\
+                 \"Notes\",\"sent\":\"See crates.io.\",\"stored\":\
+                 \"See [crates.io](<http://crates.io>).\"}}]{more}}}"
+            );
+            let (entry, _) = read_one(&with_key(UNMARKED, &raw));
+
+            assert_eq!(
+                mark_of(&entry).mark().map(RewriteMark::rewritten_lines),
+                Some(crates_io_mark(0).rewritten_lines()),
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn known_keys_are_not_unknown() {
+        let stored = with_key(UNMARKED, "\"novel\":[1]");
+        let rendered = rendered_entry(read_one(&stored).0);
+
+        assert_eq!(rendered, stored);
+        for key in [
+            "digest_recipe",
+            "local_body_hash",
+            "local_fields_hash",
+            "local_frontmatter_hash",
+            "\"local_hash",
+            "local_synced_at",
+            "remote_body_hash",
+            "remote_fields_hash",
+            "\"remote_hash",
+            "remote_updated_at",
+            "novel",
+        ] {
+            assert_eq!(rendered.matches(key).count(), 1, "{key}: {rendered}");
+        }
+    }
+
+    #[test]
+    fn a_new_mark_replaces_a_malformed_one() {
+        let (entry, _) =
+            read_one(&with_key(UNMARKED, "\"rewritten_on_push\":\"garbled\""));
+        let Entry::Split(split) = entry else {
+            unreachable!("a split entry");
+        };
+        let rewrite = PushFidelity::Rewritten {
+            changes: vec![changed(
+                "Notes",
+                "See crates.io.",
+                "See [crates.io](<http://crates.io>).",
+            )],
+        };
+
+        let replaced = rendered_entry(Entry::Split(
+            split.clone().marked(MarkChange::Judged(&rewrite)),
+        ));
+        assert_eq!(replaced.matches("rewritten_on_push").count(), 1);
+        assert_eq!(
+            replaced,
+            with_key(UNMARKED, &MARK.replace("\"more\":7", "\"more\":0"))
+        );
+
+        let cleared =
+            rendered_entry(Entry::Split(split.marked(MarkChange::Clear)));
+        assert_eq!(cleared, UNMARKED);
+    }
+
+    #[test]
+    fn extra_mark_fields_are_kept() {
+        let raw = "\"rewritten_on_push\":{\"added\":true,\"lines\":[{\
+                   \"later\":1,\"section\":\"Notes\",\"sent\":\"a\",\
+                   \"stored\":\"b\"}],\"more\":0}";
+        let stored = with_key(UNMARKED, raw);
+
+        assert_eq!(rendered_entry(read_one(&stored).0), stored);
+    }
+
+    #[test]
+    fn a_mark_is_bounded() {
+        let long = format!("{}—tail", "x".repeat(199));
+        let mut changes = vec![changed("Notes", &long, "stored")];
+        changes.extend((1..12).map(|n| {
+            changed("Notes", &format!("sent {n}"), &format!("stored {n}"))
+        }));
+        let entry = marked(MarkState::Marked(crates_io_mark(0)));
+        let Entry::Split(split) = entry else {
+            unreachable!("a split entry");
+        };
+
+        let after =
+            split.marked(MarkChange::Judged(&PushFidelity::Rewritten {
+                changes: changes.clone(),
+            }));
+
+        let bounded = RewrittenLines::bounded(changes);
+        assert_eq!(bounded.lines.len(), 5);
+        assert_eq!(bounded.more, 7);
+        assert_eq!(bounded.lines[0].sent, format!("{}…", "x".repeat(199)));
+        assert_eq!(
+            after.mark().mark().map(RewriteMark::rewritten_lines),
+            Some(bounded)
+        );
+    }
+
+    #[test]
+    fn unknown_split_keys_survive_a_rewrite() {
+        let stored = with_key(UNMARKED, "\"aardvark\":\"first\"");
+        assert!(stored.starts_with("{\"aardvark\""), "{stored}");
+        let (entry, _) = read_one(&stored);
+        let Entry::Split(split) = entry else {
+            unreachable!("a split entry");
+        };
+
+        let rendered = rendered_entry(Entry::Split(
+            split.marked(MarkChange::Judged(&PushFidelity::Preserved)),
+        ));
+
+        assert_eq!(rendered, stored);
     }
 
     #[test]

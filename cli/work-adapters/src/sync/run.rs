@@ -682,12 +682,10 @@ impl RecordedLocals {
                 .iter()
                 .filter_map(|item| {
                     let recorded = match baseline.get(&item.id)? {
-                        Entry::Split { split, legacy, .. } => {
-                            RecordedLocal::RecipeOne {
-                                fingerprints: split.local.clone()?,
-                                legacy: legacy.local.clone(),
-                            }
-                        }
+                        Entry::Split(entry) => RecordedLocal::RecipeOne {
+                            fingerprints: entry.split().local.clone()?,
+                            legacy: entry.legacy().local.clone(),
+                        },
                         Entry::Legacy { legacy, .. } => {
                             RecordedLocal::Legacy(legacy.local.clone()?)
                         }

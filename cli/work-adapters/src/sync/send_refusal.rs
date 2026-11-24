@@ -21,7 +21,7 @@ impl EntryShape {
     #[must_use]
     pub const fn of(entry: Option<&Entry>) -> Self {
         match entry {
-            Some(Entry::Split { .. }) => Self::Split,
+            Some(Entry::Split(_)) => Self::Split,
             _ => Self::Legacy,
         }
     }

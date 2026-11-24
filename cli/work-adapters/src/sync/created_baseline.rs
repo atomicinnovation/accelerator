@@ -6,6 +6,7 @@ use tracker::RemoteTimestamp;
 use work::promotion::IntendedBaseline;
 use work::promotion::RemoteHash;
 use work::sync::BaselineFingerprints;
+use work::sync::DualRecipeFingerprints;
 
 use crate::sync::baseline::Entry;
 use crate::sync::baseline::SyncStamps;
@@ -31,11 +32,9 @@ pub fn record_created_baseline(
     };
     let legacy = intended.legacy();
     let entry = match intended.fingerprints() {
-        BaselineFingerprints::Split(split) => Entry::Split {
-            stamps,
-            legacy,
-            split,
-        },
+        BaselineFingerprints::Split(split) => {
+            Entry::recorded(stamps, DualRecipeFingerprints { legacy, split })
+        }
         BaselineFingerprints::Legacy(_) => Entry::Legacy { stamps, legacy },
     };
     baseline.set(item_id, entry)

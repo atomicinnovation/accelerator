@@ -25,6 +25,7 @@ pub mod push_fidelity;
 pub mod realign;
 pub mod recovery_label;
 pub mod report;
+pub mod rewrite_mark;
 pub mod run;
 pub mod scope;
 pub mod send_refusal;

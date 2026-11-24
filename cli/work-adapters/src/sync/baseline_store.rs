@@ -202,6 +202,7 @@ mod tests {
     use corpus::store::StoreError;
 
     use tracker::RemoteTimestamp;
+    use work::sync::DualRecipeFingerprints;
     use work::sync::LegacyHashes;
     use work::sync::LocalFingerprints;
     use work::sync::RemoteFingerprints;
@@ -278,24 +279,26 @@ mod tests {
         };
         store.set(
             "0001",
-            Entry::Split {
-                stamps: SyncStamps {
+            Entry::recorded(
+                SyncStamps {
                     remote_updated_at: RemoteTimestamp::NotRead,
                     local_synced_at: 0,
                 },
-                legacy: LegacyHashes {
-                    local: Some("legacy-local".to_owned()),
-                    remote: Some("legacy-remote".to_owned()),
+                DualRecipeFingerprints {
+                    legacy: LegacyHashes {
+                        local: Some("legacy-local".to_owned()),
+                        remote: Some("legacy-remote".to_owned()),
+                    },
+                    split: SplitFingerprints {
+                        local: Some(LocalFingerprints {
+                            frontmatter: "frontmatter".to_owned(),
+                            fields: "fields".to_owned(),
+                            body: "body".to_owned(),
+                        }),
+                        remote: Some(remote.clone()),
+                    },
                 },
-                split: SplitFingerprints {
-                    local: Some(LocalFingerprints {
-                        frontmatter: "frontmatter".to_owned(),
-                        fields: "fields".to_owned(),
-                        body: "body".to_owned(),
-                    }),
-                    remote: Some(remote.clone()),
-                },
-            },
+            ),
         )?;
 
         store.finalise_run(&["0001"], &[], 1, true)?;

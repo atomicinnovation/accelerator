@@ -370,7 +370,7 @@ fn remote_read_unneeded(
     stamp: &RemoteTimestamp,
     digester: &BaselineDigester<'_>,
 ) -> bool {
-    let Some(Entry::Split { split, .. }) = baseline.get(item.id) else {
+    let Some(split) = baseline.get(item.id).and_then(Entry::split) else {
         return false;
     };
     if split.local.is_none() || split.remote.is_none() {

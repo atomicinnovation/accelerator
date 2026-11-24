@@ -1629,11 +1629,9 @@ mod tests {
             )
             .digests(&written, Some(&remote.body))
             .expect("digests");
-        let Some(work_adapters::sync::baseline::Entry::Split {
-            legacy,
-            split,
-            ..
-        }) = baseline.get("0001")
+        let Some((legacy, split)) = baseline
+            .get("0001")
+            .and_then(|entry| entry.legacy().zip(entry.split()))
         else {
             panic!("a recipe-1 entry is recorded");
         };
