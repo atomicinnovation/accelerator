@@ -14,6 +14,8 @@ const ENTRY_OPENING: &str = "- [";
 const TITLE_CLOSE: &str = "](";
 const URL_CLOSE: char = ')';
 const SEGMENT_SEPARATOR: &str = " — ";
+const BLOCK_LINE_OPENING: &str = "  - ";
+const KEY_SEPARATOR: &str = ": ";
 
 /// Lines are numbered from 1 within the text parsed, frontmatter or not.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,6 +81,35 @@ struct SectionReading {
     entries: Vec<CitedSource>,
     unread: Vec<UnreadLine>,
     declares_none_found: bool,
+    adjacency: BlockAdjacency,
+}
+
+enum BlockAdjacency {
+    AfterEntry,
+    Detached,
+}
+
+enum SectionLine {
+    Ignored,
+    NoneFound,
+    Entry(CitedSource),
+    Block(MetadataPair),
+    Unread,
+}
+
+impl SectionLine {
+    fn classify(text: &str) -> Self {
+        if text.trim().is_empty() {
+            return Self::Ignored;
+        }
+        if text == NONE_FOUND {
+            return Self::NoneFound;
+        }
+        CitedSource::parse(text)
+            .map(Self::Entry)
+            .or_else(|| MetadataPair::parse(text).map(Self::Block))
+            .unwrap_or(Self::Unread)
+    }
 }
 
 impl SectionReading {
@@ -89,24 +120,44 @@ impl SectionReading {
             entries: Vec::new(),
             unread: Vec::new(),
             declares_none_found: false,
+            adjacency: BlockAdjacency::Detached,
         }
     }
 
     fn read(&mut self, line: &Line<'_>) {
         self.last = line.number;
-        if line.text.trim().is_empty() {
-            return;
+        match SectionLine::classify(line.text) {
+            SectionLine::Ignored => {}
+            SectionLine::NoneFound => {
+                self.declares_none_found = true;
+                self.adjacency = BlockAdjacency::Detached;
+            }
+            SectionLine::Entry(entry) => {
+                self.entries.push(entry);
+                self.adjacency = BlockAdjacency::AfterEntry;
+            }
+            SectionLine::Block(pair) => self.attach(pair, line),
+            SectionLine::Unread => self.leave_unread(line),
         }
-        if line.text == NONE_FOUND {
-            self.declares_none_found = true;
-        } else if let Some(entry) = CitedSource::parse(line.text) {
-            self.entries.push(entry);
-        } else {
-            self.unread.push(UnreadLine {
-                line: line.number,
-                text: line.text.to_owned(),
-            });
+    }
+
+    fn attach(&mut self, pair: MetadataPair, line: &Line<'_>) {
+        let entry_above = match self.adjacency {
+            BlockAdjacency::AfterEntry => self.entries.last_mut(),
+            BlockAdjacency::Detached => None,
+        };
+        match entry_above {
+            Some(entry) => entry.metadata.push(pair),
+            None => self.leave_unread(line),
         }
+    }
+
+    fn leave_unread(&mut self, line: &Line<'_>) {
+        self.unread.push(UnreadLine {
+            line: line.number,
+            text: line.text.to_owned(),
+        });
+        self.adjacency = BlockAdjacency::Detached;
     }
 
     fn closed(self) -> SourcesSection {
@@ -186,6 +237,32 @@ fn tier_and_venue(rest: &str) -> Option<(&str, Option<&str>)> {
 pub struct MetadataPair {
     pub key: String,
     pub value: String,
+}
+
+impl MetadataPair {
+    fn parse(line: &str) -> Option<Self> {
+        let (key, value) = line
+            .strip_prefix(BLOCK_LINE_OPENING)?
+            .split_once(KEY_SEPARATOR)?;
+        let well_formed = is_block_key(key)
+            && value.chars().any(|character| !character.is_whitespace());
+        well_formed.then(|| Self {
+            key: key.to_owned(),
+            value: value.to_owned(),
+        })
+    }
+}
+
+fn is_block_key(key: &str) -> bool {
+    let mut characters = key.chars();
+    characters
+        .next()
+        .is_some_and(|first| first.is_ascii_lowercase())
+        && characters.all(|character| {
+            character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || character == '_'
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

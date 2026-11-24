@@ -2,6 +2,7 @@
 
 use research::topic::sources_section::tier_text::TierText;
 use research::topic::sources_section::CitedSource;
+use research::topic::sources_section::MetadataPair;
 use research::topic::sources_section::SourcesSection;
 use research::topic::sources_section::TierReading;
 use research::topic::sources_section::UnreadLine;
@@ -32,6 +33,13 @@ fn unread(line: usize, text: &str) -> UnreadLine {
     UnreadLine {
         line,
         text: text.to_owned(),
+    }
+}
+
+fn pair(key: &str, value: &str) -> MetadataPair {
+    MetadataPair {
+        key: key.to_owned(),
+        value: value.to_owned(),
     }
 }
 
@@ -417,4 +425,159 @@ fn a_lone_carriage_return_does_not_break_a_line() {
         SourcesSection::parse(&body).unread(),
         [unread(2, "a\rb"), unread(3, "Later prose.")]
     );
+}
+
+#[test]
+fn a_metadata_block_belongs_to_the_entry_above_in_written_order() {
+    let body = section(&[
+        "- [A](https://a.example/) — tier-1",
+        "  - doi: 10.1/a",
+        "  - accessed: 2026-11-24",
+        "- [B](https://b.example/) — tier-2",
+    ]);
+    let parsed = SourcesSection::parse(&body);
+    assert_eq!(
+        parsed.entries(),
+        [
+            CitedSource {
+                metadata: vec![
+                    pair("doi", "10.1/a"),
+                    pair("accessed", "2026-11-24"),
+                ],
+                ..entry("A", "https://a.example/", "tier-1", None)
+            },
+            entry("B", "https://b.example/", "tier-2", None),
+        ]
+    );
+    assert!(parsed.unread().is_empty());
+}
+
+#[test]
+fn a_block_value_is_kept_as_written() {
+    for (block_line, expected) in [
+        (
+            "  - pdf_url: https://a.example/x.pdf",
+            pair("pdf_url", "https://a.example/x.pdf"),
+        ),
+        (
+            "  - journal_ref: Phys. Rev.: A 12",
+            pair("journal_ref", "Phys. Rev.: A 12"),
+        ),
+    ] {
+        let body = section(&["- [T](https://a.example/) — tier-1", block_line]);
+        assert_eq!(only_entry(&body).metadata, [expected], "{block_line}");
+    }
+}
+
+#[test]
+fn a_key_given_twice_yields_two_pairs() {
+    let body = section(&[
+        "- [T](https://a.example/) — tier-1",
+        "  - doi: 10.1/a",
+        "  - doi: 10.1/b",
+    ]);
+    assert_eq!(
+        only_entry(&body).metadata,
+        [pair("doi", "10.1/a"), pair("doi", "10.1/b")]
+    );
+}
+
+#[test]
+fn a_key_may_hold_digits_and_underscores_after_its_first_letter() {
+    let body = section(&[
+        "- [T](https://a.example/) — tier-1",
+        "  - doi2: 10.1/a",
+        "  - openalex_id: W1",
+    ]);
+    assert_eq!(
+        only_entry(&body).metadata,
+        [pair("doi2", "10.1/a"), pair("openalex_id", "W1")]
+    );
+}
+
+#[test]
+fn a_block_line_that_breaks_the_token_rules_is_unread() {
+    for block_line in [
+        "  - DOI: 10.1/x",
+        "  - Published Date: 2019",
+        "  - doi: ",
+        "  - _doi: 10.1/x",
+        "  - 2doi: 10.1/x",
+        "  - doi:   ",
+        "  - not a pair",
+    ] {
+        let parsed = SourcesSection::parse(&section(&[
+            "- [T](https://a.example/) — tier-1",
+            block_line,
+        ]));
+        assert_eq!(
+            parsed.entries(),
+            [entry("T", "https://a.example/", "tier-1", None)],
+            "{block_line}"
+        );
+        assert_eq!(parsed.unread(), [unread(3, block_line)], "{block_line}");
+    }
+}
+
+#[test]
+fn blank_lines_do_not_separate_a_block_from_its_entry() {
+    let body = section(&[
+        "- [T](https://a.example/) — tier-1",
+        "",
+        "  ",
+        "  - doi: 10.1/x",
+    ]);
+    assert_eq!(only_entry(&body).metadata, [pair("doi", "10.1/x")]);
+}
+
+#[test]
+fn prose_separates_a_block_from_its_entry() {
+    let parsed = SourcesSection::parse(&section(&[
+        "- [T](https://a.example/) — tier-1",
+        "Some prose.",
+        "  - doi: 10.1/x",
+    ]));
+    assert_eq!(
+        parsed.entries(),
+        [entry("T", "https://a.example/", "tier-1", None)]
+    );
+    assert_eq!(
+        parsed.unread(),
+        [unread(3, "Some prose."), unread(4, "  - doi: 10.1/x")]
+    );
+}
+
+#[test]
+fn an_unread_link_separates_a_block_from_the_entry_before_it() {
+    let parsed = SourcesSection::parse(&section(&[
+        "- [A](https://a.example/) — tier-1",
+        "- [B](https://b.example/)",
+        "  - doi: 10.1/b",
+    ]));
+    assert_eq!(
+        parsed.entries(),
+        [entry("A", "https://a.example/", "tier-1", None)]
+    );
+    assert_eq!(
+        parsed.unread(),
+        [
+            unread(3, "- [B](https://b.example/)"),
+            unread(4, "  - doi: 10.1/b"),
+        ]
+    );
+}
+
+#[test]
+fn none_found_separates_a_block_from_its_entry() {
+    let parsed = SourcesSection::parse(&section(&[
+        "- [T](https://a.example/) — tier-1",
+        "None found.",
+        "  - doi: 10.1/x",
+    ]));
+    assert_eq!(state_of(&parsed), State::Present);
+    assert_eq!(
+        parsed.entries(),
+        [entry("T", "https://a.example/", "tier-1", None)]
+    );
+    assert_eq!(parsed.unread(), [unread(4, "  - doi: 10.1/x")]);
 }
