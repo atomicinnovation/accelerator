@@ -92,7 +92,7 @@ fn project(entry: &IndexEntry) -> Option<SearchResultRow> {
         id: entry.id.clone(),
         title: entry.title.clone(),
         slug,
-        rel_path: entry.rel_path.to_string_lossy().replace('\\', "/"),
+        rel_path: entry.served_rel_path(),
         mtime_ms: entry.mtime_ms,
     })
 }

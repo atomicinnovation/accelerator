@@ -232,6 +232,13 @@ impl Trust {
     }
 }
 
+impl IndexEntry {
+    /// `rel_path` as the API serves it: forward-slashed on every platform.
+    pub fn served_rel_path(&self) -> String {
+        self.rel_path.to_string_lossy().replace('\\', "/")
+    }
+}
+
 pub struct Indexer {
     driver: Arc<dyn FileDriver>,
     /// Canonicalised once at the top of `Indexer::build`. Every
