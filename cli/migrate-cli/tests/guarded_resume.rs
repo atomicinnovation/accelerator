@@ -13,6 +13,7 @@ use common::TestError;
 use common::MIGRATION_0007;
 use vcs_test_support::colocation::JjColocation;
 use vcs_test_support::copies::copy_private_tree;
+use vcs_test_support::counted::each_of;
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::stalled_migration::corpus;
 use vcs_test_support::stalled_migration::ParentShape;
@@ -142,7 +143,6 @@ impl Stalled {
         colocation: JjColocation,
         shape: ParentShape,
     ) -> Result<Self, TestError> {
-        vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
         let prefix = prefix_the_way_the_scenarios_always_have(colocation)?;
         stalled_the_way_the_scenarios_always_have(&prefix, shape)
     }
@@ -273,12 +273,19 @@ fn assert_refused(outcome: &common::Outcome) {
     );
 }
 
+fn for_each_colocation(
+    body: impl FnMut(JjColocation) -> Result<(), TestError>,
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    each_of(2, JjColocation::ALL, body)
+}
+
 const STALE_LINE: &str =
     "A previous migration run's recorded base no longer matches";
 
 #[test]
 fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
         stalled.write_decisions()?;
@@ -300,14 +307,14 @@ fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
             resumed.stderr
         );
         assert!(common::applied_ledger(&stalled.root)?.contains(MIGRATION_0007));
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 #[test]
 fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         stalled.write_decisions()?;
         fs::write(
@@ -328,14 +335,14 @@ fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
             resumed.stderr
         );
         assert_resumed(&resumed);
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 #[test]
 fn a_jj_refusal_lists_only_the_current_runs_unowned_changes(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         common::write(&stalled.root, "meta/a.md", "a\n")?;
         common::write(&stalled.root, ".accelerator/b", "b\n")?;
@@ -357,50 +364,56 @@ fn a_jj_refusal_lists_only_the_current_runs_unowned_changes(
             refused.stderr
         );
         assert!(!refused.stderr.contains(STALE_LINE), "{}", refused.stderr);
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 #[test]
 fn rewriting_or_rebasing_the_parent_makes_a_jj_stall_stale(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
-        for rewrite in [
-            &["describe", "@-", "-m", "y"][..],
-            &["rebase", "-r", "@", "-d", "SIBLING"][..],
-        ] {
-            let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
-            let args: Vec<&str> = rewrite
-                .iter()
-                .map(|arg| {
-                    if *arg == "SIBLING" {
-                        stalled.sibling.as_str()
-                    } else {
-                        arg
-                    }
-                })
-                .collect();
-            stalled.jj(&args)?;
-            stalled.write_decisions()?;
+    for_each_colocation(|colocation| {
+        each_of(
+            2,
+            [
+                &["describe", "@-", "-m", "y"][..],
+                &["rebase", "-r", "@", "-d", "SIBLING"][..],
+            ],
+            |rewrite| -> Result<(), TestError> {
+                let stalled =
+                    Stalled::on(colocation, ParentShape::SingleParent)?;
+                let args: Vec<&str> = rewrite
+                    .iter()
+                    .map(|arg| {
+                        if *arg == "SIBLING" {
+                            stalled.sibling.as_str()
+                        } else {
+                            arg
+                        }
+                    })
+                    .collect();
+                stalled.jj(&args)?;
+                stalled.write_decisions()?;
 
-            let refused = stalled.resume()?;
+                let refused = stalled.resume()?;
 
-            assert_refused(&refused);
-            assert!(
-                refused.stderr.contains(STALE_LINE),
-                "{args:?}: {}",
-                refused.stderr
-            );
-            assert!(
-                refused
-                    .stderr
-                    .contains(&format!("  {}\n", corpus::OWNED_NOTE)),
-                "{args:?}: {}",
-                refused.stderr
-            );
-        }
-    }
-    Ok(())
+                assert_refused(&refused);
+                assert!(
+                    refused.stderr.contains(STALE_LINE),
+                    "{args:?}: {}",
+                    refused.stderr
+                );
+                assert!(
+                    refused
+                        .stderr
+                        .contains(&format!("  {}\n", corpus::OWNED_NOTE)),
+                    "{args:?}: {}",
+                    refused.stderr
+                );
+                Ok(())
+            },
+        )?;
+        Ok(())
+    })
 }
 
 enum Move {
@@ -430,30 +443,36 @@ impl Move {
 
 #[test]
 fn moving_onto_new_parents_starts_a_fresh_jj_run() -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
-        for movement in [Move::New, Move::Commit, Move::EditChangeOnSibling] {
-            let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
-            let stalled_base = stalled.recorded_run_base()?;
-            movement.apply(&stalled)?;
+    for_each_colocation(|colocation| {
+        each_of(
+            3,
+            [Move::New, Move::Commit, Move::EditChangeOnSibling],
+            |movement| -> Result<(), TestError> {
+                let stalled =
+                    Stalled::on(colocation, ParentShape::SingleParent)?;
+                let stalled_base = stalled.recorded_run_base()?;
+                movement.apply(&stalled)?;
 
-            let fresh = run(&stalled.env, &stalled.root, &[], &[])?;
+                let fresh = run(&stalled.env, &stalled.root, &[], &[])?;
 
-            assert!(!fresh.stderr.contains("Resuming"), "{}", fresh.stderr);
-            assert!(
-                fresh.stderr.contains("MIGRATION STALLED"),
-                "{}",
-                fresh.stderr
-            );
-            assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
-            assert_ne!(stalled.recorded_run_base()?, stalled_base);
-        }
-    }
-    Ok(())
+                assert!(!fresh.stderr.contains("Resuming"), "{}", fresh.stderr);
+                assert!(
+                    fresh.stderr.contains("MIGRATION STALLED"),
+                    "{}",
+                    fresh.stderr
+                );
+                assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
+                assert_ne!(stalled.recorded_run_base()?, stalled_base);
+                Ok(())
+            },
+        )?;
+        Ok(())
+    })
 }
 
 #[test]
 fn editing_a_sibling_lists_its_changes_as_unowned() -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         stalled.jj(&["edit", &stalled.sibling])?;
 
@@ -468,8 +487,8 @@ fn editing_a_sibling_lists_its_changes_as_unowned() -> Result<(), TestError> {
             colocation.flag(),
             refused.stderr
         );
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 /// The run's manifest and run base live in the working-copy change, so a new
@@ -477,7 +496,7 @@ fn editing_a_sibling_lists_its_changes_as_unowned() -> Result<(), TestError> {
 #[test]
 fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         stalled.jj(&["new", &stalled.base])?;
         common::write(
@@ -498,14 +517,14 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
             colocation.flag(),
             refused.stderr
         );
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 #[test]
 fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::MergeWithSibling)?;
         assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
         assert!(stalled.recorded_run_base()?.contains('+'));
@@ -524,14 +543,14 @@ fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
         let refused = stalled.resume()?;
         assert_refused(&refused);
         assert!(refused.stderr.contains(STALE_LINE), "{}", refused.stderr);
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 #[test]
 fn a_clean_jj_run_records_the_parents_of_the_working_copy(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         stalled.jj(&["new", "-m", "one"])?;
         let one = change_id(&stalled.env, &stalled.root, "@")?;
@@ -540,28 +559,33 @@ fn a_clean_jj_run_records_the_parents_of_the_working_copy(
         let two = change_id(&stalled.env, &stalled.root, "@")?;
         common::write(&stalled.root, "two.txt", "2\n")?;
 
-        for parents in [
-            vec![one.as_str(), two.as_str()],
-            vec![one.as_str(), two.as_str(), stalled.sibling.as_str()],
-        ] {
-            let mut args = vec!["new"];
-            args.extend(parents.iter());
-            stalled.jj(&args)?;
-            let outcome = run(&stalled.env, &stalled.root, &[], &[])?;
+        each_of(
+            2,
+            [
+                vec![one.as_str(), two.as_str()],
+                vec![one.as_str(), two.as_str(), stalled.sibling.as_str()],
+            ],
+            |parents| -> Result<(), TestError> {
+                let mut args = vec!["new"];
+                args.extend(parents.iter());
+                stalled.jj(&args)?;
+                let outcome = run(&stalled.env, &stalled.root, &[], &[])?;
 
-            assert!(
-                outcome.stderr.contains("MIGRATION STALLED"),
-                "{}",
-                outcome.stderr
-            );
-            assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
-            assert_eq!(
-                stalled.recorded_run_base()?.matches('+').count(),
-                parents.len() - 1
-            );
-        }
-    }
-    Ok(())
+                assert!(
+                    outcome.stderr.contains("MIGRATION STALLED"),
+                    "{}",
+                    outcome.stderr
+                );
+                assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
+                assert_eq!(
+                    stalled.recorded_run_base()?.matches('+').count(),
+                    parents.len() - 1
+                );
+                Ok(())
+            },
+        )?;
+        Ok(())
+    })
 }
 
 fn files_under(
@@ -590,7 +614,7 @@ fn files_under(
 #[test]
 fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
 ) -> Result<(), TestError> {
-    for colocation in JjColocation::ALL {
+    for_each_colocation(|colocation| {
         let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
         let working_copy_commit = stalled.jj(&[
             "log",
@@ -609,7 +633,7 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
         let meta_before = files_under(&stalled.root, "meta")?;
         let state_before = files_under(&stalled.root, ".accelerator")?;
 
-        for attempt in ["first", "second"] {
+        each_of(2, ["first", "second"], |attempt| -> Result<(), TestError> {
             let refused = stalled.resume()?;
             assert_refused(&refused);
             assert!(!refused.stderr.contains("panicked"), "{}", refused.stderr);
@@ -636,7 +660,8 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
                 files_under(&stalled.root, ".accelerator")?,
                 state_before
             );
-        }
+            Ok(())
+        })?;
 
         common::write(&stalled.root, "src/unrelated.txt", "unrelated\n")?;
         stalled.jj(&[
@@ -676,6 +701,6 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
                 "\n## References\n- `meta/work/0042-target.md`\n"
             ),
         );
-    }
-    Ok(())
+        Ok(())
+    })
 }
