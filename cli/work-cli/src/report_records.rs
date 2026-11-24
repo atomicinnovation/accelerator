@@ -127,6 +127,25 @@ pub fn rewrite_lines(
     lines
 }
 
+/// As [`rewrite_lines`], naming the item's file relative to `repo_root`.
+#[must_use]
+pub fn rewrite_lines_under(
+    repo_root: &std::path::Path,
+    notice: &RewriteNotice,
+    label: &str,
+    tracker: &str,
+) -> Vec<String> {
+    let relative = RewriteNotice {
+        path: notice
+            .path
+            .strip_prefix(repo_root)
+            .unwrap_or(&notice.path)
+            .to_path_buf(),
+        ..notice.clone()
+    };
+    rewrite_lines(&relative, label, tracker)
+}
+
 /// `linear` as a person names it: `Linear`.
 fn tracker_name(integration: &str) -> String {
     let mut characters = integration.chars();

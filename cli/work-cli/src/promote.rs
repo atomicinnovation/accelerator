@@ -52,6 +52,9 @@ pub enum PromoteOutcome {
     Reported {
         lines: Vec<String>,
         remedy: Option<String>,
+        /// The block stderr carries when the tracker stored the retitle
+        /// with a different meaning.
+        warnings: Vec<String>,
         code: u8,
     },
     NotADraft(String),
@@ -278,7 +281,28 @@ fn try_run(
         &ports,
         workspace.state_dir(),
     );
-    Ok(promotion_report(&resumed, &row, &mode, &draft))
+    let warnings = retitle_warnings(&row, &root, &integration);
+    Ok(promotion_report(&resumed, &row, &mode, &draft, warnings))
+}
+
+/// The block stderr carries when `integration` stored the retitle with a
+/// different meaning, under the key the draft took.
+fn retitle_warnings(
+    row: &PromotionRow,
+    root: &Path,
+    integration: &str,
+) -> Vec<String> {
+    row.rewrite
+        .as_ref()
+        .map(|notice| {
+            crate::report_records::rewrite_lines_under(
+                root,
+                notice,
+                notice.external_id.as_str(),
+                integration,
+            )
+        })
+        .unwrap_or_default()
 }
 
 /// What a promotion reports, after the interrupted retirements it resumed.
@@ -287,6 +311,7 @@ fn promotion_report(
     row: &PromotionRow,
     mode: &PromotionMode,
     draft: &DraftId,
+    warnings: Vec<String>,
 ) -> PromoteOutcome {
     let awaiting_human = resumed
         .iter()
@@ -303,6 +328,7 @@ fn promotion_report(
     PromoteOutcome::Reported {
         remedy: remedy_for(row, mode, draft),
         lines,
+        warnings,
         code,
     }
 }
@@ -488,6 +514,7 @@ mod tests {
                 lines,
                 remedy,
                 code,
+                ..
             } => (lines, remedy, code),
             other => panic!("not reported: {other:?}"),
         }
@@ -577,6 +604,63 @@ mod tests {
             .unwrap()
             .next()
             .is_none());
+    }
+
+    fn warned(outcome: PromoteOutcome) -> Vec<String> {
+        match outcome {
+            PromoteOutcome::Reported { warnings, .. } => warnings,
+            other => panic!("not reported: {other:?}"),
+        }
+    }
+
+    fn with_a_dotted_token(repo: &Repo) {
+        repo.write(
+            DRAFT_FILE,
+            "---\nid: \"draft-aaaaaa\"\ntitle: \"Title\"\nkind: \
+             \"task\"\n---\n\n# draft-aaaaaa: Title\n\nPublished to \
+             crates.io first.\n",
+        );
+    }
+
+    #[test]
+    fn promote_warns_when_the_retitle_is_rewritten() {
+        let repo = Repo::new();
+        with_a_dotted_token(&repo);
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+
+        let warnings = warned(repo.promote(&tracker, None, false));
+
+        assert_eq!(
+            warnings.first().map(String::as_str),
+            Some("warning: REC-1: rewritten on push: (preamble)"),
+            "{warnings:?}"
+        );
+        assert!(
+            warnings[1..]
+                .iter()
+                .all(|line| line.starts_with("note: REC-1: ")),
+            "{warnings:?}"
+        );
+        assert!(
+            warnings.iter().any(|line| line.ends_with(
+                "`accelerator work update meta/work/REC-1-title.md --push`"
+            )),
+            "{warnings:?}"
+        );
+    }
+
+    #[test]
+    fn a_faithful_promote_warns_of_nothing() {
+        let repo = Repo::new();
+        with_a_dotted_token(&repo);
+
+        assert_eq!(
+            warned(repo.promote(&fresh(), None, false)),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

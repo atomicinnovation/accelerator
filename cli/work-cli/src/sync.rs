@@ -72,7 +72,6 @@ use work_adapters::sync::kept_edits::KeptEdits;
 use work_adapters::sync::kept_edits::KeptEditsRetention;
 use work_adapters::sync::kept_edits::KeptEditsReview;
 use work_adapters::sync::kept_edits::Provenance;
-use work_adapters::sync::push_fidelity::RewriteNotice;
 use work_adapters::sync::report::CorpusScope;
 use work_adapters::sync::report::CreateNotice;
 use work_adapters::sync::report::FailureSeverity;
@@ -993,15 +992,12 @@ fn rewrite_warnings(
     items
         .chain(promotions)
         .flat_map(|(label, notice)| {
-            let relative = RewriteNotice {
-                path: notice
-                    .path
-                    .strip_prefix(repo_root)
-                    .unwrap_or(&notice.path)
-                    .to_path_buf(),
-                ..notice.clone()
-            };
-            crate::report_records::rewrite_lines(&relative, &label, integration)
+            crate::report_records::rewrite_lines_under(
+                repo_root,
+                notice,
+                &label,
+                integration,
+            )
         })
         .collect()
 }

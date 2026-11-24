@@ -520,10 +520,14 @@ fn run_promote(args: &cli::PromoteArgs) -> ExitCode {
         promote::PromoteOutcome::Reported {
             lines,
             remedy,
+            warnings,
             code,
         } => {
             for line in lines {
                 println!("{line}");
+            }
+            for warning in warnings {
+                eprintln!("{warning}");
             }
             if let Some(remedy) = remedy {
                 eprintln!("Error: {remedy}");
