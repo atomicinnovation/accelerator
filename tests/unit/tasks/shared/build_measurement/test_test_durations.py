@@ -131,9 +131,18 @@ class TestFamilyBuilds:
             lambda line: TimedRun.parse_unstamped(f"{line}\n"),
         ],
     )
-    def test_a_family_build_line_gives_that_familys_build(self, parse):
-        run = parse("shared VCS fixtures: status-log set built in 2.4 s")
-        assert run.family_builds == {Family.STATUS_LOG: 2.4}
+    @pytest.mark.parametrize(
+        ("heading", "family"),
+        [
+            ("status-log set", Family.STATUS_LOG),
+            ("stalled-migration set", Family.STALLED_MIGRATION),
+        ],
+    )
+    def test_a_family_build_line_gives_that_familys_build(
+        self, parse, heading, family
+    ):
+        run = parse(f"shared VCS fixtures: {heading} built in 2.4 s")
+        assert run.family_builds == {family: 2.4}
 
     def test_the_combined_build_line_names_no_family(self):
         run = _record_run(

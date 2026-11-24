@@ -157,12 +157,16 @@ class TestACleanRun:
         assert set(handover) == {
             Family.MATRIX.handover_variable,
             Family.STATUS_LOG.handover_variable,
+            Family.STALLED_MIGRATION.handover_variable,
             WORKBENCHES_VARIABLE,
             FIXTURE_LOG_VARIABLE,
         }
         assert handover[Family.MATRIX.handover_variable].endswith("/matrix")
         assert handover[Family.STATUS_LOG.handover_variable].endswith(
             "/status-log"
+        )
+        assert handover[Family.STALLED_MIGRATION.handover_variable].endswith(
+            "/stalled-migration"
         )
 
     def test_digests_each_tree_after_the_build_and_before_removal(
@@ -173,8 +177,10 @@ class TestACleanRun:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
             ("matrix", "removed"),
             ("status-log", "removed"),
+            ("stalled-migration", "removed"),
         ]
         for family in Family:
             built, removed = (
@@ -225,7 +231,10 @@ class TestACleanRun:
         harness.run()
 
         lines = harness.printed().splitlines()
-        assert "shared VCS fixtures: building matrix and status-log" in lines
+        assert (
+            "shared VCS fixtures: building matrix, status-log and "
+            "stalled-migration"
+        ) in lines
         assert any(
             re.fullmatch(
                 r"shared VCS fixtures: built in [\d.]+ s, digested in [\d.]+ s",
@@ -235,6 +244,9 @@ class TestACleanRun:
         )
         assert "shared VCS fixtures: matrix built in 2.4 s" in lines
         assert "shared VCS fixtures: status-log set built in 2.4 s" in lines
+        assert (
+            "shared VCS fixtures: stalled-migration set built in 2.4 s" in lines
+        )
         assert any(
             re.fullmatch(
                 r"shared VCS fixtures: digested again in [\d.]+ s, "
@@ -433,6 +445,7 @@ class TestAnInterruptAsInvokeReportsIt:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
         ]
 
     def test_the_tests_absorbed_still_ends_as_an_interrupt(
@@ -449,6 +462,7 @@ class TestAnInterruptAsInvokeReportsIt:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
         ]
 
 
@@ -539,8 +553,10 @@ class TestFailingTests:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
             ("matrix", "removed"),
             ("status-log", "removed"),
+            ("stalled-migration", "removed"),
         ]
 
     def test_fail_the_run_even_without_a_message(self, harness: Harness):
@@ -616,8 +632,10 @@ class TestAChangedTree:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
             ("matrix", "removed"),
             ("status-log", "removed"),
+            ("stalled-migration", "removed"),
         ]
         assert [c["added"] for c in harness.events("tree-changes")] == [
             ["poison.gitconfig"]

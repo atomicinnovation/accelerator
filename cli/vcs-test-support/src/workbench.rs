@@ -26,6 +26,9 @@ use crate::handover::Handover;
 use crate::handover::SHARED_WORKBENCHES_VARIABLE;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::stalled_migration::MigrateBinary;
+use crate::stalled_migration::StallKey;
+use crate::stalled_migration::StalledMigrations;
 use crate::status_log::States;
 use crate::status_log::StatusLogPart;
 use crate::Error;
@@ -264,6 +267,20 @@ impl Workbench {
         part: StatusLogPart,
     ) -> Result<Held<'_, States>, Error> {
         self.writable::<States>(part)
+    }
+
+    /// A copy of the stall keyed `key` from the run's stalled-migration
+    /// set, the test's own to change.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::writable`].
+    pub fn writable_stalled_migrations(
+        &self,
+        key: StallKey,
+        migrate: &MigrateBinary,
+    ) -> Result<Held<'_, StalledMigrations>, Error> {
+        self.writable_with::<StalledMigrations>(key, migrate)
     }
 
     fn hand_out<F>(

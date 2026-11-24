@@ -4135,6 +4135,27 @@ class TestTestDurationsTask:
         ) in out
         assert "the status-log set built in 10.0 / 2.0 s, median 6.0 s" in out
 
+    def test_the_stalled_migration_build_serves_a_binary(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        run_id = self.record(monkeypatch, tmp_path, (1.0, 2.0, 1.0))
+        log = next((tmp_path / RUN_DIRECTORY_ROOT / run_id).iterdir())
+        log.write_text(
+            "3.1 [test:unit:cli] shared VCS fixtures: stalled-migration set "
+            "built in 4.0 s\n" + log.read_text()
+        )
+        durations_task(
+            Context(),
+            record=run_id,
+            binary=[self.BINARY],
+            served_by=[f"{self.BINARY}=stalled-migration"],
+        )
+        out = capsys.readouterr().out
+        assert (
+            "  total test-seconds with the stalled-migration set's build: "
+            "7.0 s, median 7.0 s"
+        ) in out
+
     def test_alone_logs_print_no_finishers(self, tmp_path, capsys):
         log = tmp_path / "alone-1.log"
         log.write_text(

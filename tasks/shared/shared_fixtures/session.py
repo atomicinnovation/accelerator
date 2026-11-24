@@ -40,6 +40,11 @@ type Build = Callable[[Mapping[Family, Path], Path], None]
 class SharedBuildError(SharedFixturesError): ...
 
 
+def _listed(families: Collection[Family]) -> str:
+    *others, last = families
+    return f"{', '.join(others)} and {last}" if others else last
+
+
 @dataclasses.dataclass
 class _Progress:
     """What a run got as far as making, which is what cleanup undoes."""
@@ -132,7 +137,7 @@ class SharedFixtureSession:
         families: Collection[Family],
         build: Build,
     ) -> None:
-        self._say(f"building {' and '.join(families)}")
+        self._say(f"building {_listed(families)}")
         started = time.monotonic()
         trees = {family: progress.run.tree(family) for family in families}
         try:

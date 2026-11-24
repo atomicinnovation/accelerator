@@ -16,10 +16,12 @@ use crate::Error;
 pub enum Family {
     Matrix,
     StatusLog,
+    StalledMigration,
 }
 
 impl Family {
-    pub const ALL: [Self; 2] = [Self::Matrix, Self::StatusLog];
+    pub const ALL: [Self; 3] =
+        [Self::Matrix, Self::StatusLog, Self::StalledMigration];
 
     const fn traits(self) -> Traits {
         match self {
@@ -34,6 +36,12 @@ impl Family {
                 handover_variable: "ACCELERATOR_SHARED_STATUS_LOG",
                 flag: "--status-log",
                 noun: "the status-log set",
+            },
+            Self::StalledMigration => Traits {
+                name: "stalled-migration",
+                handover_variable: "ACCELERATOR_SHARED_STALLED_MIGRATION",
+                flag: "--stalled-migration",
+                noun: "the stalled-migration set",
             },
         }
     }

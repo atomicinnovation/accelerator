@@ -272,6 +272,11 @@ class TestTheSharedFormat:
         assert names["handover"] == {
             family.value: family.handover_variable for family in Family
         }
+        assert names["executables"] == {
+            family.value: dict(family.executables)
+            for family in Family
+            if family.executables
+        }
         assert names["workbenches"] == WORKBENCHES_VARIABLE
         assert names["log"] == FIXTURE_LOG_VARIABLE
 
@@ -303,6 +308,8 @@ class TestTheSummary:
             "0 private builds",
             "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
             "0 private builds",
+            "  stalled-migration set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
             "  private sets (never shared): 0 private builds",
         ]
 
@@ -319,6 +326,8 @@ class TestTheSummary:
         assert log.summary(Path("/root")).lines()[1:] == [
             "  matrix: 0 shared builds, 0 adoptions, 0 copies, 1 private build",
             "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
+            "  stalled-migration set: 0 shared builds, 0 adoptions, 0 copies, "
             "0 private builds",
             "  private sets (never shared): 2 private builds",
         ]

@@ -312,29 +312,34 @@ assurance beside it, and what proves it ran is the committed evidence file.
 
 ### Shared VCS fixtures
 
-`test:unit:cli` builds the VCS fixture matrix and the status-log set once per
-run and hands them to every test that needs them, rather than letting each
-test build its own. Before
-nextest's test phase it compiles the workspace tests with the same arguments
-nextest uses (so nextest compiles nothing afterwards, and the task fails if
-it does), finds the `shared-fixtures` bin in that build's unit listing and
-runs it once. Under coverage the bin runs in the instrumented environment, so
+`test:unit:cli` builds three shared families once per run, the VCS fixture
+matrix, the status-log set and the stalled-migration set, and hands them to
+every test that needs them, rather than letting each test build its own.
+Before nextest's test phase it compiles the workspace tests with the same
+arguments nextest uses (so nextest compiles nothing afterwards, and the task
+fails if it does), finds the `shared-fixtures` bin in that build's unit
+listing and runs it once. The stalled-migration set runs migrate, so the task
+also finds the `accelerator-migrate` bin in the same listing and names it to
+the builder through `ACCELERATOR_SHARED_FIXTURES_MIGRATE`. Each family builds
+on its own thread, and the task prints one `built in` line per family as well
+as the combined one. Under coverage the bin runs in the instrumented environment, so
 the builder code it exercises still counts towards the floor.
 
 The trees live under one root per user,
 `<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
 is the resolved system temp directory: `<run-id>.lock` beside
-`<run-id>/{matrix,status-log,workbenches}/`. A run holds an `flock` on its
+`<run-id>/{matrix,status-log,stalled-migration,workbenches}/`. A run holds an `flock` on its
 lock for its lifetime, and each run starts by sweeping the directories of
 runs whose lock nobody holds, so a killed run's leftovers go on the next run. The root is
 refused if it is a symlink, not a directory, owned by someone else, writable
 by group or world, or inside a checkout; move it aside and the next run
 recreates it.
 
-The task hands the trees over through `ACCELERATOR_SHARED_MATRIX` and
-`ACCELERATOR_SHARED_STATUS_LOG`, the directory tests open their workbenches
-under through `ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
-`ACCELERATOR_FIXTURE_LOG`. The task owns all four: never export them, and an
+The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`,
+`ACCELERATOR_SHARED_STATUS_LOG` and `ACCELERATOR_SHARED_STALLED_MIGRATION`,
+the directory tests open their workbenches under through
+`ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
+`ACCELERATOR_FIXTURE_LOG`. The task owns all five: never export them, and an
 exported value never reaches the run. Every build, adoption, copy and private
 build is logged to `cli/target/vcs-fixture-logs/<run-id>.jsonl`, which
 outlives the run (the newest 20 are kept). When the run ends, pass or fail,
@@ -384,6 +389,22 @@ matrix consumer only reads it. One consumer,
 it with a private build, and builds a second one itself when nothing is
 handed over.
 
+The stalled-migration set holds four jj repositories on which migrate's 0007
+run has stalled, one per colocation (`Pure`, `Colocated`) and parent shape
+(`SingleParent`, `MergeWithSibling`). A test copies the one it needs by its
+`StallKey`, passing the migrate binary a private build would run:
+
+```rust
+let stalls = workbench.writable_stalled_migrations(
+    key,
+    &MigrateBinary(PathBuf::from(env!("CARGO_BIN_EXE_accelerator-migrate"))),
+)?;
+let stall = stalls.stall(key)?;
+```
+
+A stall that does not stall fails the whole build step, naming its key,
+migrate's exit code and its stderr.
+
 The private sets (the cap, bookmark and parity states) are never shared.
 Pass their builder to the workbench, which builds the set in its directory
 and logs it under "private sets":
@@ -427,7 +448,7 @@ hand. Neither is for CI.
 
 | Variable | Effect |
 |---|---|
-| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix` or `status-log`) without building it; any other value is refused. |
+| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix`, `status-log` or `stalled-migration`) without building it; any other value is refused. |
 | `ACCELERATOR_SHARED_FIXTURES_HOLD` | A directory: after the build step the task writes `held` there and waits up to 30 minutes for `release`. Refused when `CI` is set. |
 
 ### The gix/jj-lib link-ratio guard

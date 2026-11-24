@@ -14,6 +14,7 @@ from tasks.shared.shared_fixtures.families import (
 )
 
 BUILDER = "/workspace/cli/target/debug/shared-fixtures"
+MIGRATE = "/workspace/cli/target/debug/accelerator-migrate"
 CAPTURE = Path(__file__).parent / "fixtures/shared-fixtures"
 CAPTURED_BINARIES = frozenset(
     {
@@ -53,10 +54,18 @@ def captured_listing(matching: Callable[[str, str], bool]) -> str:
 
 
 def builder_artefact(executable: str = BUILDER) -> str:
+    return bin_artefact("shared-fixtures", executable)
+
+
+def migrate_artefact(executable: str = MIGRATE) -> str:
+    return bin_artefact("accelerator-migrate", executable)
+
+
+def bin_artefact(name: str, executable: str) -> str:
     return json.dumps(
         {
             "reason": "compiler-artifact",
-            "target": {"kind": ["bin"], "name": "shared-fixtures"},
+            "target": {"kind": ["bin"], "name": name},
             "profile": {"test": False},
             "filenames": [executable],
             "executable": executable,
@@ -155,5 +164,5 @@ class FakeSharedFixtures:
     @staticmethod
     def _listing_the_builder(command: str, **_kwargs) -> MagicMock:
         if command.startswith("cargo test"):
-            return passed(builder_artefact())
+            return passed(f"{builder_artefact()}\n{migrate_artefact()}")
         return passed()

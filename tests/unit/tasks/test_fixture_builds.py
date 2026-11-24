@@ -22,6 +22,7 @@ GUARDED_CALLS = {
                 TESTS / "workbench.rs",
                 TESTS / "matrix_private_build.rs",
                 TESTS / "status_log_parts.rs",
+                TESTS / "stalled_migration_parts.rs",
             }
         ),
     ),
