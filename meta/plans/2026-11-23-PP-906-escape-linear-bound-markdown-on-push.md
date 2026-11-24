@@ -702,6 +702,11 @@ behaviour.
 4. Delete the issue after the check is recorded, then restore
    `config.local.md`.
 
+Taken on 2026-11-24 as `TES-37`, since trashed. Linear linked no escaped
+token, listed no lone number, and stored none of the inserted escapes; the
+`0160\.` in `R11` and `X04`-`X06` is Linear's own, as in phase 2. The web UI
+showed no backslash, `X21` included.
+
 #### 3. README
 
 **File**: `cli/work-adapters/tests/fixtures/linear-rewrites/escaped/README.md` (new)
@@ -731,20 +736,20 @@ whose text equals their destination.
 
 #### Automated Verification:
 
-- [ ] Escaped-capture equivalence passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
-- [ ] `mise run` exits 0
+- [x] Escaped-capture equivalence passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] `escaped/read-back.json` committed after the allowlist projection
-- [ ] Gate: the web UI shows no backslash before `.` or `)`, no stray list and
+- [x] `escaped/read-back.json` committed after the allowlist projection
+- [x] Gate: the web UI shows no backslash before `.` or `)`, no stray list and
       no link on an escaped token; the `escaped/` README records it. If a
       backslash shows, stop and return the item to drafting. One narrower
       outcome stops only its context: a backslash in `X21` stops escaping
       text between inline HTML tags, and phase 5's rows for it change to
       match before it starts.
-- [ ] `X25`'s two URLs read back linked whole, as in phase 2
-- [ ] `\)` (`X20`) reads back without a backslash
+- [x] `X25`'s two URLs read back linked whole, as in phase 2
+- [x] `\)` (`X20`) reads back without a backslash
 
 ---
 
