@@ -557,6 +557,19 @@ fn labels_hold_unicode_letters() {
 }
 
 #[test]
+fn labels_hold_combining_marks() {
+    assert_escapes(
+        "cafe\u{301}.io \u{301}e.io e\u{20dd}.io \u{939}\u{93f}.com",
+        "cafe\u{301}\\.io \u{301}e\\.io e\u{20dd}\\.io \u{939}\u{93f}\\.com",
+    );
+}
+
+#[test]
+fn labels_hold_format_characters() {
+    assert_escapes("a\u{200d}.io", "a\u{200d}\\.io");
+}
+
+#[test]
 fn a_non_ascii_last_label_is_escaped() {
     assert_escapes("foo.рф", "foo\\.рф");
 }

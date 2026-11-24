@@ -4,6 +4,9 @@
 
 use std::ops::Range;
 
+use icu_properties::props::GeneralCategory;
+use icu_properties::CodePointMapData;
+
 use super::scheme_urls::SchemeUrl;
 use super::text_runs::{RunCharacter, TextRun};
 use super::{is_top_level_domain, Escape, Parsed};
@@ -77,7 +80,15 @@ fn is_word(character: char) -> bool {
 }
 
 fn is_label(character: char) -> bool {
-    character.is_alphanumeric() || matches!(character, '-' | '_')
+    character.is_alphanumeric()
+        || matches!(character, '-' | '_')
+        || matches!(
+            CodePointMapData::<GeneralCategory>::new().get(character),
+            GeneralCategory::NonspacingMark
+                | GeneralCategory::SpacingMark
+                | GeneralCategory::EnclosingMark
+                | GeneralCategory::Format
+        )
 }
 
 #[derive(Debug)]

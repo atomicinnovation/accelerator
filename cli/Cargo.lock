@@ -3342,6 +3342,7 @@ name = "markdown"
 version = "1.24.0-pre.113"
 dependencies = [
  "document",
+ "icu_properties",
  "pulldown-cmark",
 ]
 
