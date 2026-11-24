@@ -539,9 +539,9 @@ and `.../design-inventories/*/inventory.md`
       that set. I checked this with headless Chromium against a scratch repo
       holding sets `alpha` and `beta`, inventories `2026-11-01-alpha` and
       `2026-11-02-beta`, a plan and a work item. The visualiser draws no
-      declared relation from `relates_to`, so the set reaches the plan's
-      related items as an inferred cluster sibling through its shared slug
-      `beta`. The row linked to `/library/topic-research/beta` and opened
+      declared relation from `relates_to` (PP-1003), so the set reaches the
+      plan's related items as an inferred cluster sibling through its shared
+      slug `beta`. The row linked to `/library/topic-research/beta` and opened
       the beta set. `/library/topic-research/manifest` still opened alpha.
 - [x] A lifecycle cluster holding a design inventory links to that
       inventory's own page. In the same scratch repo, the `beta` cluster's
@@ -775,6 +775,24 @@ cannot leave an edited manifest behind.
   place; delete `.e2e-fixture-snapshot.json` if one exists.
 - The activity-row e2e specs each wait for the LIVE badge before editing, so
   the SSE subscription is open when the watcher reports the edit.
+- All six Manual Testing Steps were walked through with headless Chromium
+  against the built dev-frontend server binary, rather than `mise run dev`,
+  in a scratch repo with sets `alpha` and `beta`, inventories
+  `2026-11-01-alpha` and `2026-11-02-beta`, a plan `2026-11-03-beta`
+  relating to `topic-research:beta`, and a scratch plan. Editing each set
+  and inventory gave four activity rows, each opening its own document. The
+  plan's related items linked to `/library/topic-research/beta` and opened
+  it. `/library/topic-research/beta`, `/alpha` and `/manifest` opened Set
+  beta, Set alpha and Set alpha. Deleting the scratch plan left both its
+  rows unlinked, with no tab stop and no hover background.
+- Step 4 needed the inventory tied to a work item. Without one, the plan,
+  the set and the inventory formed three separate `beta` clusters, and
+  `/lifecycle/beta` served the set's cluster, which has no inventory card.
+  With `work_item_id: "0001"` on the inventory and a work item `0001`, the
+  `beta` cluster's inventory card linked to
+  `/library/design-inventories/2026-11-02-beta` and opened that inventory.
+  This is how lifecycle clustering already behaves; this plan does not
+  change it.
 
 ---
 
@@ -808,7 +826,8 @@ cannot leave an edited manifest behind.
 2. Edit each set's `manifest.md`, and follow each activity row. Each opens
    its own set.
 3. Open a plan whose `relates_to` names a set, and follow its related-items
-   row.
+   row. Until PP-1003 lands, the set shows only when it shares the plan's
+   lifecycle cluster.
 4. Open a lifecycle cluster with an inventory, and follow its card.
 5. Open `/library/topic-research/<id>`, `/<slug>` and `/manifest`. The
    first two open the set; `/manifest` still opens the first set.
@@ -838,5 +857,6 @@ keep opening the first set until PP-998. No data migration is needed.
 - Research: `meta/research/codebase/2026-11-24-PP-996-library-links-to-sets-and-inventories-resolve-wrong.md`
 - Follow-on: `meta/work/PP-998-set-member-routes-and-view.md`
 - Related: `meta/work/PP-994-generic-set-model-indexing-and-api.md`
+- Related: `meta/work/PP-1003-related-items-ignore-relates-to.md`
 - Fan-out pattern: `cli/visualiser/frontend/src/routes/library/recovery/use-nearby-slug-suggestions.ts:28-34`
 - Fixture-editing e2e pattern: `cli/visualiser/frontend/e2e/kanban-conflict.spec.ts`
