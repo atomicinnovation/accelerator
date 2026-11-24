@@ -121,3 +121,28 @@ Download `https://data.iana.org/TLD/tlds-alpha-by-domain.txt` over
 fragment for any token whose verdict changes. A refresh is due whenever a
 `rewritten on push` warning or mark, or an audit of stored descriptions,
 finds a newly linked token.
+
+## Comments
+
+`comment-read-back.json` holds two comments on the scratch issue `TES-38`,
+taken on 2026-11-24 and since trashed: `pushed.md` added first and
+`escaped/pushed.md` second, each with `accelerator linear comment add
+--body-file`, then read back with `accelerator linear show TES-38 --comments
+2` through the allowlist in `../work-item-sync-recovery/README.md`. Linear
+lists the newest comment first, so `comments.nodes[0]` is the escaped body and
+`comments.nodes[1]` the unescaped one.
+
+Linear stores a comment body byte for byte as sent, leading blank line
+included. Against the description read-backs, fragment by fragment:
+
+| Fragments | First comment against `read-back.json` | Second comment against `escaped/read-back.json` |
+|---|---|---|
+| `R02`, `X12`, `X13` | same | same |
+| `R11`, `X04` | differs: the comment keeps `0160.` unescaped; the description stores `0160\.` | same |
+| `X18`, `X21`, `X24` | same | differs: the comment keeps the pushed escapes; the description drops them |
+| `R12`, `X10`, `X11`, `X14`-`X17`, `X19`, `X22`, `X23` | differs: no token is linked in the comment | differs: the comment keeps the pushed escapes |
+| `X09`, `X20` | differs: no lone number becomes a list item in the comment | differs: the comment keeps the pushed escapes |
+| Every other fragment | differs: none of the description's cosmetic rewrites happen in the comment | differs: as in the first column |
+
+Gate outcome: no meaning-changing rewrite in comments. Comment bodies are
+sent as given, and `comment add` has no `--verbatim`.

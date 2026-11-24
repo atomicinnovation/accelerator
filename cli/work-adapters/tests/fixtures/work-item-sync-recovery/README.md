@@ -29,3 +29,14 @@ accelerator linear show PP-805 | jq "$ALLOWLIST" > 0275/remote.json
 ```
 
 Re-applying the allowlist to a committed `remote.json` leaves it unchanged.
+
+A capture taken with `--comments <n>`, such as
+`../linear-rewrites/comment-read-back.json`, keeps each comment's body too:
+
+```bash
+jq '{outcome, data: {issue: (.data.issue | {id, identifier, title,
+  description, updatedAt, state: {name: .state.name},
+  comments: {nodes: [.comments.nodes[] | {body}]}})}}'
+```
+
+It too leaves a committed capture unchanged.
