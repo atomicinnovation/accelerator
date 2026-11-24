@@ -180,8 +180,9 @@ checks recorded in phases 2, 3, 10, 11 and 12.
   list too, but a pull after an edit in Linear would then write unwrapped
   lines into `meta/work/`.
 - Image re-hosting to `uploads.linear.app`, which the probes also found.
-- Remedying entity decoding in this plan. Phase 11 only probes whether a
-  decoded entity changes meaning, and raises a work item for any remedy.
+- Remedying entity decoding. Phase 11 found that `<`, `&` and a table
+  cell's `|` cannot be sent as text in any form; the rewrite notice and
+  mark report it, and a pull adopts Linear's form.
 - Changing `BodyDialect::as_pushed` for Linear, `DigestRecipe::CURRENT` or
   `migrate-cli`'s Linear dialect mapping.
 - Converting a Unicode last label to punycode to look it up. A last label
@@ -2451,6 +2452,23 @@ reads alike. Then, by outcome:
 - **Test.** `each_entity_probe_reads_as_recorded` keeps the meaning-changing
   codes in `ENTITY_PROBES_THAT_CHANGE_MEANING` and reports every probe read
   otherwise at once.
+- **Decision.** No form survives, so the third outcome applies, but phases
+  7 and 8 already report a meaning-changing push and a pull clears the
+  mark, and Toby Clemson chose to keep no syntax Linear cannot store. No
+  work item is raised; the README's "Decision" records why.
+- **Convergence.** Measured live rather than in the simulator, which models
+  no entity decoding, raw HTML or table pipes, so it would only have
+  encoded a guess at how Linear treats its own output. `TES-39`'s stored
+  description was pushed again, escaped as `work update --push` sends it,
+  as `TES-40` (since trashed), into
+  `entities.second-push.read-back.json`. Every probe then reads alike but
+  `E004` and `E018`, whose pulled `&lt;` is decoded again to a live `<b>`;
+  that form is stored as sent, so they settle after a second cycle.
+  Toby Clemson accepted the two cycles, and
+  `each_pulled_entity_probe_reads_as_recorded_after_a_second_push` pins
+  them.
+- **Table cells.** A cell's `\|` reaches Linear as a bare `|`, so phase 12
+  gains a hand check of PP-87's and PP-22's remote tables.
 
 ### Success Criteria:
 
@@ -2462,7 +2480,8 @@ reads alike. Then, by outcome:
 #### Manual Verification:
 
 - [x] Probe taken, allowlisted, committed and its issue trashed
-- [ ] README records each probe and the decision; any work item it calls for is raised
+- [x] README records each probe and the decision; any work item it calls for is raised
+- [x] The pulled probes, pushed again, read as recorded: `each_pulled_entity_probe_reads_as_recorded_after_a_second_push`
 
 ---
 
