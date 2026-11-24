@@ -3,7 +3,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
 import { FetchError, fetchLifecycleCluster } from "../../api/fetch";
 import { formatMtime } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import { documentIdOf, libraryLink } from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import { statusToVariant } from "../../api/status-variant";
 import {
@@ -201,24 +201,19 @@ interface TimelineStepProps {
 }
 
 function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
-  const documentId = fileSlugFromRelPath(entry.relPath);
   const fmStatus =
     entry.frontmatterState === "parsed" ? entry.frontmatter.status : undefined;
   const fmVerdict =
     entry.frontmatterState === "parsed" ? entry.frontmatter.verdict : undefined;
   const fmDate =
     entry.frontmatterState === "parsed" ? entry.frontmatter.date : undefined;
-  const id = entry.workItemId || fileSlugFromRelPath(entry.relPath);
+  const id = entry.workItemId || documentIdOf(entry);
   return (
     <li className={styles.step} data-stage={step.docType}>
       <span className={styles.stepNode}>
         <StageTile step={step} active />
       </span>
-      <Link
-        to="/library/$type/$documentId"
-        params={{ type: entry.type, documentId }}
-        className={styles.tcard}
-      >
+      <Link {...libraryLink(entry)} className={styles.tcard}>
         <div className={styles.tcardHead}>
           <div className={styles.tcardHeadLeft}>
             <span className={styles.tcardStage}>

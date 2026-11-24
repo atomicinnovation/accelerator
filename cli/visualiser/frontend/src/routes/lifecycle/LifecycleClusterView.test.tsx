@@ -159,11 +159,87 @@ describe("LifecycleClusterContent", () => {
     expect(screen.getByText(/^No pr review yet$/i)).toBeInTheDocument();
   });
 
-  it("present-entry cards link to the library page", async () => {
+  it("links a plan card with no id by its filename stem", async () => {
     vi.spyOn(fetchModule, "fetchLifecycleCluster").mockResolvedValue(cluster);
     render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
     const link = await screen.findByRole("link", { name: /the foo plan/i });
     expect(link.getAttribute("href")).toBe("/library/plans/2026-04-18-foo");
+  });
+
+  it("links each design inventory card to the inventory's own id", async () => {
+    const inventory = (dir: string, title: string) =>
+      makeIndexEntry({
+        type: "design-inventories",
+        relPath: `meta/research/design-inventories/${dir}/inventory.md`,
+        path: `/x/meta/research/design-inventories/${dir}/inventory.md`,
+        id: dir,
+        title,
+      });
+    vi.spyOn(fetchModule, "fetchLifecycleCluster").mockResolvedValue({
+      ...cluster,
+      entries: [
+        ...cluster.entries,
+        inventory("2026-05-01-first", "First inventory"),
+        inventory("2026-05-02-second", "Second inventory"),
+      ],
+    });
+    render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
+    expect(
+      (
+        await screen.findByRole("link", { name: /first inventory/i })
+      ).getAttribute("href"),
+    ).toBe("/library/design-inventories/2026-05-01-first");
+    expect(
+      screen
+        .getByRole("link", { name: /second inventory/i })
+        .getAttribute("href"),
+    ).toBe("/library/design-inventories/2026-05-02-second");
+  });
+
+  it("links a plan card by its id", async () => {
+    vi.spyOn(fetchModule, "fetchLifecycleCluster").mockResolvedValue({
+      ...cluster,
+      entries: [
+        makeIndexEntry({
+          type: "plans",
+          relPath: "meta/plans/2026-04-18-foo.md",
+          id: "2026-04-18-PP-1-foo",
+          title: "Identified plan",
+        }),
+      ],
+    });
+    render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
+    const link = await screen.findByRole("link", { name: /identified plan/i });
+    expect(link.getAttribute("href")).toBe(
+      "/library/plans/2026-04-18-PP-1-foo",
+    );
+    expect(link).toHaveTextContent("2026-04-18-PP-1-foo");
+  });
+
+  it("links reviews sharing a slug to their own filename stems", async () => {
+    const review = (n: number) =>
+      makeIndexEntry({
+        type: "plan-reviews",
+        relPath: `meta/reviews/plans/2026-04-18-foo-review-${n}.md`,
+        path: `/x/meta/reviews/plans/2026-04-18-foo-review-${n}.md`,
+        slug: "foo",
+        title: `Review number ${n}`,
+      });
+    vi.spyOn(fetchModule, "fetchLifecycleCluster").mockResolvedValue({
+      ...cluster,
+      entries: [...cluster.entries, review(1), review(2)],
+    });
+    render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
+    expect(
+      (
+        await screen.findByRole("link", { name: /review number 1/i })
+      ).getAttribute("href"),
+    ).toBe("/library/plan-reviews/2026-04-18-foo-review-1");
+    expect(
+      screen
+        .getByRole("link", { name: /review number 2/i })
+        .getAttribute("href"),
+    ).toBe("/library/plan-reviews/2026-04-18-foo-review-2");
   });
 
   it("renders the entry-card head with stage label, title, and date", async () => {
