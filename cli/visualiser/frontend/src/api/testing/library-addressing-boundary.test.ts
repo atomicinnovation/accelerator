@@ -21,7 +21,14 @@ describe("libraryAddressingViolations", () => {
       "the legacy stem helper",
       "export function fileSlugFromRelPath(p: string) { return p; }",
     ],
-    ["a slug comparison", "entries.find((e) => e.slug === wanted);"],
+    [
+      "a slug compared with a route param",
+      "entries.find((e) => e.slug === params.name);",
+    ],
+    [
+      "a route param compared with a slug",
+      "entries.find((e) => params.name === e.slug);",
+    ],
     ["a URL-segment comparison", "entries.find((e) => e.id === documentId);"],
     [
       "a reversed URL-segment comparison",
@@ -31,6 +38,15 @@ describe("libraryAddressingViolations", () => {
     const violations = violationsOf(OTHER_MODULE, source);
     expect(violations).toHaveLength(1);
     expect(violations[0]).toContain(OTHER_MODULE);
+  });
+
+  it("allows other modules to compare slugs that are not route params", () => {
+    expect(
+      violationsOf(
+        OTHER_MODULE,
+        "clusters.find((c) => c.slug === entry.slug);",
+      ),
+    ).toEqual([]);
   });
 
   it("allows the address module to assemble targets and resolve segments", () => {

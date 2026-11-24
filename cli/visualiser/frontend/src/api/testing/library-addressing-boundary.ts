@@ -25,7 +25,9 @@ const RULES_FOR_EVERY_OTHER_MODULE: BoundaryRule[] = [
   },
   {
     breach: "compares a URL segment against an entry",
-    isBrokenBy: containsAny(".slug ===", "=== documentId", "documentId ==="),
+    isBrokenBy: (source) =>
+      containsAny("=== documentId", "documentId ===")(source) ||
+      /\.slug\s*===\s*params\.|\bparams\.\w+\s*===\s*\w+\.slug\b/.test(source),
   },
 ];
 
