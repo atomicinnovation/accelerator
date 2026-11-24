@@ -5,13 +5,13 @@ title: "Linear Push Corrupts Markdown Content"
 date: "2026-10-10T16:36:05+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "in-progress"
 kind: "bug"
 priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-880", "work-item:PP-760", "work-item:PP-876", "work-item:PP-907", "work-item:PP-885"]
 tags: ["sync", "linear", "bug", "markdown"]
-last_updated: "2026-11-24T01:34:55+00:00"
+last_updated: "2026-11-24T01:36:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-906"
@@ -20,7 +20,7 @@ aliases: ["0320"]
 # PP-906: Linear Push Corrupts Markdown Content
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 
