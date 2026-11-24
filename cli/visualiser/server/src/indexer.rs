@@ -148,6 +148,7 @@ pub struct IndexEntry {
     pub path: PathBuf,
     pub rel_path: PathBuf,
     pub slug: Option<String>,
+    pub id: Option<String>,
     /// The work item's `id` frontmatter, normalised under the configured
     /// scheme; `None` for other types, an `id` the scheme does not admit, or
     /// any item while the corpus cannot be trusted.
@@ -1586,6 +1587,7 @@ fn build_entry(
         path,
         rel_path,
         slug: slug_val,
+        id: document_id(&parsed.state),
         draft: work_item_id
             .as_deref()
             .is_some_and(|id| work::draft_id::DraftId::parse(id).is_some()),
@@ -1608,6 +1610,17 @@ fn build_entry(
     }
 }
 
+fn document_id(state: &FrontmatterState) -> Option<String> {
+    match state {
+        FrontmatterState::Parsed(map) => map
+            .get("id")
+            .and_then(|v| v.as_str())
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned),
+        _ => None,
+    }
+}
+
 fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
     if entry.r#type != DocTypeKey::Decisions {
         return None;
@@ -1627,11 +1640,7 @@ fn plan_id_from_entry(entry: &IndexEntry) -> Option<String> {
     if entry.r#type != DocTypeKey::Plans {
         return None;
     }
-    let id = entry.frontmatter.get("id")?.as_str()?;
-    if id.is_empty() {
-        return None;
-    }
-    Some(id.to_string())
+    entry.id.clone()
 }
 
 fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
@@ -1724,6 +1733,93 @@ mod identity_key_tests {
             let got_first = got.first().map(String::as_str);
             assert_eq!(got_first, *expected, "input={input}");
         }
+    }
+}
+
+#[cfg(test)]
+mod document_id_tests {
+    use super::*;
+    use crate::config::WorkItemConfig;
+    use crate::file_driver::LocalFileDriver;
+    use std::sync::Arc;
+
+    const DIRS: [(&str, &str); 4] = [
+        ("work", "meta/work"),
+        ("plans", "meta/plans"),
+        ("research_topics", "meta/research/topics"),
+        (
+            "research_design_inventories",
+            "meta/research/design-inventories",
+        ),
+    ];
+
+    async fn id_of_document_at(path: &str, content: &str) -> Option<String> {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let mut dirs = HashMap::new();
+        for (path_key, dir) in DIRS {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            dirs.insert(path_key.to_string(), root.join(dir));
+        }
+        let file = root.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, content).unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, root, cfg).await.unwrap();
+        idx.get(&file).await.expect("indexed").id
+    }
+
+    #[tokio::test]
+    async fn a_topic_research_set_carries_its_manifest_id() {
+        let id = id_of_document_at(
+            "meta/research/topics/prompt-caching/manifest.md",
+            "---\nid: \"prompt-caching\"\n---\n",
+        )
+        .await;
+        assert_eq!(id.as_deref(), Some("prompt-caching"));
+    }
+
+    #[tokio::test]
+    async fn a_design_inventory_carries_its_directory_name_as_id() {
+        let id = id_of_document_at(
+            "meta/research/design-inventories/\
+             2026-05-06-135214-current-app/inventory.md",
+            "---\nid: \"2026-05-06-135214-current-app\"\n---\n",
+        )
+        .await;
+        assert_eq!(id.as_deref(), Some("2026-05-06-135214-current-app"));
+    }
+
+    #[tokio::test]
+    async fn a_plan_without_an_id_carries_none() {
+        let id = id_of_document_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\ntitle: \"Foo\"\n---\n",
+        )
+        .await;
+        assert_eq!(id, None);
+    }
+
+    #[tokio::test]
+    async fn a_plan_with_an_empty_id_carries_none() {
+        let id = id_of_document_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: \"\"\n---\n",
+        )
+        .await;
+        assert_eq!(id, None);
+    }
+
+    #[tokio::test]
+    async fn a_work_item_carries_its_raw_frontmatter_id() {
+        let id = id_of_document_at(
+            "meta/work/0042-foo.md",
+            "---\nid: \"42\"\n---\n",
+        )
+        .await;
+        assert_eq!(id.as_deref(), Some("42"));
     }
 }
 
@@ -2840,6 +2936,7 @@ mod tests {
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
+            id: None,
             work_item_id: Some(work_item_id.to_string()),
             work_item_key: None,
             identity_key: Some(work_item_id.to_string()),
@@ -2864,6 +2961,7 @@ mod tests {
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
+            id: None,
             work_item_id: None,
             work_item_key: None,
             identity_key: None,
