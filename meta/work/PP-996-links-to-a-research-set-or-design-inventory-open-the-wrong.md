@@ -14,7 +14,7 @@ parent: "work-item:PP-868"
 blocks: ["work-item:PP-998"]
 relates_to: ["work-item:PP-994"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T00:06:25+00:00"
+last_updated: "2026-11-24T08:06:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -31,6 +31,8 @@ In the visualiser, a link to a topic-research set or a design inventory from
 the activity feed or related items, and a link to a design inventory from a
 lifecycle view, opens whichever one sorts first by path, not the one named.
 With more than one of either, most such links land on the wrong document.
+The fix links every document by its frontmatter `id`, which no two
+documents of one type share.
 
 ## Context
 
@@ -42,8 +44,9 @@ member routes (PP-998).
 Both doc types are directories whose entry document has a fixed name:
 `manifest.md` for topic research, `inventory.md` for design inventories. In
 this item a **set** means a topic-research set only, and an **inventory** a
-design inventory. Each has a library URL, `/library/<type>/<slug>`, whose
-slug comes from the directory's name and is carried on its index entry.
+design inventory. The entry document's `id` names the directory: a set's
+`id` is its directory slug, and an inventory's is its directory name, such
+as `2026-05-06-135214-current-app`.
 
 Four call sites build the link from the entry document's filename instead,
 so every topic-research set links to `/library/topic-research/manifest`.
@@ -63,8 +66,12 @@ work item (`[[ADR-NNNN]]`, `[[WORK-ITEM-<id>]]`) and cannot target a set or
 an inventory, so that call site carries the faulty expression with no
 reachable defect.
 
-Search results and the type listing build the link from the slug and are
-correct.
+Search results and the type listing build the link from the slug. That
+opens the right set, but a slug is not unique within a doc type: two
+reviews `x-review-1` and `x-review-2` share one, as do two dated plans
+with the same name after the date. A slug link to the second opens the
+first. The frontmatter `id` is unique within each doc type, across every
+document in this repository's `meta/`.
 
 ## Requirements
 
@@ -89,17 +96,32 @@ The other reachable cases follow the same pattern:
 
 The fix:
 
-- Build every library link to a document through one link builder. It
-  takes what every call site can supply, a doc type, a slug where the
-  document has one, and its path, and returns `/library/<type>/<slug>`,
-  falling back to the filename only where there is no slug. This is the
-  rule the type listing applies today. A search row supplies its type and
-  slug; the other call sites supply an index entry's. The builder names no
-  doc type.
-- Use the builder at all six call sites: the activity feed, related items,
-  lifecycle views, wiki links, search results, and the type listing. Member
-  links later extend it (PP-998).
-- On the activity feed, whose events carry a path and no slug, find the
+- Carry each document's frontmatter `id` as an explicit `id` field on the
+  server's index entry (`IndexEntry`) and search row (`SearchResultRow`),
+  so no client reads it out of the frontmatter.
+- Build every library link to a document through one link builder,
+  `libraryLink(entry)`. It returns the router target
+  `{ to: "/library/$type/$documentId", params: { type, documentId } }`,
+  where `documentId` is the document's `id`, or its filename's stem when
+  it has none. A search row supplies its type and `id`; the other call
+  sites supply an index entry's. The builder names no doc type.
+- Give wiki links a string form, `libraryHref(link)`, which renders the
+  builder's target through the router's own path builder, since the
+  markdown renderer takes an `href`.
+- Rename the library document route's parameter from `$fileSlug` to
+  `$documentId`.
+- Resolve a library URL through one resolver, which matches the URL's
+  segment against an entry's `id`, then its slug, then its filename's
+  stem, so slug and stem URLs already in use keep opening. `LibraryDocView`
+  and `useActiveDocRelPath` both call it.
+- Use the builder at all eight call sites: the activity feed, related
+  items, lifecycle views, wiki links, search results, the type listing,
+  kanban work-item cards, and the not-found page's suggestions. Related
+  items render a router `<Link>` in place of a built `href`. Member links
+  later extend the builder (PP-998).
+- Keep ranking the not-found page's suggestions by slug; only their links
+  move to the builder.
+- On the activity feed, whose events carry a path and no `id`, find the
   entry by matching the event's path in the type-listing response for the
   event's doc type. This lookup is the fix for every doc type and stays:
   it does not depend on whether the set model (PP-994) has landed, and no
@@ -112,37 +134,43 @@ The fix:
 
 - [ ] Given two topic-research sets `a` and `b` with different titles, each
       changed on disk while the visualiser runs, then each activity row's
-      link is `/library/topic-research/<that set's
-      slug>` and the page it opens shows that set's title; the same holds
-      for two design inventories and `/library/design-inventories/<slug>`,
-      where the slug is the one on that inventory's type-listing entry.
+      link is `/library/topic-research/<that set's id>` and the page it
+      opens shows that set's title; the same holds for two design
+      inventories and `/library/design-inventories/<id>`, where the `id`
+      is the inventory's directory name.
 - [ ] Given a plan whose `relates_to` names set `a` and another naming set
       `b`, then each plan's related-items row links to
-      `/library/topic-research/<that set's slug>`; the same holds for two
+      `/library/topic-research/<that set's id>`; the same holds for two
       design inventories each named as a plan's `target`.
 - [ ] Given two design inventories in lifecycle clusters, then each
       lifecycle link is `/library/design-inventories/<that inventory's
-      slug>`.
+      id>`.
 - [ ] Given a wiki link `[[ADR-0067]]` and a wiki link to a work item, then
-      each links to that document's type-listing row's URL and opens the
+      each links to `/library/<type>/<that document's id>` and opens the
       page showing its title.
 - [ ] Given a search result and a type-listing row for set `b`, then each
       links to `/library/topic-research/b`; the same holds for an inventory
-      and its slug.
-- [ ] Given a document of a doc type that is not a set, whose entry's slug
-      differs from its filename's stem, then its activity row,
-      related-items row, and lifecycle link each equal its type-listing
-      row's link.
-- [ ] Given a plan at `meta/plans/foo.md` that exists, then its activity
+      and its `id`.
+- [ ] Given a document of any doc type with an `id`, then its activity
+      row, related-items row, lifecycle link, search result, type-listing
+      row, kanban card where it is a work item, and not-found suggestion
+      each link to `/library/<type>/<id>`.
+- [ ] Given two documents of one review type, `x-review-1` and
+      `x-review-2`, sharing a slug, then every call site links each to its
+      own page, and the page for `x-review-2` shows `x-review-2`'s title.
+- [ ] Given a plan at `meta/plans/foo.md` with no `id`, then its activity
       row, related-items row, and lifecycle link are each
       `/library/plans/foo`.
+- [ ] Given one document reached by a URL holding its `id`, one holding its
+      slug, and one holding its filename's stem, then each URL shows that
+      document's page, and the active document is that document.
 - [ ] Given an activity row for a set whose directory has since been
       deleted, and one for a deleted plan, then once the type-listing
       response has refetched each row shows its text and no link.
-- [ ] Outside tests, none of the six call-site modules calls
-      `fileSlugFromRelPath` or assembles a `/library/` document path
-      itself: each calls the builder. `LibraryDocView`, which resolves a
-      URL and builds none, is outside this rule.
+- [ ] Outside tests, no module except the builder's calls
+      `fileSlugFromRelPath` or assembles a `/library/` document path, and
+      no module except the resolver's matches a URL segment against an
+      entry.
 - [ ] Outside tests, the builder's module contains neither the identifiers
       `TopicResearch` and `DesignInventories` nor the strings
       `topic-research` and `design-inventories`.
@@ -151,7 +179,9 @@ The fix:
 
 - None. Which surfaces can show a design inventory was settled from the
   code on 2026-11-23: the activity feed, related items, and lifecycle
-  views can; wiki links cannot.
+  views can; wiki links cannot. The link key, the call sites outside the
+  first six, and the builder's shape were settled on 2026-11-24 (see
+  Drafting Notes).
 
 ## Dependencies
 
@@ -163,22 +193,28 @@ The fix:
 - Related: the set model (PP-994). Either may land first, and this fix is
   the same in both orders. The lookup relies on PP-994 keeping a set's
   activity row identified by its root's path, which that story states.
+  PP-994 and PP-998 link a set by its root's `id`, the key this story
+  introduces, and PP-998 resolves a set's URL by it.
 
 ## Assumptions
 
-- Three call sites already hold the linked document's index entry, with
-  its slug: related items, lifecycle views, and wiki links. Only the
-  activity feed needs a lookup, and the type listing it reads is one the
-  frontend already queries. This was read from the code, not tried.
+- Three call sites already hold the linked document's index entry: related
+  items, lifecycle views, and wiki links. Only the activity feed needs a
+  lookup, and the type listing it reads is one the frontend already
+  queries. This was read from the code, not tried.
 - `/library/topic-research/manifest` keeps resolving to the first set after
-  this fix; nothing links to it any more. Making it not-found belongs to
-  PP-998.
+  this fix, through the resolver's stem match; nothing links to it any
+  more. Making it not-found belongs to PP-998.
+- A document's `id` is unique within its doc type. Nothing enforces it; a
+  copied file with an unchanged `id` would open the first match, which is
+  for frontmatter validation to catch, not the visualiser.
 - An activity row for a deleted document of any doc type loses its link.
   Today such a link opens a not-found page, or for a set, the wrong set.
 
 ## Technical Notes
 
-**Size**: S — six call sites and one shared link builder, with one lookup.
+**Size**: M — eight call sites, one link builder and one resolver, an `id`
+field on two server responses, and a route parameter rename.
 
 - The four faulty call sites derive the link from the last path segment:
   `cli/visualiser/frontend/src/components/ActivityFeed/ActivityFeed.tsx:123`,
@@ -186,22 +222,28 @@ The fix:
   `routes/lifecycle/LifecycleClusterView.tsx:204`, and
   `api/wiki-links.ts:187`, through `fileSlugFromRelPath`
   (`api/path-utils.ts:6-8`).
+- Two more sites build library links: kanban cards by stem
+  (`routes/kanban/WorkItemCard.tsx:46,96-98`) and the not-found page's
+  suggestions by slug (`routes/library/recovery/NotFoundSurface.tsx:70-80`).
 - `LibraryDocView` resolves `/library/$type/$fileSlug` with
   `entries.find(e => e.slug === fileSlug || fileSlugFromRelPath(e.relPath)
   === fileSlug)` (`routes/library/LibraryDocView.tsx:83-85`), over entries
   the server sorts by path (`cli/visualiser/server/src/api/docs.rs:39-40`),
   which is why the filename form opens the first match.
-- The correct links come from `entry.slug ?? fileSlugFromRelPath(relPath)`
+  `api/use-active-doc-relpath.ts:34` repeats the same match.
+- The slug-based links come from `entry.slug ?? fileSlugFromRelPath(relPath)`
   (`routes/library/LibraryTypeView.tsx:269`) and from the search row's slug
   (`components/Sidebar/SearchResultsPanel.tsx:69-70`).
+- Six call sites render a router `<Link to params>`; related items build an
+  `href` by hand, and wiki links return one to the markdown renderer.
 - Related items, lifecycle views, and wiki links each hold a full index
-  entry, slug included. An activity event carries `{action, docType, path,
-  timestamp}` and no slug
-  (`cli/visualiser/server/src/activity_feed.rs:43-60`).
+  entry. An activity event carries `{action, docType, path, timestamp}` and
+  no `id` (`cli/visualiser/server/src/activity_feed.rs:43-60`).
 - Wiki links resolve against decisions and work items only
   (`api/use-wiki-link-resolver.ts:36-42`).
-- A design inventory's slug is a shortened form of its directory's name; a
-  topic-research set's is the directory's name.
+- The topic-research manifest template writes the set directory's slug as
+  `id` (`templates/topic-research-manifest.md:3`); the inventory skill
+  writes the directory's name.
 
 ## Drafting Notes
 
@@ -221,6 +263,14 @@ The fix:
   the fix in both orders and is never removed, so the activity row's own
   slug is not read. Criteria were added for a non-set document whose slug
   differs from its filename, and for the builder naming no doc type.
+- Decisions on 2026-11-24, after codebase research found slugs shared
+  within a doc type: links key on the frontmatter `id`, falling back to the
+  stem, carried as an explicit `id` field on the index entry and search
+  row; one resolver matches `id`, slug, then stem; the builder covers
+  kanban cards and not-found suggestions too, eight sites in all, with
+  suggestion ranking left on slugs; `libraryLink` returns router params,
+  `libraryHref` a string for wiki links, related items move to `<Link>`,
+  and the route parameter becomes `$documentId`. Size moved from S to M.
 
 ## References
 
@@ -228,3 +278,4 @@ The fix:
 - Blocks: PP-998 (member routes and view)
 - Related: PP-994 (set model), PP-862 (registered the topic-research doc
   type)
+- Research: `meta/research/codebase/2026-11-24-PP-996-library-links-to-sets-and-inventories-resolve-wrong.md`

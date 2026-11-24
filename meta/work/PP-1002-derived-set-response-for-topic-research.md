@@ -15,7 +15,7 @@ blocks: ["work-item:PP-1001", "work-item:PP-1000"]
 blocked_by: ["work-item:PP-994"]
 relates_to: ["work-item:PP-995", "work-item:PP-997", "work-item:PP-923"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T00:06:25+00:00"
+last_updated: "2026-11-24T08:08:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -155,6 +155,11 @@ them and assembles one response; it holds no rule of its own.
   story's first change, so that PP-1000 can build on it.
 - Add a table of question comparisons beside the planner's tests, read by
   the planner's test and by the visualiser's.
+- Add a contract test, in the visualiser server as the first crate that
+  depends on both `research` and `cli/corpus`, checking that every path
+  kind `research::topic::layout` can produce fits a slot in the
+  topic-research set shape `cli/corpus` declares (PP-994). The layout and
+  the shape describe the same files and nothing else ties them together.
 
 ## Acceptance Criteria
 
@@ -230,6 +235,12 @@ them and assembles one response; it holds no rule of its own.
       `research` crate's public API, and that crate's public-API snapshot
       diff holds additions only. The dependency lint passes with the
       visualiser server depending on `research`.
+- [ ] Given each path kind `research::topic::layout` can produce —
+      `brief.md`, `outline.md`, `synthesis.md`, `findings/<stem>.md`,
+      `findings/<stem>.levels/<lineage>.md`, and `reports/<name>.md` — then
+      each fits a document slot in the topic-research set shape declared in
+      `cli/corpus`, and the contract test fails when either the layout or
+      the shape drops one.
 - [ ] The visualiser server's source holds no parser for `## Round`
       headings or `profiles:` suffixes, and no table of kinds and
       directories.
@@ -327,6 +338,11 @@ in `research`, and one response assembled from them.
   manifest is absent, for both error inputs.
 - This story owns the crate edge outright. Before the split it fell to
   PP-1001 or PP-1000, whichever landed first.
+- Decisions on 2026-11-24, at the author's direction: this story carries
+  the contract test between `research::topic::layout` and PP-994's
+  topic-research set shape, as the first story whose crate depends on
+  both; it still shares the `research` public-API snapshot with PP-995,
+  which adds `research::topic::sources_section`.
 
 ## References
 

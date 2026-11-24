@@ -14,7 +14,7 @@ parent: "work-item:PP-868"
 blocked_by: ["work-item:PP-995", "work-item:PP-994", "work-item:PP-999", "work-item:PP-998", "work-item:PP-1002", "work-item:PP-1001"]
 relates_to: ["work-item:PP-924", "work-item:PP-891", "work-item:PP-897", "work-item:PP-892", "work-item:PP-864", "work-item:PP-936"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T00:06:25+00:00"
+last_updated: "2026-11-24T08:08:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -121,9 +121,11 @@ finding's sources came from: `web`, `openalex`, or `arxiv`.
   attaches them for topic-research documents only, and the frontend renders
   them whenever the response carries them, so no view names a doc type.
 - Show each source once: where sources are rendered structurally, the
-  literal Sources section is not also shown. The server drops it from the
-  body it serves, using the line span the Sources parser reports, and
-  reads no section boundary of its own.
+  literal Sources section is not also shown. The server passes the body it
+  serves to `SourcesSection::parse` (`research::topic::sources_section`)
+  and removes the section from that same body with the reported span's
+  `LineSpan::remove_from`. It reads no section boundary and counts no
+  lines of its own.
 - Add three visual-regression baselines, one for each of the reference
   design's views 6a, 6b, and 6c. View 6a's document shows all three tiers,
   a retracted source, a withdrawn source, an `also` suffix, a metadata
@@ -165,7 +167,9 @@ finding's sources came from: `web`, `openalex`, or `arxiv`.
 - [ ] Given a finding whose `## Sources` section sits between `## Findings`
       and `## Appendix`, then the served body holds both other sections and
       no line of the Sources span, and the page shows one Sources heading,
-      with the structured sources between the other two sections.
+      with the structured sources between the other two sections; the same
+      holds for the finding with CRLF line endings, whose served body keeps
+      its CRLF endings.
 - [ ] Given a Sources section reading `None found.`, then the document shows
       an empty state and no source entries; given a topic-research document
       with no Sources section, then it shows neither, and no Sources
@@ -245,8 +249,8 @@ finding's sources came from: `web`, `openalex`, or `arxiv`.
   rendered at their own URLs.
 - Blocked by: PP-995, the Sources parser, for a document's sources as
   structured entries, each with a parsed tier or the tier text as written,
-  and for the section's line span, by which the server drops the literal
-  section.
+  and for the section's line span and its `remove_from`, by which the
+  server drops the literal section.
 - Closing this story needs the author's acceptance of each baseline
   against the export at the approved commit.
 - This story changes the body the document endpoint serves for a
@@ -291,6 +295,11 @@ shared `LibraryDocView`, with three baselines taken in the set page.
 
 - `MarkdownRenderer` renders a document body today
   (`cli/visualiser/frontend/src/components/MarkdownRenderer/MarkdownRenderer.tsx`).
+- The Sources parser is `research::topic::sources_section`:
+  `SourcesSection::parse(body)` returns `Absent`, `DeclaredEmpty`, or
+  `Present`, the last two carrying the `LineSpan`; entries are
+  `CitedSource`s, each tier a `TierReading`. The span's line numbers count
+  lines of the string passed in, not of the file.
 - The visualiser server does not depend on `research` today
   (`cli/visualiser/server/Cargo.toml:24-33`); the dependency lint permits
   the edge (`tasks/lint/crate_dependencies.py:392-397`).
@@ -333,6 +342,11 @@ shared `LibraryDocView`, with three baselines taken in the set page.
   on the served body, and the title link. Showing the structured Sources
   in place, and the label's text, are the drafting agent's calls, not yet
   confirmed by the author.
+- Decisions on 2026-11-24, at the author's direction: the server parses
+  the body it serves with `SourcesSection::parse` and removes the section
+  with `LineSpan::remove_from` on that same body, so the parser alone
+  decides what a line is; the type names follow PP-995's
+  `research::topic::sources_section`.
 
 ## References
 
