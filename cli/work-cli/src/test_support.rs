@@ -1,6 +1,7 @@
 //! Test doubles shared by this binary's unit tests.
 #![allow(clippy::expect_used, clippy::literal_string_with_formatting_args)]
 
+pub mod real_trackers;
 pub mod written_item;
 
 use std::cell::RefCell;
@@ -102,7 +103,11 @@ pub struct FixedRegistry(RefCell<Option<Box<dyn RemoteTracker>>>);
 
 impl FixedRegistry {
     pub fn holding(tracker: impl RemoteTracker + 'static) -> Self {
-        Self(RefCell::new(Some(Box::new(tracker))))
+        Self::holding_boxed(Box::new(tracker))
+    }
+
+    pub fn holding_boxed(tracker: Box<dyn RemoteTracker>) -> Self {
+        Self(RefCell::new(Some(tracker)))
     }
 }
 

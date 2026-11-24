@@ -656,6 +656,141 @@ mod tests {
         );
     }
 
+    struct PushedRepo {
+        root: tempfile::TempDir,
+        item: std::path::PathBuf,
+        content: String,
+        config: FakeConfig,
+    }
+
+    impl PushedRepo {
+        fn on(tracker: crate::test_support::real_trackers::Tracker) -> Self {
+            let root = tempfile::tempdir().expect("tempdir");
+            std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+            std::fs::create_dir_all(
+                root.path().join("integrations").join(tracker.integration()),
+            )
+            .expect("baseline dir");
+            let content = format!(
+                "---\nid: \"0001\"\ntitle: \"Title\"\nexternal_id: \"{}\"\n\
+                 ---\n{}",
+                tracker.key(),
+                crate::test_support::real_trackers::NEEDS_BOTH_ESCAPES
+            );
+            let item = root.path().join("0001.md");
+            std::fs::write(&item, &content).expect("seed the item");
+            let config = FakeConfig(
+                [
+                    ("work.integration", tracker.integration()),
+                    ("paths.integrations", "integrations"),
+                ]
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                .collect(),
+            );
+            Self {
+                root,
+                item,
+                content,
+                config,
+            }
+        }
+
+        fn body(&self) -> String {
+            document::split(&self.content).expect("a body").body
+        }
+
+        fn push(
+            &self,
+            served: &mut crate::test_support::real_trackers::ServedTracker,
+        ) -> RunOutcome {
+            run(
+                self.root.path(),
+                &self.config,
+                &pushing_nothing_else(self.item.clone()),
+                &crate::test_support::FixedRegistry::holding_boxed(
+                    served.client(),
+                ),
+            )
+        }
+
+        fn assert_unchanged(&self) {
+            assert_eq!(
+                std::fs::read_to_string(&self.item).expect("item"),
+                self.content
+            );
+        }
+    }
+
+    fn pushing_nothing_else(path: std::path::PathBuf) -> UpdateArgs {
+        UpdateArgs {
+            sets: Vec::new(),
+            ..update_args(path, true)
+        }
+    }
+
+    #[test]
+    fn update_push_escapes_for_linear_alone() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker);
+            let mut served = tracker.serve("Title", &repo.body());
+
+            let outcome = repo.push(&mut served);
+
+            assert!(matches!(outcome, RunOutcome::Updated), "{tracker:?}");
+            assert_eq!(
+                served.sent_descriptions(),
+                [tracker.expected_description(&repo.body())],
+                "{tracker:?}"
+            );
+            repo.assert_unchanged();
+        }
+    }
+
+    #[test]
+    fn update_push_repairs_a_corrupted_remote() {
+        use crate::test_support::real_trackers::Tracker;
+
+        let repo = PushedRepo::on(Tracker::Linear);
+        let corrupted = repo
+            .body()
+            .replace("crates.io.", "[crates.io](<http://crates.io>).");
+        let baseline_path =
+            repo.root.path().join("integrations/linear/last-sync.json");
+        let store = FileCorpusStore::new(
+            baseline_path.parent().expect("a baseline directory"),
+        );
+        BaselineStore::new(baseline_path, &RealFs, &store)
+            .set(
+                "0001",
+                baseline::Entry::recorded(
+                    baseline::SyncStamps {
+                        remote_updated_at: tracker::RemoteTimestamp::NotRead,
+                        local_synced_at: 0,
+                    },
+                    BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+                        .digests(
+                            &repo.content,
+                            Some(&format!("Title\n{corrupted}")),
+                        )
+                        .expect("digests"),
+                ),
+            )
+            .expect("the corrupted baseline is seeded");
+        let mut served = Tracker::Linear.serve("Title", &corrupted);
+
+        let outcome = repo.push(&mut served);
+
+        assert!(matches!(outcome, RunOutcome::Updated));
+        assert_eq!(
+            served.sent_descriptions(),
+            [Tracker::Linear.expected_description(&repo.body())]
+        );
+        repo.assert_unchanged();
+    }
+
     #[test]
     fn a_pushed_update_records_a_recipe_one_entry() {
         let root = tempfile::tempdir().expect("tempdir");

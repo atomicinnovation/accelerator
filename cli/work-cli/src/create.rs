@@ -1224,6 +1224,48 @@ mod tests {
     }
 
     #[test]
+    fn create_push_escapes_for_linear_alone() {
+        use crate::test_support::real_trackers::Tracker;
+        use crate::test_support::real_trackers::NEEDS_BOTH_ESCAPES;
+
+        for tracker in Tracker::ALL {
+            let repo = PushingRepo::configured(&[
+                ("work.integration", tracker.integration()),
+                ("paths.integrations", "integrations"),
+            ]);
+            repo.holding("body.md", NEEDS_BOTH_ESCAPES);
+            let mut served = tracker.serve("A tabled idea", NEEDS_BOTH_ESCAPES);
+            let args = CreateArgs {
+                body_file: Some(repo.path("body.md")),
+                ..PushingRepo::args(true)
+            };
+
+            let (path, report) = created(run(
+                repo.root.path(),
+                &repo.config,
+                &crate::test_support::PluginWorkItemTemplate,
+                &args,
+                &FixedRegistry::holding_boxed(served.client()),
+            ));
+
+            assert_eq!(report.outcome, PushOutcome::WriteOnce, "{tracker:?}");
+            let written = std::fs::read_to_string(path.expect("the item"))
+                .expect("the item reads");
+            let body = document::split(&written).expect("a body").body;
+            assert_eq!(
+                body.trim_end(),
+                NEEDS_BOTH_ESCAPES.trim_end(),
+                "{tracker:?}"
+            );
+            assert_eq!(
+                served.sent_descriptions(),
+                [tracker.expected_description(&body)],
+                "{tracker:?}"
+            );
+        }
+    }
+
+    #[test]
     fn a_reachable_tracker_create_writes_an_item_keyed_by_the_tracker() {
         for integration in ["linear", "jira"] {
             let repo = PushingRepo::tracker_owned_on(integration);
