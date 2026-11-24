@@ -193,11 +193,21 @@ pub struct CitedSource {
 impl CitedSource {
     fn parse(line: &str) -> Option<Self> {
         let rest = line.strip_prefix(ENTRY_OPENING)?;
-        rest.rmatch_indices(TITLE_CLOSE).find_map(|(close, _)| {
-            let title = &rest[..close];
-            let link_and_rest = &rest[close + TITLE_CLOSE.len()..];
-            Self::entry_after_title(title, link_and_rest)
-        })
+        let mut readings =
+            rest.rmatch_indices(TITLE_CLOSE).filter_map(|(close, _)| {
+                let title = &rest[..close];
+                let link_and_rest = &rest[close + TITLE_CLOSE.len()..];
+                Self::entry_after_title(title, link_and_rest)
+            });
+        let rightmost = readings.next()?;
+        if rightmost.has_tier_text() {
+            return Some(rightmost);
+        }
+        Some(readings.find(Self::has_tier_text).unwrap_or(rightmost))
+    }
+
+    const fn has_tier_text(&self) -> bool {
+        matches!(self.tier, TierReading::Parsed(_))
     }
 
     fn entry_after_title(title: &str, link_and_rest: &str) -> Option<Self> {

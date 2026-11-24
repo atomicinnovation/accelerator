@@ -141,6 +141,23 @@ fn a_venue_may_hold_a_markdown_link() {
 }
 
 #[test]
+fn a_venue_may_hold_a_markdown_link_and_the_separator() {
+    let body = section(&[
+        "- [T](https://a.example/) — tier-2 — see [x](https://b.example/) — \
+         p. 4",
+    ]);
+    assert_eq!(
+        only_entry(&body),
+        entry(
+            "T",
+            "https://a.example/",
+            "tier-2",
+            Some("see [x](https://b.example/) — p. 4"),
+        )
+    );
+}
+
+#[test]
 fn a_title_may_hold_brackets() {
     let body = section(&["- [A [draft]](https://a.example/) — tier-1"]);
     assert_eq!(only_entry(&body).title, "A [draft]");
