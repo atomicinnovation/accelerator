@@ -3,7 +3,9 @@
 //! validated mutations as one `document::Yaml` tree edit and performs one
 //! atomic write, under a per-file mkdir-lock.
 
+use std::io::Write;
 use std::path::Path;
+use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use corpus::lock::ExclusiveLock as _;
@@ -36,6 +38,7 @@ use work_adapters::sync::push_verdict::PushVerdict;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
+use crate::exit_codes;
 use crate::refusal::Refusal;
 use crate::report_records::rewrite_lines;
 use crate::tracker_registry::SelectionError;
@@ -56,6 +59,48 @@ pub enum RunOutcome {
     /// The identity run an `update --push` needs could not begin; nothing
     /// was read or written.
     Refused(Refusal),
+}
+
+impl RunOutcome {
+    /// Prints this outcome as `accelerator work update` does, returning the
+    /// code it exits with.
+    pub fn report(self, _out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+        let failed = |err: &mut dyn Write, message: &str, code: u8| {
+            let _ = writeln!(err, "{message}");
+            ExitCode::from(code)
+        };
+        match self {
+            Self::Updated { warnings } => {
+                for warning in warnings {
+                    let _ = writeln!(err, "{warning}");
+                }
+                ExitCode::SUCCESS
+            }
+            Self::Failed(message) => {
+                let _ = writeln!(err, "{message}");
+                ExitCode::FAILURE
+            }
+            Self::PushNotAvailable(message) => {
+                failed(err, &message, exit_codes::NOT_AVAILABLE)
+            }
+            Self::PushUnrecognised(message) => {
+                failed(err, &message, exit_codes::UNRECOGNISED)
+            }
+            Self::PushUnconfigured(message) => {
+                failed(err, &message, exit_codes::UNCONFIGURED)
+            }
+            Self::PushRetryable(message) => {
+                failed(err, &message, exit_codes::RETRYABLE)
+            }
+            Self::PushTerminal(message) => {
+                failed(err, &message, exit_codes::TERMINAL)
+            }
+            Self::PushRejected(message) => {
+                failed(err, &message, exit_codes::REJECTED)
+            }
+            Self::Refused(refusal) => refusal.report_to(err),
+        }
+    }
 }
 
 fn set_key_error_message(error: &UpdateError) -> String {
@@ -845,6 +890,37 @@ mod tests {
             RunOutcome::Updated { warnings } => warnings,
             _ => panic!("the push did not succeed"),
         }
+    }
+
+    #[test]
+    fn a_rewritten_update_push_warns_on_stderr_and_exits_zero() {
+        use crate::test_support::real_trackers::Tracker;
+
+        let repo = PushedRepo::on(Tracker::Linear);
+        let linked = repo
+            .body()
+            .replace("crates.io.", "[crates.io](<http://crates.io>).");
+        let mut served = Tracker::Linear.serve("Title", &linked);
+
+        let printed = crate::test_support::printed(|out, err| {
+            repo.push(&mut served).report(out, err)
+        });
+
+        let label = repo.item.display().to_string();
+        assert_eq!(printed.code, std::process::ExitCode::SUCCESS);
+        assert_eq!(printed.out, "");
+        assert!(
+            printed.err.starts_with(&format!(
+                "warning: {label}: rewritten on push: (preamble)\n"
+            )),
+            "{}",
+            printed.err
+        );
+        assert!(
+            printed.err.contains("sent `See crates.io.`"),
+            "{}",
+            printed.err
+        );
     }
 
     #[test]

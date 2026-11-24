@@ -6,8 +6,10 @@
 
 use corpus::lock::ExclusiveLock;
 use corpus_adapters::CommonMarkBody;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
@@ -132,6 +134,64 @@ pub enum RunOutcome {
     /// Refused before anything was written, with the line and exit code the
     /// refusal carries.
     Refused(Refusal),
+}
+
+impl RunOutcome {
+    /// Prints this outcome as `accelerator work create` does, returning the
+    /// code it exits with.
+    pub fn report(self, out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+        match self {
+            Self::Created {
+                path,
+                push,
+                warnings,
+            } => {
+                let _ = writeln!(
+                    out,
+                    "{}",
+                    path.as_deref()
+                        .map(Path::display)
+                        .map_or_else(String::new, |shown| shown.to_string())
+                );
+                let Some(report) = push else {
+                    return ExitCode::SUCCESS;
+                };
+                let _ = writeln!(
+                    out,
+                    "{}\t{}",
+                    report.outcome.keyword(),
+                    report.external_id.as_deref().unwrap_or("")
+                );
+                if let Some(warning) = &report.warning {
+                    let _ = writeln!(err, "{warning}");
+                }
+                if let Some(cause) = &report.cause {
+                    let _ = writeln!(err, "Error: {cause}");
+                }
+                for warning in &warnings {
+                    let _ = writeln!(err, "{warning}");
+                }
+                ExitCode::from(report.outcome.exit_code())
+            }
+            Self::Previewed(line) => {
+                let _ = writeln!(out, "{line}");
+                ExitCode::SUCCESS
+            }
+            Self::PreviewFailed { message, code } => {
+                let _ = writeln!(err, "Error: {message}");
+                ExitCode::from(code)
+            }
+            Self::Pending(message) => {
+                let _ = writeln!(err, "Error: {message}");
+                ExitCode::from(exit_codes::UNRESOLVED)
+            }
+            Self::Failed(message) => {
+                let _ = writeln!(err, "Error: {message}");
+                ExitCode::from(exit_codes::of_failure(&message))
+            }
+            Self::Refused(refusal) => refusal.report_to(err),
+        }
+    }
 }
 
 const SLUG_MAX_LEN: usize = 60;
@@ -1325,6 +1385,36 @@ mod tests {
                 "Published to [crates.io](<http://crates.io>) first."
             );
         }
+    }
+
+    #[test]
+    fn a_rewritten_create_push_prints_its_path_and_warns_on_stderr() {
+        let repo = PushingRepo::tracker_owned();
+        let args = dotted_args(&repo, None);
+
+        let printed = crate::test_support::printed(|out, err| {
+            repo.run_args(&args, &linking_tracker(), None)
+                .report(out, err)
+        });
+
+        assert_eq!(printed.code, std::process::ExitCode::SUCCESS);
+        let mut lines = printed.out.lines();
+        let path = lines.next().expect("the written path");
+        assert_eq!(lines.next(), Some(format!("write-once\t{KEY}").as_str()));
+        assert!(
+            printed
+                .err
+                .starts_with(&format!("warning: {path}: rewritten on push: ")),
+            "{}",
+            printed.err
+        );
+        assert!(
+            printed.err.contains(
+                "stored `Published to [crates.io](<http://crates.io>) first.`"
+            ),
+            "{}",
+            printed.err
+        );
     }
 
     #[test]

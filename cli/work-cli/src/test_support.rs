@@ -601,6 +601,29 @@ pub fn documented_exit_code(line: &str) -> u8 {
     }
 }
 
+/// What a command printed, and the code it exits with.
+pub struct Printed {
+    pub out: String,
+    pub err: String,
+    pub code: std::process::ExitCode,
+}
+
+/// Runs `report` over captured streams.
+pub fn printed(
+    report: impl FnOnce(
+        &mut dyn std::io::Write,
+        &mut dyn std::io::Write,
+    ) -> std::process::ExitCode,
+) -> Printed {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let code = report(&mut out, &mut err);
+    Printed {
+        out: String::from_utf8(out).expect("stdout is UTF-8"),
+        err: String::from_utf8(err).expect("stderr is UTF-8"),
+        code,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

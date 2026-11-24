@@ -15,7 +15,11 @@ impl Refusal {
     /// Prints the refusal's line on stderr and gives its exit code.
     #[must_use]
     pub fn report(&self) -> ExitCode {
-        eprintln!("{}", self.message);
+        self.report_to(&mut std::io::stderr().lock())
+    }
+
+    pub fn report_to(&self, err: &mut dyn std::io::Write) -> ExitCode {
+        let _ = writeln!(err, "{}", self.message);
         ExitCode::from(self.code)
     }
 }

@@ -3,8 +3,10 @@
 //! recoveries for a draft whose earlier create may have reached the tracker.
 
 use corpus_adapters::CommonMarkBody;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use corpus_adapters::FileCorpusStore;
@@ -62,6 +64,40 @@ pub enum PromoteOutcome {
         message: String,
         code: u8,
     },
+}
+
+impl PromoteOutcome {
+    /// Prints this outcome as `accelerator work promote` does, returning
+    /// the code it exits with.
+    pub fn report(self, out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+        match self {
+            Self::Reported {
+                lines,
+                remedy,
+                warnings,
+                code,
+            } => {
+                for line in lines {
+                    let _ = writeln!(out, "{line}");
+                }
+                for warning in warnings {
+                    let _ = writeln!(err, "{warning}");
+                }
+                if let Some(remedy) = remedy {
+                    let _ = writeln!(err, "Error: {remedy}");
+                }
+                ExitCode::from(code)
+            }
+            Self::NotADraft(message) => {
+                let _ = writeln!(err, "{message}");
+                ExitCode::from(exit_codes::USAGE)
+            }
+            Self::Failed { message, code } => {
+                let _ = writeln!(err, "{message}");
+                ExitCode::from(code)
+            }
+        }
+    }
 }
 
 impl From<crate::refusal::Refusal> for PromoteOutcome {
@@ -649,6 +685,30 @@ mod tests {
                 "`accelerator work update meta/work/REC-1-title.md --push`"
             )),
             "{warnings:?}"
+        );
+    }
+
+    #[test]
+    fn a_rewritten_promote_reports_on_stdout_and_warns_on_stderr() {
+        let repo = Repo::new();
+        with_a_dotted_token(&repo);
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+
+        let printed = crate::test_support::printed(|out, err| {
+            repo.promote(&tracker, None, false).report(out, err)
+        });
+
+        assert_eq!(printed.code, std::process::ExitCode::SUCCESS);
+        assert!(!printed.out.is_empty());
+        assert!(
+            printed
+                .err
+                .starts_with("warning: REC-1: rewritten on push: (preamble)\n"),
+            "{}",
+            printed.err
         );
     }
 

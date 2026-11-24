@@ -6348,6 +6348,51 @@ mod tests {
     }
 
     #[test]
+    fn a_sync_whose_push_is_rewritten_warns_on_stderr_and_exits_zero() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ));
+        let crate::create::RunOutcome::Created {
+            path: Some(path), ..
+        } = create_pushed(dir.path(), &tracker)
+        else {
+            panic!("the create did not write its item");
+        };
+        let mut content = std::fs::read_to_string(&path).expect("the item");
+        content.push_str("\nPublished to crates.io first.\n");
+        std::fs::write(&path, content).expect("the edit");
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .and_then(|file| {
+                file.set_modified(
+                    std::time::SystemTime::now()
+                        + std::time::Duration::from_secs(60),
+                )
+            })
+            .expect("the edit postdates the create's watermark");
+
+        let run =
+            drive_sync_captured(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(run.code, ExitCode::SUCCESS, "{}", run.err);
+        let warning = run
+            .err
+            .lines()
+            .position(|line| line.contains(": rewritten on push: "))
+            .unwrap_or_else(|| panic!("no rewrite warning: {}", run.err));
+        assert!(
+            run.err.lines().nth(warning + 1).is_some_and(|line| {
+                line.contains("sent `Published to crates.io first.`")
+            }),
+            "{}",
+            run.err
+        );
+    }
+
+    #[test]
     fn a_create_then_sync_reports_synced() {
         let dir = sync_repo();
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
