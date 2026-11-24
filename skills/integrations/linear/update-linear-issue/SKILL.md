@@ -47,9 +47,9 @@ the fields being set (`--title`/`--description`/`--body-file`/`--state`/
 
 > **Proposed Linear write — review before sending**
 
-A `--description` or `--body-file` file that is empty or only whitespace
-erases the existing description; show it as `description: (cleared — the
-existing description is erased)`. Read the `--body-file` to show its contents
+An empty or whitespace-only description, given by `--description` or held
+in the `--body-file` file, erases the existing description; show it as
+`description: (cleared — the existing description is erased)`. Read the `--body-file` to show its contents
 in the preview. Linear refuses an empty `--title` or `--assignee-id`, so warn in the
 preview that the update will fail.
 
