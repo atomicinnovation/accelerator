@@ -2686,6 +2686,8 @@ impl core::marker::StructuralPartialEq for research::topic::sources_section::Cit
 pub struct research::topic::sources_section::LineSpan
 impl research::topic::sources_section::LineSpan
 pub const fn research::topic::sources_section::LineSpan::end(self) -> usize
+pub fn research::topic::sources_section::LineSpan::remove_from(self, body: &str) -> alloc::string::String
+pub fn research::topic::sources_section::LineSpan::split(self, body: &str) -> (&str, &str)
 pub const fn research::topic::sources_section::LineSpan::start(self) -> usize
 impl core::clone::Clone for research::topic::sources_section::LineSpan
 pub fn research::topic::sources_section::LineSpan::clone(&self) -> research::topic::sources_section::LineSpan

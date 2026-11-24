@@ -14,3 +14,10 @@ pub fn numbered(body: &str) -> impl Iterator<Item = Line<'_>> {
             Line { number, text }
         })
 }
+
+pub fn offset_of(body: &str, number: usize) -> usize {
+    body.split_inclusive('\n')
+        .take(number.saturating_sub(1))
+        .map(str::len)
+        .sum()
+}

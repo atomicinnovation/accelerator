@@ -2,6 +2,7 @@
 
 use research::topic::sources_section::tier_text::TierText;
 use research::topic::sources_section::CitedSource;
+use research::topic::sources_section::LineSpan;
 use research::topic::sources_section::MetadataPair;
 use research::topic::sources_section::SourcesSection;
 use research::topic::sources_section::TierReading;
@@ -66,6 +67,21 @@ const TEN_LINES: [&str; 10] = [
     "",
     "More text.",
 ];
+
+fn span_read_from(body: &str) -> LineSpan {
+    SourcesSection::parse(body).span().expect(body)
+}
+
+fn running_to_the_end() -> [String; 2] {
+    let without_final_newline = TEN_LINES[..7]
+        .iter()
+        .copied()
+        .chain(["Some prose.", "", "- [C](https://c.example/) — tier-3"])
+        .collect::<Vec<&str>>()
+        .join("\n");
+    let with_final_newline = format!("{without_final_newline}\n");
+    [without_final_newline, with_final_newline]
+}
 
 #[test]
 fn an_entry_carries_its_title_url_tier_and_venue() {
@@ -377,15 +393,9 @@ fn the_span_runs_from_the_heading_to_the_line_after_the_section() {
 
     assert_eq!(span_of(&TEN_LINES.join("\n")), Some((4, 8)));
 
-    let to_the_end: Vec<&str> = TEN_LINES[..7]
-        .iter()
-        .copied()
-        .chain(["Some prose.", "", "- [C](https://c.example/) — tier-3"])
-        .collect();
-    let without_final_newline = to_the_end.join("\n");
-    let with_final_newline = format!("{without_final_newline}\n");
-    assert_eq!(span_of(&without_final_newline), Some((4, 11)));
-    assert_eq!(span_of(&with_final_newline), Some((4, 11)));
+    for body in running_to_the_end() {
+        assert_eq!(span_of(&body), Some((4, 11)), "{body:?}");
+    }
 
     assert_eq!(span_of(&section(&["None found."])), Some((1, 3)));
     assert_eq!(span_of("# Finding\n"), None);
@@ -580,4 +590,121 @@ fn none_found_separates_a_block_from_its_entry() {
         [entry("T", "https://a.example/", "tier-1", None)]
     );
     assert_eq!(parsed.unread(), [unread(4, "  - doi: 10.1/x")]);
+}
+
+#[test]
+fn splitting_at_the_section_gives_the_text_before_and_after_it() {
+    for separator in ["\n", "\r\n"] {
+        let body = TEN_LINES.join(separator);
+        assert_eq!(
+            span_read_from(&body).split(&body),
+            (
+                [&TEN_LINES[..3], &[""]].concat().join(separator).as_str(),
+                TEN_LINES[7..].join(separator).as_str(),
+            ),
+            "{body:?}"
+        );
+    }
+
+    for body in running_to_the_end() {
+        assert_eq!(
+            span_read_from(&body).split(&body),
+            ("# Finding\n\nSome findings.\n", ""),
+            "{body:?}"
+        );
+    }
+}
+
+#[test]
+fn removing_the_section_keeps_every_other_line_as_written() {
+    for separator in ["\n", "\r\n"] {
+        let body = TEN_LINES.join(separator);
+        let kept = [&TEN_LINES[..3], &TEN_LINES[7..]].concat();
+        assert_eq!(
+            span_read_from(&body).remove_from(&body),
+            kept.join(separator),
+            "{body:?}"
+        );
+    }
+
+    for body in running_to_the_end() {
+        assert_eq!(
+            span_read_from(&body).remove_from(&body),
+            "# Finding\n\nSome findings.\n",
+            "{body:?}"
+        );
+    }
+}
+
+#[test]
+fn the_citing_once_worked_example_reads_as_three_cited_sources() {
+    let before = "# Finding\n\nThree citations of one source.\n\n";
+    let sources = concat!(
+        "## Sources\n",
+        "- [The Notifier Pattern](https://blog.example/notifier/) — tier-2 — ",
+        "blog.example\n",
+        "  - accessed: 2026-10-02\n",
+        "- [Notifier](http://blog.example/notifier) — tier-3 (retracted) — ",
+        "Example Blog\n",
+        "  - published: 2019\n",
+        "- [Notifier](https://www.blog.example/notifier) — tier-1 — ",
+        "blog.example\n",
+        "  - openalex_id: W1\n",
+        "  - doi: 10.example/notifier\n",
+        "\n",
+    );
+    let after = "## Next\n\nWhat follows.\n";
+    let body = [before, sources, after].concat();
+
+    let parsed = SourcesSection::parse(&body);
+
+    assert_eq!(
+        parsed.entries(),
+        [
+            CitedSource {
+                metadata: vec![pair("accessed", "2026-10-02")],
+                ..entry(
+                    "The Notifier Pattern",
+                    "https://blog.example/notifier/",
+                    "tier-2",
+                    Some("blog.example"),
+                )
+            },
+            CitedSource {
+                metadata: vec![pair("published", "2019")],
+                ..entry(
+                    "Notifier",
+                    "http://blog.example/notifier",
+                    "tier-3 (retracted)",
+                    Some("Example Blog"),
+                )
+            },
+            CitedSource {
+                metadata: vec![
+                    pair("openalex_id", "W1"),
+                    pair("doi", "10.example/notifier"),
+                ],
+                ..entry(
+                    "Notifier",
+                    "https://www.blog.example/notifier",
+                    "tier-1",
+                    Some("blog.example"),
+                )
+            },
+        ]
+    );
+    let retracted = parsed.entries().iter().map(|cited| {
+        matches!(
+            &cited.tier,
+            TierReading::Parsed(tier_text) if tier_text.retracted()
+        )
+    });
+    assert_eq!(retracted.collect::<Vec<_>>(), [false, true, false]);
+    assert_eq!(state_of(&parsed), State::Present);
+    assert!(parsed.unread().is_empty());
+
+    let span = parsed.span().expect(&body);
+    assert_eq!((span.start(), span.end()), (5, 14));
+    assert_eq!(span.split(&body), (before, after));
+    assert_eq!(span.remove_from(&body), [before, after].concat());
 }

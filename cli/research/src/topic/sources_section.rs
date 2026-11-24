@@ -1,5 +1,6 @@
 //! A document body's `## Sources` section: its cited sources, each with its
-//! tier text, and the lines it could not read.
+//! tier text and metadata, the lines it could not read, and the span of lines
+//! it occupies, by which the body can be cut around it.
 
 mod lines;
 pub mod tier_text;
@@ -303,5 +304,20 @@ impl LineSpan {
     #[must_use]
     pub const fn end(self) -> usize {
         self.end
+    }
+
+    /// `body` must be the text the span was read from.
+    #[must_use]
+    pub fn split(self, body: &str) -> (&str, &str) {
+        let before = &body[..lines::offset_of(body, self.start)];
+        let after = &body[lines::offset_of(body, self.end)..];
+        (before, after)
+    }
+
+    /// `body` must be the text the span was read from.
+    #[must_use]
+    pub fn remove_from(self, body: &str) -> String {
+        let (before, after) = self.split(body);
+        format!("{before}{after}")
     }
 }
