@@ -12,6 +12,7 @@ use common::tempdir;
 use common::TestError;
 use common::MIGRATION_0007;
 use vcs_test_support::hermetic::Hermetic;
+use vcs_test_support::stalled_migration::corpus;
 
 #[test]
 fn a_git_stall_resumes_after_writing_its_named_decisions_file(
@@ -148,7 +149,7 @@ impl Stalled {
         let root = work.path().join("repo");
         fs::create_dir_all(&root)?;
         env.jj(&["git", "init", colocation], &root)?;
-        common::seed_output_then_ambiguous_reference(&root)?;
+        corpus::seed_output_then_ambiguous_reference(&root)?;
         env.jj(&["commit", "-m", "corpus"], &root)?;
         let base = change_id(&env, &root, "@-")?;
         env.jj(&["describe", "-m", "sibling"], &root)?;
@@ -256,7 +257,7 @@ fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
         assert_eq!(resumed.code, 0, "{colocation}: {}", resumed.stderr);
         assert_resumed(&resumed);
         assert!(
-            resumed.stderr.contains(common::OWNED_NOTE),
+            resumed.stderr.contains(corpus::OWNED_NOTE),
             "{}",
             resumed.stderr
         );
@@ -272,8 +273,8 @@ fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
         let stalled = Stalled::on(colocation, &Base::SingleParent)?;
         stalled.write_decisions()?;
         fs::write(
-            stalled.root.join(common::OWNED_NOTE),
-            fs::read_to_string(stalled.root.join(common::OWNED_NOTE))?
+            stalled.root.join(corpus::OWNED_NOTE),
+            fs::read_to_string(stalled.root.join(corpus::OWNED_NOTE))?
                 + "\nedited\n",
         )?;
         stalled.jj(&["status"])?;
@@ -306,7 +307,7 @@ fn a_jj_refusal_lists_only_the_current_runs_unowned_changes(
             refused.stderr
         );
         assert!(
-            !refused.stderr.contains(common::OWNED_NOTE),
+            !refused.stderr.contains(corpus::OWNED_NOTE),
             "{}",
             refused.stderr
         );
@@ -348,7 +349,7 @@ fn rewriting_or_rebasing_the_parent_makes_a_jj_stall_stale(
             assert!(
                 refused
                     .stderr
-                    .contains(&format!("  {}\n", common::OWNED_NOTE)),
+                    .contains(&format!("  {}\n", corpus::OWNED_NOTE)),
                 "{args:?}: {}",
                 refused.stderr
             );
@@ -435,7 +436,7 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
         stalled.jj(&["new", &stalled.base])?;
         common::write(
             &stalled.root,
-            common::OWNED_NOTE,
+            corpus::OWNED_NOTE,
             "rewritten by hand\n",
         )?;
 
@@ -445,7 +446,7 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
         assert!(
             refused.stderr.ends_with(&format!(
                 "Unowned changes (1):\n  {}\n",
-                common::OWNED_NOTE
+                corpus::OWNED_NOTE
             )),
             "{colocation}: {}",
             refused.stderr
@@ -463,8 +464,8 @@ fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
         assert!(stalled.recorded_run_base()?.contains('+'));
         stalled.write_decisions()?;
         fs::write(
-            stalled.root.join(common::OWNED_NOTE),
-            fs::read_to_string(stalled.root.join(common::OWNED_NOTE))?
+            stalled.root.join(corpus::OWNED_NOTE),
+            fs::read_to_string(stalled.root.join(corpus::OWNED_NOTE))?
                 + "\nedited\n",
         )?;
         stalled.jj(&["status"])?;
@@ -579,7 +580,7 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
                 refused.stderr
             );
             assert!(
-                refused.stderr.contains(common::OWNED_NOTE),
+                refused.stderr.contains(corpus::OWNED_NOTE),
                 "{}",
                 refused.stderr
             );
@@ -616,7 +617,7 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
         );
         assert_ne!(
             fs::read_to_string(stalled.root.join("meta/work/0001-source.md"))?,
-            common::work_item(
+            corpus::work_item(
                 "0001",
                 "Source",
                 "\n## References\n- `meta/work/0042-target.md`\n"
