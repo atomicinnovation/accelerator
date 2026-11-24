@@ -12,6 +12,7 @@ use common::tempdir;
 use common::TestError;
 use common::MIGRATION_0007;
 use vcs_test_support::colocation::JjColocation;
+use vcs_test_support::copies::copy_private_tree;
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::stalled_migration::corpus;
 use vcs_test_support::stalled_migration::ParentShape;
@@ -142,40 +143,8 @@ impl Stalled {
         shape: ParentShape,
     ) -> Result<Self, TestError> {
         vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
-        let work = tempdir("jj-stall")?;
-        let env = Hermetic::rooted_at(work.path())?;
-        let root = work.path().join("repo");
-        fs::create_dir_all(&root)?;
-        env.jj(&["git", "init", colocation.flag()], &root)?;
-        corpus::seed_output_then_ambiguous_reference(&root)?;
-        env.jj(&["commit", "-m", "corpus"], &root)?;
-        let base = change_id(&env, &root, "@-")?;
-        env.jj(&["describe", "-m", "sibling"], &root)?;
-        common::write(&root, "meta/sibling.md", "sibling\n")?;
-        let sibling = change_id(&env, &root, "@")?;
-        match shape {
-            ParentShape::SingleParent => env.jj(&["new", &base], &root)?,
-            ParentShape::MergeWithSibling => {
-                env.jj(&["new", &base, &sibling], &root)?
-            }
-        };
-
-        let stalled = run(&env, &root, &[], &[])?;
-        assert_eq!(stalled.code, 1, "{}", stalled.stderr);
-        assert!(
-            stalled.stderr.contains("MIGRATION STALLED"),
-            "{}",
-            stalled.stderr
-        );
-
-        Ok(Self {
-            _work: work,
-            env,
-            root,
-            decisions: decisions_file_for(MIGRATION_0007),
-            base,
-            sibling,
-        })
+        let prefix = prefix_the_way_the_scenarios_always_have(colocation)?;
+        stalled_the_way_the_scenarios_always_have(&prefix, shape)
     }
 
     fn jj(&self, args: &[&str]) -> Result<String, TestError> {
@@ -207,6 +176,71 @@ impl Stalled {
             &self.env, &self.root,
         )?)
     }
+}
+
+/// The committed corpus with its sibling change beside it, before the
+/// working copy moves onto either parent shape.
+struct Prefix {
+    work: tempfile::TempDir,
+    base: String,
+    sibling: String,
+}
+
+/// Kept apart from the stalled-migration family's own recipe, so a copied
+/// stall that drifts from the one the scenarios were written against no
+/// longer matches it.
+fn prefix_the_way_the_scenarios_always_have(
+    colocation: JjColocation,
+) -> Result<Prefix, TestError> {
+    let work = tempdir("jj-stall-prefix")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(&root)?;
+    env.jj(&["git", "init", colocation.flag()], &root)?;
+    corpus::seed_output_then_ambiguous_reference(&root)?;
+    env.jj(&["commit", "-m", "corpus"], &root)?;
+    let base = change_id(&env, &root, "@-")?;
+    env.jj(&["describe", "-m", "sibling"], &root)?;
+    common::write(&root, "meta/sibling.md", "sibling\n")?;
+    let sibling = change_id(&env, &root, "@")?;
+    Ok(Prefix {
+        work,
+        base,
+        sibling,
+    })
+}
+
+fn stalled_the_way_the_scenarios_always_have(
+    prefix: &Prefix,
+    shape: ParentShape,
+) -> Result<Stalled, TestError> {
+    let work = tempdir("jj-stall")?;
+    copy_private_tree(prefix.work.path(), work.path())?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    match shape {
+        ParentShape::SingleParent => env.jj(&["new", &prefix.base], &root)?,
+        ParentShape::MergeWithSibling => {
+            env.jj(&["new", &prefix.base, &prefix.sibling], &root)?
+        }
+    };
+
+    let stalled = run(&env, &root, &[], &[])?;
+    assert_eq!(stalled.code, 1, "{}", stalled.stderr);
+    assert!(
+        stalled.stderr.contains("MIGRATION STALLED"),
+        "{}",
+        stalled.stderr
+    );
+
+    Ok(Stalled {
+        _work: work,
+        env,
+        root,
+        decisions: decisions_file_for(MIGRATION_0007),
+        base: prefix.base.clone(),
+        sibling: prefix.sibling.clone(),
+    })
 }
 
 fn change_id(

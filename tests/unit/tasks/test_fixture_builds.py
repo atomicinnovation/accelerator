@@ -37,6 +37,7 @@ GUARDED_CALLS = {
         frozenset(
             {
                 TESTS / "copies.rs",
+                Path("cli/migrate-cli/tests/guarded_resume.rs"),
                 Path("cli/work-adapters/tests/support/mod.rs"),
             }
         ),
