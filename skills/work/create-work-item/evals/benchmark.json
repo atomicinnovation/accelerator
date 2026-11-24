@@ -86,7 +86,7 @@
       "75"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:c985392e2c80c5874e879c943435150fd13cc4340650c94db381dcc4d1c1ef90"
+    "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
   },
   "runs": [
     {
@@ -3164,26 +3164,26 @@
         {
           "text": "response.md states that the item's ID will be 0400",
           "passed": true,
-          "evidence": "response.md: \"Using 0400.\""
+          "evidence": "response.md: \"I'll save it as 0400, the ID you asked for.\""
         },
         {
           "text": "commands.md shows no `accelerator work id next`",
           "passed": true,
-          "evidence": "commands.md: \"No `accelerator work id next` is called\" (no such command appears among the calls)"
+          "evidence": "commands.md lists only `work id check`, two `work create` calls and `corpus frontmatter validate`; the only mention is \"`accelerator work id next` is not called\""
         },
         {
           "text": "Both the `--push --dry-run` create and the `--push` create in commands.md carry `--id='0400'`",
           "passed": true,
-          "evidence": "commands.md: \"--push --dry-run --body-file <body-tmp> --id='0400'\" and \"--push --body-file <body-tmp> --id='0400'\""
+          "evidence": "commands.md: \"... --push --dry-run --body-file outputs/body.md --id='0400'\" and \"... --push --body-file outputs/body.md --id='0400'\""
         },
         {
           "text": "No command in commands.md carries `--project`",
           "passed": true,
-          "evidence": "commands.md: \"No `--project` is passed.\"; none of the commands include it"
+          "evidence": "commands.md: neither create command nor the validate command includes `--project`; project ENG comes from config (\"jira\tStory\tconfigured\tENG\tconfigured\")"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:c985392e2c80c5874e879c943435150fd13cc4340650c94db381dcc4d1c1ef90"
+      "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
     },
     {
       "eval_id": 41,
@@ -3452,25 +3452,26 @@
         {
           "text": "commands.md shows `accelerator work id check -- '0401'` after the refused dry-run",
           "passed": true,
-          "evidence": "Command 2 `accelerator work id check -- '0401'` (exit 0) follows command 1, the dry-run that exited 4 with E_ID_TAKEN."
+          "evidence": "commands.md step 3, after the exit-4 E_ID_TAKEN dry-run in step 2: `accelerator work id check -- '0401'` -> `exact\t0401`"
         },
         {
           "text": "The dry-run and the `--push` create after it both carry `--id='0401'`",
           "passed": true,
-          "evidence": "Command 3 (`--push --dry-run ... --id='0401'`) and command 4 (`--push ... --id='0401'`) both end with --id='0401'."
+          "evidence": "commands.md step 4: `... --push --dry-run --body-file /tmp/create-work-item-body.md --id='0401'`; step 5: `... --push --body-file /tmp/create-work-item-body.md --id='0401'`"
         },
         {
           "text": "response.md asks no business-context question again",
           "passed": true,
-          "evidence": "response.md only reports the refusal, asks 'Which ID would you like to use instead?', and presents the push offer; no business-context questions."
+          "evidence": "response.md asks only the ID-recovery choice, \"Which ID would you like to use instead?\", and the push offer; it says \"the approved draft is unchanged\" and asks nothing about the item's content"
         },
         {
           "text": "body.md is the approved draft unchanged, with NNNN still in its H1",
           "passed": true,
-          "evidence": "body.md starts '# NNNN: Dark mode toggle' and matches the approved Summary/Requirements/Acceptance Criteria/References verbatim."
+          "evidence": "body.md: \"# NNNN: Dark mode toggle\"; commands.md: \"contents in body.md, `NNNN` left literal\""
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
     },
     {
       "eval_id": 49,
@@ -3555,25 +3556,26 @@
         {
           "text": "response.md relays the E_ID_TAKEN message verbatim",
           "passed": true,
-          "evidence": "response.md quotes 'Error: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.' exactly"
+          "evidence": "response.md: \"Error: E_ID_TAKEN: '0400' is already held by meta/work/0400-search-filters.md as its id '0400'. Choose another ID, or let the next number be allocated.\" (identical to commands.md stderr)"
         },
         {
           "text": "questions.md offers naming another ID, allocating automatically and cancelling",
           "passed": true,
-          "evidence": "Question 2 options: 'Name another ID', 'Allocate automatically', 'Cancel'"
+          "evidence": "questions.md #2: \"Name another ID\", \"Allocate automatically\", \"Cancel\""
         },
         {
           "text": "After the refusal, commands.md shows `accelerator work id check -- '0401'`, then the dry-run, then the `--push` create, in that order, the last two carrying `--id='0401'`",
           "passed": true,
-          "evidence": "Commands 3-5: 'accelerator work id check -- '0401'', dry-run with --id='0401', push create with --id='0401'"
+          "evidence": "commands.md steps 4-6: \"accelerator work id check -- '0401'\", then \"... --push --dry-run ... --id='0401'\", then \"... --push --body-file ... --id='0401'\""
         },
         {
           "text": "response.md asks no business-context question again",
           "passed": true,
-          "evidence": "Only questions after refusal are the recovery choice and 'Which ID would you like to use instead?'; no business-context questions"
+          "evidence": "response.md's only question after the refusal is \"Which ID would you like to use instead?\"; it then pushes \"with the approved draft unchanged\""
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
     },
     {
       "eval_id": 52,
@@ -3934,30 +3936,31 @@
         {
           "text": "commands.md shows `accelerator work id next` after the refused `--push` create",
           "passed": true,
-          "evidence": "Command 3 `accelerator work id next` (exit 0, `0412`) follows command 2, the `--push` create that exited 4 with E_ID_TAKEN."
+          "evidence": "commands.md: step 2 exits 4 with E_ID_TAKEN, then step 3 `accelerator work id next` -> stdout `0412`"
         },
         {
           "text": "response.md states the new projected ID 0412",
           "passed": true,
-          "evidence": "\"The next available ID is **0412**, so the item will be created as 0412.\""
+          "evidence": "response.md: \"The next ID will be **0412**.\""
         },
         {
           "text": "After `work id next`, commands.md shows the dry-run, then the `--push` create, neither carrying `--id`",
           "passed": true,
-          "evidence": "Command 4 `... --push --dry-run --body-file ...` and command 5 `... --push --body-file ...`, neither has `--id`."
+          "evidence": "commands.md: step 4 `work create ... --push --dry-run --body-file .../body.md` and step 5 `work create ... --push --body-file .../body.md`, no --id on either"
         },
         {
           "text": "response.md asks no business-context question again, and body.md is the approved draft unchanged",
           "passed": true,
-          "evidence": "response.md only presents the push gate and ID recovery questions; body.md matches the approved draft H1 through References verbatim."
+          "evidence": "response.md only asks push gate and ID recovery; \"Re-running the push preview and then the push with your approved draft unchanged\"; the same body.md path is passed to every create in commands.md"
         },
         {
           "text": "The first dry-run and the first `--push` create both carry `--id='0400'`",
           "passed": true,
-          "evidence": "Commands 1 and 2 both end with `--id='0400'`."
+          "evidence": "commands.md: step 1 `... --push --dry-run ... --id='0400'` and step 2 `... --push --body-file ... --id='0400'`"
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
     },
     {
       "eval_id": 67,
@@ -4313,20 +4316,21 @@
         {
           "text": "commands.md shows `accelerator work id check -- '0401'` before response.md asks any business-context question",
           "passed": true,
-          "evidence": "commands.md step 2 is `accelerator work id check -- '0401'` (exit 0, `exact\t0401`). response.md first asks business-context questions in message 3, headed \"After `accelerator work id check -- '0401'` (exit 0, `exact\t0401`)\". Messages 1-2 before that only deal with recovering from the taken ID."
+          "evidence": "commands.md step 2: `accelerator work id check -- '0401'` (exit 0, `exact\t0401`); response.md's first business-context questions appear in \"Message 3 (after `work id check -- '0401'`)\"; Messages 1-2 only handle the ID."
         },
         {
           "text": "response.md goes on to ask business-context questions and present a draft",
           "passed": true,
-          "evidence": "Message 3 asks \"What pain point does this address, and who experiences it...\" and four more questions. Message 5 says \"Here's my draft work item\" and shows the full draft, starting at the `# NNNN: Dark mode toggle` heading."
+          "evidence": "response.md Message 3: \"What pain point does this address, and who experiences it...\"; Message 5: \"Here's my draft work item...\" followed by the markdown draft."
         },
         {
           "text": "The dry-run and the `--push` create in commands.md both carry `--id='0401'`",
           "passed": true,
-          "evidence": "Step 3 is `accelerator work create \"Dark mode toggle\" story medium --push --dry-run --body-file <body-tmp> --id='0401'`. Step 4 is `... --push --body-file <body-tmp> --id='0401'`."
+          "evidence": "commands.md step 3: `work create ... --push --dry-run ... --id='0401'`; step 4: `work create ... --push --body-file ... --id='0401'`."
         }
       ],
-      "notes": []
+      "notes": [],
+      "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
     },
     {
       "eval_id": 64,
@@ -4579,6 +4583,7 @@
     "Evals 37, 38, 39, 56, 62, 64 and 65 were re-run with_skill only on 2026-11-16, by claude-opus-5-5, after the refusal routing section became *Refusals before anything is read* and said `work resolve` refuses only an untrusted corpus; evals 73 (`E_REKEY_REQUIRED` from `work resolve`) and 74 (`E_WORK_ITEM_MALFORMED` from `work id check`) were added and run alongside. Executors were barred from reading evals.json and the benchmark and simulated every accelerator call; separate grader agents judged each expectation from the executor's outputs alone. Every run passes in full. `metadata.skill_digest` records the SKILL.md and evals.json these runs were graded against.",
     "Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand.",
     "Evals 7, 12 and 40 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `work create` always writes `tags` and leaves only the typed-linkage keys and `external_id` out when empty: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full.",
-    "Evals 12, 40 and 49 were re-run with_skill on 2026-11-19, by claude-sonnet-5-5, after Step 5 came to name the keys `work create` leaves out when empty without calling them the only ones, since `aliases` is never written at creation either: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full."
+    "Evals 12, 40 and 49 were re-run with_skill on 2026-11-19, by claude-sonnet-5-5, after Step 5 came to name the keys `work create` leaves out when empty without calling them the only ones, since `aliases` is never written at creation either: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full.",
+    "Evals 40, 48, 51, 62 and 66 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the write-once row and the confirmation came to relay a rewritten-on-push warning: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All five pass in full."
   ]
 }
