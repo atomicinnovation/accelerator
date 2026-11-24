@@ -2602,6 +2602,40 @@ pub trait research::topic::question::UnicodeText
 pub fn research::topic::question::UnicodeText::fold(&self, text: &str) -> alloc::string::String
 pub fn research::topic::question::UnicodeText::is_hidden(&self, character: char) -> bool
 pub fn research::topic::question::plain_question_breach(text: &str, unicode: &dyn research::topic::question::UnicodeText) -> core::option::Option<research::topic::question::PlainQuestionRule>
+pub mod research::topic::sources_section
+pub mod research::topic::sources_section::tier_text
+pub struct research::topic::sources_section::tier_text::NotTierText(_)
+impl research::topic::sources_section::tier_text::NotTierText
+pub fn research::topic::sources_section::tier_text::NotTierText::into_text(self) -> alloc::string::String
+pub fn research::topic::sources_section::tier_text::NotTierText::text(&self) -> &str
+impl core::clone::Clone for research::topic::sources_section::tier_text::NotTierText
+pub fn research::topic::sources_section::tier_text::NotTierText::clone(&self) -> research::topic::sources_section::tier_text::NotTierText
+impl core::cmp::Eq for research::topic::sources_section::tier_text::NotTierText
+impl core::cmp::PartialEq for research::topic::sources_section::tier_text::NotTierText
+pub fn research::topic::sources_section::tier_text::NotTierText::eq(&self, other: &research::topic::sources_section::tier_text::NotTierText) -> bool
+impl core::error::Error for research::topic::sources_section::tier_text::NotTierText
+impl core::fmt::Debug for research::topic::sources_section::tier_text::NotTierText
+pub fn research::topic::sources_section::tier_text::NotTierText::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::topic::sources_section::tier_text::NotTierText
+pub fn research::topic::sources_section::tier_text::NotTierText::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::tier_text::NotTierText
+pub struct research::topic::sources_section::tier_text::TierText
+impl research::topic::sources_section::tier_text::TierText
+pub fn research::topic::sources_section::tier_text::TierText::also(&self) -> &[research::sources::record::Tier]
+pub const fn research::topic::sources_section::tier_text::TierText::base(&self) -> research::sources::record::Tier
+pub fn research::topic::sources_section::tier_text::TierText::parse(text: &str) -> core::result::Result<Self, research::topic::sources_section::tier_text::NotTierText>
+pub const fn research::topic::sources_section::tier_text::TierText::retracted(&self) -> bool
+pub const fn research::topic::sources_section::tier_text::TierText::withdrawn(&self) -> bool
+impl core::clone::Clone for research::topic::sources_section::tier_text::TierText
+pub fn research::topic::sources_section::tier_text::TierText::clone(&self) -> research::topic::sources_section::tier_text::TierText
+impl core::cmp::Eq for research::topic::sources_section::tier_text::TierText
+impl core::cmp::PartialEq for research::topic::sources_section::tier_text::TierText
+pub fn research::topic::sources_section::tier_text::TierText::eq(&self, other: &research::topic::sources_section::tier_text::TierText) -> bool
+impl core::fmt::Debug for research::topic::sources_section::tier_text::TierText
+pub fn research::topic::sources_section::tier_text::TierText::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::topic::sources_section::tier_text::TierText
+pub fn research::topic::sources_section::tier_text::TierText::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::tier_text::TierText
 pub mod research::topic::tree
 pub enum research::topic::tree::Stage
 pub research::topic::tree::Stage::Compose(alloc::vec::Vec<research::topic::layout::lineage::Lineage>)
