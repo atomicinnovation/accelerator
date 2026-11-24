@@ -45,7 +45,7 @@ pub fn fragments(markdown: &str, heading_marker: &str) -> Fragments {
     sections.extend(current);
     sections
         .into_iter()
-        .map(|(code, body)| (code, body.trim().to_owned()))
+        .map(|(code, body)| (code, body.trim_matches('\n').to_owned()))
         .collect()
 }
 
