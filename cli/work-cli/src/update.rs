@@ -263,30 +263,26 @@ fn push_update(
         .digests(rendered, read_back)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     let fidelity = digester.comparison().push_fidelity(rendered, read_back);
-    baseline_store
+    let recorded = baseline_store
         .record(
             &id,
             pushed_entry(remote, fingerprints),
             MarkChange::Judged(&fidelity),
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
-    let mut warnings = Vec::new();
-    if let Ok((recorded, _)) = baseline_store.load() {
-        warnings = rewrite_warnings(
-            fidelity,
-            recorded.get(&id),
-            (path, &external_id),
-            &integration,
-        );
-        work_adapters::sync::adoption_records::retire_confirmed(
-            &integrations_root,
-            &integration,
-            &baseline_writer,
-            &recorded,
-        );
-    }
+    work_adapters::sync::adoption_records::retire_confirmed(
+        &integrations_root,
+        &integration,
+        &baseline_writer,
+        &recorded,
+    );
 
-    Ok(warnings)
+    Ok(rewrite_warnings(
+        fidelity,
+        recorded.get(&id),
+        (path, &external_id),
+        &integration,
+    ))
 }
 
 /// The baseline entry a push records from its read-back; an unread remote

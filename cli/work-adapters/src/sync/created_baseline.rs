@@ -39,7 +39,7 @@ pub fn record_created_baseline(
         }
         BaselineFingerprints::Legacy(_) => Entry::Legacy { stamps, legacy },
     };
-    baseline.record(item_id, entry, change)
+    baseline.record(item_id, entry, change).map(drop)
 }
 
 #[cfg(test)]

@@ -100,7 +100,7 @@ impl<'a> BaselineStore<'a> {
 
     /// Writes `id`'s entry, its rewrite mark as `change` leaves the one
     /// recorded before, and keeping every key the earlier entry held that
-    /// this build does not know.
+    /// this build does not know. Returns the baseline as written.
     ///
     /// # Errors
     ///
@@ -110,7 +110,7 @@ impl<'a> BaselineStore<'a> {
         id: &str,
         entry: Entry,
         change: MarkChange<'_>,
-    ) -> Result<(), StoreError> {
+    ) -> Result<Baseline, StoreError> {
         let (mut baseline, _) = self.load()?;
         let entry = match (entry, baseline.get(id)) {
             (Entry::Split(recorded), Some(Entry::Split(previous))) => {
@@ -122,7 +122,8 @@ impl<'a> BaselineStore<'a> {
             (entry, _) => entry,
         };
         baseline.set(id, entry);
-        self.write_document(&baseline)
+        self.write_document(&baseline)?;
+        Ok(baseline)
     }
 
     /// Writes `id`'s entry exactly as given, for a test to start from.
@@ -552,6 +553,49 @@ mod tests {
         )?;
 
         assert!(matches!(mark_after(&file, &store)?, MarkState::Marked(_)));
+        Ok(())
+    }
+
+    struct ReadOnce<'file> {
+        file: &'file MemoryFile,
+        reads: RefCell<usize>,
+    }
+
+    impl FileReader for ReadOnce<'_> {
+        fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+            *self.reads.borrow_mut() += 1;
+            if *self.reads.borrow() > 1 {
+                return Err(kernel::Error::Failed(
+                    "the disk went away".to_owned(),
+                ));
+            }
+            self.file.read(path)
+        }
+    }
+
+    #[test]
+    fn a_record_returns_the_baseline_it_wrote_without_reading_it_again(
+    ) -> Result<(), StoreError> {
+        let rewritten = rewrite();
+        let file = MemoryFile::default();
+        let reader = ReadOnce {
+            file: &file,
+            reads: RefCell::new(0),
+        };
+        let store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &reader, &file);
+
+        let recorded = store.record(
+            "0001",
+            recorded_entry(),
+            MarkChange::Fresh(&rewritten),
+        )?;
+
+        let Some(Entry::Split(entry)) = recorded.get("0001") else {
+            panic!("a split entry: {}", stored(&file));
+        };
+        assert!(matches!(entry.mark(), MarkState::Marked(_)));
+        assert_eq!(recorded.render(), stored(&file));
         Ok(())
     }
 

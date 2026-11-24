@@ -1163,6 +1163,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 ),
                 change,
             )
+            .map(drop)
             .map_err(|error| StepError::Failed(error.to_string()))
     }
 
