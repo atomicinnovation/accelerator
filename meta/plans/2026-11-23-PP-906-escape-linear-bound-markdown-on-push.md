@@ -5,7 +5,7 @@ title: "Escape Linear-Bound Markdown on Push Implementation Plan"
 date: "2026-11-23T21:16:00+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:PP-906"
 parent: "work-item:PP-906"
 derived_from: ["codebase-research:2026-11-23-PP-906-linear-push-corrupts-markdown-content"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T00:19:49+00:00"
+last_updated: "2026-11-24T00:34:48+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -331,15 +331,15 @@ and note that `--description` and `--body-file` cannot be combined. Add an
 
 #### Automated Verification:
 
-- [ ] Flow tests pass: `mise run test:unit:cli --filter 'binary(flow_update) | binary(flow_create)'`
-- [ ] Exit-code parity holds: `mise run test:unit:cli --filter 'binary(exit_codes_parity)'`
-- [ ] Diagnostics and surface hold: `mise run test:unit:cli --filter 'binary(stderr_diagnostics) | binary(cli_surface)'`
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] Flow tests pass: `mise run test:unit:cli --filter 'binary(flow_update) | binary(flow_create)'`
+- [x] Exit-code parity holds: `mise run test:unit:cli --filter 'binary(exit_codes_parity)'`
+- [x] Diagnostics and surface hold: `mise run test:unit:cli --filter 'binary(stderr_diagnostics) | binary(cli_surface)'`
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] `accelerator linear update --help` lists `--body-file` beside `--description`
+- [x] `accelerator linear update --help` lists `--body-file` beside `--description`
 
 ---
 
