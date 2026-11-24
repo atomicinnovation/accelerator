@@ -1774,6 +1774,7 @@ impl core::fmt::Debug for work::section_diff::SectionDiff
 pub fn work::section_diff::SectionDiff::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::section_diff::SectionDiff
 pub fn work::section_diff::differing_sections(local: &work::section_diff::ComparableItem<'_>, remote: &work::section_diff::ComparableItem<'_>) -> alloc::vec::Vec<work::section_diff::SectionDiff>
+pub fn work::section_diff::differing_sections_as_written(local: &work::section_diff::ComparableItem<'_>, remote: &work::section_diff::ComparableItem<'_>) -> alloc::vec::Vec<work::section_diff::SectionDiff>
 pub fn work::section_diff::frontmatter_and_body(content: &str) -> (alloc::string::String, alloc::string::String)
 pub mod work::show
 pub fn work::show::read_field_raw(frontmatter: &str, field: &str) -> core::option::Option<alloc::string::String>
