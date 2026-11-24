@@ -800,3 +800,13 @@ fn every_work_item_body_escapes_safely() -> std::io::Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn a_numeric_email_host_is_escaped() {
+    assert_escapes("a@1.2.3.4", "a@1\\.2\\.3\\.4");
+}
+
+#[test]
+fn a_bare_ip_address_is_left_alone() {
+    assert_unescaped("1.2.3.4 127.0.0.1:8080");
+}

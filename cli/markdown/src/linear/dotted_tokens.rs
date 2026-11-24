@@ -1,5 +1,6 @@
 //! A bare host name, such as `crates.io` or `jql.rs:167`, which Linear's
-//! parser links when its last label is a top-level domain.
+//! parser links when its last label is a top-level domain, or when it is the
+//! numeric host of an email address.
 
 use std::ops::Range;
 
@@ -22,13 +23,19 @@ pub(super) fn escapes(markdown: &str, events: &Parsed) -> Vec<Escape> {
 pub(super) fn linkable_tokens(
     run: &TextRun,
 ) -> impl Iterator<Item = DottedToken<'_>> {
-    words(&run.characters)
-        .into_iter()
-        .flat_map(DottedToken::in_word)
-        .filter(DottedToken::is_linkable)
+    words(&run.characters).into_iter().flat_map(|word| {
+        DottedToken::in_word(word.characters)
+            .into_iter()
+            .filter(move |token| token.is_linkable(&word))
+    })
 }
 
-fn words(characters: &[RunCharacter]) -> Vec<&[RunCharacter]> {
+struct Word<'run> {
+    characters: &'run [RunCharacter],
+    follows_at_sign: bool,
+}
+
+fn words(characters: &[RunCharacter]) -> Vec<Word<'_>> {
     let mut in_url = vec![false; characters.len()];
     for span in SchemeUrl::spans(characters) {
         in_url[span].fill(true);
@@ -40,16 +47,29 @@ fn words(characters: &[RunCharacter]) -> Vec<&[RunCharacter]> {
         match (start, is_word_character) {
             (None, true) => start = Some(index),
             (Some(word_start), false) => {
-                words.push(&characters[word_start..index]);
+                words.push(Word::of(characters, word_start..index));
                 start = None;
             }
             _ => {}
         }
     }
     if let Some(word_start) = start {
-        words.push(&characters[word_start..]);
+        words.push(Word::of(characters, word_start..characters.len()));
     }
     words
+}
+
+impl<'run> Word<'run> {
+    fn of(characters: &'run [RunCharacter], word: Range<usize>) -> Self {
+        let follows_at_sign = word
+            .start
+            .checked_sub(1)
+            .is_some_and(|preceding| characters[preceding].character == '@');
+        Self {
+            characters: &characters[word],
+            follows_at_sign,
+        }
+    }
 }
 
 fn is_word(character: char) -> bool {
@@ -64,6 +84,7 @@ fn is_label(character: char) -> bool {
 pub(super) struct DottedToken<'run> {
     characters: &'run [RunCharacter],
     host_length: usize,
+    starts_word: bool,
 }
 
 impl<'run> DottedToken<'run> {
@@ -107,6 +128,7 @@ impl<'run> DottedToken<'run> {
             tokens.push(Self {
                 characters: &word[start..index],
                 host_length: host_end - start,
+                starts_word: start == 0,
             });
         }
         tokens
@@ -124,9 +146,17 @@ impl<'run> DottedToken<'run> {
             .collect()
     }
 
-    fn is_linkable(&self) -> bool {
+    fn is_linkable(&self, word: &Word<'_>) -> bool {
         let last_label = self.last_label();
-        is_top_level_domain(&last_label) || !last_label.is_ascii()
+        is_top_level_domain(&last_label)
+            || !last_label.is_ascii()
+            || (word.follows_at_sign && self.starts_word && self.is_numeric())
+    }
+
+    fn is_numeric(&self) -> bool {
+        self.characters[..self.host_length]
+            .iter()
+            .all(|run| run.character == '.' || run.character.is_ascii_digit())
     }
 
     fn unescaped_dots(self) -> impl Iterator<Item = usize> + 'run {
