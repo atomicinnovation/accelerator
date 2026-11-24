@@ -740,20 +740,41 @@ cannot leave an edited manifest behind.
 
 #### Automated Verification:
 
-- [ ] Frontend unit tests, including the boundary test, pass:
+- [x] Frontend unit tests, including the boundary test, pass:
       `mise run test:unit:frontend`
-- [ ] e2e passes: `mise run test:e2e:visualiser`
-- [ ] No reference to `path-utils` remains:
+- [x] e2e passes: `mise run test:e2e:visualiser`
+- [x] No reference to `path-utils` remains:
       `rg -n "path-utils|fileSlug" --glob '!**/testing/**' cli/visualiser/frontend`
       prints nothing
-- [ ] Full default task passes: `mise run`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] With the visualiser running against a repo with two sets, editing the
+- [x] With the visualiser running against a repo with two sets, editing the
       second set's manifest adds an activity row that opens the second set.
-- [ ] Deleting a plan leaves its activity row as plain text once the
-      listing refetches, with no hover or focus affordance.
+      Checked with headless Chromium against a scratch repo holding sets
+      `alpha` and `beta` and one plan: editing `beta`'s manifest added a row
+      linking to `/library/topic-research/beta`, which opened "Set beta".
+- [x] Deleting a plan leaves its activity row as plain text once the
+      listing refetches, with no hover or focus affordance. In the same
+      scratch repo, after the plan was deleted both its rows (edited and
+      deleted) rendered as a `div` with no link, no tab stop and no hover
+      background, while the linked set row still gained one on hover.
+
+#### Implementation Notes:
+
+- `RootLayout.test.tsx` mocks `useQuery` from `@tanstack/react-query` with
+  no `QueryClientProvider`, so it now also mocks `useQueries`; the feed's
+  listing lookup would otherwise throw for want of a query client.
+- The boundary rules module also exports `isLibraryDocumentAddressModule`,
+  which the production scan uses to assert that the glob found the address
+  module.
+- The e2e fixture snapshot is now keyed by path relative to the fixtures'
+  `meta/` directory rather than by bare work-item filename. A snapshot left
+  by an interrupted run from before this change would restore into the wrong
+  place; delete `.e2e-fixture-snapshot.json` if one exists.
+- The activity-row e2e specs each wait for the LIVE badge before editing, so
+  the SSE subscription is open when the watcher reports the edit.
 
 ---
 
