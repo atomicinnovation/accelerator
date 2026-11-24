@@ -534,11 +534,19 @@ and `.../design-inventories/*/inventory.md`
 
 #### Manual Verification:
 
-- [ ] In a repo with two topic-research sets, a plan whose `relates_to` names
+- [x] In a repo with two topic-research sets, a plan whose `relates_to` names
       the second set links to it from its related items, and the link opens
-      that set.
-- [ ] A lifecycle cluster holding a design inventory links to that
-      inventory's own page.
+      that set. I checked this with headless Chromium against a scratch repo
+      holding sets `alpha` and `beta`, inventories `2026-11-01-alpha` and
+      `2026-11-02-beta`, a plan and a work item. The visualiser draws no
+      declared relation from `relates_to`, so the set reaches the plan's
+      related items as an inferred cluster sibling through its shared slug
+      `beta`. The row linked to `/library/topic-research/beta` and opened
+      the beta set. `/library/topic-research/manifest` still opened alpha.
+- [x] A lifecycle cluster holding a design inventory links to that
+      inventory's own page. In the same scratch repo, the `beta` cluster's
+      inventory card linked to `/library/design-inventories/2026-11-02-beta`
+      and opened the beta inventory, not the alpha one that sorts first.
 
 #### Implementation Notes:
 
