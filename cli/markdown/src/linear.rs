@@ -1,6 +1,9 @@
 //! Markdown as Linear's API parser reads it.
 
 mod digit_rule;
+mod dotted_tokens;
+mod scheme_urls;
+mod text_runs;
 mod top_level_domains;
 
 use std::ops::Range;
@@ -10,6 +13,8 @@ use document::markdown::{events, MarkdownEvent};
 use crate::{spliced, Splice};
 
 pub use top_level_domains::is_top_level_domain;
+
+use self::text_runs::TextRun;
 
 /// `markdown` with a backslash before each `.` or `)` that Linear's parser
 /// would read as an ordered-list marker or part of a link.
@@ -23,7 +28,19 @@ pub fn escape_for_push(markdown: &str) -> String {
 
 fn proposed_escapes(markdown: &str) -> Vec<Escape> {
     let events = events(markdown);
-    digit_rule::escapes(markdown, &events)
+    let mut escapes = digit_rule::escapes(markdown, &events);
+    escapes.extend(dotted_tokens::escapes(markdown, &events));
+    escapes
+}
+
+/// The byte ranges of `text`, read as plain text rather than Markdown, that
+/// Linear's parser would link as bare host names, each with its port.
+pub fn dotted_tokens(text: &str) -> impl Iterator<Item = Range<usize>> {
+    let run = TextRun::plain(text);
+    dotted_tokens::linkable_tokens(&run)
+        .map(|token| token.source())
+        .collect::<Vec<_>>()
+        .into_iter()
 }
 
 fn escaped_or_original(markdown: &str, escapes: Vec<Escape>) -> String {

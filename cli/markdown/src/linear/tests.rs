@@ -2,8 +2,11 @@ use std::ops::Range;
 
 use document::markdown::{events, MarkdownEvent, MarkdownTag};
 
+use super::dotted_tokens::DottedToken;
+use super::scheme_urls::SchemeUrl;
+use super::text_runs::TextRun;
 use super::{
-    escape_for_push, escaped_or_original, is_top_level_domain,
+    dotted_tokens, escape_for_push, escaped_or_original, is_top_level_domain,
     proposed_escapes, reads_alike, with_escapes, Escape,
 };
 
@@ -390,4 +393,410 @@ fn an_escape_that_changes_the_reading_is_abandoned() {
         escaped_or_original(markdown, vec![Escape { before: 7 }]),
         markdown
     );
+}
+
+#[test]
+fn file_names_and_hosts_ending_in_a_top_level_domain_are_escaped() {
+    assert_escapes(
+        "lib.rs README.md a.b.io:12",
+        "lib\\.rs README\\.md a\\.b\\.io:12",
+    );
+}
+
+#[test]
+fn tokens_ending_in_other_labels_are_left_alone() {
+    assert_unescaped("config.yaml v1.2.3 e.g. a.b.c");
+}
+
+#[test]
+fn a_top_level_domain_in_capitals_is_escaped() {
+    assert_escapes("Crates.IO", "Crates\\.IO");
+}
+
+#[test]
+fn a_partly_escaped_token_has_its_other_dots_escaped() {
+    assert_escapes("a.b\\.io", "a\\.b\\.io");
+}
+
+#[test]
+fn a_sentence_final_dot_is_left_alone() {
+    assert_escapes("crates.io.", "crates\\.io.");
+}
+
+#[test]
+fn a_bracketed_token_is_escaped() {
+    assert_escapes("(crates.io)", "(crates\\.io)");
+}
+
+#[test]
+fn a_token_ending_a_path_is_escaped() {
+    assert_escapes("src/client.rs", "src/client\\.rs");
+}
+
+#[test]
+fn an_email_host_is_escaped() {
+    assert_escapes("a@b.io", "a@b\\.io");
+}
+
+#[test]
+fn every_dot_of_a_multi_label_host_is_escaped() {
+    assert_escapes("www.crates.io", "www\\.crates\\.io");
+}
+
+#[test]
+fn a_token_keeps_its_port_but_not_a_label_after_a_colon() {
+    assert_escapes("jql.rs:167 and jql.rs:x", "jql\\.rs:167 and jql\\.rs:x");
+}
+
+#[test]
+fn a_token_in_bold_is_escaped() {
+    assert_escapes("**crates.io**", "**crates\\.io**");
+}
+
+#[test]
+fn a_token_in_a_heading_is_escaped() {
+    assert_escapes("# crates.io", "# crates\\.io");
+}
+
+#[test]
+fn a_token_in_a_table_cell_is_escaped() {
+    assert_escapes("| crates.io |\n| - |\n", "| crates\\.io |\n| - |\n");
+}
+
+#[test]
+fn a_scheme_url_is_left_alone() {
+    assert_unescaped("https://crates.io/x.");
+}
+
+#[test]
+fn a_bracketed_scheme_url_is_left_alone() {
+    assert_unescaped("(see https://crates.io)");
+}
+
+#[test]
+fn a_mailto_url_is_left_alone() {
+    assert_unescaped("mailto:a@b.io");
+}
+
+#[test]
+fn a_token_after_a_sentence_final_scheme_url_is_escaped() {
+    assert_escapes(
+        "see https://crates.io/x. then crates.io",
+        "see https://crates.io/x. then crates\\.io",
+    );
+}
+
+#[test]
+fn a_token_after_a_bracketed_scheme_url_is_escaped() {
+    assert_escapes(
+        "(https://crates.io). then crates.io",
+        "(https://crates.io). then crates\\.io",
+    );
+}
+
+#[test]
+fn an_emphasised_scheme_url_is_left_alone() {
+    assert_unescaped("*https://crates.io*");
+}
+
+#[test]
+fn an_underscore_emphasised_scheme_url_is_left_alone() {
+    assert_unescaped("_https://crates.io_");
+}
+
+#[test]
+fn a_struck_scheme_url_is_left_alone() {
+    assert_unescaped("~https://crates.io~");
+}
+
+#[test]
+fn a_quoted_scheme_url_is_left_alone() {
+    assert_unescaped("\"https://crates.io/x\"");
+}
+
+#[test]
+fn a_scheme_url_after_a_colon_is_left_alone() {
+    assert_unescaped("URL:https://crates.io");
+}
+
+#[test]
+fn schemes_in_any_case_are_left_alone() {
+    assert_unescaped("HTTPS://crates.io ftp://crates.io");
+}
+
+#[test]
+fn a_scheme_url_ends_at_an_angle_bracket() {
+    assert_unescaped("https://crates.io>x");
+}
+
+#[test]
+fn a_host_after_an_unlinked_scheme_is_escaped() {
+    assert_escapes(
+        "ssh://github.com xhttps://crates.io",
+        "ssh://github\\.com xhttps://crates\\.io",
+    );
+}
+
+#[test]
+fn a_token_after_a_scheme_url_closing_a_bracket_is_escaped() {
+    assert_escapes(
+        "https://crates.io). then crates.io",
+        "https://crates.io). then crates\\.io",
+    );
+}
+
+#[test]
+fn a_token_after_non_ascii_text_is_escaped() {
+    assert_escapes("naïve — crates.io", "naïve — crates\\.io");
+}
+
+#[test]
+fn labels_hold_unicode_letters() {
+    assert_escapes("café.io 日本.jp", "café\\.io 日本\\.jp");
+}
+
+#[test]
+fn a_non_ascii_last_label_is_escaped() {
+    assert_escapes("foo.рф", "foo\\.рф");
+}
+
+#[test]
+fn a_token_after_a_tilde_is_escaped() {
+    assert_escapes("~crates.io", "~crates\\.io");
+}
+
+#[test]
+fn a_www_host_is_escaped() {
+    assert_escapes("www.foo", "www\\.foo");
+}
+
+#[test]
+fn a_markdown_file_name_is_escaped_wherever_it_sits() {
+    assert_escapes(
+        "foo.md/x foo.md:1 a@b.md",
+        "foo\\.md/x foo\\.md:1 a@b\\.md",
+    );
+}
+
+#[test]
+fn a_token_after_a_colon_is_escaped() {
+    assert_escapes("Note:crates.io", "Note:crates\\.io");
+}
+
+#[test]
+fn a_token_after_a_doubled_dot_is_escaped() {
+    assert_escapes("foo..bar.io", "foo..bar\\.io");
+}
+
+#[test]
+fn a_token_after_an_identifier_and_a_colon_is_escaped() {
+    assert_escapes("PP-906:server.pid", "PP-906:server\\.pid");
+}
+
+#[test]
+fn a_dot_after_an_escaped_backslash_is_left_alone() {
+    assert_unescaped("crates\\\\.io");
+}
+
+#[test]
+fn a_dot_written_as_an_entity_is_left_alone() {
+    assert_unescaped("crates&#46;io");
+}
+
+#[test]
+fn a_token_in_a_code_span_is_left_alone() {
+    assert_unescaped("`crates.io`");
+}
+
+#[test]
+fn a_token_in_a_fenced_code_block_is_left_alone() {
+    assert_unescaped("```\ncrates.io\n```\n");
+}
+
+#[test]
+fn a_token_in_an_indented_code_block_is_left_alone() {
+    assert_unescaped("    crates.io\n");
+}
+
+#[test]
+fn a_token_in_link_text_is_left_alone() {
+    assert_unescaped("[crates.io](u)");
+}
+
+#[test]
+fn a_token_in_a_link_destination_is_left_alone() {
+    assert_unescaped("[t](https://crates.io)");
+}
+
+#[test]
+fn a_token_in_an_autolink_is_left_alone() {
+    assert_unescaped("<https://crates.io>");
+}
+
+#[test]
+fn a_token_in_an_html_block_is_left_alone() {
+    assert_unescaped("<div>\ncrates.io\n</div>\n");
+}
+
+#[test]
+fn a_token_in_a_tag_attribute_is_left_alone() {
+    assert_unescaped("<a href=\"https://crates.io\">t</a>");
+}
+
+#[test]
+fn an_escaped_token_is_left_alone() {
+    assert_unescaped("crates\\.io");
+}
+
+#[test]
+fn a_token_between_inline_tags_is_escaped() {
+    assert_escapes("<span>crates.io</span>", "<span>crates\\.io</span>");
+}
+
+#[test]
+fn an_entity_bounds_a_token() {
+    assert_escapes("a&amp;crates.io", "a&amp;crates\\.io");
+}
+
+#[test]
+fn dotted_tokens_in_plain_text_include_their_port() {
+    let text = "see jql.rs:167, a.b.c and https://crates.io then www.foo.";
+    let tokens: Vec<&str> =
+        dotted_tokens(text).map(|token| &text[token]).collect();
+    assert_eq!(tokens, ["jql.rs:167", "www.foo"]);
+}
+
+fn run_texts(markdown: &str) -> Vec<String> {
+    TextRun::from_events(markdown, &events(markdown))
+        .iter()
+        .map(|run| run.characters.iter().map(|run| run.character).collect())
+        .collect()
+}
+
+#[test]
+fn a_text_run_reads_through_an_escape() {
+    assert_eq!(run_texts("see crates\\.io"), ["see crates.io"]);
+}
+
+#[test]
+fn a_text_run_marks_only_the_escaped_character() {
+    let markdown = "a.b\\.io";
+    let escaped: Vec<(char, usize)> =
+        TextRun::from_events(markdown, &events(markdown))[0]
+            .characters
+            .iter()
+            .filter(|run| run.escaped)
+            .map(|run| (run.character, run.source))
+            .collect();
+    assert_eq!(escaped, [('.', 4)]);
+}
+
+#[test]
+fn text_runs_end_at_breaks_tags_code_and_entities() {
+    assert_eq!(
+        run_texts("a\nb <i>c</i> `d` e&amp;f **g**"),
+        ["a", "b ", "c", " ", " e", "f ", "g"]
+    );
+}
+
+#[test]
+fn text_runs_skip_links_and_images() {
+    assert_eq!(run_texts("a [b](u) ![c](v) d"), ["a ", " ", " d"]);
+}
+
+fn url_texts(text: &str) -> Vec<String> {
+    let run = TextRun::plain(text);
+    SchemeUrl::spans(&run.characters)
+        .into_iter()
+        .map(|span| {
+            run.characters[span]
+                .iter()
+                .map(|run| run.character)
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn a_scheme_url_sheds_trailing_punctuation_and_unbalanced_brackets() {
+    assert_eq!(
+        url_texts("(see https://a.io/x_(y)).\" and \"ftp://b.io\"!"),
+        ["https://a.io/x_(y)", "ftp://b.io"]
+    );
+}
+
+#[test]
+fn a_scheme_url_needs_a_boundary_before_it() {
+    assert_eq!(
+        url_texts("xhttps://a.io :mailto:b@c.io a//d.io //e.io"),
+        ["mailto:b@c.io", "//e.io"]
+    );
+}
+
+fn token_texts(word: &str) -> Vec<String> {
+    let run = TextRun::plain(word);
+    DottedToken::in_word(&run.characters)
+        .iter()
+        .map(|token| word[token.source()].to_owned())
+        .collect()
+}
+
+#[test]
+fn a_word_yields_each_dotted_token_it_holds() {
+    assert_eq!(
+        token_texts("Note:a.b.io:12:c.d..e.f.:g"),
+        ["a.b.io:12", "c.d", "e.f"]
+    );
+}
+
+#[test]
+fn a_single_label_is_not_a_dotted_token() {
+    assert_eq!(token_texts("io:12"), Vec::<String>::new());
+}
+
+fn work_item_bodies() -> std::io::Result<Vec<(std::path::PathBuf, String)>> {
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../meta/work");
+    let mut bodies = Vec::new();
+    for entry in std::fs::read_dir(directory)? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|extension| extension == "md") {
+            let content = std::fs::read_to_string(&path)?;
+            bodies.push((path, without_frontmatter(&content).to_owned()));
+        }
+    }
+    Ok(bodies)
+}
+
+fn without_frontmatter(content: &str) -> &str {
+    content
+        .strip_prefix("---\n")
+        .and_then(|rest| rest.split_once("\n---\n"))
+        .map_or(content, |(_, body)| body)
+}
+
+#[test]
+fn every_work_item_body_escapes_safely() -> std::io::Result<()> {
+    let bodies = work_item_bodies()?;
+    assert!(
+        bodies.len() >= 300,
+        "read {} work-item bodies",
+        bodies.len()
+    );
+    for (path, body) in bodies {
+        let path = path.display();
+        let escaped = escape_for_push(&body);
+        assert_eq!(
+            with_escapes(&body, proposed_escapes(&body)),
+            escaped,
+            "{path}: the escapes were abandoned"
+        );
+        assert_eq!(escape_for_push(&escaped), escaped, "{path}: idempotence");
+        assert!(
+            is_insertion_of_backslashes(&body, &escaped),
+            "{path}: insertions only"
+        );
+        assert!(reads_alike(&body, &escaped), "{path}: reads alike");
+    }
+    Ok(())
 }

@@ -1,5 +1,9 @@
 //! Text transformations for Markdown, one module per dialect, that preserve
 //! every byte they do not deliberately change.
+//!
+//! Each dialect reads Markdown as the body it is compared with is read:
+//! `github` with GitHub's extensions, `linear` through `document`, as the
+//! tracker body equivalence does.
 
 use std::ops::Range;
 
