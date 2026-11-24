@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-999"
 work_item_id: "PP-999"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
-last_updated: "2026-11-23T21:18:33+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -197,3 +197,9 @@ drafting agent did, not a reviewer's judgement.
 - 🔵 Contract wording; approved revision; gate wording — Addressed.
 - 🔵 Export form — Corrected twice: the standalone form is one self-contained HTML file, confirmed by inspecting the May 2026 export, so the offline criterion stands.
 - Open: the artboard-format artifact had not finished converting, and its standalone export is assumed, not checked.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

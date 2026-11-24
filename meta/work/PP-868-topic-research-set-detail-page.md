@@ -5,13 +5,13 @@ title: "Topic-Research Set Detail Page"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "ready"
 kind: "story"
 priority: "high"
 parent: "work-item:PP-22"
 relates_to: ["work-item:PP-864", "work-item:PP-865", "work-item:PP-892", "work-item:PP-936"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-23T23:43:43+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"

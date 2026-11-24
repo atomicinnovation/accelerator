@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-1001"
 work_item_id: "PP-1001"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
 tags: []
-last_updated: "2026-11-23T21:18:33+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -445,3 +445,9 @@ drafting agent did, not a reviewer's judgement.
 - 🔵 Fixture size — Addressed: the request count on open must equal that of a one-finding set.
 - Not addressed: one baseline per view where a view has sub-views (the design now letters them; this item still cites views by number).
 - Kept by the author: the story stays whole.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

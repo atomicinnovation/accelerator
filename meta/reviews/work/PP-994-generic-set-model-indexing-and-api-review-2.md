@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-994"
 work_item_id: "PP-994"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 2
 review_pass: 2
 tags: []
-last_updated: "2026-11-23T23:44:05+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -320,3 +320,9 @@ Made after pass 2 and not re-reviewed; the verdict above is the reviewers'.
 - 🟡 Decision deliverables — Kept in the story by the author's decision, as a named first stage with a dated decisions line that releases downstream planning; the nested-doc-root check comes first.
 - 🔵 The activity row no longer carries the set's slug (PP-996 looks it up). Unconfirmed calls are listed in Open Questions.
 - Not addressed: which field carries the set's slug outside search; criteria that assert on "the index".
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

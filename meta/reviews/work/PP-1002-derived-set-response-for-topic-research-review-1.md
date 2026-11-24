@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-1002"
 work_item_id: "PP-1002"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 1
 tags: []
-last_updated: "2026-11-23T23:44:05+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -238,3 +238,9 @@ Made after pass 2 and not re-reviewed; the verdict above is the reviewers'.
 - 🟡 Staleness criteria — Addressed with separated cases.
 - 🟡 Set-level error — Addressed by the author's decision: whatever reads the manifest is absent, for both error inputs.
 - 🔵 Per-request derivation; placement criteria; terms; planning order; PP-923; marker-string check — Addressed.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

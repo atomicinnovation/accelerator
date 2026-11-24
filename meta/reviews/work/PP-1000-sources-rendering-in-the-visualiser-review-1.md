@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-1000"
 work_item_id: "PP-1000"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
-last_updated: "2026-11-23T21:18:33+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -207,3 +207,9 @@ drafting agent did, not a reviewer's judgement.
 - 🔵 Wire-contract owner; Summary; terms; acceptance record — Addressed.
 - Unread lines: shown in a collapsed notice, by the author's decision.
 - The drafting agent's calls on this item were confirmed by the author on 2026-11-23.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.

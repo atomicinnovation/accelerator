@@ -10,12 +10,12 @@ parent: "work-item:PP-868"
 target: "work-item:PP-996"
 work_item_id: "PP-996"
 reviewer: "Toby Clemson"
-verdict: "REVISE"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
-last_updated: "2026-11-23T23:44:05+00:00"
+last_updated: "2026-11-24T00:06:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -234,3 +234,9 @@ Made after pass 2 and not re-reviewed; the verdict above is the reviewers'.
 - 🟡 Slug rule untested for a non-set type — Addressed with a criterion.
 - 🔵 Builder input; "among the six"; observation point; explicit URLs; builder names no doc type — Addressed.
 - Not addressed: the reproduction is still unrun.
+
+## Approval — 2026-11-24
+
+**Verdict:** APPROVE
+
+Approved by the author; not re-reviewed after the changes above.
