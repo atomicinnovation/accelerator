@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T01:32:04+00:00"
+last_updated: "2026-11-24T08:07:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -170,8 +170,8 @@ checks recorded in phases 2, 3, 10, 11 and 12.
 - Changing any local file, or rewriting remote descriptions in bulk.
 - Stripping stored escapes on pull. The probes show Linear stores none of the
   escapes the rules insert; if that changes, PP-880's equivalence still
-  treats `crates\.io` and `crates.io` as one. Phase 3's README confirms it
-  for the capture.
+  treats `crates\.io` and `crates.io` as one. Phase 3's capture (`TES-37`)
+  confirmed it: `escaped/README.md` records no stored escape.
 - Matching Linear's autolinker exactly. The escaper over-escapes the classes
   listed under phase 5's oracle, such as bare `.md` files and tokens after
   `/`, because Linear stores those escapes as plain text.
@@ -1311,8 +1311,8 @@ enum PushEntryPoint {
 `PushEntryPoint`. Each case seeds a local item whose body is
 `NEEDS_BOTH_ESCAPES` and routes the tracker's create or update. Linear's
 mock read-back returns the form `escaped/read-back.json` records for the
-same constructs (`0160\.` and `crates\.io`, or whatever phase 3 captured),
-not the escaper's own output. The test asserts:
+same constructs, plain `0160.` and unlinked `crates.io`, not the escaper's
+own output. The test asserts:
 
 - **Linear.** The sent `description` is the escaped body. For
   `PromotionRetitle`, the create request carries the escaped draft body, the
@@ -2333,7 +2333,7 @@ condition with an explicit `if`, and ends by printing what it found.
      cp "$retry/failed-reads.txt" "$out/failed-reads.txt"
      n=$((n + 1))
    done
-   total=$(grep -c . "$ids")
+   total=$(grep -c . "$ids" || true)
    saved=$(find "$out" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')
    missing=$(grep -c . "$out/not-found.txt" || true)
    failed=$(grep -c . "$out/failed-reads.txt" || true)
@@ -2371,12 +2371,12 @@ condition with an explicit `if`, and ends by printing what it found.
    set -euo pipefail
    trap 'echo "audit: failed at line $LINENO: $BASH_COMMAND" >&2' ERR
    dir=$1; expect_none=${2:-}
-   linked_codes=(R12)
-   listed_codes=(X09)
-   faithful_linked_codes=(R12)
+   linked_codes=(R12 X10 X11 X14 X15 X16 X17 X19 X22 X23)
+   listed_codes=(X09 X20)
+   faithful_linked_codes=(R12 X10 X11 X14 X15 X16 X17 X19 X22 X23)
    faithful_listed_codes=(R11 X09 X20 X24)
    link='\[([A-Za-z0-9._%+-]+@)?[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+(:[0-9]+)?\]\(<(http|mailto):'
-   lone='^[[:space:]>]+[0-9]+[.)][[:space:]]*$'
+   lone='^[[:space:]>]*[0-9]+\.[[:space:]]+$'
    fixtures=cli/work-adapters/tests/fixtures/linear-rewrites
    for fixture in "$fixtures/read-back.json" "$fixtures/escaped/read-back.json"; do
      if [ ! -f "$fixture" ]; then echo "audit: fixture not found: $fixture; run from the repository root" >&2; exit 1; fi
@@ -2400,7 +2400,7 @@ condition with an explicit `if`, and ends by printing what it found.
    for code in "${faithful_listed_codes[@]}"; do expect "$fixtures/escaped/read-back.json" "$code" "$lone" none lone; done
    shopt -s nullglob
    files=("$dir"/*.json)
-   total=$(grep -c . "$dir/ids.txt")
+   total=$(grep -c . "$dir/ids.txt" || true)
    missing=$(grep -c . "$dir/not-found.txt" || true)
    if [ $((${#files[@]} + missing)) -ne "$total" ]; then
      echo "audit: $dir holds ${#files[@]} saved and $missing not-found of $total ids" >&2; exit 1
@@ -2426,9 +2426,11 @@ condition with an explicit `if`, and ends by printing what it found.
    still matches every fragment the unescaped capture records for it; the
    last two prove neither matches the escaped capture's faithful forms, so
    a repaired item is not reported as still corrupted. A missing fragment
-   fails rather than passing silently. If a faithful check fails, phase 3
-   recorded that Linear drops a backslash it was sent, and the `lone`
-   pattern is narrowed to what the README records before the audit runs.
+   fails rather than passing silently. Linear stores a sent `0160\.` or
+   `0160\)` as plain `0160.` or `0160)`, so `lone` matches only the form
+   Linear writes for a stray list item: `N.` with a trailing space, zeros
+   stripped, at any indent including a lazy line at column 0. Every stray
+   item in the probe corpus has that form and no faithful line does.
    For each lone-number hit, confirm the local body has a wrapped
    continuation line there; Linear drops leading zeros, so compare by
    position, not by digits.
