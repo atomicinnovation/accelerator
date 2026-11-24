@@ -3,7 +3,7 @@ import { Link, Outlet, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { fetchDocs, fetchLibraryStructure } from "../../api/fetch";
 import { formatDate, formatMtime } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import { libraryLink } from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import { chipVariantFor, statusToVariant } from "../../api/status-variant";
 import type {
@@ -264,11 +264,7 @@ export function LibraryTypeView({ type: propType }: Props) {
             return (
               <Link
                 key={entry.relPath}
-                to="/library/$type/$documentId"
-                params={{
-                  type,
-                  documentId: entry.slug ?? fileSlugFromRelPath(entry.relPath),
-                }}
+                {...libraryLink(entry)}
                 role="row"
                 className={styles.row}
               >

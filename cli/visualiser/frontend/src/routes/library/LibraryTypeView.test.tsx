@@ -142,6 +142,49 @@ describe("LibraryTypeView", () => {
     expect(screen.getByText("Draft")).toBeInTheDocument();
   });
 
+  it("links reviews that share a slug to their own filename stems", async () => {
+    const review = (n: number) =>
+      makeIndexEntry({
+        type: "plan-reviews",
+        relPath: `meta/reviews/plans/2026-01-01-foo-review-${n}.md`,
+        path: `/x/meta/reviews/plans/2026-01-01-foo-review-${n}.md`,
+        slug: "foo",
+        title: `Review number ${n}`,
+      });
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      review(1),
+      review(2),
+    ]);
+    spyOnStructure();
+    render(<LibraryTypeView type="plan-reviews" />, { wrapper: Wrapper });
+    const first = await screen.findByText("Review number 1");
+    expect(first.closest("a")?.getAttribute("href")).toBe(
+      "/library/plan-reviews/2026-01-01-foo-review-1",
+    );
+    expect(
+      screen.getByText("Review number 2").closest("a")?.getAttribute("href"),
+    ).toBe("/library/plan-reviews/2026-01-01-foo-review-2");
+  });
+
+  it("links a research set to its id", async () => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      makeIndexEntry({
+        type: "topic-research",
+        relPath: "meta/research/topics/b/manifest.md",
+        path: "/x/meta/research/topics/b/manifest.md",
+        id: "b",
+        slug: null,
+        title: "Set B",
+      }),
+    ]);
+    spyOnStructure();
+    render(<LibraryTypeView type="topic-research" />, { wrapper: Wrapper });
+    const title = await screen.findByText("Set B");
+    expect(title.closest("a")?.getAttribute("href")).toBe(
+      "/library/topic-research/b",
+    );
+  });
+
   it("renders a row for each doc", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue(mockEntries);
     spyOnStructure();
