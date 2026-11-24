@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T10:03:30+00:00"
+last_updated: "2026-11-24T14:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1406,18 +1406,18 @@ bump.
 
 #### Automated Verification:
 
-- [ ] Client tests pass: `mise run test:unit:cli --filter 'package(linear-client)'`
-- [ ] Push matrix passes: `mise run test:unit:cli --filter 'test(every_push_entry_point_escapes_for_linear_alone)'`
-- [ ] `work-cli` push tests pass: `mise run test:unit:cli --filter 'package(work-cli) & test(/push/)'`
-- [ ] Raw commands escape, and `--verbatim` opts out: `mise run test:unit:cli --filter 'package(linear-cli)'`
-- [ ] `CHANGELOG.md` holds the entries below
-- [ ] Golden digests unchanged: `mise run test:unit:cli --filter 'binary(golden_digests)'`
-- [ ] Dependency rules hold: `mise run test:integration:deny` and `mise run cli:check`
-- [ ] `mise run` exits 0
+- [x] Client tests pass: `mise run test:unit:cli --filter 'package(linear-client)'`
+- [x] Push matrix passes: `mise run test:unit:cli --filter 'test(every_push_entry_point_escapes_for_linear_alone)'`
+- [x] `work-cli` push tests pass: `mise run test:unit:cli --filter 'package(accelerator-work) & test(/push/)'`
+- [x] Raw commands escape, and `--verbatim` opts out: `mise run test:unit:cli --filter 'package(linear-cli)'`
+- [x] `CHANGELOG.md` holds the entries below
+- [x] Golden digests unchanged: `mise run test:unit:cli --filter 'binary(golden_digests)'`
+- [x] Dependency rules hold: `mise run test:integration:deny` and `mise run cli:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None before merge; phase 12 covers the live workspace
+- [x] None before merge; phase 12 covers the live workspace
 
 ---
 
@@ -1745,7 +1745,7 @@ the notice.
 - [ ] Verdict tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/preserved|unjudged|_a_rewrite/)'`
 - [ ] Push-site and promotion tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/notices_a_rewritten_read_back|silent_for_a_faithful_read_back|unreadable_read_back|both_notices|reused_create|title_only_retitle|promotion|rewound_retirement/)'`
 - [ ] Line pairing and bounding pass: `mise run test:unit:cli --filter 'test(/read_differently|rides_with_its_hunk|kept_escape|judged_in_context|no_surviving_hunk|filter_alone|level_two_heading|delete_or_insert|without_a_leading_zero|jira_cosmetic|lines_are_bounded/)'`
-- [ ] Rendering and `work-cli` warnings pass: `mise run test:unit:cli --filter 'package(work-cli) & test(/warns|both_notices|its_warnings_subject|clearing_command|changed_lines|on_one_line|external_id/)'`
+- [ ] Rendering and `work-cli` warnings pass: `mise run test:unit:cli --filter 'package(accelerator-work) & test(/warns|both_notices|its_warnings_subject|clearing_command|changed_lines|on_one_line|external_id/)'`
 - [ ] Skill structure holds: `mise run test:unit:tasks --filter test_each_record_type_has_a_dispatch_entry`
 - [ ] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
