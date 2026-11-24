@@ -26,7 +26,8 @@ Some doc types store each entry as a directory: topic research (root
 `manifest.md`) and design inventories (root `inventory.md`). The visualiser
 server will index each such directory as a **set**: a root document, plus
 the member documents and assets that the doc type's declared **shape**
-names. Every index consumer gets a rule for telling a root from a member.
+names. The index's default view holds roots only, and every consumer
+that needs members asks for them by name.
 Change events and the activity feed follow members. A **member API** serves
 a set whole.
 
@@ -149,7 +150,8 @@ The work item's Technical Notes size would need updating to match.
   built-in catalogue, and test code replaces it.
 - **A set doc type declares its shape and presentation:**
   - `SetDeclaration { shape: SetShape { root, member_slots }, presentation }`;
-  - `MemberSlot { pattern: SlotPattern, kind: Document | Asset }`;
+  - `MemberSlot { pattern: &'static str, kind: Document | Asset }`, its
+    pattern parsed into a `SetMatcher` when the catalogue is built;
   - `Presentation::SetPage | EntryPoint`.
   - Topic research and design inventories declare the shapes in the work
     item's table.
@@ -203,26 +205,42 @@ steps under Testing Strategy.
   stays `Copy`, so call sites like `kind.label()` keep compiling. Test code
   declares a type with a `static`, which is how the genericity criterion's
   test-only type is declared "through the mechanism topic research uses".
-- **The single overlap check.** `config::paths::doc_type_dirs` is the one
-  choke point both the server and the launcher go through, so the overlap
-  refusal is written once.
+- **The single overlap check.** `config::paths::doc_type_dirs` is the
+  resolver every doc-root consumer goes through: the server
+  (`compose.rs:144`), the launcher (`config_command/core/paths.rs:142`),
+  `corpus-cli` (`config.rs:96`), `work-cli` (`config.rs:105` and
+  `sync.rs:241`) and the migrate adapter (`migrate-adapters/src/context.rs:106`).
+  The overlap refusal is written once there, so every caller refuses.
+  The migrate adapter swallows the resolver's errors today
+  (`unwrap_or_default()`), so Phase 2 makes it propagate them.
 - **The router.** matchit 0.7 forbids a suffix after a catch-all
   (`api/mod.rs:33-40`). Keying the member API by `/{type}/{setId}` leaves
   room for `/derived` (PP-1002).
-- **Change events for members.** Per-path change events already fall out
-  of `rescan_changes` (`watcher.rs:280-317`) once members are indexed. A
-  set removed with its root drops every member in the same rescan, because
-  enumeration is conditional on the root.
+- **Change events for members.** Today `rescan_changes`
+  (`watcher.rs:280-317`) diffs `indexer.all()`, which Phase 7 makes
+  root-only. Phase 10's `rescan_with_diff` snapshots
+  `documents_including_members()` and the asset map instead, so member
+  and asset events come from the same diff. A set removed with its root
+  drops every member in the same rescan, because enumeration is
+  conditional on the root.
+- **In-app writes bypass the activity feed today.** The document PATCH
+  handler broadcasts straight through `sse_hub` (`api/docs.rs:316-324`),
+  not through `watcher::emit`, so its writes reach the feed only through
+  the frontend's client-built rows. Phase 10 routes it through `emit`.
 - **Copies to unify.** The cluster recompute is copied at
   `server.rs:116-146`, `watcher.rs:228-255` and `api/docs.rs:276-311`.
-  Members are excluded from one shared cluster-input function, which
-  Phase 7 extracts.
+  Phase 7 extracts one `recompute_clusters`, which reads the index's
+  default, root-only view.
 
 ## What We're NOT Doing
 
 - **A data-driven frontend.** The frontend keeps its static `DocTypeKey`
-  union and glyph maps, and changes only the types that describe
-  responses. A test-only doc type is exercised against the server only.
+  union and glyph maps. It changes the types that describe responses,
+  and makes two behaviour changes the set model needs: `ActivityFeed`
+  refetches `/api/activity` on each `doc-changed` event instead of
+  building rows itself (Phase 10), and search rows gain a key that stays
+  unique for members (Phase 7). A test-only doc type is exercised
+  against the server only.
 - **User-declared doc types** in configuration. The catalogue is built in
   and replaceable only in code. ADR-0078 records this as a deliberate
   boundary.
@@ -330,14 +348,23 @@ The ADR records these decisions:
   doc types are unaffected.
 - **A directory with no root is not a set.** Deleting the root removes
   every member from the index.
-- **Overlapping doc roots are refused,** with both path keys named.
+- **Overlapping doc roots are refused,** with both path keys named, by
+  the shared resolver, so every command that reads doc roots refuses,
+  `migrate` included. The visualiser also refuses roots that overlap
+  once symlinks are resolved.
 - **The consumer rules:**
   - roots only in listings, counts, facets and clusters;
   - members in search on their own keys;
   - member linkage attributed to the member;
   - members kept out of inferred items;
   - one activity row per set, its action from the root;
-  - the latest time includes members and observed removals.
+  - the latest time includes members, assets and observed removals.
+- **Removal observation is per process and best effort.** The ledger of
+  observed removals lives in memory, so after a restart a set's latest
+  time falls back to its files' mtimes.
+- **Symlinks.** Enumeration does not descend symlinked directories, and
+  a member that resolves outside the configured doc roots is dropped,
+  matching the containment rule `FileDriver::read` already applies.
 - **The set's `id`** is the root's frontmatter `id`, or else the set
   directory name. It is carried as `setId` on index entries, search rows,
   related items and the member API, and not on activity rows or change
@@ -358,17 +385,38 @@ The ADR records these decisions:
 - **Declarations.** A doc type is a `DocType` declaration value: its wire
   token, config path key, linkage name, label and capability flags, plus
   declared rules (`SlugRule`, `ClusterKeyRule`, `LinkageIdRule`, lifecycle
-  rank, `CompletenessMark`, library phase, facets, drafts subdirectory,
-  filename filter), plus an optional `SetDeclaration`.
+  rank, `CompletenessMark`, library phase, facets), plus a `Listing`
+  rule: flat (drafts subdirectory, filename filter) or set. A set listing
+  is the single home of the type's `SetDeclaration`.
+- **Names.** The declaration is `corpus::DocType`. The server's existing
+  doc types response view is renamed `DocTypeView` so the two never
+  meet under one name. Each fact keeps one name from Phase 3 onward:
+  `wire_token` with a `wire_token()` accessor, replacing `wire_str()`.
 - **Identity.** `DocTypeKey` is a `Copy` handle to a `&'static DocType`,
-  with equality and hashing by wire token.
+  with equality and hashing by wire token, and a pointer-equality fast
+  path.
 - **The catalogue.** `DocTypeCatalogue` is ordered. Its built-in instance
   is the single source of today's types. Consumers that need runtime
   lookup (wire token, linkage name) take a catalogue; the built-in one is
-  the default.
+  the default. Building a catalogue refuses duplicate wire tokens,
+  linkage names and config path keys, and parses every slot pattern, so
+  a bad declaration fails at construction and never at first use.
+- **Built-in declarations name every field.** A struct-update base
+  (`DocType::FLAT_DEFAULTS`) exists for test-only declarations; the
+  built-in module never uses it, so adding a built-in type forces a
+  choice for every rule.
 - **No production code names a built-in doc type** outside the built-in
   declaration module, apart from crates that own one type's domain (the
-  research crate's topic-set commands). A boundary test enforces this.
+  research crate's topic-set commands and `corpus-cli`'s ADR commands).
+  A boundary test enforces this.
+- **Accepted exception: typed linkage references.** `TypedRef`'s
+  `work-item:`, `plan:`, `adr:` and `pr:` forms, and the work-item slug
+  and identity helpers, encode the linkage grammar of ADR-0034, not
+  per-type facts. They stay as they are; a test-only type takes part in
+  linkage through `TypedRef::Path`.
+- **Root resolution stays bound to `config`.** Built-in types resolve
+  their roots through `config::paths::doc_type_dirs`; a test-only type's
+  root is supplied directly on the server's `Config`.
 - **Out of scope.** User-declared types and a data-driven frontend.
 - **The `config` path-key table stays separate,** under ADR-0069. The
   single-source test is the guard.
@@ -381,15 +429,18 @@ The ADR records these decisions:
 
 #### 3. Member API specification
 
-**File**: `meta/specs/2026-11-24-set-member-api.md` (`type: spec`,
-following `meta/specs/2026-04-17-meta-visualisation-design.md`)
+**File**: `meta/specs/2026-11-24-set-member-api.md`, with the same
+frontmatter shape as `meta/specs/2026-04-17-meta-visualisation-design.md`.
+`spec` is not a corpus doc type, so its frontmatter is not validated by
+`accelerator corpus frontmatter validate`.
 
 The specification contains:
 
 - **The endpoint.** `GET /api/sets/{type}/{setId}`:
   - `type` is a wire token;
-  - `setId` is percent-decoded, matched against `setId` among the type's
-    roots, first by path on a duplicate;
+  - `setId` is decoded once, by the router's path extractor, and matched
+    against `setId` among the type's roots, the lexically first
+    directory winning on a duplicate;
   - 404 when the type is not a set type or no set matches; 400 on an
     unknown type token.
 - **The response:**
@@ -404,7 +455,7 @@ The specification contains:
     },
     "root": {
       "kind": "document",
-      "path": "manifest.md",
+      "setRelativePath": "manifest.md",
       "title": "Prompt caching economics",
       "frontmatter": {},
       "frontmatterState": "parsed",
@@ -414,7 +465,7 @@ The specification contains:
     "members": [
       {
         "kind": "document",
-        "path": "findings/01-cost-model.md",
+        "setRelativePath": "findings/01-cost-model.md",
         "title": "Cost model",
         "frontmatter": {},
         "frontmatterState": "parsed",
@@ -423,7 +474,7 @@ The specification contains:
       },
       {
         "kind": "asset",
-        "path": "screenshots/Some File (v2).png",
+        "setRelativePath": "screenshots/Some File (v2).png",
         "size": 1234,
         "mtimeMs": 0
       }
@@ -432,13 +483,20 @@ The specification contains:
   ```
 
 - **Paths.**
-  - Each `path` is a plain, set-relative, `/`-separated string, never
-    percent-encoded.
+  - Each `setRelativePath` is a plain, `/`-separated string, never
+    percent-encoded. It carries the same name as the `setRelativePath`
+    field on index entries and search rows.
   - `set.directory` is project-relative.
-  - Members are sorted by path, and every member is in one response with
-    no paging. The largest real inventory held 35 screenshots.
+  - Members are sorted by `setRelativePath`, and every member is in one
+    response with no paging. The largest real inventory held 35
+    screenshots.
   - There is no document body; bodies come from
-    `/api/docs/{directory}/{path}`.
+    `/api/docs/{directory}/{setRelativePath}`. A consumer building that
+    URL percent-encodes each path segment, because file names may hold
+    `?`, `#` or `%`.
+- **Change events.** A `doc-changed` event may name an asset member.
+  Its `etag` is absent for an asset as well as for a deletion, so a
+  missing `etag` alone does not mean the path was deleted.
 - **Extension points:**
   - a document member's structured sources attach as an optional
     `sources` field on a document object (PP-1000), and are absent until
@@ -465,9 +523,9 @@ Notes, through `/update-work-item` or a direct edit by the author:
 
 #### Automated Verification:
 
-- [ ] Each new document's frontmatter is valid:
-      `accelerator corpus frontmatter validate --file <path>` for both ADRs
-      and the spec.
+- [ ] Each ADR's frontmatter is valid:
+      `accelerator corpus frontmatter validate --file <path>` for both
+      ADRs.
 - [ ] `grep -n '^status: "accepted"' meta/decisions/ADR-0077-*.md meta/decisions/ADR-0078-*.md`
       prints two lines.
 
@@ -484,7 +542,9 @@ Notes, through `/update-work-item` or a direct edit by the author:
 ### Overview
 
 This phase is independent of the set model and mergeable before
-everything else in stage two.
+everything else in stage two. The refusal lives in the shared resolver,
+so every CLI that reads doc roots refuses an overlapping configuration,
+and migrations stop rather than run over no directories.
 
 ### Changes Required:
 
@@ -493,21 +553,78 @@ everything else in stage two.
 **File**: `cli/config/src/paths.rs` (inline tests, using the crate's
 `test-support` config double)
 
-- `research_codebase: meta/research` with defaults is refused. The error
-  names `paths.research_codebase` and `paths.research_topics`; the
-  inventories root also sits under it, and the first pair found is
-  enough.
+- `research_codebase: meta/research` with defaults is refused as
+  `ConfigError::OverlappingDocRoots` with `paths.research_codebase` as
+  the container and `paths.research_issues` as the contained root, the
+  first pair in `DOC_TYPES` order.
 - `notes: meta/plans` (equal roots) is refused, naming `paths.notes` and
   `paths.plans`.
+- `notes: meta/plans/` and `notes: ./meta/plans` are refused as equal
+  after normalisation.
+- `plans: meta/notes/plans` is refused with `paths.notes` as the
+  container, although `plans` comes first in `DOC_TYPES` order.
 - `notes: meta/plansx` (a shared string prefix but no shared segment) is
   accepted.
 - The defaults are accepted.
 
-**File**: `cli/visualiser/server/tests/` (compose test, or the existing
-`config` tests in `src/config.rs`)
+**File**: `cli/visualiser/server/tests/compose_overlap.rs` (new)
 
 - Composing the server with an overlapping config fails, with an error
   naming both keys.
+- Composing the server with a non-overlapping config in which
+  `paths.notes` is a symlink to the topics root fails, naming
+  `paths.notes` and `paths.research_topics` (Unix only).
+- Composing with `paths.notes` naming a directory that does not exist,
+  under a symlink into the topics root, fails naming both keys (Unix
+  only).
+- A test-only doc type's root supplied directly on `Config` is covered
+  by the same canonical check.
+
+**File**: `cli/corpus-cli/src/config.rs` (inline tests)
+
+- `table_from_config` with an overlapping config returns
+  `ConfigError::OverlappingDocRoots`, so `corpus frontmatter validate`
+  refuses before walking anything.
+
+**File**: `cli/work-cli/src/config.rs` and `cli/work-cli/src/sync.rs`
+(inline tests)
+
+- `resolve_work_dir` with an overlapping config returns an error naming
+  both keys.
+- `corpus_roots` with an overlapping config returns
+  `ConfigError::OverlappingDocRoots`, so a sync refuses before reading
+  the tracker.
+
+**File**: `cli/migrate-adapters/src/context.rs` (inline tests)
+
+- `doc_type_dirs()` with an overlapping config returns an error naming
+  both keys.
+- After a `paths.*` key is rewritten through the context's config,
+  `doc_type_dirs()` reflects the new directory.
+
+**File**: `cli/migrate-cli/tests/overlapping_doc_roots.rs` (new)
+
+- A migrate run over an overlapping config applies no migration, writes
+  nothing to the ledger, and exits non-zero with the refusal.
+- `migrate --list` over the same config exits non-zero with the
+  refusal.
+- With every migration already applied, a migrate run over an
+  overlapping config exits non-zero with the refusal.
+- `accelerator migrate --list` exits non-zero with the refusal when no
+  interactive migration is pending.
+
+**File**: `cli/migrate/tests/lifecycle.rs`
+
+- `run_pending` with a stub migration that rewrites the config into an
+  overlap and returns `Applied` without calling `doc_type_dirs()`, over
+  a context double whose `doc_type_dirs()` fails after that rewrite,
+  returns the refusal, and the ledger double never receives that
+  migration's id.
+
+**File**: `cli/launcher/tests/config_read.rs`
+
+- `config path --doc-types` over an overlapping config exits non-zero
+  and names both keys.
 
 #### 2. The refusal
 
@@ -516,32 +633,97 @@ everything else in stage two.
 After resolving every `DocTypeDir`, call `refuse_overlapping_roots(&resolved)`:
 
 ```rust
+pub struct Overlap {
+    pub container: usize,
+    pub contained: usize,
+}
+
+pub fn first_overlap(roots: &[&Path]) -> Option<Overlap>;
+
 fn refuse_overlapping_roots(dirs: &[DocTypeDir]) -> Result<(), ConfigError> {
-    for (i, outer) in dirs.iter().enumerate() {
-        for inner in &dirs[i + 1..] {
-            if let Some((container, contained)) = nesting(outer, inner) {
-                return Err(ConfigError::Invalid {
-                    detail: format!(
-                        "paths.{} ({}) overlaps paths.{} ({}); \
-                         doc roots may not equal or contain one another",
-                        container.path_key,
-                        container.dir,
-                        contained.path_key,
-                        contained.dir,
-                    ),
-                });
-            }
-        }
+    match first_overlap(&paths_of(dirs)) {
+        Some(overlap) => Err(ConfigError::OverlappingDocRoots {
+            container: dirs[overlap.container].clone(),
+            contained: dirs[overlap.contained].clone(),
+        }),
+        None => Ok(()),
     }
-    Ok(())
 }
 ```
 
-`nesting` compares segment-wise on the normalised `dir` strings. It
-returns the containing directory first, or either directory when the two
-are equal.
+`first_overlap` compares `Path::components()` after normalisation, in
+both directions, and returns the first overlapping pair in input order.
+It names the containing root as `container`, or the earlier one in input
+order when the two are equal.
 
-#### 3. Fixtures on default paths
+`ConfigError::OverlappingDocRoots` is a new variant. `is_refusal`
+classifies it as a refusal, and its `Display` renders
+`paths.<container> (<dir>) overlaps paths.<contained> (<dir>); doc roots
+may not equal or contain one another`.
+
+The resolver compares configured paths, with no filesystem access.
+`first_overlap` is public, so `refuse_overlapping_roots` and the
+visualiser's compose share the one containment rule. Compose runs it again over the
+canonical roots it builds for `LocalFileDriver` (`file_driver.rs:126-127`)
+and returns the same `ConfigError::OverlappingDocRoots`. A symlink alias
+therefore cannot place one root inside a set root, where it would undo
+the set's serving boundary.
+
+A doc root that does not exist at startup cannot be canonicalised, and
+today `LocalFileDriver` keeps its raw path. Compose resolves such a
+root by canonicalising its nearest existing ancestor and appending the
+rest, and `LocalFileDriver` is built with that same resolved root, so
+the overlap check, the set serving decision and the driver's
+containment checks all use one representation.
+
+#### 3. Callers
+
+- **`corpus-cli` and `work-cli`** already propagate the resolver's
+  error with `?`; they gain only the tests above.
+- **The migrate adapter.**
+  - `MigrationContext::doc_type_dirs` becomes fallible, returning
+    `Result<Vec<DocTypeDir>, MigrationError>`. `FileMigrationContext`
+    still resolves from live config on every call, because migrations
+    such as `m0004` rewrite `paths.*` keys and then read the new
+    directories in the same run. It returns the resolver's error in
+    place of `unwrap_or_default()`.
+  - `FileMigrationContext::linkage_table` (`context.rs:85`), which reads
+    `doc_type_dirs`, becomes fallible the same way and propagates the
+    error, so `m0007` cannot run over an empty table.
+  - `MigrationContext::corpus_index` (`context.rs:118-126`), which
+    builds from `linkage_table`, becomes
+    `Result<&dyn CorpusIndex, MigrationError>` too, and `m0007`'s call
+    (`m0007/mod.rs:212`) adds `?`. Its doubles change with the others
+    below, and the `migrate` snapshot diff shows both port changes.
+  - The frozen migrations that call either (`m0004`, `m0007`, `m0008`)
+    change only mechanically, adding `?`. The inline test doubles in
+    `m0001`, `m0003`, `m0008`, `m0009` and `m0011`, the doubles in
+    `migrate/tests/engine.rs`, `lifecycle.rs` and
+    `list_and_decisions_file.rs`, and the assertion in
+    `migrate-adapters/tests/doc_type_dir_parity.rs` change to match.
+    What each migration does is unchanged.
+  - The runner also resolves the doc-type directories once, before it
+    computes the pending migrations and before its no-pending early
+    return (`lifecycle.rs:63-66`), so an overlapping configuration stops
+    every run, even an up-to-date one, before anything is applied or
+    recorded. `run_list` (`migrate-cli/src/main.rs:201-226`) resolves
+    them at its start the same way, so `--list` refuses too.
+  - `run_pending` (`migrate/src/lifecycle.rs:104-113`) resolves them
+    again after each `Applied` outcome and before appending it to the
+    ledger, so a migration that writes an overlapping configuration
+    stops the run non-zero and is not recorded as applied.
+
+#### 4. CHANGELOG
+
+Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
+
+- configurations whose doc roots equal or contain one another are now
+  refused, naming both keys, by the visualiser, `accelerator config
+  path`, `corpus` commands and `work` commands;
+- `accelerator migrate` and `accelerator migrate --list` now refuse such
+  a configuration before applying or listing any migration.
+
+#### 5. Fixtures on default paths
 
 - Move `cli/visualiser/server/tests/fixtures/meta/research/2026-01-01-first-research.md`
   and `2026-05-26-ac2-coverage.md` into `.../meta/research/codebase/`.
@@ -561,7 +743,10 @@ are equal.
 
 #### Automated Verification:
 
-- [ ] Config tests pass: `mise run test:unit:cli --filter 'package(config)'`
+- [ ] `mise run public-api:update`, with the `config` and `migrate`
+      snapshot diffs reviewed.
+- [ ] Caller tests pass:
+      `mise run test:unit:cli --filter 'package(config) | package(accelerator-corpus) | package(accelerator-work) | package(migrate-adapters) | package(migrate) | package(accelerator-migrate) | package(accelerator)'`
 - [ ] Visualiser tests pass: `mise run test:unit:visualiser` and
       `mise run test:integration:visualiser`, including `api_smoke`.
 - [ ] e2e passes: `mise run test:e2e:visualiser`
@@ -571,9 +756,11 @@ are equal.
 
 #### Manual Verification:
 
-- [ ] `accelerator config path --doc-types` in a scratch repo with
-      `research_codebase: meta/research` prints the refusal naming both
-      keys.
+- [ ] In a scratch repo with `research_codebase: meta/research`,
+      `accelerator config path --doc-types`, `accelerator corpus
+      frontmatter validate` and `accelerator migrate` each print the
+      refusal naming both keys, and `migrate` records nothing as
+      applied.
 
 ---
 
@@ -625,19 +812,24 @@ pub struct DocTypeCatalogue { doc_types: Vec<DocTypeKey> }
 ```
 
 - `DocTypeKey` gets `PartialEq`, `Eq`, `Hash`, `Debug` and `Ord` by
-  `wire_token`. It delegates each existing method (`label()`,
-  `wire_str()` and so on) to the declaration, so call sites are
-  unchanged.
+  `wire_token`, with equality checking `ptr::eq` first. It delegates
+  each existing method (`label()` and so on) to the declaration, so call
+  sites are unchanged. `wire_str()` is renamed `wire_token()` in the same
+  scripted rename.
 - `DocTypeKey::declared(&'static DocType)` constructs a key.
-- `built_in.rs` declares each of the 15 types as a `static` and exposes
-  `DocTypeKey::PLANS`, `DocTypeKey::WORK_ITEMS` and so on as associated
-  constants.
+- `built_in.rs` declares each of the 15 types as a `static` naming every
+  field, and exposes `DocTypeKey::PLANS`, `DocTypeKey::WORK_ITEMS` and
+  so on as associated constants.
 - `DocTypeCatalogue::built_in()` returns the 15 in today's `all()` order.
-  It has `doc_types()`, `from_wire_str`, `from_linkage_type_name` and
+  It has `doc_types()`, `from_wire_token`, `from_linkage_type_name` and
   `from_config_path_key`.
+- `DocTypeCatalogue::new(keys)` returns a `CatalogueError` naming the
+  clash when two declarations share a wire token, a linkage name or a
+  config path key. Inline tests pin each clash.
+- The server's `doc_type_view::DocType` is renamed `DocTypeView`.
 - `DocTypeKey::all()`, `from_wire_str` and `from_linkage_type_name` are
-  removed. Callers use the built-in catalogue, or an injected one from
-  Phase 5.
+  removed; the catalogue's `from_wire_token` replaces `from_wire_str`.
+  Callers use the built-in catalogue, or an injected one from Phase 5.
 
 #### 3. Mechanical migration
 
@@ -646,8 +838,8 @@ pub struct DocTypeCatalogue { doc_types: Vec<DocTypeKey> }
 - Replace `DocTypeKey::all()` with `DocTypeCatalogue::built_in().doc_types()`.
 - Rewrite each `match` on a key in production code as `==` comparisons.
   These are transitional and are removed in Phase 4.
-  - **Exception:** test code may keep `matches!` on constants only if the
-    handle supports structural matching. Otherwise use `==`.
+  Test code uses `==` too: the hand-written `PartialEq` rules out
+  `matches!` on constants.
 - `corpus-adapters/src/doc_type.rs::table_from_paths` iterates the
   built-in catalogue.
 
@@ -656,12 +848,13 @@ pub struct DocTypeCatalogue { doc_types: Vec<DocTypeKey> }
 #### Automated Verification:
 
 - [ ] The characterisation test passes before and after:
-      `mise run test:unit:cli --filter 'test(built_in_doc_type_facts)'`
+      `mise run test:unit:cli --filter 'binary_id(corpus::built_in_doc_type_facts)'`
 - [ ] The whole cli workspace passes: `mise run test:unit:cli`,
       `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
 - [ ] `mise run cli:check` and `mise run server:check`
-- [ ] Public API drift is reviewed: the cargo-public-api check for
-      `corpus` (see `tasks/README.md`).
+- [ ] `mise run public-api:update` regenerates
+      `cli/corpus/tests/fixtures/public-api.txt`, and the diff is reviewed
+      as the intended surface change.
 - [ ] `mise run`
 
 #### Manual Verification:
@@ -690,9 +883,14 @@ characterisation case wherever a type has no test:
 - a slug for every built-in type;
 - a lifecycle rank for every type;
 - a completeness mark for every type;
+- a cluster key for every type, through `cluster::walk` on one fixture
+  document per type, and whether the type anchors a cluster;
 - a `resolve_path_target` id for every type;
 - facets for every type;
-- the `PHASES` membership.
+- the listing rule for every type: its drafts subdirectory and filename
+  filter, or its nested root;
+- the full ordered `PHASES` list: each phase's id and label, and its
+  types in order, asserted through `api_library`.
 
 All are written green against Phase 3's code.
 
@@ -707,17 +905,17 @@ pub lifecycle_rank: Option<u8>,
 pub completeness_mark: Option<CompletenessMark>,
 pub linkage_id_rule: LinkageIdRule,
 pub cluster_anchor: bool,
-pub library_phase: Option<LibraryPhase>,
+pub library_placement: Option<LibraryPlacement>,
 pub facets: &'static [Facet],
 pub listing: Listing,
 ```
 
 - **`SlugRule`:** `NumberedPrefix("ADR-")`, `WorkItem`,
   `DateAndOptionalId`, `DateAndOptionalIdThenReviewSuffix`,
-  `WorkItemReview`, `VerbatimStem`, `None`. `slug::derive` dispatches on
-  `kind.slug_rule()`.
-- **`ClusterKeyRule`:** `WorkItemId`, `Parent`, `Target`, `None`. The
-  `cluster::walk` arms become one `match` on the rule.
+  `WorkItemReview`, `VerbatimStem`, `NoSlug`. `slug::derive` dispatches
+  on `kind.slug_rule()`.
+- **`ClusterKeyRule`:** `WorkItemId`, `Parent`, `Target`, `Unclustered`.
+  The `cluster::walk` arms become one `match` on the rule.
 - **`cluster_anchor`** replaces the `== WorkItems` checks at
   `cluster.rs:360, 371, 464, 488`. The `Templates` checks become
   `is_virtual()`.
@@ -725,11 +923,13 @@ pub listing: Listing,
   struct is unchanged.
 - **`LinkageIdRule`:** `WorkItemIdInFilename`, `AdrNumber`,
   `SetDirectory`, `PrNumber`, `Stem`.
-- **`LibraryPhase`:** `Define`, `Discover`, `Build`, `Ship`, `Operate`,
+- **`LibraryPlacement { phase: LibraryPhase, position: u8 }`**, with
+  `LibraryPhase`: `Define`, `Discover`, `Build`, `Ship`, `Operate`,
   `Remember`. `PHASES` becomes the ordered list of phases with their ids
-  and labels. Membership is read from the catalogue in catalogue order.
-  Check that this preserves today's within-phase order, and add a
-  declared `library_order` only if it does not.
+  and labels. A phase's types are ordered by `position`, because today's
+  within-phase order differs from catalogue order (Discover lists the
+  design and topic types before codebase research; Ship lists PR
+  descriptions before PR reviews).
 - **`Facet`:** `Status`, `ClusterSlug` and the others used by
   `facets_for`.
 - **`Listing`:** `Flat { drafts_subdirectory: Option<&'static str>,
@@ -748,19 +948,30 @@ pub listing: Listing,
     `api/search.rs`, which become declared facts (`in_kanban`,
     `is_virtual`, `cluster_anchor`).
 - **Other crates:** `research-cli/src/topic_set.rs` and
-  `corpus-cli/src/main.rs` keep their named constant (an allowed
-  exception), or read the fact if one fits.
+  `corpus-cli/src/main.rs` keep their named constant, as allowed
+  exceptions.
 
 #### 4. Boundary test
 
 **File**: `cli/corpus-adapters/tests/doc_type_declarations_are_single_source.rs`
-(new; or extend `doc_type_single_source.rs`)
+(new), the single source-boundary guard, using a `source_scan` module
+added to the existing `cli-test-support` crate
 
 - Walk every `src/**/*.rs` under `cli/` except `corpus/src/doc_type/built_in.rs`
-  and the allow-list (`research-cli/src/topic_set.rs`, `migrate/src/migrations/**`).
-- Strip `#[cfg(test)]` modules.
+  and the allow-list (`research-cli/src/topic_set.rs`,
+  `corpus-cli/src/main.rs`, `migrate/src/migrations/**`).
+- Strip `#[cfg(test)]` modules and `#[cfg(test)]` items.
 - Assert that no production code contains `DocTypeKey::` followed by an
-  upper-case constant.
+  upper-case constant, a `use` that brings a built-in constant into
+  scope, or an import from `doc_type::built_in`.
+- Assert that `corpus/src/doc_type/built_in.rs` does not contain
+  `FLAT_DEFAULTS`, and that at least 100 files were scanned, so a wrong
+  root fails loudly.
+- `cli-test-support`'s `source_scan` has its own tests, each seeding one
+  violation: a qualified constant, an aliased `DocTypeKey`, a direct
+  import from `built_in`, a violation inside a `#[cfg(test)]` item that
+  must be ignored, and a violation after a `#[cfg(test)] mod` that must
+  be found.
 
 ### Success Criteria:
 
@@ -768,15 +979,16 @@ pub listing: Listing,
 
 - [ ] Characterisation and existing tests pass: `mise run test:unit:cli`,
       `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] The boundary test passes, and fails if a named constant is added to
-      `cluster.rs`, checked once by hand.
+- [ ] The boundary test and the scanner's seeded-violation tests pass.
+- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+      reviewed.
 - [ ] `mise run cli:check`, `mise run server:check`
 - [ ] `mise run`
 
 #### Manual Verification:
 
-- [ ] The library sidebar shows the same phases, order and counts as
-      before against this repo's `meta/`.
+- [ ] None beyond review: the `PHASES` characterisation pins the
+      sidebar's phases and order.
 
 ---
 
@@ -795,7 +1007,11 @@ test can then declare a doc type of its own.
 
 - A test declares
   `static NOTEBOOKS: DocType = DocType { wire_token: "notebooks", config_path_key: Some("notebooks"), label: "Notebooks", ..DocType::FLAT_DEFAULTS }`
-  (a `const` base the declaration module provides).
+  (a `const` base behind a new `test-support` feature on `corpus`,
+  `[features] test-support = []`, following `config`'s pattern and
+  enabled only from dev-dependencies: the server, `corpus-adapters`, and
+  a `corpus` self dev-dependency for its own tests. `built_in.rs` never
+  uses it).
 - It builds a catalogue of the built-ins plus `NOTEBOOKS`, configures
   `doc_paths["notebooks"]` to a tempdir holding one markdown file, and
   builds the router.
@@ -806,19 +1022,24 @@ test can then declare a doc type of its own.
 
 - `server/src/config.rs`: add
   `#[serde(skip, default = "DocTypeCatalogue::built_in_arc")] pub doc_types: Arc<DocTypeCatalogue>`.
-- `LocalFileDriver::new` takes `&DocTypeCatalogue` and iterates it.
-- `Indexer` reads the doc-type list from the driver or the catalogue:
-  `indexer.rs:334`.
+- `LocalFileDriver::new` takes the `Arc<DocTypeCatalogue>` that
+  `Config` carries, and iterates it. The watcher holds the same `Arc`.
+- `Indexer` takes the catalogue from `Config` and reads the doc-type
+  list from it (`indexer.rs:334`); the driver holds no list of its own
+  beyond its roots.
 - `describe_types` and `api/library.rs` iterate `cfg.doc_types`.
 - Wire-token parsing (`api/mod.rs:156`, `api/library.rs:149`) goes
-  through `state.cfg.doc_types.from_wire_str`.
-- `doc_type_serde` keeps `serialize`. Remove `deserialize` if nothing
-  deserialises a key (`rg "Deserialize" server/src` on the structs using
-  it). Otherwise deserialise through the built-in catalogue, and document
-  that wire input is resolved at the handler.
+  through `state.cfg.doc_types.from_wire_token`.
+- `doc_type_serde` keeps `serialize` and loses `deserialize`. Any struct
+  that deserialises a key (`rg "Deserialize" server/src` on the structs
+  using it) takes the wire token as a `String` instead, and its handler
+  resolves it through `state.cfg.doc_types`. Wire input is then always
+  resolved against the injected catalogue, never a hidden built-in one.
 - `frontmatter.rs:352`: use the catalogue.
 - Add a `test_support` helper:
   `catalogue_with(extra: &[&'static DocType]) -> Arc<DocTypeCatalogue>`.
+  It builds through `DocTypeCatalogue::new`, so a clashing test
+  declaration fails at once.
 
 ### Success Criteria:
 
@@ -826,6 +1047,8 @@ test can then declare a doc type of its own.
 
 - [ ] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
 - [ ] `mise run server:check`
+- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+      reviewed.
 - [ ] `mise run`
 
 #### Manual Verification:
@@ -921,12 +1144,40 @@ pub enum Presentation { SetPage, EntryPoint }
 
 pub enum SetPlace { Root, Member(MemberKind) }
 
-impl SetShape {
+pub struct SetMatcher {
+    root: &'static str,
+    slots: Vec<(SlotPattern, MemberKind)>,
+}
+
+impl SetMatcher {
+    pub fn new(shape: &SetShape) -> Result<SetMatcher, SlotPatternError>;
     pub fn classify(&self, set_relative: &str) -> Option<SetPlace>;
+    pub fn may_contain_members(&self, set_relative_dir: &str) -> bool;
+}
+
+impl DocTypeCatalogue {
+    pub fn set_matcher(&self, kind: DocTypeKey) -> Option<&SetMatcher>;
 }
 ```
 
-- Slot patterns are parsed once, lazily, behind `classify`.
+- `DocTypeCatalogue::new` builds one `SetMatcher` per set type, and a
+  pattern that fails `SlotPattern::parse` is a `CatalogueError` naming
+  the type and the pattern. An inline test pins the refusal for a
+  declaration with a `**` slot.
+- `SetMatcher::new` is crate-private to `corpus`, exposed for tests
+  through the `test-support` feature, so the catalogue is the only
+  production source of a matcher.
+- Callers that classify (the file driver, the watcher's admission rule)
+  reach the matcher through the `Arc<DocTypeCatalogue>` they hold, so
+  `classify` never meets an unparsed pattern. The shape tests above run
+  against `SetMatcher::new(&shape)`.
+- `may_contain_members(dir)` holds when the directory's segments match
+  the leading segments of some slot, under the same dot and case rules
+  as `classify`. The walk's pruning and the watcher's admission rule
+  both call it. Inline tests: for topic research, `findings` and
+  `findings/01-a.levels` hold, and `findings/01-a.levels/x`, `notes`
+  and `.scratch` do not; for inventories, `screenshots` holds and
+  `prototype-full` does not.
 - A parsed final segment holds its name pattern and its extension
   separately. The extension is compared with `eq_ignore_ascii_case`;
   every other segment, and the name before the extension, is compared
@@ -937,10 +1188,11 @@ impl SetShape {
 
 #### 3. Doc types response
 
-- `server/src/doc_type_view.rs`: add a `set: Option<SetView>` serialised
-  as in the spec.
+- `server/src/doc_type_view.rs`: add a `set: Option<SetView>` to
+  `DocTypeView`, serialised as in the spec.
 - `frontend/src/api/types.ts:112-123`: add `set: DocTypeSet | null` to
-  `DocType`, and normalise a missing field to `null` in `fetch.ts`.
+  `DocType`, and normalise a missing field to `null` in `fetch.ts`, with
+  a `fetch.test.ts` case for a response that omits `set`.
 
 ### Success Criteria:
 
@@ -948,6 +1200,8 @@ impl SetShape {
 
 - [ ] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
       `mise run test:integration:visualiser`
+- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+      reviewed.
 - [ ] `mise run frontend:check`, `mise run test:unit:frontend`
 - [ ] `mise run`
 
@@ -961,8 +1215,10 @@ impl SetShape {
 
 ### Overview
 
-Index records gain set membership, and every consumer gets its rule.
-Tests use fabricated member records through `test_support`, because
+Index records gain set membership. The indexer's default accessors
+return only roots and ordinary documents, so a consumer sees members
+only when it asks for them by name. Tests use fabricated member records
+through `test_support`, because
 nothing on disk produces members yet. Listings, counts and clusters are
 therefore unchanged in production. The only visible change is the new
 `setId` and `setRelativePath` fields on roots.
@@ -972,8 +1228,21 @@ therefore unchanged in production. The only visible change is the new
 #### 1. Failing tests first
 
 Use `test_support` factories that build a root and member records for a
-set:
+set. The factories can give a member a `Some` slug, an `id`, a status
+and linkage frontmatter that match the root's, so every test below
+proves that the member's role, and not a missing field, keeps it out.
 
+- **Default accessors hold no member.** One test per default accessor:
+  `all`, `all_by_type`, `counts_by_type`, `library_aggregates`, the
+  cluster input of `recompute_clusters`, and the secondary maps built in
+  `rescan` (`adr_by_id`, `plans_by_id`, `work_item_by_identity_key`,
+  `reviews_by_target`). Each is given a set whose member collides with
+  the root on every key that accessor reads, and asserts that no member
+  is returned or counted.
+- **Explicit accessors.** `set_members(dir)` returns exactly the set's
+  members in `setRelativePath` order. `documents_including_members()`
+  returns roots, ordinary documents and members. `get(path)` returns a
+  member by its own path.
 - **Type listing and counts.** `all_by_type` and `counts_by_type` return
   only the root (criteria 1 and 9).
 - **Library aggregates:**
@@ -982,22 +1251,29 @@ set:
     when members carry other status and slug frontmatter;
   - the set's latest time is the newest root or member `mtime_ms`, and
     the doc type's latest follows it (criterion 11, without removals).
-- **Clusters.** The shared cluster-input function excludes members. A
-  root's cluster and its members are the same with members present as
-  absent (criterion 10).
+- **Clusters.** `recompute_clusters` excludes members. A root's cluster
+  and its members are the same with members present as absent, for
+  members whose frontmatter names the root's cluster key (criterion 10).
 - **Related:**
   - a member whose `parent` names work item X returns X as outbound;
   - the root and another member do not;
   - X returns the member as inbound (criterion 18);
-  - no inferred item is a member, including for a member and a plan
-    sharing a slug in their filenames (criterion 36).
+  - no inferred item is a member, for a member that shares the root's
+    cluster and a member and a plan sharing a slug in their filenames
+    (criterion 36). The fixture gives the member a `Some` slug equal to
+    the plan's, so the default accessors, and not a missing slug, decide
+    the outcome.
 - **Search:**
   - a phrase in a member's first paragraph returns that member, titled as
     the member, with `setRelativePath`, `setId` and `slug` equal to the
     set's slug (criterion 15);
-  - searching the set's slug ranks the root first, and no member is in
-    the exact-key bucket (criterion 16);
-  - the set's `id` is never matched.
+  - searching the set's slug ranks the root first. A member whose stem
+    and title both equal the set's slug is outside the exact-key bucket
+    and ranks below the root (criterion 16);
+  - a member whose first paragraph holds only the set's `id`, and whose
+    title and stem do not, is not matched by a search for that `id`.
+- **Search projection.** Every row's `slug` and `setId` come from
+  `link_keys_of`, pinned for a root, a member and a non-set document.
 - **Wire fields.** `setId` is the root's `id`, or the directory name when
   the root is malformed or has none. It appears on the type listing
   entry, a member search row, and a related item naming a member
@@ -1008,48 +1284,114 @@ set:
 **File**: `server/src/indexer.rs`
 
 ```rust
-pub struct SetMembership {
+pub struct SetContext {
     pub set_id: String,
+    pub set_slug: Option<String>,
     pub set_directory: PathBuf,
+}
+
+pub struct SetPlacement {
+    pub context: Arc<SetContext>,
     pub set_relative_path: String,
-    pub place: SetPlace,
+}
+
+pub enum SetDocumentRole { Root, Member }
+
+pub struct SetDocument {
+    pub placement: SetPlacement,
+    pub role: SetDocumentRole,
+}
+
+pub struct LinkKeys {
+    pub slug: Option<String>,
+    pub id: Option<String>,
 }
 ```
 
-- Add `pub set: Option<SetMembership>` to `IndexEntry`. Serialise
-  `setId` and `setRelativePath` flat, through `#[serde(flatten)]` on a
-  wire view or explicit getters, and skip the rest.
-- Add `IndexEntry::is_member()` and `is_set_root()`.
-- **A member's `slug` is `None`.** This keeps it out of the cluster
-  bridge, the facets and the related slug fallback. Its search key is its
-  own filename stem, through a `search_key()` method:
+- Add `pub set: Option<SetDocument>` to `IndexEntry`. An asset never
+  becomes an `IndexEntry`, so the role admits only `Root` and `Member`.
+- Serialise `set` with `#[serde(flatten)]` through a `SetWireFields`
+  projection that writes only `setId` and `setRelativePath`, both `null`
+  outside a set.
+- Add `IndexEntry::is_member()` and `is_set_root()`, both read from
+  `role`. Only the indexer's accessors call `is_member()`.
+- The set's context is built once per set, from the root, and shared by
+  the root and every member. `set_slug` is the set directory's slug, so
+  no consumer looks the root up to find it.
+- `test_support` factories build set records through the same
+  `SetDocument` constructor the indexer uses in Phase 8.
+- **A member's `slug` is `None`,** because no slug rule applies to a
+  member's file name. It is not what keeps a member out of listings,
+  clusters or related items; the accessors are. A member's search key
+  is its own filename stem, through a `search_key()` method:
   - for a member, the stem;
   - for anything else, `slug`.
 - `set_id_of(root_frontmatter, set_directory)` is derived once per set.
 
-#### 3. Consumer rules
+#### 3. Accessors
 
-- **`all_by_type`, `counts_by_type` and `library_aggregates`** count and
-  facet on `!is_member()`. Aggregates' `latest` for a set root uses the
-  set's `latest_change_ms`, which this phase computes as the maximum over
-  the root and members. Phase 10 adds observed removals.
-- **Clusters.** Extract `cluster_input(entries) -> impl Iterator<Item = &IndexEntry>`,
-  which filters members, and use it at `server.rs:116-146`,
-  `watcher.rs:228-255` and `api/docs.rs:276-311`. Factor the three copies
-  into one function if they are identical.
-- **`related.rs`:** inferred items skip members, and the slug fallback
-  never matches a `None` slug, as before.
+**File**: `server/src/indexer.rs`
+
+- **Default accessors** return roots and ordinary documents only: `all`,
+  `all_by_type`, `counts_by_type`, `library_aggregates`, and the
+  secondary maps. Each filters on the role in one private iterator,
+  `listed_entries()`, which every default accessor reads from.
+- **One map builder.** The secondary maps and the `set_directory ->
+  latest` map are built by one `IndexMaps::build(records, &ledger)`,
+  which `rescan` calls; the removal ledger is empty until Phase 10. A test-only `Indexer::from_records(records)` calls the
+  same builder, so Phase 7's fabricated members pass through the
+  production map construction. Every default-accessor test goes through
+  it; Phase 8 replaces none of them.
+- **Explicit accessors** reach members:
+  - `set_members(dir)`, for the member API;
+  - `documents_including_members()`, for search and for declared
+    linkage in related items;
+  - `get(path)`, for a request that names a document by path.
+
+#### 4. Consumer rules
+
+Consumers read the accessor that matches their rule, and carry no
+member filter of their own.
+
+- **`all_by_type`, `counts_by_type` and `library_aggregates`** read
+  `listed_entries()` inside the indexer. Aggregates' `latest` for a set root reads the
+  set's `latest_change_ms` from a `set_directory -> latest` map. The
+  indexer computes it during `rescan` as the maximum over the root and
+  members, and swaps it with the other maps under the same ordered
+  locks, so aggregates read it in O(1) per root. Phase 8 adds assets and
+  Phase 10 adds observed removals.
+- **Clusters.** The three copies of the recompute (`server.rs:116-146`,
+  `watcher.rs:228-255` and `api/docs.rs:276-311`) are identical apart
+  from their receiver. Extract one `recompute_clusters(&indexer, &clusters)`
+  that reads its entries through the public, root-only `all()`, and
+  replace all three call sites with it. It carries no member filter of
+  its own.
+- **`related.rs`:** declared linkage reads `documents_including_members()`,
+  so a member's own `parent` is attributed to the member and the member
+  appears as an inbound item. Inbound lookup stays on the precomputed
+  `work_item_refs_by_target` map (`indexer.rs:990-1016`), which
+  `IndexMaps::build` fills from members as well as roots; it is the one
+  secondary map that includes members, because it records declared
+  linkage. `resolve_related` makes no scan of its own, so
+  `collect_linked_counts` stays linear. Inferred items read the default accessors,
+  so no member is ever inferred.
 - **`api/search.rs`:**
+  - candidates come from `documents_including_members()`;
   - `classify` uses `search_key()`;
-  - `project` emits a member row via `link_keys_of(entry)`, which returns
-    `(slug, id)`: for a member, the set root's slug and the `set_id`; for
-    others, their own;
+  - `project` emits a member row via `link_keys_of(entry) -> LinkKeys`, a
+    pure function of the entry: for a member, the context's `set_slug`
+    and `set_id`; for others, their own;
   - add `set_id` and `set_relative_path` to `SearchResultRow`;
-  - follow the PP-996 overlap rule for `id`;
-  - look up the root's slug from the index snapshot by `set_directory`.
+  - follow the PP-996 overlap rule for `id`.
 - **Frontend types.** Add `setId: string | null` and
   `setRelativePath: string | null` to `IndexEntry` and `SearchResult`, and
-  normalise missing values to `null`.
+  normalise missing values to `null`, with `fetch.test.ts` cases for
+  responses that omit them.
+- **Search result keys.** A member row shares the set's `docType` and
+  `slug`, so `SearchResultsPanel.tsx:68` adds `setRelativePath` to its
+  row key (`${docType}/${slug}/${setRelativePath ?? ""}`). A
+  `SearchResultsPanel` test renders a root and two members of one set
+  and finds all three rows.
 
 ### Success Criteria:
 
@@ -1120,6 +1462,43 @@ Then add these tests (`indexer.rs` inline tests, tempdir layouts):
   whose root is gone, and a directory path each return 404 (criteria 8
   and 24).
 - `inventory.md` is served unchanged (criterion 26).
+- A path through a symlinked ancestor to an unslotted file returns 404
+  on every platform.
+- A case-variant path (`meta/Research/Topics/<set>/.conduct-run.json`)
+  returns 404. The test probes the tempdir's case sensitivity, as
+  Phase 10's real-OS step does, and skips with a log line on a
+  case-sensitive volume, where the path cannot resolve.
+- A directory path under a non-set root returns 404, not 500.
+- The document endpoint refuses writes to anything but work items
+  (`OnlyWorkItemsAreWritable`, `api/docs.rs:189-191`), so no set member
+  or root is writable through it; a PATCH to a member returns that
+  refusal.
+
+**File**: `server/src/indexer.rs` (inline tests, single-path refresh)
+
+- `refresh_one` on a member document leaves an entry equal to the one a
+  full rescan builds, and `all_by_type` and `counts_by_type` unchanged.
+- `refresh_one` on an unslotted file and on a dot-prefixed file in a set
+  directory leaves both unindexed.
+- Deleting a member and calling `refresh_one` removes only that member.
+- Changing the root's frontmatter `id` on disk and calling
+  `refresh_one` on the root moves every member's `setId` to the new id.
+- After an external write to a member's frontmatter and `refresh_one`,
+  listing the type still shows one entry, and the member keeps its
+  `setId`.
+
+**File**: `server/src/file_driver.rs` (inline tests, Unix only)
+
+- A slot-matching asset symlink pointing outside the doc roots, and a
+  symlinked `findings/` directory, are both absent from `list_sets`,
+  mirroring `read_rejects_symlink_escape`.
+
+**File**: `server/tests/api_related.rs` (on an enumerated fixture set)
+
+- A member with `parent: X` has X as outbound; the root and a sibling do
+  not.
+- X has the member as inbound, and the related item carries `setId`.
+- No inferred item is a member (criteria 18, 28 and 36 on real records).
 
 **File**: `server/tests/api_search.rs`
 
@@ -1130,44 +1509,75 @@ Then add these tests (`indexer.rs` inline tests, tempdir layouts):
 
 **File**: `server/src/file_driver.rs`
 
-- Add `list_sets(kind) -> Vec<SetListing>`, where
-  `SetListing { directory, root, members: Vec<(String, MemberKind)> }`.
+- Add `list_sets(kind) -> Vec<SetListing>`, the single walk of a set
+  type's directories, where
+  `SetListing { directory, root, documents: Vec<String>, assets: Vec<AssetListing> }`
+  and `AssetListing { set_relative_path, size, mtime_ms }`.
 - For each non-dot directory under a set doc root that has a root file,
   walk it recursively (bounded by the deepest slot's segment count).
-  Skip dot-prefixed names at every depth, and classify each file's
-  set-relative path through `shape.classify`.
+  Skip dot-prefixed names at every depth, descend only directories for
+  which `matcher.may_contain_members(dir)` holds, and classify each
+  file's set-relative path through `matcher.classify`, where `matcher`
+  is `catalogue.set_matcher(kind)`.
+- The walk reads entries with `symlink_metadata` and does not descend a
+  symlinked directory. It canonicalises each slotted file and drops any
+  that fall outside the allowed roots, through the same
+  `path_is_allowed` check `read` uses.
+- Asset size and mtime come from the walk's own metadata, so asset bytes
+  are never read and no second stat pass is needed.
 - Build relative paths with `/` separators.
-- `list(kind)` for a set type returns roots and member documents, so the
-  `rescan` read pipeline stays uniform. Assets come from `list_sets`
-  with their metadata.
-- Add `FileDriver::stat(path)` for asset size and mtime, so asset bytes
-  are never read.
+- `list_sets` joins the `FileDriver` trait (`file_driver.rs:61`), so
+  `rescan` stays port-driven and the indexer's test double can supply
+  sets. `list(kind)` serves flat types only; on a set type it returns
+  `FileDriverError::SetType`, pinned by a test.
 
 #### 3. Index model
 
 **File**: `server/src/indexer.rs`
 
-- `rescan`: for set types, build entries for the root and member
-  documents with `SetMembership`.
+- `rescan`: for set types, read each `SetListing` as a group. Read the
+  root first and build its `SetContext` (`set_id`, `set_slug`,
+  `set_directory`), then build the member documents against that
+  context, so every record of one set carries the same `setId`. Member
+  reads go through the same `buffered` stream as other reads.
   - The set slug comes from the set directory name, not the immediate
     parent; this replaces the `indexer.rs:1512-1521` branch.
   - Members use their own filename for `title_from`'s fallback.
 - Add an `assets: HashMap<PathBuf, AssetRecord>` map, swapped with the
   others under the same ordered locks.
-  `AssetRecord { doc_type, path, rel_path, set: SetMembership, size, mtime_ms }`.
-- `refresh_entry` and `find_entry_for_deleted` handle member paths. If a
-  member's single-path refresh is too complex, route member paths
-  through a full rescan, as the watcher already does.
+  `AssetRecord { doc_type, path, rel_path, placement: SetPlacement, size, mtime_ms }`.
+  It reuses Phase 7's `SetPlacement`, so anything a member carries is
+  added in one place.
+- A set's `latest_change_ms` is the maximum over its root, its member
+  documents and its assets.
+- `refresh_one` on any path inside a set directory runs a full rescan,
+  as the watcher already does, because a member's record depends on its
+  root. `refresh_entry` and `find_entry_for_deleted` keep their
+  single-path behaviour for flat types only. Phase 10 routes every full
+  rescan, this one included, through `rescan_with_diff`.
 
 #### 4. Document endpoint
 
 **File**: `server/src/api/docs.rs`
 
-Under a set doc root, serve only an indexed document record, and 404
-everything else, including directories. Elsewhere the unindexed fallback
-stays as today, except that a directory returns 404 instead of 500.
+Canonicalise the requested path first, and decide whether it sits under
+a set doc root on that canonical path, against the canonical roots. A
+case variant or a symlinked ancestor therefore resolves to the same
+decision as the stored path. The decision fails closed: a path counts
+as under a set root when it matches either the raw or the resolved form
+of that root. A test creates a set root after startup and asserts an
+unslotted file under it returns 404. Under a set doc root, serve only an indexed
+document record, and 404 everything else, including directories.
+Elsewhere the unindexed fallback stays as today, except that a directory
+returns 404 instead of 500.
 
-#### 5. e2e
+#### 5. CHANGELOG
+
+Add a `### Changed` entry under `[Unreleased]`: `/api/docs` returns 404
+for files in a set directory that are not member documents, and for
+directories.
+
+#### 6. e2e
 
 `rg -n "search" cli/visualiser/frontend/e2e` covers the specs that assert
 search results. Update any count that the `prompt-caching-economics`
@@ -1219,6 +1629,15 @@ page specs still pass unchanged.
 - **No bodies.** No document object carries a `body`.
 - **Deleted root.** After the root is deleted, its members return 404
   from the member API and from `/api/docs` (criterion 32, API half).
+- **Duplicate `setId`.** Two sets whose roots share a frontmatter `id`:
+  the lexically first directory is returned.
+- **Encoded `setId`.** A set whose directory name holds a space and a
+  literal `%` is found by its percent-encoded id, decoded exactly once.
+- **Order.** `members` is in `setRelativePath` order, written to disk in
+  a different order.
+- **Inventory clutter.** For a design inventory holding
+  `prototype-full/x.html`, `assets/y.svg` and `notes.txt`, none of them
+  is a member (criterion 8).
 
 #### 2. Handler
 
@@ -1227,11 +1646,15 @@ page specs still pass unchanged.
 
 - Resolve the type through `state.cfg.doc_types`, and 404 unless
   `set_declaration()` exists.
-- Percent-decode `setId`. Find the root via `indexer.set_root(type, set_id)`,
-  taking the first match by path.
+- Register the route as `/api/sets/:type/:set_id`, in matchit 0.7's
+  syntax like its neighbours. The `Path` extractor's decoded `set_id` is
+  used as is, with no second decode.
+- Find the root via `indexer.set_root(type, set_id)`, taking the
+  lexically first directory on a duplicate.
 - Collect the documents by `set_directory` with `indexer.set_members(&dir)`,
   and the assets from the asset map. Project to the spec's wire types,
-  sorted by path.
+  sorted by `setRelativePath`. Both lookups scan the maps; at today's
+  scale no extra index is added.
 - Follow the `related_get` validation and 404 shape
   (`api/related.rs:30-57`).
 
@@ -1242,11 +1665,17 @@ page specs still pass unchanged.
 Add `SetResponse`, `SetDocumentMember` and `SetAssetMember`. No fetcher
 is added; PP-1001 adds one.
 
+#### 4. CHANGELOG
+
+Add an `### Added` entry under `[Unreleased]` for
+`GET /api/sets/{type}/{setId}`.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `mise run test:integration:visualiser --filter api_sets`
+- [ ] `mise run test:integration:visualiser --filter set_` (every
+      `api_sets.rs` test name starts with `set_`)
 - [ ] `mise run server:check`, `mise run frontend:check`
 - [ ] `mise run`
 
@@ -1262,7 +1691,8 @@ is added; PP-1001 adds one.
 ### Overview
 
 The watcher reacts to assets and directory renames inside set roots and
-ignores dot paths there. Activity rolls up per set. The latest time
+ignores dot paths there. Activity rolls up per set on the server, and the
+live feed shows the server's rows. The latest time
 counts removals. The phase ends with the genericity and source-boundary
 acceptance tests.
 
@@ -1270,7 +1700,12 @@ acceptance tests.
 
 #### 1. Failing tests first
 
-**File**: `server/src/watcher.rs` (the `Scripted` harness, `:779-889`)
+**File**: `server/src/watcher.rs` (the `Scripted` harness, `:779-889`,
+extended with helpers that write under a set doc root)
+
+These tests assert events, actions and activity rows only. Assertions
+on the member API and `/api/docs` for the same scenarios live in
+`server/tests/sse_e2e.rs`, through `InjectedWatcher`.
 
 - **One event per change.** Adding, changing or removing a member
   document, after one write and quiet past the debounce, emits exactly
@@ -1283,7 +1718,6 @@ acceptance tests.
   on disk and inject events for both paths. The asset stays a member:
   - exactly one `edited` event is emitted, carrying `screenshots/a.PNG`,
     with no `deleted` or `created` event;
-  - the member API lists `screenshots/a.PNG` once;
   - the set's activity row keeps its action.
 
   The `Scripted` harness reads the real tempdir but injects its own
@@ -1298,14 +1732,38 @@ acceptance tests.
   nothing (criterion 8).
 - **Rename into place.** A directory event for the rename
   `.x.tmp/ → x/`, holding a root, `brief.md`, `outline.md` and
-  `notes.txt`, emits three created events. Activity holds one row
-  reading created, and the member API returns the root and two members
-  (criterion 30).
+  `notes.txt`, with events injected for the directory and all four
+  children at once, emits exactly three created events. Activity holds
+  one row reading created (criterion 30).
 - **Root deletion.** Deleting the root while two members remain emits
-  three deleted events. The row reads deleted, the listing has no entry,
-  and both members return 404 (criterion 32).
+  three deleted events. The row reads deleted (criterion 32).
+- **Concurrent rescans.** Events for two paths of one change, released
+  together past the debounce, emit each change once.
+- **Set-level debounce,** counted through the recording `ChangeSink`'s
+  number of `rescan_with_diff` calls:
+  - ten member writes inside one set, within the debounce window, cause
+    one rescan;
+  - one write in each of two sets within the window causes two rescans
+    and an event for each path;
+  - a write under a flat root is debounced on its own path, as today.
+- **Ordered emission.** Create a member, and while its rescan's sink
+  call is held by a gated sink, delete the member. The events arrive as
+  created then deleted, and the set's activity row ends as the deletion.
+- **Trust flip.** Flipping trust while a member has changed on disk
+  emits one event for it and updates the set's latest time.
+- **Startup.** Building the indexer over a populated tempdir emits
+  nothing and leaves the activity feed empty.
 - **Non-set doc types.** A dot-prefixed file in a non-set root still
   emits (criterion 33).
+
+**File**: `server/tests/sse_e2e.rs`
+
+- After the case-only rename, the member API lists `screenshots/a.PNG`
+  once.
+- After the rename into place, the member API returns the root and two
+  members (criterion 30).
+- After the root deletion, the listing has no entry and both members
+  return 404 from the member API and `/api/docs` (criterion 32).
 
 **File**: `server/src/activity_feed.rs` (inline tests)
 
@@ -1324,8 +1782,13 @@ acceptance tests.
 
 - **Removals.** A member removed now gives the set's latest time as the
   removal's observed time, even when the other members are older
-  (criterion 34). A screenshot change bumps the latest time
-  (criterion 11).
+  (criterion 34). Removing an asset does the same. A screenshot change
+  bumps the latest time (criterion 11). Observed times are bounded by
+  `Utc::now()` captures taken before and after the rescan.
+- **Recreated set.** A set deleted and then recreated has a latest time
+  that ignores the earlier removal.
+- **Case-only rename.** Renaming `a.png` to `a.PNG` leaves the latest
+  time at the file's mtime, with no removal observed.
 
 **File**: `server/tests/generic_set_model.rs` (new; criteria 20 and 23)
 
@@ -1349,68 +1812,212 @@ acceptance tests.
   each member's frontmatter or mark, size and mtime, its set-relative
   path, and no body.
 
-**File**: `server/tests/source_boundary.rs` (new; criterion 21)
+**File**: `cli/corpus-adapters/tests/doc_type_declarations_are_single_source.rs`
+(criterion 21)
 
-Scan `server/src/**/*.rs`, excluding `#[cfg(test)]` modules. Assert that
-no production code mentions `TOPIC_RESEARCH`, `DESIGN_INVENTORIES`,
-`TopicResearch` or `DesignInventories`. After Phase 4, phases are
-declared too, so there is no exception.
+Phase 4's guard already walks `server/src` with no allow-list entry.
+Add a named case, `visualiser_server_names_no_set_doc_type`, that
+seeds `DocTypeKey::TOPIC_RESEARCH` into a copy of `api/search.rs`'s
+source and asserts the scanner reports it, and asserts that the real
+`server/src` scan found files and no violation. After Phase 4, phases
+are declared too, so there is no exception.
 
 #### 2. Watcher
 
 **File**: `server/src/watcher.rs`
 
-Replace `is_markdown` with `should_rescan(path, &roots)`:
+Replace `is_markdown` with `should_rescan(path, &roots)`, checked in
+this order:
 
-- markdown anywhere, as today;
-- under a set doc root, any path whose components below the root contain
-  no dot-prefixed name, including directories;
-- otherwise false.
+- under a set doc root, a path with a dot-prefixed component below the
+  root is rejected, whatever its extension;
+- under a set doc root, a path is admitted when it is a set directory, a
+  file `matcher.classify` places, or a directory for which
+  `matcher.may_contain_members` holds;
+- elsewhere, markdown, as today.
 
 Directory events under a set root trigger a rescan, which makes renames
-independent of how the OS backend reports children. `rescan_changes`
-also diffs the asset map on `(size, mtime_ms)` and emits `doc-changed`
-for assets, with no `etag`.
+independent of how the OS backend reports children. Unslotted trees such
+as `prototype-full/` admit nothing. `rescan_changes` also diffs the asset
+map on `(size, mtime_ms)` and emits `doc-changed` for assets, with no
+`etag`.
+
+**One diff per rescan.** Today each debounced path task reads its
+before-snapshot outside `rescan_lock`, so tasks released together can
+diff against the same before-snapshot and emit one change twice. Add
+`Indexer::rescan_with_diff(&dyn ChangeSink)`. Under the one
+`rescan_lock` permit, in this order, it:
+
+1. snapshots `documents_including_members()` and the asset map;
+2. rescans and snapshots again;
+3. builds the paired `IndexDiff` of changed documents and assets;
+4. updates and clears removal ledger entries from that diff;
+5. builds every map once through `IndexMaps::build(records, &ledger)`,
+   which takes the ledger as an input, so the `set_directory -> latest`
+   map has one builder and the maps are swapped once;
+6. hands the diff to the `ChangeSink` it was given, still under the
+   permit, so events from successive rescans leave in the order their
+   diffs were taken.
+
+Steps 1 and 2 read the index's state, and step 2's rescan builds records
+without swapping; the swap happens only in step 5.
+
+The sink is passed per call, never stored on the `Indexer`: the sink's
+recompute reads the `Indexer`, so storing it would make a cycle, and
+`AppState::build` (`server.rs:94-151`) creates the `Indexer` before the
+hub, the ring buffer, the clusters and the `WriteCoordinator` exist.
+The watcher and the PATCH handler both hold those collaborators and
+build the sink at the call. `refresh_one(path, &dyn ChangeSink)` takes
+one too, because a set path or a trust flip runs `rescan_with_diff`;
+its existing test call sites pass a recording sink.
+
+Today's `pub async fn rescan` (`indexer.rs:316`) becomes a private,
+non-swapping `build_records`, used by the constructor and by
+`rescan_with_diff`, so `rescan_with_diff` is the only public full-rescan
+method and no caller can swap maps without recording removals or
+calling a sink. The watcher's direct call (`watcher.rs:223`) and test
+callers move to `rescan_with_diff`.
+
+The indexer owns the snapshot, diff, ledger and map steps, and knows
+nothing of SSE, the activity feed or clusters. The server's
+`ChangeSink`, wired in `server.rs`, holds the SSE hub, the ring buffer,
+the `WriteCoordinator` and the clusters. For each diff it:
+
+1. runs `recompute_clusters` and its completeness, cluster-key and
+   linked-count backfills when the diff is non-empty, so a client that
+   refetches on the event sees fresh clusters;
+2. drops every change whose path `write_coordinator.should_suppress`
+   matches, as `on_path_changed` does today (`watcher.rs:260-263`);
+3. calls `emit` for each remaining change.
+
+Indexer tests pass a recording sink. The `Scripted` watcher tests pass
+a `TestSink` that wraps the production sink, delegating to it while it
+counts calls and, when asked, holds a gate, so one sink drives both the
+rescan counts and the activity and SSE assertions. A test makes an
+external edit that changes a work item's cluster key, reads
+`/api/lifecycle` as soon as its event arrives, and sees the new
+cluster; a member-only diff leaves clusters unchanged.
+
+`rescan_with_diff` is the only full-rescan entry point after start-up.
+The watcher's path tasks, `refresh_one` for set paths, and the
+trust-flip branch (`indexer.rs:486`) all call it, so a change another
+tool makes during an in-app write is emitted and recorded by whichever
+rescan sees it first. The constructor's initial build (`indexer.rs:308`)
+is the one exception: it builds the first index privately, with no diff
+and no sink, because nothing has been observed before it.
+
+**In-app writes.** Only work items are writable in-app
+(`OnlyWorkItemsAreWritable`, `api/docs.rs:189-191`), and they are flat,
+so an in-app write never touches a set. The PATCH handler keeps today's
+order: `refresh_one(path)`, a single-path refresh (or `rescan_with_diff`
+on a trust flip), then its own event with the `FileContent` etag. The
+only change is that the event goes through `emit`, so the ring buffer
+records it, and the handler calls `recompute_clusters` instead of its
+own copy. The watcher's task for the written path, and the sink for any
+rescan that sees it, suppress it through `write_coordinator`, as the
+watcher does today. The handler's event is for a different path from
+any event a concurrent rescan emits, so leaving it outside the rescan
+permit does not reorder events for one path.
+
+Tests:
+- a work-item PATCH adds one activity row and one SSE event, carrying
+  the `FileContent` etag;
+- an external member edit, followed by a work-item PATCH inside the
+  member's debounce window, emits each change once and the PATCH's with
+  the `FileContent` etag.
+
+**Set-level debounce.** A path admitted under a set doc root is
+debounced on its set directory rather than its own path, so a burst
+inside one set (a copy, or a rename into place) collapses to one
+rescan. The set-keyed task keeps the file paths it admitted and checks
+`write_coordinator.should_suppress` against each, so a burst made only
+of the application's own writes skips the rescan.
 
 **Case-only renames.** `should_rescan` already covers these: both the old
-and new paths sit under a set root and contain no dot-prefixed component,
-so either event triggers a rescan.
-- In `rescan_changes`, before emitting, pair each removed member path
-  with an added member path in the same set directory that is equal to
-  it under ASCII case folding. Emit each pair as one `edited` event for
-  the new path, and drop the pair's `deleted` and `created` events.
+and new paths sit under a set root and contain no dot-prefixed
+component, so either event triggers a rescan.
+- One domain function, `corpus::set::pair_case_only_renames(removed,
+  added)`, pairs each removed member path with an added member path in
+  the same set directory that is equal to it under ASCII case folding.
+- `rescan_with_diff` applies it, so the diff it returns already holds
+  each pair as one renamed member. `rescan_changes` emits a pair as one
+  `edited` event for the new path, and the removal ledger, which reads
+  the same diff, does not record it.
 - The pairing applies to member documents and assets alike. It runs only
   when the old path is gone from the after-snapshot, so on a
   case-sensitive volume two coexisting files `a.png` and `a.PNG` stay two
   members.
-- Per-path debounce means the second path's rescan finds nothing to
-  change and emits nothing.
-- The removal ledger skips paired paths, because the member was renamed,
-  not removed.
 
 #### 3. Activity roll-up
 
 **File**: `server/src/activity_feed.rs`, and `watcher::emit` (`:328-333`)
 
-- `emit` passes each event's set context, `Option<(root_rel_path, is_root)>`,
-  taken from the before or after record.
-- `ActivityRingBuffer::record(event, set: Option<SetContext>)`:
+- `emit` passes each event's `Option<SetEventContext>`, taken from the
+  before or after record, where
+  `SetEventContext { root_rel_path, role: SetDocumentRole }` reuses the
+  role from the membership model, and an asset event carries
+  `SetDocumentRole::Member`.
+- `ActivityRingBuffer::record(event, set: Option<SetEventContext>)`:
   - **non-set events** push as today;
-  - **set events** remove any row whose path is the root path. A root
-    event updates `root_actions[root]`. Then push
-    `ActivityEvent { action: root_actions.get(root).unwrap_or(Edited), path: root, doc_type, timestamp }`.
+  - **set events** take out any row whose path is the root path. The new
+    row's action is the event's own action for a root event, and
+    otherwise the removed row's action, or `Edited` when there was none.
+    Then push `ActivityEvent { action, path: root, doc_type, timestamp }`.
+- The root's action lives on its row, so the buffer holds no state
+  beyond its 50 rows. A set whose row has been evicted reads `Edited` on
+  its next member change.
 - The work stays O(n) over 50 rows under the lock, within the module's
   mutex discipline: no allocation beyond the row, and no I/O.
 
-#### 4. Removal ledger
+#### 4. Live activity feed
+
+**File**: `frontend/src/components/ActivityFeed/ActivityFeed.tsx`
+
+The server's ring buffer is the single owner of the roll-up rule. Today
+`ActivityFeed` adds one live row per `doc-changed` event
+(`ActivityFeed.tsx:69-99`), which would show a row for every member and
+asset. Instead:
+
+- its `subscribe` listener invalidates `queryKeys.activity(LIMIT)` on
+  each `doc-changed` event, so the feed refetches `/api/activity`.
+  TanStack Query collapses a burst of invalidations into one in-flight
+  refetch;
+- the `live` state and the merge with `initial` are removed, and rows
+  are the query's data as the server returns them;
+- `subscribe` still fires before the self-cause check, so the
+  application's own writes still refresh the feed.
+
+**File**: `server/src/api/docs.rs`
+
+Today the document PATCH handler broadcasts through `sse_hub` directly
+(`api/docs.rs:316-324`), so its writes never reach the ring buffer and
+appear in the feed only as client-built rows. With those rows gone, the
+handler's event goes through `emit`, as described under "In-app
+writes". `emit` moves out of `watcher.rs` into a module that the sink
+and the handler both call.
+
+**File**: `frontend/src/components/ActivityFeed/ActivityFeed.test.tsx`
+
+Write these red first:
+
+- a `doc-changed` event causes one refetch of `/api/activity`, and the
+  feed shows the refetched rows;
+- three `doc-changed` events for members of one set, with the mocked
+  server returning one rolled-up row, leave exactly one row for the set;
+- a self-caused `doc-changed` event still refetches, and the refetched
+  feed shows the row the server recorded for that write.
+
+Replace the existing tests that assert client-built live rows.
+
+#### 5. Removal ledger
 
 **File**: `server/src/indexer.rs`
 
-- `rescan` compares the before and after member paths for each set
-  directory. For each removal it records
+- `rescan_with_diff` reads the paired diff's removed member documents
+  and assets for each set directory. For each removal it records
   `last_removal_observed_ms[set_directory] = now`.
-- `latest_change_ms` is the maximum of the root, the members and that
-  value.
+- `latest_change_ms` is the maximum of the root, the member documents,
+  the assets and that value.
 - When a set disappears, its ledger entry is cleared.
 
 ### Success Criteria:
@@ -1418,22 +2025,28 @@ so either event triggers a rescan.
 #### Automated Verification:
 
 - [ ] `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
+- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+      reviewed.
 - [ ] Real-OS rename check: extend
       `the_os_watcher_reports_a_write_under_a_registered_directory` with
       a directory-rename case, and pass
       `mise run test:integration:visualiser-os-watcher` on macOS and in
       CI (Linux).
-- [ ] Real-OS case-only rename: in the same lane, add
-      `a_case_only_rename_keeps_an_asset_a_member`, which renames
-      `screenshots/a.png` to `screenshots/a.PNG` through the OS watcher
-      and expects one `edited` event and no `deleted` event.
-  - The test first probes the tempdir: it creates `probe` and checks
+- [ ] Real-OS case-only rename: the lane runs exactly one test by name
+      (`tasks/test/integration.py:71-74`), so the case is folded into
+      the same test function as a third step, not added as a second
+      test. It renames `screenshots/a.png` to `screenshots/a.PNG`
+      through the OS watcher and expects one `edited` event and no
+      `deleted` event.
+  - The step first probes the tempdir: it creates `probe` and checks
     whether `PROBE` resolves to it.
-  - On a case-sensitive volume (Linux CI) it returns early with a logged
-    skip, because the `Scripted` test above already covers the pairing
+  - On a case-sensitive volume (Linux CI) it skips the step with a log
+    line, because the `Scripted` test above already covers the pairing
     there.
-  - It runs on macOS's default APFS, where the OS reports the rename
-    with the stored name.
+  - On macOS's default APFS the lane runs the test with
+    `--include-ignored`, and the OS reports the rename with the stored
+    name.
+- [ ] `mise run test:unit:frontend`, `mise run frontend:check`
 - [ ] `mise run test:e2e:visualiser`
 - [ ] `mise run`
 
@@ -1461,7 +2074,8 @@ so either event triggers a rescan.
 - **Config.** Overlap refusal for equal, nested and prefix-but-not-segment
   roots, and the defaults.
 - **Server:**
-  - consumer rules on fabricated members;
+  - root-only default accessors and explicit member accessors, on
+    fabricated members;
   - enumeration on tempdir layouts, including real-inventory clutter;
   - asset records;
   - the activity roll-up's state machine;
@@ -1474,7 +2088,8 @@ so either event triggers a rescan.
   `api_library` assert every wire criterion.
 - `generic_set_model.rs` holds the test-only doc type end to end.
 - `sse_e2e.rs` covers renames and root deletion through `InjectedWatcher`.
-- The real-OS watcher lane covers a directory rename.
+- The real-OS watcher lane's single test covers a directory rename and a
+  case-only rename.
 - `api_smoke` and e2e run on the default paths.
 
 ### Manual Testing Steps:
@@ -1497,18 +2112,36 @@ so either event triggers a rescan.
   classification. Prune any directory segment that no slot's
   corresponding segment can match.
 - **Assets are stat'ed, not read,** so large PNGs cost nothing to index.
-- **Watcher admission.** The watcher now also admits asset and directory
-  events in set roots. Debounce is per path, so a renamed set triggers
-  one rescan per event. The first rescan emits everything, and the rest
-  are no-ops. This is acceptable at today's scale, so no coalescing is
-  added.
+- **Watcher admission.** The watcher now also admits slotted asset
+  paths and slot-ancestor directories in set roots, and nothing in
+  unslotted trees such as `prototype-full/`. Admitted paths under a set
+  root are debounced per set directory, so copying an inventory or
+  renaming a topic set into place costs one full rescan, not one per
+  file. An empty diff skips the cluster and linked-count recompute.
+- **Client fan-out.** Each `doc-changed` event invalidates several
+  queries. TanStack Query keeps one refetch in flight per query, so a
+  burst of member events costs a handful of refetches, not one per
+  event per query.
+- **Set facts are precomputed.** A set's slug, `setId` and latest time
+  are computed once per rescan, so search projection and library
+  aggregates read them without scanning the index.
 - **Activity roll-up.** It scans at most 50 rows per event.
 
 ## Migration Notes
 
-- **Configuration.** Users whose configuration nests doc roots will see a
-  refusal naming both keys. The defaults and `m0004`'s layout nest
-  nothing. Note it in the CHANGELOG.
+- **Configuration.** The defaults and `m0004`'s layout nest nothing.
+  Users whose configuration nests doc roots today (for example
+  `review_plans: meta/reviews` beside the default
+  `review_prs: meta/reviews/prs`, or a flat `research_codebase:
+  meta/research`) will see every command that reads doc roots refuse,
+  naming both keys:
+  - move the contained directory's files to a sibling path, or point
+    the containing key at a subdirectory (for example
+    `research_codebase: meta/research/codebase`), and update the config;
+  - then run `accelerator migrate` for any pending migrations; it
+    refuses until the overlap is gone.
+
+  Both CHANGELOG Breaking entries carry these steps.
 - **No data migration.**
 - **Bookmarked URLs** are unaffected. Member routes are PP-998's.
 
