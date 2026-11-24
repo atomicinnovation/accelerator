@@ -58,6 +58,8 @@ use crate::sync::files::SyncFiles;
 use crate::sync::operation::SyncOperation;
 use crate::sync::pending_push;
 use crate::sync::push_fidelity::PushFidelity;
+use crate::sync::push_verdict::PushOrigin;
+use crate::sync::push_verdict::PushVerdict;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::report::Adoption;
 use crate::sync::report::CreateNotice;
@@ -976,14 +978,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         sent_content: &str,
     ) -> Result<PushFidelity, ApplyError> {
         let remote = self.tracker.show(external_id).ok();
-        let fidelity = self.fidelity_of(sent_content, remote.as_ref());
+        let verdict =
+            self.verdict_of(PushOrigin::Pushed, sent_content, remote.as_ref());
         self.record(
             attempt,
             sent_content,
             remote.as_ref(),
-            MarkChange::Judged(&fidelity),
+            verdict.mark_change(),
         )?;
-        Ok(fidelity)
+        Ok(verdict.into_fidelity())
     }
 
     fn record_retitled_read_back(
@@ -1000,12 +1003,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         )
     }
 
-    fn fidelity_of(
+    fn verdict_of(
         &self,
+        origin: PushOrigin,
         sent_content: &str,
         remote: Option<&RemoteIssue>,
-    ) -> PushFidelity {
-        self.digester().comparison().push_fidelity(
+    ) -> PushVerdict {
+        PushVerdict::judged(
+            origin,
+            self.digester().comparison(),
             sent_content,
             remote.map(|issue| issue.body.as_str()),
         )
@@ -1322,7 +1328,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 request,
                 attempt,
                 &key,
-                IssueCreated::InAnEarlierRun,
+                PushOrigin::CreatedEarlier,
             ),
             UnorderedCreateDecision::Proceed => {
                 self.create_marking_progress(request, attempt)
@@ -1601,7 +1607,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             request,
             attempt,
             external_id,
-            IssueCreated::ThisRun,
+            PushOrigin::Created,
         )
     }
 
@@ -1682,7 +1688,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
         external_id: &ExternalId,
-        created: IssueCreated,
+        origin: PushOrigin,
     ) -> Result<CreatedLocally, ApplyError> {
         attempt.land_local(
             SyncOperation::LinkExternalId,
@@ -1700,23 +1706,18 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .observe_local(SyncOperation::ReadLocal, || {
                 read_file(request.file_path)
             })?;
-        let fidelity = match created {
-            IssueCreated::ThisRun => {
-                self.fidelity_of(&local_content, remote.as_ref())
-            }
-            IssueCreated::InAnEarlierRun => PushFidelity::Unjudged,
-        };
+        let verdict = self.verdict_of(origin, &local_content, remote.as_ref());
         self.record(
             attempt,
             &local_content,
             remote.as_ref(),
-            MarkChange::Fresh(&fidelity),
+            verdict.mark_change(),
         )?;
         Ok(CreatedLocally {
             leftover_marker: self.clear_marker(request.marker_path).err(),
             notice: None,
             adopted: None,
-            fidelity,
+            fidelity: verdict.into_fidelity(),
         })
     }
 
@@ -1798,14 +1799,6 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             )
         })
     }
-}
-
-/// Whether the issue a create links was made by this run's create, so its
-/// read-back judges the body this run sent.
-#[derive(Clone, Copy)]
-enum IssueCreated {
-    ThisRun,
-    InAnEarlierRun,
 }
 
 fn order_refused<'a>(

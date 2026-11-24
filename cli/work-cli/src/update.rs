@@ -31,9 +31,8 @@ use work::update::LIST_FIELDS;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
-use work_adapters::sync::push_fidelity::PushFidelity;
-use work_adapters::sync::push_fidelity::RewriteNotice;
-use work_adapters::sync::rewrite_mark::MarkChange;
+use work_adapters::sync::push_verdict::PushOrigin;
+use work_adapters::sync::push_verdict::PushVerdict;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
@@ -262,12 +261,17 @@ fn push_update(
     let fingerprints = digester
         .digests(rendered, read_back)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
-    let fidelity = digester.comparison().push_fidelity(rendered, read_back);
+    let verdict = PushVerdict::judged(
+        PushOrigin::Pushed,
+        digester.comparison(),
+        rendered,
+        read_back,
+    );
     let recorded = baseline_store
         .record(
             &id,
             pushed_entry(remote, fingerprints),
-            MarkChange::Judged(&fidelity),
+            verdict.mark_change(),
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     work_adapters::sync::adoption_records::retire_confirmed(
@@ -278,7 +282,7 @@ fn push_update(
     );
 
     Ok(rewrite_warnings(
-        fidelity,
+        verdict,
         recorded.get(&id),
         (path, &external_id),
         &integration,
@@ -307,18 +311,15 @@ fn pushed_entry(
 /// `external_id`: of this push when its read-back was rewritten, else of
 /// the rewrite its recorded entry still marks.
 fn rewrite_warnings(
-    fidelity: PushFidelity,
+    verdict: PushVerdict,
     recorded: Option<&baseline::Entry>,
     (path, external_id): (&Path, &tracker::ExternalId),
     integration: &str,
 ) -> Vec<String> {
-    RewriteNotice::on_push(fidelity, path, external_id)
-        .or_else(|| match recorded {
-            Some(baseline::Entry::Split(entry)) => entry
-                .mark()
-                .mark()
-                .map(|mark| mark.notice(path, external_id)),
-            _ => None,
+    verdict
+        .into_notice(path, external_id)
+        .or_else(|| {
+            recorded.and_then(|entry| entry.standing_rewrite(path, external_id))
         })
         .map(|notice| {
             rewrite_lines(&notice, &path.display().to_string(), integration)

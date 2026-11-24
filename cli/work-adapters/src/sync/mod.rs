@@ -22,6 +22,7 @@ pub mod operation;
 mod ordering;
 pub mod pending_push;
 pub mod push_fidelity;
+pub mod push_verdict;
 pub mod realign;
 pub mod recovery_label;
 pub mod report;

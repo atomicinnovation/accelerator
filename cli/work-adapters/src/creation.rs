@@ -67,9 +67,9 @@ use crate::sync::digest;
 use crate::sync::pending_push;
 use crate::sync::pending_push::Marker;
 use crate::sync::pending_push::MarkerError;
-use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::push_fidelity::RewriteNotice;
-use crate::sync::rewrite_mark::MarkChange;
+use crate::sync::push_verdict::PushOrigin;
+use crate::sync::push_verdict::PushVerdict;
 use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
@@ -374,9 +374,7 @@ struct LegacyPush {
     cause: Option<String>,
     tracker: Option<Box<dyn RemoteTracker>>,
     marker: Option<PathBuf>,
-    /// Whether this run sent the create, rather than reusing an earlier
-    /// run's issue.
-    sent_create: bool,
+    origin: PushOrigin,
 }
 
 impl LegacyPush {
@@ -390,7 +388,7 @@ impl LegacyPush {
             cause,
             tracker: None,
             marker: None,
-            sent_create: false,
+            origin: PushOrigin::CreatedEarlier,
         }
     }
 }
@@ -586,7 +584,7 @@ fn push_legacy_item(
             cause: None,
             tracker: (pushing.tracker)().ok(),
             marker: Some(marker_path),
-            sent_create: false,
+            origin: PushOrigin::CreatedEarlier,
         }),
         PushNext::Proceed => {
             pending_push::prepare_dir(&state.root, &state.name)
@@ -647,7 +645,7 @@ fn send_legacy_create(
                 cause: None,
                 tracker: Some(tracker),
                 marker: Some(marker.path.clone()),
-                sent_create: true,
+                origin: PushOrigin::Created,
             })
         }
         RemoteCreate::TrackerUnreachable => {
@@ -695,7 +693,7 @@ fn record_baseline_after_create(
     item_id: &str,
     local: LocalDigests,
     remote: RemoteHash,
-    fidelity: &PushFidelity,
+    verdict: &PushVerdict,
 ) -> Result<(), String> {
     let path = state.baseline_path();
     let dir = path.parent().unwrap_or(creation.repo_root).to_path_buf();
@@ -710,7 +708,7 @@ fn record_baseline_after_create(
         },
         &store,
         creation.now,
-        MarkChange::Fresh(fidelity),
+        verdict.mark_change(),
     )
     .map_err(|error| error.to_string())
 }
@@ -852,27 +850,25 @@ pub fn create_local_item(
             Some(cause),
         ));
     }
-    let (local, remote, fidelity) = match push.tracker.as_deref() {
+    let (local, remote, verdict) = match push.tracker.as_deref() {
         Some(tracker) => {
             let digester = BaselineDigester::new(tracker, creation.parser);
             let (legacy, fingerprints) =
                 digester.local(&item).map_err(|error| error.to_string())?;
             let issue = tracker.show(&key).ok();
-            let fidelity = if push.sent_create {
-                digester.comparison().push_fidelity(
-                    &item,
-                    issue.as_ref().map(|issue| issue.body.as_str()),
-                )
-            } else {
-                PushFidelity::Unjudged
-            };
+            let verdict = PushVerdict::judged(
+                push.origin,
+                digester.comparison(),
+                &item,
+                issue.as_ref().map(|issue| issue.body.as_str()),
+            );
             (
                 LocalDigests {
                     legacy,
                     fingerprints: Some(fingerprints),
                 },
                 remote_hash_of(&digester, issue.as_ref()),
-                fidelity,
+                verdict,
             )
         }
         None => (
@@ -882,7 +878,7 @@ pub fn create_local_item(
                 fingerprints: None,
             },
             RemoteHash::Unknown,
-            PushFidelity::Unjudged,
+            PushVerdict::unread(push.origin),
         ),
     };
     record_baseline_after_create(
@@ -891,7 +887,7 @@ pub fn create_local_item(
         &id,
         local,
         remote,
-        &fidelity,
+        &verdict,
     )?;
     if let Some(path) = push.marker {
         LegacyMarker {
@@ -902,7 +898,7 @@ pub fn create_local_item(
         }
         .spend();
     }
-    let rewrite = RewriteNotice::on_push(fidelity, &target, &key);
+    let rewrite = verdict.into_notice(&target, &key);
     Ok(with_rewrite(
         pushed(Some(target), PushOutcome::WriteOnce, Some(&key), None),
         rewrite,

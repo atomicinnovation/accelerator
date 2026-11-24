@@ -64,7 +64,8 @@ use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
 use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::push_fidelity::RewriteNotice;
-use crate::sync::rewrite_mark::MarkChange;
+use crate::sync::push_verdict::PushOrigin;
+use crate::sync::push_verdict::PushVerdict;
 use crate::sync::synced_fields;
 use work::identity_run::IdentityRunGuard;
 
@@ -445,10 +446,13 @@ pub fn promote(
     ports: &PromotionPorts<'_>,
     identity_run: &IdentityRunGuard,
 ) -> PromotionAttempt {
-    let mut fidelity = PushFidelity::Unjudged;
+    let mut verdict = PushVerdict::unread(PushOrigin::Pushed);
     let result =
-        promote_judging(draft, mode, ports, identity_run, &mut fidelity);
-    PromotionAttempt { result, fidelity }
+        promote_judging(draft, mode, ports, identity_run, &mut verdict);
+    PromotionAttempt {
+        result,
+        fidelity: verdict.into_fidelity(),
+    }
 }
 
 fn promote_judging(
@@ -456,7 +460,7 @@ fn promote_judging(
     mode: &PromotionMode,
     ports: &PromotionPorts<'_>,
     identity_run: &IdentityRunGuard,
-    fidelity: &mut PushFidelity,
+    verdict: &mut PushVerdict,
 ) -> Result<Promotion, NotPromoted> {
     let lock = acquire_retirement_lock(ports.retirement.lock, identity_run)
         .map_err(|error| {
@@ -482,10 +486,10 @@ fn promote_judging(
                 promotion.adopt(&key, &stored)?;
             }
             PromotionStep::RetitleRemote(key) => {
-                *fidelity = promotion.retitle_remote(&key, &stored)?;
+                *verdict = promotion.retitle_remote(&key, &stored)?;
             }
             PromotionStep::Retire(key) => {
-                return promotion.retire(&key, &stored, fidelity);
+                return promotion.retire(&key, &stored, verdict);
             }
             PromotionStep::Finish => {
                 let StoredRecord::Present(record) = stored else {
@@ -497,7 +501,7 @@ fn promote_judging(
                     ports.retirement,
                     ports.records,
                     &lock,
-                    &PushFidelity::Unjudged,
+                    &PushVerdict::unread(PushOrigin::Pushed),
                 );
             }
             PromotionStep::Stop(reason) => return Err(reason),
@@ -528,7 +532,7 @@ fn already_promoted(
                 ports.retirement,
                 ports.records,
                 lock,
-                &PushFidelity::Unjudged,
+                &PushVerdict::unread(PushOrigin::Pushed),
             )?;
         }
     }
@@ -759,7 +763,7 @@ impl Promoting<'_> {
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
-    ) -> Result<PushFidelity, NotPromoted> {
+    ) -> Result<PushVerdict, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
@@ -787,7 +791,7 @@ impl Promoting<'_> {
                         reason,
                     },
                 )
-                .map(|()| PushFidelity::Unjudged),
+                .map(|()| PushVerdict::unread(PushOrigin::Pushed)),
             Retitling::Retitle => {
                 let promoted = self.promoted_content(key);
                 let (_, body) = digest::split_frontmatter_and_body(&promoted)
@@ -812,7 +816,7 @@ impl Promoting<'_> {
                                 },
                             },
                         )
-                        .map(|()| PushFidelity::Unjudged);
+                        .map(|()| PushVerdict::unread(PushOrigin::Pushed));
                 }
                 let updated = self.show(key)?;
                 let digester = self.digester();
@@ -823,9 +827,12 @@ impl Promoting<'_> {
                         read_back: read_back_of(&digester, &updated),
                     },
                 )?;
-                Ok(digester
-                    .comparison()
-                    .push_fidelity(&promoted, Some(&updated.body)))
+                Ok(PushVerdict::judged(
+                    PushOrigin::Pushed,
+                    digester.comparison(),
+                    &promoted,
+                    Some(&updated.body),
+                ))
             }
         }
     }
@@ -834,7 +841,7 @@ impl Promoting<'_> {
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
-        fidelity: &PushFidelity,
+        verdict: &PushVerdict,
     ) -> Result<Promotion, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
@@ -885,7 +892,7 @@ impl Promoting<'_> {
             self.ports.retirement,
             self.ports.records,
             self.lock,
-            fidelity,
+            verdict,
         )
     }
 }
@@ -924,9 +931,9 @@ impl RemoteReading<'_> {
 ///
 /// Retires the draft ID to the key if that is still outstanding, records
 /// the intended baseline once the draft ID is only an alias of the key's
-/// item, its rewrite mark as `fidelity` leaves it, then removes the
+/// item, its rewrite mark as `verdict` leaves it, then removes the
 /// record. Only the run whose retitle landed judges the body sent; every
-/// other finish passes [`PushFidelity::Unjudged`]. The completed promotion names the state
+/// other finish passes an unread verdict. The completed promotion names the state
 /// that baseline leaves the promoted item in.
 ///
 /// A refused or rolled-back retirement rewinds the record to its stage
@@ -943,7 +950,7 @@ pub fn finish_promotion(
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
-    fidelity: &PushFidelity,
+    verdict: &PushVerdict,
 ) -> Result<Promotion, NotPromoted> {
     let PromotionStage::Retiring {
         key,
@@ -991,7 +998,7 @@ pub fn finish_promotion(
             baseline,
             store,
             UNSYNCED_WATERMARK,
-            MarkChange::Judged(fidelity),
+            verdict.mark_change(),
         )
         .map_err(|error| unwritable(Some(key), &error))?;
     }

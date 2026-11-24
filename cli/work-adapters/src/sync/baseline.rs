@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use serde_json::Map;
 use serde_json::Value;
+use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use work::sync::BaselineFingerprints;
 use work::sync::DualRecipeFingerprints;
@@ -14,6 +15,7 @@ use work::sync::LocalFingerprints;
 use work::sync::RemoteFingerprints;
 use work::sync::SplitFingerprints;
 
+use crate::sync::push_fidelity::RewriteNotice;
 use crate::sync::rewrite_mark::render_object;
 use crate::sync::rewrite_mark::render_string;
 use crate::sync::rewrite_mark::MarkChange;
@@ -252,6 +254,23 @@ impl SplitEntry {
 }
 
 impl Entry {
+    /// The rewrite an earlier push left standing on the item at `path`
+    /// known remotely as `external_id`, if this entry still marks one.
+    #[must_use]
+    pub fn standing_rewrite(
+        &self,
+        path: &Path,
+        external_id: &ExternalId,
+    ) -> Option<RewriteNotice> {
+        let Self::Split(entry) = self else {
+            return None;
+        };
+        entry
+            .mark()
+            .mark()
+            .map(|mark| mark.notice(path, external_id))
+    }
+
     /// A legacy entry from the strings an earlier release persisted, an
     /// empty hash meaning absent.
     #[must_use]
@@ -660,6 +679,7 @@ mod tests {
     use crate::sync::push_fidelity::ChangedLine;
     use crate::sync::push_fidelity::ChangedLines;
     use crate::sync::push_fidelity::PushFidelity;
+    use crate::sync::push_fidelity::RewriteKind;
     use crate::sync::push_fidelity::RewrittenLines;
     use crate::sync::rewrite_mark::MarkChange;
     use crate::sync::rewrite_mark::MarkState;
@@ -1107,6 +1127,32 @@ mod tests {
             panic!("a split entry: {entry:?}");
         };
         split.mark()
+    }
+
+    #[test]
+    fn only_a_marked_entry_holds_a_standing_rewrite() {
+        let path = Path::new("meta/work/0001.md");
+        let key = tracker::ExternalId::new("PP-1".to_owned());
+        let Entry::Split(split) = split_entry() else {
+            unreachable!("the fixture entry is split");
+        };
+        let legacy = Entry::Legacy {
+            stamps: split.stamps().clone(),
+            legacy: split.legacy().clone(),
+        };
+
+        let standing = marked(MarkState::Marked(Box::new(crates_io_mark(2))))
+            .standing_rewrite(path, &key);
+
+        assert_eq!(
+            standing.map(|notice| (notice.kind, notice.lines)),
+            Some((
+                RewriteKind::StillOnPush,
+                crates_io_mark(2).rewritten_lines()
+            ))
+        );
+        assert_eq!(split_entry().standing_rewrite(path, &key), None);
+        assert_eq!(legacy.standing_rewrite(path, &key), None);
     }
 
     #[test]

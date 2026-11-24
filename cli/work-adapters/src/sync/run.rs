@@ -384,13 +384,9 @@ fn noting_standing_rewrites(
         let Some(external_id) = item.external_id.as_ref() else {
             continue;
         };
-        let Some(Entry::Split(entry)) = recorded.get(&item.id) else {
-            continue;
-        };
-        row.rewrite = entry
-            .mark()
-            .mark()
-            .map(|mark| mark.notice(&item.path, external_id));
+        row.rewrite = recorded
+            .get(&item.id)
+            .and_then(|entry| entry.standing_rewrite(&item.path, external_id));
     }
 }
 
