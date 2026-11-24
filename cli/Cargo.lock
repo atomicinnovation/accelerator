@@ -3253,6 +3253,7 @@ dependencies = [
  "config-adapters",
  "graphql-test-support",
  "http-test-support",
+ "markdown",
  "remote-projection",
  "reqwest",
  "rustls",

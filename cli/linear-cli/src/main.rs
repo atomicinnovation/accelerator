@@ -19,8 +19,8 @@ use linear_client::catalogue::{CatalogueUpdate, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
 use linear_client::filter::ConfiguredSearch;
 use linear_client::{
-    ClientError, LinearClient, LinearFailure, StateId, SurfaceError,
-    UpdateFields,
+    ClientError, Description, LinearClient, LinearFailure, StateId,
+    SurfaceError, UpdateFields,
 };
 use serde_json::{json, Value};
 use tracker::Completeness;
@@ -323,7 +323,7 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
     };
     let fields = UpdateFields {
         title: args.title.as_deref(),
-        description: description.as_deref(),
+        description: description.as_deref().map(Description::Markdown),
         state_id: state_id.as_ref(),
         assignee_id: args.assignee_id.as_deref(),
         priority: args.priority,
@@ -413,7 +413,7 @@ fn run_create(args: &CreateArgs) -> ExitCode {
         Ok(built) => built.client,
         Err(code) => return code,
     };
-    match client.create_op(&title, &body, "story") {
+    match client.create_op(&title, Description::Markdown(&body), "story") {
         Ok(identifier) => {
             keywords::text_line(
                 keywords::Create::Created.keyword(),

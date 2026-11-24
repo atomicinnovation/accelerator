@@ -2,8 +2,8 @@
 //! the single GraphQL endpoint, and the body-parsing classification that turns
 //! a wire outcome into the port's `TrackerError`.
 //!
-//! No ADF layer: Linear is Markdown-native, so a body passes through verbatim
-//! in both directions.
+//! No ADF layer: Linear is Markdown-native. A description is sent escaped for
+//! Linear's parser and read back as stored.
 
 pub mod attach;
 pub mod auth;
@@ -12,6 +12,7 @@ pub mod catalogue;
 pub mod classify;
 pub mod client;
 pub mod comment;
+pub mod description;
 pub mod discovery;
 pub mod error;
 pub mod failure;
@@ -32,6 +33,7 @@ pub use crate::classify::Operation;
 pub use crate::classify::Outcome;
 pub use crate::client::DetailedPage;
 pub use crate::client::LinearClient;
+pub use crate::description::Description;
 pub use crate::error::ClientError;
 pub use crate::failure::LinearFailure;
 pub use crate::surface::SurfaceError;

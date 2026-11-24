@@ -9,7 +9,7 @@ mod support;
 
 use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::classify::{GraphQlError, Outcome};
-use linear_client::LinearFailure;
+use linear_client::{Description, LinearFailure};
 use support::client::{brief, client_for};
 use tracker::ExternalId;
 
@@ -32,7 +32,9 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
     server.route(RequestKey::post(GRAPHQL), json(401, "{}"));
 
     let client = client_for(&server, brief());
-    let failure = client.create_op("t", "b", "story").expect_err("401");
+    let failure = client
+        .create_op("t", Description::Markdown("b"), "story")
+        .expect_err("401");
 
     match failure {
         LinearFailure::Wire { outcome, .. } => {
@@ -54,7 +56,9 @@ fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
     server.route(RequestKey::post(GRAPHQL), json(200, body));
 
     let client = client_for(&server, brief());
-    let failure = client.create_op("t", "b", "story").expect_err("unwritable");
+    let failure = client
+        .create_op("t", Description::Markdown("b"), "story")
+        .expect_err("unwritable");
 
     assert!(
         matches!(failure, LinearFailure::UnwritableIdentifier { .. }),
@@ -70,7 +74,9 @@ fn a_created_identifier_not_shaped_like_an_issue_key_is_unwritable() {
     server.route(RequestKey::post(GRAPHQL), json(200, body));
 
     let client = client_for(&server, brief());
-    let failure = client.create_op("t", "b", "story").expect_err("unwritable");
+    let failure = client
+        .create_op("t", Description::Markdown("b"), "story")
+        .expect_err("unwritable");
 
     assert!(
         matches!(failure, LinearFailure::UnwritableIdentifier { .. }),

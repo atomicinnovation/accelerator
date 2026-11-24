@@ -1,7 +1,7 @@
 //! `impl RemoteTracker for LinearClient`.
 //!
-//! No conversion layer in either direction: Linear is Markdown-native, so a
-//! body passes through verbatim.
+//! No conversion layer: Linear is Markdown-native. A body is sent escaped for
+//! Linear's parser and read back as stored.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -49,6 +49,7 @@ use crate::classify::classify;
 use crate::classify::classify_errors;
 use crate::classify::Operation;
 use crate::classify::Outcome;
+use crate::description::Description;
 use crate::discovery::TeamEntryFetch as _;
 use crate::error::ClientError;
 use crate::failure::LinearFailure;
@@ -677,14 +678,14 @@ impl LinearClient {
     pub fn create_op(
         &self,
         title: &str,
-        body: &str,
+        description: Description<'_>,
         _kind: &str,
     ) -> Result<ExternalId, LinearFailure> {
         // Linear has no per-issue type: `kind` has no destination.
         let variables = json!({"input": {
             "teamId": self.credentials().team_id,
             "title": title,
-            "description": body,
+            "description": description.wire(),
         }});
         let response = self.call_unrepeatable_op(
             CREATE,
@@ -895,7 +896,7 @@ impl RemoteTracker for LinearClient {
         body: &str,
         kind: &str,
     ) -> Result<ExternalId, TrackerError> {
-        self.create_op(title, body, kind)
+        self.create_op(title, Description::Markdown(body), kind)
             .map_err(TrackerError::from)
     }
 
@@ -909,7 +910,7 @@ impl RemoteTracker for LinearClient {
             id,
             &UpdateFields {
                 title,
-                description: Some(body),
+                description: Some(Description::Markdown(body)),
                 ..UpdateFields::default()
             },
         )

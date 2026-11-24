@@ -135,7 +135,7 @@ fn create_sends_the_mutation_and_returns_the_identifier() {
     assert_eq!(sent["variables"]["input"]["title"], "A title");
     assert_eq!(
         sent["variables"]["input"]["description"], "A body\n",
-        "Linear is Markdown-native: the body passes through verbatim"
+        "a body needing no escape reaches Linear unchanged"
     );
 }
 

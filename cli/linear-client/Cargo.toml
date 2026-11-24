@@ -26,6 +26,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 config = { path = "../config" }
+markdown = { path = "../markdown" }
 # The discovery cache reuses the workspace's one atomic-write and mkdir-lock
 # primitives rather than a second implementation — the store-duplication guard
 # enforces this, and the mkdir-lock's owner.<nonce> sentinel never reclaims a
