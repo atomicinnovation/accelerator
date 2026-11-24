@@ -12,8 +12,10 @@ from tasks.shared.shared_fixtures.families import Family
 
 _MATRIX = frozenset({Family.MATRIX})
 _STATUS_LOG = frozenset({Family.STATUS_LOG})
+_STALLED_MIGRATION = frozenset({Family.STALLED_MIGRATION})
 
 CONSUMERS: Mapping[str, frozenset[Family]] = {
+    "accelerator-migrate::guarded_resume": _STALLED_MIGRATION,
     "accelerator-vcs::status_log_goldens": _STATUS_LOG,
     "vcs-adapters::classify": _MATRIX,
     "vcs-adapters::conflicts": _STATUS_LOG,

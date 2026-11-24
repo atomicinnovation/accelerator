@@ -391,7 +391,8 @@ handed over.
 
 The stalled-migration set holds four jj repositories on which migrate's 0007
 run has stalled, one per colocation (`Pure`, `Colocated`) and parent shape
-(`SingleParent`, `MergeWithSibling`). A test copies the one it needs by its
+(`SingleParent`, `MergeWithSibling`). Its one consumer,
+`accelerator-migrate::guarded_resume`, copies the stall each test needs by its
 `StallKey`, passing the migrate binary a private build would run:
 
 ```rust

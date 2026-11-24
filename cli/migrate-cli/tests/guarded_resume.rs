@@ -4,6 +4,7 @@
 mod common;
 
 use std::fs;
+use std::path::PathBuf;
 
 use common::decisions_file_for;
 use common::run;
@@ -15,8 +16,16 @@ use vcs_test_support::colocation::JjColocation;
 use vcs_test_support::copies::copy_private_tree;
 use vcs_test_support::counted::each_of;
 use vcs_test_support::hermetic::Hermetic;
+use vcs_test_support::repository_state::RepositoryKind;
+use vcs_test_support::repository_state::RepositoryState;
 use vcs_test_support::stalled_migration::corpus;
+use vcs_test_support::stalled_migration::MigrateBinary;
 use vcs_test_support::stalled_migration::ParentShape;
+use vcs_test_support::stalled_migration::Stall;
+use vcs_test_support::stalled_migration::StallKey;
+use vcs_test_support::stalled_migration::StalledMigrations;
+use vcs_test_support::workbench::Held;
+use vcs_test_support::workbench::Workbench;
 
 #[test]
 fn a_git_stall_resumes_after_writing_its_named_decisions_file(
@@ -129,7 +138,38 @@ fn force_over_an_unreadable_jj_working_copy_records_no_run_base(
 
 /// A jj repository whose 0007 run has stalled, with the committed corpus as
 /// `base` and a sibling change beside it that adds `meta/sibling.md`.
-struct Stalled {
+struct Stalled<'w> {
+    workbench: &'w Workbench,
+    stalls: Held<'w, StalledMigrations>,
+    key: StallKey,
+}
+
+impl<'w> Stalled<'w> {
+    fn copied(
+        workbench: &'w Workbench,
+        key: StallKey,
+    ) -> Result<Self, TestError> {
+        let stalls = workbench.writable_stalled_migrations(
+            key,
+            &MigrateBinary(PathBuf::from(common::BIN)),
+        )?;
+        Ok(Self {
+            workbench,
+            stalls,
+            key,
+        })
+    }
+
+    fn stall(&self) -> Result<&Stall, TestError> {
+        Ok(self.stalls.stall(self.key)?)
+    }
+
+    const fn env(&self) -> &Hermetic {
+        self.workbench.hermetic()
+    }
+}
+
+struct ScenarioStall {
     _work: tempfile::TempDir,
     env: Hermetic,
     root: std::path::PathBuf,
@@ -138,7 +178,7 @@ struct Stalled {
     sibling: String,
 }
 
-impl Stalled {
+impl ScenarioStall {
     fn on(
         colocation: JjColocation,
         shape: ParentShape,
@@ -213,7 +253,7 @@ fn prefix_the_way_the_scenarios_always_have(
 fn stalled_the_way_the_scenarios_always_have(
     prefix: &Prefix,
     shape: ParentShape,
-) -> Result<Stalled, TestError> {
+) -> Result<ScenarioStall, TestError> {
     let work = tempdir("jj-stall")?;
     copy_private_tree(prefix.work.path(), work.path())?;
     let env = Hermetic::rooted_at(work.path())?;
@@ -233,7 +273,7 @@ fn stalled_the_way_the_scenarios_always_have(
         stalled.stderr
     );
 
-    Ok(Stalled {
+    Ok(ScenarioStall {
         _work: work,
         env,
         root,
@@ -280,13 +320,55 @@ fn for_each_colocation(
     each_of(2, JjColocation::ALL, body)
 }
 
+#[test]
+fn copied_stalls_match_the_scenarios_stalls_when_pure() -> Result<(), TestError>
+{
+    assert_copied_stalls_match_the_scenarios_stalls(JjColocation::Pure)
+}
+
+#[test]
+fn copied_stalls_match_the_scenarios_stalls_when_colocated(
+) -> Result<(), TestError> {
+    assert_copied_stalls_match_the_scenarios_stalls(JjColocation::Colocated)
+}
+
+fn assert_copied_stalls_match_the_scenarios_stalls(
+    colocation: JjColocation,
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let prefix = prefix_the_way_the_scenarios_always_have(colocation)?;
+    each_of(2, ParentShape::ALL, |shape| -> Result<(), TestError> {
+        let key = StallKey { colocation, shape };
+        let workbench = Workbench::for_this_test()?;
+        let copied = Stalled::copied(&workbench, key)?;
+        let built = stalled_the_way_the_scenarios_always_have(&prefix, shape)?;
+
+        let state = RepositoryState::of(&copied.stall()?.root, copied.env())?;
+
+        assert_eq!(
+            state,
+            RepositoryState::of(&built.root, &built.env)?,
+            "{key}"
+        );
+        assert_eq!(state.kind, RepositoryKind::Jj(colocation));
+        assert_eq!(
+            state.working_copy_parents.len(),
+            match shape {
+                ParentShape::SingleParent => 1,
+                ParentShape::MergeWithSibling => 2,
+            }
+        );
+        Ok(())
+    })
+}
+
 const STALE_LINE: &str =
     "A previous migration run's recorded base no longer matches";
 
 #[test]
 fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
         stalled.write_decisions()?;
         stalled.jj(&["status"])?;
@@ -315,7 +397,7 @@ fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
 fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
 ) -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         stalled.write_decisions()?;
         fs::write(
             stalled.root.join(corpus::OWNED_NOTE),
@@ -343,7 +425,7 @@ fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
 fn a_jj_refusal_lists_only_the_current_runs_unowned_changes(
 ) -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         common::write(&stalled.root, "meta/a.md", "a\n")?;
         common::write(&stalled.root, ".accelerator/b", "b\n")?;
 
@@ -380,7 +462,7 @@ fn rewriting_or_rebasing_the_parent_makes_a_jj_stall_stale(
             ],
             |rewrite| -> Result<(), TestError> {
                 let stalled =
-                    Stalled::on(colocation, ParentShape::SingleParent)?;
+                    ScenarioStall::on(colocation, ParentShape::SingleParent)?;
                 let args: Vec<&str> = rewrite
                     .iter()
                     .map(|arg| {
@@ -423,7 +505,7 @@ enum Move {
 }
 
 impl Move {
-    fn apply(&self, stalled: &Stalled) -> Result<(), TestError> {
+    fn apply(&self, stalled: &ScenarioStall) -> Result<(), TestError> {
         match self {
             Self::New => stalled.jj(&["new"])?,
             Self::Commit => stalled.jj(&["commit", "-m", "z"])?,
@@ -449,7 +531,7 @@ fn moving_onto_new_parents_starts_a_fresh_jj_run() -> Result<(), TestError> {
             [Move::New, Move::Commit, Move::EditChangeOnSibling],
             |movement| -> Result<(), TestError> {
                 let stalled =
-                    Stalled::on(colocation, ParentShape::SingleParent)?;
+                    ScenarioStall::on(colocation, ParentShape::SingleParent)?;
                 let stalled_base = stalled.recorded_run_base()?;
                 movement.apply(&stalled)?;
 
@@ -473,7 +555,7 @@ fn moving_onto_new_parents_starts_a_fresh_jj_run() -> Result<(), TestError> {
 #[test]
 fn editing_a_sibling_lists_its_changes_as_unowned() -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         stalled.jj(&["edit", &stalled.sibling])?;
 
         let refused = run(&stalled.env, &stalled.root, &[], &[])?;
@@ -497,7 +579,7 @@ fn editing_a_sibling_lists_its_changes_as_unowned() -> Result<(), TestError> {
 fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
 ) -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         stalled.jj(&["new", &stalled.base])?;
         common::write(
             &stalled.root,
@@ -525,7 +607,8 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
 fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
 ) -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::MergeWithSibling)?;
+        let stalled =
+            ScenarioStall::on(colocation, ParentShape::MergeWithSibling)?;
         assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
         assert!(stalled.recorded_run_base()?.contains('+'));
         stalled.write_decisions()?;
@@ -551,7 +634,7 @@ fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
 fn a_clean_jj_run_records_the_parents_of_the_working_copy(
 ) -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         stalled.jj(&["new", "-m", "one"])?;
         let one = change_id(&stalled.env, &stalled.root, "@")?;
         common::write(&stalled.root, "one.txt", "1\n")?;
@@ -615,7 +698,7 @@ fn files_under(
 fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
 ) -> Result<(), TestError> {
     for_each_colocation(|colocation| {
-        let stalled = Stalled::on(colocation, ParentShape::SingleParent)?;
+        let stalled = ScenarioStall::on(colocation, ParentShape::SingleParent)?;
         let working_copy_commit = stalled.jj(&[
             "log",
             "--ignore-working-copy",

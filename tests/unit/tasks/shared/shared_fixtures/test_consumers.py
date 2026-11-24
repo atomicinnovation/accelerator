@@ -46,8 +46,10 @@ def test_the_status_log_consumers_are_the_binaries_that_adopt_or_copy_it():
     }
 
 
-def test_no_binary_consumes_the_stalled_migration_set_yet():
-    assert consumers_of(Family.STALLED_MIGRATION) == frozenset()
+def test_the_stalled_migration_consumer_is_the_guarded_resume_binary():
+    assert consumers_of(Family.STALLED_MIGRATION) == {
+        "accelerator-migrate::guarded_resume",
+    }
 
 
 def _consumed_by(matching: Callable[[str, str], bool]) -> frozenset[Family]:
