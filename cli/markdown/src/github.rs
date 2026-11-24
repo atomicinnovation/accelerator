@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use pulldown_cmark::{Event, Options, Parser};
 
-use crate::{continuation_start, trailing_whitespace_start};
+use crate::{continuation_start, spliced, trailing_whitespace_start, Splice};
 
 /// Replaces each line break GitHub renders as soft with a single space.
 ///
@@ -17,15 +17,15 @@ use crate::{continuation_start, trailing_whitespace_start};
 /// but GitHub needs two spaces and renders the rest as soft.
 #[must_use]
 pub fn unwrap_soft_line_breaks(markdown: &str) -> String {
-    let mut unwrapped = String::with_capacity(markdown.len());
-    let mut preserved_from = 0;
-    for span in soft_line_break_spans(markdown) {
-        unwrapped.push_str(&markdown[preserved_from..span.start]);
-        unwrapped.push(' ');
-        preserved_from = span.end;
-    }
-    unwrapped.push_str(&markdown[preserved_from..]);
-    unwrapped
+    spliced(
+        markdown,
+        soft_line_break_spans(markdown)
+            .into_iter()
+            .map(|span| Splice {
+                replaced: span,
+                with: " ",
+            }),
+    )
 }
 
 pub(crate) fn extensions() -> Options {
