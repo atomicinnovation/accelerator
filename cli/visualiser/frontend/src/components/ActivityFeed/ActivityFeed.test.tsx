@@ -1,13 +1,21 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as fetchModule from "../../api/fetch";
 import type { ConnectionState } from "../../api/reconnecting-event-source";
-import type { ActivityEvent, SseEvent } from "../../api/types";
+import { makeIndexEntry } from "../../api/test-fixtures";
+import type {
+  ActivityEvent,
+  DocTypeKey,
+  IndexEntry,
+  SseEvent,
+} from "../../api/types";
 import type { DocEventsHandle } from "../../api/use-doc-events";
 import * as docEventsModule from "../../api/use-doc-events";
-import { MemoryRouter } from "../../test/router-helpers";
+import { dispatchSseEvent } from "../../api/use-doc-events";
+import { renderWithRouterAt } from "../../test/router-helpers";
 import { ActivityFeed } from "./ActivityFeed";
+import styles from "./ActivityFeed.module.css";
 
 // AC11 (self-caused events reach the feed) is covered at the hook layer
 // in `use-doc-events.test.ts` via the `subscribe + self-caused` test —
@@ -27,6 +35,7 @@ vi.mock("../../api/fetch", async (importOriginal) => {
   return {
     ...actual,
     fetchActivity: vi.fn(),
+    fetchDocs: vi.fn(),
   };
 });
 
@@ -46,16 +55,25 @@ function mockHandle(overrides: Partial<DocEventsHandle> = {}): DocEventsHandle {
   };
 }
 
+type Listings = Partial<
+  Record<DocTypeKey, IndexEntry[] | Promise<IndexEntry[]>>
+>;
+
 function mountWith({
   initial,
   connectionState = "open" as const,
+  listings = {},
 }: {
   initial: ActivityEvent[] | Promise<ActivityEvent[]>;
   connectionState?: ConnectionState;
+  listings?: Listings;
 }): MountResult {
   let captured: ((e: SseEvent) => void) | undefined;
   vi.mocked(fetchModule.fetchActivity).mockReturnValue(
     initial instanceof Promise ? initial : Promise.resolve(initial),
+  );
+  vi.mocked(fetchModule.fetchDocs).mockImplementation(
+    async (type) => listings[type] ?? [],
   );
   vi.mocked(docEventsModule.useDocEventsContext).mockReturnValue(
     mockHandle({
@@ -69,11 +87,9 @@ function mountWith({
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  renderWithRouterAt(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <ActivityFeed />
-      </MemoryRouter>
+      <ActivityFeed />
     </QueryClientProvider>,
   );
   return { getListener: () => captured, queryClient };
@@ -282,5 +298,198 @@ describe("ActivityFeed", () => {
     const items = screen.getAllByRole("listitem");
     expect(items[0].textContent).toMatch(/newer-initial\.md/);
     expect(items[1].textContent).toMatch(/older-live\.md/);
+  });
+});
+
+function rowItems(): HTMLElement[] {
+  return screen.getAllByRole("listitem");
+}
+
+function rowHref(item: HTMLElement): string | null {
+  return within(item).queryByRole("link")?.getAttribute("href") ?? null;
+}
+
+function rowHrefs(): Array<string | null> {
+  return rowItems().map(rowHref);
+}
+
+function setEntry(dir: string): IndexEntry {
+  return makeIndexEntry({
+    type: "topic-research",
+    id: dir,
+    slug: "shared",
+    relPath: `meta/research/topics/${dir}/manifest.md`,
+  });
+}
+
+function inventoryEntry(dir: string): IndexEntry {
+  return makeIndexEntry({
+    type: "design-inventories",
+    id: dir,
+    slug: "shared",
+    relPath: `meta/research/design-inventories/${dir}/inventory.md`,
+  });
+}
+
+function rowFor(entry: IndexEntry, timestamp: string): ActivityEvent {
+  return makeEvent({ docType: entry.type, path: entry.relPath, timestamp });
+}
+
+const NEWER = "2026-05-13T11:00:00Z";
+const OLDER = "2026-05-13T10:00:00Z";
+
+describe("ActivityFeed row links", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("links each research set's row to that set's own id", async () => {
+    const [a, b] = [setEntry("a"), setEntry("b")];
+    mountWith({
+      initial: [rowFor(a, NEWER), rowFor(b, OLDER)],
+      listings: { "topic-research": [a, b] },
+    });
+
+    await waitFor(() =>
+      expect(rowHrefs()).toEqual([
+        "/library/topic-research/a",
+        "/library/topic-research/b",
+      ]),
+    );
+  });
+
+  it("links each design inventory's row to that inventory's own id", async () => {
+    const [a, b] = [
+      inventoryEntry("2026-01-01-a"),
+      inventoryEntry("2026-01-02-b"),
+    ];
+    mountWith({
+      initial: [rowFor(a, NEWER), rowFor(b, OLDER)],
+      listings: { "design-inventories": [a, b] },
+    });
+
+    await waitFor(() =>
+      expect(rowHrefs()).toEqual([
+        "/library/design-inventories/2026-01-01-a",
+        "/library/design-inventories/2026-01-02-b",
+      ]),
+    );
+  });
+
+  it("finds each row's document in its own doc type's listing", async () => {
+    const plan = makeIndexEntry({
+      type: "plans",
+      id: "plan-id",
+      relPath: "meta/plans/same.md",
+    });
+    const workItem = makeIndexEntry({
+      type: "work-items",
+      id: "0042",
+      relPath: "meta/work/0042-thing.md",
+    });
+    mountWith({
+      initial: [rowFor(plan, NEWER), rowFor(workItem, OLDER)],
+      listings: { plans: [plan], "work-items": [workItem] },
+    });
+
+    await waitFor(() =>
+      expect(rowHrefs()).toEqual([
+        "/library/plans/plan-id",
+        "/library/work-items/0042",
+      ]),
+    );
+  });
+
+  it("links a document with no id by its filename stem", async () => {
+    const plan = makeIndexEntry({ id: null, relPath: "meta/plans/foo.md" });
+    mountWith({
+      initial: [rowFor(plan, NEWER)],
+      listings: { plans: [plan] },
+    });
+
+    await waitFor(() => expect(rowHrefs()).toEqual(["/library/plans/foo"]));
+  });
+
+  it("shows an unlinked row while its listing is pending", async () => {
+    mountWith({
+      initial: [makeEvent({ path: "meta/plans/foo.md" })],
+      listings: { plans: new Promise<IndexEntry[]>(() => {}) },
+    });
+
+    await screen.findByText(/foo\.md/);
+    expect(rowHrefs()).toEqual([null]);
+  });
+
+  it.each([
+    ["research set", setEntry("deleted"), setEntry("kept")],
+    [
+      "plan",
+      makeIndexEntry({ relPath: "meta/plans/deleted.md" }),
+      makeIndexEntry({ relPath: "meta/plans/kept.md" }),
+    ],
+  ])("shows an unlinked row for a deleted %s", async (_, deleted, kept) => {
+    mountWith({
+      initial: [rowFor(deleted, NEWER), rowFor(kept, OLDER)],
+      listings: { [kept.type]: [kept] },
+    });
+
+    await waitFor(() => expect(rowHref(rowItems()[1])).not.toBeNull());
+    expect(rowHref(rowItems()[0])).toBeNull();
+  });
+
+  it("links a live row for a new document once its listing refetches", async () => {
+    const existing = makeIndexEntry({ relPath: "meta/plans/existing.md" });
+    const created = makeIndexEntry({
+      id: "created-id",
+      relPath: "meta/plans/created.md",
+    });
+    const plans = [existing];
+    vi.mocked(fetchModule.fetchDocs).mockImplementation(async () => [...plans]);
+    const { getListener, queryClient } = mountWith({
+      initial: [rowFor(existing, OLDER)],
+      listings: { plans },
+    });
+    await waitFor(() =>
+      expect(rowHrefs()).toEqual(["/library/plans/existing"]),
+    );
+
+    plans.push(created);
+    const event = makeSseEvent({
+      action: "created",
+      path: created.relPath,
+      timestamp: NEWER,
+    });
+    act(() => {
+      getListener()!(event);
+      dispatchSseEvent(event, queryClient);
+    });
+
+    await waitFor(() =>
+      expect(rowHrefs()).toEqual([
+        "/library/plans/created-id",
+        "/library/plans/existing",
+      ]),
+    );
+  });
+
+  it("renders an unlinked row's text without a link affordance", async () => {
+    const kept = makeIndexEntry({ relPath: "meta/plans/kept.md" });
+    mountWith({
+      initial: [
+        makeEvent({ path: "meta/plans/gone.md", timestamp: NEWER }),
+        rowFor(kept, OLDER),
+      ],
+      listings: { plans: [kept] },
+    });
+    await waitFor(() => expect(rowHref(rowItems()[1])).not.toBeNull());
+
+    const unlinked = rowItems()[0];
+    expect(unlinked).toHaveTextContent(/Plans/);
+    expect(unlinked).toHaveTextContent(/edited/);
+    expect(unlinked).toHaveTextContent(/gone\.md/);
+    expect(within(unlinked).queryByRole("link")).toBeNull();
+    expect(unlinked.querySelector(`.${styles.row}`)).not.toBeNull();
+    expect(unlinked.querySelector(`.${styles.linkedRow}`)).toBeNull();
+    expect(rowItems()[1].querySelector(`.${styles.linkedRow}`)).not.toBeNull();
   });
 });

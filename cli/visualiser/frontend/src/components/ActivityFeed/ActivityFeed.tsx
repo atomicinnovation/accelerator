@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { fetchActivity, fetchTypes } from "../../api/fetch";
 import { formatRelative } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import { libraryLink } from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import {
   type ActivityEvent,
@@ -15,6 +15,7 @@ import {
 import { useDocEventsContext } from "../../api/use-doc-events";
 import { Glyph } from "../Glyph/Glyph";
 import styles from "./ActivityFeed.module.css";
+import { useActivityRowDocuments } from "./use-activity-row-documents";
 
 const LIMIT = 5;
 
@@ -39,6 +40,38 @@ function dedupeAndSortRows(rows: ActivityEvent[]): ActivityEvent[] {
   // RFC-3339 ISO strings sort lexicographically as time.
   out.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return out;
+}
+
+function ActivityRowContent({
+  row,
+  label,
+  file,
+}: {
+  row: ActivityEvent;
+  label: string;
+  file: string;
+}) {
+  return (
+    <>
+      {isPhysicalDocTypeKey(row.docType) ? (
+        <Glyph docType={row.docType} size={16} />
+      ) : (
+        <span className={styles.glyphSlot} />
+      )}
+      <div className={styles.body}>
+        <div className={styles.line1}>
+          <span className={styles.docType}>{label}</span>
+          <span className={styles.separator}> · </span>
+          <span className={styles.action}>{row.action}</span>
+        </div>
+        <div className={styles.line2}>
+          {file}
+          <span className={styles.separator}> · </span>
+          {formatRelative(Date.parse(row.timestamp))}
+        </div>
+      </div>
+    </>
+  );
 }
 
 export function ActivityFeed() {
@@ -99,6 +132,7 @@ export function ActivityFeed() {
   }, [subscribe]);
 
   const rows = dedupeAndSortRows([...live, ...(initial ?? [])]).slice(0, LIMIT);
+  const documentOf = useActivityRowDocuments(rows);
   const isLive = connectionState === "open";
   const isEmptyHistory =
     isSuccess && (initial?.length ?? 0) === 0 && live.length === 0;
@@ -120,35 +154,25 @@ export function ActivityFeed() {
       ) : (
         <ul className={styles.list}>
           {rows.map((r) => {
-            const documentId = fileSlugFromRelPath(r.path);
+            const entry = documentOf(r);
             const label = labelFor(r.docType);
             const file = basename(r.path);
+            const content = (
+              <ActivityRowContent row={r} label={label} file={file} />
+            );
             return (
               <li key={activityRowId(r)}>
-                <Link
-                  to="/library/$type/$documentId"
-                  params={{ type: r.docType, documentId }}
-                  className={styles.row}
-                  aria-label={`${label}, ${r.action}, ${file}`}
-                >
-                  {isPhysicalDocTypeKey(r.docType) ? (
-                    <Glyph docType={r.docType} size={16} />
-                  ) : (
-                    <span className={styles.glyphSlot} />
-                  )}
-                  <div className={styles.body}>
-                    <div className={styles.line1}>
-                      <span className={styles.docType}>{label}</span>
-                      <span className={styles.separator}> · </span>
-                      <span className={styles.action}>{r.action}</span>
-                    </div>
-                    <div className={styles.line2}>
-                      {file}
-                      <span className={styles.separator}> · </span>
-                      {formatRelative(Date.parse(r.timestamp))}
-                    </div>
-                  </div>
-                </Link>
+                {entry ? (
+                  <Link
+                    {...libraryLink(entry)}
+                    className={`${styles.row} ${styles.linkedRow}`}
+                    aria-label={`${label}, ${r.action}, ${file}`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div className={styles.row}>{content}</div>
+                )}
               </li>
             );
           })}
