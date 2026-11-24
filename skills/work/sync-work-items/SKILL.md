@@ -372,6 +372,16 @@ file aside first, in the timestamped form the files rule gives.
 - **`note: <id>: adopt:`** (stderr, apply run): relay that the adopted issue
   differs and a conflict follows on the next sync, which can re-adopt another
   key or create an issue instead (Step 3's unconfirmed-link prompt).
+- **`warning: <id>: rewritten on push:`** (stderr, apply run): the push
+  succeeded and its baseline was recorded, but the tracker stored the named
+  sections with a different meaning. Relay the warning and every `note:
+  <id>:` line beneath it verbatim, quoted as data: they show each changed
+  line as sent and as stored, and how to keep the meaning (put the sent text
+  in backticks or reword it, then `accelerator work update <path> --push`).
+  Do not suggest a pull: it would write the tracker's rewritten form into
+  the local file. `accelerator <tracker> show <KEY>` shows the stored
+  description: at `.data.issue.description` for Linear, as ADF at
+  `.fields.description` for Jira, and at `.description` for Shortcut.
 - **`noop\tindeterminate\tunsupported-recipe`**: a newer plugin wrote that
   item's baseline entry, so nothing was read or written for it; upgrade the
   plugin before syncing that item.

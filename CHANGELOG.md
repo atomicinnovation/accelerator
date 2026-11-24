@@ -382,6 +382,16 @@
   exiting 115, and both `E_UPDATE_NO_FILE` and `linear create`'s
   `E_CREATE_NO_FILE` now name the path. `/update-linear-issue` accepts the
   flag.
+- **A push the tracker stores with a different meaning is reported.** After
+  every body push to Jira, Linear or Shortcut, from `work sync`, promotion,
+  `work create --push`, `work create-batch --push` and `work update --push`,
+  the description read back is compared with the one sent. When the tracker
+  turned text into a link or a wrapped number into a list, stderr carries
+  `warning: <id>: rewritten on push: <sections>`, a note per changed line as
+  sent and as stored (up to five), and how to keep the meaning. The push
+  still succeeds, its baseline is recorded as before, and the exit code is
+  unchanged. `/sync-work-items`, `/create-work-item` and
+  `/extract-work-items` relay the block.
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
   welcome text, the ID is settled with `work id check` before drafting. An
