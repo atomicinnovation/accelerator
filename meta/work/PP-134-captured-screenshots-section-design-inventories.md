@@ -8,14 +8,13 @@ producer: "refine-work-item"
 status: "draft"
 kind: "story"
 priority: "medium"
-relates_to: ["work-item:PP-119", "work-item:PP-133", "work-item:PP-792"]
+relates_to: ["work-item:PP-119", "work-item:PP-133"]
 tags: ["visualiser", "frontend", "polish", "markdown", "milestone-closeout"]
-last_updated: "2026-11-23T21:27:22+00:00"
+last_updated: "2026-06-15T11:54:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-134"
 aliases: ["0112"]
-blocked_by: ["work-item:PP-994"]
 ---
 
 # PP-134: Captured Screenshots Section on Design Inventory Pages
@@ -105,10 +104,7 @@ The authoritative reference for the intended look is the design prototype at
 
 ## Dependencies
 
-- Blocked by: PP-994, the generic set model, which indexes screenshots as
-  asset members and lists them through its member API. It gives an asset no
-  URL: this story adds the asset route, under the member route shape PP-998
-  settles, together with serving the bytes.
+- Blocked by: [none]
 - Blocks: General release of the first visualiser version (shared with 0111).
 
 ## Assumptions

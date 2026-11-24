@@ -5,7 +5,7 @@ title: "Render Design-Inventory Screenshots"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "abandoned"
+status: "draft"
 kind: "story"
 priority: "medium"
 tags: ["visualiser", "design"]
@@ -14,13 +14,12 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-792"
 aliases: ["0262"]
-relates_to: ["work-item:PP-134"]
 ---
 
 # PP-792: Render Design-Inventory Screenshots
 
 **Kind**: Story
-**Status**: Abandoned
+**Status**: Draft
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -46,8 +45,6 @@ screenshots that the visualiser does not currently display.
 
 ## Drafting Notes
 
-- Abandoned on 2026-11-23 as a duplicate of PP-134, which specifies the
-  same outcome in full.
 - Extracted from source documents without interactive enrichment.
   Acceptance criteria, dependencies, and kind may need refinement before
   promoting from `draft` to `ready`.
