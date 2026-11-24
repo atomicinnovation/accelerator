@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-1000", "work-item:PP-1002", "work-item:PP-994", "work
 tags: ["research", "visualiser", "sources", "tier-text"]
 revision: "83417415e7968e08d76e1b6aa8cf2c330dc34d59"
 repository: "accelerator"
-last_updated: "2026-11-24T13:05:00+00:00"
+last_updated: "2026-11-24T13:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -706,15 +706,19 @@ update.
 
 #### Automated Verification:
 
-- [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Snapshot is current and unchanged by this phase: `mise run public-api:check`
-- [ ] Format, lint and fence pass: `mise run cli:check`, `mise run pup:check`
-- [ ] Full suite green: `mise run`
+- [x] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
+- [x] Snapshot is current and unchanged by this phase: `mise run public-api:check`
+- [x] Format, lint and fence pass: `mise run cli:check`, `mise run pup:check`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] A real finding with a metadata block reads with each pair on the right
-      entry.
+- [x] A real finding with a metadata block reads with each pair on the right
+      entry. This workspace has no `meta/research/topics/`, so it ran over
+      the findings, reports and syntheses under
+      `skills/research/research-topic/evals/variants/*/meta/research/topics/`:
+      every block pair, including the four-pair `Plan-and-Solve` block,
+      landed on its entry, and no line was left unread.
 
 ---
 
