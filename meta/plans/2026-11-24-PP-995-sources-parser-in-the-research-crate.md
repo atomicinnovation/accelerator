@@ -26,7 +26,8 @@ Add the first Rust reading of the Sources grammar to the `research` crate:
 a **tier-text parser** (`TierText::parse`) and a **Sources parser**
 (`SourcesSection::parse`) that reads a document body's `## Sources` section
 into cited sources, unread lines, a section state and a line span, with
-`LineSpan::remove_from` to drop the section from the body. Both live in
+`LineSpan::split` to cut the body around the section and
+`LineSpan::remove_from` to drop the section from it. Both live in
 `research::topic::sources_section` and are pure, hand-written `str` parsers.
 
 The work lands as four phases. Each phase is test-first, adds only public
@@ -73,10 +74,14 @@ Verify with:
 ```sh
 mise run test:unit:cli --filter 'binary_id(research::tier_text) | binary_id(research::sources_section)'
 mise run public-api:check
-jj diff --git cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'   # prints nothing
-jj diff --stat cli/research/Cargo.toml                                      # prints nothing
+jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'   # prints nothing
+jj diff --stat --from <base> --to @ cli/research/Cargo.toml                                      # prints nothing
 mise run
 ```
+
+`<base>` is the revision the plan starts from; every snapshot and manifest
+check below diffs against it, so a check made after a phase is committed
+still compares something.
 
 ### Key Discoveries:
 
@@ -136,6 +141,12 @@ is the first red; then stub the signatures so each test fails on its
 assertion), implement to green, refactor, then `mise run public-api:update`
 and inspect the diff.
 
+`tier_text` imports `crate::sources::record::Tier`, the first edge from
+`topic` into `sources`. `Tier` is the shared base-tier vocabulary, and the
+edge runs one way only: nothing in `sources` imports from `topic`. Base tiers
+are read by matching `Tier`'s own `Display`, so the tier labels stay defined
+once, in `record.rs`.
+
 `topic.rs`'s module doc gains a clause naming the Sources section a finding or
 note carries, so the module doc still describes what `topic` holds.
 
@@ -166,7 +177,7 @@ only:
 - `marks_and_also_tiers_combine_in_canonical_order` —
   `tier-3 (retracted; withdrawn; also tier-1)`,
   `tier-3 (retracted; withdrawn)`, `tier-3 (withdrawn; also tier-1)`.
-- `every_tier_text_the_citing_once_rule_gives_parses` — the eleven examples:
+- `every_tier_text_the_citing_once_rule_gives_parses` — the ten examples:
   `tier-1`, `tier-2`, `tier-3`, `tier-3 (retracted)`, `tier-3 (also tier-1)`,
   `tier-3 (also tier-2)`, `tier-3 (also tier-2, tier-1)`,
   `tier-3 (retracted; also tier-1)`, `tier-3 (retracted; also tier-2, tier-1)`,
@@ -180,8 +191,8 @@ only:
   `tier-3 (retracted; retracted)`, `tier-3(retracted)`,
   `tier-3 (retracted;withdrawn)`, `tier-3 (also tier-2,tier-1)`,
   `tier-3  (retracted)`, `tier-3 (also)`, `tier-3 (retracted) x`, `Tier-1`,
-  `" tier-1 "`; each asserts `TierText::parse(text).unwrap_err().text() ==
-  text`.
+  `" tier-1 "`; each asserts `TierText::parse(text).expect_err(text).text() ==
+  text`, and that the error's `to_string()` is ``not tier text: `{text}` ``.
 - `every_accepted_tier_text_renders_back_identically` — the union of every
   accepted text above, `parse(text)?.to_string() == text`.
 
@@ -192,8 +203,8 @@ fn read(text: &str) -> (Tier, bool, bool, Vec<Tier>) {
     let tier_text = TierText::parse(text).expect(text);
     (
         tier_text.base(),
-        tier_text.is_retracted(),
-        tier_text.is_withdrawn(),
+        tier_text.retracted(),
+        tier_text.withdrawn(),
         tier_text.also().to_vec(),
     )
 }
@@ -211,7 +222,8 @@ widen the module doc.
 **File**: `cli/research/src/topic/sources_section/tier_text.rs` (new)
 
 ```rust
-use std::error::Error;
+//! Tier text: a base tier with its retraction marks and `also` tiers.
+
 use std::fmt;
 
 use crate::sources::record::Tier;
@@ -221,7 +233,9 @@ const WITHDRAWN: &str = "withdrawn";
 const ALSO: &str = "also ";
 const PART_SEPARATOR: &str = "; ";
 const ALSO_SEPARATOR: &str = ", ";
+const BASE_TIERS: [Tier; 3] = [Tier::One, Tier::Two, Tier::Three];
 
+/// Base and `also` tiers are [`Tier`](crate::sources::record::Tier).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TierText {
     base: Tier,
@@ -232,46 +246,61 @@ pub struct TierText {
 
 impl TierText {
     /// Checks shape only, so `parse(s)?.to_string() == s`.
+    ///
+    /// # Errors
+    ///
+    /// [`NotTierText`], carrying the whole input, for text not of tier-text
+    /// shape.
     pub fn parse(text: &str) -> Result<Self, NotTierText> {
         let refused = || NotTierText(text.to_owned());
-        let (base, suffix) = match text.split_once(' ') {
-            Some((base, suffix)) => (base, Some(suffix)),
-            None => (text, None),
+        let Some((base_text, suffix)) = text.split_once(' ') else {
+            return base_tier(text).map(Self::bare).ok_or_else(refused);
         };
-        let base = base_tier(base).ok_or_else(refused)?;
-        let Some(suffix) = suffix else {
-            return Ok(Self::bare(base));
-        };
-        let parts = suffix
+        let base = base_tier(base_text).ok_or_else(refused)?;
+        let parenthesised = suffix
             .strip_prefix('(')
             .and_then(|inner| inner.strip_suffix(')'))
             .ok_or_else(refused)?;
-        let mut parts = parts.split(PART_SEPARATOR).peekable();
+        Self::with_parts_in_canonical_order(base, parenthesised)
+            .ok_or_else(refused)
+    }
+
+    const fn bare(base: Tier) -> Self {
+        Self {
+            base,
+            retracted: false,
+            withdrawn: false,
+            also: Vec::new(),
+        }
+    }
+
+    fn with_parts_in_canonical_order(
+        base: Tier,
+        parenthesised: &str,
+    ) -> Option<Self> {
+        let mut parts = parenthesised.split(PART_SEPARATOR).peekable();
         let retracted = parts.next_if_eq(&RETRACTED).is_some();
         let withdrawn = parts.next_if_eq(&WITHDRAWN).is_some();
         let also = match parts.next() {
-            Some(part) => also_tiers(part).ok_or_else(refused)?,
+            Some(part) => also_tiers(part)?,
             None => Vec::new(),
         };
-        if parts.next().is_some() {
-            return Err(refused());
-        }
-        Ok(Self { base, retracted, withdrawn, also })
+        parts.next().is_none().then_some(Self {
+            base,
+            retracted,
+            withdrawn,
+            also,
+        })
     }
 
     #[must_use] pub const fn base(&self) -> Tier { self.base }
-    #[must_use] pub const fn is_retracted(&self) -> bool { self.retracted }
-    #[must_use] pub const fn is_withdrawn(&self) -> bool { self.withdrawn }
+    #[must_use] pub const fn retracted(&self) -> bool { self.retracted }
+    #[must_use] pub const fn withdrawn(&self) -> bool { self.withdrawn }
     #[must_use] pub fn also(&self) -> &[Tier] { &self.also }
 }
 
 fn base_tier(text: &str) -> Option<Tier> {
-    match text {
-        "tier-1" => Some(Tier::One),
-        "tier-2" => Some(Tier::Two),
-        "tier-3" => Some(Tier::Three),
-        _ => None,
-    }
+    BASE_TIERS.into_iter().find(|tier| tier.to_string() == text)
 }
 
 fn also_tiers(part: &str) -> Option<Vec<Tier>> {
@@ -281,7 +310,28 @@ fn also_tiers(part: &str) -> Option<Vec<Tier>> {
         .collect()
 }
 
-impl fmt::Display for TierText { /* base, then " (" + parts joined "; " + ")" when any */ }
+impl fmt::Display for TierText {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let also = (!self.also.is_empty()).then(|| {
+            let tiers: Vec<String> =
+                self.also.iter().map(Tier::to_string).collect();
+            format!("{ALSO}{}", tiers.join(ALSO_SEPARATOR))
+        });
+        let parts: Vec<String> = [
+            self.retracted.then(|| RETRACTED.to_owned()),
+            self.withdrawn.then(|| WITHDRAWN.to_owned()),
+            also,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        write!(formatter, "{}", self.base)?;
+        if parts.is_empty() {
+            return Ok(());
+        }
+        write!(formatter, " ({})", parts.join(PART_SEPARATOR))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotTierText(String);
@@ -291,13 +341,18 @@ impl NotTierText {
     #[must_use] pub fn into_text(self) -> String { self.0 }
 }
 
-impl fmt::Display for NotTierText { /* "not tier text: `{text}`" */ }
-impl Error for NotTierText {}
+impl fmt::Display for NotTierText {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "not tier text: `{}`", self.0)
+    }
+}
+
+impl std::error::Error for NotTierText {}
 ```
 
-The parse is a sequence of shape checks: an empty `()` reaches `also_tiers("")`
-and fails; an out-of-order or repeated mark falls through to `also_tiers` and
-fails; any part after the `also` list fails. Only the canonical form survives,
+`with_parts_in_canonical_order` is a sequence of shape checks: an empty `()`
+reaches `also_tiers("")` and fails; an out-of-order or repeated mark falls
+through to `also_tiers` and fails; any part after the `also` list fails. Only the canonical form survives,
 which is why `Display` from the parts reproduces the input.
 
 #### 4. Snapshot
@@ -312,14 +367,14 @@ impls, and removes nothing.
 
 - [ ] Tier-text tests pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
 - [ ] Snapshot is current: `mise run public-api:check`
-- [ ] Snapshot diff has no removed lines: `jj diff --git cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [ ] Snapshot diff has no removed lines: `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
 - [ ] Import fence holds: `mise run pup:check`
 - [ ] Format and lint pass: `mise run cli:check`
 - [ ] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] The eleven citing-once examples in the test match the skill file
+- [ ] The ten citing-once examples in the test match the skill file
       (`skills/research/outputters/citing-once/SKILL.md`) character for
       character.
 
@@ -332,8 +387,10 @@ impls, and removes nothing.
 `SourcesSection::parse` finds the section, reads entry lines into
 `CitedSource`s with a `TierReading`, reports unread lines and the section
 state, and reports the line span. Block lines are not yet recognised, so in
-this phase every `  - key: value` line is unread, a correct and mergeable
-intermediate behaviour.
+this phase every `  - key: value` line is unread and every entry's `metadata`
+is empty, a correct and mergeable intermediate behaviour. `CitedSource` and
+`MetadataPair` take their final shape here, so no later phase changes a
+public struct a consumer may already build or destructure.
 
 ### Changes Required:
 
@@ -342,7 +399,9 @@ intermediate behaviour.
 **File**: `cli/research/tests/sources_section.rs` (new)
 
 Fixtures are built with `concat!` or `[..].join("\n")` so each line is
-visible. Tests:
+visible. Expected entries come from one helper,
+`entry(title, url, tier, venue) -> CitedSource`, with `metadata` empty, so a
+test names only what it is about. Tests:
 
 - `an_entry_carries_its_title_url_tier_and_venue` — the
   `The Notifier Pattern` line; base `tier-2`, venue `blog.example`.
@@ -353,6 +412,11 @@ visible. Tests:
 - `a_venue_may_hold_a_markdown_link` — title `T`, URL `https://a.example/`,
   venue `see [x](https://b.example/)`.
 - `a_title_may_hold_brackets` — `A [draft]`.
+- `the_title_ends_at_the_last_link_close_that_still_reads_as_an_entry` —
+  `- [A](https://x.example/) — tier-1 — v](https://a.example/) — tier-2`
+  reads as title `A](https://x.example/) — tier-1 — v`, URL
+  `https://a.example/`, base `tier-2`, no venue, which pins the search from
+  the right.
 - `a_link_line_that_breaks_the_token_rules_is_unread` —
   `- [T](https://a.example/)`, `- [T](https://a.example/) — `,
   `- [](https://a.example/) — tier-1`, `- [T]() — tier-1`,
@@ -366,7 +430,8 @@ visible. Tests:
   `None found.` only; one entry; `None found.` plus one entry (present, no
   unread); `None found.` plus prose (declared empty, prose unread);
   ` None found.` alone (unread, present); heading with nothing under it
-  (present, no entries, no unread).
+  (present, no entries, no unread, span `start..start + 1`), both when the
+  next `## ` heading follows at once and when the heading ends the body.
 - `blank_and_whitespace_only_lines_are_ignored` — blank after heading,
   between entries, before next heading.
 - `only_the_first_exactly_named_section_is_read` — two `## Sources`
@@ -377,7 +442,8 @@ visible. Tests:
   between, a block-shaped line before the first entry; both reported with
   their line numbers and text, leading spaces included.
 - `the_span_runs_from_the_heading_to_the_line_after_the_section` — the
-  ten-line document (heading line 4, next heading line 8 → span 4..8); a
+  ten-line document (heading line 4, line 7 blank, next heading line 8 →
+  span 4..8, so a trailing blank line stays inside the span); a
   section to the end, with and without final newline (end 11); `None found.`
   only has a span; absent has none.
 - `a_crlf_document_reads_as_its_lf_twin` — CRLF document with two entries, a
@@ -385,29 +451,34 @@ visible. Tests:
   `SourcesSection`); the prose line holds no `\r`.
 - `only_one_trailing_carriage_return_is_dropped` — prose ending `\r\r\n`
   reports text ending in exactly one `\r`.
+- `a_lone_carriage_return_does_not_break_a_line` — prose `a\rb` is one unread
+  line with that exact text, and the lines after it keep their numbers.
 
 #### 2. The line rule
 
 **File**: `cli/research/src/topic/sources_section/lines.rs` (new, private)
 
 ```rust
-pub(super) struct Line<'body> {
-    pub(super) number: usize,
-    pub(super) text: &'body str,
-    pub(super) as_written: &'body str,
+//! The one rule for what a line of a document body is.
+
+pub struct Line<'body> {
+    pub number: usize,
+    pub text: &'body str,
 }
 
-pub(super) fn numbered(body: &str) -> impl Iterator<Item = Line<'_>> {
+pub fn numbered(body: &str) -> impl Iterator<Item = Line<'_>> {
     body.split_inclusive('\n').zip(1..).map(|(as_written, number)| {
         let text = as_written.strip_suffix('\n').unwrap_or(as_written);
         let text = text.strip_suffix('\r').unwrap_or(text);
-        Line { number, text, as_written }
+        Line { number, text }
     })
 }
 ```
 
-`as_written` is unused until Phase 4; if clippy flags it as dead in this
-phase, add the field in Phase 4 instead.
+Items are plain `pub`: the private `mod lines;` confines them, and
+`pub(crate)` inside a private module trips nursery's `redundant_pub_crate`.
+Phase 4 adds `offset_of` here, so the line rule's byte extents stay in this
+module too.
 
 #### 3. The section types and parser
 
@@ -419,7 +490,7 @@ const LEVEL_TWO_HEADING: &str = "## ";
 const NONE_FOUND: &str = "None found.";
 const ENTRY_OPENING: &str = "- [";
 const TITLE_CLOSE: &str = "](";
-const SEPARATOR: &str = " — ";
+const SEGMENT_SEPARATOR: &str = " — ";
 
 /// Lines are numbered from 1 within the text parsed, frontmatter or not.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -435,6 +506,13 @@ pub struct CitedSource {
     pub url: String,
     pub tier: TierReading,
     pub venue: Option<String>,
+    pub metadata: Vec<MetadataPair>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetadataPair {
+    pub key: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -449,6 +527,8 @@ pub struct UnreadLine {
     pub text: String,
 }
 
+/// From the heading's line up to, not including, `end`, the first line after
+/// the section.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LineSpan {
     start: usize,
@@ -488,7 +568,11 @@ impl SourcesSection {
 Lines are consecutive, so the span's end is the last line read plus one,
 which is the closing heading's number or the line count plus one at the end
 of the body. `SectionReading` (private) holds `start`, `last`, `entries`,
-`unread` and `declares_none_found`:
+`unread` and `declares_none_found`. `opened_at(start)` sets `last` to
+`start`, so a heading with nothing under it spans `start..start + 1`. `read`
+sets `last` to the line's number
+before classifying it, for every line including ignored ones, so trailing
+blank lines stay inside the span:
 
 - whitespace-only line → ignored;
 - exactly `None found.` → sets `declares_none_found`;
@@ -502,27 +586,36 @@ was seen, otherwise `Present`.
 
 ```rust
 let rest = line.strip_prefix(ENTRY_OPENING)?;
-rest.rmatch_indices(TITLE_CLOSE)
-    .find_map(|(close, _)| Self::read_from(&rest[..close], &rest[close + TITLE_CLOSE.len()..]))
+rest.rmatch_indices(TITLE_CLOSE).find_map(|(close, _)| {
+    let title = &rest[..close];
+    let link_and_rest = &rest[close + TITLE_CLOSE.len()..];
+    Self::entry_after_title(title, link_and_rest)
+})
 ```
 
-`read_from(title, after)` requires a non-empty title; takes the URL up to the
-first `)`, requiring it non-empty and free of whitespace; requires the rest
-after `)` to start with ` — ` followed by at least one character; splits
-that text at the first ` — ` into tier text and venue, a venue of `""` being
-`None`; and reads the tier as `TierReading::from(tier_text)`, where
-`Parsed` holds `TierText::parse`'s value and `Rejected` holds
-`NotTierText::into_text()`.
+`entry_after_title(title, link_and_rest)` requires a non-empty title, then
+reads each token rule through its own small function: `url_and_rest` takes
+the URL up to the first `)`, requiring it non-empty and free of whitespace;
+`tier_and_venue` requires the rest after `)` to start with ` — ` followed by
+at least one character and splits that text at the first ` — ` into tier
+text and venue, a venue of `""` being `None`. The tier is read by the private
+`TierReading::of(tier_text)`, where `Parsed` holds `TierText::parse`'s value
+and `Rejected` holds `NotTierText::into_text()`; it is an associated function,
+not a `From` impl, so the public surface keeps `TierText::parse` as the one
+way to read tier text. `metadata` starts empty.
 
 Trying `](` from the right is the title rule as the work item states it: the
 title ends at the last `](` for which the rest of the line still reads as an
-entry. The tests pin the cases it names; a venue ending in a markdown link
-followed by ` — ` and more text will place the title's end inside the venue,
-which the rule accepts as written.
+entry. A venue ending in a markdown link followed by ` — ` and more text
+places the title's end inside the venue, which the rule accepts as written;
+`the_title_ends_at_the_last_link_close_that_still_reads_as_an_entry` pins
+that direction.
 
 #### 4. Snapshot
 
-`mise run public-api:update`; additions only.
+`mise run public-api:update`; additions only: `SourcesSection`,
+`CitedSource`, `TierReading`, `MetadataPair`, `UnreadLine`, `LineSpan`, their
+fields, methods and derived impls.
 
 ### Success Criteria:
 
@@ -530,7 +623,7 @@ which the rule accepts as written.
 
 - [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
 - [ ] Tier-text tests still pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
-- [ ] Snapshot is current and additions only: `mise run public-api:check`, and `jj diff --git cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [ ] Snapshot is current and additions only: `mise run public-api:check`, and `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
 - [ ] Import fence holds: `mise run pup:check`
 - [ ] Format and lint pass: `mise run cli:check`
 - [ ] Full suite green: `mise run`
@@ -571,45 +664,46 @@ under the adjacency rule; a block line that fails it stays unread.
   `  - doi: 10.1/x`; no pair, unread exactly those two lines in order.
 - `an_unread_link_separates_a_block_from_the_entry_before_it` — entry A,
   `- [B](https://b.example/)`, `  - doi: 10.1/b`; A has no pair, both unread.
+- `none_found_separates_a_block_from_its_entry` — entry, `None found.`,
+  `  - doi: 10.1/x`; no pair, the block line unread, section present.
 - Phase 2's `unread_lines_are_reported_as_written_in_order` keeps passing:
   its block line before the first entry is still unread.
 
-#### 2. Types and reading
+#### 2. Reading
 
 **File**: `cli/research/src/topic/sources_section.rs`
 
 ```rust
 const BLOCK_LINE_OPENING: &str = "  - ";
 const KEY_SEPARATOR: &str = ": ";
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetadataPair {
-    pub key: String,
-    pub value: String,
-}
 ```
 
-`CitedSource` gains `pub metadata: Vec<MetadataPair>`, empty from
-`CitedSource::parse`. `MetadataPair::parse(line) -> Option<Self>` (private):
+`MetadataPair::parse(line) -> Option<Self>` (private):
 strip `BLOCK_LINE_OPENING`, `split_once(KEY_SEPARATOR)`, require the key to
 be an ASCII lowercase letter followed by lowercase letters, digits or `_`,
 and the value to hold a non-whitespace character.
 
-`SectionReading` gains `block_open: bool`: set by an entry, left alone by a
-whitespace-only line, cleared by `None found.` and by an unread line. A
-parsed block line attaches to `entries.last_mut()` only while `block_open`;
-otherwise it is unread and clears `block_open`.
+`read` first classifies each line into a private `SectionLine` enum
+(`Ignored`, `NoneFound`, `Entry(CitedSource)`, `Block(MetadataPair)`,
+`Unread`), then folds it in one `match`, so each line kind's effect on
+adjacency is stated in one place. `SectionReading` gains
+`adjacency: BlockAdjacency`, a private enum of `AfterEntry` and `Detached`:
+an entry makes it `AfterEntry`; an ignored line leaves it; `None found.`, an
+unread line and an unattached block line make it `Detached`. A block line
+attaches to `entries.last_mut()` only while `AfterEntry`; otherwise it is
+unread.
 
 #### 3. Snapshot
 
-`mise run public-api:update`; additions only (the new type and field).
+No public item changes; `mise run public-api:check` passes without an
+update.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
 - [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Snapshot is current and additions only against the pre-plan file
+- [ ] Snapshot is current and unchanged by this phase: `mise run public-api:check`
 - [ ] Format, lint and fence pass: `mise run cli:check`, `mise run pup:check`
 - [ ] Full suite green: `mise run`
 
@@ -620,13 +714,16 @@ otherwise it is unread and clears `block_open`.
 
 ---
 
-## Phase 4: Removing the Section by Its Span, and the Whole-Section Read
+## Phase 4: Splitting and Removing the Section by Its Span, and the Whole-Section Read
 
 ### Overview
 
-`LineSpan::remove_from(body)` returns the body without the span's lines,
-every other line and its ending unchanged. A whole-section test reads the
-citing-once worked example through every public export.
+`LineSpan::split(body)` returns the text before the span's lines and the
+text after them, each borrowed from the body exactly as written, so a caller
+can put the structured Sources where the literal section sat without
+counting lines. `LineSpan::remove_from(body)` is those two halves joined. A
+whole-section test reads the citing-once worked example through every public
+export.
 
 ### Changes Required:
 
@@ -634,18 +731,26 @@ citing-once worked example through every public export.
 
 **File**: `cli/research/tests/sources_section.rs`
 
+- `splitting_at_the_section_gives_the_text_before_and_after_it` — the
+  ten-line document with span 4..8 splits into lines 1-3 and lines 8-10,
+  each exactly as written; the CRLF twin keeps every `\r\n` in both halves;
+  for a section running to the end, the bodies with and without a final
+  newline both split into lines 1-3, ending in line 3's own `\n`, and an
+  empty after-text.
 - `removing_the_section_keeps_every_other_line_as_written` — the ten-line
   document with span 4..8 returns lines 1-3 then 8-10; the CRLF twin keeps
-  every remaining `\r\n`; a section running to the end leaves lines before
-  the heading and the body's final newline state on them.
+  every remaining `\r\n`; for a section running to the end, the bodies with
+  and without a final newline both return the same string, lines 1-3 exactly
+  as written, ending in line 3's own `\n`.
 - `the_citing_once_worked_example_reads_as_three_cited_sources` — the three
   input entries from `skills/research/outputters/citing-once/SKILL.md:162-169`
   under `## Sources`, framed by prose before and a `## Next` heading after:
   three entries with their tiers (`tier-2`; `tier-3 (retracted)`, retracted;
   `tier-1`), venues, and blocks in written order (including the
   out-of-canonical-order `openalex_id`, `doi`); state present; no unread;
-  span from the heading to `## Next`; and `remove_from` leaves the prose and
-  `## Next` section.
+  span from the heading to `## Next`; `split` gives the prose before and the
+  `## Next` section after; and `remove_from` leaves the prose and `## Next`
+  section.
 
 #### 2. Implementation
 
@@ -653,25 +758,43 @@ citing-once worked example through every public export.
 
 ```rust
 impl LineSpan {
+    /// `body` must be the text the span was read from.
     #[must_use]
-    pub fn remove_from(self, body: &str) -> String {
-        lines::numbered(body)
-            .filter(|line| !self.holds(line.number))
-            .map(|line| line.as_written)
-            .collect()
+    pub fn split(self, body: &str) -> (&str, &str) {
+        let before = &body[..lines::offset_of(body, self.start)];
+        let after = &body[lines::offset_of(body, self.end)..];
+        (before, after)
     }
 
-    const fn holds(self, number: usize) -> bool {
-        self.start <= number && number < self.end
+    /// `body` must be the text the span was read from.
+    #[must_use]
+    pub fn remove_from(self, body: &str) -> String {
+        let (before, after) = self.split(body);
+        [before, after].concat()
     }
 }
 ```
 
-`Line::as_written` arrives here if Phase 2 deferred it.
+**File**: `cli/research/src/topic/sources_section/lines.rs`
+
+```rust
+pub fn offset_of(body: &str, number: usize) -> usize {
+    body.split_inclusive('\n')
+        .take(number.saturating_sub(1))
+        .map(str::len)
+        .sum()
+}
+```
+
+`offset_of` is the byte offset where line `number` starts, measured over the
+same `split_inclusive('\n')` pieces `numbered` reads. A line number past the
+last line gives the body's length, so a span running to the end leaves an empty
+after-text. Every offset falls just after a `\n` or at either end of the
+body, so both slices sit on character boundaries.
 
 #### 3. Snapshot
 
-`mise run public-api:update`; the one added method.
+`mise run public-api:update`; the two added methods.
 
 ### Success Criteria:
 
@@ -680,8 +803,8 @@ impl LineSpan {
 - [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
 - [ ] Snapshot diff against the pre-plan file holds additions only, with
       the `Tier` and `Record` lines unchanged:
-      `jj diff --git -r <base>.. cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] No manifest change: `jj diff --stat cli/research/Cargo.toml` is empty
+      `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [ ] No manifest change: `jj diff --stat --from <base> --to @ cli/research/Cargo.toml` is empty
       across the whole change
 - [ ] Full suite green: `mise run`
 
@@ -699,12 +822,14 @@ impl LineSpan {
 All behaviour is tested through public exports in the crate's `tests/`
 directory, one file per module (`tier_text.rs`, `sources_section.rs`), as the
 work item's export criterion requires. The private `lines` module is covered
-through `SourcesSection::parse` and `LineSpan::remove_from` (the `\r\r\n`,
-final-newline and CRLF cases), so it needs no tests of its own.
+through `SourcesSection::parse`, `LineSpan::split` and
+`LineSpan::remove_from` (the `\r\r\n`, lone `\r`, final-newline and CRLF
+cases), so it needs no tests of its own.
 
 Key edge cases: rejection inputs keeping surrounding spaces; the title rule
-with brackets and a venue link; URL with `)` or a space; trailing ` — `;
-block adjacency across blank lines, prose and unread links; `None found.`
+with brackets, a venue link, and two candidate `](` pinning the search
+direction; URL with `)` or a space; trailing ` — `;
+block adjacency across blank lines, prose, unread links and `None found.`; `None found.`
 beside entries and beside prose; heading exactness and first-section-only;
 span at the body's end with and without a final newline.
 
@@ -734,6 +859,11 @@ owned strings returned.
 
 None: new public items only. PP-1002 also edits the public-API snapshot;
 whichever lands second regenerates it with `mise run public-api:update`.
+
+PP-1000 places the structured Sources where the literal section sat by
+rendering `split`'s before-text, then Sources, then its after-text;
+`remove_from` serves callers that only need the section gone. PP-1000's
+server step still names `remove_from` and should be updated to name `split`.
 
 ## References
 
