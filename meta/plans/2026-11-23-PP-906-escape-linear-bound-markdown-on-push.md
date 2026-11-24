@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T23:30:00+00:00"
+last_updated: "2026-11-24T23:59:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2243,18 +2243,43 @@ false as `[t](<http://t>)`. `autolink_urls` keeps `link_words`; the
 dotted-token path stops using it. `cli/pup.ron` already permits
 `markdown::linear`.
 
+#### 4. As landed
+
+- **Non-ASCII last label.** Settled as left bare: `Q180` sits in the
+  `after` group, so the probe test needs it, and no probe shows Linear
+  linking an IDN top-level domain. Both escape classes fold into
+  `linear_leaves_bare`, since a token holding an escape is left bare by
+  Linear too.
+- **A finer model.** Matching every probe's link text needed
+  `linear_leaves_bare` to be more exact than phase 5's helper, which only
+  had to cover over-escapes: `md` and `merck` are bare only without a port,
+  path, query or fragment (`Q229`'s `foo.md:12:3`, a port followed by
+  `:`, is bare); an inline tag or entity counts only when one is actually
+  there, since a bare `;`, `>` or `&` beside a token is linked (`Q136`,
+  `Q143`, `Q173`). `linked_span` extends a link over one `~` before the
+  token and a path, query or fragment after it, shedding trailing
+  punctuation as scheme URLs do, and a lone `#` with it (`Q170`).
+  `autolink_dotted_tokens` writes `\!` before a link that follows `!`
+  (`Q138`), as Linear does.
+- **Shape.** `linear_autolinker.rs` uses `document::markdown` for the
+  strikethrough class, so `tracker-test-support` gains a `document`
+  dependency and its `pup.ron` rule permits `document::markdown`. The test
+  compares only links to `http://` destinations that differ from their
+  text, so scheme URLs and `mailto` links, which other rewrites make, stay
+  out. `captures::fragments_in_groups` selects probes by group.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Simulator and probe tests pass: `mise run test:unit:cli --filter 'binary(linear_rewrites)'`
-- [ ] The oracle still passes on the shared model: `mise run test:unit:cli --filter 'binary(linear_captures)'`
-- [ ] `mise run cli:check` and `mise run pup:check` exit 0
-- [ ] `mise run` exits 0
+- [x] Simulator and probe tests pass: `mise run test:unit:cli --filter 'binary(linear_rewrites)'`
+- [x] The oracle still passes on the shared model: `mise run test:unit:cli --filter 'binary(linear_captures)'`
+- [x] `mise run cli:check` and `mise run pup:check` exit 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None; test support only
+- [x] None; test support only
 
 ---
 
