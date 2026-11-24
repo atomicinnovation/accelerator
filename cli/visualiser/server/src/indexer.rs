@@ -1862,6 +1862,27 @@ mod document_id_tests {
     }
 
     #[tokio::test]
+    async fn a_plan_with_an_unquoted_numeric_id_carries_none() {
+        let id = id_of_document_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: 42\n---\n",
+        )
+        .await;
+        assert_eq!(id, None);
+    }
+
+    #[tokio::test]
+    async fn a_plan_with_malformed_frontmatter_carries_none() {
+        let entry = entry_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: [\"unclosed\n---\n",
+        )
+        .await;
+        assert_eq!(entry.frontmatter_state, "malformed");
+        assert_eq!(entry.id, None);
+    }
+
+    #[tokio::test]
     async fn a_work_item_carries_its_raw_frontmatter_id_even_when_its_work_item_id_is_rejected(
     ) {
         let entry =
