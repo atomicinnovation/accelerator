@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T18:00:00+00:00"
+last_updated: "2026-11-24T21:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1769,7 +1769,8 @@ the notice.
   each line, which loses a continuation line's indentation, so
   `differing_sections_as_written` returns each side's untrimmed source and
   pairs an unmatched local section with the unmatched remote section at its
-  position. `BodyComparison::differing_sections_as_written` and
+  position; `work`'s public-API snapshot gains it.
+  `BodyComparison::differing_sections_as_written` and
   `reads_alike` serve `push_fidelity`, `changed_lines` and
   `meaningful_hunks` in `work-adapters/src/sync/push_fidelity.rs`.
 - **Notice data.** `RewriteNotice { path, external_id, lines }` has no
@@ -1793,6 +1794,11 @@ the notice.
   promotions under their key, and `work promote` renders its retitle under
   the key, each path relative to the repository root
   (`rewrite_lines_under`).
+- **Skills.** The relay guidance changed the digests of
+  `/sync-work-items`, `/create-work-item` and `/extract-work-items`, so the
+  evals it touches were re-run with_skill: sync 1-4, create 40, 48, 51, 62
+  and 66 (every `write-once` push), and extract 8-10 (the pushed batches).
+  All pass in full.
 - **Tests.** The mark clauses of the promotion tests wait for phase 8. A
   sync retitle returns no notice by construction, so it has no test of its
   own, and an unreadable read-back is pinned at the applier
@@ -1808,7 +1814,7 @@ the notice.
 - [x] Rendering and `work-cli` warnings pass: `mise run test:unit:cli --filter 'package(accelerator-work) & test(/warns|both_notices|its_warnings_subject|clearing_command|changed_lines|on_one_line|external_id/)'`
 - [x] Skill structure holds: `mise run test:unit:tasks --filter test_each_record_type_has_a_dispatch_entry`
 - [x] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
