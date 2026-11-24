@@ -8,6 +8,9 @@ const allocation = allocateWorkers(availableParallelism());
 
 export default defineConfig({
   testDir: "./e2e",
+  // Unit tests for the e2e helpers sit beside the specs as *.test.ts and run
+  // under Vitest, whose matchers clash with Playwright's.
+  testMatch: "**/*.spec.ts",
   timeout: 30_000,
   retries: 0,
   workers: allocation.total,

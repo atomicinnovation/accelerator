@@ -78,7 +78,7 @@ export default defineConfig({
     hookTimeout: 30_000,
     exclude: [
       "**/node_modules/**",
-      "**/e2e/**",
+      "**/e2e/**/*.spec.ts",
       // Everything under tests/ is Playwright (visual-regression screenshots,
       // resolved-styles computed-style specs, and their shared lib/ helpers) —
       // Vitest unit tests live under src/. Excluding the whole tree keeps a

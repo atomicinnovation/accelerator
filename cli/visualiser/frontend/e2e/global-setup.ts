@@ -7,10 +7,11 @@
  * Also snapshots fixture files so globalTeardown can restore them,
  * guarding against interrupted runs leaving modified fixtures on disk.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { restoreFixtures, snapshotFixtures } from "./fixture-snapshot.js";
 
 const E2E_DIR = dirname(fileURLToPath(import.meta.url));
 const portFile = join(E2E_DIR, "..", ".e2e-port");
@@ -24,44 +25,6 @@ export const FIXTURE_META_DIR = join(
   "meta",
 );
 export const SNAPSHOT_FILE = join(E2E_DIR, "..", ".e2e-fixture-snapshot.json");
-
-function workItemFixtures(): string[] {
-  return readdirSync(join(FIXTURE_META_DIR, "work"))
-    .filter((file) => file.endsWith(".md"))
-    .map((file) => join("work", file));
-}
-
-function setManifestFixtures(setsDir: string, manifest: string): string[] {
-  return readdirSync(join(FIXTURE_META_DIR, setsDir), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(setsDir, entry.name, manifest))
-    .filter((file) => existsSync(join(FIXTURE_META_DIR, file)));
-}
-
-function editableFixtures(): string[] {
-  return [
-    ...workItemFixtures(),
-    ...setManifestFixtures(join("research", "topics"), "manifest.md"),
-    ...setManifestFixtures(
-      join("research", "design-inventories"),
-      "inventory.md",
-    ),
-  ];
-}
-
-function readFixtures(): Record<string, string> {
-  const snapshot: Record<string, string> = {};
-  for (const file of editableFixtures()) {
-    snapshot[file] = readFileSync(join(FIXTURE_META_DIR, file), "utf-8");
-  }
-  return snapshot;
-}
-
-export function restoreFixtures(snapshot: Record<string, string>): void {
-  for (const [file, content] of Object.entries(snapshot)) {
-    writeFileSync(join(FIXTURE_META_DIR, file), content);
-  }
-}
 
 // Probe that something is actually listening on the origin. A successful TCP
 // connect is exactly the condition whose absence surfaces as
@@ -85,11 +48,17 @@ export default async function globalSetup() {
   // If a snapshot exists from a previous interrupted run, restore fixture
   // files to their pre-run state before snapshotting again.
   if (existsSync(SNAPSHOT_FILE)) {
-    restoreFixtures(JSON.parse(readFileSync(SNAPSHOT_FILE, "utf-8")));
+    restoreFixtures(
+      FIXTURE_META_DIR,
+      JSON.parse(readFileSync(SNAPSHOT_FILE, "utf-8")),
+    );
   }
 
   // Snapshot current fixture state so globalTeardown can restore it.
-  writeFileSync(SNAPSHOT_FILE, JSON.stringify(readFixtures(), null, 2));
+  writeFileSync(
+    SNAPSHOT_FILE,
+    JSON.stringify(snapshotFixtures(FIXTURE_META_DIR), null, 2),
+  );
 
   if (!existsSync(portFile)) {
     throw new Error(
