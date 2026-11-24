@@ -3,41 +3,10 @@
 //! `tests/fixtures/linear-rewrites`.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
-use std::collections::BTreeMap;
-use std::path::Path;
+mod captures;
 
+use captures::{fixture, fragments, read_back, TestError};
 use tracker_test_support::Rewrite;
-
-type TestError = Box<dyn std::error::Error>;
-
-fn capture(name: &str) -> Result<String, TestError> {
-    Ok(std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/linear-rewrites")
-            .join(name),
-    )?)
-}
-
-/// Each `## ` section's body, keyed by its heading's fragment code.
-fn fragments(markdown: &str) -> BTreeMap<String, String> {
-    let mut sections = BTreeMap::new();
-    let mut current: Option<(String, String)> = None;
-    for line in markdown.lines() {
-        if let Some(heading) = line.strip_prefix("## ") {
-            sections.extend(current.take());
-            let code = heading.split_whitespace().next().unwrap_or_default();
-            current = Some((code.to_owned(), String::new()));
-        } else if let Some((_, body)) = current.as_mut() {
-            body.push_str(line);
-            body.push('\n');
-        }
-    }
-    sections.extend(current);
-    sections
-        .into_iter()
-        .map(|(code, body)| (code, body.trim().to_owned()))
-        .collect()
-}
 
 /// The rewrites the capture's README records for each fragment. `X09` and
 /// `X20` turn a number into an ordered-list marker, which no rewrite here
@@ -89,14 +58,9 @@ fn recorded_rewrites() -> Vec<(&'static str, Vec<Rewrite>)> {
 #[test]
 fn each_rewrite_reproduces_the_captured_linear_read_back(
 ) -> Result<(), TestError> {
-    let pushed = fragments(&capture("pushed.md")?);
-    let read_back: serde_json::Value =
-        serde_json::from_str(&capture("read-back.json")?)?;
-    let read_back = fragments(
-        read_back["data"]["issue"]["description"]
-            .as_str()
-            .ok_or("a captured description")?,
-    );
+    let pushed = fragments(&fixture("linear-rewrites/pushed.md")?, "## ");
+    let read_back =
+        fragments(&read_back("linear-rewrites/read-back.json")?, "## ");
 
     for (code, rewrites) in recorded_rewrites() {
         let rewritten = rewrites
