@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-24T00:55:00+00:00"
+last_updated: "2026-11-24T01:35:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1729,13 +1729,18 @@ count towards `guarded_resume`'s test-seconds.
 
 #### Manual Verification
 
-- [ ] Three alone runs put the binary's test-seconds plus the family's
+- [x] Three alone runs put the binary's test-seconds plus the family's
       build time at or under 54.4 s (half the baseline alone median), and
       the slowest test at or under 10 s. This is an early signal, not a
-      criterion. At `xurnrnyp` the total missed (63.2 / 67.9 / 76.3 s,
-      median 67.9 s) and the slowest test met it
+      criterion. Before the switch was committed, the total missed (63.2 /
+      67.9 / 76.3 s, median 67.9 s) and the slowest test met it
       (`moving_onto_new_parents_starts_a_fresh_jj_run`, median 6.7 s), at
-      load averages of 14–16. The family built in 1.4 s (median).
+      load averages of 14–16. Three runs at the landing commit gave 60.7 /
+      78.3 / 76.6 s (median 76.6 s) and a slowest test of 7.4 s, with the
+      IDE at ~515% CPU and Spotlight indexing. The family built in
+      1.1–1.4 s. On 2026-11-24 the author accepted the miss: phase 7's
+      under-suite figure, taken to review under the half-ratio rule,
+      decides the target.
 
 ---
 
@@ -1896,7 +1901,7 @@ Also to record:
   ≈ 132 s under the suite at × 1.82, against ≤ 98.75 s. The slowest test
   projected below 20 s. Scenarios were not profiled for `fsync`.
 
-  The switch was then made at `xurnrnyp` but not landed, so the author
+  The switch was then made at `xurnrnyp` before landing, so the author
   could compare measured figures with the projection. Three alone runs
   gave 67.9 s (median, family build included), ≈ 123.6 s under the suite
   at × 1.82. The slowest test was 6.7 s, ≈ 12.2 s under the suite. The
@@ -1932,9 +1937,9 @@ Also to record:
   26.5 s.
 - **Tail payoff:** with the three tail tests left out, the next finisher
   ends 7–9 s before the phase, so the phase can lose at most that much.
-- **Before phase 6:** phase 5's family is built in unfiltered runs with no
-  consumer, which adds one family's build time to each run until phase 6
-  lands.
+- **Stalled-migration build:** the family builds in 1.1–1.8 s, and since
+  phase 6 `guarded_resume` consumes it, so filtered runs of that binary
+  build it too.
 
 ## Migration Notes
 
