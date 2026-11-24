@@ -427,3 +427,41 @@ async fn mixed_case_query_and_field_classify_correctly() {
         .iter()
         .any(|r| r["slug"].as_str() == Some("foo-bar")));
 }
+
+#[tokio::test]
+async fn a_row_carries_the_document_id_and_rel_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    let plans = tmp.path().join("meta/plans");
+    std::fs::write(
+        plans.join("2026-04-01-kiwi-identified.md"),
+        "---\nid: \"2026-04-01-kiwi-identified\"\ntitle: \"Kiwi\"\n---\n",
+    )
+    .unwrap();
+    write_plan_dated(&plans, "2026-04-02", "kiwi-anonymous", "Kiwi too", "");
+
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let v = fetch_search("/api/search?q=kiwi", state).await;
+    let results = v["results"].as_array().unwrap();
+    let row_with_slug = |slug: &str| {
+        results
+            .iter()
+            .find(|r| r["slug"] == slug)
+            .unwrap_or_else(|| panic!("no row for {slug}: {results:?}"))
+    };
+
+    let identified = row_with_slug("kiwi-identified");
+    assert_eq!(identified["id"], "2026-04-01-kiwi-identified");
+    assert_eq!(
+        identified["relPath"],
+        "meta/plans/2026-04-01-kiwi-identified.md"
+    );
+
+    let anonymous = row_with_slug("kiwi-anonymous");
+    assert!(anonymous["id"].is_null(), "got {anonymous:?}");
+    assert_eq!(
+        anonymous["relPath"],
+        "meta/plans/2026-04-02-kiwi-anonymous.md"
+    );
+}

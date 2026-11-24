@@ -29,8 +29,10 @@ pub(crate) struct SearchQuery {
 pub(crate) struct SearchResultRow {
     #[serde(with = "crate::doc_type_serde")]
     doc_type: DocTypeKey,
+    id: Option<String>,
     title: String,
     slug: String,
+    rel_path: String,
     mtime_ms: i64,
 }
 
@@ -87,8 +89,10 @@ fn project(entry: &IndexEntry) -> Option<SearchResultRow> {
     let slug = entry.slug.clone()?;
     Some(SearchResultRow {
         doc_type: entry.r#type,
+        id: entry.id.clone(),
         title: entry.title.clone(),
         slug,
+        rel_path: entry.rel_path.to_string_lossy().replace('\\', "/"),
         mtime_ms: entry.mtime_ms,
     })
 }
