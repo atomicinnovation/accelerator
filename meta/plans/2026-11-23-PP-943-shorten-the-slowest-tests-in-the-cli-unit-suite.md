@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-23T23:55:00+00:00"
+last_updated: "2026-11-24T00:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1218,6 +1218,26 @@ line. No test consumes the family yet, and `consumers.py` lists no consumer
 for it, so the step builds it only in unfiltered runs. That costs one build
 per run until phase 6.
 
+**Landed** in changes `rynwpwmz` (build inputs), `wskrlqzk` (per-family
+timing), `tvyxyqml` (the corpus move) and `vousnyqr` (the family), with the
+full `mise run` green. Under the full suite the set built in 1.7–1.8 s. Four
+departures:
+
+- **Corpus imports:** `common/mod.rs` does not re-export the moved corpus.
+  `common` is compiled into each migrate test binary, and a re-export one
+  binary leaves unused fails `unused_imports`, so `guarded_resume` imports
+  `vcs_test_support::stalled_migration::corpus` itself.
+- **Builder-binary tests:** the missing-variable and failing-stub cases
+  drive the `shared-fixtures` binary from `shared_fixtures_bin.rs`, because
+  `inputs_from_environment` reads the process environment.
+- **Stall directories:** each stall lives at `<tree>/<key>`, named by
+  `StallKey`'s `Display` (`pure-single-parent` and so on), and the manifest
+  parses keys back through `FromStr`.
+- **Coverage:** the stalls' migrate runs inherit the builder's
+  `LLVM_PROFILE_FILE`, because `Hermetic::apply` clears no variable, so
+  `cli.py` needed no coverage change. The instrumented lane passed; where
+  migrate's profile data landed was not inspected.
+
 ### Changes Required
 
 #### 1. The family in Rust
@@ -1496,25 +1516,28 @@ only place its path is known to a test. Phase 5's stub tests cover
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli --filter
+- [x] `mise run test:unit:cli --filter
       'binary_id(vcs-test-support::fixture_log) |
       binary_id(vcs-test-support::shared_build) |
       binary_id(vcs-test-support::shared_fixtures_bin) |
       binary_id(vcs-test-support::stalled_migration_sharing) |
       binary_id(vcs-test-support::stalled_migration_parts) |
       binary_id(vcs-test-support::workbench)'` passes.
-- [ ] `mise run test:unit:tasks` passes.
-- [ ] An unfiltered `mise run test:unit:cli` prints a `shared VCS
+- [x] `mise run test:unit:tasks` passes.
+- [x] An unfiltered `mise run test:unit:cli` prints a `shared VCS
       fixtures: stalled-migration set built in X s` line and passes the
       fixture-log judgement.
-- [ ] `mise run cli:check` and `mise run build-system:check` pass.
-- [ ] `mise run` exits 0.
+- [x] `mise run cli:check` and `mise run build-system:check` pass.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 
-- [ ] `rg -l "$TREE" $TREE/stalled-migration` over a held run directory
+- [x] `rg -l "$TREE" $TREE/stalled-migration` over a held run directory
       (`ACCELERATOR_SHARED_FIXTURES_HOLD`) finds no file naming the tree.
       This checks the real migrate's output, which the stub tests cannot.
+      Checked by running the builder directly with the real migrate
+      instead of holding a run: only `stalled-migrations.tsv`, at the
+      tree's root and copied by no part, names the tree.
 
 ---
 
