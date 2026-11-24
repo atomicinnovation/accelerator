@@ -2245,7 +2245,8 @@ dotted-token path stops using it. `cli/pup.ron` already permits
 
 #### 4. As landed
 
-- **Non-ASCII last label.** Settled as left bare: `Q180` sits in the
+- **Non-ASCII last label.** Settled as left bare, and confirmed so by Toby
+  Clemson: `Q180` sits in the
   `after` group, so the probe test needs it, and no probe shows Linear
   linking an IDN top-level domain. Both escape classes fold into
   `linear_leaves_bare`, since a token holding an escape is left bare by
@@ -2311,6 +2312,14 @@ With the `TES` procedure from the Implementation Approach:
    allowlist in `../work-item-sync-recovery/README.md`.
 4. Delete the issue, then restore `config.local.md`.
 
+Taken on 2026-11-24 as `TES-38`, since trashed. Linear stored both comment
+bodies byte for byte as sent, leading blank line included: no token linked,
+no lone number listed, none of the description's cosmetic rewrites, and every
+pushed escape kept. `comment-read-back.json` lists the newest comment first.
+The allowlist projects each comment as `{body}` rather than the bare string
+`[.comments.nodes[].body]` would give, so re-applying it leaves the capture
+unchanged, as the base allowlist does.
+
 #### 2. Gate
 
 Compare each fragment of the first comment with the same fragment of
@@ -2322,6 +2331,11 @@ Compare each fragment of the first comment with the same fragment of
 | Comments are read as descriptions are | Sections 3-5 below |
 | Comments are rewritten, but differently | Return this phase to drafting with the capture |
 | No meaning-changing rewrite in comments | Record it; drop sections 3-5; the phase ends here |
+
+Outcome: no meaning-changing rewrite in comments, recorded per fragment in
+the `linear-rewrites/` README's "Comments" section. Sections 3-5 are
+dropped: comment bodies are sent as given, and `comment add` gains no
+`--verbatim`.
 
 #### 3. Equivalence tests
 
@@ -2362,15 +2376,16 @@ given.
 
 #### Automated Verification:
 
-- [ ] Comment equivalence passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
-- [ ] Client and command tests pass: `mise run test:unit:cli --filter 'package(linear-client) | package(linear-cli)'`
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] Comment equivalence passes: dropped with sections 3-5 by the gate;
+      `binary(body_equivalence)` still passes
+- [x] Client and command tests pass: dropped with sections 3-5 by the gate
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Comment capture taken, allowlisted, committed and its issue trashed
-- [ ] Gate outcome recorded in the README
+- [x] Comment capture taken, allowlisted, committed and its issue trashed
+- [x] Gate outcome recorded in the README
 
 ---
 
