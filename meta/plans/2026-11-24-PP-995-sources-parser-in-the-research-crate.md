@@ -885,7 +885,7 @@ whichever lands second regenerates it with `mise run public-api:update`.
 PP-1000 places the structured Sources where the literal section sat by
 rendering `split`'s before-text, then Sources, then its after-text;
 `remove_from` serves callers that only need the section gone. PP-1000's
-server step still names `remove_from` and should be updated to name `split`.
+server step names `split`.
 
 ## References
 
