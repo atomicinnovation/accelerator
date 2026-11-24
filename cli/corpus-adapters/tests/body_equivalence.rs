@@ -198,6 +198,62 @@ fn autolinked_dotted_tokens_differ() -> Result<(), TestError> {
 }
 
 #[test]
+fn file_names_whose_extension_is_a_top_level_domain_differ(
+) -> Result<(), TestError> {
+    captured_row_differs("X10")
+}
+
+#[test]
+fn a_file_name_with_a_line_number_differs() -> Result<(), TestError> {
+    captured_row_differs("X11")
+}
+
+#[test]
+fn multi_part_tokens_differ() -> Result<(), TestError> {
+    captured_row_differs("X14")
+}
+
+#[test]
+fn a_mixed_case_token_differs() -> Result<(), TestError> {
+    captured_row_differs("X15")
+}
+
+#[test]
+fn a_sentence_final_token_differs() -> Result<(), TestError> {
+    captured_row_differs("X16")
+}
+
+#[test]
+fn a_bracketed_token_differs() -> Result<(), TestError> {
+    captured_row_differs("X17")
+}
+
+#[test]
+fn an_email_address_differs() -> Result<(), TestError> {
+    captured_row_differs("X19")
+}
+
+#[test]
+fn a_wrapped_parenthesised_number_differs() -> Result<(), TestError> {
+    captured_row_differs("X20")
+}
+
+#[test]
+fn tokens_in_bold_and_in_a_heading_differ() -> Result<(), TestError> {
+    captured_row_differs("X22")
+}
+
+#[test]
+fn a_token_in_a_table_cell_differs() -> Result<(), TestError> {
+    captured_row_differs("X23")
+}
+
+#[test]
+fn quoted_scheme_urls_are_noise() -> Result<(), TestError> {
+    captured_row_is_noise("X25")
+}
+
+#[test]
 fn code_span_indentation_is_noise() -> Result<(), TestError> {
     captured_row_is_noise("X08")
 }
@@ -272,7 +328,10 @@ fn the_captured_push_and_read_back_differ_only_by_the_meaning_changing_rows(
 ) -> Result<(), TestError> {
     let capture = Capture::load()?;
     assert!(!equivalent_markdown(&capture.pushed, &capture.read_back));
-    let (pushed, read_back) = capture.without(&["R12", "X09"]);
+    let (pushed, read_back) = capture.without(&[
+        "R12", "X09", "X10", "X11", "X14", "X15", "X16", "X17", "X19", "X20",
+        "X22", "X23",
+    ]);
     assert!(
         equivalent_markdown(&pushed, &read_back),
         "{pushed:?} and {read_back:?} should be equivalent"

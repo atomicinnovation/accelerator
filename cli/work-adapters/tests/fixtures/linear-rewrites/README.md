@@ -1,9 +1,12 @@
 # Linear rewrite capture
 
 `pushed.md` was created as a scratch Linear issue (`issueCreate`, via
-`accelerator linear create --body-file`) on 2026-10-13, read back with
+`accelerator linear create --body-file`) in the `TES` team, read back with
 `accelerator linear show` into `read-back.json`, then deleted. The read-back
 went through the allowlist in `../work-item-sync-recovery/README.md`.
+`R01`-`X09` were first captured on 2026-10-13. The current capture, `TES-32`
+on 2026-11-24, added `X10`-`X25`, and `R01`-`X09` read back byte-identical to
+the first.
 
 Each `##` section is one fragment. Line ranges are 1-based: in `pushed.md`,
 and in the string at `.data.issue.description` of `read-back.json`. Every
@@ -44,6 +47,31 @@ three times, apart from a trailing newline.
 | `X07` Code span, indented | 98-99 | 96 | top level | `` `a⏎  b` `` → `` `a   b` `` |
 | `X08` Code span past a task indent | 103-104 | 100 | task item, content indent 2 | `` `a⏎      b` `` → `` `a     b` `` |
 | `X09` Lone digit line | 108-113 | 104-109 | list item, then top level | in the item `⏎  0160.` → `⏎  160. `; at top level unchanged |
+| `X20` Lone parenthesised number | 157-159 | 153-155 | list item, content indent 2 | `⏎  0160)` → `⏎  160. `, an ordered list |
+| `X24` Lone digit line in a blockquote | 179-180 | 175-176 | blockquote | none |
+
+## Dotted tokens and boundaries
+
+| Fragment | Pushed | Read back | Container | Observed rewrite |
+|---|---|---|---|---|
+| `X10` TLD file extensions | 117 | 113 | top level | `server.pid` → `[server.pid](<http://server.pid>)`; `foo.md` none |
+| `X11` Line number | 121 | 117 | top level | `jql.rs:167` → `[jql.rs:167](<http://jql.rs:167>)` |
+| `X12` Non-TLD extension | 125 | 121 | top level | none |
+| `X13` Version, abbreviation | 129 | 125 | top level | none |
+| `X14` Multi-part tokens | 133 | 129 | top level | `a.b.io` → `[a.b.io](<http://a.b.io>)`; `a.b.c` none |
+| `X15` Mixed case | 137 | 133 | top level | `Crates.IO` → `[Crates.IO](<http://Crates.IO>)` |
+| `X16` Sentence-final | 141 | 137 | top level | `crates.io.` → `[crates.io](<http://crates.io>).` |
+| `X17` Bracketed | 145 | 141 | top level | `(crates.io)` → `([crates.io](<http://crates.io>))` |
+| `X18` Path | 149 | 145 | top level | none |
+| `X19` Email address | 153 | 149 | top level | `a@b.io` → `[a@b.io](<mailto:a@b.io>)` |
+| `X21` Between inline tags | 163 | 159 | top level | none |
+| `X22` Bold and heading | 167-169 | 163-165 | top level, heading | `**crates.io**` → `[**crates.io**](<http://crates.io>)`; heading `crates.io` → `[crates.io](<http://crates.io>)` |
+| `X23` Table cell | 173-175 | 169-171 | table cell | `crates.io` → `[crates.io](<http://crates.io>)`; `\| - \|` → `\| -- \|` |
+| `X25` Quoted scheme URLs | 184 | 180 | top level | each URL linked whole, `[u](<u>)`, quotes and `URL:` left outside |
+
+Every link is `http` except `X19`'s, which is `mailto`. Each linked span is
+the dotted token alone, with `X11`'s port, and without the sentence-final
+`.`, the brackets of `X17` or the emphasis of `X22`, which wraps the link.
 
 ## Against 0296's Equivalence table
 
@@ -56,3 +84,33 @@ three times, apart from a trailing newline.
 - Wrapped digit lines become an ordered-list marker only when the continuation
   line inside a list item holds the number alone (`X09`); with text after it
   the number is escaped (`R11`, `X04`-`X06`).
+- Wrapped `<digits>)` becomes an ordered-list item as `<digits>.` does
+  (`X20`), but a lone number in a blockquote is left alone (`X24`).
+- Every token Linear linked in `X10`-`X19` ends in a label of the pinned
+  IANA snapshot. The unlinked tokens ending in one, `foo.md` (bare `md`),
+  `src/client.rs` (after `/`) and `X21`'s (touching an HTML tag), each fall
+  in an over-escape class recorded in `../linear-autolink-probes/README.md`.
+- Each linked span in `X10`-`X19` holds exactly the dotted token the rule
+  finds in it: `jql.rs:167` with its port, `a.b.io` whole, and `b.io` within
+  `X19`'s `mailto` link over `a@b.io`.
+
+## Audit self-check codes
+
+An audit of stored descriptions checks itself against these codes, each with
+its stored line in `read-back.json`:
+
+| Set | Codes |
+|---|---|
+| Linked dotted token | `R12` (56), `X10` (113), `X11` (117), `X14` (129), `X15` (133), `X16` (137), `X17` (141), `X19` (149), `X22` (163, 165), `X23` (171) |
+| Stray list line | `X09` (105), `X20` (154) |
+
+Retaking a capture updates these lists in the same change.
+
+## Refreshing the TLD snapshot
+
+Download `https://data.iana.org/TLD/tlds-alpha-by-domain.txt` over
+`cli/markdown/src/linear/tlds-alpha-by-domain.txt`, then run
+`the_snapshot_is_iana_shaped` and the capture tests, and add a capture
+fragment for any token whose verdict changes. A refresh is due whenever a
+`rewritten on push` warning or mark, or an audit of stored descriptions,
+finds a newly linked token.
