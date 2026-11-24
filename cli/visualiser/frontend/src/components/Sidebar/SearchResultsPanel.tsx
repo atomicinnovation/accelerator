@@ -66,7 +66,7 @@ export function SearchResultsPanel({ query }: { query: string }) {
           <div className={styles.searchList} role="listbox">
             {results.map((r) => (
               <Link
-                key={r.relPath}
+                key={`${r.docType}:${r.relPath || r.slug}:${r.mtimeMs}`}
                 {...libraryLink({
                   type: r.docType,
                   id: r.id,

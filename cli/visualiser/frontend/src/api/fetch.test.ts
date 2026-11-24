@@ -15,6 +15,7 @@ import {
   fetchTypes,
   patchWorkItemFrontmatter,
 } from "./fetch";
+import { libraryHref, libraryLink } from "./library-document-address";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -582,21 +583,38 @@ describe("fetchLibraryStructure", () => {
 });
 
 describe("fetchSearch", () => {
-  it("returns results on 2xx", async () => {
+  it("addresses a row from a server that predates ids by its slug", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         results: [{ docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 }],
       }),
     });
-    const out = await fetchSearch("foo");
-    expect(out).toHaveLength(1);
-    expect(out[0]).toEqual({
+
+    const [row] = await fetchSearch("foo");
+
+    expect(
+      libraryHref(
+        libraryLink({ type: row.docType, id: row.id, relPath: row.relPath }),
+      ),
+    ).toBe("/library/plans/foo");
+  });
+
+  it("returns results on 2xx", async () => {
+    const row = {
       docType: "plans",
       title: "Foo",
       slug: "foo",
+      id: null,
+      relPath: "meta/plans/2026-01-01-foo.md",
       mtimeMs: 1,
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ results: [row] }),
     });
+    const out = await fetchSearch("foo");
+    expect(out).toEqual([row]);
   });
 
   it("throws FetchError on non-2xx with /api/search in message but not raw q", async () => {

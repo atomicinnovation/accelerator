@@ -192,6 +192,41 @@ describe("SearchResultsPanel", () => {
     ]);
   });
 
+  it("renders rows from a server that predates ids, each linking by its slug", async () => {
+    const qc = makeClient();
+    const consoleError = vi.spyOn(console, "error");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: [
+            { docType: "plan-reviews", title: "One", slug: "foo", mtimeMs: 1 },
+            { docType: "plan-reviews", title: "Two", slug: "foo", mtimeMs: 2 },
+          ],
+        }),
+      }),
+    );
+    try {
+      render(
+        <Wrap qc={qc}>
+          <SearchResultsPanel query="foo" />
+        </Wrap>,
+      );
+      await act(async () => {
+        vi.advanceTimersByTime(200);
+      });
+      await flushMicrotasks();
+
+      expect(
+        screen.getAllByRole("option").map((row) => row.getAttribute("href")),
+      ).toEqual(["/library/plan-reviews/foo", "/library/plan-reviews/foo"]);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("each result row renders title and sentence-case label", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
