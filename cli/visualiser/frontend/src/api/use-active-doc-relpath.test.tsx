@@ -105,7 +105,7 @@ describe("useActiveDocRelPath", () => {
     );
   });
 
-  it("matches via fileSlugFromRelPath fallback when slug differs", async () => {
+  it("matches by filename stem when the slug differs", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
       entry({ slug: "something-else", relPath: "meta/work/0007-foo.md" }),
     ]);
