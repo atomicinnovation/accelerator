@@ -2636,6 +2636,88 @@ pub fn research::topic::sources_section::tier_text::TierText::fmt(&self, f: &mut
 impl core::fmt::Display for research::topic::sources_section::tier_text::TierText
 pub fn research::topic::sources_section::tier_text::TierText::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::sources_section::tier_text::TierText
+pub enum research::topic::sources_section::SourcesSection
+pub research::topic::sources_section::SourcesSection::Absent
+pub research::topic::sources_section::SourcesSection::DeclaredEmpty
+pub research::topic::sources_section::SourcesSection::DeclaredEmpty::span: research::topic::sources_section::LineSpan
+pub research::topic::sources_section::SourcesSection::DeclaredEmpty::unread: alloc::vec::Vec<research::topic::sources_section::UnreadLine>
+pub research::topic::sources_section::SourcesSection::Present
+pub research::topic::sources_section::SourcesSection::Present::entries: alloc::vec::Vec<research::topic::sources_section::CitedSource>
+pub research::topic::sources_section::SourcesSection::Present::span: research::topic::sources_section::LineSpan
+pub research::topic::sources_section::SourcesSection::Present::unread: alloc::vec::Vec<research::topic::sources_section::UnreadLine>
+impl research::topic::sources_section::SourcesSection
+pub fn research::topic::sources_section::SourcesSection::entries(&self) -> &[research::topic::sources_section::CitedSource]
+pub fn research::topic::sources_section::SourcesSection::parse(body: &str) -> Self
+pub const fn research::topic::sources_section::SourcesSection::span(&self) -> core::option::Option<research::topic::sources_section::LineSpan>
+pub fn research::topic::sources_section::SourcesSection::unread(&self) -> &[research::topic::sources_section::UnreadLine]
+impl core::clone::Clone for research::topic::sources_section::SourcesSection
+pub fn research::topic::sources_section::SourcesSection::clone(&self) -> research::topic::sources_section::SourcesSection
+impl core::cmp::Eq for research::topic::sources_section::SourcesSection
+impl core::cmp::PartialEq for research::topic::sources_section::SourcesSection
+pub fn research::topic::sources_section::SourcesSection::eq(&self, other: &research::topic::sources_section::SourcesSection) -> bool
+impl core::fmt::Debug for research::topic::sources_section::SourcesSection
+pub fn research::topic::sources_section::SourcesSection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::SourcesSection
+pub enum research::topic::sources_section::TierReading
+pub research::topic::sources_section::TierReading::Parsed(research::topic::sources_section::tier_text::TierText)
+pub research::topic::sources_section::TierReading::Rejected(alloc::string::String)
+impl core::clone::Clone for research::topic::sources_section::TierReading
+pub fn research::topic::sources_section::TierReading::clone(&self) -> research::topic::sources_section::TierReading
+impl core::cmp::Eq for research::topic::sources_section::TierReading
+impl core::cmp::PartialEq for research::topic::sources_section::TierReading
+pub fn research::topic::sources_section::TierReading::eq(&self, other: &research::topic::sources_section::TierReading) -> bool
+impl core::fmt::Debug for research::topic::sources_section::TierReading
+pub fn research::topic::sources_section::TierReading::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::TierReading
+pub struct research::topic::sources_section::CitedSource
+pub research::topic::sources_section::CitedSource::metadata: alloc::vec::Vec<research::topic::sources_section::MetadataPair>
+pub research::topic::sources_section::CitedSource::tier: research::topic::sources_section::TierReading
+pub research::topic::sources_section::CitedSource::title: alloc::string::String
+pub research::topic::sources_section::CitedSource::url: alloc::string::String
+pub research::topic::sources_section::CitedSource::venue: core::option::Option<alloc::string::String>
+impl core::clone::Clone for research::topic::sources_section::CitedSource
+pub fn research::topic::sources_section::CitedSource::clone(&self) -> research::topic::sources_section::CitedSource
+impl core::cmp::Eq for research::topic::sources_section::CitedSource
+impl core::cmp::PartialEq for research::topic::sources_section::CitedSource
+pub fn research::topic::sources_section::CitedSource::eq(&self, other: &research::topic::sources_section::CitedSource) -> bool
+impl core::fmt::Debug for research::topic::sources_section::CitedSource
+pub fn research::topic::sources_section::CitedSource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::CitedSource
+pub struct research::topic::sources_section::LineSpan
+impl research::topic::sources_section::LineSpan
+pub const fn research::topic::sources_section::LineSpan::end(self) -> usize
+pub const fn research::topic::sources_section::LineSpan::start(self) -> usize
+impl core::clone::Clone for research::topic::sources_section::LineSpan
+pub fn research::topic::sources_section::LineSpan::clone(&self) -> research::topic::sources_section::LineSpan
+impl core::cmp::Eq for research::topic::sources_section::LineSpan
+impl core::cmp::PartialEq for research::topic::sources_section::LineSpan
+pub fn research::topic::sources_section::LineSpan::eq(&self, other: &research::topic::sources_section::LineSpan) -> bool
+impl core::fmt::Debug for research::topic::sources_section::LineSpan
+pub fn research::topic::sources_section::LineSpan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::sources_section::LineSpan
+impl core::marker::StructuralPartialEq for research::topic::sources_section::LineSpan
+pub struct research::topic::sources_section::MetadataPair
+pub research::topic::sources_section::MetadataPair::key: alloc::string::String
+pub research::topic::sources_section::MetadataPair::value: alloc::string::String
+impl core::clone::Clone for research::topic::sources_section::MetadataPair
+pub fn research::topic::sources_section::MetadataPair::clone(&self) -> research::topic::sources_section::MetadataPair
+impl core::cmp::Eq for research::topic::sources_section::MetadataPair
+impl core::cmp::PartialEq for research::topic::sources_section::MetadataPair
+pub fn research::topic::sources_section::MetadataPair::eq(&self, other: &research::topic::sources_section::MetadataPair) -> bool
+impl core::fmt::Debug for research::topic::sources_section::MetadataPair
+pub fn research::topic::sources_section::MetadataPair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::MetadataPair
+pub struct research::topic::sources_section::UnreadLine
+pub research::topic::sources_section::UnreadLine::line: usize
+pub research::topic::sources_section::UnreadLine::text: alloc::string::String
+impl core::clone::Clone for research::topic::sources_section::UnreadLine
+pub fn research::topic::sources_section::UnreadLine::clone(&self) -> research::topic::sources_section::UnreadLine
+impl core::cmp::Eq for research::topic::sources_section::UnreadLine
+impl core::cmp::PartialEq for research::topic::sources_section::UnreadLine
+pub fn research::topic::sources_section::UnreadLine::eq(&self, other: &research::topic::sources_section::UnreadLine) -> bool
+impl core::fmt::Debug for research::topic::sources_section::UnreadLine
+pub fn research::topic::sources_section::UnreadLine::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::sources_section::UnreadLine
 pub mod research::topic::tree
 pub enum research::topic::tree::Stage
 pub research::topic::tree::Stage::Compose(alloc::vec::Vec<research::topic::layout::lineage::Lineage>)

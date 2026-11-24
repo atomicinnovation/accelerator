@@ -1,0 +1,420 @@
+#![allow(clippy::expect_used)]
+
+use research::topic::sources_section::tier_text::TierText;
+use research::topic::sources_section::CitedSource;
+use research::topic::sources_section::SourcesSection;
+use research::topic::sources_section::TierReading;
+use research::topic::sources_section::UnreadLine;
+
+fn reading(tier: &str) -> TierReading {
+    match TierText::parse(tier) {
+        Ok(tier_text) => TierReading::Parsed(tier_text),
+        Err(rejection) => TierReading::Rejected(rejection.into_text()),
+    }
+}
+
+fn entry(
+    title: &str,
+    url: &str,
+    tier: &str,
+    venue: Option<&str>,
+) -> CitedSource {
+    CitedSource {
+        title: title.to_owned(),
+        url: url.to_owned(),
+        tier: reading(tier),
+        venue: venue.map(str::to_owned),
+        metadata: vec![],
+    }
+}
+
+fn unread(line: usize, text: &str) -> UnreadLine {
+    UnreadLine {
+        line,
+        text: text.to_owned(),
+    }
+}
+
+fn section(lines: &[&str]) -> String {
+    [&["## Sources"], lines].concat().join("\n")
+}
+
+fn only_entry(body: &str) -> CitedSource {
+    let section = SourcesSection::parse(body);
+    assert!(section.unread().is_empty(), "{body}");
+    assert_eq!(section.entries().len(), 1, "{body}");
+    section.entries().first().cloned().expect(body)
+}
+
+const TEN_LINES: [&str; 10] = [
+    "# Finding",
+    "",
+    "Some findings.",
+    "## Sources",
+    "- [A](https://a.example/) — tier-1 — a.example",
+    "- [B](https://b.example/) — tier-2",
+    "",
+    "## Next",
+    "",
+    "More text.",
+];
+
+#[test]
+fn an_entry_carries_its_title_url_tier_and_venue() {
+    let body = section(&[
+        "- [The Notifier Pattern](https://blog.example/notifier/) — tier-2 — \
+         blog.example",
+    ]);
+    assert_eq!(
+        only_entry(&body),
+        entry(
+            "The Notifier Pattern",
+            "https://blog.example/notifier/",
+            "tier-2",
+            Some("blog.example"),
+        )
+    );
+}
+
+#[test]
+fn an_entry_with_nothing_after_its_tier_has_no_venue() {
+    for line in [
+        "- [T](https://a.example/) — tier-1",
+        "- [T](https://a.example/) — tier-1 — ",
+    ] {
+        assert_eq!(
+            only_entry(&section(&[line])),
+            entry("T", "https://a.example/", "tier-1", None),
+            "{line}"
+        );
+    }
+}
+
+#[test]
+fn a_venue_may_itself_hold_the_separator() {
+    let body =
+        section(&["- [T](https://a.example/) — tier-2 — Journal — Series B"]);
+    assert_eq!(
+        only_entry(&body).venue.as_deref(),
+        Some("Journal — Series B")
+    );
+}
+
+#[test]
+fn a_venue_may_hold_a_markdown_link() {
+    let body = section(&[
+        "- [T](https://a.example/) — tier-2 — see [x](https://b.example/)",
+    ]);
+    assert_eq!(
+        only_entry(&body),
+        entry(
+            "T",
+            "https://a.example/",
+            "tier-2",
+            Some("see [x](https://b.example/)"),
+        )
+    );
+}
+
+#[test]
+fn a_title_may_hold_brackets() {
+    let body = section(&["- [A [draft]](https://a.example/) — tier-1"]);
+    assert_eq!(only_entry(&body).title, "A [draft]");
+}
+
+#[test]
+fn the_title_ends_at_the_last_link_close_that_still_reads_as_an_entry() {
+    let body = section(&[
+        "- [A](https://x.example/) — tier-1 — v](https://a.example/) — tier-2",
+    ]);
+    assert_eq!(
+        only_entry(&body),
+        entry(
+            "A](https://x.example/) — tier-1 — v",
+            "https://a.example/",
+            "tier-2",
+            None,
+        )
+    );
+}
+
+#[test]
+fn a_link_line_that_breaks_the_token_rules_is_unread() {
+    for line in [
+        "- [T](https://a.example/)",
+        "- [T](https://a.example/) — ",
+        "- [](https://a.example/) — tier-1",
+        "- [T]() — tier-1",
+        "- [T](https://a.example/x_(y)) — tier-1",
+        "- [T](https://a.example/a b) — tier-1",
+    ] {
+        let parsed = SourcesSection::parse(&section(&[line]));
+        assert!(parsed.entries().is_empty(), "{line}");
+        assert_eq!(parsed.unread(), [unread(2, line)], "{line}");
+    }
+}
+
+#[test]
+fn a_rejected_tier_keeps_its_entry_as_written() {
+    let body = section(&[
+        "- [A](https://a.example/) — tier-1 — a.example",
+        "- [B](https://b.example/) — tier-4 — b.example",
+        "- [C](https://c.example/) — tier-3 — c.example",
+    ]);
+    let parsed = SourcesSection::parse(&body);
+    assert_eq!(
+        parsed.entries(),
+        [
+            entry("A", "https://a.example/", "tier-1", Some("a.example")),
+            CitedSource {
+                tier: TierReading::Rejected("tier-4".to_owned()),
+                ..entry("B", "https://b.example/", "tier-1", Some("b.example"))
+            },
+            entry("C", "https://c.example/", "tier-3", Some("c.example")),
+        ]
+    );
+    for (line, rejected) in [
+        ("- [T](https://a.example/) — blog.example", "blog.example"),
+        ("- [T](https://a.example/) —  tier-1", " tier-1"),
+    ] {
+        assert_eq!(
+            only_entry(&section(&[line])),
+            CitedSource {
+                tier: TierReading::Rejected(rejected.to_owned()),
+                ..entry("T", "https://a.example/", "tier-1", None)
+            },
+            "{line}"
+        );
+    }
+}
+
+#[test]
+fn a_source_listed_twice_is_two_entries() {
+    let line = "- [T](https://a.example/) — tier-1";
+    let parsed = SourcesSection::parse(&section(&[line, line]));
+    let expected = entry("T", "https://a.example/", "tier-1", None);
+    assert_eq!(parsed.entries(), [expected.clone(), expected]);
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum State {
+    Absent,
+    DeclaredEmpty,
+    Present,
+}
+
+const fn state_of(section: &SourcesSection) -> State {
+    match section {
+        SourcesSection::Absent => State::Absent,
+        SourcesSection::DeclaredEmpty { .. } => State::DeclaredEmpty,
+        SourcesSection::Present { .. } => State::Present,
+    }
+}
+
+#[test]
+fn the_section_state_is_absent_declared_empty_or_present() {
+    let one_entry = "- [T](https://a.example/) — tier-1";
+    for (body, state, entry_count, unread_lines) in [
+        (
+            "# Finding\n\nNo sources here.\n".to_owned(),
+            State::Absent,
+            0,
+            vec![],
+        ),
+        (section(&["None found."]), State::DeclaredEmpty, 0, vec![]),
+        (section(&[one_entry]), State::Present, 1, vec![]),
+        (
+            section(&["None found.", one_entry]),
+            State::Present,
+            1,
+            vec![],
+        ),
+        (
+            section(&["None found.", "Some prose."]),
+            State::DeclaredEmpty,
+            0,
+            vec![unread(3, "Some prose.")],
+        ),
+        (
+            section(&[" None found."]),
+            State::Present,
+            0,
+            vec![unread(2, " None found.")],
+        ),
+        (
+            "# Finding\n## Sources\n## Next\n".to_owned(),
+            State::Present,
+            0,
+            vec![],
+        ),
+        (
+            "# Finding\n## Sources\n".to_owned(),
+            State::Present,
+            0,
+            vec![],
+        ),
+    ] {
+        let parsed = SourcesSection::parse(&body);
+        assert_eq!(state_of(&parsed), state, "{body}");
+        assert_eq!(parsed.entries().len(), entry_count, "{body}");
+        assert_eq!(parsed.unread(), unread_lines, "{body}");
+    }
+}
+
+#[test]
+fn a_heading_with_nothing_under_it_spans_only_its_own_line() {
+    for body in [
+        "# Finding\n## Sources\n## Next\n",
+        "# Finding\n## Sources\n",
+    ] {
+        let span = SourcesSection::parse(body).span().expect(body);
+        assert_eq!((span.start(), span.end()), (2, 3), "{body}");
+    }
+}
+
+#[test]
+fn blank_and_whitespace_only_lines_are_ignored() {
+    let body = [
+        "## Sources",
+        "",
+        "- [A](https://a.example/) — tier-1",
+        "   ",
+        "- [B](https://b.example/) — tier-2",
+        "\t",
+        "## Next",
+    ]
+    .join("\n");
+    let parsed = SourcesSection::parse(&body);
+    assert_eq!(
+        parsed.entries(),
+        [
+            entry("A", "https://a.example/", "tier-1", None),
+            entry("B", "https://b.example/", "tier-2", None),
+        ]
+    );
+    assert!(parsed.unread().is_empty());
+}
+
+#[test]
+fn only_the_first_exactly_named_section_is_read() {
+    let body = [
+        "## Sources",
+        "- [A](https://a.example/) — tier-1",
+        "## Sources",
+        "- [B](https://b.example/) — tier-2",
+    ]
+    .join("\n");
+    assert_eq!(
+        SourcesSection::parse(&body).entries(),
+        [entry("A", "https://a.example/", "tier-1", None)]
+    );
+
+    for heading in ["## sources", "## Sources and notes", "## Sources "] {
+        let body = [heading, "- [A](https://a.example/) — tier-1"].join("\n");
+        assert_eq!(
+            SourcesSection::parse(&body),
+            SourcesSection::Absent,
+            "{heading}"
+        );
+    }
+}
+
+#[test]
+fn the_section_closes_at_the_next_level_two_heading() {
+    let body = [
+        "## Sources",
+        "- [A](https://a.example/) — tier-1",
+        "### Notes",
+        "## Appendix",
+        "- [B](https://b.example/) — tier-2",
+    ]
+    .join("\n");
+    let parsed = SourcesSection::parse(&body);
+    assert_eq!(
+        parsed.entries(),
+        [entry("A", "https://a.example/", "tier-1", None)]
+    );
+    assert_eq!(parsed.unread(), [unread(3, "### Notes")]);
+}
+
+#[test]
+fn unread_lines_are_reported_as_written_in_order() {
+    let body = section(&[
+        "  - doi: 10.1/x",
+        "- [A](https://a.example/) — tier-1",
+        "Some prose.",
+        "- [B](https://b.example/) — tier-2",
+    ]);
+    let parsed = SourcesSection::parse(&body);
+    assert_eq!(
+        parsed.entries(),
+        [
+            entry("A", "https://a.example/", "tier-1", None),
+            entry("B", "https://b.example/", "tier-2", None),
+        ]
+    );
+    assert_eq!(
+        parsed.unread(),
+        [unread(2, "  - doi: 10.1/x"), unread(4, "Some prose.")]
+    );
+}
+
+#[test]
+fn the_span_runs_from_the_heading_to_the_line_after_the_section() {
+    let span_of = |body: &str| {
+        SourcesSection::parse(body)
+            .span()
+            .map(|span| (span.start(), span.end()))
+    };
+
+    assert_eq!(span_of(&TEN_LINES.join("\n")), Some((4, 8)));
+
+    let to_the_end: Vec<&str> = TEN_LINES[..7]
+        .iter()
+        .copied()
+        .chain(["Some prose.", "", "- [C](https://c.example/) — tier-3"])
+        .collect();
+    let without_final_newline = to_the_end.join("\n");
+    let with_final_newline = format!("{without_final_newline}\n");
+    assert_eq!(span_of(&without_final_newline), Some((4, 11)));
+    assert_eq!(span_of(&with_final_newline), Some((4, 11)));
+
+    assert_eq!(span_of(&section(&["None found."])), Some((1, 3)));
+    assert_eq!(span_of("# Finding\n"), None);
+}
+
+#[test]
+fn a_crlf_document_reads_as_its_lf_twin() {
+    let lines = [
+        "# Finding",
+        "## Sources",
+        "- [A](https://a.example/) — tier-1",
+        "  - doi: 10.1/x",
+        "Some prose.",
+        "- [B](https://b.example/) — tier-2 — b.example",
+        "## Next",
+    ];
+    let lf = SourcesSection::parse(&lines.join("\n"));
+    let crlf = SourcesSection::parse(&lines.join("\r\n"));
+    assert_eq!(crlf, lf);
+    assert_eq!(crlf.entries().len(), 2);
+    assert!(crlf.unread().iter().all(|line| !line.text.contains('\r')));
+}
+
+#[test]
+fn only_one_trailing_carriage_return_is_dropped() {
+    let body = "## Sources\nSome prose.\r\r\n";
+    assert_eq!(
+        SourcesSection::parse(body).unread(),
+        [unread(2, "Some prose.\r")]
+    );
+}
+
+#[test]
+fn a_lone_carriage_return_does_not_break_a_line() {
+    let body = section(&["a\rb", "Later prose."]);
+    assert_eq!(
+        SourcesSection::parse(&body).unread(),
+        [unread(2, "a\rb"), unread(3, "Later prose.")]
+    );
+}
