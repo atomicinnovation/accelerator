@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-880", "work-item:PP-760", "work-item:PP-876", "work-item:PP-907", "work-item:PP-885"]
 tags: ["sync", "linear", "bug", "markdown"]
-last_updated: "2026-11-24T00:40:00+00:00"
+last_updated: "2026-11-24T01:34:55+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-906"
@@ -99,6 +99,9 @@ The unescaped capture is `linear-rewrites/pushed.md` and its
   inside a list item.
 - Record, for each fragment, whether Linear links it or reads it as an
   ordered list.
+- `linear-autolink-probes/` records a wider probe run of 519 cases and every
+  IANA TLD, which settles the rules below where one capture fragment could
+  not.
 
 **Required behaviour**
 
@@ -110,8 +113,8 @@ the body, the escaper sends the body unescaped instead.
 - Digit rule: push escapes `<digits>.` as `<digits>\.` and `<digits>)` as
   `<digits>\)`, for one or more digits with no upper bound, where they are the
   first non-whitespace text of a paragraph continuation line, as PP-880's pinned
-  CommonMark parser reads it, in any container, and are followed by a space or
-  the end of the line. This is wider than the observed defect on purpose. The
+  CommonMark parser reads it, in any container, lazy lines included, and are
+  followed by a space, a tab or the end of the line. This is wider than the observed defect on purpose. The
   rule does not depend on the container, so it also escapes a top-level lone
   number that Linear leaves alone; where text follows the number it matches the
   escape Linear stores anyway (`R11`); and it covers containers the unescaped
@@ -120,7 +123,7 @@ the body, the escaper sends the body unescaped instead.
   delimiter just as it accepts `.`, so it is escaped whatever the unescaped
   capture records for it.
 - Dotted-token rule: a bare dotted token is two or more dot-separated
-  labels of letters, digits, `-` and `_`, optionally followed by
+  labels of Unicode letters, digits, `-` and `_`, optionally followed by
   `:<digits>`. It is bounded by whitespace, the start or end of a text run
   (the merged text between two non-text nodes), or any character other than
   letters, digits, `-`, `_`, `.` and `:`. A `.` not followed by a label
@@ -128,16 +131,23 @@ the body, the escaper sends the body unescaped instead.
   part of it, so a sentence-final period is never escaped. Push escapes
   every `.` in a bare dotted token whose last label is a top-level domain
   in a pinned snapshot of the IANA root zone list, compared ignoring case,
-  and in no other token. A token with some dots already escaped has its
-  remaining dots escaped. The unescaped capture is expected to confirm that
-  this rule predicts which tokens Linear links.
-- Bare scheme URLs are left as they are, dotted tokens inside them
-  included; Linear links them as `[u](<u>)`, which PP-880 treats as cosmetic
-  because the link text equals its destination. A bare scheme URL follows
-  GFM's extended-autolink rule: it starts with `http://`, `https://` or
-  `mailto:`, runs to whitespace or `<`, and leaves out trailing
-  `. , : ; ! ? " '` and an unbalanced `)`. A schemeless email or `www.` host
-  is not a scheme URL and stays subject to the dotted-token rule.
+  or holds a non-ASCII letter, and in no other token. A token with some dots
+  already escaped has its remaining dots escaped.
+- The rule escapes every token Linear links, and some it does not: bare `md`
+  and `merck` last labels, tokens after `-`, `_`, `:`, `@`, `/`, `\` or
+  `.`, tokens followed by a character that cancels Linear's link, labels
+  Linear rejects, and tokens touching an HTML tag or entity or in
+  strikethrough. These over-escapes are invisible, because Linear stores
+  every escape it receives as plain text.
+- Scheme URLs are left as they are, dotted tokens inside them included;
+  Linear links them as `[u](<u>)`, which PP-880 treats as cosmetic because
+  the link text equals its destination, and an escape inside one cuts the
+  link short. A scheme URL starts with `http://`, `https://`, `ftp://` or
+  `mailto:` in any case, not preceded by an ASCII letter or digit, or with
+  `//` after whitespace; it runs to whitespace, `<` or `>`, and leaves out
+  trailing `. , : ; ! ? " ' *` and an unbalanced `)`. Linear links one after
+  any boundary, quotes and `URL:` included. A schemeless email or `www.`
+  host is not a scheme URL and stays subject to the dotted-token rule.
 - Escaping works on parsed text, never on raw markdown: text inside code
   spans, fenced or indented code, link text, link destinations, angle-bracket
   autolinks, HTML blocks and HTML tags is never escaped, and an escape
@@ -191,9 +201,14 @@ the body, the escaper sends the body unescaped instead.
 - Escaping for Shortcut. Its parser has not been checked for the same
   rewrites.
 - Any change to local files.
-- Escaping comments. `accelerator linear comment add` also sends Markdown,
-  but no capture shows whether Linear rewrites comments; a follow-up item
-  decides.
+- Remedying entity decoding. Linear decodes `&lt;`, `&amp;` and `&#46;` on
+  store; this item only probes whether that changes meaning and raises a
+  follow-up for any remedy.
+- Image re-hosting: Linear copies an image to `uploads.linear.app` and
+  rewrites its URL.
+- Unwrapping soft line breaks before sending. It would prevent every stray
+  list, but a pull after an edit in Linear would write unwrapped lines into
+  `meta/work/`.
 - Changing the digests the baseline records, or sync's decisions, when a
   push is read back rewritten.
 - The code-span table-cell damage PP-880 attributed to this item on PP-714
@@ -226,9 +241,12 @@ Escaper output, tested in CI:
       body is escaped for push, then it is sent as `0160\) more text`.
 - [ ] Given a continuation line starting `2026.11` (no space after the
       `.`), when the body is escaped for push, then it is sent unchanged.
-- [ ] Given each dotted-token fragment in the unescaped capture, when it is
-      escaped for push, then every `.` in it is escaped exactly when the
-      capture records Linear linking it.
+- [ ] Given each dotted-token fragment in the unescaped capture and each
+      probe in `linear-autolink-probes/`, when it is escaped for push, then
+      every token Linear linked is escaped, and every other escape falls in
+      a recorded over-escape class.
+- [ ] Given each probe whose read-back turned a lone number into a list
+      item, when it is escaped for push, then that number is escaped.
 - [ ] Given tokens not in either capture, when each is escaped for push, then
       `lib.rs`, `README.md` and `a.b.io:12` have every `.` escaped, and
       `config.yaml`, `v1.2.3` and `e.g.` are sent unchanged, and `Crates.IO`
@@ -238,9 +256,12 @@ Escaper output, tested in CI:
       `(crates\.io)`, `src/client\.rs` and `a@b\.io`.
 - [ ] Given an ordered list (`1. a` then `2. b`), when the body is escaped
       for push, then it is sent unchanged.
-- [ ] Given `https://crates.io/x.`, `(see https://crates.io)` and
-      `mailto:a@b.io`, when each is escaped for push, then it is sent
+- [ ] Given `https://crates.io/x.`, `(see https://crates.io)`,
+      `mailto:a@b.io`, `"https://crates.io/x"`, `URL:https://crates.io` and
+      `HTTPS://crates.io`, when each is escaped for push, then it is sent
       unchanged.
+- [ ] Given `café.io` and `foo.рф`, when each is escaped for push, then it
+      is sent as `café\.io` and `foo\.рф`.
 - [ ] Given `www.crates.io`, when it is escaped for push, then it is sent as
       `www\.crates\.io`.
 - [ ] Given `crates.io` inside bold text, a heading and a table cell, when
@@ -308,6 +329,20 @@ Linear's read-back, pinned from a committed live capture:
       backslash appears before a `.` or `)`; the `escaped/` README records
       the check.
 
+Follow-ups within this item:
+
+- [ ] Given the simulated Linear autolinker, when it rewrites each
+      dotted-token probe, then it links exactly the tokens Linear linked,
+      using the escaper's recogniser.
+- [ ] Given the unescaped and escaped captures pushed as Linear comments
+      and read back, then the README records whether comments are read as
+      descriptions are; if they are, `accelerator linear comment add` sends
+      an escaped body, and with `--verbatim` sends it unchanged.
+- [ ] Given a committed probe of HTML entities pushed to Linear and read
+      back, then the README records which decoded forms change the
+      CommonMark reading, and any remedy they call for is raised as its own
+      work item.
+
 Post-merge verification, run once by hand:
 
 PP-180, PP-733, PP-860 and PP-870 were repaired by hand before this item
@@ -328,8 +363,8 @@ item checked and each one found.
 
 ## Open Questions
 
-None open for discussion. Two premises still await the captures, and
-refuting either sends all or part of the item back to drafting; see
+None open for discussion. One premise still awaits the escaped capture's
+web-UI check, and refuting it sends the item back to drafting; see
 Assumptions.
 
 ## Dependencies
@@ -342,8 +377,8 @@ Assumptions.
 - External: Linear's API-side description parser and linkifier. A change to
   either means re-capturing the `linear-rewrites` fragments and revisiting
   the escape rules.
-- External: credentialed access to the PP Linear workspace, for both
-  captures and the post-merge verification, whose result also depends on
+- External: credentialed access to the Linear workspace, for the captures
+  and probes (in the scratch `TES` team) and the post-merge verification, whose result also depends on
   the live state of the conflicted items.
 - External: the IANA root zone TLD list, pinned as a snapshot; refreshing it
   can change which tokens are escaped.
@@ -383,12 +418,12 @@ Assumptions.
   as plain text with no backslash, no link and no list. The web UI half is
   unchecked; viewing the escaped capture there confirms or refutes it, and
   if it refutes it, the item returns to drafting before the escaper is
-  written. `\)` has not been sent yet.
-- Linear links a bare dotted token when its last label is a TLD (`.pid` and
-  `.rs` are real TLDs), using a list close enough to IANA's that the pinned
-  snapshot predicts every captured fragment. If the unescaped capture
-  contradicts the snapshot for a class, only the dotted-token rule returns
-  to drafting; the escaper may land with only the digit rule.
+  written. The probes of 2026-11-24 sent `0160\)`, `crates\.io` and others,
+  and every escape read back as plain text.
+- Resolved on 2026-11-24: Linear links a bare dotted token when its last
+  label is in IANA's list, except bare `md` and `merck`. The unescaped
+  capture and a sweep of every TLD confirmed it, and the over-escapes this
+  leaves are accepted.
 
 ## Technical Notes
 
@@ -452,6 +487,15 @@ Assumptions.
   `accelerator linear update --title … --description …`, then a targeted
   sync capped at zero pushes and pulls refreshed their baselines. No local
   work item changed.
+- On 2026-11-24 the unescaped capture left `foo.md` and `src/client.rs`
+  unlinked, against the TLD snapshot. A probe run in the `TES` team
+  (`linear-autolink-probes/`) showed why, and changed the rules: over-escapes
+  are accepted rather than an exact match with Linear's linker, scheme URLs
+  are exempt in every context, labels take Unicode letters, and the digit
+  rule covers lazy lines. Unwrapping soft breaks before sending was
+  considered and rejected, to keep local wrapping through round trips. The
+  simulator convergence, comment escaping and an entity probe, first meant
+  as separate items, joined this item as plan phases 9-11.
 - Pending-push adoption was dropped from the push paths: it links an
   existing issue and compares bodies but never sends one. `work update
   --push` was added; it was missing.
@@ -469,6 +513,8 @@ Assumptions.
 - Research:
   `meta/research/codebase/2026-11-23-PP-906-linear-push-corrupts-markdown-content.md`
 - Capture: `cli/work-adapters/tests/fixtures/linear-rewrites/README.md`
+- Probes: `cli/work-adapters/tests/fixtures/linear-autolink-probes/README.md`
+- Plan: `meta/plans/2026-11-23-PP-906-escape-linear-bound-markdown-on-push.md`
 - Allowlist:
   `cli/work-adapters/tests/fixtures/work-item-sync-recovery/README.md`
 - PP-880, PP-876, PP-885 and PP-907 refer to this item by its alias 0320.
