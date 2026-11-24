@@ -1,4 +1,4 @@
-import { fileSlugFromRelPath } from "./path-utils";
+import { libraryHref, libraryLink } from "./library-document-address";
 import type { IndexEntry } from "./types";
 
 export interface WikiLinkIndex {
@@ -162,10 +162,7 @@ function insertWithEarliestRelPath<K>(
 }
 
 /** Resolve one wiki-link target. Returns `{ href, title }` on hit,
- *  `null` on miss. The href follows the existing
- *  `/library/:type/:documentId` shape; `documentId` is derived from the
- *  entry's `relPath` so the filename's date or numeric prefix is
- *  preserved exactly.
+ *  `null` on miss.
  *
  *  `id` is the raw string captured from the wiki-link pattern (group 2):
  *  e.g. `"0017"` for `[[ADR-0017]]`, `"PROJ-0042"` for
@@ -184,9 +181,5 @@ export function resolveWikiLink(
     entry = idx.workItemById.get(id.toLowerCase());
   }
   if (!entry) return null;
-  const documentId = fileSlugFromRelPath(entry.relPath);
-  return {
-    href: `/library/${entry.type}/${documentId}`,
-    title: entry.title,
-  };
+  return { href: libraryHref(libraryLink(entry)), title: entry.title };
 }

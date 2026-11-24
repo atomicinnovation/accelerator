@@ -23,7 +23,7 @@ function transform(
 
 const resolveAlwaysResolved: Resolver = (prefix, id) => ({
   kind: "resolved",
-  href: `/library/decisions/ADR-${id.padStart(4, "0")}-foo`,
+  href: `/library/decisions/ADR-${id.padStart(4, "0")}`,
   title: prefix === "ADR" ? "Example decision" : "Example work item",
 });
 
@@ -32,7 +32,7 @@ const resolveWorkItemOnly: Resolver = (prefix) =>
   prefix === "WORK-ITEM"
     ? {
         kind: "resolved",
-        href: "/library/work-items/0001-foo",
+        href: "/library/work-items/0001",
         title: "Foo work item",
       }
     : { kind: "unresolved" };
@@ -66,7 +66,7 @@ describe("remarkWikiLinks: rewrites resolved ref to a link node with title as di
       data?: { hProperties?: { title?: string } };
     };
     expect(link.type).toBe("link");
-    expect(link.url).toBe("/library/decisions/ADR-0001-foo");
+    expect(link.url).toBe("/library/decisions/ADR-0001");
     expect(link.children).toEqual([
       { type: "text", value: "Example decision" },
     ]);
@@ -180,7 +180,7 @@ describe("remarkWikiLinks: SKIP prevents double rewrite of inserted children", (
     // Link's child Text node and rewrite again.
     const collidingResolver: Resolver = () => ({
       kind: "resolved",
-      href: "/library/decisions/ADR-0001-foo",
+      href: "/library/decisions/ADR-0001",
       title: "[[ADR-0002]]",
     });
     const tree = transform("see [[ADR-0001]]\n", collidingResolver);
@@ -198,7 +198,7 @@ describe("remarkWikiLinks: keyed-token wiki-links", () => {
       prefix === "WORK-ITEM" && id === "PROJ-0042"
         ? {
             kind: "resolved",
-            href: "/library/work-items/PROJ-0042-foo",
+            href: "/library/work-items/PROJ-0042",
             title: "Foo",
           }
         : { kind: "unresolved" };
@@ -207,7 +207,7 @@ describe("remarkWikiLinks: keyed-token wiki-links", () => {
     if (para.type !== "paragraph") throw new Error("expected paragraph");
     const link = para.children[1] as { type: string; url: string };
     expect(link.type).toBe("link");
-    expect(link.url).toBe("/library/work-items/PROJ-0042-foo");
+    expect(link.url).toBe("/library/work-items/PROJ-0042");
   });
 
   it("rewrites bare-numeric [[WORK-ITEM-0007]] under a keyed token", () => {
@@ -216,7 +216,7 @@ describe("remarkWikiLinks: keyed-token wiki-links", () => {
       prefix === "WORK-ITEM" && id === "0007"
         ? {
             kind: "resolved",
-            href: "/library/work-items/0007-bar",
+            href: "/library/work-items/0007",
             title: "Bar",
           }
         : { kind: "unresolved" };
@@ -225,6 +225,6 @@ describe("remarkWikiLinks: keyed-token wiki-links", () => {
     if (para.type !== "paragraph") throw new Error("expected paragraph");
     const link = para.children[1] as { type: string; url: string };
     expect(link.type).toBe("link");
-    expect(link.url).toBe("/library/work-items/0007-bar");
+    expect(link.url).toBe("/library/work-items/0007");
   });
 });

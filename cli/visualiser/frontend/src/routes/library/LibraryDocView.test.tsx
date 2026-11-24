@@ -6,6 +6,7 @@ import * as fetchModule from "../../api/fetch";
 import { makeIndexEntry, makeLifecycleCluster } from "../../api/test-fixtures";
 import type { IndexEntry } from "../../api/types";
 import { dispatchSseEvent } from "../../api/use-doc-events";
+import { buildWikiLinkIndex, resolveWikiLink } from "../../api/wiki-links";
 import {
   MemoryRouter,
   renderWithRouterAndQueryAt,
@@ -87,6 +88,35 @@ describe("LibraryDocView", () => {
       `/library/plans/${documentId}`,
     );
     expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
+  });
+
+  it("opens a decision at the address its wiki link gives", async () => {
+    const decision: IndexEntry = {
+      ...mockEntry,
+      type: "decisions",
+      path: "/p/meta/decisions/ADR-0067-baz.md",
+      relPath: "meta/decisions/ADR-0067-baz.md",
+      slug: "baz",
+      id: "ADR-0067",
+      title: "Baz decision",
+      frontmatter: { adr_id: "ADR-0067" },
+    };
+    vi.spyOn(fetchModule, "fetchDocs").mockImplementation((type) =>
+      Promise.resolve(type === "decisions" ? [decision] : []),
+    );
+    vi.spyOn(fetchModule, "fetchDocContent").mockResolvedValue({
+      content: "Body text.",
+      etag: '"sha256-a"',
+    });
+    const href = resolveWikiLink(
+      "ADR",
+      "0067",
+      buildWikiLinkIndex([decision], []),
+    )?.href;
+
+    renderWithRouterAndQueryAt(<LibraryDocView />, href);
+
+    expect(await screen.findByText("Baz decision")).toBeInTheDocument();
   });
 
   it("renders frontmatter chips", async () => {
@@ -276,6 +306,7 @@ describe("LibraryDocView", () => {
       ...mockEntry,
       type: "decisions",
       relPath: "meta/decisions/ADR-0001-example.md",
+      id: "ADR-0001",
       title: "Example decision",
       frontmatter: { adr_id: "ADR-0001" },
     };
@@ -297,9 +328,7 @@ describe("LibraryDocView", () => {
       wrapper: Wrapper,
     });
     const link = await screen.findByRole("link", { name: "Example decision" });
-    expect(link.getAttribute("href")).toBe(
-      "/library/decisions/ADR-0001-example",
-    );
+    expect(link.getAttribute("href")).toBe("/library/decisions/ADR-0001");
     expect(link.getAttribute("title")).toBe("[[ADR-0001]]");
   });
 
@@ -465,6 +494,7 @@ describe("LibraryDocView", () => {
       type: "work-items",
       relPath: "meta/work/0041-page-wrapper.md",
       slug: "0041-page-wrapper",
+      id: "0041",
       workItemId: "0041",
       workItemKey: null,
       title: "Page wrapper",
@@ -503,9 +533,7 @@ describe("LibraryDocView", () => {
 
     await screen.findByLabelText("Document metadata");
     const link = await waitFor(() => {
-      const el = container.querySelector(
-        'a[href$="/library/work-items/0041-page-wrapper"]',
-      );
+      const el = container.querySelector('a[href$="/library/work-items/0041"]');
       if (!el) throw new Error("not yet");
       return el;
     });
