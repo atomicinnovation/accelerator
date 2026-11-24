@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T21:00:00+00:00"
+last_updated: "2026-11-24T23:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2131,22 +2131,60 @@ test. In `CHANGELOG.md`, add the mark to the **Added** entry, and a
 together, because a sync by an older build drops every `rewritten_on_push`
 mark in the committed `last-sync.json`.
 
+#### 4. As landed
+
+- **Mark types.** `RewriteMark`, `MarkedLine`, `MarkState` and
+  `MarkChange` live in `work-adapters/src/sync/rewrite_mark.rs`, not
+  `baseline.rs`. `SplitEntry::marked(change)` resolves a change with no
+  earlier entry, and `superseding(previous, change)` with one, carrying
+  `previous`'s unknown keys. Entries render through `render_object`, a
+  `BTreeMap` of rendered values, so known, unknown and mark keys share one
+  alphabetical order.
+- **Mark text.** The mark persists the shown lines and `more`, as the
+  literal above, so a standing notice's section list comes from the shown
+  lines alone.
+- **Seeding.** `Baseline::seed` and `BaselineStore::seed` sit behind
+  `work-adapters/test-support`. `tasks/lint/config_test_support.py` keeps a
+  `PERMITTED` table of guarded features.
+- **Agreement.** `recover` is agreed under either recipe; the classify
+  table gains an optional `body_agreement` per case, and seven cases are
+  agreed. Inside the applier, `IssueCreated::{ThisRun, InAnEarlierRun}`
+  decides whether a create's read-back is judged.
+- **Promotion.** `finish_promotion` takes `fidelity: &PushFidelity`;
+  `retire` passes the landed retitle's verdict and every other caller
+  passes `Unjudged`.
+- **Notices.** `RewriteNotice` gains `kind: RewriteKind { OnPush,
+  StillOnPush }`, and `RewriteMark::notice` builds the standing one. Sync
+  adds standing notices after finalisation, in preview too
+  (`noting_standing_rewrites`). `work update --push` falls back to its
+  entry's mark. `work list` labels are owned strings, with
+  `rewritten_on_push(&Baseline)` naming the marked items.
+- **Tests.** The clearing table (`tests/sync_rewrite_mark.rs`) leaves out
+  authoring and equivalent adoption: the `Repo` harness has no author or
+  pending-push orders, and authoring makes a new id with no earlier mark.
+  A relinking create is pinned by a sync create over a marked entry for
+  the same id. The legacy-entry case is pinned at the store. The unjudged
+  sync push uses the real-client harness, because the fake tracker cannot
+  fail only the read-back after a push.
+- **Skills.** Only `/sync-work-items` and `/list-work-items` changed, so
+  sync evals 1-4 and list eval 1 were re-run with_skill. All pass in full.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Baseline tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/rewrite_mark|mark_text|unknown_split_keys|older_entry|malformed_mark|replaces_a_malformed|extra_mark_fields|mark_is_bounded|renders_as_before/)'`
-- [ ] Mark rules pass: `mise run test:unit:cli --filter 'test(/mark_after|marks_the_entry|clears_the_mark|keeps_the_mark|starts_unmarked|unknown_keys_survive|legacy_entry_reports/)'`
-- [ ] Public API snapshots match: `mise run public-api:check`
-- [ ] No production code calls `seed`: `cargo check -p work-adapters -p work-cli` with no features
-- [ ] The test-support guard holds: `mise run test:unit:tasks --filter test_support`
-- [ ] Surfacing tests pass: `mise run test:unit:cli --filter 'test(/rewritten_on_push|still_noticed|marked_item/)'`
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] Baseline tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/rewrite_mark|mark_text|unknown_split_keys|older_entry|malformed_mark|replaces_a_malformed|extra_mark_fields|mark_is_bounded|renders_as_before/)'`
+- [x] Mark rules pass: `mise run test:unit:cli --filter 'test(/mark_after|marks_the_entry|clears_the_mark|keeps_the_mark|starts_unmarked|unknown_keys_survive|legacy_entry_reports/)'`
+- [x] Public API snapshots match: `mise run public-api:check`
+- [x] No production code calls `seed`: `cargo check -p work-adapters -p work-cli` with no features
+- [x] The test-support guard holds: `mise run test:unit:tasks --filter test_support`
+- [x] Surfacing tests pass: `mise run test:unit:cli --filter 'test(/rewritten_on_push|still_noticed|marked_item/)'`
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None; phase 12 runs against the live workspace
+- [x] None; phase 12 runs against the live workspace
 
 ---
 
