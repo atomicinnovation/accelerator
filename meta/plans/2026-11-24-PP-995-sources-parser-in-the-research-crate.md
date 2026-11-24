@@ -808,18 +808,19 @@ body, so both slices sit on character boundaries.
 
 #### Automated Verification:
 
-- [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Snapshot diff against the pre-plan file holds additions only, with
+- [x] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
+- [x] Snapshot diff against the pre-plan file holds additions only, with
       the `Tier` and `Record` lines unchanged:
       `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] No manifest change: `jj diff --stat --from <base> --to @ cli/research/Cargo.toml` is empty
+- [x] No manifest change: `jj diff --stat --from <base> --to @ cli/research/Cargo.toml` is empty
       across the whole change
-- [ ] Full suite green: `mise run`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] Reading the finished module, every PP-995 acceptance criterion maps to
-      a named test.
+- [x] Reading the finished module, every PP-995 acceptance criterion maps to
+      a named test. The block-order criterion's `doi` and `accessed` values
+      differ from the test's, which checks the same behaviour.
 
 ---
 
