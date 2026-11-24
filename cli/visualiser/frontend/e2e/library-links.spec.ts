@@ -1,13 +1,8 @@
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures.js";
-
-const FIXTURE_META_DIR = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../server/tests/fixtures/meta",
-);
+import { FIXTURE_META_DIR } from "./global-setup.js";
 
 const RESEARCH_SETS = [
   "ac2-coverage",

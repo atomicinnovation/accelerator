@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const E2E_DIR = dirname(fileURLToPath(import.meta.url));
 const portFile = join(E2E_DIR, "..", ".e2e-port");
-const FIXTURE_META_DIR = join(
+export const FIXTURE_META_DIR = join(
   E2E_DIR,
   "..",
   "..",
