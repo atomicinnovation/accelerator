@@ -1330,9 +1330,14 @@
 
 ### Migrations
 
-- **Everyone who syncs a repository should upgrade together.** A sync by an
-  earlier release drops every `rewritten_on_push` mark in the committed
-  `last-sync.json`, though no item's sync state.
+- **Everyone who syncs a repository should upgrade together.** Any baseline
+  write by an earlier release — `work sync`, `work update --push`,
+  `work create --push`, promotion or rename — drops every `rewritten_on_push`
+  mark and every unknown key in the committed `last-sync.json`, though no
+  item's sync state. An earlier release also still pushes descriptions to
+  Linear unescaped, so it corrupts them again without any warning and records
+  the corrupted read-back as an unmarked baseline. Once everyone has upgraded,
+  repair such an item with `accelerator work update <path> --push`.
 - **After upgrading, check the work items with `accelerator work list`.**
   It lists them and warns when the corpus would be refused, or refuses
   with `E_WORK_ID_PATTERN_INVALID` when `work.id_pattern` itself must be
