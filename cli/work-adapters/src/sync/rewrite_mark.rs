@@ -9,6 +9,7 @@ use serde_json::Value;
 use tracker::ExternalId;
 use work::sync::BodyAgreement;
 
+use crate::sync::push_fidelity::sections_of;
 use crate::sync::push_fidelity::ChangedLine;
 use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::push_fidelity::RewriteKind;
@@ -18,6 +19,7 @@ use crate::sync::push_fidelity::RewrittenLines;
 /// The rewrite a push left on the tracker, as persisted with the entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RewriteMark {
+    sections: Vec<String>,
     lines: Vec<MarkedLine>,
     more: usize,
     extra: BTreeMap<String, Value>,
@@ -35,7 +37,7 @@ pub struct MarkedLine {
 pub enum MarkState {
     #[default]
     Absent,
-    Marked(RewriteMark),
+    Marked(Box<RewriteMark>),
     /// A value this build cannot read, carried only by a write that keeps
     /// the mark.
     Unreadable(Value),
@@ -66,6 +68,7 @@ impl MarkChange<'_> {
 
 impl RewriteMark {
     pub(crate) const KEY: &'static str = "rewritten_on_push";
+    const FIELDS: [&'static str; 3] = ["lines", "more", "sections"];
 
     /// The mark a push's verdict leaves over `previous`.
     #[must_use]
@@ -101,20 +104,9 @@ impl RewriteMark {
     /// The lines a notice of this mark shows.
     #[must_use]
     pub fn rewritten_lines(&self) -> RewrittenLines {
-        let lines: Vec<ChangedLine> = self
-            .lines
-            .iter()
-            .map(|marked| marked.line.clone())
-            .collect();
-        let mut sections: Vec<String> = Vec::new();
-        for line in &lines {
-            if !sections.contains(&line.section) {
-                sections.push(line.section.clone());
-            }
-        }
         RewrittenLines {
-            sections,
-            lines,
+            sections: self.sections.clone(),
+            lines: Self::changed_lines(&self.lines),
             more: self.more,
         }
     }
@@ -132,11 +124,26 @@ impl RewriteMark {
             .and_then(Value::as_u64)
             .and_then(|more| usize::try_from(more).ok())
             .unwrap_or(0);
+        let sections = object.get("sections").map_or_else(
+            || Some(sections_of(&Self::changed_lines(&lines))),
+            |sections| {
+                sections
+                    .as_array()?
+                    .iter()
+                    .map(|section| section.as_str().map(str::to_owned))
+                    .collect()
+            },
+        )?;
         Some(Self {
+            sections,
             lines,
             more,
-            extra: extra_fields(object, &["lines", "more"]),
+            extra: extra_fields(object, &Self::FIELDS),
         })
+    }
+
+    fn changed_lines(lines: &[MarkedLine]) -> Vec<ChangedLine> {
+        lines.iter().map(|marked| marked.line.clone()).collect()
     }
 
     fn render(&self) -> String {
@@ -145,6 +152,10 @@ impl RewriteMark {
             self.lines.iter().map(MarkedLine::render).collect();
         fields.insert("lines".to_owned(), format!("[{}]", lines.join(",")));
         fields.insert("more".to_owned(), self.more.to_string());
+        let sections: Vec<String> =
+            self.sections.iter().map(|s| render_string(s)).collect();
+        fields
+            .insert("sections".to_owned(), format!("[{}]", sections.join(",")));
         render_object(&fields)
     }
 }
@@ -152,6 +163,7 @@ impl RewriteMark {
 impl From<RewrittenLines> for RewriteMark {
     fn from(rewritten: RewrittenLines) -> Self {
         Self {
+            sections: rewritten.sections,
             lines: rewritten
                 .lines
                 .into_iter()
@@ -198,8 +210,10 @@ impl MarkedLine {
 impl MarkState {
     pub(crate) fn parse(object: &Map<String, Value>) -> Self {
         object.get(RewriteMark::KEY).map_or(Self::Absent, |value| {
-            RewriteMark::parse(value)
-                .map_or_else(|| Self::Unreadable(value.clone()), Self::Marked)
+            RewriteMark::parse(value).map_or_else(
+                || Self::Unreadable(value.clone()),
+                |mark| Self::Marked(Box::new(mark)),
+            )
         })
     }
 
@@ -215,7 +229,7 @@ impl MarkState {
     #[must_use]
     pub const fn mark(&self) -> Option<&RewriteMark> {
         match self {
-            Self::Marked(mark) => Some(mark),
+            Self::Marked(mark) => Some(&**mark),
             Self::Absent | Self::Unreadable(_) => None,
         }
     }
@@ -223,8 +237,9 @@ impl MarkState {
     /// The state `change` leaves over this one.
     #[must_use]
     pub fn after(&self, change: MarkChange<'_>) -> Self {
-        let marked =
-            |mark: Option<RewriteMark>| mark.map_or(Self::Absent, Self::Marked);
+        let marked = |mark: Option<RewriteMark>| {
+            mark.map_or(Self::Absent, |mark| Self::Marked(Box::new(mark)))
+        };
         match change {
             MarkChange::Judged(PushFidelity::Unjudged) | MarkChange::Keep => {
                 self.clone()
@@ -322,7 +337,7 @@ mod tests {
 
     #[test]
     fn rewrite_mark_after_a_fresh_create_ignores_the_previous_mark() {
-        let previous = MarkState::Marked(mark("Earlier"));
+        let previous = MarkState::Marked(Box::new(mark("Earlier")));
 
         assert_eq!(
             previous.after(MarkChange::Fresh(&PushFidelity::Unjudged)),
@@ -336,7 +351,7 @@ mod tests {
 
     #[test]
     fn a_reconciliation_clears_the_mark_only_when_the_bodies_agreed() {
-        let marked = MarkState::Marked(mark("Notes"));
+        let marked = MarkState::Marked(Box::new(mark("Notes")));
 
         assert_eq!(
             marked
@@ -349,6 +364,56 @@ mod tests {
             )),
             marked
         );
+    }
+
+    fn persisted(state: &MarkState) -> serde_json::Result<MarkState> {
+        let mut object = serde_json::Map::new();
+        if let Some(rendered) = state.rendered() {
+            object.insert(
+                RewriteMark::KEY.to_owned(),
+                serde_json::from_str(&rendered)?,
+            );
+        }
+        Ok(MarkState::parse(&object))
+    }
+
+    fn sections(state: &MarkState) -> Option<Vec<String>> {
+        state.mark().map(|mark| mark.rewritten_lines().sections)
+    }
+
+    #[test]
+    fn a_persisted_mark_names_every_section_including_unshown_lines(
+    ) -> serde_json::Result<()> {
+        let mut changes = vec![change("Notes"); 5];
+        changes.push(change("Summary"));
+        let state = MarkState::Marked(Box::new(RewriteMark::from(
+            RewrittenLines::bounded(changes),
+        )));
+
+        let reread = persisted(&state)?;
+
+        assert_eq!(
+            sections(&reread),
+            Some(vec!["Notes".to_owned(), "Summary".to_owned()])
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_mark_persisted_without_sections_names_those_of_its_lines() {
+        let line = serde_json::json!({
+            "section": "Notes",
+            "sent": "a",
+            "stored": "b",
+        });
+        let object = serde_json::Map::from_iter([(
+            RewriteMark::KEY.to_owned(),
+            serde_json::json!({ "lines": [line], "more": 3 }),
+        )]);
+
+        let state = MarkState::parse(&object);
+
+        assert_eq!(sections(&state), Some(vec!["Notes".to_owned()]));
     }
 
     #[test]

@@ -1051,7 +1051,8 @@ mod tests {
 
     const MARK: &str = "\"rewritten_on_push\":{\"lines\":[{\"section\":\
         \"Notes\",\"sent\":\"See crates.io.\",\"stored\":\
-        \"See [crates.io](<http://crates.io>).\"}],\"more\":7}";
+        \"See [crates.io](<http://crates.io>).\"}],\"more\":7,\
+        \"sections\":[\"Notes\"]}";
 
     const UNMARKED: &str = "{\"digest_recipe\":1,\
         \"local_body_hash\":\"local-body\",\
@@ -1110,7 +1111,7 @@ mod tests {
 
     #[test]
     fn a_rewrite_mark_round_trips() {
-        let entry = marked(MarkState::Marked(crates_io_mark(7)));
+        let entry = marked(MarkState::Marked(Box::new(crates_io_mark(7))));
         let rendered = rendered_entry(entry.clone());
 
         assert_eq!(rendered, with_key(UNMARKED, MARK));
@@ -1135,7 +1136,7 @@ mod tests {
         let mark = RewriteMark::from(RewrittenLines::bounded(vec![changed(
             awkward, awkward, awkward,
         )]));
-        let entry = marked(MarkState::Marked(mark));
+        let entry = marked(MarkState::Marked(Box::new(mark)));
         let rendered = rendered_entry(entry.clone());
 
         assert!(
@@ -1246,7 +1247,7 @@ mod tests {
     fn extra_mark_fields_are_kept() {
         let raw = "\"rewritten_on_push\":{\"added\":true,\"lines\":[{\
                    \"later\":1,\"section\":\"Notes\",\"sent\":\"a\",\
-                   \"stored\":\"b\"}],\"more\":0}";
+                   \"stored\":\"b\"}],\"more\":0,\"sections\":[\"Notes\"]}";
         let stored = with_key(UNMARKED, raw);
 
         assert_eq!(rendered_entry(read_one(&stored).0), stored);
@@ -1259,7 +1260,7 @@ mod tests {
         changes.extend((1..12).map(|n| {
             changed("Notes", &format!("sent {n}"), &format!("stored {n}"))
         }));
-        let entry = marked(MarkState::Marked(crates_io_mark(0)));
+        let entry = marked(MarkState::Marked(Box::new(crates_io_mark(0))));
         let Entry::Split(split) = entry else {
             unreachable!("a split entry");
         };

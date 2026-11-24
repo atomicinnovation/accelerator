@@ -135,12 +135,7 @@ pub struct RewrittenLines {
 impl RewrittenLines {
     #[must_use]
     pub fn bounded(changes: Vec<ChangedLine>) -> Self {
-        let mut sections: Vec<String> = Vec::new();
-        for change in &changes {
-            if !sections.contains(&change.section) {
-                sections.push(change.section.clone());
-            }
-        }
+        let sections = sections_of(&changes);
         let more = changes.len().saturating_sub(SHOWN_LINES);
         let lines = changes
             .into_iter()
@@ -157,6 +152,17 @@ impl RewrittenLines {
             more,
         }
     }
+}
+
+/// The sections `lines` fall in, each once, in order of first appearance.
+pub(crate) fn sections_of(lines: &[ChangedLine]) -> Vec<String> {
+    let mut sections: Vec<String> = Vec::new();
+    for line in lines {
+        if !sections.contains(&line.section) {
+            sections.push(line.section.clone());
+        }
+    }
+    sections
 }
 
 fn cut(side: &str) -> String {
