@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T00:34:48+00:00"
+last_updated: "2026-11-24T01:08:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -143,6 +143,24 @@ checks recorded in phases 2, 3 and 9.
   becoming `0160\\.`.
 - `MockHTTPServer::last_body` and `bodies` (`graphql-test-support/src/lib.rs:108-120`)
   expose every request, so the push-path matrix asserts the wire bytes.
+- `cli/work-adapters/tests/fixtures/linear-autolink-probes/` records 519
+  probes and a sweep of every IANA TLD, pushed to Linear on 2026-11-24. Its
+  README states the observed rules. Four of them shape the escaper:
+  - Linear links every IANA last label except bare `md` and `merck`.
+  - Labels may hold Unicode letters (`café.io` is linked).
+  - `http`, `https` and `ftp` URLs and `//` are linked after any boundary,
+    quotes and `URL:` included, and an escape inside one cuts the link short.
+  - Linear stores no escape it receives: `crates\.io` reads back as plain,
+    unlinked `crates.io`.
+- An escape where Linear would not have linked is invisible, so the escaper
+  may over-escape. It must never miss a token Linear links, and must never
+  escape inside a URL Linear links.
+- A lone `<digits>.` or `<digits>)` becomes a list item under every list
+  item kind, after a tab, on a lazy line at column 0, for `0.` and `00.`,
+  and on each of several consecutive lines. It does not in a blockquote, in a
+  later paragraph of an item, at top level, for ten digits, or with text
+  after the number. An empty `1.` is a lone line too: it cannot interrupt a
+  paragraph in CommonMark, so it continues it.
 
 ## What We're NOT Doing
 
@@ -150,17 +168,27 @@ checks recorded in phases 2, 3 and 9.
   (`X07`, `X08`).
 - Changing Jira or Shortcut sends, or checking Shortcut's parser.
 - Changing any local file, or rewriting remote descriptions in bulk.
-- Stripping stored escapes on pull. If Linear keeps `crates\.io` as sent,
-  a later pull writes it into the local file; the meaning is the same and
-  PP-880's equivalence treats the two as one. Phase 3's README records which
-  escapes Linear keeps.
+- Stripping stored escapes on pull. The probes show Linear stores none of the
+  escapes the rules insert; if that changes, PP-880's equivalence still
+  treats `crates\.io` and `crates.io` as one. Phase 3's README confirms it
+  for the capture.
+- Matching Linear's autolinker exactly. The escaper over-escapes the classes
+  listed under phase 5's oracle, such as bare `.md` files and tokens after
+  `/`, because Linear stores those escapes as plain text.
+- Unwrapping soft line breaks before sending. It would remove every stray
+  list too, but a pull after an edit in Linear would then write unwrapped
+  lines into `meta/work/`.
+- Image re-hosting to `uploads.linear.app` and entity decoding (`&lt;` to
+  `<`), which the probes also found. A follow-up work item checks whether a
+  decoded `&lt;b&gt;` becomes a live tag.
 - Escaping comments. `accelerator linear comment add` also sends Markdown,
   but no capture shows whether Linear rewrites comments; a follow-up work
   item adds a comment fragment to a capture and decides.
 - Changing `BodyDialect::as_pushed` for Linear, `DigestRecipe::CURRENT` or
   `migrate-cli`'s Linear dialect mapping.
-- Recognising Unicode IDN labels: labels are ASCII letters, digits, `-` and
-  `_`, and the IANA snapshot's `XN--` entries match only their punycode form.
+- Converting a Unicode last label to punycode to look it up. A last label
+  holding any non-ASCII letter counts as a TLD, so `foo.рф` is escaped and so,
+  needlessly, is `naïve.café`.
 - Repairing PP-714 (0184), which reads back intact.
 - Reporting the parser's behaviour to Linear.
 
@@ -194,7 +222,7 @@ The fixtures, README tables and test changes around them are code. Each has a ga
 
 | Phase | Gate | If it fails |
 |---|---|---|
-| 2 | The TLD snapshot predicts which dotted-token fragments Linear links | Dotted-token rule returns to drafting; phase 3 escapes digits only; phase 5 is dropped |
+| 2 | Every token Linear links ends in a snapshot label, and every unlinked one that does falls in a recorded over-escape class | Dotted-token rule returns to drafting; phase 3 escapes digits only; phase 5 is dropped |
 | 3 | The web UI shows no backslash before `.` or `)` | The whole item returns to drafting |
 
 The escaper is built inside out: parser characterisation, then each rule
@@ -448,6 +476,14 @@ contexts the rules reach in front of the phase 3 web-UI check.
    review, because Linear's parser has moved.
 4. Delete the issue, then restore `config.local.md`.
 
+Taken on 2026-11-24 as `TES-32`, since deleted. `R01`-`X09` read back
+byte-identical to the 2026-10-13 capture. Linear linked `server.pid`,
+`jql.rs:167` (port included), `a.b.io`, `Crates.IO`, `crates.io` in `X16`,
+`X17`, `X22` (bold and heading) and `X23`, `a@b.io` as `mailto`, and both
+`X25` URLs whole. It left `foo.md`, `foo.toml`, `v1.2.3`, `e.g.`, `a.b.c`,
+`src/client.rs` and `<span>crates.io</span>` unlinked. `X20` became a list
+item `160.`; `X24` was unchanged.
+
 #### 3. README
 
 **File**: `cli/work-adapters/tests/fixtures/linear-rewrites/README.md`
@@ -460,15 +496,19 @@ over what span. Add `X20` to the Variants
 table with its rewrite (ordered list, escape, or none). For every linked
 token, record its exact span and link form: `http` (`[t](<http://t>)`) or
 `mailto` (`[t](<mailto:t>)`). Add one sentence per gate outcome under
-"Against 0296's Equivalence table": whether every linked token's last label,
-and no unlinked token's, is in the snapshot, and whether each linked span in
-`X10`-`X19` holds exactly the dotted token the rule finds in it.
+"Against 0296's Equivalence table": whether every linked token's last label
+is in the snapshot, whether each unlinked token whose last label is in the
+snapshot falls in an over-escape class of
+`../linear-autolink-probes/README.md` (`foo.md`: bare `md`;
+`src/client.rs`: after `/`; `X21`: touching an HTML tag), and whether each
+linked span in `X10`-`X19` holds exactly the dotted token the rule finds in
+it. Point to the probe corpus for the rules behind each class.
 
 Add an "Audit self-check codes" section listing four sets that phase 9's
 audit checks itself against, each code with its stored line: the codes
 whose unescaped read-back holds a linked dotted token (at least `R12`) or a
-stray list line (at least `X09`, plus `X20` and `X24` if Linear listed
-them), and, once phase 3 has run, the codes whose escaped read-back must
+stray list line (`X09` and `X20`; Linear left `X24` alone), and, once
+phase 3 has run, the codes whose escaped read-back must
 match neither (at least `R12`, `R11`, `X09`, `X20` and `X24`). Retaking a capture
 updates these lists in the same change.
 
@@ -543,12 +583,20 @@ Run `mise run public-api:update` and check that the diff adds only
 **Changes**: Add `markdown = { path = "../markdown" }`. Test first: extend
 `recorded_rewrites()` in `work-adapters/tests/linear_rewrites.rs` with
 `X10`, `X12`, `X13` and `X15` mapped to `Rewrite::AutolinkDottedTokens`.
-`X12` (`foo.toml`) fails because the current "two or more lowercase
-letters" last-label test links it, and `X15` (`Crates.IO`) fails because
-that test rejects `IO`. Both pass once the last-label test becomes
-`markdown::linear::is_top_level_domain(tld)`; the name test already accepts
-upper case through `is_ascii_alphanumeric`. `X10` (`server.pid`, `foo.md`)
-and `X13` (`v1.2.3`, `e.g.`) already pass and pin existing behaviour.
+`X10` fails because the current "two or more lowercase letters" last-label
+test links `foo.md`, `X12` fails because it links `foo.toml`, and `X15`
+(`Crates.IO`) fails because it rejects `IO`. All three pass once the
+last-label test is `markdown::linear::is_top_level_domain(tld)` and the
+label is not one Linear leaves bare:
+
+```rust
+const LEFT_BARE_BY_LINEAR: [&str; 2] = ["md", "merck"];
+```
+
+compared ignoring ASCII case. The exception lives in the simulator, not in
+`markdown`, because the escaper deliberately escapes those tokens too. The
+name test already accepts upper case through `is_ascii_alphanumeric`. `X13`
+(`v1.2.3`, `e.g.`) already passes and pins existing behaviour.
 
 `X11` (`jql.rs:167`), `X14` (`a.b.io`), `X16`-`X19`, `X20` and `X21`-`X25`
 stay out of
@@ -564,9 +612,11 @@ raised when this plan is approved; phase 5 exposes the recogniser it needs.
 
 **File**: `cli/corpus-adapters/tests/body_equivalence.rs`
 **Changes**: Add every new fragment the README records as linked or as an
-ordered list to the `without(&[...])` list at `:276`. Add a
-`captured_row_differs` test for each and a `captured_row_is_noise` test for
-each fragment rewritten only cosmetically.
+ordered list to the `without(&[...])` list at `:276`: `X10`, `X11`, `X14`-`X17`,
+`X19`, `X20`, `X22` and `X23`. Add a `captured_row_differs` test for each
+and a `captured_row_is_noise` test for each fragment rewritten only
+cosmetically. `X25`'s links have text equal to their destination, as `R06`'s
+do, so it is expected to be noise; the test decides.
 
 ### Success Criteria:
 
@@ -582,8 +632,10 @@ each fragment rewritten only cosmetically.
 
 - [ ] Live capture taken, allowlisted, committed and its issue deleted
 - [ ] README records the rewrite of `X10`-`X20` and the gate outcome
-- [ ] Gate: the snapshot predicts every linked and unlinked token in
-      `X10`-`X19`. If not, stop and return the dotted-token rule to drafting.
+- [ ] Gate: every linked token in `X10`-`X19` ends in a snapshot label, and
+      every unlinked token ending in one falls in an over-escape class the
+      probe corpus records. If not, stop and return the dotted-token rule to
+      drafting.
 - [ ] Gate: each linked span in `X10`-`X19` holds exactly the dotted token
       the rule finds in it, compared as phase 5's oracle compares them (a
       `mailto` link over `a@b.io` holds `b.io`, which passes). A linked span
@@ -607,14 +659,14 @@ settles the item's first assumption before any escaper code exists.
 **Changes**: A copy of `pushed.md` with only these insertions:
 
 - **Digit rule.** `\` before the `.` or `)` of `<digits>.` or `<digits>)`
-  that opens a paragraph continuation line and is followed by a space or end
-  of line. That gives `R11`, `X04`-`X06`, `X09` (both occurrences), `X20`
-  and `X24`.
+  that opens a paragraph continuation line, lazy lines included, and is
+  followed by a space, a tab or end of line. That gives `R11`, `X04`-`X06`,
+  `X09` (both occurrences), `X20` and `X24`; `X24` is an over-escape.
 - **Dotted-token rule.** `\` before every unescaped `.` of each bare dotted
-  token whose last label is in the snapshot, including `X21`-`X23` and the
-  quoted URLs of `X25`, which are not GFM extended autolinks. Inside `R06`'s
-  bare URL nothing is escaped. If the phase 2 gate failed, this rule is not
-  applied. For `X19`, follow what the phase 2 gate decided.
+  token whose last label is in the snapshot or holds a non-ASCII letter,
+  including `X10`'s `foo.md`, `X18` and `X21`-`X23`. Inside a scheme URL
+  nothing is escaped, so `R06` and both `X25` URLs are left alone. `X19`
+  becomes `a@b\.io`.
 
 The file must equal what the phase 5 escaper produces, so each insertion
 follows the rules as written in the work item, not Linear's observed
@@ -638,8 +690,9 @@ behaviour.
 **File**: `cli/work-adapters/tests/fixtures/linear-rewrites/escaped/README.md` (new)
 **Changes**: The capture's date, identifier and method; a table of fragment,
 pushed escapes and read-back form; and the web-UI check's date and result per
-fragment. Record whether the read-back keeps each escape (`crates\.io`,
-`0160\.`), since a later pull writes the stored form into the local file.
+fragment. Record whether the read-back keeps any escape (`crates\.io`,
+`0160\.`), since a later pull writes the stored form into the local file;
+the probe corpus predicts it keeps none.
 
 #### 4. Equivalence tests
 
@@ -654,7 +707,7 @@ fragment. Record whether the read-back keeps each escape (`crates\.io`,
 - `the_escaped_capture_covers_every_fragment`: both files hold the same codes.
 
 The second test is the automated half of "no ordered list, and no link other
-than a bare scheme URL's", since PP-880's equivalence dissolves only links
+than a scheme URL's", since PP-880's equivalence dissolves only links
 whose text equals their destination.
 
 ### Success Criteria:
@@ -669,11 +722,11 @@ whose text equals their destination.
 - [ ] `escaped/read-back.json` committed after the allowlist projection
 - [ ] Gate: the web UI shows no backslash before `.` or `)`, no stray list and
       no link on an escaped token; the `escaped/` README records it. If a
-      backslash shows, stop and return the item to drafting. Two narrower
-      outcomes stop only their context: a backslash in `X21` stops escaping
-      text between inline HTML tags, and a backslash or broken link in `X25`
-      widens the scheme-URL exemption to what Linear linked. Phase 5's rows
-      for that context change to match before it starts.
+      backslash shows, stop and return the item to drafting. One narrower
+      outcome stops only its context: a backslash in `X21` stops escaping
+      text between inline HTML tags, and phase 5's rows for it change to
+      match before it starts.
+- [ ] `X25`'s two URLs read back linked whole, as in phase 2
 - [ ] `\)` (`X20`) reads back without a backslash
 
 ---
@@ -747,6 +800,15 @@ Cases, one test each:
 | `hard  \n0160.\n` | `hard  \n0160\.\n` |
 | `foo\n0160.\tbar\n` | `foo\n0160\.\tbar\n` |
 | `> owned by\n0160.\n` | `> owned by\n0160\.\n` |
+| `- owned by\n0160.\n` | `- owned by\n0160\.\n` |
+| `- owned by\n\t0160.\n` | `- owned by\n\t0160\.\n` |
+| `- [ ] owned by\n  0160.\n` | `- [ ] owned by\n  0160\.\n` |
+| `- owned by\n  1.\n` | `- owned by\n  1\.\n` |
+| `- owned by\n  0.\n` | `- owned by\n  0\.\n` |
+| `- owned by\n  0160.\n  0161.\n` | `- owned by\n  0160\.\n  0161\.\n` |
+
+The blockquote, top-level, ten-digit and text-after rows are over-escapes:
+Linear lists none of them, and the escape reads back as plain text.
 
 Unchanged cases (`assert_escapes(x, x)`): `foo\n1. text\n`, `1. a\n2. b\n`,
 `foo\n2026.11 bar\n`, `0160.\n` (no preceding line), `foo\n0160\.\n`,
@@ -892,8 +954,8 @@ keeps its direct `pulldown-cmark` dependency for `github`.
 
 ### Overview
 
-Add the dotted-token rule, with bare scheme URLs exempt, and prove the whole
-escaper against both captures.
+Add the dotted-token rule, with scheme URLs exempt, and prove the whole
+escaper against both captures and the probe corpus.
 
 ### Changes Required:
 
@@ -925,11 +987,18 @@ escaper against both captures.
 | `*https://crates.io*` | unchanged |
 | `_https://crates.io_` | unchanged |
 | `~https://crates.io~` | unchanged |
-| `"https://crates.io/x"` | `"https://crates\.io/x"` |
-| `URL:https://crates.io` | `URL:https://crates\.io` |
+| `"https://crates.io/x"` | unchanged |
+| `URL:https://crates.io` | unchanged |
+| `HTTPS://crates.io ftp://crates.io` | unchanged |
+| `https://crates.io>x` | unchanged |
+| `ssh://github.com xhttps://crates.io` | `ssh://github\.com xhttps://crates\.io` |
 | `https://crates.io). then crates.io` | `https://crates.io). then crates\.io` |
 | `naïve — crates.io` | `naïve — crates\.io` |
-| `café.io` | unchanged |
+| `café.io 日本.jp` | `café\.io 日本\.jp` |
+| `foo.рф` | `foo\.рф` |
+| `~crates.io` | `~crates\.io` |
+| `www.foo` | `www\.foo` |
+| `foo.md/x foo.md:1 a@b.md` | `foo\.md/x foo\.md:1 a@b\.md` |
 | `Note:crates.io` | `Note:crates\.io` |
 | `foo..bar.io` | `foo..bar\.io` |
 | `PP-906:server.pid` | `PP-906:server\.pid` |
@@ -943,8 +1012,11 @@ block, `[crates.io](u)`, `[t](https://crates.io)`, `<https://crates.io>`,
 `<span>crates.io</span>` escapes to `<span>crates\.io</span>`. An entity is a boundary:
 `a&amp;crates.io` escapes to `a&amp;crates\.io`.
 
-`café.io` is unchanged because labels are ASCII: `é` ends the word `caf`,
-and the next word, `.io`, holds no token.
+Labels hold Unicode letters, as Linear's do, so `café.io` is one token.
+`www.foo` is escaped because `foo` is an IANA label. `ssh://` and `xhttps://`
+are not schemes Linear links, so their hosts are ordinary tokens after `/`:
+an over-escape. `README.md`, `src/client.rs`, `Note:crates.io`,
+`foo..bar.io` and `<span>crates.io</span>` are over-escapes too.
 
 Then the capture tests, in `cli/work-adapters/tests/linear_captures.rs`
 (new), beside the fixtures and the other capture consumers, reusing
@@ -956,16 +1028,38 @@ Then the capture tests, in `cli/work-adapters/tests/linear_captures.rs`
   `escape_for_push(pushed.md) == escaped/pushed.md`, so headings and the
   bytes between fragments are covered and the file pushed in phase 3 is what
   the escaper produces.
-- `a_dotted_token_is_escaped_exactly_when_linear_linked_it`: for every code,
-  the escaped tokens equal the linked tokens. **Escaped tokens** are the
-  maximal dotted tokens in the escaped fragment holding an inserted `\.`.
+- `every_token_linear_linked_is_escaped`: for every code, the linked tokens
+  are a subset of the escaped tokens. **Escaped tokens** are the maximal
+  dotted tokens in the escaped fragment holding an inserted `\.`.
   **Linked tokens** are, for each `[t](<http://t>)` or `[t](<mailto:t>)`
-  link in the unescaped read-back that is not a bare scheme URL, the dotted
+  link in the unescaped read-back that is not a scheme URL, the dotted
   tokens the rule finds in `t`. So a `mailto` link over `a@b.io` yields
-  `b.io`, matching the escape in `a@b\.io`. `X11` expects `jql.rs:167` on
-  both sides. If the phase 2 gate sent `X19` back to drafting, it is listed
-  as an exclusion here and in phase 3's equivalence tests, with its phase 5
-  table row changed to match.
+  `b.io`, matching the escape in `a@b\.io`, and `X11` gives `jql.rs:167` on
+  both sides.
+- `every_unneeded_escape_is_a_recorded_over_escape`: each escaped token that
+  is not linked falls in one class of `is_recorded_over_escape`, a test
+  helper naming the classes the probe corpus found:
+  - the last label is bare `md` or `merck`;
+  - the token follows `-`, `_`, `:`, `@`, `/`, `\` or `.`;
+  - the token is followed by `_`, `~`, `-`, `+`, `=`, `$`, `|`, `^` or `<`;
+  - a label holds `_`, starts or ends with `-`, or exceeds 63 characters;
+  - the token touches an inline HTML tag or an entity, or sits in
+    strikethrough.
+- `every_scheme_url_linear_linked_is_sent_unchanged`: each URL Linear linked
+  whole (`R06`, `X25`) is byte-identical in the escaped fragment.
+
+The same three tests run over every probe in
+`linear-autolink-probes/` (`probes.md`, `follow-ups.md` and
+`tld-sweep.md` against their read-backs), with two more:
+
+- `every_lone_line_linear_listed_is_escaped`: each probe whose read-back
+  turned a continuation line into a list item has a `\` before that line's
+  `.` or `)` in the escaped probe.
+- `every_unneeded_digit_escape_is_a_recorded_over_escape`: each other digit
+  escape is in a blockquote, a top-level paragraph, a later paragraph of an
+  item, a number of ten or more digits, or a line with text after the
+  number.
+
 `work-adapters` gains `markdown` as a dev-dependency.
 
 The repository sweep lives in the `markdown` crate, where `proposed_escapes`
@@ -998,19 +1092,20 @@ them. Each character carries its source offset and whether a `\` immediately
 precedes it in the source outside any `Text` range. A `Text` whose bytes
 differ from its source slice ends the run. Within a run:
 
-1. `scheme_urls::spans` marks GFM extended autolinks: `http://`, `https://`
-   or `mailto:` at the run start or after whitespace, `*`, `_`, `~` or `(`.
-   Each runs to whitespace or `<`, then repeatedly sheds a trailing
-   `. , : ; ! ? " '` or an unbalanced `)` until neither applies. Marked
+1. `scheme_urls::spans` marks the URLs Linear links whole: `http://`,
+   `https://`, `ftp://` or `mailto:` in any case, not preceded by an ASCII
+   letter or digit, and `//` at the run start or after whitespace. Each runs
+   to whitespace, `<` or `>`, then repeatedly sheds a trailing
+   `. , : ; ! ? " ' *` or an unbalanced `)` until neither applies. Marked
    characters are boundaries.
-2. Words are maximal sequences of ASCII letters, digits, `-`, `_`, `.` and
-   `:`. Scanning a word from the left, a dotted token matches
-   `label ( "." label )+ ( ":" digits )?`. A `.` not followed by a label
-   character, or a `:` not followed by digits, ends any token in progress,
-   and the scan resumes at the next label character, so `Note:crates.io`
-   and `foo..bar.io` each hold one token.
-3. If the last label passes `is_top_level_domain`, each unescaped `.` in the
-   token yields an escape.
+2. Words are maximal sequences of Unicode letters and digits
+   (`char::is_alphanumeric`), `-`, `_`, `.` and `:`. Scanning a word from
+   the left, a dotted token matches `label ( "." label )+ ( ":" digits )?`.
+   A `.` not followed by a label character, or a `:` not followed by digits,
+   ends any token in progress, and the scan resumes at the next label
+   character, so `Note:crates.io` and `foo..bar.io` each hold one token.
+3. If the last label passes `is_top_level_domain` or holds a non-ASCII
+   character, each unescaped `.` in the token yields an escape.
 
 Each step is its own pure function, unit-tested on plain strings as well as
 through `escape_for_push`:
@@ -1046,7 +1141,7 @@ through `document` for PP-880's equivalence.
 #### Automated Verification:
 
 - [ ] Rule tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
-- [ ] Capture tests pass: `mise run test:unit:cli --filter 'binary(linear_captures)'`
+- [ ] Capture and probe tests pass: `mise run test:unit:cli --filter 'binary(linear_captures)'`
 - [ ] `mise run cli:check` and `mise run public-api:check` exit 0
 - [ ] `mise run` exits 0
 
