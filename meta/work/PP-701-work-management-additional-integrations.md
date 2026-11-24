@@ -5,14 +5,14 @@ title: "Work Management Additional Integrations"
 date: "2026-07-06T13:29:26+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "in-progress"
 kind: "epic"
 priority: "high"
 relates_to: ["work-item:PP-67"]
 external_id: "PP-701"
 aliases: ["0181"]
 tags: ["work-management", "integrations", "trello", "github-issues", "sync"]
-last_updated: "2026-07-06T13:29:26+00:00"
+last_updated: "2026-11-23T14:44:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # PP-701: Work Management Additional Integrations
 
 **Kind**: Epic
-**Status**: Draft
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 
