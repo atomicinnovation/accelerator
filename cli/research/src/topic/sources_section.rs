@@ -26,6 +26,7 @@ pub enum SourcesSection {
         span: LineSpan,
         unread: Vec<UnreadLine>,
     },
+    /// The heading without `None found.`; `entries` may be empty.
     Present {
         span: LineSpan,
         entries: Vec<CitedSource>,
