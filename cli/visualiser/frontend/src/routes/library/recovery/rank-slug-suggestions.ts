@@ -5,10 +5,12 @@ import type { DocTypeKey } from "../../../api/types";
 export const MIN_SUGGESTION_LEN = 2;
 export const MAX_SUGGESTIONS = 5;
 
-/** A suggestion candidate sourced from an `IndexEntry`. `slug` is the link-ready
- *  string (`entry.slug ?? fileSlugFromRelPath(entry.relPath)`), never null. */
+/** A suggestion candidate sourced from an `IndexEntry`. `slug` is the
+ *  document's descriptive slug, ranked against the missing document id and
+ *  shown to the reader; it is never the address a suggestion links to. */
 export interface SlugCandidate {
   type: DocTypeKey;
+  id: string | null;
   slug: string;
   title: string;
   mtimeMs: number;

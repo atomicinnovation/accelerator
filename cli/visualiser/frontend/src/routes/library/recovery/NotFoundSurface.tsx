@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { libraryLink } from "../../../api/library-document-address";
 import { DOC_TYPE_LABELS_SINGULAR, type DocTypeKey } from "../../../api/types";
 import { Glyph } from "../../../components/Glyph/Glyph";
 import { DOC_TYPE_COLOR_VAR } from "../../../components/Glyph/Glyph.constants";
@@ -73,12 +74,8 @@ export function NotFoundSurface({
           <h2 className={styles.suggestHeading}>Did you mean…</h2>
           <ul className={styles.suggestList}>
             {suggestions.map((s) => (
-              <li key={`${s.type}/${s.slug}`}>
-                <Link
-                  to="/library/$type/$documentId"
-                  params={{ type: s.type, documentId: s.slug }}
-                  className={styles.suggestRowLink}
-                >
+              <li key={s.relPath}>
+                <Link {...libraryLink(s)} className={styles.suggestRowLink}>
                   <Glyph docType={s.type} size={24} />
                   <div className={styles.suggestRowBody}>
                     <div className={styles.suggestRowTitle}>{s.title}</div>

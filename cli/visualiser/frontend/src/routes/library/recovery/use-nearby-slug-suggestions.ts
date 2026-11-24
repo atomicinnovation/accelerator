@@ -1,7 +1,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { fetchDocs } from "../../../api/fetch";
-import { fileSlugFromRelPath } from "../../../api/path-utils";
+import { descriptiveSlugOf } from "../../../api/library-document-address";
 import { queryKeys } from "../../../api/query-keys";
 import { DOC_TYPE_KEYS, isPhysicalDocTypeKey } from "../../../api/types";
 import {
@@ -55,7 +55,8 @@ export function useNearbySlugSuggestions(
       for (const e of r.data ?? []) {
         candidates.push({
           type: e.type,
-          slug: e.slug ?? fileSlugFromRelPath(e.relPath),
+          id: e.id,
+          slug: descriptiveSlugOf(e),
           title: e.title,
           mtimeMs: e.mtimeMs,
           relPath: e.relPath,

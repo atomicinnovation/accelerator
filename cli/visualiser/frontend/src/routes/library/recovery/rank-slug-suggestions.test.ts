@@ -13,6 +13,7 @@ function cand(
 ): SlugCandidate {
   return {
     type: "plans" as DocTypeKey,
+    id: null,
     title: overrides.slug,
     mtimeMs: 0,
     relPath: `meta/plans/${overrides.slug}.md`,
