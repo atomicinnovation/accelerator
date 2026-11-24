@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as fetchModule from "../../api/fetch";
+import { libraryHref, libraryLink } from "../../api/library-document-address";
 import { makeIndexEntry, makeLifecycleCluster } from "../../api/test-fixtures";
 import type { IndexEntry } from "../../api/types";
 import { dispatchSseEvent } from "../../api/use-doc-events";
@@ -87,6 +88,22 @@ describe("LibraryDocView", () => {
       <LibraryDocView />,
       `/library/plans/${documentId}`,
     );
+    expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
+  });
+
+  it("opens a document whose id has reserved characters at its library href", async () => {
+    const plan: IndexEntry = { ...mockEntry, id: "a b?c#d/e%f" };
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([plan]);
+    vi.spyOn(fetchModule, "fetchDocContent").mockResolvedValue({
+      content: "Body text.",
+      etag: '"sha256-a"',
+    });
+
+    renderWithRouterAndQueryAt(
+      <LibraryDocView />,
+      libraryHref(libraryLink(plan)),
+    );
+
     expect(await screen.findByText("Foo Plan")).toBeInTheDocument();
   });
 
