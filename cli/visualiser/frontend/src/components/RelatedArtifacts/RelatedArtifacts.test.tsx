@@ -1,8 +1,4 @@
-import {
-  render as renderUnrouted,
-  screen,
-  within,
-} from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type React from "react";
 import { describe, expect, it } from "vitest";
 import { makeIndexEntry } from "../../api/test-fixtures";
@@ -10,8 +6,8 @@ import type { RelatedArtifactsResponse } from "../../api/types";
 import { MemoryRouter } from "../../test/router-helpers";
 import { RelatedArtifacts } from "./RelatedArtifacts";
 
-async function render(ui: React.ReactElement) {
-  const rendered = renderUnrouted(<div data-testid="routed">{ui}</div>, {
+async function renderRouted(ui: React.ReactElement) {
+  const rendered = render(<div data-testid="routed">{ui}</div>, {
     wrapper: MemoryRouter,
   });
   await screen.findByTestId("routed");
@@ -50,7 +46,7 @@ function hrefOf(name: string): string | null {
 
 describe("RelatedArtifacts", () => {
   it("shows all-empty message when all three arrays are empty", async () => {
-    await render(<RelatedArtifacts related={empty} />);
+    await renderRouted(<RelatedArtifacts related={empty} />);
     expect(
       screen.getByText("This document has no declared or inferred relations."),
     ).toBeInTheDocument();
@@ -59,7 +55,7 @@ describe("RelatedArtifacts", () => {
   });
 
   it("renders one list with no sub-group headings", async () => {
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           inferredCluster: [exampleAdr],
@@ -74,7 +70,7 @@ describe("RelatedArtifacts", () => {
   });
 
   it("tags declared rows (declared) and inferred rows (inferred)", async () => {
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           inferredCluster: [exampleAdr],
@@ -116,7 +112,7 @@ describe("RelatedArtifacts", () => {
       path: "/x/c.md",
       title: "Charlie cluster",
     });
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           declaredOutbound: [outbound],
@@ -137,7 +133,7 @@ describe("RelatedArtifacts", () => {
 
   it("dedupes a bidirectional declared relation to a single row", async () => {
     // Same entry (same path) in both outbound and inbound renders once.
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           declaredOutbound: [examplePlan],
@@ -153,7 +149,7 @@ describe("RelatedArtifacts", () => {
   });
 
   it("renders correctly with inferred relations only", async () => {
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, inferredCluster: [exampleAdr] }}
       />,
@@ -185,7 +181,7 @@ describe("RelatedArtifacts", () => {
       slug: null,
       title: "Set B",
     });
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, declaredOutbound: [setA, setB] }}
       />,
@@ -204,7 +200,7 @@ describe("RelatedArtifacts", () => {
         slug: null,
         title,
       });
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           ...empty,
@@ -233,7 +229,7 @@ describe("RelatedArtifacts", () => {
         slug: "foo",
         title: `Review ${n}`,
       });
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, declaredInbound: [review(1), review(2)] }}
       />,
@@ -254,14 +250,14 @@ describe("RelatedArtifacts", () => {
       id: null,
       title: "Bare plan",
     });
-    await render(
+    await renderRouted(
       <RelatedArtifacts related={{ ...empty, declaredOutbound: [plan] }} />,
     );
     expect(hrefOf("Bare plan")).toBe("/library/plans/foo");
   });
 
   it("each row links to its document's library page", async () => {
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           declaredOutbound: [examplePlan],
@@ -290,7 +286,7 @@ describe("RelatedArtifacts", () => {
       path: "/x/meta/research/issues/2026-06-10-example-rca.md",
       title: "Example RCA",
     });
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, declaredInbound: [exampleRca] }}
       />,
@@ -307,7 +303,7 @@ describe("RelatedArtifacts", () => {
   });
 
   it("renders no legend", async () => {
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, declaredOutbound: [examplePlan] }}
       />,
@@ -318,7 +314,7 @@ describe("RelatedArtifacts", () => {
 
   it("shows Updating hint only when showUpdatingHint is true", async () => {
     const populated = { ...empty, declaredOutbound: [examplePlan] };
-    const { rerender } = await render(
+    const { rerender } = await renderRouted(
       <RelatedArtifacts related={populated} showUpdatingHint />,
     );
     const hint = screen.getByText("Updating…");
@@ -330,7 +326,7 @@ describe("RelatedArtifacts", () => {
   });
 
   it("each row renders a decorative Glyph matching the row doc type", async () => {
-    await render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           inferredCluster: [exampleAdr],
