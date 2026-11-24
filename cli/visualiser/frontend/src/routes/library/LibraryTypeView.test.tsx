@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { describe, expect, it, type Mock, vi } from "vitest";
@@ -531,9 +531,16 @@ describe("LibraryTypeView markSeen wiring", () => {
   });
 
   it("child-doc URL hides the listing", async () => {
-    renderAt("/library/work-items/some-slug", mockHandle());
-    await waitFor(() => expect(fetchModule.fetchDocs).toHaveBeenCalled());
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const { router } = renderAt("/library/work-items", mockHandle());
+    await screen.findByRole("heading", { name: /no work items yet/i });
+
+    await act(() =>
+      router.navigate({
+        to: "/library/$type/$documentId",
+        params: { type: "work-items", documentId: "some-slug" },
+      }),
+    );
+
     expect(
       screen.queryByRole("heading", { name: /no work items yet/i }),
     ).toBeNull();

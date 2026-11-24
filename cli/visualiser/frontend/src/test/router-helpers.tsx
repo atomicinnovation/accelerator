@@ -56,7 +56,7 @@ function buildTestRouter(ui: React.ReactNode, atUrl = "/") {
 
 export function renderWithRouterAt(ui: React.ReactNode, atUrl = "/") {
   const router = buildTestRouter(ui, atUrl);
-  return render(<RouterProvider router={router} />);
+  return { ...render(<RouterProvider router={router} />), router };
 }
 
 /** Like `renderWithRouterAt`, but also wraps the tree in a
