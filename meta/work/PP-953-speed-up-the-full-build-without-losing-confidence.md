@@ -40,16 +40,16 @@ Codebase research measured the full build in three cache states on one
 workstation, isolated each long-running task, and confirmed every root cause
 with a reverted experiment. The long poles are:
 
-* **Debug-built verify shim:** in the bootstrap suites, it takes 1.15 s per
+- **Debug-built verify shim:** in the bootstrap suites, it takes 1.15 s per
   call. On CI's ubuntu runner, skill-invocation alone takes 1,266 s.
-* **Coverage lane:** it cleans and recompiles every workspace crate on every
+- **Coverage lane:** it cleans and recompiles every workspace crate on every
   run, costing about 90 s.
-* **Visualiser tests:** the lib tests run three times, and their log-rotation
+- **Visualiser tests:** the lib tests run three times, and their log-rotation
   tests make about 13 M two-byte `write` syscalls.
-* **Serial suites:** Playwright and the dev-task suite run strictly serially.
-* **Hooks smoke test:** it downloads the published launcher from GitHub on
+- **Serial suites:** Playwright and the dev-task suite run strictly serially.
+- **Hooks smoke test:** it downloads the published launcher from GitHub on
   every run.
-* **Fixture rebuilds:** VCS fixture matrices are rebuilt in every nextest
+- **Fixture rebuilds:** VCS fixture matrices are rebuilt in every nextest
   process.
 
 Cold and incremental runs also pay for 15 compile configurations, 2,015 crate
@@ -65,28 +65,26 @@ well as local runs.
 ## Requirements
 
 Goals:
-
-* Reduce the wall-clock of a warm no-op `mise run`.
-* Shorten the CI workflow's critical path.
-* Keep every gate that exists today, with no lighter local profile. One
+- Reduce the wall-clock of a warm no-op `mise run`.
+- Shorten the CI workflow's critical path.
+- Keep every gate that exists today, with no lighter local profile. One
   check moves rather than disappears: 0362 drops the hooks smoke test's
   per-pull-request check of the committed public key against a published
   signature, which `prerelease:finalise` and `release:finalise` keep.
 
 Decomposition:
-
-* 0362: Make the bootstrap test suites fast and hermetic (A1, A7)
-* 0363: Remove repeated work from the Rust test lanes (A2, A3; A4 shipped
+- 0362: Make the bootstrap test suites fast and hermetic (A1, A7)
+- 0363: Remove repeated work from the Rust test lanes (A2, A3; A4 shipped
   separately)
-* 0364: Parallelise the serial test suites (A5, A6)
-* 0365: Build the VCS test fixtures once per test run (B1, plus the
+- 0364: Parallelise the serial test suites (A5, A6)
+- 0365: Build the VCS test fixtures once per test run (B1, plus the
   status-log state set)
-* 0366: Cut Rust compile cost (B2, B5)
-* 0367: Stop rebuilding unchanged inputs (B3, B4, B6)
-* 0368: Build-performance measurement and host guidance (C1, C2)
-* 0370: Measure and cite the macOS host settings' effect on the build
+- 0366: Cut Rust compile cost (B2, B5)
+- 0367: Stop rebuilding unchanged inputs (B3, B4, B6)
+- 0368: Build-performance measurement and host guidance (C1, C2)
+- 0370: Measure and cite the macOS host settings' effect on the build
   (C2, split from 0368)
-* 0391: Shorten the slowest tests in the CLI unit suite (split from 0365)
+- 0391: Shorten the guarded-resume migration tests (split from 0365)
 
 ## Acceptance Criteria
 
@@ -105,25 +103,25 @@ Decomposition:
 
 ## Open Questions
 
-* Resolved by 0368: the reference for the 200 s target is the research
+- Resolved by 0368: the reference for the 200 s target is the research
   workstation, comparing records that are comparable under 0368's
   Requirement 7. The closing comparison lists the `default` task-set
   difference from the baseline and names the change behind each task
   added or removed. That machine idled at 22–30% background CPU load.
-* Should the CI target be measured on a single pull-request run, or as a
+- Should the CI target be measured on a single pull-request run, or as a
   median over several?
 
 ## Dependencies
 
-* Blocked by: none
-* Blocks: 0369, which merges only after this epic's closing comparison,
+- Blocked by: none
+- Blocks: 0369, which merges only after this epic's closing comparison,
   because it changes the `default` build the 200 s target measures.
-* Related: 0369 "Make `default` mirror CI" (adds work to a local run;
+- Related: 0369 "Make `default` mirror CI" (adds work to a local run;
   tracked separately)
 
 ## Assumptions
 
-* Ratios from one Apple M4 Max carry over to other developer machines, even
+- Ratios from one Apple M4 Max carry over to other developer machines, even
   though the absolute figures will not.
 
 ## Technical Notes
@@ -142,19 +140,19 @@ must report no differing condition.
 
 ## Drafting Notes
 
-* Grouped the research's A/B/C recommendations into seven children, as
+- Grouped the research's A/B/C recommendations into seven children, as
   agreed in conversation. Minor observations without a recommendation
   were dropped. The RUSTSEC-2026-0414 fix was deliberately kept out of
   this batch; it has since landed on `main` separately (`56cba4e8de`,
   pulldown-cmark 0.13.5), so `deny:check` passes and a bare `mise run` no
   longer stops there.
-* Set priority to high because the research was prompted by the build
+- Set priority to high because the research was prompted by the build
   becoming very long, and the CI critical path is 23 minutes. The source
   does not state a priority.
-* Turned the research's projections into targets: under 200 s locally and
+- Turned the research's projections into targets: under 200 s locally and
   under 12 minutes per CI job. The research projects 170–190 s and roughly
   11.5 minutes. Treat these as proposals, not commitments.
-* Kept 0369 "Make `default` mirror CI" outside this epic as a related item,
+- Kept 0369 "Make `default` mirror CI" outside this epic as a related item,
   because it adds work rather than removing it.
 
 > Extracted from source documents without interactive enrichment.
@@ -163,5 +161,5 @@ must report no differing condition.
 
 ## References
 
-* Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
-* Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369, 0370, 0391
+- Source: `meta/research/codebase/2026-10-28-full-build-duration-contention-and-slowness.md`
+- Related: 0362, 0363, 0364, 0365, 0366, 0367, 0368, 0369, 0370, 0391
