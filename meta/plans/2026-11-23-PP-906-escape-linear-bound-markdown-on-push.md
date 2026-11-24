@@ -1788,9 +1788,11 @@ the notice.
   capitalised in prose and by keyword in the `show` command. Commands carry
   the rendered block: `update::RunOutcome::Updated { warnings }`,
   `create::RunOutcome::Created { warnings, .. }` and
-  `BatchItem::rewrite_warnings`; sync renders reported items under their id
-  and promotions under their key, each path relative to the repository
-  root. `work promote` does not print the block.
+  `BatchItem::rewrite_warnings` and `promote::PromoteOutcome::Reported {
+  warnings, .. }`; sync renders reported items under their id and
+  promotions under their key, and `work promote` renders its retitle under
+  the key, each path relative to the repository root
+  (`rewrite_lines_under`).
 - **Tests.** The mark clauses of the promotion tests wait for phase 8. A
   sync retitle returns no notice by construction, so it has no test of its
   own, and an unreadable read-back is pinned at the applier
