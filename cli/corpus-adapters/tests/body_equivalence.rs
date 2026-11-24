@@ -408,14 +408,39 @@ const ENTITY_PROBES_THAT_CHANGE_MEANING: &[&str] = &[
     "E001", "E002", "E004", "E009", "E015", "E016", "E018", "E023",
 ];
 
+const ENTITY_PROBES_THAT_TAKE_A_SECOND_CYCLE: &[&str] = &["E004", "E018"];
+
 #[test]
 fn each_entity_probe_reads_as_recorded() -> Result<(), TestError> {
     let probes = fixtures().join("linear-autolink-probes");
-    let pushed = std::fs::read_to_string(probes.join("entities.md"))?;
-    let read_back = description(&probes.join("entities.read-back.json"))?;
+    assert_probes_read_as_recorded(
+        &std::fs::read_to_string(probes.join("entities.md"))?,
+        &description(&probes.join("entities.read-back.json"))?,
+        ENTITY_PROBES_THAT_CHANGE_MEANING,
+    );
+    Ok(())
+}
+
+#[test]
+fn each_pulled_entity_probe_reads_as_recorded_after_a_second_push(
+) -> Result<(), TestError> {
+    let probes = fixtures().join("linear-autolink-probes");
+    assert_probes_read_as_recorded(
+        &description(&probes.join("entities.read-back.json"))?,
+        &description(&probes.join("entities.second-push.read-back.json"))?,
+        ENTITY_PROBES_THAT_TAKE_A_SECOND_CYCLE,
+    );
+    Ok(())
+}
+
+fn assert_probes_read_as_recorded(
+    pushed: &str,
+    read_back: &str,
+    changing_meaning: &[&str],
+) {
     let (pushed, read_back) = (
-        sections_under(&pushed, "#### "),
-        sections_under(&read_back, "#### "),
+        sections_under(pushed, "#### "),
+        sections_under(read_back, "#### "),
     );
     assert_eq!(
         pushed
@@ -433,7 +458,7 @@ fn each_entity_probe_reads_as_recorded() -> Result<(), TestError> {
         .filter(|((heading, sent), (_, stored))| {
             let code = heading.split(' ').nth(1).unwrap_or_default();
             equivalent_markdown(sent, stored)
-                == ENTITY_PROBES_THAT_CHANGE_MEANING.contains(&code)
+                == changing_meaning.contains(&code)
         })
         .map(|((heading, _), _)| *heading)
         .collect();
@@ -441,5 +466,4 @@ fn each_entity_probe_reads_as_recorded() -> Result<(), TestError> {
         misread.is_empty(),
         "read otherwise than recorded: {misread:?}"
     );
-    Ok(())
 }

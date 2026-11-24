@@ -1,6 +1,6 @@
 # Linear autolink and stray-list probes
 
-Four bodies were pushed to scratch issues in the `TES` team on 2026-11-24,
+Five bodies were pushed to scratch issues in the `TES` team on 2026-11-24,
 read back with `accelerator linear show`, projected through the allowlist in
 `../work-item-sync-recovery/README.md`, and deleted.
 
@@ -9,6 +9,7 @@ read back with `accelerator linear show`, projected through the allowlist in
 | `probes.md` | `TES-33` by `issueCreate`, `TES-34` by `issueUpdate` | `probes.created.json`, `probes.updated.json` | `Q001`-`Q310` |
 | `follow-ups.md` | `TES-36` | `follow-ups.read-back.json` | `S001`-`S209` |
 | `entities.md` | `TES-39` | `entities.read-back.json` | `E001`-`E026` |
+| `entities.read-back.json`'s description | `TES-40` | `entities.second-push.read-back.json` | `E001`-`E026`, as a pull writes them |
 | `tld-sweep.md` | `TES-35` | `tld-sweep.read-back.json` | `x foo.<tld> y` for every label in `cli/markdown/src/linear/tlds-alpha-by-domain.txt` |
 
 Each probe in `probes.md`, `follow-ups.md` and `entities.md` sits under a `#### <code>
@@ -103,3 +104,23 @@ stores a backslash escape in its place, so the reading holds, except for
 `<`, `&` and a `|` in a table cell, where it stores the bare character. It
 also drops the backslash before those three, so no form sent as text
 survives: `\<`, `\&` and `\|` change meaning as their entities do.
+
+### Pulling and pushing again
+
+`TES-40` was created, escaped as `work update --push` sends a body, from
+`TES-39`'s stored description, which is what a pull writes locally.
+`each_pulled_entity_probe_reads_as_recorded_after_a_second_push` pins
+it. Every probe then reads alike except `E004` and `E018`: the pulled
+`&lt;b&gt;` is decoded again, to a live `<b>`. The raw tag and comment are
+stored byte for byte, and Linear drops a row's extra table cell, which the
+table ignored.
+
+### Decision
+
+No form of `<`, `&` or a table cell's `|` sent as text survives Linear, as
+an entity or behind a backslash, and none is kept by special handling.
+The push's `rewritten on push` warning reports the rewrite, the baseline's
+rewrite mark keeps it visible, and a pull adopts Linear's form and clears
+the mark. The next
+push then reads alike, except that a doubly-encoded `<` or `&` takes a
+second push and pull to settle. No work item is raised.
