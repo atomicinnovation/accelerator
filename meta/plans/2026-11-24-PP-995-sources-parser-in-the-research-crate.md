@@ -5,7 +5,7 @@ title: "Sources Parser in the Research Crate Implementation Plan"
 date: "2026-11-24T08:20:05+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:PP-995"
 parent: "work-item:PP-995"
 derived_from: ["codebase-research:2026-11-24-PP-995-sources-parser-in-the-research-crate"]
