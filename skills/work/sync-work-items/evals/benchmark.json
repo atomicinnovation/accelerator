@@ -12,7 +12,7 @@
       "4"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:7813da3bd3857ba478db1dff2ee4e77bb36ccab8397e7db3e20c66a0d287b5fb"
+    "skill_digest": "sha256:2ea0c5150d8781efe340467a064de0777305fcf5aca04c9c6a9c9030a5a96e8c"
   },
   "runs": [
     {
@@ -30,26 +30,26 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md quotes \"Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them, then re-run this command\""
+          "evidence": "response.md quotes: \"Error: E_REKEY_REQUIRED: ... Run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge them\""
         },
         {
           "text": "response.md says the unfinished promotion would make re-key refuse and that `accelerator work sync` settles it",
           "passed": true,
-          "evidence": "response.md: \"The promotion of `draft-k3x9mq` is still unfinished, so re-key would refuse right now with `E_REKEY_SYNC_UNFINISHED`. `accelerator work sync` is not blocked by an off-pattern item, and it settles that unfinished promotion.\""
+          "evidence": "response.md: \"Re-key would itself refuse right now (`E_REKEY_SYNC_UNFINISHED`), because the promotion of `draft-k3x9mq` is still unfinished. `accelerator work sync` ... settles the unfinished promotion.\""
         },
         {
           "text": "questions.md holds one question offering to run sync now or to stop",
           "passed": true,
-          "evidence": "questions.md: one question, \"Run the sync now?\", with options \"1. **Run sync now**\" and \"2. **Stop**\""
+          "evidence": "questions.md has only \"AskUserQuestion 1\": \"Sync settles it. Run sync now?\" with options \"Run sync now\" and \"Stop\""
         },
         {
           "text": "commands.md shows the promote exactly once, no `accelerator work rekey`, and no `accelerator work sync` before the user answers",
           "passed": true,
-          "evidence": "commands.md: only \"1. `accelerator work promote draft-k3x9mq --adopt ENG-43`\" and \"No other `accelerator` command was run\"; rekey appears only inside quoted stderr"
+          "evidence": "commands.md lists only `accelerator work promote draft-k3x9mq --adopt ENG-43` (exit 4), then \"No further `accelerator` command was run: the skill stopped at the AskUserQuestion prompt\"; rekey appears only inside the quoted stderr"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
+      "skill_digest": "sha256:2ea0c5150d8781efe340467a064de0777305fcf5aca04c9c6a9c9030a5a96e8c"
     },
     {
       "eval_id": 2,
@@ -66,21 +66,21 @@
         {
           "text": "response.md relays the E_REKEY_REQUIRED remedy, naming `/rekey-work-items`",
           "passed": true,
-          "evidence": "response.md: \"First fix by hand anything re-key can't read, then run `/rekey-work-items`.\""
+          "evidence": "response.md: \"The fix is to run `/rekey-work-items` (or `accelerator work rekey --preview`, then `accelerator work rekey`) to converge the corpus.\""
         },
         {
           "text": "questions.md is `none`",
           "passed": true,
-          "evidence": "questions.md contains only \"none\""
+          "evidence": "questions.md contains exactly: \"none\""
         },
         {
           "text": "commands.md shows the resolve exactly once and no `accelerator work sync` or `accelerator work rekey` after it",
           "passed": true,
-          "evidence": "commands.md: \"1. `accelerator work resolve ENG-7`\" and \"No other `accelerator` command was run\"; `accelerator work rekey` appears only inside the quoted stderr"
+          "evidence": "commands.md lists only \"1. `accelerator work resolve ENG-7` — exit 4\"; the rekey mention is inside the quoted stderr, not a run command"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:09c2b31ede13b88c019d3ae42c7a72d9b7a66a64f75edb25b057a8df167f5c2f"
+      "skill_digest": "sha256:2ea0c5150d8781efe340467a064de0777305fcf5aca04c9c6a9c9030a5a96e8c"
     },
     {
       "eval_id": 3,
@@ -97,21 +97,21 @@
         {
           "text": "response.md says 0001 needs attention and quotes its cause, `pending push refused (prior-attempt-unknown)`",
           "passed": true,
-          "evidence": "\"Work item 0001 (\\\"Draft one\\\") needs attention: its pending push was refused.\" and quotes \"error: 0001: create would fail: pending push refused (prior-attempt-unknown): ...\""
+          "evidence": "response.md: \"needs-attention:       0001   (pending push refused: prior-attempt-unknown)\" and quotes engine line \"create would fail: pending push refused (prior-attempt-unknown)\""
         },
         {
           "text": "response.md asks the user to search the tracker for `Draft one` and names `--resolve 0001=adopt:<KEY>` for an issue found and `--resolve 0001=create` for none, offering no plain re-run",
           "passed": true,
-          "evidence": "\"please search Linear ... for an issue titled \\\"Draft one\\\"\"; found -> `accelerator work sync --target 0001 --resolve 0001=adopt:<KEY>`; none -> `--resolve 0001=create`; says \"a plain re-run will not fix it\" and offers no plain re-run"
+          "evidence": "response.md: \"Search your Linear team for an issue titled **\\\"Draft one\\\"**\"; \"You found it: ... --resolve 0001=adopt:<KEY>\"; \"You found nothing: ... --resolve 0001=create\"; \"A plain re-run won't fix this.\""
         },
         {
           "text": "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`",
           "passed": true,
-          "evidence": "Only sync command is #1 `accelerator work sync --preview`; the other is `accelerator config path integrations`"
+          "evidence": "commands.md lists a single command: \"1. `accelerator work sync --preview`\" (exit code 71)"
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:7813da3bd3857ba478db1dff2ee4e77bb36ccab8397e7db3e20c66a0d287b5fb"
+      "skill_digest": "sha256:2ea0c5150d8781efe340467a064de0777305fcf5aca04c9c6a9c9030a5a96e8c"
     },
     {
       "eval_id": 4,
@@ -128,21 +128,21 @@
         {
           "text": "response.md tells the user the preview cannot confirm 0001, because a create with a `--resolve` order is checked against its marker only on the run",
           "passed": true,
-          "evidence": "\"a preview cannot confirm an item that has a `--resolve` order for a create. The engine checks that order against 0001's pending-push marker only during the real run.\""
+          "evidence": "response.md: \"The preview cannot confirm 0001. Because 0001 carries a `--resolve` order, the engine only checks it against its pending-push marker on the real run.\""
         },
         {
           "text": "response.md does not present 0001's create as certain to succeed",
           "passed": true,
-          "evidence": "\"this clean preview does not guarantee the create will succeed. The real run may still refuse the order.\""
+          "evidence": "response.md: \"It does not show that the run will succeed. A clean preview here does not guarantee the create will be accepted.\""
         },
         {
           "text": "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`",
           "passed": true,
-          "evidence": "commands.md lists only one command: `accelerator work sync --preview --target 0001 --resolve 0001=create`. The real run appears only in response.md as a proposed command waiting for the user's approval."
+          "evidence": "commands.md lists only \"1. `accelerator work sync --preview --target 0001 --resolve 0001=create`\" and \"No other `accelerator` command was run.\""
         }
       ],
       "notes": [],
-      "skill_digest": "sha256:7813da3bd3857ba478db1dff2ee4e77bb36ccab8397e7db3e20c66a0d287b5fb"
+      "skill_digest": "sha256:2ea0c5150d8781efe340467a064de0777305fcf5aca04c9c6a9c9030a5a96e8c"
     }
   ],
   "run_summary": {
@@ -159,6 +159,7 @@
     "Run with_skill on 2026-11-17: the executor was barred from the evals and simulated every accelerator call; a separate grader judged each expectation from its outputs alone.",
     "Eval 1 was re-run and eval 2 (a needed re-key outside promotion recovery relays and stops) added with_skill on 2026-11-18, by claude-opus-5-5, after the E_REKEY_REQUIRED branch was reordered: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
     "Evals 1 and 2 were re-run with_skill on 2026-11-20, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal and Shortcut was wired in: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
-    "Evals 3 (a previewed pending-push refusal goes to recovery) and 4 (a preview of an ordered create says it cannot confirm it) were added and run with_skill on 2026-11-23, by claude-opus-5-5, to cover the preview behaviour PR #234 changes in the skill: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full. Evals 1 and 2 were not re-run, as neither touches the preview."
+    "Evals 3 (a previewed pending-push refusal goes to recovery) and 4 (a preview of an ordered create says it cannot confirm it) were added and run with_skill on 2026-11-23, by claude-opus-5-5, to cover the preview behaviour PR #234 changes in the skill: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full. Evals 1 and 2 were not re-run, as neither touches the preview.",
+    "Evals 1, 2, 3 and 4 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the skill came to relay a rewritten-on-push warning: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All four pass in full."
   ]
 }
