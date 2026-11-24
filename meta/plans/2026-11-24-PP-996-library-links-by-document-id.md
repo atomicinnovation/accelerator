@@ -354,9 +354,23 @@ export function resolveLibraryDocument(
 
 #### Manual Verification:
 
-- [ ] `/library/work-items/0007` in the e2e fixture server opens
+- [x] `/library/work-items/0007` in the e2e fixture server opens
       `0007-parent-epic`; `/library/work-items/parent-epic` and
-      `/library/work-items/0007-parent-epic` still open it.
+      `/library/work-items/0007-parent-epic` still open it. Checked with a
+      headless Chromium against `e2e/start-server.mjs`: all three URLs showed
+      "Parent Epic", and an unknown id showed "Document not found".
+
+#### Implementation Notes:
+
+- `path-utils.ts` is untouched, doc comment included; Phase 4 deletes it.
+- `wiki-links.ts` renamed its local `fileSlug` and its doc comment's
+  `:fileSlug` to `documentId`; the href it builds is unchanged until Phase 3.
+- The unreachable empty-parameter alert in `LibraryDocView` reads "Missing
+  document id." rather than "Missing file slug.".
+- `NotFoundSurface`'s body copy still reads "We couldn't find a document
+  with the slug …", although the value it quotes is now a document id.
+- `SearchResultsPanel.test.tsx` rows carry placeholder `id: null` and
+  `relPath: "meta/<slug>.md"` values; Phase 3 rewrites them.
 
 ---
 
