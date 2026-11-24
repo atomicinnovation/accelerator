@@ -2026,6 +2026,24 @@ fn a_promotion_kept_or_adopted_is_unjudged() {
     assert_eq!(failing.key_mark(), earlier, "kept as the update failed");
 }
 
+fn dotted_line_marked(repo: &Repo) -> Vec<(String, String)> {
+    let MarkState::Marked(mark) = repo.key_mark() else {
+        panic!("the key's entry is marked: {:?}", repo.key_mark());
+    };
+    mark.rewritten_lines()
+        .lines
+        .into_iter()
+        .map(|line| (line.sent, line.stored))
+        .collect()
+}
+
+fn dotted_rewrite() -> Vec<(String, String)> {
+    vec![(
+        "Published to crates.io first.".to_owned(),
+        "Published to [crates.io](<http://crates.io>) first.".to_owned(),
+    )]
+}
+
 #[test]
 fn a_rewound_retirement_still_reports_its_notice() {
     let repo = dotted_repo();
@@ -2042,28 +2060,16 @@ fn a_rewound_retirement_still_reports_its_notice() {
     );
     assert_eq!(rewritten_lines(&rewound).len(), 1);
     assert_eq!(repo.key_mark(), MarkState::Absent, "no mark is recorded");
-
-    let resumed = reported(&repo, &tracker);
-    assert!(
-        matches!(
-            resumed.outcome,
-            PromotionOutcome::Promoted(Promotion::Completed(..))
-        ),
-        "{:?}",
-        resumed.outcome
-    );
-    assert_eq!(repo.key_mark(), MarkState::Absent, "the finish is unjudged");
 }
 
 #[test]
-fn a_promotion_finished_elsewhere_is_unjudged() {
+fn a_promotion_resumed_after_its_retitle_landed_is_judged_again() {
     let repo = dotted_repo();
     let tracker = linking_tracker();
-    let mut store = Store::new(repo.root());
-    store.fail_at = vec![4, 5];
-    let _ = reported_over(&repo, &tracker, &store);
+    let _ = reported_over(&repo, &tracker, &store_failing_retirement(&repo));
 
     let resumed = reported(&repo, &tracker);
+
     assert!(
         matches!(
             resumed.outcome,
@@ -2072,7 +2078,8 @@ fn a_promotion_finished_elsewhere_is_unjudged() {
         "{:?}",
         resumed.outcome
     );
-    assert_eq!(resumed.rewrite, None);
+    assert_eq!(rewritten_lines(&resumed), dotted_rewrite());
+    assert_eq!(dotted_line_marked(&repo), dotted_rewrite());
 
     let again = reported(&repo, &tracker);
     assert!(
@@ -2084,13 +2091,31 @@ fn a_promotion_finished_elsewhere_is_unjudged() {
         again.outcome
     );
     assert_eq!(again.rewrite, None);
+    assert_eq!(dotted_line_marked(&repo), dotted_rewrite(), "still marked");
+}
 
+#[test]
+fn a_resumed_promotion_replaces_an_earlier_mark_with_its_own_verdict() {
     let marked = dotted_repo().with_a_marked_key();
-    let earlier = marked.key_mark();
+    let tracker = linking_tracker();
     let _ =
         reported_over(&marked, &tracker, &store_failing_retirement(&marked));
+
     let _ = reported(&marked, &tracker);
-    assert_eq!(marked.key_mark(), earlier, "a later finish keeps the mark");
+
+    assert_eq!(dotted_line_marked(&marked), dotted_rewrite());
+}
+
+#[test]
+fn a_resumed_promotion_whose_retitle_was_faithful_is_unmarked() {
+    let repo = dotted_repo();
+    let tracker = fresh_tracker();
+    let _ = reported_over(&repo, &tracker, &store_failing_retirement(&repo));
+
+    let resumed = reported(&repo, &tracker);
+
+    assert_eq!(resumed.rewrite, None);
+    assert_eq!(repo.key_mark(), MarkState::Absent);
 }
 
 fn store_failing_retirement(repo: &Repo) -> Store {

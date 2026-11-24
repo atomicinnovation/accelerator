@@ -113,13 +113,15 @@ pub struct PromotionRow {
     /// least one path, and so does a promotion the next sync will find in
     /// conflict.
     pub details: Vec<Detail>,
-    /// This run's retitle, when the tracker stored it with a different
-    /// meaning; reported whether or not the promotion then finished.
+    /// This run's retitle, or that of the promotion it finished, when the
+    /// tracker stored it with a different meaning; reported whether or not
+    /// the promotion then finished.
     pub rewrite: Option<RewriteNotice>,
 }
 
-/// One promotion's result, with what the read-back after its retitle says
-/// of the body sent; unjudged when this run retitled nothing.
+/// One promotion's result, with what the remote its landed retitle left
+/// says of the body sent; unjudged when this run neither retitled nor
+/// finished a retitled promotion.
 #[derive(Debug)]
 pub struct PromotionAttempt {
     pub result: Result<Promotion, NotPromoted>,
@@ -489,7 +491,10 @@ fn promote_judging(
                 *verdict = promotion.retitle_remote(&key, &stored)?;
             }
             PromotionStep::Retire(key) => {
-                return promotion.retire(&key, &stored, verdict);
+                return promotion.retire(&key, &stored).map(|finished| {
+                    *verdict = finished.verdict;
+                    finished.promotion
+                });
             }
             PromotionStep::Finish => {
                 let StoredRecord::Present(record) = stored else {
@@ -501,8 +506,11 @@ fn promote_judging(
                     ports.retirement,
                     ports.records,
                     &lock,
-                    &PushVerdict::unread(PushOrigin::Pushed),
-                );
+                )
+                .map(|finished| {
+                    *verdict = finished.verdict;
+                    finished.promotion
+                });
             }
             PromotionStep::Stop(reason) => return Err(reason),
         }
@@ -532,7 +540,6 @@ fn already_promoted(
                 ports.retirement,
                 ports.records,
                 lock,
-                &PushVerdict::unread(PushOrigin::Pushed),
             )?;
         }
     }
@@ -841,8 +848,7 @@ impl Promoting<'_> {
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
-        verdict: &PushVerdict,
-    ) -> Result<Promotion, NotPromoted> {
+    ) -> Result<FinishedPromotion, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
@@ -892,7 +898,6 @@ impl Promoting<'_> {
             self.ports.retirement,
             self.ports.records,
             self.lock,
-            verdict,
         )
     }
 }
@@ -910,31 +915,68 @@ pub struct RemoteReading<'a> {
 }
 
 impl RemoteReading<'_> {
-    /// The state the next sync finds the promoted item at `path` in; a read
-    /// that fails predicts `Synced`, as nothing can be compared.
-    fn next_sync(
+    /// The state the next sync finds the promoted item at `path` in, and,
+    /// when `retitle` landed, the verdict on the remote it left, from one
+    /// read of the remote. A read that fails predicts `Synced`, as nothing
+    /// can be compared, and judges nothing.
+    fn read_promoted(
         &self,
         baseline: &IntendedBaseline,
         key: &ExternalId,
         path: &Path,
-    ) -> work::sync::SyncState {
+        retitle: Retitle,
+    ) -> (work::sync::SyncState, PushVerdict) {
         let digester = BaselineDigester::new(self.tracker, self.parser);
         let projection = self.tracker.show(key).ok().map(|issue| issue.body);
-        let promoted = ItemSnapshot::new(path, projection, &digester);
-        baseline
+        let promoted = ItemSnapshot::new(path, projection.clone(), &digester);
+        let verdict = match (retitle, promoted.read()) {
+            (Retitle::Landed, Ok(content)) => PushVerdict::judged(
+                PushOrigin::Pushed,
+                digester.comparison(),
+                content,
+                projection.as_deref(),
+            ),
+            _ => PushVerdict::unread(PushOrigin::Pushed),
+        };
+        let next_sync = baseline
             .next_sync(key, &promoted, &promoted)
-            .unwrap_or(work::sync::SyncState::Synced)
+            .unwrap_or(work::sync::SyncState::Synced);
+        (next_sync, verdict)
     }
+}
+
+/// Whether a promotion's record shows its retitle reached the tracker.
+#[derive(Clone, Copy)]
+enum Retitle {
+    Landed,
+    NotLanded,
+}
+
+impl Retitle {
+    const fn before(stage: &PromotionStage) -> Self {
+        match stage {
+            PromotionStage::RemoteRetitled { .. } => Self::Landed,
+            _ => Self::NotLanded,
+        }
+    }
+}
+
+/// A promotion carried to its end, with the verdict on the remote its
+/// retitle left.
+pub struct FinishedPromotion {
+    pub promotion: Promotion,
+    pub verdict: PushVerdict,
 }
 
 /// The one tail every promotion ends with, whoever runs it.
 ///
 /// Retires the draft ID to the key if that is still outstanding, records
 /// the intended baseline once the draft ID is only an alias of the key's
-/// item, its rewrite mark as `verdict` leaves it, then removes the
-/// record. Only the run whose retitle landed judges the body sent; every
-/// other finish passes an unread verdict. The completed promotion names the state
-/// that baseline leaves the promoted item in.
+/// item, then removes the record. When the record shows the retitle
+/// landed, the promoted file is judged against the remote as it stands, so
+/// a finish resumed by a later run marks the key as the retitling run's
+/// would have. The completed promotion names the state that baseline
+/// leaves the promoted item in.
 ///
 /// A refused or rolled-back retirement rewinds the record to its stage
 /// before `Retiring`, so no `Retiring` record stands for a retirement that
@@ -950,8 +992,7 @@ pub fn finish_promotion(
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
-    verdict: &PushVerdict,
-) -> Result<Promotion, NotPromoted> {
+) -> Result<FinishedPromotion, NotPromoted> {
     let PromotionStage::Retiring {
         key,
         baseline,
@@ -988,10 +1029,22 @@ pub fn finish_promotion(
                 .iter()
                 .any(|alias| same(alias, record.draft_id.as_str()))
     });
-    let next_sync = promoted_item
-        .map_or(work::sync::SyncState::Synced, |item| {
-            remote.next_sync(baseline, &ExternalId::from(key), &item.path)
-        });
+    let (next_sync, verdict) = promoted_item.map_or_else(
+        || {
+            (
+                work::sync::SyncState::Synced,
+                PushVerdict::unread(PushOrigin::Pushed),
+            )
+        },
+        |item| {
+            remote.read_promoted(
+                baseline,
+                &ExternalId::from(key),
+                &item.path,
+                Retitle::before(before),
+            )
+        },
+    );
     if let (Some(_), Some(store)) = (promoted_item, retirement_ports.baseline) {
         record_created_baseline(
             key.as_str(),
@@ -1005,5 +1058,8 @@ pub fn finish_promotion(
     records
         .remove(&record.draft_id)
         .map_err(|error| unwritable(Some(key), &error))?;
-    Ok(Promotion::Completed(ExternalId::from(key), next_sync))
+    Ok(FinishedPromotion {
+        promotion: Promotion::Completed(ExternalId::from(key), next_sync),
+        verdict,
+    })
 }
