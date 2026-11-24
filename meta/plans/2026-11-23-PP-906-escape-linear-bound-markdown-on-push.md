@@ -2498,7 +2498,10 @@ raised six issues and one wording fix. Each was fixed test-first:
   be empty; a rewrite no one section holds is reported as one
   `(whole body)` line. A hunk that changes only line boundaries, such as two
   paragraphs merged, is widened over the lines it joins, so no notice line is
-  blank on both sides.
+  blank on both sides. A notice shows each line break in the sent and stored
+  text as `⏎`, in a fresh notice and a standing one alike, rather than as a
+  space; `\n` would read as one more backslash escape in text full of them.
+  The stored mark is unchanged.
 - **Split tokens and decomposed labels.** Taken on 2026-11-24 as `TES-41`,
   since trashed, into `linear-autolink-probes/split-tokens.md` and its
   read-back. Linear links no token split by inline markup, as the escaper

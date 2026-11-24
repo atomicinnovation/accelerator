@@ -156,7 +156,8 @@ in the plan's "Validation follow-ups":
    stored in another order. Fixed: `Rewritten` carries `ChangedLines`, which
    cannot be empty, and such a rewrite is reported as one `(whole body)`
    line. A hunk that only moves line boundaries, such as merged paragraphs,
-   is widened over the lines it joins.
+   is widened over the lines it joins, and a notice shows each line break
+   as `⏎`.
 3. **Tokens split by inline markup are never seen.** Probed live as
    `TES-41`, since trashed: Linear links none of them, so the escaper
    already matched. A token before a code span is left bare, which
