@@ -56,8 +56,9 @@ the library only, with no caller yet.
   section as written. Line numbering and byte offsets share one rule in
   `sources_section/lines.rs`, so the two cannot disagree; CRLF documents read
   as their LF twins.
-- The public-API snapshot gains 118 lines, all under
-  `research::topic::sources_section`; nothing existing changes.
+- The public-API snapshot gains 121 lines: 119 under
+  `research::topic::sources_section`, and `Tier::named` under
+  `research::sources::record`. Nothing existing changes.
 - PP-1000's server step now names `LineSpan::split` instead of
   `remove_from`, so the structured Sources render where the literal section
   sat.
