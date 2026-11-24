@@ -13,4 +13,5 @@ role = "technical-library"
 workspace = true
 
 [dependencies]
+document = { path = "../document" }
 pulldown-cmark = { workspace = true }
