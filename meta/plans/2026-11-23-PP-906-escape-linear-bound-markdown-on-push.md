@@ -1218,20 +1218,20 @@ trackers do not, and the local file stays byte-identical.
 
 #### 1. Client tests first
 
-**File**: `cli/linear-client/tests/update.rs`, `cli/linear-client/tests/`
-create tests (add `description_dialect.rs` if none fits)
-**Changes**: Against `MockGraphQLServer`, with `NEEDS_BOTH_ESCAPES =
+**File**: `cli/linear-client/tests/description_dialect.rs` (new)
+**Changes**: Against `MockHTTPServer`, with `NEEDS_BOTH_ESCAPES =
 "- owned by\n  0160.\n\nSee crates.io.\n"` and its escaped form:
 
 - `create_op_escapes_a_markdown_description`
 - `update_op_escapes_a_markdown_description`
 - `create_op_and_update_op_send_a_verbatim_description_as_given`
 - `remote_tracker_create_and_update_send_the_escaped_body`
-- `transition_sends_no_description` (if `tests/transition.rs` does not
-  already pin it)
+- `retitle_sends_no_description`
 
-Each reads `last_body("IssueCreate")` or `last_body("IssueUpdate")` and
-compares `variables.input.description` byte for byte.
+Each compares the last request's `variables.input.description` byte for
+byte. A transition needs no test of its own:
+`update.rs`'s `a_resolved_state_alone_is_the_whole_input` already pins that
+a state-only update sends `{"stateId": …}` and nothing else.
 
 #### 2. Implementation
 
@@ -1246,13 +1246,14 @@ markdown = { path = "../markdown" }
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Description<'a> {
+    /// Escaped on send, so Linear's parser reads it as `CommonMark` does.
     Markdown(&'a str),
     /// For capturing what Linear's parser does to an unescaped body.
     Verbatim(&'a str),
 }
 
-impl Description<'_> {
-    pub(crate) fn wire(self) -> Cow<'_, str> {
+impl<'a> Description<'a> {
+    pub(crate) fn wire(self) -> Cow<'a, str> {
         match self {
             Self::Markdown(markdown) => Cow::Owned(markdown::linear::escape_for_push(markdown)),
             Self::Verbatim(text) => Cow::Borrowed(text),
@@ -1269,14 +1270,18 @@ and `UpdateFields.description` becomes `Option<Description<'a>>`; both send
 signatures: `cli/linear-client/tests/discriminant.rs` (`:35`, `:57`, `:73`),
 the `UpdateFields` literals in `tests/update.rs` and `tests/transition.rs`,
 and `cli/linear-cli/src/main.rs`. `linear-client` has no public-API
-snapshot, so there is nothing to regenerate.
+snapshot, so there is nothing to regenerate. The module docs of `lib.rs` and
+`client.rs`, which said a body passes through verbatim, now say it is sent
+escaped and read back as stored.
 
 #### 3. `--verbatim` on the raw commands
 
 **Files**: `cli/linear-cli/src/cli.rs`, `cli/linear-cli/src/main.rs`,
-`cli/linear-cli/tests/flow_create.rs`, `cli/linear-cli/tests/flow_update.rs`,
-`cli/linear-cli/tests/fixtures/cli_surface.golden`
-**Changes**: Tests first, each with `NEEDS_BOTH_ESCAPES`:
+`cli/linear-cli/tests/flow_description_dialect.rs` (new, since the tests
+span `create` and `update`), `cli/linear-cli/tests/fixtures/cli_surface.golden`
+**Changes**: Tests first, each with `NEEDS_BOTH_ESCAPES`, passed to
+`--description` as one `--description=…` argument because a value starting
+`- ` would otherwise read as a flag:
 
 - `a_work_item_file_is_sent_escaped`: `create <work-item-file>`.
 - `a_body_file_is_sent_escaped`: `create --title t --body-file <path>` and
@@ -1307,8 +1312,12 @@ and `a_file_and_a_body_file_behave_as_before` pins that. One helper serves
 both commands:
 
 ```rust
-fn description(text: &str, verbatim: bool) -> Description<'_> {
-    if verbatim { Description::Verbatim(text) } else { Description::Markdown(text) }
+const fn sent_description(text: &str, verbatim: bool) -> Description<'_> {
+    if verbatim {
+        Description::Verbatim(text)
+    } else {
+        Description::Markdown(text)
+    }
 }
 ```
 
@@ -1340,10 +1349,18 @@ enum PushEntryPoint {
 
 `every_push_entry_point_escapes_for_linear_alone` loops over `Tracker` ×
 `PushEntryPoint`. Each case seeds a local item whose body is
-`NEEDS_BOTH_ESCAPES` and routes the tracker's create or update. Linear's
-mock read-back returns the form `escaped/read-back.json` records for the
-same constructs, plain `0160.` and unlinked `crates.io`, not the escaper's
-own output. The test asserts:
+`NEEDS_BOTH_ESCAPES` and routes the tracker's create or update. `PushRemote`
+scripts each tracker's listing, create, update and a sequence of reads, over
+`MockGraphQLServer` for Linear and `MockHTTPServer` for Jira and Shortcut.
+Linear's mock read-back returns the form `escaped/read-back.json` records
+for the same constructs, plain `0160.` and unlinked `crates.io`, not the
+escaper's own output. The sync cases run push-only, because the default
+scope refuses discovery; the unsynced item's link goes to an author that
+records it without writing the file. The promotion cases call
+`work_adapters::promotion::promote` over a draft on disk, with four reads:
+two of the draft as created, two as promoted. The expected Linear
+description comes from a string replacement of the two known constructs, not
+from `escape_for_push`, so the oracle is independent. The test asserts:
 
 - **Linear.** The sent `description` is the escaped body. For
   `PromotionRetitle`, the create request carries the escaped draft body, the
@@ -1359,18 +1376,22 @@ own output. The test asserts:
 - **Local file.** Byte-identical to the file before the push, for every
   tracker.
 
-For Linear, a following targeted sync over the same mock reports the item
-`synced`. That shows the read-back is equivalent to the local body and that
-the baseline digest is unchanged. Reuse the promotion harness
-(`work-adapters/tests/promotion.rs:268-396`) and the pending-push helpers
-(`sync_create.rs:4131-4187`) where the matrix's own fixtures fall short.
+For Linear's `SyncUpdate`, a following preview over the same mock reports
+the item `synced`. That shows the read-back is equivalent to the local body
+and that the baseline digest is unchanged. The creates and promotions are
+not followed by a sync: the unsynced item's file is never linked, and the
+promotion is shown to finish by `promote` returning `Ok`. The promotion
+harness is a compact `PromotionRepo` over `FileCorpusStore`, rather than
+`promotion.rs`'s failure-injecting store. Turning the escape off in
+`Description::wire` fails the test at `Linear/SyncUpdate`.
 
 #### 5. `work create --push` and `work update --push`
 
-**Files**: `cli/work-cli/src/create.rs` tests, `cli/work-cli/src/update.rs` tests
+**Files**: `cli/work-cli/src/create.rs` tests, `cli/work-cli/src/update.rs`
+tests, `cli/work-cli/src/test_support/real_trackers.rs` (new)
 **Changes**: In-process tests using `PushingRepo` configured for each of
-`linear`, `jira` and `shortcut`, and `FixedRegistry::holding` with a real
-client over `MockHTTPServer`:
+`linear`, `jira` and `shortcut`, and `FixedRegistry::holding_boxed` with a
+real client over a loopback mock:
 
 - `create_push_escapes_for_linear_alone`
 - `update_push_escapes_for_linear_alone`
@@ -1378,9 +1399,13 @@ client over `MockHTTPServer`:
   taken over `[crates.io](<http://crates.io>)`, and `push_update` with no
   other flags sends the escaped body and leaves the file byte-identical.
 
-If `PushingRepo` cannot build a real Linear client, add a `linear_client`
-helper to `work-cli/src/test_support.rs` modelled on
-`sync_run_real_client.rs:207-230`.
+`test_support/real_trackers.rs` builds all three clients, modelled on
+`sync_run_real_client.rs:207-230`, and names each URL through the client
+crate's own `Url` re-export (`jira_client::transport::Url`,
+`linear_client::transport::Url`, `shortcut_client::Url`):
+`provider_isolation.rs` refuses any `reqwest` import in `work-cli/src`,
+test support included. The pushed body is `document::split`'s, which keeps
+the trailing newline that `digest::split_frontmatter_and_body` trims.
 
 #### 6. CHANGELOG
 
