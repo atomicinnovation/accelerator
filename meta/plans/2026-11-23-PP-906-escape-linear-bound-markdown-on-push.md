@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T01:27:07+00:00"
+last_updated: "2026-11-24T01:32:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -119,7 +119,7 @@ can be captured again. Local files and digests are unchanged.
   `accelerator work update <path> --push`.
 
 Verify with `mise run` (the full default task) exiting 0, plus the manual
-checks recorded in phases 2, 3 and 9.
+checks recorded in phases 2, 3, 10, 11 and 12.
 
 ### Key Discoveries:
 
@@ -178,12 +178,9 @@ checks recorded in phases 2, 3 and 9.
 - Unwrapping soft line breaks before sending. It would remove every stray
   list too, but a pull after an edit in Linear would then write unwrapped
   lines into `meta/work/`.
-- Image re-hosting to `uploads.linear.app` and entity decoding (`&lt;` to
-  `<`), which the probes also found. A follow-up work item checks whether a
-  decoded `&lt;b&gt;` becomes a live tag.
-- Escaping comments. `accelerator linear comment add` also sends Markdown,
-  but no capture shows whether Linear rewrites comments; a follow-up work
-  item adds a comment fragment to a capture and decides.
+- Image re-hosting to `uploads.linear.app`, which the probes also found.
+- Remedying entity decoding in this plan. Phase 11 only probes whether a
+  decoded entity changes meaning, and raises a work item for any remedy.
 - Changing `BodyDialect::as_pushed` for Linear, `DigestRecipe::CURRENT` or
   `migrate-cli`'s Linear dialect mapping.
 - Converting a Unicode last label to punycode to look it up. A last label
@@ -194,12 +191,19 @@ checks recorded in phases 2, 3 and 9.
 
 ## Implementation Approach
 
-The work runs in nine phases, each mergeable alone:
+The work runs in twelve phases, each mergeable alone:
 
 ```text
 1 linear update --body-file ──┐
-2 unescaped capture + TLDs ───┼─► 3 escaped capture ─► 4 digit rule ─► 5 dotted-token rule ─► 6 wiring ─► 7 rewrite notice ─► 8 rewrite mark ─► 9 post-merge repair
+2 unescaped capture + TLDs ───┼─► 3 escaped capture ─► 4 digit rule ─► 5 dotted-token rule ─► 6 wiring ─► 7 rewrite notice ─► 8 rewrite mark ─► 12 post-merge repair
+                                                                       │                      │
+                                                                       ▼                      ▼
+                                                                       9 simulator            10 comments
+11 entity probe (independent)
 ```
+
+Phase 12 runs after the merge of phases 1-8. Phases 9-11 need not wait for
+it; any of them may also land in the same PR.
 
 Phase 1 is independent and lands first. Phases 2 and 3 include live captures
 that a credentialed person runs by hand against the scratch `TES` team, never
@@ -515,7 +519,7 @@ snapshot falls in an over-escape class of
 linked span in `X10`-`X19` holds exactly the dotted token the rule finds in
 it. Point to the probe corpus for the rules behind each class.
 
-Add an "Audit self-check codes" section listing four sets that phase 9's
+Add an "Audit self-check codes" section listing four sets that phase 12's
 audit checks itself against, each code with its stored line: the codes
 whose unescaped read-back holds a linked dotted token (at least `R12`) or a
 stray list line (`X09` and `X20`; Linear left `X24` alone), and, once
@@ -529,7 +533,7 @@ Add a "Refreshing the TLD snapshot" section: download
 `the_snapshot_is_iana_shaped` and the capture tests, and add a capture
 fragment for any token whose verdict changes. A refresh is due whenever a
 `rewritten on push` warning or mark, or a
-phase 9-style audit finds a newly linked token.
+phase 12-style audit finds a newly linked token.
 
 #### 4. Pinned TLD snapshot
 
@@ -618,8 +622,8 @@ simulator splits on whitespace and takes one dot-free name before the last
 label, so it cannot model ports, multi-label names or boundaries. Phase 5's
 capture test checks them against Linear's read-back directly. Once phase 5
 lands, the simulator can call phase 5's dotted-token recogniser instead, so
-one grammar serves both. That convergence is a named follow-up work item,
-raised when this plan is approved; phase 5 exposes the recogniser it needs.
+one grammar serves both. Phase 9 makes that change; phase 5 exposes the
+recogniser it needs.
 
 #### 6. Equivalence exclusions
 
@@ -1138,7 +1142,7 @@ impl DottedToken {
 `TextRun::from_events` owns the offset and escape-gap mapping; `escapes`
 only composes the three. Expose the recogniser as
 `markdown::linear::dotted_tokens(text: &str) -> impl Iterator<Item = Range<usize>>`
-over plain text, so the simulator follow-up needs no further API change, and
+over plain text, so phase 9 needs no further API change, and
 add one sentence to the crate's module docs: each dialect reads Markdown as
 its comparison partner does, `github` with GitHub's options and `linear`
 through `document` for PP-880's equivalence.
@@ -1147,7 +1151,8 @@ through `document` for PP-880's equivalence.
 
 **File**: `cli/tracker-test-support/src/rewrite.rs`
 **Changes**: None. `X11`, `X14` and `X16`-`X20` stay out of
-`recorded_rewrites()`; the capture tests above cover them.
+`recorded_rewrites()`; the capture tests above cover them, and phase 9
+brings the simulator onto this recogniser.
 
 ### Success Criteria:
 
@@ -1376,7 +1381,7 @@ bump.
 
 #### Manual Verification:
 
-- [ ] None before merge; phase 9 covers the live workspace
+- [ ] None before merge; phase 12 covers the live workspace
 
 ---
 
@@ -1461,7 +1466,7 @@ And for the line pairing, a pure function tested on its own:
   at `1`, so `push_fidelity` returns `Preserved`. `X09` is caught only
   because Linear also drops the leading zero of `0160`. The escaper
   prevents this rewrite in every escaped push; a `--verbatim` push or a
-  fallback can still produce it, and phase 9's audit pattern finds it.
+  fallback can still produce it, and phase 12's audit pattern finds it.
 - `jira_cosmetic_lines_are_not_reported`: under Jira's dialect, a section
   whose table alignment the ADF round trip drops and whose dotted token is
   linked gives one `ChangedLine`, for the link.
@@ -1711,7 +1716,7 @@ the notice.
 
 #### Manual Verification:
 
-- [ ] None; phase 9 runs against the live workspace
+- [ ] None; phase 12 runs against the live workspace
 
 ---
 
@@ -2039,11 +2044,230 @@ mark in the committed `last-sync.json`.
 
 #### Manual Verification:
 
-- [ ] None; phase 9 runs against the live workspace
+- [ ] None; phase 12 runs against the live workspace
 
 ---
 
-## Phase 9: Post-merge verification
+## Phase 9: The simulator reads tokens as the escaper does
+
+### Overview
+
+`Rewrite::AutolinkDottedTokens` finds tokens with phase 5's recogniser and
+leaves bare exactly the tokens the probe corpus shows Linear leaves bare. So
+one grammar serves the escaper, its oracle and the simulator, and the
+simulator models ports, multi-label names and boundaries.
+
+### Changes Required:
+
+#### 1. Tests first
+
+**File**: `cli/work-adapters/tests/linear_rewrites.rs`
+**Changes**: Extend `recorded_rewrites()` with `X11`, `X14`, `X16`, `X17`
+and `X18` mapped to `Rewrite::AutolinkDottedTokens`. `X11` fails because the
+simulator does not carry the port, `X14` because it takes one dot-free name,
+and `X16` and `X17` because the trailing `.` and the brackets join the word.
+`X18` passes today and pins the `/` boundary. Update the doc comment: only
+`X09`, `X19`-`X25` stay out, since the simulator works line by line and
+models neither `mailto` links nor emphasis, headings, tables or HTML.
+
+Add `the_simulator_links_what_linear_linked_in_every_dotted_token_probe`:
+for every probe in `linear-autolink-probes/` in the groups `ext`,
+`md-name`, `rs-name`, `before`, `after`, `case`, `labels`, `numeric` and
+`ports-paths`, and every line of `tld-sweep.md`, the link texts the
+simulator produces equal the link texts in Linear's read-back. Link texts
+rather than whole lines, because Linear's other escapes (`\_`, `\*`, `\[`)
+are not dotted-token rewrites.
+
+#### 2. One model of what Linear leaves bare
+
+**Files**: `cli/tracker-test-support/src/linear_autolinker.rs` (new),
+`cli/tracker-test-support/src/rewrite.rs`,
+`cli/work-adapters/tests/linear_captures.rs`
+**Changes**: Phase 5's `is_recorded_over_escape` test helper moves into
+`tracker-test-support` as `pub fn linear_leaves_bare(text: &str, token:
+Range<usize>) -> bool`, with `LEFT_BARE_BY_LINEAR` folded into it.
+`linear_captures.rs`'s oracle calls it instead of its own copy, so the
+oracle and the simulator cannot drift apart.
+
+#### 3. Implementation
+
+**File**: `cli/tracker-test-support/src/rewrite.rs`
+**Changes**: `autolink_dotted_tokens` wraps each range of
+`markdown::linear::dotted_tokens(line)` for which `linear_leaves_bare` is
+false as `[t](<http://t>)`. `autolink_urls` keeps `link_words`; the
+dotted-token path stops using it. `cli/pup.ron` already permits
+`markdown::linear`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Simulator and probe tests pass: `mise run test:unit:cli --filter 'binary(linear_rewrites)'`
+- [ ] The oracle still passes on the shared model: `mise run test:unit:cli --filter 'binary(linear_captures)'`
+- [ ] `mise run cli:check` and `mise run pup:check` exit 0
+- [ ] `mise run` exits 0
+
+#### Manual Verification:
+
+- [ ] None; test support only
+
+---
+
+## Phase 10: Escaping Linear comments
+
+### Overview
+
+Capture whether Linear's comment parser rewrites Markdown as its description
+parser does. If it does, `LinearClient::add_comment` escapes comment bodies
+as `create_op` and `update_op` escape descriptions, and `--verbatim` on
+`accelerator linear comment add` opts out.
+
+### Changes Required:
+
+#### 1. Live capture (manual)
+
+With the `TES` procedure from the Implementation Approach:
+
+1. `accelerator linear create --verbatim --title "PP-906 comment capture"
+   --body-file <a one-line stub>`. Confirm the identifier starts `TES-`.
+2. `accelerator linear comment add <identifier> --verbatim --body-file
+   cli/work-adapters/tests/fixtures/linear-rewrites/pushed.md`, then the
+   same with `escaped/pushed.md`. `--verbatim` does not exist on `comment
+   add` until this phase lands, so before then omit it; the body is sent as
+   given either way.
+3. `accelerator linear show <identifier> --comments 2`, projected through
+   the allowlist extended with `comments: {nodes: [.comments.nodes[].body]}`,
+   into `linear-rewrites/comment-read-back.json`. Record the extended
+   allowlist in `../work-item-sync-recovery/README.md`.
+4. Delete the issue, then restore `config.local.md`.
+
+#### 2. Gate
+
+Compare each fragment of the first comment with the same fragment of
+`read-back.json`, and each fragment of the second with
+`escaped/read-back.json`. The README records the result per fragment.
+
+| Outcome | Then |
+|---|---|
+| Comments are read as descriptions are | Sections 3-5 below |
+| Comments are rewritten, but differently | Return this phase to drafting with the capture |
+| No meaning-changing rewrite in comments | Record it; drop sections 3-5; the phase ends here |
+
+#### 3. Equivalence tests
+
+**File**: `cli/corpus-adapters/tests/body_equivalence.rs`
+**Changes**: Load `comment-read-back.json` in `Capture`. Add
+`each_escaped_comment_fragment_reads_alike_after_linear`, the comment twin
+of phase 3's escaped read-back test.
+
+#### 4. Client and command
+
+**Files**: `cli/linear-client/src/comment.rs`,
+`cli/linear-client/src/description.rs`, `cli/linear-cli/src/cli.rs`,
+`cli/linear-cli/src/main.rs`, `cli/linear-cli/tests/`,
+`cli/linear-cli/tests/fixtures/cli_surface.golden`,
+`skills/integrations/linear/comment-linear-issue/SKILL.md`
+**Changes**: First rename phase 6's `Description` to `MarkdownBody`, since
+it now carries comments too, with every test green. Then, tests first:
+
+- `add_comment_escapes_a_markdown_body` and
+  `add_comment_sends_a_verbatim_body_as_given`, against `MockGraphQLServer`,
+  reading `variables.input.body` byte for byte.
+- `a_comment_body_is_sent_escaped` and `verbatim_sends_the_comment_as_given`
+  in a `linear-cli` flow test, for both `--body` and `--body-file`.
+
+`add_comment` takes `body: MarkdownBody<'_>` and sends `body.wire()`.
+`comment add` gains `--verbatim`, with the same doc text as `create` and
+`update`. Regenerate the surface golden, and say in the skill that comments
+are escaped for Linear.
+
+#### 5. CHANGELOG
+
+**File**: `CHANGELOG.md`
+**Changes**: A **Changed** entry under `[Unreleased]`: Linear comments are
+escaped as descriptions are, and `comment add --verbatim` sends one as
+given.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Comment equivalence passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
+- [ ] Client and command tests pass: `mise run test:unit:cli --filter 'package(linear-client) | package(linear-cli)'`
+- [ ] `mise run cli:check` exits 0
+- [ ] `mise run` exits 0
+
+#### Manual Verification:
+
+- [ ] Comment capture taken, allowlisted, committed and its issue trashed
+- [ ] Gate outcome recorded in the README
+
+---
+
+## Phase 11: Whether decoded entities change meaning
+
+### Overview
+
+Linear decodes `&lt;`, `&gt;`, `&amp;` and `&#46;` on store (`Q262`-`Q264`).
+A pull then writes the decoded form into the local file, where CommonMark may
+read it differently: `&lt;b&gt;` stored as `<b>` would be a live tag. Probe
+which entities change meaning, and decide the remedy.
+
+### Changes Required:
+
+#### 1. Probe body
+
+**File**: `cli/work-adapters/tests/fixtures/linear-autolink-probes/entities.md` (new)
+**Changes**: One `#### E<nnn> entities` probe per case: `&lt;b&gt;bold&lt;/b&gt;`,
+`&lt;!-- c --&gt;`, `&lt;https://crates.io&gt;`, `&amp;lt;b&amp;gt;`,
+`&#42;emph&#42;`, `&#95;emph&#95;`, `&#91;t&#93;(https://x.io)`, `&#96;code&#96;`,
+`&#124;` in a table cell, and at a line start `&#35; heading`, `&#45; item`
+and `&#49;. item`. Also `&nbsp;` and `&copy;`, plus the backslash forms `\<b>`,
+`\*emph\*` and `\# heading` as candidate remedies.
+
+#### 2. Live capture (manual)
+
+With the `TES` procedure, `accelerator linear create --verbatim --title
+"PP-906 entity probe" --body-file …/entities.md`, `show` through the
+allowlist into `entities.read-back.json`, then delete the issue and restore
+`config.local.md`. Before phase 6 lands there is no `--verbatim`, and
+none is needed: the body is sent as given.
+
+#### 3. Tests
+
+**File**: `cli/corpus-adapters/tests/body_equivalence.rs`
+**Changes**: `each_entity_probe_reads_as_recorded`: for every `E` probe,
+the pushed and read-back forms are equivalent, except the probes the README
+lists as changing meaning, which must differ. A future change in Linear's
+decoding fails here.
+
+#### 4. README and decision
+
+**File**: `cli/work-adapters/tests/fixtures/linear-autolink-probes/README.md`
+**Changes**: An "Entities" section: each probe's stored form and whether it
+reads alike. Then, by outcome:
+
+| Outcome | Then |
+|---|---|
+| Every probe reads alike | Record it; the non-goal stands |
+| Some change meaning, and a backslash form survives as text | Raise a work item to substitute it on push; this breaks the escaper's insertions-only invariant, so it needs its own design |
+| Some change meaning, and no form survives | Raise a work item to report on push, as phase 7 reports a rewrite |
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Entity probe test passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
+- [ ] `mise run` exits 0
+
+#### Manual Verification:
+
+- [ ] Probe taken, allowlisted, committed and its issue trashed
+- [ ] README records each probe and the decision; any work item it calls for is raised
+
+---
+
+## Phase 12: Post-merge verification
 
 ### Overview
 
@@ -2332,7 +2556,9 @@ condition with an explicit `if`, and ends by printing what it found.
 
 1. Phase 2 capture and its TLD gate.
 2. Phase 3 capture and its web-UI gate.
-3. Phase 9 search, repair and web-UI check.
+3. Phase 10 comment capture and its gate.
+4. Phase 11 entity probe and its decision.
+5. Phase 12 search, repair and web-UI check.
 
 ## Performance Considerations
 
@@ -2347,7 +2573,7 @@ built once per process from the ~1,450-line snapshot.
 There is no data migration: baseline entries without `rewritten_on_push`
 read as unmarked. A sync by a build older than phase 8 drops every mark in
 the committed `last-sync.json`; marks survive only while everyone runs a
-build that knows them. Corrupted remotes are repaired one by one in phase 9.
+build that knows them. Corrupted remotes are repaired one by one in phase 12.
 Refreshing the TLD snapshot later can change which tokens are escaped. A
 token Linear newly links is still agreed into the baseline, so it never
 surfaces as a sync conflict; it surfaces as phase 7's notice on the push
