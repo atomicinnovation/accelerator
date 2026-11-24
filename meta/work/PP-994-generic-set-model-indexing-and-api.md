@@ -12,7 +12,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T08:06:16+00:00"
+last_updated: "2026-11-26T00:07:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-134", "work-item:PP-998", "work-item:PP-1001", "work-item:PP-1000", "work-item:PP-1002"]
@@ -291,8 +291,9 @@ PP-998.
       `id`; and the doc types response marks the type as a set.
 - [ ] A search of the visualiser server's sources for `TopicResearch` and
       `DesignInventories` finds matches only in the doc-type declarations,
-      test modules, and the library's phase table, which assigns a phase to
-      every doc type.
+      test modules, and the library's phase table, which assigns a phase
+      to every doc type; and nowhere outside the declarations crates and
+      the declarations assembly that pair a set type with its shape.
 - [ ] Topic research declares the set-page presentation and design
       inventories the entry-point presentation, each readable from its doc
       type's declaration.
@@ -350,18 +351,37 @@ PP-998.
       same slug in their filenames, when related items are requested for
       either, then the other is not among the inferred items, and no
       inferred item of any response is a member.
-- [ ] An ADR records the set model, including set shapes, assets as
-      members, the two presentations, and the refusal of overlapping doc
-      roots, and the author has accepted it through `/review-adr`, so its
-      status is `accepted`.
-- [ ] The accepted ADR, or a document it names, records the member API's
+- [ ] Given a set directory without its root file, when `corpus resolve`
+      is given its slug or its path, then it does not resolve.
+- [ ] Given a dot-prefixed directory under a set type's doc root, when
+      `corpus resolve` is given its exact name or its path, then it does
+      not resolve.
+- [ ] Given a path to a file in a set directory that fits no member slot,
+      when it is given to `corpus resolve`, then it does not resolve to the
+      set; given a path to the set directory, its root, a member, or a
+      slot directory, then it resolves to the set.
+- [ ] Given a stray file directly in a set type's doc root, when its path
+      is given to `corpus resolve`, then it does not resolve as a set.
+- [ ] Each set type's shape is declared in its owning domain's
+      declarations crate, topic research in `research-declarations` and
+      design inventories in `design-declarations`; every composition root
+      that builds a doc type catalogue gets it from the declarations
+      assembly; and given a catalogue that lacks a set type's shape, then
+      building it fails.
+- [ ] Accepted ADRs record the set model (ADR-0077), doc types as declared
+      data with the catalogue assembled from owners' set shapes
+      (ADR-0078), the refusal of overlapping doc roots (ADR-0079), and
+      domain declarations crates with their assembly (ADR-0080), and the
+      author has accepted each through `/review-adr`, so each status is
+      `accepted`.
+- [ ] An accepted ADR, or a document it names, records the member API's
       endpoint and response shape, covering asset enumeration without
       paging (the largest real inventory held 35 screenshots), plain
       set-relative paths, where a document's structured sources attach,
       and where the derived set response sits beside the member listing.
 - [ ] This work item's Drafting Notes carry one dated decisions line
-      recording two things: the ADR's number and its accepted status; and
-      the document that holds the member API shape.
+      recording two things: the ADRs' numbers and their accepted status;
+      and the document that holds the member API shape.
 
 ## Open Questions
 
@@ -399,10 +419,10 @@ PP-998.
   story twice over.
 - Planning order: this is a two-stage story, by the author's choice. The
   first stage is two decisions, in this order: the member API shape, then
-  the accepted ADR; the nested-doc-root check that preceded them was
+  the accepted ADRs; the nested-doc-root check that preceded them was
   settled on 2026-11-24. The second is the implementation. The first stage
   is complete when the dated **decisions line** in Drafting Notes exists,
-  recording the ADR's number and where the API shape is written down.
+  recording the ADRs' numbers and where the API shape is written down.
   PP-998, PP-1001, PP-1000, PP-134, and PP-1002 are planned only once
   that line exists; it is their release, and they need not wait for this
   story to land. PP-134's planning also waits on PP-998's route shape. The
@@ -415,11 +435,10 @@ PP-998.
   so this story keeps a set's activity row identified by its root's path.
 - Follow-up: PP-1003 reads `relates_to` for every doc type, members
   included; this story does not wait on it.
-- Contract with the research crate: the topic-research shape and
-  `research::topic::layout` describe the same files. PP-1002, the first
-  story whose crate depends on both, adds a test that every path the
-  layout can produce fits a slot; until then, the real-layout criterion
-  here is the guard.
+- Contract with the research crate: the topic-research shape is declared
+  in `research-declarations` from the layout constants the research
+  domain also uses, and a test in the research crate checks that every
+  path its layout builders can produce fits a slot.
 - On-disk conventions: the dot-prefix exclusion relies on what the
   research-topic skill and the research CLI write (the CLI writes the run
   ledger), and the shapes on the layouts the research-topic and
@@ -574,6 +593,24 @@ rewritten.
   to link every document by its `id`. These settle the nested-doc-root
   check and supersede the earlier rule that any file in an inventory is a
   member.
+- Decisions, 2026-11-25, by the author: the corpus CLI's resolver conforms
+  to the set model in this story; each set type's shape is declared by
+  the domain that writes it and registered by every composition root that
+  reads set members; the dot prefix is the owner's boundary, so its
+  working files are never registered and every other reader ignores them;
+  and a path still resolves to its set when it is the set directory, its
+  root, a member, or a slot directory.
+- Decisions, 2026-11-25, by the author (ADR-0080), superseding the
+  registration above: each context that declares to the corpus gets a
+  declarations crate, and one declarations assembly builds the complete
+  catalogue that every composition root takes; the declarations crates
+  hold layouts and set shapes only, and doc type facts stay in the
+  corpus; and shapes are part of the catalogue, with no separate
+  registry.
+- Decisions recorded, 2026-11-26: ADR-0077 (the set model), ADR-0078
+  (doc types as declared data), ADR-0079 (doc roots may not overlap)
+  and ADR-0080 (domain declarations crates) are accepted; the member
+  API shape is in `meta/specs/2026-11-24-set-member-api.md`.
 
 ## References
 

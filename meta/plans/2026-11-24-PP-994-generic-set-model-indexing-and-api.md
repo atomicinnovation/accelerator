@@ -5,7 +5,7 @@ title: "Generic Set Model: Indexing and API Implementation Plan"
 date: "2026-11-24T08:39:16+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "in-progress"
 work_item_id: "work-item:PP-994"
 parent: "work-item:PP-994"
 derived_from: ["codebase-research:2026-11-24-PP-994-generic-set-model-indexing-and-api"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-24T08:39:16+00:00"
+last_updated: "2026-11-26T00:07:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -34,19 +34,30 @@ a set whole.
 The author chose to make doc types **fully data-driven** (planning decision
 Q2, 2026-11-24). A doc type becomes a declared value, with its identity, its
 facts and its rules, held in a catalogue. It is no longer a closed enum with
-a `match` arm per variant. A set's shape and presentation are fields of that
-declaration. Server code therefore branches on declared facts and never on a
-named doc type, and test code can declare a doc type of its own through the
-same mechanism the built-in types use.
+a `match` arm per variant. A set doc type's declaration carries its
+presentation. Its shape is declared, in `corpus`'s terms, by the domain
+that writes the set, in that domain's **declarations crate** beside its
+layout constants (ADR-0080). One **declarations assembly** crate builds
+the complete catalogue from the corpus's built-in declarations and every
+owner's shape, and every composition root that needs a catalogue takes
+it from there. Server code therefore branches on declared facts and
+never on a named doc type, and test code can declare a doc type and its
+shape through the same constructor the assembly uses.
+
+The corpus CLI's resolver conforms to the same model in this story:
+`corpus resolve`, and the research commands that resolve a topic set
+through it, read a set through its shape and stop treating rootless or
+dot-prefixed directories, or unslotted files, as sets.
 
 The plan has two stages, as the work item prescribes:
 
 1. **Stage one (Phase 1): decisions.** This stage writes ADR-0077 (the set
-   model), ADR-0078 (doc types as declared data) and the member API
-   specification. It ends when the author accepts both ADRs through
+   model), ADR-0078 (doc types as declared data), ADR-0079 (doc roots may
+   not overlap), ADR-0080 (domain declarations crates) and the member API
+   specification. It ends when the author accepts all four ADRs through
    `/review-adr` and the dated decisions line exists in PP-994's Drafting
    Notes.
-2. **Stage two (Phases 2–10): implementation.** Each phase is test-first
+2. **Stage two (Phases 2–12): implementation.** Each phase is test-first
    and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and recommended split
@@ -66,17 +77,29 @@ files. Most are in tests and mechanical, but about 90 production `match`
 arms carry real rules: 50 in `corpus/src/cluster.rs`, 14 in `slug.rs`,
 4 in `linkage.rs` and 12 in `api/library.rs`, plus `doc_type.rs` itself.
 
+The owner-declared shapes grow it further:
+
+- Phase 6: two new crate roles in the crate-rule lint, three new crates
+  (`research-declarations`, `design-declarations` and the `declarations`
+  assembly), and four composition roots (the visualiser server,
+  `corpus-cli`, `research-cli` and `migrate-cli`) taking the assembled
+  catalogue, with the adapters they wire taking it by injection;
+- Phase 8, the corpus resolver's conformance, a breaking CLI change with
+  its own tests, goldens and skill text. It needs only Phase 7, and is
+  independent of the visualiser phases (9–12).
+
 **This plan is therefore XL as a whole, and Phases 3–5 alone are about L.**
 
 **Recommendation (not actioned, since the work item is not edited here):**
-split Phases 3–5 into their own enabling work item, for example "Doc types
+split Phases 3–6 into their own enabling work item, for example "Doc types
 as declared data", parented to PP-868. It would carry no behaviour change,
 and PP-994's implementation would depend on it.
 
-- Phase 1's ADR-0078 is that item's decision record.
+- Phase 1's ADR-0078 and ADR-0080 are that item's decision records.
 - Phase 2 (overlapping-root refusal) is independent of both and could ship
   first under either item.
-- After the split, PP-994 returns to roughly its original L (Phases 6–10).
+- After the split, PP-994 returns to roughly its original L, plus the
+  resolver's conformance (Phases 7–12).
 - The planning release that the decisions line gives PP-998, PP-1001,
   PP-1000, PP-134 and PP-1002 is unaffected, because it depends only on
   Phase 1.
@@ -99,7 +122,57 @@ The work item's Technical Notes size would need updating to match.
     (`indexer.rs:62-68`) and the `WorkItems` drafts listing
     (`file_driver.rs:258-272`).
 - **The only set declaration** is `nested_manifest_filename()` (`doc_type.rs:165-171`).
-  It is read at `file_driver.rs:258` and `indexer.rs:1514`.
+  It is read at `file_driver.rs:258`, `indexer.rs:1534` and `indexer.rs:1652`,
+  and by the corpus resolver (`corpus-adapters/src/resolve.rs:46-50`).
+- **The corpus resolver walks set directories by its own rules.**
+  - `resolve_document` picks `TypeShape::NestedManifest` when the type
+    has a nested manifest filename (`corpus-adapters/src/resolve.rs:46-50`).
+    `TypeShape` (`corpus/src/resolve.rs:23-27`) carries no root name or
+    slots.
+  - Slug input: `TypeDirectoryLister::entries` (`corpus-adapters/src/fs.rs:140-159`)
+    keeps every directory, with no dot filter and no root-file check, and
+    `nested_candidates` (`corpus/src/resolve.rs:115-130`) matches
+    `slug_from_set_dir(name) == slug`. A rootless directory resolves, and
+    so does an exact dotted name such as `.x.tmp`.
+  - Path input (`corpus-adapters/src/resolve.rs:93-132`): after the
+    outside-root check, `set_root_under` (`:134-148`) takes the first
+    segment under the type directory. Any depth, any file, dot segments
+    and rootless directories resolve, and a stray file directly in the
+    type directory (`topics/stray.md`) is returned as a set root. Its
+    comment (`:134-138`) names `findings/` and `screenshots/`.
+  - Callers: `accelerator corpus resolve` (`corpus-cli/src/resolve.rs:15-24`;
+    exit codes in `corpus-cli/src/main.rs:156-201`: not found 3,
+    ambiguous 2, outside root 6, invalid 1, unknown type 4) and
+    `research-cli`'s `topic_set::resolve_set` (`research-cli/src/topic_set.rs:28-42`),
+    which maps any non-resolved outcome to `E_TOPIC_RESEARCH_UNRESOLVED`
+    for the topic outstanding, end-run, node, report-path, counts and
+    consultable commands.
+- **The research crate already names the topic layout.**
+  `research::topic::layout` (`cli/research/src/topic/layout.rs:10-15`)
+  declares `MANIFEST`, `BRIEF`, `OUTLINE`, `SYNTHESIS`, `FINDINGS` and
+  `REPORTS`, with path builders `Stem::finding_path`, `NoteRef::path`
+  and `free_report_path`. The `.levels` suffix is a private constant in
+  `research-adapters/src/topic.rs:58` and a literal in `research`'s
+  `finding_path.rs` and `note_ref.rs`. The research crate depends on
+  `network` only, so a shape written in `corpus` would duplicate these
+  names. No `design` crate names the inventory layout in production code;
+  `inventory.md` and `screenshots/` are named by the skill.
+- **The crate role model** (ADR-0069) has seven roles: kernel, domain,
+  adapter, technical library, composition root, test support and
+  bootstrap verifier. `tasks/lint/crate_dependencies.py` judges each
+  crate's normal and build dependencies from its
+  `[package.metadata.accelerator]` role, context and kind, and
+  `tests/unit/tasks/test_crate_dependencies.py` pins every shipped
+  declaration in `_EXPECTED_DECLARATIONS`. No context depends on a product
+  context, so a platform crate cannot reach `research` or `design`. The
+  launcher may depend only on `kernel`, platform crates and technical
+  libraries, and today builds no doc type catalogue.
+- **The built-in catalogue's readers.** Besides the server,
+  `corpus-adapters` (`doc_type.rs:17`, `resolve.rs:41`),
+  `migrate-adapters` (`context.rs:88`) and the frozen `m0007`
+  (`m0007/mod.rs:72`) look doc types up at runtime; their roots are
+  `corpus-cli`, `research-cli` and `migrate-cli`. `work-cli`,
+  `shortcut-cli` and the launcher use `corpus` without a lookup.
 - **The server builds its roots** by iterating `DocTypeKey::all()` over a
   config-keyed path map (`file_driver.rs:112-144`, `compose.rs:139-151`).
   Wire tokens are parsed with `DocTypeKey::from_wire_str`
@@ -141,20 +214,46 @@ The work item's Technical Notes size would need updating to match.
     handle to a `&'static DocType`, compared by wire token.
   - A `DocTypeCatalogue` holds an ordered list of declarations, with
     lookup by wire token, linkage name and config path key.
-    `DocTypeCatalogue::built_in()` holds today's 15 types.
+    `corpus::doc_type::built_in` declares today's 15 types; the
+    catalogue built from them is the `declarations` assembly's.
   - Every fact and rule that used to be a `match` arm is a field of the
     declaration.
   - No production module outside the built-in declaration module names a
     built-in doc type.
 - **The server takes its catalogue from `Config`.** It defaults to the
-  built-in catalogue, and test code replaces it.
-- **A set doc type declares its shape and presentation:**
-  - `SetDeclaration { shape: SetShape { root, member_slots }, presentation }`;
-  - `MemberSlot { pattern: &'static str, kind: Document | Asset }`, its
-    pattern parsed into a `SetMatcher` when the catalogue is built;
-  - `Presentation::SetPage | EntryPoint`.
-  - Topic research and design inventories declare the shapes in the work
-    item's table.
+  assembled catalogue, and test code replaces it.
+- **Declarations crates and an assembly (ADR-0080).** The crate-rule lint
+  knows the declarations and declarations assembly roles.
+  `research-declarations` and `design-declarations` hold their contexts'
+  layout constants and set shapes, and `research` takes its layout from
+  `research-declarations`. The `declarations` assembly exposes
+  `catalogue() -> Result<Arc<DocTypeCatalogue>, CatalogueError>`, which
+  the visualiser server, `corpus-cli`, `research-cli` and `migrate-cli`
+  use; adapters take the catalogue by injection. Neither `research` nor
+  `design` depends on `corpus`.
+- **A set doc type declares its presentation; its owner declares its
+  shape:**
+  - the declaration's listing is `Listing::Set { presentation }`, with
+    `Presentation::SetPage | EntryPoint`;
+  - `corpus::set` owns the shape types: `SetShape { root, member_slots }`,
+    `MemberSlot { pattern: &'static str, kind: MemberKind }`,
+    `MemberKind::Document | Asset`, `SlotPattern`, `SetMatcher` and
+    `SetPlace`;
+  - `research_declarations::topic::SHAPE` and
+    `design_declarations::inventory::SHAPE` declare the two shapes in the
+    work item's table, built from each crate's own layout constants.
+- **The catalogue holds the shapes.** `DocTypeCatalogue::new(doc_types,
+  shapes)` parses every slot pattern and refuses a set type with no
+  shape, a shape for a type that is not a set, a type given two shapes
+  and an unparseable pattern. `catalogue.set_matcher(kind)` is the only
+  production source of a `SetMatcher`. There is no separate registry.
+- **`corpus resolve` conforms to the set model.** A set is a non-dot
+  directory holding its root file. A slug resolves only such a set. A
+  path resolves to its set when it is the set directory, its root, a
+  member, or a directory that may contain members; dot-prefixed segments,
+  unslotted files, rootless directories and stray files in the type
+  directory are not found. The research commands inherit this through
+  `topic_set::resolve_set`.
 - **Configuration refuses a doc root that equals or contains another,**
   and the error names both path keys. The fixtures run on the default
   paths.
@@ -175,14 +274,14 @@ The work item's Technical Notes size would need updating to match.
   follows the root; its time follows the latest change.
 - **The library's latest time per set** counts the root, the members, and
   observed removals.
-- **The doc types response** exposes each type's `set` declaration
-  (shape and presentation), or `null`.
+- **The doc types response** exposes each set type's shape and
+  presentation as `set`, or `null`.
 - **`GET /api/sets/{type}/{setId}`** returns the set, its root and every
   member in one response.
 - **`/api/docs/{path}`** returns not-found for an asset, for an unslotted
   file in a set directory, for a member of a set that has no root, and for
   a directory.
-- **ADR-0077 and ADR-0078 are accepted.**
+- **ADR-0077, ADR-0078, ADR-0079 and ADR-0080 are accepted.**
   `meta/specs/2026-11-24-set-member-api.md` records the member API.
   PP-994's Drafting Notes carry the dated decisions line.
 
@@ -211,14 +310,43 @@ steps under Testing Strategy.
   `corpus-cli` (`config.rs:96`), `work-cli` (`config.rs:105` and
   `sync.rs:241`) and the migrate adapter (`migrate-adapters/src/context.rs:106`).
   The overlap refusal is written once there, so every caller refuses.
+  Single-key lookups go through `resolve_with_fallback`
+  (`research-cli/src/context.rs:97`, `corpus-cli/src/config.rs:59`, the
+  launcher's `config_command/core/paths.rs:83`). Under ADR-0079 a lookup
+  of a doc type's key resolves the full set first, so it refuses too. The
+  frozen migrations' direct `paths.*` reads (`m0006`, `m0010`) need no
+  change, because the `migrate` runner refuses before any migration
+  runs.
   The migrate adapter swallows the resolver's errors today
   (`unwrap_or_default()`), so Phase 2 makes it propagate them.
+- **The owner edges and their enforcement.** Shapes live in
+  declarations crates, so `research` and `design` gain no `corpus` edge.
+  The new edges are `research-declarations` → `corpus`,
+  `design-declarations` → `corpus`, `research` →
+  `research-declarations`, the assembly → `corpus` and both declarations
+  crates, and four roots → the assembly.
+  - The crate-rule lint has no role for either new crate, so it learns
+    both (Phase 6), with failing tests in
+    `tests/unit/tasks/test_crate_dependencies.py`.
+  - `cli/pup.ron` needs an imports rule per new crate, the new crates in
+    the command-runner alternation, and `^research_declarations(::|$)`
+    in `research_domain_imports_only_permitted`. Each rule gets a probe
+    pair in `tests/integration/pup/test_import_rule.py`.
+  - `tasks/public_api.py` must classify every member; the three new
+    crates are pinned, with snapshots.
+  - `cli/deny.toml` needs nothing: the new crates are workspace path
+    crates over `kernel` and `corpus`, adding no third-party crate.
+  - Adapters may not depend on the assembly, so `corpus-adapters` and
+    `migrate-adapters` take the catalogue from their roots.
+    `research-adapters` keeps away from `corpus-adapters` in normal
+    dependencies (ADR-0069 rule 4); resolver wiring stays in
+    `research-cli`.
 - **The router.** matchit 0.7 forbids a suffix after a catch-all
   (`api/mod.rs:33-40`). Keying the member API by `/{type}/{setId}` leaves
   room for `/derived` (PP-1002).
 - **Change events for members.** Today `rescan_changes`
-  (`watcher.rs:280-317`) diffs `indexer.all()`, which Phase 7 makes
-  root-only. Phase 10's `rescan_with_diff` snapshots
+  (`watcher.rs:280-317`) diffs `indexer.all()`, which Phase 9 makes
+  root-only. Phase 12's `rescan_with_diff` snapshots
   `documents_including_members()` and the asset map instead, so member
   and asset events come from the same diff. A set removed with its root
   drops every member in the same rescan, because enumeration is
@@ -226,10 +354,10 @@ steps under Testing Strategy.
 - **In-app writes bypass the activity feed today.** The document PATCH
   handler broadcasts straight through `sse_hub` (`api/docs.rs:316-324`),
   not through `watcher::emit`, so its writes reach the feed only through
-  the frontend's client-built rows. Phase 10 routes it through `emit`.
+  the frontend's client-built rows. Phase 12 routes it through `emit`.
 - **Copies to unify.** The cluster recompute is copied at
   `server.rs:116-146`, `watcher.rs:228-255` and `api/docs.rs:276-311`.
-  Phase 7 extracts one `recompute_clusters`, which reads the index's
+  Phase 9 extracts one `recompute_clusters`, which reads the index's
   default, root-only view.
 
 ## What We're NOT Doing
@@ -238,15 +366,15 @@ steps under Testing Strategy.
   union and glyph maps. It changes the types that describe responses,
   and makes two behaviour changes the set model needs: `ActivityFeed`
   refetches `/api/activity` on each `doc-changed` event instead of
-  building rows itself (Phase 10), and search rows gain a key that stays
-  unique for members (Phase 7). A test-only doc type is exercised
+  building rows itself (Phase 12), and search rows gain a key that stays
+  unique for members (Phase 9). A test-only doc type is exercised
   against the server only.
 - **User-declared doc types** in configuration. The catalogue is built in
   and replaceable only in code. ADR-0078 records this as a deliberate
   boundary.
-- **Moving the `config` crate's path-key table onto `corpus`.** ADR-0069
-  forbids `config` depending on `corpus`. The existing single-source test
-  keeps the two aligned.
+- **Deriving `config`'s doc type table from the declarations.** ADR-0080
+  makes that the goal; PP-1009 does it. Until then the single-source test
+  keeps the two tables aligned.
 - **Member routes, the member view, and any change to what the frontend
   does with a member** (PP-998).
 - **Serving asset bytes** (PP-134), **the derived set response** (PP-1002;
@@ -256,6 +384,17 @@ steps under Testing Strategy.
 - **An `id` on activity rows or change events.**
 - **Re-ranking search beyond excluding members** from the exact-key bucket
   for the set's slug.
+- **The research crates' reads of their own working files.** Quarantine
+  `.invalid` markers, `.1.md*.invalid` root markers and the
+  `.conduct-run.json` ledger are the owner's dot-prefixed files, inside
+  ADR-0077's owner boundary, and the research crates keep reading them as
+  they do.
+- **Registering working files with the corpus.** Owners declare no
+  dot-prefixed working files; every other reader ignores them.
+- **Moving whole doc type declarations to their owners.** Only layouts and
+  shapes move. Every doc type's facts and rules stay in `corpus`'s
+  built-in declarations, and doc types without an owning domain stay
+  wholly in `corpus`. PP-1007 and PP-1008 move the rest.
 - **Changing what frozen migrations do.** `m0007` and the others keep
   compiling against built-in keys with unchanged behaviour.
 
@@ -267,7 +406,7 @@ and this plan touch the same wire types and fixtures. Either may land first.
 | Touch point | PP-996 | PP-994 | Rule whichever lands second follows |
 |---|---|---|---|
 | `IndexEntry` | adds `id: Option<String>`, the document's own frontmatter `id` | adds `set_id: Option<String>` and `set_relative_path: Option<String>` | Both fields coexist. A member's `id` is its own `id` (for PP-998); `setId` is the set's. Add the second story's fields to every `IndexEntry` literal (`test_support.rs`, `clusters.rs:242`, `indexer.rs` tests, `tests/parity.rs:184`). |
-| `SearchResultRow` | adds `id` and `relPath` | adds `setId` and `setRelativePath`, and sets a member row's `slug` to the set's slug | The row's **link keys** (`slug`, and `id` once PP-996 is in) are the set's for a member row: `slug` is the set's slug and `id` is the set's `setId`. `relPath` stays the member's own. The projection reads these through one function, `link_keys_of(entry)`, which PP-994 introduces in Phase 7. If PP-996 lands second, it fills `id` from `link_keys_of` and not from `entry.id`. If PP-994 lands second, Phase 7 routes PP-996's `id` through `link_keys_of`. Either way PP-996's `libraryLink` opens the set for a member row with no frontend change. |
+| `SearchResultRow` | adds `id` and `relPath` | adds `setId` and `setRelativePath`, and sets a member row's `slug` to the set's slug | The row's **link keys** (`slug`, and `id` once PP-996 is in) are the set's for a member row: `slug` is the set's slug and `id` is the set's `setId`. `relPath` stays the member's own. The projection reads these through one function, `link_keys_of(entry)`, which PP-994 introduces in Phase 9. If PP-996 lands second, it fills `id` from `link_keys_of` and not from `entry.id`. If PP-994 lands second, Phase 9 routes PP-996's `id` through `link_keys_of`. Either way PP-996's `libraryLink` opens the set for a member row with no frontend change. |
 | Fixture `id`s | adds `id: "<dir>"` to the four topic manifests and two inventories | needs the same `id`s (Phase 2) | Whichever lands first adds them; the second finds them present. |
 | Activity | looks a row's entry up in the type listing by `relPath` | keeps a set's row on the root's path | Compatible in both orders, as the work item requires. |
 | Related items | links every item through `libraryLink(entry)` | adds member documents as related items | With PP-996 in, a related item naming a member links by the member's own `id` or stem. That link does not open the set until PP-998 extends the builder to members. This is an accepted interim gap, since frontend handling of members is PP-998's. Record it in PP-998 when this plan lands. |
@@ -280,13 +419,19 @@ and this plan touch the same wire types and fixtures. Either may land first.
   1. Phase 2: the independent configuration guard.
   2. Phases 3–5: the data-driven refactor, each phase pure refactor
      pinned by characterisation tests.
-  3. Phase 6: the set declaration and shape matching, which are pure
-     domain code.
-  4. Phase 7: the consumer rules, introduced before any member exists on
+  3. Phase 6: the declarations roles in the crate-rule lint, the two
+     declarations crates and the assembly, and the composition roots
+     taking the assembled catalogue, a pure refactor.
+  4. Phase 7: the shape types and the catalogue's shapes in `corpus`, the
+     owners' shapes in their declarations crates, and the doc types
+     response.
+  5. Phase 8: the corpus resolver reads sets through their shape. It
+     needs only Phase 7 and is independent of Phases 9–12.
+  6. Phase 9: the consumer rules, introduced before any member exists on
      disk so they can't regress.
-  5. Phase 8: member enumeration.
-  6. Phase 9: the member API.
-  7. Phase 10: live update, ending with the end-to-end genericity and
+  7. Phase 10: member enumeration.
+  8. Phase 11: the member API.
+  9. Phase 12: live update, ending with the end-to-end genericity and
      source-boundary acceptance tests.
 
 **TDD.** Every behaviour phase starts with failing tests at the API or
@@ -299,8 +444,8 @@ against the current code; they must pass before and after.
 
 ### Overview
 
-Write the two ADRs and the member API specification, have the author
-accept the ADRs, and record the decisions line. No code changes.
+Write the four ADRs and the member API specification, have the author
+accept them, and record the decisions line. No code changes.
 
 ### Changes Required:
 
@@ -308,77 +453,50 @@ accept the ADRs, and record the decisions line. No code changes.
 
 **File**: `meta/decisions/ADR-0077-generic-set-model-for-directory-doc-types.md`
 (through `/create-adr`, status `proposed`, `parent: "work-item:PP-994"`,
-`relates_to: ["adr:ADR-0067", "adr:ADR-0078"]`)
+`relates_to: ["adr:ADR-0067", "adr:ADR-0068", "adr:ADR-0069", "adr:ADR-0078", "adr:ADR-0079"]`)
 
-The ADR records these decisions:
+The ADR records the domain decision only, and is accepted. Declaration
+and catalogue mechanics are in ADR-0078, where declarations live in
+ADR-0080, the overlap refusal in ADR-0079, and the visualiser's behaviour
+in the specification.
 
-- **What a set is.** A set is a root document plus members. A member is a
-  file fitting a member slot of the set's shape, either a document (any
-  markdown file, whatever its frontmatter state) or an asset.
-- **The shape.** It is the root filename plus member slots. A slot is a
-  `/`-separated, set-relative pattern whose segments are literal names or
-  `*`, with an optional extension. `*` matches one visible name, never one
-  starting with a dot, and there is no recursive wildcard.
-- **Extension case.** A slot's file extension, in its final segment only,
-  matches regardless of case, so `screenshots/a.PNG` fits
-  `screenshots/*.png`. Directory segments and the rest of the name match
-  case-sensitively, so a slot's paths mean exactly what they say. The
-  ADR records three reasons:
-  - macOS's default APFS is case-insensitive but case-preserving. A
-    listing returns the stored name (`a.PNG`), so a case-sensitive match
-    would silently skip such files there too.
-  - Cameras, phone exports and Windows tools often write uppercase
-    extensions.
-  - The rule gives the same result on every platform. On a
-    case-sensitive volume, `a.png` and `a.PNG` become two separate
-    members, which is harmless.
-- **The declared shapes:**
-  - topic research: `manifest.md` with `brief.md`, `outline.md`,
-    `synthesis.md`, `findings/*.md`, `findings/*.levels/*.md` and
-    `reports/*.md`. These follow the research crate's reader rules.
-  - design inventories: `inventory.md` with the asset slot
-    `screenshots/*.png`.
-- **Assets are members** with a size and an mtime. They are not search
-  results and have no URL yet.
-- **The two presentations.** Set page (topic research) and entry point
-  (design inventories). The presentation is declared and is
-  behaviour-free until PP-1001 and PP-134.
-- **Exclusions.** Dot-prefixed paths inside a set directory and at a set
-  doc root are excluded, and files that fit no slot are ignored. Non-set
-  doc types are unaffected.
-- **A directory with no root is not a set.** Deleting the root removes
-  every member from the index.
-- **Overlapping doc roots are refused,** with both path keys named, by
-  the shared resolver, so every command that reads doc roots refuses,
-  `migrate` included. The visualiser also refuses roots that overlap
-  once symlinks are resolved.
-- **The consumer rules:**
-  - roots only in listings, counts, facets and clusters;
-  - members in search on their own keys;
-  - member linkage attributed to the member;
-  - members kept out of inferred items;
-  - one activity row per set, its action from the root;
-  - the latest time includes members, assets and observed removals.
-- **Removal observation is per process and best effort.** The ledger of
-  observed removals lives in memory, so after a restart a set's latest
-  time falls back to its files' mtimes.
-- **Symlinks.** Enumeration does not descend symlinked directories, and
-  a member that resolves outside the configured doc roots is dropped,
-  matching the containment rule `FileDriver::read` already applies.
-- **The set's `id`** is the root's frontmatter `id`, or else the set
-  directory name. It is carried as `setId` on index entries, search rows,
-  related items and the member API, and not on activity rows or change
-  events.
-- **The member API** is `GET /api/sets/{type}/{setId}`. The ADR names
-  `meta/specs/2026-11-24-set-member-api.md` for the full shape.
-- **The contract with the research crate's topic layout and the
-  inventory-design skill's layout.**
+- **What a set is.** A directory doc type's entry is a document set: a
+  root document plus members, where a member is a file fitting a member
+  slot of the doc type's declared shape. A slot admits documents (any
+  markdown file, whatever its frontmatter state) or assets.
+- **No root, no set.** A directory without its root file is not a set.
+  Removing the root removes the set.
+- **Outside the shape is outside the set.** Dot-prefixed paths and files
+  that fit no slot are not part of any set.
+- **Identity.** A set's `id` is its root's frontmatter `id`, or else its
+  directory's name.
+- **The owner declares the shape.** The domain that writes a set declares
+  its shape from its own layout and registers it with the corpus, so the
+  shape and the writer cannot drift apart.
+- **The shape is the contract.** Every reader other than the owner
+  decides membership through the shape. The visualiser and the corpus
+  CLI's resolver (ADR-0068) both conform in this story.
+- **The dot prefix is the owner's boundary.** Dot-prefixed files and
+  directories in a set directory (quarantined files, run ledgers,
+  temporary set directories) belong to the owner, which keeps reading
+  them, and are invisible to every other reader. Owners do not declare
+  them.
+- **Consequences recorded:** the resolver stops resolving rootless and
+  dot-prefixed directories, and resolves a path only through the set
+  directory, its root, a member or a directory that can hold members, so
+  some inputs that resolve today stop resolving; and the owners of
+  `research` and `design` gain a dependency on `corpus`, which ADR-0080
+  places on their declarations crates rather than their domain crates.
+- **Standalone.** The ADR names no work item, plan or research document
+  in its body or references.
+- **Rejected alternatives:** each reader walking the directory its own
+  way, and a deny-list that admits every file not excluded.
 
 #### 2. ADR-0078: Doc types as declared data
 
 **File**: `meta/decisions/ADR-0078-doc-types-as-declared-data.md`
 (through `/create-adr`, status `proposed`, `parent: "work-item:PP-994"`,
-`relates_to: ["adr:ADR-0067", "adr:ADR-0069", "adr:ADR-0077"]`)
+`relates_to: ["adr:ADR-0067", "adr:ADR-0069", "adr:ADR-0077", "adr:ADR-0080"]`)
 
 The ADR records these decisions:
 
@@ -387,7 +505,36 @@ The ADR records these decisions:
   declared rules (`SlugRule`, `ClusterKeyRule`, `LinkageIdRule`, lifecycle
   rank, `CompletenessMark`, library phase, facets), plus a `Listing`
   rule: flat (drafts subdirectory, filename filter) or set. A set listing
-  is the single home of the type's `SetDeclaration`.
+  carries the type's presentation only.
+- **Set shapes.**
+  - A shape is a root filename plus member slots. A slot is a
+    `/`-separated, set-relative pattern whose segments are literal names
+    or `*`, with an optional extension. `*` matches one name that does
+    not start with a dot, and there is no recursive wildcard.
+  - A slot's extension, in its final segment only, matches regardless of
+    case. The ADR records three reasons: APFS is case-insensitive but
+    case-preserving; cameras, phone exports and Windows tools write
+    uppercase extensions; and the rule gives the same result on every
+    platform.
+  - The shape types live in `corpus`. The domain that writes a set
+    declares its shape in them, from its own layout: topic research
+    (owner research) is `manifest.md` with `brief.md`, `outline.md`,
+    `synthesis.md`, `findings/*.md`, `findings/*.levels/*.md` and
+    `reports/*.md`, following the research domain's reader rules; design
+    inventories (owner design) are `inventory.md` with the asset slot
+    `screenshots/*.png`.
+  - The presentation is a set page (topic research) or an entry point
+    (design inventories). It is declared data and changes nothing until
+    PP-1001 and PP-134 read it.
+- **Assembling the catalogue.** The corpus defines what a shape is and
+  holds the built-in doc type declarations. Each owner declares its
+  shape in its declarations crate (ADR-0080), and the declarations
+  assembly builds the complete catalogue from the built-in declarations
+  and every owner's shape. Building it refuses a set type with no shape,
+  a shape for a type that is not a set, a type given two shapes and an
+  unparseable slot pattern, so a missing or malformed shape fails at
+  startup. There is no separate shape registry. Tests build a catalogue
+  the same way, with their own declarations and shapes.
 - **Names.** The declaration is `corpus::DocType`. The server's existing
   doc types response view is renamed `DocTypeView` so the two never
   meet under one name. Each fact keeps one name from Phase 3 onward:
@@ -395,20 +542,21 @@ The ADR records these decisions:
 - **Identity.** `DocTypeKey` is a `Copy` handle to a `&'static DocType`,
   with equality and hashing by wire token, and a pointer-equality fast
   path.
-- **The catalogue.** `DocTypeCatalogue` is ordered. Its built-in instance
-  is the single source of today's types. Consumers that need runtime
-  lookup (wire token, linkage name) take a catalogue; the built-in one is
-  the default. Building a catalogue refuses duplicate wire tokens,
-  linkage names and config path keys, and parses every slot pattern, so
-  a bad declaration fails at construction and never at first use.
+- **The catalogue.** `DocTypeCatalogue` is ordered. The assembled
+  catalogue is the single source of today's types. Consumers that need
+  runtime lookup (wire token, linkage name) are given a catalogue, and
+  tests substitute their own. Building a catalogue also refuses
+  duplicate wire tokens, linkage names and config path keys, so a bad
+  declaration fails at construction and never at first use.
 - **Built-in declarations name every field.** A struct-update base
   (`DocType::FLAT_DEFAULTS`) exists for test-only declarations; the
   built-in module never uses it, so adding a built-in type forces a
   choice for every rule.
 - **No production code names a built-in doc type** outside the built-in
   declaration module, apart from crates that own one type's domain (the
-  research crate's topic-set commands and `corpus-cli`'s ADR commands).
-  A boundary test enforces this.
+  research crate's topic-set commands and `corpus-cli`'s ADR commands)
+  and the declarations crates and assembly that pair a set type with its
+  shape. A boundary test enforces this.
 - **Accepted exception: typed linkage references.** `TypedRef`'s
   `work-item:`, `plan:`, `adr:` and `pr:` forms, and the work-item slug
   and identity helpers, encode the linkage grammar of ADR-0034, not
@@ -418,16 +566,80 @@ The ADR records these decisions:
   their roots through `config::paths::doc_type_dirs`; a test-only type's
   root is supplied directly on the server's `Config`.
 - **Out of scope.** User-declared types and a data-driven frontend.
-- **The `config` path-key table stays separate,** under ADR-0069. The
-  single-source test is the guard.
+- **Configuration's doc type table** is derived from the same
+  declarations under ADR-0080; until a doc type moves, `config` keeps its
+  entry and the single-source test is the guard.
 - **Rejected alternatives:**
   - per-type `const fn` methods, which can't support a test-only type;
-  - an injected server-only `SetDeclarations` table, which splits doc-type
-    facts across two places;
+  - an injected server-only `SetDeclarations` table, which leaves the
+    corpus resolver with its own rules;
   - a feature-gated test variant, which leaks into 11 crates through
     feature unification.
 
-#### 3. Member API specification
+#### 3. ADR-0079: Doc roots may not overlap
+
+**File**: `meta/decisions/ADR-0079-doc-roots-may-not-overlap.md`
+(status `proposed`, `parent: "work-item:PP-994"`,
+`relates_to: ["adr:ADR-0077", "adr:ADR-0078"]`)
+
+The ADR records these decisions:
+
+- **The refusal.** A configuration in which one doc root equals or
+  contains another is refused, naming both `paths.*` keys.
+- **Where.** In `config::paths::doc_type_dirs`, so every command that
+  resolves the full set of roots refuses: the visualiser,
+  `accelerator config path --doc-types`, the corpus and work commands,
+  and `migrate`, including `--list`, before any migration runs. A
+  migration that writes an overlapping configuration is not recorded as
+  applied.
+- **Comparison** by normalised path components, with no filesystem
+  access. The visualiser checks its canonical roots again, so a symlink
+  alias is refused too.
+- **Single-key lookups check too.** A lookup of one doc type's root
+  resolves the full set and refuses the same way; lookups of path keys
+  that are not doc roots are unaffected.
+- **Correction stays possible.** Commands that edit configuration never
+  resolve doc roots, so an overlap can always be fixed.
+- **Rejected alternatives:** longest-match attribution, and refusing
+  only a set root nested inside another root.
+
+#### 4. ADR-0080: Domain declarations crates
+
+**File**: `meta/decisions/ADR-0080-domain-declarations-crates.md`
+(through `/create-adr`, status `proposed`, `parent: "work-item:PP-994"`,
+`relates_to: ["adr:ADR-0069", "adr:ADR-0077", "adr:ADR-0078"]`)
+
+The ADR records these decisions:
+
+- **A declarations role.** A context's declarations crate,
+  `<context>-declarations`, holds what the context declares to
+  cross-cutting platform crates: its layout and set shapes now, its
+  configuration later. It holds declared data and no behaviour, and
+  depends only on `kernel` and platform domain crates. Its own context's
+  crates, composition roots and the launcher may depend on it.
+- **A declarations assembly.** One crate, `declarations`, combines every
+  context's declarations into the complete registrations each platform
+  crate needs, such as the complete doc type catalogue. It depends on
+  platform domain crates and declarations crates, and only composition
+  roots and the launcher depend on it. It is the single place a new
+  declarations crate is added.
+- **Domains depend on their declarations.** A domain crate takes the
+  facts it shares with platform crates, such as its layout, from its own
+  context's declarations crate, so the two cannot drift.
+- **ADR-0069.** The role table gains both roles, and the launcher rule is
+  partially superseded: the launcher may also depend on declarations
+  crates and the assembly. ADR-0069 stays `accepted` and unedited, after
+  the precedent it set for ADR-0054.
+- **Enforcement.** The crate-rule lint learns both roles.
+- **First crates.** `research-declarations` and `design-declarations`.
+  Domains without one keep their declarations in the platform crates.
+- **Rejected alternatives:** owners' domain crates holding declarations
+  (every root depends on every owning domain, and the launcher cannot);
+  platform crates holding every declaration (copies of product facts);
+  declarations crates with no assembly (every root must register every
+  domain).
+
+#### 5. Member API specification
 
 **File**: `meta/specs/2026-11-24-set-member-api.md`, with the same
 frontmatter shape as `meta/specs/2026-04-17-meta-visualisation-design.md`.
@@ -504,36 +716,54 @@ The specification contains:
   - the derived set response is a sibling resource at
     `GET /api/sets/{type}/{setId}/derived` (PP-1002), and is unregistered
     until then.
+- **Members in other responses.** The visualiser rules that follow from
+  the set model:
+  - roots only in the type listing, counts, facets and clusters;
+  - member documents in search on their own title, stem and first
+    paragraph, with the set's slug and `setId` as link keys and their own
+    `setRelativePath`;
+  - a member's declared linkage attributed to the member, and members
+    kept out of inferred items;
+  - one activity row per set, keyed on the root path, its action from
+    the root and its time from the latest change;
+  - the latest time includes members, assets and removals observed in
+    memory, falling back to mtimes after a restart;
+  - `/api/docs/{path}` not-found for assets, unslotted files, members of
+    a rootless directory, and directories;
+  - no descent into symlinked directories, and members resolving outside
+    the doc roots dropped.
 - **The doc types response field.** `set`:
   `{ root, documentSlots: string[], assetSlots: string[], presentation: "set-page" | "entry-point" } | null`.
 
-#### 4. Acceptance gate
+#### 6. Acceptance gate
 
-The author runs `/review-adr` on ADR-0077 and ADR-0078 until both are
-`accepted`. Then append one dated decisions line to PP-994's Drafting
-Notes, through `/update-work-item` or a direct edit by the author:
+The author runs `/review-adr` on ADR-0077, ADR-0078, ADR-0079 and
+ADR-0080 until all four are `accepted` (ADR-0077 already is). Then append one dated decisions line to
+PP-994's Drafting Notes, through `/update-work-item` or a direct edit by
+the author:
 
-> - Decisions recorded, YYYY-MM-DD: ADR-0077 (the set model) and ADR-0078
->   (doc types as declared data) are accepted; the member API shape is in
->   `meta/specs/2026-11-24-set-member-api.md`.
+> - Decisions recorded, YYYY-MM-DD: ADR-0077 (the set model), ADR-0078
+>   (doc types as declared data), ADR-0079 (doc roots may not overlap)
+>   and ADR-0080 (domain declarations crates) are accepted; the member
+>   API shape is in `meta/specs/2026-11-24-set-member-api.md`.
 
-**Phases 2–10 do not start until this line exists.**
+**Phases 2–12 do not start until this line exists.**
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Each ADR's frontmatter is valid:
-      `accelerator corpus frontmatter validate --file <path>` for both
-      ADRs.
-- [ ] `grep -n '^status: "accepted"' meta/decisions/ADR-0077-*.md meta/decisions/ADR-0078-*.md`
-      prints two lines.
+- [x] Each ADR's frontmatter is valid:
+      `accelerator corpus frontmatter validate --file <path>` for all
+      four ADRs.
+- [x] `grep -n '^status: "accepted"' meta/decisions/ADR-0077-*.md meta/decisions/ADR-0078-*.md meta/decisions/ADR-0079-*.md meta/decisions/ADR-0080-*.md`
+      prints four lines.
 
 #### Manual Verification:
 
-- [ ] The author has accepted both ADRs through `/review-adr`.
-- [ ] PP-994's Drafting Notes carry the decisions line, naming ADR-0077,
-      ADR-0078 and the spec.
+- [x] The author has accepted all four ADRs through `/review-adr`.
+- [x] PP-994's Drafting Notes carry the decisions line, naming ADR-0077,
+      ADR-0078, ADR-0079, ADR-0080 and the spec.
 
 ---
 
@@ -541,8 +771,8 @@ Notes, through `/update-work-item` or a direct edit by the author:
 
 ### Overview
 
-This phase is independent of the set model and mergeable before
-everything else in stage two. The refusal lives in the shared resolver,
+This phase implements ADR-0079. It is independent of the set model and
+mergeable before everything else in stage two. The refusal lives in the shared resolver,
 so every CLI that reads doc roots refuses an overlapping configuration,
 and migrations stop rather than run over no directories.
 
@@ -625,6 +855,32 @@ and migrations stop rather than run over no directories.
 
 - `config path --doc-types` over an overlapping config exits non-zero
   and names both keys.
+- `config path plans` (one doc type's key) over an overlapping config
+  exits non-zero and names both keys.
+- `config path tmp` (a path key that is not a doc root) over an
+  overlapping config still resolves.
+- `config set paths.research_codebase meta/research/codebase` over an
+  overlapping config succeeds, and a following `config path --doc-types`
+  exits 0.
+
+**File**: `cli/config/src/paths.rs` (inline tests)
+
+- `resolve_with_fallback` for `research_topics` over an overlapping
+  config returns `ConfigError::OverlappingDocRoots`.
+- With a `level` given, the overlap check reads the full set at that same
+  level.
+- `resolve_with_fallback` for `tmp` over an overlapping config returns
+  the configured path.
+
+**File**: `cli/research-cli/tests/topic_outstanding.rs`
+
+- A `topic outstanding` run over an overlapping config exits non-zero
+  with the refusal, before reading any set.
+
+**File**: `cli/corpus-cli/src/config.rs` (inline tests)
+
+- The single-key lookup at `config.rs:59` over an overlapping config
+  returns `ConfigError::OverlappingDocRoots`.
 
 #### 2. The refusal
 
@@ -676,10 +932,19 @@ rest, and `LocalFileDriver` is built with that same resolved root, so
 the overlap check, the set serving decision and the driver's
 containment checks all use one representation.
 
+**Single-key lookups.** `resolve_with_fallback` checks whether
+`path_key` names a doc type in `DOC_TYPES`. If it does, it resolves the
+full set through `doc_type_dirs` at the same `level`, which refuses an
+overlap, and returns the requested root from that set. Any other path key
+resolves exactly as today.
+
 #### 3. Callers
 
 - **`corpus-cli` and `work-cli`** already propagate the resolver's
   error with `?`; they gain only the tests above.
+- **`research-cli` and the launcher's `config path <key>`** already
+  propagate `resolve_with_fallback`'s error; they gain only the tests
+  above.
 - **The migrate adapter.**
   - `MigrationContext::doc_type_dirs` becomes fallible, returning
     `Result<Vec<DocTypeDir>, MigrationError>`. `FileMigrationContext`
@@ -719,7 +984,8 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
 
 - configurations whose doc roots equal or contain one another are now
   refused, naming both keys, by the visualiser, `accelerator config
-  path`, `corpus` commands and `work` commands;
+  path` (for the doc types and for any one doc type's key), `corpus`,
+  `work` and `research` commands;
 - `accelerator migrate` and `accelerator migrate --list` now refuse such
   a configuration before applying or listing any migration.
 
@@ -746,7 +1012,7 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
 - [ ] `mise run public-api:update`, with the `config` and `migrate`
       snapshot diffs reviewed.
 - [ ] Caller tests pass:
-      `mise run test:unit:cli --filter 'package(config) | package(accelerator-corpus) | package(accelerator-work) | package(migrate-adapters) | package(migrate) | package(accelerator-migrate) | package(accelerator)'`
+      `mise run test:unit:cli --filter 'package(config) | package(accelerator-corpus) | package(accelerator-work) | package(migrate-adapters) | package(migrate) | package(accelerator-migrate) | package(accelerator-research) | package(accelerator)'`
 - [ ] Visualiser tests pass: `mise run test:unit:visualiser` and
       `mise run test:integration:visualiser`, including `api_smoke`.
 - [ ] e2e passes: `mise run test:e2e:visualiser`
@@ -761,6 +1027,11 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
       frontmatter validate` and `accelerator migrate` each print the
       refusal naming both keys, and `migrate` records nothing as
       applied.
+- [ ] In the same repo, `accelerator config path research_topics` and
+      `/research-topic` print the refusal, `accelerator config path tmp`
+      still prints a path, and `accelerator config set
+      paths.research_codebase meta/research/codebase` succeeds and clears
+      the refusal.
 
 ---
 
@@ -934,8 +1205,9 @@ pub listing: Listing,
   `facets_for`.
 - **`Listing`:** `Flat { drafts_subdirectory: Option<&'static str>,
   filename_filter: FilenameFilter }` or `Nested { root }`.
-  `nested_root_filename` folds into `Listing::Nested`. Phase 6 replaces
-  `Nested { root }` with the set declaration.
+  `nested_root_filename` folds into `Listing::Nested`. Phase 7 replaces
+  `Nested { root }` with `Set { presentation }` and moves the root
+  filename into the owner's declared shape.
 
 #### 3. Consumers read the rules
 
@@ -1057,20 +1329,237 @@ test can then declare a doc type of its own.
 
 ---
 
-## Phase 6: Set declarations and shapes
+## Phase 6: Declarations crates and the assembled catalogue
 
 ### Overview
 
-The domain model for sets, in `corpus`: declarations, slot patterns, and
-classification of a set-relative path. Topic research and design
-inventories declare their shapes. The doc types response exposes the
-declarations. Nothing indexes members yet.
+This phase implements ADR-0080 with no change in behaviour. The
+crate-rule lint learns the **declarations** and **declarations assembly**
+roles. `research-declarations` and `design-declarations` hold their
+contexts' layout constants, and `research` takes its topic layout from
+its declarations crate. The `declarations` assembly exposes the complete
+doc type catalogue, and every composition root that builds a catalogue
+takes it from there. Until Phase 7 the assembled catalogue is the
+built-in one.
 
 ### Changes Required:
 
 #### 1. Failing tests first
 
-**File**: `cli/corpus/src/set/shape.rs` (inline tests)
+**File**: `tests/unit/tasks/test_crate_dependencies.py`
+
+- `test_a_declarations_crate_reaches_only_kernel_and_platform_domains`,
+  parametrised: `kernel` and `corpus` are permitted; a product domain, a
+  shared domain, an adapter, a technical library, another declarations
+  crate and the assembly each break the declarations rule.
+- `test_a_declarations_crate_needs_a_context`: a declarations crate with
+  no `context` is malformed.
+- `test_a_declarations_crate_is_reached_only_from_its_context_roots_and_the_assembly`,
+  parametrised: its own context's domain and adapter, the assembly, a
+  composition root and the launcher are permitted; another context's
+  domain and adapter, a platform domain and a technical library are not.
+- `test_the_assembly_reaches_only_platform_domains_and_declarations_crates`:
+  `corpus` and `research-declarations` are permitted; a product domain,
+  an adapter, a technical library and a composition root are not.
+- `test_the_assembly_carries_no_context`: an assembly declaring a
+  `context` is malformed.
+- `test_only_composition_roots_and_the_launcher_depend_on_the_assembly`:
+  a domain, an adapter and a declarations crate depending on it each
+  break the rule.
+- `_EXPECTED_DECLARATIONS` gains
+  `"research-declarations": ("declarations", "research", None, None)`,
+  `"design-declarations": ("declarations", "design", None, None)` and
+  `"declarations": ("declarations-assembly", None, None, None)`, so
+  `test_the_shipped_declarations_match_the_expected_table` is red until
+  the crates exist.
+
+**File**: `tests/integration/pup/test_import_rule.py`
+
+- A probe pair for each new crate: a violation (`research-declarations`
+  importing `research`, `design-declarations` importing `design`, the
+  assembly importing `corpus_adapters`) and a compliant control importing
+  something its permit list admits (`corpus`, and
+  `research_declarations` for the assembly).
+
+**File**: `cli/declarations/src/lib.rs` (inline tests)
+
+- `catalogue()` builds, and its doc types equal the corpus's built-in
+  declarations in order.
+
+**File**: `cli/research-declarations/src/topic.rs` (inline tests)
+
+- `MANIFEST`, `BRIEF`, `OUTLINE`, `SYNTHESIS`, `FINDINGS`, `REPORTS` and
+  `LEVELS_SUFFIX` hold today's values. The research crate's existing
+  layout tests keep passing through the re-export, unchanged.
+
+#### 2. The lint
+
+**File**: `tasks/lint/crate_dependencies.py`
+
+- `Role` gains `DECLARATIONS = "declarations"`, which carries a context
+  and no kind (the kind is the context domain's), and
+  `DECLARATIONS_ASSEMBLY = "declarations-assembly"`, which carries none.
+- `broken_rules`:
+  - a declarations crate may depend on `kernel` and platform domain
+    crates only;
+  - the assembly may depend on platform domain crates and declarations
+    crates only;
+  - a declarations crate may be depended on by its own context's crates,
+    the assembly, composition roots and the launcher;
+  - the assembly may be depended on by composition roots and the
+    launcher only;
+  - a domain crate may depend on its own context's declarations crate,
+    alongside `kernel` and upstream domains;
+  - `_launcher_rules` admits declarations crates and the assembly.
+- `Rule` gains `DECLARATIONS`, `DECLARATIONS_REACH`, `ASSEMBLY` and
+  `ASSEMBLY_REACH`, each worded as the rule it states, and `LAUNCHER`'s
+  wording adds declarations crates and the assembly, recording ADR-0080's
+  partial supersession of ADR-0069's launcher rule.
+
+#### 3. The crates
+
+Each follows `tasks/README.md`'s "Registering a library crate":
+
+1. **Workspace membership.** Add `research-declarations`,
+   `design-declarations` and `declarations` to `[workspace].members` in
+   `cli/Cargo.toml`, and sync the lockfile with `cargo metadata`.
+2. **Inherited manifest fields** and `[lints] workspace = true`.
+3. **A role declaration:** `role = "declarations"` with `context =
+   "research"` or `"design"`, and `role = "declarations-assembly"`; the
+   rows above in `_EXPECTED_DECLARATIONS`.
+4. **A `cli/pup.ron` rule** for each:
+   `research_declarations_imports_only_permitted` and
+   `design_declarations_imports_only_permitted` allow `std`/`core`/
+   `alloc`, `kernel::Error`, `corpus` and `crate`;
+   `declarations_imports_only_permitted` allows those plus
+   `research_declarations` and `design_declarations`.
+   `research_domain_imports_only_permitted` gains
+   `^research_declarations(::|$)`.
+5. **The command-runner alternation** in
+   `only_the_consent_policy_names_the_command_runner` gains the three
+   crate names.
+6. **A probe pair** each, above.
+7. **A classification in `tasks/public_api.py`.** All three join
+   `_PINNED_CRATES`: a declarations crate's surface is the contract its
+   context's domain and the assembly build against, and the assembly's
+   is the one every composition root builds against. Each gets
+   `tests/fixtures/public-api.txt`.
+
+**`cli/research-declarations`**, depending on `kernel` and `corpus`:
+
+- `src/topic.rs` takes `MANIFEST`, `BRIEF`, `OUTLINE`, `SYNTHESIS`,
+  `FINDINGS` and `REPORTS` from `cli/research/src/topic/layout.rs:10-15`,
+  and `LEVELS_SUFFIX` (`".levels"`), today private to
+  `research-adapters/src/topic.rs:58` and spelled as a literal in
+  `research`'s `finding_path.rs` and `note_ref.rs`. The shape needs the
+  suffix, so it moves here; nothing else moves.
+- `research` depends on `research-declarations`. `research::topic::layout`
+  re-exports the constants, so its path builders and
+  `research-adapters`' call sites keep compiling.
+  `finding_path.rs`, `note_ref.rs` and `research-adapters`' private
+  constant use `LEVELS_SUFFIX`.
+- `research` gains no dependency on `corpus`.
+
+**`cli/design-declarations`**, depending on `kernel` and `corpus`:
+
+- `src/inventory.rs` holds `INVENTORY = "inventory.md"` and
+  `SCREENSHOTS = "screenshots"`.
+- Nothing in `design`, `design-adapters` or `design-cli` names the
+  inventory layout in production code today, so `design` does not
+  depend on `design-declarations` yet.
+
+**`cli/declarations`**, the assembly, depending on `corpus`,
+`research-declarations` and `design-declarations`:
+
+```rust
+pub fn catalogue() -> Result<Arc<DocTypeCatalogue>, CatalogueError>;
+```
+
+It returns a `Result` because building a catalogue is where ADR-0078's
+refusals happen, and the workspace lints warn on `expect` and `panic`;
+each root surfaces the error at startup as it does a configuration
+error. Its own test above proves the shipped declarations build. In this
+phase it wraps `DocTypeCatalogue::built_in()`.
+
+#### 4. Composition roots take the assembled catalogue
+
+The built-in catalogue is read today by `corpus-adapters`
+(`doc_type.rs:17`, `resolve.rs:41`), `migrate-adapters` (`context.rs:88`),
+`m0007` (`m0007/mod.rs:72`) and the visualiser server. Adapters may not
+depend on the assembly, so each takes the catalogue from its root:
+
+- **Visualiser server.** Depends on `declarations`. `Config.doc_types`
+  becomes `#[serde(skip)] Option<Arc<DocTypeCatalogue>>`; compose takes
+  `declarations::catalogue()?` when it is `None`, and hands the one `Arc`
+  to `LocalFileDriver`, the indexer, the watcher and `AppState`.
+  Handlers read `state.doc_types`. Tests set `Some` through
+  `test_support::catalogue_with`.
+- **`corpus-cli`.** Depends on `declarations`. `main` builds the
+  catalogue once before dispatch; a `CatalogueError` exits 1 with its
+  message. `table_from_paths` and `resolve_document` take
+  `&DocTypeCatalogue`.
+- **`research-cli`.** Depends on `declarations`, and passes the
+  catalogue to `resolve_document` from `topic_set::resolve_set`.
+  `research-adapters` is unchanged.
+- **`migrate-cli`.** Depends on `declarations`, and builds
+  `FileMigrationContext` with the catalogue. `MigrationContext` gains
+  `doc_types() -> &DocTypeCatalogue`, which `linkage_table` and `m0007`
+  read in place of the built-in lookup. `m0007` changes mechanically;
+  what it does is unchanged. The test doubles in `migrate` change to
+  match.
+- `work-cli`, `shortcut-cli`, the launcher and the other roots build no
+  catalogue and gain no dependency.
+- Tests that need the complete catalogue outside a root
+  (`corpus-adapters/tests/common/mod.rs`, `doc_type_single_source.rs`)
+  take it from `declarations` as a dev-dependency. The lint judges
+  normal and build dependencies only.
+
+#### 5. Boundary test
+
+`doc_type_declarations_are_single_source.rs` allows
+`cli/*-declarations/src/**` and `cli/declarations/src/**`, under
+ADR-0078's exception for the declarations crates and assembly that pair
+a set type with its shape.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Lint tests pass:
+      `mise run test:unit:tasks --filter 'crate_dependencies'`
+- [ ] `mise run lint:crate-dependencies:check`
+- [ ] `mise run test:integration:pup --filter 'declarations'` and
+      `mise run pup:check`
+- [ ] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
+      `mise run test:integration:visualiser`
+- [ ] `mise run public-api:update`, with the new `research-declarations`,
+      `design-declarations` and `declarations` snapshots and the
+      `research` and `migrate` diffs reviewed.
+- [ ] `mise run`
+
+#### Manual Verification:
+
+- [ ] None beyond review: no behaviour changes.
+
+---
+
+## Phase 7: Set shapes on the catalogue
+
+### Overview
+
+The domain model for sets, in `corpus::set`: shapes, slot patterns and
+classification of a set-relative path. The owners' declarations crates
+declare the two shapes from their layout constants, and the assembly
+builds the catalogue from the corpus's built-in declarations and those
+shapes. The doc types response exposes them. Nothing indexes members
+yet, and the corpus resolver is unchanged until Phase 8.
+
+### Changes Required:
+
+#### 1. Failing tests first
+
+**File**: `cli/corpus/src/set/shape.rs` (inline tests, against test
+shapes built with `SetMatcher::new`)
 
 - **`SlotPattern::parse`:**
   - accepts `brief.md`, `findings/*.md`, `findings/*.levels/*.md` and
@@ -1080,34 +1569,80 @@ declarations. Nothing indexes members yet.
   - matches `01-a`, `Some File (v2)` and `01-a.levels`;
   - never matches `.x`, `.01-x-web.md.invalid` or `.conduct-run.json`;
   - never spans `/`.
-- **Topic-research shape:**
-  - `classify("findings/01-a.levels/2-1.md") == Some(Document)`;
-  - `classify("findings/sub/x.md") == None`;
-  - `classify("notes.txt") == None`;
-  - `classify("manifest.md") == Some(Root)`.
-- **Inventory shape:**
-  - `classify("screenshots/a.png") == Some(Asset)`;
-  - `prototype-full/x.html`, `assets/y.svg`, `notes.txt` and
-    `screenshots/sub/a.png` are all `None`.
+- **Classification,** for a test shape with root `index.md`, document
+  slots `docs/*.md` and `docs/*.parts/*.md`, and asset slot `img/*.png`:
+  - `classify("index.md") == Some(Root)`;
+  - `classify("docs/a.parts/1.md") == Some(Member(Document))`;
+  - `classify("img/a.png") == Some(Member(Asset))`;
+  - `docs/sub/x.md`, `notes.txt`, `img/sub/a.png` and `.hidden.md` are
+    `None`.
 - **Extension case.** Write these red tests first:
-  - `screenshots/a.PNG` and `screenshots/a.Png` are `Some(Asset)`;
-  - `findings/01-a.MD` is `Some(Document)`;
+  - `img/a.PNG` and `img/a.Png` are `Some(Member(Asset))`;
+  - `docs/a.MD` is `Some(Member(Document))`;
   - for a test shape with an `img/*.jpg` slot, `img/b.JPG` is
-    `Some(Asset)`;
-  - a folder whose name differs only in case is not a member:
-    `Screenshots/a.png` and `SCREENSHOTS/a.png` are `None`, and so are
-    `findings/01-a.LEVELS/2-1.md` and `Findings/01-a.md`;
+    `Some(Member(Asset))`;
+  - a folder whose name differs only in case is not a member: `Img/a.png`,
+    `IMG/a.png`, `docs/a.PARTS/1.md` and `Docs/a.md` are `None`;
   - case-insensitivity reaches the extension and no further:
-    `screenshots/a.png.bak` is `None`.
-- **Characterisation.** Extend the facts test: topic research and design
-  inventories are sets with the declared presentation, and no other
-  built-in type is.
-- **Contract with the research crate.** Every `brief.md`, `outline.md`,
-  `synthesis.md`, finding and level path that
-  `cli/research/src/topic/layout.rs` writes classifies as a member. Use
-  its path builders if `corpus` may see them under ADR-0069. Otherwise
-  use literal examples, and leave the cross-crate test to PP-1002 as the
-  work item says.
+    `img/a.png.bak` is `None`.
+- **`may_contain_members`:** `docs` and `docs/a.parts` hold;
+  `docs/a.parts/x`, `notes` and `.scratch` do not.
+
+**File**: `cli/corpus/src/doc_type/catalogue.rs` (inline tests, over test
+declarations of one flat and two set types)
+
+- Giving each set type a shape builds, and `set_matcher(kind)` is `Some`
+  for each set type and `None` for the flat type.
+- Building refuses a set type with no shape, a shape for the flat type
+  and a type given two shapes, each naming the type.
+- Building refuses a shape with a `**` slot, naming the type and the
+  pattern.
+- The duplicate token, linkage name and path key refusals keep passing.
+
+**File**: `cli/research-declarations/src/topic.rs` (inline tests, through
+`corpus`'s `test-support` feature)
+
+- `classify(MANIFEST) == Some(Root)`, and
+  `classify("findings/01-a.levels/2-1.md") == Some(Member(Document))`.
+- `findings/sub/x.md`, `notes.txt`, `findings/.01-x-web.md.invalid` and
+  `.conduct-run.json` are `None`.
+- `findings/01-a.MD` is `Some(Member(Document))`; `Findings/01-a.md` and
+  `findings/01-a.LEVELS/2-1.md` are `None`.
+
+**File**: `cli/research/tests/topic_set_shape.rs` (new; the contract
+with the layout)
+
+The path builders are behaviour and stay in `research`, so the test
+lives in the one crate that sees both them and the shape. It is an
+integration test with a `corpus` dev-dependency (`test-support`), so the
+`research` library gains no `corpus` edge. Every path the builders
+produce classifies as a document member under
+`research_declarations::topic::SHAPE`: `BRIEF`, `OUTLINE`, `SYNTHESIS`,
+`Stem::finding_path` for allocated stems, `NoteRef::path` for a root and
+a nested lineage, and `ReportSlug::free_report_path` with and without a
+taken name.
+
+**File**: `cli/design-declarations/src/inventory.rs` (inline tests)
+
+- `classify(INVENTORY) == Some(Root)`.
+- `screenshots/a.png`, `screenshots/a.PNG` and
+  `screenshots/Some File (v2).png` are `Some(Member(Asset))`.
+- `prototype-full/x.html`, `assets/y.svg`, `notes.txt`,
+  `screenshots/sub/a.png` and `Screenshots/a.png` are `None`.
+- `may_contain_members("screenshots")` holds, and
+  `may_contain_members("prototype-full")` does not.
+
+**File**: `cli/declarations/src/lib.rs` (inline tests)
+
+- The assembled catalogue's matchers have roots `manifest.md` for topic
+  research and `inventory.md` for design inventories.
+
+**File**: `cli/corpus/tests/built_in_doc_type_facts.rs`
+
+- **Characterisation.** Topic research and design inventories are
+  `Listing::Set` with the declared presentation, and no other built-in
+  type is. The table's nested-root column moves to the assembly's test
+  above, because `corpus` cannot see the owners' shapes.
 
 **File**: `cli/visualiser/server/tests/api_types.rs` (or the existing
 types test)
@@ -1123,11 +1658,6 @@ types test)
 **File**: `cli/corpus/src/set.rs` and `set/shape.rs`
 
 ```rust
-pub struct SetDeclaration {
-    pub shape: SetShape,
-    pub presentation: Presentation,
-}
-
 pub struct SetShape {
     pub root: &'static str,
     pub member_slots: &'static [MemberSlot],
@@ -1145,51 +1675,140 @@ pub enum Presentation { SetPage, EntryPoint }
 pub enum SetPlace { Root, Member(MemberKind) }
 
 pub struct SetMatcher {
-    root: &'static str,
+    shape: &'static SetShape,
     slots: Vec<(SlotPattern, MemberKind)>,
 }
 
 impl SetMatcher {
-    pub fn new(shape: &SetShape) -> Result<SetMatcher, SlotPatternError>;
+    pub(crate) fn new(
+        shape: &'static SetShape,
+    ) -> Result<SetMatcher, SlotPatternError>;
+    pub fn shape(&self) -> &'static SetShape;
+    pub fn root(&self) -> &'static str;
     pub fn classify(&self, set_relative: &str) -> Option<SetPlace>;
     pub fn may_contain_members(&self, set_relative_dir: &str) -> bool;
 }
+```
+
+**File**: `cli/corpus/src/doc_type/catalogue.rs` and `declaration.rs`
+
+```rust
+pub type ShapeOf = (DocTypeKey, &'static SetShape);
 
 impl DocTypeCatalogue {
+    pub fn new(
+        doc_types: &[DocTypeKey],
+        shapes: &[ShapeOf],
+    ) -> Result<DocTypeCatalogue, CatalogueError>;
     pub fn set_matcher(&self, kind: DocTypeKey) -> Option<&SetMatcher>;
 }
 ```
 
-- `DocTypeCatalogue::new` builds one `SetMatcher` per set type, and a
-  pattern that fails `SlotPattern::parse` is a `CatalogueError` naming
-  the type and the pattern. An inline test pins the refusal for a
-  declaration with a `**` slot.
+- `CatalogueError` gains `MissingShape { kind }`, `NotASet { kind }`,
+  `ShapedTwice { kind }` and
+  `UnparseableSlot { kind, pattern, cause: SlotPatternError }`.
+- `DocTypeCatalogue::new` parses every slot pattern, so `classify` never
+  meets an unparsed pattern, and a missing or malformed shape fails when
+  the catalogue is built.
+- `DocTypeCatalogue::built_in()` goes. `corpus::doc_type::built_in`
+  exposes `doc_types() -> &'static [DocTypeKey]`, the built-in
+  declarations in order, which only the assembly and test code build
+  from.
 - `SetMatcher::new` is crate-private to `corpus`, exposed for tests
-  through the `test-support` feature, so the catalogue is the only
+  through the `test-support` feature, so `set_matcher` is the only
   production source of a matcher.
-- Callers that classify (the file driver, the watcher's admission rule)
-  reach the matcher through the `Arc<DocTypeCatalogue>` they hold, so
-  `classify` never meets an unparsed pattern. The shape tests above run
-  against `SetMatcher::new(&shape)`.
 - `may_contain_members(dir)` holds when the directory's segments match
   the leading segments of some slot, under the same dot and case rules
-  as `classify`. The walk's pruning and the watcher's admission rule
-  both call it. Inline tests: for topic research, `findings` and
-  `findings/01-a.levels` hold, and `findings/01-a.levels/x`, `notes`
-  and `.scratch` do not; for inventories, `screenshots` holds and
-  `prototype-full` does not.
+  as `classify`. The walk's pruning, the watcher's admission rule and
+  the resolver's path rule all call it.
 - A parsed final segment holds its name pattern and its extension
   separately. The extension is compared with `eq_ignore_ascii_case`;
   every other segment, and the name before the extension, is compared
   exactly.
-- `Listing::Nested { root }` becomes `Listing::Set(&'static SetDeclaration)`.
-- `DocTypeKey::set_declaration() -> Option<&'static SetDeclaration>`.
-- `file_driver.rs:258` and `indexer.rs:1514` read `shape.root`.
+- `Listing::Nested { root }` becomes `Listing::Set { presentation }`,
+  with `DocTypeKey::presentation() -> Option<Presentation>` and
+  `DocTypeKey::is_set()`.
 
-#### 3. Doc types response
+#### 3. Owners declare their shapes
+
+**File**: `cli/research-declarations/src/topic.rs`
+
+```rust
+pub static SHAPE: SetShape = SetShape {
+    root: MANIFEST,
+    member_slots: &[
+        MemberSlot { pattern: BRIEF, kind: MemberKind::Document },
+        MemberSlot { pattern: OUTLINE, kind: MemberKind::Document },
+        MemberSlot { pattern: SYNTHESIS, kind: MemberKind::Document },
+        MemberSlot { pattern: "findings/*.md", kind: MemberKind::Document },
+        MemberSlot {
+            pattern: "findings/*.levels/*.md",
+            kind: MemberKind::Document,
+        },
+        MemberSlot { pattern: "reports/*.md", kind: MemberKind::Document },
+    ],
+};
+```
+
+Const string concatenation cannot join `FINDINGS`, `LEVELS_SUFFIX` and
+`REPORTS` into a pattern without a new dependency, so the wildcard slots
+are literals and the contract test binds them to the path builders.
+
+**File**: `cli/design-declarations/src/inventory.rs`
+
+```rust
+pub static SHAPE: SetShape = SetShape {
+    root: INVENTORY,
+    member_slots: &[MemberSlot {
+        pattern: "screenshots/*.png",
+        kind: MemberKind::Asset,
+    }],
+};
+```
+
+`research-declarations` and `design-declarations` gain a `corpus`
+dev-dependency with the `test-support` feature, and `research` one for
+its integration test. No pup rule changes: the declarations crates
+already allow `corpus`.
+
+#### 4. The assembly builds from shapes
+
+**File**: `cli/declarations/src/lib.rs`
+
+```rust
+pub fn shapes() -> &'static [ShapeOf];
+pub fn catalogue() -> Result<Arc<DocTypeCatalogue>, CatalogueError>;
+```
+
+`shapes()` pairs `DocTypeKey::TOPIC_RESEARCH` with
+`research_declarations::topic::SHAPE` and `DocTypeKey::DESIGN_INVENTORIES`
+with `design_declarations::inventory::SHAPE`. `catalogue()` builds
+`DocTypeCatalogue::new(built_in::doc_types(), shapes())`.
+
+#### 5. The visualiser server reads matchers from its catalogue
+
+- `LocalFileDriver`, the watcher and the indexer reach matchers through
+  `doc_types.set_matcher(kind)` on the `Arc<DocTypeCatalogue>` they
+  hold.
+- `file_driver.rs:258` reads the root from `set_matcher(kind)`.
+  `indexer.rs:1534` and `:1652`, which only ask whether a type is a set,
+  read `kind.is_set()`.
+- `test_support::catalogue_with` becomes
+  `catalogue_with(extra_types: &[&'static DocType], extra_shapes: &[ShapeOf]) -> Arc<DocTypeCatalogue>`.
+  It builds through `DocTypeCatalogue::new` from the built-in
+  declarations and `declarations::shapes()` plus the extras, so a
+  test-only set type's shape is checked as a built-in one is.
+
+#### 6. Other readers of the old declaration
+
+`corpus-adapters/src/resolve.rs:46-50` reads `kind.is_set()` in place of
+the nested manifest filename. Its behaviour is unchanged until Phase 8.
+
+#### 7. Doc types response
 
 - `server/src/doc_type_view.rs`: add a `set: Option<SetView>` to
-  `DocTypeView`, serialised as in the spec.
+  `DocTypeView`, built from `kind.presentation()` and
+  `doc_types.set_matcher(kind).shape()`, serialised as in the spec.
 - `frontend/src/api/types.ts:112-123`: add `set: DocTypeSet | null` to
   `DocType`, and normalise a missing field to `null` in `fetch.ts`, with
   a `fetch.test.ts` case for a response that omits `set`.
@@ -1198,20 +1817,221 @@ impl DocTypeCatalogue {
 
 #### Automated Verification:
 
+- [ ] Shape, catalogue and owner tests pass:
+      `mise run test:unit:cli --filter 'package(corpus) | package(research) | package(research-declarations) | package(design-declarations) | package(declarations)'`
 - [ ] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
       `mise run test:integration:visualiser`
-- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
-      reviewed.
+- [ ] `mise run pup:check`
+- [ ] `mise run public-api:update`, with the `corpus`,
+      `research-declarations`, `design-declarations` and `declarations`
+      snapshot diffs reviewed.
 - [ ] `mise run frontend:check`, `mise run test:unit:frontend`
 - [ ] `mise run`
 
 #### Manual Verification:
 
-- [ ] `curl localhost:<port>/api/types` shows both declarations.
+- [ ] `curl localhost:<port>/api/types` shows both sets' shapes and
+      presentations.
 
 ---
 
-## Phase 7: Index consumers tell roots from members
+## Phase 8: The corpus resolver reads sets through their shape
+
+### Overview
+
+`accelerator corpus resolve`, and the research commands that resolve a
+topic set through `topic_set::resolve_set`, conform to ADR-0077. A set
+is a non-dot directory holding its root file. A slug resolves only such
+a set. A path resolves to its set when it is the set directory, its
+root, a member, or a directory inside the set for which
+`may_contain_members` holds (`findings/`, `findings/x.levels/`,
+`screenshots/`). Dot-prefixed segments anywhere, unslotted files,
+rootless directories and stray files directly in the type directory are
+not found.
+
+This is a breaking change to the CLI. It needs only Phase 7 and is
+independent of Phases 9–12.
+
+### Changes Required:
+
+#### 1. Failing tests first
+
+**File**: `cli/corpus/src/resolve.rs` (inline tests, `FakeLister` and
+the test shapes of Phase 7)
+
+- **Slug input.**
+  - `a_dot_prefixed_set_directory_does_not_resolve_by_exact_name`: with
+    an entry `.x.tmp`, the slug `.x.tmp` is `NotFound`.
+  - `a_dot_prefixed_set_directory_is_no_candidate`: entries `x` and
+    `.x` with the slug `x` give `Single("x")`, not an ambiguity.
+  - The existing date-prefix and ambiguity tests keep passing against
+    `TypeShape::Set`.
+- **`set_directory_of`,** over a topic-research-like test shape:
+  - `s` as a directory, `s/manifest.md`, `s/findings/01-a.md`,
+    `s/findings/01-a.levels/2-1.md` and `s/reports/r.md` as files, and
+    `s/findings` and `s/findings/01-a.levels` as directories, each give
+    `Some("s")`;
+  - `s/notes.txt`, `s/.conduct-run.json`,
+    `s/findings/.01-x-web.md.invalid` and `s/findings/sub/x.md` as files,
+    `s/.scratch` and `s/findings/01-a.levels/x` as directories, `.x.tmp`
+    as a directory, `.x.tmp/manifest.md` as a file, and `stray.md` as a
+    file directly in the type directory, each give `None`;
+  - over an inventory-like shape, `s/screenshots` as a directory gives
+    `Some("s")`, and `s/prototype-full/x.html` and `s/prototype-full` give
+    `None`.
+
+**File**: `cli/corpus-adapters/src/fs.rs` (inline tests)
+
+- `a_nested_manifest_type_lists_subdirectories_only` becomes
+  `a_set_type_lists_directories_holding_their_root`: with `set-one/` and
+  its root, a rootless `set-two/`, `.x.tmp/` with a root, and `stray.md`,
+  the lister returns `set-one` only.
+- `a_directory_named_as_the_root_does_not_make_a_set`: a `set-three/`
+  whose root name is a directory is not listed.
+
+**File**: `cli/corpus-cli/tests/resolve_goldens.rs`
+
+The three existing nested tests keep passing unchanged: their sets hold
+`inventory.md`, and `screenshots/home.png` fits the inventory shape.
+New tests, each asserting exit code 3:
+
+- `a_rootless_set_directory_does_not_resolve_by_slug_or_path`;
+- `a_dot_prefixed_directory_does_not_resolve_by_exact_name_or_path`;
+- `an_unslotted_file_in_a_set_does_not_resolve`, for `notes.txt`,
+  `prototype-full/x.html` and a dot-prefixed working file;
+- `a_stray_file_in_the_type_directory_does_not_resolve_as_a_set`.
+
+And one asserting the set directory is printed:
+
+- `a_path_to_a_slot_directory_resolves_to_its_set`, for `screenshots/`.
+
+**File**: `cli/research-cli/tests/topic_outstanding.rs`
+
+- `a_topic_set_without_its_manifest_is_unresolved`: `topic outstanding`
+  on a rootless set directory fails with `E_TOPIC_RESEARCH_UNRESOLVED`.
+- `a_path_to_a_findings_directory_resolves_to_its_set` succeeds.
+- `a_path_to_the_run_ledger_is_unresolved`, for `.conduct-run.json`.
+
+The existing `topic_outstanding`, `topic_counts`, `topic_consultable`,
+`topic_report_path` and `topic_node` tests keep passing unchanged; every
+`cli/corpus-cli/tests/fixtures/topic-research-*-set/` fixture holds
+`manifest.md`.
+
+#### 2. Domain
+
+**File**: `cli/corpus/src/resolve.rs`
+
+```rust
+#[derive(Clone, Copy)]
+pub enum TypeShape<'m> {
+    Flat,
+    Set(&'m SetMatcher),
+}
+
+pub enum EntryKind { File, Directory }
+
+pub fn set_directory_of<'p>(
+    type_relative: &'p str,
+    entry: EntryKind,
+    matcher: &SetMatcher,
+) -> Option<&'p str>;
+```
+
+- `TypeShape::NestedManifest` becomes `TypeShape::Set`, carrying the
+  type's matcher.
+- `nested_candidates` becomes `set_candidates`, which drops dot-prefixed
+  names before comparing slugs.
+- `set_directory_of` takes a `/`-separated path relative to the type
+  directory. Its first segment is the set directory and must not start
+  with a dot. With nothing after it, the entry must be a directory. A
+  file after it must classify under the shape, as the root or a member;
+  a directory after it must satisfy `may_contain_members`.
+- `DirectoryLister`'s contract for a set type: the directories holding
+  the shape's root file.
+
+#### 3. Adapter
+
+**File**: `cli/corpus-adapters/src/fs.rs`
+
+- `TypeDirectoryLister` for `TypeShape::Set(matcher)` keeps a directory
+  only when its name has no leading dot and `matcher.root()` inside it is
+  a regular file.
+
+**File**: `cli/corpus-adapters/src/resolve.rs`
+
+- `resolve_document` already takes the root's `&DocTypeCatalogue`
+  (Phase 6). The type is a set when `catalogue.set_matcher(key)` is
+  `Some`.
+- `resolve_path_class` for a set type keeps the canonicalise and
+  outside-root steps, then passes the canonical path relative to the type
+  directory, `/`-separated, to `set_directory_of` with its entry kind,
+  and requires the set directory's root file to exist. Anything else is
+  `NotFound`, `no '<type>' set at path '<input>'`.
+- `set_root_under` and its comment are deleted.
+
+#### 4. Composition roots
+
+`corpus-cli` and `research-cli` already pass the assembled catalogue
+from `declarations` (Phase 6), so they change only in the tests above.
+`research-adapters` gains no dependency on `corpus-adapters`.
+
+#### 5. Help text and skills
+
+- `cli/corpus-cli/src/cli.rs:40-49`: the command resolves to "the set
+  directory for a set type", and the argument is "the slug, the set
+  directory, or a path to its root, a member or a slot directory".
+- `skills/design/inventory-design/SKILL.md`:
+  - `:318-319`: keep the claim that the directory glob and the resolver
+    skip leading-dot directories, which is now true, naming the resolver
+    as `accelerator corpus resolve`;
+  - `:326` and `:372`: the `sequence` tiebreaker is
+    `analyse-design-gaps`'s rule for picking among inventories
+    (`skills/design/analyse-design-gaps/SKILL.md:45-59`), not
+    `corpus resolve`'s; say so.
+- `skills/research/research-topic/SKILL.md`:
+  - `:123-124`: "a bare slug, the set directory, or a path to one of its
+    documents or to `findings/`, a `.levels/` directory or `reports/`";
+  - `:200-201`: the rename keeps a half-written set from the visualiser
+    and from `corpus resolve`, both of which skip dot-prefixed
+    directories.
+- The docs-site skill reference pages
+  (`docs-site/src/content/docs/reference/skills/**`) are generated from
+  the `SKILL.md` files by `tasks/shared/skill_pages.py` and are
+  gitignored; they are not edited by hand.
+
+#### 6. CHANGELOG
+
+Add a `### Breaking` entry under `[Unreleased]`: `accelerator corpus
+resolve` resolves a set type only to a non-dot directory holding its
+root file, and a path only when it is the set directory, its root, a
+member, or a directory that may hold members. A rootless or dot-prefixed
+directory, an unslotted file and a stray file in the type directory now
+exit 3. The research topic commands resolve sets the same way.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Resolver tests pass:
+      `mise run test:unit:cli --filter 'package(corpus) | package(corpus-adapters) | package(accelerator-corpus) | package(accelerator-research)'`
+- [ ] Goldens pass:
+      `mise run test:unit:cli --filter 'binary_id(accelerator-corpus::resolve_goldens)'`
+- [ ] `mise run cli:check`
+- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+      reviewed.
+- [ ] `mise run`
+
+#### Manual Verification:
+
+- [ ] In this repo, `accelerator corpus resolve --type design-inventory`
+      resolves each real inventory by slug, by directory and by a
+      screenshot path, and a `prototype-full/` path exits 3.
+- [ ] `/research-topic outline` on an existing scratch set still
+      resolves it by slug and by a findings path.
+
+---
+
+## Phase 9: Index consumers tell roots from members
 
 ### Overview
 
@@ -1319,7 +2139,7 @@ pub struct LinkKeys {
   the root and every member. `set_slug` is the set directory's slug, so
   no consumer looks the root up to find it.
 - `test_support` factories build set records through the same
-  `SetDocument` constructor the indexer uses in Phase 8.
+  `SetDocument` constructor the indexer uses in Phase 10.
 - **A member's `slug` is `None`,** because no slug rule applies to a
   member's file name. It is not what keeps a member out of listings,
   clusters or related items; the accessors are. A member's search key
@@ -1338,10 +2158,10 @@ pub struct LinkKeys {
   `listed_entries()`, which every default accessor reads from.
 - **One map builder.** The secondary maps and the `set_directory ->
   latest` map are built by one `IndexMaps::build(records, &ledger)`,
-  which `rescan` calls; the removal ledger is empty until Phase 10. A test-only `Indexer::from_records(records)` calls the
-  same builder, so Phase 7's fabricated members pass through the
+  which `rescan` calls; the removal ledger is empty until Phase 12. A test-only `Indexer::from_records(records)` calls the
+  same builder, so Phase 9's fabricated members pass through the
   production map construction. Every default-accessor test goes through
-  it; Phase 8 replaces none of them.
+  it; Phase 10 replaces none of them.
 - **Explicit accessors** reach members:
   - `set_members(dir)`, for the member API;
   - `documents_including_members()`, for search and for declared
@@ -1358,8 +2178,8 @@ member filter of their own.
   set's `latest_change_ms` from a `set_directory -> latest` map. The
   indexer computes it during `rescan` as the maximum over the root and
   members, and swaps it with the other maps under the same ordered
-  locks, so aggregates read it in O(1) per root. Phase 8 adds assets and
-  Phase 10 adds observed removals.
+  locks, so aggregates read it in O(1) per root. Phase 10 adds assets and
+  Phase 12 adds observed removals.
 - **Clusters.** The three copies of the recompute (`server.rs:116-146`,
   `watcher.rs:228-255` and `api/docs.rs:276-311`) are identical apart
   from their receiver. Extract one `recompute_clusters(&indexer, &clusters)`
@@ -1407,7 +2227,7 @@ member filter of their own.
 
 ---
 
-## Phase 8: Enumerate and index set members
+## Phase 10: Enumerate and index set members
 
 ### Overview
 
@@ -1466,7 +2286,7 @@ Then add these tests (`indexer.rs` inline tests, tempdir layouts):
   on every platform.
 - A case-variant path (`meta/Research/Topics/<set>/.conduct-run.json`)
   returns 404. The test probes the tempdir's case sensitivity, as
-  Phase 10's real-OS step does, and skips with a log line on a
+  Phase 12's real-OS step does, and skips with a log line on a
   case-sensitive volume, where the path cannot resolve.
 - A directory path under a non-set root returns 404, not 500.
 - The document endpoint refuses writes to anything but work items
@@ -1518,7 +2338,7 @@ Then add these tests (`indexer.rs` inline tests, tempdir layouts):
   Skip dot-prefixed names at every depth, descend only directories for
   which `matcher.may_contain_members(dir)` holds, and classify each
   file's set-relative path through `matcher.classify`, where `matcher`
-  is `catalogue.set_matcher(kind)`.
+  is `doc_types.set_matcher(kind)` on the driver's `Arc<DocTypeCatalogue>`.
 - The walk reads entries with `symlink_metadata` and does not descend a
   symlinked directory. It canonicalises each slotted file and drops any
   that fall outside the allowed roots, through the same
@@ -1546,14 +2366,14 @@ Then add these tests (`indexer.rs` inline tests, tempdir layouts):
 - Add an `assets: HashMap<PathBuf, AssetRecord>` map, swapped with the
   others under the same ordered locks.
   `AssetRecord { doc_type, path, rel_path, placement: SetPlacement, size, mtime_ms }`.
-  It reuses Phase 7's `SetPlacement`, so anything a member carries is
+  It reuses Phase 9's `SetPlacement`, so anything a member carries is
   added in one place.
 - A set's `latest_change_ms` is the maximum over its root, its member
   documents and its assets.
 - `refresh_one` on any path inside a set directory runs a full rescan,
   as the watcher already does, because a member's record depends on its
   root. `refresh_entry` and `find_entry_for_deleted` keep their
-  single-path behaviour for flat types only. Phase 10 routes every full
+  single-path behaviour for flat types only. Phase 12 routes every full
   rescan, this one included, through `rescan_with_diff`.
 
 #### 4. Document endpoint
@@ -1602,7 +2422,7 @@ page specs still pass unchanged.
 
 ---
 
-## Phase 9: The member API
+## Phase 11: The member API
 
 ### Overview
 
@@ -1644,8 +2464,8 @@ page specs still pass unchanged.
 **File**: `server/src/api/sets.rs` (new), mounted in `api::mount`
 (`api/mod.rs:26-53`)
 
-- Resolve the type through `state.cfg.doc_types`, and 404 unless
-  `set_declaration()` exists.
+- Resolve the type through `state.doc_types`, and 404 unless
+  `kind.is_set()`. The presentation comes from `kind.presentation()`.
 - Register the route as `/api/sets/:type/:set_id`, in matchit 0.7's
   syntax like its neighbours. The `Path` extractor's decoded `set_id` is
   used as is, with no second decode.
@@ -1686,7 +2506,7 @@ Add an `### Added` entry under `[Unreleased]` for
 
 ---
 
-## Phase 10: Live update, activity roll-up and acceptance
+## Phase 12: Live update, activity roll-up and acceptance
 
 ### Overview
 
@@ -1793,8 +2613,11 @@ on the member API and `/api/docs` for the same scenarios live in
 **File**: `server/tests/generic_set_model.rs` (new; criteria 20 and 23)
 
 - **Setup.** Declare `static NOTEBOOKS` with
-  `SetDeclaration { shape: SetShape { root: "index.md", member_slots: &[docs/*.md Document, img/*.png Asset] }, presentation: SetPage }`.
-  Build a tempdir set holding the root, two `docs/*.md`, one
+  `listing: Listing::Set { presentation: Presentation::SetPage }`, and
+  `static NOTEBOOKS_SHAPE: SetShape = SetShape { root: "index.md", member_slots: &[docs/*.md Document, img/*.png Asset] }`.
+  Configure the server with
+  `catalogue_with(&[&NOTEBOOKS], &[(notebooks, &NOTEBOOKS_SHAPE)])`,
+  which builds through the constructor the assembly uses. Build a tempdir set holding the root, two `docs/*.md`, one
   `img/a.png`, `other/z.md` and `.hidden.md`. Run through
   `InjectedWatcher` (`tests/sse_e2e.rs`).
 - **Assertions (criterion 20):**
@@ -1815,12 +2638,14 @@ on the member API and `/api/docs` for the same scenarios live in
 **File**: `cli/corpus-adapters/tests/doc_type_declarations_are_single_source.rs`
 (criterion 21)
 
-Phase 4's guard already walks `server/src` with no allow-list entry.
-Add a named case, `visualiser_server_names_no_set_doc_type`, that
-seeds `DocTypeKey::TOPIC_RESEARCH` into a copy of `api/search.rs`'s
-source and asserts the scanner reports it, and asserts that the real
-`server/src` scan found files and no violation. After Phase 4, phases
-are declared too, so there is no exception.
+Phase 4's guard already walks `server/src` with no allow-list entry;
+shapes are paired with their types in the declarations crates and the
+assembly, never in a root. Add a named case,
+`visualiser_server_names_no_set_doc_type`, that seeds
+`DocTypeKey::TOPIC_RESEARCH` into a copy of `api/search.rs`'s source and
+asserts the scanner reports it, and asserts that the real `server/src`
+scan found files and no violation. After Phase 4, phases are declared
+too, so the library's phase table needs no exception.
 
 #### 2. Watcher
 
@@ -1833,7 +2658,9 @@ this order:
   root is rejected, whatever its extension;
 - under a set doc root, a path is admitted when it is a set directory, a
   file `matcher.classify` places, or a directory for which
-  `matcher.may_contain_members` holds;
+  `matcher.may_contain_members` holds, where `matcher` is
+  `doc_types.set_matcher(kind)` on the watcher's
+  `Arc<DocTypeCatalogue>`;
 - elsewhere, markdown, as today.
 
 Directory events under a set root trigger a rescan, which makes renames
@@ -2069,8 +2896,15 @@ Replace the existing tests that assert client-built live rows.
   - the characterisation table of every built-in fact and rule;
   - slot-pattern parsing and matching (dot names, `*`, an extension that
     ignores case while folder names stay case-sensitive, no recursion);
-  - shape classification for both declared shapes;
+  - the catalogue's shape refusals;
+  - the resolver's slug candidates and `set_directory_of`;
   - the boundary test for named built-in types.
+- **Declarations.** Each declared shape's classification, in
+  `research-declarations` and `design-declarations`; the research
+  layout's path builders classifying as members (`research`'s
+  integration test); and the assembled catalogue building.
+- **Build system.** The crate-rule lint's declarations and assembly
+  roles, and a pup probe pair per new crate.
 - **Config.** Overlap refusal for equal, nested and prefix-but-not-segment
   roots, and the defaults.
 - **Server:**
@@ -2087,6 +2921,8 @@ Replace the existing tests that assert client-built live rows.
 - `api_types`, `api_docs`, `api_search`, `api_related`, `api_sets` and
   `api_library` assert every wire criterion.
 - `generic_set_model.rs` holds the test-only doc type end to end.
+- `resolve_goldens.rs` and the research CLI's topic tests cover the
+  resolver's conformance.
 - `sse_e2e.rs` covers renames and root deletion through `InjectedWatcher`.
 - The real-OS watcher lane's single test covers a directory rename and a
   case-only rename.
@@ -2142,6 +2978,10 @@ Replace the existing tests that assert client-built live rows.
     refuses until the overlap is gone.
 
   Both CHANGELOG Breaking entries carry these steps.
+- **`corpus resolve`.** An input naming a rootless or dot-prefixed set
+  directory, an unslotted file or a stray file in a set type's directory
+  now exits 3. A set missing its root file needs the file restored to
+  resolve again. The CHANGELOG Breaking entry says so.
 - **No data migration.**
 - **Bookmarked URLs** are unaffected. Member routes are PP-998's.
 
@@ -2152,6 +2992,9 @@ Replace the existing tests that assert client-built live rows.
 - Overlapping plan: `meta/plans/2026-11-24-PP-996-library-links-by-document-id.md`
 - Precedent ADRs: `meta/decisions/ADR-0067-kind-discriminated-corpus-schema-and-templates.md`,
   `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
+- Decisions: ADR-0077, ADR-0078, ADR-0079 and
+  `meta/decisions/ADR-0080-domain-declarations-crates.md`
+- Crate registration: `tasks/README.md`, "Registering a library crate"
 - Set layouts: `skills/research/research-topic/SKILL.md`,
   `skills/design/inventory-design/SKILL.md`, `cli/research/src/topic/layout.rs`
 - Patterns:
