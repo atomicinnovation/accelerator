@@ -2323,3 +2323,676 @@ fn shortcut_search_stops_at_one_deadline_across_its_teams() {
     assert_eq!(server.hits(&search), 1, "the second team is not searched");
     assert!(!completeness.is_complete());
 }
+
+const NEEDS_BOTH_ESCAPES: &str = "- owned by\n  0160.\n\nSee crates.io.\n";
+const PUSH_TITLE: &str = "Add search";
+const PUSH_DRAFT_ID: &str = "draft-k7mq3x";
+const PUSH_DRAFT: &str = "meta/work/drafts/draft-k7mq3x-add-search.md";
+
+fn json_reply(status: u16, body: &serde_json::Value) -> Route {
+    Route::Json {
+        status,
+        body: body.to_string(),
+    }
+}
+
+fn escaped_for_linear(body: &str) -> String {
+    body.replace("  0160.\n", "  0160\\.\n")
+        .replace("crates.io.", "crates\\.io.")
+}
+
+#[derive(Debug, Clone, Copy)]
+enum PushEntryPoint {
+    SyncUpdate,
+    SyncCreateOfUnsyncedItem,
+    PromotionCreate,
+    PromotionRetitle,
+}
+
+/// What the remote holds at one read, as its tracker stores it.
+struct Stored<'a> {
+    title: &'a str,
+    body: &'a str,
+}
+
+enum PushServer {
+    Http(MockHTTPServer),
+    GraphQl(MockGraphQLServer),
+}
+
+/// A tracker's mock answering a listing, creates, updates and a sequence of
+/// reads, with the client pointed at it.
+struct PushRemote {
+    tracker: Tracker,
+    server: PushServer,
+    client: Box<dyn RemoteTracker>,
+}
+
+impl Tracker {
+    const fn integration(self) -> &'static str {
+        match self {
+            Self::Jira => "jira",
+            Self::Linear => "linear",
+            Self::Shortcut => "shortcut",
+        }
+    }
+
+    fn dialect(self) -> Box<dyn tracker::BodyDialect> {
+        match self {
+            Self::Jira => Box::new(JiraBodyDialect),
+            Self::Linear | Self::Shortcut => Box::new(PlainDialect),
+        }
+    }
+
+    fn shown(self, stored: &Stored<'_>) -> Route {
+        let stamp = self.baseline_stamp();
+        let body = match self {
+            Self::Jira => serde_json::json!({
+                "key": "ENG-1",
+                "fields": {
+                    "updated": stamp,
+                    "summary": stored.title,
+                    "description":
+                        adf::markdown_to_document(stored.body, None)
+                            .expect("the stored body converts to ADF"),
+                },
+            }),
+            Self::Linear => serde_json::json!({"data": {"issue": {
+                "id": "i", "identifier": "ENG-1", "title": stored.title,
+                "updatedAt": stamp, "description": stored.body,
+            }}}),
+            Self::Shortcut => serde_json::json!({"entity": {
+                "id": 1, "name": stored.title, "description": stored.body,
+                "updated_at": stamp,
+            }}),
+        };
+        Route::Json {
+            status: 200,
+            body: body.to_string(),
+        }
+    }
+
+    fn serve_push(self, reads: &[Stored<'_>]) -> PushRemote {
+        let shows = Route::Sequence(
+            reads.iter().map(|read| self.shown(read)).collect(),
+        );
+        let stamp = self.baseline_stamp();
+        let (server, client) = match self {
+            Self::Jira => serve_jira_push(shows, stamp),
+            Self::Linear => serve_linear_push(shows, stamp),
+            Self::Shortcut => serve_shortcut_push(shows, stamp),
+        };
+        PushRemote {
+            tracker: self,
+            server,
+            client,
+        }
+    }
+}
+
+type Served = (PushServer, Box<dyn RemoteTracker>);
+
+fn serve_jira_push(shows: Route, stamp: &str) -> Served {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post("/rest/api/3/search/jql"),
+        json_reply(
+            200,
+            &serde_json::json!({"issues": [
+                {"key": "ENG-1", "fields": {"updated": stamp}}
+            ]}),
+        ),
+    );
+    server.route(RequestKey::get("/rest/api/3/issue/ENG-1"), shows);
+    server.route(
+        RequestKey::post("/rest/api/3/issue"),
+        json_reply(201, &serde_json::json!({"id": "10000", "key": "ENG-1"})),
+    );
+    server.route(
+        RequestKey::new("PUT", "/rest/api/3/issue/ENG-1"),
+        Route::Status(204),
+    );
+    let client = jira_client(&server.base_url(), TransportConfig::default());
+    (PushServer::Http(server), Box::new(client))
+}
+
+fn serve_linear_push(shows: Route, stamp: &str) -> Served {
+    let server = MockGraphQLServer::start();
+    server.answer(
+        "issues",
+        json_reply(
+            200,
+            &serde_json::json!({"data": {"issues": {
+                "nodes": [{
+                    "id": "i", "identifier": "ENG-1",
+                    "title": PUSH_TITLE, "updatedAt": stamp,
+                }],
+                "pageInfo": {
+                    "hasNextPage": false, "endCursor": null,
+                },
+            }}}),
+        ),
+    );
+    server.answer("issue", shows);
+    server.answer(
+        "issueCreate",
+        json_reply(
+            200,
+            &serde_json::json!({"data": {"issueCreate": {
+                "success": true,
+                "issue": {"id": "i", "identifier": "ENG-1"},
+            }}}),
+        ),
+    );
+    server.answer(
+        "issueUpdate",
+        json_reply(
+            200,
+            &serde_json::json!({"data": {"issueUpdate": {
+                "success": true,
+                "issue": {"id": "i", "identifier": "ENG-1"},
+            }}}),
+        ),
+    );
+    let client = linear_client(&server.base_url(), TransportConfig::default());
+    (PushServer::GraphQl(server), Box::new(client))
+}
+
+fn serve_shortcut_push(shows: Route, stamp: &str) -> Served {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(&format!("{SHORTCUT_API}/stories")),
+        shortcut_page(&serde_json::json!([
+            {"id": 1, "updated_at": stamp}
+        ])),
+    );
+    server.route(RequestKey::get(&format!("{SHORTCUT_API}/stories/1")), shows);
+    server.route(
+        RequestKey::post(&format!("{SHORTCUT_API}/stories")),
+        json_reply(
+            201,
+            &serde_json::json!({"entity": {
+                "id": 1, "name": PUSH_TITLE, "updated_at": stamp,
+            }}),
+        ),
+    );
+    server.route(
+        RequestKey::new("PATCH", &format!("{SHORTCUT_API}/stories/1")),
+        json_reply(
+            200,
+            &serde_json::json!({"entity": {
+                "id": 1, "name": PUSH_TITLE, "updated_at": stamp,
+            }}),
+        ),
+    );
+    let client = shortcut_client(&server.base_url());
+    (PushServer::Http(server), Box::new(client))
+}
+
+impl PushRemote {
+    fn create_key(&self) -> RequestKey {
+        match self.tracker {
+            Tracker::Jira => RequestKey::post("/rest/api/3/issue"),
+            Tracker::Linear => RequestKey::post("/graphql"),
+            Tracker::Shortcut => {
+                RequestKey::post(&format!("{SHORTCUT_API}/stories"))
+            }
+        }
+    }
+
+    fn update_key(&self) -> RequestKey {
+        match self.tracker {
+            Tracker::Jira => RequestKey::new("PUT", "/rest/api/3/issue/ENG-1"),
+            Tracker::Linear => RequestKey::post("/graphql"),
+            Tracker::Shortcut => {
+                RequestKey::new("PATCH", &format!("{SHORTCUT_API}/stories/1"))
+            }
+        }
+    }
+
+    fn sent(
+        &self,
+        http: &RequestKey,
+        operation: &str,
+    ) -> Vec<serde_json::Value> {
+        let bodies = match &self.server {
+            PushServer::Http(server) => server.bodies(http),
+            PushServer::GraphQl(server) => server.bodies(operation),
+        };
+        bodies
+            .iter()
+            .map(|body| serde_json::from_slice(body).expect("a JSON request"))
+            .collect()
+    }
+
+    fn description(&self, request: &serde_json::Value) -> serde_json::Value {
+        match self.tracker {
+            Tracker::Jira => request["fields"]["description"].clone(),
+            Tracker::Linear => {
+                request["variables"]["input"]["description"].clone()
+            }
+            Tracker::Shortcut => request["description"].clone(),
+        }
+    }
+
+    fn created_descriptions(&self) -> Vec<serde_json::Value> {
+        self.sent(&self.create_key(), "issueCreate")
+            .iter()
+            .map(|request| self.description(request))
+            .collect()
+    }
+
+    fn updated_descriptions(&self) -> Vec<serde_json::Value> {
+        self.sent(&self.update_key(), "issueUpdate")
+            .iter()
+            .map(|request| self.description(request))
+            .collect()
+    }
+
+    /// The description this tracker is sent for `body`: escaped for Linear
+    /// alone, converted to ADF for Jira, and as given for Shortcut.
+    fn expected_description(&self, body: &str) -> serde_json::Value {
+        match self.tracker {
+            Tracker::Jira => adf::markdown_to_document(body, None)
+                .expect("the body converts to ADF"),
+            Tracker::Linear => {
+                serde_json::Value::from(escaped_for_linear(body))
+            }
+            Tracker::Shortcut => serde_json::Value::from(body),
+        }
+    }
+}
+
+/// Records each link without writing it, so the item file on disk is left as
+/// it was before the push.
+#[derive(Default)]
+struct LinkRecordingAuthor {
+    linked: RefCell<Vec<ExternalId>>,
+}
+
+impl work_adapters::sync::create::LocalAuthor for LinkRecordingAuthor {
+    fn author_from_remote(
+        &self,
+        _issue: &work_adapters::sync::create::DiscoveredIssue,
+    ) -> Result<
+        work_adapters::sync::create::AuthoredLocal,
+        work_adapters::sync::create::AuthorError,
+    > {
+        panic!("a push never authors from a discovery")
+    }
+
+    fn link_external_id(
+        &self,
+        _path: &Path,
+        external_id: &ExternalId,
+    ) -> Result<(), work_adapters::sync::create::AuthorError> {
+        self.linked.borrow_mut().push(external_id.clone());
+        Ok(())
+    }
+}
+
+fn push_run(
+    remote: &PushRemote,
+    spy: &Spy,
+    items: &[LocalItem],
+    author: &dyn work_adapters::sync::create::LocalAuthor,
+    mode: RunMode,
+) -> RunReport {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let ports = SyncPorts {
+        tracker: remote.client.as_ref(),
+        parser: &CommonMarkBody,
+        status: &status,
+        files: support::sync_files(spy),
+        clock: &clock,
+        author,
+        recovery_labels: &support::LabelsEveryId,
+    };
+    let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
+    let integrations_root = std::env::temp_dir();
+    let request = SyncRequest {
+        corpus: items,
+        inventory: &work_adapters::sync::fetch::inventory_of(items),
+        selection: ItemSelection::All,
+        direction: SyncDirection::PushOnly,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &BTreeMap::new(),
+        pending_push_orders: &BTreeMap::new(),
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
+        mode,
+        integrations_root: &integrations_root,
+        integration: remote.tracker.integration(),
+        promote: true,
+        scope: tracker::SearchScope::default(),
+    };
+    run(&ports, &mut store, &request)
+        .unwrap_or_else(|error| panic!("the run must not refuse: {error:?}"))
+}
+
+fn assert_applied(report: &RunReport, case: &str) {
+    let failures: Vec<String> = report
+        .failures()
+        .map(|failure| format!("{failure:?}"))
+        .collect();
+    assert!(failures.is_empty(), "{case}: {failures:?}");
+    assert!(
+        report.reported.iter().all(|item| matches!(
+            item.outcome,
+            work_adapters::sync::report::ItemOutcome::Applied
+        )),
+        "{case}: not every item applied"
+    );
+}
+
+struct PushedItem {
+    _dir: tempfile::TempDir,
+    path: PathBuf,
+    content: String,
+}
+
+impl PushedItem {
+    fn written(frontmatter: &str) -> Result<Self, TestError> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("0001.md");
+        let content = format!("{frontmatter}{NEEDS_BOTH_ESCAPES}");
+        std::fs::write(&path, &content)?;
+        Ok(Self {
+            _dir: dir,
+            path,
+            content,
+        })
+    }
+
+    fn body(&self) -> String {
+        digest::split_frontmatter_and_body(&self.content)
+            .map(|(_, body)| body)
+            .unwrap_or_default()
+    }
+
+    fn assert_unchanged(&self, spy: &Spy, case: &str) -> Result<(), TestError> {
+        assert_eq!(
+            std::fs::read_to_string(&self.path)?,
+            self.content,
+            "{case}"
+        );
+        assert_eq!(written(spy, &self.path), None, "{case}");
+        Ok(())
+    }
+}
+
+fn sync_update_escapes(tracker: Tracker) -> Result<(), TestError> {
+    let case = format!("{tracker:?}/SyncUpdate");
+    let item = PushedItem::written(&format!(
+        "---\ntitle: \"{PUSH_TITLE}\"\nexternal_id: \"{}\"\n---\n",
+        tracker.key()
+    ))?;
+    let earlier = Stored {
+        title: PUSH_TITLE,
+        body: "Remote body\n",
+    };
+    let pushed = item.body();
+    let stored = Stored {
+        title: PUSH_TITLE,
+        body: &pushed,
+    };
+    let probe = tracker.serve_push(&[earlier]);
+    let projected = probe
+        .client
+        .show(&ExternalId::new(tracker.key().to_owned()))?
+        .body;
+    let spy = Spy::default();
+    spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&support::split_entry(
+            "0001",
+            tracker.dialect().as_ref(),
+            &format!(
+                "---\ntitle: \"{PUSH_TITLE}\"\nexternal_id: \"{}\"\n---\n\
+                 Earlier body\n",
+                tracker.key()
+            ),
+            &projected,
+            tracker.baseline_stamp(),
+        )),
+    );
+    let remote = tracker.serve_push(&[
+        Stored {
+            title: PUSH_TITLE,
+            body: "Remote body\n",
+        },
+        stored,
+    ]);
+    let items = [LocalItem {
+        id: "0001".to_owned(),
+        path: item.path.clone(),
+        external_id: Some(ExternalId::new(tracker.key().to_owned())),
+    }];
+
+    let report = push_run(&remote, &spy, &items, &UnusedAuthor, RunMode::Apply);
+
+    assert_applied(&report, &case);
+    assert_eq!(
+        remote.updated_descriptions(),
+        [remote.expected_description(&pushed)],
+        "{case}"
+    );
+    item.assert_unchanged(&spy, &case)?;
+    if matches!(tracker, Tracker::Linear) {
+        let again =
+            push_run(&remote, &spy, &items, &UnusedAuthor, RunMode::Preview);
+        assert_eq!(
+            again.reported[0].planned.state(),
+            SyncState::Synced,
+            "{case}"
+        );
+    }
+    Ok(())
+}
+
+fn sync_create_escapes(tracker: Tracker) -> Result<(), TestError> {
+    let case = format!("{tracker:?}/SyncCreateOfUnsyncedItem");
+    let item = PushedItem::written(&format!(
+        "---\nid: \"0001\"\ntitle: \"{PUSH_TITLE}\"\nkind: story\n---\n"
+    ))?;
+    let pushed = item.body();
+    let remote = tracker.serve_push(&[Stored {
+        title: PUSH_TITLE,
+        body: &pushed,
+    }]);
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+    let author = LinkRecordingAuthor::default();
+    let items = [LocalItem {
+        id: "0001".to_owned(),
+        path: item.path.clone(),
+        external_id: None,
+    }];
+
+    let report = push_run(&remote, &spy, &items, &author, RunMode::Apply);
+
+    assert_applied(&report, &case);
+    assert_eq!(
+        author.linked.into_inner(),
+        [ExternalId::new(tracker.key().to_owned())],
+        "{case}"
+    );
+    assert_eq!(
+        remote.created_descriptions(),
+        [remote.expected_description(&pushed)],
+        "{case}"
+    );
+    item.assert_unchanged(&spy, &case)?;
+    Ok(())
+}
+
+struct PromotionRepo {
+    dir: tempfile::TempDir,
+}
+
+impl PromotionRepo {
+    fn new() -> Result<Self, TestError> {
+        let repo = Self {
+            dir: tempfile::tempdir()?,
+        };
+        let draft = repo.path(PUSH_DRAFT);
+        std::fs::create_dir_all(draft.parent().ok_or("no parent")?)?;
+        std::fs::write(
+            &draft,
+            format!(
+                "---\nid: \"{PUSH_DRAFT_ID}\"\ntitle: \"{PUSH_TITLE}\"\n\
+                 kind: \"story\"\n---\n\n# {PUSH_DRAFT_ID}: {PUSH_TITLE}\n\n\
+                 {NEEDS_BOTH_ESCAPES}"
+            ),
+        )?;
+        Ok(repo)
+    }
+
+    fn path(&self, relative: &str) -> PathBuf {
+        self.dir.path().join(relative)
+    }
+
+    fn draft_body(&self) -> Result<String, TestError> {
+        let content = std::fs::read_to_string(self.path(PUSH_DRAFT))?;
+        Ok(digest::split_frontmatter_and_body(&content)
+            .map(|(_, body)| body)
+            .unwrap_or_default())
+    }
+
+    fn promote(
+        &self,
+        tracker: Tracker,
+        client: &dyn RemoteTracker,
+    ) -> Result<work::promotion::Promotion, work::promotion::NotPromoted> {
+        let store = corpus_adapters::FileCorpusStore::new(self.dir.path());
+        let fs = corpus_adapters::RealFs;
+        let roots = vec![self.path("meta")];
+        let work_dir = self.path("meta/work");
+        let locks = corpus_adapters::LockdirLock::with_options(
+            &work_dir,
+            store::lock::LockOptions {
+                ceiling_ms: 1,
+                base_ms: 1,
+                cap_ms: 1,
+            },
+        );
+        let state = self.path(".accelerator/state");
+        let recovery =
+            corpus_adapters::FileRecoveryCopies::new(&state, self.path("meta"));
+        let integrations = state.join("integrations");
+        let baseline = BaselineStore::new(
+            integrations
+                .join(tracker.integration())
+                .join("last-sync.json"),
+            &fs,
+            &store,
+        );
+        let scheme = work::id_scheme::IdScheme::under_any_tracker(
+            work::id_pattern::IdPattern::parse(work::id_scheme::TRACKER_TOKEN)
+                .expect("the tracker pattern parses"),
+            None,
+        );
+        let retirement = work_adapters::retirement::RetirementPorts {
+            files: work_adapters::retirement::RetirementFiles {
+                reader: &fs,
+                writer: &store,
+                creator: &store,
+                remover: &store,
+                file_locks: &locks,
+                recovery: &recovery,
+            },
+            layout: work_adapters::retirement::CorpusLayout {
+                roots: &roots,
+                work_dir: &work_dir,
+                scheme: &scheme,
+            },
+            walker: &fs,
+            status: &AlwaysClean,
+            lock: &locks,
+            baseline: Some(&baseline),
+        };
+        let records =
+            work_adapters::promotion_records::FilePromotionRecords::new(
+                &integrations,
+                tracker.integration(),
+                &store,
+            );
+        work_adapters::promotion::promote(
+            &work::draft_id::DraftId::parse(PUSH_DRAFT_ID).expect("a draft id"),
+            &work::promotion::PromotionMode::Standard,
+            &work_adapters::promotion::PromotionPorts {
+                tracker: client,
+                parser: &CommonMarkBody,
+                retirement: &retirement,
+                records: &records,
+            },
+            &support::identity_run().expect("no identity run is held"),
+        )
+    }
+}
+
+fn promotion_escapes(
+    tracker: Tracker,
+    entry_point: PushEntryPoint,
+) -> Result<(), TestError> {
+    let case = format!("{tracker:?}/{entry_point:?}");
+    let repo = PromotionRepo::new()?;
+    let draft_body = repo.draft_body()?;
+    let promoted_body = draft_body.replace(PUSH_DRAFT_ID, tracker.key());
+    let as_drafted = || Stored {
+        title: PUSH_TITLE,
+        body: &draft_body,
+    };
+    let as_promoted = || Stored {
+        title: PUSH_TITLE,
+        body: &promoted_body,
+    };
+    let remote = tracker.serve_push(&[
+        as_drafted(),
+        as_drafted(),
+        as_promoted(),
+        as_promoted(),
+    ]);
+
+    let promoted = repo.promote(tracker, remote.client.as_ref());
+
+    assert!(promoted.is_ok(), "{case}: {promoted:?}");
+    match entry_point {
+        PushEntryPoint::PromotionCreate => assert_eq!(
+            remote.created_descriptions(),
+            [remote.expected_description(&draft_body)],
+            "{case}"
+        ),
+        _ => assert_eq!(
+            remote.updated_descriptions(),
+            [remote.expected_description(&promoted_body)],
+            "{case}"
+        ),
+    }
+    Ok(())
+}
+
+#[test]
+fn every_push_entry_point_escapes_for_linear_alone() -> Result<(), TestError> {
+    for tracker in [Tracker::Jira, Tracker::Linear, Tracker::Shortcut] {
+        for entry_point in [
+            PushEntryPoint::SyncUpdate,
+            PushEntryPoint::SyncCreateOfUnsyncedItem,
+            PushEntryPoint::PromotionCreate,
+            PushEntryPoint::PromotionRetitle,
+        ] {
+            match entry_point {
+                PushEntryPoint::SyncUpdate => sync_update_escapes(tracker)?,
+                PushEntryPoint::SyncCreateOfUnsyncedItem => {
+                    sync_create_escapes(tracker)?;
+                }
+                PushEntryPoint::PromotionCreate
+                | PushEntryPoint::PromotionRetitle => {
+                    promotion_escapes(tracker, entry_point)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}

@@ -32,6 +32,7 @@ serde_json = { workspace = true }
 rand = { workspace = true }
 
 [dev-dependencies]
+adf = { path = "../adf" }
 markdown = { path = "../markdown" }
 tempfile = { workspace = true }
 corpus-adapters = { path = "../corpus-adapters" }
