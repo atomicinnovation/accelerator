@@ -173,22 +173,36 @@ test builds its fixtures privately and logs nothing.
 
 ### Skipping unchanged test lanes
 
-Every test leaf in the `test` roll-up extends the
-`skip-when-repository-unchanged` task template, which declares its
-`sources` and `outputs = { auto = true }`. A lane that passed is skipped
-(`sources up-to-date, skipping`) until a file it reads changes, the way
-Turborepo skips a task whose inputs hash the same. mise keeps the record
-under `~/.local/state/mise/`, so it is per machine and never shared; CI
-starts empty and always runs everything.
+Every test leaf in the `test` roll-up extends a task template that
+declares the files it reads as `sources`, with `outputs = { auto = true }`.
+A lane that passed is skipped (`sources up-to-date, skipping`) until a file
+it reads changes, the way Turborepo skips a task whose inputs hash the
+same. mise keeps the record under `~/.local/state/mise/`, so it is per
+machine and never shared; CI starts empty and always runs everything.
 
-- **Inputs:** every lane declares the whole repository, minus build output,
-  installed dependencies and caches. Several suites read files far from
-  their own code (workflows, `README.md`, `meta/measurements/`), so a
-  narrower list risks a stale pass. Any edit therefore reruns every lane;
-  only a run on identical inputs is skipped. mise does not read
-  `.gitignore` here, so a path a run writes, such as the visualiser
-  server's state under its test fixtures, must be excluded in the template,
-  or it shows up as lanes that never skip.
+| Template | Lanes | Reruns on |
+|---|---|---|
+| `build-system-inputs` | `test:unit:tasks` | Anything but `meta/`, apart from `meta/measurements/` |
+| `cli-workspace-inputs` | `test:unit:cli` | `cli/` (not the frontend), `templates/`, `meta/`, project config, a few skill files, release keys and pins |
+| `frontend-inputs` | `test:unit:frontend`, `:frontend-licenses` | The frontend, plus the three fixtures its tests read from elsewhere |
+| `visualiser-inputs` | `test:unit:visualiser`, `test:integration:visualiser`, `test:e2e:visualiser` | `cli/`, the frontend, `templates/` |
+| `plugin-inputs` | every other `test:integration:*` lane | `cli/` (not the frontend), `tests/`, `skills/`, `templates/`, `hooks/`, plugin manifest, project config, committed `bin/` files, release keys and pins |
+| `test-support-inputs` | `test:unit:vcs`, `test:integration:dev` | Their own test directories and the VCS masks |
+| `design-automation-inputs` | `test:unit:design-automation` | The Playwright executor and the four files its suites read |
+
+Every template also includes the harness: `tasks/**/*.py` (`invoke`
+imports every task module), `mise.toml`, `mise.lock`, `mise.local.toml`,
+`pyproject.toml`, `uv.lock` and `tests/conftest.py`.
+
+- **A missing input is a stale pass.** When a test starts reading a file
+  outside its template, add the file to the template. A lane's own
+  `sources` replaces its template's list rather than adding to it. CI,
+  which never skips, is the backstop.
+- **mise does not read `.gitignore` here,** so a path a run writes must be
+  excluded in the template, or it shows up as lanes that never skip. The
+  visualiser e2e suite edits its fixture work items mid-run and restores
+  them; only the visualiser lanes, which read them, can rerun once after
+  an e2e run because of it.
 - **Content, not timestamps:** `task.source_freshness_hash_contents`
   compares file contents, so a checkout or formatter that rewrites a file
   unchanged keeps its lanes skipped.
