@@ -18,7 +18,6 @@ const SEGMENT_SEPARATOR: &str = " — ";
 const BLOCK_LINE_OPENING: &str = "  - ";
 const KEY_SEPARATOR: &str = ": ";
 
-/// Lines are numbered from 1 within the text parsed, frontmatter or not.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SourcesSection {
     Absent,
@@ -35,6 +34,7 @@ pub enum SourcesSection {
 }
 
 impl SourcesSection {
+    /// Lines are numbered from 1 within `body`, frontmatter or not.
     #[must_use]
     pub fn parse(body: &str) -> Self {
         let mut lines = lines::numbered(body);
@@ -286,6 +286,8 @@ fn is_block_key(key: &str) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TierReading {
     Parsed(TierText),
+    /// The first segment after the link, as written: an entry that leaves
+    /// out its tier has its venue read here.
     Rejected(String),
 }
 
