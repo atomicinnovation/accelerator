@@ -5,7 +5,7 @@ title: "Sources Parser in the Research Crate Implementation Plan"
 date: "2026-11-24T08:20:05+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "in-progress"
 work_item_id: "work-item:PP-995"
 parent: "work-item:PP-995"
 derived_from: ["codebase-research:2026-11-24-PP-995-sources-parser-in-the-research-crate"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-1000", "work-item:PP-1002", "work-item:PP-994", "work
 tags: ["research", "visualiser", "sources", "tier-text"]
 revision: "83417415e7968e08d76e1b6aa8cf2c330dc34d59"
 repository: "accelerator"
-last_updated: "2026-11-24T08:20:05+00:00"
+last_updated: "2026-11-24T12:39:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -79,9 +79,9 @@ jj diff --stat --from <base> --to @ cli/research/Cargo.toml                     
 mise run
 ```
 
-`<base>` is the revision the plan starts from; every snapshot and manifest
-check below diffs against it, so a check made after a phase is committed
-still compares something.
+`<base>` is the revision the plan starts from, `kqsmnqzr`; every snapshot
+and manifest check below diffs against it, so a check made after a phase is
+committed still compares something.
 
 ### Key Discoveries:
 
@@ -235,7 +235,6 @@ const PART_SEPARATOR: &str = "; ";
 const ALSO_SEPARATOR: &str = ", ";
 const BASE_TIERS: [Tier; 3] = [Tier::One, Tier::Two, Tier::Three];
 
-/// Base and `also` tiers are [`Tier`](crate::sources::record::Tier).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TierText {
     base: Tier,
@@ -365,16 +364,16 @@ impls, and removes nothing.
 
 #### Automated Verification:
 
-- [ ] Tier-text tests pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
-- [ ] Snapshot is current: `mise run public-api:check`
-- [ ] Snapshot diff has no removed lines: `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] Import fence holds: `mise run pup:check`
-- [ ] Format and lint pass: `mise run cli:check`
-- [ ] Full suite green: `mise run`
+- [x] Tier-text tests pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
+- [x] Snapshot is current: `mise run public-api:check`
+- [x] Snapshot diff has no removed lines: `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [x] Import fence holds: `mise run pup:check`
+- [x] Format and lint pass: `mise run cli:check`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] The ten citing-once examples in the test match the skill file
+- [x] The ten citing-once examples in the test match the skill file
       (`skills/research/outputters/citing-once/SKILL.md`) character for
       character.
 
