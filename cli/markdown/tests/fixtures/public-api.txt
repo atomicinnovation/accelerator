@@ -2,4 +2,5 @@ pub mod markdown
 pub mod markdown::github
 pub fn markdown::github::unwrap_soft_line_breaks(markdown: &str) -> alloc::string::String
 pub mod markdown::linear
+pub fn markdown::linear::escape_for_push(markdown: &str) -> alloc::string::String
 pub fn markdown::linear::is_top_level_domain(label: &str) -> bool
