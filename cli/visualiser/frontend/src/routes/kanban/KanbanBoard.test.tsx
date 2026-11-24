@@ -304,7 +304,7 @@ describe("KanbanBoard", () => {
     ).toBe("success");
   });
 
-  it("links cards to their library detail pages via the canonical typed-route form", async () => {
+  it("links a card with no id by its filename stem", async () => {
     const entry = makeIndexEntry({
       type: "work-items",
       relPath: "meta/work/0029-template-management-subcommand-surface.md",
@@ -319,6 +319,20 @@ describe("KanbanBoard", () => {
     expect(link.getAttribute("href")).toBe(
       "/library/work-items/0029-template-management-subcommand-surface",
     );
+  });
+
+  it("links a card to its work item's id", async () => {
+    const entry = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/0007-parent-epic.md",
+      id: "0007",
+      title: "Parent epic",
+      frontmatter: { kind: "epic", status: "done" },
+    });
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([entry]);
+    renderKanbanAt();
+    const link = await screen.findByRole("link", { name: /parent epic/i });
+    expect(link.getAttribute("href")).toBe("/library/work-items/0007");
   });
 
   it("renders polite-announcement status region initially empty and no conflict banner", async () => {
