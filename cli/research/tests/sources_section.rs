@@ -539,6 +539,9 @@ fn a_block_line_that_breaks_the_token_rules_is_unread() {
         "  - _doi: 10.1/x",
         "  - 2doi: 10.1/x",
         "  - doi:   ",
+        "  - : 10.1/x",
+        "    - doi: 10.1/x",
+        " - doi: 10.1/x",
         "  - not a pair",
     ] {
         let parsed = SourcesSection::parse(&section(&[
