@@ -524,13 +524,13 @@ and `.../design-inventories/*/inventory.md`
 
 #### Automated Verification:
 
-- [ ] Frontend unit tests pass: `mise run test:unit:frontend`
-- [ ] e2e passes: `mise run test:e2e:visualiser`
-- [ ] Server tests still pass with the new fixture ids:
+- [x] Frontend unit tests pass: `mise run test:unit:frontend`
+- [x] e2e passes: `mise run test:e2e:visualiser`
+- [x] Server tests still pass with the new fixture ids:
       `mise run test:unit:visualiser` and `mise run test:integration:visualiser`
-- [ ] Each edited fixture's `id` is quoted and equals its directory name,
+- [x] Each edited fixture's `id` is quoted and equals its directory name,
       which the `library-links.spec.ts` link assertions confirm
-- [ ] Full default task passes: `mise run`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
@@ -539,6 +539,23 @@ and `.../design-inventories/*/inventory.md`
       that set.
 - [ ] A lifecycle cluster holding a design inventory links to that
       inventory's own page.
+
+#### Implementation Notes:
+
+- The address module's test file is now `library-document-address.test.tsx`,
+  since the `libraryHref`/`<Link>` parity case renders a router link.
+- `RelatedArtifacts.test.tsx` renders through `MemoryRouter` with an async
+  local `render` helper that waits for the router's first render.
+- Linking the type listing by `id` or stem changed three existing e2e
+  expectations the plan did not name: `navigation.spec.ts` now expects
+  `/library/root-cause-analyses/2026-06-10-example-rca` and
+  `/library/plans/2026-01-01-first-plan`, and `kanban-click-vs-drag.spec.ts`
+  expects `/library/work-items/0001`.
+- The `.draft-subject.tmp` topic manifest fixture is not indexed and gained
+  no `id`.
+- `LibraryDocView.test.tsx`'s wiki-link case opens the href
+  `resolveWikiLink` produces for a decision with `id: "ADR-0067"`.
+- `ActivityFeed.tsx` is the only remaining importer of `path-utils.ts`.
 
 ---
 
