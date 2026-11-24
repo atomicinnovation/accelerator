@@ -348,9 +348,9 @@ export function resolveLibraryDocument(
 
 #### Automated Verification:
 
-- [ ] Frontend unit tests pass: `mise run test:unit:frontend`
-- [ ] Frontend format, lint and types pass: `mise run frontend:check`
-- [ ] Full default task passes: `mise run`
+- [x] Frontend unit tests pass: `mise run test:unit:frontend`
+- [x] Frontend format, lint and types pass: `mise run frontend:check`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
