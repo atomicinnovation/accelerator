@@ -858,6 +858,19 @@ span at the body's end with and without a final newline.
 3. Compare the snapshot diff by eye: only `research::topic::sources_section`
    lines added.
 
+All three steps were run after Phase 4, through throwaway uncommitted tests.
+This workspace has no `meta/research/topics/`, so they used the files under
+`skills/research/research-topic/evals/variants/*/meta/research/topics/`:
+
+1. The synthesis and two reports, their entries and blocks rendered back from
+   the parse, match the files' Sources lines exactly, with no unread line.
+2. For all six files with a Sources section, `remove_from` returns the file
+   minus its section, byte for byte elsewhere, and `split`'s halves are the
+   file's own start and end. Each of these sections runs to the end of its
+   file, so a non-empty after-text is covered by the unit tests alone.
+3. The snapshot diff against `kqsmnqzr` adds 118 lines, all naming
+   `research::topic::sources_section`, and removes none.
+
 ## Performance Considerations
 
 Both parsers are linear in the body except the title search, which tries each
