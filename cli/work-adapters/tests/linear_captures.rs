@@ -12,6 +12,7 @@ use std::ops::Range;
 use captures::{fixture, fragments, lines, read_back, Fragments, TestError};
 use document::markdown::{events, MarkdownEvent, MarkdownTag};
 use markdown::linear::{dotted_tokens, escape_for_push};
+use tracker_test_support::linear_leaves_bare;
 
 struct Corpus {
     name: &'static str,
@@ -322,57 +323,6 @@ fn token_host(pushed: &str, token: &Range<usize>) -> String {
     host(&pushed[token.clone()]).replace('\\', "")
 }
 
-/// The classes of token the probe corpus shows Linear leaves bare, where an
-/// escape reads back as plain text.
-fn is_recorded_over_escape(pushed: &str, token: &Range<usize>) -> bool {
-    let text = &pushed[token.clone()];
-    if text.contains('\\') {
-        return true;
-    }
-    let host = host(text);
-    let labels: Vec<&str> = host.split('.').collect();
-    let last_label = labels.last().copied().unwrap_or_default();
-    let mut before = pushed[..token.start].chars().rev();
-    let preceding = before.next();
-    let follows_an_escape = before.next() == Some('\\');
-    let following = pushed[token.end..].chars().next();
-    ["md", "merck"]
-        .iter()
-        .any(|bare| last_label.eq_ignore_ascii_case(bare))
-        || !last_label.is_ascii()
-        || preceding.is_some_and(|character| "-_:@/\\.".contains(character))
-        || follows_an_escape
-        || following.is_some_and(|character| "_~-+=$|^<".contains(character))
-        || labels.iter().any(|label| {
-            label.contains('_')
-                || label.starts_with('-')
-                || label.ends_with('-')
-                || label.chars().count() > 63
-        })
-        || preceding.is_some_and(|character| ">;".contains(character))
-        || following == Some('&')
-        || is_struck_through(pushed, token.start)
-}
-
-fn is_struck_through(markdown: &str, offset: usize) -> bool {
-    let mut struck_through = 0_usize;
-    for (event, range) in events(markdown) {
-        match event {
-            MarkdownEvent::Start(MarkdownTag::Strikethrough) => {
-                struck_through += 1;
-            }
-            MarkdownEvent::End(MarkdownTag::Strikethrough) => {
-                struck_through -= 1;
-            }
-            MarkdownEvent::Text(_) if range.contains(&offset) => {
-                return struck_through > 0;
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
 /// The classes of lone number the probe corpus shows Linear leaves as text.
 fn is_recorded_digit_over_escape(pushed: &str, delimiter: usize) -> bool {
     let line_start = pushed[..delimiter].rfind('\n').map_or(0, |end| end + 1);
@@ -477,7 +427,7 @@ fn assert_every_unneeded_escape_is_a_recorded_over_escape(corpus: &Corpus) {
         for token in pair.escaped_tokens() {
             let text = token_host(pair.pushed, &token);
             if !linked.contains(&text)
-                && !is_recorded_over_escape(pair.pushed, &token)
+                && !linear_leaves_bare(pair.pushed, token.clone())
             {
                 failures.push(format!(
                     "{}: {text:?} escaped, though Linear left it bare",
