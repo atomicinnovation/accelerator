@@ -1358,18 +1358,50 @@ mod tests {
                 "{warnings:?}"
             );
             assert!(!repo.baseline(integration).is_empty(), "{integration}");
+            assert!(
+                matches!(
+                    only_mark(&repo.baseline(integration)),
+                    work_adapters::sync::rewrite_mark::MarkState::Marked(_)
+                ),
+                "{integration}"
+            );
+        }
+    }
+
+    fn only_mark(
+        baseline: &str,
+    ) -> work_adapters::sync::rewrite_mark::MarkState {
+        let (baseline, _) =
+            work_adapters::sync::baseline::Baseline::read(Some(baseline));
+        let ids = baseline.ids();
+        let [id] = ids.as_slice() else {
+            panic!("one entry is recorded: {ids:?}");
+        };
+        match baseline.get(id) {
+            Some(work_adapters::sync::baseline::Entry::Split(entry)) => {
+                entry.mark().clone()
+            }
+            other => panic!("a recipe-1 entry is recorded: {other:?}"),
         }
     }
 
     #[test]
     fn a_faithful_create_push_is_not_noticed() {
-        for repo in [PushingRepo::new(), PushingRepo::tracker_owned()] {
+        for (repo, integration) in [
+            (PushingRepo::new(), "jira"),
+            (PushingRepo::tracker_owned(), "linear"),
+        ] {
             let args = dotted_args(&repo, None);
             let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
 
             let (_, report) = created(repo.run_args(&args, &tracker, None));
 
             assert_eq!(report.rewrite, None);
+            assert_eq!(
+                only_mark(&repo.baseline(integration)),
+                work_adapters::sync::rewrite_mark::MarkState::Absent,
+                "{integration}"
+            );
         }
     }
 

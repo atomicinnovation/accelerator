@@ -44,6 +44,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
+use work_adapters::sync::rewrite_mark::MarkState;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::ReportedItem;
@@ -673,6 +674,34 @@ impl Repo {
             .0
             .get(&id(index))
             .cloned()
+    }
+
+    /// The same repository with item `index`'s entry carrying a rewrite
+    /// mark, as an earlier push the tracker rewrote would leave it.
+    #[must_use]
+    pub fn marked(self, index: usize) -> Self {
+        let text = self.baseline_text().expect("a baseline");
+        let mut document: serde_json::Value =
+            serde_json::from_str(&text).expect("the baseline is JSON");
+        document["items"][id(index)]["rewritten_on_push"] = serde_json::json!({
+            "lines": [{
+                "section": "Notes",
+                "sent": "See crates.io.",
+                "stored": "See [crates.io](<http://crates.io>).",
+            }],
+            "more": 0,
+        });
+        *self.integration_state.baseline.borrow_mut() =
+            Some(format!("{document}\n"));
+        self
+    }
+
+    /// The rewrite mark item `index`'s recipe-1 entry carries.
+    pub fn mark(&self, index: usize) -> MarkState {
+        match self.entry(index) {
+            Some(Entry::Split(entry)) => entry.mark().clone(),
+            other => panic!("item {index} has no recipe-1 entry: {other:?}"),
+        }
     }
 
     /// Whether the run wrote any work-item file.

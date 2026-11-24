@@ -558,3 +558,40 @@ fn an_unreadable_baseline_is_a_baseline_error() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+#[test]
+fn a_realigned_entry_keeps_its_rewrite_mark_and_unknown_keys(
+) -> Result<(), TestError> {
+    let original = work_item("0001", "Synced");
+    let corpus = re_rendered_corpus(&original)?;
+    let baseline = seed_split_baseline(&corpus.integrations, &original)?;
+    let mut document: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&baseline)?)?;
+    document["items"]["0001"]["aardvark"] = serde_json::json!([1]);
+    document["items"]["0001"]["rewritten_on_push"] = serde_json::json!({
+        "lines": [{"section": "Notes", "sent": "a", "stored": "b"}],
+        "more": 0,
+    });
+    fs::write(&baseline, document.to_string())?;
+    let Some(Entry::Split(before)) = entry(&baseline)? else {
+        return Err("the seeded entry is recipe 1".into());
+    };
+    fs::write(&corpus.item, quoted_work_item("0001", "Synced"))?;
+
+    let realigned = realign_baselines(
+        &corpus.integrations,
+        &[(corpus.item.clone(), original)],
+        &DiskReader,
+        &disk_writer_at,
+        &plain_rules,
+        &CommonMarkBody,
+    )?;
+
+    assert_eq!(realigned, 1);
+    let Some(Entry::Split(after)) = entry(&baseline)? else {
+        return Err("the entry stays recipe 1".into());
+    };
+    assert_eq!(after.mark(), before.mark());
+    assert!(fs::read_to_string(&baseline)?.contains("\"aardvark\":[1]"));
+    Ok(())
+}

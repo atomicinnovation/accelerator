@@ -20,6 +20,7 @@ use vcs::tracking::RepositoryTracking;
 use work::inventory::Fault;
 use work::sync::order_precondition;
 use work::sync::push_precondition;
+use work::sync::BodyAgreement;
 use work::sync::BodyEquivalence;
 use work::sync::Dirtiness;
 use work::sync::DualRecipeFingerprints;
@@ -510,13 +511,16 @@ pub struct PushRequest<'a> {
 }
 
 /// A send of the local title alone, leaving the remote description as it is.
+///
 /// `sent_content` is the local file the title came from, which the baseline
-/// records.
+/// records. `agreement` is what classification confirmed of the bodies the
+/// retitle leaves alone.
 pub struct RetitleRequest<'a> {
     pub id: &'a str,
     pub external_id: &'a ExternalId,
     pub title: &'a str,
     pub sent_content: &'a str,
+    pub agreement: BodyAgreement,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -776,12 +780,13 @@ fn pending_push_refused(
 }
 
 /// A synced item's baseline, rewritten under the current recipe from the
-/// fingerprints classification read.
+/// fingerprints classification read, with what it confirmed of the bodies.
 pub struct RecordRequest<'a> {
     pub id: &'a str,
     pub file_path: &'a Path,
     pub fingerprints: DualRecipeFingerprints,
     pub remote_updated: RemoteTimestamp,
+    pub agreement: BodyAgreement,
 }
 
 pub struct PullRequest<'a> {
@@ -991,7 +996,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             attempt,
             request.sent_content,
             remote.as_ref(),
-            MarkChange::Keep,
+            MarkChange::after_reconciliation(request.agreement),
         )
     }
 
@@ -1753,7 +1758,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 request.id,
                 &request.remote_updated,
                 request.fingerprints.clone(),
-                MarkChange::Keep,
+                MarkChange::after_reconciliation(request.agreement),
             )
         })
     }

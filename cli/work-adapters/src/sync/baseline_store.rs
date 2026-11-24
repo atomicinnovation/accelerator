@@ -556,6 +556,30 @@ mod tests {
     }
 
     #[test]
+    fn a_legacy_entry_reports_the_rewrite_without_persisting_it(
+    ) -> Result<(), StoreError> {
+        let rewritten = rewrite();
+        let file = MemoryFile::default();
+        let store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+        store.seed("0001", entry("earlier"))?;
+
+        store.record(
+            "0001",
+            entry("pushed"),
+            MarkChange::Judged(&rewritten),
+        )?;
+
+        assert_eq!(
+            stored(&file),
+            "{\"timestamp\":0,\"items\":{\"0001\":{\
+             \"remote_updated_at\":\"\",\"remote_hash\":\"\",\
+             \"local_hash\":\"pushed\",\"local_synced_at\":0}}}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn renaming_an_absent_entry_is_a_no_op() -> Result<(), StoreError> {
         let file = MemoryFile::default();
         let store =

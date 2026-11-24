@@ -69,6 +69,7 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::pending_push;
 use work_adapters::sync::push_fidelity::PushFidelity;
+use work_adapters::sync::rewrite_mark::MarkState;
 
 static TRACKER: std::sync::LazyLock<work::id_scheme::IdScheme> =
     std::sync::LazyLock::new(|| {
@@ -88,6 +89,15 @@ const PLAN: &str = "meta/plans/plan.md";
 const OUTSIDE: &str = "README.md";
 const INTEGRATIONS: &str = ".accelerator/state/integrations";
 const BASELINE: &str = ".accelerator/state/integrations/linear/last-sync.json";
+
+const MARKED_KEY_BASELINE: &str = "{\"timestamp\":0,\"items\":{\"REC-1\":{\
+    \"digest_recipe\":1,\"local_body_hash\":\"b\",\
+    \"local_fields_hash\":\"f\",\"local_frontmatter_hash\":\"m\",\
+    \"local_hash\":\"l\",\"local_synced_at\":0,\"remote_body_hash\":\"rb\",\
+    \"remote_fields_hash\":\"rf\",\"remote_hash\":\"r\",\
+    \"remote_updated_at\":\"\",\"rewritten_on_push\":{\"lines\":[{\
+    \"section\":\"Earlier\",\"sent\":\"before\",\"stored\":\"after\"}],\
+    \"more\":0}}}}\n";
 
 const DRAFT_CONTENT: &str = "---\nid: \"draft-k7mq3x\"\ntitle: \"Add search\"\n\
                              kind: \"story\"\n---\n\n# draft-k7mq3x: Add search\n\n\
@@ -207,6 +217,25 @@ impl Repo {
 
     fn read(&self, relative: &str) -> Option<String> {
         fs::read_to_string(self.path(relative)).ok()
+    }
+
+    /// The rewrite mark the key's recipe-1 entry carries; absent when the
+    /// key has no entry.
+    fn key_mark(&self) -> MarkState {
+        match self.baseline_entry(KEY) {
+            Some(Entry::Split(entry)) => entry.mark().clone(),
+            None => MarkState::Absent,
+            Some(other) => panic!("a recipe-1 entry: {other:?}"),
+        }
+    }
+
+    /// The same repository with an earlier marked entry under the key.
+    fn with_a_marked_key(self) -> Self {
+        let path = self.path(BASELINE);
+        fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("the baseline directory");
+        fs::write(&path, MARKED_KEY_BASELINE).expect("the baseline is seeded");
+        self
     }
 
     fn baseline_entry(&self, id: &str) -> Option<Entry> {
@@ -1940,6 +1969,10 @@ fn a_promotion_is_judged_by_its_landed_retitle() {
             "Published to [crates.io](<http://crates.io>) first.".to_owned()
         )]
     );
+    let MarkState::Marked(mark) = repo.key_mark() else {
+        panic!("the key's entry is marked");
+    };
+    assert_eq!(mark.rewritten_lines(), notice.lines);
 }
 
 #[test]
@@ -1954,21 +1987,24 @@ fn a_promotion_kept_or_adopted_is_unjudged() {
     let linked = "Add search\n# draft-k7mq3x: Add search\n\n\
                   Published to [crates.io](<http://crates.io>) first.\n";
 
-    let edited = dotted_repo();
+    let edited = dotted_repo().with_a_marked_key();
+    let earlier = edited.key_mark();
     edited.save(&record_at(PromotionStage::Created {
         key: tracker_key(),
         created_remote_hash: Some("an earlier read".to_owned()),
     }));
     assert_eq!(reported(&edited, &tracker_holding(linked)).rewrite, None);
+    assert_eq!(edited.key_mark(), earlier, "kept as edited");
 
-    let unhashed = dotted_repo();
+    let unhashed = dotted_repo().with_a_marked_key();
     unhashed.save(&record_at(PromotionStage::Created {
         key: tracker_key(),
         created_remote_hash: None,
     }));
     assert_eq!(reported(&unhashed, &tracker_holding(linked)).rewrite, None);
+    assert_eq!(unhashed.key_mark(), earlier, "kept with no hash");
 
-    let adopting = dotted_repo();
+    let adopting = dotted_repo().with_a_marked_key();
     let store = Store::new(adopting.root());
     let adopt = promote_attempt(
         &adopting,
@@ -1977,8 +2013,9 @@ fn a_promotion_kept_or_adopted_is_unjudged() {
         &PromotionMode::Adopt(tracker_key()),
     );
     assert_eq!(adopt.fidelity, PushFidelity::Unjudged);
+    assert_eq!(adopting.key_mark(), earlier, "adopted by name");
 
-    let failing = dotted_repo();
+    let failing = dotted_repo().with_a_marked_key();
     let tracker = linking_tracker().failing_update(
         key(),
         TrackerError::Retryable {
@@ -1986,6 +2023,7 @@ fn a_promotion_kept_or_adopted_is_unjudged() {
         },
     );
     assert_eq!(reported(&failing, &tracker).rewrite, None);
+    assert_eq!(failing.key_mark(), earlier, "kept as the update failed");
 }
 
 #[test]
@@ -2003,6 +2041,18 @@ fn a_rewound_retirement_still_reports_its_notice() {
         rewound.outcome
     );
     assert_eq!(rewritten_lines(&rewound).len(), 1);
+    assert_eq!(repo.key_mark(), MarkState::Absent, "no mark is recorded");
+
+    let resumed = reported(&repo, &tracker);
+    assert!(
+        matches!(
+            resumed.outcome,
+            PromotionOutcome::Promoted(Promotion::Completed(..))
+        ),
+        "{:?}",
+        resumed.outcome
+    );
+    assert_eq!(repo.key_mark(), MarkState::Absent, "the finish is unjudged");
 }
 
 #[test]
@@ -2034,4 +2084,17 @@ fn a_promotion_finished_elsewhere_is_unjudged() {
         again.outcome
     );
     assert_eq!(again.rewrite, None);
+
+    let marked = dotted_repo().with_a_marked_key();
+    let earlier = marked.key_mark();
+    let _ =
+        reported_over(&marked, &tracker, &store_failing_retirement(&marked));
+    let _ = reported(&marked, &tracker);
+    assert_eq!(marked.key_mark(), earlier, "a later finish keeps the mark");
+}
+
+fn store_failing_retirement(repo: &Repo) -> Store {
+    let mut store = Store::new(repo.root());
+    store.fail_at = vec![4, 5];
+    store
 }

@@ -492,6 +492,7 @@ mod tests {
     use tracker::RemoteTracker;
     use tracker_test_support::RecordingTracker;
     use work_adapters::sync::digest;
+    use work_adapters::sync::rewrite_mark::MarkState;
 
     use super::*;
 
@@ -695,6 +696,15 @@ mod tests {
         );
     }
 
+    const MARKED_BASELINE: &str = "{\"timestamp\":0,\"items\":{\"0001\":{\
+        \"digest_recipe\":1,\"local_body_hash\":\"b\",\
+        \"local_fields_hash\":\"f\",\"local_frontmatter_hash\":\"m\",\
+        \"local_hash\":\"l\",\"local_synced_at\":0,\
+        \"remote_body_hash\":\"rb\",\"remote_fields_hash\":\"rf\",\
+        \"remote_hash\":\"r\",\"remote_updated_at\":\"\",\
+        \"rewritten_on_push\":{\"lines\":[{\"section\":\"Earlier\",\
+        \"sent\":\"before\",\"stored\":\"after\"}],\"more\":0}}}}\n";
+
     struct PushedRepo {
         root: tempfile::TempDir,
         item: std::path::PathBuf,
@@ -737,6 +747,37 @@ mod tests {
 
         fn body(&self) -> String {
             document::split(&self.content).expect("a body").body
+        }
+
+        fn baseline_path(
+            &self,
+            tracker: crate::test_support::real_trackers::Tracker,
+        ) -> std::path::PathBuf {
+            self.root.path().join(format!(
+                "integrations/{}/last-sync.json",
+                tracker.integration()
+            ))
+        }
+
+        fn marked(
+            self,
+            tracker: crate::test_support::real_trackers::Tracker,
+        ) -> Self {
+            std::fs::write(self.baseline_path(tracker), MARKED_BASELINE)
+                .expect("seed the marked baseline");
+            self
+        }
+
+        fn mark(
+            &self,
+            tracker: crate::test_support::real_trackers::Tracker,
+        ) -> MarkState {
+            let text = std::fs::read_to_string(self.baseline_path(tracker))
+                .expect("the baseline is recorded");
+            match baseline::Baseline::read(Some(&text)).0.get("0001") {
+                Some(baseline::Entry::Split(entry)) => entry.mark().clone(),
+                other => panic!("a recipe-1 entry is recorded: {other:?}"),
+            }
         }
 
         fn push(
@@ -838,8 +879,59 @@ mod tests {
                 )))
                 .expect("the baseline is recorded");
             assert!(baseline.contains("\"0001\""), "{tracker:?}");
+            assert!(
+                matches!(repo.mark(tracker), MarkState::Marked(_)),
+                "{tracker:?}"
+            );
             repo.assert_unchanged();
         }
+    }
+
+    #[test]
+    fn a_faithful_update_push_clears_the_mark() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker).marked(tracker);
+            let mut served = tracker.serve("Title", &repo.body());
+
+            repo.push(&mut served);
+
+            assert_eq!(repo.mark(tracker), MarkState::Absent, "{tracker:?}");
+        }
+    }
+
+    #[test]
+    fn an_unjudged_update_push_keeps_the_mark() {
+        use crate::test_support::real_trackers::Tracker;
+
+        let repo = PushedRepo::on(Tracker::Linear).marked(Tracker::Linear);
+        let before = repo.mark(Tracker::Linear);
+        let external_id = tracker::ExternalId::new("ENG-1".to_owned());
+        let unreadable = RecordingTracker::holding(vec![(
+            external_id.clone(),
+            tracker::RemoteIssue {
+                key: external_id.clone(),
+                updated: tracker::RemoteTimestamp::NotReported,
+                body: "Title\nOld body\n".to_owned(),
+            },
+        )])
+        .failing_show(
+            external_id,
+            TrackerError::Retryable {
+                detail: "the read-back timed out".to_owned(),
+            },
+        );
+
+        let outcome = run(
+            repo.root.path(),
+            &repo.config,
+            &pushing_nothing_else(repo.item.clone()),
+            &crate::test_support::FixedRegistry::holding(unreadable),
+        );
+
+        assert!(matches!(outcome, RunOutcome::Updated { .. }));
+        assert_eq!(repo.mark(Tracker::Linear), before);
     }
 
     #[test]

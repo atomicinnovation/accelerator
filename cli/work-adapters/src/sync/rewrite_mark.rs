@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Map;
 use serde_json::Value;
+use work::sync::BodyAgreement;
 
 use crate::sync::push_fidelity::ChangedLine;
 use crate::sync::push_fidelity::PushFidelity;
@@ -45,6 +46,18 @@ pub enum MarkChange<'a> {
     Fresh(&'a PushFidelity),
     Clear,
     Keep,
+}
+
+impl MarkChange<'_> {
+    /// How a write that reconciles without pushing a body treats the mark:
+    /// cleared once classification confirmed the bodies agree, else kept.
+    #[must_use]
+    pub const fn after_reconciliation(agreement: BodyAgreement) -> Self {
+        match agreement {
+            BodyAgreement::Agreed => Self::Clear,
+            BodyAgreement::Unconfirmed => Self::Keep,
+        }
+    }
 }
 
 impl RewriteMark {
@@ -239,6 +252,8 @@ pub(crate) fn render_object(fields: &BTreeMap<String, String>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use work::sync::BodyAgreement;
+
     use super::MarkChange;
     use super::MarkState;
     use super::RewriteMark;
@@ -294,6 +309,23 @@ mod tests {
         assert_eq!(
             previous.after(MarkChange::Judged(&PushFidelity::Unjudged)),
             previous
+        );
+    }
+
+    #[test]
+    fn a_reconciliation_clears_the_mark_only_when_the_bodies_agreed() {
+        let marked = MarkState::Marked(mark("Notes"));
+
+        assert_eq!(
+            marked
+                .after(MarkChange::after_reconciliation(BodyAgreement::Agreed)),
+            MarkState::Absent
+        );
+        assert_eq!(
+            marked.after(MarkChange::after_reconciliation(
+                BodyAgreement::Unconfirmed
+            )),
+            marked
         );
     }
 

@@ -41,6 +41,7 @@ use tracker::TrackerError;
 use vcs::tracking::FileTracking;
 use vcs::tracking::RepositoryTracking;
 use vcs::tracking::RootsAnswer;
+use work::sync::BodyAgreement;
 use work::sync::Dirtiness;
 use work_adapters::sync::apply::ApplierPorts;
 use work_adapters::sync::apply::ApplyError;
@@ -619,6 +620,7 @@ fn a_retitle_sends_the_title_alone_and_records_the_read_back(
                 external_id: &external_id,
                 title: "Retitled",
                 sent_content: item_content(),
+                agreement: BodyAgreement::Unconfirmed,
             })
             .result?;
     }
@@ -923,6 +925,7 @@ fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseli
             remote_updated: RemoteTimestamp::Reported(
                 "2026-06-01T00:00:00Z".to_owned(),
             ),
+            agreement: BodyAgreement::Unconfirmed,
         })
         .result
         .expect_err("the edit is never recorded as synced");
@@ -1809,6 +1812,7 @@ fn each_failing_step_of_a_record_only_apply_is_retryable(
                 file_path: path,
                 fingerprints: classified.clone(),
                 remote_updated: RemoteTimestamp::NotRead,
+                agreement: BodyAgreement::Unconfirmed,
             })
             .result
             .expect_err("the step fails");

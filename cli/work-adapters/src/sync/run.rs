@@ -1511,6 +1511,7 @@ fn send_outcome(
                 external_id,
                 title,
                 sent_content: prepared.content,
+                agreement: planned.body_agreement(),
             });
             (outcome_of(retitled.result), None)
         }
@@ -1620,6 +1621,7 @@ impl RunLabels<'_> {
 
 fn record_outcome(
     applier: &mut ItemApplier<'_, '_>,
+    planned: &PlannedAction,
     item: &LocalItem,
     snapshot: &ItemSnapshot<'_>,
     knowledge: &RunKnowledge<'_>,
@@ -1642,6 +1644,7 @@ fn record_outcome(
                 file_path: &item.path,
                 fingerprints,
                 remote_updated: knowledge.remote_updated(&item.id),
+                agreement: planned.body_agreement(),
             })
             .result,
     )
@@ -1695,7 +1698,7 @@ fn apply_planned_action(
         Action::RecordBaseline => {
             match item.zip(knowledge.snapshot(planned.id())) {
                 Some((item, snapshot)) => {
-                    record_outcome(applier, item, snapshot, knowledge)
+                    record_outcome(applier, &planned, item, snapshot, knowledge)
                 }
                 None => return not_applied(planned),
             }
