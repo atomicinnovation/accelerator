@@ -39,6 +39,7 @@ function entry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     path: RELPATH,
     relPath: RELPATH,
     slug: SLUG,
+    id: null,
     workItemId: "0007",
     workItemKey: null,
     draft: false,

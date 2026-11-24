@@ -34,6 +34,7 @@ export function makeIndexEntry(
     path: "/x/foo.md",
     relPath: "foo.md",
     slug: "foo",
+    id: null,
     workItemId: null,
     workItemKey: null,
     draft: false,

@@ -127,6 +127,9 @@ export interface IndexEntry {
   path: string;
   relPath: string;
   slug: string | null;
+  /** The document's frontmatter `id`; null when it has none. Older servers
+   *  omitting the field are normalised to null at the API client boundary. */
+  id: string | null;
   /** The work item's `id`, normalised under the configured scheme; null for
    *  other types, an `id` the scheme does not admit, or any item while the
    *  corpus cannot be trusted. */

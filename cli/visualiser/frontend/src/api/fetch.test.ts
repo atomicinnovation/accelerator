@@ -84,6 +84,17 @@ describe("fetchDocs", () => {
     expect(doc.workItemKey).toBeNull();
   });
 
+  it("reads an entry from a server that predates document ids as id-less", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        docs: [{ type: "plans", path: "/p", relPath: "r" }],
+      }),
+    });
+    const [doc] = await fetchDocs("plans");
+    expect(doc.id).toBeNull();
+  });
+
   it("url-encodes the type parameter", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

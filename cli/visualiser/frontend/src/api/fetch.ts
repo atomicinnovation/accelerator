@@ -119,12 +119,13 @@ export async function fetchTypes(): Promise<DocType[]> {
  *  the boundary. */
 type WireIndexEntry = Omit<
   IndexEntry,
-  "completeness" | "linkedCount" | "draft" | "workItemKey"
+  "completeness" | "linkedCount" | "draft" | "workItemKey" | "id"
 > & {
   completeness?: IndexEntry["completeness"];
   linkedCount?: number;
   draft?: boolean;
   workItemKey?: string | null;
+  id?: string | null;
 };
 
 /** Normalises an `IndexEntry` shape from the wire. Servers older than the
@@ -138,6 +139,7 @@ function normaliseEntry(raw: WireIndexEntry): IndexEntry {
     linkedCount: raw.linkedCount ?? 0,
     draft: raw.draft ?? false,
     workItemKey: raw.workItemKey ?? null,
+    id: raw.id ?? null,
   };
 }
 
@@ -243,6 +245,8 @@ export interface SearchResult {
   docType: DocTypeKey;
   title: string;
   slug: string;
+  id: string | null;
+  relPath: string;
   mtimeMs: number;
 }
 

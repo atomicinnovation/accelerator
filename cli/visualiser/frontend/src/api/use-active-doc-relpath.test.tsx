@@ -20,6 +20,7 @@ function entry(overrides: Partial<IndexEntry>): IndexEntry {
     path: "meta/work/0007-foo.md",
     relPath: "meta/work/0007-foo.md",
     slug: "0007-foo",
+    id: null,
     workItemId: "0007",
     workItemKey: null,
     draft: false,
