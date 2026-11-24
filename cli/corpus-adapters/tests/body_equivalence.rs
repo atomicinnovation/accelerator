@@ -62,9 +62,16 @@ fn description(remote: &Path) -> Result<String, TestError> {
 }
 
 fn sections(markdown: &str) -> Vec<(&str, String)> {
+    sections_under(markdown, "## ")
+}
+
+fn sections_under<'a>(
+    markdown: &'a str,
+    marker: &str,
+) -> Vec<(&'a str, String)> {
     let mut sections: Vec<(&str, String)> = Vec::new();
     for line in markdown.lines() {
-        if line.starts_with("## ") {
+        if line.starts_with(marker) {
             sections.push((line, String::new()));
         } else if let Some((_, content)) = sections.last_mut() {
             content.push_str(line);
@@ -394,5 +401,45 @@ fn each_escaped_read_back_is_equivalent_to_its_unescaped_fragment(
             &section(&escaped.read_back, &code)?,
         );
     }
+    Ok(())
+}
+
+const ENTITY_PROBES_THAT_CHANGE_MEANING: &[&str] = &[
+    "E001", "E002", "E004", "E009", "E015", "E016", "E018", "E023",
+];
+
+#[test]
+fn each_entity_probe_reads_as_recorded() -> Result<(), TestError> {
+    let probes = fixtures().join("linear-autolink-probes");
+    let pushed = std::fs::read_to_string(probes.join("entities.md"))?;
+    let read_back = description(&probes.join("entities.read-back.json"))?;
+    let (pushed, read_back) = (
+        sections_under(&pushed, "#### "),
+        sections_under(&read_back, "#### "),
+    );
+    assert_eq!(
+        pushed
+            .iter()
+            .map(|(heading, _)| heading)
+            .collect::<Vec<_>>(),
+        read_back
+            .iter()
+            .map(|(heading, _)| heading)
+            .collect::<Vec<_>>(),
+    );
+    let misread: Vec<&str> = pushed
+        .iter()
+        .zip(&read_back)
+        .filter(|((heading, sent), (_, stored))| {
+            let code = heading.split(' ').nth(1).unwrap_or_default();
+            equivalent_markdown(sent, stored)
+                == ENTITY_PROBES_THAT_CHANGE_MEANING.contains(&code)
+        })
+        .map(|((heading, _), _)| *heading)
+        .collect();
+    assert!(
+        misread.is_empty(),
+        "read otherwise than recorded: {misread:?}"
+    );
     Ok(())
 }

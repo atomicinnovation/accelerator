@@ -1,6 +1,6 @@
 # Linear autolink and stray-list probes
 
-Three bodies were pushed to scratch issues in the `TES` team on 2026-11-24,
+Four bodies were pushed to scratch issues in the `TES` team on 2026-11-24,
 read back with `accelerator linear show`, projected through the allowlist in
 `../work-item-sync-recovery/README.md`, and deleted.
 
@@ -8,9 +8,10 @@ read back with `accelerator linear show`, projected through the allowlist in
 |---|---|---|---|
 | `probes.md` | `TES-33` by `issueCreate`, `TES-34` by `issueUpdate` | `probes.created.json`, `probes.updated.json` | `Q001`-`Q310` |
 | `follow-ups.md` | `TES-36` | `follow-ups.read-back.json` | `S001`-`S209` |
+| `entities.md` | `TES-39` | `entities.read-back.json` | `E001`-`E026` |
 | `tld-sweep.md` | `TES-35` | `tld-sweep.read-back.json` | `x foo.<tld> y` for every label in `cli/markdown/src/linear/tlds-alpha-by-domain.txt` |
 
-Each probe in `probes.md` and `follow-ups.md` sits under a `#### <code>
+Each probe in `probes.md`, `follow-ups.md` and `entities.md` sits under a `#### <code>
 <group>` heading; each sweep line is its own paragraph led by `T<nnnn>`.
 Create and update read back byte-identically, so both mutations share one
 parser.
@@ -65,3 +66,40 @@ it and are stored as plain `0160.` and `0160)`.
 - `&lt;`, `&gt;`, `&amp;` and `&#46;` are decoded (`Q262`-`Q264`), and
   `<br>` in a table cell becomes `&#10;` (`S207`).
 - A token of 130 labels is linked with an empty destination (`S167`).
+
+## Entities
+
+`entities.md` sends each character CommonMark gives meaning to as an entity
+(group `entities`), and again behind a backslash (group `remedy`). "Reads
+alike" is PP-880's equivalence of the probe as sent and as stored, pinned by
+`each_entity_probe_reads_as_recorded` in
+`corpus-adapters/tests/body_equivalence.rs`.
+
+| Probe | Sent | Stored | Reads alike |
+|---|---|---|---|
+| `E001` | `&lt;b&gt;bold&lt;/b&gt;` | `<b>bold</b>` | no: a live tag |
+| `E002` | `&lt;!-- c --&gt;` | `<!-- c -->` | no: a live comment |
+| `E003` | `&lt;https://crates.io&gt;` | `<[https://crates.io](<https://crates.io>)>` | yes |
+| `E004` | `&amp;lt;b&amp;gt;` | `&lt;b&gt;` | no: shows `<b>` |
+| `E005` | `&#42;emph&#42;` | `\*emph\*` | yes |
+| `E006` | `&#95;emph&#95;` | `\_emph\_` | yes |
+| `E007` | `&#91;t&#93;(https://x.io)` | `\[t\]([https://x.io](<https://x.io>))` | yes |
+| `E008` | `&#96;code&#96;` | ``\`code\` `` | yes |
+| `E009` | `\| x &#124; y \| z \|` | `\| x \| y \| z \|` | no: a third cell |
+| `E010` | `&#35; heading` | `\# heading` | yes |
+| `E011` | `&#45; item` | `\- item` | yes |
+| `E012` | `&#49;. item` | `1\. item` | yes |
+| `E013` | `a&nbsp;b` | `a` U+00A0 `b` | yes |
+| `E014` | `&copy;` | `©` | yes |
+| `E015` | `\<b>bold\</b>` | `<b>bold</b>` | no: a live tag |
+| `E016` | `\<!-- c -->` | `<!-- c -->` | no: a live comment |
+| `E017` | `\<https://crates.io>` | `<[https://crates.io](<https://crates.io>)>` | yes |
+| `E018` | `\&lt;b\&gt;` | `&lt;b&gt;` | no: shows `<b>` |
+| `E019`-`E022`, `E024`-`E026` | `\*`, `\_`, `\[`, `` \` ``, `\#`, `\-`, `1\.` | as sent, but `E021`'s URL is linked | yes |
+| `E023` | `\| x \\| y \| z \|` | `\| x \| y \| z \|` | no: a third cell |
+
+Linear decodes every entity. Where the character is Markdown punctuation it
+stores a backslash escape in its place, so the reading holds, except for
+`<`, `&` and a `|` in a table cell, where it stores the bare character. It
+also drops the backslash before those three, so no form sent as text
+survives: `\<`, `\&` and `\|` change meaning as their entities do.
