@@ -2438,16 +2438,30 @@ reads alike. Then, by outcome:
 | Some change meaning, and a backslash form survives as text | Raise a work item to substitute it on push; this breaks the escaper's insertions-only invariant, so it needs its own design |
 | Some change meaning, and no form survives | Raise a work item to report on push, as phase 7 reports a rewrite |
 
+#### 5. As landed
+
+- **Probe body.** Each entity probe has a backslash twin in a `remedy`
+  group (`E015`-`E026`), not only `\<b>`, `\*emph\*` and `\# heading`.
+- **Capture.** Taken on 2026-11-24 as `TES-39`, since trashed.
+  `E001`, `E002`, `E004` and `E009` change meaning, and so do their twins
+  `E015`, `E016`, `E018` and `E023`: Linear stores `<`, `&` and a table
+  cell's `|` bare whether sent as an entity or behind a backslash. Every
+  other entity is stored as a backslash escape or the character itself,
+  and reads alike.
+- **Test.** `each_entity_probe_reads_as_recorded` keeps the meaning-changing
+  codes in `ENTITY_PROBES_THAT_CHANGE_MEANING` and reports every probe read
+  otherwise at once.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Entity probe test passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
-- [ ] `mise run` exits 0
+- [x] Entity probe test passes: `mise run test:unit:cli --filter 'binary(body_equivalence)'`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Probe taken, allowlisted, committed and its issue trashed
+- [x] Probe taken, allowlisted, committed and its issue trashed
 - [ ] README records each probe and the decision; any work item it calls for is raised
 
 ---
