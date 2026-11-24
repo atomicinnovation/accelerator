@@ -13,6 +13,15 @@ pub enum Tier {
     Three,
 }
 
+impl Tier {
+    const ALL: [Self; 3] = [Self::One, Self::Two, Self::Three];
+
+    #[must_use]
+    pub fn named(text: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tier| tier.to_string() == text)
+    }
+}
+
 impl fmt::Display for Tier {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {

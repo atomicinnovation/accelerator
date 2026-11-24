@@ -9,7 +9,6 @@ const WITHDRAWN: &str = "withdrawn";
 const ALSO: &str = "also ";
 const PART_SEPARATOR: &str = "; ";
 const ALSO_SEPARATOR: &str = ", ";
-const BASE_TIERS: [Tier; 3] = [Tier::One, Tier::Two, Tier::Three];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TierText {
@@ -29,9 +28,9 @@ impl TierText {
     pub fn parse(text: &str) -> Result<Self, NotTierText> {
         let refused = || NotTierText(text.to_owned());
         let Some((base_text, suffix)) = text.split_once(' ') else {
-            return base_tier(text).map(Self::bare).ok_or_else(refused);
+            return Tier::named(text).map(Self::bare).ok_or_else(refused);
         };
-        let base = base_tier(base_text).ok_or_else(refused)?;
+        let base = Tier::named(base_text).ok_or_else(refused)?;
         let parenthesised = suffix
             .strip_prefix('(')
             .and_then(|inner| inner.strip_suffix(')'))
@@ -89,14 +88,10 @@ impl TierText {
     }
 }
 
-fn base_tier(text: &str) -> Option<Tier> {
-    BASE_TIERS.into_iter().find(|tier| tier.to_string() == text)
-}
-
 fn also_tiers(part: &str) -> Option<Vec<Tier>> {
     part.strip_prefix(ALSO)?
         .split(ALSO_SEPARATOR)
-        .map(base_tier)
+        .map(Tier::named)
         .collect()
 }
 

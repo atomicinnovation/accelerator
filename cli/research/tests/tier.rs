@@ -210,3 +210,13 @@ fn a_tier_renders_as_its_citation_label() {
     assert_eq!(Tier::Two.to_string(), "tier-2");
     assert_eq!(Tier::Three.to_string(), "tier-3");
 }
+
+#[test]
+fn a_tier_is_named_by_the_text_it_displays_as() {
+    for tier in [Tier::One, Tier::Two, Tier::Three] {
+        assert_eq!(Tier::named(&tier.to_string()), Some(tier));
+    }
+    for text in ["tier-4", "Tier-1", "tier-1 ", ""] {
+        assert_eq!(Tier::named(text), None, "{text:?}");
+    }
+}
