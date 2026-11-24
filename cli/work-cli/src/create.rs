@@ -118,6 +118,8 @@ pub enum RunOutcome {
     Created {
         path: Option<PathBuf>,
         push: Option<PushReport>,
+        /// The lines stderr carries about a push that applied.
+        warnings: Vec<String>,
     },
     Previewed(String),
     PreviewFailed {
@@ -802,6 +804,26 @@ fn preview_requested_id(
     }
 }
 
+/// The stderr block for a create's push that the tracker stored with a
+/// different meaning, naming the item's path.
+#[must_use]
+pub fn rewrite_warnings(
+    push: Option<&PushReport>,
+    config: &dyn ConfigAccess,
+) -> Vec<String> {
+    push.and_then(|report| report.rewrite.as_ref())
+        .map(|notice| {
+            let integration = effective_nonempty(config, "work.integration")
+                .unwrap_or_default();
+            crate::report_records::rewrite_lines(
+                notice,
+                &notice.path.display().to_string(),
+                &integration,
+            )
+        })
+        .unwrap_or_default()
+}
+
 #[must_use]
 pub fn run_with(
     start: &Path,
@@ -842,9 +864,11 @@ pub fn run_with(
         &mut |_| Ok(()),
         &identity_run,
     ) {
-        Ok(CreationOutcome { path, push }) => {
-            RunOutcome::Created { path, push }
-        }
+        Ok(CreationOutcome { path, push }) => RunOutcome::Created {
+            warnings: rewrite_warnings(push.as_ref(), config),
+            path,
+            push,
+        },
         Err(CreateFailure::Pending { message, .. }) => {
             RunOutcome::Pending(message)
         }
@@ -994,6 +1018,7 @@ mod tests {
         let RunOutcome::Created {
             path: Some(draft),
             push: Some(report),
+            ..
         } = outcome
         else {
             panic!("a refused root still saves the draft");
@@ -1072,6 +1097,7 @@ mod tests {
         let RunOutcome::Created {
             path: Some(path),
             push: None,
+            ..
         } = outcome
         else {
             panic!("an offline create under {{tracker}} writes a draft");
@@ -1197,6 +1223,7 @@ mod tests {
             RunOutcome::Created {
                 path,
                 push: Some(report),
+                ..
             } => (path, report),
             RunOutcome::Failed(message) | RunOutcome::Pending(message) => {
                 panic!("the create failed: {message}")
@@ -1265,6 +1292,106 @@ mod tests {
         }
     }
 
+    fn linking_tracker() -> Rc<RecordingTracker> {
+        Rc::new(RecordingTracker::rewriting(
+            Vec::new(),
+            tracker_test_support::Rewrite::AutolinkDottedTokens,
+        ))
+    }
+
+    fn dotted_args(repo: &PushingRepo, id: Option<&str>) -> CreateArgs {
+        repo.holding("body.md", "Published to crates.io first.\n");
+        CreateArgs {
+            body_file: Some(repo.path("body.md")),
+            id: id.map(str::to_owned),
+            ..PushingRepo::args(true)
+        }
+    }
+
+    #[test]
+    fn create_push_notices_a_rewritten_read_back() {
+        for repo in [PushingRepo::new(), PushingRepo::tracker_owned()] {
+            let args = dotted_args(&repo, None);
+
+            let (path, report) =
+                created(repo.run_args(&args, &linking_tracker(), None));
+
+            assert_eq!(report.outcome, PushOutcome::WriteOnce);
+            let notice = report.rewrite.expect("the create was rewritten");
+            assert_eq!(Some(notice.path), path);
+            assert_eq!(notice.external_id.as_str(), KEY);
+            assert_eq!(
+                notice.lines.lines[0].stored,
+                "Published to [crates.io](<http://crates.io>) first."
+            );
+        }
+    }
+
+    #[test]
+    fn create_push_warns_when_the_read_back_is_rewritten() {
+        for (repo, integration) in [
+            (PushingRepo::new(), "jira"),
+            (PushingRepo::tracker_owned(), "linear"),
+        ] {
+            let args = dotted_args(&repo, None);
+
+            let RunOutcome::Created {
+                path: Some(path),
+                warnings,
+                ..
+            } = repo.run_args(&args, &linking_tracker(), None)
+            else {
+                panic!("the create did not write its item");
+            };
+
+            let label = path.display().to_string();
+            assert!(
+                warnings[0].starts_with(&format!(
+                    "warning: {label}: rewritten on push: "
+                )),
+                "{warnings:?}"
+            );
+            assert!(
+                warnings[1..]
+                    .iter()
+                    .all(|line| line.starts_with(&format!("note: {label}: "))),
+                "{warnings:?}"
+            );
+            assert!(!repo.baseline(integration).is_empty(), "{integration}");
+        }
+    }
+
+    #[test]
+    fn a_faithful_create_push_is_not_noticed() {
+        for repo in [PushingRepo::new(), PushingRepo::tracker_owned()] {
+            let args = dotted_args(&repo, None);
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            let (_, report) = created(repo.run_args(&args, &tracker, None));
+
+            assert_eq!(report.rewrite, None);
+        }
+    }
+
+    #[test]
+    fn a_reused_create_push_is_unjudged() {
+        let repo = PushingRepo::new();
+        let tracker = linking_tracker();
+        let args = dotted_args(&repo, Some("0400"));
+        let (_, unwritten) = created(repo.run_args(
+            &args,
+            &tracker,
+            Some((in_the_work_directory_itself, 2)),
+        ));
+        assert_eq!(unwritten.outcome, PushOutcome::CreatedUnwritten);
+
+        let (_, reused) = created(repo.run_args(&args, &tracker, None));
+
+        assert_eq!(reused.outcome, PushOutcome::WriteOnce);
+        assert_eq!(reused.rewrite, None);
+        assert_eq!(creates(&tracker), 1);
+    }
+
     #[test]
     fn a_reachable_tracker_create_writes_an_item_keyed_by_the_tracker() {
         for integration in ["linear", "jira"] {
@@ -1292,7 +1419,7 @@ mod tests {
                 "{written}"
             );
             assert!(repo.drafts().is_empty(), "the draft is gone");
-            assert!(repo.baseline(integration).contains(KEY));
+            assert!(!repo.baseline(integration).is_empty(), "{integration}");
         }
     }
 

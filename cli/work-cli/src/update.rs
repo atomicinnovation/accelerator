@@ -31,15 +31,20 @@ use work::update::LIST_FIELDS;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::push_fidelity::RewriteNotice;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
 use crate::refusal::Refusal;
+use crate::report_records::rewrite_lines;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
 pub enum RunOutcome {
-    Updated,
+    /// `warnings` are the lines stderr carries about a push that applied.
+    Updated {
+        warnings: Vec<String>,
+    },
     Failed(String),
     PushNotAvailable(String),
     PushUnrecognised(String),
@@ -179,7 +184,7 @@ fn push_update(
     fields: PushedFields,
     rendered: &str,
     path: &Path,
-) -> Result<(), TryRunError> {
+) -> Result<Vec<String>, TryRunError> {
     let PushedFields {
         external_id,
         id,
@@ -250,23 +255,20 @@ fn push_update(
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
 
     let remote = tracker.show(&external_id).ok();
-    let fingerprints = BaselineDigester::new(tracker.as_ref(), &CommonMarkBody)
-        .digests(rendered, remote.as_ref().map(|issue| issue.body.as_str()))
+    let digester = BaselineDigester::new(tracker.as_ref(), &CommonMarkBody);
+    let read_back = remote.as_ref().map(|issue| issue.body.as_str());
+    let fingerprints = digester
+        .digests(rendered, read_back)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    let warnings = read_back_warnings(
+        &digester,
+        rendered,
+        read_back,
+        (path, &external_id),
+        &integration,
+    );
     baseline_store
-        .set(
-            &id,
-            baseline::Entry::recorded(
-                baseline::SyncStamps {
-                    remote_updated_at: remote
-                        .map_or(tracker::RemoteTimestamp::NotRead, |issue| {
-                            issue.updated
-                        }),
-                    local_synced_at: 0,
-                },
-                fingerprints,
-            ),
-        )
+        .set(&id, pushed_entry(remote, fingerprints))
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     if let Ok((recorded, _)) = baseline_store.load() {
         work_adapters::sync::adoption_records::retire_confirmed(
@@ -277,7 +279,45 @@ fn push_update(
         );
     }
 
-    Ok(())
+    Ok(warnings)
+}
+
+/// The baseline entry a push records from its read-back; an unread remote
+/// leaves its stamp unread.
+fn pushed_entry(
+    remote: Option<tracker::RemoteIssue>,
+    fingerprints: work::sync::DualRecipeFingerprints,
+) -> baseline::Entry {
+    baseline::Entry::recorded(
+        baseline::SyncStamps {
+            remote_updated_at: remote
+                .map_or(tracker::RemoteTimestamp::NotRead, |issue| {
+                    issue.updated
+                }),
+            local_synced_at: 0,
+        },
+        fingerprints,
+    )
+}
+
+/// The block stderr carries when `read_back` does not mean what was
+/// pushed of `rendered`, the item at `path` known remotely as `external_id`.
+fn read_back_warnings(
+    digester: &BaselineDigester<'_>,
+    rendered: &str,
+    read_back: Option<&str>,
+    (path, external_id): (&Path, &tracker::ExternalId),
+    integration: &str,
+) -> Vec<String> {
+    RewriteNotice::on_push(
+        digester.comparison().push_fidelity(rendered, read_back),
+        path,
+        external_id,
+    )
+    .map(|notice| {
+        rewrite_lines(&notice, &path.display().to_string(), integration)
+    })
+    .unwrap_or_default()
 }
 
 /// A terminal failure may have applied remotely, so it clears the baseline
@@ -318,7 +358,7 @@ fn try_run(
     config: &dyn ConfigAccess,
     args: &UpdateArgs,
     registry: &dyn TrackerRegistry,
-) -> Result<(), TryRunError> {
+) -> Result<Vec<String>, TryRunError> {
     for (key, _) in &args.sets {
         validate_set_key(key).map_err(|error| set_key_error_message(&error))?;
     }
@@ -402,7 +442,7 @@ fn try_run(
     );
     AtomicWrite::write(&store, &args.path, rendered.as_bytes())
         .map_err(|error| error.to_string())?;
-    Ok(())
+    Ok(Vec::new())
 }
 
 #[must_use]
@@ -413,7 +453,7 @@ pub fn run(
     registry: &dyn TrackerRegistry,
 ) -> RunOutcome {
     match try_run(start, config, args, registry) {
-        Ok(()) => RunOutcome::Updated,
+        Ok(warnings) => RunOutcome::Updated { warnings },
         Err(TryRunError::Generic(message)) => RunOutcome::Failed(message),
         Err(TryRunError::NotAvailable(message)) => {
             RunOutcome::PushNotAvailable(message)
@@ -591,7 +631,7 @@ mod tests {
             &untouched_registry(),
         );
 
-        assert!(matches!(outcome, RunOutcome::Updated));
+        assert!(matches!(outcome, RunOutcome::Updated { .. }));
         assert!(std::fs::read_to_string(&item)
             .expect("item")
             .contains("status: \"ready\""));
@@ -739,13 +779,83 @@ mod tests {
 
             let outcome = repo.push(&mut served);
 
-            assert!(matches!(outcome, RunOutcome::Updated), "{tracker:?}");
+            assert!(
+                matches!(outcome, RunOutcome::Updated { .. }),
+                "{tracker:?}"
+            );
             assert_eq!(
                 served.sent_descriptions(),
                 [tracker.expected_description(&repo.body())],
                 "{tracker:?}"
             );
             repo.assert_unchanged();
+        }
+    }
+
+    fn warnings_of(outcome: RunOutcome) -> Vec<String> {
+        match outcome {
+            RunOutcome::Updated { warnings } => warnings,
+            _ => panic!("the push did not succeed"),
+        }
+    }
+
+    #[test]
+    fn update_push_warns_when_the_read_back_is_rewritten() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker);
+            let linked = repo
+                .body()
+                .replace("crates.io.", "[crates.io](<http://crates.io>).");
+            let mut served = tracker.serve("Title", &linked);
+
+            let warnings = warnings_of(repo.push(&mut served));
+
+            let label = repo.item.display().to_string();
+            assert_eq!(
+                warnings.first(),
+                Some(&format!(
+                    "warning: {label}: rewritten on push: (preamble)"
+                )),
+                "{tracker:?}"
+            );
+            assert!(
+                warnings[1..]
+                    .iter()
+                    .all(|line| line.starts_with(&format!("note: {label}: "))),
+                "{tracker:?}: {warnings:?}"
+            );
+            assert!(
+                warnings
+                    .iter()
+                    .any(|line| line.contains("sent `See crates.io.`")),
+                "{tracker:?}: {warnings:?}"
+            );
+            let baseline =
+                std::fs::read_to_string(repo.root.path().join(format!(
+                    "integrations/{}/last-sync.json",
+                    tracker.integration()
+                )))
+                .expect("the baseline is recorded");
+            assert!(baseline.contains("\"0001\""), "{tracker:?}");
+            repo.assert_unchanged();
+        }
+    }
+
+    #[test]
+    fn a_faithful_update_push_warns_of_nothing() {
+        use crate::test_support::real_trackers::Tracker;
+
+        for tracker in Tracker::ALL {
+            let repo = PushedRepo::on(tracker);
+            let mut served = tracker.serve("Title", &repo.body());
+
+            assert_eq!(
+                warnings_of(repo.push(&mut served)),
+                Vec::<String>::new(),
+                "{tracker:?}"
+            );
         }
     }
 
@@ -783,7 +893,7 @@ mod tests {
 
         let outcome = repo.push(&mut served);
 
-        assert!(matches!(outcome, RunOutcome::Updated));
+        assert!(matches!(outcome, RunOutcome::Updated { .. }));
         assert_eq!(
             served.sent_descriptions(),
             [Tracker::Linear.expected_description(&repo.body())]
@@ -836,7 +946,10 @@ mod tests {
 
         let outcome = run(root.path(), &config, &args, &registry);
 
-        assert!(matches!(outcome, RunOutcome::Updated), "the push succeeds");
+        assert!(
+            matches!(outcome, RunOutcome::Updated { .. }),
+            "the push succeeds"
+        );
         let written = std::fs::read_to_string(&item).expect("item");
         let (_, pushed_body) =
             digest::split_frontmatter_and_body(&written).expect("body");
@@ -910,7 +1023,10 @@ mod tests {
 
         let outcome = run(root.path(), &config, &args, &registry);
 
-        assert!(matches!(outcome, RunOutcome::Updated), "the push succeeds");
+        assert!(
+            matches!(outcome, RunOutcome::Updated { .. }),
+            "the push succeeds"
+        );
         assert!(!record.exists(), "the confirmed link's record is retired");
     }
 

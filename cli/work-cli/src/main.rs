@@ -259,7 +259,11 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
         &args,
         &tracker_registry::ConfiguredTrackers::new(service, root),
     ) {
-        create::RunOutcome::Created { path, push } => {
+        create::RunOutcome::Created {
+            path,
+            push,
+            warnings,
+        } => {
             println!(
                 "{}",
                 path.as_deref()
@@ -279,6 +283,9 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
             }
             if let Some(cause) = &report.cause {
                 eprintln!("Error: {cause}");
+            }
+            for warning in &warnings {
+                eprintln!("{warning}");
             }
             ExitCode::from(report.outcome.exit_code())
         }
@@ -370,7 +377,12 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         cli_args,
         &tracker_registry::ConfiguredTrackers::new(service, root),
     ) {
-        update::RunOutcome::Updated => ExitCode::SUCCESS,
+        update::RunOutcome::Updated { warnings } => {
+            for warning in warnings {
+                eprintln!("{warning}");
+            }
+            ExitCode::SUCCESS
+        }
         update::RunOutcome::Failed(message) => {
             eprintln!("{message}");
             ExitCode::FAILURE
