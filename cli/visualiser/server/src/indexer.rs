@@ -1542,15 +1542,10 @@ fn build_entry(
             let slug = id_slug.or_else(|| {
                 corpus::slug::derive(kind, filename, work_item_cfg.convention())
             });
-            let raw_id = match &parsed.state {
-                FrontmatterState::Parsed(map) => {
-                    map.get("id").and_then(|v| v.as_str())
-                }
-                _ => None,
-            };
-            let (shown, identity) = raw_id.map_or((None, None), |raw| {
-                work_item_identity(raw, work_item_cfg, &path)
-            });
+            let (shown, identity) = raw_frontmatter_id(&parsed.state)
+                .map_or((None, None), |raw| {
+                    work_item_identity(raw, work_item_cfg, &path)
+                });
             (slug, shown, identity)
         } else {
             (
@@ -1590,6 +1585,7 @@ fn build_entry(
         }
     };
 
+    let frontmatter_id = document_id(&parsed.state);
     let rel_path = path
         .strip_prefix(project_root)
         .map_or_else(|_| path.clone(), std::path::Path::to_path_buf);
@@ -1599,8 +1595,8 @@ fn build_entry(
         path,
         rel_path,
         slug: slug_val,
-        id: document_id(&parsed.state),
-        frontmatter_id: document_id(&parsed.state),
+        id: frontmatter_id.clone(),
+        frontmatter_id,
         draft: work_item_id
             .as_deref()
             .is_some_and(|id| work::draft_id::DraftId::parse(id).is_some()),
@@ -1655,15 +1651,17 @@ fn manifest_directory_of(entry: &IndexEntry) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn document_id(state: &FrontmatterState) -> Option<String> {
+fn raw_frontmatter_id(state: &FrontmatterState) -> Option<&str> {
     match state {
-        FrontmatterState::Parsed(map) => map
-            .get("id")
-            .and_then(|v| v.as_str())
-            .filter(|id| !id.is_empty())
-            .map(str::to_owned),
+        FrontmatterState::Parsed(map) => map.get("id").and_then(|v| v.as_str()),
         _ => None,
     }
+}
+
+fn document_id(state: &FrontmatterState) -> Option<String> {
+    raw_frontmatter_id(state)
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
 }
 
 fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
