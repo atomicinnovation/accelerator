@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T01:22:39+00:00"
+last_updated: "2026-11-24T01:27:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -214,7 +214,11 @@ only scopes identifiers. So each capture:
 3. Before any `create`, runs `list-teams` again and checks the id in the
    file is the one listed against key `TES`.
 4. Confirms each returned identifier starts `TES-`.
-5. Restores the saved `config.local.md` and `cmp`s it against the copy, so
+5. Deletes each issue once its read-back is saved. The CLI has no delete
+   command, so this is a GraphQL `issueDelete` with the configured token,
+   which moves the issue to Linear's trash; `issue(id:)` then reports
+   `trashed: true`.
+6. Restores the saved `config.local.md` and `cmp`s it against the copy, so
    no later push goes to `TES`. This step runs on every exit: if a `create`,
    `show` or delete fails, restore first, then deal with the failure.
 
@@ -476,13 +480,20 @@ contexts the rules reach in front of the phase 3 web-UI check.
    review, because Linear's parser has moved.
 4. Delete the issue, then restore `config.local.md`.
 
-Taken on 2026-11-24 as `TES-32`, since deleted. `R01`-`X09` read back
+Taken on 2026-11-24 as `TES-32`, since trashed. `R01`-`X09` read back
 byte-identical to the 2026-10-13 capture. Linear linked `server.pid`,
 `jql.rs:167` (port included), `a.b.io`, `Crates.IO`, `crates.io` in `X16`,
 `X17`, `X22` (bold and heading) and `X23`, `a@b.io` as `mailto`, and both
 `X25` URLs whole. It left `foo.md`, `foo.toml`, `v1.2.3`, `e.g.`, `a.b.c`,
 `src/client.rs` and `<span>crates.io</span>` unlinked. `X20` became a list
 item `160.`; `X24` was unchanged.
+
+The two unlinked TLD tokens (`foo.md` and `src/client.rs`) prompted a probe
+run the same day: `TES-33` and `TES-34` (310 probes, by create and by
+update), `TES-35` (every IANA TLD) and `TES-36` (209 follow-ups), all since
+trashed. Their bodies and read-backs are committed as
+`cli/work-adapters/tests/fixtures/linear-autolink-probes/`, and the rules
+they show revised the gate, phase 3's hand escapes and phases 4 and 5.
 
 #### 3. README
 
@@ -579,8 +590,10 @@ Run `mise run public-api:update` and check that the diff adds only
 #### 5. Simulated autolinker follows the snapshot
 
 **Files**: `cli/tracker-test-support/Cargo.toml`,
-`cli/tracker-test-support/src/rewrite.rs`
-**Changes**: Add `markdown = { path = "../markdown" }`. Test first: extend
+`cli/tracker-test-support/src/rewrite.rs`, `cli/pup.ron`
+**Changes**: Add `markdown = { path = "../markdown" }`, and add
+`"^markdown::linear(::|$)"` to the `tracker_test_support_imports_only_permitted`
+allowlist in `cli/pup.ron`, which otherwise refuses the import. Test first: extend
 `recorded_rewrites()` in `work-adapters/tests/linear_rewrites.rs` with
 `X10`, `X12`, `X13` and `X15` mapped to `Rewrite::AutolinkDottedTokens`.
 `X10` fails because the current "two or more lowercase letters" last-label
@@ -616,7 +629,7 @@ ordered list to the `without(&[...])` list at `:276`: `X10`, `X11`, `X14`-`X17`,
 `X19`, `X20`, `X22` and `X23`. Add a `captured_row_differs` test for each
 and a `captured_row_is_noise` test for each fragment rewritten only
 cosmetically. `X25`'s links have text equal to their destination, as `R06`'s
-do, so it is expected to be noise; the test decides.
+do, and `quoted_scheme_urls_are_noise` confirms it is noise.
 
 ### Success Criteria:
 
