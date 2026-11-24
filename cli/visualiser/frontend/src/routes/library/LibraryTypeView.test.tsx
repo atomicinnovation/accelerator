@@ -530,7 +530,7 @@ describe("LibraryTypeView markSeen wiring", () => {
     expect(handle.markSeen).not.toHaveBeenCalled();
   });
 
-  it("child-doc URL renders the document in place of the listing", async () => {
+  it("child-doc URL hides the listing", async () => {
     renderAt("/library/work-items/some-slug", mockHandle());
     await waitFor(() => expect(fetchModule.fetchDocs).toHaveBeenCalled());
     await new Promise((resolve) => setTimeout(resolve, 0));

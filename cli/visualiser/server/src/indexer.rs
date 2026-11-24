@@ -1753,7 +1753,7 @@ mod document_id_tests {
         ),
     ];
 
-    async fn id_of_document_at(path: &str, content: &str) -> Option<String> {
+    async fn entry_at(path: &str, content: &str) -> IndexEntry {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().canonicalize().unwrap();
         let mut dirs = HashMap::new();
@@ -1768,7 +1768,11 @@ mod document_id_tests {
             Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
         let idx = Indexer::build(driver, root, cfg).await.unwrap();
-        idx.get(&file).await.expect("indexed").id
+        idx.get(&file).await.expect("indexed")
+    }
+
+    async fn id_of_document_at(path: &str, content: &str) -> Option<String> {
+        entry_at(path, content).await.id
     }
 
     #[tokio::test]
@@ -1813,13 +1817,12 @@ mod document_id_tests {
     }
 
     #[tokio::test]
-    async fn a_work_item_carries_its_raw_frontmatter_id() {
-        let id = id_of_document_at(
-            "meta/work/0042-foo.md",
-            "---\nid: \"42\"\n---\n",
-        )
-        .await;
-        assert_eq!(id.as_deref(), Some("42"));
+    async fn a_work_item_carries_its_raw_frontmatter_id_even_when_its_work_item_id_is_rejected(
+    ) {
+        let entry =
+            entry_at("meta/work/0042-foo.md", "---\nid: \"42\"\n---\n").await;
+        assert_eq!(entry.id.as_deref(), Some("42"));
+        assert_eq!(entry.work_item_id, None);
     }
 }
 

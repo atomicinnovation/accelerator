@@ -5,7 +5,7 @@ title: "Library Links by Document ID Implementation Plan"
 date: "2026-11-24T08:22:04+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "done"
 work_item_id: "work-item:PP-996"
 parent: "work-item:PP-996"
 derived_from: ["codebase-research:2026-11-24-PP-996-library-links-to-sets-and-inventories-resolve-wrong"]

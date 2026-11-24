@@ -444,7 +444,6 @@ describe("ActivityFeed row links", () => {
       relPath: "meta/plans/created.md",
     });
     const plans = [existing];
-    vi.mocked(fetchModule.fetchDocs).mockImplementation(async () => [...plans]);
     const { getListener, queryClient } = mountWith({
       initial: [rowFor(existing, OLDER)],
       listings: { plans },

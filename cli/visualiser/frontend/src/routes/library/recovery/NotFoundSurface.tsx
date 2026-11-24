@@ -9,8 +9,8 @@ import { useDelayedFlag } from "./use-delayed-flag";
 import { useNearbySlugSuggestions } from "./use-nearby-slug-suggestions";
 
 interface NotFoundSurfaceProps {
-  /** The missing document slug, when one is present (unknown-slug 404).
-   *  Absent on the router-level catch-all. Drives the H1, the mono-quoted
+  /** The document id from an unresolved library URL. Absent on the
+   *  router-level catch-all. Drives the H1, the mono-quoted
    *  query, and suggestion generation. */
   missingDocumentId?: string;
   /** The valid doc type from the URL's first /library/ segment, when it
