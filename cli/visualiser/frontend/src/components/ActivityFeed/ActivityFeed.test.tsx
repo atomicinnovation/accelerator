@@ -471,6 +471,25 @@ describe("ActivityFeed row links", () => {
     );
   });
 
+  it("shows an unlinked row for a template without fetching a templates listing", async () => {
+    const kept = makeIndexEntry({ relPath: "meta/plans/kept.md" });
+    mountWith({
+      initial: [
+        makeEvent({
+          docType: "templates",
+          path: "templates/plan.md",
+          timestamp: NEWER,
+        }),
+        rowFor(kept, OLDER),
+      ],
+      listings: { plans: [kept] },
+    });
+    await waitFor(() => expect(rowHref(rowItems()[1])).not.toBeNull());
+
+    expect(rowHref(rowItems()[0])).toBeNull();
+    expect(fetchModule.fetchDocs).not.toHaveBeenCalledWith("templates");
+  });
+
   it("renders an unlinked row's text without a link affordance", async () => {
     const kept = makeIndexEntry({ relPath: "meta/plans/kept.md" });
     mountWith({
