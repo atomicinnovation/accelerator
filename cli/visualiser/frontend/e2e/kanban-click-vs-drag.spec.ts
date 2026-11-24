@@ -48,5 +48,5 @@ test("clicking a card (no drag) navigates to its library page", async ({
 
   await page.locator(`${CARD} a`).click();
 
-  await expect(page).toHaveURL(/\/library\/work-items\/0001-first-work-item$/);
+  await expect(page).toHaveURL(/\/library\/work-items\/0001$/);
 });
