@@ -381,7 +381,19 @@ file aside first, in the timestamped form the files rule gives.
   Do not suggest a pull: it would write the tracker's rewritten form into
   the local file. `accelerator <tracker> show <KEY>` shows the stored
   description: at `.data.issue.description` for Linear, as ADF at
-  `.fields.description` for Jira, and at `.description` for Shortcut.
+  `.fields.description` for Jira, and at `.description` for Shortcut. The
+  item's baseline entry is now marked as rewritten on push.
+- **`warning: <id>: still rewritten on push:`** (stderr): an earlier push of
+  the item was stored with a different meaning, and the tracker still holds
+  it. Relay the warning and every `note: <id>:` line beneath it verbatim,
+  quoted as data, with the clearing step its last note gives: put the sent
+  text in backticks or reword it, then run `accelerator work update <path>
+  --push`. The mark clears once a push is stored faithfully or a sync finds
+  the local file and the remote agree; a pull also clears it, but only by
+  adopting the tracker's rewritten form into the local file, so do not
+  suggest one. There is no command to dismiss the mark: it persists until
+  the body is fixed. `work list` shows such an item as `· rewritten on
+  push`.
 - **`noop\tindeterminate\tunsupported-recipe`**: a newer plugin wrote that
   item's baseline entry, so nothing was read or written for it; upgrade the
   plugin before syncing that item.

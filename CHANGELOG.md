@@ -391,7 +391,13 @@
   line as sent and as stored (up to five), and how to keep the meaning. The
   push still succeeds, its baseline is recorded as before, and the exit code is
   unchanged. `/sync-work-items`, `/create-work-item` and
-  `/extract-work-items` relay the block.
+  `/extract-work-items` relay the block. The item's entry in
+  `last-sync.json` keeps a `rewritten_on_push` mark until a push is stored
+  faithfully or a sync finds the local file and the remote agree: every
+  later sync and `work update --push` print `warning: <id>: still rewritten
+  on push: <sections>` with the same lines, and `work list` shows the item
+  as `· rewritten on push`. A pull clears it only by writing the tracker's
+  rewritten form into the local file; nothing dismisses it otherwise.
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
   welcome text, the ID is settled with `work id check` before drafting. An
@@ -1324,6 +1330,9 @@
 
 ### Migrations
 
+- **Everyone who syncs a repository should upgrade together.** A sync by an
+  earlier release drops every `rewritten_on_push` mark in the committed
+  `last-sync.json`, though no item's sync state.
 - **After upgrading, check the work items with `accelerator work list`.**
   It lists them and warns when the corpus would be refused, or refuses
   with `E_WORK_ID_PATTERN_INVALID` when `work.id_pattern` itself must be

@@ -325,6 +325,7 @@ class TestDispatch:
             "`#\\tadopt\\t<id>\\t<KEY>\\t<title>`",
             "`note: <id>: adopt:`",
             "`warning: <id>: rewritten on push:`",
+            "`warning: <id>: still rewritten on push:`",
             "`noop\\tindeterminate\\tunsupported-recipe`",
             "`#\\tunidentified\\t<path>\\t<kind>`",
             "`#\\tdetail\\t<id>\\t<source>\\t<file>[\\t<recovery-dir>]`",
