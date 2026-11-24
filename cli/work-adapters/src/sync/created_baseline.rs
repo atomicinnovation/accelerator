@@ -11,6 +11,7 @@ use work::sync::DualRecipeFingerprints;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline::SyncStamps;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::rewrite_mark::MarkChange;
 
 /// Writes `item_id`'s entry from `intended`, making no tracker call.
 ///
@@ -22,6 +23,7 @@ pub fn record_created_baseline(
     intended: &IntendedBaseline,
     baseline: &BaselineStore<'_>,
     synced_at: u64,
+    change: MarkChange<'_>,
 ) -> Result<(), StoreError> {
     let stamps = SyncStamps {
         remote_updated_at: match &intended.remote_hash {
@@ -37,7 +39,7 @@ pub fn record_created_baseline(
         }
         BaselineFingerprints::Legacy(_) => Entry::Legacy { stamps, legacy },
     };
-    baseline.set(item_id, entry)
+    baseline.record(item_id, entry, change)
 }
 
 #[cfg(test)]
@@ -61,6 +63,7 @@ mod tests {
     use super::record_created_baseline;
     use crate::sync::baseline::Entry;
     use crate::sync::baseline_store::BaselineStore;
+    use crate::sync::rewrite_mark::MarkChange;
 
     struct Disk;
 
@@ -124,6 +127,7 @@ mod tests {
             },
             &store,
             42,
+            MarkChange::Keep,
         )
         .expect("recorded");
         let (baseline, _) = store.load().expect("loads");

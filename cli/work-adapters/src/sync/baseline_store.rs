@@ -11,6 +11,7 @@ use corpus::store::StoreError;
 use crate::sync::baseline::Baseline;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline::Entry;
+use crate::sync::rewrite_mark::MarkChange;
 
 /// Reads and writes one baseline document.
 ///
@@ -72,7 +73,10 @@ impl<'a> BaselineStore<'a> {
     /// # Errors
     ///
     /// [`StoreError`] on the write.
-    pub fn replace(&self, baseline: &Baseline) -> Result<(), StoreError> {
+    pub(crate) fn replace(
+        &self,
+        baseline: &Baseline,
+    ) -> Result<(), StoreError> {
         self.write_document(baseline)
     }
 
@@ -94,10 +98,40 @@ impl<'a> BaselineStore<'a> {
         self.writer.write(&self.path, baseline.render().as_bytes())
     }
 
+    /// Writes `id`'s entry, its rewrite mark as `change` leaves the one
+    /// recorded before, and keeping every key the earlier entry held that
+    /// this build does not know.
+    ///
     /// # Errors
     ///
     /// [`StoreError`] on either the read or the write.
-    pub fn set(&self, id: &str, entry: Entry) -> Result<(), StoreError> {
+    pub fn record(
+        &self,
+        id: &str,
+        entry: Entry,
+        change: MarkChange<'_>,
+    ) -> Result<(), StoreError> {
+        let (mut baseline, _) = self.load()?;
+        let entry = match (entry, baseline.get(id)) {
+            (Entry::Split(recorded), Some(Entry::Split(previous))) => {
+                Entry::Split(recorded.superseding(previous, change))
+            }
+            (Entry::Split(recorded), _) => {
+                Entry::Split(recorded.marked(change))
+            }
+            (entry, _) => entry,
+        };
+        baseline.set(id, entry);
+        self.write_document(&baseline)
+    }
+
+    /// Writes `id`'s entry exactly as given, for a test to start from.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] on either the read or the write.
+    #[cfg(feature = "test-support")]
+    pub fn seed(&self, id: &str, entry: Entry) -> Result<(), StoreError> {
         let (mut baseline, _) = self.load()?;
         baseline.set(id, entry);
         self.write_document(&baseline)
@@ -192,6 +226,7 @@ impl<'a> BaselineStore<'a> {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
@@ -211,6 +246,10 @@ mod tests {
     use super::BaselineStore;
     use crate::sync::baseline::Entry;
     use crate::sync::baseline::SyncStamps;
+    use crate::sync::push_fidelity::ChangedLine;
+    use crate::sync::push_fidelity::PushFidelity;
+    use crate::sync::rewrite_mark::MarkChange;
+    use crate::sync::rewrite_mark::MarkState;
 
     #[derive(Default)]
     struct MemoryFile {
@@ -253,8 +292,8 @@ mod tests {
         let file = MemoryFile::default();
         let store =
             BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
-        store.set("draft-k7mq3x", entry("moved"))?;
-        store.set("0001", entry("kept"))?;
+        store.seed("draft-k7mq3x", entry("moved"))?;
+        store.seed("0001", entry("kept"))?;
         *file.writes.borrow_mut() = 0;
 
         store.rename("draft-k7mq3x", "PP-900")?;
@@ -277,7 +316,7 @@ mod tests {
             body: "remote-body".to_owned(),
             fields: "remote-fields".to_owned(),
         };
-        store.set(
+        store.seed(
             "0001",
             Entry::recorded(
                 SyncStamps {
@@ -364,12 +403,164 @@ mod tests {
         Ok(())
     }
 
+    const MARKED: &str = "{\"timestamp\":1,\"items\":{\"0001\":{\
+        \"aardvark\":[1],\"digest_recipe\":1,\"local_body_hash\":\"b\",\
+        \"local_fields_hash\":\"f\",\"local_frontmatter_hash\":\"m\",\
+        \"local_hash\":\"l\",\"local_synced_at\":1,\
+        \"remote_body_hash\":\"rb\",\"remote_fields_hash\":\"rf\",\
+        \"remote_hash\":\"r\",\"remote_updated_at\":\"t\",\
+        \"rewritten_on_push\":{\"lines\":[{\"section\":\"Notes\",\
+        \"sent\":\"a\",\"stored\":\"b\"}],\"more\":0}}}}\n";
+
+    fn marked_store(file: &MemoryFile) -> BaselineStore<'_> {
+        file.files
+            .borrow_mut()
+            .insert(PathBuf::from("last-sync.json"), MARKED.to_owned());
+        BaselineStore::new(PathBuf::from("last-sync.json"), file, file)
+    }
+
+    fn recorded_entry() -> Entry {
+        Entry::recorded(
+            SyncStamps {
+                remote_updated_at: RemoteTimestamp::Reported("u".to_owned()),
+                local_synced_at: 2,
+            },
+            DualRecipeFingerprints {
+                legacy: LegacyHashes::default(),
+                split: SplitFingerprints {
+                    local: None,
+                    remote: None,
+                },
+            },
+        )
+    }
+
+    fn stored(file: &MemoryFile) -> String {
+        file.files
+            .borrow()
+            .get(Path::new("last-sync.json"))
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn mark_after(
+        file: &MemoryFile,
+        store: &BaselineStore<'_>,
+    ) -> Result<MarkState, StoreError> {
+        let (baseline, _) = store.load()?;
+        let Some(Entry::Split(split)) = baseline.get("0001") else {
+            panic!("a split entry: {}", stored(file));
+        };
+        Ok(split.mark().clone())
+    }
+
+    fn rewrite() -> PushFidelity {
+        PushFidelity::Rewritten {
+            changes: vec![ChangedLine {
+                section: "Notes".to_owned(),
+                sent: "c".to_owned(),
+                stored: "d".to_owned(),
+            }],
+        }
+    }
+
+    #[test]
+    fn unknown_keys_survive_every_write() -> Result<(), StoreError> {
+        let rewritten = rewrite();
+        for change in [
+            MarkChange::Judged(&rewritten),
+            MarkChange::Fresh(&PushFidelity::Preserved),
+            MarkChange::Clear,
+            MarkChange::Keep,
+        ] {
+            let file = MemoryFile::default();
+            let store = marked_store(&file);
+
+            store.record("0001", recorded_entry(), change)?;
+
+            assert!(stored(&file).contains("\"aardvark\":[1]"), "{change:?}");
+        }
+        for rewrite in [
+            |store: &mut BaselineStore<'_>| {
+                store.finalise_run(&["0001"], &["0001"], 9, true)
+            },
+            |store: &mut BaselineStore<'_>| store.rename("0001", "0002"),
+        ] {
+            let file = MemoryFile::default();
+            let mut store = marked_store(&file);
+
+            rewrite(&mut store)?;
+
+            assert!(stored(&file).contains("\"aardvark\":[1]"));
+            assert!(stored(&file).contains("\"rewritten_on_push\""));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_recorded_entry_takes_the_mark_its_change_leaves(
+    ) -> Result<(), StoreError> {
+        let rewritten = rewrite();
+        let file = MemoryFile::default();
+        let store = marked_store(&file);
+        let (previous, _) = store.load()?;
+        let Some(Entry::Split(previous)) = previous.get("0001").cloned() else {
+            panic!("a split entry");
+        };
+
+        for (change, expected) in [
+            (MarkChange::Keep, previous.mark().clone()),
+            (
+                MarkChange::Judged(&PushFidelity::Unjudged),
+                previous.mark().clone(),
+            ),
+            (
+                MarkChange::Fresh(&PushFidelity::Unjudged),
+                MarkState::Absent,
+            ),
+            (
+                MarkChange::Judged(&PushFidelity::Preserved),
+                MarkState::Absent,
+            ),
+            (MarkChange::Clear, MarkState::Absent),
+            (
+                MarkChange::Judged(&rewritten),
+                previous.mark().after(MarkChange::Judged(&rewritten)),
+            ),
+        ] {
+            let file = MemoryFile::default();
+            let store = marked_store(&file);
+
+            store.record("0001", recorded_entry(), change)?;
+
+            assert_eq!(mark_after(&file, &store)?, expected, "{change:?}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_first_record_of_a_rewrite_marks_the_entry() -> Result<(), StoreError> {
+        let rewritten = rewrite();
+        let file = MemoryFile::default();
+        let store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+
+        store.record(
+            "0001",
+            recorded_entry(),
+            MarkChange::Fresh(&rewritten),
+        )?;
+
+        assert!(matches!(mark_after(&file, &store)?, MarkState::Marked(_)));
+        Ok(())
+    }
+
     #[test]
     fn renaming_an_absent_entry_is_a_no_op() -> Result<(), StoreError> {
         let file = MemoryFile::default();
         let store =
             BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
-        store.set("0001", entry("kept"))?;
+        store.seed("0001", entry("kept"))?;
         *file.writes.borrow_mut() = 0;
 
         store.rename("draft-k7mq3x", "PP-900")?;

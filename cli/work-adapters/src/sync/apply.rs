@@ -60,6 +60,7 @@ use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::report::Adoption;
 use crate::sync::report::CreateNotice;
+use crate::sync::rewrite_mark::MarkChange;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureClass {
@@ -935,15 +936,11 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 )
             },
         )?;
-        let remote = self.record_read_back(
+        self.record_pushed_read_back(
             attempt,
             request.external_id,
             request.sent_content,
-        )?;
-        Ok(self.digester().comparison().push_fidelity(
-            request.sent_content,
-            remote.as_ref().map(|issue| issue.body.as_str()),
-        ))
+        )
     }
 
     /// As [`Self::push`], sending the title alone; the local file is left
@@ -964,23 +961,49 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             Some(Landing::Push),
             || self.tracker.retitle(request.external_id, request.title),
         )?;
-        self.record_read_back(
-            attempt,
-            request.external_id,
-            request.sent_content,
-        )
-        .map(drop)
+        self.record_retitled_read_back(attempt, request)
     }
 
-    fn record_read_back(
+    fn record_pushed_read_back(
         &self,
         attempt: &ItemAttempt,
         external_id: &ExternalId,
         sent_content: &str,
-    ) -> Result<Option<RemoteIssue>, ApplyError> {
+    ) -> Result<PushFidelity, ApplyError> {
         let remote = self.tracker.show(external_id).ok();
-        self.record(attempt, sent_content, remote.as_ref())?;
-        Ok(remote)
+        let fidelity = self.fidelity_of(sent_content, remote.as_ref());
+        self.record(
+            attempt,
+            sent_content,
+            remote.as_ref(),
+            MarkChange::Judged(&fidelity),
+        )?;
+        Ok(fidelity)
+    }
+
+    fn record_retitled_read_back(
+        &self,
+        attempt: &ItemAttempt,
+        request: &RetitleRequest<'_>,
+    ) -> Result<(), ApplyError> {
+        let remote = self.tracker.show(request.external_id).ok();
+        self.record(
+            attempt,
+            request.sent_content,
+            remote.as_ref(),
+            MarkChange::Keep,
+        )
+    }
+
+    fn fidelity_of(
+        &self,
+        sent_content: &str,
+        remote: Option<&RemoteIssue>,
+    ) -> PushFidelity {
+        self.digester().comparison().push_fidelity(
+            sent_content,
+            remote.map(|issue| issue.body.as_str()),
+        )
     }
 
     /// A file already holding what the pull writes is written again, so a
@@ -1108,7 +1131,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &PullRequest<'_>,
         fingerprints: DualRecipeFingerprints,
     ) -> Result<(), StepError<String>> {
-        self.set_baseline(request.id, &request.remote_updated, fingerprints)
+        self.set_baseline(
+            request.id,
+            &request.remote_updated,
+            fingerprints,
+            MarkChange::Clear,
+        )
     }
 
     fn set_baseline(
@@ -1116,9 +1144,10 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         id: &str,
         remote_updated: &RemoteTimestamp,
         fingerprints: DualRecipeFingerprints,
+        change: MarkChange<'_>,
     ) -> Result<(), StepError<String>> {
         self.baseline
-            .set(
+            .record(
                 id,
                 Entry::recorded(
                     SyncStamps {
@@ -1127,6 +1156,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     },
                     fingerprints,
                 ),
+                change,
             )
             .map_err(|error| StepError::Failed(error.to_string()))
     }
@@ -1198,7 +1228,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .observe_local(SyncOperation::ReadLocal, || {
                 read_file(&authored.path)
             })?;
-        self.record(attempt, &local_content, Some(&issue))?;
+        self.record(attempt, &local_content, Some(&issue), MarkChange::Clear)?;
         Ok(authored.id)
     }
 
@@ -1282,12 +1312,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             return self.settle_order(request, attempt, &marker, order);
         }
         match unordered_create_decision(request, &marker)? {
-            UnorderedCreateDecision::ReuseId(key) => self
-                .link_and_baseline(request, attempt, &key)
-                .map(|created| CreatedLocally {
-                    fidelity: PushFidelity::Unjudged,
-                    ..created
-                }),
+            UnorderedCreateDecision::ReuseId(key) => self.link_and_baseline(
+                request,
+                attempt,
+                &key,
+                IssueCreated::InAnEarlierRun,
+            ),
             UnorderedCreateDecision::Proceed => {
                 self.create_marking_progress(request, attempt)
             }
@@ -1426,7 +1456,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 .observe_local(SyncOperation::ReadLocal, || {
                     read_file(request.file_path)
                 })?;
-            self.record(attempt, &local_content, Some(&issue))?;
+            self.record(
+                attempt,
+                &local_content,
+                Some(&issue),
+                MarkChange::Clear,
+            )?;
         }
         Ok(CreatedLocally {
             leftover_marker: if has_marker {
@@ -1556,7 +1591,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 external_id: external_id.clone(),
             },
         )?;
-        self.link_and_baseline(request, attempt, external_id)
+        self.link_and_baseline(
+            request,
+            attempt,
+            external_id,
+            IssueCreated::ThisRun,
+        )
     }
 
     /// A marker left behind here would refuse the next run's create as a
@@ -1636,6 +1676,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
         external_id: &ExternalId,
+        created: IssueCreated,
     ) -> Result<CreatedLocally, ApplyError> {
         attempt.land_local(
             SyncOperation::LinkExternalId,
@@ -1653,15 +1694,23 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .observe_local(SyncOperation::ReadLocal, || {
                 read_file(request.file_path)
             })?;
-        self.record(attempt, &local_content, remote.as_ref())?;
+        let fidelity = match created {
+            IssueCreated::ThisRun => {
+                self.fidelity_of(&local_content, remote.as_ref())
+            }
+            IssueCreated::InAnEarlierRun => PushFidelity::Unjudged,
+        };
+        self.record(
+            attempt,
+            &local_content,
+            remote.as_ref(),
+            MarkChange::Fresh(&fidelity),
+        )?;
         Ok(CreatedLocally {
             leftover_marker: self.clear_marker(request.marker_path).err(),
             notice: None,
             adopted: None,
-            fidelity: self.digester().comparison().push_fidelity(
-                &local_content,
-                remote.as_ref().map(|issue| issue.body.as_str()),
-            ),
+            fidelity,
         })
     }
 
@@ -1704,6 +1753,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 request.id,
                 &request.remote_updated,
                 request.fingerprints.clone(),
+                MarkChange::Keep,
             )
         })
     }
@@ -1720,6 +1770,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         attempt: &ItemAttempt,
         local_content: &str,
         remote: Option<&RemoteIssue>,
+        change: MarkChange<'_>,
     ) -> Result<(), ApplyError> {
         let fingerprints =
             attempt.observe_local(SyncOperation::HashLocal, || {
@@ -1733,9 +1784,22 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         let remote_updated = remote
             .map_or(RemoteTimestamp::NotRead, |issue| issue.updated.clone());
         attempt.observe_local(SyncOperation::BaselineSet, || {
-            self.set_baseline(attempt.item_id(), &remote_updated, fingerprints)
+            self.set_baseline(
+                attempt.item_id(),
+                &remote_updated,
+                fingerprints,
+                change,
+            )
         })
     }
+}
+
+/// Whether the issue a create links was made by this run's create, so its
+/// read-back judges the body this run sent.
+#[derive(Clone, Copy)]
+enum IssueCreated {
+    ThisRun,
+    InAnEarlierRun,
 }
 
 fn order_refused<'a>(

@@ -134,10 +134,13 @@ impl SplitEntry {
         }
     }
 
-    /// The same entry with `previous`'s keys this build does not know.
+    /// This entry in place of `previous`, with the mark `change` leaves
+    /// over `previous`'s and the keys `previous` held that this build does
+    /// not know.
     #[must_use]
-    pub fn carrying_unknown_keys_of(self, previous: &Self) -> Self {
+    pub fn superseding(self, previous: &Self, change: MarkChange<'_>) -> Self {
         Self {
+            mark: previous.mark.after(change),
             unknown: previous.unknown.clone(),
             ..self
         }
@@ -586,8 +589,14 @@ impl Baseline {
         format!("{{\"timestamp\":{},\"items\":{items}}}\n", self.timestamp)
     }
 
-    pub fn set(&mut self, id: &str, entry: Entry) {
+    pub(crate) fn set(&mut self, id: &str, entry: Entry) {
         self.items.insert(id.to_owned(), entry);
+    }
+
+    /// Sets `id`'s entry exactly as given, for a test to start from.
+    #[cfg(feature = "test-support")]
+    pub fn seed(&mut self, id: &str, entry: Entry) {
+        self.set(id, entry);
     }
 
     pub fn remove(&mut self, id: &str) {

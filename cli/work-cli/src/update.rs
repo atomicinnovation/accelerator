@@ -31,7 +31,9 @@ use work::update::LIST_FIELDS;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::push_fidelity::PushFidelity;
 use work_adapters::sync::push_fidelity::RewriteNotice;
+use work_adapters::sync::rewrite_mark::MarkChange;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
@@ -260,15 +262,18 @@ fn push_update(
     let fingerprints = digester
         .digests(rendered, read_back)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    let fidelity = digester.comparison().push_fidelity(rendered, read_back);
     let warnings = read_back_warnings(
-        &digester,
-        rendered,
-        read_back,
+        fidelity.clone(),
         (path, &external_id),
         &integration,
     );
     baseline_store
-        .set(&id, pushed_entry(remote, fingerprints))
+        .record(
+            &id,
+            pushed_entry(remote, fingerprints),
+            MarkChange::Judged(&fidelity),
+        )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     if let Ok((recorded, _)) = baseline_store.load() {
         work_adapters::sync::adoption_records::retire_confirmed(
@@ -300,24 +305,18 @@ fn pushed_entry(
     )
 }
 
-/// The block stderr carries when `read_back` does not mean what was
-/// pushed of `rendered`, the item at `path` known remotely as `external_id`.
+/// The block stderr carries when the push's read-back was rewritten, for
+/// the item at `path` known remotely as `external_id`.
 fn read_back_warnings(
-    digester: &BaselineDigester<'_>,
-    rendered: &str,
-    read_back: Option<&str>,
+    fidelity: PushFidelity,
     (path, external_id): (&Path, &tracker::ExternalId),
     integration: &str,
 ) -> Vec<String> {
-    RewriteNotice::on_push(
-        digester.comparison().push_fidelity(rendered, read_back),
-        path,
-        external_id,
-    )
-    .map(|notice| {
-        rewrite_lines(&notice, &path.display().to_string(), integration)
-    })
-    .unwrap_or_default()
+    RewriteNotice::on_push(fidelity, path, external_id)
+        .map(|notice| {
+            rewrite_lines(&notice, &path.display().to_string(), integration)
+        })
+        .unwrap_or_default()
 }
 
 /// A terminal failure may have applied remotely, so it clears the baseline
@@ -873,7 +872,7 @@ mod tests {
             baseline_path.parent().expect("a baseline directory"),
         );
         BaselineStore::new(baseline_path, &RealFs, &store)
-            .set(
+            .seed(
                 "0001",
                 baseline::Entry::recorded(
                     baseline::SyncStamps {

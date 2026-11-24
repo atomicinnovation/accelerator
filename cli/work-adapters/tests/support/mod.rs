@@ -152,7 +152,7 @@ impl Repo {
         }
         let store = FileCorpusStore::new(repo.root());
         fs::create_dir_all(repo.path(BASELINE).parent().ok_or("no parent")?)?;
-        BaselineStore::new(repo.path(BASELINE), &RealFs, &store).set(
+        BaselineStore::new(repo.path(BASELINE), &RealFs, &store).seed(
             "PP-760",
             Entry::Legacy {
                 stamps: SyncStamps {
@@ -568,7 +568,7 @@ pub fn split_entry(
 #[allow(clippy::expect_used)]
 pub fn entry_fragment(id: &str, entry: Entry) -> String {
     let mut baseline = Baseline::read(None).0;
-    baseline.set(id, entry);
+    baseline.seed(id, entry);
     baseline
         .render()
         .trim_end()

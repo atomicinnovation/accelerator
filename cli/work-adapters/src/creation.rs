@@ -69,6 +69,7 @@ use crate::sync::pending_push::Marker;
 use crate::sync::pending_push::MarkerError;
 use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::push_fidelity::RewriteNotice;
+use crate::sync::rewrite_mark::MarkChange;
 use work::identity_run::IdentityRunGuard;
 
 /// The file store every creation strategy writes through.
@@ -694,6 +695,7 @@ fn record_baseline_after_create(
     item_id: &str,
     local: LocalDigests,
     remote: RemoteHash,
+    fidelity: &PushFidelity,
 ) -> Result<(), String> {
     let path = state.baseline_path();
     let dir = path.parent().unwrap_or(creation.repo_root).to_path_buf();
@@ -708,6 +710,7 @@ fn record_baseline_after_create(
         },
         &store,
         creation.now,
+        MarkChange::Fresh(fidelity),
     )
     .map_err(|error| error.to_string())
 }
@@ -882,7 +885,14 @@ pub fn create_local_item(
             PushFidelity::Unjudged,
         ),
     };
-    record_baseline_after_create(creation, pushing.state, &id, local, remote)?;
+    record_baseline_after_create(
+        creation,
+        pushing.state,
+        &id,
+        local,
+        remote,
+        &fidelity,
+    )?;
     if let Some(path) = push.marker {
         LegacyMarker {
             store: (creation.store_at)(

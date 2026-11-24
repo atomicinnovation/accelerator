@@ -1134,7 +1134,7 @@ mod tests {
         ]);
 
         let mut baseline = Baseline::read(None).0;
-        baseline.set(
+        baseline.seed(
             "0001",
             Entry::persisted_legacy(
                 stamp.clone(),
@@ -1150,7 +1150,7 @@ mod tests {
                     Some("Item\nremote body\n"),
                 )
                 .unwrap();
-        baseline.set(
+        baseline.seed(
             "0002",
             Entry::recorded(
                 work_adapters::sync::baseline::SyncStamps {
@@ -1200,7 +1200,7 @@ mod tests {
             },
         )]);
         let mut baseline = Baseline::read(None).0;
-        baseline.set(
+        baseline.seed(
             "0001",
             Entry::persisted_legacy(
                 stamp,
@@ -1372,7 +1372,7 @@ mod tests {
             ),
             ("0002", "a-different-hash".to_owned()),
         ] {
-            baseline.set(
+            baseline.seed(
                 id,
                 Entry::persisted_legacy(
                     stamp.clone(),

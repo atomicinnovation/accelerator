@@ -54,6 +54,7 @@ use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::IdentityObservation;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::WorkingCopyStatus;
+use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::run::RunError;
 use crate::sync::run::RunMode;
 use crate::sync::run::SettledView;
@@ -337,6 +338,7 @@ fn reconcile_promotions(
             settlement.retirement,
             settlement.promotions,
             &lock,
+            &PushFidelity::Unjudged,
         ) {
             Ok(_) => IdentityOutcome::Applied,
             Err(NotPromoted::RetirementFailed(

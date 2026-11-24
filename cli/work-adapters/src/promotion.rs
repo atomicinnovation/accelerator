@@ -64,6 +64,7 @@ use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
 use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::push_fidelity::RewriteNotice;
+use crate::sync::rewrite_mark::MarkChange;
 use crate::sync::synced_fields;
 use work::identity_run::IdentityRunGuard;
 
@@ -484,7 +485,7 @@ fn promote_judging(
                 *fidelity = promotion.retitle_remote(&key, &stored)?;
             }
             PromotionStep::Retire(key) => {
-                return promotion.retire(&key, &stored);
+                return promotion.retire(&key, &stored, fidelity);
             }
             PromotionStep::Finish => {
                 let StoredRecord::Present(record) = stored else {
@@ -496,6 +497,7 @@ fn promote_judging(
                     ports.retirement,
                     ports.records,
                     &lock,
+                    &PushFidelity::Unjudged,
                 );
             }
             PromotionStep::Stop(reason) => return Err(reason),
@@ -526,6 +528,7 @@ fn already_promoted(
                 ports.retirement,
                 ports.records,
                 lock,
+                &PushFidelity::Unjudged,
             )?;
         }
     }
@@ -831,6 +834,7 @@ impl Promoting<'_> {
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
+        fidelity: &PushFidelity,
     ) -> Result<Promotion, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
@@ -881,6 +885,7 @@ impl Promoting<'_> {
             self.ports.retirement,
             self.ports.records,
             self.lock,
+            fidelity,
         )
     }
 }
@@ -919,7 +924,9 @@ impl RemoteReading<'_> {
 ///
 /// Retires the draft ID to the key if that is still outstanding, records
 /// the intended baseline once the draft ID is only an alias of the key's
-/// item, then removes the record. The completed promotion names the state
+/// item, its rewrite mark as `fidelity` leaves it, then removes the
+/// record. Only the run whose retitle landed judges the body sent; every
+/// other finish passes [`PushFidelity::Unjudged`]. The completed promotion names the state
 /// that baseline leaves the promoted item in.
 ///
 /// A refused or rolled-back retirement rewinds the record to its stage
@@ -936,6 +943,7 @@ pub fn finish_promotion(
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
+    fidelity: &PushFidelity,
 ) -> Result<Promotion, NotPromoted> {
     let PromotionStage::Retiring {
         key,
@@ -983,6 +991,7 @@ pub fn finish_promotion(
             baseline,
             store,
             UNSYNCED_WATERMARK,
+            MarkChange::Judged(fidelity),
         )
         .map_err(|error| unwritable(Some(key), &error))?;
     }

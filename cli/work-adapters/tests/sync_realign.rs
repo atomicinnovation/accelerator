@@ -160,7 +160,7 @@ fn seed_split_baseline(
     fs::create_dir_all(&dir)?;
     let path = dir.join("last-sync.json");
     let mut baseline = Baseline::read(None).0;
-    baseline.set(
+    baseline.seed(
         "0001",
         Entry::recorded(
             SyncStamps {

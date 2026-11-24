@@ -6602,7 +6602,7 @@ mod tests {
             .digests(local, Some(remote_body))
             .expect("the item is well formed");
         baseline
-            .set(
+            .seed(
                 "0001",
                 work_adapters::sync::baseline::Entry::recorded(
                     work_adapters::sync::baseline::SyncStamps {
@@ -7054,7 +7054,7 @@ mod tests {
                 .digests(&local, Some("Title\nOld body\n"))
                 .expect("the item is well formed");
             baseline
-                .set(
+                .seed(
                     id,
                     work_adapters::sync::baseline::Entry::recorded(
                         work_adapters::sync::baseline::SyncStamps {

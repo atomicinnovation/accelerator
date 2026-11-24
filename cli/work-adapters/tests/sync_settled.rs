@@ -191,7 +191,7 @@ impl Repo {
     fn baseline_set(&self, id: &str, entry: Entry) {
         let store = FileCorpusStore::new(self.root());
         let baseline = BaselineStore::new(self.path(BASELINE), &RealFs, &store);
-        baseline.set(id, entry).unwrap();
+        baseline.seed(id, entry).unwrap();
     }
 
     /// Forgets `id`'s baseline entry, as a link no sync has recorded.
