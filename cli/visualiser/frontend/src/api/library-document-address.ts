@@ -40,7 +40,7 @@ export function resolveLibraryDocument(
 ): IndexEntry | undefined {
   return (
     entries.find((e) => e.id === documentId) ??
-    entries.find((e) => e.slug === documentId) ??
-    entries.find((e) => filenameStemOf(e.relPath) === documentId)
+    entries.find((e) => filenameStemOf(e.relPath) === documentId) ??
+    entries.find((e) => e.slug === documentId)
   );
 }

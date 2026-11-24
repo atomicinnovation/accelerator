@@ -64,19 +64,19 @@ describe("resolveLibraryDocument", () => {
     expect(resolveLibraryDocument([plan], "2026-01-01-foo")).toBe(plan);
   });
 
-  it("prefers a slug match over an earlier entry whose stem is the document id", () => {
-    const byStem = makeIndexEntry({
-      relPath: "meta/notes/foo.md",
-      id: null,
-      slug: "other",
-    });
+  it("prefers a stem match over an earlier entry whose slug is the document id", () => {
     const bySlug = makeIndexEntry({
       relPath: "meta/notes/2026-01-01-foo.md",
       id: null,
       slug: "foo",
     });
+    const byStem = makeIndexEntry({
+      relPath: "meta/notes/foo.md",
+      id: null,
+      slug: "other",
+    });
 
-    expect(resolveLibraryDocument([byStem, bySlug], "foo")).toBe(bySlug);
+    expect(resolveLibraryDocument([bySlug, byStem], "foo")).toBe(byStem);
   });
 
   it("opens a review by its stem when two reviews share a slug", () => {
@@ -206,6 +206,25 @@ describe("round trip", () => {
         relPath: "meta/plans/2026-01-01-manifest.md",
         id: "2026-01-01-manifest",
         slug: "manifest",
+      }),
+    ];
+
+    for (const entry of entries) {
+      expect(resolveLibraryDocument(entries, documentIdOf(entry))).toBe(entry);
+    }
+  });
+
+  it("resolves a stem link back to its document when another document has that slug", () => {
+    const entries = [
+      makeIndexEntry({
+        relPath: "meta/notes/2026-01-01-foo.md",
+        id: null,
+        slug: "foo",
+      }),
+      makeIndexEntry({
+        relPath: "meta/notes/foo.md",
+        id: null,
+        slug: "bar",
       }),
     ];
 
