@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-24T00:45:00+00:00"
+last_updated: "2026-11-24T00:55:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1235,8 +1235,8 @@ departures:
   parses keys back through `FromStr`.
 - **Coverage:** the stalls' migrate runs inherit the builder's
   `LLVM_PROFILE_FILE`, because `Hermetic::apply` clears no variable, so
-  `cli.py` needed no coverage change. The instrumented lane passed; where
-  migrate's profile data landed was not inspected.
+  `cli.py` needed no coverage change. A held instrumented run found no
+  `.profraw` file in the stalled-migration tree.
 
 ### Changes Required
 
@@ -1535,9 +1535,9 @@ only place its path is known to a test. Phase 5's stub tests cover
 - [x] `rg -l "$TREE" $TREE/stalled-migration` over a held run directory
       (`ACCELERATOR_SHARED_FIXTURES_HOLD`) finds no file naming the tree.
       This checks the real migrate's output, which the stub tests cannot.
-      Checked by running the builder directly with the real migrate
-      instead of holding a run: only `stalled-migrations.tsv`, at the
-      tree's root and copied by no part, names the tree.
+      In a held unfiltered instrumented run, only `stalled-migrations.tsv`,
+      at the tree's root and copied by no part, names the tree, its `/var`
+      alias or the run directory, and no stall holds a `.profraw` file.
 
 ---
 
