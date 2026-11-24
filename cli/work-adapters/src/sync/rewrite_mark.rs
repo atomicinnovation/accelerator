@@ -2,13 +2,17 @@
 //! stored with a different meaning, and the rule that sets and clears it.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use serde_json::Map;
 use serde_json::Value;
+use tracker::ExternalId;
 use work::sync::BodyAgreement;
 
 use crate::sync::push_fidelity::ChangedLine;
 use crate::sync::push_fidelity::PushFidelity;
+use crate::sync::push_fidelity::RewriteKind;
+use crate::sync::push_fidelity::RewriteNotice;
 use crate::sync::push_fidelity::RewrittenLines;
 
 /// The rewrite a push left on the tracker, as persisted with the entry.
@@ -75,6 +79,22 @@ impl RewriteMark {
             }
             PushFidelity::Preserved => None,
             PushFidelity::Unjudged => previous.cloned(),
+        }
+    }
+
+    /// The notice of the rewrite this mark records, standing on the item at
+    /// `path` known remotely as `external_id`.
+    #[must_use]
+    pub fn notice(
+        &self,
+        path: &Path,
+        external_id: &ExternalId,
+    ) -> RewriteNotice {
+        RewriteNotice {
+            kind: RewriteKind::StillOnPush,
+            path: path.to_path_buf(),
+            external_id: external_id.clone(),
+            lines: self.rewritten_lines(),
         }
     }
 

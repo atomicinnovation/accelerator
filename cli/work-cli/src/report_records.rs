@@ -4,6 +4,7 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use work_adapters::sync::push_fidelity::RewriteKind;
 use work_adapters::sync::push_fidelity::RewriteNotice;
 
 #[derive(Debug, Default)]
@@ -90,8 +91,10 @@ pub fn rewrite_lines(
     let label = shown(label);
     let note = |text: String| format!("note: {label}: {text}");
     let rewritten = &notice.lines;
+    let standing = notice.kind == RewriteKind::StillOnPush;
     let mut lines = vec![format!(
-        "warning: {label}: rewritten on push: {}",
+        "warning: {label}: {}rewritten on push: {}",
+        if standing { "still " } else { "" },
         shown(&rewritten.sections.join(", "))
     )];
     lines.extend(rewritten.lines.iter().map(|line| {
@@ -111,19 +114,23 @@ pub fn rewrite_lines(
             shown(notice.external_id.as_str())
         )));
     }
-    lines.push(note(format!(
-        "the local file is unchanged, but {} stored these lines with a \
-         different meaning",
-        shown(&tracker_name(tracker))
-    )));
+    if !standing {
+        lines.push(note(format!(
+            "the local file is unchanged, but {} stored these lines with a \
+             different meaning",
+            shown(&tracker_name(tracker))
+        )));
+    }
     lines.push(note(format!(
         "to keep the meaning, put the sent text in backticks or reword it, \
          then run `accelerator work update {} --push`",
         shown(&notice.path.display().to_string())
     )));
-    lines.push(note(format!(
-        "please report it at {ISSUES} with the lines above"
-    )));
+    if !standing {
+        lines.push(note(format!(
+            "please report it at {ISSUES} with the lines above"
+        )));
+    }
     lines
 }
 
@@ -160,6 +167,7 @@ mod tests {
 
     use tracker::ExternalId;
     use work_adapters::sync::push_fidelity::ChangedLine;
+    use work_adapters::sync::push_fidelity::RewriteKind;
     use work_adapters::sync::push_fidelity::RewriteNotice;
     use work_adapters::sync::push_fidelity::RewrittenLines;
 
@@ -168,9 +176,17 @@ mod tests {
 
     fn notice(changes: Vec<ChangedLine>) -> RewriteNotice {
         RewriteNotice {
+            kind: RewriteKind::OnPush,
             path: Path::new("meta/work/0001-search.md").to_path_buf(),
             external_id: ExternalId::new("ENG-7".to_owned()),
             lines: RewrittenLines::bounded(changes),
+        }
+    }
+
+    fn still(changes: Vec<ChangedLine>) -> RewriteNotice {
+        RewriteNotice {
+            kind: RewriteKind::StillOnPush,
+            ..notice(changes)
         }
     }
 
@@ -216,6 +232,42 @@ mod tests {
                  the lines above",
             ]
         );
+    }
+
+    #[test]
+    fn a_standing_rewrite_renders_its_lines_and_the_clearing_note_alone() {
+        let lines = rewrite_lines(
+            &still(vec![changed(
+                "Notes",
+                "See crates.io.",
+                "See [crates.io](<http://crates.io>).",
+            )]),
+            "0001",
+            "linear",
+        );
+
+        assert_eq!(
+            lines,
+            vec![
+                "warning: 0001: still rewritten on push: Notes",
+                "note: 0001: Notes: sent `See crates.io.`, stored `See \
+                 [crates.io](<http://crates.io>).`",
+                "note: 0001: to keep the meaning, put the sent text in \
+                 backticks or reword it, then run `accelerator work update \
+                 meta/work/0001-search.md --push`",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_standing_rewrite_names_its_overflow() {
+        let lines = rewrite_lines(&still(numbered(7)), "0001", "jira");
+
+        assert!(lines.contains(
+            &"note: 0001: … and 2 more changed lines; `accelerator jira show \
+              ENG-7` shows the stored description"
+                .to_owned()
+        ));
     }
 
     #[test]

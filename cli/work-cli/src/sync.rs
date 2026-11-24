@@ -3222,6 +3222,7 @@ mod tests {
 
     fn rewritten_at(path: &str, key: &str) -> RewriteNotice {
         RewriteNotice {
+            kind: work_adapters::sync::push_fidelity::RewriteKind::OnPush,
             path: PathBuf::from(path),
             external_id: ExternalId::new(key.to_owned()),
             lines: RewrittenLines::bounded(vec![ChangedLine {
@@ -3257,6 +3258,38 @@ mod tests {
         );
         let rewrites = rewrite_warnings(&report, "linear", Path::new("/repo"));
         assert_eq!(rewrites[0], "warning: 0001: rewritten on push: Notes");
+    }
+
+    #[test]
+    fn sync_warns_of_a_standing_rewrite_without_the_push_notes() {
+        let report = report_of(vec![ReportedItem {
+            rewrite: Some(RewriteNotice {
+                kind:
+                    work_adapters::sync::push_fidelity::RewriteKind::StillOnPush,
+                lines: RewrittenLines {
+                    more: 3,
+                    ..rewritten_at("/repo/meta/work/0001-a.md", "ENG-1").lines
+                },
+                ..rewritten_at("/repo/meta/work/0001-a.md", "ENG-1")
+            }),
+            ..reported("0001", SyncState::Synced, Action::Noop)
+        }]);
+
+        let lines = rewrite_warnings(&report, "linear", Path::new("/repo"));
+
+        assert_eq!(
+            lines,
+            [
+                "warning: 0001: still rewritten on push: Notes",
+                "note: 0001: Notes: sent `See crates.io.`, stored `See \
+                 [crates.io](<http://crates.io>).`",
+                "note: 0001: … and 3 more changed lines; `accelerator linear \
+                 show ENG-1` shows the stored description",
+                "note: 0001: to keep the meaning, put the sent text in \
+                 backticks or reword it, then run `accelerator work update \
+                 meta/work/0001-a.md --push`",
+            ]
+        );
     }
 
     #[test]

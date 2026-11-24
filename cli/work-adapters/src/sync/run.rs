@@ -366,6 +366,34 @@ fn finalise_baseline(
         )
 }
 
+/// Gives each reported item that this run noticed no rewrite of, yet whose
+/// entry still carries a rewrite mark, the notice of that standing rewrite;
+/// a baseline that cannot be read notices nothing.
+fn noting_standing_rewrites(
+    reported: &mut [ReportedItem],
+    baseline: &BaselineStore<'_>,
+    knowledge: &RunKnowledge<'_>,
+) {
+    let Ok((recorded, _)) = baseline.load() else {
+        return;
+    };
+    for row in reported.iter_mut().filter(|row| row.rewrite.is_none()) {
+        let Some(item) = knowledge.item(row.planned.id()) else {
+            continue;
+        };
+        let Some(external_id) = item.external_id.as_ref() else {
+            continue;
+        };
+        let Some(Entry::Split(entry)) = recorded.get(&item.id) else {
+            continue;
+        };
+        row.rewrite = entry
+            .mark()
+            .mark()
+            .map(|mark| mark.notice(&item.path, external_id));
+    }
+}
+
 /// Whether a run settled `item`, so its watermark may move. A change the run
 /// leaves pending, such as a local edit under `--pull-only`, keeps the old
 /// watermark, or the next run's mtime pre-filter would hide it.
@@ -2507,6 +2535,7 @@ fn execute<'a>(
                 run_start_epoch,
             )));
         }
+        noting_standing_rewrites(&mut reported, baseline, &knowledge);
         let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
         let dossiers =
             build_dossiers(&reported, &knowledge, &unconfirmed_links);
@@ -2614,6 +2643,7 @@ fn execute<'a>(
             retire_confirmed_adoptions(&adoption_records, ports, baseline);
     }
     let unretired_adoptions = unretired;
+    noting_standing_rewrites(&mut reported, baseline, &knowledge);
     let dossiers = build_dossiers(&reported, &knowledge, &unconfirmed_links);
     let stale_dossier_ids = stale_dossier_ids(&reported);
 

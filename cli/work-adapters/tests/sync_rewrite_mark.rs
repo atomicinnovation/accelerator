@@ -5,11 +5,15 @@
 
 mod support;
 
+use tracker_test_support::Rewrite;
 use work::sync::Action;
 use work::sync::Resolution;
 use work::sync::SyncState;
+use work_adapters::sync::push_fidelity::RewriteKind;
 use work_adapters::sync::rewrite_mark::MarkState;
+use work_adapters::sync::run::RunReport;
 
+use crate::support::repo::external;
 use crate::support::repo::issue;
 use crate::support::repo::outcome_of;
 use crate::support::repo::work_item;
@@ -188,4 +192,88 @@ fn every_keeping_write_keeps_the_mark() {
 
         assert_eq!(case.repo.mark(1), before, "{}", case.name);
     }
+}
+
+fn notices(report: &RunReport) -> Vec<(RewriteKind, Vec<String>)> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| item.rewrite.as_ref())
+        .map(|notice| {
+            (
+                notice.kind,
+                notice
+                    .lines
+                    .lines
+                    .iter()
+                    .map(|line| line.sent.clone())
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
+fn earlier_lines() -> Vec<String> {
+    vec!["See crates.io.".to_owned()]
+}
+
+#[test]
+fn sync_notices_a_marked_item_on_every_run() {
+    let repo =
+        after_a_rewritten_push(&as_pushed(), &projected("Item", LINKED), STAMP);
+
+    for run in ["first", "second"] {
+        let report = repo.sync_once();
+
+        assert_eq!(
+            outcome_of(&report, 1),
+            (SyncState::Synced, Action::Noop),
+            "{run}"
+        );
+        assert_eq!(
+            notices(&report),
+            [(RewriteKind::StillOnPush, earlier_lines())],
+            "{run}"
+        );
+        let notice = report.reported[0].rewrite.as_ref().expect("a notice");
+        assert_eq!(notice.external_id, external(1), "{run}");
+        assert!(notice.path.ends_with("0001.md"), "{run}");
+    }
+}
+
+#[test]
+fn a_marked_item_re_pushed_still_rewritten_gets_one_notice() {
+    let repo = Repo::with_rewritten_item(
+        Rewrite::AutolinkDottedTokens,
+        1,
+        &work_item(1, "Item", "", "Now published to crates.io first.\n"),
+        issue(1, &projected("Item", LINKED), STAMP),
+        &Recorded::split(&as_pushed(), &projected("Item", LINKED)),
+    )
+    .marked(1);
+
+    let report = repo.sync_once();
+
+    assert_eq!(
+        notices(&report),
+        [(
+            RewriteKind::OnPush,
+            vec!["Now published to crates.io first.".to_owned()]
+        )]
+    );
+}
+
+#[test]
+fn a_marked_item_pulled_in_the_run_gets_no_notice() {
+    let repo = after_a_rewritten_push(
+        &as_pushed(),
+        &projected("Item", "Rewritten by a person\n"),
+        MOVED_STAMP,
+    );
+
+    let report = repo.sync_once();
+
+    assert_eq!(outcome_of(&report, 1).1, Action::Pull);
+    assert_eq!(notices(&report), []);
+    assert_eq!(repo.mark(1), MarkState::Absent);
 }

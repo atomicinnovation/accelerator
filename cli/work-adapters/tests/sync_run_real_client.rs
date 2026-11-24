@@ -63,6 +63,7 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::push_fidelity::RewriteKind;
 use work_adapters::sync::rewrite_mark::MarkState;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::run;
@@ -2396,7 +2397,17 @@ const EARLIER_MARK: &str = "{\"lines\":[{\"section\":\"Earlier\",\
 /// What a push reported, and the rewrite mark it left on the item's entry.
 struct Pushed {
     noticed: Vec<Noticed>,
+    kinds: Vec<RewriteKind>,
     mark: MarkState,
+}
+
+fn kinds_in(report: &RunReport) -> Vec<RewriteKind> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| item.rewrite.as_ref())
+        .map(|notice| notice.kind)
+        .collect()
 }
 
 fn mark_in(baseline: Option<&str>, id: &str) -> MarkState {
@@ -2911,6 +2922,7 @@ fn sync_update_escapes(
     }
     Ok(Pushed {
         noticed: noticed_in(&report),
+        kinds: kinds_in(&report),
         mark: mark_in(baseline.as_deref(), "0001"),
     })
 }
@@ -2970,6 +2982,7 @@ fn sync_create_escapes(
     item.assert_unchanged(&spy, &case)?;
     Ok(Pushed {
         noticed: noticed_in(&report),
+        kinds: kinds_in(&report),
         mark: mark_in(
             written(&spy, Path::new(BASELINE_PATH)).as_deref(),
             "0001",
@@ -3162,6 +3175,7 @@ fn promotion_escapes(
     };
     Ok(Pushed {
         noticed,
+        kinds: Vec::new(),
         mark: repo.mark(tracker)?,
     })
 }
@@ -3329,6 +3343,25 @@ fn an_unjudged_push_keeps_the_mark() -> Result<(), TestError> {
         )?;
         assert_eq!(
             marked_lines(&pushed.mark),
+            [("before".to_owned(), "after".to_owned())],
+            "{tracker:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_marked_item_with_an_unjudged_push_is_still_noticed(
+) -> Result<(), TestError> {
+    for tracker in TRACKERS {
+        let pushed = sync_update_escapes(
+            tracker,
+            ReadBackForm::Unreadable,
+            EarlierMark::Marked,
+        )?;
+        assert_eq!(pushed.kinds, [RewriteKind::StillOnPush], "{tracker:?}");
+        assert_eq!(
+            pushed.noticed[0].lines,
             [("before".to_owned(), "after".to_owned())],
             "{tracker:?}"
         );

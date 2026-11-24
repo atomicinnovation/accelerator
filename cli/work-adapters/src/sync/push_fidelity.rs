@@ -45,9 +45,18 @@ pub const LINE_BYTES: usize = 200;
 /// act on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RewriteNotice {
+    pub kind: RewriteKind,
     pub path: PathBuf,
     pub external_id: ExternalId,
     pub lines: RewrittenLines,
+}
+
+/// Whether a notice is of the push this run made, or of an earlier push
+/// whose rewrite the tracker still holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RewriteKind {
+    OnPush,
+    StillOnPush,
 }
 
 impl RewriteNotice {
@@ -63,6 +72,7 @@ impl RewriteNotice {
             return None;
         };
         Some(Self {
+            kind: RewriteKind::OnPush,
             path: path.to_path_buf(),
             external_id: external_id.clone(),
             lines: RewrittenLines::bounded(changes),

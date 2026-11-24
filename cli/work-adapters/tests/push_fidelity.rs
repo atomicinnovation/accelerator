@@ -16,6 +16,7 @@ use work_adapters::sync::push_fidelity::changed_lines;
 use work_adapters::sync::push_fidelity::meaningful_hunks;
 use work_adapters::sync::push_fidelity::ChangedLine;
 use work_adapters::sync::push_fidelity::PushFidelity;
+use work_adapters::sync::push_fidelity::RewriteKind;
 use work_adapters::sync::push_fidelity::RewriteNotice;
 use work_adapters::sync::push_fidelity::RewrittenLines;
 
@@ -369,6 +370,7 @@ fn a_rewritten_push_is_noticed_and_any_other_is_not() {
     assert_eq!(
         notice,
         Some(RewriteNotice {
+            kind: RewriteKind::OnPush,
             path: path.to_path_buf(),
             external_id: key.clone(),
             lines: RewrittenLines::bounded(vec![change]),

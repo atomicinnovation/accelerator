@@ -263,11 +263,6 @@ fn push_update(
         .digests(rendered, read_back)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     let fidelity = digester.comparison().push_fidelity(rendered, read_back);
-    let warnings = read_back_warnings(
-        fidelity.clone(),
-        (path, &external_id),
-        &integration,
-    );
     baseline_store
         .record(
             &id,
@@ -275,7 +270,14 @@ fn push_update(
             MarkChange::Judged(&fidelity),
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    let mut warnings = Vec::new();
     if let Ok((recorded, _)) = baseline_store.load() {
+        warnings = rewrite_warnings(
+            fidelity,
+            recorded.get(&id),
+            (path, &external_id),
+            &integration,
+        );
         work_adapters::sync::adoption_records::retire_confirmed(
             &integrations_root,
             &integration,
@@ -305,14 +307,23 @@ fn pushed_entry(
     )
 }
 
-/// The block stderr carries when the push's read-back was rewritten, for
-/// the item at `path` known remotely as `external_id`.
-fn read_back_warnings(
+/// The block stderr carries for the item at `path` known remotely as
+/// `external_id`: of this push when its read-back was rewritten, else of
+/// the rewrite its recorded entry still marks.
+fn rewrite_warnings(
     fidelity: PushFidelity,
+    recorded: Option<&baseline::Entry>,
     (path, external_id): (&Path, &tracker::ExternalId),
     integration: &str,
 ) -> Vec<String> {
     RewriteNotice::on_push(fidelity, path, external_id)
+        .or_else(|| match recorded {
+            Some(baseline::Entry::Split(entry)) => entry
+                .mark()
+                .mark()
+                .map(|mark| mark.notice(path, external_id)),
+            _ => None,
+        })
         .map(|notice| {
             rewrite_lines(&notice, &path.display().to_string(), integration)
         })
@@ -930,7 +941,21 @@ mod tests {
             &crate::test_support::FixedRegistry::holding(unreadable),
         );
 
-        assert!(matches!(outcome, RunOutcome::Updated { .. }));
+        let label = repo.item.display().to_string();
+        assert_eq!(
+            warnings_of(outcome),
+            [
+                format!("warning: {label}: still rewritten on push: Earlier"),
+                format!(
+                    "note: {label}: Earlier: sent `before`, stored `after`"
+                ),
+                format!(
+                    "note: {label}: to keep the meaning, put the sent text in \
+                     backticks or reword it, then run `accelerator work \
+                     update {label} --push`"
+                ),
+            ]
+        );
         assert_eq!(repo.mark(Tracker::Linear), before);
     }
 
