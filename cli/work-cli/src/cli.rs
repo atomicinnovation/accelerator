@@ -354,6 +354,17 @@ pub struct UpdateArgs {
     /// (rejected before sending, unchanged).
     #[arg(long)]
     pub push: bool,
+    /// Accept the rewrite the tracker left on this item's last push as the
+    /// tracker's to keep, so sync stops warning of it until a push is
+    /// rewritten differently. Refused when no rewrite is recorded; changes
+    /// nothing but the sync baseline.
+    #[arg(
+        long,
+        conflicts_with_all = [
+            "sets", "add_tags", "remove_tags", "appends", "removes", "push"
+        ]
+    )]
+    pub accept_rewrite: bool,
 }
 
 /// `work create`'s flags — a separate [`Args`] struct (boxed at the

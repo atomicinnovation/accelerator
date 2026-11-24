@@ -33,6 +33,7 @@ use work::update::LIST_FIELDS;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::baseline_store::RewriteAcceptance;
 use work_adapters::sync::push_verdict::PushOrigin;
 use work_adapters::sync::push_verdict::PushVerdict;
 
@@ -361,15 +362,15 @@ fn rewrite_warnings(
     (path, external_id): (&Path, &tracker::ExternalId),
     integration: &str,
 ) -> Vec<String> {
-    verdict
-        .into_notice(path, external_id)
-        .or_else(|| {
-            recorded.and_then(|entry| entry.standing_rewrite(path, external_id))
-        })
-        .map(|notice| {
-            rewrite_lines(&notice, &path.display().to_string(), integration)
-        })
-        .unwrap_or_default()
+    let on_push = verdict.into_notice(path, external_id);
+    match recorded {
+        Some(entry) => entry.rewrite_after_push(on_push, path, external_id),
+        None => on_push,
+    }
+    .map(|notice| {
+        rewrite_lines(&notice, &path.display().to_string(), integration)
+    })
+    .unwrap_or_default()
 }
 
 /// A terminal failure may have applied remotely, so it clears the baseline
@@ -405,6 +406,54 @@ fn push_failure(
     }
 }
 
+fn accept_rewrite(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    path: &Path,
+) -> Result<Vec<String>, TryRunError> {
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let _identity_run = crate::identity_run::begin(&root, "update")
+        .map_err(|refusal| crate::identity_run::refused(refusal, &root))?;
+    let content = std::fs::read_to_string(path).map_err(|error| {
+        format!("could not read {}: {error}", path.display())
+    })?;
+    let yaml = document::parse(&content).map_err(|error| error.to_string())?;
+    let Yaml::Mapping(mapping) = &yaml else {
+        return Err(TryRunError::Generic(
+            "frontmatter is not a mapping".to_owned(),
+        ));
+    };
+    let id = scalar_string(mapping, "id").ok_or_else(|| {
+        format!("{} has no id field in its frontmatter", path.display())
+    })?;
+    let integration =
+        effective_nonempty(config, "work.integration").map_err(|_| {
+            format!(
+                "{}: no rewrite on push is recorded to accept, as no \
+                     work.integration is configured",
+                path.display()
+            )
+        })?;
+    let integrations_root = crate::sync::integrations_dir(config, &root)
+        .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    let baseline_path = baseline::path(&integrations_root, &integration);
+    let file_reader = RealFs;
+    let baseline_writer = FileCorpusStore::new(
+        baseline_path.parent().unwrap_or(&integrations_root),
+    );
+    let accepted =
+        BaselineStore::new(baseline_path, &file_reader, &baseline_writer)
+            .accept_rewrite(&id)
+            .map_err(|error| TryRunError::Generic(error.to_string()))?;
+    match accepted {
+        RewriteAcceptance::Accepted => Ok(Vec::new()),
+        RewriteAcceptance::NothingMarked => Err(TryRunError::Generic(format!(
+            "{}: no rewrite on push is recorded to accept",
+            path.display()
+        ))),
+    }
+}
+
 fn try_run(
     start: &Path,
     config: &dyn ConfigAccess,
@@ -416,6 +465,10 @@ fn try_run(
     }
     for (key, _) in args.appends.iter().chain(&args.removes) {
         validate_list_key(key)?;
+    }
+
+    if args.accept_rewrite {
+        return accept_rewrite(start, config, &args.path);
     }
 
     let _identity_run = if args.push {
@@ -608,6 +661,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push,
+            accept_rewrite: false,
         }
     }
 
@@ -734,6 +788,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);
@@ -860,6 +915,77 @@ mod tests {
             sets: Vec::new(),
             ..update_args(path, true)
         }
+    }
+
+    fn accepting(path: std::path::PathBuf) -> UpdateArgs {
+        UpdateArgs {
+            sets: Vec::new(),
+            accept_rewrite: true,
+            ..update_args(path, false)
+        }
+    }
+
+    impl PushedRepo {
+        fn accept(&self) -> RunOutcome {
+            run(
+                self.root.path(),
+                &self.config,
+                &accepting(self.item.clone()),
+                &crate::test_support::FixedRegistry::holding(
+                    RecordingTracker::holding(Vec::new()),
+                ),
+            )
+        }
+    }
+
+    fn is_accepted(state: &MarkState) -> bool {
+        state.mark().is_some_and(
+            work_adapters::sync::rewrite_mark::RewriteMark::is_accepted,
+        )
+    }
+
+    #[test]
+    fn accepting_a_marked_rewrite_accepts_it_and_leaves_the_file() {
+        use crate::test_support::real_trackers::Tracker;
+        let repo = PushedRepo::on(Tracker::Linear).marked(Tracker::Linear);
+
+        let warnings = warnings_of(repo.accept());
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert!(is_accepted(&repo.mark(Tracker::Linear)));
+        repo.assert_unchanged();
+    }
+
+    #[test]
+    fn accepting_with_no_rewrite_marked_fails_and_writes_nothing() {
+        use crate::test_support::real_trackers::Tracker;
+        let repo = PushedRepo::on(Tracker::Linear);
+
+        let RunOutcome::Failed(message) = repo.accept() else {
+            panic!("accepting nothing succeeded");
+        };
+
+        assert!(message.contains("no rewrite on push"), "{message}");
+        assert!(!repo.baseline_path(Tracker::Linear).exists());
+        repo.assert_unchanged();
+    }
+
+    #[test]
+    fn a_push_rewritten_as_accepted_warns_of_nothing() {
+        use crate::test_support::real_trackers::Tracker;
+        let repo = PushedRepo::on(Tracker::Linear);
+        let linked = repo
+            .body()
+            .replace("crates.io.", "[crates.io](<http://crates.io>).");
+        let mut served = Tracker::Linear.serve("Title", &linked);
+        let _ = warnings_of(repo.push(&mut served));
+        let _ = warnings_of(repo.accept());
+        let mut again = Tracker::Linear.serve("Title", &linked);
+
+        let warnings = warnings_of(repo.push(&mut again));
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert!(is_accepted(&repo.mark(Tracker::Linear)));
     }
 
     #[test]
@@ -1131,6 +1257,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);
@@ -1209,6 +1336,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);
@@ -1263,6 +1391,7 @@ mod tests {
             appends: Vec::new(),
             removes: Vec::new(),
             push: true,
+            accept_rewrite: false,
         };
 
         let outcome = run(root.path(), &config, &args, &registry);

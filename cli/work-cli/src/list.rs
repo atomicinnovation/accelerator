@@ -6,7 +6,6 @@
 
 use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -523,12 +522,13 @@ fn local_items(items: &[ScannedItem]) -> Vec<LocalItem> {
 /// other item is presence-only (no remote read), matching the skill's floor.
 /// With a baseline, the classifier upgrades tracked items to the five-state
 /// vocabulary; `remote-absent`/`indeterminate` degrade back to presence-only.
-/// An item in `rewritten` carries a push the tracker still holds rewritten.
+/// An item in `rewrites` carries a push the tracker still holds rewritten,
+/// accepted or not.
 #[must_use]
 pub fn sync_column(
     items: &[ScannedItem],
     states: &BTreeMap<String, SyncState>,
-    rewritten: &BTreeSet<String>,
+    rewrites: &BTreeMap<String, RewriteStanding>,
 ) -> BTreeMap<String, String> {
     items
         .iter()
@@ -541,27 +541,46 @@ pub fn sync_column(
                     item.external_id.as_ref(),
                 )
             };
-            let rendered = if rewritten.contains(&item.id) {
-                format!("{state} · rewritten on push")
-            } else {
-                state.to_owned()
+            let rendered = match rewrites.get(&item.id) {
+                Some(RewriteStanding::Rewritten) => {
+                    format!("{state} · rewritten on push")
+                }
+                Some(RewriteStanding::Accepted) => {
+                    format!("{state} · rewrite accepted")
+                }
+                None => state.to_owned(),
             };
             (item.id.clone(), rendered)
         })
         .collect()
 }
 
-/// The items whose baseline entry carries a rewrite mark.
+/// How the rewrite a push left on an item stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RewriteStanding {
+    Rewritten,
+    Accepted,
+}
+
+/// The items whose baseline entry carries a rewrite mark, by how each
+/// stands.
 #[must_use]
-pub fn rewritten_on_push(baseline: &Baseline) -> BTreeSet<String> {
+pub fn rewrites_on_push(
+    baseline: &Baseline,
+) -> BTreeMap<String, RewriteStanding> {
     baseline
         .ids()
         .into_iter()
-        .filter(|id| {
-            matches!(
-                baseline.get(id),
-                Some(Entry::Split(entry)) if entry.mark().mark().is_some()
-            )
+        .filter_map(|id| {
+            let Some(Entry::Split(entry)) = baseline.get(&id) else {
+                return None;
+            };
+            let standing = if entry.mark().mark()?.is_accepted() {
+                RewriteStanding::Accepted
+            } else {
+                RewriteStanding::Rewritten
+            };
+            Some((id, standing))
         })
         .collect()
 }
@@ -681,14 +700,14 @@ fn classify_labels(
         return None;
     }
     let Some(path) = baseline_path else {
-        return Some(sync_column(items, &BTreeMap::new(), &BTreeSet::new()));
+        return Some(sync_column(items, &BTreeMap::new(), &BTreeMap::new()));
     };
     let content = std::fs::read_to_string(&path).ok();
     let (baseline, _) = Baseline::read(content.as_deref());
     let states =
         resolve_states(registry, &integration, &path, &baseline, items)
             .unwrap_or_default();
-    Some(sync_column(items, &states, &rewritten_on_push(&baseline)))
+    Some(sync_column(items, &states, &rewrites_on_push(&baseline)))
 }
 
 fn resolve_states(
@@ -818,7 +837,7 @@ mod tests {
         states.insert("0002".to_owned(), SyncState::LocallyModified);
         states.insert("0003".to_owned(), SyncState::RemotelyModified);
         states.insert("0004".to_owned(), SyncState::Conflict);
-        let labels = sync_column(&items, &states, &BTreeSet::new());
+        let labels = sync_column(&items, &states, &BTreeMap::new());
         let selected: Vec<&ScannedItem> = items.iter().collect();
 
         let table = render_table(&selected, Some(&labels));
@@ -998,7 +1017,7 @@ mod tests {
         let states =
             BTreeMap::from([("draft-k7mq3x".to_owned(), SyncState::Synced)]);
 
-        let column = sync_column(&items, &states, &BTreeSet::new());
+        let column = sync_column(&items, &states, &BTreeMap::new());
 
         assert_eq!(column["0001"], "🟢 synced");
         assert_eq!(column["0002"], "⚪ unsynced");
@@ -1016,22 +1035,27 @@ mod tests {
             "{{\"timestamp\":0,\"items\":{{\
              \"0001\":{{{unmarked},\"rewritten_on_push\":{{\"lines\":[{{\
              \"section\":\"Notes\",\"sent\":\"a\",\"stored\":\"b\"}}],\
-             \"more\":0}}}},\"0002\":{{{unmarked}}}}}}}"
+             \"more\":0}}}},\"0002\":{{{unmarked}}},\
+             \"0003\":{{{unmarked},\"rewritten_on_push\":{{\"accepted\":true,\
+             \"lines\":[{{\"section\":\"Notes\",\"sent\":\"a\",\"stored\":\"b\"}}],\
+             \"more\":0}}}}}}}}"
         )));
         let items = vec![
             with_external(item("0001"), "ENG-1"),
             with_external(item("0002"), "ENG-2"),
+            with_external(item("0003"), "ENG-3"),
         ];
         let states = BTreeMap::from([
             ("0001".to_owned(), SyncState::Synced),
             ("0002".to_owned(), SyncState::Synced),
+            ("0003".to_owned(), SyncState::Synced),
         ]);
 
-        let column =
-            sync_column(&items, &states, &rewritten_on_push(&baseline));
+        let column = sync_column(&items, &states, &rewrites_on_push(&baseline));
 
         assert_eq!(column["0001"], "🟢 synced · rewritten on push");
         assert_eq!(column["0002"], "🟢 synced");
+        assert_eq!(column["0003"], "🟢 synced · rewrite accepted");
     }
 
     struct NoTracker;

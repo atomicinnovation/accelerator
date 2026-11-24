@@ -366,10 +366,11 @@ fn finalise_baseline(
         )
 }
 
-/// Gives each reported item that this run noticed no rewrite of, yet whose
-/// entry still carries a rewrite mark, the notice of that standing rewrite;
-/// a baseline that cannot be read notices nothing.
-fn noting_standing_rewrites(
+/// Settles each reported item's rewrite notice against its recorded entry:
+/// silenced while the entry holds an accepted rewrite, else the push's own,
+/// else the rewrite the entry still stands on. A baseline that cannot be
+/// read leaves every notice as the run made it.
+fn settling_rewrite_notices(
     reported: &mut [ReportedItem],
     baseline: &BaselineStore<'_>,
     knowledge: &RunKnowledge<'_>,
@@ -377,16 +378,21 @@ fn noting_standing_rewrites(
     let Ok((recorded, _)) = baseline.load() else {
         return;
     };
-    for row in reported.iter_mut().filter(|row| row.rewrite.is_none()) {
+    for row in reported.iter_mut() {
         let Some(item) = knowledge.item(row.planned.id()) else {
             continue;
         };
         let Some(external_id) = item.external_id.as_ref() else {
             continue;
         };
-        row.rewrite = recorded
-            .get(&item.id)
-            .and_then(|entry| entry.standing_rewrite(&item.path, external_id));
+        let Some(entry) = recorded.get(&item.id) else {
+            continue;
+        };
+        row.rewrite = entry.rewrite_after_push(
+            row.rewrite.take(),
+            &item.path,
+            external_id,
+        );
     }
 }
 
@@ -2531,7 +2537,7 @@ fn execute<'a>(
                 run_start_epoch,
             )));
         }
-        noting_standing_rewrites(&mut reported, baseline, &knowledge);
+        settling_rewrite_notices(&mut reported, baseline, &knowledge);
         let adoptions = previewed_adoptions(ports.tracker, &creates_from_local);
         let dossiers =
             build_dossiers(&reported, &knowledge, &unconfirmed_links);
@@ -2639,7 +2645,7 @@ fn execute<'a>(
             retire_confirmed_adoptions(&adoption_records, ports, baseline);
     }
     let unretired_adoptions = unretired;
-    noting_standing_rewrites(&mut reported, baseline, &knowledge);
+    settling_rewrite_notices(&mut reported, baseline, &knowledge);
     let dossiers = build_dossiers(&reported, &knowledge, &unconfirmed_links);
     let stale_dossier_ids = stale_dossier_ids(&reported);
 

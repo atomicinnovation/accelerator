@@ -4,8 +4,10 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use linear_client::storage_limit::StorageLimit;
 use work_adapters::sync::push_fidelity::RewriteKind;
 use work_adapters::sync::push_fidelity::RewriteNotice;
+use work_adapters::sync::push_fidelity::RewrittenLines;
 
 #[derive(Debug, Default)]
 pub struct TsvRecord {
@@ -123,10 +125,26 @@ pub fn rewrite_lines(
             shown(&tracker_name(tracker))
         )));
     }
+    let path = shown(&notice.path.display().to_string());
+    let limits = StorageLimits::of(rewritten, tracker);
+    if let Some(characters) = limits.characters() {
+        let cannot_store = format!(
+            "{} cannot store {characters} as text",
+            shown(&tracker_name(tracker))
+        );
+        if limits.explain_every_line() {
+            lines.push(note(format!(
+                "{cannot_store}, so this rewrite cannot be avoided; to stop \
+                 warning of it, run `accelerator work update {path} \
+                 --accept-rewrite`"
+            )));
+            return lines;
+        }
+        lines.push(note(cannot_store));
+    }
     lines.push(note(format!(
         "to keep the meaning, put the sent text in backticks or reword it, \
-         then run `accelerator work update {} --push`",
-        shown(&notice.path.display().to_string())
+         then run `accelerator work update {path} --push`"
     )));
     if !standing {
         lines.push(note(format!(
@@ -134,6 +152,58 @@ pub fn rewrite_lines(
         )));
     }
     lines
+}
+
+/// The characters a rewrite's shown lines hold that the tracker cannot
+/// store as text; known only for Linear.
+struct StorageLimits {
+    per_line: Vec<Vec<StorageLimit>>,
+    unshown: usize,
+}
+
+impl StorageLimits {
+    fn of(rewritten: &RewrittenLines, tracker: &str) -> Self {
+        let per_line = rewritten
+            .lines
+            .iter()
+            .map(|line| {
+                if tracker == "linear" {
+                    StorageLimit::in_sent(&line.sent)
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+        Self {
+            per_line,
+            unshown: rewritten.more,
+        }
+    }
+
+    /// Whether every changed line meets a limit, so nothing the person
+    /// sends could avoid the rewrite.
+    fn explain_every_line(&self) -> bool {
+        self.unshown == 0
+            && !self.per_line.is_empty()
+            && self.per_line.iter().all(|limits| !limits.is_empty())
+    }
+
+    /// The characters met, as `` `<` ``, `` `<` or `&` `` or
+    /// `` `<`, `&` or `|` ``.
+    fn characters(&self) -> Option<String> {
+        let named: Vec<String> = StorageLimit::ALL
+            .into_iter()
+            .filter(|limit| {
+                self.per_line.iter().flatten().any(|met| met == limit)
+            })
+            .map(|limit| format!("`{}`", limit.character()))
+            .collect();
+        match named.as_slice() {
+            [] => None,
+            [only] => Some(only.clone()),
+            [rest @ .., last] => Some(format!("{} or {last}", rest.join(", "))),
+        }
+    }
 }
 
 /// How a notice shows a line break in sent or stored text. Not `\n`,
@@ -268,6 +338,94 @@ mod tests {
                  meta/work/0001-search.md --push`",
             ]
         );
+    }
+
+    #[test]
+    fn a_rewrite_linear_cannot_avoid_offers_acceptance_not_a_remedy() {
+        let lines = rewrite_lines(
+            &notice(vec![changed("Notes", "x &lt;b&gt; y", "x <b> y")]),
+            "0001",
+            "linear",
+        );
+
+        assert_eq!(
+            lines,
+            vec![
+                "warning: 0001: rewritten on push: Notes",
+                "note: 0001: Notes: sent `x &lt;b&gt; y`, stored `x <b> y`",
+                "note: 0001: the local file is unchanged, but Linear stored \
+                 these lines with a different meaning",
+                "note: 0001: Linear cannot store `<` as text, so this \
+                 rewrite cannot be avoided; to stop warning of it, run \
+                 `accelerator work update meta/work/0001-search.md \
+                 --accept-rewrite`",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_standing_rewrite_linear_cannot_avoid_offers_acceptance() {
+        let lines = rewrite_lines(
+            &still(vec![
+                changed("Notes", "| a \\| b | c |", "| a | b | c |"),
+                changed("Notes", "x &amp;lt; y", "x &lt; y"),
+            ]),
+            "0001",
+            "linear",
+        );
+
+        assert_eq!(
+            lines.last().map(String::as_str),
+            Some(
+                "note: 0001: Linear cannot store `&` or `|` as text, so this \
+                 rewrite cannot be avoided; to stop warning of it, run \
+                 `accelerator work update meta/work/0001-search.md \
+                 --accept-rewrite`"
+            )
+        );
+        assert!(!lines.iter().any(|line| line.contains("backticks")));
+    }
+
+    #[test]
+    fn a_rewrite_with_an_unexplained_line_keeps_the_remedy() {
+        let lines = rewrite_lines(
+            &notice(vec![
+                changed("Notes", "x &lt;b&gt; y", "x <b> y"),
+                changed("Notes", "See crates.io.", "See [crates.io](x)."),
+            ]),
+            "0001",
+            "linear",
+        );
+
+        assert!(lines.contains(
+            &"note: 0001: Linear cannot store `<` as text".to_owned()
+        ));
+        assert!(lines.iter().any(|line| line.contains("backticks")));
+        assert!(lines.iter().any(|line| line.contains("please report it")));
+        assert!(!lines.iter().any(|line| line.contains("--accept-rewrite")));
+    }
+
+    #[test]
+    fn a_rewrite_with_unshown_lines_keeps_the_remedy() {
+        let mut changes = vec![changed("Notes", "x &lt;b&gt; y", "x <b> y"); 5];
+        changes.push(changed("Notes", "See crates.io.", "See [crates.io](x)."));
+
+        let lines = rewrite_lines(&notice(changes), "0001", "linear");
+
+        assert!(lines.iter().any(|line| line.contains("backticks")));
+        assert!(!lines.iter().any(|line| line.contains("--accept-rewrite")));
+    }
+
+    #[test]
+    fn only_linear_names_its_storage_limits() {
+        let lines = rewrite_lines(
+            &notice(vec![changed("Notes", "x &lt;b&gt; y", "x <b> y")]),
+            "0001",
+            "jira",
+        );
+
+        assert!(!lines.iter().any(|line| line.contains("cannot store")));
+        assert!(lines.iter().any(|line| line.contains("backticks")));
     }
 
     #[test]

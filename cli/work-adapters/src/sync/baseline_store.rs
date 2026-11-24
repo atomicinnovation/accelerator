@@ -29,6 +29,13 @@ pub struct BaselineStore<'a> {
     writer: &'a dyn AtomicWrite,
 }
 
+/// Whether accepting `id`'s rewrite found one to accept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RewriteAcceptance {
+    Accepted,
+    NothingMarked,
+}
+
 impl<'a> BaselineStore<'a> {
     #[must_use]
     pub const fn new(
@@ -124,6 +131,29 @@ impl<'a> BaselineStore<'a> {
         baseline.set(id, entry);
         self.write_document(&baseline)?;
         Ok(baseline)
+    }
+
+    /// Accepts the rewrite `id`'s entry is marked with, writing nothing when
+    /// it is marked with none.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] on either the read or the write.
+    pub fn accept_rewrite(
+        &self,
+        id: &str,
+    ) -> Result<RewriteAcceptance, StoreError> {
+        let (mut baseline, _) = self.load()?;
+        let Some(Entry::Split(entry)) = baseline.get(id) else {
+            return Ok(RewriteAcceptance::NothingMarked);
+        };
+        if entry.mark().mark().is_none() {
+            return Ok(RewriteAcceptance::NothingMarked);
+        }
+        let accepted = entry.clone().marked(MarkChange::Accept);
+        baseline.set(id, Entry::Split(accepted));
+        self.write_document(&baseline)?;
+        Ok(RewriteAcceptance::Accepted)
     }
 
     /// Writes `id`'s entry exactly as given, for a test to start from.
@@ -245,6 +275,7 @@ mod tests {
     use work::sync::SplitFingerprints;
 
     use super::BaselineStore;
+    use super::RewriteAcceptance;
     use crate::sync::baseline::Entry;
     use crate::sync::baseline::SyncStamps;
     use crate::sync::push_fidelity::ChangedLine;
@@ -554,6 +585,51 @@ mod tests {
         )?;
 
         assert!(matches!(mark_after(&file, &store)?, MarkState::Marked(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn accepting_a_marked_rewrite_accepts_it() -> Result<(), StoreError> {
+        let file = MemoryFile::default();
+        let store = marked_store(&file);
+
+        assert_eq!(store.accept_rewrite("0001")?, RewriteAcceptance::Accepted);
+
+        assert!(mark_after(&file, &store)?
+            .mark()
+            .is_some_and(crate::sync::rewrite_mark::RewriteMark::is_accepted));
+        Ok(())
+    }
+
+    #[test]
+    fn accepting_where_no_rewrite_is_marked_writes_nothing(
+    ) -> Result<(), StoreError> {
+        let absent = MemoryFile::default();
+        let unmarked = MemoryFile::default();
+        let store = BaselineStore::new(
+            PathBuf::from("last-sync.json"),
+            &absent,
+            &absent,
+        );
+        let recorded = BaselineStore::new(
+            PathBuf::from("last-sync.json"),
+            &unmarked,
+            &unmarked,
+        );
+        recorded.record("0001", recorded_entry(), MarkChange::Clear)?;
+        let before = stored(&unmarked);
+
+        assert_eq!(
+            store.accept_rewrite("0001")?,
+            RewriteAcceptance::NothingMarked
+        );
+        assert_eq!(
+            recorded.accept_rewrite("0001")?,
+            RewriteAcceptance::NothingMarked
+        );
+
+        assert_eq!(stored(&absent), "");
+        assert_eq!(stored(&unmarked), before);
         Ok(())
     }
 

@@ -22,7 +22,17 @@ pub struct RewriteMark {
     sections: Vec<String>,
     lines: Vec<MarkedLine>,
     more: usize,
+    acceptance: Acceptance,
     extra: BTreeMap<String, Value>,
+}
+
+/// Whether a person accepted the rewrite as Linear's to keep, so it stands
+/// without a warning and stays distinct from a rewrite resolved by a push.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum Acceptance {
+    #[default]
+    Unaccepted,
+    Accepted,
 }
 
 /// One persisted changed line, with the fields a later build added to it.
@@ -52,6 +62,8 @@ pub enum MarkChange<'a> {
     Fresh(&'a PushFidelity),
     Clear,
     Keep,
+    /// A person accepted the rewrite the entry is marked with.
+    Accept,
 }
 
 impl MarkChange<'_> {
@@ -68,21 +80,39 @@ impl MarkChange<'_> {
 
 impl RewriteMark {
     pub(crate) const KEY: &'static str = "rewritten_on_push";
-    const FIELDS: [&'static str; 3] = ["lines", "more", "sections"];
+    const FIELDS: [&'static str; 4] = ["accepted", "lines", "more", "sections"];
 
-    /// The mark a push's verdict leaves over `previous`.
+    /// The mark a push's verdict leaves over `previous`; an accepted
+    /// rewrite the push left alike stays accepted.
     #[must_use]
     pub fn after(
         fidelity: &PushFidelity,
         previous: Option<&Self>,
     ) -> Option<Self> {
         match fidelity {
-            PushFidelity::Rewritten { changes } => Some(Self::from(
-                RewrittenLines::bounded(changes.as_slice().to_vec()),
-            )),
+            PushFidelity::Rewritten { changes } => {
+                let rewrite = Self::from(RewrittenLines::bounded(
+                    changes.as_slice().to_vec(),
+                ));
+                Some(match previous {
+                    Some(accepted)
+                        if accepted.is_accepted()
+                            && accepted.rewritten_lines()
+                                == rewrite.rewritten_lines() =>
+                    {
+                        accepted.clone()
+                    }
+                    _ => rewrite,
+                })
+            }
             PushFidelity::Preserved => None,
             PushFidelity::Unjudged => previous.cloned(),
         }
+    }
+
+    #[must_use]
+    pub fn is_accepted(&self) -> bool {
+        self.acceptance == Acceptance::Accepted
     }
 
     /// The notice of the rewrite this mark records, standing on the item at
@@ -134,10 +164,16 @@ impl RewriteMark {
                     .collect()
             },
         )?;
+        let acceptance = if object.get("accepted") == Some(&Value::Bool(true)) {
+            Acceptance::Accepted
+        } else {
+            Acceptance::Unaccepted
+        };
         Some(Self {
             sections,
             lines,
             more,
+            acceptance,
             extra: extra_fields(object, &Self::FIELDS),
         })
     }
@@ -156,6 +192,9 @@ impl RewriteMark {
             self.sections.iter().map(|s| render_string(s)).collect();
         fields
             .insert("sections".to_owned(), format!("[{}]", sections.join(",")));
+        if self.is_accepted() {
+            fields.insert("accepted".to_owned(), "true".to_owned());
+        }
         render_object(&fields)
     }
 }
@@ -173,6 +212,7 @@ impl From<RewrittenLines> for RewriteMark {
                 })
                 .collect(),
             more: rewritten.more,
+            acceptance: Acceptance::Unaccepted,
             extra: BTreeMap::new(),
         }
     }
@@ -251,6 +291,13 @@ impl MarkState {
                 marked(RewriteMark::after(fidelity, None))
             }
             MarkChange::Clear => Self::Absent,
+            MarkChange::Accept => match self {
+                Self::Marked(mark) => Self::Marked(Box::new(RewriteMark {
+                    acceptance: Acceptance::Accepted,
+                    ..(**mark).clone()
+                })),
+                Self::Absent | Self::Unreadable(_) => self.clone(),
+            },
         }
     }
 }
@@ -414,6 +461,53 @@ mod tests {
         let state = MarkState::parse(&object);
 
         assert_eq!(sections(&state), Some(vec!["Notes".to_owned()]));
+    }
+
+    fn accepted(section: &str) -> MarkState {
+        MarkState::Marked(Box::new(mark(section))).after(MarkChange::Accept)
+    }
+
+    fn is_accepted(state: &MarkState) -> bool {
+        state.mark().is_some_and(RewriteMark::is_accepted)
+    }
+
+    #[test]
+    fn accepting_marks_only_a_rewrite_already_marked() {
+        let unreadable = MarkState::Unreadable(serde_json::json!("garbled"));
+
+        assert!(is_accepted(&accepted("Notes")));
+        assert_eq!(
+            MarkState::Absent.after(MarkChange::Accept),
+            MarkState::Absent
+        );
+        assert_eq!(unreadable.after(MarkChange::Accept), unreadable);
+    }
+
+    #[test]
+    fn an_accepted_mark_persists_its_acceptance() -> serde_json::Result<()> {
+        let unaccepted = MarkState::Marked(Box::new(mark("Notes")));
+
+        assert!(is_accepted(&persisted(&accepted("Notes"))?));
+        assert!(!is_accepted(&persisted(&unaccepted)?));
+        assert!(!unaccepted
+            .rendered()
+            .is_some_and(|rendered| rendered.contains("accepted")));
+        Ok(())
+    }
+
+    #[test]
+    fn a_push_rewritten_alike_keeps_the_acceptance() {
+        let same =
+            accepted("Notes").after(MarkChange::Judged(&rewritten("Notes")));
+        let other =
+            accepted("Notes").after(MarkChange::Judged(&rewritten("Summary")));
+        let preserved = accepted("Notes")
+            .after(MarkChange::Judged(&PushFidelity::Preserved));
+
+        assert!(is_accepted(&same));
+        assert_eq!(sections(&other), Some(vec!["Summary".to_owned()]));
+        assert!(!is_accepted(&other));
+        assert_eq!(preserved, MarkState::Absent);
     }
 
     #[test]

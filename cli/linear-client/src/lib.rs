@@ -19,6 +19,7 @@ pub mod failure;
 pub mod filter;
 pub mod healing;
 pub mod resolution;
+pub mod storage_limit;
 pub mod surface;
 pub mod transition;
 pub mod transport;

@@ -268,7 +268,29 @@ impl Entry {
         entry
             .mark()
             .mark()
+            .filter(|mark| !mark.is_accepted())
             .map(|mark| mark.notice(path, external_id))
+    }
+
+    /// The notice a push leaves on the item at `path` known remotely as
+    /// `external_id`, once this entry records it: none while the entry
+    /// holds an accepted rewrite, else the push's own notice, else the
+    /// rewrite the entry still stands on.
+    #[must_use]
+    pub fn rewrite_after_push(
+        &self,
+        on_push: Option<RewriteNotice>,
+        path: &Path,
+        external_id: &ExternalId,
+    ) -> Option<RewriteNotice> {
+        if self.holds_an_accepted_rewrite() {
+            return None;
+        }
+        on_push.or_else(|| self.standing_rewrite(path, external_id))
+    }
+
+    fn holds_an_accepted_rewrite(&self) -> bool {
+        matches!(self, Self::Split(entry) if entry.mark().mark().is_some_and(RewriteMark::is_accepted))
     }
 
     /// A legacy entry from the strings an earlier release persisted, an
@@ -1153,6 +1175,42 @@ mod tests {
         );
         assert_eq!(split_entry().standing_rewrite(path, &key), None);
         assert_eq!(legacy.standing_rewrite(path, &key), None);
+    }
+
+    #[test]
+    fn an_accepted_rewrite_silences_its_push_and_a_marked_one_stands() {
+        let path = Path::new("meta/work/0001.md");
+        let key = tracker::ExternalId::new("PP-1".to_owned());
+        let marked_entry =
+            marked(MarkState::Marked(Box::new(crates_io_mark(0))));
+        let accepted_entry = marked(
+            MarkState::Marked(Box::new(crates_io_mark(0)))
+                .after(MarkChange::Accept),
+        );
+        let pushed = marked_entry.standing_rewrite(path, &key);
+
+        assert_eq!(
+            accepted_entry.rewrite_after_push(pushed.clone(), path, &key),
+            None
+        );
+        assert_eq!(
+            marked_entry.rewrite_after_push(None, path, &key),
+            marked_entry.standing_rewrite(path, &key)
+        );
+        assert_eq!(
+            split_entry().rewrite_after_push(pushed.clone(), path, &key),
+            pushed
+        );
+    }
+
+    #[test]
+    fn an_accepted_rewrite_no_longer_stands() {
+        let path = Path::new("meta/work/0001.md");
+        let key = tracker::ExternalId::new("PP-1".to_owned());
+        let accepted = MarkState::Marked(Box::new(crates_io_mark(0)))
+            .after(MarkChange::Accept);
+
+        assert_eq!(marked(accepted).standing_rewrite(path, &key), None);
     }
 
     #[test]

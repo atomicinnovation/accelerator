@@ -397,7 +397,12 @@
   later sync and `work update --push` print `warning: <id>: still rewritten
   on push: <sections>` with the same lines, and `work list` shows the item
   as `· rewritten on push`. A pull clears it only by writing the tracker's
-  rewritten form into the local file; nothing dismisses it otherwise.
+  rewritten form into the local file. When every changed line holds
+  something Linear cannot store as text (`<`, `&`, or a `|` in a table
+  cell), the notice says so instead of suggesting backticks, and
+  `accelerator work update <path> --accept-rewrite` accepts the rewrite:
+  the mark stays, `work list` shows `· rewrite accepted`, and nothing warns
+  until a push is rewritten differently.
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
   welcome text, the ID is settled with `work id check` before drafting. An

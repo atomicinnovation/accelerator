@@ -155,7 +155,9 @@ is nothing to reconstruct in prose:
   `🔴 conflict`), driven by one bulk remote read through the shared
   classifier, with ` · rewritten on push` appended to an item whose last
   push the tracker still holds with a different meaning (relay it, and
-  point at `/sync-work-items` for the lines and how to fix the body); without one it carries the presence-only label (`🟢 synced`
+  point at `/sync-work-items` for the lines and how to fix the body), or
+  ` · rewrite accepted` once that rewrite was accepted as the tracker's to
+  keep (relay it as is; nothing needs fixing); without one it carries the presence-only label (`🟢 synced`
   when it has an `external_id`, else `⚪ unsynced`). If the remote is
   unreachable it degrades to presence-only and still exits 0 — never
   retrying or hanging.
