@@ -2,6 +2,7 @@
 //! every byte they do not deliberately change.
 
 pub mod github;
+pub mod linear;
 
 #[cfg(test)]
 mod tests;
