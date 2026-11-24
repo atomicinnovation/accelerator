@@ -12,6 +12,7 @@ use tracker::RemoteTimestamp;
 
 use crate::sync::classify;
 use crate::sync::classify::BaselineEntry;
+use crate::sync::classify::BodyAgreement;
 use crate::sync::classify::ItemComparison;
 use crate::sync::classify::ItemDigests;
 use crate::sync::classify::RemotePresence;
@@ -68,6 +69,7 @@ pub struct PlannedAction {
     state: SyncState,
     action: Action,
     instruction: Option<Instruction>,
+    body_agreement: BodyAgreement,
 }
 
 impl PlannedAction {
@@ -82,6 +84,16 @@ impl PlannedAction {
             state,
             action,
             instruction: None,
+            body_agreement: BodyAgreement::Unconfirmed,
+        }
+    }
+
+    /// This action, knowing what classification confirmed of its bodies.
+    #[must_use]
+    pub fn with_body_agreement(self, agreement: BodyAgreement) -> Self {
+        Self {
+            body_agreement: agreement,
+            ..self
         }
     }
 
@@ -156,6 +168,13 @@ impl PlannedAction {
             Some(Instruction::Order(order)) => Some(order),
             Some(Instruction::Resolution(_)) | None => None,
         }
+    }
+
+    /// Whether classification confirmed the item's bodies agree, so the
+    /// baseline it records may clear a rewrite mark.
+    #[must_use]
+    pub const fn body_agreement(&self) -> BodyAgreement {
+        self.body_agreement
     }
 
     #[must_use]
@@ -284,13 +303,13 @@ pub fn plan(
             remote_updated: item.facts.remote_updated,
             baseline_timestamp: item.baseline_timestamp,
         };
-        let classification = match classify::classify(
+        let classified = match classify::classify(
             &subject,
             &item.baseline,
             item.digests,
             item.comparison,
         ) {
-            Ok(classification) => classification,
+            Ok(classified) => classified,
             Err(error) => {
                 unclassifiable.push(Unclassifiable {
                     id: item.id.clone(),
@@ -299,13 +318,14 @@ pub fn plan(
                 continue;
             }
         };
-        let action = decide::decide(direction, &classification, item.dirty);
+        let action =
+            decide::decide(direction, &classified.classification, item.dirty);
         let resolution = orders
             .resolutions
             .get(&item.id)
             .filter(|_| action == Action::Prompt)
             .and_then(|resolution| AppliedResolution::of(*resolution));
-        let state = classification.state();
+        let state = classified.classification.state();
         actions.push(match (orders.pending_push.get(&item.id), resolution) {
             (Some(order), _) if orders.unconfirmed_links.contains(&item.id) => {
                 PlannedAction::relink(item.id.clone(), state, order.clone())
@@ -316,7 +336,8 @@ pub fn plan(
             (_, Some(resolution)) => {
                 PlannedAction::resolved(item.id.clone(), state, resolution)
             }
-            (_, None) => PlannedAction::new(item.id.clone(), state, action),
+            (_, None) => PlannedAction::new(item.id.clone(), state, action)
+                .with_body_agreement(classified.body_agreement),
         });
     }
     SyncPlan {
@@ -328,6 +349,7 @@ pub fn plan(
 #[cfg(test)]
 mod tests {
     use super::PlannedAction;
+    use crate::sync::classify::BodyAgreement;
     use crate::sync::decide::Action;
     use crate::sync::push_precondition::PendingPushOrder;
     use crate::sync::state::SyncState;
@@ -353,5 +375,19 @@ mod tests {
             None
         );
         assert_eq!(row().with_order_of(&row()).order(), None);
+    }
+
+    #[test]
+    fn a_planned_action_leaves_its_bodies_unconfirmed_unless_told() {
+        let row =
+            || PlannedAction::new("0001", SyncState::Synced, Action::Noop);
+
+        assert_eq!(row().body_agreement(), BodyAgreement::Unconfirmed);
+        assert_eq!(
+            row()
+                .with_body_agreement(BodyAgreement::Agreed)
+                .body_agreement(),
+            BodyAgreement::Agreed
+        );
     }
 }

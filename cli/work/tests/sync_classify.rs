@@ -19,6 +19,7 @@ use work::normalise::trim_lines;
 use work::sync::classify;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
+use work::sync::BodyAgreement;
 use work::sync::BodyEquivalence;
 use work::sync::Classification;
 use work::sync::FieldDelivery;
@@ -314,6 +315,16 @@ fn expected(raw: &str, name: &str) -> Classification {
     }
 }
 
+/// Whether a case's classification confirms the two bodies agree, so a
+/// baseline it records may clear a rewrite mark; unconfirmed unless stated.
+fn body_agreement(case: &Value, name: &str) -> BodyAgreement {
+    match case["body_agreement"].as_str() {
+        None | Some("unconfirmed") => BodyAgreement::Unconfirmed,
+        Some("agreed") => BodyAgreement::Agreed,
+        Some(other) => panic!("unrecognised body agreement in {name}: {other}"),
+    }
+}
+
 fn comparison(case: &Value, name: &str) -> FakeComparison {
     FakeComparison {
         name: name.to_owned(),
@@ -407,7 +418,12 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
             let digests = FakeDigests::new(None, String::new(), None);
             let comparison = comparison(case, name);
             let actual = classify(&subject, &baseline, &digests, &comparison)?;
-            assert_eq!(actual, expect, "case: {name}");
+            assert_eq!(actual.classification, expect, "case: {name}");
+            assert_eq!(
+                actual.body_agreement,
+                body_agreement(case, name),
+                "case: {name}"
+            );
             assert_comparison_calls(case, &comparison, name);
             continue;
         }
@@ -492,7 +508,12 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
         let comparison = comparison(case, name);
 
         let actual = classify(&subject, &baseline, &digests, &comparison)?;
-        assert_eq!(actual, expect, "case: {name}");
+        assert_eq!(actual.classification, expect, "case: {name}");
+        assert_eq!(
+            actual.body_agreement,
+            body_agreement(case, name),
+            "case: {name}"
+        );
 
         if let Some(expect_mtime) =
             case["observed_calls"]["expect_mtime_called"].as_bool()

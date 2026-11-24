@@ -760,7 +760,7 @@ fn a_recipe_one_entry_classifies_as_synced_under_the_legacy_reader(
         &reader,
     )?;
 
-    assert_eq!(classification.state(), SyncState::Synced);
+    assert_eq!(classification.classification.state(), SyncState::Synced);
     Ok(())
 }
 

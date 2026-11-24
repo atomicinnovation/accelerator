@@ -1852,6 +1852,18 @@ impl core::fmt::Debug for work::sync::baseline::SplitFingerprints
 pub fn work::sync::baseline::SplitFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::baseline::SplitFingerprints
 pub mod work::sync::classify
+pub enum work::sync::classify::BodyAgreement
+pub work::sync::classify::BodyAgreement::Agreed
+pub work::sync::classify::BodyAgreement::Unconfirmed
+impl core::clone::Clone for work::sync::classify::BodyAgreement
+pub fn work::sync::classify::BodyAgreement::clone(&self) -> work::sync::classify::BodyAgreement
+impl core::cmp::Eq for work::sync::classify::BodyAgreement
+impl core::cmp::PartialEq for work::sync::classify::BodyAgreement
+pub fn work::sync::classify::BodyAgreement::eq(&self, other: &work::sync::classify::BodyAgreement) -> bool
+impl core::fmt::Debug for work::sync::classify::BodyAgreement
+pub fn work::sync::classify::BodyAgreement::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::BodyAgreement
+impl core::marker::StructuralPartialEq for work::sync::classify::BodyAgreement
 pub enum work::sync::classify::BodyEquivalence
 pub work::sync::classify::BodyEquivalence::Different
 pub work::sync::classify::BodyEquivalence::Equivalent
@@ -1965,6 +1977,18 @@ impl core::marker::StructuralPartialEq for work::sync::classify::SyncedReconcili
 pub struct work::sync::classify::BaselineEntry<'a>
 pub work::sync::classify::BaselineEntry::fingerprints: work::sync::baseline::BaselineFingerprints
 pub work::sync::classify::BaselineEntry::remote_updated_at: &'a tracker::RemoteTimestamp
+pub struct work::sync::classify::Classified
+pub work::sync::classify::Classified::body_agreement: work::sync::classify::BodyAgreement
+pub work::sync::classify::Classified::classification: work::sync::classify::Classification
+impl core::clone::Clone for work::sync::classify::Classified
+pub fn work::sync::classify::Classified::clone(&self) -> work::sync::classify::Classified
+impl core::cmp::Eq for work::sync::classify::Classified
+impl core::cmp::PartialEq for work::sync::classify::Classified
+pub fn work::sync::classify::Classified::eq(&self, other: &work::sync::classify::Classified) -> bool
+impl core::fmt::Debug for work::sync::classify::Classified
+pub fn work::sync::classify::Classified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::Classified
+impl core::marker::StructuralPartialEq for work::sync::classify::Classified
 pub struct work::sync::classify::LocalChange
 pub work::sync::classify::LocalChange::body: work::sync::classify::Change
 pub work::sync::classify::LocalChange::fields: work::sync::classify::Change
@@ -2007,7 +2031,7 @@ pub fn work::sync::classify::ItemDigests::legacy_remote(&self) -> core::result::
 pub fn work::sync::classify::ItemDigests::local(&self) -> core::result::Result<work::sync::baseline::LocalFingerprints, kernel::Error>
 pub fn work::sync::classify::ItemDigests::mtime(&self) -> core::result::Result<core::option::Option<u64>, kernel::Error>
 pub fn work::sync::classify::ItemDigests::remote(&self) -> core::result::Result<core::option::Option<work::sync::baseline::RemoteFingerprints>, kernel::Error>
-pub fn work::sync::classify::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classification, kernel::Error>
+pub fn work::sync::classify::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classified, kernel::Error>
 pub fn work::sync::classify::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub mod work::sync::clock
 pub trait work::sync::clock::RunClock
@@ -2199,11 +2223,13 @@ pub const fn work::sync::plan::PlanOrders<'a>::resolving(resolutions: &'a alloc:
 pub struct work::sync::plan::PlannedAction
 impl work::sync::plan::PlannedAction
 pub const fn work::sync::plan::PlannedAction::action(&self) -> work::sync::decide::Action
+pub const fn work::sync::plan::PlannedAction::body_agreement(&self) -> work::sync::classify::BodyAgreement
 pub fn work::sync::plan::PlannedAction::id(&self) -> &str
 pub fn work::sync::plan::PlannedAction::new(id: impl core::convert::Into<alloc::string::String>, state: work::sync::state::SyncState, action: work::sync::decide::Action) -> Self
 pub const fn work::sync::plan::PlannedAction::order(&self) -> core::option::Option<&work::sync::push_precondition::PendingPushOrder>
 pub const fn work::sync::plan::PlannedAction::resolution(&self) -> core::option::Option<work::sync::plan::AppliedResolution>
 pub const fn work::sync::plan::PlannedAction::state(&self) -> work::sync::state::SyncState
+pub fn work::sync::plan::PlannedAction::with_body_agreement(self, agreement: work::sync::classify::BodyAgreement) -> Self
 pub fn work::sync::plan::PlannedAction::with_order_of(self, planned: &Self) -> Self
 impl core::clone::Clone for work::sync::plan::PlannedAction
 pub fn work::sync::plan::PlannedAction::clone(&self) -> work::sync::plan::PlannedAction
@@ -2468,6 +2494,18 @@ pub fn work::sync::baseline::BaselineFingerprints::eq(&self, other: &work::sync:
 impl core::fmt::Debug for work::sync::baseline::BaselineFingerprints
 pub fn work::sync::baseline::BaselineFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::baseline::BaselineFingerprints
+pub enum work::sync::BodyAgreement
+pub work::sync::BodyAgreement::Agreed
+pub work::sync::BodyAgreement::Unconfirmed
+impl core::clone::Clone for work::sync::classify::BodyAgreement
+pub fn work::sync::classify::BodyAgreement::clone(&self) -> work::sync::classify::BodyAgreement
+impl core::cmp::Eq for work::sync::classify::BodyAgreement
+impl core::cmp::PartialEq for work::sync::classify::BodyAgreement
+pub fn work::sync::classify::BodyAgreement::eq(&self, other: &work::sync::classify::BodyAgreement) -> bool
+impl core::fmt::Debug for work::sync::classify::BodyAgreement
+pub fn work::sync::classify::BodyAgreement::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::BodyAgreement
+impl core::marker::StructuralPartialEq for work::sync::classify::BodyAgreement
 pub enum work::sync::BodyEquivalence
 pub work::sync::BodyEquivalence::Different
 pub work::sync::BodyEquivalence::Equivalent
@@ -2839,6 +2877,18 @@ impl core::marker::StructuralPartialEq for work::sync::classify::SyncedReconcili
 pub struct work::sync::BaselineEntry<'a>
 pub work::sync::BaselineEntry::fingerprints: work::sync::baseline::BaselineFingerprints
 pub work::sync::BaselineEntry::remote_updated_at: &'a tracker::RemoteTimestamp
+pub struct work::sync::Classified
+pub work::sync::Classified::body_agreement: work::sync::classify::BodyAgreement
+pub work::sync::Classified::classification: work::sync::classify::Classification
+impl core::clone::Clone for work::sync::classify::Classified
+pub fn work::sync::classify::Classified::clone(&self) -> work::sync::classify::Classified
+impl core::cmp::Eq for work::sync::classify::Classified
+impl core::cmp::PartialEq for work::sync::classify::Classified
+pub fn work::sync::classify::Classified::eq(&self, other: &work::sync::classify::Classified) -> bool
+impl core::fmt::Debug for work::sync::classify::Classified
+pub fn work::sync::classify::Classified::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::Classified
+impl core::marker::StructuralPartialEq for work::sync::classify::Classified
 pub struct work::sync::DualRecipeFingerprints
 pub work::sync::DualRecipeFingerprints::legacy: work::sync::baseline::LegacyHashes
 pub work::sync::DualRecipeFingerprints::split: work::sync::baseline::SplitFingerprints
@@ -2917,11 +2967,13 @@ pub const fn work::sync::plan::PlanOrders<'a>::resolving(resolutions: &'a alloc:
 pub struct work::sync::PlannedAction
 impl work::sync::plan::PlannedAction
 pub const fn work::sync::plan::PlannedAction::action(&self) -> work::sync::decide::Action
+pub const fn work::sync::plan::PlannedAction::body_agreement(&self) -> work::sync::classify::BodyAgreement
 pub fn work::sync::plan::PlannedAction::id(&self) -> &str
 pub fn work::sync::plan::PlannedAction::new(id: impl core::convert::Into<alloc::string::String>, state: work::sync::state::SyncState, action: work::sync::decide::Action) -> Self
 pub const fn work::sync::plan::PlannedAction::order(&self) -> core::option::Option<&work::sync::push_precondition::PendingPushOrder>
 pub const fn work::sync::plan::PlannedAction::resolution(&self) -> core::option::Option<work::sync::plan::AppliedResolution>
 pub const fn work::sync::plan::PlannedAction::state(&self) -> work::sync::state::SyncState
+pub fn work::sync::plan::PlannedAction::with_body_agreement(self, agreement: work::sync::classify::BodyAgreement) -> Self
 pub fn work::sync::plan::PlannedAction::with_order_of(self, planned: &Self) -> Self
 impl core::clone::Clone for work::sync::plan::PlannedAction
 pub fn work::sync::plan::PlannedAction::clone(&self) -> work::sync::plan::PlannedAction
@@ -3029,7 +3081,7 @@ pub fn work::sync::ItemDigests::mtime(&self) -> core::result::Result<core::optio
 pub fn work::sync::ItemDigests::remote(&self) -> core::result::Result<core::option::Option<work::sync::baseline::RemoteFingerprints>, kernel::Error>
 pub trait work::sync::RunClock
 pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
-pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classification, kernel::Error>
+pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classified, kernel::Error>
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, classification: &work::sync::classify::Classification, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
 pub fn work::sync::decide_key_change(ownership: work::id_scheme::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange

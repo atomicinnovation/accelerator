@@ -173,6 +173,39 @@ impl Classification {
     }
 }
 
+/// Whether classifying an item confirmed its two bodies agree.
+///
+/// Bodies compared and found to differ are as unconfirmed as bodies never
+/// compared: either way a rewrite the tracker made may still stand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyAgreement {
+    Agreed,
+    Unconfirmed,
+}
+
+/// An item's classification, with what it confirmed of its bodies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Classified {
+    pub classification: Classification,
+    pub body_agreement: BodyAgreement,
+}
+
+impl Classified {
+    const fn unconfirmed(classification: Classification) -> Self {
+        Self {
+            classification,
+            body_agreement: BodyAgreement::Unconfirmed,
+        }
+    }
+
+    const fn agreed(classification: Classification) -> Self {
+        Self {
+            classification,
+            body_agreement: BodyAgreement::Agreed,
+        }
+    }
+}
+
 /// Whether one fact moved since the baseline recorded it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Change {
@@ -367,13 +400,15 @@ impl Movement {
 
 /// An item with a fact nothing can be compared with is settled only when
 /// its two sides already agree; a recovered item is never pushed or pulled.
-fn recover(comparison: &dyn ItemComparison) -> Classification {
+fn recover(comparison: &dyn ItemComparison) -> Classified {
     if comparison.body_equivalence() == BodyEquivalence::Equivalent
         && comparison.fields_comparison() == FieldsComparison::Same
     {
-        Classification::Synced(SyncedReconciliation::RecordOnly)
+        Classified::agreed(Classification::Synced(
+            SyncedReconciliation::RecordOnly,
+        ))
     } else {
-        Classification::Conflict
+        Classified::unconfirmed(Classification::Conflict)
     }
 }
 
@@ -449,19 +484,25 @@ fn reconcile_bodies(
 fn classify_split(
     movement: Movement,
     comparison: &dyn ItemComparison,
-) -> Classification {
+) -> Classified {
     if movement.any_unknown() {
         return recover(comparison);
     }
     if movement.is_unchanged() {
-        return Classification::Synced(SyncedReconciliation::ByContent);
+        return Classified::unconfirmed(Classification::Synced(
+            SyncedReconciliation::ByContent,
+        ));
     }
     if !movement.any_body_changed() {
-        return reconcile_fields(movement, comparison);
+        return Classified::unconfirmed(reconcile_fields(movement, comparison));
     }
     match comparison.body_equivalence() {
-        BodyEquivalence::Equivalent => reconcile_fields(movement, comparison),
-        equivalence => reconcile_bodies(movement, equivalence),
+        BodyEquivalence::Equivalent => {
+            Classified::agreed(reconcile_fields(movement, comparison))
+        }
+        equivalence => {
+            Classified::unconfirmed(reconcile_bodies(movement, equivalence))
+        }
     }
 }
 
@@ -478,10 +519,10 @@ fn classify_legacy(
     movement: Movement,
     remote_fetched: bool,
     comparison: &dyn ItemComparison,
-) -> Classification {
+) -> Classified {
     match comparison.pull_residue() {
         Some(PullResidue::VerbatimRemote) => {
-            return match movement.local.body {
+            return Classified::unconfirmed(match movement.local.body {
                 Change::Unchanged => {
                     Classification::Synced(SyncedReconciliation::RecordOnly)
                 }
@@ -492,16 +533,28 @@ fn classify_legacy(
                     Classification::Synced(SyncedReconciliation::RecordOnly)
                 }
                 _ => Classification::Conflict,
-            };
+            });
         }
         Some(PullResidue::TrackerWireDocument) => {
-            return Classification::Conflict
+            return Classified::unconfirmed(Classification::Conflict)
         }
         None => {}
     }
     if movement.any_unknown() {
         return recover(comparison);
     }
+    Classified::unconfirmed(reconcile_legacy(
+        movement,
+        remote_fetched,
+        comparison,
+    ))
+}
+
+fn reconcile_legacy(
+    movement: Movement,
+    remote_fetched: bool,
+    comparison: &dyn ItemComparison,
+) -> Classification {
     if movement.is_unchanged() {
         return Classification::Synced(if remote_fetched {
             SyncedReconciliation::RecordOnly
@@ -541,16 +594,18 @@ pub fn classify(
     baseline: &BaselineEntry<'_>,
     digests: &dyn ItemDigests,
     comparison: &dyn ItemComparison,
-) -> Result<Classification, kernel::Error> {
+) -> Result<Classified, kernel::Error> {
     if subject.external_id.is_none() {
-        return Ok(Classification::Unsynced);
+        return Ok(Classified::unconfirmed(Classification::Unsynced));
     }
 
     match subject.presence {
         RemotePresence::Indeterminate => {
-            return Ok(Classification::Indeterminate)
+            return Ok(Classified::unconfirmed(Classification::Indeterminate))
         }
-        RemotePresence::Absent => return Ok(Classification::RemoteAbsent),
+        RemotePresence::Absent => {
+            return Ok(Classified::unconfirmed(Classification::RemoteAbsent))
+        }
         RemotePresence::Present => {}
     }
 
