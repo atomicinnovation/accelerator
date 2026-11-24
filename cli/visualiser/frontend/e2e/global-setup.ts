@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const E2E_DIR = dirname(fileURLToPath(import.meta.url));
 const portFile = join(E2E_DIR, "..", ".e2e-port");
-const FIXTURES_DIR = join(
+const FIXTURE_META_DIR = join(
   E2E_DIR,
   "..",
   "..",
@@ -22,23 +22,44 @@ const FIXTURES_DIR = join(
   "tests",
   "fixtures",
   "meta",
-  "work",
 );
 export const SNAPSHOT_FILE = join(E2E_DIR, "..", ".e2e-fixture-snapshot.json");
 
+function workItemFixtures(): string[] {
+  return readdirSync(join(FIXTURE_META_DIR, "work"))
+    .filter((file) => file.endsWith(".md"))
+    .map((file) => join("work", file));
+}
+
+function setManifestFixtures(setsDir: string, manifest: string): string[] {
+  return readdirSync(join(FIXTURE_META_DIR, setsDir), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(setsDir, entry.name, manifest))
+    .filter((file) => existsSync(join(FIXTURE_META_DIR, file)));
+}
+
+function editableFixtures(): string[] {
+  return [
+    ...workItemFixtures(),
+    ...setManifestFixtures(join("research", "topics"), "manifest.md"),
+    ...setManifestFixtures(
+      join("research", "design-inventories"),
+      "inventory.md",
+    ),
+  ];
+}
+
 function readFixtures(): Record<string, string> {
   const snapshot: Record<string, string> = {};
-  for (const file of readdirSync(FIXTURES_DIR)) {
-    if (file.endsWith(".md")) {
-      snapshot[file] = readFileSync(join(FIXTURES_DIR, file), "utf-8");
-    }
+  for (const file of editableFixtures()) {
+    snapshot[file] = readFileSync(join(FIXTURE_META_DIR, file), "utf-8");
   }
   return snapshot;
 }
 
 export function restoreFixtures(snapshot: Record<string, string>): void {
   for (const [file, content] of Object.entries(snapshot)) {
-    writeFileSync(join(FIXTURES_DIR, file), content);
+    writeFileSync(join(FIXTURE_META_DIR, file), content);
   }
 }
 
