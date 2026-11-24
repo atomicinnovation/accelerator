@@ -1703,17 +1703,17 @@ count towards `guarded_resume`'s test-seconds.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli --filter
+- [x] `mise run test:unit:cli --filter
       'binary_id(accelerator-migrate::guarded_resume)'` passes, and the
       fixture log shows one shared build and 30 copies of the family: 26
       for the scenarios and 4 for the reused-state tests. Their oracle builds
       use no workbench, so they do not appear in the run's log.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p
       accelerator-migrate --test guarded_resume` passes through private
       builds.
-- [ ] The other `migrate-cli` binaries that share `common/mod.rs` pass:
+- [x] The other `migrate-cli` binaries that share `common/mod.rs` pass:
       `mise run test:unit:cli --filter 'package(accelerator-migrate)'`.
-- [ ] `mise run test:unit:tasks` passes.
+- [x] `mise run test:unit:tasks` passes.
 - [ ] `mise run` exits 0 at the landing commit.
 
 #### Manual Verification
@@ -1721,7 +1721,10 @@ count towards `guarded_resume`'s test-seconds.
 - [ ] Three alone runs put the binary's test-seconds plus the family's
       build time at or under 54.4 s (half the baseline alone median), and
       the slowest test at or under 10 s. This is an early signal, not a
-      criterion.
+      criterion. At `xurnrnyp` the total missed (63.2 / 67.9 / 76.3 s,
+      median 67.9 s) and the slowest test met it
+      (`moving_onto_new_parents_starts_a_fresh_jj_run`, median 6.7 s), at
+      load averages of 14–16. The family built in 1.4 s (median).
 
 ---
 
@@ -1872,6 +1875,21 @@ Also to record:
      (`moving_onto_new_parents_starts_a_fresh_jj_run`, 6 copies), and
      each oracle test.
   4. Write both projections here.
+
+  **Gate result (2026-11-24).** The gate failed. The rates were not solved
+  as step 1 describes: scratch timing inside three alone runs at
+  `pozwltks`, at load averages of 20–28, measured each `Stalled::on` build
+  directly at a median of 2.7–3.2 s, and each copy at 0.43–0.53 s. The
+  scenarios' builds took 63–81 s of the binary's 119–145 s. Removing them
+  and adding 26 copies and the family build projected 72.4 s alone (median),
+  ≈ 132 s under the suite at × 1.82, against ≤ 98.75 s. The slowest test
+  projected below 20 s. Scenarios were not profiled for `fsync`.
+
+  The switch was then made at `xurnrnyp` but not landed, so the author
+  could compare measured figures with the projection. Three alone runs
+  gave 67.9 s (median, family build included), ≈ 123.6 s under the suite
+  at × 1.82. The slowest test was 6.7 s, ≈ 12.2 s under the suite. The
+  two reused-state tests took 5.3 s each, 15.6% of the total.
   5. If the total exceeds half the before median, or any test reaches
      20 s, stop and bring the author the options rather than landing.
      The options are in-process projection reads, or revisiting the
