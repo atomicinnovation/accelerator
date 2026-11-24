@@ -104,6 +104,13 @@ its stored line in `read-back.json`:
 | Linked dotted token | `R12` (56), `X10` (113), `X11` (117), `X14` (129), `X15` (133), `X16` (137), `X17` (141), `X19` (149), `X22` (163, 165), `X23` (171) |
 | Stray list line | `X09` (105), `X20` (154) |
 
+An escaped read-back must match neither set at these codes, each with its
+stored line in `escaped/read-back.json`:
+
+| Set | Codes |
+|---|---|
+| Neither | `R11` (52), `R12` (56), `X04` (82), `X05` (87), `X06` (92), `X09` (105, 109), `X10` (113), `X11` (117), `X14` (129), `X15` (133), `X16` (137), `X17` (141), `X18` (145), `X19` (149), `X20` (154), `X21` (159), `X22` (163, 165), `X23` (171), `X24` (176) |
+
 Retaking a capture updates these lists in the same change.
 
 ## Refreshing the TLD snapshot
