@@ -1545,6 +1545,17 @@ only place its path is known to a test. Phase 5's stub tests cover
 
 ### Overview
 
+**Landed** in changes `kpvqxuzo` (the shared types), `vnnyuotz` (the split
+oracle), `tlnzykwk` (counted loops), `pozwltks` (the reused-state tests and
+consumer registration) and `xurnrnyp` (the switch, the landing commit), with
+the full `mise run` green. The budget gate failed; on 2026-11-24 the author
+chose to land and take the total-seconds target to review at phase 7. In
+that full run, not isolated and with a 171.0 s nextest phase against the
+baseline's 125.9 s, the binary took 160.4 s with the family build, and
+`moving_onto_new_parents_starts_a_fresh_jj_run` took 20.9 s, over the 20 s
+ceiling. `Stalled::copied` takes the colocation and shape and builds the
+key itself, which keeps each call site within clippy's line limit.
+
 `Stalled::on` becomes a copy of one stall part. Each loop asserts its
 iteration count, and two new tests, one per colocation, show that each
 copied stall matches the one the scenarios have always built. This is
@@ -1714,7 +1725,7 @@ count towards `guarded_resume`'s test-seconds.
 - [x] The other `migrate-cli` binaries that share `common/mod.rs` pass:
       `mise run test:unit:cli --filter 'package(accelerator-migrate)'`.
 - [x] `mise run test:unit:tasks` passes.
-- [ ] `mise run` exits 0 at the landing commit.
+- [x] `mise run` exits 0 at the landing commit.
 
 #### Manual Verification
 
@@ -1787,7 +1798,7 @@ Also to record:
 - each run's three per-family build lines, showing which family the build
   step waited on;
 - the three landing commits (phases 3, 4 and 6): phase 3 is
-  `mwtvsvpx` and phase 4 is `mvpknsxp`.
+  `mwtvsvpx`, phase 4 is `mvpknsxp` and phase 6 is `xurnrnyp`.
 
 ### Success Criteria
 
