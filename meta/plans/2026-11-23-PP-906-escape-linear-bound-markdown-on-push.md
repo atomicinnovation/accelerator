@@ -1038,6 +1038,8 @@ escaper against both captures and the probe corpus.
 | `PP-906:server.pid` | `PP-906:server\.pid` |
 | `crates\\.io` | `crates\\.io` |
 | `crates&#46;io` | `crates&#46;io` |
+| `a@1.2.3.4` | `a@1\.2\.3\.4` |
+| `1.2.3.4 127.0.0.1:8080` | unchanged |
 
 Unchanged, one per construct: `` `crates.io` ``, a fenced block, an indented
 block, `[crates.io](u)`, `[t](https://crates.io)`, `<https://crates.io>`,
@@ -1051,6 +1053,8 @@ Labels hold Unicode letters, as Linear's do, so `café.io` is one token.
 are not schemes Linear links, so their hosts are ordinary tokens after `/`:
 an over-escape. `README.md`, `src/client.rs`, `Note:crates.io`,
 `foo..bar.io` and `<span>crates.io</span>` are over-escapes too.
+Linear links `a@1.2.3.4` as `mailto:` (`S079`) but leaves a bare `1.2.3.4`
+(`Q207`), so a numeric token straight after `@` is escaped too.
 
 Then the capture tests, in `cli/work-adapters/tests/linear_captures.rs`
 (new), beside the fixtures and the other capture consumers, reusing
@@ -1069,7 +1073,13 @@ Then the capture tests, in `cli/work-adapters/tests/linear_captures.rs`
   link in the unescaped read-back that is not a scheme URL, the dotted
   tokens the rule finds in `t`. So a `mailto` link over `a@b.io` yields
   `b.io`, matching the escape in `a@b\.io`, and `X11` gives `jql.rs:167` on
-  both sides.
+  both sides. Tokens compare by host, without a port, since an existing
+  `\:` ends Linear's link but not the rule's token (`S133`). A destination
+  that punycodes a non-ASCII `t` (`Q150`) or has an empty host (`S167`)
+  still links `t`. A link the pushed body already holds, such as
+  `<a@b.io>` (`S081`), is not Linear's. Escaped tokens are found in the
+  text `document` reads, adjacent text events merged, so emphasis
+  (`_crates.io_`) and an existing escape (`a.b\.io`) do not hide a token.
 - `every_unneeded_escape_is_a_recorded_over_escape`: each escaped token that
   is not linked falls in one class of `is_recorded_over_escape`, a test
   helper naming the classes the probe corpus found:
@@ -1078,7 +1088,11 @@ Then the capture tests, in `cli/work-adapters/tests/linear_captures.rs`
   - the token is followed by `_`, `~`, `-`, `+`, `=`, `$`, `|`, `^` or `<`;
   - a label holds `_`, starts or ends with `-`, or exceeds 63 characters;
   - the token touches an inline HTML tag or an entity, or sits in
-    strikethrough.
+    strikethrough;
+  - the token already holds an escape or follows an escaped character
+    (`S122`, `S142`);
+  - the last label holds a non-ASCII letter (`Q180`), which the rule counts
+    as a TLD rather than converting it to punycode.
 - `every_scheme_url_linear_linked_is_sent_unchanged`: each URL Linear linked
   whole (`R06`, `X25`) is byte-identical in the escaped fragment.
 
@@ -1088,7 +1102,9 @@ The same three tests run over every probe in
 
 - `every_lone_line_linear_listed_is_escaped`: each probe whose read-back
   turned a continuation line into a list item has a `\` before that line's
-  `.` or `)` in the escaped probe. A probe whose line `document` already
+  `.` or `)` in the escaped probe. Linear stores such a line as an empty
+  item, `N. ` with a trailing space, which CommonMark reads back as text,
+  so the test looks for that line rather than for a list. A probe whose line `document` already
   reads as a list, such as `Q290`'s lazy line, is exempt.
 - `every_unneeded_digit_escape_is_a_recorded_over_escape`: each other digit
   escape is in a blockquote, a top-level paragraph, a later paragraph of an
@@ -1116,7 +1132,8 @@ these tests prove the escaper reproduces.
 #### 2. Implementation
 
 **Files**: `cli/markdown/src/linear/dotted_tokens.rs` (new),
-`cli/markdown/src/linear/scheme_urls.rs` (new), `cli/markdown/src/linear.rs`
+`cli/markdown/src/linear/scheme_urls.rs` (new),
+`cli/markdown/src/linear/text_runs.rs` (new), `cli/markdown/src/linear.rs`
 
 `proposed_escapes` concatenates `digit_rule::escapes` and
 `dotted_tokens::escapes`.
@@ -1140,7 +1157,8 @@ differ from its source slice ends the run. Within a run:
    ends any token in progress, and the scan resumes at the next label
    character, so `Note:crates.io` and `foo..bar.io` each hold one token.
 3. If the last label passes `is_top_level_domain` or holds a non-ASCII
-   character, each unescaped `.` in the token yields an escape.
+   character, or the token is all digits and dots and starts a word that
+   follows `@`, each unescaped `.` in the token yields an escape.
 
 Each step is its own pure function, unit-tested on plain strings as well as
 through `escape_for_push`:
@@ -1176,14 +1194,14 @@ brings the simulator onto this recogniser.
 
 #### Automated Verification:
 
-- [ ] Rule tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
-- [ ] Capture and probe tests pass: `mise run test:unit:cli --filter 'binary(linear_captures)'`
-- [ ] `mise run cli:check` and `mise run public-api:check` exit 0
-- [ ] `mise run` exits 0
+- [x] Rule tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
+- [x] Capture and probe tests pass: `mise run test:unit:cli --filter 'binary(linear_captures)'`
+- [x] `mise run cli:check` and `mise run public-api:check` exit 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None; nothing calls the escaper yet
+- [x] None; nothing calls the escaper yet
 
 ---
 
