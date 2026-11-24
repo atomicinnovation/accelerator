@@ -180,9 +180,10 @@ describe("libraryHref", () => {
 
     renderWithRouterAt(<Link {...link}>doc</Link>);
 
-    expect(
-      await screen.findByRole("link", { name: "doc" }),
-    ).toHaveAttribute("href", libraryHref(link));
+    expect(await screen.findByRole("link", { name: "doc" })).toHaveAttribute(
+      "href",
+      libraryHref(link),
+    );
   });
 });
 
@@ -217,7 +218,10 @@ describe("round trip", () => {
 describe("descriptiveSlugOf", () => {
   it("is the document's slug", () => {
     expect(
-      descriptiveSlugOf({ slug: "foo", relPath: "meta/plans/2026-01-01-foo.md" }),
+      descriptiveSlugOf({
+        slug: "foo",
+        relPath: "meta/plans/2026-01-01-foo.md",
+      }),
     ).toBe("foo");
   });
 

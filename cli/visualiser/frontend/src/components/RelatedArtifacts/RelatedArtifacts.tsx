@@ -1,5 +1,9 @@
+import { Link } from "@tanstack/react-router";
 import { formatMtime } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import {
+  descriptiveSlugOf,
+  libraryLink,
+} from "../../api/library-document-address";
 import type { IndexEntry, RelatedArtifactsResponse } from "../../api/types";
 import { DOC_TYPE_LABELS_SINGULAR } from "../../api/types";
 import { Glyph } from "../Glyph/Glyph";
@@ -77,9 +81,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
       <ul className={styles.list} data-testid="related-list">
         {rows.map(({ entry, kind }) => {
           const title = entry.title || entry.relPath;
-          const docId =
-            entry.workItemId ||
-            (entry.slug ?? fileSlugFromRelPath(entry.relPath));
+          const docId = entry.workItemId || descriptiveSlugOf(entry);
           return (
             <li
               key={entry.path}
@@ -91,9 +93,9 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
                   pins the accessible name to the title so the supplementary
                   type/id/mtime/tag metadata isn't announced as part of the
                   link. */}
-              <a
+              <Link
+                {...libraryLink(entry)}
                 className={styles.row}
-                href={`/library/${entry.type}/${fileSlugFromRelPath(entry.relPath)}`}
                 aria-label={title}
               >
                 <Glyph docType={entry.type} size={24} framed />
@@ -126,7 +128,7 @@ export function RelatedArtifacts({ related, showUpdatingHint }: Props) {
                   </span>
                 </span>
                 <Chevron />
-              </a>
+              </Link>
             </li>
           );
         })}
