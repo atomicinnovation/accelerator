@@ -1,6 +1,8 @@
 //! The cosmetic rewrites Linear applies to a Markdown description it stores,
 //! each as a pure function a recording tracker can apply.
 
+use markdown::linear::is_top_level_domain;
+
 /// One rewrite Linear was observed to make to a description it stores.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rewrite {
@@ -14,8 +16,10 @@ pub enum Rewrite {
     AngleBracketDestinations,
     /// A bare `https://…` becomes `[u](<u>)`.
     AutolinkUrls,
-    /// A bare `name.tld` becomes `[name.tld](<http://name.tld>)`. Unlike
-    /// the others, this changes meaning: the text becomes a link.
+    /// A bare `name.tld` becomes `[name.tld](<http://name.tld>)` when `tld`
+    /// is in the IANA root zone, except `md` and `merck`, which Linear
+    /// leaves bare. Unlike the others, this changes meaning: the text
+    /// becomes a link.
     AutolinkDottedTokens,
     /// `- a` → `* a`; task items keep `-`.
     StarBullets,
@@ -185,11 +189,16 @@ fn autolink_dotted_tokens(line: &str) -> String {
             && name
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
-        let top_level =
-            tld.len() >= 2 && tld.chars().all(|c| c.is_ascii_lowercase());
-        (named && top_level).then(|| format!("[{word}](<http://{word}>)"))
+        let linked_by_linear = is_top_level_domain(tld)
+            && !LEFT_BARE_BY_LINEAR
+                .iter()
+                .any(|bare| tld.eq_ignore_ascii_case(bare));
+        (named && linked_by_linear)
+            .then(|| format!("[{word}](<http://{word}>)"))
     })
 }
+
+const LEFT_BARE_BY_LINEAR: [&str; 2] = ["md", "merck"];
 
 fn star_bullet(line: &str) -> String {
     let content = line.trim_start();

@@ -39,9 +39,11 @@ fn fragments(markdown: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// The rewrites the capture's README records for each fragment. `X09`
-/// turns a number into an ordered-list marker, which changes meaning, so no
-/// cosmetic rewrite reproduces it.
+/// The rewrites the capture's README records for each fragment. `X09` and
+/// `X20` turn a number into an ordered-list marker, which no rewrite here
+/// reproduces. `X11`, `X14` and `X16`-`X25` are absent because the
+/// simulator splits on whitespace and takes one dot-free name before the
+/// last label, so it cannot model ports, multi-label names or boundaries.
 fn recorded_rewrites() -> Vec<(&'static str, Vec<Rewrite>)> {
     vec![
         ("R01", vec![Rewrite::EscapeTildes]),
@@ -77,6 +79,10 @@ fn recorded_rewrites() -> Vec<(&'static str, Vec<Rewrite>)> {
         ),
         ("X07", vec![Rewrite::JoinCodeSpanLines]),
         ("X08", vec![Rewrite::JoinCodeSpanLines]),
+        ("X10", vec![Rewrite::AutolinkDottedTokens]),
+        ("X12", vec![Rewrite::AutolinkDottedTokens]),
+        ("X13", vec![Rewrite::AutolinkDottedTokens]),
+        ("X15", vec![Rewrite::AutolinkDottedTokens]),
     ]
 }
 

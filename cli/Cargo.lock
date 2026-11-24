@@ -5324,6 +5324,7 @@ dependencies = [
 name = "tracker-test-support"
 version = "1.24.0-pre.113"
 dependencies = [
+ "markdown",
  "tracker",
 ]
 
