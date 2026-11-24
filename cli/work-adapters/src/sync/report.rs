@@ -22,6 +22,7 @@ use crate::sync::apply::LeftoverMarker;
 use crate::sync::baseline::Degradation;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::operation::SyncOperation;
+use crate::sync::push_fidelity::RewriteNotice;
 use crate::sync::run::ConflictDossier;
 use crate::sync::run::DiscoveryStatus;
 use crate::sync::run::RunMode;
@@ -51,6 +52,9 @@ pub struct ReportedItem {
     /// A local create's marker this run linked yet could not remove.
     pub leftover_marker: Option<LeftoverMarker>,
     pub notice: Option<CreateNotice>,
+    /// The push this run made that the tracker stored with a different
+    /// meaning.
+    pub rewrite: Option<RewriteNotice>,
 }
 
 /// An issue an adopt order links, named so a person can see it is the

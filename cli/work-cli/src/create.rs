@@ -688,13 +688,13 @@ fn attempt_promotion(
         records,
     };
     let result = promote(draft, &PromotionMode::Standard, &ports, identity_run);
-    DraftPromotionOutcome::Attempted(PromotionRow::of(
+    DraftPromotionOutcome::Attempted(Box::new(PromotionRow::of(
         draft,
         draft_path,
         result,
         &ports,
         workspace.state_dir(),
-    ))
+    )))
 }
 
 /// What `run` takes from its caller beyond the request: the tracker, the

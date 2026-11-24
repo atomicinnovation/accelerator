@@ -2341,6 +2341,50 @@ fn escaped_for_linear(body: &str) -> String {
         .replace("crates.io.", "crates\\.io.")
 }
 
+/// How the tracker stores what it was sent: as sent, or with its dotted
+/// token turned into a link.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReadBackForm {
+    AsSent,
+    Linked,
+}
+
+impl ReadBackForm {
+    fn stored(self, body: &str) -> String {
+        match self {
+            Self::AsSent => body.to_owned(),
+            Self::Linked => {
+                body.replace("crates.io", "[crates.io](<http://crates.io>)")
+            }
+        }
+    }
+}
+
+/// The rewrite a push reported: the file it names and the lines that
+/// changed meaning, sent then stored.
+#[derive(Debug, PartialEq, Eq)]
+struct Noticed {
+    path: Option<PathBuf>,
+    lines: Vec<(String, String)>,
+}
+
+fn noticed_in(report: &RunReport) -> Vec<Noticed> {
+    report
+        .reported
+        .iter()
+        .filter_map(|item| item.rewrite.as_ref())
+        .map(|notice| Noticed {
+            path: Some(notice.path.clone()),
+            lines: notice
+                .lines
+                .lines
+                .iter()
+                .map(|line| (line.sent.clone(), line.stored.clone()))
+                .collect(),
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy)]
 enum PushEntryPoint {
     SyncUpdate,
@@ -2722,8 +2766,11 @@ impl PushedItem {
     }
 }
 
-fn sync_update_escapes(tracker: Tracker) -> Result<(), TestError> {
-    let case = format!("{tracker:?}/SyncUpdate");
+fn sync_update_escapes(
+    tracker: Tracker,
+    form: ReadBackForm,
+) -> Result<Vec<Noticed>, TestError> {
+    let case = format!("{tracker:?}/SyncUpdate/{form:?}");
     let item = PushedItem::written(&format!(
         "---\ntitle: \"{PUSH_TITLE}\"\nexternal_id: \"{}\"\n---\n",
         tracker.key()
@@ -2733,9 +2780,10 @@ fn sync_update_escapes(tracker: Tracker) -> Result<(), TestError> {
         body: "Remote body\n",
     };
     let pushed = item.body();
+    let read_back = form.stored(&pushed);
     let stored = Stored {
         title: PUSH_TITLE,
-        body: &pushed,
+        body: &read_back,
     };
     let probe = tracker.serve_push(&[earlier]);
     let projected = probe
@@ -2779,7 +2827,12 @@ fn sync_update_escapes(tracker: Tracker) -> Result<(), TestError> {
         "{case}"
     );
     item.assert_unchanged(&spy, &case)?;
-    if matches!(tracker, Tracker::Linear) {
+    assert!(
+        written(&spy, Path::new(BASELINE_PATH))
+            .is_some_and(|baseline| baseline.contains("\"0001\"")),
+        "{case}: the baseline is recorded"
+    );
+    if matches!(tracker, Tracker::Linear) && form == ReadBackForm::AsSent {
         let again =
             push_run(&remote, &spy, &items, &UnusedAuthor, RunMode::Preview);
         assert_eq!(
@@ -2788,18 +2841,22 @@ fn sync_update_escapes(tracker: Tracker) -> Result<(), TestError> {
             "{case}"
         );
     }
-    Ok(())
+    Ok(noticed_in(&report))
 }
 
-fn sync_create_escapes(tracker: Tracker) -> Result<(), TestError> {
-    let case = format!("{tracker:?}/SyncCreateOfUnsyncedItem");
+fn sync_create_escapes(
+    tracker: Tracker,
+    form: ReadBackForm,
+) -> Result<Vec<Noticed>, TestError> {
+    let case = format!("{tracker:?}/SyncCreateOfUnsyncedItem/{form:?}");
     let item = PushedItem::written(&format!(
         "---\nid: \"0001\"\ntitle: \"{PUSH_TITLE}\"\nkind: story\n---\n"
     ))?;
     let pushed = item.body();
+    let read_back = form.stored(&pushed);
     let remote = tracker.serve_push(&[Stored {
         title: PUSH_TITLE,
-        body: &pushed,
+        body: &read_back,
     }]);
     let spy = Spy::default();
     spy.seed(BASELINE_PATH, &baseline_document(""));
@@ -2824,7 +2881,7 @@ fn sync_create_escapes(tracker: Tracker) -> Result<(), TestError> {
         "{case}"
     );
     item.assert_unchanged(&spy, &case)?;
-    Ok(())
+    Ok(noticed_in(&report))
 }
 
 struct PromotionRepo {
@@ -2864,7 +2921,7 @@ impl PromotionRepo {
         &self,
         tracker: Tracker,
         client: &dyn RemoteTracker,
-    ) -> Result<work::promotion::Promotion, work::promotion::NotPromoted> {
+    ) -> work_adapters::promotion::PromotionAttempt {
         let store = corpus_adapters::FileCorpusStore::new(self.dir.path());
         let fs = corpus_adapters::RealFs;
         let roots = vec![self.path("meta")];
@@ -2932,21 +2989,40 @@ impl PromotionRepo {
     }
 }
 
+/// How the tracker stores the draft as created, then as retitled.
+#[derive(Debug, Clone, Copy)]
+struct PromotionReadBacks {
+    created: ReadBackForm,
+    retitled: ReadBackForm,
+}
+
+impl PromotionReadBacks {
+    const fn both(form: ReadBackForm) -> Self {
+        Self {
+            created: form,
+            retitled: form,
+        }
+    }
+}
+
 fn promotion_escapes(
     tracker: Tracker,
     entry_point: PushEntryPoint,
-) -> Result<(), TestError> {
-    let case = format!("{tracker:?}/{entry_point:?}");
+    forms: PromotionReadBacks,
+) -> Result<Vec<Noticed>, TestError> {
+    let case = format!("{tracker:?}/{entry_point:?}/{forms:?}");
     let repo = PromotionRepo::new()?;
     let draft_body = repo.draft_body()?;
     let promoted_body = draft_body.replace(PUSH_DRAFT_ID, tracker.key());
+    let drafted_read_back = forms.created.stored(&draft_body);
+    let promoted_read_back = forms.retitled.stored(&promoted_body);
     let as_drafted = || Stored {
         title: PUSH_TITLE,
-        body: &draft_body,
+        body: &drafted_read_back,
     };
     let as_promoted = || Stored {
         title: PUSH_TITLE,
-        body: &promoted_body,
+        body: &promoted_read_back,
     };
     let remote = tracker.serve_push(&[
         as_drafted(),
@@ -2955,9 +3031,9 @@ fn promotion_escapes(
         as_promoted(),
     ]);
 
-    let promoted = repo.promote(tracker, remote.client.as_ref());
+    let attempt = repo.promote(tracker, remote.client.as_ref());
 
-    assert!(promoted.is_ok(), "{case}: {promoted:?}");
+    assert!(attempt.result.is_ok(), "{case}: {:?}", attempt.result);
     match entry_point {
         PushEntryPoint::PromotionCreate => assert_eq!(
             remote.created_descriptions(),
@@ -2970,29 +3046,109 @@ fn promotion_escapes(
             "{case}"
         ),
     }
-    Ok(())
+    Ok(match attempt.fidelity {
+        work_adapters::sync::push_fidelity::PushFidelity::Rewritten {
+            changes,
+        } => vec![Noticed {
+            path: None,
+            lines: changes
+                .into_iter()
+                .map(|line| (line.sent, line.stored))
+                .collect(),
+        }],
+        _ => Vec::new(),
+    })
+}
+
+const TRACKERS: [Tracker; 3] =
+    [Tracker::Jira, Tracker::Linear, Tracker::Shortcut];
+
+const PUSH_ENTRY_POINTS: [PushEntryPoint; 4] = [
+    PushEntryPoint::SyncUpdate,
+    PushEntryPoint::SyncCreateOfUnsyncedItem,
+    PushEntryPoint::PromotionCreate,
+    PushEntryPoint::PromotionRetitle,
+];
+
+fn push_through(
+    tracker: Tracker,
+    entry_point: PushEntryPoint,
+    form: ReadBackForm,
+) -> Result<Vec<Noticed>, TestError> {
+    match entry_point {
+        PushEntryPoint::SyncUpdate => sync_update_escapes(tracker, form),
+        PushEntryPoint::SyncCreateOfUnsyncedItem => {
+            sync_create_escapes(tracker, form)
+        }
+        PushEntryPoint::PromotionCreate | PushEntryPoint::PromotionRetitle => {
+            promotion_escapes(
+                tracker,
+                entry_point,
+                PromotionReadBacks::both(form),
+            )
+        }
+    }
 }
 
 #[test]
 fn every_push_entry_point_escapes_for_linear_alone() -> Result<(), TestError> {
-    for tracker in [Tracker::Jira, Tracker::Linear, Tracker::Shortcut] {
-        for entry_point in [
-            PushEntryPoint::SyncUpdate,
-            PushEntryPoint::SyncCreateOfUnsyncedItem,
-            PushEntryPoint::PromotionCreate,
-            PushEntryPoint::PromotionRetitle,
-        ] {
-            match entry_point {
-                PushEntryPoint::SyncUpdate => sync_update_escapes(tracker)?,
-                PushEntryPoint::SyncCreateOfUnsyncedItem => {
-                    sync_create_escapes(tracker)?;
-                }
-                PushEntryPoint::PromotionCreate
-                | PushEntryPoint::PromotionRetitle => {
-                    promotion_escapes(tracker, entry_point)?;
-                }
+    for tracker in TRACKERS {
+        for entry_point in PUSH_ENTRY_POINTS {
+            push_through(tracker, entry_point, ReadBackForm::AsSent)?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn every_push_entry_point_is_silent_for_a_faithful_read_back(
+) -> Result<(), TestError> {
+    for tracker in TRACKERS {
+        for entry_point in PUSH_ENTRY_POINTS {
+            assert_eq!(
+                push_through(tracker, entry_point, ReadBackForm::AsSent)?,
+                [],
+                "{tracker:?}/{entry_point:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn every_push_entry_point_notices_a_rewritten_read_back(
+) -> Result<(), TestError> {
+    for tracker in TRACKERS {
+        for entry_point in PUSH_ENTRY_POINTS {
+            let case = format!("{tracker:?}/{entry_point:?}");
+            let noticed =
+                push_through(tracker, entry_point, ReadBackForm::Linked)?;
+            assert_eq!(noticed.len(), 1, "{case}: {noticed:?}");
+            assert_eq!(noticed[0].lines.len(), 1, "{case}: {noticed:?}");
+            let (sent, stored) = &noticed[0].lines[0];
+            assert_eq!(sent, "See crates.io.", "{case}");
+            assert!(stored.contains("[crates.io]"), "{case}: {stored}");
+            if let Some(path) = &noticed[0].path {
+                assert!(path.ends_with("0001.md"), "{case}: {path:?}");
             }
         }
+    }
+    Ok(())
+}
+
+#[test]
+fn a_promotion_is_judged_by_its_landed_retitle_alone() -> Result<(), TestError>
+{
+    for tracker in TRACKERS {
+        let noticed = promotion_escapes(
+            tracker,
+            PushEntryPoint::PromotionRetitle,
+            PromotionReadBacks {
+                created: ReadBackForm::Linked,
+                retitled: ReadBackForm::AsSent,
+            },
+        )?;
+        assert_eq!(noticed, [], "{tracker:?}");
     }
     Ok(())
 }

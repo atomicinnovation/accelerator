@@ -132,7 +132,7 @@ pub enum DraftPromotionOutcome {
     Refused {
         warning: String,
     },
-    Attempted(PromotionRow),
+    Attempted(Box<PromotionRow>),
 }
 
 pub type DraftPromotion<'a> =
@@ -1226,7 +1226,7 @@ pub fn create_tracker_keyed_item(
             saved
         }
         DraftPromotionOutcome::Attempted(row) => {
-            promotion_outcome(row, creation, &draft)
+            promotion_outcome(*row, creation, &draft)
         }
     })
 }

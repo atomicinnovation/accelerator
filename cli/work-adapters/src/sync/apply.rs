@@ -56,6 +56,7 @@ use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::files::SyncFiles;
 use crate::sync::operation::SyncOperation;
 use crate::sync::pending_push;
+use crate::sync::push_fidelity::PushFidelity;
 use crate::sync::recovery_label::RecoveryLabel;
 use crate::sync::report::Adoption;
 use crate::sync::report::CreateNotice;
@@ -567,16 +568,9 @@ pub struct CreatedLocally {
     pub leftover_marker: Option<LeftoverMarker>,
     pub notice: Option<CreateNotice>,
     pub adopted: Option<Adoption>,
-}
-
-impl From<Option<LeftoverMarker>> for CreatedLocally {
-    fn from(leftover_marker: Option<LeftoverMarker>) -> Self {
-        Self {
-            leftover_marker,
-            notice: None,
-            adopted: None,
-        }
-    }
+    /// What the read-back after this run's own create says of the body
+    /// sent; unjudged when the run created nothing.
+    pub fidelity: PushFidelity,
 }
 
 /// What a refused marker shows, without a remedy: the person decides what
@@ -914,7 +908,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// `show` still writes the entry, with both remote fields empty and
     /// [`RemoteTimestamp::NotRead`] — the only place that variant is
     /// written.
-    pub fn push(&mut self, request: &PushRequest<'_>) -> Attempted<()> {
+    ///
+    /// The push succeeds with what its read-back says of the body sent.
+    pub fn push(
+        &mut self,
+        request: &PushRequest<'_>,
+    ) -> Attempted<PushFidelity> {
         let mut attempt = ItemAttempt::begin(request.id);
         let result = self.push_steps(request, &mut attempt);
         attempt.finish(result)
@@ -924,7 +923,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &PushRequest<'_>,
         attempt: &mut ItemAttempt,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<PushFidelity, ApplyError> {
         attempt.land_tracker(
             SyncOperation::Update,
             Some(Landing::Push),
@@ -936,11 +935,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 )
             },
         )?;
-        self.record_read_back(
+        let remote = self.record_read_back(
             attempt,
             request.external_id,
             request.sent_content,
-        )
+        )?;
+        Ok(self.digester().comparison().push_fidelity(
+            request.sent_content,
+            remote.as_ref().map(|issue| issue.body.as_str()),
+        ))
     }
 
     /// As [`Self::push`], sending the title alone; the local file is left
@@ -966,6 +969,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             request.external_id,
             request.sent_content,
         )
+        .map(drop)
     }
 
     fn record_read_back(
@@ -973,9 +977,10 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         attempt: &ItemAttempt,
         external_id: &ExternalId,
         sent_content: &str,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<Option<RemoteIssue>, ApplyError> {
         let remote = self.tracker.show(external_id).ok();
-        self.record(attempt, sent_content, remote.as_ref())
+        self.record(attempt, sent_content, remote.as_ref())?;
+        Ok(remote)
     }
 
     /// A file already holding what the pull writes is written again, so a
@@ -1279,10 +1284,13 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         match unordered_create_decision(request, &marker)? {
             UnorderedCreateDecision::ReuseId(key) => self
                 .link_and_baseline(request, attempt, &key)
-                .map(CreatedLocally::from),
-            UnorderedCreateDecision::Proceed => self
-                .create_marking_progress(request, attempt)
-                .map(CreatedLocally::from),
+                .map(|created| CreatedLocally {
+                    fidelity: PushFidelity::Unjudged,
+                    ..created
+                }),
+            UnorderedCreateDecision::Proceed => {
+                self.create_marking_progress(request, attempt)
+            }
         }
     }
 
@@ -1338,22 +1346,18 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     })),
                 }
             }
-            OrderPrecondition::Create => {
-                self.create_anew(request, attempt).map(CreatedLocally::from)
-            }
+            OrderPrecondition::Create => self.create_anew(request, attempt),
             OrderPrecondition::CreateUnmarked => self
                 .create_anew(request, attempt)
-                .map(|leftover_marker| CreatedLocally {
+                .map(|created| CreatedLocally {
                     notice: Some(CreateNotice::NothingToSettle),
-                    ..CreatedLocally::from(leftover_marker)
+                    ..created
                 }),
             OrderPrecondition::CreateUnlessIssueExists(recorded) => {
                 match attempt.observe_tracker(SyncOperation::Create, || {
                     self.tracker.locate(&recorded)
                 })? {
-                    Located::NotFound => self
-                        .create_anew(request, attempt)
-                        .map(CreatedLocally::from),
+                    Located::NotFound => self.create_anew(request, attempt),
                     Located::Found(issue) => {
                         Err(refused(OrderRefusal::MarkerRecords {
                             id: request.item_id.to_owned(),
@@ -1437,6 +1441,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 key: key.clone(),
                 title: issue_title(&issue),
             }),
+            fidelity: PushFidelity::Unjudged,
         })
     }
 
@@ -1483,7 +1488,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
-    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+    ) -> Result<CreatedLocally, ApplyError> {
         if request.linked.is_some() {
             attempt.land_local(SyncOperation::LinkExternalId, None, || {
                 request
@@ -1499,7 +1504,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &self,
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
-    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+    ) -> Result<CreatedLocally, ApplyError> {
         let fingerprint = RequestFingerprint {
             title: request.title.to_owned(),
             digest: request.digest(),
@@ -1542,7 +1547,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         attempt: &mut ItemAttempt,
         fingerprint: &RequestFingerprint,
         external_id: &ExternalId,
-    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+    ) -> Result<CreatedLocally, ApplyError> {
         self.write_marker(
             attempt,
             request.marker_path,
@@ -1595,7 +1600,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         attempt: &mut ItemAttempt,
         fingerprint: RequestFingerprint,
         detail: String,
-    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+    ) -> Result<CreatedLocally, ApplyError> {
         self.write_marker(
             attempt,
             request.marker_path,
@@ -1631,7 +1636,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &CreateFromLocalRequest<'_>,
         attempt: &mut ItemAttempt,
         external_id: &ExternalId,
-    ) -> Result<Option<LeftoverMarker>, ApplyError> {
+    ) -> Result<CreatedLocally, ApplyError> {
         attempt.land_local(
             SyncOperation::LinkExternalId,
             Some(Landing::Link),
@@ -1649,7 +1654,15 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 read_file(request.file_path)
             })?;
         self.record(attempt, &local_content, remote.as_ref())?;
-        Ok(self.clear_marker(request.marker_path).err())
+        Ok(CreatedLocally {
+            leftover_marker: self.clear_marker(request.marker_path).err(),
+            notice: None,
+            adopted: None,
+            fidelity: self.digester().comparison().push_fidelity(
+                &local_content,
+                remote.as_ref().map(|issue| issue.body.as_str()),
+            ),
+        })
     }
 
     /// Records `request`'s fingerprints, writing no file and calling no

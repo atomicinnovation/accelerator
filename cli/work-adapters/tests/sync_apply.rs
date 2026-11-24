@@ -57,6 +57,8 @@ use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::files::SyncFiles;
 use work_adapters::sync::operation::SyncOperation;
+use work_adapters::sync::push_fidelity::ChangedLine;
+use work_adapters::sync::push_fidelity::PushFidelity;
 use work_adapters::sync::recovery_label::RecoveryLabel;
 
 use crate::support::assert_recipe_one_entry;
@@ -699,28 +701,71 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
     Ok(())
 }
 
+fn pushed_body_text(fake: &Fake) -> Result<PushFidelity, TestError> {
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
+    let external_id = ExternalId::new("ENG-1".to_owned());
+    let mut applier = ItemApplier::new(ports(fake), &mut store, 1_700_000_000);
+    Ok(applier
+        .push(&PushRequest {
+            id: "0001",
+            external_id: &external_id,
+            title: Some("Title"),
+            body: "Body text\n",
+            sent_content: item_content(),
+        })
+        .result?)
+}
+
+fn shown(body: &str) -> RemoteIssue {
+    RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
+        updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
+        body: body.to_owned(),
+    }
+}
+
+#[test]
+fn a_push_read_back_meaning_what_was_sent_is_preserved() -> Result<(), TestError>
+{
+    let fake = Fake::default();
+    fake.set_show_result(shown("Title\nBody text\n"));
+
+    assert_eq!(pushed_body_text(&fake)?, PushFidelity::Preserved);
+    Ok(())
+}
+
+#[test]
+fn a_push_read_back_meaning_something_else_is_rewritten(
+) -> Result<(), TestError> {
+    let fake = Fake::default();
+    fake.set_show_result(shown("Title\n[Body text](<http://body.text>)\n"));
+
+    assert_eq!(
+        pushed_body_text(&fake)?,
+        PushFidelity::Rewritten {
+            changes: vec![ChangedLine {
+                section: "(preamble)".to_owned(),
+                sent: "Body text".to_owned(),
+                stored: "[Body text](<http://body.text>)".to_owned(),
+            }],
+        }
+    );
+    let (baseline, _) =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake)
+            .load()?;
+    assert!(baseline.get("0001").is_some(), "the baseline is recorded");
+    Ok(())
+}
+
 #[test]
 fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
 ) -> Result<(), TestError> {
     let fake = Fake::default();
     fake.fail_show();
 
-    let mut store =
-        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
-    let external_id = ExternalId::new("ENG-1".to_owned());
-    {
-        let mut applier =
-            ItemApplier::new(ports(&fake), &mut store, 1_700_000_000);
-        applier
-            .push(&PushRequest {
-                id: "0001",
-                external_id: &external_id,
-                title: Some("Title"),
-                body: "Body text\n",
-                sent_content: item_content(),
-            })
-            .result?;
-    }
+    assert_eq!(pushed_body_text(&fake)?, PushFidelity::Unjudged);
+    let store = BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
 
     let (baseline, _) = store.load()?;
     let entry = baseline
@@ -1670,7 +1715,7 @@ fn classification_is_total() {
     );
 }
 
-fn push_through(fake: &Fake) -> Result<(), ApplyError> {
+fn push_through(fake: &Fake) -> Result<PushFidelity, ApplyError> {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), fake, fake);
     let external_id = ExternalId::new("ENG-1".to_owned());

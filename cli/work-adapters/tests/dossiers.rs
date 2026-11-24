@@ -200,6 +200,7 @@ const fn reported(
         kept_edits: None,
         leftover_marker: None,
         notice: None,
+        rewrite: None,
     }
 }
 

@@ -6175,3 +6175,78 @@ fn a_preview_leaves_a_relink_to_its_order() -> Result<(), TestError> {
     }
     Ok(())
 }
+
+fn dotted_item(fixture: &Fixture) -> Result<LocalItem, TestError> {
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    std::fs::write(
+        &item.path,
+        "---\nid: \"0001\"\ntitle: \"Draft one\"\nkind: task\n---\n\n\
+         Published to crates.io first.\n",
+    )?;
+    Ok(item)
+}
+
+#[test]
+fn a_create_with_nothing_to_settle_carries_both_notices(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = dotted_item(&fixture)?;
+    let tracker = RecordingTracker::rewriting(
+        Vec::new(),
+        tracker_test_support::Rewrite::AutolinkDottedTokens,
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.notice, Some(CreateNotice::NothingToSettle));
+    let rewrite = row.rewrite.as_ref().expect("the create was rewritten");
+    assert_eq!(rewrite.path, item.path);
+    assert_eq!(
+        rewrite.lines.lines[0].stored,
+        "Published to [crates.io](<http://crates.io>) first."
+    );
+    assert!(report.failures().next().is_none());
+    Ok(())
+}
+
+#[test]
+fn a_faithful_create_is_not_noticed() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = dotted_item(&fixture)?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    let report =
+        creating(&fixture, &tracker, &author, std::slice::from_ref(&item))?;
+
+    assert_eq!(local_create_row(&report, "0001").rewrite, None);
+    Ok(())
+}
+
+#[test]
+fn a_reused_create_is_unjudged() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    seed_created_marker(&fixture, &item, "ENG-42");
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-42".to_owned()),
+        issue("Draft one\n[Body](<http://bo.dy>)"),
+    )]);
+
+    let report = run_create_from_local_with(
+        &fixture,
+        &item,
+        &tracker,
+        (&Spy::default(), &Spy::default()),
+        AuthorFault::None,
+    );
+
+    let row = local_create_row(&report, "0001");
+    assert!(matches!(row.outcome, ItemOutcome::Applied));
+    assert_eq!(row.rewrite, None);
+    Ok(())
+}

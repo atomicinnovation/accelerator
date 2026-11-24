@@ -3135,6 +3135,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -3155,6 +3156,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -3398,6 +3400,7 @@ mod tests {
                 SyncState::Synced,
             )),
             details: Vec::new(),
+            rewrite: None,
         };
         let failure = SettledRunFailure {
             error: work_adapters::sync::run::RunError::KeyedReadCapped,
@@ -4008,6 +4011,7 @@ mod tests {
                 path: draft_path(draft),
                 outcome,
                 details: Vec::new(),
+                rewrite: None,
             }
         }
 
@@ -4987,6 +4991,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -5009,6 +5014,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }
     }
 
@@ -5048,6 +5054,7 @@ mod tests {
             kept_edits: None,
             leftover_marker: None,
             notice: None,
+            rewrite: None,
         }]);
 
         let rendered = render_report(

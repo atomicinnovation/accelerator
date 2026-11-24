@@ -62,6 +62,8 @@ use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
+use crate::sync::push_fidelity::PushFidelity;
+use crate::sync::push_fidelity::RewriteNotice;
 use crate::sync::synced_fields;
 use work::identity_run::IdentityRunGuard;
 
@@ -109,6 +111,17 @@ pub struct PromotionRow {
     /// least one path, and so does a promotion the next sync will find in
     /// conflict.
     pub details: Vec<Detail>,
+    /// This run's retitle, when the tracker stored it with a different
+    /// meaning; reported whether or not the promotion then finished.
+    pub rewrite: Option<RewriteNotice>,
+}
+
+/// One promotion's result, with what the read-back after its retitle says
+/// of the body sent; unjudged when this run retitled nothing.
+#[derive(Debug)]
+pub struct PromotionAttempt {
+    pub result: Result<Promotion, NotPromoted>,
+    pub fidelity: PushFidelity,
 }
 
 impl PromotionRow {
@@ -119,6 +132,7 @@ impl PromotionRow {
             path,
             outcome: PromotionOutcome::Previewed,
             details: Vec::new(),
+            rewrite: None,
         }
     }
 
@@ -129,15 +143,18 @@ impl PromotionRow {
     pub fn of(
         draft: &DraftId,
         path: PathBuf,
-        result: Result<Promotion, NotPromoted>,
+        attempt: PromotionAttempt,
         ports: &PromotionPorts<'_>,
         state_dir: &Path,
     ) -> Self {
-        let (outcome, details) = match result {
-            Ok(promotion) => (
-                PromotionOutcome::Promoted(promotion.clone()),
-                conflict_subject(&promotion, ports.retirement),
-            ),
+        let (outcome, details, key) = match attempt.result {
+            Ok(promotion) => {
+                let (Promotion::Completed(key, _)
+                | Promotion::AlreadyDone(key)) = &promotion;
+                let key = key.clone();
+                let details = conflict_subject(&promotion, ports.retirement);
+                (PromotionOutcome::Promoted(promotion), details, Some(key))
+            }
             Err(reason) => {
                 let held_key = held_key(&reason, draft, ports.records);
                 let details = unpromoted_subjects(
@@ -148,16 +165,42 @@ impl PromotionRow {
                     ports.retirement,
                     state_dir,
                 );
-                (PromotionOutcome::NotPromoted { reason, held_key }, details)
+                let key = held_key.clone();
+                (
+                    PromotionOutcome::NotPromoted { reason, held_key },
+                    details,
+                    key,
+                )
             }
+        };
+        let rewrite = match (attempt.fidelity, key) {
+            (fidelity @ PushFidelity::Rewritten { .. }, Some(key)) => {
+                let promoted = promoted_path(&key, ports.retirement)
+                    .unwrap_or_else(|| path.clone());
+                RewriteNotice::on_push(fidelity, &promoted, &key)
+            }
+            _ => None,
         };
         Self {
             draft: draft.as_str().to_owned(),
             path,
             outcome,
             details,
+            rewrite,
         }
     }
+}
+
+/// Where the item now carrying `key` lives, once the draft has taken it.
+fn promoted_path(
+    key: &ExternalId,
+    ports: &RetirementPorts<'_>,
+) -> Option<PathBuf> {
+    corpus_identities(ports)
+        .ok()?
+        .into_iter()
+        .find(|item| same(&item.id, key.as_str()))
+        .map(|item| item.path)
 }
 
 fn conflict_subject(
@@ -400,6 +443,19 @@ pub fn promote(
     mode: &PromotionMode,
     ports: &PromotionPorts<'_>,
     identity_run: &IdentityRunGuard,
+) -> PromotionAttempt {
+    let mut fidelity = PushFidelity::Unjudged;
+    let result =
+        promote_judging(draft, mode, ports, identity_run, &mut fidelity);
+    PromotionAttempt { result, fidelity }
+}
+
+fn promote_judging(
+    draft: &DraftId,
+    mode: &PromotionMode,
+    ports: &PromotionPorts<'_>,
+    identity_run: &IdentityRunGuard,
+    fidelity: &mut PushFidelity,
 ) -> Result<Promotion, NotPromoted> {
     let lock = acquire_retirement_lock(ports.retirement.lock, identity_run)
         .map_err(|error| {
@@ -425,7 +481,7 @@ pub fn promote(
                 promotion.adopt(&key, &stored)?;
             }
             PromotionStep::RetitleRemote(key) => {
-                promotion.retitle_remote(&key, &stored)?;
+                *fidelity = promotion.retitle_remote(&key, &stored)?;
             }
             PromotionStep::Retire(key) => {
                 return promotion.retire(&key, &stored);
@@ -694,11 +750,13 @@ impl Promoting<'_> {
             .map_err(|_| NotPromoted::ReadBackFailed(id))
     }
 
+    /// The promoted body's verdict once the retitle lands; unjudged when
+    /// the remote is kept instead.
     fn retitle_remote(
         &self,
         key: &TrackerKey,
         stored: &StoredRecord,
-    ) -> Result<(), NotPromoted> {
+    ) -> Result<PushFidelity, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
@@ -718,13 +776,15 @@ impl Promoting<'_> {
             &read_back,
             matches_draft,
         ) {
-            Retitling::Keep(reason) => self.advance(
-                stored,
-                PromotionStage::RemoteKept {
-                    key: key.clone(),
-                    reason,
-                },
-            ),
+            Retitling::Keep(reason) => self
+                .advance(
+                    stored,
+                    PromotionStage::RemoteKept {
+                        key: key.clone(),
+                        reason,
+                    },
+                )
+                .map(|()| PushFidelity::Unjudged),
             Retitling::Retitle => {
                 let promoted = self.promoted_content(key);
                 let (_, body) = digest::split_frontmatter_and_body(&promoted)
@@ -739,24 +799,30 @@ impl Promoting<'_> {
                     )
                     .is_err()
                 {
-                    return self.advance(
-                        stored,
-                        PromotionStage::RemoteKept {
-                            key: key.clone(),
-                            reason: RemoteKeptReason::UpdateFailed {
-                                read_back,
+                    return self
+                        .advance(
+                            stored,
+                            PromotionStage::RemoteKept {
+                                key: key.clone(),
+                                reason: RemoteKeptReason::UpdateFailed {
+                                    read_back,
+                                },
                             },
-                        },
-                    );
+                        )
+                        .map(|()| PushFidelity::Unjudged);
                 }
                 let updated = self.show(key)?;
+                let digester = self.digester();
                 self.advance(
                     stored,
                     PromotionStage::RemoteRetitled {
                         key: key.clone(),
-                        read_back: read_back_of(&self.digester(), &updated),
+                        read_back: read_back_of(&digester, &updated),
                     },
-                )
+                )?;
+                Ok(digester
+                    .comparison()
+                    .push_fidelity(&promoted, Some(&updated.body)))
             }
         }
     }
