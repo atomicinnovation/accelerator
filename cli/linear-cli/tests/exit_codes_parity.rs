@@ -124,6 +124,24 @@ fn the_search_unresolved_filter_code_is_89_and_uncontested() {
 }
 
 #[test]
+fn the_update_no_file_code_is_115_and_uncontested() {
+    let rust = rust_codes();
+    assert_eq!(
+        rust.get("UPDATE_NO_FILE").copied(),
+        Some(115),
+        "an unreadable update --body-file exits 115"
+    );
+    let sharers: Vec<&String> = rust
+        .iter()
+        .filter(|(name, value)| {
+            name.as_str() != "UPDATE_NO_FILE" && **value == 115
+        })
+        .map(|(name, _)| name)
+        .collect();
+    assert!(sharers.is_empty(), "no other code shares 115: {sharers:?}");
+}
+
+#[test]
 fn the_allowlist_is_count_pinned_and_moves_off_the_reserved_band() {
     assert_eq!(ALLOWLIST.len(), 4, "the search remap is exactly four codes");
     for (name, value) in ALLOWLIST {

@@ -89,6 +89,9 @@ pub const UPDATE_NO_OPS: u8 = 111;
 pub const UPDATE_BAD_FLAG: u8 = 112;
 pub const UPDATE_NO_CATALOGUE: u8 = 113;
 pub const UPDATE_BAD_STATE: u8 = 114;
+// A new code, not a captured remap: `update --body-file` names a file that
+// cannot be read.
+pub const UPDATE_NO_FILE: u8 = 115;
 
 pub const TRANSITION_NO_KEY: u8 = 120;
 pub const TRANSITION_NO_STATE: u8 = 121;

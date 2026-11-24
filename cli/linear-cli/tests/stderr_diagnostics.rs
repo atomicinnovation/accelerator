@@ -37,6 +37,10 @@ fn argument_validation_diagnostics_name_their_error() {
         ),
         ("E_ATTACH_NO_TARGET", vec_of(&["attach", "BLA-1"])),
         ("E_UPDATE_NO_OPS", vec_of(&["update", "BLA-1"])),
+        (
+            "E_UPDATE_NO_FILE",
+            vec_of(&["update", "BLA-1", "--body-file", "/no/such"]),
+        ),
         ("E_CREATE_NO_TITLE", vec_of(&["create"])),
         (
             "E_CREATE_NO_FILE",

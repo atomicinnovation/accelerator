@@ -370,6 +370,13 @@
 
 ### Added
 
+- **`linear update --body-file <PATH>` sends a Markdown file as the
+  description**, as `linear create`, `jira update` and `shortcut update`
+  already accept. It cannot be combined with `--description`. A file that
+  cannot be read is refused before any request with `E_UPDATE_NO_FILE`,
+  exiting 115, and both `E_UPDATE_NO_FILE` and `linear create`'s
+  `E_CREATE_NO_FILE` now name the path. `/update-linear-issue` accepts the
+  flag.
 - **`/create-work-item --id <ID>` names the new item's ID.** Given as the
   argument's leading or trailing `--id`, or at the start of the reply to the
   welcome text, the ID is settled with `work id check` before drafting. An

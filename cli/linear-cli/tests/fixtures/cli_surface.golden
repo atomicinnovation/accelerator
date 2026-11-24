@@ -40,6 +40,7 @@ Arguments:
 Options:
       --title <TITLE>              
       --description <DESCRIPTION>  
+      --body-file <BODY_FILE>      A Markdown file sent as the description
       --state <STATE>              
       --assignee-id <ASSIGNEE_ID>  
       --priority <PRIORITY>        

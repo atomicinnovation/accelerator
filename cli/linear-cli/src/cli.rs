@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use clap::ArgGroup;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -56,12 +57,18 @@ pub struct CreateArgs {
 }
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("description_source")
+    .args(["description", "body_file"])
+    .multiple(false))]
 pub struct UpdateArgs {
     pub id: String,
     #[arg(long)]
     pub title: Option<String>,
     #[arg(long)]
     pub description: Option<String>,
+    /// A Markdown file sent as the description.
+    #[arg(long)]
+    pub body_file: Option<PathBuf>,
     #[arg(long)]
     pub state: Option<String>,
     #[arg(long)]
@@ -76,6 +83,7 @@ impl UpdateArgs {
     pub const fn names_no_field(&self) -> bool {
         self.title.is_none()
             && self.description.is_none()
+            && self.body_file.is_none()
             && self.state.is_none()
             && self.assignee_id.is_none()
             && self.priority.is_none()

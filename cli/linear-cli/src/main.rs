@@ -308,6 +308,10 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
         eprintln!("E_UPDATE_NO_OPS: at least one field to update is required");
         return ExitCode::from(exit_codes::UPDATE_NO_OPS);
     }
+    let description = match requested_description(args) {
+        Ok(description) => description,
+        Err(code) => return code,
+    };
     let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
@@ -319,7 +323,7 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
     };
     let fields = UpdateFields {
         title: args.title.as_deref(),
-        description: args.description.as_deref(),
+        description: description.as_deref(),
         state_id: state_id.as_ref(),
         assignee_id: args.assignee_id.as_deref(),
         priority: args.priority,
@@ -331,6 +335,50 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
         }
         Err(failure) => report_failed_update(&failure),
     }
+}
+
+fn requested_description(
+    args: &UpdateArgs,
+) -> Result<Option<String>, ExitCode> {
+    match (&args.description, &args.body_file) {
+        (Some(description), None) => Ok(Some(description.clone())),
+        (None, Some(path)) => {
+            read_body_file(path, &UPDATE_BODY_FILE_REFUSAL).map(Some)
+        }
+        (None, None) => Ok(None),
+        (Some(_), Some(_)) => {
+            unreachable!("description_source admits one member")
+        }
+    }
+}
+
+struct BodyFileRefusal {
+    code: &'static str,
+    exit: u8,
+}
+
+const CREATE_BODY_FILE_REFUSAL: BodyFileRefusal = BodyFileRefusal {
+    code: "E_CREATE_NO_FILE",
+    exit: exit_codes::CREATE_NO_FILE,
+};
+
+const UPDATE_BODY_FILE_REFUSAL: BodyFileRefusal = BodyFileRefusal {
+    code: "E_UPDATE_NO_FILE",
+    exit: exit_codes::UPDATE_NO_FILE,
+};
+
+fn read_body_file(
+    path: &Path,
+    refusal: &BodyFileRefusal,
+) -> Result<String, ExitCode> {
+    std::fs::read_to_string(path).map_err(|error| {
+        eprintln!(
+            "{}: could not read --body-file {}: {error}",
+            refusal.code,
+            path.display()
+        );
+        ExitCode::from(refusal.exit)
+    })
 }
 
 fn report_failed_update(failure: &LinearFailure) -> ExitCode {
@@ -399,12 +447,7 @@ fn resolve_create_inputs(
 ) -> Result<(String, String), ExitCode> {
     if let Some(title) = &args.title {
         let body = match &args.body_file {
-            Some(path) => std::fs::read_to_string(path).map_err(|error| {
-                eprintln!(
-                    "E_CREATE_NO_FILE: could not read --body-file: {error}"
-                );
-                ExitCode::from(exit_codes::CREATE_NO_FILE)
-            })?,
+            Some(path) => read_body_file(path, &CREATE_BODY_FILE_REFUSAL)?,
             None => String::new(),
         };
         return Ok((title.clone(), body));
