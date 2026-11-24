@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T08:07:57+00:00"
+last_updated: "2026-11-24T08:24:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -156,7 +156,8 @@ checks recorded in phases 2, 3, 10, 11 and 12.
   may over-escape. It must never miss a token Linear links, and must never
   escape inside a URL Linear links.
 - A lone `<digits>.` or `<digits>)` becomes a list item under every list
-  item kind, after a tab, on a lazy line at column 0, for `0.` and `00.`,
+  item kind, after a tab, on a lazy line at column 0 (where CommonMark also
+  reads a new list, so no escape is due), for `0.` and `00.`,
   and on each of several consecutive lines. It does not in a blockquote, in a
   later paragraph of an item, at top level, for ten digits, or with text
   after the number. An empty `1.` is a lone line too: it cannot interrupt a
@@ -821,8 +822,6 @@ Cases, one test each:
 | `hard\\\n0160.\n` | `hard\\\n0160\.\n` |
 | `hard  \n0160.\n` | `hard  \n0160\.\n` |
 | `foo\n0160.\tbar\n` | `foo\n0160\.\tbar\n` |
-| `> owned by\n0160.\n` | `> owned by\n0160\.\n` |
-| `- owned by\n0160.\n` | `- owned by\n0160\.\n` |
 | `- owned by\n\t0160.\n` | `- owned by\n\t0160\.\n` |
 | `- [ ] owned by\n  0160.\n` | `- [ ] owned by\n  0160\.\n` |
 | `- owned by\n  1.\n` | `- owned by\n  1\.\n` |
@@ -837,7 +836,14 @@ Unchanged cases (`assert_escapes(x, x)`): `foo\n1. text\n`, `1. a\n2. b\n`,
 `[link\n0160. text](u)\n`, `![a\n0160. x](u)\n`, `` `a\n0160.` ``,
 `    a\n    0160.\n`,
 ` ```\na\n0160.\n``` `, `<div>\na\n0160.\n</div>\n`,
-`a <span title="owned by\n0160. x">t</span>\n`.
+`a <span title="owned by\n0160. x">t</span>\n`, `> owned by\n0160.\n`,
+`- owned by\n0160.\n`.
+
+The last two were drafted as escapes. `pulldown-cmark` 0.13.6 ends the
+container at the unindented `0160.` and opens a list `160.`, with no break
+before it, so CommonMark already reads the local file as a list. Linear's
+read-back of probe `Q290` is the same list, so Linear changes nothing, and
+the escape would change the CommonMark reading that the fallback protects.
 
 #### 3. Implementation
 
@@ -948,9 +954,10 @@ a link, it takes `line = continuation_start(markdown, break.end, next.start)`
 and returns an `Escape` before the delimiter when `markdown[line..]` is one
 or more ASCII digits, then `.` or `)`, then a space, a tab, `\r`, `\n` or
 end of input. A code span or a code block cannot start with a digit, so it
-needs no case of its own. A break whose range lies inside an `InlineHtml`
-event's range, or that sits between two pieces of one multi-line tag, is
-skipped, so an attribute value is never touched.
+needs no case of its own. Neither does a multi-line inline tag: 0.13.6
+emits it as one `InlineHtml` event holding the line break
+(`a_multi_line_inline_tag_arrives_as_written`), so no break event falls
+inside an attribute value.
 
 Run `mise run public-api:update`; the diff adds only `escape_for_push`.
 
@@ -961,14 +968,14 @@ keeps its direct `pulldown-cmark` dependency for `github`.
 
 #### Automated Verification:
 
-- [ ] Characterisation and digit-rule tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
-- [ ] Public API snapshot matches: `mise run public-api:check`
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] Characterisation and digit-rule tests pass: `mise run test:unit:cli --filter 'package(markdown)'`
+- [x] Public API snapshot matches: `mise run public-api:check`
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None; nothing calls the escaper yet
+- [x] None; nothing calls the escaper yet
 
 ---
 
@@ -1076,7 +1083,8 @@ The same three tests run over every probe in
 
 - `every_lone_line_linear_listed_is_escaped`: each probe whose read-back
   turned a continuation line into a list item has a `\` before that line's
-  `.` or `)` in the escaped probe.
+  `.` or `)` in the escaped probe. A probe whose line `document` already
+  reads as a list, such as `Q290`'s lazy line, is exempt.
 - `every_unneeded_digit_escape_is_a_recorded_over_escape`: each other digit
   escape is in a blockquote, a top-level paragraph, a later paragraph of an
   item, a number of ten or more digits, or a line with text after the
