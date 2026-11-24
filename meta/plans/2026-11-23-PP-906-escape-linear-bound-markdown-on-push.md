@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T14:00:00+00:00"
+last_updated: "2026-11-24T18:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1763,21 +1763,54 @@ its summary, quoted as data, and says the push succeeded. Add
 `` `warning: <id>: still rewritten on push:` ``. Add an **Added** entry for
 the notice.
 
+#### 5. As landed
+
+- **Sections as written.** `work::section_diff::differing_sections` trims
+  each line, which loses a continuation line's indentation, so
+  `differing_sections_as_written` returns each side's untrimmed source and
+  pairs an unmatched local section with the unmatched remote section at its
+  position. `BodyComparison::differing_sections_as_written` and
+  `reads_alike` serve `push_fidelity`, `changed_lines` and
+  `meaningful_hunks` in `work-adapters/src/sync/push_fidelity.rs`.
+- **Notice data.** `RewriteNotice { path, external_id, lines }` has no
+  `kind` until phase 8 adds `StillOnPush`, and `RewrittenLines` also holds
+  every section named by a change, for the warning's section list.
+- **Promotion.** `promote` returns `PromotionAttempt { result, fidelity }`,
+  and `PromotionRow` carries `rewrite: Option<RewriteNotice>`, naming the
+  promoted item's path and key, rather than the bare verdict.
+  `DraftPromotionOutcome::Attempted` boxes its row. `finish_promotion`
+  takes no verdict yet; phase 8 threads it in for the mark.
+- **Push sites.** `ItemApplier::push` returns `Attempted<PushFidelity>`, and
+  `CreatedLocally` carries the create's verdict; the sync create's notice is
+  raised only when the attempt records a create of its own. `PushReport`
+  carries `rewrite: Option<Box<RewriteNotice>>`.
+- **Rendering.** `rewrite_lines(notice, label, tracker)` names the tracker
+  capitalised in prose and by keyword in the `show` command. Commands carry
+  the rendered block: `update::RunOutcome::Updated { warnings }`,
+  `create::RunOutcome::Created { warnings, .. }` and
+  `BatchItem::rewrite_warnings`; sync renders reported items under their id
+  and promotions under their key, each path relative to the repository
+  root. `work promote` does not print the block.
+- **Tests.** The mark clauses of the promotion tests wait for phase 8. A
+  sync retitle returns no notice by construction, so it has no test of its
+  own, and an unreadable read-back is pinned at the applier
+  (`a_failed_post_push_show_still_writes_the_entry_with_not_read`).
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Verdict tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/preserved|unjudged|_a_rewrite/)'`
-- [ ] Push-site and promotion tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/notices_a_rewritten_read_back|silent_for_a_faithful_read_back|unreadable_read_back|both_notices|reused_create|title_only_retitle|promotion|rewound_retirement/)'`
-- [ ] Line pairing and bounding pass: `mise run test:unit:cli --filter 'test(/read_differently|rides_with_its_hunk|kept_escape|judged_in_context|no_surviving_hunk|filter_alone|level_two_heading|delete_or_insert|without_a_leading_zero|jira_cosmetic|lines_are_bounded/)'`
-- [ ] Rendering and `work-cli` warnings pass: `mise run test:unit:cli --filter 'package(accelerator-work) & test(/warns|both_notices|its_warnings_subject|clearing_command|changed_lines|on_one_line|external_id/)'`
-- [ ] Skill structure holds: `mise run test:unit:tasks --filter test_each_record_type_has_a_dispatch_entry`
-- [ ] `mise run cli:check` exits 0
+- [x] Verdict tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/preserved|unjudged|_a_rewrite/)'`
+- [x] Push-site and promotion tests pass: `mise run test:unit:cli --filter 'package(work-adapters) & test(/notices_a_rewritten_read_back|silent_for_a_faithful_read_back|unreadable_read_back|both_notices|reused_create|title_only_retitle|promotion|rewound_retirement/)'`
+- [x] Line pairing and bounding pass: `mise run test:unit:cli --filter 'test(/read_differently|rides_with_its_hunk|kept_escape|judged_in_context|no_surviving_hunk|filter_alone|level_two_heading|delete_or_insert|without_a_leading_zero|jira_cosmetic|lines_are_bounded/)'`
+- [x] Rendering and `work-cli` warnings pass: `mise run test:unit:cli --filter 'package(accelerator-work) & test(/warns|both_notices|its_warnings_subject|clearing_command|changed_lines|on_one_line|external_id/)'`
+- [x] Skill structure holds: `mise run test:unit:tasks --filter test_each_record_type_has_a_dispatch_entry`
+- [x] `mise run cli:check` exits 0
 - [ ] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None; phase 12 runs against the live workspace
+- [x] None; phase 12 runs against the live workspace
 
 ---
 
