@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-13-PP-885-push-pr-descriptions-to-github-unwrapped", 
 tags: ["sync", "linear", "markdown", "linear-client", "markdown-crate"]
 revision: "22356e9220263ebd479e1bb378a05df2f4b87d2d"
 repository: "accelerator"
-last_updated: "2026-11-24T23:59:00+00:00"
+last_updated: "2026-11-24T18:27:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2484,6 +2484,39 @@ reads alike. Then, by outcome:
 - [x] The pulled probes, pushed again, read as recorded: `each_pulled_entity_probe_reads_as_recorded_after_a_second_push`
 
 ---
+
+## Validation follow-ups
+
+Validating phases 1-11 (`meta/validations/2026-11-23-PP-906-escape-linear-bound-markdown-on-push-validation.md`)
+raised six issues and one wording fix. Each was fixed test-first:
+
+- **A fresh notice no longer depends on a reload.** `BaselineStore::record`
+  returns the baseline it wrote, and `work update --push` builds its notice
+  and retires adoption records from it, so the second read is gone.
+- **A rewrite always names a change.** Sections stored in another order made
+  `Rewritten` carry no changes. It now carries `ChangedLines`, which cannot
+  be empty; a rewrite no one section holds is reported as one
+  `(whole body)` line. A hunk that changes only line boundaries, such as two
+  paragraphs merged, is widened over the lines it joins, so no notice line is
+  blank on both sides.
+- **Split tokens and decomposed labels.** Taken on 2026-11-24 as `TES-41`,
+  since trashed, into `linear-autolink-probes/split-tokens.md` and its
+  read-back. Linear links no token split by inline markup, as the escaper
+  already assumed; it links a whole token beside emphasis but not one before
+  a code span, which `linear_leaves_bare` now records. Linear reads combining
+  marks and format characters as label characters, decomposed or not, so the
+  escaper's labels now hold general categories `Mn`, `Mc`, `Me` and `Cf`.
+  Both probe suites read the new corpus.
+- **Escapes are withheld one at a time.** When the full set of escapes would
+  change the reading, they are added in source order and each is kept only
+  if the body still reads alike. The only case found is a bracketed token
+  whose escaped text matches a reference definition. A withheld escape is not
+  reported on its own: Toby Clemson chose to rely on phases 7 and 8, which
+  report any rewrite Linear then makes. PP-906's criterion now reads this way.
+- **One link-nesting concept.** `LinkNesting` serves the digit rule and the
+  text runs alike.
+- **Wording.** `/update-linear-issue` describes an empty description plainly.
+  The skill has no evals.
 
 ## Phase 12: Post-merge verification
 

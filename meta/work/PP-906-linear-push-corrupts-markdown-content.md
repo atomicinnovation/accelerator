@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:PP-167"
 relates_to: ["work-item:PP-880", "work-item:PP-760", "work-item:PP-876", "work-item:PP-907", "work-item:PP-885"]
 tags: ["sync", "linear", "bug", "markdown"]
-last_updated: "2026-11-24T01:36:41+00:00"
+last_updated: "2026-11-24T18:27:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-906"
@@ -221,124 +221,125 @@ the body, the escaper sends the body unescaped instead.
 
 Escaper output, tested in CI:
 
-- [ ] Given a list item whose continuation line holds only `0160.` or
+- [x] Given a list item whose continuation line holds only `0160.` or
       `0160)`, when the body is escaped for push, then that line is sent as
       `0160\.` or `0160\)`.
-- [ ] Given a top-level paragraph whose continuation line holds only
+- [x] Given a top-level paragraph whose continuation line holds only
       `0160.`, or a continuation line `0160. more text` at top level or in a
       list item, when the body is escaped for push, then the number is sent
       as `0160\.`.
-- [ ] Given a continuation line holding only `0160.` or `0160)` inside a
+- [x] Given a continuation line holding only `0160.` or `0160)` inside a
       blockquote, a nested list item and an ordered-list item, when the body
       is escaped for push, then the line is sent as `0160\.` or `0160\)`.
-- [ ] Given a list item whose continuation line holds only `1234567890.`,
+- [x] Given a list item whose continuation line holds only `1234567890.`,
       when the body is escaped for push, then that line is sent as
       `1234567890\.`.
-- [ ] Given a paragraph line followed directly by `1. text`, which
+- [x] Given a paragraph line followed directly by `1. text`, which
       CommonMark reads as a list interrupting the paragraph, when the body
       is escaped for push, then it is sent unchanged.
-- [ ] Given a continuation line `0160) more text` in a list item, when the
+- [x] Given a continuation line `0160) more text` in a list item, when the
       body is escaped for push, then it is sent as `0160\) more text`.
-- [ ] Given a continuation line starting `2026.11` (no space after the
+- [x] Given a continuation line starting `2026.11` (no space after the
       `.`), when the body is escaped for push, then it is sent unchanged.
-- [ ] Given each dotted-token fragment in the unescaped capture and each
+- [x] Given each dotted-token fragment in the unescaped capture and each
       probe in `linear-autolink-probes/`, when it is escaped for push, then
       every token Linear linked is escaped, and every other escape falls in
       a recorded over-escape class.
-- [ ] Given each probe whose read-back turned a lone number into a list
+- [x] Given each probe whose read-back turned a lone number into a list
       item, when it is escaped for push, then that number is escaped.
-- [ ] Given tokens not in either capture, when each is escaped for push, then
+- [x] Given tokens not in either capture, when each is escaped for push, then
       `lib.rs`, `README.md` and `a.b.io:12` have every `.` escaped, and
       `config.yaml`, `v1.2.3` and `e.g.` are sent unchanged, and `Crates.IO`
       and `a.b\.io` are sent as `Crates\.IO` and `a\.b\.io`.
-- [ ] Given `crates.io.`, `(crates.io)`, `src/client.rs` and `a@b.io`, when
+- [x] Given `crates.io.`, `(crates.io)`, `src/client.rs` and `a@b.io`, when
       each is escaped for push, then it is sent as `crates\.io.`,
       `(crates\.io)`, `src/client\.rs` and `a@b\.io`.
-- [ ] Given an ordered list (`1. a` then `2. b`), when the body is escaped
+- [x] Given an ordered list (`1. a` then `2. b`), when the body is escaped
       for push, then it is sent unchanged.
-- [ ] Given `https://crates.io/x.`, `(see https://crates.io)`,
+- [x] Given `https://crates.io/x.`, `(see https://crates.io)`,
       `mailto:a@b.io`, `"https://crates.io/x"`, `URL:https://crates.io` and
       `HTTPS://crates.io`, when each is escaped for push, then it is sent
       unchanged.
-- [ ] Given `café.io` and `foo.рф`, when each is escaped for push, then it
+- [x] Given `café.io` and `foo.рф`, when each is escaped for push, then it
       is sent as `café\.io` and `foo\.рф`.
-- [ ] Given `www.crates.io`, when it is escaped for push, then it is sent as
+- [x] Given `www.crates.io`, when it is escaped for push, then it is sent as
       `www\.crates\.io`.
-- [ ] Given `crates.io` inside bold text, a heading and a table cell, when
+- [x] Given `crates.io` inside bold text, a heading and a table cell, when
       the body is escaped for push, then each is sent as `crates\.io` inside
       the same markup.
-- [ ] Given `0160.` or `crates.io` inside a code span, a fenced block, an
+- [x] Given `0160.` or `crates.io` inside a code span, a fenced block, an
       indented code block, link text, a link destination, an angle-bracket
       autolink (`<https://crates.io>`), an HTML block or an HTML tag's
       attributes, when the body is escaped for push, then it is sent
       unchanged.
-- [ ] Given `<span>crates.io</span>`, when it is escaped for push, then it
+- [x] Given `<span>crates.io</span>`, when it is escaped for push, then it
       is sent as `<span>crates\.io</span>`.
-- [ ] Given an escape that would change the CommonMark reading of the body,
-      when the body is escaped for push, then the body is sent unescaped.
-- [ ] Given a local body that already contains `crates\.io` or `0160\.`,
+- [x] Given an escape that would change the CommonMark reading of the body,
+      when the body is escaped for push, then that escape is withheld and
+      every other escape is sent.
+- [x] Given a local body that already contains `crates\.io` or `0160\.`,
       when it is escaped for push, then the body sent is unchanged.
-- [ ] Given each fragment of the unescaped capture, when its escaped form is
+- [x] Given each fragment of the unescaped capture, when its escaped form is
       parsed as CommonMark, then it is equivalent under PP-880 to the
       unescaped fragment.
-- [ ] Given a body needing both escapes, when it is pushed through
+- [x] Given a body needing both escapes, when it is pushed through
       `work create --push`, `work update --push`, the `sync` update, the
       `sync` create of an unsynced item, and draft promotion's create and
       retitling update against a recording tracker (a test double that
       keeps every request body it receives), then each sends the escaped
       body, and the local file is byte-identical to the file before the
       push.
-- [ ] Given a synced item whose recorded baseline holds a corrupted remote
+- [x] Given a synced item whose recorded baseline holds a corrupted remote
       body, when it is pushed with `accelerator work update <path> --push`
       and no other flags, then the escaped body is sent and the local file
       is byte-identical to the file before the push.
-- [ ] Given the same body, when it is sent with `accelerator linear create
+- [x] Given the same body, when it is sent with `accelerator linear create
       <work-item-file>`, `accelerator linear create --body-file`, or
       `accelerator linear update` with `--description` or `--body-file`,
       then the escaped body is sent; with `--verbatim` added, it is sent
       unchanged.
-- [ ] Given `accelerator linear update` with both `--body-file` and
+- [x] Given `accelerator linear update` with both `--body-file` and
       `--description`, when it runs, then it exits with a usage error and
       sends nothing.
-- [ ] Given the same body, when it is pushed through `work create --push`,
+- [x] Given the same body, when it is pushed through `work create --push`,
       `work update --push` and the `sync` update to a Jira or Shortcut
       recording tracker, then it is sent unchanged.
-- [ ] Given a push to any tracker whose read-back is not equivalent to the
+- [x] Given a push to any tracker whose read-back is not equivalent to the
       local body, when it completes, then it warns naming the item and the
       differing sections, records the baseline, marks the entry
       `rewritten_on_push`, and exits as it would without the notice; a
       read-back equivalent to the body sent gives no notice and clears the
       mark.
-- [ ] Given each fragment of the unescaped capture, when it is escaped for
+- [x] Given each fragment of the unescaped capture, when it is escaped for
       push, then the output is byte-identical to its fragment in
       `escaped/pushed.md`.
 
 Linear's read-back, pinned from a committed live capture:
 
-- [ ] Given the committed unescaped capture, then it holds a fragment for
+- [x] Given the committed unescaped capture, then it holds a fragment for
       each dotted-token class and boundary shape and for a lone `<digits>)`
       continuation line, and its README table records Linear's rewrite of
       each.
-- [ ] Given each fragment of `escaped/pushed.md`, escaped by hand, pushed to
+- [x] Given each fragment of `escaped/pushed.md`, escaped by hand, pushed to
       Linear and read back into `escaped/read-back.json`, when PP-880's
       equivalence compares it with its unescaped fragment, then they are
       equivalent: no ordered list, and no link other than a bare scheme
       URL's.
-- [ ] Given the escaped capture's issue, kept until this check is recorded,
+- [x] Given the escaped capture's issue, kept until this check is recorded,
       viewed in Linear's web UI, then no
       backslash appears before a `.` or `)`; the `escaped/` README records
       the check.
 
 Follow-ups within this item:
 
-- [ ] Given the simulated Linear autolinker, when it rewrites each
+- [x] Given the simulated Linear autolinker, when it rewrites each
       dotted-token probe, then it links exactly the tokens Linear linked,
       using the escaper's recogniser.
-- [ ] Given the unescaped and escaped captures pushed as Linear comments
+- [x] Given the unescaped and escaped captures pushed as Linear comments
       and read back, then the README records whether comments are read as
       descriptions are; if they are, `accelerator linear comment add` sends
       an escaped body, and with `--verbatim` sends it unchanged.
-- [ ] Given a committed probe of HTML entities pushed to Linear and read
+- [x] Given a committed probe of HTML entities pushed to Linear and read
       back, then the README records which decoded forms change the
       CommonMark reading, and any remedy they call for is raised as its own
       work item.
