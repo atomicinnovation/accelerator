@@ -215,8 +215,11 @@ empty `id` on to `work_item_identity`, which `document_id` would filter, so
 folding it onto the helper would change work-item identity.
 
 Add `id: None` to every `IndexEntry` literal: `src/test_support.rs` (both
-factories), `src/clusters.rs:242`, the `indexer.rs` test literals
-(`:2794`, `:2838`, `:2862`) and `tests/parity.rs:184`.
+factories), the `indexer.rs` test literals in `sample_entry_with_work_item`
+and `sample_entry_without_work_item`, and `tests/parity.rs:184`.
+`src/clusters.rs:242` builds its entries through `entry_for_test`, and the
+third `indexer.rs` literal spreads `..sample_entry_with_work_item(…)`, so
+neither needs the field.
 
 #### 3. `SearchResultRow.id` and `relPath`
 
@@ -232,15 +235,18 @@ index entry.
 
 #### Automated Verification:
 
-- [ ] New and existing visualiser tests pass: `mise run test:unit:visualiser`
+- [x] New and existing visualiser tests pass: `mise run test:unit:visualiser`
       and `mise run test:integration:visualiser`
-- [ ] Server lint and format pass: `mise run server:check`
-- [ ] Full default task passes: `mise run`
+- [x] Server lint and format pass: `mise run server:check`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `curl localhost:<port>/api/docs?type=topic-research` against a repo
-      with sets shows each set's `id`.
+- [x] `curl localhost:<port>/api/docs?type=topic-research` against a repo
+      with sets shows each set's `id`. Checked against a scratch repo whose
+      two set manifests and one inventory carry a quoted `id`, because the
+      e2e fixtures gain their `id`s only in Phase 3: each set and the
+      inventory served its `id`, and a search row served `id` and `relPath`.
 
 ---
 
