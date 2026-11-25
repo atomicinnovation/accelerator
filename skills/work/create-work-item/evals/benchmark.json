@@ -4,7 +4,7 @@
     "skill_path": "skills/work/create-work-item",
     "executor_model": "claude-sonnet-4-6",
     "analyzer_model": "claude-sonnet-4-6",
-    "timestamp": "2026-11-16T12:00:00Z",
+    "timestamp": "2026-11-25T00:00:00Z",
     "evals_run": [
       "1",
       "10",
@@ -83,10 +83,11 @@
       "72",
       "73",
       "74",
-      "75"
+      "75",
+      "76"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:97f37b82d508889e6f9c5bad23d6fcbc49fc6cc5ccb825c40f16be4eb522dea6"
+    "skill_digest": "sha256:7593351447ac814a499f53f4a4e0cbe64062e1a6922f6a44a15abd3ad6ec620e"
   },
   "runs": [
     {
@@ -4513,6 +4514,42 @@
       ],
       "notes": [],
       "skill_digest": "sha256:6cc8d1894048bece4c546170a162432b829e4c286c17bf8c80734ae916bd887b"
+    },
+    {
+      "eval_id": 76,
+      "eval_name": "a_rewritten_create_push_confirms_and_quotes_the_block",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "response.md confirms `Work item created: PP-30 at meta/work/PP-30-search-filters.md`, saying the push succeeded",
+          "passed": true,
+          "evidence": "\"The push succeeded: Linear created PP-30 and the work item was written with it.\" followed by \"Work item created: PP-30 at `meta/work/PP-30-search-filters.md`\" (path in inline-code formatting only)."
+        },
+        {
+          "text": "response.md quotes the `warning:` line and all four `note:` lines verbatim beneath the confirmation, as data",
+          "passed": true,
+          "evidence": "After the confirmation, under \"(quoted as data, unchanged)\", a code block reproduces \"warning: meta/work/PP-30-search-filters.md: rewritten on push: Summary\" and all four note: lines, identical to the stderr in commands.md."
+        },
+        {
+          "text": "response.md does not suggest a pull to resolve the rewrite",
+          "passed": true,
+          "evidence": "No pull is mentioned; the only follow-ups are the quoted CLI note (update --push) and \"run `accelerator linear show PP-30` and look at `.data.issue.description`\"."
+        },
+        {
+          "text": "commands.md shows no command after the `--push` create other than the frontmatter validation",
+          "passed": true,
+          "evidence": "Command 2 is the --push create; the only later command is 3: \"accelerator corpus frontmatter validate --file meta/work/PP-30-search-filters.md\"."
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:7593351447ac814a499f53f4a4e0cbe64062e1a6922f6a44a15abd3ad6ec620e"
     }
   ],
   "run_summary": {
@@ -4522,18 +4559,6 @@
         "stddev": 0.0,
         "min": 1.0,
         "max": 1.0
-      },
-      "time_seconds": {
-        "mean": 0.0,
-        "stddev": 0.0,
-        "min": 0.0,
-        "max": 0.0
-      },
-      "tokens": {
-        "mean": 0,
-        "stddev": 0.0,
-        "min": 0,
-        "max": 0
       }
     },
     "old_skill": {
@@ -4584,6 +4609,7 @@
     "Eval 52 was renamed from a_flag_mentioned_mid_topic_is_not_a_requested_id to a_flag_mentioned_mid_topic_is_asked_about on 2026-11-17, since its expectations require the skill to ask whether the flag names the ID; its prompt and expectations are unchanged, so its runs stand.",
     "Evals 7, 12 and 40 were re-run with_skill on 2026-11-19, by claude-opus-5-5, after the skill came to say `work create` always writes `tags` and leaves only the typed-linkage keys and `external_id` out when empty: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full.",
     "Evals 12, 40 and 49 were re-run with_skill on 2026-11-19, by claude-sonnet-5-5, after Step 5 came to name the keys `work create` leaves out when empty without calling them the only ones, since `aliases` is never written at creation either: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All three pass in full.",
-    "Evals 40, 48, 51, 62 and 66 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the write-once row and the confirmation came to relay a rewritten-on-push warning: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All five pass in full."
+    "Evals 40, 48, 51, 62 and 66 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the write-once row and the confirmation came to relay a rewritten-on-push warning: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All five pass in full.",
+    "Eval 76 was added and run with_skill on 2026-11-25, by claude-opus-5-5, after the skill came to relay a rewrite Linear cannot avoid and the `--accept-rewrite` step (PR #264 review): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. It passes in full. No other eval was re-run, as none touches the rewrite relay."
   ]
 }

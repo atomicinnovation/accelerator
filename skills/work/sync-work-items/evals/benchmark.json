@@ -4,15 +4,17 @@
     "skill_path": "skills/work/sync-work-items",
     "executor_model": "claude-opus-5-5",
     "analyzer_model": "claude-opus-5-5",
-    "timestamp": "2026-11-24T00:00:00Z",
+    "timestamp": "2026-11-25T00:00:00Z",
     "evals_run": [
       "1",
       "2",
       "3",
-      "4"
+      "4",
+      "5",
+      "6"
     ],
     "runs_per_configuration": 1,
-    "skill_digest": "sha256:64d7df6e3d724da63327c9adff6cf8b499166c57c7fea8453dd3022664ea91f3"
+    "skill_digest": "sha256:1e4ebb937fc297585e15ca6f7d09c735ec4ea3e59c2641d3c0129493f224430b"
   },
   "runs": [
     {
@@ -143,6 +145,88 @@
       ],
       "notes": [],
       "skill_digest": "sha256:64d7df6e3d724da63327c9adff6cf8b499166c57c7fea8453dd3022664ea91f3"
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "a_rewritten_push_is_relayed_verbatim_with_no_pull",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "response.md says the push of PP-12 succeeded",
+          "passed": true,
+          "evidence": "\"It pushed PP-12\" and \"The push worked and its baseline was recorded\""
+        },
+        {
+          "text": "response.md relays the `warning: PP-12: rewritten on push: Notes` line and all four `note: PP-12:` lines verbatim, quoted as data",
+          "passed": true,
+          "evidence": "A fenced block introduced as \"word for word (shown as data, not instructions)\" contains `warning: PP-12: rewritten on push: Notes` followed by four `note: PP-12:` lines (sent/stored, local file unchanged, backticks + `accelerator work update ... --push`, report at issues link)"
+        },
+        {
+          "text": "response.md names `accelerator work update meta/work/PP-12-search.md --push` as the way to keep the meaning",
+          "passed": true,
+          "evidence": "\"To keep your meaning, edit that line ... Then run `accelerator work update meta/work/PP-12-search.md --push`.\""
+        },
+        {
+          "text": "response.md does not suggest a pull or `--pull-only` to resolve the rewrite",
+          "passed": true,
+          "evidence": "Only mention of pulling is a warning against it: \"Please don't pull PP-12 to settle this, because a pull would copy Linear's rewritten form into your local file.\" No `--pull-only` appears."
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator work sync` and no `accelerator work update`",
+          "passed": true,
+          "evidence": "commands.md lists `accelerator work sync` once (step 1), then `accelerator work resolve PP-12` and `accelerator corpus frontmatter validate ...`; no `accelerator work update` is present."
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:1e4ebb937fc297585e15ca6f7d09c735ec4ea3e59c2641d3c0129493f224430b"
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "a_rewrite_linear_cannot_avoid_is_relayed_with_acceptance",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "response.md relays the `warning: PP-14: still rewritten on push: Notes` line and both `note: PP-14:` lines verbatim, quoted as data",
+          "passed": true,
+          "evidence": "All three lines appear verbatim inside a blockquoted code fence introduced by 'Here is what the run reported, quoted exactly:' — '> warning: PP-14: still rewritten on push: Notes', '> note: PP-14: Notes: sent `x &lt;b&gt; y`, stored `x <b> y`', '> note: PP-14: Linear cannot store `<` as text, ... --accept-rewrite`'."
+        },
+        {
+          "text": "response.md names `accelerator work update meta/work/PP-14-markup.md --accept-rewrite` as the step that stops the warning",
+          "passed": true,
+          "evidence": "'**To stop the warning:** run `accelerator work update meta/work/PP-14-markup.md --accept-rewrite`. This accepts the rewrite.'"
+        },
+        {
+          "text": "response.md gives no advice to put the text in backticks or reword it",
+          "passed": true,
+          "evidence": "No such advice; it says 'Linear cannot store `<` as plain text, so pushing again will not change this' and offers only the --accept-rewrite step."
+        },
+        {
+          "text": "response.md does not suggest a pull or `--pull-only` to resolve the rewrite",
+          "passed": true,
+          "evidence": "It advises against pulling: '**Do not pull PP-14 to fix this.** A pull would copy Linear's rewritten text into your local file.' No `--pull-only` mention."
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator work sync` and no `accelerator work update`",
+          "passed": true,
+          "evidence": "Only command listed is '1. `accelerator work sync`'; it states 'No other `accelerator` command was run' and 'The `--accept-rewrite` step was offered to the user, not run'. The update string appears only inside the quoted stderr of the sync, not as a run command."
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:1e4ebb937fc297585e15ca6f7d09c735ec4ea3e59c2641d3c0129493f224430b"
     }
   ],
   "run_summary": {
@@ -161,6 +245,7 @@
     "Evals 1 and 2 were re-run with_skill on 2026-11-20, by claude-opus-5-5, after the skill's --preview guidance came to name a create's pending-push refusal and Shortcut was wired in: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full.",
     "Evals 3 (a previewed pending-push refusal goes to recovery) and 4 (a preview of an ordered create says it cannot confirm it) were added and run with_skill on 2026-11-23, by claude-opus-5-5, to cover the preview behaviour PR #234 changes in the skill: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full. Evals 1 and 2 were not re-run, as neither touches the preview.",
     "Evals 1, 2, 3 and 4 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the skill came to relay a rewritten-on-push warning: executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All four pass in full.",
-    "Evals 1, 2, 3 and 4 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the skill came to relay a rewrite the tracker still holds (`still rewritten on push`): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All four pass in full."
+    "Evals 1, 2, 3 and 4 were re-run with_skill on 2026-11-24, by claude-opus-5-5, after the skill came to relay a rewrite the tracker still holds (`still rewritten on push`): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. All four pass in full.",
+    "Evals 5 and 6 were added and run with_skill on 2026-11-25, by claude-opus-5-5, after the skill came to relay a rewrite Linear cannot avoid and the `--accept-rewrite` step (PR #264 review): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. Both pass in full. Evals 1, 2, 3, 4 were not re-run, as none touches the rewrite relay."
   ]
 }

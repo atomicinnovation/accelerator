@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "skill_name": "update-linear-issue",
+    "skill_path": "skills/integrations/linear/update-linear-issue",
+    "executor_model": "claude-opus-5-5",
+    "analyzer_model": "claude-opus-5-5",
+    "evals_run": [
+      "1"
+    ],
+    "runs_per_configuration": 1,
+    "skill_digest": "sha256:ae142b16dd3053e4035fa1ce7b5075afbb5fdd9716d838e72c2c5c2df8e38fef",
+    "timestamp": "2026-11-25T00:00:00Z"
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "a_body_file_update_is_previewed_and_sent_escaped_not_verbatim",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "response.md shows a preview under `Proposed Linear write — review before sending` naming `issueUpdate`, ENG-12 and the contents of notes.md",
+          "passed": true,
+          "evidence": "Heading '> **Proposed Linear write — review before sending**', then '**Operation:** `issueUpdate`', '**Target issue:** ENG-12', and a fenced block with the notes.md contents ('## Notes / Published to crates.io first. / 1. Ship it.')."
+        },
+        {
+          "text": "response.md asks to confirm before any `accelerator linear update` runs",
+          "passed": true,
+          "evidence": "'> Apply this update to Linear? Reply **y** to confirm, **n** to revise, anything else to abort.' appears before '*(user replied `y`)*' and the post-update confirmation; commands.md lists only the update command, run after confirmation."
+        },
+        {
+          "text": "commands.md shows exactly one `accelerator linear update ENG-12 --body-file notes.md`, with no `--verbatim`",
+          "passed": true,
+          "evidence": "Sole command: '1. `accelerator linear update ENG-12 --body-file notes.md`' (exit 0); no `--verbatim` anywhere."
+        },
+        {
+          "text": "response.md confirms the update and suggests `/show-linear-issue ENG-12`",
+          "passed": true,
+          "evidence": "'Updated **ENG-12** on Linear. The description now holds the contents of `notes.md`.' and 'To check it, run `/show-linear-issue ENG-12`.'"
+        }
+      ],
+      "notes": [],
+      "skill_digest": "sha256:ae142b16dd3053e4035fa1ce7b5075afbb5fdd9716d838e72c2c5c2df8e38fef"
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  },
+  "notes": [
+    "Eval 1 was added and run with_skill on 2026-11-25, by claude-opus-5-5, after the skill came to relay a rewrite Linear cannot avoid and the `--accept-rewrite` step (PR #264 review): executors were barred from the evals and benchmark files and simulated every accelerator call; separate graders judged each expectation from the outputs alone. It passes in full."
+  ]
+}

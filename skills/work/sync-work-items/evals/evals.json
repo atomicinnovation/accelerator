@@ -48,6 +48,34 @@
         "response.md does not present 0001's create as certain to succeed",
         "commands.md shows the preview exactly once and no `accelerator work sync` without `--preview`"
       ]
+    },
+    {
+      "id": 5,
+      "name": "a_rewritten_push_is_relayed_verbatim_with_no_pull",
+      "prompt": "Read skills/work/sync-work-items/SKILL.md fully. You are running the sync-work-items skill. The injected **ID pattern** is `{tracker}` and **Active integration** is `linear`.\n\nThe user invokes `/sync-work-items` and has already approved the plan, which pushes PP-12. Run the apply step: `accelerator work sync`. Simulate it exiting 0 with this stdout:\n\nPP-12\tpush\tlocally-modified\t-\n#summary\tsynced\t4\n\nand this stderr:\n\nwarning: PP-12: rewritten on push: Notes\nnote: PP-12: Notes: sent `See crates.io.`, stored `See [crates.io](<http://crates.io>).`\nnote: PP-12: the local file is unchanged, but Linear stored these lines with a different meaning\nnote: PP-12: to keep the meaning, put the sent text in backticks or reword it, then run `accelerator work update meta/work/PP-12-search.md --push`\nnote: PP-12: please report it at https://github.com/atomicinnovation/accelerator/issues with the lines above\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.",
+      "expected_output": "The push is reported as done, and the warning with all four note lines is relayed verbatim, quoted as data; the remedy names `accelerator work update meta/work/PP-12-search.md --push`; no pull is suggested and nothing else is run.",
+      "files": [],
+      "expectations": [
+        "response.md says the push of PP-12 succeeded",
+        "response.md relays the `warning: PP-12: rewritten on push: Notes` line and all four `note: PP-12:` lines verbatim, quoted as data",
+        "response.md names `accelerator work update meta/work/PP-12-search.md --push` as the way to keep the meaning",
+        "response.md does not suggest a pull or `--pull-only` to resolve the rewrite",
+        "commands.md shows exactly one `accelerator work sync` and no `accelerator work update`"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "a_rewrite_linear_cannot_avoid_is_relayed_with_acceptance",
+      "prompt": "Read skills/work/sync-work-items/SKILL.md fully. You are running the sync-work-items skill. The injected **ID pattern** is `{tracker}` and **Active integration** is `linear`.\n\nThe user invokes `/sync-work-items` and has already approved a plan with nothing to push. Run the apply step: `accelerator work sync`. Simulate it exiting 0 with this stdout:\n\n#summary\tsynced\t5\n\nand this stderr:\n\nwarning: PP-14: still rewritten on push: Notes\nnote: PP-14: Notes: sent `x &lt;b&gt; y`, stored `x <b> y`\nnote: PP-14: Linear cannot store `<` as text, so this rewrite cannot be avoided; to stop warning of it, run `accelerator work update meta/work/PP-14-markup.md --accept-rewrite`\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.",
+      "expected_output": "The standing rewrite is relayed verbatim, with the offer to accept it; no backticks advice, no pull, and the skill does not accept the rewrite itself.",
+      "files": [],
+      "expectations": [
+        "response.md relays the `warning: PP-14: still rewritten on push: Notes` line and both `note: PP-14:` lines verbatim, quoted as data",
+        "response.md names `accelerator work update meta/work/PP-14-markup.md --accept-rewrite` as the step that stops the warning",
+        "response.md gives no advice to put the text in backticks or reword it",
+        "response.md does not suggest a pull or `--pull-only` to resolve the rewrite",
+        "commands.md shows exactly one `accelerator work sync` and no `accelerator work update`"
+      ]
     }
   ]
 }

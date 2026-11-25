@@ -12,6 +12,20 @@
         "response.md says that creating or resolving work items is refused until the remedy is followed",
         "commands.md shows exactly one `accelerator work list` and no `accelerator work rekey`"
       ]
+    },
+    {
+      "id": 2,
+      "name": "rewritten_and_accepted_rewrites_are_relayed_in_the_sync_column",
+      "prompt": "Read skills/work/list-work-items/SKILL.md fully. You are running the list-work-items skill. The injected **ID pattern** is `{tracker}`.\n\nThe user invokes: `/list-work-items`\n\nSimulate `accelerator work list` exiting 0 with this stdout:\n\nAll work items (3 total)\n| ID | Title | Kind | Status | Priority | Sync |\n| --- | --- | --- | --- | --- | --- |\n| PP-12 | Search | story | ready | high | 🟢 synced · rewritten on push |\n| PP-14 | Markup | task | draft | medium | 🟢 synced · rewrite accepted |\n| PP-15 | Export | task | draft | low | 🔵 locally modified |\n\nand an empty stderr.\n\nSimulate every `accelerator` call. Where this prompt gives a call's output, use it exactly; for any other call, invent plausible output and mark it as invented in commands.md. Write no file yourself.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full, each with its exit code.\n- response.md: everything you tell the user, in order.",
+      "expected_output": "The table is shown as printed; PP-12's rewrite is relayed with a pointer to /sync-work-items for the lines and how to fix the body; PP-14's accepted rewrite is relayed as is, with nothing to fix.",
+      "files": [],
+      "expectations": [
+        "response.md shows all three rows with their Sync labels as the CLI printed them, including ` · rewritten on push` and ` · rewrite accepted`",
+        "response.md points at `/sync-work-items` for PP-12's changed lines and how to fix its body",
+        "response.md does not tell the user to fix or push PP-14",
+        "response.md does not suggest a pull for either item",
+        "commands.md shows exactly one `accelerator work list`"
+      ]
     }
   ]
 }
