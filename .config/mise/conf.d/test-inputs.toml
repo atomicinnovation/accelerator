@@ -1,3 +1,22 @@
+[task_config]
+global_env = [
+  "CI",
+  "GITHUB_ACTIONS",
+  "ImageOS",
+  "ImageVersion",
+  "LC_ALL",
+  "ACCELERATOR_BIN",
+  "ACCELERATOR_PLUGIN_ROOT",
+  "ACCELERATOR_COVERAGE",
+  "ACCELERATOR_LOG",
+  "ACCELERATOR_DESIGN_BROWSER_EXECUTABLE",
+  "UPDATE_GOLDEN",
+  "REGENERATE_GOLDENS",
+  "UPDATE_DOWNGRADE_GOLDENS",
+  "RESEARCH_DIFFERENTIAL_SEED",
+  "RESEARCH_DIFFERENTIAL_EXHAUSTIVE",
+]
+
 [vars]
 test_harness = "{mise.toml,mise.lock,mise.local.toml,.config/mise/**/*,pyproject.toml,uv.lock,tasks/**/*.py,tests/conftest.py}"
 cli_artefacts = "cli/{target,.pup,shortcut-client/tests/captures,visualiser/server/tests/fixtures/.accelerator}/**"
@@ -29,7 +48,8 @@ sources = [
   "{{vars.committed_bin}}",
   "!{{vars.python_caches}}",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
 
 [task_templates.cli-workspace-inputs]
 sources = [
@@ -50,7 +70,8 @@ sources = [
   "{{vars.release_trust}}",
   ".gitignore",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
 
 [task_templates.frontend-inputs]
 sources = [
@@ -63,7 +84,8 @@ sources = [
   "tests/unit/frontend/**/*",
   "!{{vars.python_caches}}",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
 
 [task_templates.visualiser-inputs]
 sources = [
@@ -73,7 +95,8 @@ sources = [
   "!{{vars.frontend_artefacts}}",
   "templates/**/*",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
 
 [task_templates.plugin-inputs]
 sources = [
@@ -94,7 +117,8 @@ sources = [
   "{{vars.committed_bin}}",
   "!{{vars.python_caches}}",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
 
 [task_templates.test-support-inputs]
 sources = [
@@ -103,7 +127,8 @@ sources = [
   "cli/vcs-test-support/fixtures/masks.toml",
   "!{{vars.python_caches}}",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }
 
 [task_templates.design-automation-inputs]
 sources = [
@@ -114,4 +139,5 @@ sources = [
   "cli/network/tests/fixtures/host-classification-vectors.json",
   "cli/design/tests/fixtures/access-policy-vectors.json",
 ]
-outputs = { auto = true }
+outputs = []
+cache = { enabled = true, command_inputs = ["git --version"] }

@@ -174,13 +174,30 @@ test builds its fixtures privately and logs nothing.
 ### Skipping unchanged test lanes
 
 Every test leaf in the `test` roll-up extends a task template that
-declares the files it reads as `sources`, with `outputs = { auto = true }`.
-The templates live in `.config/mise/conf.d/test-inputs.toml`, which mise
-merges into `mise.toml`.
-A lane that passed is skipped (`sources up-to-date, skipping`) until a file
-it reads changes, the way Turborepo skips a task whose inputs hash the
-same. mise keeps the record under `~/.local/state/mise/`, so it is per
-machine and never shared; CI starts empty and always runs everything.
+declares the files it reads as `sources` and turns on mise's experimental
+[artifact cache](https://mise.jdx.dev/tasks/caching.html) with
+`outputs = []`, which caches a lane's pass and its log rather than any
+files. The templates live in `.config/mise/conf.d/test-inputs.toml`, which
+mise merges into `mise.toml`.
+
+A lane's cache key covers the contents of its sources, the mise tool
+versions, the OS and architecture, `git --version`, and the environment
+variables listed under `[task_config] global_env` that change what a test
+does, such as `ACCELERATOR_COVERAGE` and `UPDATE_GOLDEN`. When every part
+of the key matches an earlier pass, the lane prints
+`sources up-to-date, skipping` or `restored result from cache <key>`
+and replays the stored log instead of running, the way Turborepo does.
+Because mise keeps one entry per key, switching back to a branch you
+already tested restores its results too. `test:integration:deny` also
+keys on the UTC date, because it fails once an advisory suppression passes
+its review-by date.
+
+The cache lives under mise's cache directory (`mise cache path`), and
+entries unused for 14 days are dropped (`task.cache_max_age`). There is no
+remote cache. CI keeps each test job's cache directory in the GitHub
+Actions cache: a pull request restores the results of lanes whose key it
+has not changed, and a push to `main` runs every lane
+(`MISE_TASK_CACHE=write-only`) and stores fresh results.
 
 | Template | Lanes | Reruns on |
 |---|---|---|
@@ -208,25 +225,30 @@ narrower exclusion must come after the broader inclusion it trims.
   outside its template, add the file to the template, or to the named
   set if every template using that set needs it. A template can't extend
   another template, and a lane's own `sources` replaces its template's
-  list rather than adding to it. CI, which never skips, is the backstop.
+  list rather than adding to it. A push to `main`, which never restores,
+  is the backstop.
 - **Never open a glob with `{{`.** mise renders `sources` as a template,
   so a nested brace at the start of a group, such as `{{a,b},c}`, is read
   as a template tag and fails. Nesting later in the group, as in
   `{a,b-{c,d}}`, is fine.
 - **mise does not read `.gitignore` here,** so a path a run writes must be
-  excluded in the template, or it shows up as lanes that never skip. The
-  visualiser e2e suite edits its fixture work items mid-run and restores
-  them; only the visualiser lanes, which read them, can rerun once after
-  an e2e run because of it.
-- **Content, not timestamps:** `task.source_freshness_hash_contents`
-  compares file contents, so a checkout or formatter that rewrites a file
-  unchanged keeps its lanes skipped.
-- **Failures and filters:** a failed run is never recorded, and each
-  `--filter` value is recorded separately, so a filtered pass never marks
-  the full lane fresh.
-- **Rerunning anyway:** `mise run --force <task>` ignores the record. Use it
-  when a lane depends on something outside the repository, such as an
-  upgraded toolchain or a changed environment variable.
+  excluded in the template, or it shows up as lanes that never skip.
+- **The visualiser e2e lane is never cached.** Its kanban specs rewrite
+  `cli/visualiser/server/tests/fixtures/meta/work/*.md` mid-run and
+  restore them at teardown, and mise won't store a pass during which a
+  source changed. Under `mise run test`, `test:unit:visualiser` reads
+  those fixtures while the e2e lane is rewriting them, so it reruns every
+  time too; run on its own, as CI's unit job runs it, it caches. Making
+  the e2e suite work on a copy of its fixtures would fix both.
+- **Content, not timestamps:** the key hashes file contents, so a checkout
+  or formatter that rewrites a file unchanged keeps its lanes cached.
+- **Failures and filters:** a failed run is never stored, and `--filter`
+  is part of the key, so a filtered pass never stands in for the full lane.
+- **Rerunning anyway:** `mise run --force <task>` runs the lane and stores
+  the new result; `--task-cache off` (or `MISE_TASK_CACHE=off`) ignores the
+  cache entirely. `mise run --dry-run --task-cache-explain <task>` lists
+  what went into a lane's key. Use `--force` when a lane depends on
+  something the key can't see, such as a host tool mise doesn't install.
 
 ### Surviving thin shell
 

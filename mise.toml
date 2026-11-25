@@ -1,4 +1,4 @@
-min_version = "2026.10.8"
+min_version = "2026.11.14"
 
 [env]
 _.python.venv = { path = ".venv", create = true }
@@ -43,6 +43,7 @@ jq = "1.7.1"
 [settings]
 experimental = true
 task.source_freshness_hash_contents = true
+task.cache_max_age = "14d"
 # Hash-pin the aqua-backed tool artifacts via a committed mise.lock (regenerate
 # + commit on any [tools] edit). Repo-global, so it also pins the pre-existing
 # aqua:rhysd/actionlint. Does NOT cover the rustup-managed nightly
@@ -470,6 +471,7 @@ run = 'invoke test.integration.eval-fixtures ${usage_filter+--filter="$usage_fil
 
 [tasks."test:integration:deny"]
 extends = "plugin-inputs"
+cache = { enabled = true, command_inputs = ["git --version", "date -u +%F"] }
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
 depends = ["deps:install:python", "deps:install:cargo-sources"]
 run = "invoke test.integration.deny"
