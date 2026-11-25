@@ -11,9 +11,9 @@ parent: "work-item:PP-906"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/264"
 pr_number: 264
 tags: []
-revision: "a53e0a8db36e0cd7a9d71194e7b34198129846b4"
+revision: "6523c4d21cfe84921f61aae63b5a3e0ca13ff031"
 repository: "accelerator"
-last_updated: "2026-11-24T18:57:20+00:00"
+last_updated: "2026-11-25T23:28:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -29,7 +29,8 @@ into an ordered list. Every description sent to Linear is now escaped so that
 Linear reads both as plain text, and local files stay unchanged. Every body
 push to any tracker now also compares what was stored with what was sent. A
 push whose meaning changed is reported on stderr and marked in the sync
-baseline until it is resolved.
+baseline until it is resolved, or accepted when Linear cannot store the
+text.
 
 The goal is that a local work item can be synced to and from Linear
 repeatedly. Syntax Linear cannot represent at all gets no special handling.
@@ -79,6 +80,18 @@ Instead, the push reports the rewrite, and a pull adopts Linear's form.
   The push still succeeds, the baseline is recorded and exit codes are
   unchanged. Line breaks show as `⏎`, because a `\n` marker would be mistaken
   for one of the backslash escapes these lines are full of.
+- **One verdict per push** (`sync/push_verdict.rs`). `PushVerdict` turns a
+  read-back into the mark change and the notice. `PushOrigin` (`Pushed`,
+  `Created`, `CreatedEarlier`) says whether this run sent the body, so no
+  push site chooses `Judged`, `Fresh` or `Unjudged` itself.
+- **A promotion is judged when it finishes.** `finish_promotion` judges the
+  promoted file against the remote whenever the record shows the retitle
+  landed. A promotion resumed after a failed retire therefore marks its key
+  as an uninterrupted one would. It reuses the read already made to predict
+  the next sync, so no tracker call is added.
+- **Warnings print through a testable seam.** `create`, `update` and
+  `promote` print through `report(out, err) -> ExitCode`, so tests assert
+  what reaches stdout and stderr and the exit code.
 - **The rewrite mark** (`sync/rewrite_mark.rs`): `last-sync.json` entries gain
   a `rewritten_on_push` mark.
   - All per-item baseline writes go through `BaselineStore::record`, which
@@ -86,12 +99,24 @@ Instead, the push reports the rewrite, and a pull adopts Linear's form.
   - Writing an entry directly (`seed`) is possible only under a test-only
     feature, and a lint enforces that.
   - Unknown keys on an entry survive a round trip, so an older build keeps
-    what a newer one wrote.
+    what a newer one wrote. A push with no read-back keeps even a mark this
+    build cannot read.
+  - The mark stores every section a rewrite touched, not just those of its
+    first 5 lines, so a standing notice names them all.
 - **Clearing the mark.** It is cleared only by a faithful push, or by a
   reconciliation in which classification confirmed that the two bodies agree.
 - **Showing the mark.** While it stands, every later sync and `work update
   --push` warns `still rewritten on push`, and `work list` shows the item as
   `🟢 synced · rewritten on push`.
+- **Rewrites Linear cannot avoid.** `StorageLimit` (`linear-client`) finds
+  an escaped `<` or `&`, or an escaped `|` in a table cell, in a sent line.
+  When every changed line holds one, the notice says Linear cannot store it
+  and offers `accelerator work update <path> --accept-rewrite` instead of
+  the backticks advice and the request to report it.
+- **Accepting a rewrite.** `--accept-rewrite` marks the recorded rewrite
+  accepted, with no tracker call. The mark stays, so an accepted rewrite
+  never looks resolved. `work list` shows `· rewrite accepted`, and nothing
+  warns until a push is rewritten differently.
 
 ### Simulator and captures (`tracker-test-support`, fixtures)
 
@@ -120,6 +145,14 @@ Instead, the push reports the rewrite, and a pull adopts Linear's form.
   - `/create-work-item`: 40, 48, 51, 62 and 66
   - `/extract-work-items`: 8–10
   - `/list-work-items`: 1
+- **New evals that feed each skill a rewrite warning**, all passing in full
+  (27 of 27 expectations):
+  - `/sync-work-items` 5 and 6: a rewritten push, and a rewrite Linear
+    cannot avoid
+  - `/list-work-items` 2: the rewritten and accepted labels
+  - `/create-work-item` 76 and `/extract-work-items` 14: a rewritten push
+  - `/update-linear-issue` 1, its first eval: a `--body-file` update sent
+    without `--verbatim`
 - **CHANGELOG** entries under Changed, Added, Fixed and Migrations.
 
 ## Context
@@ -133,14 +166,18 @@ Instead, the push reports the rewrite, and a pull adopts Linear's form.
   `meta/reviews/plans/2026-11-23-PP-906-…-review-1.md`
 - Validation:
   `meta/validations/2026-11-23-PP-906-escape-linear-bound-markdown-on-push-validation.md`
+- PR review: `meta/reviews/prs/264-review-1.md`. All 10 threads are answered;
+  2 are deferred to PP-1005.
+- Follow-up: PP-1005
+  (`meta/work/PP-1005-audit-linear-issues-for-rewrites-left-unmarked.md`), an
+  opt-in `work sync --audit-rewrites` that marks rewrites this build never
+  saw.
 
 ## Testing
 
-- [x] `mise run check` exits 0 at this PR's tip, run while writing this
-  description.
-- [x] The full `mise run` exits 0 at the tip (`umnqmzsn`), as run by the
-  implementing agent. Validation's earlier run, at `spyyxmkl`, passed 8,616
-  Rust tests with 2 skipped.
+- [x] The full `mise run` exits 0 at this PR's tip (`ststzopr`), after the
+  review response: 8,661 Rust tests passed with 2 skipped, and the
+  formatters changed nothing.
 - [x] Every behaviour change was written test-first. The probe and
   convergence tests were checked by mutation: breaking a recorded list made
   them fail and name the probe.
@@ -167,19 +204,23 @@ Instead, the push reports the rewrite, and a pull adopts Linear's form.
   `meta/prs/253-description.md` and `meta/reviews/prs/253-review-1.md`. The
   same change is on #258's branch. The edits to PP-167, PP-876 and PP-907 are
   cross-references to PP-906.
-- **⚠️ Upgrade together.** A sync by an earlier release drops every
-  `rewritten_on_push` mark in the committed `last-sync.json`, though no item's
-  sync state.
+- **⚠️ Upgrade together.** Any baseline write by an earlier release drops
+  every `rewritten_on_push` mark and unknown key in the committed
+  `last-sync.json`. An earlier release also still pushes unescaped and
+  corrupts descriptions again without warning. Nothing rebuilds a lost mark
+  yet; PP-1005 proposes the audit that would.
 - **Where to look first:**
   - `escape_for_push` in `cli/markdown/src/linear.rs`, for the rule that an
     escape never changes meaning.
   - `push_fidelity.rs` and `rewrite_mark.rs`, for the verdict and the mark.
   - `BaselineStore::record`, for the single route by which every per-item
     baseline write sets, keeps or clears the mark.
+  - `push_verdict.rs` and `finish_promotion`, for how each push site judges
+    its read-back.
 - **What Linear cannot store, by decision:**
   - No form of `<`, `&` or a table cell's `|` survives as text, whether sent
-    as an entity or behind a backslash. The push reports the rewrite and a
-    pull adopts Linear's form. No work item was raised.
+    as an entity or behind a backslash. The push reports the rewrite, names
+    the character, and offers `--accept-rewrite`; a pull adopts Linear's form.
   - Linear stores comments exactly as sent, so `comment add` does no escaping
     and has no `--verbatim`.
   - A non-ASCII last label (`foo.café`) is left bare, as Linear does.
