@@ -8,7 +8,7 @@ producer: "extract-work-items"
 status: "draft"
 kind: "task"
 priority: "medium"
-parent: "work-item:PP-860"
+parent: "work-item:PP-1006"
 tags: ["cli", "adr", "corpus"]
 last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
