@@ -1152,7 +1152,9 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
 - **Unplanned commits made to get `mise run` green.**
   - The docs site's zod advisory ignore, which expired on 2026-11-25,
     was dropped from `docs-site/audit-ignores.toml` (`uzpklpvk`). The
-    override already pins zod 4.6.7, past the advisory's range.
+    override already pins zod 4.6.7, past the advisory's range. Trunk
+    has since landed the same removal, so after the rebase onto it
+    `uzpklpvk` is empty.
   - The GitHub client is confined to the bundled trust roots
     (`pqmltkww`). octocrab built its TLS connector over the host
     certificate store. On macOS, reading that store under the test lane's
@@ -1826,21 +1828,60 @@ seeded case first proves the scanner skips a built-in name under
 
 #### Automated Verification:
 
-- [ ] Lint tests pass:
+- [x] Lint tests pass:
       `mise run test:unit:tasks --filter 'crate_dependencies'`
-- [ ] `mise run lint:crate-dependencies:check`
-- [ ] `mise run test:integration:pup --filter 'declarations'` and
+- [x] `mise run lint:crate-dependencies:check`
+- [x] `mise run test:integration:pup --filter 'declarations'` and
       `mise run pup:check`
-- [ ] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
+- [x] `mise run test:unit:cli`, `mise run test:unit:visualiser`,
       `mise run test:integration:visualiser`
-- [ ] `mise run public-api:update`, with the new `research-declarations`,
+- [x] `mise run public-api:update`, with the new `research-declarations`,
       `design-declarations` and `declarations` snapshots and the
       `research` and `migrate` diffs reviewed.
-- [ ] `mise run`
+- [x] `mise run`
 
 #### Manual Verification:
 
-- [ ] None beyond review: no behaviour changes.
+- [x] None beyond review: no behaviour changes.
+
+### Implementation notes
+
+- **The lint.** A declarations crate carries a `context` and no `kind`;
+  one with a `kind` is malformed. A context made of a declarations crate
+  alone, with no domain or adapter crate, is malformed as declaring no
+  kind. The assembly may depend on platform domains and declarations
+  crates only, not on `kernel`, as the plan words its rule, though its
+  pup rule still admits `kernel::Error`. A dependency can break several
+  rules at once: `research` on `design-declarations` breaks both the
+  inward rule and the declarations-reach rule, and both are reported.
+- **The crates.** `research-declarations` and `design-declarations`
+  depend on `kernel` and `corpus` as planned, though neither uses them
+  yet. The pup probes for the three crates are a dedicated pair each;
+  `research`'s domain probe gains `research_declarations` among its
+  extra allowances.
+- **Roots.** `corpus-adapters`' `table_from_paths`, `infer` and
+  `resolve_document` take the catalogue first. `research-cli` maps a
+  catalogue that cannot be built to `SetError::UnreadableConfig`, so the
+  node query reports it with its project refusal code.
+- **Migrations.** `Capabilities` gains `doc_types`, which
+  `FileMigrationContext` lends through `MigrationContext::doc_types()`.
+  Beyond the plan, the test doubles in `migrate` and `migrate-adapters`'
+  test composition use `DocTypeCatalogue::built_in()` rather than the
+  assembly; only the two `corpus-adapters` suites the plan names take
+  the assembled catalogue as a dev-dependency.
+- **Server.** `AppState::build` takes the assembled catalogue when
+  `Config.doc_types` is `None`, refusing to start on a `CatalogueError`,
+  and holds it as `AppState.doc_types`, which the handlers read.
+  `describe_types` and `build_structure` take the catalogue.
+- **The boundary test** names a source a declarations crate or the
+  assembly owns by its crate directory before `/src/`.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli`
+  coverage at lines 94.47%, functions 93.79%, regions 93.22%. A first run
+  fell below the coverage floor on stale llvm-cov artefacts; after
+  `cargo llvm-cov clean --workspace` the rerun passed.
+- **Public API.** The `migrate` snapshot gains
+  `MigrationContext::doc_types`; `research` re-exports the layout
+  constants from `research-declarations`.
 
 ---
 
