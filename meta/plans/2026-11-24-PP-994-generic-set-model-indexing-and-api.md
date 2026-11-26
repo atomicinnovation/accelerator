@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T14:49:56+00:00"
+last_updated: "2026-11-26T17:15:55+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 4.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 5.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -1417,18 +1417,72 @@ added to the existing `cli-test-support` crate
 
 #### Automated Verification:
 
-- [ ] Characterisation and existing tests pass: `mise run test:unit:cli`,
+- [x] Characterisation and existing tests pass: `mise run test:unit:cli`,
       `mise run test:unit:visualiser`, `mise run test:integration:visualiser`
-- [ ] The boundary test and the scanner's seeded-violation tests pass.
-- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+- [x] The boundary test and the scanner's seeded-violation tests pass.
+- [x] `mise run public-api:update`, with the `corpus` snapshot diff
       reviewed.
-- [ ] `mise run cli:check`, `mise run server:check`
-- [ ] `mise run`
+- [x] `mise run cli:check`, `mise run server:check`
+- [x] `mise run`
 
 #### Manual Verification:
 
-- [ ] None beyond review: the `PHASES` characterisation pins the
+- [x] None beyond review: the `PHASES` characterisation pins the
       sidebar's phases and order.
+
+### Implementation notes
+
+- **Where the rule types live.** Each rule type sits beside the code that
+  reads it: `slug::SlugRule`, `cluster::{ClusterKeyRule, CompletenessMark}`
+  and `linkage::LinkageIdRule`. The server-facing `LibraryPlacement`,
+  `LibraryPhase`, `Facet`, `Listing` and `FilenameFilter` sit in
+  `doc_type`. `nested_root_filename()` stays as an accessor that reads
+  `Listing::Nested`. `facets_for` returns the declared facets' ids.
+- **The built-in catalogue.** `DocTypeCatalogue::built_in()` moved into
+  `built_in.rs` and uses a crate-private constructor, so nothing imports
+  from `built_in`. The server's library response takes its templates entry
+  from the virtual type, so `templates` is now an `Option`. It still
+  serialises as an object.
+- **Declared facts in the server.** Work-item checks in the indexer now
+  read `cluster_anchor()`: work-item id trust, `remember_work_item`, and
+  slug and identity derivation. The PATCH guard in `api/docs.rs` reads
+  `in_kanban()`, because the patch only writes a status checked against
+  the kanban columns. Templates checks read `is_virtual()`.
+- **Beyond the plan: one linkage-address index (author's decision,
+  2026-11-26).** `adr_by_id` (keyed `u32`) and `plans_by_id` were the
+  last production sites that named a type. One `documents_by_address` map
+  from `corpus::LinkageAddress` (linkage name and id) to a path replaces
+  them.
+  - A document answers to its frontmatter `id:` when it has one.
+    Otherwise it answers to the id its path carries by its type's
+    `linkage_id_rule`, through `corpus::linkage::linkage_id_of`.
+  - `TypedRef::linkage_address` yields the address a prefixed reference
+    names.
+  - Production resolution through the index stays limited to the `plan:`
+    form. A test pins that an `adr:` target still does not resolve.
+  - `Indexer::adr_by_id(u32)` had no production caller. It is replaced by
+    `document_at(&LinkageAddress)`, and its tests look up `adr:ADR-0001`.
+  - **One widening:** a plan without a frontmatter `id:` now resolves by
+    its filename stem.
+  - **One drop:** the indexer no longer reads the legacy `adr_id`
+    frontmatter key or normalises ADR numbers. The corpus schema,
+    `corpus-cli`'s ADR commands and `m0007` are untouched.
+  - `WorkItemConfig::linkage_ids()` gives the indexer the `LinkageIds`
+    reading. Phase 9's per-map tests now name `documents_by_address`.
+- **Characterisation.**
+  - `corpus/tests/built_in_doc_type_rules.rs` pins, for every built-in
+    type: its slug, cluster key, cluster anchoring, completeness mark,
+    lifecycle-rank order and path linkage id.
+  - The server pins facets (indexer), the listing rule (`file_driver`)
+    and the full `PHASES` list (`api_library_structure.rs`).
+- **The source scan.** `cli_test_support::source_scan` blanks comments,
+  string and character literals, and test-gated items, keeping line
+  breaks. A test-gated item ends at its closing brace, or at the `;` or
+  `,` that ends it. Its seeded-violation tests also cover a type alias of
+  `DocTypeKey`, a test-gated struct field, and a constant inside a comment
+  or literal.
+- **`mise run`** exited 0, with `test:unit:cli` coverage at lines 94.49%,
+  functions 93.90%, regions 93.27%.
 
 ---
 
@@ -2283,7 +2337,7 @@ proves that the member's role, and not a missing field, keeps it out.
 - **Default accessors hold no member.** One test per default accessor:
   `all`, `all_by_type`, `counts_by_type`, `library_aggregates`, the
   cluster input of `recompute_clusters`, and the secondary maps built in
-  `rescan` (`adr_by_id`, `plans_by_id`, `work_item_by_identity_key`,
+  `rescan` (`documents_by_address`, `work_item_by_identity_key`,
   `reviews_by_target`). Each is given a set whose member collides with
   the root on every key that accessor reads, and asserts that no member
   is returned or counted.
