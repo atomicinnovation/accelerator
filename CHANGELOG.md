@@ -1140,6 +1140,11 @@
 
 ### Fixed
 
+- **`accelerator config template` fences a template that holds a code block
+  safely.** The `markdown` fence it wraps a template in is now longer than
+  any run of backticks inside, so a fenced code block in a template override
+  no longer closes it early and truncates the template a reader takes from
+  between the fences.
 - **`/create-work-item` stops on a configuration error from `work resolve`.**
   Only `E_RESOLVE_INVALID` now reads as a topic; any other exit 1, such as
   `E_WORK_ID_PATTERN_INVALID`, is relayed and stops the skill rather than

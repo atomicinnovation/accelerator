@@ -2102,6 +2102,23 @@ fn an_already_fenced_template_is_not_double_wrapped() -> TestResult {
 }
 
 #[test]
+fn a_template_holding_a_code_block_gets_a_longer_fence() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator/templates"))?;
+    fs::write(
+        fixture.root.join(".accelerator/templates/demo.md"),
+        "# Demo\n\n```bash\nls\n```\n",
+    )?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "````markdown\n# Demo\n\n```bash\nls\n```\n````\n"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_traversing_template_name_is_refused() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
     let output =

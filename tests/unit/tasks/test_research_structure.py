@@ -2952,7 +2952,8 @@ def test_conduct_checks_its_templates_before_the_first_plan() -> None:
         "if either command is denied by permissions, `conduct` starts no run "
         "and spawns nothing.",
         "the finding command's fenced block, from its opening fence line to "
-        "its closing one",
+        "the next line holding that same fence alone",
+        "a code block inside a template never closes it",
         "The level-note command's block is discarded",
     ):
         assert sentence in check, f"the template check must state {sentence!r}"

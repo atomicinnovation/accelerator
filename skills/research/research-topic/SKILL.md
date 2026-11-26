@@ -292,9 +292,11 @@ allocate a finding or note path yourself.
    before the template.
 
    - **What to keep**: the finding command's fenced block, from its opening
-     fence line to its closing one. That block alone goes into every compose
-     prompt. The level-note command's block is discarded: each node's
-     researcher fetches its own.
+     fence line to the next line holding that same fence alone. The fence
+     is longer than any run of backticks in the template, so a code block
+     inside a template never closes it. That block alone goes into every
+     compose prompt. The level-note command's block is discarded: each
+     node's researcher fetches its own.
    - **Other lines**: from a command that exits 0, every other line is left
      to the first plan, whose `warnings` name a template that falls back to
      its default. Every spawn then fills that default, and so does every

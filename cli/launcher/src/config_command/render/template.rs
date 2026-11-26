@@ -8,19 +8,31 @@ use crate::config_command::core::template::{ListRow, TemplateDiff};
 use crate::config_command::render::Rendered;
 
 /// The template content wrapped in `markdown` fences, unless it is already
-/// fenced (in which case it is emitted verbatim). Any tier-1 fallback note
-/// rides on stderr.
+/// fenced (in which case it is emitted verbatim).
+///
+/// The fence is longer than any backtick run the content holds, so a code
+/// block inside cannot close it. Any tier-1 fallback note rides on stderr.
 #[must_use]
 pub fn fenced(resolved: &ResolvedTemplate) -> Rendered {
     let stdout = if resolved.content.starts_with("```") {
         resolved.content.clone()
     } else {
-        format!("```markdown\n{}```\n", resolved.content)
+        let fence =
+            "`".repeat(longest_backtick_run(&resolved.content).max(2) + 1);
+        format!("{fence}markdown\n{}{fence}\n", resolved.content)
     };
     Rendered {
         stdout,
         warnings: fallback_warnings(resolved),
     }
+}
+
+fn longest_backtick_run(content: &str) -> usize {
+    content
+        .split(|character| character != '`')
+        .map(str::len)
+        .max()
+        .unwrap_or_default()
 }
 
 /// The template content with a `Source:` header, unfenced.
