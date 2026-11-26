@@ -8,10 +8,6 @@ mod common;
 
 #[tokio::test]
 async fn api_surface_is_fully_reachable_against_fixture_meta() {
-    // Model-1 fixture project: symlink meta/ + templates/ to the committed
-    // fixtures and remap only the one path that differs from the catalogue
-    // default (research_codebase → meta/research). The server discovers this
-    // root from its cwd and reads config directly.
     let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/meta");
     let plugin_templates = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -21,11 +17,6 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     std::fs::create_dir_all(project.join(".accelerator")).unwrap();
     symlink(&fixtures, project.join("meta")).unwrap();
     symlink(&plugin_templates, project.join("templates")).unwrap();
-    std::fs::write(
-        project.join(".accelerator/config.md"),
-        "---\npaths:\n  research_codebase: meta/research\n---\n",
-    )
-    .unwrap();
 
     let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
     let mut child = Command::new(bin)
