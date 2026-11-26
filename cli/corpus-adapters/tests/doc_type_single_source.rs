@@ -1,7 +1,7 @@
-//! The dir→type registry is declared once, in the assembled catalogue. This suite
-//! cross-checks it against the compiled `config paths --doc-types` resolver:
-//! every non-virtual type must resolve to exactly one directory, and the
-//! resolved table and the declared types must be the same size.
+//! The dir→type registry is declared once, in the assembled catalogue. This
+//! suite cross-checks it against the compiled `config paths --doc-types`
+//! resolver: every non-virtual type must resolve to exactly one directory,
+//! and the resolved table and the declared types must be the same size.
 
 mod common;
 
