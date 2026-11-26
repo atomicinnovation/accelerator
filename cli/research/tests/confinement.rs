@@ -338,6 +338,26 @@ fn the_researcher_is_permitted_the_fetch_the_node_query_and_both_templates() {
     assert_eq!(Role::Composer.permitted_commands(), []);
 }
 
+#[test]
+fn no_permitted_command_is_a_prefix_of_another() {
+    let texts: Vec<&str> = Role::Researcher
+        .permitted_commands()
+        .iter()
+        .map(|command| match command {
+            PermittedCommand::Exactly(text)
+            | PermittedCommand::Prefixed(text) => *text,
+        })
+        .collect();
+    for (at, text) in texts.iter().enumerate() {
+        for (other_at, other) in texts.iter().enumerate() {
+            assert!(
+                at == other_at || !other.starts_with(text),
+                "{text:?} is a prefix of {other:?}"
+            );
+        }
+    }
+}
+
 const A_NODE_QUERY: &str =
     "accelerator research topic node s --run r1 --node 01-a-web:2-1";
 

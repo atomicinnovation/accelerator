@@ -369,6 +369,8 @@ pub fn decide(
     }
 }
 
+/// No permitted command's text is a prefix of another's, so at most one
+/// recognises `command`, and the order of a role's list decides nothing.
 pub fn command_decision(role: Role, command: &str) -> Decision {
     let permitted = role.permitted_commands();
     if permitted.is_empty() {
