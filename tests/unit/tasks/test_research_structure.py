@@ -3368,3 +3368,16 @@ def test_research_topic_grants_each_topic_subcommand_by_name() -> None:
         rule_covers(f"Bash({rule})", "accelerator research topic future x")
         for rule in rules
     ), "a new topic subcommand must not reach research-topic's spawns unasked"
+
+
+def test_every_spawn_returns_before_its_batch_is_acknowledged() -> None:
+    spawn = _spawn_step()
+    assert (
+        "every Task call issued together in one message and each waited on "
+        "in full before the next step"
+    ) in spawn
+    assert (
+        "A node's query answers only until the next plan acknowledges its "
+        "batch, so no plan runs while any spawn of the batch is still "
+        "running, a background one included."
+    ) in spawn

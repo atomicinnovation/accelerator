@@ -459,9 +459,11 @@ allocate a finding or note path yourself.
 
 4. **Spawn the batch** of exactly the offered spawns, never more: every Task
    call issued together in one message and each waited on in full before the
-   next step. Every prompt carries the round number of the `## Round N`
-   heading the pair's outline item sits under, and the derived timestamp and
-   author.
+   next step. A node's query answers only until the next plan acknowledges its
+   batch, so no plan runs while any spawn of the batch is still running, a
+   background one included. Every prompt carries the round number of the
+   `## Round N` heading the pair's outline item sits under, and the derived
+   timestamp and author.
 
    - **a `single_pass` pair** gets a researcher, with
      `subagent_type: "!`accelerator config agent researcher --fail-safe`"`,
