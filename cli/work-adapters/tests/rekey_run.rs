@@ -1068,36 +1068,37 @@ mod in_a_real_repository {
         Ok(())
     }
 
-    #[test]
-    fn a_run_killed_at_every_write_resumes_over_its_own_writes(
+    fn assert_a_run_killed_at_every_write_resumes(
+        vcs: Vcs,
     ) -> Result<(), TestError> {
         let halts = mutations_of_a_whole_run()?;
-        let templates = Vcs::ALL
-            .into_iter()
-            .map(|vcs| Committed::build(vcs)?.packed())
-            .collect::<Result<Vec<_>, _>>()?;
-        let passes = templates
-            .iter()
-            .flat_map(|template| (0..halts).map(move |at| (template, at)));
-        each_of(
-            Vcs::ALL.len() * halts,
-            passes,
-            |(template, at)| -> Result<(), TestError> {
-                let vcs = template.vcs;
-                let (repo, _env) = template.fresh_copy()?;
-                halt_at(&repo, at)?;
-                let mutations = Mutations::new(Fault::Never);
-                let ports = Ports::new(&repo, &mutations);
+        let template = Committed::build(vcs)?.packed()?;
+        each_of(halts, 0..halts, |at| -> Result<(), TestError> {
+            let (repo, _env) = template.fresh_copy()?;
+            halt_at(&repo, at)?;
+            let mutations = Mutations::new(Fault::Never);
+            let ports = Ports::new(&repo, &mutations);
 
-                let report = ports.apply(&InProcessProbe);
+            let report = ports.apply(&InProcessProbe);
 
-                assert!(
-                    matches!(report, Ok(RekeyReport::Rekeyed { .. })),
-                    "{vcs:?} halted at mutation {at}: {report:?}"
-                );
-                Ok(())
-            },
-        )
+            assert!(
+                matches!(report, Ok(RekeyReport::Rekeyed { .. })),
+                "{vcs:?} halted at mutation {at}: {report:?}"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_run_killed_at_every_write_resumes_over_its_own_writes_in_git(
+    ) -> Result<(), TestError> {
+        assert_a_run_killed_at_every_write_resumes(Vcs::Git)
+    }
+
+    #[test]
+    fn a_run_killed_at_every_write_resumes_over_its_own_writes_in_jj(
+    ) -> Result<(), TestError> {
+        assert_a_run_killed_at_every_write_resumes(Vcs::Jj)
     }
 
     #[test]
