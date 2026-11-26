@@ -24,6 +24,8 @@ toml = { workspace = true }
 serde_json = { workspace = true }
 walkdir = { workspace = true }
 filetime = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
 rustix = { workspace = true }
 
 # The build step's builder, run once per `test:unit:cli` run before any test.

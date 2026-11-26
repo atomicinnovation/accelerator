@@ -95,8 +95,9 @@ pub fn copy_part(
 /// Copies every top-level entry of `template`, a tree the test built for
 /// itself, into `destination`, as [`copy_part`] copies a shared tree's.
 ///
-/// Copying logs nothing, so a guard permits it only where the template is
-/// the test's own.
+/// Copying logs nothing, so the fixture-build guard,
+/// `tests/unit/tasks/test_fixture_builds.py`, permits a call only from the
+/// files it lists, each copying a template its own test built.
 ///
 /// # Errors
 ///
@@ -145,7 +146,7 @@ fn copy_entry(source: &Path, copy: &Path) -> Result<(), Error> {
         return Ok(());
     }
     if file_type.is_dir() && cloned_whole(source, copy)? {
-        return restore_what_a_clone_drops(source, copy);
+        return finish_a_clone_as_a_copy(source, copy);
     }
     if file_type.is_dir() {
         fs::create_dir(copy)?;
@@ -168,10 +169,12 @@ fn copy_entry(source: &Path, copy: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-/// A directory clone keeps every entry's contents, mode and times except
-/// each directory's modification time, which it sets to the moment of the
-/// clone.
-fn restore_what_a_clone_drops(source: &Path, copy: &Path) -> Result<(), Error> {
+/// Leaves a directory clone as an entry-by-entry copy would: every entry
+/// writable by its owner, and every directory back at its source's times.
+///
+/// A clone keeps each entry's contents, mode and times except a directory's
+/// modification time, which it sets to the moment of the clone.
+fn finish_a_clone_as_a_copy(source: &Path, copy: &Path) -> Result<(), Error> {
     for entry in walkdir::WalkDir::new(copy) {
         let entry = entry.map_err(|error| Error::message(error.to_string()))?;
         if entry.path_is_symlink() {
