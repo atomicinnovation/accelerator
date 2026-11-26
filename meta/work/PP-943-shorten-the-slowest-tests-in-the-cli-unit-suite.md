@@ -12,7 +12,7 @@ parent: "work-item:PP-953"
 relates_to: ["work-item:PP-957", "work-item:PP-958", "work-item:PP-959", "work-item:PP-960", "work-item:PP-962"]
 external_id: "PP-943"
 tags: ["performance", "testing", "rust", "migrate", "vcs"]
-last_updated: "2026-11-23T14:36:51+00:00"
+last_updated: "2026-11-26T08:17:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 aliases: ["0391"]
@@ -248,9 +248,9 @@ figure of the target tests whose state it checks.
   dependencies in the dev profile changes the test binaries, so it can
   change `test:unit:cli` runtime and would call for a rebaseline record.
   In turn, a builder or test binary this item adds changes the compile
-  units PP-958 counts: it reuses the tests' profile, features and target
-  directory, and PP-958's before and after records must not straddle a
-  PP-943 merge.
+  units PP-958 counts. PP-958 takes its before record below its own first
+  commit, on the same base as its after record, so this item's merge falls
+  on both sides and neither item constrains the other's merge.
   PP-959's rebuild work does not reach a warm no-op record, which measures
   with every input already built. No open PP-953 sibling changes the shared
   helpers or `shared_build`.

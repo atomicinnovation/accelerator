@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-18-PP-957-build-the-vcs-test-fixtures-once-per-test-r
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b904c57a9b7a7109809daaa4e2404c45c6793b2"
 repository: "accelerator"
-last_updated: "2026-11-26T03:00:00+00:00"
+last_updated: "2026-11-26T08:17:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -257,10 +257,6 @@ depends on another. Everything two of them share (`each_of`,
 Phases 1, 2 and 5 add capabilities that nothing consumes until a later
 phase, so each merges alone with the suite green.
 Every behaviour change starts with a failing test.
-
-Do not merge any phase into `main` while PP-958 has a before or after
-record outstanding: a new builder or test binary changes the compile units
-it counts.
 
 ---
 
@@ -1992,8 +1988,6 @@ check 2.8 s, and `guarded_resume`'s two reused-state tests 14.3 s and
   or keep it if a follow-up will consume it. Phase 3's directory clone
   (`okymqnny`) also reverts on its own; copies then fall back to copying
   entry by entry.
-- **PP-958:** do not merge any phase to `main` while PP-958 has a before or
-  after record outstanding.
 - **Cached runs:** none. The shared family is built from scratch in every
   run's build step and removed with the run directory.
 

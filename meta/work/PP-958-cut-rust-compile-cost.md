@@ -12,7 +12,7 @@ parent: "work-item:PP-953"
 blocked_by: ["work-item:PP-954"]
 source: "codebase-research:2026-10-28-full-build-duration-contention-and-slowness"
 tags: ["build-system", "performance", "rust"]
-last_updated: "2026-11-02T09:00:53+00:00"
+last_updated: "2026-11-26T08:17:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-958"
@@ -76,8 +76,8 @@ dependencies could shorten links and hashing, but that has not been measured.
 
 ## Acceptance Criteria
 
-- [ ] Given `measure:build` cold records at the commit before the change
-      and after it, then the total of `Compiling`, `Checking` and
+- [ ] Given `measure:build` cold records at the commit below this item's
+      first commit and at its last, on the same base, then the total of `Compiling`, `Checking` and
       `Documenting` units is lower after the change. The research counted
       2,015 at its commit; `--runs 1` is enough, since unit counts do not
       vary between runs.
@@ -115,9 +115,12 @@ dependencies could shorten links and hashing, but that has not been measured.
   warm no-op baseline, which 0361 measures its 200 s target against, is
   recorded at
   `meta/measurements/build_2026-11-01T143523Z_engywook_warm-no-op_devtools.json`.
-- Concurrent: 0391 may add a fixture builder or test binaries, which
-  changes the compile units this item counts. This item's before and after
-  cold records must not straddle a 0391 merge.
+- Concurrent: other work merged to `main`, such as PP-943's fixture
+  builders and test binaries, changes the compile units this item counts.
+  The before record is taken at the commit below this item's first commit,
+  on the same base as the after record, so such merges fall on both sides.
+  If the branch is rebased between the two records, retake the before
+  record on the new base.
 - Blocks: none
 
 ## Assumptions
