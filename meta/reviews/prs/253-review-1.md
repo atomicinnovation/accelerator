@@ -58,7 +58,7 @@ Both halves of this PR are well built. Every multi-test lane now takes `--filter
 
 ### General Findings
 
-- 🔵 **Security**: the bearer is still attached regardless of initiator, so a cross-origin frame can borrow it by fetching the location origin. This predates the PR and is tracked in `draft-tdjepd`. As an interim tightening, attach it only when `event.frameId === mainFrameId`.
+- 🔵 **Security**: the bearer is still attached regardless of initiator, so a cross-origin frame can borrow it by fetching the location origin. This predates the PR and is tracked in `PP-992`. As an interim tightening, attach it only when `event.frameId === mainFrameId`.
 - 🔵 **Test Coverage**: the comment on the runtime test "a cross-origin redirect does not leak the header to the target" (`daemon-runtime.test.js:542`) still says the browser never forwards `Authorization` across origins. That contradicts the premise of this PR. Confirm the test fails with the old handler restored, then rewrite the comment.
 - 🔵 **Test Coverage**: `node_tests_run` is tested only against flat TAP. There are no cases for indented subtests or a `not ok` suite-file point.
 - 🔵 **Documentation**: `cli/design-cli/tests/executor_preflight.rs:6-8` still calls the runtime lane "opt-in".
@@ -108,7 +108,7 @@ The PR description says each lane's example "selects a real test in that lane". 
 
 `interceptRequests` turns on `Fetch` only on the first page's own CDP target. In Chromium, Playwright's `page.route` turned interception on for every frame session it auto-attaches to. That includes out-of-process (cross-site) iframes and, in recent versions, dedicated workers. With no Playwright route registered, Playwright no longer intercepts anything. Once an OOPIF commits, its later document navigations and redirect hops, and worker requests, go out with no classifier check.
 
-The PR's "Known gaps" note and `draft-tdjepd` both describe this target coverage as unchanged. For OOPIFs it is more likely a regression. The bearer still fails closed on those targets. What fails open is the navigation policy: the gate on internal, link-local and reserved hosts.
+The PR's "Known gaps" note and `PP-992` both describe this target coverage as unchanged. For OOPIFs it is more likely a regression. The bearer still fails closed on those targets. What fails open is the navigation policy: the gate on internal, link-local and reserved hosts.
 
 **Impact**: a cross-site iframe in the crawled app could navigate to a refused internal host, such as a link-local metadata address, without the classifier seeing it.
 
@@ -239,7 +239,7 @@ Playwright's own routing also runs on the `Fetch` domain. `interceptRequests` is
 **Comments**:
 - 🟡 major/medium `request-interception.js:84-102`: a single page-target `Fetch` session probably covers fewer targets than `page.route` did
 
-**General Findings**: the bearer is still attached regardless of initiator, tracked in `draft-tdjepd`. Interim fix: attach it only for `frameId === mainFrameId` (suggestion).
+**General Findings**: the bearer is still attached regardless of initiator, tracked in `PP-992`. Interim fix: attach it only for `frameId === mainFrameId` (suggestion).
 
 ### Test Coverage
 

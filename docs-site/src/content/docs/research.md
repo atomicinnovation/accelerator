@@ -3,23 +3,26 @@ title: Research CLI
 ---
 
 `accelerator research` is the sub-binary `/accelerator:research-topic` uses
-to reach the scholarly literature. `research fetch` queries OpenAlex and arXiv
-and returns normalised records, each carrying a reputation tier the CLI
-derives, and through `web metadata` reads the metadata a public page declares
-about itself. `research guard` is a `PreToolUse` hook that confines the researcher
-agent to that fetch and to writing its own finding. `research topic` reads a
-topic's set on disk. Each is plumbing: the source profiles invoke `research
-fetch` through fenced command blocks (see [Anatomy of a skill
-invocation](internals.md#anatomy-of-a-skill-invocation)); `conduct` calls
-`research topic outstanding`; `report` calls `research topic report-path`;
-`conduct`, `synthesise`, `finalise` and `report` call `research topic counts`;
-`ask` and `report` call `research topic consultable`; and Claude Code runs
-`research guard` on every tool call that could run a command or write a file.
+to reach the scholarly literature. `research fetch` queries OpenAlex, arXiv
+and Crossref. Its OpenAlex and arXiv calls return normalised records, each
+carrying a reputation tier the CLI derives; through `web metadata` it reads
+the metadata a public page declares about itself, and through
+`doi metadata` it reports the venue and publisher Crossref holds for a DOI,
+never a tier. `research guard` is a `PreToolUse` hook
+that confines the researcher agent to that fetch and to writing its own
+finding. `research topic` reads a topic's set on disk. Each is plumbing: the
+source profiles invoke `research fetch` through fenced command blocks (see
+[Anatomy of a skill invocation](internals.md#anatomy-of-a-skill-invocation));
+`conduct` calls `research topic outstanding`; `report` calls `research topic
+report-path`; `conduct`, `synthesise`, `finalise` and `report` call `research
+topic counts`; `ask` and `report` call `research topic consultable`; and Claude
+Code runs `research guard` on every tool call that could run a command or write
+a file.
 Running `fetch` by hand is mainly useful for reproducing what a researcher saw.
 
 | Verb                | What it does                                                         |
 |---------------------|----------------------------------------------------------------------|
-| `fetch`             | Search or look up scholarly records, tiered, or read a page's declared metadata, within a 100 s deadline |
+| `fetch`             | Search or look up scholarly records, tiered, read a page's declared metadata, or report a DOI's venue and publisher, within a 100 s deadline |
 | `topic outstanding` | List a round's outstanding (focus area, profile) pairs as JSON       |
 | `topic report-path` | Print the path a new report on a question takes                      |
 | `topic counts`      | Print the counts a set's files give beside those it records, as JSON |
@@ -38,6 +41,7 @@ accelerator research fetch openalex lookup 10.1038/nature14539
 accelerator research fetch arxiv search 'attention heads specialise'
 accelerator research fetch arxiv lookup 2608.21129
 accelerator research fetch web metadata 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308'
+accelerator research fetch doi metadata 'https://doi.org/10.1145/371920.372066'
 ```
 
 | Family     | `search`                                  | `lookup` accepts                                                   | `metadata` accepts |
@@ -45,6 +49,7 @@ accelerator research fetch web metadata 'https://journals.plos.org/plosone/artic
 | `openalex` | Title-and-abstract search over every work | `W123`, `https://openalex.org/W123`, or a DOI (bare, `doi:`, `DOI: `, or a `doi.org` or `dx.doi.org` URL) | — |
 | `arxiv`    | Relevance-sorted search over preprints    | A new-style (`2608.21129`) or old-style (`hep-th/9901001`) ID, with or without a version | — |
 | `web`      | —                                         | —                                                                  | One `http` or `https` page URL; see [`web metadata`](#web-metadata) |
+| `doi`      | —                                         | —                                                                  | One DOI, bare, after `doi:`, or in a `doi.org` or `dx.doi.org` URL; see [`doi metadata`](#doi-metadata) |
 
 Several search terms are joined with single spaces. Characters a source
 reserves for its own query syntax become spaces (`,`, `|`, `!`, and `:` for
@@ -52,14 +57,14 @@ OpenAlex; parentheses, quotes, and the `AND`, `OR`, and `ANDNOT` operators for
 arXiv, which then requires every remaining word), and the query is
 percent-encoded as one value, so it cannot smuggle an operator or a second
 parameter. A query empty once they are removed is a usage error. `--limit`
-takes 1–25 and defaults to 10; a `web` call refuses it. `--ticket` re-presents
-the ticket a `waiting` arXiv call printed (see [Output](#output)); an OpenAlex
-or `web` call refuses it.
+takes 1–25 and defaults to 10; a `web` or `doi` call refuses it. `--ticket`
+re-presents the ticket a `waiting` arXiv or DOI call printed (see
+[Output](#output)); an OpenAlex or `web` call refuses it.
 
 **Every call finishes within 100 s of the process starting**, `web metadata`
 included, whatever it is waiting on: the credential command, pacing, retries,
 name lookups, and each request's own 30 s timeout all draw on that one budget. Give the call a Bash timeout of at
-least 120 s. An arXiv call that prints `waiting` keeps its place across
+least 120 s. An arXiv or DOI call that prints `waiting` keeps its place across
 re-presentations instead, so its result can take up to about 1,000 s from the
 first call to settle.
 
@@ -96,7 +101,7 @@ A source that cannot answer now:
 | `reason`           | Means                                                                  |
 |--------------------|------------------------------------------------------------------------|
 | `budget_exhausted` | OpenAlex's daily budget is spent; `authenticated` says whether a key was sent |
-| `rate_limited`     | Throttled past every retry; `"cause":"lock_contention"` when a queued arXiv fetch passed its 900 s cap, or a fresh one ran out of budget while the queue was unusable (a re-presented one keeps its place and waits). Either way, a call that ran out mid-retry reports that retry's reason instead |
+| `rate_limited`     | Throttled past every retry; `"cause":"lock_contention"` when a queued arXiv or DOI fetch passed its 900 s cap, or a fresh one ran out of budget while the queue was unusable (a re-presented one keeps its place and waits). Either way, a call that ran out mid-retry reports that retry's reason instead |
 | `upstream_error`   | Server errors, connection failures, or timeouts past every retry       |
 
 `authenticated` appears only for OpenAlex, which is how `conduct` tells a
@@ -105,8 +110,8 @@ line to stderr naming the source, verb, final status, and attempt count; a
 waiting call writes one naming its position and the `--ticket` to re-present.
 Neither line ever names the key.
 
-An arXiv call that could not be served in time keeps its place in the queue
-(see [Pacing](#pacing)):
+An arXiv or DOI call that could not be served in time keeps its place in its
+service's queue (see [Pacing](#pacing)); a DOI call's `source` is `crossref`:
 
 ```json
 {"status":"waiting","source":"arxiv","ticket":"42-9f1c2a","position":3}
@@ -122,22 +127,24 @@ as `unavailable`, reporting the status verbatim as its reason.
 
 | Exit | Meaning                                                          |
 |------|------------------------------------------------------------------|
-| 0    | `ok`, `unavailable` or `waiting` from an academic family — the call worked; the source may not have. `ok` from `web metadata` |
+| 0    | `ok`, `unavailable` or `waiting` from an academic family or from `doi metadata` — the call worked; the source may not have. `ok` from `web metadata` |
 | 1    | A credential refusal or a rejected request, with one `E_*` line, or a page `web metadata` could not read, with one `E_WEB_*` line |
-| 2    | Usage error, refused ticket or unfetchable URL, before any request is sent; only `E_ARXIV_TICKET_LIVE` can clear without changing the call |
+| 2    | Usage error, refused ticket, unfetchable URL or unparseable DOI, before any request is sent; only `E_<FAMILY>_TICKET_LIVE` (`E_ARXIV_TICKET_LIVE` or `E_DOI_TICKET_LIVE`) can clear without changing the call |
 
 | Code                              | Exit | Cause                                                        |
 |-----------------------------------|------|--------------------------------------------------------------|
-| `E_RESEARCH_USAGE`                | 2    | Unknown family, a verb the family does not support (named with the verbs it does, as in `unknown verb 'search' (web supports metadata)`), `--limit` outside 1–25, a missing or empty query, `--ticket` on an OpenAlex or `web` call, or a `web metadata` call with no URL, more than one term, or `--limit` |
+| `E_RESEARCH_USAGE`                | 2    | Unknown family, a verb the family does not support (named with the verbs it does, as in `unknown verb 'search' (web supports metadata)`), `--limit` outside 1–25, a missing or empty query, `--ticket` on an OpenAlex or `web` call, a `web metadata` call with no URL, more than one term, or `--limit`, or a `doi metadata` call with no DOI or more than one term (`metadata needs exactly one DOI`), or `--limit` |
 | `E_WEB_URL_MALFORMED`             | 2    | A `web metadata` URL that is not a fetchable `http(s)` URL; see [`web metadata`](#web-metadata) |
 | `E_OPENALEX_ID_MALFORMED`         | 2    | A `lookup` ID that is neither a `W…` ID nor a DOI            |
 | `E_ARXIV_ID_MALFORMED`            | 2    | A `lookup` ID that is not an arXiv ID                        |
+| `E_DOI_MALFORMED`                 | 2    | A `doi metadata` term that is not a DOI in any accepted form |
 | `E_ARXIV_TICKET_MALFORMED`        | 2    | A `--ticket` that is not a ticket such as `42-9f1c2a`        |
-| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for; names the call it was issued for and which arguments differ |
+| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for, naming that call and which arguments differ; or a ticket another family's fetch or an earlier plugin version issued |
 | `E_ARXIV_TICKET_LIVE`             | 2    | A ticket another call is presenting right now; clears once that call returns |
+| `E_DOI_TICKET_MALFORMED`, `E_DOI_TICKET_MISMATCH`, `E_DOI_TICKET_LIVE` | 2 | As the `E_ARXIV_TICKET_*` codes, for a ticket presented to `doi metadata` |
 | `E_OPENALEX_KEY_REJECTED`         | 1    | OpenAlex refused the key; names the rung that supplied it    |
 | `E_OPENALEX_UNAUTHENTICATED`      | 1    | OpenAlex refused a keyless request                           |
-| `E_RESEARCH_CLIENT_ERROR`         | 1    | Any other `4xx`, an unfollowed redirect, or an arXiv error feed |
+| `E_RESEARCH_CLIENT_ERROR`         | 1    | Any other `4xx`, an unfollowed redirect, or an arXiv error feed; for a DOI call, a `4xx` other than `404` and `429`, or an unfollowed redirect, is `unavailable` instead |
 | `E_RESEARCH_UNDECODABLE`          | 1    | A response the CLI could not parse                           |
 | `E_RESEARCH_TRANSPORT`            | 1    | The HTTP client could not start                              |
 | `E_TOKEN_*`, `E_COMMAND_*`, `E_CONSENT_KEY_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
@@ -145,19 +152,20 @@ as `unavailable`, reporting the status verbatim as its reason.
 
 ### Retries and deadlines
 
-These apply to the academic families; `web metadata` never retries, and
-follows its own [fetch rules](#fetch-rules).
+These apply to the academic families and `doi metadata`; `web metadata`
+never retries, and follows its own [fetch rules](#fetch-rules).
 
 A retryable response waits 3 s, 6 s, then 12 s between attempts, or the
 server's `Retry-After` capped at 30 s. When the deadline would not admit the
-next wait, an arXiv call stops early with `waiting` and an OpenAlex call with
-`unavailable`. OpenAlex budget
+next wait, an arXiv or DOI call stops early with `waiting` and an OpenAlex call
+with `unavailable`. OpenAlex budget
 exhaustion (`409`, or a `429` whose remaining budget is below the cost of the
 request) is not retried.
 
 An academic call follows redirects at most three times, and only within the
 original `https` origin; any other redirect is a client error, so the key
-never reaches a second host. Its bodies over 8 MiB are refused.
+never reaches a second host. A DOI call's unfollowed redirect is `unavailable`
+with `upstream_error` instead. Its bodies over 8 MiB are refused.
 
 ### `web metadata`
 
@@ -235,8 +243,8 @@ never a more precise date from a later scheme:
   proxy would resolve the host itself and could connect to an address
   admission never checked. Where outbound traffic must go through a proxy,
   the call fails with `E_WEB_HOST_UNRESOLVED`, `E_WEB_CONNECTION_FAILED` or
-  `E_WEB_TIMED_OUT`, while `openalex` and `arxiv`, which honour the proxy
-  variables, still work.
+  `E_WEB_TIMED_OUT`, while `openalex`, `arxiv` and `doi`, which honour the
+  proxy variables, still work.
 - **Time.** The call runs within the 100 s deadline every `fetch` shares.
   Each DNS resolution is capped at 5 s and each request at 30 s, both clipped to
   the time remaining. Nothing is retried.
@@ -260,6 +268,43 @@ stdout. No message carries the URL, the host or an address.
 | `E_WEB_TIMED_OUT`                 | `the page did not answer within the time allowed`                                                |
 | `E_WEB_STATUS`                    | `the page answered HTTP {status}`                                                                |
 | `E_WEB_NOT_HTML`                  | `the page is not HTML`                                                                           |
+
+### `doi metadata`
+
+```bash
+accelerator research fetch doi metadata '10.1145/371920.372066'
+```
+
+asks Crossref's `https://api.crossref.org/works/{doi}` for what it holds
+about one DOI, with no key and no query, and prints one line:
+
+```json
+{"status":"ok","metadata":{"publisher":"ACM"},"venue":"Proceedings of the 10th international conference on World Wide Web"}
+```
+
+- `venue` is the first of the record's container titles, its runs of
+  whitespace collapsed, and only for a `journal-article` or a
+  `proceedings-article`. Any other type has no `venue`: a chapter's container
+  is its book.
+- `metadata` maps `publisher`, whose key follows every key `web metadata`
+  prints in [Sources metadata](#sources-metadata) order, so the `web
+  metadata` map followed by this one is in canonical order.
+- A DOI Crossref holds no record for, such as arXiv's DataCite DOIs, prints
+  `{"status":"ok","metadata":{}}`.
+- It reports a venue, never a tier.
+
+When Crossref cannot answer:
+
+```json
+{"status":"unavailable","source":"crossref","reason":"upstream_error"}
+```
+
+The reason is the last attempt's: `rate_limited` after a `429`, and
+`upstream_error` after a `5xx`, a connection failure, a timeout, any other
+`4xx` or a redirect, or a record that cannot be read. An unreadable record
+also writes one diagnostic line naming the DOI. Calls wait their turn in
+Crossref's queue like arXiv's, so one that cannot be served in time prints
+`waiting` with `"source":"crossref"`.
 
 ## Reputation tiers
 
@@ -297,32 +342,76 @@ whole call is `unavailable`: an unconfirmed withdrawal is never cited as
 
 ## Pacing
 
-arXiv admits one request every three seconds. Every arXiv request in a
-project, across processes, passes through an exclusive file lock at
-`<paths.tmp>/research/arxiv.lock` (`paths.tmp` defaults to
-`.accelerator/tmp`), which holds one connection at a time and spaces each
-request at least 3 s from the end of the previous request's response. When a
-call was killed before its response ended, the next request is spaced 3.1 s
-from the killed request's send instead, since its arrival was never seen. A
-`429` or `403` defers every waiting process together, by up to 30 s. The
-lock does not coordinate across repositories on one machine. OpenAlex is not paced; its budget is enforced server-side.
+Each queued service keeps its pacing state under
+`<paths.tmp>/research/services/<service>/` (`paths.tmp` defaults to
+`.accelerator/tmp`): arXiv's under `services/arxiv/`, and Crossref's pools'
+under `services/crossref-public/` and `services/crossref-polite/`. OpenAlex
+is not paced; its budget is enforced server-side.
+
+arXiv admits one request every three seconds, one connection at a time. A
+service serves as many calls at once as it has serving slots, each an
+exclusive file lock, `serving-<i>.lock`; arXiv has one, `serving-0.lock`. A
+call's turn holds its slot from its first request to its last. Its pacing
+state, in `pacing`, is read and written only under the short-lived
+`pacing.lock`, which no call holds while it waits.
+
+Before each request a call reserves a send time, waits for it outside
+`pacing.lock`, then confirms it against the last request actually sent and
+any deferral. arXiv spaces each request at least 3 s from the end of the
+previous request's response. When a call was killed before its response
+ended, the next request is spaced 3.1 s from the killed request's send
+instead, since its arrival was never seen. A `429` or `403` defers every
+waiting process together, by up to 30 s; a deferral written while a call
+waits holds that call too. The locks do not coordinate across repositories
+on one machine.
+
+Crossref's public pool admits five requests a second, one in flight at a
+time, so a DOI call takes its pool's one serving slot and spaces each
+request 210 ms from the start of the previous one, whenever that one ended.
+As arXiv's, each send is confirmed against the last request actually sent,
+and a `429` defers every waiting process by its `Retry-After`. The two
+services never wait on each other's slots or deferrals.
+
+### Crossref pools
+
+A DOI call uses one of two Crossref pools, each with its own queue, pacing
+and state directory:
+
+| Pool   | Spacing between request starts | In flight | State directory              |
+|--------|--------------------------------|-----------|------------------------------|
+| public | 210 ms                         | 1         | `services/crossref-public/`  |
+| polite | 102 ms                         | up to 3   | `services/crossref-polite/`  |
+
+A call uses the polite pool when `crossref.mailto`, or its override
+`ACCELERATOR_CROSSREF_MAILTO`, holds a plausible contact address, which it
+sends in the `User-Agent`. Otherwise it uses the public pool anonymously. The
+two pools never wait on each other. The `crossref` section of
+[`/accelerator:configure`](reference/skills/config/configure.md) gives how
+the address is resolved and checked.
 
 ### The fetch queue
 
-arXiv calls take turns in a first-in, first-out queue of tickets under
-`<paths.tmp>/research/arxiv-queue/`:
+arXiv and DOI calls take turns, each service's in its own first-in,
+first-out queue of tickets under `services/<service>/queue/`:
 
-- **Whole-call admission.** The front ticket is admitted once the lock is
-  free and at least 33 s of its 100 s budget remain: one 3 s spacing and one
-  30 s request. It then holds the lock for every request, retry and backoff
-  it makes, including its withdrawal confirmations, and checks the same
-  serving window before each attempt.
+- **Whole-call admission.** A ticket is admitted once fewer tickets ahead of
+  it are still running than the service has slots, a slot is free, and its
+  budget still covers its service's spacing and one 30 s request: for arXiv,
+  at least 33 s of its 100 s, and for Crossref's public and polite pools
+  30.21 s and 30.102 s. It then holds its slot for every request, retry and
+  backoff it makes, including arXiv's withdrawal confirmations, and checks
+  the same serving window before each attempt.
 - **`waiting`.** A call that runs out of budget, before or after admission,
   prints its ticket and position and keeps its place. Re-presenting the same
   call with `--ticket` resumes it; the researcher does this until the call
   settles. A ticket presented with other arguments exits 2 with
-  `E_ARXIV_TICKET_MISMATCH`, and one another call is presenting exits 2 with
-  `E_ARXIV_TICKET_LIVE`.
+  `E_ARXIV_TICKET_MISMATCH` or `E_DOI_TICKET_MISMATCH`, named for the
+  command it was presented to, as does a ticket another family's fetch or an
+  earlier plugin version issued, and one another call is presenting exits 2
+  with `E_ARXIV_TICKET_LIVE` or `E_DOI_TICKET_LIVE`. A DOI ticket
+  re-presented after `crossref.mailto` changed which Crossref pool serves
+  the call joins that pool afresh, with a diagnostic naming the pool that
+  issued it.
 - **Expiry and the cap.** A ticket keeps its place for 300 s after its last
   call ended; after that it rejoins at the back with a fresh ticket. More than
   900 s after issue, a re-presentation ends `rate_limited` with
@@ -335,38 +424,46 @@ arXiv calls take turns in a first-in, first-out queue of tickets under
 
 ### Logs
 
-`arxiv-requests.log` beside the lock records one timestamped line per request
-sent. `arxiv-contention.log` records one line per call that ended in
+Each service's `requests.log` records one timestamped line per request sent.
+Its `contention.log` records one line per call that ended in
 `lock_contention` with no upstream failure behind it, in the form
-`<wall ms> <kind>[ <ticket>]`. A line with only a timestamp comes from a
-session running an earlier prerelease of the plugin.
+`<wall ms> <kind>[ <ticket>]`.
 
 | Kind              | Means                                      | Next step                                                                                                   |
 |-------------------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------|
 | `ticket_past_cap` | The ticket waited past its 900 s cap       | Avoid overlapping `conduct` runs in one project, or re-run once the other run has finished                  |
-| `queue_unusable`  | The call ran out of budget with no place to keep | Check that `<paths.tmp>/research/arxiv-queue/` is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
+| `queue_unusable`  | The call ran out of budget with no place to keep | Check that the service's `services/<service>/queue/` (for arXiv, `services/arxiv/queue/`; for DOI calls, `services/crossref-public/queue/` or `services/crossref-polite/queue/`) is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
 
 ### Limits
 
-- When `arxiv.lock` cannot be locked, on a filesystem without working `flock`
-  or after a per-call lock error, pacing runs unlocked. Neither one
-  connection at a time nor 3 s spacing is then guaranteed, and only the
-  stderr diagnostic records it.
+- When a serving slot or `pacing.lock` cannot be locked, on a filesystem
+  without working `flock` or after a per-call lock error, pacing runs
+  unlocked. Neither the slot count nor the spacing is then guaranteed, and
+  only the stderr diagnostic records it.
 - When the queue itself cannot be used, a call is served without a place, and
   ends in `lock_contention` rather than `waiting` if its budget runs out. A
   re-presented call keeps the place its ticket already holds and still ends
   in `waiting`.
-- The queue is fair only while every session in the project runs a plugin
-  version with this queue. An earlier one still paces through `arxiv.lock`
-  but ignores the queue, so calls queued behind it see more
-  `lock_contention`. A version whose queue records it cannot read removes
-  them once their tickets are free.
-- A ticket that has just found itself at the front takes `arxiv.lock` a
-  moment later. An earlier ticket re-presented in that moment can be passed
-  for one turn; spacing is unaffected.
+- Earlier plugin versions kept arXiv's state directly under
+  `<paths.tmp>/research/`. While a session of one still runs, every arXiv
+  call also takes that version's `arxiv.lock`, so the two versions keep one
+  arXiv connection at a time. Their pacing state is separate, so expect
+  occasional throttling until older sessions end.
+- Once no earlier version runs in the project, `arxiv-pacing`,
+  `arxiv-queue/`, `arxiv-requests.log` and `arxiv-contention.log` under
+  `<paths.tmp>/research/` can be deleted. `arxiv.lock` stays: every arXiv
+  call recreates it, empty, until a later release stops taking it.
+- Crossref's limits apply per IP address, but pacing is coordinated only
+  within one project, so research running in several projects at once can
+  draw `429`s, which the retries absorb. Setting `crossref.mailto` moves
+  calls to the polite pool, whose higher limits (3 in flight) reduce that
+  contention.
+- A ticket that has just found itself admitted takes its slot a moment
+  later. An earlier ticket re-presented in that moment can be passed for one
+  turn; spacing is unaffected.
 - Wall-clock steps, and a host that sleeps mid-run, can delay or hasten
   expiry, abandonment and the cap. That costs fairness or an occasional node,
-  never spacing, which the lock enforces on every request.
+  never spacing, which every request confirms against the last one sent.
 
 ## Credentials
 
@@ -505,7 +602,7 @@ granted by a permission rule that reaches the researcher subagent.
 which researchers it spawns inherit. Any other skill that injects any profile
 must grant the same rule, and a contract test enforces this for skills in this
 repository. The academic profiles search and look up through it, and
-`web-profile` uses it for `fetch web metadata`.
+`web-profile` uses it for `fetch web metadata` and `fetch doi metadata`.
 
 Where that grant does not reach the researcher, add the rule to the project's
 allow rules:
@@ -983,6 +1080,10 @@ block: a nested `key: value` list directly under its line.
   record or page it cites, unchanged and in emitted order, and writes a
   block from nothing else. The composer and `synthesise` cite each source
   once, so a merged entry's block carries every key its citations carry.
+- **Sources cited by DOI.** For a web source cited by DOI, the block holds
+  the `web metadata` entries, then the `doi metadata` entries. `publisher`
+  comes from `doi metadata`. Every key `doi metadata` records ranks after
+  every key `web metadata` records, so the emitted order is the table order.
 - **Shape.** Keys are lowercase `snake_case`, values are single-line, and a
   key with no value is omitted. `url`, title and venue stay on the entry
   line and never appear in the block.
@@ -1003,7 +1104,7 @@ block: a nested `key: value` list directly under its line.
 | `accessed`         | date            | The UTC date of the CLI call the map came from                              |
 | `type`             | bibliographic   |                                                                             |
 | `authors`          | bibliographic   |                                                                             |
-| `publisher`        | bibliographic   |                                                                             |
+| `publisher`        | bibliographic   | The name Crossref holds, runs of whitespace collapsed                       |
 | `volume`           | bibliographic   |                                                                             |
 | `issue`            | bibliographic   |                                                                             |
 | `pages`            | bibliographic   |                                                                             |

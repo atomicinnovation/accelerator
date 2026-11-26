@@ -22,7 +22,7 @@ fn a_transient_replace_is_whole_and_refuses_names_outside_the_directory() {
 fn removing_a_name_that_escapes_the_directory_is_refused() {
     let scratch = Scratch::new();
     scratch.write("kept", "x");
-    let queue = scratch.dir().nested("arxiv-queue");
+    let queue = scratch.dir().nested("queue");
     std::fs::create_dir_all(queue.path("")).expect("mkdir queue");
 
     let removed = queue.remove("../kept");
@@ -42,7 +42,7 @@ fn removing_a_missing_name_succeeds() {
 fn names_of_a_directory_not_yet_created_is_empty() {
     let scratch = Scratch::new();
 
-    assert_eq!(scratch.dir().nested("arxiv-queue").names(), Ok(Vec::new()));
+    assert_eq!(scratch.dir().nested("queue").names(), Ok(Vec::new()));
 }
 
 #[test]

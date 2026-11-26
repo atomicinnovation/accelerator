@@ -1,5 +1,6 @@
 //! The project's scratch directory for research state that must outlive one
-//! call: the arXiv lock, its pacing, its logs, and confirmed withdrawals.
+//! call: each queued service's locks, pacing, logs and queue, and confirmed
+//! withdrawals.
 
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -9,6 +10,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+use research::sources::service::Service;
 use store::atomic_write;
 use store::ensure_contained;
 use store::replace_without_sync;
@@ -40,6 +42,13 @@ impl ScratchDir {
             project_root: self.project_root.clone(),
             directory: self.directory.join(name),
         }
+    }
+
+    /// Where `service` keeps its queue and pacing state, within the
+    /// research directory.
+    #[must_use]
+    pub fn service_state(&self, service: Service) -> Self {
+        self.nested("services").nested(service.code())
     }
 
     pub fn path(&self, name: &str) -> PathBuf {

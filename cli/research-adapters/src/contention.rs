@@ -1,21 +1,23 @@
-//! The log of arXiv calls that ended in lock contention, one line per call:
-//! the wall-clock milliseconds, the kind of contention, and the ticket when
-//! there is one.
+//! The log of a service's calls that ended in lock contention, one line per
+//! call: the wall-clock milliseconds, the kind of contention, and the ticket
+//! when there is one.
 
 use std::rc::Rc;
 
-use research::sources::fetch::Clock;
-use research::sources::fetch::Contention;
-use research::sources::fetch::ContentionLog;
+use research::sources::ports::Clock;
+use research::sources::ports::Contention;
+use research::sources::ports::ContentionLog;
 use research::sources::queue;
+use research::sources::service::Service;
 
 use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
 use crate::scratch::ScratchDir;
 
-const CONTENTION_LOG: &str = "arxiv-contention.log";
+const CONTENTION_LOG: &str = "contention.log";
 
 pub struct FileContentionLog {
+    service: Service,
     scratch: ScratchDir,
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
@@ -23,20 +25,24 @@ pub struct FileContentionLog {
 
 impl FileContentionLog {
     pub fn new(
-        scratch: ScratchDir,
+        service: Service,
+        research: &ScratchDir,
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
     ) -> Self {
         Self {
-            scratch,
+            service,
+            scratch: research.service_state(service),
             clock,
             diagnostics,
         }
     }
 
     fn report(&self, detail: &str) {
-        self.diagnostics
-            .report(&format!("research fetch: arxiv {detail}"));
+        self.diagnostics.report(&format!(
+            "research fetch: {} {detail}",
+            self.service.code()
+        ));
     }
 }
 

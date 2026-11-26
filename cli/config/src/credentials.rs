@@ -98,17 +98,17 @@ pub struct TokenKeys {
 impl TokenKeys {
     /// # Errors
     ///
-    /// [`ConfigError::Invalid`] unless the catalogue declares `plaintext` and
-    /// declares `command` as a command-valued consent key.
+    /// [`ConfigError::Invalid`] unless the catalogue declares `plaintext` as
+    /// a credential and declares `command` as a command-valued consent key.
     pub fn declared(
         plaintext: &str,
         command: &str,
     ) -> Result<Self, ConfigError> {
-        let declared = catalogue::declared(plaintext).ok_or_else(|| {
-            ConfigError::Invalid {
-                detail: format!("{plaintext} is not a declared key"),
-            }
-        })?;
+        let declared = catalogue::declared(plaintext)
+            .filter(|key| key.credential)
+            .ok_or_else(|| ConfigError::Invalid {
+                detail: format!("{plaintext} is not a declared credential"),
+            })?;
         Ok(Self {
             plaintext: declared,
             command: CommandKey::declared(command)?,

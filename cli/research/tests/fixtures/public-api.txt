@@ -682,32 +682,95 @@ impl core::fmt::Debug for research::sources::classify::Received
 pub fn research::sources::classify::Received::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::classify::Received
 pub fn research::sources::classify::arxiv(response: research::sources::classify::Response) -> research::sources::classify::Verdict
+pub fn research::sources::classify::crossref(response: research::sources::classify::Response) -> research::sources::classify::Verdict
 pub fn research::sources::classify::openalex(response: research::sources::classify::Response, verb: research::sources::request::Verb, key: core::option::Option<&research::sources::request::KeySource>) -> research::sources::classify::Verdict
+pub mod research::sources::crossref
+pub struct research::sources::crossref::ContactAddress(_)
+impl research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::as_str(&self) -> &str
+pub fn research::sources::crossref::ContactAddress::parse(raw: &str) -> core::result::Result<core::option::Option<Self>, research::sources::crossref::Implausible>
+impl core::clone::Clone for research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::clone(&self) -> research::sources::crossref::ContactAddress
+impl core::cmp::Eq for research::sources::crossref::ContactAddress
+impl core::cmp::PartialEq for research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::eq(&self, other: &research::sources::crossref::ContactAddress) -> bool
+impl core::fmt::Debug for research::sources::crossref::ContactAddress
+pub fn research::sources::crossref::ContactAddress::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::ContactAddress
+pub struct research::sources::crossref::CrossrefWork
+pub research::sources::crossref::CrossrefWork::container_titles: alloc::vec::Vec<alloc::string::String>
+pub research::sources::crossref::CrossrefWork::kind: core::option::Option<alloc::string::String>
+pub research::sources::crossref::CrossrefWork::publisher: core::option::Option<alloc::string::String>
+impl core::clone::Clone for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::clone(&self) -> research::sources::crossref::CrossrefWork
+impl core::cmp::Eq for research::sources::crossref::CrossrefWork
+impl core::cmp::PartialEq for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::eq(&self, other: &research::sources::crossref::CrossrefWork) -> bool
+impl core::default::Default for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::default() -> research::sources::crossref::CrossrefWork
+impl core::fmt::Debug for research::sources::crossref::CrossrefWork
+pub fn research::sources::crossref::CrossrefWork::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::CrossrefWork
+pub struct research::sources::crossref::DoiMetadata
+pub research::sources::crossref::DoiMetadata::metadata: research::sources::metadata::SourceMetadata
+pub research::sources::crossref::DoiMetadata::venue: core::option::Option<research::sources::crossref::Venue>
+impl core::clone::Clone for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::clone(&self) -> research::sources::crossref::DoiMetadata
+impl core::cmp::Eq for research::sources::crossref::DoiMetadata
+impl core::cmp::PartialEq for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::eq(&self, other: &research::sources::crossref::DoiMetadata) -> bool
+impl core::default::Default for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::default() -> research::sources::crossref::DoiMetadata
+impl core::fmt::Debug for research::sources::crossref::DoiMetadata
+pub fn research::sources::crossref::DoiMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::DoiMetadata
+pub struct research::sources::crossref::Implausible
+impl core::clone::Clone for research::sources::crossref::Implausible
+pub fn research::sources::crossref::Implausible::clone(&self) -> research::sources::crossref::Implausible
+impl core::cmp::Eq for research::sources::crossref::Implausible
+impl core::cmp::PartialEq for research::sources::crossref::Implausible
+pub fn research::sources::crossref::Implausible::eq(&self, other: &research::sources::crossref::Implausible) -> bool
+impl core::fmt::Debug for research::sources::crossref::Implausible
+pub fn research::sources::crossref::Implausible::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::crossref::Implausible
+impl core::marker::StructuralPartialEq for research::sources::crossref::Implausible
+pub struct research::sources::crossref::UnreadableWork(_)
+impl research::sources::crossref::UnreadableWork
+pub fn research::sources::crossref::UnreadableWork::new(reason: impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for research::sources::crossref::UnreadableWork
+pub fn research::sources::crossref::UnreadableWork::clone(&self) -> research::sources::crossref::UnreadableWork
+impl core::cmp::Eq for research::sources::crossref::UnreadableWork
+impl core::cmp::PartialEq for research::sources::crossref::UnreadableWork
+pub fn research::sources::crossref::UnreadableWork::eq(&self, other: &research::sources::crossref::UnreadableWork) -> bool
+impl core::fmt::Debug for research::sources::crossref::UnreadableWork
+pub fn research::sources::crossref::UnreadableWork::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::crossref::UnreadableWork
+pub fn research::sources::crossref::UnreadableWork::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::UnreadableWork
+pub struct research::sources::crossref::Venue(_)
+impl research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::as_str(&self) -> &str
+impl core::clone::Clone for research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::clone(&self) -> research::sources::crossref::Venue
+impl core::cmp::Eq for research::sources::crossref::Venue
+impl core::cmp::PartialEq for research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::eq(&self, other: &research::sources::crossref::Venue) -> bool
+impl core::fmt::Debug for research::sources::crossref::Venue
+pub fn research::sources::crossref::Venue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::crossref::Venue
+pub fn research::sources::crossref::normalise(work: &research::sources::crossref::CrossrefWork) -> research::sources::crossref::DoiMetadata
 pub mod research::sources::fetch
-pub enum research::sources::fetch::Cause
-pub research::sources::fetch::Cause::LockContention
-impl research::sources::fetch::Cause
-pub const fn research::sources::fetch::Cause::code(self) -> &'static str
-impl core::clone::Clone for research::sources::fetch::Cause
-pub fn research::sources::fetch::Cause::clone(&self) -> research::sources::fetch::Cause
-impl core::cmp::Eq for research::sources::fetch::Cause
-impl core::cmp::PartialEq for research::sources::fetch::Cause
-pub fn research::sources::fetch::Cause::eq(&self, other: &research::sources::fetch::Cause) -> bool
-impl core::fmt::Debug for research::sources::fetch::Cause
-pub fn research::sources::fetch::Cause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::fetch::Cause
-impl core::marker::StructuralPartialEq for research::sources::fetch::Cause
-pub enum research::sources::fetch::Contention
-pub research::sources::fetch::Contention::QueueUnusable
-pub research::sources::fetch::Contention::TicketPastCap(research::sources::queue::Ticket)
-impl core::clone::Clone for research::sources::fetch::Contention
-pub fn research::sources::fetch::Contention::clone(&self) -> research::sources::fetch::Contention
-impl core::cmp::Eq for research::sources::fetch::Contention
-impl core::cmp::PartialEq for research::sources::fetch::Contention
-pub fn research::sources::fetch::Contention::eq(&self, other: &research::sources::fetch::Contention) -> bool
-impl core::fmt::Debug for research::sources::fetch::Contention
-pub fn research::sources::fetch::Contention::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::sources::fetch::Contention
+pub enum research::sources::fetch::ArxivAnswer
+pub research::sources::fetch::ArxivAnswer::Failed(research::sources::classify::FetchError)
+pub research::sources::fetch::ArxivAnswer::Records(alloc::vec::Vec<research::sources::record::Record>)
+impl core::clone::Clone for research::sources::fetch::ArxivAnswer
+pub fn research::sources::fetch::ArxivAnswer::clone(&self) -> research::sources::fetch::ArxivAnswer
+impl core::cmp::Eq for research::sources::fetch::ArxivAnswer
+impl core::cmp::PartialEq for research::sources::fetch::ArxivAnswer
+pub fn research::sources::fetch::ArxivAnswer::eq(&self, other: &research::sources::fetch::ArxivAnswer) -> bool
+impl core::fmt::Debug for research::sources::fetch::ArxivAnswer
+pub fn research::sources::fetch::ArxivAnswer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::fetch::ArxivAnswer
 pub enum research::sources::fetch::DecodeFailure
 pub research::sources::fetch::DecodeFailure::ErrorFeed(alloc::string::String)
 pub research::sources::fetch::DecodeFailure::Undecodable
@@ -722,11 +785,7 @@ impl core::marker::StructuralPartialEq for research::sources::fetch::DecodeFailu
 pub enum research::sources::fetch::FetchOutcome
 pub research::sources::fetch::FetchOutcome::Failed(research::sources::classify::FetchError)
 pub research::sources::fetch::FetchOutcome::Records(alloc::vec::Vec<research::sources::record::Record>)
-pub research::sources::fetch::FetchOutcome::Rejected(research::sources::queue::TicketRejection)
-pub research::sources::fetch::FetchOutcome::Unavailable(research::sources::fetch::Unavailable)
-pub research::sources::fetch::FetchOutcome::Waiting
-pub research::sources::fetch::FetchOutcome::Waiting::position: research::sources::queue::Position
-pub research::sources::fetch::FetchOutcome::Waiting::ticket: research::sources::queue::Ticket
+pub research::sources::fetch::FetchOutcome::Unavailable(research::sources::ports::Unavailable)
 impl core::clone::Clone for research::sources::fetch::FetchOutcome
 pub fn research::sources::fetch::FetchOutcome::clone(&self) -> research::sources::fetch::FetchOutcome
 impl core::cmp::Eq for research::sources::fetch::FetchOutcome
@@ -741,92 +800,48 @@ pub research::sources::fetch::ArxivFetch::oai: &'a research::sources::request::E
 pub research::sources::fetch::ArxivFetch::presented: core::option::Option<&'a research::sources::queue::Ticket>
 pub research::sources::fetch::ArxivFetch::request: &'a research::sources::request::ArxivRequest
 pub struct research::sources::fetch::ArxivPorts<'a>
-pub research::sources::fetch::ArxivPorts::clock: &'a dyn research::sources::fetch::Clock
+pub research::sources::fetch::ArxivPorts::clock: &'a dyn research::sources::ports::Clock
 pub research::sources::fetch::ArxivPorts::confirmations: &'a dyn research::sources::fetch::ConfirmationCache
-pub research::sources::fetch::ArxivPorts::contention: &'a dyn research::sources::fetch::ContentionLog
+pub research::sources::fetch::ArxivPorts::contention: &'a dyn research::sources::ports::ContentionLog
 pub research::sources::fetch::ArxivPorts::decoder: &'a dyn research::sources::fetch::ArxivDecoder
-pub research::sources::fetch::ArxivPorts::gate: &'a dyn research::sources::fetch::PacingGate
-pub research::sources::fetch::ArxivPorts::queue: &'a dyn research::sources::queue::ArxivQueue
-pub research::sources::fetch::ArxivPorts::transport: &'a dyn research::sources::fetch::Transport
-pub struct research::sources::fetch::Attempted
-pub research::sources::fetch::Attempted::defer_until: core::option::Option<std::time::SystemTime>
-impl core::clone::Clone for research::sources::fetch::Attempted
-pub fn research::sources::fetch::Attempted::clone(&self) -> research::sources::fetch::Attempted
-impl core::cmp::Eq for research::sources::fetch::Attempted
-impl core::cmp::PartialEq for research::sources::fetch::Attempted
-pub fn research::sources::fetch::Attempted::eq(&self, other: &research::sources::fetch::Attempted) -> bool
-impl core::fmt::Debug for research::sources::fetch::Attempted
-pub fn research::sources::fetch::Attempted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::fetch::Attempted
-impl core::marker::StructuralPartialEq for research::sources::fetch::Attempted
+pub research::sources::fetch::ArxivPorts::gate: &'a dyn research::sources::ports::PacingGate
+pub research::sources::fetch::ArxivPorts::queue: &'a dyn research::sources::queue::ServiceQueue
+pub research::sources::fetch::ArxivPorts::transport: &'a dyn research::sources::ports::Transport
+pub struct research::sources::fetch::DoiFetch<'a>
+pub research::sources::fetch::DoiFetch::api: &'a research::sources::request::Endpoint
+pub research::sources::fetch::DoiFetch::contact: core::option::Option<&'a research::sources::crossref::ContactAddress>
+pub research::sources::fetch::DoiFetch::doi: &'a research::sources::request::Doi
+pub research::sources::fetch::DoiFetch::presented: core::option::Option<&'a research::sources::queue::Ticket>
+pub struct research::sources::fetch::DoiPorts<'a>
+pub research::sources::fetch::DoiPorts::clock: &'a dyn research::sources::ports::Clock
+pub research::sources::fetch::DoiPorts::contention: &'a dyn research::sources::ports::ContentionLog
+pub research::sources::fetch::DoiPorts::decoder: &'a dyn research::sources::fetch::CrossrefDecoder
+pub research::sources::fetch::DoiPorts::diagnostics: &'a dyn research::sources::ports::Diagnostics
+pub research::sources::fetch::DoiPorts::gate: &'a dyn research::sources::ports::PacingGate
+pub research::sources::fetch::DoiPorts::queue: &'a dyn research::sources::queue::ServiceQueue
+pub research::sources::fetch::DoiPorts::transport: &'a dyn research::sources::ports::Transport
 pub struct research::sources::fetch::OpenAlexFetch<'a>
 pub research::sources::fetch::OpenAlexFetch::api: &'a research::sources::request::Endpoint
 pub research::sources::fetch::OpenAlexFetch::key: core::option::Option<&'a research::sources::request::ApiKey>
 pub research::sources::fetch::OpenAlexFetch::request: &'a research::sources::request::OpenAlexRequest
 pub struct research::sources::fetch::OpenAlexPorts<'a>
-pub research::sources::fetch::OpenAlexPorts::clock: &'a dyn research::sources::fetch::Clock
+pub research::sources::fetch::OpenAlexPorts::clock: &'a dyn research::sources::ports::Clock
 pub research::sources::fetch::OpenAlexPorts::decoder: &'a dyn research::sources::fetch::OpenAlexDecoder
-pub research::sources::fetch::OpenAlexPorts::gate: &'a dyn research::sources::fetch::PacingGate
-pub research::sources::fetch::OpenAlexPorts::transport: &'a dyn research::sources::fetch::Transport
-pub struct research::sources::fetch::OutOfBudget
-pub research::sources::fetch::OutOfBudget::last_retryable: core::option::Option<research::sources::classify::Reason>
-impl core::clone::Clone for research::sources::fetch::OutOfBudget
-pub fn research::sources::fetch::OutOfBudget::clone(&self) -> research::sources::fetch::OutOfBudget
-impl core::cmp::Eq for research::sources::fetch::OutOfBudget
-impl core::cmp::PartialEq for research::sources::fetch::OutOfBudget
-pub fn research::sources::fetch::OutOfBudget::eq(&self, other: &research::sources::fetch::OutOfBudget) -> bool
-impl core::fmt::Debug for research::sources::fetch::OutOfBudget
-pub fn research::sources::fetch::OutOfBudget::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::fetch::OutOfBudget
-impl core::marker::StructuralPartialEq for research::sources::fetch::OutOfBudget
-pub struct research::sources::fetch::Unavailable
-impl research::sources::fetch::Unavailable
-pub const fn research::sources::fetch::Unavailable::cause(self) -> core::option::Option<research::sources::fetch::Cause>
-pub const fn research::sources::fetch::Unavailable::lock_contention() -> Self
-pub const fn research::sources::fetch::Unavailable::new(reason: research::sources::classify::Reason) -> Self
-pub const fn research::sources::fetch::Unavailable::reason(self) -> research::sources::classify::Reason
-impl core::clone::Clone for research::sources::fetch::Unavailable
-pub fn research::sources::fetch::Unavailable::clone(&self) -> research::sources::fetch::Unavailable
-impl core::cmp::Eq for research::sources::fetch::Unavailable
-impl core::cmp::PartialEq for research::sources::fetch::Unavailable
-pub fn research::sources::fetch::Unavailable::eq(&self, other: &research::sources::fetch::Unavailable) -> bool
-impl core::fmt::Debug for research::sources::fetch::Unavailable
-pub fn research::sources::fetch::Unavailable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::fetch::Unavailable
-impl core::marker::StructuralPartialEq for research::sources::fetch::Unavailable
-pub struct research::sources::fetch::WaitTooLong
-impl core::clone::Clone for research::sources::fetch::WaitTooLong
-pub fn research::sources::fetch::WaitTooLong::clone(&self) -> research::sources::fetch::WaitTooLong
-impl core::cmp::Eq for research::sources::fetch::WaitTooLong
-impl core::cmp::PartialEq for research::sources::fetch::WaitTooLong
-pub fn research::sources::fetch::WaitTooLong::eq(&self, other: &research::sources::fetch::WaitTooLong) -> bool
-impl core::fmt::Debug for research::sources::fetch::WaitTooLong
-pub fn research::sources::fetch::WaitTooLong::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::fetch::WaitTooLong
-impl core::marker::StructuralPartialEq for research::sources::fetch::WaitTooLong
+pub research::sources::fetch::OpenAlexPorts::gate: &'a dyn research::sources::ports::PacingGate
+pub research::sources::fetch::OpenAlexPorts::transport: &'a dyn research::sources::ports::Transport
 pub trait research::sources::fetch::ArxivDecoder
 pub fn research::sources::fetch::ArxivDecoder::entries(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::arxiv::Entry>, research::sources::fetch::DecodeFailure>
 pub fn research::sources::fetch::ArxivDecoder::raw_versions(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::arxiv::RawVersion>, research::sources::fetch::DecodeFailure>
-pub trait research::sources::fetch::Clock
-pub fn research::sources::fetch::Clock::now(&self) -> std::time::Instant
-pub fn research::sources::fetch::Clock::sleep(&self, duration: core::time::Duration)
-pub fn research::sources::fetch::Clock::wall_now(&self) -> std::time::SystemTime
 pub trait research::sources::fetch::ConfirmationCache
 pub fn research::sources::fetch::ConfirmationCache::recall(&self, entry: &research::sources::request::ArxivId) -> core::option::Option<bool>
 pub fn research::sources::fetch::ConfirmationCache::record(&self, entry: &research::sources::request::ArxivId, withdrawn: bool)
-pub trait research::sources::fetch::ContentionLog
-pub fn research::sources::fetch::ContentionLog::record(&self, contention: research::sources::fetch::Contention)
+pub trait research::sources::fetch::CrossrefDecoder
+pub fn research::sources::fetch::CrossrefDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::crossref::CrossrefWork, research::sources::crossref::UnreadableWork>
 pub trait research::sources::fetch::OpenAlexDecoder
 pub fn research::sources::fetch::OpenAlexDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::openalex::Work, research::sources::fetch::DecodeFailure>
 pub fn research::sources::fetch::OpenAlexDecoder::works(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::openalex::Work>, research::sources::fetch::DecodeFailure>
-pub trait research::sources::fetch::PacingGate
-pub fn research::sources::fetch::PacingGate::spacing(&self) -> core::time::Duration
-pub fn research::sources::fetch::PacingGate::try_serve(&self) -> core::option::Option<alloc::boxed::Box<(dyn research::sources::fetch::ServingTurn + '_)>>
-pub trait research::sources::fetch::ServingTurn
-pub fn research::sources::fetch::ServingTurn::paced(&self, attempt: &mut dyn core::ops::function::FnMut() -> research::sources::fetch::Attempted, deadline: &research::sources::schedule::Deadline) -> core::result::Result<(), research::sources::fetch::WaitTooLong>
-pub trait research::sources::fetch::Transport
-pub fn research::sources::fetch::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
-pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
+pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::serving::Queued<research::sources::fetch::ArxivAnswer>
+pub fn research::sources::fetch::fetch_doi(fetch: &research::sources::fetch::DoiFetch<'_>, ports: &research::sources::fetch::DoiPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::serving::Queued<research::sources::crossref::DoiMetadata>
 pub fn research::sources::fetch::fetch_openalex(fetch: &research::sources::fetch::OpenAlexFetch<'_>, ports: &research::sources::fetch::OpenAlexPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
 pub mod research::sources::metadata
 pub mod research::sources::metadata::date
@@ -863,6 +878,18 @@ impl core::fmt::Display for research::sources::metadata::date::PartialDate
 pub fn research::sources::metadata::date::PartialDate::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::metadata::date::PartialDate
 impl core::marker::StructuralPartialEq for research::sources::metadata::date::PartialDate
+pub struct research::sources::metadata::Publisher(_)
+impl research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::as_str(&self) -> &str
+pub fn research::sources::metadata::Publisher::parse(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::clone(&self) -> research::sources::metadata::Publisher
+impl core::cmp::Eq for research::sources::metadata::Publisher
+impl core::cmp::PartialEq for research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::eq(&self, other: &research::sources::metadata::Publisher) -> bool
+impl core::fmt::Debug for research::sources::metadata::Publisher
+pub fn research::sources::metadata::Publisher::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::metadata::Publisher
 pub struct research::sources::metadata::SourceMetadata
 impl research::sources::metadata::SourceMetadata
 pub fn research::sources::metadata::SourceMetadata::entries(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&str, &str)>
@@ -871,6 +898,7 @@ pub fn research::sources::metadata::SourceMetadata::record_arxiv_id(&mut self, i
 pub fn research::sources::metadata::SourceMetadata::record_doi(&mut self, doi: &research::sources::request::Doi)
 pub fn research::sources::metadata::SourceMetadata::record_openalex_id(&mut self, id: &research::sources::request::WorkId)
 pub fn research::sources::metadata::SourceMetadata::record_published(&mut self, date: research::sources::metadata::date::PartialDate)
+pub fn research::sources::metadata::SourceMetadata::record_publisher(&mut self, publisher: &research::sources::metadata::Publisher)
 pub fn research::sources::metadata::SourceMetadata::record_updated(&mut self, date: research::sources::metadata::date::PartialDate)
 impl core::clone::Clone for research::sources::metadata::SourceMetadata
 pub fn research::sources::metadata::SourceMetadata::clone(&self) -> research::sources::metadata::SourceMetadata
@@ -934,8 +962,176 @@ pub fn research::sources::openalex::Work::fmt(&self, f: &mut core::fmt::Formatte
 impl core::marker::StructuralPartialEq for research::sources::openalex::Work
 pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
 pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work, accessed: research::sources::metadata::date::PartialDate) -> core::option::Option<research::sources::record::Record>
+pub mod research::sources::pacing
+pub enum research::sources::pacing::Confirmation
+pub research::sources::pacing::Confirmation::Deferred(research::sources::pacing::PacingState)
+pub research::sources::pacing::Confirmation::Send(research::sources::pacing::PacingState)
+pub research::sources::pacing::Confirmation::WaitUntil(std::time::SystemTime)
+impl core::clone::Clone for research::sources::pacing::Confirmation
+pub fn research::sources::pacing::Confirmation::clone(&self) -> research::sources::pacing::Confirmation
+impl core::cmp::Eq for research::sources::pacing::Confirmation
+impl core::cmp::PartialEq for research::sources::pacing::Confirmation
+pub fn research::sources::pacing::Confirmation::eq(&self, other: &research::sources::pacing::Confirmation) -> bool
+impl core::fmt::Debug for research::sources::pacing::Confirmation
+pub fn research::sources::pacing::Confirmation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::Confirmation
+impl core::marker::StructuralPartialEq for research::sources::pacing::Confirmation
+pub enum research::sources::pacing::SpacedFrom
+pub research::sources::pacing::SpacedFrom::PreviousFinish
+pub research::sources::pacing::SpacedFrom::PreviousStart
+pub research::sources::pacing::SpacedFrom::PreviousStart::slots: core::num::nonzero::NonZeroU8
+impl core::clone::Clone for research::sources::pacing::SpacedFrom
+pub fn research::sources::pacing::SpacedFrom::clone(&self) -> research::sources::pacing::SpacedFrom
+impl core::cmp::Eq for research::sources::pacing::SpacedFrom
+impl core::cmp::PartialEq for research::sources::pacing::SpacedFrom
+pub fn research::sources::pacing::SpacedFrom::eq(&self, other: &research::sources::pacing::SpacedFrom) -> bool
+impl core::fmt::Debug for research::sources::pacing::SpacedFrom
+pub fn research::sources::pacing::SpacedFrom::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::SpacedFrom
+impl core::marker::StructuralPartialEq for research::sources::pacing::SpacedFrom
+pub struct research::sources::pacing::Pacing
+impl research::sources::pacing::Pacing
+pub const research::sources::pacing::Pacing::UNPACED: Self
+pub fn research::sources::pacing::Pacing::admission_poll(&self) -> core::time::Duration
+pub const fn research::sources::pacing::Pacing::interval(&self) -> core::time::Duration
+pub const fn research::sources::pacing::Pacing::previous_finish(interval: core::time::Duration) -> Self
+pub const fn research::sources::pacing::Pacing::previous_start(interval: core::time::Duration, slots: core::num::nonzero::NonZeroU8) -> Self
+pub const fn research::sources::pacing::Pacing::slots(&self) -> core::num::nonzero::NonZeroU8
+pub const fn research::sources::pacing::Pacing::spaced_from(&self) -> research::sources::pacing::SpacedFrom
+impl core::clone::Clone for research::sources::pacing::Pacing
+pub fn research::sources::pacing::Pacing::clone(&self) -> research::sources::pacing::Pacing
+impl core::cmp::Eq for research::sources::pacing::Pacing
+impl core::cmp::PartialEq for research::sources::pacing::Pacing
+pub fn research::sources::pacing::Pacing::eq(&self, other: &research::sources::pacing::Pacing) -> bool
+impl core::fmt::Debug for research::sources::pacing::Pacing
+pub fn research::sources::pacing::Pacing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::Pacing
+impl core::marker::StructuralPartialEq for research::sources::pacing::Pacing
+pub struct research::sources::pacing::PacingState
+pub research::sources::pacing::PacingState::last_finish: core::option::Option<std::time::SystemTime>
+pub research::sources::pacing::PacingState::last_sent: core::option::Option<std::time::SystemTime>
+pub research::sources::pacing::PacingState::next_free: core::option::Option<std::time::SystemTime>
+pub research::sources::pacing::PacingState::not_before: core::option::Option<std::time::SystemTime>
+impl research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::confirm(self, pacing: &research::sources::pacing::Pacing, reservation: &research::sources::pacing::Reservation, now: std::time::SystemTime) -> research::sources::pacing::Confirmation
+pub fn research::sources::pacing::PacingState::defer(self, until: std::time::SystemTime, now: std::time::SystemTime) -> Self
+pub const fn research::sources::pacing::PacingState::finish(self, at: std::time::SystemTime) -> Self
+pub fn research::sources::pacing::PacingState::release(self, pacing: &research::sources::pacing::Pacing, reservation: &research::sources::pacing::Reservation) -> Self
+pub fn research::sources::pacing::PacingState::reserve(self, pacing: &research::sources::pacing::Pacing, now: std::time::SystemTime) -> (research::sources::pacing::Reservation, Self)
+pub fn research::sources::pacing::PacingState::trust(self, pacing: &research::sources::pacing::Pacing, now: std::time::SystemTime) -> Self
+impl core::clone::Clone for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::clone(&self) -> research::sources::pacing::PacingState
+impl core::cmp::Eq for research::sources::pacing::PacingState
+impl core::cmp::PartialEq for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::eq(&self, other: &research::sources::pacing::PacingState) -> bool
+impl core::default::Default for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::default() -> research::sources::pacing::PacingState
+impl core::fmt::Debug for research::sources::pacing::PacingState
+pub fn research::sources::pacing::PacingState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::PacingState
+impl core::marker::StructuralPartialEq for research::sources::pacing::PacingState
+pub struct research::sources::pacing::Reservation
+impl research::sources::pacing::Reservation
+pub const fn research::sources::pacing::Reservation::send_at(&self) -> std::time::SystemTime
+impl core::clone::Clone for research::sources::pacing::Reservation
+pub fn research::sources::pacing::Reservation::clone(&self) -> research::sources::pacing::Reservation
+impl core::cmp::Eq for research::sources::pacing::Reservation
+impl core::cmp::PartialEq for research::sources::pacing::Reservation
+pub fn research::sources::pacing::Reservation::eq(&self, other: &research::sources::pacing::Reservation) -> bool
+impl core::fmt::Debug for research::sources::pacing::Reservation
+pub fn research::sources::pacing::Reservation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::pacing::Reservation
+impl core::marker::StructuralPartialEq for research::sources::pacing::Reservation
+pub mod research::sources::ports
+pub enum research::sources::ports::Cause
+pub research::sources::ports::Cause::LockContention
+impl research::sources::ports::Cause
+pub const fn research::sources::ports::Cause::code(self) -> &'static str
+impl core::clone::Clone for research::sources::ports::Cause
+pub fn research::sources::ports::Cause::clone(&self) -> research::sources::ports::Cause
+impl core::cmp::Eq for research::sources::ports::Cause
+impl core::cmp::PartialEq for research::sources::ports::Cause
+pub fn research::sources::ports::Cause::eq(&self, other: &research::sources::ports::Cause) -> bool
+impl core::fmt::Debug for research::sources::ports::Cause
+pub fn research::sources::ports::Cause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::ports::Cause
+impl core::marker::StructuralPartialEq for research::sources::ports::Cause
+pub enum research::sources::ports::Contention
+pub research::sources::ports::Contention::QueueUnusable
+pub research::sources::ports::Contention::TicketPastCap(research::sources::queue::Ticket)
+impl core::clone::Clone for research::sources::ports::Contention
+pub fn research::sources::ports::Contention::clone(&self) -> research::sources::ports::Contention
+impl core::cmp::Eq for research::sources::ports::Contention
+impl core::cmp::PartialEq for research::sources::ports::Contention
+pub fn research::sources::ports::Contention::eq(&self, other: &research::sources::ports::Contention) -> bool
+impl core::fmt::Debug for research::sources::ports::Contention
+pub fn research::sources::ports::Contention::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::ports::Contention
+pub struct research::sources::ports::Attempted
+pub research::sources::ports::Attempted::defer_until: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for research::sources::ports::Attempted
+pub fn research::sources::ports::Attempted::clone(&self) -> research::sources::ports::Attempted
+impl core::cmp::Eq for research::sources::ports::Attempted
+impl core::cmp::PartialEq for research::sources::ports::Attempted
+pub fn research::sources::ports::Attempted::eq(&self, other: &research::sources::ports::Attempted) -> bool
+impl core::fmt::Debug for research::sources::ports::Attempted
+pub fn research::sources::ports::Attempted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::ports::Attempted
+impl core::marker::StructuralPartialEq for research::sources::ports::Attempted
+pub struct research::sources::ports::OutOfBudget
+pub research::sources::ports::OutOfBudget::last_retryable: core::option::Option<research::sources::classify::Reason>
+impl core::clone::Clone for research::sources::ports::OutOfBudget
+pub fn research::sources::ports::OutOfBudget::clone(&self) -> research::sources::ports::OutOfBudget
+impl core::cmp::Eq for research::sources::ports::OutOfBudget
+impl core::cmp::PartialEq for research::sources::ports::OutOfBudget
+pub fn research::sources::ports::OutOfBudget::eq(&self, other: &research::sources::ports::OutOfBudget) -> bool
+impl core::fmt::Debug for research::sources::ports::OutOfBudget
+pub fn research::sources::ports::OutOfBudget::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::ports::OutOfBudget
+impl core::marker::StructuralPartialEq for research::sources::ports::OutOfBudget
+pub struct research::sources::ports::Unavailable
+impl research::sources::ports::Unavailable
+pub const fn research::sources::ports::Unavailable::cause(self) -> core::option::Option<research::sources::ports::Cause>
+pub const fn research::sources::ports::Unavailable::lock_contention() -> Self
+pub const fn research::sources::ports::Unavailable::new(reason: research::sources::classify::Reason) -> Self
+pub const fn research::sources::ports::Unavailable::reason(self) -> research::sources::classify::Reason
+impl core::clone::Clone for research::sources::ports::Unavailable
+pub fn research::sources::ports::Unavailable::clone(&self) -> research::sources::ports::Unavailable
+impl core::cmp::Eq for research::sources::ports::Unavailable
+impl core::cmp::PartialEq for research::sources::ports::Unavailable
+pub fn research::sources::ports::Unavailable::eq(&self, other: &research::sources::ports::Unavailable) -> bool
+impl core::fmt::Debug for research::sources::ports::Unavailable
+pub fn research::sources::ports::Unavailable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::ports::Unavailable
+impl core::marker::StructuralPartialEq for research::sources::ports::Unavailable
+pub struct research::sources::ports::WaitTooLong
+impl core::clone::Clone for research::sources::ports::WaitTooLong
+pub fn research::sources::ports::WaitTooLong::clone(&self) -> research::sources::ports::WaitTooLong
+impl core::cmp::Eq for research::sources::ports::WaitTooLong
+impl core::cmp::PartialEq for research::sources::ports::WaitTooLong
+pub fn research::sources::ports::WaitTooLong::eq(&self, other: &research::sources::ports::WaitTooLong) -> bool
+impl core::fmt::Debug for research::sources::ports::WaitTooLong
+pub fn research::sources::ports::WaitTooLong::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::ports::WaitTooLong
+impl core::marker::StructuralPartialEq for research::sources::ports::WaitTooLong
+pub trait research::sources::ports::Clock
+pub fn research::sources::ports::Clock::now(&self) -> std::time::Instant
+pub fn research::sources::ports::Clock::sleep(&self, duration: core::time::Duration)
+pub fn research::sources::ports::Clock::wall_now(&self) -> std::time::SystemTime
+pub trait research::sources::ports::ContentionLog
+pub fn research::sources::ports::ContentionLog::record(&self, contention: research::sources::ports::Contention)
+pub trait research::sources::ports::Diagnostics
+pub fn research::sources::ports::Diagnostics::report(&self, line: &str)
+pub trait research::sources::ports::PacingGate
+pub fn research::sources::ports::PacingGate::pacing(&self) -> research::sources::pacing::Pacing
+pub fn research::sources::ports::PacingGate::try_serve(&self) -> core::option::Option<alloc::boxed::Box<(dyn research::sources::ports::ServingTurn + '_)>>
+pub trait research::sources::ports::ServingTurn
+pub fn research::sources::ports::ServingTurn::paced(&self, attempt: &mut dyn core::ops::function::FnMut() -> research::sources::ports::Attempted, deadline: &research::sources::schedule::Deadline) -> core::result::Result<(), research::sources::ports::WaitTooLong>
+pub trait research::sources::ports::Transport
+pub fn research::sources::ports::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
 pub mod research::sources::queue
 pub enum research::sources::queue::Argument
+pub research::sources::queue::Argument::Doi
 pub research::sources::queue::Argument::Id
 pub research::sources::queue::Argument::Limit
 pub research::sources::queue::Argument::Query
@@ -952,10 +1148,11 @@ pub fn research::sources::queue::Argument::fmt(&self, f: &mut core::fmt::Formatt
 impl core::marker::Copy for research::sources::queue::Argument
 impl core::marker::StructuralPartialEq for research::sources::queue::Argument
 pub enum research::sources::queue::Binding
-pub research::sources::queue::Binding::Lookup(research::sources::request::ArxivId)
-pub research::sources::queue::Binding::Search
-pub research::sources::queue::Binding::Search::limit: research::sources::request::Limit
-pub research::sources::queue::Binding::Search::query: research::sources::request::ArxivQuery
+pub research::sources::queue::Binding::ArxivLookup(research::sources::request::ArxivId)
+pub research::sources::queue::Binding::ArxivSearch
+pub research::sources::queue::Binding::ArxivSearch::limit: research::sources::request::Limit
+pub research::sources::queue::Binding::ArxivSearch::query: research::sources::request::ArxivQuery
+pub research::sources::queue::Binding::DoiMetadata(research::sources::request::Doi)
 impl research::sources::queue::Binding
 pub fn research::sources::queue::Binding::differing(&self, other: &Self) -> alloc::vec::Vec<research::sources::queue::Argument>
 pub fn research::sources::queue::Binding::of(request: &research::sources::request::ArxivRequest) -> Self
@@ -966,6 +1163,8 @@ impl core::cmp::PartialEq for research::sources::queue::Binding
 pub fn research::sources::queue::Binding::eq(&self, other: &research::sources::queue::Binding) -> bool
 impl core::fmt::Debug for research::sources::queue::Binding
 pub fn research::sources::queue::Binding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::Binding
+pub fn research::sources::queue::Binding::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Binding
 pub enum research::sources::queue::Joining<'q>
 pub research::sources::queue::Joining::OverCap
@@ -993,6 +1192,7 @@ impl core::marker::Copy for research::sources::queue::Presence
 impl core::marker::StructuralPartialEq for research::sources::queue::Presence
 pub enum research::sources::queue::Presentation
 pub research::sources::queue::Presentation::Join
+pub research::sources::queue::Presentation::JoinAfterPoolChange(research::sources::service::CrossrefPool)
 pub research::sources::queue::Presentation::OverCap
 pub research::sources::queue::Presentation::OverCap::last_retryable: core::option::Option<research::sources::classify::Reason>
 pub research::sources::queue::Presentation::OverCap::ticket: research::sources::queue::Ticket
@@ -1006,8 +1206,26 @@ pub fn research::sources::queue::Presentation::eq(&self, other: &research::sourc
 impl core::fmt::Debug for research::sources::queue::Presentation
 pub fn research::sources::queue::Presentation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Presentation
+pub enum research::sources::queue::Provenance
+pub research::sources::queue::Provenance::IssuedBeforeUpgrade
+pub research::sources::queue::Provenance::IssuedElsewhere(research::sources::request::Family)
+pub research::sources::queue::Provenance::IssuedInOtherPool(research::sources::service::CrossrefPool)
+impl core::clone::Clone for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::clone(&self) -> research::sources::queue::Provenance
+impl core::cmp::Eq for research::sources::queue::Provenance
+impl core::cmp::PartialEq for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::eq(&self, other: &research::sources::queue::Provenance) -> bool
+impl core::fmt::Debug for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::Provenance
+pub fn research::sources::queue::Provenance::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::queue::Provenance
+impl core::marker::StructuralPartialEq for research::sources::queue::Provenance
 pub enum research::sources::queue::TicketRejection
 pub research::sources::queue::TicketRejection::AlreadyLive(research::sources::queue::Ticket)
+pub research::sources::queue::TicketRejection::Foreign
+pub research::sources::queue::TicketRejection::Foreign::provenance: research::sources::queue::Provenance
+pub research::sources::queue::TicketRejection::Foreign::ticket: research::sources::queue::Ticket
 pub research::sources::queue::TicketRejection::Mismatch
 pub research::sources::queue::TicketRejection::Mismatch::differing: alloc::vec::Vec<research::sources::queue::Argument>
 pub research::sources::queue::TicketRejection::Mismatch::issued: research::sources::queue::Binding
@@ -1033,10 +1251,21 @@ impl core::fmt::Debug for research::sources::queue::Contender
 pub fn research::sources::queue::Contender::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::queue::Contender
 impl core::marker::StructuralPartialEq for research::sources::queue::Contender
+pub struct research::sources::queue::MalformedTicket(pub alloc::string::String)
+impl core::clone::Clone for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::clone(&self) -> research::sources::queue::MalformedTicket
+impl core::cmp::Eq for research::sources::queue::MalformedTicket
+impl core::cmp::PartialEq for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::eq(&self, other: &research::sources::queue::MalformedTicket) -> bool
+impl core::fmt::Debug for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::MalformedTicket
+pub fn research::sources::queue::MalformedTicket::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::MalformedTicket
 pub struct research::sources::queue::Nonce(_)
 impl research::sources::queue::Nonce
 pub const fn research::sources::queue::Nonce::from_bits(bits: u32) -> Self
-pub fn research::sources::queue::Nonce::from_hex(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::queue::Nonce::from_hex(raw: &str) -> core::result::Result<Self, research::sources::queue::MalformedTicket>
 impl core::clone::Clone for research::sources::queue::Nonce
 pub fn research::sources::queue::Nonce::clone(&self) -> research::sources::queue::Nonce
 impl core::cmp::Eq for research::sources::queue::Nonce
@@ -1066,7 +1295,7 @@ impl core::marker::StructuralPartialEq for research::sources::queue::Position
 pub struct research::sources::queue::Queue
 impl research::sources::queue::Queue
 pub fn research::sources::queue::Queue::expired(&self, now: std::time::SystemTime) -> alloc::vec::Vec<research::sources::queue::Ticket>
-pub const fn research::sources::queue::Queue::new(standings: alloc::vec::Vec<research::sources::queue::Standing>, unparsed: alloc::vec::Vec<research::sources::queue::Ticket>) -> Self
+pub const fn research::sources::queue::Queue::new(standings: alloc::vec::Vec<research::sources::queue::Standing>, unparsed: alloc::vec::Vec<research::sources::queue::Ticket>, foreign: alloc::vec::Vec<(research::sources::queue::Ticket, research::sources::queue::Provenance)>) -> Self
 pub fn research::sources::queue::Queue::next_number(&self) -> u64
 pub fn research::sources::queue::Queue::position_of(&self, ticket: &research::sources::queue::Ticket, now: std::time::SystemTime) -> research::sources::queue::Position
 pub fn research::sources::queue::Queue::present(&self, presented: core::option::Option<&research::sources::queue::Ticket>, binding: &research::sources::queue::Binding, now: std::time::SystemTime) -> research::sources::queue::Presentation
@@ -1079,6 +1308,19 @@ pub fn research::sources::queue::Queue::eq(&self, other: &research::sources::que
 impl core::fmt::Debug for research::sources::queue::Queue
 pub fn research::sources::queue::Queue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Queue
+pub struct research::sources::queue::RejectedTicket
+pub research::sources::queue::RejectedTicket::presented_to: research::sources::request::Family
+pub research::sources::queue::RejectedTicket::rejection: research::sources::queue::TicketRejection
+impl core::clone::Clone for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::clone(&self) -> research::sources::queue::RejectedTicket
+impl core::cmp::Eq for research::sources::queue::RejectedTicket
+impl core::cmp::PartialEq for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::eq(&self, other: &research::sources::queue::RejectedTicket) -> bool
+impl core::fmt::Debug for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::RejectedTicket
+pub fn research::sources::queue::RejectedTicket::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::RejectedTicket
 pub struct research::sources::queue::Standing
 pub research::sources::queue::Standing::binding: research::sources::queue::Binding
 pub research::sources::queue::Standing::issued_at: std::time::SystemTime
@@ -1099,7 +1341,7 @@ impl research::sources::queue::Ticket
 pub const fn research::sources::queue::Ticket::is_ahead_of(&self, other: &Self) -> bool
 pub const fn research::sources::queue::Ticket::issue(number: u64, nonce: research::sources::queue::Nonce) -> Self
 pub const fn research::sources::queue::Ticket::number(&self) -> u64
-pub fn research::sources::queue::Ticket::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::queue::Ticket::parse(raw: &str) -> core::result::Result<Self, research::sources::queue::MalformedTicket>
 impl core::clone::Clone for research::sources::queue::Ticket
 pub fn research::sources::queue::Ticket::clone(&self) -> research::sources::queue::Ticket
 impl core::cmp::Eq for research::sources::queue::Ticket
@@ -1116,15 +1358,15 @@ pub const research::sources::queue::ABANDONED_AFTER: core::time::Duration
 pub const research::sources::queue::CAP: core::time::Duration
 pub const research::sources::queue::EXPIRY: core::time::Duration
 pub const research::sources::queue::LONGEST_INVOCATION: core::time::Duration
-pub trait research::sources::queue::ArxivQueue
-pub fn research::sources::queue::ArxivQueue::join(&self, binding: &research::sources::queue::Binding, presented: core::option::Option<&research::sources::queue::Ticket>, deadline: &research::sources::schedule::Deadline, spacing: core::time::Duration) -> research::sources::queue::Joining<'_>
 pub trait research::sources::queue::Place
 pub fn research::sources::queue::Place::is_front(&self) -> bool
 pub fn research::sources::queue::Place::leave(self: alloc::boxed::Box<Self>, deadline: &research::sources::schedule::Deadline)
 pub fn research::sources::queue::Place::step_aside(self: alloc::boxed::Box<Self>, last_retryable: core::option::Option<research::sources::classify::Reason>, deadline: &research::sources::schedule::Deadline) -> research::sources::queue::Position
 pub fn research::sources::queue::Place::ticket(&self) -> &research::sources::queue::Ticket
+pub trait research::sources::queue::ServiceQueue
+pub fn research::sources::queue::ServiceQueue::join(&self, binding: &research::sources::queue::Binding, presented: core::option::Option<&research::sources::queue::Ticket>, deadline: &research::sources::schedule::Deadline) -> research::sources::queue::Joining<'_>
 pub fn research::sources::queue::is_abandoned(issued_at: std::time::SystemTime, now: std::time::SystemTime) -> bool
-pub fn research::sources::queue::is_front_given(ahead: impl core::iter::traits::collect::IntoIterator<Item = research::sources::queue::Contender>, now: std::time::SystemTime) -> bool
+pub fn research::sources::queue::is_served_given(ahead: impl core::iter::traits::collect::IntoIterator<Item = research::sources::queue::Contender>, slots: core::num::nonzero::NonZeroU8, now: std::time::SystemTime) -> bool
 pub mod research::sources::record
 pub enum research::sources::record::Tier
 pub research::sources::record::Tier::One
@@ -1202,11 +1444,13 @@ pub fn research::sources::request::ArxivRequest::fmt(&self, f: &mut core::fmt::F
 impl core::marker::StructuralPartialEq for research::sources::request::ArxivRequest
 pub enum research::sources::request::Family
 pub research::sources::request::Family::Arxiv
+pub research::sources::request::Family::Doi
 pub research::sources::request::Family::OpenAlex
 pub research::sources::request::Family::Web
 impl research::sources::request::Family
-pub const research::sources::request::Family::ALL: [Self; 3]
+pub const research::sources::request::Family::ALL: [Self; 4]
 pub const fn research::sources::request::Family::code(self) -> &'static str
+pub fn research::sources::request::Family::is_queued(self) -> bool
 pub fn research::sources::request::Family::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
 pub const fn research::sources::request::Family::verbs(self) -> &'static [research::sources::request::Verb]
 impl core::clone::Clone for research::sources::request::Family
@@ -1222,6 +1466,7 @@ impl core::marker::Copy for research::sources::request::Family
 impl core::marker::StructuralPartialEq for research::sources::request::Family
 pub enum research::sources::request::FetchRequest
 pub research::sources::request::FetchRequest::Arxiv(research::sources::request::ArxivRequest)
+pub research::sources::request::FetchRequest::Doi(research::sources::request::DoiRequest)
 pub research::sources::request::FetchRequest::OpenAlex(research::sources::request::OpenAlexRequest)
 pub research::sources::request::FetchRequest::Web(research::sources::request::WebRequest)
 impl research::sources::request::FetchRequest
@@ -1273,12 +1518,14 @@ pub research::sources::request::RequestError::EmptyQuery
 pub research::sources::request::RequestError::LimitNotApplicable
 pub research::sources::request::RequestError::LimitOutOfRange(alloc::string::String)
 pub research::sources::request::RequestError::MalformedArxivId(alloc::string::String)
+pub research::sources::request::RequestError::MalformedDoi(alloc::string::String)
 pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string::String)
 pub research::sources::request::RequestError::MalformedUrl(research::sources::web::page_url::PageUrlError)
+pub research::sources::request::RequestError::MissingDoi
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
 pub research::sources::request::RequestError::MissingUrl
-pub research::sources::request::RequestError::TicketMalformed(alloc::string::String)
+pub research::sources::request::RequestError::TicketMalformed(research::sources::request::Family, alloc::string::String)
 pub research::sources::request::RequestError::TicketNotQueued
 pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
 pub research::sources::request::RequestError::UnknownVerb
@@ -1377,11 +1624,24 @@ pub fn research::sources::request::Doi::eq(&self, other: &research::sources::req
 impl core::fmt::Debug for research::sources::request::Doi
 pub fn research::sources::request::Doi::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::request::Doi
+pub struct research::sources::request::DoiRequest(_)
+impl research::sources::request::DoiRequest
+pub const fn research::sources::request::DoiRequest::doi(&self) -> &research::sources::request::Doi
+pub fn research::sources::request::DoiRequest::parse(verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::DoiRequest
+pub fn research::sources::request::DoiRequest::clone(&self) -> research::sources::request::DoiRequest
+impl core::cmp::Eq for research::sources::request::DoiRequest
+impl core::cmp::PartialEq for research::sources::request::DoiRequest
+pub fn research::sources::request::DoiRequest::eq(&self, other: &research::sources::request::DoiRequest) -> bool
+impl core::fmt::Debug for research::sources::request::DoiRequest
+pub fn research::sources::request::DoiRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::DoiRequest
 pub struct research::sources::request::Endpoint(_)
 impl research::sources::request::Endpoint
 pub fn research::sources::request::Endpoint::arxiv_api() -> Self
 pub fn research::sources::request::Endpoint::arxiv_oai() -> Self
 pub fn research::sources::request::Endpoint::as_str(&self) -> &str
+pub fn research::sources::request::Endpoint::crossref_api() -> Self
 pub fn research::sources::request::Endpoint::new(base: &str) -> Self
 pub fn research::sources::request::Endpoint::openalex() -> Self
 impl core::clone::Clone for research::sources::request::Endpoint
@@ -1439,6 +1699,7 @@ impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexQ
 pub struct research::sources::request::UpstreamRequest
 impl research::sources::request::UpstreamRequest
 pub fn research::sources::request::UpstreamRequest::bearer(&self) -> core::option::Option<&str>
+pub fn research::sources::request::UpstreamRequest::crossref_work(api: &research::sources::request::Endpoint, doi: &research::sources::request::Doi, contact: core::option::Option<&research::sources::crossref::ContactAddress>) -> Self
 pub fn research::sources::request::UpstreamRequest::headers(&self) -> &[(&'static str, alloc::string::String)]
 pub fn research::sources::request::UpstreamRequest::url(&self) -> &str
 pub fn research::sources::request::UpstreamRequest::withdrawal_confirmation(oai: &research::sources::request::Endpoint, id: &research::sources::request::ArxivId) -> Self
@@ -1498,6 +1759,59 @@ pub struct research::sources::schedule::RetrySchedule
 impl research::sources::schedule::RetrySchedule
 pub fn research::sources::schedule::RetrySchedule::deferral_after(retry: research::sources::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::time::Duration
 pub fn research::sources::schedule::RetrySchedule::wait_before(retry: research::sources::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::option::Option<core::time::Duration>
+pub mod research::sources::service
+pub enum research::sources::service::CrossrefPool
+pub research::sources::service::CrossrefPool::Polite
+pub research::sources::service::CrossrefPool::Public
+impl research::sources::service::CrossrefPool
+pub const fn research::sources::service::CrossrefPool::name(self) -> &'static str
+impl core::clone::Clone for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::clone(&self) -> research::sources::service::CrossrefPool
+impl core::cmp::Eq for research::sources::service::CrossrefPool
+impl core::cmp::PartialEq for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::eq(&self, other: &research::sources::service::CrossrefPool) -> bool
+impl core::fmt::Debug for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::service::CrossrefPool
+pub fn research::sources::service::CrossrefPool::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for research::sources::service::CrossrefPool
+impl core::marker::StructuralPartialEq for research::sources::service::CrossrefPool
+pub enum research::sources::service::Service
+pub research::sources::service::Service::Arxiv
+pub research::sources::service::Service::Crossref(research::sources::service::CrossrefPool)
+impl research::sources::service::Service
+pub const research::sources::service::Service::ALL: [Self; 3]
+pub const fn research::sources::service::Service::code(self) -> &'static str
+pub const fn research::sources::service::Service::pacing(self) -> research::sources::pacing::Pacing
+pub const fn research::sources::service::Service::source(self) -> &'static str
+pub const fn research::sources::service::Service::ticket_family(self) -> research::sources::request::Family
+impl core::clone::Clone for research::sources::service::Service
+pub fn research::sources::service::Service::clone(&self) -> research::sources::service::Service
+impl core::cmp::Eq for research::sources::service::Service
+impl core::cmp::PartialEq for research::sources::service::Service
+pub fn research::sources::service::Service::eq(&self, other: &research::sources::service::Service) -> bool
+impl core::fmt::Debug for research::sources::service::Service
+pub fn research::sources::service::Service::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::service::Service
+pub fn research::sources::service::Service::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for research::sources::service::Service
+impl core::marker::StructuralPartialEq for research::sources::service::Service
+pub mod research::sources::serving
+pub enum research::sources::serving::Queued<T>
+pub research::sources::serving::Queued::Rejected(research::sources::queue::TicketRejection)
+pub research::sources::serving::Queued::Served(T)
+pub research::sources::serving::Queued::Unavailable(research::sources::ports::Unavailable)
+pub research::sources::serving::Queued::Waiting
+pub research::sources::serving::Queued::Waiting::position: research::sources::queue::Position
+pub research::sources::serving::Queued::Waiting::ticket: research::sources::queue::Ticket
+impl<T: core::clone::Clone> core::clone::Clone for research::sources::serving::Queued<T>
+pub fn research::sources::serving::Queued<T>::clone(&self) -> research::sources::serving::Queued<T>
+impl<T: core::cmp::Eq> core::cmp::Eq for research::sources::serving::Queued<T>
+impl<T: core::cmp::PartialEq> core::cmp::PartialEq for research::sources::serving::Queued<T>
+pub fn research::sources::serving::Queued<T>::eq(&self, other: &research::sources::serving::Queued<T>) -> bool
+impl<T: core::fmt::Debug> core::fmt::Debug for research::sources::serving::Queued<T>
+pub fn research::sources::serving::Queued<T>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<T> core::marker::StructuralPartialEq for research::sources::serving::Queued<T>
 pub mod research::sources::tier
 pub const fn research::sources::tier::arxiv_tier(withdrawn: bool) -> research::sources::record::Tier
 pub fn research::sources::tier::openalex_tier(work: &research::sources::openalex::Work) -> research::sources::record::Tier
@@ -1658,7 +1972,7 @@ pub fn research::sources::web::fetch::StepBounds::fmt(&self, f: &mut core::fmt::
 impl core::marker::Copy for research::sources::web::fetch::StepBounds
 impl core::marker::StructuralPartialEq for research::sources::web::fetch::StepBounds
 pub struct research::sources::web::fetch::WebPorts<'a>
-pub research::sources::web::fetch::WebPorts::clock: &'a dyn research::sources::fetch::Clock
+pub research::sources::web::fetch::WebPorts::clock: &'a dyn research::sources::ports::Clock
 pub research::sources::web::fetch::WebPorts::decoder: &'a dyn research::sources::web::declarations::PageDecoder
 pub research::sources::web::fetch::WebPorts::resolver: &'a dyn research::sources::web::fetch::HostResolver
 pub research::sources::web::fetch::WebPorts::transport: &'a dyn research::sources::web::fetch::PageTransport

@@ -9,7 +9,7 @@ use http_test_support::RequestKey;
 use http_test_support::Route;
 use research::sources::classify::Received;
 use research::sources::classify::Response;
-use research::sources::fetch::Transport as _;
+use research::sources::ports::Transport as _;
 use research::sources::request::ApiKey;
 use research::sources::request::Endpoint;
 use research::sources::request::KeySource;

@@ -4,26 +4,24 @@ mod support;
 
 use std::rc::Rc;
 
-use research::sources::fetch::Clock as _;
-use research::sources::fetch::Contention;
-use research::sources::fetch::ContentionLog as _;
+use research::sources::ports::Clock as _;
+use research::sources::ports::Contention;
+use research::sources::ports::ContentionLog as _;
 use research::sources::queue::Ticket;
-use research_adapters::contention::FileContentionLog;
+use support::arxiv_contention_log;
 use support::millis;
 use support::RecordedDiagnostics;
 use support::RecordingClock;
 use support::Scratch;
+use support::StateFile;
 
 #[test]
 fn recording_contention_appends_one_line_per_event_and_reports_it() {
     let scratch = Scratch::new();
     let clock = RecordingClock::new();
     let diagnostics = Rc::new(RecordedDiagnostics::default());
-    let log = FileContentionLog::new(
-        scratch.dir(),
-        clock.clone(),
-        diagnostics.clone(),
-    );
+    let log =
+        arxiv_contention_log(&scratch, clock.clone(), diagnostics.clone());
     let ticket = Ticket::parse("42-9f1c2a").expect("a ticket");
 
     log.record(Contention::TicketPastCap(ticket));
@@ -31,7 +29,7 @@ fn recording_contention_appends_one_line_per_event_and_reports_it() {
 
     let at = millis(clock.wall_now());
     assert_eq!(
-        scratch.lines("arxiv-contention.log"),
+        scratch.lines(scratch.arxiv_state(StateFile::ContentionLog)),
         [
             format!("{at} ticket_past_cap 42-9f1c2a"),
             format!("{at} queue_unusable"),

@@ -9,13 +9,28 @@ use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
-use research::sources::fetch::Clock;
+use research::sources::ports::Clock;
+use research::sources::queue::Binding;
+use research::sources::queue::Joining;
+use research::sources::queue::Nonce;
+use research::sources::queue::ServiceQueue as _;
+use research::sources::queue::Ticket;
+use research::sources::schedule::Deadline;
+use research::sources::service::Service;
+use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
+use research_adapters::pacing::FilePacingGate;
+use research_adapters::queue::random_nonce;
+use research_adapters::queue::FileServiceQueue;
 use research_adapters::scratch::ScratchDir;
+use research_adapters::services::AdapterContext;
+use research_adapters::services::PreviousRelease;
 
 pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
@@ -88,6 +103,226 @@ impl Diagnostics for RecordedDiagnostics {
     }
 }
 
+/// A file or directory of a service's queue and pacing state.
+#[derive(Debug, Clone, Copy)]
+pub enum StateFile {
+    /// The first serving slot's lock, the only one a one-slot service has.
+    ServingLock,
+    ServingSlot(u8),
+    PacingLock,
+    Pacing,
+    RequestLog,
+    ContentionLog,
+    Queue,
+}
+
+impl StateFile {
+    fn name(self) -> String {
+        match self {
+            Self::ServingLock => Self::ServingSlot(0).name(),
+            Self::ServingSlot(slot) => format!("serving-{slot}.lock"),
+            Self::PacingLock => "pacing.lock".to_owned(),
+            Self::Pacing => "pacing".to_owned(),
+            Self::RequestLog => "requests.log".to_owned(),
+            Self::ContentionLog => "contention.log".to_owned(),
+            Self::Queue => "queue".to_owned(),
+        }
+    }
+}
+
+/// The pacing state a service's gate persists between calls.
+#[derive(Default)]
+pub struct PacingRecord {
+    pub last_sent: Option<SystemTime>,
+    pub next_free: Option<SystemTime>,
+    pub last_finish: Option<SystemTime>,
+    pub not_before: Option<SystemTime>,
+}
+
+pub fn arxiv_gate(
+    scratch: &Scratch,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> FilePacingGate {
+    service_gate(Service::Arxiv, &scratch.dir(), clock, diagnostics)
+}
+
+pub fn service_gate(
+    service: Service,
+    research: &ScratchDir,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> FilePacingGate {
+    FilePacingGate::new(service, research, clock, diagnostics, Vec::new())
+}
+
+/// A gate that also takes each of `companions` while it serves.
+pub fn gate_with_companions(
+    service: Service,
+    research: &ScratchDir,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+    companions: Vec<PathBuf>,
+) -> FilePacingGate {
+    FilePacingGate::new(service, research, clock, diagnostics, companions)
+}
+
+/// What every service's adapters share, over `scratch`.
+pub fn adapter_context(
+    scratch: &Scratch,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> AdapterContext {
+    AdapterContext {
+        research: scratch.dir(),
+        clock,
+        diagnostics,
+        nonces: Rc::new(random_nonce),
+    }
+}
+
+/// The previous release's arXiv state, where it kept it.
+pub fn previous_release(scratch: &Scratch) -> PreviousRelease {
+    PreviousRelease::arxiv_layout(&scratch.dir())
+}
+
+/// A file or directory the previous release kept arXiv's state in.
+#[derive(Debug, Clone, Copy)]
+pub enum LegacyFile {
+    Queue,
+    Pacing,
+    Lock,
+}
+
+impl LegacyFile {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Queue => "arxiv-queue",
+            Self::Pacing => "arxiv-pacing",
+            Self::Lock => "arxiv.lock",
+        }
+    }
+}
+
+/// Reports nowhere, for a gate built inside another caller's sleep.
+pub struct Silent;
+
+impl Diagnostics for Silent {
+    fn report(&self, _line: &str) {}
+}
+
+type Hook = Box<dyn FnOnce() + Send>;
+
+/// Virtual time any thread can read and advance. A registered hook runs
+/// inside the next sleep, before time advances, and another inside the next
+/// wall-clock read, so a test can act at exactly those moments.
+#[derive(Clone)]
+pub struct HookedClock(Arc<HookedTime>);
+
+struct HookedTime {
+    origin: Instant,
+    wall_origin: SystemTime,
+    elapsed: Mutex<Duration>,
+    slept: Mutex<Vec<Duration>>,
+    on_sleep: Mutex<Option<Hook>>,
+    on_wall_read: Mutex<Option<Hook>>,
+}
+
+impl HookedClock {
+    pub fn new() -> Self {
+        Self(Arc::new(HookedTime {
+            origin: Instant::now(),
+            wall_origin: SystemTime::UNIX_EPOCH + secs(1_800_000_000),
+            elapsed: Mutex::default(),
+            slept: Mutex::default(),
+            on_sleep: Mutex::default(),
+            on_wall_read: Mutex::default(),
+        }))
+    }
+
+    pub fn on_next_sleep(&self, hook: impl FnOnce() + Send + 'static) {
+        *self.0.on_sleep.lock().expect("hook") = Some(Box::new(hook));
+    }
+
+    pub fn on_next_wall_read(&self, hook: impl FnOnce() + Send + 'static) {
+        *self.0.on_wall_read.lock().expect("hook") = Some(Box::new(hook));
+    }
+
+    /// The wall time, read without running any hook.
+    pub fn current_wall(&self) -> SystemTime {
+        self.0.wall_origin + *self.0.elapsed.lock().expect("elapsed")
+    }
+
+    pub fn advance(&self, by: Duration) {
+        *self.0.elapsed.lock().expect("elapsed") += by;
+    }
+
+    pub fn slept(&self) -> Vec<Duration> {
+        self.0.slept.lock().expect("slept").clone()
+    }
+
+    pub fn shared(&self) -> Rc<dyn Clock> {
+        Rc::new(self.clone())
+    }
+}
+
+impl Clock for HookedClock {
+    fn now(&self) -> Instant {
+        self.0.origin + *self.0.elapsed.lock().expect("elapsed")
+    }
+
+    fn wall_now(&self) -> SystemTime {
+        let hook = self.0.on_wall_read.lock().expect("hook").take();
+        if let Some(hook) = hook {
+            hook();
+        }
+        self.current_wall()
+    }
+
+    fn sleep(&self, duration: Duration) {
+        self.0.slept.lock().expect("slept").push(duration);
+        let hook = self.0.on_sleep.lock().expect("hook").take();
+        if let Some(hook) = hook {
+            hook();
+        }
+        self.advance(duration);
+    }
+}
+
+pub fn arxiv_contention_log(
+    scratch: &Scratch,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+) -> FileContentionLog {
+    FileContentionLog::new(Service::Arxiv, &scratch.dir(), clock, diagnostics)
+}
+
+pub fn arxiv_queue(
+    research: &ScratchDir,
+    clock: Rc<dyn Clock>,
+    diagnostics: Rc<dyn Diagnostics>,
+    nonces: Box<dyn Fn() -> Nonce>,
+) -> FileServiceQueue {
+    FileServiceQueue::new(
+        Service::Arxiv,
+        research,
+        clock,
+        diagnostics,
+        nonces,
+        Vec::new(),
+    )
+}
+
+/// Joins `queue` as an arXiv call would.
+pub fn join_queue<'q>(
+    queue: &'q FileServiceQueue,
+    binding: &Binding,
+    presented: Option<&Ticket>,
+    deadline: &Deadline,
+) -> Joining<'q> {
+    queue.join(binding, presented, deadline)
+}
+
 /// A project root holding the `research` scratch directory the adapters
 /// keep their state in.
 pub struct Scratch {
@@ -109,8 +344,80 @@ impl Scratch {
         self.root.path().join("tmp/research")
     }
 
+    pub fn service_state(&self, service: Service, file: StateFile) -> PathBuf {
+        self.directory()
+            .join("services")
+            .join(service.code())
+            .join(file.name())
+    }
+
+    pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
+        self.service_state(Service::Arxiv, file)
+    }
+
+    pub fn legacy_arxiv_state(&self, file: LegacyFile) -> PathBuf {
+        self.directory().join(file.name())
+    }
+
+    /// Writes a ticket record into `service`'s queue, as a call of that
+    /// service would have left it.
+    pub fn seed_service_ticket(&self, service: Service, ticket: &str) {
+        Self::seed_record_in(
+            &self.service_state(service, StateFile::Queue),
+            ticket,
+        );
+    }
+
+    /// Writes a ticket record where the previous release kept its queue.
+    pub fn seed_legacy_ticket(&self, ticket: &str) {
+        Self::seed_record_in(
+            &self.legacy_arxiv_state(LegacyFile::Queue),
+            ticket,
+        );
+    }
+
+    fn seed_record_in(directory: &Path, ticket: &str) {
+        std::fs::create_dir_all(directory).expect("mkdir queue");
+        std::fs::write(
+            directory.join(format!("{ticket}.json")),
+            format!(
+                "{{\"schema_version\":1,\"issued_ms\":0,\"presented_ms\":0,\
+                 \"ended_ms\":0,\"last_retryable\":null,{GRAPHS}}}"
+            ),
+        )
+        .expect("seed a ticket");
+    }
+
     pub fn queue_directory(&self) -> PathBuf {
-        self.directory().join("arxiv-queue")
+        self.arxiv_state(StateFile::Queue)
+    }
+
+    pub fn write_pacing(&self, record: &PacingRecord) {
+        self.write_service_pacing(Service::Arxiv, record);
+    }
+
+    pub fn write_service_pacing(
+        &self,
+        service: Service,
+        record: &PacingRecord,
+    ) {
+        write_pacing_at(
+            &self.service_state(service, StateFile::Pacing),
+            record,
+        );
+    }
+
+    pub fn stored_pacing(&self) -> serde_json::Value {
+        self.stored_service_pacing(Service::Arxiv)
+    }
+
+    pub fn stored_service_pacing(&self, service: Service) -> serde_json::Value {
+        serde_json::from_str(
+            &self
+                .read(self.service_state(service, StateFile::Pacing))
+                .expect("a pacing state"),
+        )
+        .expect("JSON pacing state")
     }
 
     pub fn queue_path(&self, name: &str) -> PathBuf {
@@ -267,25 +574,28 @@ impl Scratch {
             .map(|bytes| serde_json::from_slice(&bytes).expect("a JSON record"))
     }
 
-    fn path(&self, name: &str) -> PathBuf {
-        let directory = self.directory();
-        std::fs::create_dir_all(&directory).expect("mkdir scratch");
-        directory.join(name)
+    /// `name` relative to the research directory, or an absolute path such
+    /// as [`Self::arxiv_state`] gives, with its parent created.
+    fn path(&self, name: impl AsRef<Path>) -> PathBuf {
+        let path = self.directory().join(name);
+        std::fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("mkdir scratch");
+        path
     }
 
-    pub fn write(&self, name: &str, contents: &str) {
+    pub fn write(&self, name: impl AsRef<Path>, contents: &str) {
         std::fs::write(self.path(name), contents).expect("write scratch file");
     }
 
-    pub fn read(&self, name: &str) -> Option<String> {
+    pub fn read(&self, name: impl AsRef<Path>) -> Option<String> {
         std::fs::read_to_string(self.path(name)).ok()
     }
 
-    pub fn mkdir(&self, name: &str) {
+    pub fn mkdir(&self, name: impl AsRef<Path>) {
         std::fs::create_dir_all(self.path(name)).expect("mkdir");
     }
 
-    pub fn open(&self, name: &str) -> File {
+    pub fn open(&self, name: impl AsRef<Path>) -> File {
         std::fs::OpenOptions::new()
             .create(true)
             .truncate(false)
@@ -294,7 +604,7 @@ impl Scratch {
             .expect("open scratch file")
     }
 
-    pub fn lines(&self, name: &str) -> Vec<String> {
+    pub fn lines(&self, name: impl AsRef<Path>) -> Vec<String> {
         self.read(name)
             .unwrap_or_default()
             .lines()
@@ -313,6 +623,28 @@ pub struct TicketRecord<'a> {
 
 pub const GRAPHS: &str =
     "\"verb\":\"search\",\"query\":\"graphs\",\"limit\":10";
+
+/// Writes a pacing file as a gate on another thread or process would.
+pub fn write_pacing_at(path: &Path, record: &PacingRecord) {
+    let millis = |at: Option<SystemTime>| {
+        at.map_or_else(|| "null".to_owned(), |at| millis(at).to_string())
+    };
+    std::fs::create_dir_all(path.parent().expect("a parent"))
+        .expect("mkdir service state");
+    std::fs::write(
+        path,
+        format!(
+            "{{\"schema_version\":1,\"last_sent_ms\":{},\
+             \"next_free_ms\":{},\"last_finish_ms\":{},\
+             \"not_before_ms\":{}}}",
+            millis(record.last_sent),
+            millis(record.next_free),
+            millis(record.last_finish),
+            millis(record.not_before)
+        ),
+    )
+    .expect("write pacing");
+}
 
 pub fn set_modified(path: &Path, modified: SystemTime) {
     File::options()

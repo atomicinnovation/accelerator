@@ -7,19 +7,20 @@ use clap::Parser;
 use clap::Subcommand;
 
 const FETCH_HELP: &str = "\
-Fetch tiered scholarly records from OpenAlex or arXiv, or the metadata a
-public web page declares about itself.
+Fetch tiered scholarly records from OpenAlex or arXiv, the metadata a public
+web page declares about itself, or the venue and publisher Crossref holds for
+a DOI.
 
 Families and their verbs: openalex and arxiv take search (free text) or lookup
 (one ID: an OpenAlex W… ID or DOI, or an arXiv ID); web takes metadata (one
-http or https page URL).
+http or https page URL); doi takes metadata (one DOI, bare or a doi.org URL).
 
-Prints compact JSON on stdout: {\"status\":\"ok\",\"records\":[…]}, each record
-carrying title, authors, url, venue, venue_signals, abstract, tier, retracted,
-withdrawn and metadata; or {\"status\":\"unavailable\",\"source\":…,\"reason\":…}
-with a reason of rate_limited, budget_exhausted or upstream_error when the
-source cannot answer now. Record fields are only ever added, so ignore any you
-do not know.
+A records call prints compact JSON on stdout: {\"status\":\"ok\",\"records\":[…]},
+each record carrying title, authors, url, venue, venue_signals, abstract, tier,
+retracted, withdrawn and metadata; or
+{\"status\":\"unavailable\",\"source\":…,\"reason\":…} with a reason of
+rate_limited, budget_exhausted or upstream_error when the source cannot answer
+now. Record fields are only ever added, so ignore any you do not know.
 
 metadata maps doi, arxiv_id, openalex_id, published, updated and accessed (the
 UTC date of the call) to their values, omitting any the source lacks. Its keys
@@ -34,20 +35,30 @@ and never uses a proxy. A page it cannot read exits 1 with one E_WEB_* line on
 stderr and nothing on stdout; a URL that is not a fetchable http(s) URL exits 2
 with E_WEB_URL_MALFORMED.
 
-arXiv calls wait their turn in a queue shared by the project. One that cannot
-be served in time prints
-{\"status\":\"waiting\",\"source\":\"arxiv\",\"ticket\":…,\"position\":…}: re-present
-the same call with --ticket set to that ticket, and repeat until the status
-is no longer waiting. ok, unavailable and waiting all exit 0. A caller should
-treat any status other than ok, unavailable or waiting as unavailable,
-reporting the status verbatim as its reason.
+doi metadata prints {\"status\":\"ok\",\"metadata\":{…},\"venue\":\"…\"}: venue is
+the first container title of a journal or proceedings article, absent for
+any other type, and metadata maps the publisher, whose key follows every key
+web metadata prints in canonical order. A DOI Crossref holds no record for
+prints {\"status\":\"ok\",\"metadata\":{}}. It asks only Crossref, with no key;
+setting crossref.mailto to a contact address selects Crossref's faster pool.
+It prints {\"status\":\"unavailable\",\"source\":\"crossref\",\"reason\":…} with a
+reason of rate_limited or upstream_error when Crossref cannot answer or
+rejects the request. A DOI it cannot parse exits 2 with E_DOI_MALFORMED.
 
-Every call finishes within 100 s of starting, though a waiting arXiv call can
-take re-presentations over up to about 1,000 s to settle. Usage errors exit 2
-before any request; credential refusals and rejected requests exit 1. A
-ticket presented with other arguments also exits 2, as does one another call
-is presenting right now (E_ARXIV_TICKET_LIVE),
-which clears once that call returns.";
+arXiv and DOI calls wait their turn in a queue each service shares across the
+project. One that cannot be served in time prints
+{\"status\":\"waiting\",\"source\":…,\"ticket\":…,\"position\":…}, with a source of
+arxiv or crossref: re-present the same call with --ticket set to that ticket,
+and repeat until the status is no longer waiting. ok, unavailable and waiting
+all exit 0. Treat any status other than ok, unavailable or waiting as
+unavailable, reporting the status verbatim as its reason.
+
+Every call finishes within 100 s of starting, though a waiting arXiv or DOI
+call can take re-presentations over up to about 1,000 s to settle. Usage
+errors exit 2 before any request; credential refusals and rejected requests
+exit 1. A ticket presented with other arguments also exits 2, as does one
+another call is presenting right now (E_ARXIV_TICKET_LIVE or
+E_DOI_TICKET_LIVE), which clears once that call returns.";
 
 #[derive(Parser)]
 #[command(name = "accelerator-research", disable_version_flag = true)]
@@ -58,22 +69,22 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Fetch tiered scholarly records from OpenAlex or arXiv, or a web page's
-    /// declared metadata.
+    /// Fetch tiered scholarly records from OpenAlex or arXiv, a web page's
+    /// declared metadata, or a DOI's venue and publisher.
     #[command(long_about = FETCH_HELP)]
     Fetch {
-        /// openalex, arxiv or web.
+        /// openalex, arxiv, web or doi.
         family: String,
-        /// search or lookup for openalex and arxiv; metadata for web.
+        /// search or lookup for openalex and arxiv; metadata for web and doi.
         verb: String,
-        /// The search query, the ID to look up, or the page URL. Several
-        /// words of a query or ID are joined with single spaces.
+        /// The search query, the ID to look up, the page URL, or the DOI.
+        /// Several words of a query or ID are joined with single spaces.
         terms: Vec<String>,
         /// How many records a search returns, 1–25 (default 10).
         #[arg(long)]
         limit: Option<String>,
-        /// Re-present the ticket a waiting arXiv call printed, with the same
-        /// arguments.
+        /// Re-present the ticket a waiting arXiv or DOI call printed (source
+        /// arxiv or crossref), with the same arguments.
         #[arg(long)]
         ticket: Option<String>,
     },
@@ -170,11 +181,63 @@ pub enum TopicAction {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::panic)]
 mod tests {
+    use clap::CommandFactory as _;
     use research::sources::request::Family;
 
+    use super::Cli;
     use super::FETCH_HELP;
+
+    fn fetch_arg_doc(id: &str) -> String {
+        let command = Cli::command();
+        let help = command
+            .find_subcommand("fetch")
+            .expect("fetch")
+            .get_arguments()
+            .find(|argument| argument.get_id() == id)
+            .and_then(|argument| argument.get_help())
+            .map(ToString::to_string);
+        help.unwrap_or_else(|| panic!("no help for {id}"))
+    }
+
+    fn paragraph_naming(phrase: &str) -> &'static str {
+        FETCH_HELP
+            .split("\n\n")
+            .find(|paragraph| paragraph.contains(phrase))
+            .unwrap_or_else(|| panic!("no paragraph names {phrase:?}"))
+    }
+
+    #[test]
+    fn the_ticket_paragraph_names_both_queued_families_and_their_sources() {
+        let paragraph = paragraph_naming("--ticket");
+        for named in ["arXiv", "DOI", "arxiv", "crossref"] {
+            assert!(paragraph.contains(named), "{named} in {paragraph:?}");
+        }
+    }
+
+    #[test]
+    fn the_ticket_and_family_arguments_name_the_doi_family() {
+        assert!(fetch_arg_doc("ticket").contains("DOI"));
+        assert!(fetch_arg_doc("family").contains("doi"));
+        assert!(fetch_arg_doc("verb").contains("metadata for web and doi"));
+    }
+
+    #[test]
+    fn the_fetch_help_describes_the_doi_metadata_document() {
+        let paragraph = paragraph_naming("doi metadata prints");
+        for named in ["venue", "publisher", "crossref", "E_DOI_MALFORMED"] {
+            assert!(paragraph.contains(named), "{named} in {paragraph:?}");
+        }
+    }
+
+    #[test]
+    fn the_doi_metadata_paragraph_says_crossref_mailto_selects_the_faster_pool()
+    {
+        let paragraph = paragraph_naming("doi metadata prints");
+        assert!(paragraph.contains("crossref.mailto"), "{paragraph:?}");
+        assert!(paragraph.contains("faster pool"), "{paragraph:?}");
+    }
 
     fn family_clauses() -> Vec<&'static str> {
         let (_, after) = FETCH_HELP

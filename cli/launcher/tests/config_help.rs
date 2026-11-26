@@ -70,3 +70,13 @@ fn the_openalex_credential_keys_are_listed() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+#[test]
+fn the_crossref_contact_key_is_listed() -> Result<(), Box<dyn Error>> {
+    let stdout = config_help_stdout(&["config", "help"])?;
+    assert!(
+        stdout.lines().any(|line| line.trim() == "crossref.mailto"),
+        "crossref.mailto missing: {stdout}"
+    );
+    Ok(())
+}

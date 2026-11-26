@@ -9,11 +9,11 @@ use research::sources::classify::ClientRejection;
 use research::sources::classify::FetchError;
 use research::sources::classify::Reason;
 use research::sources::fetch::fetch_arxiv;
+use research::sources::fetch::ArxivAnswer;
 use research::sources::fetch::ArxivFetch;
 use research::sources::fetch::ArxivPorts;
-use research::sources::fetch::Contention;
-use research::sources::fetch::FetchOutcome;
-use research::sources::fetch::Unavailable;
+use research::sources::ports::Contention;
+use research::sources::ports::Unavailable;
 use research::sources::queue::Argument;
 use research::sources::queue::Position;
 use research::sources::queue::Ticket;
@@ -26,6 +26,9 @@ use research::sources::request::ArxivRequest;
 use research::sources::request::Endpoint;
 use research::sources::request::Family;
 use research::sources::request::Limit;
+use research::sources::service::CrossrefPool;
+use research::sources::service::Service;
+use research::sources::serving::Queued;
 
 use support::body;
 use support::retry_after;
@@ -69,8 +72,6 @@ fn lookup(id: &str) -> ArxivRequest {
     ArxivRequest::Lookup(ArxivId::parse(id).expect("valid"))
 }
 
-const SPACING: Duration = secs(3);
-
 struct Harness {
     timeline: Timeline,
     clock: RecordingClock,
@@ -87,7 +88,7 @@ impl Harness {
         let timeline = Timeline::default();
         Self {
             clock: RecordingClock::on(timeline.clone()),
-            gate: RecordingGate::on(timeline.clone()).spacing(SPACING),
+            gate: RecordingGate::paced_as_arxiv(timeline.clone()),
             queue: ScriptedQueue::on(timeline.clone()),
             timeline,
             contention: RecordingContention::default(),
@@ -113,8 +114,8 @@ impl Harness {
         self
     }
 
-    fn waiting_at(&self, position: u32) -> FetchOutcome {
-        FetchOutcome::Waiting {
+    fn waiting_at(&self, position: u32) -> Queued<ArxivAnswer> {
+        Queued::Waiting {
             ticket: self.queue.ticket(),
             position: Position::new(position),
         }
@@ -125,7 +126,7 @@ impl Harness {
         transport: &ScriptedTransport<'_>,
         confirmations: &MemoryConfirmations<'_>,
         request: &ArxivRequest,
-    ) -> FetchOutcome {
+    ) -> Queued<ArxivAnswer> {
         fetch_arxiv(
             &ArxivFetch {
                 request,
@@ -147,9 +148,9 @@ impl Harness {
     }
 }
 
-fn records(outcome: FetchOutcome) -> Vec<Record> {
+fn records(outcome: Queued<ArxivAnswer>) -> Vec<Record> {
     match outcome {
-        FetchOutcome::Records(records) => records,
+        Queued::Served(ArxivAnswer::Records(records)) => records,
         other => panic!("expected records, got {other:?}"),
     }
 }
@@ -158,8 +159,8 @@ fn is_confirmation(url: &str) -> bool {
     url.starts_with("https://oaipmh.arxiv.org/oai?")
 }
 
-const fn unavailable(reason: Reason) -> FetchOutcome {
-    FetchOutcome::Unavailable(Unavailable::new(reason))
+const fn unavailable(reason: Reason) -> Queued<ArxivAnswer> {
+    Queued::Unavailable(Unavailable::new(reason))
 }
 
 const fn millis(millis: u64) -> Duration {
@@ -230,7 +231,7 @@ fn a_lookup_answered_with_an_empty_feed_finds_nothing() {
 
     assert_eq!(
         harness.fetch(&transport, &confirmations, &lookup("2608.21129")),
-        FetchOutcome::Records(Vec::new())
+        Queued::Served(ArxivAnswer::Records(Vec::new()))
     );
 }
 
@@ -243,7 +244,7 @@ fn a_lookup_answered_with_a_different_entry_finds_nothing() {
 
     assert_eq!(
         harness.fetch(&transport, &confirmations, &lookup("2608.21129")),
-        FetchOutcome::Records(Vec::new())
+        Queued::Served(ArxivAnswer::Records(Vec::new()))
     );
 }
 
@@ -392,7 +393,7 @@ fn an_unavailable_confirmation_makes_the_whole_call_unavailable() {
 
     assert_eq!(
         outcome,
-        FetchOutcome::Unavailable(Unavailable::new(Reason::UpstreamError))
+        Queued::Unavailable(Unavailable::new(Reason::UpstreamError))
     );
     assert!(confirmations.verdicts().is_empty());
 }
@@ -462,7 +463,7 @@ fn arxiv_throttling_defers_other_callers() {
 
     assert_eq!(
         outcome,
-        FetchOutcome::Unavailable(Unavailable::new(Reason::RateLimited))
+        Queued::Unavailable(Unavailable::new(Reason::RateLimited))
     );
     assert_eq!(
         harness.gate.deferrals()[0],
@@ -479,7 +480,9 @@ fn an_undecodable_feed_fails() {
 
     assert_eq!(
         harness.fetch(&transport, &confirmations, &search("10")),
-        FetchOutcome::Failed(FetchError::UndecodableResponse(Family::Arxiv))
+        Queued::Served(ArxivAnswer::Failed(FetchError::UndecodableResponse(
+            Family::Arxiv
+        )))
     );
 }
 
@@ -492,12 +495,12 @@ fn an_error_feed_is_a_client_error() {
 
     assert_eq!(
         harness.fetch(&transport, &confirmations, &search("10")),
-        FetchOutcome::Failed(FetchError::ClientError {
+        Queued::Served(ArxivAnswer::Failed(FetchError::ClientError {
             family: Family::Arxiv,
             rejection: ClientRejection::ErrorFeed(
                 "incorrect id format".to_owned()
             ),
-        })
+        }))
     );
 }
 
@@ -671,6 +674,21 @@ fn a_gate_busy_briefly_serves_the_call_once_it_frees() {
 }
 
 #[test]
+fn a_busy_gate_is_polled_as_often_as_its_service_s_pacing_asks() {
+    let harness = Harness::with(Vec::new()).gate(|gate| {
+        gate.busy_for(2)
+            .pacing(Service::Crossref(CrossrefPool::Public).pacing())
+    });
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(harness.clock.slept(), [millis(52), millis(52)]);
+}
+
+#[test]
 fn a_free_gate_out_of_budget_records_no_contention() {
     let harness = Harness::with(Vec::new());
     harness.clock.leaving(secs(32));
@@ -816,10 +834,7 @@ fn an_over_cap_join_is_lock_contention_without_a_request() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(
-        outcome,
-        FetchOutcome::Unavailable(Unavailable::lock_contention())
-    );
+    assert_eq!(outcome, Queued::Unavailable(Unavailable::lock_contention()));
     assert_eq!(
         harness.contention.recorded(),
         [Contention::TicketPastCap(harness.queue.ticket())]
@@ -856,7 +871,7 @@ fn a_mismatch_is_rejected_without_a_request() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(outcome, FetchOutcome::Rejected(rejection));
+    assert_eq!(outcome, Queued::Rejected(rejection));
     assert_eq!(transport.hits(), 0);
 }
 
@@ -896,7 +911,7 @@ fn an_unqueued_call_out_of_budget_is_lock_contention_not_waiting() {
 
         assert_eq!(
             outcome,
-            FetchOutcome::Unavailable(Unavailable::lock_contention())
+            Queued::Unavailable(Unavailable::lock_contention())
         );
         assert_eq!(harness.contention.recorded(), [Contention::QueueUnusable]);
     }

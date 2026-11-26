@@ -1299,6 +1299,67 @@ openalex:
 Only `openalex.api_key` and `openalex.api_key_cmd` are recognised. Other
 `openalex.*` keys are not consumed by any plugin script.
 
+### crossref
+
+Configure how `accelerator research fetch doi metadata` identifies itself to
+Crossref. A contact address is optional: without one, calls use Crossref's
+public pool (5 requests per second, 1 at a time). With one, they use its polite
+pool (10 requests per second, up to 3 at a time), queued and paced apart from
+the public pool.
+
+| Key      | Default | Description                                         |
+|----------|---------|-----------------------------------------------------|
+| `mailto` | (empty) | A contact address Crossref can reach you at         |
+
+The address resolves through this chain. The first rung holding a non-empty
+value, once trimmed, wins; an empty or blank value counts as unset:
+
+1. `ACCELERATOR_CROSSREF_MAILTO` env var.
+2. `config.local.md` `crossref.mailto`.
+3. `config.md` `crossref.mailto`.
+
+Two things differ from the openalex chain. A value that is not a plausible
+address does not fall through to a lower rung. And `config.md` is read
+whenever no higher rung holds a non-blank value, even when `config.local.md`
+exists.
+
+A plausible address, once trimmed, has only visible ASCII with no `(`, `)` or
+`\`, exactly one `@`, a non-empty local part with no `:`, and a domain that
+contains a `.` and neither starts nor ends with one.
+
+The setting never makes a call fail. Without a plausible address, the call
+goes to the public pool anonymously. It prints a `warning:` in two cases:
+
+- **Implausible**: the value used is not plausible. The warning names where it
+  came from (`ACCELERATOR_CROSSREF_MAILTO`, `config.local.md` or `config.md`)
+  and the value.
+- **Unreadable**: a config file could not be read while resolving the setting.
+  The warning names the file and the reason. Lower rungs are not read, so
+  the call uses the public pool even if `config.md` holds an address.
+
+Changing the setting while a DOI call is `waiting` moves that call to the
+other pool: its re-presented ticket joins afresh, and a diagnostic names the
+pool that issued it.
+
+The address is sent in the `User-Agent` header, never in a URL. It is not a
+secret, so it may be committed in `config.md` for the whole team. An address
+in `config.md` goes out on every collaborator's calls, so put a personal one
+in `config.local.md` or `ACCELERATOR_CROSSREF_MAILTO`.
+
+Example `config.md`:
+
+\```yaml
+---
+crossref:
+  mailto: "research@example.org"
+---
+\```
+
+#### Recognised keys
+
+Only `crossref.mailto` is recognised. Other `crossref.*` keys are not consumed
+by any plugin script.
+
 ### templates
 
 Override document templates by placing custom template files in the

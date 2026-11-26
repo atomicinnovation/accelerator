@@ -1,8 +1,9 @@
-//! The fair queue arXiv fetches wait in: tickets issued in FIFO order, each
-//! bound to the arguments of the call it was issued for, kept across calls
-//! until it expires or passes its cap.
+//! The fair queue a service's fetches wait in: tickets issued in FIFO
+//! order, each bound to the arguments of the call it was issued for, kept
+//! across calls until it expires or passes its cap.
 
 use std::fmt;
+use std::num::NonZeroU8;
 use std::time::Duration;
 use std::time::SystemTime;
 
@@ -10,9 +11,11 @@ use crate::sources::classify::Reason;
 use crate::sources::request::ArxivId;
 use crate::sources::request::ArxivQuery;
 use crate::sources::request::ArxivRequest;
+use crate::sources::request::Doi;
+use crate::sources::request::Family;
 use crate::sources::request::Limit;
-use crate::sources::request::RequestError;
 use crate::sources::schedule::Deadline;
+use crate::sources::service::CrossrefPool;
 
 /// How long an absent ticket keeps its place after its last call ended.
 pub const EXPIRY: Duration = Duration::from_secs(300);
@@ -38,22 +41,31 @@ impl Nonce {
 
     /// # Errors
     ///
-    /// [`RequestError::TicketMalformed`] for anything but six lowercase hex
-    /// digits.
-    pub fn from_hex(raw: &str) -> Result<Self, RequestError> {
+    /// [`MalformedTicket`] for anything but six lowercase hex digits.
+    pub fn from_hex(raw: &str) -> Result<Self, MalformedTicket> {
         let well_formed = raw.len() == Self::DIGITS
             && raw.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'));
         well_formed
             .then(|| u32::from_str_radix(raw, 16).ok())
             .flatten()
             .map(Self)
-            .ok_or_else(|| RequestError::TicketMalformed(raw.to_owned()))
+            .ok_or_else(|| MalformedTicket(raw.to_owned()))
     }
 }
 
 impl fmt::Display for Nonce {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{:06x}", self.0)
+    }
+}
+
+/// Text that is not a ticket in the form one is printed in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MalformedTicket(pub String);
+
+impl fmt::Display for MalformedTicket {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "not a ticket: '{}'", self.0)
     }
 }
 
@@ -72,10 +84,10 @@ impl Ticket {
 
     /// # Errors
     ///
-    /// [`RequestError::TicketMalformed`] for anything but the exact form a
-    /// ticket is printed in.
-    pub fn parse(raw: &str) -> Result<Self, RequestError> {
-        let malformed = || RequestError::TicketMalformed(raw.to_owned());
+    /// [`MalformedTicket`] for anything but the exact form a ticket is
+    /// printed in.
+    pub fn parse(raw: &str) -> Result<Self, MalformedTicket> {
+        let malformed = || MalformedTicket(raw.to_owned());
         let (number, nonce) = raw.split_once('-').ok_or_else(malformed)?;
         if number.is_empty() || !number.chars().all(|c| c.is_ascii_digit()) {
             return Err(malformed());
@@ -109,8 +121,9 @@ impl fmt::Display for Ticket {
 /// repeat.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Binding {
-    Search { query: ArxivQuery, limit: Limit },
-    Lookup(ArxivId),
+    ArxivSearch { query: ArxivQuery, limit: Limit },
+    ArxivLookup(ArxivId),
+    DoiMetadata(Doi),
 }
 
 /// An argument a re-presentation can get wrong.
@@ -120,6 +133,7 @@ pub enum Argument {
     Query,
     Id,
     Limit,
+    Doi,
 }
 
 impl Argument {
@@ -129,6 +143,7 @@ impl Argument {
             Self::Query => "query",
             Self::Id => "id",
             Self::Limit => "--limit",
+            Self::Doi => "doi",
         }
     }
 }
@@ -136,11 +151,11 @@ impl Argument {
 impl Binding {
     pub fn of(request: &ArxivRequest) -> Self {
         match request {
-            ArxivRequest::Search { query, limit } => Self::Search {
+            ArxivRequest::Search { query, limit } => Self::ArxivSearch {
                 query: query.clone(),
                 limit: *limit,
             },
-            ArxivRequest::Lookup(id) => Self::Lookup(id.clone()),
+            ArxivRequest::Lookup(id) => Self::ArxivLookup(id.clone()),
         }
     }
 
@@ -149,8 +164,8 @@ impl Binding {
     pub fn differing(&self, other: &Self) -> Vec<Argument> {
         match (self, other) {
             (
-                Self::Search { query, limit },
-                Self::Search {
+                Self::ArxivSearch { query, limit },
+                Self::ArxivSearch {
                     query: other_query,
                     limit: other_limit,
                 },
@@ -161,11 +176,36 @@ impl Binding {
             .into_iter()
             .flatten()
             .collect(),
-            (Self::Lookup(id), Self::Lookup(other_id)) => (id != other_id)
+            (Self::ArxivLookup(id), Self::ArxivLookup(other_id)) => (id
+                != other_id)
                 .then_some(Argument::Id)
                 .into_iter()
                 .collect(),
+            (Self::DoiMetadata(doi), Self::DoiMetadata(other_doi)) => {
+                (doi.canonical() != other_doi.canonical())
+                    .then_some(Argument::Doi)
+                    .into_iter()
+                    .collect()
+            }
             _ => vec![Argument::Verb],
+        }
+    }
+}
+
+/// The call as its caller typed it after the family.
+impl fmt::Display for Binding {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ArxivSearch { query, limit } => write!(
+                formatter,
+                "search '{}' --limit {}",
+                query.spelled(),
+                limit.get()
+            ),
+            Self::ArxivLookup(id) => write!(formatter, "lookup {id}"),
+            Self::DoiMetadata(doi) => {
+                write!(formatter, "metadata {}", doi.canonical())
+            }
         }
     }
 }
@@ -213,6 +253,30 @@ pub struct Contender {
     pub presented_at: SystemTime,
 }
 
+/// Where a ticket this queue never issued came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provenance {
+    IssuedElsewhere(Family),
+    IssuedInOtherPool(CrossrefPool),
+    IssuedBeforeUpgrade,
+}
+
+impl fmt::Display for Provenance {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IssuedElsewhere(issuer) => {
+                write!(formatter, "by fetch {}", issuer.code())
+            }
+            Self::IssuedInOtherPool(pool) => {
+                write!(formatter, "in Crossref's {} pool", pool.name())
+            }
+            Self::IssuedBeforeUpgrade => {
+                formatter.write_str("before this release")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TicketRejection {
     Mismatch {
@@ -220,12 +284,60 @@ pub enum TicketRejection {
         issued: Binding,
         differing: Vec<Argument>,
     },
+    Foreign {
+        ticket: Ticket,
+        provenance: Provenance,
+    },
     AlreadyLive(Ticket),
+}
+
+/// A rejection as the caller of `presented_to` reads it: one usage line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RejectedTicket {
+    pub presented_to: Family,
+    pub rejection: TicketRejection,
+}
+
+impl fmt::Display for RejectedTicket {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let family = self.presented_to.code().to_ascii_uppercase();
+        match &self.rejection {
+            TicketRejection::Mismatch {
+                ticket,
+                issued,
+                differing,
+            } => {
+                let differing = differing
+                    .iter()
+                    .map(|argument| argument.code())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(
+                    formatter,
+                    "E_{family}_TICKET_MISMATCH: ticket {ticket} was issued \
+                     for {issued} (differing: {differing}); re-present it \
+                     with that call, or drop --ticket"
+                )
+            }
+            TicketRejection::Foreign { ticket, provenance } => write!(
+                formatter,
+                "E_{family}_TICKET_MISMATCH: ticket {ticket} was issued \
+                 {provenance}; drop --ticket and re-run the call"
+            ),
+            TicketRejection::AlreadyLive(ticket) => write!(
+                formatter,
+                "E_{family}_TICKET_LIVE: ticket {ticket} is already being \
+                 presented by another call; use that call's output, or \
+                 re-present it once that call has returned"
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Presentation {
     Join,
+    JoinAfterPoolChange(CrossrefPool),
     Resume(Ticket),
     Rejected(TicketRejection),
     OverCap {
@@ -234,8 +346,11 @@ pub enum Presentation {
     },
 }
 
-/// A snapshot of every ticket on record. `unparsed` holds the tickets of
-/// records that could not be read, which still take part in numbering.
+/// A snapshot of every ticket on record.
+///
+/// `unparsed` holds the tickets of records that could not be read, which
+/// still take part in numbering; `foreign` the tickets other queues issued,
+/// which are refused unless the other queue is a pool of the same service.
 ///
 /// Every elapsed time saturates at zero, so a stamp later than `now` reads
 /// as just stamped.
@@ -243,13 +358,19 @@ pub enum Presentation {
 pub struct Queue {
     standings: Vec<Standing>,
     unparsed: Vec<Ticket>,
+    foreign: Vec<(Ticket, Provenance)>,
 }
 
 impl Queue {
-    pub const fn new(standings: Vec<Standing>, unparsed: Vec<Ticket>) -> Self {
+    pub const fn new(
+        standings: Vec<Standing>,
+        unparsed: Vec<Ticket>,
+        foreign: Vec<(Ticket, Provenance)>,
+    ) -> Self {
         Self {
             standings,
             unparsed,
+            foreign,
         }
     }
 
@@ -261,12 +382,15 @@ impl Queue {
         binding: &Binding,
         now: SystemTime,
     ) -> Presentation {
-        let Some(standing) = presented.and_then(|presented| {
-            self.standings
-                .iter()
-                .find(|standing| standing.ticket == *presented)
-        }) else {
+        let Some(presented) = presented else {
             return Presentation::Join;
+        };
+        let Some(standing) = self
+            .standings
+            .iter()
+            .find(|standing| standing.ticket == *presented)
+        else {
+            return self.foreign_rejection(presented);
         };
         if is_expired(standing, now) {
             return Presentation::Join;
@@ -291,6 +415,22 @@ impl Queue {
             };
         }
         Presentation::Resume(standing.ticket.clone())
+    }
+
+    fn foreign_rejection(&self, presented: &Ticket) -> Presentation {
+        self.foreign
+            .iter()
+            .find(|(ticket, _)| ticket == presented)
+            .map_or(Presentation::Join, |(ticket, provenance)| match provenance
+            {
+                Provenance::IssuedInOtherPool(pool) => {
+                    Presentation::JoinAfterPoolChange(*pool)
+                }
+                _ => Presentation::Rejected(TicketRejection::Foreign {
+                    ticket: ticket.clone(),
+                    provenance: *provenance,
+                }),
+            })
     }
 
     pub fn position_of(&self, ticket: &Ticket, now: SystemTime) -> Position {
@@ -339,22 +479,27 @@ impl Queue {
     }
 }
 
-/// The one home of the front rule: a ticket is front unless a contender
-/// ahead of it has not ended. Stops at the first that has not, so a lazy
-/// `ahead` reads no further.
-pub fn is_front_given(
+/// The one home of the front rule: a ticket is served while fewer than
+/// `slots` contenders ahead of it have not ended. Stops once they fill every
+/// slot, so a lazy `ahead` reads no further.
+pub fn is_served_given(
     ahead: impl IntoIterator<Item = Contender>,
+    slots: NonZeroU8,
     now: SystemTime,
 ) -> bool {
-    !ahead.into_iter().any(|contender| {
-        last_end(
-            contender.presence,
-            contender.issued_at,
-            contender.presented_at,
-            now,
-        )
+    ahead
+        .into_iter()
+        .filter(|contender| {
+            last_end(
+                contender.presence,
+                contender.issued_at,
+                contender.presented_at,
+                now,
+            )
+            .is_none()
+        })
+        .nth(usize::from(slots.get()) - 1)
         .is_none()
-    })
 }
 
 pub fn is_abandoned(issued_at: SystemTime, now: SystemTime) -> bool {
@@ -408,16 +553,15 @@ fn latest_end(presented_at: SystemTime, now: SystemTime) -> SystemTime {
     now.min(presented_at + LONGEST_INVOCATION)
 }
 
-/// Where an arXiv call waits its turn across invocations.
-pub trait ArxivQueue {
+/// Where a service's call waits its turn across invocations.
+pub trait ServiceQueue {
     /// Waits for the queue no longer than leaves the deadline a serving
-    /// window of `spacing` and one request.
+    /// window of the service's interval and one request.
     fn join(
         &self,
         binding: &Binding,
         presented: Option<&Ticket>,
         deadline: &Deadline,
-        spacing: Duration,
     ) -> Joining<'_>;
 }
 

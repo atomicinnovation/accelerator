@@ -1,5 +1,5 @@
-//! The arXiv fetch queue on disk: one record and one lock file per ticket,
-//! and a bookkeeping lock every write happens under.
+//! A service's fetch queue on disk: one record and one lock file per
+//! ticket, and a bookkeeping lock every write happens under.
 //!
 //! A ticket is live while its call holds an exclusive `flock` on the
 //! ticket's lock file. Probes take only a momentary shared lock, so probers
@@ -19,10 +19,9 @@ use std::time::SystemTime;
 
 use kernel::TEMP_PREFIX;
 use research::sources::classify::Reason;
-use research::sources::fetch::Clock;
+use research::sources::ports::Clock;
 use research::sources::queue::is_abandoned;
-use research::sources::queue::is_front_given;
-use research::sources::queue::ArxivQueue;
+use research::sources::queue::is_served_given;
 use research::sources::queue::Binding;
 use research::sources::queue::Contender;
 use research::sources::queue::Joining;
@@ -31,14 +30,18 @@ use research::sources::queue::Place;
 use research::sources::queue::Position;
 use research::sources::queue::Presence;
 use research::sources::queue::Presentation;
+use research::sources::queue::Provenance;
 use research::sources::queue::Queue;
+use research::sources::queue::ServiceQueue;
 use research::sources::queue::Standing;
 use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
+use research::sources::request::Doi;
 use research::sources::request::Limit;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use rustix::io::Errno;
@@ -49,7 +52,7 @@ use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
 use crate::scratch::ScratchDir;
 
-const QUEUE_DIRECTORY: &str = "arxiv-queue";
+const QUEUE_DIRECTORY: &str = "queue";
 const QUEUE_LOCK: &str = "queue.lock";
 const SCHEMA_VERSION: u32 = 1;
 
@@ -63,28 +66,65 @@ pub fn random_nonce() -> Nonce {
     Nonce::from_bits(rand::random())
 }
 
-pub struct FileArxivQueue {
+/// A directory of tickets another queue issued, listed only to refuse them.
+pub struct ForeignSource {
+    pub directory: ScratchDir,
+    pub provenance: Provenance,
+}
+
+pub struct FileServiceQueue {
+    service: Service,
     scratch: ScratchDir,
+    foreign_sources: Vec<ForeignSource>,
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
     nonces: Box<dyn Fn() -> Nonce>,
     unprobeable_reported: RefCell<HashSet<Ticket>>,
 }
 
-impl FileArxivQueue {
+impl FileServiceQueue {
     pub fn new(
+        service: Service,
         research: &ScratchDir,
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
         nonces: Box<dyn Fn() -> Nonce>,
+        foreign_sources: Vec<ForeignSource>,
     ) -> Self {
         Self {
-            scratch: research.nested(QUEUE_DIRECTORY),
+            service,
+            scratch: Self::directory_of(service, research),
+            foreign_sources,
             clock,
             diagnostics,
             nonces,
             unprobeable_reported: RefCell::default(),
         }
+    }
+
+    pub fn directory_of(service: Service, research: &ScratchDir) -> ScratchDir {
+        research.service_state(service).nested(QUEUE_DIRECTORY)
+    }
+
+    /// The tickets other queues issued, read by name alone: their
+    /// directories are never locked, written or pruned. One that cannot be
+    /// listed contributes nothing.
+    fn foreign_tickets(&self) -> Vec<(Ticket, Provenance)> {
+        let mut foreign = Vec::new();
+        for source in &self.foreign_sources {
+            match source.directory.names() {
+                Ok(names) => foreign.extend(
+                    names
+                        .iter()
+                        .filter_map(|name| ticket_named(name, RECORD))
+                        .map(|ticket| (ticket, source.provenance)),
+                ),
+                Err(error) => self.report(&format!(
+                    "{error}; a ticket it issued would join afresh"
+                )),
+            }
+        }
+        foreign
     }
 
     /// The bookkeeping lock, retried while `bound` allows; `None` when the
@@ -144,7 +184,11 @@ impl FileArxivQueue {
         Ok(snapshot)
     }
 
-    fn queue_of(&self, snapshot: &Snapshot) -> Queue {
+    fn queue_of(
+        &self,
+        snapshot: &Snapshot,
+        foreign: Vec<(Ticket, Provenance)>,
+    ) -> Queue {
         let standings = snapshot
             .records
             .iter()
@@ -153,7 +197,7 @@ impl FileArxivQueue {
                     .standing(ticket.clone(), self.presence_of(ticket, record))
             })
             .collect();
-        Queue::new(standings, snapshot.set_aside.clone())
+        Queue::new(standings, snapshot.set_aside.clone(), foreign)
     }
 
     fn presence_of(&self, ticket: &Ticket, record: &Record) -> Presence {
@@ -369,19 +413,21 @@ impl FileArxivQueue {
     }
 
     fn report(&self, detail: &str) {
-        self.diagnostics
-            .report(&format!("research fetch: arxiv queue {detail}"));
+        self.diagnostics.report(&format!(
+            "research fetch: {} queue {detail}",
+            self.service.code()
+        ));
     }
 }
 
-impl ArxivQueue for FileArxivQueue {
+impl ServiceQueue for FileServiceQueue {
     fn join(
         &self,
         binding: &Binding,
         presented: Option<&Ticket>,
         deadline: &Deadline,
-        spacing: Duration,
     ) -> Joining<'_> {
+        let spacing = self.service.pacing().interval();
         let Some(_queue_lock) =
             self.bookkept(deadline, Bound::ServingWindow(spacing))
         else {
@@ -394,9 +440,23 @@ impl ArxivQueue for FileArxivQueue {
                 return Joining::Unqueued;
             }
         };
-        let queue = self.queue_of(&snapshot);
+        let foreign = presented
+            .filter(|ticket| snapshot.record(ticket).is_none())
+            .map(|_| self.foreign_tickets())
+            .unwrap_or_default();
+        let queue = self.queue_of(&snapshot, foreign);
         let now = self.clock.wall_now();
-        match queue.present(presented, binding, now) {
+        let presentation = queue.present(presented, binding, now);
+        if let (Presentation::JoinAfterPoolChange(pool), Some(presented)) =
+            (&presentation, presented)
+        {
+            self.report(&format!(
+                "ticket {presented} was issued in Crossref's {} pool, which \
+                 crossref.mailto no longer selects; joining afresh",
+                pool.name()
+            ));
+        }
+        match presentation {
             Presentation::Rejected(rejection) => Joining::Rejected(rejection),
             Presentation::OverCap {
                 ticket,
@@ -409,7 +469,7 @@ impl ArxivQueue for FileArxivQueue {
                     last_retryable,
                 }
             }
-            Presentation::Join => {
+            Presentation::Join | Presentation::JoinAfterPoolChange(_) => {
                 self.housekeeping(&snapshot, &queue, now);
                 let ticket =
                     Ticket::issue(queue.next_number(), (self.nonces)());
@@ -439,7 +499,7 @@ impl ArxivQueue for FileArxivQueue {
 }
 
 struct FilePlace<'q> {
-    queue: &'q FileArxivQueue,
+    queue: &'q FileServiceQueue,
     ticket: Ticket,
     _lock: File,
     position: Position,
@@ -535,8 +595,9 @@ impl Place for FilePlace<'_> {
             .collect();
         ahead.sort_by_key(|ticket| Reverse(ticket.number()));
         let now = self.queue.clock.wall_now();
-        is_front_given(
+        is_served_given(
             ahead.iter().map(|ticket| self.contender(ticket, now)),
+            self.queue.service.pacing().slots(),
             now,
         )
     }
@@ -557,7 +618,7 @@ impl Place for FilePlace<'_> {
                 return self.position;
             }
         };
-        let queue = self.queue.queue_of(&snapshot);
+        let queue = self.queue.queue_of(&snapshot, Vec::new());
         let now = self.queue.clock.wall_now();
         self.queue.housekeeping(&snapshot, &queue, now);
         if let Some(record) = snapshot.record(&self.ticket) {
@@ -581,7 +642,7 @@ impl Place for FilePlace<'_> {
         };
         match self.queue.snapshot() {
             Ok(snapshot) => {
-                let queue = self.queue.queue_of(&snapshot);
+                let queue = self.queue.queue_of(&snapshot, Vec::new());
                 let now = self.queue.clock.wall_now();
                 self.queue.housekeeping(&snapshot, &queue, now);
             }
@@ -663,6 +724,7 @@ struct PresentedOnly {
 enum StoredBinding {
     Search { query: String, limit: u8 },
     Lookup { id: String },
+    Metadata { doi: String },
 }
 
 impl Record {
@@ -708,11 +770,14 @@ impl Record {
 impl From<&Binding> for StoredBinding {
     fn from(binding: &Binding) -> Self {
         match binding {
-            Binding::Search { query, limit } => Self::Search {
+            Binding::ArxivSearch { query, limit } => Self::Search {
                 query: query.spelled().to_owned(),
                 limit: limit.get(),
             },
-            Binding::Lookup(id) => Self::Lookup { id: id.to_string() },
+            Binding::ArxivLookup(id) => Self::Lookup { id: id.to_string() },
+            Binding::DoiMetadata(doi) => Self::Metadata {
+                doi: doi.canonical(),
+            },
         }
     }
 }
@@ -720,11 +785,14 @@ impl From<&Binding> for StoredBinding {
 impl StoredBinding {
     fn to_binding(&self) -> Option<Binding> {
         Some(match self {
-            Self::Search { query, limit } => Binding::Search {
+            Self::Search { query, limit } => Binding::ArxivSearch {
                 query: ArxivQuery::parse(query).ok()?,
                 limit: Limit::try_from(*limit).ok()?,
             },
-            Self::Lookup { id } => Binding::Lookup(ArxivId::parse(id).ok()?),
+            Self::Lookup { id } => {
+                Binding::ArxivLookup(ArxivId::parse(id).ok()?)
+            }
+            Self::Metadata { doi } => Binding::DoiMetadata(Doi::parse(doi)?),
         })
     }
 }

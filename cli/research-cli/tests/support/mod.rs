@@ -12,6 +12,7 @@ use std::process::Command;
 use std::process::Stdio;
 
 use http_test_support::MockHTTPServer;
+use research::sources::service::Service;
 use vcs_test_support::hermetic::Hermetic;
 
 pub const SELECT: &str = "select=id,doi,display_name,type,authorships,\
@@ -28,6 +29,12 @@ pub const CALL_BUDGET_MS: &str = "ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS";
 /// The stored arguments of a search, as a ticket record holds them.
 pub fn search_binding(query: &str, limit: u8) -> String {
     format!("\"verb\":\"search\",\"query\":{query:?},\"limit\":{limit}")
+}
+
+/// The stored arguments of a DOI metadata call, as a ticket record holds
+/// them.
+pub fn doi_binding(doi: &str) -> String {
+    format!("\"verb\":\"metadata\",\"doi\":{doi:?}")
 }
 
 /// A ticket record seeded relative to the test clock's epoch, which is
@@ -68,6 +75,14 @@ impl SeededTicket<'_> {
     }
 }
 
+fn now_ms() -> u64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .expect("after the epoch")
+        .as_millis();
+    u64::try_from(now).expect("milliseconds fit")
+}
+
 fn epoch_ms() -> u64 {
     CLOCK_EPOCH_MS.parse().expect("an epoch in milliseconds")
 }
@@ -82,6 +97,10 @@ pub fn arxiv_fixture(name: &str) -> String {
 
 pub fn web_fixture(name: &str) -> String {
     adapter_fixture("web", name)
+}
+
+pub fn crossref_fixture(name: &str) -> String {
+    adapter_fixture("crossref", name)
 }
 
 fn adapter_fixture(family: &str, name: &str) -> String {
@@ -101,6 +120,54 @@ pub fn page_of(names: &[&str]) -> String {
         .collect::<Vec<_>>()
         .join(",");
     format!("{{\"meta\":{{}},\"results\":[{works}]}}")
+}
+
+/// A file or directory of a service's queue and pacing state.
+#[derive(Debug, Clone, Copy)]
+pub enum StateFile {
+    ServingLock,
+    Pacing,
+    RequestLog,
+    ContentionLog,
+    Queue,
+    QueueLock,
+}
+
+impl StateFile {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::ServingLock => "serving-0.lock",
+            Self::Pacing => "pacing",
+            Self::RequestLog => "requests.log",
+            Self::ContentionLog => "contention.log",
+            Self::Queue => "queue",
+            Self::QueueLock => "queue/queue.lock",
+        }
+    }
+}
+
+/// A file or directory the previous release kept arXiv's state in.
+#[derive(Debug, Clone, Copy)]
+pub enum LegacyFile {
+    Queue,
+    Pacing,
+    Lock,
+}
+
+impl LegacyFile {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Queue => "arxiv-queue",
+            Self::Pacing => "arxiv-pacing",
+            Self::Lock => "arxiv.lock",
+        }
+    }
+}
+
+/// One live ticket per serving slot at the front of a service's queue,
+/// held until dropped, so every call joining behind it waits.
+pub struct Barrier {
+    _tickets: Vec<File>,
 }
 
 /// A scratch project: a repository directory with an `.accelerator/`
@@ -170,15 +237,82 @@ impl Project {
         let _ = std::fs::remove_file(self.clock_log());
     }
 
-    /// The directory the arXiv lock, pacing state and logs live in under the
-    /// default `paths.tmp`.
+    /// The research scratch directory under the default `paths.tmp`.
     pub fn research_scratch(&self) -> PathBuf {
         self.root.join(".accelerator/tmp/research")
     }
 
+    pub fn service_state(&self, service: Service, file: StateFile) -> PathBuf {
+        self.research_scratch()
+            .join("services")
+            .join(service.code())
+            .join(file.name())
+    }
+
+    pub fn arxiv_state(&self, file: StateFile) -> PathBuf {
+        self.service_state(Service::Arxiv, file)
+    }
+
+    pub fn legacy_arxiv_state(&self, file: LegacyFile) -> PathBuf {
+        self.research_scratch().join(file.name())
+    }
+
+    /// Copies the previous release's captured arXiv state into this
+    /// project, and returns the ticket it printed.
+    pub fn seed_legacy_fixture(&self) -> String {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/legacy-arxiv-queue");
+        let queue = self.legacy_arxiv_state(LegacyFile::Queue);
+        std::fs::create_dir_all(&queue).expect("mkdir the legacy queue");
+        for entry in std::fs::read_dir(fixture.join(LegacyFile::Queue.name()))
+            .expect("list the fixture queue")
+        {
+            let entry = entry.expect("an entry");
+            std::fs::copy(entry.path(), queue.join(entry.file_name()))
+                .expect("copy a ticket record");
+        }
+        std::fs::copy(
+            fixture.join(LegacyFile::Pacing.name()),
+            self.legacy_arxiv_state(LegacyFile::Pacing),
+        )
+        .expect("copy the legacy pacing");
+        std::fs::read_to_string(fixture.join("ticket.txt"))
+            .expect("the fixture's ticket")
+            .trim()
+            .to_owned()
+    }
+
+    /// Holds a lock the previous release kept, as one of its calls would.
+    pub fn hold_legacy(&self, file: LegacyFile) -> File {
+        Self::hold_path(&self.legacy_arxiv_state(file))
+    }
+
+    /// Fills every serving slot of `service` with a live ticket issued
+    /// just now, ahead of any call the test then starts.
+    pub fn hold_barrier(&self, service: Service) -> Barrier {
+        let queue = self.service_queue_dir(service);
+        let tickets = (1..=service.pacing().slots().get())
+            .map(|slot| {
+                let ticket = format!("{slot}-{slot:06x}");
+                Self::seed_ticket_into(
+                    &queue,
+                    &ticket,
+                    &SeededTicket::live(&search_binding("barrier", 10), 0),
+                    now_ms(),
+                );
+                Self::hold_path(&queue.join(format!("{ticket}.lock")))
+            })
+            .collect();
+        Barrier { _tickets: tickets }
+    }
+
     pub fn queue_dir(&self) -> PathBuf {
-        let queue = self.research_scratch().join("arxiv-queue");
-        std::fs::create_dir_all(&queue).expect("mkdir arxiv-queue");
+        self.service_queue_dir(Service::Arxiv)
+    }
+
+    fn service_queue_dir(&self, service: Service) -> PathBuf {
+        let queue = self.service_state(service, StateFile::Queue);
+        std::fs::create_dir_all(&queue).expect("mkdir the queue");
         queue
     }
 
@@ -186,21 +320,77 @@ impl Project {
         self.seed_ticket_before(ticket, seeded, epoch_ms());
     }
 
-    /// Seeds a ticket for calls on the real clock, relative to now.
-    pub fn seed_ticket_now(&self, ticket: &str, seeded: &SeededTicket<'_>) {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .expect("after the epoch")
-            .as_millis();
-        self.seed_ticket_before(
+    /// Seeds a ticket into `service`'s queue relative to the test clock's
+    /// epoch.
+    pub fn seed_service_ticket(
+        &self,
+        service: Service,
+        ticket: &str,
+        seeded: &SeededTicket<'_>,
+    ) {
+        Self::seed_ticket_into(
+            &self.service_queue_dir(service),
             ticket,
             seeded,
-            u64::try_from(now).expect("milliseconds fit"),
+            epoch_ms(),
         );
+    }
+
+    /// Holds a ticket in `service`'s queue, as the call presenting it
+    /// would.
+    pub fn hold_service_ticket(&self, service: Service, ticket: &str) -> File {
+        Self::hold_path(
+            &self
+                .service_queue_dir(service)
+                .join(format!("{ticket}.lock")),
+        )
+    }
+
+    /// Records a `Retry-After` in `service`'s pacing that every caller must
+    /// honour until `seconds` after the test clock's epoch.
+    pub fn defer_service(&self, service: Service, seconds: u64) {
+        let path = self.service_state(service, StateFile::Pacing);
+        std::fs::create_dir_all(path.parent().expect("a parent"))
+            .expect("mkdir service state");
+        std::fs::write(
+            path,
+            format!(
+                "{{\"schema_version\":1,\"last_sent_ms\":null,\
+                 \"next_free_ms\":null,\"last_finish_ms\":null,\
+                 \"not_before_ms\":{}}}",
+                epoch_ms() + seconds * 1000
+            ),
+        )
+        .expect("write pacing");
+    }
+
+    /// The send stamps `service`'s gate logged.
+    pub fn service_requests(&self, service: Service) -> Vec<u64> {
+        std::fs::read_to_string(
+            self.service_state(service, StateFile::RequestLog),
+        )
+        .unwrap_or_default()
+        .lines()
+        .map(|line| line.parse().expect("a stamp in milliseconds"))
+        .collect()
+    }
+
+    /// Seeds a ticket for calls on the real clock, relative to now.
+    pub fn seed_ticket_now(&self, ticket: &str, seeded: &SeededTicket<'_>) {
+        self.seed_ticket_before(ticket, seeded, now_ms());
     }
 
     fn seed_ticket_before(
         &self,
+        ticket: &str,
+        seeded: &SeededTicket<'_>,
+        now_ms: u64,
+    ) {
+        Self::seed_ticket_into(&self.queue_dir(), ticket, seeded, now_ms);
+    }
+
+    fn seed_ticket_into(
+        queue: &Path,
         ticket: &str,
         seeded: &SeededTicket<'_>,
         now_ms: u64,
@@ -213,7 +403,7 @@ impl Project {
             .last_retryable
             .map_or_else(|| "null".to_owned(), |code| format!("{code:?}"));
         std::fs::write(
-            self.queue_dir().join(format!("{ticket}.json")),
+            queue.join(format!("{ticket}.json")),
             format!(
                 "{{\"schema_version\":1,\"issued_ms\":{},\
                  \"presented_ms\":{},\"ended_ms\":{ended},\
@@ -226,10 +416,12 @@ impl Project {
         .expect("seed a ticket");
     }
 
-    /// Holds `name` in the research scratch directory exclusively, as
-    /// another call would.
-    pub fn hold(&self, name: &str) -> File {
-        let path = self.research_scratch().join(name);
+    /// Holds `file` exclusively, as another call would.
+    pub fn hold(&self, file: StateFile) -> File {
+        Self::hold_path(&self.arxiv_state(file))
+    }
+
+    fn hold_path(path: &Path) -> File {
         std::fs::create_dir_all(path.parent().expect("a parent"))
             .expect("mkdir");
         let file = std::fs::OpenOptions::new()
@@ -237,7 +429,7 @@ impl Project {
             .truncate(false)
             .read(true)
             .write(true)
-            .open(&path)
+            .open(path)
             .expect("open to hold");
         rustix::fs::flock(
             &file,
@@ -248,7 +440,7 @@ impl Project {
     }
 
     pub fn hold_ticket(&self, ticket: &str) -> File {
-        self.hold(&format!("arxiv-queue/{ticket}.lock"))
+        Self::hold_path(&self.queue_dir().join(format!("{ticket}.lock")))
     }
 
     /// Whether a call holds the ticket, read with a shared probe as the
@@ -269,8 +461,13 @@ impl Project {
 
     /// The tickets with a record in the queue, in issue order.
     pub fn tickets(&self) -> Vec<String> {
+        self.service_tickets(Service::Arxiv)
+    }
+
+    /// The tickets with a record in `service`'s queue, in issue order.
+    pub fn service_tickets(&self, service: Service) -> Vec<String> {
         let mut tickets: Vec<(u64, String)> =
-            std::fs::read_dir(self.queue_dir())
+            std::fs::read_dir(self.service_queue_dir(service))
                 .expect("list the queue")
                 .filter_map(|entry| {
                     let name =
@@ -302,13 +499,11 @@ impl Project {
     }
 
     pub fn contention_lines(&self) -> Vec<String> {
-        std::fs::read_to_string(
-            self.research_scratch().join("arxiv-contention.log"),
-        )
-        .unwrap_or_default()
-        .lines()
-        .map(str::to_owned)
-        .collect()
+        std::fs::read_to_string(self.arxiv_state(StateFile::ContentionLog))
+            .unwrap_or_default()
+            .lines()
+            .map(str::to_owned)
+            .collect()
     }
 }
 
@@ -322,8 +517,8 @@ fn set_mode(path: &Path, mode: u32) {
 #[cfg(not(unix))]
 const fn set_mode(_path: &Path, _mode: u32) {}
 
-pub fn config_with(section: &str) -> String {
-    format!("---\nopenalex:\n{section}---\n")
+pub fn config_with(name: &str, section: &str) -> String {
+    format!("---\n{name}:\n{section}---\n")
 }
 
 pub struct Run {
@@ -387,6 +582,7 @@ pub fn fetch_from(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
         .env_remove("ACCELERATOR_OPENALEX_API_URL")
         .env_remove("ACCELERATOR_ARXIV_API_URL")
         .env_remove("ACCELERATOR_ARXIV_OAI_URL")
+        .env_remove("ACCELERATOR_CROSSREF_API_URL")
         .stdin(Stdio::null());
     for (name, value) in env {
         command.env(name, value);
@@ -440,10 +636,12 @@ fn command(
         .env("ACCELERATOR_OPENALEX_API_URL", server.base_url())
         .env("ACCELERATOR_ARXIV_API_URL", server.base_url())
         .env("ACCELERATOR_ARXIV_OAI_URL", server.base_url())
+        .env("ACCELERATOR_CROSSREF_API_URL", server.base_url())
         .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_LOG")
         .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY_CMD")
+        .env_remove("ACCELERATOR_CROSSREF_MAILTO")
         .stdin(Stdio::null());
     command
 }

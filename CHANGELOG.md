@@ -466,6 +466,35 @@
   rule `research-topic` already grants, and runs `fetch web metadata` for
   each page it cites. A denied or failed call leaves that entry without a
   block.
+- **`accelerator research fetch doi metadata '<doi>'` reads what Crossref
+  holds about a DOI.** It prints `{"status":"ok","metadata":{…}}` with the
+  `publisher`, and a `venue` for a journal or proceedings article, or an
+  empty map for a DOI Crossref holds no record for. Its calls take tickets in
+  a project-wide queue and are paced across every process, re-presented with
+  `--ticket` while `waiting`, as arXiv's are. A refused ticket or DOI exits 2
+  with `E_DOI_TICKET_MALFORMED`, `E_DOI_TICKET_MISMATCH`, `E_DOI_TICKET_LIVE`
+  or `E_DOI_MALFORMED`. See
+  [`doi metadata`](https://atomicinnovation.github.io/accelerator/research/#doi-metadata).
+- **A new optional `crossref.mailto` setting identifies DOI calls to
+  Crossref.** Resolved from `ACCELERATOR_CROSSREF_MAILTO`, then
+  `config.local.md`, then `config.md`, a plausible address moves calls from
+  the public pool (one in flight, 210 ms apart) to the polite pool (up to 3
+  in flight, 102 ms apart). An implausible value or an unreadable config file
+  never fails a call: it goes to the public pool with a `warning:`, which the
+  web profile repeats in its summary. See
+  [Crossref pools](https://atomicinnovation.github.io/accelerator/research/#crossref-pools).
+- **The web profile tiers a source cited by DOI by its Crossref venue, never
+  by `doi.org`.** A resolver URL, or a page whose declared DOI first
+  redirects to the page's own host, takes its Crossref journal or proceedings
+  title at tier-1, else its publisher at tier-2, else its landing host by the
+  domain rules. A page that declares another publication's DOI is tiered by
+  its own domain. `doi.org` and `dx.doi.org` are never recorded as a venue.
+- **arXiv's queue and pacing state moved to
+  `<paths.tmp>/research/services/arxiv/`.** A ticket an earlier 1.24.0
+  pre-release issued exits 2 with `E_ARXIV_TICKET_MISMATCH`: drop `--ticket`
+  and re-run the call. Once no earlier version runs in the project,
+  `arxiv-pacing`, `arxiv-queue/`, `arxiv-requests.log` and
+  `arxiv-contention.log` under `<paths.tmp>/research/` can be deleted.
 - **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths

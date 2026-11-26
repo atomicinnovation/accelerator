@@ -206,7 +206,7 @@ fn a_limit_or_ticket_with_web_is_a_usage_error() {
         ),
         (
             &["--ticket", "42-9f1c2a"][..],
-            "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches",
+            "E_RESEARCH_USAGE: --ticket applies only to arxiv and doi fetches",
         ),
     ] {
         let run = web_metadata("https://example.org/", extra, &[]);

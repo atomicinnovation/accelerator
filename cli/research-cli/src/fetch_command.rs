@@ -5,6 +5,7 @@
 //! the asked source's adapters, so the whole call runs against fakes.
 
 use std::cell::Cell;
+use std::rc::Rc;
 
 use config::consent;
 use config::consent::Refusal;
@@ -15,25 +16,34 @@ use config::credentials::TokenSource;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::credentials::CredentialPorts;
 use research::sources::classify::Response;
+use research::sources::crossref::ContactAddress;
+use research::sources::crossref::DoiMetadata;
 use research::sources::fetch::fetch_arxiv;
+use research::sources::fetch::fetch_doi;
 use research::sources::fetch::fetch_openalex;
+use research::sources::fetch::ArxivAnswer;
 use research::sources::fetch::ArxivDecoder;
 use research::sources::fetch::ArxivFetch;
 use research::sources::fetch::ArxivPorts;
-use research::sources::fetch::Clock;
 use research::sources::fetch::ConfirmationCache;
-use research::sources::fetch::ContentionLog;
+use research::sources::fetch::CrossrefDecoder;
+use research::sources::fetch::DoiFetch;
+use research::sources::fetch::DoiPorts;
 use research::sources::fetch::FetchOutcome;
 use research::sources::fetch::OpenAlexDecoder;
 use research::sources::fetch::OpenAlexFetch;
 use research::sources::fetch::OpenAlexPorts;
-use research::sources::fetch::PacingGate;
-use research::sources::fetch::Transport;
 use research::sources::metadata::SourceMetadata;
-use research::sources::queue::ArxivQueue;
+use research::sources::ports::Clock;
+use research::sources::ports::ContentionLog;
+use research::sources::ports::Diagnostics;
+use research::sources::ports::PacingGate;
+use research::sources::ports::Transport;
+use research::sources::queue::ServiceQueue;
 use research::sources::queue::Ticket;
 use research::sources::request::ApiKey;
 use research::sources::request::ArxivRequest;
+use research::sources::request::DoiRequest;
 use research::sources::request::Endpoint;
 use research::sources::request::Family;
 use research::sources::request::KeySource;
@@ -42,6 +52,8 @@ use research::sources::request::UpstreamRequest;
 use research::sources::request::Verb;
 use research::sources::request::WebRequest;
 use research::sources::schedule::Deadline;
+use research::sources::service::Service;
+use research::sources::serving::Queued;
 use research::sources::web::fetch::WebFailure;
 
 use crate::context::ProjectContext;
@@ -54,6 +66,7 @@ pub enum SourceCall {
     OpenAlex(OpenAlexCall, OpenAlexAdapters),
     Arxiv(ArxivCall, ArxivAdapters),
     Web(WebRequest, WebAdapters),
+    Doi(DoiCall, DoiAdapters),
 }
 
 /// The project is where the OpenAlex key is configured.
@@ -65,6 +78,12 @@ pub struct OpenAlexCall {
 pub struct ArxivCall {
     pub request: ArxivRequest,
     pub presented: Option<Ticket>,
+}
+
+pub struct DoiCall {
+    pub request: DoiRequest,
+    pub presented: Option<Ticket>,
+    pub contact: Option<ContactAddress>,
 }
 
 pub struct OpenAlexAdapters {
@@ -82,8 +101,19 @@ pub struct ArxivAdapters {
     pub decoder: Box<dyn ArxivDecoder>,
     pub gate: Box<dyn PacingGate>,
     pub confirmations: Box<dyn ConfirmationCache>,
-    pub queue: Box<dyn ArxivQueue>,
+    pub queue: Box<dyn ServiceQueue>,
     pub contention: Box<dyn ContentionLog>,
+}
+
+pub struct DoiAdapters {
+    pub service: Service,
+    pub api: Endpoint,
+    pub transport: Box<dyn Transport>,
+    pub decoder: Box<dyn CrossrefDecoder>,
+    pub gate: Box<dyn PacingGate>,
+    pub queue: Box<dyn ServiceQueue>,
+    pub contention: Box<dyn ContentionLog>,
+    pub diagnostics: Rc<dyn Diagnostics>,
 }
 
 /// What the asked source answered.
@@ -91,6 +121,14 @@ pub struct ArxivAdapters {
 pub enum Fetched {
     Records(FetchedRecords),
     Page(Result<SourceMetadata, WebFailure>),
+    Doi(FetchedDoi),
+}
+
+#[derive(Debug)]
+pub struct FetchedDoi {
+    pub service: Service,
+    pub attempts: usize,
+    pub outcome: Queued<DoiMetadata>,
 }
 
 /// A records call that reached its source, however the source answered.
@@ -100,7 +138,18 @@ pub struct FetchedRecords {
     pub verb: Verb,
     pub authenticated: bool,
     pub attempts: usize,
-    pub outcome: FetchOutcome,
+    pub outcome: RecordsOutcome,
+}
+
+/// An unqueued source's outcome, or the outcome of a call that waited in a
+/// service's queue.
+#[derive(Debug)]
+pub enum RecordsOutcome {
+    Direct(FetchOutcome),
+    Queued {
+        service: Service,
+        queued: Queued<ArxivAnswer>,
+    },
 }
 
 /// # Errors
@@ -129,7 +178,42 @@ pub fn run(
         SourceCall::Web(request, adapters) => {
             Fetched::Page(web_command::run(request, adapters, clock, deadline))
         }
+        SourceCall::Doi(call, adapters) => {
+            Fetched::Doi(from_doi(clock, adapters, deadline, call))
+        }
     })
+}
+
+fn from_doi(
+    clock: &dyn Clock,
+    adapters: &DoiAdapters,
+    deadline: &Deadline,
+    call: &DoiCall,
+) -> FetchedDoi {
+    let transport = Counted::around(adapters.transport.as_ref());
+    let outcome = fetch_doi(
+        &DoiFetch {
+            doi: call.request.doi(),
+            presented: call.presented.as_ref(),
+            api: &adapters.api,
+            contact: call.contact.as_ref(),
+        },
+        &DoiPorts {
+            transport: &transport,
+            decoder: adapters.decoder.as_ref(),
+            clock,
+            gate: adapters.gate.as_ref(),
+            queue: adapters.queue.as_ref(),
+            contention: adapters.contention.as_ref(),
+            diagnostics: adapters.diagnostics.as_ref(),
+        },
+        deadline,
+    );
+    FetchedDoi {
+        service: adapters.service,
+        attempts: transport.sent.get(),
+        outcome,
+    }
 }
 
 fn from_openalex(
@@ -159,7 +243,7 @@ fn from_openalex(
         verb: request.verb(),
         authenticated: key.is_some(),
         attempts: transport.sent.get(),
-        outcome,
+        outcome: RecordsOutcome::Direct(outcome),
     }
 }
 
@@ -193,7 +277,10 @@ fn from_arxiv(
         verb: call.request.verb(),
         authenticated: false,
         attempts: transport.sent.get(),
-        outcome,
+        outcome: RecordsOutcome::Queued {
+            service: Service::Arxiv,
+            queued: outcome,
+        },
     }
 }
 
@@ -316,28 +403,32 @@ mod tests {
     use research::sources::classify::Reason;
     use research::sources::classify::Received;
     use research::sources::classify::Response;
-    use research::sources::fetch::Attempted;
-    use research::sources::fetch::Clock;
+    use research::sources::fetch::ArxivAnswer;
     use research::sources::fetch::ConfirmationCache;
-    use research::sources::fetch::Contention;
-    use research::sources::fetch::ContentionLog;
     use research::sources::fetch::FetchOutcome;
-    use research::sources::fetch::PacingGate;
-    use research::sources::fetch::ServingTurn;
-    use research::sources::fetch::Transport;
-    use research::sources::fetch::Unavailable;
-    use research::sources::fetch::WaitTooLong;
-    use research::sources::queue::ArxivQueue;
+    use research::sources::pacing::Pacing;
+    use research::sources::ports::Attempted;
+    use research::sources::ports::Clock;
+    use research::sources::ports::Contention;
+    use research::sources::ports::ContentionLog;
+    use research::sources::ports::PacingGate;
+    use research::sources::ports::ServingTurn;
+    use research::sources::ports::Transport;
+    use research::sources::ports::Unavailable;
+    use research::sources::ports::WaitTooLong;
     use research::sources::queue::Binding;
     use research::sources::queue::Joining;
     use research::sources::queue::Place;
     use research::sources::queue::Position;
+    use research::sources::queue::ServiceQueue;
     use research::sources::queue::Ticket;
     use research::sources::request::ArxivId;
     use research::sources::request::Endpoint;
     use research::sources::request::FetchRequest;
     use research::sources::request::UpstreamRequest;
     use research::sources::schedule::Deadline;
+    use research::sources::service::Service;
+    use research::sources::serving::Queued;
     use research::sources::web::fetch::HostResolver;
     use research::sources::web::fetch::PageRequest;
     use research::sources::web::fetch::PageResponse;
@@ -355,6 +446,7 @@ mod tests {
     use super::FetchedRecords;
     use super::OpenAlexAdapters;
     use super::OpenAlexCall;
+    use super::RecordsOutcome;
     use super::SourceCall;
     use crate::context::ProjectContext;
     use crate::web_command::WebAdapters;
@@ -515,8 +607,8 @@ mod tests {
     struct CountingGate(Rc<Cell<usize>>);
 
     impl PacingGate for CountingGate {
-        fn spacing(&self) -> Duration {
-            secs(3)
+        fn pacing(&self) -> Pacing {
+            Service::Arxiv.pacing()
         }
 
         fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
@@ -540,13 +632,12 @@ mod tests {
 
     struct AlwaysFront;
 
-    impl ArxivQueue for AlwaysFront {
+    impl ServiceQueue for AlwaysFront {
         fn join(
             &self,
             _binding: &Binding,
             _presented: Option<&Ticket>,
             _deadline: &Deadline,
-            _spacing: Duration,
         ) -> Joining<'_> {
             Joining::Queued(Box::new(FrontPlace(
                 Ticket::parse("1-000001").expect("a ticket"),
@@ -685,7 +776,7 @@ mod tests {
         fn run(&self) -> Result<FetchedRecords, CredentialError> {
             self.fetch().map(|fetched| match fetched {
                 Fetched::Records(records) => records,
-                Fetched::Page(page) => panic!("expected records, got {page:?}"),
+                other => panic!("expected records, got {other:?}"),
             })
         }
 
@@ -742,6 +833,9 @@ mod tests {
                         transport: Box::new(NoPage),
                     },
                 ),
+                FetchRequest::Doi(_) => {
+                    unreachable!("the DOI call runs through the binary's tests")
+                }
             }
         }
 
@@ -752,7 +846,9 @@ mod tests {
 
     fn unavailable(fetched: &FetchedRecords) -> Unavailable {
         match fetched.outcome {
-            FetchOutcome::Unavailable(unavailable) => unavailable,
+            RecordsOutcome::Direct(FetchOutcome::Unavailable(unavailable)) => {
+                unavailable
+            }
             ref other => panic!("expected unavailable, got {other:?}"),
         }
     }
@@ -827,7 +923,11 @@ mod tests {
 
         let fetched = call.run().expect("a fetch");
 
-        let FetchOutcome::Records(records) = &fetched.outcome else {
+        let RecordsOutcome::Queued {
+            queued: Queued::Served(ArxivAnswer::Records(records)),
+            ..
+        } = &fetched.outcome
+        else {
             panic!("expected records, got {:?}", fetched.outcome);
         };
         assert_eq!(records.len(), 1);

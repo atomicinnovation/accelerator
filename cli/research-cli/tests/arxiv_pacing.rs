@@ -15,7 +15,9 @@ use http_test_support::RequestKey;
 use http_test_support::Route;
 use support::arxiv_fixture;
 use support::spawn_in_real_time;
+use support::spawn_in_real_time_with;
 use support::Project;
+use support::CALL_BUDGET_MS;
 
 const SPACING: Duration = Duration::from_secs(3);
 const STALL: Duration = Duration::from_secs(5);
@@ -37,7 +39,7 @@ fn feed(name: &str) -> Route {
     }
 }
 
-fn finish(child: Child) {
+fn finish(child: Child) -> serde_json::Value {
     let output = child.wait_with_output().expect("wait");
     assert_eq!(
         output.status.code(),
@@ -45,6 +47,7 @@ fn finish(child: Child) {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    serde_json::from_slice(&output.stdout).expect("a JSON document")
 }
 
 fn wait_for_hits(server: &MockHTTPServer, key: &RequestKey, hits: usize) {
@@ -174,5 +177,67 @@ fn a_killed_calls_request_still_spaces_the_next() {
         hits[1] <= released + SPACING,
         "the next request came {:?} after the lock was released",
         hits[1] - released
+    );
+}
+
+fn wait_for_tickets(project: &Project, tickets: usize) {
+    let started = Instant::now();
+    while project.tickets().len() < tickets {
+        assert!(
+            started.elapsed() < Duration::from_secs(30),
+            "no ticket {tickets}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn a_throttled_call_defers_a_concurrent_process() {
+    const ANSWERED_AFTER: Duration = Duration::from_secs(2);
+    const RETRY_AFTER: Duration = Duration::from_secs(5);
+    let project = Project::new();
+    let server = MockHTTPServer::start();
+    server.route(
+        query(),
+        Route::Sequence(vec![
+            Route::Delayed {
+                delay: ANSWERED_AFTER,
+                route: Box::new(Route::Headers {
+                    status: 429,
+                    headers: vec![(
+                        "Retry-After".to_owned(),
+                        RETRY_AFTER.as_secs().to_string(),
+                    )],
+                    body: String::new(),
+                }),
+            },
+            feed("search-3.xml"),
+        ]),
+    );
+
+    let throttled = spawn_in_real_time_with(
+        &project,
+        &server,
+        &SEARCH,
+        &[(CALL_BUDGET_MS, "36000")],
+    );
+    wait_for_hits(&server, &query(), 1);
+    let concurrent = spawn_in_real_time(&project, &server, &SEARCH);
+    wait_for_tickets(&project, 2);
+    assert_eq!(finish(throttled)["status"], "waiting");
+    assert_eq!(finish(concurrent)["status"], "ok");
+
+    let hits = server.hit_instants(&query());
+    assert_eq!(hits.len(), 2);
+    let deferred_until = hits[0] + ANSWERED_AFTER + RETRY_AFTER;
+    assert!(
+        hits[1] >= deferred_until,
+        "the concurrent request left {:?} before the deferral ended",
+        deferred_until - hits[1]
+    );
+    assert!(
+        hits[1] - deferred_until < Duration::from_millis(1500),
+        "the concurrent request left {:?} after the deferral ended",
+        hits[1] - deferred_until
     );
 }

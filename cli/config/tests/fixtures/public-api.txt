@@ -19,6 +19,7 @@ pub fn config::catalogue::Trust::fmt(&self, f: &mut core::fmt::Formatter<'_>) ->
 impl core::marker::Copy for config::catalogue::Trust
 impl core::marker::StructuralPartialEq for config::catalogue::Trust
 pub struct config::catalogue::ExtraKey
+pub config::catalogue::ExtraKey::credential: bool
 pub config::catalogue::ExtraKey::name: &'static str
 pub config::catalogue::ExtraKey::overrides: &'static [&'static str]
 pub config::catalogue::ExtraKey::recovery: core::option::Option<&'static str>
@@ -618,6 +619,56 @@ pub fn config::node::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> co
 impl core::iter::traits::collect::FromIterator<(alloc::string::String, config::node::Node)> for config::node::Mapping
 pub fn config::node::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, config::node::Node)>>(iter: I) -> Self
 impl core::marker::StructuralPartialEq for config::node::Mapping
+pub mod config::open_setting
+pub enum config::open_setting::SettingSource
+pub config::open_setting::SettingSource::Environment(&'static str)
+pub config::open_setting::SettingSource::Level(config::level::Level)
+impl core::clone::Clone for config::open_setting::SettingSource
+pub fn config::open_setting::SettingSource::clone(&self) -> config::open_setting::SettingSource
+impl core::cmp::Eq for config::open_setting::SettingSource
+impl core::cmp::PartialEq for config::open_setting::SettingSource
+pub fn config::open_setting::SettingSource::eq(&self, other: &config::open_setting::SettingSource) -> bool
+impl core::fmt::Debug for config::open_setting::SettingSource
+pub fn config::open_setting::SettingSource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::open_setting::SettingSource
+pub fn config::open_setting::SettingSource::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::open_setting::SettingSource
+impl core::marker::StructuralPartialEq for config::open_setting::SettingSource
+pub struct config::open_setting::OpenKey(_)
+impl config::open_setting::OpenKey
+pub fn config::open_setting::OpenKey::declared(name: &str) -> core::result::Result<Self, config::error::ConfigError>
+impl core::clone::Clone for config::open_setting::OpenKey
+pub fn config::open_setting::OpenKey::clone(&self) -> config::open_setting::OpenKey
+impl core::cmp::Eq for config::open_setting::OpenKey
+impl core::cmp::PartialEq for config::open_setting::OpenKey
+pub fn config::open_setting::OpenKey::eq(&self, other: &config::open_setting::OpenKey) -> bool
+impl core::fmt::Debug for config::open_setting::OpenKey
+pub fn config::open_setting::OpenKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::open_setting::OpenKey
+impl core::marker::StructuralPartialEq for config::open_setting::OpenKey
+pub struct config::open_setting::SettingValue
+pub config::open_setting::SettingValue::source: config::open_setting::SettingSource
+pub config::open_setting::SettingValue::value: alloc::string::String
+impl core::clone::Clone for config::open_setting::SettingValue
+pub fn config::open_setting::SettingValue::clone(&self) -> config::open_setting::SettingValue
+impl core::cmp::Eq for config::open_setting::SettingValue
+impl core::cmp::PartialEq for config::open_setting::SettingValue
+pub fn config::open_setting::SettingValue::eq(&self, other: &config::open_setting::SettingValue) -> bool
+impl core::fmt::Debug for config::open_setting::SettingValue
+pub fn config::open_setting::SettingValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::open_setting::SettingValue
+pub struct config::open_setting::UnreadableLevel
+pub config::open_setting::UnreadableLevel::level: config::level::Level
+pub config::open_setting::UnreadableLevel::reason: config::error::ConfigError
+impl core::clone::Clone for config::open_setting::UnreadableLevel
+pub fn config::open_setting::UnreadableLevel::clone(&self) -> config::open_setting::UnreadableLevel
+impl core::cmp::Eq for config::open_setting::UnreadableLevel
+impl core::cmp::PartialEq for config::open_setting::UnreadableLevel
+pub fn config::open_setting::UnreadableLevel::eq(&self, other: &config::open_setting::UnreadableLevel) -> bool
+impl core::fmt::Debug for config::open_setting::UnreadableLevel
+pub fn config::open_setting::UnreadableLevel::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::open_setting::UnreadableLevel
+pub fn config::open_setting::open_value(environment: &dyn config::consent::Environment, config: &dyn config::service::ConfigAccess, key: &config::open_setting::OpenKey) -> core::result::Result<core::option::Option<config::open_setting::SettingValue>, config::open_setting::UnreadableLevel>
 pub mod config::paths
 pub struct config::paths::DocTypeDir
 pub config::paths::DocTypeDir::blank_fallback: bool

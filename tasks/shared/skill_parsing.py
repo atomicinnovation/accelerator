@@ -20,7 +20,7 @@ import re
 
 _BASH_RULE = re.compile(r"Bash\(([^)]*)\)")
 _PREPROCESSOR = re.compile(r"!`([^`]*)`")
-_FENCED_BLOCK = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
+_FENCED_BLOCK = re.compile(r"```([^\n]*)\n(.*?)```", re.DOTALL)
 _BARE_BASH_LINE = re.compile(r"^\s*-?\s*Bash\s*$")
 _NAME_LINE = re.compile(r'^name:\s*"?([^"\n]*?)"?\s*$')
 _ALLOWED_TOOLS_LINE = re.compile(r"^allowed-tools:\s*(.*)$")
@@ -115,6 +115,18 @@ def preprocessor_commands(text: str) -> list[str]:
     return _PREPROCESSOR.findall(text)
 
 
+def fenced_blocks(text: str) -> list[tuple[str, str]]:
+    """Each non-blank fenced block's language tag and first line, in order."""
+    blocks: list[tuple[str, str]] = []
+    for language, body in _FENCED_BLOCK.findall(text):
+        for line in body.splitlines():
+            stripped = line.strip()
+            if stripped:
+                blocks.append((language.strip(), stripped))
+                break
+    return blocks
+
+
 def fenced_block_commands(text: str) -> list[str]:
     """Every fenced code block's first non-blank line, in document order.
 
@@ -125,14 +137,7 @@ def fenced_block_commands(text: str) -> list[str]:
     ``preprocessor_commands``: a block that is not a launcher invocation is
     still returned, for a caller's own `is_plugin_invocation` to discard.
     """
-    commands: list[str] = []
-    for block in _FENCED_BLOCK.findall(text):
-        for line in block.splitlines():
-            stripped = line.strip()
-            if stripped:
-                commands.append(stripped)
-                break
-    return commands
+    return [first_line for _, first_line in fenced_blocks(text)]
 
 
 def is_plugin_invocation(command: str) -> bool:

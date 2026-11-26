@@ -7,6 +7,7 @@ mod consultable_command;
 mod context;
 mod counts_command;
 mod counts_wording;
+mod crossref_contact;
 mod fetch_command;
 mod guard;
 mod harness_setting;
@@ -31,15 +32,15 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use clap::Parser as _;
+use config_adapters::credentials::SystemEnvironment;
 use corpus::Clock as _;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
 use corpus_adapters::SystemClock as CorpusClock;
 use research::conduct::ledger::RunId;
-use research::sources::fetch::Clock;
-use research::sources::fetch::FetchOutcome;
 use research::sources::metadata::SourceMetadata;
+use research::sources::ports::Clock;
 use research::sources::queue::Ticket;
 use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::parse_ticket;
@@ -50,26 +51,31 @@ use research::sources::web::fetch::WebFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
-use research_adapters::contention::FileContentionLog;
+use research_adapters::crossref_json::JsonCrossrefDecoder;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::diagnostics::Stderr;
 use research_adapters::host_resolver::DnsHostResolver;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
-use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
 use research_adapters::page_transport::HttpPageTransport;
 use research_adapters::queue::random_nonce;
-use research_adapters::queue::FileArxivQueue;
 use research_adapters::scratch::ScratchDir;
+use research_adapters::services::AdapterContext;
+use research_adapters::services::PreviousRelease;
+use research_adapters::services::ServiceAdapters;
 use research_adapters::transport::HttpTransport;
 
 use crate::cli::Cli;
 use crate::cli::Command;
 use crate::cli::TopicAction;
 use crate::context::ProjectContext;
+use crate::crossref_contact::CrossrefContact;
 use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::ArxivCall;
+use crate::fetch_command::DoiAdapters;
+use crate::fetch_command::DoiCall;
 use crate::fetch_command::Fetched;
+use crate::fetch_command::FetchedDoi;
 use crate::fetch_command::FetchedRecords;
 use crate::fetch_command::OpenAlexAdapters;
 use crate::fetch_command::OpenAlexCall;
@@ -171,6 +177,7 @@ fn fetch(
     match fetch_command::run(clock.as_ref(), deadline, &call) {
         Ok(Fetched::Records(records)) => report(&records),
         Ok(Fetched::Page(page)) => report_page(page),
+        Ok(Fetched::Doi(doi)) => report_doi(&doi),
         Err(error) => failure(&error.to_string()),
     }
 }
@@ -334,12 +341,14 @@ fn source_call(
                 selected_endpoints().map_err(|error| usage(&error))?;
             let (_, project) =
                 working_project().map_err(|error| failure(&error))?;
+            let context = queued_context(clock, &project)?;
             let transport = http_transport(deadline)?;
-            let scratch = project
-                .research_scratch()
-                .map_err(|error| failure(&error.to_string()))?;
-            let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
-            let research = ScratchDir::new(&project.root, &scratch);
+            let research = context.research.clone();
+            let diagnostics = context.diagnostics.clone();
+            let arxiv = ServiceAdapters::for_arxiv(
+                &context,
+                Some(PreviousRelease::arxiv_layout(&research)),
+            );
             SourceCall::Arxiv(
                 ArxivCall { request, presented },
                 ArxivAdapters {
@@ -347,26 +356,13 @@ fn source_call(
                     oai: endpoints.arxiv_oai,
                     transport: Box::new(transport),
                     decoder: Box::new(XmlArxivDecoder),
-                    gate: Box::new(FilePacingGate::new(
-                        research.clone(),
-                        clock.clone(),
-                        diagnostics.clone(),
-                    )),
+                    gate: Box::new(arxiv.gate),
                     confirmations: Box::new(FileConfirmationCache::new(
-                        research.clone(),
-                        diagnostics.clone(),
-                    )),
-                    queue: Box::new(FileArxivQueue::new(
-                        &research,
-                        clock.clone(),
-                        diagnostics.clone(),
-                        Box::new(random_nonce),
-                    )),
-                    contention: Box::new(FileContentionLog::new(
                         research,
-                        clock.clone(),
                         diagnostics,
                     )),
+                    queue: Box::new(arxiv.queue),
+                    contention: Box::new(arxiv.contention),
                 },
             )
         }
@@ -374,6 +370,58 @@ fn source_call(
             request,
             selected_web_adapters().map_err(|error| usage(&error))?,
         ),
+        FetchRequest::Doi(request) => {
+            let endpoints =
+                selected_endpoints().map_err(|error| usage(&error))?;
+            let (_, project) =
+                working_project().map_err(|error| failure(&error))?;
+            let context = queued_context(clock, &project)?;
+            let transport = http_transport(deadline)?;
+            let contact = CrossrefContact::resolved(
+                &SystemEnvironment,
+                project.config.as_ref(),
+            );
+            if let Some(warning) = contact.warning() {
+                eprintln!("{warning}");
+            }
+            let crossref =
+                ServiceAdapters::for_crossref(contact.pool(), &context);
+            SourceCall::Doi(
+                DoiCall {
+                    request,
+                    presented,
+                    contact: contact.address().cloned(),
+                },
+                DoiAdapters {
+                    service: crossref.service,
+                    api: endpoints.crossref_api,
+                    transport: Box::new(transport),
+                    decoder: Box::new(JsonCrossrefDecoder),
+                    gate: Box::new(crossref.gate),
+                    queue: Box::new(crossref.queue),
+                    contention: Box::new(crossref.contention),
+                    diagnostics: context.diagnostics,
+                },
+            )
+        }
+    })
+}
+
+/// What every queued service's adapters share, rooted in the enclosing
+/// project's research scratch directory.
+fn queued_context(
+    clock: &Rc<dyn Clock>,
+    project: &ProjectContext,
+) -> Result<AdapterContext, ExitCode> {
+    let scratch = project
+        .research_scratch()
+        .map_err(|error| failure(&error.to_string()))?;
+    let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
+    Ok(AdapterContext {
+        research: ScratchDir::new(&project.root, &scratch),
+        clock: clock.clone(),
+        diagnostics,
+        nonces: Rc::new(random_nonce),
     })
 }
 
@@ -395,13 +443,26 @@ fn report(fetched: &FetchedRecords) -> ExitCode {
     if let Some(rejection) = render::rejection(fetched) {
         return usage(&rejection);
     }
-    if let FetchOutcome::Failed(error) = &fetched.outcome {
-        eprintln!("{error}");
+    if let Some(failure) = render::failure(fetched) {
+        eprintln!("{failure}");
     }
     if let Some(summary) = render::summary(fetched) {
         eprintln!("{summary}");
     }
     render::document(fetched).map_or(ExitCode::FAILURE, |document| {
+        println!("{document}");
+        ExitCode::SUCCESS
+    })
+}
+
+fn report_doi(fetched: &FetchedDoi) -> ExitCode {
+    if let Some(rejection) = render::doi_rejection(fetched) {
+        return usage(&rejection);
+    }
+    if let Some(summary) = render::doi_summary(fetched) {
+        eprintln!("{summary}");
+    }
+    render::doi_document(fetched).map_or(ExitCode::FAILURE, |document| {
         println!("{document}");
         ExitCode::SUCCESS
     })
@@ -479,6 +540,7 @@ struct Endpoints {
     openalex_api: Endpoint,
     arxiv_api: Endpoint,
     arxiv_oai: Endpoint,
+    crossref_api: Endpoint,
 }
 
 #[cfg(feature = "test-loopback")]
@@ -487,6 +549,7 @@ fn selected_endpoints() -> Result<Endpoints, String> {
         openalex_api: loopback::openalex_api()?,
         arxiv_api: loopback::arxiv_api()?,
         arxiv_oai: loopback::arxiv_oai()?,
+        crossref_api: loopback::crossref_api()?,
     })
 }
 
@@ -497,5 +560,6 @@ fn selected_endpoints() -> Result<Endpoints, String> {
         openalex_api: Endpoint::openalex(),
         arxiv_api: Endpoint::arxiv_api(),
         arxiv_oai: Endpoint::arxiv_oai(),
+        crossref_api: Endpoint::crossref_api(),
     })
 }

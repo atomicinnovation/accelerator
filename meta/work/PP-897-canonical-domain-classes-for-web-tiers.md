@@ -87,6 +87,12 @@ both.
 - Blocked by: none known
 - Blocks: none known
 - Related: 0306 (composer tier-conflict rule), 0305 (DOI resolver tiering).
+- Coordination: PP-891 (0305) also rewrites the web profile's "Reputation
+  Tiers" section. Whichever lands second reconciles with the other's text,
+  and this item's domain classes must not classify `doi.org` or
+  `dx.doi.org`, which PP-891 names as resolvers that are never a venue,
+  and must keep preprint hosts such as `arxiv.org` at tier-2, the arXiv
+  profile's tier, which PP-891's landing-host example relies on.
 
 ## Assumptions
 

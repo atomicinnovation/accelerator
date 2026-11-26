@@ -13,6 +13,7 @@ use support::page_of;
 use support::search_binding;
 use support::Project;
 use support::SeededTicket;
+use support::StateFile;
 use support::SELECT;
 
 const KEY: &str = "openalex-sentinel-key";
@@ -81,7 +82,7 @@ fn an_unknown_family_or_verb_is_a_usage_error() {
     assert_usage_error(
         &["openAlex", "search", "graphs"],
         "E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex, \
-         arxiv or web)",
+         arxiv, web or doi)",
     );
     assert_usage_error(
         &["openalex", "find", "graphs"],
@@ -139,10 +140,11 @@ fn help_documents_the_families_verbs_limit_range_and_deadline() {
         "arxiv",
         "search",
         "lookup",
+        "doi takes metadata",
         "1–25",
         "100 s",
         "--ticket",
-        "Re-present the ticket a waiting arXiv call printed",
+        "Re-present the ticket a waiting arXiv or DOI call printed",
         "waiting",
         "other than ok, unavailable or waiting",
         "clears once that call returns",
@@ -269,6 +271,64 @@ fn a_work_is_looked_up_by_id_by_openalex_url_and_by_doi() {
     }
     assert_eq!(server.hits(&peerj()), 2);
     assert_eq!(server.hits(&RequestKey::get(doi_path)), 1);
+}
+
+#[test]
+fn search_and_every_form_of_lookup_agree_on_tier_venue_and_signals() {
+    const DOI: &str = "10.1145/3448016.3457556";
+    const WORK: &str = "W3176171201";
+    let server = MockHTTPServer::start();
+    server.route(works(), json(200, openalex_fixture("parity-search.json")));
+    server.route(
+        RequestKey::get(&format!("/works/doi:{DOI}")),
+        json(200, openalex_fixture("parity-doi.json")),
+    );
+    server.route(
+        RequestKey::get(&format!("/works/{WORK}")),
+        json(200, openalex_fixture("parity-wid.json")),
+    );
+    let project = Project::new();
+    let doi_url = format!("https://doi.org/{DOI}");
+
+    let classifications = [
+        vec!["search", "consistency completeness kafka"],
+        vec!["lookup", DOI],
+        vec!["lookup", &doi_url],
+        vec!["lookup", WORK],
+    ]
+    .map(|args| {
+        let run = fetch(
+            &project,
+            &server,
+            &[&["openalex"], args.as_slice()].concat(),
+            &[],
+        );
+        assert_eq!(run.code, Some(0), "{args:?}: {}", run.stderr);
+        let record = run.json()["records"]
+            .as_array()
+            .and_then(|records| {
+                records
+                    .iter()
+                    .find(|record| record["url"] == doi_url)
+                    .cloned()
+            })
+            .unwrap_or_else(|| panic!("{args:?}: no record for {DOI}"));
+        (
+            record["tier"].clone(),
+            record["venue"].clone(),
+            record["venue_signals"].clone(),
+        )
+    });
+
+    let (tier, venue, _) = &classifications[0];
+    assert_eq!(tier, "tier-1");
+    assert_eq!(
+        venue,
+        "ACM SIGMOD International Conference on Management of Data (SIGMOD)"
+    );
+    for classification in &classifications[1..] {
+        assert_eq!(classification, &classifications[0]);
+    }
 }
 
 #[test]
@@ -574,8 +634,10 @@ fn each_rung_of_the_ladder_supplies_the_key() {
     );
     assert_eq!(
         authorization(
-            &Project::new()
-                .personal_config(&config_with("  api_key: k3\n"), 0o600),
+            &Project::new().personal_config(
+                &config_with("openalex", "  api_key: k3\n"),
+                0o600
+            ),
             &[]
         ),
         Some(bearer("k3"))
@@ -583,7 +645,7 @@ fn each_rung_of_the_ladder_supplies_the_key() {
     assert_eq!(
         authorization(
             &Project::new().personal_config(
-                &config_with("  api_key_cmd: printf k4\n"),
+                &config_with("openalex", "  api_key_cmd: printf k4\n"),
                 0o600
             ),
             &[]
@@ -592,7 +654,8 @@ fn each_rung_of_the_ladder_supplies_the_key() {
     );
     assert_eq!(
         authorization(
-            &Project::new().shared_config(&config_with("  api_key: k5\n")),
+            &Project::new()
+                .shared_config(&config_with("openalex", "  api_key: k5\n")),
             &[]
         ),
         Some(bearer("k5"))
@@ -603,7 +666,7 @@ fn each_rung_of_the_ladder_supplies_the_key() {
 fn a_personal_config_without_a_key_leaves_the_call_keyless() {
     let project = Project::new()
         .personal_config("---\n---\n", 0o600)
-        .shared_config(&config_with("  api_key: shared\n"));
+        .shared_config(&config_with("openalex", "  api_key: shared\n"));
 
     assert_eq!(authorization(&project, &[]), None);
 }
@@ -613,7 +676,10 @@ fn a_personal_config_without_a_key_beside_a_shared_key_command_is_refused() {
     assert_refused(
         &Project::new()
             .personal_config("---\n---\n", 0o600)
-            .shared_config(&config_with("  api_key_cmd: printf k\n")),
+            .shared_config(&config_with(
+                "openalex",
+                "  api_key_cmd: printf k\n",
+            )),
         "E_CONSENT_KEY_TEAM_LEVEL: openalex.api_key_cmd",
     );
 }
@@ -622,8 +688,8 @@ fn a_personal_config_without_a_key_beside_a_shared_key_command_is_refused() {
 fn a_shared_key_command_beside_a_personal_key_warns_and_fetches() {
     let server = server_with(works(), search_page());
     let project = Project::new()
-        .personal_config(&config_with("  api_key: mine\n"), 0o600)
-        .shared_config(&config_with("  api_key_cmd: printf k\n"));
+        .personal_config(&config_with("openalex", "  api_key: mine\n"), 0o600)
+        .shared_config(&config_with("openalex", "  api_key_cmd: printf k\n"));
 
     let run = fetch(&project, &server, &["openalex", "search", "x"], &[]);
 
@@ -641,7 +707,7 @@ fn a_shared_key_command_beside_a_personal_key_warns_and_fetches() {
 fn an_environment_key_resolves_beside_an_insecure_personal_config() {
     let server = server_with(works(), search_page());
     let project = Project::new()
-        .personal_config(&config_with("  api_key: mine\n"), 0o644);
+        .personal_config(&config_with("openalex", "  api_key: mine\n"), 0o644);
 
     let run = fetch(
         &project,
@@ -661,8 +727,14 @@ fn an_environment_key_resolves_beside_an_insecure_personal_config() {
 #[test]
 fn a_tracked_personal_key_command_beside_a_shared_one_is_fatal_and_warns() {
     let project = Project::under_git()
-        .personal_config(&config_with("  api_key_cmd: printf k\n"), 0o600)
-        .shared_config(&config_with("  api_key_cmd: printf shared\n"))
+        .personal_config(
+            &config_with("openalex", "  api_key_cmd: printf k\n"),
+            0o600,
+        )
+        .shared_config(&config_with(
+            "openalex",
+            "  api_key_cmd: printf shared\n",
+        ))
         .track_personal_config();
 
     assert_refused(
@@ -678,10 +750,13 @@ fn a_personal_key_command_runs_outside_the_project_in_a_fresh_directory() {
     let record = tempfile::tempdir().expect("a record directory");
     let recorded = record.path().join("cwd");
     let project = Project::new().personal_config(
-        &config_with(&format!(
-            "  api_key_cmd: pwd > {} && printf k\n",
-            recorded.display()
-        )),
+        &config_with(
+            "openalex",
+            &format!(
+                "  api_key_cmd: pwd > {} && printf k\n",
+                recorded.display()
+            ),
+        ),
         0o600,
     );
 
@@ -707,8 +782,8 @@ fn no_key_anywhere_leaves_the_call_keyless() {
 #[test]
 fn a_shared_key_command_is_refused_before_any_request() {
     let server = server_with(works(), search_page());
-    let project =
-        Project::new().shared_config(&config_with("  api_key_cmd: printf k\n"));
+    let project = Project::new()
+        .shared_config(&config_with("openalex", "  api_key_cmd: printf k\n"));
 
     let run = fetch(&project, &server, &["openalex", "search", "x"], &[]);
 
@@ -726,7 +801,7 @@ fn a_shared_key_command_is_refused_before_any_request() {
 fn a_hanging_key_command_times_out_within_the_budget_left() {
     let server = server_with(works(), search_page());
     let project = Project::new().personal_config(
-        &config_with("  api_key_cmd: sleep 60 & wait\n"),
+        &config_with("openalex", "  api_key_cmd: sleep 60 & wait\n"),
         0o600,
     );
     let started = std::time::Instant::now();
@@ -751,8 +826,8 @@ fn a_hanging_key_command_times_out_within_the_budget_left() {
 
 #[test]
 fn an_environment_key_outranks_a_shared_key_command() {
-    let project =
-        Project::new().shared_config(&config_with("  api_key_cmd: printf k\n"));
+    let project = Project::new()
+        .shared_config(&config_with("openalex", "  api_key_cmd: printf k\n"));
 
     assert_eq!(
         authorization(&project, &[("ACCELERATOR_OPENALEX_API_KEY", "env")]),
@@ -776,13 +851,19 @@ fn assert_refused(project: &Project, message: &str) {
 fn a_tracked_personal_config_supplying_a_key_is_refused() {
     assert_refused(
         &Project::under_git()
-            .personal_config(&config_with("  api_key: leaked\n"), 0o600)
+            .personal_config(
+                &config_with("openalex", "  api_key: leaked\n"),
+                0o600,
+            )
             .track_personal_config(),
         "E_TOKEN_FROM_TRACKED_FILE: openalex.api_key",
     );
     assert_refused(
         &Project::under_git()
-            .personal_config(&config_with("  api_key_cmd: printf k\n"), 0o600)
+            .personal_config(
+                &config_with("openalex", "  api_key_cmd: printf k\n"),
+                0o600,
+            )
             .track_personal_config(),
         "E_CONSENT_KEY_TRACKED: openalex.api_key_cmd",
     );
@@ -792,7 +873,10 @@ fn a_tracked_personal_config_supplying_a_key_is_refused() {
 fn a_group_readable_personal_config_supplying_a_key_is_refused() {
     assert_refused(
         &Project::under_git()
-            .personal_config(&config_with("  api_key: leaked\n"), 0o640)
+            .personal_config(
+                &config_with("openalex", "  api_key: leaked\n"),
+                0o640,
+            )
             .track_personal_config(),
         "E_LOCAL_PERMS_INSECURE",
     );
@@ -850,7 +934,7 @@ fn a_ticket_on_openalex_is_a_usage_error() {
     assert_eq!(run.code, Some(2));
     assert_eq!(
         run.stderr.trim(),
-        "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches"
+        "E_RESEARCH_USAGE: --ticket applies only to arxiv and doi fetches"
     );
     assert_eq!(server.hits(&works()), 0);
 }
@@ -860,7 +944,7 @@ fn an_openalex_fetch_ignores_a_held_arxiv_lock_and_queue() {
     let project = Project::new();
     let server =
         server_with(works(), json(200, openalex_fixture("search-30.json")));
-    let _arxiv = project.hold("arxiv.lock");
+    let _arxiv = project.hold(StateFile::ServingLock);
     let graphs = search_binding("graphs", 10);
     project.seed_ticket("1-aaaaaa", &SeededTicket::live(&graphs, 10));
     let _live = project.hold_ticket("1-aaaaaa");

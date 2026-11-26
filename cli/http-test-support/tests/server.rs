@@ -483,3 +483,39 @@ fn a_refused_base_url_names_a_loopback_port_nothing_listens_on() {
         .expect_err("nothing listens on the drawn port");
     assert_eq!(refused.kind(), std::io::ErrorKind::ConnectionRefused);
 }
+
+#[test]
+fn delayed_responses_to_concurrent_requests_are_answered_together() {
+    const DELAY: Duration = Duration::from_millis(300);
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/later"),
+        Route::Delayed {
+            delay: DELAY,
+            route: Box::new(Route::Status(204)),
+        },
+    );
+    let address = server.base_url().replace("http://", "");
+
+    let started = Instant::now();
+    let statuses = std::thread::scope(|scope| {
+        [(); 3]
+            .map(|()| {
+                let address = address.clone();
+                scope.spawn(move || {
+                    let mut stream =
+                        TcpStream::connect(address).expect("connect");
+                    send(&mut stream, "GET", "/later", &[], &[]);
+                    read_head(&mut BufReader::new(stream)).0
+                })
+            })
+            .map(|caller| caller.join().expect("a caller"))
+    });
+
+    assert_eq!(statuses, [204, 204, 204]);
+    assert!(
+        started.elapsed() < DELAY * 2,
+        "three delayed answers took {:?}",
+        started.elapsed()
+    );
+}

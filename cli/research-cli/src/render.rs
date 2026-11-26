@@ -2,42 +2,173 @@
 //! and a waiting ticket, and one non-secret stderr line for a call that did
 //! not deliver.
 
-use research::sources::fetch::Cause;
+use research::sources::classify::FetchError;
+use research::sources::crossref::DoiMetadata;
+use research::sources::crossref::Venue;
+use research::sources::fetch::ArxivAnswer;
 use research::sources::fetch::FetchOutcome;
 use research::sources::metadata::SourceMetadata;
-use research::sources::queue::Binding;
-use research::sources::queue::TicketRejection;
+use research::sources::ports::Cause;
+use research::sources::ports::Unavailable;
+use research::sources::queue::Position;
+use research::sources::queue::RejectedTicket;
+use research::sources::queue::Ticket;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
 use research::sources::request::Family;
+use research::sources::request::Verb;
+use research::sources::service::Service;
+use research::sources::serving::Queued;
 use serde::ser::SerializeMap;
 use serde::Serialize;
 use serde::Serializer;
 
+use crate::fetch_command::FetchedDoi;
 use crate::fetch_command::FetchedRecords;
+use crate::fetch_command::RecordsOutcome;
+
+/// How a call ended, read the same way whichever source it asked; `S` is
+/// what a served call answered.
+enum Ending<'a, S> {
+    Served(S),
+    Failed(&'a FetchError),
+    Unavailable {
+        source: &'static str,
+        unavailable: Unavailable,
+    },
+    Waiting {
+        source: &'static str,
+        ticket: &'a Ticket,
+        position: Position,
+    },
+    Rejected(RejectedTicket),
+}
+
+fn ending(fetched: &FetchedRecords) -> Ending<'_, &[Record]> {
+    match &fetched.outcome {
+        RecordsOutcome::Direct(FetchOutcome::Records(records)) => {
+            Ending::Served(records)
+        }
+        RecordsOutcome::Direct(FetchOutcome::Failed(error)) => {
+            Ending::Failed(error)
+        }
+        RecordsOutcome::Direct(FetchOutcome::Unavailable(unavailable)) => {
+            Ending::Unavailable {
+                source: fetched.family.code(),
+                unavailable: *unavailable,
+            }
+        }
+        RecordsOutcome::Queued { service, queued } => {
+            queued_ending(*service, queued, |answer| match answer {
+                ArxivAnswer::Records(records) => {
+                    Ending::Served(records.as_slice())
+                }
+                ArxivAnswer::Failed(error) => Ending::Failed(error),
+            })
+        }
+    }
+}
+
+fn doi_ending(fetched: &FetchedDoi) -> Ending<'_, &DoiMetadata> {
+    queued_ending(fetched.service, &fetched.outcome, Ending::Served)
+}
+
+/// The one reading of every queue state, for any family a service serves.
+fn queued_ending<'a, T, S>(
+    service: Service,
+    queued: &'a Queued<T>,
+    served: impl FnOnce(&'a T) -> Ending<'a, S>,
+) -> Ending<'a, S> {
+    match queued {
+        Queued::Served(answer) => served(answer),
+        Queued::Unavailable(unavailable) => Ending::Unavailable {
+            source: service.source(),
+            unavailable: *unavailable,
+        },
+        Queued::Waiting { ticket, position } => Ending::Waiting {
+            source: service.source(),
+            ticket,
+            position: *position,
+        },
+        Queued::Rejected(rejection) => Ending::Rejected(RejectedTicket {
+            presented_to: service.ticket_family(),
+            rejection: rejection.clone(),
+        }),
+    }
+}
 
 /// The stdout document, or `None` for a failed or rejected call, which
 /// prints only its diagnostics.
 pub fn document(fetched: &FetchedRecords) -> Option<String> {
-    let document = match &fetched.outcome {
-        FetchOutcome::Records(records) => Document::Ok {
+    let authenticated =
+        (fetched.family == Family::OpenAlex).then_some(fetched.authenticated);
+    match ending(fetched) {
+        Ending::Served(records) => serde_json::to_string(&Document::Ok {
             records: records.iter().map(RecordJson::from).collect(),
-        },
-        FetchOutcome::Unavailable(unavailable) => Document::Unavailable {
-            source: fetched.family.code(),
+        })
+        .ok(),
+        other => unserved_document(&other, authenticated),
+    }
+}
+
+/// The stdout document of a DOI call, or `None` for a rejected one.
+pub fn doi_document(fetched: &FetchedDoi) -> Option<String> {
+    match doi_ending(fetched) {
+        Ending::Served(answer) => serde_json::to_string(&DoiDocument {
+            status: "ok",
+            metadata: MetadataJson(&answer.metadata),
+            venue: answer.venue.as_ref().map(Venue::as_str),
+        })
+        .ok(),
+        other => unserved_document(&other, None),
+    }
+}
+
+/// The document of a call its source or queue did not serve.
+fn unserved_document<S>(
+    ending: &Ending<'_, S>,
+    authenticated: Option<bool>,
+) -> Option<String> {
+    let document = match ending {
+        Ending::Unavailable {
+            source,
+            unavailable,
+        } => Document::Unavailable {
+            source,
             reason: unavailable.reason().code(),
-            authenticated: (fetched.family == Family::OpenAlex)
-                .then_some(fetched.authenticated),
+            authenticated,
             cause: unavailable.cause().map(Cause::code),
         },
-        FetchOutcome::Waiting { ticket, position } => Document::Waiting {
-            source: fetched.family.code(),
+        Ending::Waiting {
+            source,
+            ticket,
+            position,
+        } => Document::Waiting {
+            source,
             ticket: ticket.to_string(),
             position: position.get(),
         },
-        FetchOutcome::Failed(_) | FetchOutcome::Rejected(_) => return None,
+        Ending::Served(_) | Ending::Failed(_) | Ending::Rejected(_) => {
+            return None
+        }
     };
     serde_json::to_string(&document).ok()
+}
+
+#[derive(Serialize)]
+struct DoiDocument<'a> {
+    status: &'static str,
+    metadata: MetadataJson<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    venue: Option<&'a str>,
+}
+
+/// The upstream's own error line for a call that failed.
+pub fn failure(fetched: &FetchedRecords) -> Option<String> {
+    match ending(fetched) {
+        Ending::Failed(error) => Some(error.to_string()),
+        _ => None,
+    }
 }
 
 pub fn web_document(metadata: &SourceMetadata) -> Option<String> {
@@ -56,41 +187,17 @@ struct WebDocument<'a> {
 
 /// The usage line for a ticket presented in a way the queue refuses.
 pub fn rejection(fetched: &FetchedRecords) -> Option<String> {
-    let FetchOutcome::Rejected(rejection) = &fetched.outcome else {
-        return None;
-    };
-    Some(match rejection {
-        TicketRejection::Mismatch {
-            ticket,
-            issued,
-            differing,
-        } => {
-            let differing = differing
-                .iter()
-                .map(|argument| argument.code())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!(
-                "E_ARXIV_TICKET_MISMATCH: ticket {ticket} was issued for {} \
-                 (differing: {differing}); re-present it with that call, or \
-                 drop --ticket",
-                call_as_typed(issued)
-            )
-        }
-        TicketRejection::AlreadyLive(ticket) => format!(
-            "E_ARXIV_TICKET_LIVE: ticket {ticket} is already being presented \
-             by another call; use that call's output, or re-present it once \
-             that call has returned"
-        ),
-    })
+    rejection_of(ending(fetched))
 }
 
-fn call_as_typed(binding: &Binding) -> String {
-    match binding {
-        Binding::Search { query, limit } => {
-            format!("search '{}' --limit {}", query.spelled(), limit.get())
-        }
-        Binding::Lookup(id) => format!("lookup {id}"),
+pub fn doi_rejection(fetched: &FetchedDoi) -> Option<String> {
+    rejection_of(doi_ending(fetched))
+}
+
+fn rejection_of<S>(ending: Ending<'_, S>) -> Option<String> {
+    match ending {
+        Ending::Rejected(rejected) => Some(rejected.to_string()),
+        _ => None,
     }
 }
 
@@ -98,30 +205,55 @@ fn call_as_typed(binding: &Binding) -> String {
 /// deliver records: with its attempts, or for a waiting call its position
 /// and the ticket to re-present.
 pub fn summary(fetched: &FetchedRecords) -> Option<String> {
-    let status = match &fetched.outcome {
-        FetchOutcome::Records(_) | FetchOutcome::Rejected(_) => return None,
-        FetchOutcome::Waiting { ticket, position } => {
+    summary_of(
+        fetched.family,
+        fetched.verb,
+        fetched.attempts,
+        &ending(fetched),
+    )
+}
+
+pub fn doi_summary(fetched: &FetchedDoi) -> Option<String> {
+    summary_of(
+        Family::Doi,
+        Verb::Metadata,
+        fetched.attempts,
+        &doi_ending(fetched),
+    )
+}
+
+fn summary_of<S>(
+    family: Family,
+    verb: Verb,
+    attempts: usize,
+    ending: &Ending<'_, S>,
+) -> Option<String> {
+    let status = match ending {
+        Ending::Served(_) | Ending::Rejected(_) => return None,
+        Ending::Waiting {
+            ticket, position, ..
+        } => {
             return Some(format!(
                 "research fetch: {} {} waiting at position {}; re-present \
                  with --ticket {ticket}",
-                fetched.family.code(),
-                fetched.verb.code(),
+                family.code(),
+                verb.code(),
                 position.get(),
             ))
         }
-        FetchOutcome::Unavailable(unavailable) => {
+        Ending::Unavailable { unavailable, .. } => {
             format!("unavailable ({})", unavailable.reason().code())
         }
-        FetchOutcome::Failed(_) => "failed".to_owned(),
+        Ending::Failed(_) => "failed".to_owned(),
     };
-    let attempts = match fetched.attempts {
+    let attempts = match attempts {
         1 => "1 attempt".to_owned(),
         count => format!("{count} attempts"),
     };
     Some(format!(
         "research fetch: {} {} {status} after {attempts}",
-        fetched.family.code(),
-        fetched.verb.code(),
+        family.code(),
+        verb.code(),
     ))
 }
 

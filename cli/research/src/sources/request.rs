@@ -3,13 +3,17 @@
 
 use std::fmt;
 
+use crate::sources::crossref::ContactAddress;
+use crate::sources::queue::MalformedTicket;
 use crate::sources::queue::Ticket;
+use crate::sources::service::Service;
 use crate::sources::web::page_url::PageUrl;
 use crate::sources::web::page_url::PageUrlError;
 
 pub const USER_AGENT: &str =
     concat!("accelerator-research/", env!("CARGO_PKG_VERSION"));
 const ATOM: &str = "application/atom+xml";
+const JSON: &str = "application/json";
 const OPENALEX_SELECT: &str = "id,doi,display_name,type,authorships,\
                                primary_location,is_retracted,\
                                abstract_inverted_index,publication_date";
@@ -24,11 +28,13 @@ pub enum RequestError {
     MissingQuery,
     MissingId,
     MissingUrl,
+    MissingDoi,
     EmptyQuery,
     MalformedArxivId(String),
     MalformedOpenAlexId(String),
+    MalformedDoi(String),
     MalformedUrl(PageUrlError),
-    TicketMalformed(String),
+    TicketMalformed(Family, String),
     TicketNotQueued,
 }
 
@@ -37,14 +43,14 @@ impl fmt::Display for RequestError {
         match self {
             Self::UnknownFamily(family) => write!(
                 formatter,
-                "E_RESEARCH_USAGE: unknown family '{family}' (expected \
-                 openalex, arxiv or web)"
+                "E_RESEARCH_USAGE: unknown family '{family}' (expected {})",
+                listed(Family::ALL.iter().map(|family| family.code()), "or"),
             ),
             Self::UnknownVerb { verb, family } => write!(
                 formatter,
                 "E_RESEARCH_USAGE: unknown verb '{verb}' ({} supports {})",
                 family.code(),
-                alternatives(family.verbs()),
+                listed(family.verbs().iter().map(|verb| verb.code()), "or"),
             ),
             Self::LimitOutOfRange(limit) => write!(
                 formatter,
@@ -62,6 +68,8 @@ impl fmt::Display for RequestError {
             }
             Self::MissingUrl => formatter
                 .write_str("E_RESEARCH_USAGE: metadata needs exactly one URL"),
+            Self::MissingDoi => formatter
+                .write_str("E_RESEARCH_USAGE: metadata needs exactly one DOI"),
             Self::EmptyQuery => formatter.write_str(
                 "E_RESEARCH_USAGE: the query is empty once reserved \
                  characters are removed",
@@ -76,18 +84,33 @@ impl fmt::Display for RequestError {
                 "E_OPENALEX_ID_MALFORMED: expected W123, \
                  https://openalex.org/W123, or a DOI (got '{id}')"
             ),
+            Self::MalformedDoi(raw) => write!(
+                formatter,
+                "E_DOI_MALFORMED: expected a DOI such as \
+                 10.1145/371920.372066 or \
+                 https://doi.org/10.1145/371920.372066 (got '{raw}')"
+            ),
             Self::MalformedUrl(rule) => write!(
                 formatter,
                 "E_WEB_URL_MALFORMED: the URL is not a fetchable http(s) URL: \
                  {rule}"
             ),
-            Self::TicketMalformed(ticket) => write!(
+            Self::TicketMalformed(family, ticket) => write!(
                 formatter,
-                "E_ARXIV_TICKET_MALFORMED: expected a ticket such as \
-                 42-9f1c2a (got '{ticket}')"
+                "E_{}_TICKET_MALFORMED: expected a ticket such as 42-9f1c2a \
+                 (got '{ticket}')",
+                family.code().to_ascii_uppercase()
             ),
-            Self::TicketNotQueued => formatter.write_str(
-                "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches",
+            Self::TicketNotQueued => write!(
+                formatter,
+                "E_RESEARCH_USAGE: --ticket applies only to {} fetches",
+                listed(
+                    Family::ALL
+                        .iter()
+                        .filter(|family| family.is_queued())
+                        .map(|family| family.code()),
+                    "and",
+                ),
             ),
         }
     }
@@ -104,17 +127,21 @@ impl RequestError {
     }
 }
 
-fn alternatives(verbs: &[Verb]) -> String {
-    let codes = verbs.iter().map(|verb| verb.code()).collect::<Vec<_>>();
+fn listed<'a>(
+    codes: impl Iterator<Item = &'a str>,
+    conjunction: &str,
+) -> String {
+    let codes = codes.collect::<Vec<_>>();
     match codes.split_last() {
         Some((last, rest)) if !rest.is_empty() => {
-            format!("{} or {last}", rest.join(", "))
+            format!("{} {conjunction} {last}", rest.join(", "))
         }
         _ => codes.concat(),
     }
 }
 
-/// The ticket a waiting arXiv call printed, re-presented by its caller.
+/// The ticket a waiting arXiv or DOI call printed, re-presented by its
+/// caller.
 ///
 /// # Errors
 ///
@@ -127,10 +154,14 @@ pub fn parse_ticket(
     let Some(raw) = raw else {
         return Ok(None);
     };
-    if family != Family::Arxiv {
+    if !family.is_queued() {
         return Err(RequestError::TicketNotQueued);
     }
-    Ticket::parse(raw).map(Some)
+    Ticket::parse(raw)
+        .map(Some)
+        .map_err(|MalformedTicket(raw)| {
+            RequestError::TicketMalformed(family, raw)
+        })
 }
 
 /// A source the fetcher can reach: a scholarly index, or a public page.
@@ -139,10 +170,12 @@ pub enum Family {
     OpenAlex,
     Arxiv,
     Web,
+    Doi,
 }
 
 impl Family {
-    pub const ALL: [Self; 3] = [Self::OpenAlex, Self::Arxiv, Self::Web];
+    pub const ALL: [Self; 4] =
+        [Self::OpenAlex, Self::Arxiv, Self::Web, Self::Doi];
 
     /// # Errors
     ///
@@ -152,6 +185,7 @@ impl Family {
             "openalex" => Ok(Self::OpenAlex),
             "arxiv" => Ok(Self::Arxiv),
             "web" => Ok(Self::Web),
+            "doi" => Ok(Self::Doi),
             _ => Err(RequestError::UnknownFamily(raw.to_owned())),
         }
     }
@@ -162,13 +196,22 @@ impl Family {
             Self::OpenAlex => "openalex",
             Self::Arxiv => "arxiv",
             Self::Web => "web",
+            Self::Doi => "doi",
         }
+    }
+
+    /// Whether a call on this family waits in a service's queue, and so
+    /// takes `--ticket`.
+    pub fn is_queued(self) -> bool {
+        Service::ALL
+            .iter()
+            .any(|service| service.ticket_family() == self)
     }
 
     pub const fn verbs(self) -> &'static [Verb] {
         match self {
             Self::OpenAlex | Self::Arxiv => &[Verb::Search, Verb::Lookup],
-            Self::Web => &[Verb::Metadata],
+            Self::Web | Self::Doi => &[Verb::Metadata],
         }
     }
 }
@@ -179,6 +222,7 @@ impl fmt::Display for Family {
             Self::OpenAlex => "OpenAlex",
             Self::Arxiv => "arXiv",
             Self::Web => "web",
+            Self::Doi => "DOI",
         })
     }
 }
@@ -620,6 +664,7 @@ pub enum FetchRequest {
     OpenAlex(OpenAlexRequest),
     Arxiv(ArxivRequest),
     Web(WebRequest),
+    Doi(DoiRequest),
 }
 
 impl FetchRequest {
@@ -643,6 +688,7 @@ impl FetchRequest {
                 Self::Arxiv(ArxivRequest::parse(verb, terms, limit)?)
             }
             Family::Web => Self::Web(WebRequest::parse(verb, terms, limit)?),
+            Family::Doi => Self::Doi(DoiRequest::parse(verb, terms, limit)?),
         })
     }
 
@@ -651,6 +697,7 @@ impl FetchRequest {
             Self::OpenAlex(_) => Family::OpenAlex,
             Self::Arxiv(_) => Family::Arxiv,
             Self::Web(_) => Family::Web,
+            Self::Doi(_) => Family::Doi,
         }
     }
 
@@ -658,7 +705,7 @@ impl FetchRequest {
         match self {
             Self::OpenAlex(request) => request.verb(),
             Self::Arxiv(request) => request.verb(),
-            Self::Web(WebRequest::Metadata(_)) => Verb::Metadata,
+            Self::Web(WebRequest::Metadata(_)) | Self::Doi(_) => Verb::Metadata,
         }
     }
 }
@@ -767,6 +814,38 @@ impl WebRequest {
     }
 }
 
+/// A request for what Crossref holds about one DOI.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DoiRequest(Doi);
+
+impl DoiRequest {
+    /// # Errors
+    ///
+    /// A [`RequestError`] naming the first argument found invalid.
+    pub fn parse(
+        verb: &str,
+        terms: &[String],
+        limit: Option<&str>,
+    ) -> Result<Self, RequestError> {
+        if Verb::parse(verb) != Some(Verb::Metadata) {
+            return Err(RequestError::unknown_verb(Family::Doi, verb));
+        }
+        if limit.is_some() {
+            return Err(RequestError::LimitNotApplicable);
+        }
+        let [doi] = terms else {
+            return Err(RequestError::MissingDoi);
+        };
+        Doi::parse(doi)
+            .map(Self)
+            .ok_or_else(|| RequestError::MalformedDoi(doi.to_owned()))
+    }
+
+    pub const fn doi(&self) -> &Doi {
+        &self.0
+    }
+}
+
 /// The name of the credential rung that supplied a key, reported when the
 /// key is rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -832,6 +911,10 @@ impl Endpoint {
         Self::new("https://oaipmh.arxiv.org")
     }
 
+    pub fn crossref_api() -> Self {
+        Self::new("https://api.crossref.org")
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -859,6 +942,25 @@ impl UpstreamRequest {
                 )
                 .fixed("metadataPrefix", "arXivRaw"),
         )
+    }
+
+    pub fn crossref_work(
+        api: &Endpoint,
+        doi: &Doi,
+        contact: Option<&ContactAddress>,
+    ) -> Self {
+        let user_agent = contact.map_or_else(
+            || USER_AGENT.to_owned(),
+            |address| format!("{USER_AGENT} (mailto:{})", address.as_str()),
+        );
+        Self {
+            url: Query::at(api, &format!("/works/{}", doi.encoded())).finish(),
+            headers: vec![
+                ("User-Agent", user_agent),
+                ("Accept", JSON.to_owned()),
+            ],
+            bearer: None,
+        }
     }
 
     fn arxiv(url: Query) -> Self {
