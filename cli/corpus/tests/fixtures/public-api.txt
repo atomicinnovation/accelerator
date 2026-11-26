@@ -990,6 +990,18 @@ pub mod corpus::relative_links
 pub fn corpus::relative_links::link_between(dir: &std::path::Path, target: &std::path::Path) -> alloc::string::String
 pub fn corpus::relative_links::rebased(content: &str, from_dir: &std::path::Path, to_dir: &std::path::Path) -> alloc::string::String
 pub mod corpus::resolve
+pub enum corpus::resolve::EntryKind
+pub corpus::resolve::EntryKind::Directory
+pub corpus::resolve::EntryKind::File
+impl core::clone::Clone for corpus::resolve::EntryKind
+pub fn corpus::resolve::EntryKind::clone(&self) -> corpus::resolve::EntryKind
+impl core::cmp::Eq for corpus::resolve::EntryKind
+impl core::cmp::PartialEq for corpus::resolve::EntryKind
+pub fn corpus::resolve::EntryKind::eq(&self, other: &corpus::resolve::EntryKind) -> bool
+impl core::fmt::Debug for corpus::resolve::EntryKind
+pub fn corpus::resolve::EntryKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::resolve::EntryKind
+impl core::marker::StructuralPartialEq for corpus::resolve::EntryKind
 pub enum corpus::resolve::InputClass
 pub corpus::resolve::InputClass::Invalid
 pub corpus::resolve::InputClass::Path
@@ -1015,18 +1027,14 @@ pub fn corpus::resolve::ResolveOutcome::eq(&self, other: &corpus::resolve::Resol
 impl core::fmt::Debug for corpus::resolve::ResolveOutcome
 pub fn corpus::resolve::ResolveOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::resolve::ResolveOutcome
-pub enum corpus::resolve::TypeShape
+pub enum corpus::resolve::TypeShape<'m>
 pub corpus::resolve::TypeShape::Flat
-pub corpus::resolve::TypeShape::NestedManifest
-impl core::clone::Clone for corpus::resolve::TypeShape
-pub fn corpus::resolve::TypeShape::clone(&self) -> corpus::resolve::TypeShape
-impl core::cmp::Eq for corpus::resolve::TypeShape
-impl core::cmp::PartialEq for corpus::resolve::TypeShape
-pub fn corpus::resolve::TypeShape::eq(&self, other: &corpus::resolve::TypeShape) -> bool
-impl core::fmt::Debug for corpus::resolve::TypeShape
-pub fn corpus::resolve::TypeShape::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for corpus::resolve::TypeShape
-impl core::marker::StructuralPartialEq for corpus::resolve::TypeShape
+pub corpus::resolve::TypeShape::Set(&'m corpus::set::SetMatcher)
+impl<'m> core::clone::Clone for corpus::resolve::TypeShape<'m>
+pub fn corpus::resolve::TypeShape<'m>::clone(&self) -> corpus::resolve::TypeShape<'m>
+impl<'m> core::fmt::Debug for corpus::resolve::TypeShape<'m>
+pub fn corpus::resolve::TypeShape<'m>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'m> core::marker::Copy for corpus::resolve::TypeShape<'m>
 pub struct corpus::resolve::TaggedCandidate
 pub corpus::resolve::TaggedCandidate::path: alloc::string::String
 pub corpus::resolve::TaggedCandidate::tag: alloc::string::String
@@ -1041,7 +1049,8 @@ impl core::marker::StructuralPartialEq for corpus::resolve::TaggedCandidate
 pub trait corpus::resolve::DirectoryLister
 pub fn corpus::resolve::DirectoryLister::entries(&self) -> alloc::vec::Vec<alloc::string::String>
 pub fn corpus::resolve::classify_input(input: &str) -> corpus::resolve::InputClass
-pub fn corpus::resolve::resolve(slug: &str, shape: corpus::resolve::TypeShape, lister: &dyn corpus::resolve::DirectoryLister) -> corpus::resolve::ResolveOutcome
+pub fn corpus::resolve::resolve(slug: &str, shape: corpus::resolve::TypeShape<'_>, lister: &dyn corpus::resolve::DirectoryLister) -> corpus::resolve::ResolveOutcome
+pub fn corpus::resolve::set_directory_of<'p>(type_relative: &'p str, entry: corpus::resolve::EntryKind, matcher: &corpus::set::SetMatcher) -> core::option::Option<&'p str>
 pub fn corpus::resolve::slug_from_set_dir(dir_name: &str) -> alloc::string::String
 pub mod corpus::scan
 pub trait corpus::scan::CorpusWalker
