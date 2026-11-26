@@ -25,3 +25,4 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 cli-test-support = { path = "../cli-test-support" }
+tempfile = { workspace = true }

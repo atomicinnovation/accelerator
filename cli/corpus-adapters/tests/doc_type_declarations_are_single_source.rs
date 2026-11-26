@@ -24,8 +24,8 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn relative(path: &Path) -> String {
-    path.strip_prefix(workspace_root())
+fn relative(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
         .expect("a source under the workspace")
         .to_string_lossy()
         .replace('\\', "/")
@@ -35,20 +35,21 @@ fn may_name_built_in_doc_types(relative_path: &str) -> bool {
     relative_path == BUILT_IN_DECLARATIONS
         || OWNERS_OF_ONE_DOC_TYPE.contains(&relative_path)
         || relative_path.starts_with(FROZEN_MIGRATIONS)
+        || is_declared_by_a_declarations_crate(relative_path)
 }
 
-#[test]
-fn no_production_code_names_a_built_in_doc_type() {
-    let sources = rust_sources_under(&workspace_root());
-    assert!(
-        sources.len() >= 100,
-        "scanned only {} sources under {}",
-        sources.len(),
-        workspace_root().display()
-    );
+fn is_declared_by_a_declarations_crate(relative_path: &str) -> bool {
+    relative_path
+        .split_once("/src/")
+        .is_some_and(|(crate_dir, _)| {
+            crate_dir == "declarations" || crate_dir.ends_with("-declarations")
+        })
+}
+
+fn offences_under(root: &Path, sources: &[PathBuf]) -> Vec<String> {
     let mut offences = Vec::new();
-    for path in &sources {
-        let relative_path = relative(path);
+    for path in sources {
+        let relative_path = relative(root, path);
         if may_name_built_in_doc_types(&relative_path) {
             continue;
         }
@@ -59,7 +60,38 @@ fn no_production_code_names_a_built_in_doc_type() {
                 .map(|offence| format!("{relative_path}:{offence}")),
         );
     }
+    offences
+}
+
+#[test]
+fn no_production_code_names_a_built_in_doc_type() {
+    let root = workspace_root();
+    let sources = rust_sources_under(&root);
+    assert!(
+        sources.len() >= 100,
+        "scanned only {} sources under {}",
+        sources.len(),
+        root.display()
+    );
+    let offences = offences_under(&root, &sources);
     assert!(offences.is_empty(), "{}", offences.join("\n"));
+}
+
+#[test]
+fn only_the_declarations_crates_and_their_assembly_may_name_one() {
+    let root = tempfile::tempdir().expect("a scratch workspace");
+    let naming = "pub const KIND: DocTypeKey = DocTypeKey::PLANS;\n";
+    for crate_dir in ["declarations", "research-declarations", "research"] {
+        let src = root.path().join(crate_dir).join("src");
+        std::fs::create_dir_all(&src).expect("a crate source directory");
+        std::fs::write(src.join("lib.rs"), naming).expect("a seeded source");
+    }
+    let sources = rust_sources_under(root.path());
+
+    assert_eq!(
+        offences_under(root.path(), &sources),
+        vec![format!("research/src/lib.rs:1: {}", naming.trim())]
+    );
 }
 
 #[test]
