@@ -802,6 +802,7 @@ pub fn config::service::ReadLensCatalogue::init_sentinel_present(&self, tmp_rela
 pub fn config::service::ReadLensCatalogue::known_skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
 pub fn config::service::ReadLensCatalogue::skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
 pub trait config::service::ReadTemplate
+pub fn config::service::ReadTemplate::configured_template_path(&self, configured: &str) -> std::path::PathBuf
 pub fn config::service::ReadTemplate::plugin_default(&self, name: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
 pub fn config::service::ReadTemplate::resolve_template(&self, name: &str, config_path: core::option::Option<&str>, templates_dir: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
 pub fn config::service::ReadTemplate::template_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
@@ -1220,6 +1221,7 @@ pub fn config::ReadLensCatalogue::init_sentinel_present(&self, tmp_relative: &st
 pub fn config::ReadLensCatalogue::known_skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
 pub fn config::ReadLensCatalogue::skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
 pub trait config::ReadTemplate
+pub fn config::ReadTemplate::configured_template_path(&self, configured: &str) -> std::path::PathBuf
 pub fn config::ReadTemplate::plugin_default(&self, name: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
 pub fn config::ReadTemplate::resolve_template(&self, name: &str, config_path: core::option::Option<&str>, templates_dir: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
 pub fn config::ReadTemplate::template_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>

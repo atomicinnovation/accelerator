@@ -401,7 +401,7 @@ impl ReadTemplate for FileConfigStore {
     ) -> Result<Option<ResolvedTemplate>, ConfigError> {
         let fallback = match config_path.filter(|value| !value.is_empty()) {
             Some(configured) => {
-                let candidate = self.absolutise(configured);
+                let candidate = self.configured_template_path(configured);
                 if candidate.is_file() {
                     return Ok(Some(self.resolved(
                         TemplateSource::ConfigPath,
@@ -432,6 +432,10 @@ impl ReadTemplate for FileConfigStore {
             )?));
         }
         Ok(None)
+    }
+
+    fn configured_template_path(&self, configured: &str) -> PathBuf {
+        self.absolutise(configured)
     }
 
     fn template_names(&self) -> Result<Vec<String>, ConfigError> {

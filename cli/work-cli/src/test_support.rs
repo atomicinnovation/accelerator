@@ -78,6 +78,10 @@ impl ReadTemplate for PluginWorkItemTemplate {
         self.plugin_default("work-item")
     }
 
+    fn configured_template_path(&self, configured: &str) -> std::path::PathBuf {
+        std::path::PathBuf::from(configured)
+    }
+
     fn template_names(&self) -> Result<Vec<String>, ::config::ConfigError> {
         Ok(vec!["work-item".to_owned()])
     }

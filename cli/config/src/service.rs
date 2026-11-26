@@ -333,6 +333,9 @@ pub trait ReadTemplate {
         templates_dir: &str,
     ) -> Result<Option<ResolvedTemplate>, ConfigError>;
 
+    /// The file a configured template path names.
+    fn configured_template_path(&self, configured: &str) -> PathBuf;
+
     /// The template names available from the plugin templates directory,
     /// sorted.
     ///

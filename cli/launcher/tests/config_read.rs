@@ -1976,6 +1976,34 @@ fn template_with_an_empty_config_override_falls_through_to_the_plugin_default(
 }
 
 #[test]
+fn template_warns_when_a_kind_specific_path_falls_back_to_the_general_one(
+) -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\ntemplates:\n  demo-special: missing/special.md\n---\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "template", "demo", "--kind", "special"],
+    )?;
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!(
+            "Warning: configured template path '{}' not found, falling back \
+             to defaults\n",
+            fixture
+                .root
+                .canonicalize()?
+                .join("missing/special.md")
+                .display()
+        )
+    );
+    assert_eq!(
+        output.stdout,
+        b"```markdown\n# Demo Template\n\nBody line.\n```\n"
+    );
+    Ok(())
+}
+
+#[test]
 fn template_warns_when_its_configured_path_falls_back() -> TestResult {
     let fixture = Fixture::new()?
         .team("---\ntemplates:\n  demo: missing/demo.md\n---\n")?;

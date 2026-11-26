@@ -6,12 +6,15 @@ use crate::ConfigError;
 use crate::Key;
 use crate::ReadTemplate;
 use crate::ResolvedTemplate;
+use crate::TemplateFallback;
 
 /// Resolves a template by name, or `None` when it is not found in any tier.
 ///
 /// A non-empty `kind` attempts `<name>-<kind>` first and falls back to
 /// `<name>`, so a kind-discriminated document resolves its kind-specific
-/// template when one exists and the general one otherwise.
+/// template when one exists and the general one otherwise. A configured
+/// `<name>-<kind>` path that was not found is then the general template's
+/// fallback.
 ///
 /// # Errors
 ///
@@ -23,13 +26,25 @@ pub fn resolve(
     name: &str,
     kind: Option<&str>,
 ) -> Result<Option<ResolvedTemplate>, ConfigError> {
-    if let Some(kind) = kind.filter(|value| !value.is_empty()) {
-        let composite = format!("{name}-{kind}");
-        if let Some(resolved) = resolve_one(config, templates, &composite)? {
-            return Ok(Some(resolved));
-        }
+    let Some(kind) = kind.filter(|value| !value.is_empty()) else {
+        return resolve_one(config, templates, name);
+    };
+    let composite = format!("{name}-{kind}");
+    if let Some(resolved) = resolve_one(config, templates, &composite)? {
+        return Ok(Some(resolved));
     }
-    resolve_one(config, templates, name)
+    let unfound =
+        scalar(config, &format!("templates.{composite}"))?.map(|configured| {
+            TemplateFallback {
+                configured: templates.configured_template_path(&configured),
+            }
+        });
+    Ok(
+        resolve_one(config, templates, name)?.map(|general| ResolvedTemplate {
+            fallback: general.fallback.or(unfound),
+            ..general
+        }),
+    )
 }
 
 fn resolve_one(
@@ -67,6 +82,7 @@ fn scalar(
 #[allow(clippy::expect_used)]
 mod tests {
     use std::cell::RefCell;
+    use std::path::PathBuf;
 
     use crate::ConfigAccess;
     use crate::ConfigError;
@@ -134,6 +150,10 @@ mod tests {
                     fallback: None,
                 }
             }))
+        }
+
+        fn configured_template_path(&self, configured: &str) -> PathBuf {
+            PathBuf::from(configured)
         }
 
         fn template_names(&self) -> Result<Vec<String>, ConfigError> {
