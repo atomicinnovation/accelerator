@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T23:30:00+00:00"
+last_updated: "2026-11-27T00:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -66,7 +66,7 @@ The plan has two stages, as the work item prescribes:
    not overlap) and ADR-0080 (domain declarations crates) are accepted,
    the member API specification is written, and PP-994's Drafting Notes
    carry the decisions line dated 2026-11-26.
-2. **Stage two (Phases 2–12): implementation. Next: Phase 8.** Each phase
+2. **Stage two (Phases 2–12): implementation. Next: Phase 9.** Each phase
    is test-first and mergeable on its own with `mise run` green.
 
 ## Sizing consequence and the decision not to split
@@ -2480,14 +2480,14 @@ exit 3. The research topic commands resolve sets the same way.
 
 #### Automated Verification:
 
-- [ ] Resolver tests pass:
+- [x] Resolver tests pass:
       `mise run test:unit:cli --filter 'package(corpus) | package(corpus-adapters) | package(accelerator-corpus) | package(accelerator-research)'`
-- [ ] Goldens pass:
+- [x] Goldens pass:
       `mise run test:unit:cli --filter 'binary_id(accelerator-corpus::resolve_goldens)'`
-- [ ] `mise run cli:check`
-- [ ] `mise run public-api:update`, with the `corpus` snapshot diff
+- [x] `mise run cli:check`
+- [x] `mise run public-api:update`, with the `corpus` snapshot diff
       reviewed.
-- [ ] `mise run`
+- [x] `mise run`
 
 #### Manual Verification:
 
@@ -2496,6 +2496,48 @@ exit 3. The research topic commands resolve sets the same way.
       screenshot path, and a `prototype-full/` path exits 3.
 - [ ] `/research-topic outline` on an existing scratch set still
       resolves it by slug and by a findings path.
+
+### Implementation notes
+
+- **Domain.** `TypeShape<'m>` is `Flat | Set(&'m SetMatcher)`; it drops
+  `PartialEq`, since a matcher has none. `set_candidates` drops
+  dot-prefixed names before comparing slugs. `set_directory_of` is pure,
+  so the corpus's inline tests pin every path in the plan's list over a
+  topic-like and an inventory-like test shape. Beyond the plan, a test
+  pins that a slug two set directories share is still ambiguous.
+- **Adapter.** `TypeDirectoryLister` takes the shape's lifetime.
+  `resolve_path_class` hands `set_directory_holding` the canonical path;
+  a path that is neither a file nor a directory, or not UTF-8, is not
+  found. The type is a set when `catalogue.set_matcher(key)` is `Some`, so
+  `kind.is_set()` is no longer read here. `set_root_under` is gone.
+- **Goldens.** The dot-prefixed test also resolves the hidden set's
+  `inventory.md`, and the unslotted-file test uses `.inventory.md.swp` as
+  its dot-prefixed working file. The research tests use the multiprofile
+  fixture, and the findings-path test asserts that its plan equals the
+  slug's.
+- **Skills.** `inventory-design`'s tiebreaker lines now name
+  `analyse-design-gaps` and say `corpus resolve` does not read
+  `sequence`. The indexer's doc comment on `IndexEntry.id` still says
+  "nested manifest"; it is the visualiser's, left for Phase 9 or 10.
+- **Strict TDD.** Each new test was seen failing before its code, except
+  guards that already passed, which were checked by mutation instead:
+  - `a_dot_prefixed_set_directory_is_no_candidate` passes against the old
+    code, because `.x`'s slug is `.x`; trimming leading dots from the
+    candidates fails it.
+  - `a_path_the_shape_does_not_hold_names_no_set` passed against a stub
+    returning `None`; dropping the dot check, accepting a bare file, or
+    accepting any file or directory after the set directory each fail it.
+  - `a_path_to_a_slot_directory_resolves_to_its_set` and
+    `a_path_to_a_findings_directory_resolves_to_its_set` pass against the
+    old walk, which resolved any path; accepting any directory after the
+    set directory fails the domain's slot-directory test.
+  - The research tests were written after the adapter: the lister
+    keeping a rootless directory fails
+    `a_topic_set_without_its_manifest_is_unresolved`, and accepting any
+    file fails `a_path_to_the_run_ledger_is_unresolved`. Accepting a
+    rootless set directory by path fails the rootless golden.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli`
+  coverage at lines 94.45%, functions 93.79%, regions 93.19%.
 
 ---
 
