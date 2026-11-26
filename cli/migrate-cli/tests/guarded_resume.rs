@@ -4,6 +4,7 @@
 mod common;
 
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
 use common::decisions_file_for;
@@ -140,8 +141,9 @@ fn force_over_an_unreadable_jj_working_copy_records_no_run_base(
 /// `base` and a sibling change beside it that adds `meta/sibling.md`.
 struct Stalled<'w> {
     workbench: &'w Workbench,
-    stalls: Held<'w, StalledMigrations>,
+    _stalls: Held<'w, StalledMigrations>,
     key: StallKey,
+    stall: Stall,
     decisions: String,
 }
 
@@ -156,16 +158,26 @@ impl<'w> Stalled<'w> {
             key,
             &MigrateBinary(PathBuf::from(common::BIN)),
         )?;
+        let stall = stalls.stall(key)?.clone();
         Ok(Self {
             workbench,
-            stalls,
+            _stalls: stalls,
             key,
+            stall,
             decisions: decisions_file_for(MIGRATION_0007),
         })
     }
 
-    fn stall(&self) -> Result<&Stall, TestError> {
-        Ok(self.stalls.stall(self.key)?)
+    fn root(&self) -> &Path {
+        &self.stall.root
+    }
+
+    fn base(&self) -> &str {
+        &self.stall.base
+    }
+
+    fn sibling(&self) -> &str {
+        &self.stall.sibling
     }
 
     const fn env(&self) -> &Hermetic {
@@ -173,35 +185,33 @@ impl<'w> Stalled<'w> {
     }
 
     fn jj(&self, args: &[&str]) -> Result<String, TestError> {
-        Ok(self.env().jj(args, &self.stall()?.root)?)
+        Ok(self.env().jj(args, self.root())?)
     }
 
     fn write_decisions(&self) -> Result<(), TestError> {
-        fs::write(self.stall()?.root.join(&self.decisions), "accept\n")?;
+        fs::write(self.root().join(&self.decisions), "accept\n")?;
         Ok(())
     }
 
     fn resume(&self) -> Result<common::Outcome, TestError> {
         run(
             self.env(),
-            &self.stall()?.root,
+            self.root(),
             &["--decisions-file", &self.decisions],
             &[],
         )
     }
 
     fn recorded_run_base(&self) -> Result<String, TestError> {
-        Ok(
-            fs::read_to_string(self.stall()?.root.join(common::RUN_BASE_FILE))?
-                .trim()
-                .to_owned(),
-        )
+        Ok(fs::read_to_string(self.root().join(common::RUN_BASE_FILE))?
+            .trim()
+            .to_owned())
     }
 
     fn oracle(&self) -> Result<String, TestError> {
         Ok(vcs_test_support::jj_status::run_base_oracle(
             self.env(),
-            &self.stall()?.root,
+            self.root(),
         )?)
     }
 }
@@ -335,7 +345,7 @@ fn assert_copied_stalls_match_the_scenarios_stalls(
         let copied = Stalled::copied(&workbench, colocation, shape)?;
         let built = stalled_the_way_the_scenarios_always_have(&prefix, shape)?;
 
-        let state = RepositoryState::of(&copied.stall()?.root, copied.env())?;
+        let state = RepositoryState::of(copied.root(), copied.env())?;
 
         assert_eq!(
             state,
@@ -383,8 +393,9 @@ fn a_jj_stall_resumes_across_jj_status() -> Result<(), TestError> {
             "{}",
             resumed.stderr
         );
-        assert!(common::applied_ledger(&stalled.stall()?.root)?
-            .contains(MIGRATION_0007));
+        assert!(
+            common::applied_ledger(stalled.root())?.contains(MIGRATION_0007)
+        );
         Ok(())
     })
 }
@@ -398,8 +409,8 @@ fn a_jj_stall_resumes_across_owned_edits_and_describing_the_working_copy(
             Stalled::copied(&workbench, colocation, ParentShape::SingleParent)?;
         stalled.write_decisions()?;
         fs::write(
-            stalled.stall()?.root.join(corpus::OWNED_NOTE),
-            fs::read_to_string(stalled.stall()?.root.join(corpus::OWNED_NOTE))?
+            stalled.root().join(corpus::OWNED_NOTE),
+            fs::read_to_string(stalled.root().join(corpus::OWNED_NOTE))?
                 + "\nedited\n",
         )?;
         stalled.jj(&["status"])?;
@@ -426,10 +437,10 @@ fn a_jj_refusal_lists_only_the_current_runs_unowned_changes(
         let workbench = Workbench::for_this_test()?;
         let stalled =
             Stalled::copied(&workbench, colocation, ParentShape::SingleParent)?;
-        common::write(&stalled.stall()?.root, "meta/a.md", "a\n")?;
-        common::write(&stalled.stall()?.root, ".accelerator/b", "b\n")?;
+        common::write(stalled.root(), "meta/a.md", "a\n")?;
+        common::write(stalled.root(), ".accelerator/b", "b\n")?;
 
-        let refused = run(stalled.env(), &stalled.stall()?.root, &[], &[])?;
+        let refused = run(stalled.env(), stalled.root(), &[], &[])?;
 
         assert_refused(&refused);
         assert!(
@@ -467,16 +478,10 @@ fn rewriting_or_rebasing_the_parent_makes_a_jj_stall_stale(
                     colocation,
                     ParentShape::SingleParent,
                 )?;
-                let sibling = &stalled.stall()?.sibling;
+                let sibling = stalled.sibling();
                 let args: Vec<&str> = rewrite
                     .iter()
-                    .map(|arg| {
-                        if *arg == "SIBLING" {
-                            sibling.as_str()
-                        } else {
-                            arg
-                        }
-                    })
+                    .map(|arg| if *arg == "SIBLING" { sibling } else { arg })
                     .collect();
                 stalled.jj(&args)?;
                 stalled.write_decisions()?;
@@ -515,14 +520,11 @@ impl Move {
             Self::New => stalled.jj(&["new"])?,
             Self::Commit => stalled.jj(&["commit", "-m", "z"])?,
             Self::EditChangeOnSibling => {
-                stalled.jj(&["new", "--no-edit", &stalled.stall()?.sibling])?;
+                stalled.jj(&["new", "--no-edit", stalled.sibling()])?;
                 let on_sibling = change_id(
                     stalled.env(),
-                    &stalled.stall()?.root,
-                    &format!(
-                        "children({}) & empty()",
-                        stalled.stall()?.sibling
-                    ),
+                    stalled.root(),
+                    &format!("children({}) & empty()", stalled.sibling()),
                 )?;
                 stalled.jj(&["edit", &on_sibling])?
             }
@@ -547,8 +549,7 @@ fn moving_onto_new_parents_starts_a_fresh_jj_run() -> Result<(), TestError> {
                 let stalled_base = stalled.recorded_run_base()?;
                 movement.apply(&stalled)?;
 
-                let fresh =
-                    run(stalled.env(), &stalled.stall()?.root, &[], &[])?;
+                let fresh = run(stalled.env(), stalled.root(), &[], &[])?;
 
                 assert!(!fresh.stderr.contains("Resuming"), "{}", fresh.stderr);
                 assert!(
@@ -571,9 +572,9 @@ fn editing_a_sibling_lists_its_changes_as_unowned() -> Result<(), TestError> {
         let workbench = Workbench::for_this_test()?;
         let stalled =
             Stalled::copied(&workbench, colocation, ParentShape::SingleParent)?;
-        stalled.jj(&["edit", &stalled.stall()?.sibling])?;
+        stalled.jj(&["edit", stalled.sibling()])?;
 
-        let refused = run(stalled.env(), &stalled.stall()?.root, &[], &[])?;
+        let refused = run(stalled.env(), stalled.root(), &[], &[])?;
 
         assert_refused(&refused);
         assert!(
@@ -597,14 +598,14 @@ fn a_manifested_path_edited_on_a_new_change_with_the_same_parent_is_unowned(
         let workbench = Workbench::for_this_test()?;
         let stalled =
             Stalled::copied(&workbench, colocation, ParentShape::SingleParent)?;
-        stalled.jj(&["new", &stalled.stall()?.base])?;
+        stalled.jj(&["new", stalled.base()])?;
         common::write(
-            &stalled.stall()?.root,
+            stalled.root(),
             corpus::OWNED_NOTE,
             "rewritten by hand\n",
         )?;
 
-        let refused = run(stalled.env(), &stalled.stall()?.root, &[], &[])?;
+        let refused = run(stalled.env(), stalled.root(), &[], &[])?;
 
         assert_refused(&refused);
         assert!(
@@ -634,21 +635,16 @@ fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
         assert!(stalled.recorded_run_base()?.contains('+'));
         stalled.write_decisions()?;
         fs::write(
-            stalled.stall()?.root.join(corpus::OWNED_NOTE),
-            fs::read_to_string(stalled.stall()?.root.join(corpus::OWNED_NOTE))?
+            stalled.root().join(corpus::OWNED_NOTE),
+            fs::read_to_string(stalled.root().join(corpus::OWNED_NOTE))?
                 + "\nedited\n",
         )?;
         stalled.jj(&["status"])?;
 
-        let resumed = run(stalled.env(), &stalled.stall()?.root, &[], &[])?;
+        let resumed = run(stalled.env(), stalled.root(), &[], &[])?;
         assert_resumed(&resumed);
 
-        stalled.jj(&[
-            "describe",
-            &stalled.stall()?.sibling,
-            "-m",
-            "sibling two",
-        ])?;
+        stalled.jj(&["describe", stalled.sibling(), "-m", "sibling two"])?;
         let refused = stalled.resume()?;
         assert_refused(&refused);
         assert!(refused.stderr.contains(STALE_LINE), "{}", refused.stderr);
@@ -664,28 +660,23 @@ fn a_clean_jj_run_records_the_parents_of_the_working_copy(
         let stalled =
             Stalled::copied(&workbench, colocation, ParentShape::SingleParent)?;
         stalled.jj(&["new", "-m", "one"])?;
-        let one = change_id(stalled.env(), &stalled.stall()?.root, "@")?;
-        common::write(&stalled.stall()?.root, "one.txt", "1\n")?;
-        stalled.jj(&["new", &stalled.stall()?.base, "-m", "two"])?;
-        let two = change_id(stalled.env(), &stalled.stall()?.root, "@")?;
-        common::write(&stalled.stall()?.root, "two.txt", "2\n")?;
+        let one = change_id(stalled.env(), stalled.root(), "@")?;
+        common::write(stalled.root(), "one.txt", "1\n")?;
+        stalled.jj(&["new", stalled.base(), "-m", "two"])?;
+        let two = change_id(stalled.env(), stalled.root(), "@")?;
+        common::write(stalled.root(), "two.txt", "2\n")?;
 
         each_of(
             2,
             [
                 vec![one.as_str(), two.as_str()],
-                vec![
-                    one.as_str(),
-                    two.as_str(),
-                    stalled.stall()?.sibling.as_str(),
-                ],
+                vec![one.as_str(), two.as_str(), stalled.sibling()],
             ],
             |parents| -> Result<(), TestError> {
                 let mut args = vec!["new"];
                 args.extend(parents.iter());
                 stalled.jj(&args)?;
-                let outcome =
-                    run(stalled.env(), &stalled.stall()?.root, &[], &[])?;
+                let outcome = run(stalled.env(), stalled.root(), &[], &[])?;
 
                 assert!(
                     outcome.stderr.contains("MIGRATION STALLED"),
@@ -744,12 +735,12 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
             "commit_id",
         ])?;
         fs::write(
-            stalled.stall()?.root.join(common::RUN_BASE_FILE),
+            stalled.root().join(common::RUN_BASE_FILE),
             format!("{working_copy_commit}\n"),
         )?;
         stalled.write_decisions()?;
-        let meta_before = files_under(&stalled.stall()?.root, "meta")?;
-        let state_before = files_under(&stalled.stall()?.root, ".accelerator")?;
+        let meta_before = files_under(stalled.root(), "meta")?;
+        let state_before = files_under(stalled.root(), ".accelerator")?;
 
         each_of(2, ["first", "second"], |attempt| -> Result<(), TestError> {
             let refused = stalled.resume()?;
@@ -773,22 +764,15 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
                 "{}",
                 refused.stderr
             );
+            assert_eq!(files_under(stalled.root(), "meta")?, meta_before);
             assert_eq!(
-                files_under(&stalled.stall()?.root, "meta")?,
-                meta_before
-            );
-            assert_eq!(
-                files_under(&stalled.stall()?.root, ".accelerator")?,
+                files_under(stalled.root(), ".accelerator")?,
                 state_before
             );
             Ok(())
         })?;
 
-        common::write(
-            &stalled.stall()?.root,
-            "src/unrelated.txt",
-            "unrelated\n",
-        )?;
+        common::write(stalled.root(), "src/unrelated.txt", "unrelated\n")?;
         stalled.jj(&[
             "commit",
             "-m",
@@ -810,8 +794,9 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
             colocation.flag(),
             resumed.stderr
         );
-        assert!(common::applied_ledger(&stalled.stall()?.root)?
-            .contains(MIGRATION_0007));
+        assert!(
+            common::applied_ledger(stalled.root())?.contains(MIGRATION_0007)
+        );
         assert!(
             !resumed.stderr.contains(
                 "[0006-canonicalise-work-item-id-and-author] running"
@@ -821,7 +806,7 @@ fn a_stall_recorded_before_the_upgrade_is_refused_until_its_output_is_committed(
         );
         assert_ne!(
             fs::read_to_string(
-                stalled.stall()?.root.join("meta/work/0001-source.md")
+                stalled.root().join("meta/work/0001-source.md")
             )?,
             corpus::work_item(
                 "0001",
