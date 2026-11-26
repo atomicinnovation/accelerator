@@ -15,6 +15,7 @@ use vcs_test_support::repository_state::CommitPosition;
 use vcs_test_support::repository_state::FileKind;
 use vcs_test_support::repository_state::FileState;
 use vcs_test_support::repository_state::GitSide;
+use vcs_test_support::repository_state::Head;
 use vcs_test_support::repository_state::RepositoryKind;
 use vcs_test_support::repository_state::RepositoryState;
 use vcs_test_support::workbench::Workbench;
@@ -352,6 +353,27 @@ fn a_different_head_differs() -> Result<(), TestError> {
     assert_ne!(git_references(&base), git_references(&varied));
     assert_ne!(base.working_copy_parents, varied.working_copy_parents);
     assert_eq!(base.working_copy, varied.working_copy);
+    Ok(())
+}
+
+#[test]
+fn a_head_detached_at_its_branch_s_commit_differs() -> Result<(), TestError> {
+    let attached = Build::of(git_history)?.state()?;
+    let detached = Build::of(git_history)?
+        .then(|root, env| {
+            env.git(&["checkout", "-q", "--detach"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    let head = |state| git_side(state).map(|git| git.head.clone());
+    assert_eq!(
+        head(&attached),
+        Some(Head::Attached("refs/heads/main".to_owned()))
+    );
+    assert_eq!(head(&detached), Some(Head::Detached));
+    assert_eq!(git_references(&attached), git_references(&detached));
+    assert_ne!(attached, detached);
     Ok(())
 }
 

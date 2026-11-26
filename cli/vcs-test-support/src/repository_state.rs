@@ -32,8 +32,17 @@ pub struct RepositoryState {
 /// colocated with git.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitSide {
+    pub head: Head,
     pub references: BTreeMap<String, CommitPosition>,
     pub index: BTreeMap<String, FileState>,
+}
+
+/// Whether git's next commit advances a branch, which `HEAD`'s commit in
+/// [`GitSide::references`] cannot say.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Head {
+    Attached(String),
+    Detached,
 }
 
 impl RepositoryState {
@@ -83,6 +92,7 @@ impl RepositoryState {
                 .as_ref()
                 .map(|git| {
                     Ok::<_, Error>(GitSide {
+                        head: git.head.clone(),
                         references: projection.references(&git.references)?,
                         index: projection.files(&git.index),
                     })
@@ -219,6 +229,7 @@ struct RawRepository {
 
 #[derive(Debug)]
 struct RawGitSide {
+    head: Head,
     references: BTreeMap<String, String>,
     index: BTreeMap<String, FileState>,
 }

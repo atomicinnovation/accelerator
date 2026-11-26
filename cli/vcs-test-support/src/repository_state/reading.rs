@@ -22,6 +22,7 @@ use std::process::Stdio;
 
 use super::FileKind;
 use super::FileState;
+use super::Head;
 use super::RawCommit;
 use super::RawGitSide;
 use super::RawRepository;
@@ -140,7 +141,22 @@ fn git_side(
         };
         index.insert(key, file);
     }
-    Ok(RawGitSide { references, index })
+    Ok(RawGitSide {
+        head: head(root)?,
+        references,
+        index,
+    })
+}
+
+fn head(root: &Path) -> Result<Head, Error> {
+    let path = root.join(".git").join(HEAD);
+    let head = fs::read_to_string(&path).map_err(|error| {
+        Error::message(format!("cannot read {}: {error}", path.display()))
+    })?;
+    Ok(head
+        .trim()
+        .strip_prefix("ref: ")
+        .map_or(Head::Detached, |branch| Head::Attached(branch.to_owned())))
 }
 
 const GITLINK_MODE: &str = "160000";
