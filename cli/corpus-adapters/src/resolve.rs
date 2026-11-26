@@ -135,8 +135,6 @@ fn resolve_path_class(
     }
 }
 
-/// The set directory `target` lies in, when the set's shape holds it and the
-/// set directory holds its root file.
 fn set_directory_holding(
     root: &Path,
     target: &Path,

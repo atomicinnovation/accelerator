@@ -28,7 +28,6 @@ pub enum TypeShape<'m> {
     Set(&'m SetMatcher),
 }
 
-/// Whether a path names a file or a directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryKind {
     File,
@@ -140,11 +139,6 @@ fn set_candidates(
     candidates
 }
 
-/// The set directory a path relative to the type directory lies in.
-///
-/// That is its first segment, when the segment is not dot-prefixed and the
-/// rest of the path is nothing, the root, a member or a directory that may
-/// hold members.
 #[must_use]
 pub fn set_directory_of<'p>(
     type_relative: &'p str,
