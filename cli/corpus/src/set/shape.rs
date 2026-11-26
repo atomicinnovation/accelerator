@@ -5,7 +5,6 @@ use crate::set::Presentation;
 use crate::set::SetDeclaration;
 use crate::set::SetShape;
 
-/// Where a set-relative path sits in its set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SetPlace {
     Root,

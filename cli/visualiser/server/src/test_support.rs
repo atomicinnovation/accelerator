@@ -74,5 +74,5 @@ pub fn entry_for_test_with_filename(
 }
 
 pub fn assembled_catalogue() -> std::sync::Arc<corpus::DocTypeCatalogue> {
-    declarations::catalogue().unwrap_or_default()
+    declarations::catalogue().expect("the assembled catalogue builds")
 }

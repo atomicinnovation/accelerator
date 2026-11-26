@@ -56,11 +56,12 @@ impl CorpusIndex for NoIndex {
 }
 
 impl MigrationContext for StubContext {
+    #[allow(clippy::expect_used)]
     fn doc_types(&self) -> &corpus::DocTypeCatalogue {
         static ASSEMBLED: std::sync::LazyLock<
             std::sync::Arc<corpus::DocTypeCatalogue>,
         > = std::sync::LazyLock::new(|| {
-            declarations::catalogue().unwrap_or_default()
+            declarations::catalogue().expect("the assembled catalogue builds")
         });
         &ASSEMBLED
     }
@@ -495,11 +496,12 @@ impl OverlapAfterWriteContext {
 }
 
 impl MigrationContext for OverlapAfterWriteContext {
+    #[allow(clippy::expect_used)]
     fn doc_types(&self) -> &corpus::DocTypeCatalogue {
         static ASSEMBLED: std::sync::LazyLock<
             std::sync::Arc<corpus::DocTypeCatalogue>,
         > = std::sync::LazyLock::new(|| {
-            declarations::catalogue().unwrap_or_default()
+            declarations::catalogue().expect("the assembled catalogue builds")
         });
         &ASSEMBLED
     }

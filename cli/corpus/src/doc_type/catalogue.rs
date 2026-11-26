@@ -6,12 +6,11 @@ use crate::set::SetDeclaration;
 use crate::set::SetMatcher;
 use crate::set::SlotPatternError;
 
-/// A set type paired with the set declaration its owner makes for it.
 pub type DeclaredSet = (DocTypeKey, &'static SetDeclaration);
 
 /// The ordered doc types a composition knows, looked up by each of their
 /// identities, with the set declaration of each set type.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DocTypeCatalogue {
     doc_types: Vec<DocTypeKey>,
     set_matchers: Vec<(DocTypeKey, SetMatcher)>,
@@ -25,7 +24,6 @@ pub enum Identity {
     ConfigPathKey,
 }
 
-/// Why a set of declarations does not form a catalogue.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CatalogueError {
     SharedIdentity {
@@ -306,13 +304,6 @@ mod tests {
             &[key(&GADGETS), key(&ALBUMS), key(&DOSSIERS)],
             set_declarations,
         )
-    }
-
-    #[test]
-    fn the_default_catalogue_declares_no_doc_type_and_no_set() {
-        let catalogue = DocTypeCatalogue::default();
-        assert!(catalogue.doc_types().is_empty());
-        assert!(catalogue.set_matcher(key(&ALBUMS)).is_none());
     }
 
     #[test]

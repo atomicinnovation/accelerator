@@ -162,8 +162,9 @@ mod tests {
             .map(|(_, dir)| dir.clone())
     }
 
+    #[allow(clippy::expect_used)]
     fn assembled() -> std::sync::Arc<DocTypeCatalogue> {
-        declarations::catalogue().unwrap_or_default()
+        declarations::catalogue().expect("the assembled catalogue builds")
     }
 
     #[test]

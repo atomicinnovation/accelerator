@@ -397,8 +397,6 @@ pub fn corpus::DocTypeCatalogue::new(doc_types: &[corpus::DocTypeKey], set_decla
 pub fn corpus::DocTypeCatalogue::set_matcher(&self, kind: corpus::DocTypeKey) -> core::option::Option<&corpus::set::SetMatcher>
 impl core::clone::Clone for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
-impl core::default::Default for corpus::DocTypeCatalogue
-pub fn corpus::DocTypeCatalogue::default() -> corpus::DocTypeCatalogue
 impl core::fmt::Debug for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct corpus::doc_type::DocTypeKey(_)
@@ -1504,8 +1502,6 @@ pub fn corpus::DocTypeCatalogue::new(doc_types: &[corpus::DocTypeKey], set_decla
 pub fn corpus::DocTypeCatalogue::set_matcher(&self, kind: corpus::DocTypeKey) -> core::option::Option<&corpus::set::SetMatcher>
 impl core::clone::Clone for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
-impl core::default::Default for corpus::DocTypeCatalogue
-pub fn corpus::DocTypeCatalogue::default() -> corpus::DocTypeCatalogue
 impl core::fmt::Debug for corpus::DocTypeCatalogue
 pub fn corpus::DocTypeCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct corpus::DocTypeKey(_)

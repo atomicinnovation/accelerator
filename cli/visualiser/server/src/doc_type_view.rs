@@ -34,7 +34,6 @@ pub struct DocTypeView {
     pub set: Option<SetView>,
 }
 
-/// A set type's shape and presentation, as its owner declares them.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetView {

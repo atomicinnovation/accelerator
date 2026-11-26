@@ -57,8 +57,9 @@ mod tests {
         ..DocType::FLAT_DEFAULTS
     };
 
+    #[allow(clippy::expect_used)]
     fn assembled() -> std::sync::Arc<DocTypeCatalogue> {
-        declarations::catalogue().unwrap_or_default()
+        declarations::catalogue().expect("the assembled catalogue builds")
     }
 
     fn paths() -> HashMap<String, PathBuf> {

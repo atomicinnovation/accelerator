@@ -291,7 +291,8 @@ mod tests {
             static ASSEMBLED: std::sync::LazyLock<
                 std::sync::Arc<corpus::DocTypeCatalogue>,
             > = std::sync::LazyLock::new(|| {
-                declarations::catalogue().unwrap_or_default()
+                declarations::catalogue()
+                    .expect("the assembled catalogue builds")
             });
             &ASSEMBLED
         }

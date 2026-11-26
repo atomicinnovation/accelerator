@@ -1633,12 +1633,11 @@ fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
             .frontmatter_id
             .clone()
             .filter(|id| !shared.contains(&(entry.r#type, id.clone())));
-        entry.id =
-            unique_frontmatter_id.or_else(|| manifest_directory_of(entry));
+        entry.id = unique_frontmatter_id.or_else(|| set_directory_of(entry));
     }
 }
 
-fn manifest_directory_of(entry: &IndexEntry) -> Option<String> {
+fn set_directory_of(entry: &IndexEntry) -> Option<String> {
     if !entry.r#type.is_set() {
         return None;
     }
