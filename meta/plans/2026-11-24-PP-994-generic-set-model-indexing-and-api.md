@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T14:46:23+00:00"
+last_updated: "2026-11-26T14:49:56+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1265,13 +1265,14 @@ pub struct DocTypeCatalogue { doc_types: Vec<DocTypeKey> }
 
 #### Manual Verification:
 
-- [ ] None beyond review: no behaviour changes.
+- [x] None beyond review: no behaviour changes.
 
 ### Implementation notes
 
-- **Method names.** `nested_manifest_filename()` is renamed
-  `nested_root_filename()` with its field, alongside `wire_str()` →
-  `wire_token()`. `DocTypeKey`'s `Debug` prints the wire token.
+- **Method names.** Beyond the plan, `nested_manifest_filename()` is
+  renamed `nested_root_filename()` to match its field, alongside
+  `wire_str()` → `wire_token()`. `DocTypeKey`'s `Debug` prints the wire
+  token; only test assertion messages format a key with `{:?}`.
 - **Transitional comparisons.** A `match` over several types became guard
   arms, `kind if [A, B].contains(&kind) =>`, ending in `_`; `canonical_rank`
   became a ranked table and `derive_completeness` one `|=` per mark. Phase
@@ -1282,6 +1283,15 @@ pub struct DocTypeCatalogue { doc_types: Vec<DocTypeKey> }
 - **cargo-pup.** The corpus domain rule permits only `crate::` imports, so
   the `doc_type` submodules import each other through
   `crate::doc_type::…`, one item per `use`.
+- **Review, 2026-11-26.** The `zxlyztpl`..`qwoklqxs` diff is mechanical
+  outside `corpus/src/doc_type/`: renamed constants, catalogue lookups in
+  place of `all()` and `from_*`, and the transitional comparisons. Each
+  rewritten rule (slug, cluster walk, canonical rank, completeness,
+  linkage id, facets) maps every type to its old outcome; the catalogue
+  keeps `all()`'s order, and no key is ordered or hashed into an
+  observable order. Two doc comments that restated names were dropped.
+  The work-item fixture the aborted first run left at `ready` is restored,
+  and the working copy is clean.
 - **`mise run`** exited 0, with `test:unit:cli` coverage at lines 94.48%,
   functions 93.90%, regions 93.24%.
 
