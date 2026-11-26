@@ -4,6 +4,23 @@
 
 ### Breaking
 
+- **Doc roots may not equal or contain one another.** A configuration in which
+  one `paths.*` doc root equals or contains another, such as
+  `research_codebase: meta/research` alongside the default
+  `meta/research/issues`, is now refused, naming both keys. The visualiser
+  refuses it, comparing roots after following symlinks. So do
+  `accelerator config paths --doc-types`, `accelerator config path` for any
+  doc type's key, and the `corpus`, `work` and `research` commands. Other path
+  keys still resolve, and `accelerator config set` still writes, so the
+  overlap can be fixed.
+- **`accelerator migrate` refuses doc roots the configuration resolver
+  rejects.** A run, and `accelerator migrate --list`, now stop before
+  applying or listing any migration when the doc roots overlap or a doc path
+  is unsafe (absolute, or escaping the project with `..`). An up-to-date run
+  refuses too. Migrations 0006 and 0010 used to warn and skip an unsafe path,
+  and migration 0006 used to walk two keys aliased to one directory once. A
+  migration that writes such a configuration stops the run and is not
+  recorded as applied.
 - **Jira Markdown conversion covers more of Markdown, and escapes text that
   would read as syntax.** `jira show` and `jira search --render-adf` now render
   strike as `~~`, blockquotes, pipe tables, rules, nested lists and a list
