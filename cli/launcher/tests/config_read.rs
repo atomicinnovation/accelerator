@@ -904,6 +904,61 @@ fn paths_doc_types_stays_fail_closed_on_escape_with_fail_safe() -> TestResult {
     Ok(())
 }
 
+const OVERLAPPING: &str =
+    "---\npaths:\n  research_codebase: meta/research\n---\n";
+
+fn names_both_overlapping_keys(output: &Output) -> bool {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    stderr.contains("paths.research_codebase")
+        && stderr.contains("paths.research_issues")
+}
+
+#[test]
+fn paths_doc_types_refuses_overlapping_roots_naming_both_keys() -> TestResult {
+    let fixture = Fixture::new()?.team(OVERLAPPING)?;
+    let output = fixture.run(&["config", "paths", "--doc-types"])?;
+    assert!(output.stdout.is_empty());
+    assert!(names_both_overlapping_keys(&output), "{output:?}");
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn path_of_a_doc_type_refuses_overlapping_roots_naming_both_keys() -> TestResult
+{
+    let fixture = Fixture::new()?.team(OVERLAPPING)?;
+    let output = fixture.run(&["config", "path", "plans"])?;
+    assert!(output.stdout.is_empty());
+    assert!(names_both_overlapping_keys(&output), "{output:?}");
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn path_of_a_key_that_is_not_a_doc_root_resolves_despite_overlapping_roots(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(OVERLAPPING)?;
+    let output = fixture.run(&["config", "path", "tmp"])?;
+    assert_eq!(output.stdout, b".accelerator/tmp\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn set_fixes_overlapping_roots() -> TestResult {
+    let fixture = Fixture::new()?.team(OVERLAPPING)?;
+    let set = fixture.run(&[
+        "config",
+        "set",
+        "paths.research_codebase",
+        "meta/research/codebase",
+    ])?;
+    assert_eq!(code(&set), 0, "{set:?}");
+    let output = fixture.run(&["config", "paths", "--doc-types"])?;
+    assert_eq!(code(&output), 0, "{output:?}");
+    Ok(())
+}
+
 #[test]
 fn dump_matches_the_committed_golden() -> TestResult {
     let workspace = workspace("dump")?;

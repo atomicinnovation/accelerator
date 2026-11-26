@@ -114,7 +114,7 @@ mod tests {
     use config::Value;
     use corpus::DocTypeKey;
 
-    use super::table_from_config;
+    use super::{compose, resolve_type_dir, table_from_config};
 
     struct FakeConfig(HashMap<String, String>);
 
@@ -184,6 +184,49 @@ mod tests {
         assert_eq!(
             dir_for(&table, DocTypeKey::WorkItems),
             Some(PathBuf::from("meta/work"))
+        );
+        Ok(())
+    }
+
+    fn overlapping_config() -> FakeConfig {
+        let mut values = HashMap::new();
+        values.insert(
+            "paths.research_codebase".to_owned(),
+            "meta/research".to_owned(),
+        );
+        FakeConfig(values)
+    }
+
+    #[test]
+    fn an_overlapping_configuration_is_refused() {
+        let refused = table_from_config(&overlapping_config());
+
+        assert!(
+            matches!(refused, Err(ConfigError::OverlappingDocRoots { .. })),
+            "an overlapping configuration was not refused: {refused:?}"
+        );
+    }
+
+    #[test]
+    fn a_doc_type_directory_lookup_over_an_overlapping_configuration_is_refused(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let project = tempfile::tempdir()?;
+        std::fs::create_dir_all(project.path().join(".accelerator"))?;
+        std::fs::write(
+            project.path().join(".accelerator/config.md"),
+            "---\npaths:\n  research_codebase: meta/research\n---\n",
+        )?;
+        let composed = compose(project.path())?;
+
+        let refused = resolve_type_dir(&composed, DocTypeKey::TopicResearch);
+
+        let message = refused.err().map(|error| error.to_string());
+        assert!(
+            message
+                .as_deref()
+                .is_some_and(|text| text.contains("paths.research_codebase")
+                    && text.contains("paths.research_issues")),
+            "the lookup was not refused naming both keys: {message:?}"
         );
         Ok(())
     }

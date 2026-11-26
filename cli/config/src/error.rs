@@ -5,6 +5,7 @@ use std::fmt::Formatter;
 
 use crate::key::Key;
 use crate::level::Level;
+use crate::paths::DocTypeDir;
 
 /// What a conflicting segment already holds, from the perspective of the write
 /// that was blocked.
@@ -71,6 +72,10 @@ pub enum ConfigError {
     PluginRootNotAnInstallation {
         path: String,
     },
+    OverlappingDocRoots {
+        container: Box<DocTypeDir>,
+        contained: Box<DocTypeDir>,
+    },
 }
 
 impl ConfigError {
@@ -85,7 +90,8 @@ impl ConfigError {
             Self::Invalid { .. }
             | Self::InsecurePersonalFile { .. }
             | Self::PluginRootUnavailable
-            | Self::PluginRootNotAnInstallation { .. } => true,
+            | Self::PluginRootNotAnInstallation { .. }
+            | Self::OverlappingDocRoots { .. } => true,
             Self::NotFound { .. }
             | Self::PathConflict { .. }
             | Self::MalformedFrontmatter { .. }
@@ -154,6 +160,18 @@ impl Display for ConfigError {
                 "the plugin root '{path}' is not an Accelerator \
                  installation (no templates/ directory); check \
                  ACCELERATOR_PLUGIN_ROOT"
+            ),
+            Self::OverlappingDocRoots {
+                container,
+                contained,
+            } => write!(
+                formatter,
+                "paths.{} ({}) overlaps paths.{} ({}); doc roots may not \
+                 equal or contain one another",
+                container.path_key,
+                container.dir,
+                contained.path_key,
+                contained.dir
             ),
         }
     }

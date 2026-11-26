@@ -287,6 +287,29 @@ fn an_unresolvable_set_exits_1() -> Result<(), TestError> {
 }
 
 #[test]
+fn overlapping_doc_roots_are_refused_before_any_set_is_read(
+) -> Result<(), TestError> {
+    let slug = "topic-research-multiprofile-set";
+    let project = Project::with_fixture_set(slug)?;
+    project.write(
+        ".accelerator/config.md",
+        "---\npaths:\n  research_codebase: meta/research\n---\n",
+    )?;
+
+    let output = project.outstanding(slug, &installed_plugin())?;
+
+    assert_ne!(output.status.code(), Some(0));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("paths.research_codebase")
+            && stderr.contains("paths.research_issues"),
+        "{stderr}"
+    );
+    assert!(output.stdout.is_empty());
+    Ok(())
+}
+
+#[test]
 fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
 {
     let slug = "topic-research-multiprofile-set";

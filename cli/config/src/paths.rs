@@ -1,8 +1,10 @@
 //! Resolution of configured directory paths: the doc-type → directory mapping
 //! and the safety/normalisation its consumers share.
 //!
-//! Pure string logic over the config ports — no filesystem, serde, or `PathBuf`
-//! enters here. Consumers prepend a project root and build paths themselves.
+//! Pure logic over the config ports — no filesystem or serde enters here.
+//! Consumers prepend a project root and build paths themselves.
+
+use std::path::Path;
 
 use crate::catalogue;
 use crate::error::ConfigError;
@@ -15,6 +17,7 @@ use crate::service::Resolved;
 /// A resolved doc-type directory: the type, its `paths.<path_key>`, the
 /// normalised safe relative directory, and whether a blank config value fell
 /// back to the catalogue default.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocTypeDir {
     pub doc_type: &'static str,
     pub path_key: &'static str,
@@ -22,15 +25,31 @@ pub struct DocTypeDir {
     pub blank_fallback: bool,
 }
 
-/// Resolve every doc-type's configured directory, coercing a blank value to the
-/// catalogue default and refusing an unsafe or tab/newline-bearing value.
+/// Resolve every doc-type's configured directory.
+///
+/// A blank value is coerced to the catalogue default. An unsafe or
+/// tab/newline-bearing value is refused, and so is a set of directories in
+/// which one equals or contains another.
 ///
 /// # Errors
 ///
 /// [`ConfigError::Invalid`] when a resolved directory is unsafe or carries a
-/// tab or newline; a [`ConfigError`] when a config level cannot be read.
+/// tab or newline; [`ConfigError::OverlappingDocRoots`] when two resolved
+/// directories overlap; a [`ConfigError`] when a config level cannot be read.
 pub fn doc_type_dirs(
     config: &dyn ConfigAccess,
+) -> Result<Vec<DocTypeDir>, ConfigError> {
+    doc_type_dirs_at(config, None)
+}
+
+/// As [`doc_type_dirs`], reading `level` alone when one is given.
+///
+/// # Errors
+///
+/// As [`doc_type_dirs`].
+pub fn doc_type_dirs_at(
+    config: &dyn ConfigAccess,
+    level: Option<Level>,
 ) -> Result<Vec<DocTypeDir>, ConfigError> {
     let mut resolved = Vec::new();
     for &(doc_type, path_key) in catalogue::DOC_TYPES {
@@ -39,7 +58,7 @@ pub fn doc_type_dirs(
             .map(|value| render_value(&value))
             .unwrap_or_default();
         let mut raw =
-            config.effective(&Key::parse(&full_key)?, None)?.rendered();
+            config.effective(&Key::parse(&full_key)?, level)?.rendered();
         let blank_fallback = raw.is_empty();
         if blank_fallback {
             raw = default;
@@ -65,7 +84,58 @@ pub fn doc_type_dirs(
             blank_fallback,
         });
     }
+    refuse_overlapping_roots(&resolved)?;
     Ok(resolved)
+}
+
+/// Two roots, by their positions in the list compared, of which `container`
+/// equals or contains `contained`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Overlap {
+    pub container: usize,
+    pub contained: usize,
+}
+
+/// The first pair of `roots`, in input order, of which one equals or contains
+/// the other segment by segment. Of two equal roots the earlier contains the
+/// later.
+#[must_use]
+pub fn first_overlap(roots: &[&Path]) -> Option<Overlap> {
+    roots
+        .iter()
+        .enumerate()
+        .find_map(|(earlier, earlier_root)| {
+            roots.iter().enumerate().skip(earlier + 1).find_map(
+                |(later, later_root)| {
+                    if earlier_root.starts_with(later_root)
+                        && !later_root.starts_with(earlier_root)
+                    {
+                        Some(Overlap {
+                            container: later,
+                            contained: earlier,
+                        })
+                    } else if later_root.starts_with(earlier_root) {
+                        Some(Overlap {
+                            container: earlier,
+                            contained: later,
+                        })
+                    } else {
+                        None
+                    }
+                },
+            )
+        })
+}
+
+fn refuse_overlapping_roots(dirs: &[DocTypeDir]) -> Result<(), ConfigError> {
+    let roots: Vec<&Path> =
+        dirs.iter().map(|dir| Path::new(&dir.dir)).collect();
+    first_overlap(&roots).map_or(Ok(()), |overlap| {
+        Err(ConfigError::OverlappingDocRoots {
+            container: Box::new(dirs[overlap.container].clone()),
+            contained: Box::new(dirs[overlap.contained].clone()),
+        })
+    })
 }
 
 /// Resolves `paths.<path_key>`, falling back to the catalogue default.
@@ -81,10 +151,16 @@ pub fn doc_type_dirs(
 ///
 /// # Errors
 ///
+/// A doc type's key is resolved through [`doc_type_dirs_at`] at the same
+/// level, so it is refused whenever the doc roots overlap.
+///
+/// # Errors
+///
 /// [`ConfigError::Invalid`] when `path_key` has no catalogue entry — a path
 /// key is only ever one the catalogue recognises, whether or not a value
-/// happens to be set for it in config. A [`ConfigError`] when `path_key`
-/// doesn't parse as a key segment or a config level cannot be read.
+/// happens to be set for it in config. As [`doc_type_dirs`] for a doc type's
+/// key. A [`ConfigError`] when `path_key` doesn't parse as a key segment or a
+/// config level cannot be read.
 pub fn resolve_with_fallback(
     config: &dyn ConfigAccess,
     path_key: &str,
@@ -95,10 +171,23 @@ pub fn resolve_with_fallback(
     let Some(catalogue_default) = catalogue::default_for(&full) else {
         return Err(unknown_path_key_error(path_key));
     };
+    if names_a_doc_type(path_key) {
+        return doc_type_dirs_at(config, level)?
+            .into_iter()
+            .find(|resolved| resolved.path_key == path_key)
+            .map(|doc_root| doc_root.dir)
+            .ok_or_else(|| unknown_path_key_error(path_key));
+    }
     Ok(match config.get(&key, level)? {
         Resolved::Found(value) => render_value(&value),
         Resolved::Absent => render_value(&catalogue_default),
     })
+}
+
+fn names_a_doc_type(path_key: &str) -> bool {
+    catalogue::DOC_TYPES
+        .iter()
+        .any(|&(_, doc_type_key)| doc_type_key == path_key)
 }
 
 /// The refusal for a `paths.<key>` lookup the catalogue has no entry for.
@@ -147,7 +236,12 @@ pub fn normalise(dir: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_unsafe, normalise, resolve_with_fallback};
+    use std::path::Path;
+
+    use super::{
+        doc_type_dirs, doc_type_dirs_at, first_overlap, is_unsafe, normalise,
+        resolve_with_fallback, Overlap,
+    };
     use crate::error::ConfigError;
     use crate::level::Level;
     use crate::node::{Node, Scalar};
@@ -160,6 +254,17 @@ mod tests {
             Ok(match level {
                 Level::Personal => self.0.clone(),
                 Level::Team => None,
+            })
+        }
+    }
+
+    struct TeamOnlyReader(Node);
+
+    impl ReadConfigLevel for TeamOnlyReader {
+        fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
+            Ok(match level {
+                Level::Personal => None,
+                Level::Team => Some(self.0.clone()),
             })
         }
     }
@@ -183,6 +288,190 @@ mod tests {
                 .map(|(k, v)| (k.to_owned(), v))
                 .collect(),
         )
+    }
+
+    fn configured_paths(
+        entries: &[(&str, &str)],
+    ) -> ConfigService<FakeReader, NullWriter> {
+        ConfigService::new(FakeReader(Some(paths_node(entries))), NullWriter)
+    }
+
+    fn paths_node(entries: &[(&str, &str)]) -> Node {
+        mapping(vec![(
+            "paths",
+            mapping(
+                entries
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            *key,
+                            Node::Scalar(Scalar::String((*value).to_owned())),
+                        )
+                    })
+                    .collect(),
+            ),
+        )])
+    }
+
+    fn overlapping_keys(error: &ConfigError) -> Option<(&str, &str)> {
+        match error {
+            ConfigError::OverlappingDocRoots {
+                container,
+                contained,
+            } => Some((container.path_key, contained.path_key)),
+            _ => None,
+        }
+    }
+
+    fn refused_overlap(
+        entries: &[(&str, &str)],
+    ) -> Option<(&'static str, &'static str)> {
+        let service = configured_paths(entries);
+        match doc_type_dirs(&service) {
+            Err(ConfigError::OverlappingDocRoots {
+                container,
+                contained,
+            }) => Some((container.path_key, contained.path_key)),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn a_root_containing_another_is_refused_naming_the_first_pair() {
+        assert_eq!(
+            refused_overlap(&[("research_codebase", "meta/research")]),
+            Some(("research_codebase", "research_issues"))
+        );
+    }
+
+    #[test]
+    fn equal_roots_are_refused() {
+        assert_eq!(
+            refused_overlap(&[("notes", "meta/plans")]),
+            Some(("plans", "notes"))
+        );
+    }
+
+    #[test]
+    fn roots_equal_after_normalisation_are_refused() {
+        assert_eq!(
+            refused_overlap(&[("notes", "meta/plans/")]),
+            Some(("plans", "notes"))
+        );
+        assert_eq!(
+            refused_overlap(&[("notes", "./meta/plans")]),
+            Some(("plans", "notes"))
+        );
+    }
+
+    #[test]
+    fn the_containing_root_is_named_as_container_whatever_its_order() {
+        assert_eq!(
+            refused_overlap(&[("plans", "meta/notes/plans")]),
+            Some(("notes", "plans"))
+        );
+    }
+
+    #[test]
+    fn a_shared_string_prefix_without_a_shared_segment_is_accepted(
+    ) -> Result<(), ConfigError> {
+        let service = configured_paths(&[("notes", "meta/plansx")]);
+        assert_eq!(doc_type_dirs(&service)?.len(), 14);
+        Ok(())
+    }
+
+    #[test]
+    fn the_default_roots_are_accepted() -> Result<(), ConfigError> {
+        let service = ConfigService::new(FakeReader(None), NullWriter);
+        assert_eq!(doc_type_dirs(&service)?.len(), 14);
+        Ok(())
+    }
+
+    #[test]
+    fn the_overlap_refusal_names_both_keys_and_dirs() {
+        let service =
+            configured_paths(&[("research_codebase", "meta/research")]);
+        let refusal = doc_type_dirs(&service).err();
+        assert!(refusal.as_ref().is_some_and(ConfigError::is_refusal));
+        assert_eq!(
+            refusal.map(|error| error.to_string()).unwrap_or_default(),
+            "paths.research_codebase (meta/research) overlaps \
+             paths.research_issues (meta/research/issues); doc roots may not \
+             equal or contain one another"
+        );
+    }
+
+    #[test]
+    fn first_overlap_names_the_earlier_of_two_equal_roots_as_container() {
+        let roots = [Path::new("a/b"), Path::new("c"), Path::new("a/b")];
+        assert_eq!(
+            first_overlap(&roots),
+            Some(Overlap {
+                container: 0,
+                contained: 2
+            })
+        );
+    }
+
+    #[test]
+    fn first_overlap_compares_absolute_roots_by_segment() {
+        let roots = [Path::new("/r/meta/notes"), Path::new("/r/meta/note")];
+        assert_eq!(first_overlap(&roots), None);
+        let nested =
+            [Path::new("/r/meta/topics/x"), Path::new("/r/meta/topics")];
+        assert_eq!(
+            first_overlap(&nested),
+            Some(Overlap {
+                container: 1,
+                contained: 0
+            })
+        );
+    }
+
+    #[test]
+    fn a_doc_type_lookup_over_an_overlapping_config_is_refused() {
+        let service =
+            configured_paths(&[("research_codebase", "meta/research")]);
+        let result = resolve_with_fallback(&service, "research_topics", None);
+        assert_eq!(
+            result.as_ref().err().and_then(overlapping_keys),
+            Some(("research_codebase", "research_issues"))
+        );
+    }
+
+    #[test]
+    fn a_doc_type_lookup_at_a_level_checks_that_level_alone(
+    ) -> Result<(), ConfigError> {
+        let service = ConfigService::new(
+            TeamOnlyReader(paths_node(&[(
+                "research_codebase",
+                "meta/research",
+            )])),
+            NullWriter,
+        );
+        assert_eq!(
+            resolve_with_fallback(&service, "plans", Some(Level::Personal))?,
+            "meta/plans"
+        );
+        let refused =
+            resolve_with_fallback(&service, "plans", Some(Level::Team));
+        assert_eq!(
+            refused.as_ref().err().and_then(overlapping_keys),
+            Some(("research_codebase", "research_issues"))
+        );
+        assert!(doc_type_dirs_at(&service, Some(Level::Personal)).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn a_lookup_of_a_key_that_is_not_a_doc_root_ignores_an_overlap(
+    ) -> Result<(), ConfigError> {
+        let service = configured_paths(&[
+            ("research_codebase", "meta/research"),
+            ("tmp", "scratch"),
+        ]);
+        assert_eq!(resolve_with_fallback(&service, "tmp", None)?, "scratch");
+        Ok(())
     }
 
     #[test]
