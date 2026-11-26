@@ -74,6 +74,11 @@ hook a reader uses to check your tiering, not a guarantee of trust.
 
 ## Search Budget
 
+Your {search budget} is the node query's `search_budget` when it prints one;
+else the search budget injected into your task prompt; else you have none,
+and make as many `WebSearch` calls as the question needs, Claude Code's
+session quota still applying.
+
 - Make at most {search budget} `WebSearch` calls when you have a search
   budget. `WebFetch` calls do not count.
 - Refine the question rather than re-search with near-identical text.

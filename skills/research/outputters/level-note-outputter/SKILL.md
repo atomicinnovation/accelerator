@@ -27,8 +27,8 @@ other path.
 
 ## Injected Values
 
-Your values come from the node query, from your researcher definition and
-from your task prompt:
+Your values come from the node query, from your profile and from your task
+prompt:
 
 - **From the node query**: the question, level, lineage, id, follow-up cap,
   known questions and note path, with the note path in place of
@@ -39,8 +39,9 @@ from your task prompt:
   - **id** — the note's `id`, verbatim.
   - **follow-up cap** — the most follow-up questions the note may record.
   - **known questions** — questions already asked in this tree.
-- **Search budget**: {search budget}, as your researcher definition resolves
-  it. Stamp it as `search_budget` on a web note: the most `WebSearch` calls
+- **Search budget**: {search budget}, as your profile resolves it; a
+  profile that defines none gives you none. Stamp it as `search_budget` on
+  a web note: the most `WebSearch` calls
   your node was allowed, not a count of calls made. When you have none,
   delete the `search_budget` line.
 - **Injected**: the **depth**, the resolved depth of the tree, plus

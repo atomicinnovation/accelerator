@@ -879,11 +879,12 @@ malformed snapshot is discarded rather than failing the run: the query
 refuses every node of its batch, and the next `--run` plan names the
 discard in its `warnings`.
 
-The web profile and the level-note outputter use `{search budget}` without
-defining it. The researcher resolves it: the query's `search_budget` when it
-prints one, else a search budget injected into its prompt, else none, and
-then as many `WebSearch` calls as the question needs. An `agents.researcher`
-override must resolve it the same way, or it ignores the run's search quota.
+The web profile resolves `{search budget}`, which the level-note outputter
+stamps: the query's `search_budget` when it prints one, else a search budget
+injected into the prompt, else none, and then as many `WebSearch` calls as
+the question needs. The rule lives in the profile every researcher is handed,
+so an `agents.researcher` override that follows its profile keeps to the
+run's search quota.
 
 #### Exit codes
 

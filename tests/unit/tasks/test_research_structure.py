@@ -1126,8 +1126,8 @@ def test_web_spawns_carry_their_search_budget() -> None:
 def test_only_web_level_notes_stamp_a_search_budget() -> None:
     outputter = _prose(LEVEL_NOTE_OUTPUTTER)
     for sentence in (
-        "**Search budget**: {search budget}, as your researcher definition "
-        "resolves it.",
+        "**Search budget**: {search budget}, as your profile resolves it; a "
+        "profile that defines none gives you none.",
         f"Stamp it as `{SEARCH_BUDGET}` on a web note: the most `WebSearch` "
         "calls your node was allowed, not a count of calls made.",
         f"When you have none, delete the `{SEARCH_BUDGET}` line.",
@@ -3269,25 +3269,25 @@ def test_the_untrusted_question_rule_reaches_every_node_spawn() -> None:
     )
 
 
-def test_a_node_takes_its_budget_from_the_query() -> None:
-    researcher = _prose(RESEARCHER)
-    assert NODE_BUDGET_SOURCE in researcher
+def test_the_web_profile_resolves_the_search_budget() -> None:
+    web_profile = _profile_skill("web")
     web_budget = _section(
-        _prose(REPO_ROOT / _profile_skill("web")),
+        _prose(REPO_ROOT / web_profile),
         "## Search Budget",
         "## Outcome",
-        path=_profile_skill("web"),
+        path=web_profile,
     )
+    assert NODE_BUDGET_SOURCE in web_budget
     outputter_budget = _section(
         _prose(LEVEL_NOTE_OUTPUTTER),
         "**Search budget**",
         "**Injected**",
         path=LEVEL_NOTE_OUTPUTTER,
     )
-    for restated in (web_budget, outputter_budget):
-        assert "{search budget}" in restated
-        assert "injected" not in restated
-        assert "node query" not in restated
+    assert "{search budget}, as your profile resolves it" in outputter_budget
+    assert "injected" not in outputter_budget
+    assert "node query" not in outputter_budget
+    assert "## Search Budget" not in _prose(RESEARCHER)
     single_pass = _spawn_bullet(
         "**a `single_pass` pair**", "**a node of a `research_nodes` pair**"
     )
@@ -3300,7 +3300,7 @@ def test_a_node_takes_its_budget_from_the_query() -> None:
         ]
         if "the node query's `search_budget`" in _prose(path)
     ]
-    assert stating == [RESEARCHER], stating
+    assert stating == [REPO_ROOT / web_profile], stating
 
 
 def test_the_outstanding_docs_scope_additivity_to_stable() -> None:

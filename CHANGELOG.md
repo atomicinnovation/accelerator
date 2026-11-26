@@ -920,11 +920,12 @@
   questions, id, path and search budget with
   `accelerator research topic node`, so its prompt stays the same size at
   every depth. An `agents.researcher` override must run that query when
-  given a spawn ref, and resolve `{search budget}`, which the web profile
-  and level-note outputter no longer define, as the query's
-  `search_budget`, else an injected budget, else none. `research-topic`'s
-  spawns inherit its `Bash(accelerator research topic node *)` grant; a
-  skill that spawns them without it needs that rule.
+  given a spawn ref. The web profile resolves `{search budget}` as the
+  query's `search_budget`, else an injected budget, else none, so an
+  override that follows its profile keeps to the run's search quota.
+  `research-topic`'s spawns inherit its
+  `Bash(accelerator research topic node *)` grant; a skill that spawns them
+  without it needs that rule.
 
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
