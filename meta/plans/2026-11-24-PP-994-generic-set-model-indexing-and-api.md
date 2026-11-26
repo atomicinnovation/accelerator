@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-27T00:30:00+00:00"
+last_updated: "2026-11-27T01:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2491,10 +2491,10 @@ exit 3. The research topic commands resolve sets the same way.
 
 #### Manual Verification:
 
-- [ ] In this repo, `accelerator corpus resolve --type design-inventory`
+- [x] In this repo, `accelerator corpus resolve --type design-inventory`
       resolves each real inventory by slug, by directory and by a
       screenshot path, and a `prototype-full/` path exits 3.
-- [ ] `/research-topic outline` on an existing scratch set still
+- [x] `/research-topic outline` on an existing scratch set still
       resolves it by slug and by a findings path.
 
 ### Implementation notes
@@ -2517,8 +2517,8 @@ exit 3. The research topic commands resolve sets the same way.
   slug's.
 - **Skills.** `inventory-design`'s tiebreaker lines now name
   `analyse-design-gaps` and say `corpus resolve` does not read
-  `sequence`. The indexer's doc comment on `IndexEntry.id` still says
-  "nested manifest"; it is the visualiser's, left for Phase 9 or 10.
+  `sequence`. The indexer's doc comment on `IndexEntry.id` now names a
+  set root's set directory, not a nested manifest's.
 - **Strict TDD.** Each new test was seen failing before its code, except
   guards that already passed, which were checked by mutation instead:
   - `a_dot_prefixed_set_directory_is_no_candidate` passes against the old
@@ -2536,6 +2536,42 @@ exit 3. The research topic commands resolve sets the same way.
     `a_topic_set_without_its_manifest_is_unresolved`, and accepting any
     file fails `a_path_to_the_run_ledger_is_unresolved`. Accepting a
     rootless set directory by path fails the rootless golden.
+- **Review, 2026-11-27.** The `wrpxyvrw`..`wnnwknym` diff, with its
+  `SKILL.md` and CHANGELOG edits, adds no line past 80 columns outside the
+  `public-api.txt` snapshot. Doc comments that restated their code
+  (`EntryKind`, `set_directory_of`, the adapter's `set_directory_holding`)
+  are dropped.
+- **Manual checks, 2026-11-27.** Both ran against this checkout's builds
+  (`cargo build -p accelerator -p accelerator-corpus -p
+  accelerator-research`), through `bin/accelerator` first on `PATH` with
+  the `.accelerator-dev-launcher` marker,
+  `ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER=1`, `ACCELERATOR_LAUNCHER_BIN`,
+  `ACCELERATOR_CORPUS_BIN` and `ACCELERATOR_RESEARCH_BIN` naming
+  `cli/target/debug/`. Without the overrides the launcher runs the
+  cached release `pre.113` corpus binary, which still resolves a
+  `prototype-full/` path to its set.
+  - `accelerator corpus resolve --type design-inventory <input>` printed
+    the set directory and exited 0 for each of the six real inventories
+    by slug (e.g. `135214-current-app`), by directory
+    (`meta/research/design-inventories/2026-05-06-135214-current-app`) and
+    by a screenshot (`…/screenshots/kanban-board.png`). For both
+    inventories with a `prototype-full/`, the directory and its HTML file
+    (`…/2026-09-10-174311-claude-design-prototype/prototype-full/Accelerator
+    Visualiser.html`) exited 3 with `E_RESOLVE_NOT_FOUND: no
+    'design-inventory' set at path '…'`.
+  - In two scratch jj repos holding a copy of
+    `cli/corpus-cli/tests/fixtures/topic-research-set` at
+    `meta/research/topics/example-subject` (`status: synthesised`),
+    `claude -p "/accelerator:research-topic outline <input> --breadth 2"
+    --plugin-dir <checkout> --permission-mode acceptEdits --allowedTools
+    'Bash(accelerator *)' Read Write Edit Glob Grep` exited 0 for
+    `example-subject` and for
+    `meta/research/topics/example-subject/findings`. Each ran
+    `accelerator corpus resolve --type topic-research <input>`, appended a
+    two-item `## Round 2` to `outline.md` and reopened the manifest to
+    `status: researching`. Run directly in the scratch repo, the local
+    resolver printed the set for both inputs and exited 3 for
+    `…/example-subject/notes.txt`.
 - **`mise run`** exited 0 on the final code, with `test:unit:cli`
   coverage at lines 94.45%, functions 93.79%, regions 93.19%.
 
