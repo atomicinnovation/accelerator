@@ -147,8 +147,8 @@ pub struct IndexEntry {
     pub rel_path: PathBuf,
     pub slug: Option<String>,
     /// The `id` the library links this document by: its frontmatter `id`
-    /// unless another document of the same type shares it, otherwise a
-    /// nested manifest's directory name.
+    /// unless another document of the same type shares it, otherwise a set
+    /// root's set directory name.
     pub id: Option<String>,
     /// The document's own non-empty frontmatter `id`, whether or not
     /// another document of the same type shares it.
