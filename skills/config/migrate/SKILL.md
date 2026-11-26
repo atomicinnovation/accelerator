@@ -98,6 +98,12 @@ Unskip a previously skipped migration so it becomes pending again:
 accelerator migrate --unskip <migration-id>
 ```
 
+Unapply a migration to remove it from the applied ledger, so the next run applies it again. Use it to re-run a half-applied migration, or a repair migration over files written after it last ran (such as `0012-backfill-work-item-tags` for work items written without `tags`):
+
+```bash
+accelerator migrate --unapply <migration-id>
+```
+
 Skipped migrations never run and do not block other pending migrations. The pre-run banner includes a `--skip` hint for each pending migration. `ACCELERATOR_FORCE=1` bypasses the dirty-tree pre-flight only; skipped migrations remain skipped even with FORCE.
 
 ## Optional interactive contract

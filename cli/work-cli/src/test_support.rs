@@ -1,6 +1,8 @@
 //! Test doubles shared by this binary's unit tests.
 #![allow(clippy::expect_used, clippy::literal_string_with_formatting_args)]
 
+pub mod written_item;
+
 use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;

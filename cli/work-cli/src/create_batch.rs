@@ -567,6 +567,9 @@ mod tests {
     use tracker_test_support::RecordingTracker;
 
     use super::*;
+    use crate::test_support::written_item::frontmatter_of;
+    use crate::test_support::written_item::omit_when_empty_lines;
+    use crate::test_support::written_item::violations;
     use crate::test_support::FakeConfig;
     use crate::test_support::Faults;
     use crate::test_support::PluginWorkItemTemplate;
@@ -909,6 +912,41 @@ mod tests {
                 Some(format!("work-item:{epic_id}"))
             );
         }
+    }
+
+    fn written_without_push(manifest: &str, entry: &str) -> String {
+        let repo = BatchRepo::numeric();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let report = reported(repo.run(manifest, false, &tracker));
+        read(Path::new(&items(&report)[entry].0))
+    }
+
+    #[test]
+    fn an_untagged_entry_is_written_with_empty_tags_before_last_updated() {
+        let content = written_without_push(
+            r#"[{"ref": "plain", "title": "Plain", "kind": "story",
+                 "priority": "medium"}]"#,
+            "plain",
+        );
+        let frontmatter = frontmatter_of(&content);
+
+        assert!(frontmatter.contains("tags: []\nlast_updated:"), "{content}");
+        assert_eq!(omit_when_empty_lines(&frontmatter), Vec::<&str>::new());
+        assert_eq!(violations(&content), Vec::new());
+    }
+
+    #[test]
+    fn a_tagged_entry_writes_its_tags_before_last_updated() {
+        let content = written_without_push(
+            r#"[{"ref": "plain", "title": "Plain", "kind": "story",
+                 "priority": "medium", "tags": ["api"]}]"#,
+            "plain",
+        );
+
+        assert!(
+            frontmatter_of(&content).contains("tags: [\"api\"]\nlast_updated:"),
+            "{content}"
+        );
     }
 
     #[test]

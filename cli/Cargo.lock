@@ -107,6 +107,7 @@ dependencies = [
  "kernel",
  "migrate",
  "migrate-adapters",
+ "store",
  "tempfile",
  "time",
  "tracker",

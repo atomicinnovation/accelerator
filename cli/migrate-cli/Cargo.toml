@@ -34,5 +34,6 @@ clap = { workspace = true }
 time = { workspace = true }
 
 [dev-dependencies]
+store = { path = "../store", features = ["test-support"] }
 tempfile = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }

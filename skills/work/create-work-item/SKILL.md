@@ -631,14 +631,17 @@ concurrently. Please re-run /create-work-item.
      [--source "issue-research:NNNN"] [--project <code>] [--id='<id>']
    ```
 
-      Include each bracketed flag only when that field has a value —
-      `work create` itself omits the corresponding frontmatter key when
-      the flag is absent, matching the template's own omit-when-empty
-      convention, so no separate omission logic is needed here. `--tag`/
-      `--block`/`--blocked-by`/`--derived-from`/`--relates-to` are each
-      repeatable for multiple values. `external_id` has no flag — `work
-      create` never writes it (nothing to sync yet); this matches today's
-      behaviour of omitting it from a fresh draft.
+      Include each bracketed flag only when that field has a value.
+      `work create` always writes `tags`, as `[]` when no `--tag` is
+      passed. It leaves `parent`, `blocks`, `blocked_by`, `derived_from`,
+      `relates_to`, `source` and `external_id` out when they are empty.
+      Each flagged one is written only when its flag is passed, so no
+      separate omission logic is needed here.
+      `--tag`/`--block`/`--blocked-by`/`--derived-from`/`--relates-to` are
+      each repeatable for multiple values.
+      `external_id` has no flag; only the `--push` create in step 7 writes it.
+      `aliases`, which records retired IDs, is added only when an item is
+      rekeyed, never at creation.
    3. If the command exits non-zero, surface its stderr message verbatim
       and abort — do not retry and do not attempt a manual `Write`. For a
       requested ID, the branches under **For a requested ID** above come
@@ -893,15 +896,15 @@ completing.
 - Work item kind must come from the work item template's `kind` field (loaded at
   the top of this skill), not a hardcoded list. Default to `story` when the
   kind is genuinely ambiguous.
-- All frontmatter fields defined in the work item template must be populated
-  in every written work item: `type` (`work-item`), `id` matching the
-  assigned full ID (a quoted YAML string — see contract below), `title`
-  matching the user-approved title, `date`, `author`, `producer`
-  (`create-work-item`), `status` (`draft`), `kind`, `priority` (medium
-  unless the user specified otherwise), `parent` (empty string unless a
-  parent was established), `external_id` (empty unless set), `tags` (a
-  YAML array, possibly empty), `last_updated`, `last_updated_by`, and
-  `schema_version: 1`. No field may contain unfilled placeholder text
+- Every written work item carries the required fields — `type`
+  (`work-item`), `id` matching the assigned full ID (a quoted YAML string
+  — see contract below), `title` matching the user-approved title, `date`,
+  `author`, `producer` (`create-work-item`), `status` (`draft`), `kind`,
+  `priority` (medium unless the user specified otherwise), `tags` (a YAML
+  array, possibly empty), `last_updated`, `last_updated_by`, and
+  `schema_version: 1` — and the omit-when-empty fields (the typed-linkage
+  keys such as `parent`, plus `external_id` and `aliases`) only when they
+  have a value. No field may contain unfilled placeholder text
   like `[author]` or `NNNN`. The body H1 format is `# <full-id>: <title>`
   where `<full-id>` is whatever the configured `work.id_pattern`
   produces — kept in sync with the frontmatter `title:` field.

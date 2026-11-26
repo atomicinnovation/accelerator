@@ -72,15 +72,6 @@ pub const KNOWN_FRONTMATTER_KEYS: &[&str] = &[
 ];
 
 /// Builds the new item's field list, in template order.
-///
-/// The fixed fields, then the six typed-linkage slots (present-only for
-/// `parent`/`source`, non-empty-only for
-/// `blocks`/`blocked_by`/`derived_from`/`relates_to`/`tags`), then
-/// `last_updated`/`last_updated_by` (identical to `date`/`author` at
-/// creation time) and `schema_version: 1` unconditionally. `external_id`
-/// is written only when `inputs.external_id` is `Some` — a successful
-/// `create --push` — and omitted entirely otherwise, matching the
-/// template's "omit when not linked" comment.
 #[must_use]
 pub fn compose_frontmatter(
     inputs: &CreateInputs<'_>,
@@ -151,7 +142,10 @@ pub fn compose_frontmatter(
             FieldValue::Scalar(external_id.to_owned()),
         ));
     }
-    push_sequence_if_non_empty(&mut fields, "tags", inputs.tags);
+    fields.push((
+        "tags".to_owned(),
+        FieldValue::Sequence(inputs.tags.to_vec()),
+    ));
 
     fields.push((
         "last_updated".to_owned(),
@@ -258,6 +252,7 @@ mod tests {
         CreateInputs, FieldValue, TypedLinkage, VcsIdentityProbe,
         KNOWN_FRONTMATTER_KEYS,
     };
+    use corpus::frontmatter_validation::schema;
 
     fn inputs<'a>(
         linkage: TypedLinkage<'a>,
@@ -290,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn omits_empty_optional_fields() {
+    fn writes_empty_tags_and_omits_empty_linkage() {
         let fields = compose_frontmatter(&inputs(empty_linkage(), &[]));
         let keys: Vec<&str> =
             fields.iter().map(|(key, _)| key.as_str()).collect();
@@ -306,11 +301,31 @@ mod tests {
                 "status",
                 "kind",
                 "priority",
+                "tags",
                 "last_updated",
                 "last_updated_by",
                 "schema_version",
             ]
         );
+        assert!(fields
+            .contains(&("tags".to_owned(), FieldValue::Sequence(Vec::new()))));
+    }
+
+    #[test]
+    fn writes_every_field_the_schema_requires_when_all_else_is_empty() {
+        let fields = compose_frontmatter(&inputs(empty_linkage(), &[]));
+        let written: Vec<&str> =
+            fields.iter().map(|(key, _)| key.as_str()).collect();
+        let Some(work_item) = schema::row_for("work-item", "") else {
+            unreachable!("the schema has a work-item row")
+        };
+        let missing: Vec<&str> = schema::BASE_FIELDS
+            .iter()
+            .chain(work_item.required_extras)
+            .copied()
+            .filter(|key| !written.contains(key))
+            .collect();
+        assert_eq!(missing, Vec::<&str>::new());
     }
 
     #[test]

@@ -113,7 +113,7 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
     assert_eq!(outcome.code, 0, "{}", outcome.stderr);
     assert!(
         outcome.stdout.ends_with(
-            "\nMigration complete. applied: 10; pending (no-op): 1.\n"
+            "\nMigration complete. applied: 11; pending (no-op): 1.\n"
         ),
         "{}",
         outcome.stdout
@@ -144,6 +144,10 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
             "[0010-strip-research-title-prefix] applied",
             "[0011-ignore-machine-local-sync-state] running",
             "[0011-ignore-machine-local-sync-state] applied",
+            "[0012-backfill-work-item-tags] running",
+            "0012: added tags to 0 work item(s) under meta/work, 0 sync \
+             baseline(s) realigned",
+            "[0012-backfill-work-item-tags] applied",
         ]),
     ]
     .concat();
@@ -177,7 +181,8 @@ fn a_typed_ticket_reaches_the_unified_schema_byte_for_byte(
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
          0010-strip-research-title-prefix\n\
-         0011-ignore-machine-local-sync-state\n"
+         0011-ignore-machine-local-sync-state\n\
+         0012-backfill-work-item-tags\n"
     );
     assert!(!root.join(MANIFEST_FILE).exists());
     assert!(!root.join(RUN_BASE_FILE).exists());

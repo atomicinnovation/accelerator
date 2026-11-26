@@ -1,6 +1,6 @@
 //! Migration 0009 (`split-work-key-from-tracker-scope-key`) driven end to end
-//! against the compiled binary, with the ledger pre-seeded through 0008 so 0009
-//! is the sole pending migration.
+//! against the compiled binary, with every other migration pre-seeded in the
+//! ledger, so 0009 is the sole pending migration.
 #![allow(clippy::literal_string_with_formatting_args)]
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
@@ -14,7 +14,7 @@ type TestError = Box<dyn std::error::Error>;
 
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
 
-const LEDGER_THROUGH_0008: &str = "0001-rename-tickets-to-work\n\
+const LEDGER_EXCEPT_0009: &str = "0001-rename-tickets-to-work\n\
      0002-rename-work-items-with-project-prefix\n\
      0003-relocate-accelerator-state\n\
      0004-restructure-meta-research-into-subject-subcategories\n\
@@ -23,7 +23,8 @@ const LEDGER_THROUGH_0008: &str = "0001-rename-tickets-to-work\n\
      0007-unify-meta-corpus-frontmatter\n\
      0008-canonical-frontmatter-quoting\n\
      0010-strip-research-title-prefix\n\
-     0011-ignore-machine-local-sync-state\n";
+     0011-ignore-machine-local-sync-state\n\
+     0012-backfill-work-item-tags\n";
 
 fn write(dir: &Path, relative: &str, content: &str) -> Result<(), TestError> {
     let path = dir.join(relative);
@@ -38,7 +39,7 @@ fn scratch(config: &str) -> Result<TempDir, TestError> {
     write(
         dir.path(),
         ".accelerator/state/migrations-applied",
-        LEDGER_THROUGH_0008,
+        LEDGER_EXCEPT_0009,
     )?;
     Ok(dir)
 }
@@ -218,7 +219,7 @@ fn the_personal_file_and_its_backup_stay_owner_only() -> Result<(), TestError> {
     write(
         dir.path(),
         ".accelerator/state/migrations-applied",
-        LEDGER_THROUGH_0008,
+        LEDGER_EXCEPT_0009,
     )?;
 
     let out = run(dir.path())?;

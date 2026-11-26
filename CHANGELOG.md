@@ -1087,6 +1087,13 @@
 
 ### Fixed
 
+- **New work items always carry `tags`.** `/create-work-item`,
+  `/extract-work-items` and `/sync-work-items` (through `work create`,
+  `work create-batch` and `work sync`) wrote no `tags` key for an item
+  without tags, so it failed `corpus frontmatter validate` with
+  `MISSING-BASE-FIELD`. They now write `tags: []`. Run
+  `/accelerator:migrate` (migration 0012) to repair items already written
+  without it.
 - **`/create-work-item` stops on a configuration error from `work resolve`.**
   Only `E_RESOLVE_INVALID` now reads as a topic; any other exit 1, such as
   `E_WORK_ID_PATTERN_INVALID`, is relayed and stops the skill rather than
@@ -1310,6 +1317,21 @@
   Move a team-config `paths.work` or `paths.integrations` outside the
   repository into an untracked `.accelerator/config.local.md`, or sync
   refuses with `74`.
+- **Run `/accelerator:migrate` (migration 0012) to add `tags: []` to work
+  items written without it.** It inserts one line, before `last_updated`
+  or at the end of the frontmatter, changes nothing else, and realigns
+  the sync baselines of the items it repairs. It leaves alone, and names
+  with the fix each needs, any file that is not UTF-8, whose frontmatter
+  doesn't parse, whose `tags` key is spelled unusually (such as
+  `"tags":`), or whose repair would change another value. A `paths.work`
+  outside the repository is left alone with a warning; add `tags: []` to
+  the items there by hand. Upgrade everyone who writes work items before
+  running it. `accelerator corpus frontmatter validate` reports any item
+  still without `tags` as `MISSING-BASE-FIELD`. To repair items written
+  without it afterwards, run
+  `accelerator migrate --unapply 0012-backfill-work-item-tags` (which
+  removes 0012 from the applied ledger so it runs again), then
+  `/accelerator:migrate`.
 - **A `work.id_pattern` the grammar now refuses must be edited.** Literal
   text holding a character other than an ASCII letter, digit, `.`, `_` or
   `-` (such as a space, `'`, `$`, or a `{` or `}` written as `{{` or `}}`),
