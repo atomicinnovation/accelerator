@@ -1115,7 +1115,7 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
 - [x] e2e passes: `mise run test:e2e:visualiser`
 - [x] `rg -n "research_codebase: meta/research" cli/visualiser` prints
       nothing.
-- [ ] `mise run`
+- [x] `mise run`
 
 #### Manual Verification:
 
