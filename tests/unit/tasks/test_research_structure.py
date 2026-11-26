@@ -2949,9 +2949,12 @@ def test_conduct_checks_its_templates_before_the_first_plan() -> None:
         assert command in check
         assert f"{command} --fail-safe" not in check
     for sentence in (
-        "if either exits non-zero, `conduct` starts no run and spawns nothing.",
-        "if either command is denied by permissions, `conduct` starts no run "
-        "and spawns nothing.",
+        "if a command it runs exits non-zero, `conduct` starts no run and "
+        "spawns nothing.",
+        "if a command it runs is denied by permissions, `conduct` starts no "
+        "run and spawns nothing.",
+        "At depth 1 no node fills a level note, so run the level-note command "
+        "only when the resolved depth is above 1.",
         "the finding command's fenced block, from its opening fence line to "
         "the next line holding that same fence alone",
         "a code block inside a template never closes it",

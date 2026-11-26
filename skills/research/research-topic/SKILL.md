@@ -288,8 +288,9 @@ allocate a finding or note path yourself.
    accelerator config template topic-research --kind level-note
    ```
 
-   The tool result mixes stderr and stdout, and the launcher writes warnings
-   before the template.
+   At depth 1 no node fills a level note, so run the level-note command
+   only when the resolved depth is above 1. The tool result mixes stderr
+   and stdout, and the launcher writes warnings before the template.
 
    - **What to keep**: the finding command's fenced block, from its opening
      fence line to the next line holding that same fence alone. The fence
@@ -301,13 +302,13 @@ allocate a finding or note path yourself.
      to the first plan, whose `warnings` name a template that falls back to
      its default. Every spawn then fills that default, and so does every
      composer, from the block kept here.
-   - **Failure**: if either exits non-zero, `conduct` starts no run and
-     spawns nothing. Print "template unavailable", its error line, and the
+   - **Failure**: if a command it runs exits non-zero, `conduct` starts no
+     run and spawns nothing. Print "template unavailable", its error line, and the
      next step of the troubleshooting row that line matches. The error line
      is the first line of its stderr that is not a warning; a warning line
      begins `Warning:` or `accelerator: WARNING`.
-   - **Denial**: if either command is denied by permissions, `conduct` starts
-     no run and spawns nothing. Print "template command denied by
+   - **Denial**: if a command it runs is denied by permissions, `conduct`
+     starts no run and spawns nothing. Print "template command denied by
      permissions" and that troubleshooting row's next step.
 
    A config fault or a denial therefore costs no subagents. The

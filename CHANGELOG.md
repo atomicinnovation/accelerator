@@ -892,9 +892,10 @@
   `accelerator config template topic-research` command its outputter names,
   `--kind finding` or `--kind level-note`. An `agents.researcher` override
   must run that command; an `agents.composer` override still receives the
-  finding template inline. `conduct` runs both commands before its first
-  plan, so a missing or unreadable template, or a denied command, stops it
-  before any spawn. A configured template path that does not exist falls
+  finding template inline. `conduct` runs the finding command, and above
+  depth 1 the level-note command, before its first plan, so a missing or
+  unreadable template it will fill, or a denied command, stops it before any
+  spawn. A configured template path that does not exist falls
   back to the default, and `accelerator research topic outstanding --start`
   names the template among its `warnings`, which `conduct` reports before
   spawning. `research-topic`'s spawns inherit its
