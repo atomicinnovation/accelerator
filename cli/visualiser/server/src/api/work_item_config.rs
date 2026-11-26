@@ -82,6 +82,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
+            doc_types: crate::test_support::built_in_catalogue(),
             templates: HashMap::new(),
             work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,

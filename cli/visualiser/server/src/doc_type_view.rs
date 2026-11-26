@@ -3,7 +3,6 @@
 
 use std::path::PathBuf;
 
-use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 use serde::Serialize;
 
@@ -35,9 +34,8 @@ pub struct DocTypeView {
 
 #[must_use]
 pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocTypeView> {
-    let catalogue = DocTypeCatalogue::built_in();
-    let mut out = Vec::with_capacity(catalogue.doc_types().len());
-    for &key in catalogue.doc_types() {
+    let mut out = Vec::with_capacity(cfg.doc_types.doc_types().len());
+    for &key in cfg.doc_types.doc_types() {
         let dir_path = key
             .config_path_key()
             .and_then(|k| cfg.doc_paths.get(k).cloned());

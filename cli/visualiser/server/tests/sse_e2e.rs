@@ -281,6 +281,7 @@ fn base_cfg(tmp: &Path) -> accelerator_visualiser::config::Config {
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths: HashMap::new(),
+        doc_types: corpus::DocTypeCatalogue::built_in().into(),
         templates: HashMap::new(),
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,

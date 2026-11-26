@@ -152,10 +152,6 @@ impl IntoResponse for ApiError {
     }
 }
 
-pub(crate) fn parse_kind(s: &str) -> Option<corpus::DocTypeKey> {
-    corpus::DocTypeCatalogue::built_in().from_wire_token(s)
-}
-
 pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {
     use crate::file_driver::FileDriverError as F;
     match e {

@@ -10,7 +10,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{api_from_fd, parse_kind, ApiError};
+use super::{api_from_fd, ApiError};
 use crate::file_driver::FileDriver;
 use crate::indexer::IndexEntry;
 use crate::server::AppState;
@@ -30,7 +30,10 @@ pub(crate) async fn docs_list(
     State(state): State<Arc<AppState>>,
     Query(q): Query<DocsListQuery>,
 ) -> Result<Response, ApiError> {
-    let kind = parse_kind(&q.type_)
+    let kind = state
+        .cfg
+        .doc_types
+        .from_wire_token(&q.type_)
         .ok_or(ApiError::InvalidDocType(q.type_.clone()))?;
     if kind.is_virtual() {
         return Err(ApiError::InvalidDocType(q.type_.clone()));

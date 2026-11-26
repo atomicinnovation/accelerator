@@ -370,7 +370,12 @@ mod tests {
     }
 
     fn test_driver(dir: &std::path::Path) -> LocalFileDriver {
-        LocalFileDriver::new(&HashMap::new(), vec![dir.to_path_buf()], vec![])
+        LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &HashMap::new(),
+            vec![dir.to_path_buf()],
+            vec![],
+        )
     }
 
     #[tokio::test]

@@ -239,6 +239,7 @@ impl IndexEntry {
 
 pub struct Indexer {
     driver: Arc<dyn FileDriver>,
+    doc_types: Arc<DocTypeCatalogue>,
     /// Canonicalised once at the top of `Indexer::build`. Every
     /// secondary-index key derivation routes through this prefix so
     /// primary keys (canonical via `build_entry`) and secondary keys
@@ -285,6 +286,7 @@ pub struct Indexer {
 impl Indexer {
     pub async fn build(
         driver: Arc<dyn FileDriver>,
+        doc_types: Arc<DocTypeCatalogue>,
         project_root: PathBuf,
         work_item_cfg: Arc<crate::config::WorkItemConfig>,
     ) -> Result<Self, FileDriverError> {
@@ -302,6 +304,7 @@ impl Indexer {
             })?;
         let me = Self {
             driver,
+            doc_types,
             project_root,
             unread: Arc::new(crate::config::WorkItemConfig::unreadable()),
             trust: std::sync::RwLock::new(Trust::Trusted),
@@ -342,7 +345,7 @@ impl Indexer {
         // Phase 1: enumerate every (kind, path) up front, preserving doc-type
         // and per-type listing order so the dedup folds below stay deterministic.
         let mut targets: Vec<(DocTypeKey, PathBuf)> = Vec::new();
-        for &kind in DocTypeCatalogue::built_in().doc_types() {
+        for &kind in self.doc_types.doc_types() {
             if kind.is_virtual() {
                 continue;
             }
@@ -1782,10 +1785,21 @@ mod document_id_tests {
         let file = root.join(path);
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         std::fs::write(&file, content).unwrap();
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &dirs,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, root, cfg).await.unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            root,
+            cfg,
+        )
+        .await
+        .unwrap();
         idx.get(&file).await.expect("indexed")
     }
 
@@ -1884,11 +1898,21 @@ mod document_id_tests {
                 std::fs::create_dir_all(file.parent().unwrap()).unwrap();
                 std::fs::write(&file, content).unwrap();
             }
-            let driver: Arc<dyn FileDriver> =
-                Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+            let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+                &corpus::DocTypeCatalogue::built_in(),
+                &dirs,
+                vec![],
+                vec![],
+            ));
             let cfg = Arc::new(WorkItemConfig::default_numeric());
-            let indexer =
-                Indexer::build(driver, root.clone(), cfg).await.unwrap();
+            let indexer = Indexer::build(
+                driver,
+                crate::test_support::built_in_catalogue(),
+                root.clone(),
+                cfg,
+            )
+            .await
+            .unwrap();
             Self {
                 _tmp: tmp,
                 root,
@@ -2080,12 +2104,21 @@ mod identity_join_tests {
         for (path, content) in files {
             std::fs::write(root.join(path), content).unwrap();
         }
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &dirs,
+            vec![],
+            vec![],
+        ));
         let cfg = WorkItemConfig::new(scheme_for_test(pattern, key));
-        Indexer::build(driver, root.to_path_buf(), Arc::new(cfg))
-            .await
-            .unwrap()
+        Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            root.to_path_buf(),
+            Arc::new(cfg),
+        )
+        .await
+        .unwrap()
     }
 
     async fn entry_at(idx: &Indexer, root: &Path, path: &str) -> IndexEntry {
@@ -2445,13 +2478,23 @@ mod identity_join_tests {
             std::fs::write(root.join(path), content).unwrap();
         }
         let driver = Arc::new(FailingOneRead {
-            inner: LocalFileDriver::new(&dirs, vec![], vec![]),
+            inner: LocalFileDriver::new(
+                &corpus::DocTypeCatalogue::built_in(),
+                &dirs,
+                vec![],
+                vec![],
+            ),
             failing: std::sync::Mutex::new(None),
         });
         let cfg = WorkItemConfig::new(scheme_for_test("{number:04d}", None));
-        let idx = Indexer::build(driver.clone(), root.clone(), Arc::new(cfg))
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver.clone(),
+            crate::test_support::built_in_catalogue(),
+            root.clone(),
+            Arc::new(cfg),
+        )
+        .await
+        .unwrap();
         let slugless = root.join("meta/work/0400.md");
         std::fs::write(&slugless, "---\nid: \"0400\"\n---\n").unwrap();
 
@@ -2804,11 +2847,20 @@ mod tests {
 
     async fn build_indexer(tmp: &Path) -> Indexer {
         let (root, map) = seed(tmp);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        Indexer::build(driver, root, default_work_item_cfg())
-            .await
-            .unwrap()
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
+        Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            root,
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
@@ -2943,11 +2995,16 @@ mod tests {
 
         let mut paths = std::collections::HashMap::new();
         paths.insert("plans".to_string(), plans);
-        let driver: Arc<dyn FileDriver> = Arc::new(
-            crate::file_driver::LocalFileDriver::new(&paths, vec![], vec![]),
-        );
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(crate::file_driver::LocalFileDriver::new(
+                &corpus::DocTypeCatalogue::built_in(),
+                &paths,
+                vec![],
+                vec![],
+            ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -2977,10 +3034,15 @@ mod tests {
     async fn library_aggregates_returns_empty_map_for_empty_index() {
         let tmp = tempfile::tempdir().unwrap();
         let map = HashMap::new();
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -3272,10 +3334,15 @@ mod tests {
 
         let mut map = HashMap::new();
         map.insert("research_design_inventories".to_string(), inv_root);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -3314,11 +3381,20 @@ mod tests {
 
         let mut map = HashMap::new();
         map.insert("research_topics".to_string(), topics_root);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
-        let idx = Indexer::build(driver, project_root, default_work_item_cfg())
-            .await
-            .unwrap();
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            project_root,
+            default_work_item_cfg(),
+        )
+        .await
+        .unwrap();
 
         let entries = idx.all_by_type(DocTypeKey::TOPIC_RESEARCH).await;
 
@@ -3397,11 +3473,16 @@ mod tests {
             map.insert((*key).to_string(), dir_path);
         }
 
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let start = std::time::Instant::now();
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             default_work_item_cfg(),
         )
@@ -3458,12 +3539,21 @@ mod refresh_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("decisions".into(), dec);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         (idx, work)
     }
 
@@ -3673,10 +3763,15 @@ mod reverse_index_tests {
         }
         let mut map = HashMap::new();
         map.insert("plans".into(), directory);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3732,12 +3827,21 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         // Canonicalise the paths so callers compare against the
         // indexer's primary key form.
         let plan = std::fs::canonicalize(&plan).unwrap();
@@ -3805,10 +3909,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3845,10 +3954,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3878,10 +3992,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -3925,10 +4044,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4006,10 +4130,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4047,10 +4176,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4086,11 +4220,16 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Arc::new(
             Indexer::build(
                 driver,
+                crate::test_support::built_in_catalogue(),
                 tmp.path().to_path_buf(),
                 Arc::new(WorkItemConfig::default_numeric()),
             )
@@ -4188,10 +4327,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4247,10 +4391,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_prs".into(), pr_reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4288,10 +4437,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("review_work".into(), wi_reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4347,10 +4501,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4426,11 +4585,16 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Arc::new(
             Indexer::build(
                 driver,
+                crate::test_support::built_in_catalogue(),
                 tmp.path().to_path_buf(),
                 Arc::new(WorkItemConfig::default_numeric()),
             )
@@ -4510,12 +4674,21 @@ mod reverse_index_tests {
         let mut dir_map = HashMap::new();
         dir_map.insert("work".into(), work_dir);
         dir_map.insert("plans".into(), plan_dir);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &dir_map,
+            vec![],
+            vec![],
+        ));
         let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
-        Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
-            .await
-            .unwrap()
+        Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.to_path_buf(),
+            work_item_cfg,
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
@@ -4665,13 +4838,21 @@ mod reverse_index_tests {
         dir_map.insert("work".into(), work_dir.clone());
         dir_map.insert("plans".into(), plan_dir);
         dir_map.insert("review_plans".into(), review_dir);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&dir_map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &dir_map,
+            vec![],
+            vec![],
+        ));
         let work_item_cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx =
-            Indexer::build(driver, tmp.path().to_path_buf(), work_item_cfg)
-                .await
-                .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.path().to_path_buf(),
+            work_item_cfg,
+        )
+        .await
+        .unwrap();
 
         let work_item_path =
             std::fs::canonicalize(work_dir.join("0001-epic.md")).unwrap();
@@ -4712,16 +4893,25 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg =
             Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
                 "{project}-{number:04d}",
                 Some("ENG"),
             )));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("ENG-0042-foo.md"))
             .await
@@ -4765,16 +4955,25 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg =
             Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
                 "{project}-{number:04d}",
                 Some("ENG"),
             )));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -4797,16 +4996,25 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg =
             Arc::new(WorkItemConfig::new(crate::config::scheme_for_test(
                 "{project}-{number:04d}",
                 Some("ENG"),
             )));
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("OPS-0007-foo.md"))
             .await
@@ -4826,12 +5034,21 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("0001-foo.md"))
             .await
@@ -4854,12 +5071,21 @@ mod reverse_index_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work_dir.clone());
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let cfg = Arc::new(WorkItemConfig::default_numeric());
-        let idx = Indexer::build(driver, tmp.path().to_path_buf(), cfg)
-            .await
-            .unwrap();
+        let idx = Indexer::build(
+            driver,
+            crate::test_support::built_in_catalogue(),
+            tmp.path().to_path_buf(),
+            cfg,
+        )
+        .await
+        .unwrap();
         let entry = idx
             .get(&work_dir.join("foo-without-number.md"))
             .await
@@ -4887,10 +5113,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4930,10 +5161,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -4962,10 +5198,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans);
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -5006,10 +5247,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )
@@ -5042,10 +5288,15 @@ mod reverse_index_tests {
         let mut map = HashMap::new();
         map.insert("plans".into(), plans.clone());
         map.insert("review_plans".into(), reviews);
-        let driver: Arc<dyn FileDriver> =
-            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        ));
         let idx = Indexer::build(
             driver,
+            crate::test_support::built_in_catalogue(),
             tmp.path().to_path_buf(),
             Arc::new(WorkItemConfig::default_numeric()),
         )

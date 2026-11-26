@@ -600,13 +600,23 @@ mod tests {
         let mut doc_paths = HashMap::new();
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
-            Arc::new(LocalFileDriver::new(&doc_paths, vec![], vec![]));
+            Arc::new(LocalFileDriver::new(
+                &corpus::DocTypeCatalogue::built_in(),
+                &doc_paths,
+                vec![],
+                vec![],
+            ));
         let work_item_cfg =
             Arc::new(crate::config::WorkItemConfig::default_numeric());
         let indexer = Arc::new(
-            Indexer::build(driver, tmp.to_path_buf(), work_item_cfg)
-                .await
-                .unwrap(),
+            Indexer::build(
+                driver,
+                crate::test_support::built_in_catalogue(),
+                tmp.to_path_buf(),
+                work_item_cfg,
+            )
+            .await
+            .unwrap(),
         );
         let hub = Arc::new(SseHub::new(64));
         let activity_feed = Arc::new(ActivityRingBuffer::new());
@@ -1182,6 +1192,7 @@ mod template_change_handler_tests {
         Arc<SseHub>,
     ) {
         let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
             &HashMap::new(),
             vec![tmp.to_path_buf()],
             vec![],

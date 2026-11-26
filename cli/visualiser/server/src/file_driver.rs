@@ -133,9 +133,10 @@ pub fn resolved_root(raw: &Path) -> PathBuf {
 /// [`config::ConfigError::OverlappingDocRoots`] naming the first overlapping
 /// pair.
 pub fn refuse_overlapping_doc_roots(
+    doc_types: &DocTypeCatalogue,
     doc_paths: &HashMap<String, PathBuf>,
 ) -> Result<(), config::ConfigError> {
-    let roots: Vec<config::paths::DocTypeDir> = DocTypeCatalogue::built_in()
+    let roots: Vec<config::paths::DocTypeDir> = doc_types
         .doc_types()
         .iter()
         .filter_map(|&kind| {
@@ -161,12 +162,13 @@ pub fn refuse_overlapping_doc_roots(
 
 impl LocalFileDriver {
     pub fn new(
+        doc_types: &DocTypeCatalogue,
         doc_paths: &HashMap<String, PathBuf>,
         extra_roots: Vec<PathBuf>,
         writable_roots: Vec<PathBuf>,
     ) -> Self {
         let mut roots = HashMap::new();
-        for &kind in DocTypeCatalogue::built_in().doc_types() {
+        for &kind in doc_types.doc_types() {
             let Some(cfg_key) = kind.config_path_key() else {
                 continue;
             };
@@ -664,7 +666,12 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("decisions".into(), dec.clone());
         map.insert("plans".into(), plans);
-        LocalFileDriver::new(&map, vec![], vec![])
+        LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        )
     }
 
     #[tokio::test]
@@ -691,7 +698,12 @@ mod tests {
         std::fs::write(drafts.join("nested/deeper.md"), "# No\n").unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work);
-        let d = LocalFileDriver::new(&map, vec![], vec![]);
+        let d = LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![],
+        );
 
         let mut got: Vec<String> = d
             .list(DocTypeKey::WORK_ITEMS)
@@ -775,7 +787,12 @@ mod tests {
                 kind.config_path_key().unwrap().to_owned(),
                 root.clone(),
             );
-            let driver = LocalFileDriver::new(&map, vec![], vec![]);
+            let driver = LocalFileDriver::new(
+                &corpus::DocTypeCatalogue::built_in(),
+                &map,
+                vec![],
+                vec![],
+            );
             let mut got: Vec<String> = driver
                 .list(kind)
                 .await
@@ -803,7 +820,12 @@ mod tests {
 
     #[tokio::test]
     async fn list_unconfigured_type_is_not_configured_error() {
-        let d = LocalFileDriver::new(&HashMap::new(), vec![], vec![]);
+        let d = LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &HashMap::new(),
+            vec![],
+            vec![],
+        );
         let err = d.list(DocTypeKey::NOTES).await.unwrap_err();
         assert!(matches!(err, FileDriverError::TypeNotConfigured { .. }));
     }
@@ -894,7 +916,12 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         map.insert("plans".into(), plans);
-        LocalFileDriver::new(&map, vec![], vec![work])
+        LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![work],
+        )
     }
 
     // ── Step 2.1 ─────────────────────────────────────────────────────────────
@@ -1080,7 +1107,12 @@ mod write_tests {
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let path = work.join("0001-no-fm.md");
         let raw = std::fs::read(&path).unwrap();
@@ -1121,7 +1153,12 @@ mod write_tests {
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let path = work.join("0001-no-status.md");
         let raw = std::fs::read(&path).unwrap();
@@ -1164,8 +1201,12 @@ mod write_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d =
-            StdArc::new(LocalFileDriver::new(&map, vec![], vec![work.clone()]));
+        let d = StdArc::new(LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        ));
 
         let path = work.join("0001-foo.md");
         let etag = {
@@ -1255,7 +1296,12 @@ mod write_tests {
         .unwrap();
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let path = work.join("0001-foo.md");
         let raw = std::fs::read(&path).unwrap();
@@ -1334,7 +1380,12 @@ mod write_tests {
 
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
-        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+        let d = LocalFileDriver::new(
+            &corpus::DocTypeCatalogue::built_in(),
+            &map,
+            vec![],
+            vec![work.clone()],
+        );
 
         let etag = etag_of(&std::fs::read(&path).unwrap());
         d.write_frontmatter(

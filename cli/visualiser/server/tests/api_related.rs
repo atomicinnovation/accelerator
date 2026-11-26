@@ -65,6 +65,7 @@ fn cfg_with_only(
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
+        doc_types: corpus::DocTypeCatalogue::built_in().into(),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,

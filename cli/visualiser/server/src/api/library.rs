@@ -87,7 +87,10 @@ pub(crate) async fn library_structure(
     State(state): State<Arc<AppState>>,
     axum::extract::RawQuery(raw): axum::extract::RawQuery,
 ) -> Json<LibraryStructureResponse> {
-    let selection = parse_selection_query(raw.as_deref().unwrap_or(""));
+    let selection = parse_selection_query(
+        &state.cfg.doc_types,
+        raw.as_deref().unwrap_or(""),
+    );
     let agg = state.indexer.library_aggregates(&selection).await;
     Json(build_structure(&state.cfg, &agg))
 }
@@ -95,7 +98,10 @@ pub(crate) async fn library_structure(
 /// Parses repeated query keys of the form `selection[<type>][<facet>]=<option>`
 /// into a `Selection`. URL-decoded values are returned verbatim. Repeated keys
 /// accumulate (OR within a facet). Malformed shapes are silently dropped.
-pub(crate) fn parse_selection_query(raw: &str) -> Selection {
+pub(crate) fn parse_selection_query(
+    doc_types: &DocTypeCatalogue,
+    raw: &str,
+) -> Selection {
     let mut out: Selection = HashMap::new();
     for (key, value) in form_urlencoded::parse(raw.as_bytes()) {
         let Some(rest) = key.strip_prefix("selection[") else {
@@ -116,9 +122,7 @@ pub(crate) fn parse_selection_query(raw: &str) -> Selection {
         if value.is_empty() {
             continue;
         }
-        let Some(doc_type) =
-            DocTypeCatalogue::built_in().from_wire_token(type_token)
-        else {
+        let Some(doc_type) = doc_types.from_wire_token(type_token) else {
             continue;
         };
         out.entry(doc_type)
@@ -134,13 +138,13 @@ fn build_structure(
     cfg: &crate::config::Config,
     agg: &LibraryAggregates,
 ) -> LibraryStructureResponse {
-    let catalogue = DocTypeCatalogue::built_in();
+    let catalogue = &cfg.doc_types;
     let phases = PHASES
         .iter()
         .map(|(phase, id, label)| Phase {
             id: (*id).to_string(),
             label: (*label).to_string(),
-            doc_types: placed_in(&catalogue, *phase)
+            doc_types: placed_in(catalogue, *phase)
                 .into_iter()
                 .map(|dt| build_doc_type(cfg, agg, dt))
                 .collect(),
@@ -257,21 +261,25 @@ fn humanise_status(id: &str) -> String {
 mod tests {
     use super::*;
 
+    fn selection_of(raw: &str) -> Selection {
+        parse_selection_query(&DocTypeCatalogue::built_in(), raw)
+    }
+
     #[test]
     fn parses_empty_string_to_empty_selection() {
-        assert!(parse_selection_query("").is_empty());
+        assert!(selection_of("").is_empty());
     }
 
     #[test]
     fn parses_single_selection_key() {
-        let sel = parse_selection_query("selection[decisions][status]=open");
+        let sel = selection_of("selection[decisions][status]=open");
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
     }
 
     #[test]
     fn parses_repeated_keys_accumulating_into_a_single_facet() {
-        let sel = parse_selection_query(
+        let sel = selection_of(
             "selection[decisions][status]=open&selection[decisions][status]=blocked",
         );
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
@@ -283,7 +291,7 @@ mod tests {
 
     #[test]
     fn parses_two_facets_under_one_doc_type() {
-        let sel = parse_selection_query(
+        let sel = selection_of(
             "selection[decisions][status]=open&selection[decisions][clusterSlug]=foo",
         );
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
@@ -296,15 +304,13 @@ mod tests {
 
     #[test]
     fn empty_value_is_silently_dropped() {
-        let sel = parse_selection_query("selection[decisions][status]=");
+        let sel = selection_of("selection[decisions][status]=");
         assert!(sel.is_empty());
     }
 
     #[test]
     fn url_encoded_value_round_trips() {
-        let sel = parse_selection_query(
-            "selection[decisions][clusterSlug]=foo%20bar",
-        );
+        let sel = selection_of("selection[decisions][clusterSlug]=foo%20bar");
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
@@ -314,8 +320,7 @@ mod tests {
 
     #[test]
     fn percent_encoded_reserved_characters_round_trip() {
-        let sel =
-            parse_selection_query("selection[decisions][clusterSlug]=a%2Cb");
+        let sel = selection_of("selection[decisions][clusterSlug]=a%2Cb");
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
@@ -325,22 +330,20 @@ mod tests {
 
     #[test]
     fn unknown_doc_type_is_silently_dropped() {
-        let sel = parse_selection_query("selection[bogus][status]=open");
+        let sel = selection_of("selection[bogus][status]=open");
         assert!(sel.is_empty());
     }
 
     #[test]
     fn malformed_shapes_are_silently_dropped() {
-        assert!(parse_selection_query("selection[decisions]=open").is_empty());
-        assert!(parse_selection_query("selectionopen").is_empty());
-        assert!(parse_selection_query("[decisions][status]=open").is_empty());
+        assert!(selection_of("selection[decisions]=open").is_empty());
+        assert!(selection_of("selectionopen").is_empty());
+        assert!(selection_of("[decisions][status]=open").is_empty());
     }
 
     #[test]
     fn unrelated_query_params_are_ignored() {
-        let sel = parse_selection_query(
-            "other=value&selection[decisions][status]=open",
-        );
+        let sel = selection_of("other=value&selection[decisions][status]=open");
         assert_eq!(sel.len(), 1);
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
@@ -348,7 +351,7 @@ mod tests {
 
     #[test]
     fn duplicate_options_preserve_duplicates() {
-        let sel = parse_selection_query(
+        let sel = selection_of(
             "selection[decisions][status]=open&selection[decisions][status]=open",
         );
         let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();

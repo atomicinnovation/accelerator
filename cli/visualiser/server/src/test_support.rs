@@ -72,3 +72,7 @@ pub fn entry_for_test_with_filename(
         cluster_key: None,
     }
 }
+
+pub fn built_in_catalogue() -> std::sync::Arc<corpus::DocTypeCatalogue> {
+    std::sync::Arc::new(corpus::DocTypeCatalogue::built_in())
+}

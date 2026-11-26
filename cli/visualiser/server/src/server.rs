@@ -76,7 +76,10 @@ impl AppState {
     ) -> Result<Arc<Self>, AppStateError> {
         let kanban_columns = Arc::new(cfg.resolve_kanban_columns()?);
         let idle_limit_ms = cfg.resolve_idle_limit_ms()?;
-        crate::file_driver::refuse_overlapping_doc_roots(&cfg.doc_paths)?;
+        crate::file_driver::refuse_overlapping_doc_roots(
+            &cfg.doc_types,
+            &cfg.doc_paths,
+        )?;
         let cfg = Arc::new(cfg);
         let template_roots =
             crate::file_driver::template_extra_roots(&cfg.templates);
@@ -87,6 +90,7 @@ impl AppState {
             .map(|p| vec![p])
             .unwrap_or_default();
         let driver = Arc::new(crate::file_driver::LocalFileDriver::new(
+            &cfg.doc_types,
             &cfg.doc_paths,
             template_roots,
             work_root,
@@ -95,6 +99,7 @@ impl AppState {
         let indexer = Arc::new(
             crate::indexer::Indexer::build(
                 driver.clone(),
+                cfg.doc_types.clone(),
                 cfg.project_root.clone(),
                 work_item_cfg,
             )
@@ -689,6 +694,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
+            doc_types: crate::test_support::built_in_catalogue(),
             templates: HashMap::new(),
             work_item: crate::config::WorkItemScheme::Default,
             kanban_columns: None,
