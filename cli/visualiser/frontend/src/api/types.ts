@@ -120,6 +120,16 @@ export interface DocType {
   // document types set `virtual: false`. Sidebar partitions on this flag.
   virtual: boolean;
   count?: number;
+  set: DocTypeSet | null;
+}
+
+/** A set type's shape: its root file and its member slots, as patterns
+ *  relative to the set directory, and how a set is presented. */
+export interface DocTypeSet {
+  root: string;
+  documentSlots: string[];
+  assetSlots: string[];
+  presentation: "set-page" | "entry-point";
 }
 
 export interface IndexEntry {

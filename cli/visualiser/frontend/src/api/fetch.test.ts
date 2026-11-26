@@ -44,6 +44,53 @@ describe("fetchTypes", () => {
     expect(types[0].key).toBe("decisions");
   });
 
+  it("reads a type from a server that predates sets as no set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        types: [
+          {
+            key: "plans",
+            label: "Plans",
+            dirPath: "/p",
+            inLifecycle: true,
+            inKanban: false,
+            virtual: false,
+          },
+        ],
+      }),
+    });
+    const types = await fetchTypes();
+    expect(types[0].set).toBeNull();
+  });
+
+  it("keeps a set type's shape and presentation", async () => {
+    const set = {
+      root: "inventory.md",
+      documentSlots: [],
+      assetSlots: ["screenshots/*.png"],
+      presentation: "entry-point",
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        types: [
+          {
+            key: "design-inventories",
+            label: "Design inventories",
+            dirPath: "/p",
+            inLifecycle: true,
+            inKanban: false,
+            virtual: false,
+            set,
+          },
+        ],
+      }),
+    });
+    const types = await fetchTypes();
+    expect(types[0].set).toEqual(set);
+  });
+
   it("throws on non-200", async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
     await expect(fetchTypes()).rejects.toThrow("500");

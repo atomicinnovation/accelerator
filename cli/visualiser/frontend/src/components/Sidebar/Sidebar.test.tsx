@@ -60,6 +60,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "work-items",
@@ -68,6 +69,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: true,
     virtual: false,
+    set: null,
   },
   {
     key: "plans",
@@ -76,6 +78,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "codebase-research",
@@ -84,6 +87,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "plan-reviews",
@@ -92,6 +96,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "pr-reviews",
@@ -100,6 +105,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "work-item-reviews",
@@ -108,6 +114,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "validations",
@@ -116,6 +123,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "notes",
@@ -124,6 +132,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "pr-descriptions",
@@ -132,6 +141,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "design-gaps",
@@ -140,6 +150,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "design-inventories",
@@ -148,6 +159,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: true,
     inKanban: false,
     virtual: false,
+    set: null,
   },
   {
     key: "templates",
@@ -156,6 +168,7 @@ const allDocTypes: DocType[] = [
     inLifecycle: false,
     inKanban: false,
     virtual: true,
+    set: null,
   },
 ];
 

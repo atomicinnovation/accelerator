@@ -109,9 +109,12 @@ export async function fetchWorkItemConfig(): Promise<WorkItemConfig> {
 export async function fetchTypes(): Promise<DocType[]> {
   const r = await fetch("/api/types");
   if (!r.ok) throw new FetchError(r.status, `GET /api/types: ${r.status}`);
-  const body: { types: DocType[] } = await r.json();
-  return body.types;
+  const body: { types: WireDocType[] } = await r.json();
+  return body.types.map((type) => ({ ...type, set: type.set ?? null }));
 }
+
+/** Servers that predate sets omit `set`. */
+type WireDocType = Omit<DocType, "set"> & { set?: DocType["set"] };
 
 /** Wire-shape variant of `IndexEntry` — older servers may omit the
  *  `completeness` and `linkedCount` fields. The exported `IndexEntry`
