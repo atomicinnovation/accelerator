@@ -14,7 +14,7 @@ pr_number: 270
 tags: ["performance", "testing", "rust", "migrate", "vcs", "nextest"]
 revision: "7b781c65e29d8fc03102710f64ca2e17f9b9b2dc"
 repository: "accelerator"
-last_updated: "2026-11-26T08:05:19+00:00"
+last_updated: "2026-11-26T08:17:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -112,6 +112,3 @@ outcome.
   follow-up work if the phase's end matters.
 - **Unrelated commit.** "Sync work items with Linear" changes only `meta/` and
   `.accelerator/state/integrations/linear/last-sync.json`.
-- **Merge order.** Do not merge while PP-958 has a before or after record
-  outstanding: new test binaries and builders change the compile units it
-  counts.
