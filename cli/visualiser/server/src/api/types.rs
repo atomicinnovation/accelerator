@@ -8,7 +8,7 @@ use crate::server::AppState;
 
 #[derive(Serialize)]
 pub(crate) struct TypesResponse {
-    types: Vec<crate::doc_type_view::DocType>,
+    types: Vec<crate::doc_type_view::DocTypeView>,
 }
 
 pub(crate) async fn types(

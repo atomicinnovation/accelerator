@@ -116,7 +116,7 @@ pub(crate) async fn search(
 
     let mut buckets: [Vec<IndexEntry>; 4] = [vec![], vec![], vec![], vec![]];
     for entry in snapshot {
-        if entry.r#type == DocTypeKey::Templates {
+        if entry.r#type == DocTypeKey::TEMPLATES {
             continue;
         }
         if let Some(bucket) = classify(&entry, &q_lc) {

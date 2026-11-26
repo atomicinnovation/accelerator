@@ -52,7 +52,7 @@ pub fn resolve_type_dir(
     let path_key = key.config_path_key().ok_or_else(|| {
         kernel::Error::Failed(format!(
             "document type '{}' has no configured directory",
-            key.wire_str()
+            key.wire_token()
         ))
     })?;
     let raw =
@@ -166,7 +166,7 @@ mod tests {
         let table = table_from_config(&config)?;
 
         assert_eq!(
-            dir_for(&table, DocTypeKey::WorkItems),
+            dir_for(&table, DocTypeKey::WORK_ITEMS),
             Some(PathBuf::from("tickets")),
             "the directory must stay project-root-relative, not be joined \
              against any root here"
@@ -182,7 +182,7 @@ mod tests {
         let table = table_from_config(&config)?;
 
         assert_eq!(
-            dir_for(&table, DocTypeKey::WorkItems),
+            dir_for(&table, DocTypeKey::WORK_ITEMS),
             Some(PathBuf::from("meta/work"))
         );
         Ok(())
@@ -218,7 +218,7 @@ mod tests {
         )?;
         let composed = compose(project.path())?;
 
-        let refused = resolve_type_dir(&composed, DocTypeKey::TopicResearch);
+        let refused = resolve_type_dir(&composed, DocTypeKey::TOPIC_RESEARCH);
 
         let message = refused.err().map(|error| error.to_string());
         assert!(

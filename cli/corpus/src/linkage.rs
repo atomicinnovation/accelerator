@@ -220,8 +220,10 @@ pub fn resolve_path_target(
     let stem = file.strip_suffix(".md").unwrap_or(file);
 
     let id = match kind {
-        DocTypeKey::WorkItems => ids.id_in_filename(file).unwrap_or_default(),
-        DocTypeKey::Decisions => {
+        kind if kind == DocTypeKey::WORK_ITEMS => {
+            ids.id_in_filename(file).unwrap_or_default()
+        }
+        kind if kind == DocTypeKey::DECISIONS => {
             stem.strip_prefix("ADR-").map_or_else(String::new, |rest| {
                 let digits: String =
                     rest.chars().take_while(char::is_ascii_digit).collect();
@@ -232,12 +234,12 @@ pub fn resolve_path_target(
                 }
             })
         }
-        DocTypeKey::DesignInventories => path
+        kind if kind == DocTypeKey::DESIGN_INVENTORIES => path
             .rsplit_once('/')
             .and_then(|(dir, _)| dir.rsplit('/').next())
             .unwrap_or_default()
             .to_owned(),
-        DocTypeKey::PrDescriptions => {
+        kind if kind == DocTypeKey::PR_DESCRIPTIONS => {
             pr_number(stem).unwrap_or_else(|| stem.to_owned())
         }
         _ => stem.to_owned(),
@@ -630,22 +632,22 @@ mod tests {
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
         [
-            (DocTypeKey::WorkItems, "meta/work"),
-            (DocTypeKey::Plans, "meta/plans"),
-            (DocTypeKey::Validations, "meta/validations"),
-            (DocTypeKey::PrDescriptions, "meta/prs"),
-            (DocTypeKey::Decisions, "meta/decisions"),
-            (DocTypeKey::Research, "meta/research/codebase"),
-            (DocTypeKey::RootCauseAnalyses, "meta/research/issues"),
+            (DocTypeKey::WORK_ITEMS, "meta/work"),
+            (DocTypeKey::PLANS, "meta/plans"),
+            (DocTypeKey::VALIDATIONS, "meta/validations"),
+            (DocTypeKey::PR_DESCRIPTIONS, "meta/prs"),
+            (DocTypeKey::DECISIONS, "meta/decisions"),
+            (DocTypeKey::RESEARCH, "meta/research/codebase"),
+            (DocTypeKey::ROOT_CAUSE_ANALYSES, "meta/research/issues"),
             (
-                DocTypeKey::DesignInventories,
+                DocTypeKey::DESIGN_INVENTORIES,
                 "meta/research/design-inventories",
             ),
-            (DocTypeKey::DesignGaps, "meta/research/design-gaps"),
-            (DocTypeKey::PlanReviews, "meta/reviews/plans"),
-            (DocTypeKey::WorkItemReviews, "meta/reviews/work"),
-            (DocTypeKey::PrReviews, "meta/reviews/prs"),
-            (DocTypeKey::Notes, "meta/notes"),
+            (DocTypeKey::DESIGN_GAPS, "meta/research/design-gaps"),
+            (DocTypeKey::PLAN_REVIEWS, "meta/reviews/plans"),
+            (DocTypeKey::WORK_ITEM_REVIEWS, "meta/reviews/work"),
+            (DocTypeKey::PR_REVIEWS, "meta/reviews/prs"),
+            (DocTypeKey::NOTES, "meta/notes"),
         ]
         .into_iter()
         .map(|(kind, dir)| (kind, PathBuf::from(dir)))
@@ -735,7 +737,7 @@ mod tests {
     #[test]
     fn resolve_path_target_respects_a_custom_configured_directory() {
         let table =
-            vec![(DocTypeKey::WorkItems, PathBuf::from("custom/work-items"))];
+            vec![(DocTypeKey::WORK_ITEMS, PathBuf::from("custom/work-items"))];
 
         assert_eq!(
             super::resolve_path_target(
@@ -762,8 +764,8 @@ mod tests {
         // `meta/` still has its references extracted. A hardcoded `meta/` prefix
         // would find nothing here.
         let table = vec![
-            (DocTypeKey::WorkItems, PathBuf::from("docs/tickets")),
-            (DocTypeKey::Plans, PathBuf::from("docs/plans")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("docs/tickets")),
+            (DocTypeKey::PLANS, PathBuf::from("docs/plans")),
         ];
         let content = "## References\n- A sibling `docs/tickets/0002-y.md`\n";
 
@@ -781,9 +783,9 @@ mod tests {
     #[test]
     fn path_roots_are_the_distinct_leading_segments() {
         let table = vec![
-            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
-            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
-            (DocTypeKey::Notes, PathBuf::from("docs/notes")),
+            (DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work")),
+            (DocTypeKey::PLANS, PathBuf::from("meta/plans")),
+            (DocTypeKey::NOTES, PathBuf::from("docs/notes")),
         ];
         assert_eq!(super::path_roots(&table), vec!["meta", "docs"]);
     }

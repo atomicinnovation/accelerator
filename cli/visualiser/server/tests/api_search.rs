@@ -99,7 +99,7 @@ async fn excludes_templates_by_indexer_structure() {
     assert!(
         snapshot
             .iter()
-            .all(|e| e.r#type != corpus::DocTypeKey::Templates),
+            .all(|e| e.r#type != corpus::DocTypeKey::TEMPLATES),
         "Indexer::all() must not yield Templates entries",
     );
 

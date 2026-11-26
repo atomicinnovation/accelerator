@@ -216,7 +216,7 @@ impl core::fmt::Debug for corpus::cluster::Completeness
 pub fn corpus::cluster::Completeness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::cluster::Completeness
 pub trait corpus::cluster::ClusterEntry
-pub fn corpus::cluster::ClusterEntry::doc_type(&self) -> corpus::doc_type::DocTypeKey
+pub fn corpus::cluster::ClusterEntry::doc_type(&self) -> corpus::DocTypeKey
 pub fn corpus::cluster::ClusterEntry::frontmatter_parsed(&self) -> bool
 pub fn corpus::cluster::ClusterEntry::mtime_ms(&self) -> i64
 pub fn corpus::cluster::ClusterEntry::parent(&self) -> core::option::Option<&str>
@@ -228,50 +228,106 @@ pub fn corpus::cluster::ClusterEntry::work_item_id(&self) -> core::option::Optio
 pub fn corpus::cluster::compute<E: corpus::cluster::ClusterEntry>(entries: &[E], ctx: &corpus::cluster::ClusterContext<'_, E>) -> corpus::cluster::Clustering
 pub fn corpus::cluster::normalize_target_key(raw: &str, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub fn corpus::cluster::resolve_cluster_key<E: corpus::cluster::ClusterEntry>(entry: &E, entries_by_path: &std::collections::hash::map::HashMap<std::path::PathBuf, &E>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &std::path::Path, identity: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
-pub fn corpus::cluster::target_path_from_entry(doc_type: corpus::doc_type::DocTypeKey, target: core::option::Option<&str>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, identity: &dyn corpus::id_convention::IdConvention, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
+pub fn corpus::cluster::target_path_from_entry(doc_type: corpus::DocTypeKey, target: core::option::Option<&str>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, identity: &dyn corpus::id_convention::IdConvention, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub mod corpus::doc_type
-pub enum corpus::doc_type::DocTypeKey
-pub corpus::doc_type::DocTypeKey::Decisions
-pub corpus::doc_type::DocTypeKey::DesignGaps
-pub corpus::doc_type::DocTypeKey::DesignInventories
-pub corpus::doc_type::DocTypeKey::Notes
-pub corpus::doc_type::DocTypeKey::PlanReviews
-pub corpus::doc_type::DocTypeKey::Plans
-pub corpus::doc_type::DocTypeKey::PrDescriptions
-pub corpus::doc_type::DocTypeKey::PrReviews
-pub corpus::doc_type::DocTypeKey::Research
-pub corpus::doc_type::DocTypeKey::RootCauseAnalyses
-pub corpus::doc_type::DocTypeKey::Templates
-pub corpus::doc_type::DocTypeKey::TopicResearch
-pub corpus::doc_type::DocTypeKey::Validations
-pub corpus::doc_type::DocTypeKey::WorkItemReviews
-pub corpus::doc_type::DocTypeKey::WorkItems
-impl corpus::doc_type::DocTypeKey
-pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 15]
-pub const fn corpus::doc_type::DocTypeKey::carries_target_frontmatter(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
-pub fn corpus::doc_type::DocTypeKey::from_linkage_type_name(name: &str) -> core::option::Option<Self>
-pub fn corpus::doc_type::DocTypeKey::from_wire_str(token: &str) -> core::option::Option<Self>
-pub const fn corpus::doc_type::DocTypeKey::in_kanban(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::in_lifecycle(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::is_virtual(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::label(self) -> &'static str
-pub const fn corpus::doc_type::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
-pub const fn corpus::doc_type::DocTypeKey::nested_manifest_filename(self) -> core::option::Option<&'static str>
-pub const fn corpus::doc_type::DocTypeKey::participates_in_lifecycle(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::wire_str(self) -> &'static str
-impl core::clone::Clone for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::clone(&self) -> corpus::doc_type::DocTypeKey
-impl core::cmp::Eq for corpus::doc_type::DocTypeKey
-impl core::cmp::PartialEq for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::eq(&self, other: &corpus::doc_type::DocTypeKey) -> bool
-impl core::fmt::Debug for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::Copy for corpus::doc_type::DocTypeKey
-impl core::marker::StructuralPartialEq for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::infer(path: &std::path::Path, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<corpus::doc_type::DocTypeKey>
+pub enum corpus::doc_type::Identity
+pub corpus::doc_type::Identity::ConfigPathKey
+pub corpus::doc_type::Identity::LinkageTypeName
+pub corpus::doc_type::Identity::WireToken
+impl core::clone::Clone for corpus::doc_type::Identity
+pub fn corpus::doc_type::Identity::clone(&self) -> corpus::doc_type::Identity
+impl core::cmp::Eq for corpus::doc_type::Identity
+impl core::cmp::PartialEq for corpus::doc_type::Identity
+pub fn corpus::doc_type::Identity::eq(&self, other: &corpus::doc_type::Identity) -> bool
+impl core::fmt::Debug for corpus::doc_type::Identity
+pub fn corpus::doc_type::Identity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::doc_type::Identity
+pub fn corpus::doc_type::Identity::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::doc_type::Identity
+impl core::marker::StructuralPartialEq for corpus::doc_type::Identity
+pub struct corpus::doc_type::CatalogueError
+pub corpus::doc_type::CatalogueError::identity: corpus::doc_type::Identity
+pub corpus::doc_type::CatalogueError::value: &'static str
+impl core::clone::Clone for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::clone(&self) -> corpus::doc_type::CatalogueError
+impl core::cmp::Eq for corpus::doc_type::CatalogueError
+impl core::cmp::PartialEq for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::eq(&self, other: &corpus::doc_type::CatalogueError) -> bool
+impl core::error::Error for corpus::doc_type::CatalogueError
+impl core::fmt::Debug for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::doc_type::CatalogueError
+pub fn corpus::doc_type::CatalogueError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::doc_type::CatalogueError
+pub struct corpus::doc_type::DocType
+pub corpus::doc_type::DocType::carries_target_frontmatter: bool
+pub corpus::doc_type::DocType::config_path_key: core::option::Option<&'static str>
+pub corpus::doc_type::DocType::in_kanban: bool
+pub corpus::doc_type::DocType::in_lifecycle: bool
+pub corpus::doc_type::DocType::is_virtual: bool
+pub corpus::doc_type::DocType::label: &'static str
+pub corpus::doc_type::DocType::linkage_type_name: core::option::Option<&'static str>
+pub corpus::doc_type::DocType::nested_root_filename: core::option::Option<&'static str>
+pub corpus::doc_type::DocType::participates_in_lifecycle: bool
+pub corpus::doc_type::DocType::wire_token: &'static str
+impl core::fmt::Debug for corpus::doc_type::DocType
+pub fn corpus::doc_type::DocType::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::doc_type::DocTypeCatalogue
+impl corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::built_in() -> Self
+pub fn corpus::DocTypeCatalogue::doc_types(&self) -> &[corpus::DocTypeKey]
+pub fn corpus::DocTypeCatalogue::from_config_path_key(&self, key: &str) -> core::option::Option<corpus::DocTypeKey>
+pub fn corpus::DocTypeCatalogue::from_linkage_type_name(&self, name: &str) -> core::option::Option<corpus::DocTypeKey>
+pub fn corpus::DocTypeCatalogue::from_wire_token(&self, token: &str) -> core::option::Option<corpus::DocTypeKey>
+pub fn corpus::DocTypeCatalogue::new(doc_types: alloc::vec::Vec<corpus::DocTypeKey>) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
+impl core::clone::Clone for corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
+impl core::fmt::Debug for corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::doc_type::DocTypeKey(_)
+impl corpus::DocTypeKey
+pub const corpus::DocTypeKey::DECISIONS: Self
+pub const corpus::DocTypeKey::DESIGN_GAPS: Self
+pub const corpus::DocTypeKey::DESIGN_INVENTORIES: Self
+pub const corpus::DocTypeKey::NOTES: Self
+pub const corpus::DocTypeKey::PLANS: Self
+pub const corpus::DocTypeKey::PLAN_REVIEWS: Self
+pub const corpus::DocTypeKey::PR_DESCRIPTIONS: Self
+pub const corpus::DocTypeKey::PR_REVIEWS: Self
+pub const corpus::DocTypeKey::RESEARCH: Self
+pub const corpus::DocTypeKey::ROOT_CAUSE_ANALYSES: Self
+pub const corpus::DocTypeKey::TEMPLATES: Self
+pub const corpus::DocTypeKey::TOPIC_RESEARCH: Self
+pub const corpus::DocTypeKey::VALIDATIONS: Self
+pub const corpus::DocTypeKey::WORK_ITEMS: Self
+pub const corpus::DocTypeKey::WORK_ITEM_REVIEWS: Self
+impl corpus::DocTypeKey
+pub const fn corpus::DocTypeKey::carries_target_frontmatter(self) -> bool
+pub const fn corpus::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
+pub const fn corpus::DocTypeKey::declared(doc_type: &'static corpus::doc_type::DocType) -> Self
+pub const fn corpus::DocTypeKey::in_kanban(self) -> bool
+pub const fn corpus::DocTypeKey::in_lifecycle(self) -> bool
+pub const fn corpus::DocTypeKey::is_virtual(self) -> bool
+pub const fn corpus::DocTypeKey::label(self) -> &'static str
+pub const fn corpus::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
+pub const fn corpus::DocTypeKey::nested_root_filename(self) -> core::option::Option<&'static str>
+pub const fn corpus::DocTypeKey::participates_in_lifecycle(self) -> bool
+pub const fn corpus::DocTypeKey::wire_token(self) -> &'static str
+impl core::clone::Clone for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::clone(&self) -> corpus::DocTypeKey
+impl core::cmp::Eq for corpus::DocTypeKey
+impl core::cmp::Ord for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::cmp(&self, other: &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::eq(&self, other: &Self) -> bool
+impl core::cmp::PartialOrd for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::partial_cmp(&self, other: &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::hash<H: core::hash::Hasher>(&self, state: &mut H)
+impl core::marker::Copy for corpus::DocTypeKey
+pub fn corpus::doc_type::infer(path: &std::path::Path, table: &[(corpus::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<corpus::DocTypeKey>
 pub mod corpus::frontmatter
 pub enum corpus::frontmatter::FrontmatterState
 pub corpus::frontmatter::FrontmatterState::Absent
@@ -329,10 +385,10 @@ pub fn corpus::frontmatter_validation::pipeline::Checks::clone(&self) -> corpus:
 impl core::fmt::Debug for corpus::frontmatter_validation::pipeline::Checks
 pub fn corpus::frontmatter_validation::pipeline::Checks::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for corpus::frontmatter_validation::pipeline::Checks
-pub fn corpus::frontmatter_validation::pipeline::build_index(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], walker: &dyn corpus::scan::CorpusWalker, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<corpus::frontmatter_validation::Index, kernel::Error>
-pub fn corpus::frontmatter_validation::pipeline::corpus_files(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], walker: &dyn corpus::scan::CorpusWalker) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::build_index(table: &[(corpus::DocTypeKey, std::path::PathBuf)], walker: &dyn corpus::scan::CorpusWalker, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<corpus::frontmatter_validation::Index, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::corpus_files(table: &[(corpus::DocTypeKey, std::path::PathBuf)], walker: &dyn corpus::scan::CorpusWalker) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>
 pub fn corpus::frontmatter_validation::pipeline::validate_path(path: &std::path::Path, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>, kernel::Error>
-pub fn corpus::frontmatter_validation::pipeline::validate_targets(files: &[std::path::PathBuf], table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], index: &corpus::frontmatter_validation::Index, checks: corpus::frontmatter_validation::pipeline::Checks, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<alloc::vec::Vec<(std::path::PathBuf, corpus::frontmatter_validation::pipeline::TargetOutcome)>, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::validate_targets(files: &[std::path::PathBuf], table: &[(corpus::DocTypeKey, std::path::PathBuf)], index: &corpus::frontmatter_validation::Index, checks: corpus::frontmatter_validation::pipeline::Checks, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<alloc::vec::Vec<(std::path::PathBuf, corpus::frontmatter_validation::pipeline::TargetOutcome)>, kernel::Error>
 pub fn corpus::frontmatter_validation::pipeline::validate_templates<R: corpus::scan::FileReader>(project_root: &std::path::Path, reader: &R) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>, kernel::Error>
 pub fn corpus::frontmatter_validation::pipeline::validate_text(content: &str, parser: &dyn corpus::frontmatter::FrontmatterParser) -> alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>
 pub mod corpus::frontmatter_validation::schema
@@ -624,11 +680,11 @@ pub fn corpus::linkage::has_source_label(line: &str) -> bool
 pub fn corpus::linkage::has_supersedes_keyword(line: &str) -> bool
 pub fn corpus::linkage::infer_key(section: &str, line: &str, target_type: &str) -> (alloc::string::String, bool)
 pub fn corpus::linkage::is_template_path(token: &str) -> bool
-pub fn corpus::linkage::parse_document(source_type: &str, content: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], ids: &dyn corpus::linkage_ids::LinkageIds) -> alloc::vec::Vec<corpus::linkage::LinkageRecord>
-pub fn corpus::linkage::path_roots(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> alloc::vec::Vec<alloc::string::String>
+pub fn corpus::linkage::parse_document(source_type: &str, content: &str, table: &[(corpus::DocTypeKey, std::path::PathBuf)], ids: &dyn corpus::linkage_ids::LinkageIds) -> alloc::vec::Vec<corpus::linkage::LinkageRecord>
+pub fn corpus::linkage::path_roots(table: &[(corpus::DocTypeKey, std::path::PathBuf)]) -> alloc::vec::Vec<alloc::string::String>
 pub fn corpus::linkage::pr_number(stem: &str) -> core::option::Option<alloc::string::String>
-pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], ids: &dyn corpus::linkage_ids::LinkageIds) -> core::option::Option<(&'static str, alloc::string::String)>
-pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
+pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::DocTypeKey, std::path::PathBuf)], ids: &dyn corpus::linkage_ids::LinkageIds) -> core::option::Option<(&'static str, alloc::string::String)>
+pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
 pub mod corpus::linkage_ids
 pub trait corpus::linkage_ids::LinkageIds
 pub fn corpus::linkage_ids::LinkageIds::bare_ids_in(&self, line: &str) -> alloc::vec::Vec<alloc::string::String>
@@ -825,7 +881,7 @@ pub fn corpus::scan::DirectoryProbe::is_dir(&self, path: &std::path::Path) -> bo
 pub trait corpus::scan::FileReader
 pub fn corpus::scan::FileReader::read(&self, path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
 pub mod corpus::slug
-pub fn corpus::slug::derive(kind: corpus::doc_type::DocTypeKey, filename: &str, ids: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
+pub fn corpus::slug::derive(kind: corpus::DocTypeKey, filename: &str, ids: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
 pub fn corpus::slug::derive_work_item(filename: &str, ids: &dyn corpus::id_convention::IdConvention) -> core::option::Option<alloc::string::String>
 pub fn corpus::slug::humanise_slug(stem: &str) -> alloc::string::String
 pub fn corpus::slug::strip_humanise_prefix(stem: &str) -> &str
@@ -1040,47 +1096,6 @@ impl core::fmt::Debug for corpus::linkage::Band
 pub fn corpus::linkage::Band::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for corpus::linkage::Band
 impl core::marker::StructuralPartialEq for corpus::linkage::Band
-pub enum corpus::DocTypeKey
-pub corpus::DocTypeKey::Decisions
-pub corpus::DocTypeKey::DesignGaps
-pub corpus::DocTypeKey::DesignInventories
-pub corpus::DocTypeKey::Notes
-pub corpus::DocTypeKey::PlanReviews
-pub corpus::DocTypeKey::Plans
-pub corpus::DocTypeKey::PrDescriptions
-pub corpus::DocTypeKey::PrReviews
-pub corpus::DocTypeKey::Research
-pub corpus::DocTypeKey::RootCauseAnalyses
-pub corpus::DocTypeKey::Templates
-pub corpus::DocTypeKey::TopicResearch
-pub corpus::DocTypeKey::Validations
-pub corpus::DocTypeKey::WorkItemReviews
-pub corpus::DocTypeKey::WorkItems
-impl corpus::doc_type::DocTypeKey
-pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 15]
-pub const fn corpus::doc_type::DocTypeKey::carries_target_frontmatter(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
-pub fn corpus::doc_type::DocTypeKey::from_linkage_type_name(name: &str) -> core::option::Option<Self>
-pub fn corpus::doc_type::DocTypeKey::from_wire_str(token: &str) -> core::option::Option<Self>
-pub const fn corpus::doc_type::DocTypeKey::in_kanban(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::in_lifecycle(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::is_virtual(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::label(self) -> &'static str
-pub const fn corpus::doc_type::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
-pub const fn corpus::doc_type::DocTypeKey::nested_manifest_filename(self) -> core::option::Option<&'static str>
-pub const fn corpus::doc_type::DocTypeKey::participates_in_lifecycle(self) -> bool
-pub const fn corpus::doc_type::DocTypeKey::wire_str(self) -> &'static str
-impl core::clone::Clone for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::clone(&self) -> corpus::doc_type::DocTypeKey
-impl core::cmp::Eq for corpus::doc_type::DocTypeKey
-impl core::cmp::PartialEq for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::eq(&self, other: &corpus::doc_type::DocTypeKey) -> bool
-impl core::fmt::Debug for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for corpus::doc_type::DocTypeKey
-pub fn corpus::doc_type::DocTypeKey::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::Copy for corpus::doc_type::DocTypeKey
-impl core::marker::StructuralPartialEq for corpus::doc_type::DocTypeKey
 pub enum corpus::FilenameTimestampFormat
 pub corpus::FilenameTimestampFormat::CompactTime
 pub corpus::FilenameTimestampFormat::DateOnly
@@ -1197,6 +1212,61 @@ pub fn corpus::metadata::ArtifactMetadata::eq(&self, other: &corpus::metadata::A
 impl core::fmt::Debug for corpus::metadata::ArtifactMetadata
 pub fn corpus::metadata::ArtifactMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::metadata::ArtifactMetadata
+pub struct corpus::DocTypeCatalogue
+impl corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::built_in() -> Self
+pub fn corpus::DocTypeCatalogue::doc_types(&self) -> &[corpus::DocTypeKey]
+pub fn corpus::DocTypeCatalogue::from_config_path_key(&self, key: &str) -> core::option::Option<corpus::DocTypeKey>
+pub fn corpus::DocTypeCatalogue::from_linkage_type_name(&self, name: &str) -> core::option::Option<corpus::DocTypeKey>
+pub fn corpus::DocTypeCatalogue::from_wire_token(&self, token: &str) -> core::option::Option<corpus::DocTypeKey>
+pub fn corpus::DocTypeCatalogue::new(doc_types: alloc::vec::Vec<corpus::DocTypeKey>) -> core::result::Result<Self, corpus::doc_type::CatalogueError>
+impl core::clone::Clone for corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::clone(&self) -> corpus::DocTypeCatalogue
+impl core::fmt::Debug for corpus::DocTypeCatalogue
+pub fn corpus::DocTypeCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::DocTypeKey(_)
+impl corpus::DocTypeKey
+pub const corpus::DocTypeKey::DECISIONS: Self
+pub const corpus::DocTypeKey::DESIGN_GAPS: Self
+pub const corpus::DocTypeKey::DESIGN_INVENTORIES: Self
+pub const corpus::DocTypeKey::NOTES: Self
+pub const corpus::DocTypeKey::PLANS: Self
+pub const corpus::DocTypeKey::PLAN_REVIEWS: Self
+pub const corpus::DocTypeKey::PR_DESCRIPTIONS: Self
+pub const corpus::DocTypeKey::PR_REVIEWS: Self
+pub const corpus::DocTypeKey::RESEARCH: Self
+pub const corpus::DocTypeKey::ROOT_CAUSE_ANALYSES: Self
+pub const corpus::DocTypeKey::TEMPLATES: Self
+pub const corpus::DocTypeKey::TOPIC_RESEARCH: Self
+pub const corpus::DocTypeKey::VALIDATIONS: Self
+pub const corpus::DocTypeKey::WORK_ITEMS: Self
+pub const corpus::DocTypeKey::WORK_ITEM_REVIEWS: Self
+impl corpus::DocTypeKey
+pub const fn corpus::DocTypeKey::carries_target_frontmatter(self) -> bool
+pub const fn corpus::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
+pub const fn corpus::DocTypeKey::declared(doc_type: &'static corpus::doc_type::DocType) -> Self
+pub const fn corpus::DocTypeKey::in_kanban(self) -> bool
+pub const fn corpus::DocTypeKey::in_lifecycle(self) -> bool
+pub const fn corpus::DocTypeKey::is_virtual(self) -> bool
+pub const fn corpus::DocTypeKey::label(self) -> &'static str
+pub const fn corpus::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
+pub const fn corpus::DocTypeKey::nested_root_filename(self) -> core::option::Option<&'static str>
+pub const fn corpus::DocTypeKey::participates_in_lifecycle(self) -> bool
+pub const fn corpus::DocTypeKey::wire_token(self) -> &'static str
+impl core::clone::Clone for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::clone(&self) -> corpus::DocTypeKey
+impl core::cmp::Eq for corpus::DocTypeKey
+impl core::cmp::Ord for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::cmp(&self, other: &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::eq(&self, other: &Self) -> bool
+impl core::cmp::PartialOrd for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::partial_cmp(&self, other: &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for corpus::DocTypeKey
+pub fn corpus::DocTypeKey::hash<H: core::hash::Hasher>(&self, state: &mut H)
+impl core::marker::Copy for corpus::DocTypeKey
 pub struct corpus::LinkageRecord
 pub corpus::LinkageRecord::anchor: alloc::string::String
 pub corpus::LinkageRecord::band: corpus::linkage::Band

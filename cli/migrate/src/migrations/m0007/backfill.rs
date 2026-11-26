@@ -121,7 +121,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn table() -> Vec<(DocTypeKey, PathBuf)> {
-        vec![(DocTypeKey::Notes, PathBuf::from("meta/notes"))]
+        vec![(DocTypeKey::NOTES, PathBuf::from("meta/notes"))]
     }
 
     #[test]

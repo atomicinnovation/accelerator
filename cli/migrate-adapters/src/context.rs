@@ -10,6 +10,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use config::Key;
+use corpus::doc_type::DocTypeCatalogue;
 use corpus::doc_type::DocTypeKey;
 use migrate::ports::CorpusIndex;
 use migrate::ports::DocTypeDir;
@@ -87,7 +88,8 @@ impl<'a> FileMigrationContext<'a> {
         Ok(MigrationContext::doc_type_dirs(self)?
             .into_iter()
             .filter_map(|dir| {
-                DocTypeKey::from_linkage_type_name(&dir.doc_type)
+                DocTypeCatalogue::built_in()
+                    .from_linkage_type_name(&dir.doc_type)
                     .map(|key| (key, dir.dir))
             })
             .collect())

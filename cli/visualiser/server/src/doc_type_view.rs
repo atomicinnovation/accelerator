@@ -3,12 +3,13 @@
 
 use std::path::PathBuf;
 
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DocType {
+pub struct DocTypeView {
     #[serde(with = "crate::doc_type_serde")]
     pub key: DocTypeKey,
     pub label: String,
@@ -23,7 +24,7 @@ pub struct DocType {
     /// is excluded from the index and so observes `count = 0` via
     /// `unwrap_or(0)` in the handler.
     ///
-    /// In-process, `describe_types` constructs `DocType` values with
+    /// In-process, `describe_types` constructs `DocTypeView` values with
     /// `count: 0` as a placeholder — the API handler MUST overwrite this
     /// before serialisation. A non-handler consumer of `describe_types`
     /// (e.g., a future CLI introspector) would observe the placeholder
@@ -33,13 +34,14 @@ pub struct DocType {
 }
 
 #[must_use]
-pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocType> {
-    let mut out = Vec::with_capacity(DocTypeKey::all().len());
-    for key in DocTypeKey::all() {
+pub fn describe_types(cfg: &crate::config::Config) -> Vec<DocTypeView> {
+    let catalogue = DocTypeCatalogue::built_in();
+    let mut out = Vec::with_capacity(catalogue.doc_types().len());
+    for &key in catalogue.doc_types() {
         let dir_path = key
             .config_path_key()
             .and_then(|k| cfg.doc_paths.get(k).cloned());
-        out.push(DocType {
+        out.push(DocTypeView {
             key,
             label: key.label().to_string(),
             dir_path,

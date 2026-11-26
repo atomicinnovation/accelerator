@@ -47,7 +47,7 @@ pub fn resolve_set(
     slug: &str,
 ) -> Result<PathBuf, SetError> {
     let sets = project
-        .type_dir(DocTypeKey::TopicResearch)
+        .type_dir(DocTypeKey::TOPIC_RESEARCH)
         .map_err(SetError::UnreadableConfig)?;
     let Resolution::Resolved(set_root) =
         resolve_document(cwd, DOC_TYPE, slug, |_| Ok(sets))

@@ -95,7 +95,7 @@ fn the_index_excludes_a_tagged_file() -> Result<(), TestError> {
     let corpus = InMemoryCorpus::default()
         .with_file("meta/work/0001.md", TAGGED)
         .with_file("meta/work/0002.md", &work_item("0002"));
-    let table = [(DocTypeKey::WorkItems, PathBuf::from("meta/work"))];
+    let table = [(DocTypeKey::WORK_ITEMS, PathBuf::from("meta/work"))];
 
     let index = build_index(&table, &corpus, &corpus, &YamlFrontmatter)?;
 

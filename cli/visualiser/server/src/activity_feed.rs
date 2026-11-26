@@ -117,7 +117,7 @@ mod tests {
     fn ev(seconds: i64) -> ActivityEvent {
         ActivityEvent {
             action: ActionKind::Edited,
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: format!("meta/plans/t{seconds}.md"),
             timestamp: Utc.timestamp_opt(seconds, 0).unwrap(),
         }
@@ -181,7 +181,7 @@ mod tests {
     fn doc_changed_payload_projects_to_activity_event() {
         let payload = SsePayload::DocChanged {
             action: ActionKind::Created,
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: "meta/plans/x.md".into(),
             etag: Some("sha256-abc".into()),
             timestamp: Utc.timestamp_opt(42, 0).unwrap(),
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn doc_invalid_payload_projects_to_none() {
         let payload = SsePayload::DocInvalid {
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: "meta/plans/broken.md".into(),
         };
         assert!(

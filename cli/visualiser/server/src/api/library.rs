@@ -8,6 +8,7 @@ use crate::indexer::{
     facets_for, LatestPreview, LibraryAggregates, PerTypeAggregate, Selection,
 };
 use crate::server::AppState;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 #[derive(Serialize, Debug)]
@@ -79,37 +80,37 @@ const PHASES: &[(&str, &str, &[DocTypeKey])] = &[
     (
         "define",
         "Define",
-        &[DocTypeKey::WorkItems, DocTypeKey::WorkItemReviews],
+        &[DocTypeKey::WORK_ITEMS, DocTypeKey::WORK_ITEM_REVIEWS],
     ),
     (
         "discover",
         "Discover",
         &[
-            DocTypeKey::DesignInventories,
-            DocTypeKey::DesignGaps,
-            DocTypeKey::TopicResearch,
-            DocTypeKey::Research,
+            DocTypeKey::DESIGN_INVENTORIES,
+            DocTypeKey::DESIGN_GAPS,
+            DocTypeKey::TOPIC_RESEARCH,
+            DocTypeKey::RESEARCH,
         ],
     ),
     (
         "build",
         "Build",
         &[
-            DocTypeKey::Plans,
-            DocTypeKey::PlanReviews,
-            DocTypeKey::Validations,
+            DocTypeKey::PLANS,
+            DocTypeKey::PLAN_REVIEWS,
+            DocTypeKey::VALIDATIONS,
         ],
     ),
     (
         "ship",
         "Ship",
-        &[DocTypeKey::PrDescriptions, DocTypeKey::PrReviews],
+        &[DocTypeKey::PR_DESCRIPTIONS, DocTypeKey::PR_REVIEWS],
     ),
-    ("operate", "Operate", &[DocTypeKey::RootCauseAnalyses]),
+    ("operate", "Operate", &[DocTypeKey::ROOT_CAUSE_ANALYSES]),
     (
         "remember",
         "Remember",
-        &[DocTypeKey::Decisions, DocTypeKey::Notes],
+        &[DocTypeKey::DECISIONS, DocTypeKey::NOTES],
     ),
 ];
 
@@ -146,7 +147,9 @@ pub(crate) fn parse_selection_query(raw: &str) -> Selection {
         if value.is_empty() {
             continue;
         }
-        let Some(doc_type) = DocTypeKey::from_wire_str(type_token) else {
+        let Some(doc_type) =
+            DocTypeCatalogue::built_in().from_wire_token(type_token)
+        else {
             continue;
         };
         out.entry(doc_type)
@@ -176,7 +179,7 @@ fn build_structure(
 
     LibraryStructureResponse {
         phases,
-        templates: build_doc_type(cfg, agg, DocTypeKey::Templates),
+        templates: build_doc_type(cfg, agg, DocTypeKey::TEMPLATES),
     }
 }
 
@@ -271,7 +274,7 @@ mod tests {
     #[test]
     fn parses_single_selection_key() {
         let sel = parse_selection_query("selection[decisions][status]=open");
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
     }
 
@@ -280,7 +283,7 @@ mod tests {
         let sel = parse_selection_query(
             "selection[decisions][status]=open&selection[decisions][status]=blocked",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("status").unwrap(),
             &vec!["open".to_string(), "blocked".to_string()]
@@ -292,7 +295,7 @@ mod tests {
         let sel = parse_selection_query(
             "selection[decisions][status]=open&selection[decisions][clusterSlug]=foo",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
@@ -311,7 +314,7 @@ mod tests {
         let sel = parse_selection_query(
             "selection[decisions][clusterSlug]=foo%20bar",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
             &vec!["foo bar".to_string()]
@@ -322,7 +325,7 @@ mod tests {
     fn percent_encoded_reserved_characters_round_trip() {
         let sel =
             parse_selection_query("selection[decisions][clusterSlug]=a%2Cb");
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("clusterSlug").unwrap(),
             &vec!["a,b".to_string()]
@@ -348,7 +351,7 @@ mod tests {
             "other=value&selection[decisions][status]=open",
         );
         assert_eq!(sel.len(), 1);
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.get("status").unwrap(), &vec!["open".to_string()]);
     }
 
@@ -357,7 +360,7 @@ mod tests {
         let sel = parse_selection_query(
             "selection[decisions][status]=open&selection[decisions][status]=open",
         );
-        let decisions = sel.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = sel.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(
             decisions.get("status").unwrap(),
             &vec!["open".to_string(), "open".to_string()]

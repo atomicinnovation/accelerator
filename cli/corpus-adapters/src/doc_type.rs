@@ -6,6 +6,7 @@ use std::hash::BuildHasher;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 /// Builds the `(DocTypeKey, dir)` table from a config-keyed path map, keeping
@@ -14,8 +15,10 @@ use corpus::DocTypeKey;
 pub fn table_from_paths<S: BuildHasher>(
     doc_paths: &HashMap<String, PathBuf, S>,
 ) -> Vec<(DocTypeKey, PathBuf)> {
-    DocTypeKey::all()
-        .into_iter()
+    DocTypeCatalogue::built_in()
+        .doc_types()
+        .iter()
+        .copied()
         .filter_map(|kind| {
             let key = kind.config_path_key()?;
             let dir = doc_paths.get(key)?.clone();
@@ -57,14 +60,14 @@ mod tests {
     fn infers_from_the_configured_directory() {
         assert_eq!(
             infer(Path::new("meta/work/0042-foo.md"), &paths()),
-            Some(DocTypeKey::WorkItems)
+            Some(DocTypeKey::WORK_ITEMS)
         );
     }
 
     #[test]
     fn prefers_the_longest_matching_directory() {
         let path = Path::new("meta/reviews/plans/2026-01-01-x-review-1.md");
-        assert_eq!(infer(path, &paths()), Some(DocTypeKey::PlanReviews));
+        assert_eq!(infer(path, &paths()), Some(DocTypeKey::PLAN_REVIEWS));
     }
 
     #[test]

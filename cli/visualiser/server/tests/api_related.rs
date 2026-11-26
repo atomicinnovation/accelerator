@@ -315,7 +315,7 @@ async fn related_endpoint_returns_404_for_template_path() {
     let (_state, app) = build_app(cfg).await;
     // Template paths are not addressable through this endpoint —
     // Indexer::get returns None for any path under the templates root,
-    // because the indexer skips DocTypeKey::Templates on rescan.
+    // because the indexer skips DocTypeKey::TEMPLATES on rescan.
     let res = app
         .oneshot(
             Request::builder()

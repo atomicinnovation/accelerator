@@ -8,6 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 pub type TestError = Box<dyn std::error::Error>;
@@ -109,8 +110,9 @@ pub fn doc_type_table() -> Result<Vec<(DocTypeKey, PathBuf)>, TestError> {
         let Some((name, dir)) = line.split_once('\t') else {
             continue;
         };
-        let kind =
-            DocTypeKey::from_linkage_type_name(name).ok_or_else(|| {
+        let kind = DocTypeCatalogue::built_in()
+            .from_linkage_type_name(name)
+            .ok_or_else(|| {
                 format!(
                     "the doc-type registry emits '{name}', which no DocTypeKey \
                      claims — the vocabulary has drifted from the crate"

@@ -9,6 +9,7 @@ use tokio::sync::{RwLock, Semaphore};
 use crate::clusters::Completeness;
 use crate::file_driver::{FileContent, FileDriver, FileDriverError};
 use crate::frontmatter::{self, FrontmatterState};
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 pub const FRONTMATTER_MALFORMED: &str = "malformed";
@@ -60,10 +61,12 @@ impl LatestPreview {
 
 /// Facet ids declared for a given doc type.
 pub fn facets_for(doc_type: DocTypeKey) -> &'static [&'static str] {
-    match doc_type {
-        DocTypeKey::WorkItems => &["status", "project", "clusterSlug"],
-        DocTypeKey::Templates => &[],
-        _ => &["status", "clusterSlug"],
+    if doc_type == DocTypeKey::WORK_ITEMS {
+        &["status", "project", "clusterSlug"]
+    } else if doc_type == DocTypeKey::TEMPLATES {
+        &[]
+    } else {
+        &["status", "clusterSlug"]
     }
 }
 
@@ -346,8 +349,8 @@ impl Indexer {
         // Phase 1: enumerate every (kind, path) up front, preserving doc-type
         // and per-type listing order so the dedup folds below stay deterministic.
         let mut targets: Vec<(DocTypeKey, PathBuf)> = Vec::new();
-        for kind in DocTypeKey::all() {
-            if kind == DocTypeKey::Templates {
+        for &kind in DocTypeCatalogue::built_in().doc_types() {
+            if kind == DocTypeKey::TEMPLATES {
                 continue;
             }
             match self.driver.list(kind).await {
@@ -384,7 +387,7 @@ impl Indexer {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = read_results
             .iter()
-            .filter(|(kind, _, _)| *kind == DocTypeKey::WorkItems)
+            .filter(|(kind, _, _)| *kind == DocTypeKey::WORK_ITEMS)
             .filter_map(|(_, path, content)| {
                 content.as_ref().ok().map(|content| {
                     (
@@ -536,7 +539,7 @@ impl Indexer {
                     return Ok(None);
                 };
 
-                if kind == DocTypeKey::WorkItems {
+                if kind == DocTypeKey::WORK_ITEMS {
                     self.remember_work_item(&canonical, Some(&content));
                 }
                 let reading = self.work_item_cfg();
@@ -1531,7 +1534,7 @@ fn build_entry(
 
     // For nested-manifest doc types (e.g. design inventories) the slug
     // source is the parent directory name, not the manifest filename.
-    let slug_filename: String = if kind.nested_manifest_filename().is_some() {
+    let slug_filename: String = if kind.nested_root_filename().is_some() {
         path.parent()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
@@ -1541,7 +1544,7 @@ fn build_entry(
     };
 
     let (slug_val, work_item_id, identity_key) =
-        if kind == DocTypeKey::WorkItems {
+        if kind == DocTypeKey::WORK_ITEMS {
             let id_slug = corpus::slug::derive_work_item(
                 filename,
                 work_item_cfg.convention(),
@@ -1649,7 +1652,7 @@ fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
 }
 
 fn manifest_directory_of(entry: &IndexEntry) -> Option<String> {
-    entry.r#type.nested_manifest_filename()?;
+    entry.r#type.nested_root_filename()?;
     entry
         .path
         .parent()?
@@ -1672,7 +1675,7 @@ fn document_id(state: &FrontmatterState) -> Option<String> {
 }
 
 fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
-    if entry.r#type != DocTypeKey::Decisions {
+    if entry.r#type != DocTypeKey::DECISIONS {
         return None;
     }
     let filename = entry.path.file_name()?.to_str()?;
@@ -1687,7 +1690,7 @@ fn identity_key_of_entry(entry: &IndexEntry) -> Option<String> {
 /// populate `plans_by_id` for resolving `target: "plan:<id>"`
 /// typed-linkage references per ADR-0034.
 fn plan_id_from_entry(entry: &IndexEntry) -> Option<String> {
-    if entry.r#type != DocTypeKey::Plans {
+    if entry.r#type != DocTypeKey::PLANS {
         return None;
     }
     entry.frontmatter_id.clone()
@@ -2730,7 +2733,7 @@ mod identity_join_tests {
 
         let entry = entry_at(&idx, tmp.path(), item.0).await;
 
-        assert_eq!(entry.r#type, DocTypeKey::WorkItems);
+        assert_eq!(entry.r#type, DocTypeKey::WORK_ITEMS);
         assert_eq!(entry.slug.as_deref(), Some("x"));
         assert_eq!(entry.title, "X");
     }
@@ -2843,13 +2846,13 @@ mod tests {
     async fn scan_populates_entries_for_configured_types() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let decisions = idx.all_by_type(DocTypeKey::Decisions).await;
+        let decisions = idx.all_by_type(DocTypeKey::DECISIONS).await;
         assert_eq!(decisions.len(), 1);
-        let plans = idx.all_by_type(DocTypeKey::Plans).await;
+        let plans = idx.all_by_type(DocTypeKey::PLANS).await;
         assert_eq!(plans.len(), 3);
-        let reviews = idx.all_by_type(DocTypeKey::PlanReviews).await;
+        let reviews = idx.all_by_type(DocTypeKey::PLAN_REVIEWS).await;
         assert_eq!(reviews.len(), 2);
-        let notes = idx.all_by_type(DocTypeKey::Notes).await;
+        let notes = idx.all_by_type(DocTypeKey::NOTES).await;
         assert_eq!(notes.len(), 1);
     }
 
@@ -2858,21 +2861,21 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let counts = idx.counts_by_type().await;
-        assert_eq!(counts.get(&DocTypeKey::Plans).copied().unwrap_or(0), 3);
-        assert_eq!(counts.get(&DocTypeKey::Decisions).copied().unwrap_or(0), 1);
+        assert_eq!(counts.get(&DocTypeKey::PLANS).copied().unwrap_or(0), 3);
+        assert_eq!(counts.get(&DocTypeKey::DECISIONS).copied().unwrap_or(0), 1);
         assert_eq!(
-            counts.get(&DocTypeKey::PlanReviews).copied().unwrap_or(0),
+            counts.get(&DocTypeKey::PLAN_REVIEWS).copied().unwrap_or(0),
             2
         );
-        assert_eq!(counts.get(&DocTypeKey::Notes).copied().unwrap_or(0), 1);
-        assert!(!counts.contains_key(&DocTypeKey::Templates));
+        assert_eq!(counts.get(&DocTypeKey::NOTES).copied().unwrap_or(0), 1);
+        assert!(!counts.contains_key(&DocTypeKey::TEMPLATES));
     }
 
     #[tokio::test]
     async fn etag_is_content_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let decs = idx.all_by_type(DocTypeKey::Decisions).await;
+        let decs = idx.all_by_type(DocTypeKey::DECISIONS).await;
         let adr = &decs[0];
         let bytes = std::fs::read(&adr.path).unwrap();
         let expected = crate::file_driver::etag_of(&bytes);
@@ -2883,7 +2886,7 @@ mod tests {
     async fn frontmatter_state_distinguishes_absent_malformed_parsed() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let plans = idx.all_by_type(DocTypeKey::Plans).await;
+        let plans = idx.all_by_type(DocTypeKey::PLANS).await;
         let by_name: HashMap<String, IndexEntry> = plans
             .into_iter()
             .map(|e| {
@@ -2902,7 +2905,7 @@ mod tests {
     async fn slug_stripped_per_type_and_review_suffix_edge_case() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let revs = idx.all_by_type(DocTypeKey::PlanReviews).await;
+        let revs = idx.all_by_type(DocTypeKey::PLAN_REVIEWS).await;
         let slugs: Vec<String> =
             revs.iter().filter_map(|e| e.slug.clone()).collect();
         assert!(slugs.contains(&"hello".to_string()));
@@ -2919,7 +2922,7 @@ mod tests {
     async fn title_fallback_to_first_h1_when_fm_absent() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let notes = idx.all_by_type(DocTypeKey::Notes).await;
+        let notes = idx.all_by_type(DocTypeKey::NOTES).await;
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].title, "A bare note");
     }
@@ -2929,21 +2932,21 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let adr = idx.adr_by_id(1).await.unwrap();
-        assert_eq!(adr.r#type, DocTypeKey::Decisions);
+        assert_eq!(adr.r#type, DocTypeKey::DECISIONS);
     }
 
     #[tokio::test]
     async fn rescan_picks_up_filesystem_mutations() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let before = idx.all_by_type(DocTypeKey::Plans).await.len();
+        let before = idx.all_by_type(DocTypeKey::PLANS).await.len();
         std::fs::write(
             tmp.path().join("meta/plans/2026-05-01-new.md"),
             "---\ntitle: New\n---\n",
         )
         .unwrap();
         idx.rescan().await.unwrap();
-        let after = idx.all_by_type(DocTypeKey::Plans).await.len();
+        let after = idx.all_by_type(DocTypeKey::PLANS).await.len();
         assert_eq!(after, before + 1);
     }
 
@@ -2992,11 +2995,11 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let agg = idx.library_aggregates(&Selection::new()).await;
         let plans =
-            agg.per_type.get(&DocTypeKey::Plans).expect("plans present");
+            agg.per_type.get(&DocTypeKey::PLANS).expect("plans present");
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 3);
         assert!(plans.latest.is_some());
-        let decisions = agg.per_type.get(&DocTypeKey::Decisions).unwrap();
+        let decisions = agg.per_type.get(&DocTypeKey::DECISIONS).unwrap();
         assert_eq!(decisions.count, 1);
         assert!(decisions.latest.is_some());
     }
@@ -3023,7 +3026,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
         let agg = idx.library_aggregates(&Selection::new()).await;
-        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let plans = agg.per_type.get(&DocTypeKey::PLANS).unwrap();
         let status_options = plans.facet_options.get("status").unwrap();
         // Only the "draft" plan has parsed frontmatter with a status — the
         // malformed and absent plans contribute nothing.
@@ -3037,11 +3040,11 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let mut sel: Selection = HashMap::new();
         sel.insert(
-            DocTypeKey::Plans,
+            DocTypeKey::PLANS,
             HashMap::from([("status".to_string(), vec!["draft".to_string()])]),
         );
         let agg = idx.library_aggregates(&sel).await;
-        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let plans = agg.per_type.get(&DocTypeKey::PLANS).unwrap();
         assert_eq!(plans.count, 3);
         assert_eq!(plans.filtered_count, 1);
     }
@@ -3052,25 +3055,25 @@ mod tests {
         let idx = build_indexer(tmp.path()).await;
         let mut sel: Selection = HashMap::new();
         sel.insert(
-            DocTypeKey::Plans,
+            DocTypeKey::PLANS,
             HashMap::from([("status".to_string(), vec![])]),
         );
         let agg = idx.library_aggregates(&sel).await;
-        let plans = agg.per_type.get(&DocTypeKey::Plans).unwrap();
+        let plans = agg.per_type.get(&DocTypeKey::PLANS).unwrap();
         assert_eq!(plans.filtered_count, plans.count);
     }
 
     #[test]
     fn facets_for_returns_expected_facets() {
         assert_eq!(
-            facets_for(DocTypeKey::Decisions),
+            facets_for(DocTypeKey::DECISIONS),
             &["status", "clusterSlug"]
         );
         assert_eq!(
-            facets_for(DocTypeKey::WorkItems),
+            facets_for(DocTypeKey::WORK_ITEMS),
             &["status", "project", "clusterSlug"]
         );
-        assert!(facets_for(DocTypeKey::Templates).is_empty());
+        assert!(facets_for(DocTypeKey::TEMPLATES).is_empty());
     }
 
     fn key_served(
@@ -3080,7 +3083,7 @@ mod tests {
     ) -> Option<String> {
         let text = format!("---\ntitle: T\nid: \"{id}\"\n---\n");
         build_entry(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             PathBuf::from(format!("/repo/meta/work/{id}-x.md")),
             &crate::file_driver::FileContent {
                 bytes: text.as_bytes().to_vec(),
@@ -3193,7 +3196,7 @@ mod tests {
 
     fn sample_entry_with_work_item(work_item_id: &str) -> IndexEntry {
         IndexEntry {
-            r#type: DocTypeKey::WorkItems,
+            r#type: DocTypeKey::WORK_ITEMS,
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
@@ -3219,7 +3222,7 @@ mod tests {
 
     fn sample_entry_without_work_item() -> IndexEntry {
         IndexEntry {
-            r#type: DocTypeKey::Decisions,
+            r#type: DocTypeKey::DECISIONS,
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
@@ -3282,7 +3285,7 @@ mod tests {
         .await
         .unwrap();
 
-        let entries = idx.all_by_type(DocTypeKey::DesignInventories).await;
+        let entries = idx.all_by_type(DocTypeKey::DESIGN_INVENTORIES).await;
         let titles: Vec<&str> =
             entries.iter().map(|e| e.title.as_str()).collect();
         assert!(titles.contains(&"Foo Inventory"), "got {titles:?}");
@@ -3320,7 +3323,7 @@ mod tests {
             .await
             .unwrap();
 
-        let entries = idx.all_by_type(DocTypeKey::TopicResearch).await;
+        let entries = idx.all_by_type(DocTypeKey::TOPIC_RESEARCH).await;
 
         // One entry per real set — not per sub-document, and not the skipped
         // directories.
@@ -3487,7 +3490,7 @@ mod refresh_tests {
         let raw = std::fs::read(&new_path).unwrap();
         assert_eq!(entry.etag, etag_of(&raw));
 
-        let work_entries = idx.all_by_type(DocTypeKey::WorkItems).await;
+        let work_entries = idx.all_by_type(DocTypeKey::WORK_ITEMS).await;
         assert!(
             work_entries.iter().any(|e| e.title == "New"),
             "all_by_type should include the new entry"
@@ -4688,7 +4691,7 @@ mod reverse_index_tests {
         // displayed_id — no legacy `work_item_id:` present.
         let cfg = crate::config::WorkItemConfig::default_numeric();
         let entry = build_entry(
-            DocTypeKey::WorkItems,
+            DocTypeKey::WORK_ITEMS,
             PathBuf::from("/repo/meta/work/9999-x.md"),
             &fc_for("---\ntitle: T\nid: \"0042\"\n---\nbody\n"),
             Path::new("/repo"),
@@ -5048,7 +5051,7 @@ mod target_path_resolution_tests {
     #[test]
     fn work_item_review_with_path_target_resolves_to_work_item_path() {
         let mut entry =
-            entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+            entry_for_test(DocTypeKey::WORK_ITEM_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
             "target": "meta/work/0033-design-token-system.md"
         });
@@ -5071,7 +5074,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn validation_with_path_target_resolves_to_plan_path() {
-        let mut entry = entry_for_test(DocTypeKey::Validations, "x", 0, "V");
+        let mut entry = entry_for_test(DocTypeKey::VALIDATIONS, "x", 0, "V");
         entry.frontmatter = serde_json::json!({
             "target": "meta/plans/2026-04-21-foo.md"
         });
@@ -5091,7 +5094,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn plan_review_with_typed_plan_id_resolves_via_plans_by_id() {
-        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
             "target": "plan:2026-05-31-0040-pipeline"
         });
@@ -5116,7 +5119,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn pr_review_with_path_target_resolves_to_target_path() {
-        let mut entry = entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+        let mut entry = entry_for_test(DocTypeKey::PR_REVIEWS, "x", 0, "PRR");
         entry.frontmatter = serde_json::json!({
             "target": "meta/prs/42-foo.md"
         });
@@ -5132,7 +5135,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn entry_without_target_field_resolves_to_none() {
-        let entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         let resolved = target_path_from_entry(
             &entry,
             &HashMap::new(),
@@ -5146,9 +5149,9 @@ mod target_path_resolution_tests {
     #[test]
     fn non_target_carrying_doc_types_return_none() {
         for kind in [
-            DocTypeKey::Plans,
-            DocTypeKey::Research,
-            DocTypeKey::WorkItems,
+            DocTypeKey::PLANS,
+            DocTypeKey::RESEARCH,
+            DocTypeKey::WORK_ITEMS,
         ] {
             let mut entry = entry_for_test(kind, "x", 0, "T");
             entry.frontmatter =
@@ -5176,7 +5179,7 @@ mod target_path_resolution_tests {
         // reviews_by_target reverse index stays populated. (Was previously
         // pinned to return None and resolved only by the cluster-key resolver.)
         let mut entry =
-            entry_for_test(DocTypeKey::WorkItemReviews, "x", 0, "R");
+            entry_for_test(DocTypeKey::WORK_ITEM_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "work-item:0042" });
         let mut work_item_by_identity_key = HashMap::new();
         work_item_by_identity_key.insert(
@@ -5200,7 +5203,7 @@ mod target_path_resolution_tests {
     fn typed_adr_and_pr_targets_return_none() {
         for raw in ["adr:0034", "pr:42"] {
             let mut entry =
-                entry_for_test(DocTypeKey::PrReviews, "x", 0, "PRR");
+                entry_for_test(DocTypeKey::PR_REVIEWS, "x", 0, "PRR");
             entry.frontmatter = serde_json::json!({ "target": raw });
             assert_eq!(
                 target_path_from_entry(
@@ -5218,7 +5221,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn path_target_with_traversal_is_rejected_by_normalize_target_key() {
-        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({ "target": "../../etc/passwd" });
         assert_eq!(
             target_path_from_entry(
@@ -5234,7 +5237,7 @@ mod target_path_resolution_tests {
 
     #[test]
     fn path_target_resolves_against_supplied_project_root() {
-        let mut entry = entry_for_test(DocTypeKey::PlanReviews, "x", 0, "R");
+        let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter =
             serde_json::json!({ "target": "meta/plans/foo.md" });
         let resolved = target_path_from_entry(

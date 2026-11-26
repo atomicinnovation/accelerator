@@ -1,4 +1,4 @@
-use corpus::DocTypeKey;
+use corpus::{DocTypeCatalogue, DocTypeKey};
 
 struct Facts {
     kind: DocTypeKey,
@@ -19,7 +19,7 @@ const F: bool = false;
 
 const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
     Facts {
-        kind: DocTypeKey::Decisions,
+        kind: DocTypeKey::DECISIONS,
         wire_token: "decisions",
         config_path_key: Some("decisions"),
         linkage_type_name: Some("adr"),
@@ -28,7 +28,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::WorkItems,
+        kind: DocTypeKey::WORK_ITEMS,
         wire_token: "work-items",
         config_path_key: Some("work"),
         linkage_type_name: Some("work-item"),
@@ -37,7 +37,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::Plans,
+        kind: DocTypeKey::PLANS,
         wire_token: "plans",
         config_path_key: Some("plans"),
         linkage_type_name: Some("plan"),
@@ -46,7 +46,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::Research,
+        kind: DocTypeKey::RESEARCH,
         wire_token: "codebase-research",
         config_path_key: Some("research_codebase"),
         linkage_type_name: Some("codebase-research"),
@@ -55,7 +55,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::PlanReviews,
+        kind: DocTypeKey::PLAN_REVIEWS,
         wire_token: "plan-reviews",
         config_path_key: Some("review_plans"),
         linkage_type_name: Some("plan-review"),
@@ -64,7 +64,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::PrReviews,
+        kind: DocTypeKey::PR_REVIEWS,
         wire_token: "pr-reviews",
         config_path_key: Some("review_prs"),
         linkage_type_name: Some("pr-review"),
@@ -73,7 +73,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::WorkItemReviews,
+        kind: DocTypeKey::WORK_ITEM_REVIEWS,
         wire_token: "work-item-reviews",
         config_path_key: Some("review_work"),
         linkage_type_name: Some("work-item-review"),
@@ -82,7 +82,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::Validations,
+        kind: DocTypeKey::VALIDATIONS,
         wire_token: "validations",
         config_path_key: Some("validations"),
         linkage_type_name: Some("plan-validation"),
@@ -91,7 +91,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::Notes,
+        kind: DocTypeKey::NOTES,
         wire_token: "notes",
         config_path_key: Some("notes"),
         linkage_type_name: Some("note"),
@@ -100,7 +100,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::PrDescriptions,
+        kind: DocTypeKey::PR_DESCRIPTIONS,
         wire_token: "pr-descriptions",
         config_path_key: Some("prs"),
         linkage_type_name: Some("pr-description"),
@@ -109,7 +109,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::DesignGaps,
+        kind: DocTypeKey::DESIGN_GAPS,
         wire_token: "design-gaps",
         config_path_key: Some("research_design_gaps"),
         linkage_type_name: Some("design-gap"),
@@ -118,7 +118,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::DesignInventories,
+        kind: DocTypeKey::DESIGN_INVENTORIES,
         wire_token: "design-inventories",
         config_path_key: Some("research_design_inventories"),
         linkage_type_name: Some("design-inventory"),
@@ -127,7 +127,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: Some("inventory.md"),
     },
     Facts {
-        kind: DocTypeKey::TopicResearch,
+        kind: DocTypeKey::TOPIC_RESEARCH,
         wire_token: "topic-research",
         config_path_key: Some("research_topics"),
         linkage_type_name: Some("topic-research"),
@@ -136,7 +136,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: Some("manifest.md"),
     },
     Facts {
-        kind: DocTypeKey::RootCauseAnalyses,
+        kind: DocTypeKey::ROOT_CAUSE_ANALYSES,
         wire_token: "root-cause-analyses",
         config_path_key: Some("research_issues"),
         linkage_type_name: Some("issue-research"),
@@ -145,7 +145,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         nested_root_filename: None,
     },
     Facts {
-        kind: DocTypeKey::Templates,
+        kind: DocTypeKey::TEMPLATES,
         wire_token: "templates",
         config_path_key: None,
         linkage_type_name: None,
@@ -157,7 +157,8 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
 
 #[test]
 fn the_built_in_doc_types_are_declared_in_catalogue_order() {
-    let declared: Vec<DocTypeKey> = DocTypeKey::all().to_vec();
+    let declared: Vec<DocTypeKey> =
+        DocTypeCatalogue::built_in().doc_types().to_vec();
     let expected: Vec<DocTypeKey> = BUILT_IN_IN_CATALOGUE_ORDER
         .iter()
         .map(|row| row.kind)
@@ -170,7 +171,7 @@ fn each_built_in_doc_type_declares_its_facts() {
     for row in &BUILT_IN_IN_CATALOGUE_ORDER {
         let kind = row.kind;
         let context = row.wire_token;
-        assert_eq!(kind.wire_str(), row.wire_token, "{context}");
+        assert_eq!(kind.wire_token(), row.wire_token, "{context}");
         assert_eq!(kind.config_path_key(), row.config_path_key, "{context}");
         assert_eq!(
             kind.linkage_type_name(),
@@ -190,7 +191,7 @@ fn each_built_in_doc_type_declares_its_facts() {
             "{context}"
         );
         assert_eq!(
-            kind.nested_manifest_filename(),
+            kind.nested_root_filename(),
             row.nested_root_filename,
             "{context}"
         );

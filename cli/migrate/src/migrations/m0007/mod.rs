@@ -28,6 +28,7 @@ mod status_map;
 
 use std::path::PathBuf;
 
+use corpus::doc_type::DocTypeCatalogue;
 use corpus::doc_type::DocTypeKey;
 use corpus::linkage::Band;
 use corpus::LinkageIds;
@@ -69,10 +70,13 @@ fn linkage_table(
 ) -> Vec<(DocTypeKey, PathBuf)> {
     dirs.iter()
         .filter_map(|dir| {
-            DocTypeKey::from_linkage_type_name(&dir.doc_type).map(|key| {
-                let relative = dir.dir.strip_prefix(root).unwrap_or(&dir.dir);
-                (key, relative.to_path_buf())
-            })
+            DocTypeCatalogue::built_in()
+                .from_linkage_type_name(&dir.doc_type)
+                .map(|key| {
+                    let relative =
+                        dir.dir.strip_prefix(root).unwrap_or(&dir.dir);
+                    (key, relative.to_path_buf())
+                })
         })
         .collect()
 }

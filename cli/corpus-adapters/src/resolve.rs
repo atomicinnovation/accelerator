@@ -13,6 +13,7 @@ use corpus::resolve::InputClass;
 use corpus::resolve::ResolveOutcome;
 use corpus::resolve::TaggedCandidate;
 use corpus::resolve::TypeShape;
+use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
 use crate::fs::TypeDirectoryLister;
@@ -38,12 +39,14 @@ pub fn resolve_document(
     slug: &str,
     type_dir: impl FnOnce(DocTypeKey) -> Result<PathBuf, String>,
 ) -> Resolution {
-    let Some(key) = DocTypeKey::from_linkage_type_name(doc_type) else {
+    let Some(key) =
+        DocTypeCatalogue::built_in().from_linkage_type_name(doc_type)
+    else {
         return Resolution::UnknownType(format!(
             "'{doc_type}' is not a registered document type"
         ));
     };
-    let shape = if key.nested_manifest_filename().is_some() {
+    let shape = if key.nested_root_filename().is_some() {
         TypeShape::NestedManifest
     } else {
         TypeShape::Flat

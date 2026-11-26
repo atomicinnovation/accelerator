@@ -82,7 +82,7 @@ mod tests {
     fn ev(seconds: i64) -> ActivityEvent {
         ActivityEvent {
             action: ActionKind::Edited,
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: format!("meta/plans/t{seconds}.md"),
             timestamp: Utc.timestamp_opt(seconds, 0).unwrap(),
         }

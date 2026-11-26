@@ -28,6 +28,7 @@ pub mod store;
 pub mod typed_ref;
 pub mod value;
 
+pub use crate::doc_type::DocTypeCatalogue;
 pub use crate::doc_type::DocTypeKey;
 pub use crate::id_convention::IdConvention;
 pub use crate::linkage::Band;

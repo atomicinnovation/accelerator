@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 
 use corpus_adapters::{patch_status, FileCorpusStore, PatchError};
 
-use corpus::{AtomicWrite, DocTypeKey, StoreError};
+use corpus::{AtomicWrite, DocTypeCatalogue, DocTypeKey, StoreError};
 
 /// A frontmatter mutation applied through the file driver.
 #[derive(Debug, Clone)]
@@ -134,13 +134,14 @@ pub fn resolved_root(raw: &Path) -> PathBuf {
 pub fn refuse_overlapping_doc_roots(
     doc_paths: &HashMap<String, PathBuf>,
 ) -> Result<(), config::ConfigError> {
-    let roots: Vec<config::paths::DocTypeDir> = DocTypeKey::all()
-        .into_iter()
-        .filter_map(|kind| {
+    let roots: Vec<config::paths::DocTypeDir> = DocTypeCatalogue::built_in()
+        .doc_types()
+        .iter()
+        .filter_map(|&kind| {
             let path_key = kind.config_path_key()?;
             let raw = doc_paths.get(path_key)?;
             Some(config::paths::DocTypeDir {
-                doc_type: kind.linkage_type_name().unwrap_or(kind.wire_str()),
+                doc_type: kind.linkage_type_name().unwrap_or(kind.wire_token()),
                 path_key,
                 dir: resolved_root(raw).display().to_string(),
                 blank_fallback: false,
@@ -164,7 +165,7 @@ impl LocalFileDriver {
         writable_roots: Vec<PathBuf>,
     ) -> Self {
         let mut roots = HashMap::new();
-        for kind in DocTypeKey::all() {
+        for &kind in DocTypeCatalogue::built_in().doc_types() {
             let Some(cfg_key) = kind.config_path_key() else {
                 continue;
             };
@@ -301,9 +302,9 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
-        let Some(nested_manifest) = kind.nested_manifest_filename() else {
+        let Some(nested_manifest) = kind.nested_root_filename() else {
             return Box::pin(async move {
-                if kind != DocTypeKey::WorkItems {
+                if kind != DocTypeKey::WORK_ITEMS {
                     return markdown_files_in(&root, has_md_extension).await;
                 }
                 let mut entries =
@@ -665,7 +666,7 @@ mod tests {
     async fn list_returns_only_md_files() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_driver(tmp.path());
-        let mut got = d.list(DocTypeKey::Decisions).await.unwrap();
+        let mut got = d.list(DocTypeKey::DECISIONS).await.unwrap();
         got.sort();
         assert_eq!(got.len(), 2);
         for p in &got {
@@ -688,7 +689,7 @@ mod tests {
         let d = LocalFileDriver::new(&map, vec![], vec![]);
 
         let mut got: Vec<String> = d
-            .list(DocTypeKey::WorkItems)
+            .list(DocTypeKey::WORK_ITEMS)
             .await
             .unwrap()
             .iter()
@@ -703,14 +704,14 @@ mod tests {
     async fn list_missing_directory_returns_empty() {
         let tmp = tempfile::tempdir().unwrap();
         let d = seeded_driver(tmp.path());
-        let got = d.list(DocTypeKey::Plans).await.unwrap();
+        let got = d.list(DocTypeKey::PLANS).await.unwrap();
         assert!(got.is_empty(), "missing dir must not be an error");
     }
 
     #[tokio::test]
     async fn list_unconfigured_type_is_not_configured_error() {
         let d = LocalFileDriver::new(&HashMap::new(), vec![], vec![]);
-        let err = d.list(DocTypeKey::Notes).await.unwrap_err();
+        let err = d.list(DocTypeKey::NOTES).await.unwrap_err();
         assert!(matches!(err, FileDriverError::TypeNotConfigured { .. }));
     }
 

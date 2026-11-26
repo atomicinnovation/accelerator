@@ -120,7 +120,7 @@ mod tests {
 
         hub.broadcast(SsePayload::DocChanged {
             action: crate::sse_hub::ActionKind::Edited,
-            doc_type: DocTypeKey::Plans,
+            doc_type: DocTypeKey::PLANS,
             path: "meta/plans/foo.md".into(),
             etag: Some("sha256-abc".into()),
             timestamp: chrono::Utc::now(),
