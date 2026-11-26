@@ -434,8 +434,9 @@ impl Indexer {
         }
 
         // Phase 3 Pass B: resolve reviews_by_target with the fully-
-        // populated `documents_by_address` so typed-linkage `target: "plan:<id>"`
-        // references resolve regardless of file-driver iteration order.
+        // populated `documents_by_address` so typed-linkage
+        // `target: "plan:<id>"` references resolve regardless of
+        // file-driver iteration order.
         let reviews_by_target = reviews_by_target_of(
             &entries,
             &documents_by_address,
@@ -5098,7 +5099,7 @@ mod target_path_resolution_tests {
     use super::*;
     use crate::test_support::entry_for_test;
 
-    fn plans_by_id_with(
+    fn addresses_with_plan(
         id: &str,
         path: PathBuf,
     ) -> HashMap<LinkageAddress, PathBuf> {
@@ -5115,7 +5116,7 @@ mod target_path_resolution_tests {
         let root = PathBuf::from("/repo");
         let resolved = target_path_from_entry(
             &entry,
-            &plans_by_id_with(
+            &addresses_with_plan(
                 "ignored",
                 PathBuf::from("/repo/meta/plans/x.md"),
             ),
@@ -5155,7 +5156,7 @@ mod target_path_resolution_tests {
         entry.frontmatter = serde_json::json!({
             "target": "plan:2026-05-31-0040-pipeline"
         });
-        let plans = plans_by_id_with(
+        let plans = addresses_with_plan(
             "2026-05-31-0040-pipeline",
             PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md"),
         );

@@ -259,9 +259,6 @@ mod tests {
         compute_clusters_with_backfill(entries, &fx.ctx())
     }
 
-    /// Run clustering with snapshot maps derived from the entries
-    /// themselves — `work_item_by_identity_key` from `WorkItems` entries, `documents_by_address`
-    /// from Plans entries (by file stem).
     fn run_clusters(
         entries: &[IndexEntry],
         cfg: &WorkItemConfig,

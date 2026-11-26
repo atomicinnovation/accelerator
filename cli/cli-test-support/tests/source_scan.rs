@@ -44,7 +44,8 @@ fn an_import_from_the_built_in_declarations_is_found() {
 #[test]
 fn reading_a_key_s_declared_facts_is_not_a_reference() {
     let source = "fn shown(kind: DocTypeKey) -> bool {\n    \
-                  !kind.is_virtual() && DocTypeKey::declared(&X).in_kanban()\n}\n";
+                  !kind.is_virtual()\n        \
+                  && DocTypeKey::declared(&X).in_kanban()\n}\n";
     assert!(built_in_doc_type_references(source).is_empty());
 }
 
