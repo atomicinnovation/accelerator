@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T22:00:00+00:00"
+last_updated: "2026-11-26T23:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2232,7 +2232,7 @@ the nested manifest filename. Its behaviour is unchanged until Phase 8.
 
 #### Manual Verification:
 
-- [ ] `curl localhost:<port>/api/types` shows both sets' shapes and
+- [x] `curl localhost:<port>/api/types` shows both sets' shapes and
       presentations.
 
 ### Implementation notes
@@ -2247,12 +2247,16 @@ the nested manifest filename. Its behaviour is unchanged until Phase 8.
   which returns the failing pattern with its cause.
 - **The catalogue.** `CatalogueError` is now an enum; the identity clash
   is `SharedIdentity { identity, value }`. Beyond the plan, `NotASet`
-  also refuses a set declaration for a type outside the catalogue, and
-  `DocTypeCatalogue` derives `Default`, an empty catalogue.
+  also refuses a set declaration for a type outside the catalogue. The
+  catalogue has no `Default`: an empty catalogue would serve nothing, and
+  only tests wanted one, so an empty one is built with
+  `DocTypeCatalogue::new(&[], &[])`.
 - **Test doubles.** With `DocTypeCatalogue::built_in()` gone, `migrate`
-  and `migrate-adapters` take `declarations` as a dev-dependency: the
-  `migrate` doubles serve `declarations::catalogue().unwrap_or_default()`,
-  and `migrate-adapters`' `Composition::at` propagates the assembly's
+  and `migrate-adapters` take `declarations` as a dev-dependency. Every
+  test helper that takes the assembled catalogue fails loudly when it
+  does not build: the `migrate` doubles, `corpus-adapters`' and
+  `corpus-cli`'s inline helpers and the server's `assembled_catalogue()`
+  `expect` it, and `migrate-adapters`' `Composition::at` propagates the
   error. The corpus's own tests read `built_in::doc_types()`, pairing the
   two set types with a stand-in set declaration where they need a
   catalogue. The server's unit-test helper is `assembled_catalogue()`.
@@ -2266,8 +2270,36 @@ the nested manifest filename. Its behaviour is unchanged until Phase 8.
   `document(pattern)` `const fn`. The contract test was checked against a
   mutation: with `findings/*.level/*.md` in place of the levels slot, it
   fails on `findings/01-cost-model-web.levels/1.md`.
+- **Strict TDD.** Each new test was seen failing before its code, except
+  guards that already passed against a stub, which were checked by
+  mutation instead:
+  - `set::shape`: matching directory names in any case fails
+    `a_directory_name_matches_only_in_its_declared_case`; comparing an
+    extension by prefix from the first dot fails
+    `case_is_ignored_in_the_extension_and_nowhere_else`; dropping the
+    depth check fails `a_path_that_fills_no_slot_is_not_in_the_set`;
+    refusing `.levels` segments fails the parse test; a fixed
+    presentation fails the matcher's accessor test.
+  - The owners' negative tests fail when `findings/*/*.md` or
+    `prototype-full/*.html` is added to the shape.
+  - The server's test-only set type fails when the driver lists
+    `index.md` in place of the declared root, or the view drops `set`.
+  - `fetchTypes` keeping a set fails when it always returns `set: null`.
+- **Review, 2026-11-26.** The `qtvokzqu`..`slvnwxpl` diff adds no source
+  line past 80 columns; only `public-api.txt` snapshot lines are longer.
+  Doc comments that restated a type's name (`SetPlace`, `DeclaredSet`,
+  `CatalogueError`, `SetView`) are dropped, and the indexer's
+  `manifest_directory_of` is renamed `set_directory_of` (`lsvtymvo`).
+- **Production check, 2026-11-26.** With `mise run dev` serving this
+  repository's `meta/` from this checkout, `/api/types` lists
+  `design-inventories` with root `inventory.md`, asset slot
+  `screenshots/*.png` and `entry-point`, and `topic-research` with root
+  `manifest.md`, its six document slots and `set-page`; the other 13
+  types carry `set: null`. `/api/docs?type=design-inventories` lists the
+  six real inventories, and `/api/library/structure`, `/api/lifecycle`,
+  `/api/templates`, `/api/search` and the frontend answer 200.
 - **`mise run`** exited 0 on the final code, with `test:unit:cli`
-  coverage at lines 93.96%, functions 93.28%, regions 92.69%.
+  coverage at lines 94.45%, functions 93.79%, regions 93.20%.
 
 ---
 
