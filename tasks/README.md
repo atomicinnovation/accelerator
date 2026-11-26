@@ -322,18 +322,18 @@ listing and runs it once. The stalled-migration set runs migrate, so the task
 also finds the `accelerator-migrate` bin in the same listing and names it to
 the builder through `ACCELERATOR_SHARED_FIXTURES_MIGRATE`. Each family builds
 on its own thread, and the task prints one `built in` line per family as well
-as the combined one. Under coverage the bin runs in the instrumented environment, so
-the builder code it exercises still counts towards the floor.
+as the combined one. Under coverage the bin runs in the instrumented
+environment, so the builder code it exercises still counts towards the floor.
 
 The trees live under one root per user,
 `<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
 is the resolved system temp directory: `<run-id>.lock` beside
-`<run-id>/{matrix,status-log,stalled-migration,workbenches}/`. A run holds an `flock` on its
-lock for its lifetime, and each run starts by sweeping the directories of
-runs whose lock nobody holds, so a killed run's leftovers go on the next run. The root is
-refused if it is a symlink, not a directory, owned by someone else, writable
-by group or world, or inside a checkout; move it aside and the next run
-recreates it.
+`<run-id>/{matrix,status-log,stalled-migration,workbenches}/`. A run holds an
+`flock` on its lock for its lifetime, and each run starts by sweeping the
+directories of runs whose lock nobody holds, so a killed run's leftovers go on
+the next run. The root is refused if it is a symlink, not a directory, owned
+by someone else, writable by group or world, or inside a checkout; move it
+aside and the next run recreates it.
 
 The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`,
 `ACCELERATOR_SHARED_STATUS_LOG` and `ACCELERATOR_SHARED_STALLED_MIGRATION`,
@@ -404,7 +404,9 @@ let stall = stalls.stall(key)?;
 ```
 
 A stall that does not stall fails the whole build step, naming its key,
-migrate's exit code and its stderr.
+migrate's exit code and its stderr. That is deliberate: a private build would
+fail the same way, so falling back to one would turn one failure naming the
+cause into the same failure in every `guarded_resume` test.
 
 The build step runs before any test, so the recipe it follows cannot live in
 `migrate-cli`'s tests. `vcs-test-support`'s `stalled_migration` module holds
@@ -425,7 +427,10 @@ let states = workbench.private_states(status_log::build_cap_states)?;
   run's log. A guard (`tests/unit/tasks/test_fixture_builds.py`) refuses it
   outside the files that test the workbench itself, refuses `copy_part`
   outside the copy's own tests, and refuses a direct call to a private-set
-  builder anywhere in a test.
+  builder anywhere in a test. It also permits `copy_private_tree`, which
+  copies without logging, only in the files listed beside it in
+  `GUARDED_CALLS`, each copying a template its own test built; list a new
+  caller there.
 - A test binary that uses a shared family for the first time goes in
   `CONSUMERS` in `tasks/shared/shared_fixtures/consumers.py`, with the
   families it consumes. Until it does, the run fails naming the binary and
@@ -702,7 +707,11 @@ taken with `mise run test:unit:cli --filter 'binary_id(<binary>)' 2>&1 | tee
 `--charge '<binary> <checker>=<binary> <target>'` adds a state-equality test's
 duration to the test whose state it checks, and `--served-by
 <binary>=<family>` adds a shared fixture family's build time, read from the
-build step's per-family `built in` lines, to the binary's test-seconds.
+build step's per-family `built in` lines, to the binary's test-seconds. After
+the binaries it prints each built family's build time the same way. It reads
+from exactly one of `--record` and `--log`, needs at least one `--binary`, and
+refuses a figure no run can supply, such as a target and its checker that
+never pass in the same run.
 
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs
@@ -1451,6 +1460,35 @@ A config adapter that needs VCS asks the `vcs` domain's ports, injected at
 the composition root, and never depends on `vcs-adapters`.
 `cli/config-adapters`' dependents include the launcher and the visualiser
 server, so `gix` and `jj-lib` stay out of both.
+
+## Registering a shared fixture family
+
+A shared family is built once per `test:unit:cli` run by the
+`shared-fixtures` bin and adopted or copied by every test that uses it. Its
+Rust and Python halves agree through the files under
+`cli/vcs-test-support/contract/`, which tests on both sides read:
+
+1. Add the variant to `Family` and `Family::ALL` in
+   `cli/vcs-test-support/src/family.rs`, with its name, flag and handover
+   variable.
+2. Implement `SharedFamily` for the family's type, and `CopyableFamily` if
+   tests copy its parts. A shared build writes a manifest beside the tree, so
+   `adopt` builds nothing.
+3. Give the type an inherent `build_for_sharing` and an arm for it in
+   `build_for_sharing` in `src/shared_build.rs`. A family whose builder needs
+   inputs reads them there.
+4. Add the `Workbench` method tests reach it through, in `src/workbench.rs`.
+5. Add it to `contract/flags.json` and to `handover` in
+   `contract/variables.json`, and to `executables` there if its builder runs
+   one of the workspace's binaries.
+6. Add the member and its `_Traits` to
+   `tasks/shared/shared_fixtures/families.py`, matching the contract.
+7. List each test binary that uses it in `CONSUMERS` in
+   `tasks/shared/shared_fixtures/consumers.py`.
+8. Guard any route to its build or copy that bypasses the fixture log in
+   `tests/unit/tasks/test_fixture_builds.py`.
+9. Name it in "Shared VCS fixtures" above and in the
+   `ACCELERATOR_SHARED_FIXTURES_FAIL` row.
 
 ## CI job → local command
 

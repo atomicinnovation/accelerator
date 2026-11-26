@@ -14,4 +14,6 @@
   Registering a plain library crate is a smaller surface — see
   `tasks/README.md#registering-a-library-crate`. Adding a subcommand to an
   existing sub-binary is smaller still — see
-  `tasks/README.md#adding-a-subcommand-to-an-existing-sub-binary`.
+  `tasks/README.md#adding-a-subcommand-to-an-existing-sub-binary`. Adding a
+  shared VCS fixture family has its own checklist — see
+  `tasks/README.md#registering-a-shared-fixture-family`.

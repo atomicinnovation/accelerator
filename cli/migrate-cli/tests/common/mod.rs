@@ -46,7 +46,6 @@ pub fn write(
     Ok(())
 }
 
-/// Runs the binary under `env`, as [`migrate_command`] does.
 pub fn run(
     env: &Hermetic,
     root: &Path,
