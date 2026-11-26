@@ -3204,7 +3204,7 @@ def test_the_researcher_reports_node_query_failures() -> None:
         assert sentence in prose, f"the researcher must state {sentence!r}"
     denied = _troubleshooting_row(NODE_QUERY_DENIED)
     assert f"`Bash({NODE_QUERY}*)`" in denied
-    assert "`Bash(accelerator research topic *)`" in denied
+    assert f"`research-topic`'s `Bash({NODE_QUERY}*)`" in denied
     failed = _troubleshooting_row(NODE_QUERY_FAILED)
     for code in NODE_QUERY_CODES:
         assert _row_for(code, "from the node query")
@@ -3331,3 +3331,32 @@ def test_research_topic_grants_only_the_config_reads_it_runs() -> None:
         assert not any(rule_covers(f"Bash({rule})", write) for rule in rules), (
             f"research-topic's spawns would inherit a grant for {write!r}"
         )
+
+
+TOPIC_SUBCOMMANDS = (
+    "consultable",
+    "counts",
+    "end-run",
+    "node",
+    "outstanding",
+    "report-path",
+)
+
+
+def test_research_topic_grants_each_topic_subcommand_by_name() -> None:
+    rules = frontmatter_bash_rules(_read(RESEARCH_TOPIC))
+    run = set(
+        re.findall(
+            r"accelerator research topic ([a-z-]+)",
+            _read(RESEARCH_TOPIC) + _read(RESEARCHER),
+        )
+    )
+    assert run == set(TOPIC_SUBCOMMANDS)
+    for subcommand in TOPIC_SUBCOMMANDS:
+        assert f"accelerator research topic {subcommand} *" in rules, (
+            f"research-topic must grant `{subcommand}` by name"
+        )
+    assert not any(
+        rule_covers(f"Bash({rule})", "accelerator research topic future x")
+        for rule in rules
+    ), "a new topic subcommand must not reach research-topic's spawns unasked"

@@ -314,7 +314,12 @@ GRANT = (
     "Bash(accelerator corpus resolve *),"
     "Bash(accelerator corpus metadata derive),"
     "Bash(accelerator corpus frontmatter validate *),"
-    "Bash(accelerator research topic *),"
+    "Bash(accelerator research topic consultable *),"
+    "Bash(accelerator research topic counts *),"
+    "Bash(accelerator research topic end-run *),"
+    "Bash(accelerator research topic node *),"
+    "Bash(accelerator research topic outstanding *),"
+    "Bash(accelerator research topic report-path *),"
     "Read(/<plugin_root>/skills/research/outputters/citing-once/**)"
 )
 

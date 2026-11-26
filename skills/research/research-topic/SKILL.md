@@ -25,7 +25,12 @@ allowed-tools:
   - Bash(accelerator corpus metadata derive)
   - Bash(accelerator corpus frontmatter validate *)
   - Bash(accelerator research fetch *)
-  - Bash(accelerator research topic *)
+  - Bash(accelerator research topic consultable *)
+  - Bash(accelerator research topic counts *)
+  - Bash(accelerator research topic end-run *)
+  - Bash(accelerator research topic node *)
+  - Bash(accelerator research topic outstanding *)
+  - Bash(accelerator research topic report-path *)
   - Read(/${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/citing-once/**)
 ---
 
@@ -684,7 +689,7 @@ allocate a finding or note path yourself.
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
    | `E_RESEARCH_GUARD_COMMAND` from a composer | the configured `agents.composer` tried to run a command; composers may only Read and Write |
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
-   | "node query denied by permissions" | either a `deny` or `ask` rule covers `accelerator research topic node`, so adjust it, or the spawning skill's grant did not reach the researcher, so add `Bash(accelerator research topic node *)` to the project's allow rules. `research-topic`'s `Bash(accelerator research topic *)` reaches the researchers it spawns |
+   | "node query denied by permissions" | either a `deny` or `ask` rule covers `accelerator research topic node`, so adjust it, or the spawning skill's grant did not reach the researcher, so add `Bash(accelerator research topic node *)` to the project's allow rules. `research-topic`'s `Bash(accelerator research topic node *)` reaches the researchers it spawns |
    | "node query failed" | the summary quotes the first line of the query's stderr, and its code names the next step in the rows that follow. These node-query rows take precedence over the generic `E_*` row |
    | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` from the node query | another `conduct` run took over this set, so let it finish; if none is running, check that an `agents.researcher` override passes the injected run id unchanged |
    | `E_TOPIC_RESEARCH_RUN_LEDGER` from the node query | the ledger is gone, corrupt or unreadable, so re-run `conduct` |

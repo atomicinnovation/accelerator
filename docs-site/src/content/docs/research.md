@@ -515,7 +515,7 @@ and `research-topic`'s `allowed-tools` covers all of them:
   `fetch web metadata`. Any other skill that injects any profile must grant
   the same rule, and a contract test enforces this for skills in this
   repository.
-- `Bash(accelerator research topic *)` covers the node query.
+- `Bash(accelerator research topic node *)` covers the node query.
 - `Bash(accelerator config template *)` covers both template commands.
 
 The finding and level-note outputters each list their template command under
@@ -523,12 +523,14 @@ The finding and level-note outputters each list their template command under
 as a skill, so that frontmatter grants nothing: the command runs under the
 grant the spawn inherits.
 
-`research-topic` grants only the config reads it runs, so no spawn inherits
-a grant for `accelerator config set`. The other inherited grants are broad:
-at the permission layer they also cover commands such as `accelerator
-research topic end-run`. The research guard is what narrows a spawn to its
-listed commands, and it fails open when it cannot run (see [Failure
-signatures](#failure-signatures)). The exact rules below are the
+`research-topic` grants only the config reads and `research topic`
+subcommands it runs, each by name, so no spawn inherits a grant for
+`accelerator config set` or for a subcommand added later. The orchestrator
+itself runs `research topic end-run` and `outstanding --start`, so its spawns
+inherit those grants too: one `allowed-tools` list serves both, and Claude
+Code gives a spawn no narrower one. The research guard is what narrows a
+spawn to its listed commands, and it fails open when it cannot run (see
+[Failure signatures](#failure-signatures)). The exact rules below are the
 least-privilege option.
 
 Where those grants do not reach the researcher, add the rules to the

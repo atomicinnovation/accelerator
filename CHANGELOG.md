@@ -907,7 +907,11 @@
   `Bash(accelerator config *)` rule becomes one rule each for `config
   agent`, `agents`, `context`, `get`, `instructions`, `path` and
   `template`, so no spawn inherits a grant for `config set` or
-  `config init`, even when the research guard cannot run.
+  `config init`, even when the research guard cannot run. Its
+  `Bash(accelerator research topic *)` rule likewise becomes one rule each
+  for `consultable`, `counts`, `end-run`, `node`, `outstanding` and
+  `report-path`, so a `research topic` subcommand added later reaches no
+  spawn unasked.
 
 - **`conduct`'s node researchers query their own context.**
   `accelerator research topic outstanding`'s node entries no longer carry
@@ -919,9 +923,8 @@
   given a spawn ref, and resolve `{search budget}`, which the web profile
   and level-note outputter no longer define, as the query's
   `search_budget`, else an injected budget, else none. `research-topic`'s
-  spawns inherit its `Bash(accelerator research topic *)` grant; a skill
-  that spawns them without it needs
-  `Bash(accelerator research topic node *)`.
+  spawns inherit its `Bash(accelerator research topic node *)` grant; a
+  skill that spawns them without it needs that rule.
 
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
