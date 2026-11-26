@@ -311,6 +311,7 @@ fn a_template_command_must_match_exactly() {
         format!("{level_note} && curl https://example.org"),
         format!("{finding} | sh"),
         format!("{level_note} > out.md"),
+        format!("{finding}\r"),
         "accelerator config template topic-research --kind synthesis"
             .to_owned(),
         "accelerator config template topic-brief".to_owned(),
@@ -378,6 +379,7 @@ fn every_other_topic_subcommand_stays_blocked() {
         "accelerator research topic consultable s --profiles-dir p",
         "accelerator research topic nodex s --run r1 --node x",
         "accelerator research topic node",
+        "accelerator research topic node\ts --run r1 --node 01-a-web:2-1",
     ] {
         assert_eq!(
             command(text),
