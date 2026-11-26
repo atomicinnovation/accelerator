@@ -1106,14 +1106,14 @@ Add `### Breaking` entries under `[Unreleased]` in `CHANGELOG.md`:
 
 #### Automated Verification:
 
-- [ ] `mise run public-api:update`, with the `config` and `migrate`
+- [x] `mise run public-api:update`, with the `config` and `migrate`
       snapshot diffs reviewed.
-- [ ] Caller tests pass:
+- [x] Caller tests pass:
       `mise run test:unit:cli --filter 'package(config) | package(accelerator-corpus) | package(accelerator-work) | package(migrate-adapters) | package(migrate) | package(accelerator-migrate) | package(accelerator-research) | package(accelerator)'`
-- [ ] Visualiser tests pass: `mise run test:unit:visualiser` and
+- [x] Visualiser tests pass: `mise run test:unit:visualiser` and
       `mise run test:integration:visualiser`, including `api_smoke`.
-- [ ] e2e passes: `mise run test:e2e:visualiser`
-- [ ] `rg -n "research_codebase: meta/research" cli/visualiser` prints
+- [x] e2e passes: `mise run test:e2e:visualiser`
+- [x] `rg -n "research_codebase: meta/research" cli/visualiser` prints
       nothing.
 - [ ] `mise run`
 
