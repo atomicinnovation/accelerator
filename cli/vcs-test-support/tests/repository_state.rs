@@ -378,6 +378,84 @@ fn a_head_detached_at_its_branch_s_commit_differs() -> Result<(), TestError> {
 }
 
 #[test]
+fn an_annotated_tag_projects_to_the_commit_it_tags() -> Result<(), TestError> {
+    let state = Build::of(git_history)?
+        .then(|root, env| {
+            env.git(&["tag", "-a", "v2", "-m", "two", "HEAD~1"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    let second = state
+        .commits
+        .iter()
+        .find(|commit| commit.description.trim() == "second")
+        .ok_or("a commit described second")?;
+    let tagged = git_references(&state)
+        .and_then(|references| references.get("refs/tags/v2"));
+    assert_eq!(tagged, Some(&second.position));
+    Ok(())
+}
+
+#[test]
+fn each_stage_of_a_conflicted_index_entry_is_kept_apart(
+) -> Result<(), TestError> {
+    let conflicted = Build::of(git_history)?
+        .then(|root, env| {
+            env.git(&["checkout", "-q", "-b", "side", "HEAD~1"], root)?;
+            write(root, "a.txt", "side\n")?;
+            env.git(&["commit", "-q", "-am", "side"], root)?;
+            env.git(&["checkout", "-q", "main"], root)?;
+            write(root, "a.txt", "main\n")?;
+            env.git(&["commit", "-q", "-am", "main"], root)?;
+            env.git_allow_failure(&["merge", "-q", "side"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    let index = &git_side(&conflicted).ok_or("a git side")?.index;
+    let stages: BTreeMap<&str, Option<&str>> = ["1", "2", "3"]
+        .into_iter()
+        .map(|stage| (stage, content(index, &format!("a.txt (stage {stage})"))))
+        .collect();
+    assert_eq!(
+        stages,
+        BTreeMap::from([
+            ("1", Some("one\n")),
+            ("2", Some("main\n")),
+            ("3", Some("side\n")),
+        ])
+    );
+    assert_eq!(content(index, "a.txt"), None);
+    Ok(())
+}
+
+#[test]
+fn a_submodule_entry_is_left_out_of_the_index_and_commits(
+) -> Result<(), TestError> {
+    let state = Build::of(git_history)?
+        .then(|root, env| {
+            let head = env.git(&["rev-parse", "HEAD"], root)?;
+            let gitlink = format!("160000,{},vendored", head.trim());
+            env.git(&["update-index", "--add", "--cacheinfo", &gitlink], root)?;
+            env.git(&["commit", "-q", "-m", "vendor"], root)?;
+            Ok(())
+        })?
+        .state()?;
+
+    let vendoring = state
+        .commits
+        .iter()
+        .find(|commit| commit.description.trim() == "vendor")
+        .ok_or("a commit described vendor")?;
+    let index = &git_side(&state).ok_or("a git side")?.index;
+    assert!(!vendoring.files.contains_key("vendored"));
+    assert!(!index.contains_key("vendored"));
+    assert!(index.contains_key("a.txt"));
+    Ok(())
+}
+
+#[test]
 fn a_staged_change_differs_from_an_unstaged_one() -> Result<(), TestError> {
     let edit = |root: &Path, _: &Hermetic| write(root, "a.txt", "changed\n");
     let unstaged = Build::of(git_history)?.then(edit)?.state()?;
