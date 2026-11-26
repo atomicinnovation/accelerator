@@ -14,7 +14,7 @@ parent: "work-item:PP-868"
 blocked_by: ["work-item:PP-995", "work-item:PP-994", "work-item:PP-999", "work-item:PP-998", "work-item:PP-1002", "work-item:PP-1001"]
 relates_to: ["work-item:PP-924", "work-item:PP-891", "work-item:PP-897", "work-item:PP-892", "work-item:PP-864", "work-item:PP-936"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T08:08:43+00:00"
+last_updated: "2026-11-24T13:29:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -123,9 +123,11 @@ finding's sources came from: `web`, `openalex`, or `arxiv`.
 - Show each source once: where sources are rendered structurally, the
   literal Sources section is not also shown. The server passes the body it
   serves to `SourcesSection::parse` (`research::topic::sources_section`)
-  and removes the section from that same body with the reported span's
-  `LineSpan::remove_from`. It reads no section boundary and counts no
-  lines of its own.
+  and cuts that same body around the section with the reported span's
+  `LineSpan::split`, rendering the text before the span, then the
+  structured Sources, then the text after it, so the Sources sit where the
+  literal section did. It reads no section boundary and counts no lines of
+  its own.
 - Add three visual-regression baselines, one for each of the reference
   design's views 6a, 6b, and 6c. View 6a's document shows all three tiers,
   a retracted source, a withdrawn source, an `also` suffix, a metadata
@@ -249,8 +251,9 @@ finding's sources came from: `web`, `openalex`, or `arxiv`.
   rendered at their own URLs.
 - Blocked by: PP-995, the Sources parser, for a document's sources as
   structured entries, each with a parsed tier or the tier text as written,
-  and for the section's line span and its `remove_from`, by which the
-  server drops the literal section.
+  and for the section's line span and its `split`, by which the server
+  cuts the literal section out and puts the structured Sources in its
+  place.
 - Closing this story needs the author's acceptance of each baseline
   against the export at the approved commit.
 - This story changes the body the document endpoint serves for a
@@ -347,6 +350,11 @@ shared `LibraryDocView`, with three baselines taken in the set page.
   with `LineSpan::remove_from` on that same body, so the parser alone
   decides what a line is; the type names follow PP-995's
   `research::topic::sources_section`.
+- PP-995 landed on 2026-11-24 with `LineSpan::split`, which returns the
+  text before and after the section as written. The server step names
+  `split` in place of `remove_from`, so the structured Sources can sit
+  where the literal section did; PP-995 dropped `remove_from` after the
+  first review of PR #262, as no caller needs the section gone.
 
 ## References
 

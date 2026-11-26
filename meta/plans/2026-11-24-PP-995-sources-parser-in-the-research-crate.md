@@ -5,7 +5,7 @@ title: "Sources Parser in the Research Crate Implementation Plan"
 date: "2026-11-24T08:20:05+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "done"
 work_item_id: "work-item:PP-995"
 parent: "work-item:PP-995"
 derived_from: ["codebase-research:2026-11-24-PP-995-sources-parser-in-the-research-crate"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:PP-1000", "work-item:PP-1002", "work-item:PP-994", "work
 tags: ["research", "visualiser", "sources", "tier-text"]
 revision: "83417415e7968e08d76e1b6aa8cf2c330dc34d59"
 repository: "accelerator"
-last_updated: "2026-11-24T08:20:05+00:00"
+last_updated: "2026-11-24T13:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -79,9 +79,9 @@ jj diff --stat --from <base> --to @ cli/research/Cargo.toml                     
 mise run
 ```
 
-`<base>` is the revision the plan starts from; every snapshot and manifest
-check below diffs against it, so a check made after a phase is committed
-still compares something.
+`<base>` is the revision the plan starts from, `kqsmnqzr`; every snapshot
+and manifest check below diffs against it, so a check made after a phase is
+committed still compares something.
 
 ### Key Discoveries:
 
@@ -235,7 +235,6 @@ const PART_SEPARATOR: &str = "; ";
 const ALSO_SEPARATOR: &str = ", ";
 const BASE_TIERS: [Tier; 3] = [Tier::One, Tier::Two, Tier::Three];
 
-/// Base and `also` tiers are [`Tier`](crate::sources::record::Tier).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TierText {
     base: Tier,
@@ -365,16 +364,16 @@ impls, and removes nothing.
 
 #### Automated Verification:
 
-- [ ] Tier-text tests pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
-- [ ] Snapshot is current: `mise run public-api:check`
-- [ ] Snapshot diff has no removed lines: `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] Import fence holds: `mise run pup:check`
-- [ ] Format and lint pass: `mise run cli:check`
-- [ ] Full suite green: `mise run`
+- [x] Tier-text tests pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
+- [x] Snapshot is current: `mise run public-api:check`
+- [x] Snapshot diff has no removed lines: `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [x] Import fence holds: `mise run pup:check`
+- [x] Format and lint pass: `mise run cli:check`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] The ten citing-once examples in the test match the skill file
+- [x] The ten citing-once examples in the test match the skill file
       (`skills/research/outputters/citing-once/SKILL.md`) character for
       character.
 
@@ -621,18 +620,23 @@ fields, methods and derived impls.
 
 #### Automated Verification:
 
-- [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Tier-text tests still pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
-- [ ] Snapshot is current and additions only: `mise run public-api:check`, and `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] Import fence holds: `mise run pup:check`
-- [ ] Format and lint pass: `mise run cli:check`
-- [ ] Full suite green: `mise run`
+- [x] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
+- [x] Tier-text tests still pass: `mise run test:unit:cli --filter 'binary_id(research::tier_text)'`
+- [x] Snapshot is current and additions only: `mise run public-api:check`, and `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
+- [x] Import fence holds: `mise run pup:check`
+- [x] Format and lint pass: `mise run cli:check`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] Running the parser over a real finding under `meta/research/topics/`
+- [x] Running the parser over a real finding under `meta/research/topics/`
       (via a throwaway, uncommitted test) yields the entries
-      the file shows, with no surprising unread lines.
+      the file shows, with no surprising unread lines. This workspace has no
+      `meta/research/topics/`, so it ran over the findings, reports and
+      syntheses under
+      `skills/research/research-topic/evals/variants/*/meta/research/topics/`:
+      every entry read as written, and the only unread lines were metadata
+      block lines, which Phase 3 reads.
 
 ---
 
@@ -702,15 +706,19 @@ update.
 
 #### Automated Verification:
 
-- [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Snapshot is current and unchanged by this phase: `mise run public-api:check`
-- [ ] Format, lint and fence pass: `mise run cli:check`, `mise run pup:check`
-- [ ] Full suite green: `mise run`
+- [x] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
+- [x] Snapshot is current and unchanged by this phase: `mise run public-api:check`
+- [x] Format, lint and fence pass: `mise run cli:check`, `mise run pup:check`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] A real finding with a metadata block reads with each pair on the right
-      entry.
+- [x] A real finding with a metadata block reads with each pair on the right
+      entry. This workspace has no `meta/research/topics/`, so it ran over
+      the findings, reports and syntheses under
+      `skills/research/research-topic/evals/variants/*/meta/research/topics/`:
+      every block pair, including the four-pair `Plan-and-Solve` block,
+      landed on its entry, and no line was left unread.
 
 ---
 
@@ -800,18 +808,19 @@ body, so both slices sit on character boundaries.
 
 #### Automated Verification:
 
-- [ ] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
-- [ ] Snapshot diff against the pre-plan file holds additions only, with
+- [x] Section tests pass: `mise run test:unit:cli --filter 'binary_id(research::sources_section)'`
+- [x] Snapshot diff against the pre-plan file holds additions only, with
       the `Tier` and `Record` lines unchanged:
       `jj diff --git --from <base> --to @ cli/research/tests/fixtures/public-api.txt | grep '^-[^-]'` prints nothing
-- [ ] No manifest change: `jj diff --stat --from <base> --to @ cli/research/Cargo.toml` is empty
+- [x] No manifest change: `jj diff --stat --from <base> --to @ cli/research/Cargo.toml` is empty
       across the whole change
-- [ ] Full suite green: `mise run`
+- [x] Full suite green: `mise run`
 
 #### Manual Verification:
 
-- [ ] Reading the finished module, every PP-995 acceptance criterion maps to
-      a named test.
+- [x] Reading the finished module, every PP-995 acceptance criterion maps to
+      a named test. The block-order criterion's `doi` and `accessed` values
+      differ from the test's, which checks the same behaviour.
 
 ---
 
@@ -849,6 +858,19 @@ span at the body's end with and without a final newline.
 3. Compare the snapshot diff by eye: only `research::topic::sources_section`
    lines added.
 
+All three steps were run after Phase 4, through throwaway uncommitted tests.
+This workspace has no `meta/research/topics/`, so they used the files under
+`skills/research/research-topic/evals/variants/*/meta/research/topics/`:
+
+1. The synthesis and two reports, their entries and blocks rendered back from
+   the parse, match the files' Sources lines exactly, with no unread line.
+2. For all six files with a Sources section, `remove_from` returns the file
+   minus its section, byte for byte elsewhere, and `split`'s halves are the
+   file's own start and end. Each of these sections runs to the end of its
+   file, so a non-empty after-text is covered by the unit tests alone.
+3. The snapshot diff against `kqsmnqzr` adds 118 lines, all naming
+   `research::topic::sources_section`, and removes none.
+
 ## Performance Considerations
 
 Both parsers are linear in the body except the title search, which tries each
@@ -863,7 +885,7 @@ whichever lands second regenerates it with `mise run public-api:update`.
 PP-1000 places the structured Sources where the literal section sat by
 rendering `split`'s before-text, then Sources, then its after-text;
 `remove_from` serves callers that only need the section gone. PP-1000's
-server step still names `remove_from` and should be updated to name `split`.
+server step names `split`.
 
 ## References
 
