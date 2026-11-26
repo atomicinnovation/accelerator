@@ -20,6 +20,7 @@ function entry(overrides: Partial<IndexEntry>): IndexEntry {
     path: "meta/work/0007-foo.md",
     relPath: "meta/work/0007-foo.md",
     slug: "0007-foo",
+    id: null,
     workItemId: "0007",
     workItemKey: null,
     draft: false,
@@ -61,7 +62,7 @@ function makeRouterWrapper(atUrl: string) {
   });
   const docRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: () => <Capture captureRef={captureRef} />,
   });
   const tree = root.addChildren([indexRoute, typeRoute, docRoute]);
@@ -104,11 +105,25 @@ describe("useActiveDocRelPath", () => {
     );
   });
 
-  it("matches via fileSlugFromRelPath fallback when slug differs", async () => {
+  it("matches by filename stem when the slug differs", async () => {
     vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
       entry({ slug: "something-else", relPath: "meta/work/0007-foo.md" }),
     ]);
     const { captureRef } = renderAt("/library/work-items/0007-foo");
+    await waitFor(() =>
+      expect(captureRef.current).toBe("meta/work/0007-foo.md"),
+    );
+  });
+
+  it.each([
+    ["id", "0007"],
+    ["slug", "foo"],
+    ["filename stem", "0007-foo"],
+  ])("resolves a document addressed by its %s", async (_, documentId) => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      entry({ id: "0007", slug: "foo", relPath: "meta/work/0007-foo.md" }),
+    ]);
+    const { captureRef } = renderAt(`/library/work-items/${documentId}`);
     await waitFor(() =>
       expect(captureRef.current).toBe("meta/work/0007-foo.md"),
     );

@@ -32,11 +32,13 @@ vi.mock("../../api/fetch", async (importOriginal) => {
   return {
     ...actual,
     fetchActivity: vi.fn(),
+    fetchDocs: vi.fn(),
   };
 });
 
 beforeEach(() => {
   vi.mocked(fetchModule.fetchActivity).mockResolvedValue([]);
+  vi.mocked(fetchModule.fetchDocs).mockResolvedValue([]);
 });
 
 function makeUnseenHandle(

@@ -70,7 +70,7 @@ if (!existsSync(bin)) {
 // .accelerator (config + git-ignored runtime state) is added. config.md remaps
 // the one path that differs from the catalogue default (research_codebase →
 // meta/research). globalSetup/globalTeardown snapshot and restore the mutated
-// work-item files.
+// work-item, research-set manifest and design-inventory files.
 
 const project = join(serverDir, "tests/fixtures");
 // The project root is fixed (not a fresh tempdir), so runtime state from an

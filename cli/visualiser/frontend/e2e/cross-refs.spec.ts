@@ -16,13 +16,10 @@
  */
 import { expect, test } from "./fixtures.js";
 
-// Server-side slug strips the numeric prefix; fileSlugFromRelPath keeps it.
 const PARENT_SLUG_URL = "/library/work-items/parent-epic";
 const CHILD_SLUG_URL = "/library/work-items/child-story-1";
 
-// RelatedArtifacts links are built with fileSlugFromRelPath (full filename
-// minus .md), so the parent link from a child's page uses the filename form.
-const PARENT_FILE_SLUG = "0007-parent-epic";
+const PARENT_ID = "0007";
 
 test.describe("work-item parent/child cross-references in library view", () => {
   test("parent epic shows all three children as declared rows", async ({
@@ -70,6 +67,6 @@ test.describe("work-item parent/child cross-references in library view", () => {
     await expect(parentRow.getByText("(declared)")).toBeVisible();
     await expect(
       parentRow.getByRole("link", { name: "Parent Epic" }),
-    ).toHaveAttribute("href", `/library/work-items/${PARENT_FILE_SLUG}`);
+    ).toHaveAttribute("href", `/library/work-items/${PARENT_ID}`);
   });
 });

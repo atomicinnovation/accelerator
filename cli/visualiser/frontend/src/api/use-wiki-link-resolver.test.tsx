@@ -16,6 +16,7 @@ function makeWrapper(qc: QueryClient) {
 const exampleAdr = makeIndexEntry({
   type: "decisions",
   relPath: "meta/decisions/ADR-0001-example.md",
+  id: "ADR-0001",
   title: "Example decision",
   frontmatter: { adr_id: "ADR-0001" },
 });
@@ -56,7 +57,7 @@ describe("useWikiLinkResolver", () => {
     const resolved = result.current.resolver("ADR", "1");
     expect(resolved).toEqual({
       kind: "resolved",
-      href: "/library/decisions/ADR-0001-example",
+      href: "/library/decisions/ADR-0001",
       title: "Example decision",
     });
   });

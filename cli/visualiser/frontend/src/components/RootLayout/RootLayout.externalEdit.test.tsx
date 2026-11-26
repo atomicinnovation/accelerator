@@ -39,6 +39,7 @@ function entry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     path: RELPATH,
     relPath: RELPATH,
     slug: SLUG,
+    id: null,
     workItemId: "0007",
     workItemKey: null,
     draft: false,
@@ -107,7 +108,7 @@ function renderSubstituteTree(
   };
   const docRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: Tree,
   });
   const indexRoute = createRoute({

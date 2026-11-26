@@ -52,7 +52,7 @@
   flex-direction: column;
 }
 
-/* Dashed separator lives on the <li> (not the inner link) so the
+/* Dashed separator lives on the <li> (not the inner row) so the
    :has(+ li) sibling selector below can suppress the dashed line on
    either side of a hovered row in one pass. */
 .list li {
@@ -61,8 +61,8 @@
 .list li:last-child {
   border-bottom-color: transparent;
 }
-.list li:has(.row:hover),
-.list li:has(+ li .row:hover) {
+.list li:has(.linkedRow:hover),
+.list li:has(+ li .linkedRow:hover) {
   border-bottom-color: transparent;
 }
 
@@ -76,7 +76,7 @@
   color: inherit;
   border-radius: var(--radius-4);
 }
-.row:hover {
+.linkedRow:hover {
   background: var(--ac-bg-hover);
 }
 

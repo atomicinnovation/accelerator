@@ -3,7 +3,7 @@ import { Link, Outlet, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { fetchDocs, fetchLibraryStructure } from "../../api/fetch";
 import { formatDate, formatMtime } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import { libraryLink } from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import { chipVariantFor, statusToVariant } from "../../api/status-variant";
 import type {
@@ -105,7 +105,7 @@ interface Props {
 export function LibraryTypeView({ type: propType }: Props) {
   const params = useParams({ strict: false }) as {
     type?: string;
-    fileSlug?: string;
+    documentId?: string;
   };
   const rawType = propType ?? params.type;
   const type: DocTypeKey | undefined =
@@ -115,9 +115,9 @@ export function LibraryTypeView({ type: propType }: Props) {
   // lexicon. The generic Chip/FilterPill presenters stay doc-type-agnostic.
   const statusChipVariant = (value: unknown) =>
     type ? chipVariantFor(type, value) : statusToVariant(value);
-  const hasFileSlug = Boolean(params.fileSlug);
+  const hasDocumentId = Boolean(params.documentId);
 
-  useMarkDocTypeSeen(hasFileSlug ? undefined : type);
+  useMarkDocTypeSeen(hasDocumentId ? undefined : type);
 
   const [sortOption, setSortOption] = useState<SortOption>("recently-modified");
   const [selection, setSelection] = useState<LibrarySelectionPerType>({});
@@ -165,7 +165,7 @@ export function LibraryTypeView({ type: propType }: Props) {
     [filteredEntries, sortOption],
   );
 
-  if (params.fileSlug) return <Outlet />;
+  if (params.documentId) return <Outlet />;
 
   if (type === undefined) {
     return <p role="alert">Unknown doc type: {String(rawType)}</p>;
@@ -264,11 +264,7 @@ export function LibraryTypeView({ type: propType }: Props) {
             return (
               <Link
                 key={entry.relPath}
-                to="/library/$type/$fileSlug"
-                params={{
-                  type,
-                  fileSlug: entry.slug ?? fileSlugFromRelPath(entry.relPath),
-                }}
+                {...libraryLink(entry)}
                 role="row"
                 className={styles.row}
               >

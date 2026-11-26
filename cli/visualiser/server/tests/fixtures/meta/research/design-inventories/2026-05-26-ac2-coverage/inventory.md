@@ -4,6 +4,7 @@
 # Slug derives from the parent directory name via strip_prefix_date.
 # Carry NO cross-reference keys (work_item_id / work-item / ticket / parent
 # / related / target) — they would pull a sibling into a declared relation.
+id: "2026-05-26-ac2-coverage"
 title: AC2 Coverage (design inventories)
 ---
 

@@ -241,3 +241,45 @@ async fn docs_list_returns_empty_array_for_type_with_no_files() {
     let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(v["docs"].as_array().unwrap().len(), 0);
 }
+
+#[tokio::test]
+async fn docs_list_serialises_each_entry_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = common::seeded_cfg(tmp.path());
+    std::fs::write(
+        tmp.path().join("meta/plans/2026-04-19-identified.md"),
+        "---\nid: \"2026-04-19-identified\"\n---\n",
+    )
+    .unwrap();
+    let activity = Arc::new(Activity::new());
+    let state = AppState::build(cfg, activity).await.unwrap();
+    let app = build_router(state);
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=plans")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let docs = v["docs"].as_array().unwrap();
+    let id_at = |rel_path: &str| {
+        docs.iter()
+            .find(|d| d["relPath"] == rel_path)
+            .unwrap_or_else(|| panic!("no entry at {rel_path}: {docs:?}"))
+            .get("id")
+            .cloned()
+    };
+    assert_eq!(
+        id_at("meta/plans/2026-04-19-identified.md"),
+        Some(serde_json::json!("2026-04-19-identified"))
+    );
+    assert_eq!(
+        id_at("meta/plans/2026-04-18-foo.md"),
+        Some(serde_json::Value::Null)
+    );
+}

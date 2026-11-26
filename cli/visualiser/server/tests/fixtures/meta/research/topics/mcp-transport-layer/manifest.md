@@ -1,4 +1,5 @@
 ---
+id: "mcp-transport-layer"
 type: topic-research
 kind: manifest
 status: researching

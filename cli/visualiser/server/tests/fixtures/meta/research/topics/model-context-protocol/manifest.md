@@ -1,4 +1,5 @@
 ---
+id: "model-context-protocol"
 type: topic-research
 kind: manifest
 status: briefed

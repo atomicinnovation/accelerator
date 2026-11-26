@@ -13,6 +13,7 @@ function cand(
 ): SlugCandidate {
   return {
     type: "plans" as DocTypeKey,
+    id: null,
     title: overrides.slug,
     mtimeMs: 0,
     relPath: `meta/plans/${overrides.slug}.md`,
@@ -124,8 +125,6 @@ describe("rankSlugSuggestions", () => {
   });
 
   it("ranks a candidate whose slug was derived from its relPath stem", () => {
-    // Mirrors the hook's `slug ?? fileSlugFromRelPath(relPath)` mapping: the
-    // candidate arrives with a slug taken from the file stem.
     const candidates: SlugCandidate[] = [
       cand({
         slug: "2026-error-note",

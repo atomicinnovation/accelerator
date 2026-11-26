@@ -31,7 +31,7 @@ function buildTestRouter(ui: React.ReactNode, atUrl = "/") {
   });
   const libraryDocRoute = createRoute({
     getParentRoute: () => root,
-    path: "/library/$type/$fileSlug",
+    path: "/library/$type/$documentId",
     component: () => <>{ui}</>,
   });
   // Mirror the production `/lifecycle/$slug` route so `<Link to="/lifecycle/$slug">`
@@ -56,7 +56,7 @@ function buildTestRouter(ui: React.ReactNode, atUrl = "/") {
 
 export function renderWithRouterAt(ui: React.ReactNode, atUrl = "/") {
   const router = buildTestRouter(ui, atUrl);
-  return render(<RouterProvider router={router} />);
+  return { ...render(<RouterProvider router={router} />), router };
 }
 
 /** Like `renderWithRouterAt`, but also wraps the tree in a

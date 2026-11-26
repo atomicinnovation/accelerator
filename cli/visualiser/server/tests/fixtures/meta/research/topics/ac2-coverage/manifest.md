@@ -6,6 +6,7 @@
 # prefix. Carry NO cross-reference keys (work_item_id / work-item / ticket /
 # parent / related / target) — they would pull a sibling into a declared
 # relation.
+id: "ac2-coverage"
 title: AC2 Coverage (topic research)
 ---
 

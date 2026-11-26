@@ -1,4 +1,5 @@
 ---
+id: "prompt-caching-economics"
 type: topic-research
 kind: manifest
 title: Prompt caching economics

@@ -3,7 +3,10 @@ import { Link, useParams } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
 import { FetchError, fetchLifecycleCluster } from "../../api/fetch";
 import { formatMtime } from "../../api/format";
-import { fileSlugFromRelPath } from "../../api/path-utils";
+import {
+  displayedIdentifierOf,
+  libraryLink,
+} from "../../api/library-document-address";
 import { queryKeys } from "../../api/query-keys";
 import { statusToVariant } from "../../api/status-variant";
 import {
@@ -201,24 +204,19 @@ interface TimelineStepProps {
 }
 
 function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
-  const fileSlug = fileSlugFromRelPath(entry.relPath);
   const fmStatus =
     entry.frontmatterState === "parsed" ? entry.frontmatter.status : undefined;
   const fmVerdict =
     entry.frontmatterState === "parsed" ? entry.frontmatter.verdict : undefined;
   const fmDate =
     entry.frontmatterState === "parsed" ? entry.frontmatter.date : undefined;
-  const id = entry.workItemId || fileSlugFromRelPath(entry.relPath);
+  const identifier = displayedIdentifierOf(entry);
   return (
     <li className={styles.step} data-stage={step.docType}>
       <span className={styles.stepNode}>
         <StageTile step={step} active />
       </span>
-      <Link
-        to="/library/$type/$fileSlug"
-        params={{ type: entry.type, fileSlug }}
-        className={styles.tcard}
-      >
+      <Link {...libraryLink(entry)} className={styles.tcard}>
         <div className={styles.tcardHead}>
           <div className={styles.tcardHeadLeft}>
             <span className={styles.tcardStage}>
@@ -243,7 +241,7 @@ function TimelineStep({ step, entry, cluster }: TimelineStepProps): ReactNode {
           </div>
         </div>
         <div className={styles.tcardBody}>
-          <span className={styles.tcardId}>{id}</span>
+          <span className={styles.tcardId}>{identifier}</span>
           {" · modified "}
           <time>{formatMtime(entry.mtimeMs)}</time>
         </div>

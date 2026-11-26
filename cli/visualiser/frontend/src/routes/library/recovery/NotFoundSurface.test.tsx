@@ -56,7 +56,10 @@ describe("NotFoundSurface", () => {
   it("renders the known-type 404 chrome and affordances", async () => {
     mockDocs();
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="work-items" />,
+      <NotFoundSurface
+        missingDocumentId="error-screen"
+        knownType="work-items"
+      />,
     );
 
     expect(
@@ -80,7 +83,7 @@ describe("NotFoundSurface", () => {
   it("quotes the missing slug in a mono element and ends the body with a period", async () => {
     mockDocs();
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
     );
     await screen.findByRole("heading", {
       level: 1,
@@ -119,7 +122,7 @@ describe("NotFoundSurface", () => {
     vi.spyOn(fetchModule, "fetchDocs").mockReturnValue(new Promise(() => {}));
 
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
     );
     // Flush the router's initial render without crossing the 250ms threshold.
     await act(async () => {
@@ -152,7 +155,7 @@ describe("NotFoundSurface", () => {
       ),
     });
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
     );
 
     await screen.findByRole("heading", { name: /Did you mean/i, level: 2 });
@@ -167,7 +170,7 @@ describe("NotFoundSurface", () => {
   it("lists Did you mean… suggestions in ranked order as plain list links", async () => {
     mockDocs(WORKED_EXAMPLE);
     const { container } = renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
     );
 
     const heading = await screen.findByRole("heading", {
@@ -193,6 +196,60 @@ describe("NotFoundSurface", () => {
     expect(container.querySelector('[role="option"]')).toBeNull();
   });
 
+  it("links a suggestion to its document's id", async () => {
+    mockDocs({
+      "topic-research": [
+        makeIndexEntry({
+          type: "topic-research",
+          slug: "error-screen-study",
+          id: "x",
+          relPath: "meta/research/topics/x/manifest.md",
+          title: "Error screen study",
+        }),
+      ],
+    });
+    renderWithRouterAndQueryAt(
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
+    );
+
+    const link = await screen.findByRole("link", {
+      name: /Error screen study/i,
+    });
+    expect(link.getAttribute("href")).toBe("/library/topic-research/x");
+  });
+
+  it("lists suggestions that share a slug, each linking to its own id", async () => {
+    mockDocs({
+      "plan-reviews": [1, 2].map((n) =>
+        makeIndexEntry({
+          type: "plan-reviews",
+          slug: "error-screen-review",
+          id: `2026-01-01-error-screen-review-${n}`,
+          relPath: `meta/reviews/plans/2026-01-01-error-screen-review-${n}.md`,
+          title: `Error screen review ${n}`,
+          mtimeMs: n,
+        }),
+      ),
+    });
+    renderWithRouterAndQueryAt(
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
+    );
+
+    const heading = await screen.findByRole("heading", {
+      name: /Did you mean/i,
+      level: 2,
+    });
+    const block = heading.closest("div") as HTMLElement;
+    expect(
+      within(block)
+        .getAllByRole("link")
+        .map((l) => l.getAttribute("href")),
+    ).toEqual([
+      "/library/plan-reviews/2026-01-01-error-screen-review-2",
+      "/library/plan-reviews/2026-01-01-error-screen-review-1",
+    ]);
+  });
+
   it("renders at most five suggestions when more than five match", async () => {
     mockDocs({
       plans: [1, 2, 3, 4, 5, 6, 7].map((n) =>
@@ -206,7 +263,7 @@ describe("NotFoundSurface", () => {
       ),
     });
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
     );
 
     const heading = await screen.findByRole("heading", {
@@ -230,7 +287,7 @@ describe("NotFoundSurface", () => {
       ],
     });
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="Error-Screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="Error-Screen" knownType="plans" />,
     );
 
     expect(
@@ -241,7 +298,7 @@ describe("NotFoundSurface", () => {
   it("omits the Did you mean… block entirely when there are no matches", async () => {
     mockDocs(); // all empty
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="error-screen" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="error-screen" knownType="plans" />,
     );
 
     await screen.findByRole("heading", {
@@ -258,7 +315,7 @@ describe("NotFoundSurface", () => {
   it("omits suggestions when the missing slug is shorter than two characters", async () => {
     const spy = mockDocs();
     renderWithRouterAndQueryAt(
-      <NotFoundSurface missingSlug="a" knownType="plans" />,
+      <NotFoundSurface missingDocumentId="a" knownType="plans" />,
     );
 
     await screen.findByRole("heading", {

@@ -13,9 +13,10 @@ test("library → RCA listing → RCA detail with status colour", async ({
   const row = page.locator("a").filter({ hasText: "Example RCA" }).first();
   await expect(row.locator('[data-variant="green"]')).toBeVisible();
 
-  // Click into the RCA detail page (dated stem → date-stripped slug).
   await row.click();
-  await expect(page).toHaveURL(/\/library\/root-cause-analyses\/example-rca/);
+  await expect(page).toHaveURL(
+    /\/library\/root-cause-analyses\/2026-06-10-example-rca$/,
+  );
   await expect(page.locator("article")).toBeVisible();
   // AC #5's related-artifacts routing is covered by the server `api_related`
   // suite and the `RelatedArtifacts.test.tsx` unit case rather than here: an
@@ -33,7 +34,7 @@ test("library → lifecycle → library deep-link round trip", async ({ page }) 
 
   // Click into first-plan
   await page.locator("a").filter({ hasText: "First Plan" }).first().click();
-  await expect(page).toHaveURL(/\/library\/plans\/first-plan/);
+  await expect(page).toHaveURL(/\/library\/plans\/2026-01-01-first-plan$/);
 
   // Navigate to lifecycle via the sidebar
   await page.locator('nav a[href="/lifecycle"]').click();

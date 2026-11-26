@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { describe, expect, it, type Mock, vi } from "vitest";
@@ -55,6 +55,7 @@ const mockEntries: IndexEntry[] = [
     path: "/p/meta/plans/2026-01-01-foo.md",
     relPath: "meta/plans/2026-01-01-foo.md",
     slug: "foo",
+    id: null,
     workItemId: null,
     workItemKey: null,
     draft: false,
@@ -75,6 +76,7 @@ const mockEntries: IndexEntry[] = [
     path: "/p/meta/plans/2026-02-01-bar.md",
     relPath: "meta/plans/2026-02-01-bar.md",
     slug: "bar",
+    id: null,
     workItemId: null,
     workItemKey: null,
     draft: false,
@@ -138,6 +140,49 @@ describe("LibraryTypeView", () => {
     render(<LibraryTypeView type="work-items" />, { wrapper: Wrapper });
     await screen.findByText("An idea");
     expect(screen.getByText("Draft")).toBeInTheDocument();
+  });
+
+  it("links reviews that share a slug to their own filename stems", async () => {
+    const review = (n: number) =>
+      makeIndexEntry({
+        type: "plan-reviews",
+        relPath: `meta/reviews/plans/2026-01-01-foo-review-${n}.md`,
+        path: `/x/meta/reviews/plans/2026-01-01-foo-review-${n}.md`,
+        slug: "foo",
+        title: `Review number ${n}`,
+      });
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      review(1),
+      review(2),
+    ]);
+    spyOnStructure();
+    render(<LibraryTypeView type="plan-reviews" />, { wrapper: Wrapper });
+    const first = await screen.findByText("Review number 1");
+    expect(first.closest("a")?.getAttribute("href")).toBe(
+      "/library/plan-reviews/2026-01-01-foo-review-1",
+    );
+    expect(
+      screen.getByText("Review number 2").closest("a")?.getAttribute("href"),
+    ).toBe("/library/plan-reviews/2026-01-01-foo-review-2");
+  });
+
+  it("links a research set to its id", async () => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      makeIndexEntry({
+        type: "topic-research",
+        relPath: "meta/research/topics/b/manifest.md",
+        path: "/x/meta/research/topics/b/manifest.md",
+        id: "b",
+        slug: null,
+        title: "Set B",
+      }),
+    ]);
+    spyOnStructure();
+    render(<LibraryTypeView type="topic-research" />, { wrapper: Wrapper });
+    const title = await screen.findByText("Set B");
+    expect(title.closest("a")?.getAttribute("href")).toBe(
+      "/library/topic-research/b",
+    );
   });
 
   it("renders a row for each doc", async () => {
@@ -483,6 +528,22 @@ describe("LibraryTypeView markSeen wiring", () => {
     renderAt("/library/work-items/some-slug", handle);
     await Promise.resolve();
     expect(handle.markSeen).not.toHaveBeenCalled();
+  });
+
+  it("child-doc URL hides the listing", async () => {
+    const { router } = renderAt("/library/work-items", mockHandle());
+    await screen.findByRole("heading", { name: /no work items yet/i });
+
+    await act(() =>
+      router.navigate({
+        to: "/library/$type/$documentId",
+        params: { type: "work-items", documentId: "some-slug" },
+      }),
+    );
+
+    expect(
+      screen.queryByRole("heading", { name: /no work items yet/i }),
+    ).toBeNull();
   });
 
   it("invalid type via router does not bump T", async () => {

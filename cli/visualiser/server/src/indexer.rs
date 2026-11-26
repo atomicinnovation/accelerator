@@ -148,6 +148,14 @@ pub struct IndexEntry {
     pub path: PathBuf,
     pub rel_path: PathBuf,
     pub slug: Option<String>,
+    /// The `id` the library links this document by: its frontmatter `id`
+    /// unless another document of the same type shares it, otherwise a
+    /// nested manifest's directory name.
+    pub id: Option<String>,
+    /// The document's own non-empty frontmatter `id`, whether or not
+    /// another document of the same type shares it.
+    #[serde(skip)]
+    pub frontmatter_id: Option<String>,
     /// The work item's `id` frontmatter, normalised under the configured
     /// scheme; `None` for other types, an `id` the scheme does not admit, or
     /// any item while the corpus cannot be trusted.
@@ -221,6 +229,13 @@ impl Trust {
             Self::Trusted => None,
             Self::Untrusted(problem) => Some(problem),
         }
+    }
+}
+
+impl IndexEntry {
+    /// `rel_path` as the API serves it: forward-slashed on every platform.
+    pub fn served_rel_path(&self) -> String {
+        self.rel_path.to_string_lossy().replace('\\', "/")
     }
 }
 
@@ -438,6 +453,7 @@ impl Indexer {
         // so readers never observe a partial (entries, secondary)
         // snapshot. Always acquire in the same order: entries → adr →
         // work_item → plans → reviews_by_target → work_item_refs_by_target.
+        publish_document_ids(&mut entries);
         let mut entries_w = self.entries.write().await;
         let mut adr_w = self.adr_by_id.write().await;
         let mut work_item_w = self.work_item_by_identity_key.write().await;
@@ -515,6 +531,7 @@ impl Indexer {
                     let mut entries = self.entries.write().await;
                     if let Some(previous) = entries.get(&canonical).cloned() {
                         self.forget(&mut entries, &previous).await;
+                        publish_document_ids(&mut entries);
                     }
                     return Ok(None);
                 };
@@ -582,7 +599,9 @@ impl Indexer {
                 )
                 .await;
 
-                entries.insert(canonical.clone(), entry.clone());
+                entries.insert(canonical.clone(), entry);
+                publish_document_ids(&mut entries);
+                let entry = entries[&canonical].clone();
                 self.rehome_reviews_if_holders_moved(&holders_before, &entries)
                     .await;
 
@@ -605,6 +624,7 @@ impl Indexer {
                 let mut entries = self.entries.write().await;
                 if let Some(previous) = find_entry_for_deleted(&entries, path) {
                     self.forget(&mut entries, &previous).await;
+                    publish_document_ids(&mut entries);
                 }
 
                 #[cfg(test)]
@@ -1529,15 +1549,10 @@ fn build_entry(
             let slug = id_slug.or_else(|| {
                 corpus::slug::derive(kind, filename, work_item_cfg.convention())
             });
-            let raw_id = match &parsed.state {
-                FrontmatterState::Parsed(map) => {
-                    map.get("id").and_then(|v| v.as_str())
-                }
-                _ => None,
-            };
-            let (shown, identity) = raw_id.map_or((None, None), |raw| {
-                work_item_identity(raw, work_item_cfg, &path)
-            });
+            let (shown, identity) = raw_frontmatter_id(&parsed.state)
+                .map_or((None, None), |raw| {
+                    work_item_identity(raw, work_item_cfg, &path)
+                });
             (slug, shown, identity)
         } else {
             (
@@ -1577,6 +1592,7 @@ fn build_entry(
         }
     };
 
+    let frontmatter_id = document_id(&parsed.state);
     let rel_path = path
         .strip_prefix(project_root)
         .map_or_else(|_| path.clone(), std::path::Path::to_path_buf);
@@ -1586,6 +1602,8 @@ fn build_entry(
         path,
         rel_path,
         slug: slug_val,
+        id: frontmatter_id.clone(),
+        frontmatter_id,
         draft: work_item_id
             .as_deref()
             .is_some_and(|id| work::draft_id::DraftId::parse(id).is_some()),
@@ -1608,6 +1626,51 @@ fn build_entry(
     }
 }
 
+fn publish_document_ids(entries: &mut HashMap<PathBuf, IndexEntry>) {
+    let mut holders: HashMap<(DocTypeKey, &str), usize> = HashMap::new();
+    for entry in entries.values() {
+        if let Some(id) = entry.frontmatter_id.as_deref() {
+            *holders.entry((entry.r#type, id)).or_insert(0) += 1;
+        }
+    }
+    let shared: HashSet<(DocTypeKey, String)> = holders
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|((kind, id), _)| (kind, id.to_owned()))
+        .collect();
+    for entry in entries.values_mut() {
+        let unique_frontmatter_id = entry
+            .frontmatter_id
+            .clone()
+            .filter(|id| !shared.contains(&(entry.r#type, id.clone())));
+        entry.id =
+            unique_frontmatter_id.or_else(|| manifest_directory_of(entry));
+    }
+}
+
+fn manifest_directory_of(entry: &IndexEntry) -> Option<String> {
+    entry.r#type.nested_manifest_filename()?;
+    entry
+        .path
+        .parent()?
+        .file_name()?
+        .to_str()
+        .map(str::to_owned)
+}
+
+fn raw_frontmatter_id(state: &FrontmatterState) -> Option<&str> {
+    match state {
+        FrontmatterState::Parsed(map) => map.get("id").and_then(|v| v.as_str()),
+        _ => None,
+    }
+}
+
+fn document_id(state: &FrontmatterState) -> Option<String> {
+    raw_frontmatter_id(state)
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+}
+
 fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
     if entry.r#type != DocTypeKey::Decisions {
         return None;
@@ -1627,11 +1690,7 @@ fn plan_id_from_entry(entry: &IndexEntry) -> Option<String> {
     if entry.r#type != DocTypeKey::Plans {
         return None;
     }
-    let id = entry.frontmatter.get("id")?.as_str()?;
-    if id.is_empty() {
-        return None;
-    }
-    Some(id.to_string())
+    entry.frontmatter_id.clone()
 }
 
 fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
@@ -1724,6 +1783,304 @@ mod identity_key_tests {
             let got_first = got.first().map(String::as_str);
             assert_eq!(got_first, *expected, "input={input}");
         }
+    }
+}
+
+#[cfg(test)]
+mod document_id_tests {
+    use super::*;
+    use crate::config::WorkItemConfig;
+    use crate::file_driver::LocalFileDriver;
+    use std::sync::Arc;
+
+    const DIRS: [(&str, &str); 4] = [
+        ("work", "meta/work"),
+        ("plans", "meta/plans"),
+        ("research_topics", "meta/research/topics"),
+        (
+            "research_design_inventories",
+            "meta/research/design-inventories",
+        ),
+    ];
+
+    async fn entry_at(path: &str, content: &str) -> IndexEntry {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let mut dirs = HashMap::new();
+        for (path_key, dir) in DIRS {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            dirs.insert(path_key.to_string(), root.join(dir));
+        }
+        let file = root.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, content).unwrap();
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+        let cfg = Arc::new(WorkItemConfig::default_numeric());
+        let idx = Indexer::build(driver, root, cfg).await.unwrap();
+        idx.get(&file).await.expect("indexed")
+    }
+
+    async fn id_of_document_at(path: &str, content: &str) -> Option<String> {
+        entry_at(path, content).await.id
+    }
+
+    #[tokio::test]
+    async fn a_topic_research_set_carries_its_manifest_id() {
+        let id = id_of_document_at(
+            "meta/research/topics/prompt-caching/manifest.md",
+            "---\nid: \"prompt-caching\"\n---\n",
+        )
+        .await;
+        assert_eq!(id.as_deref(), Some("prompt-caching"));
+    }
+
+    #[tokio::test]
+    async fn a_design_inventory_carries_its_directory_name_as_id() {
+        let id = id_of_document_at(
+            "meta/research/design-inventories/\
+             2026-05-06-135214-current-app/inventory.md",
+            "---\nid: \"2026-05-06-135214-current-app\"\n---\n",
+        )
+        .await;
+        assert_eq!(id.as_deref(), Some("2026-05-06-135214-current-app"));
+    }
+
+    #[tokio::test]
+    async fn a_plan_without_an_id_carries_none() {
+        let id = id_of_document_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\ntitle: \"Foo\"\n---\n",
+        )
+        .await;
+        assert_eq!(id, None);
+    }
+
+    #[tokio::test]
+    async fn a_plan_with_an_empty_id_carries_none() {
+        let id = id_of_document_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: \"\"\n---\n",
+        )
+        .await;
+        assert_eq!(id, None);
+    }
+
+    #[tokio::test]
+    async fn a_plan_with_an_unquoted_numeric_id_carries_none() {
+        let id = id_of_document_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: 42\n---\n",
+        )
+        .await;
+        assert_eq!(id, None);
+    }
+
+    #[tokio::test]
+    async fn a_plan_with_malformed_frontmatter_carries_none() {
+        let entry = entry_at(
+            "meta/plans/2026-01-01-foo.md",
+            "---\nid: [\"unclosed\n---\n",
+        )
+        .await;
+        assert_eq!(entry.frontmatter_state, "malformed");
+        assert_eq!(entry.id, None);
+    }
+
+    #[tokio::test]
+    async fn a_work_item_carries_its_raw_frontmatter_id_even_when_its_work_item_id_is_rejected(
+    ) {
+        let entry =
+            entry_at("meta/work/0042-foo.md", "---\nid: \"42\"\n---\n").await;
+        assert_eq!(entry.id.as_deref(), Some("42"));
+        assert_eq!(entry.work_item_id, None);
+    }
+
+    struct Corpus {
+        _tmp: tempfile::TempDir,
+        root: PathBuf,
+        indexer: Indexer,
+    }
+
+    impl Corpus {
+        async fn of(documents: &[(&str, &str)]) -> Self {
+            let tmp = tempfile::tempdir().unwrap();
+            let root = tmp.path().canonicalize().unwrap();
+            let mut dirs = HashMap::new();
+            for (path_key, dir) in DIRS {
+                std::fs::create_dir_all(root.join(dir)).unwrap();
+                dirs.insert(path_key.to_string(), root.join(dir));
+            }
+            for (path, content) in documents {
+                let file = root.join(path);
+                std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+                std::fs::write(&file, content).unwrap();
+            }
+            let driver: Arc<dyn FileDriver> =
+                Arc::new(LocalFileDriver::new(&dirs, vec![], vec![]));
+            let cfg = Arc::new(WorkItemConfig::default_numeric());
+            let indexer =
+                Indexer::build(driver, root.clone(), cfg).await.unwrap();
+            Self {
+                _tmp: tmp,
+                root,
+                indexer,
+            }
+        }
+
+        async fn id_at(&self, path: &str) -> Option<String> {
+            self.indexer
+                .get(&self.root.join(path))
+                .await
+                .expect("indexed")
+                .id
+        }
+
+        async fn rewrite(&self, path: &str, content: &str) {
+            let file = self.root.join(path);
+            std::fs::write(&file, content).unwrap();
+            self.indexer.refresh_one(&file).await.unwrap();
+        }
+
+        async fn delete(&self, path: &str) {
+            let file = self.root.join(path);
+            std::fs::remove_file(&file).unwrap();
+            self.indexer.refresh_one(&file).await.unwrap();
+        }
+    }
+
+    const FIRST_INVENTORY: &str =
+        "meta/research/design-inventories/2026-01-01-a/inventory.md";
+    const SECOND_INVENTORY: &str =
+        "meta/research/design-inventories/2026-01-02-b/inventory.md";
+    const SHARED_ID: &str = "---\nid: \"inventory\"\n---\n";
+
+    #[tokio::test]
+    async fn plans_sharing_an_id_carry_none() {
+        let corpus = Corpus::of(&[
+            ("meta/plans/2026-01-01-a.md", "---\nid: \"plan\"\n---\n"),
+            ("meta/plans/2026-01-02-b.md", "---\nid: \"plan\"\n---\n"),
+        ])
+        .await;
+
+        assert_eq!(corpus.id_at("meta/plans/2026-01-01-a.md").await, None);
+        assert_eq!(corpus.id_at("meta/plans/2026-01-02-b.md").await, None);
+    }
+
+    #[tokio::test]
+    async fn inventories_sharing_an_id_carry_their_directory_names() {
+        let corpus = Corpus::of(&[
+            (FIRST_INVENTORY, SHARED_ID),
+            (SECOND_INVENTORY, SHARED_ID),
+        ])
+        .await;
+
+        assert_eq!(
+            corpus.id_at(FIRST_INVENTORY).await.as_deref(),
+            Some("2026-01-01-a"),
+        );
+        assert_eq!(
+            corpus.id_at(SECOND_INVENTORY).await.as_deref(),
+            Some("2026-01-02-b"),
+        );
+    }
+
+    #[tokio::test]
+    async fn a_research_set_without_an_id_carries_its_directory_name() {
+        let corpus = Corpus::of(&[(
+            "meta/research/topics/prompt-caching/manifest.md",
+            "---\ntitle: \"Prompt caching\"\n---\n",
+        )])
+        .await;
+
+        assert_eq!(
+            corpus
+                .id_at("meta/research/topics/prompt-caching/manifest.md")
+                .await
+                .as_deref(),
+            Some("prompt-caching"),
+        );
+    }
+
+    #[tokio::test]
+    async fn documents_of_different_types_may_share_an_id() {
+        let corpus = Corpus::of(&[
+            ("meta/plans/2026-01-01-foo.md", "---\nid: \"foo\"\n---\n"),
+            (
+                "meta/research/topics/foo/manifest.md",
+                "---\nid: \"foo\"\n---\n",
+            ),
+        ])
+        .await;
+
+        assert_eq!(
+            corpus
+                .id_at("meta/plans/2026-01-01-foo.md")
+                .await
+                .as_deref(),
+            Some("foo"),
+        );
+        assert_eq!(
+            corpus
+                .id_at("meta/research/topics/foo/manifest.md")
+                .await
+                .as_deref(),
+            Some("foo"),
+        );
+    }
+
+    #[tokio::test]
+    async fn giving_one_of_two_documents_its_own_id_restores_the_others() {
+        let corpus = Corpus::of(&[
+            (FIRST_INVENTORY, SHARED_ID),
+            (SECOND_INVENTORY, SHARED_ID),
+        ])
+        .await;
+
+        corpus
+            .rewrite(SECOND_INVENTORY, "---\nid: \"2026-01-02-b\"\n---\n")
+            .await;
+
+        assert_eq!(
+            corpus.id_at(FIRST_INVENTORY).await.as_deref(),
+            Some("inventory"),
+        );
+        assert_eq!(
+            corpus.id_at(SECOND_INVENTORY).await.as_deref(),
+            Some("2026-01-02-b"),
+        );
+    }
+
+    #[tokio::test]
+    async fn copying_a_documents_id_onto_another_withdraws_it_from_both() {
+        let corpus = Corpus::of(&[
+            ("meta/plans/2026-01-01-a.md", "---\nid: \"plan\"\n---\n"),
+            ("meta/plans/2026-01-02-b.md", "---\nid: \"b\"\n---\n"),
+        ])
+        .await;
+
+        corpus
+            .rewrite("meta/plans/2026-01-02-b.md", "---\nid: \"plan\"\n---\n")
+            .await;
+
+        assert_eq!(corpus.id_at("meta/plans/2026-01-01-a.md").await, None);
+        assert_eq!(corpus.id_at("meta/plans/2026-01-02-b.md").await, None);
+    }
+
+    #[tokio::test]
+    async fn deleting_one_of_two_documents_sharing_an_id_restores_the_others() {
+        let corpus = Corpus::of(&[
+            (FIRST_INVENTORY, SHARED_ID),
+            (SECOND_INVENTORY, SHARED_ID),
+        ])
+        .await;
+
+        corpus.delete(SECOND_INVENTORY).await;
+
+        assert_eq!(
+            corpus.id_at(FIRST_INVENTORY).await.as_deref(),
+            Some("inventory"),
+        );
     }
 }
 
@@ -2840,6 +3197,8 @@ mod tests {
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
+            id: None,
+            frontmatter_id: None,
             work_item_id: Some(work_item_id.to_string()),
             work_item_key: None,
             identity_key: Some(work_item_id.to_string()),
@@ -2864,6 +3223,8 @@ mod tests {
             path: PathBuf::from("/tmp/x.md"),
             rel_path: PathBuf::from("x.md"),
             slug: None,
+            id: None,
+            frontmatter_id: None,
             work_item_id: None,
             work_item_key: None,
             identity_key: None,

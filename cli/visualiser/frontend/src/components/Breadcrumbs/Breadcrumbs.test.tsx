@@ -148,7 +148,7 @@ describe("URL matrix", () => {
       }),
       makeMatch({
         id: "/library/decisions/foo-slug",
-        routeId: "/library/$type/$fileSlug",
+        routeId: "/library/$type/$documentId",
         pathname: "/library/decisions/foo-slug",
         loaderData: { crumb: "foo-slug" },
       }),

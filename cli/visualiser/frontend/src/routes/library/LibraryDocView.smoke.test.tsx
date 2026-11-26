@@ -13,6 +13,7 @@ const planEntry: IndexEntry = {
   path: "/p/meta/plans/2026-01-01-foo.md",
   relPath: "meta/plans/2026-01-01-foo.md",
   slug: "foo",
+  id: null,
   workItemId: null,
   workItemKey: null,
   draft: false,
@@ -85,7 +86,7 @@ describe("LibraryDocView smoke", () => {
       declaredInbound: [],
     });
 
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: makeWrapper(qc),
     });
     // Option B: the inbound review surfaces as a single declared-tagged row.
@@ -138,7 +139,7 @@ describe("LibraryDocView smoke", () => {
 
     // First mount — observe inbound review present.
     const first = render(
-      <LibraryDocView type="plans" fileSlug="2026-01-01-foo" />,
+      <LibraryDocView type="plans" documentId="2026-01-01-foo" />,
       { wrapper: makeWrapper(qc) },
     );
     expect(
@@ -167,7 +168,7 @@ describe("LibraryDocView smoke", () => {
     // Remount — DOM must reflect the *new* (empty) response on first
     // paint. Without refetchType: 'all', the cache would still hold
     // the original response and the heading would briefly reappear.
-    render(<LibraryDocView type="plans" fileSlug="2026-01-01-foo" />, {
+    render(<LibraryDocView type="plans" documentId="2026-01-01-foo" />, {
       wrapper: makeWrapper(qc),
     });
 

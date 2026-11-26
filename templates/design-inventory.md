@@ -1,6 +1,6 @@
 ---
 type: "design-inventory"                     # artifact-type discriminator
-id: "{filename-stem}"                        # filename without .md
+id: "{directory-name}"                       # the inventory directory name
 title: "Design Inventory: {source-id}"
 date: "{ISO timestamp}"
 author: "{author name}"

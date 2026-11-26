@@ -119,12 +119,13 @@ export async function fetchTypes(): Promise<DocType[]> {
  *  the boundary. */
 type WireIndexEntry = Omit<
   IndexEntry,
-  "completeness" | "linkedCount" | "draft" | "workItemKey"
+  "completeness" | "linkedCount" | "draft" | "workItemKey" | "id"
 > & {
   completeness?: IndexEntry["completeness"];
   linkedCount?: number;
   draft?: boolean;
   workItemKey?: string | null;
+  id?: string | null;
 };
 
 /** Normalises an `IndexEntry` shape from the wire. Servers older than the
@@ -138,6 +139,7 @@ function normaliseEntry(raw: WireIndexEntry): IndexEntry {
     linkedCount: raw.linkedCount ?? 0,
     draft: raw.draft ?? false,
     workItemKey: raw.workItemKey ?? null,
+    id: raw.id ?? null,
   };
 }
 
@@ -243,7 +245,23 @@ export interface SearchResult {
   docType: DocTypeKey;
   title: string;
   slug: string;
+  id: string | null;
+  relPath: string;
   mtimeMs: number;
+}
+
+type WireSearchResult = Omit<SearchResult, "id" | "relPath"> & {
+  id?: string | null;
+  relPath?: string;
+};
+
+/** A server that predates ids sends neither `id` nor `relPath`, so its rows
+ *  are addressed by their slug, which the library still resolves. */
+function normaliseSearchResult(raw: WireSearchResult): SearchResult {
+  if (raw.relPath === undefined) {
+    return { ...raw, id: raw.slug, relPath: "" };
+  }
+  return { ...raw, id: raw.id ?? null, relPath: raw.relPath };
 }
 
 export async function fetchSearch(
@@ -253,8 +271,8 @@ export async function fetchSearch(
   try {
     const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal });
     if (!r.ok) throw new FetchError(r.status, `GET /api/search: ${r.status}`);
-    const body: { results: SearchResult[] } = await r.json();
-    return body.results;
+    const body: { results: WireSearchResult[] } = await r.json();
+    return body.results.map(normaliseSearchResult);
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
     console.error(err);

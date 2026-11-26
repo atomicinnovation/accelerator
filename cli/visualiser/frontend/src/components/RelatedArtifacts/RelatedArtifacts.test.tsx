@@ -1,8 +1,18 @@
 import { render, screen, within } from "@testing-library/react";
+import type React from "react";
 import { describe, expect, it } from "vitest";
 import { makeIndexEntry } from "../../api/test-fixtures";
 import type { RelatedArtifactsResponse } from "../../api/types";
+import { MemoryRouter } from "../../test/router-helpers";
 import { RelatedArtifacts } from "./RelatedArtifacts";
+
+async function renderRouted(ui: React.ReactElement) {
+  const rendered = render(<div data-testid="routed">{ui}</div>, {
+    wrapper: MemoryRouter,
+  });
+  await screen.findByTestId("routed");
+  return rendered;
+}
 
 const empty: RelatedArtifactsResponse = {
   inferredCluster: [],
@@ -26,12 +36,17 @@ const exampleAdr = makeIndexEntry({
   type: "decisions",
   relPath: "meta/decisions/ADR-0001-example.md",
   path: "/x/meta/decisions/ADR-0001-example.md",
+  id: "ADR-0001",
   title: "Example decision",
 });
 
+function hrefOf(name: string): string | null {
+  return screen.getByRole("link", { name }).getAttribute("href");
+}
+
 describe("RelatedArtifacts", () => {
-  it("shows all-empty message when all three arrays are empty", () => {
-    render(<RelatedArtifacts related={empty} />);
+  it("shows all-empty message when all three arrays are empty", async () => {
+    await renderRouted(<RelatedArtifacts related={empty} />);
     expect(
       screen.getByText("This document has no declared or inferred relations."),
     ).toBeInTheDocument();
@@ -39,8 +54,8 @@ describe("RelatedArtifacts", () => {
     expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
   });
 
-  it("renders one list with no sub-group headings", () => {
-    render(
+  it("renders one list with no sub-group headings", async () => {
+    await renderRouted(
       <RelatedArtifacts
         related={{
           inferredCluster: [exampleAdr],
@@ -54,8 +69,8 @@ describe("RelatedArtifacts", () => {
     expect(screen.getAllByTestId("related-list")).toHaveLength(1);
   });
 
-  it("tags declared rows (declared) and inferred rows (inferred)", () => {
-    render(
+  it("tags declared rows (declared) and inferred rows (inferred)", async () => {
+    await renderRouted(
       <RelatedArtifacts
         related={{
           inferredCluster: [exampleAdr],
@@ -77,7 +92,7 @@ describe("RelatedArtifacts", () => {
     }
   });
 
-  it("orders rows declared-first then inferred (outbound, inbound, cluster)", () => {
+  it("orders rows declared-first then inferred (outbound, inbound, cluster)", async () => {
     // Distinct paths so dedup cannot shorten the list and shift indices.
     const outbound = makeIndexEntry({
       type: "plans",
@@ -97,7 +112,7 @@ describe("RelatedArtifacts", () => {
       path: "/x/c.md",
       title: "Charlie cluster",
     });
-    render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           declaredOutbound: [outbound],
@@ -116,9 +131,9 @@ describe("RelatedArtifacts", () => {
     expect(rows[2]).toHaveTextContent("(inferred)");
   });
 
-  it("dedupes a bidirectional declared relation to a single row", () => {
+  it("dedupes a bidirectional declared relation to a single row", async () => {
     // Same entry (same path) in both outbound and inbound renders once.
-    render(
+    await renderRouted(
       <RelatedArtifacts
         related={{
           declaredOutbound: [examplePlan],
@@ -133,8 +148,8 @@ describe("RelatedArtifacts", () => {
     expect(screen.getByRole("link", { name: "Foo Plan" })).toBeInTheDocument();
   });
 
-  it("renders correctly with inferred relations only", () => {
-    render(
+  it("renders correctly with inferred relations only", async () => {
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, inferredCluster: [exampleAdr] }}
       />,
@@ -149,8 +164,120 @@ describe("RelatedArtifacts", () => {
     ).toBeNull();
   });
 
-  it("each row links to /library/{type}/{slug}", () => {
-    render(
+  it("links each research set to its own id", async () => {
+    const setA = makeIndexEntry({
+      type: "topic-research",
+      relPath: "meta/research/topics/a/manifest.md",
+      path: "/x/meta/research/topics/a/manifest.md",
+      id: "a",
+      slug: null,
+      title: "Set A",
+    });
+    const setB = makeIndexEntry({
+      type: "topic-research",
+      relPath: "meta/research/topics/b/manifest.md",
+      path: "/x/meta/research/topics/b/manifest.md",
+      id: "b",
+      slug: null,
+      title: "Set B",
+    });
+    await renderRouted(
+      <RelatedArtifacts
+        related={{ ...empty, declaredOutbound: [setA, setB] }}
+      />,
+    );
+    expect(hrefOf("Set A")).toBe("/library/topic-research/a");
+    expect(hrefOf("Set B")).toBe("/library/topic-research/b");
+  });
+
+  it("links each design inventory to its own id", async () => {
+    const inventory = (dir: string, title: string) =>
+      makeIndexEntry({
+        type: "design-inventories",
+        relPath: `meta/research/design-inventories/${dir}/inventory.md`,
+        path: `/x/meta/research/design-inventories/${dir}/inventory.md`,
+        id: dir,
+        slug: null,
+        title,
+      });
+    await renderRouted(
+      <RelatedArtifacts
+        related={{
+          ...empty,
+          declaredOutbound: [
+            inventory("2026-05-01-first", "First inventory"),
+            inventory("2026-05-02-second", "Second inventory"),
+          ],
+        }}
+      />,
+    );
+    expect(hrefOf("First inventory")).toBe(
+      "/library/design-inventories/2026-05-01-first",
+    );
+    expect(hrefOf("Second inventory")).toBe(
+      "/library/design-inventories/2026-05-02-second",
+    );
+  });
+
+  it("links reviews that share a slug to their own filename stems", async () => {
+    const review = (n: number) =>
+      makeIndexEntry({
+        type: "plan-reviews",
+        relPath: `meta/reviews/plans/2026-01-01-foo-review-${n}.md`,
+        path: `/x/meta/reviews/plans/2026-01-01-foo-review-${n}.md`,
+        id: null,
+        slug: "foo",
+        title: `Review ${n}`,
+      });
+    await renderRouted(
+      <RelatedArtifacts
+        related={{ ...empty, declaredInbound: [review(1), review(2)] }}
+      />,
+    );
+    expect(hrefOf("Review 1")).toBe(
+      "/library/plan-reviews/2026-01-01-foo-review-1",
+    );
+    expect(hrefOf("Review 2")).toBe(
+      "/library/plan-reviews/2026-01-01-foo-review-2",
+    );
+  });
+
+  it("links a plan with no id by its filename stem", async () => {
+    const plan = makeIndexEntry({
+      type: "plans",
+      relPath: "meta/plans/foo.md",
+      path: "/x/meta/plans/foo.md",
+      id: null,
+      title: "Bare plan",
+    });
+    await renderRouted(
+      <RelatedArtifacts related={{ ...empty, declaredOutbound: [plan] }} />,
+    );
+    expect(hrefOf("Bare plan")).toBe("/library/plans/foo");
+  });
+
+  it("labels a related document with the identifier its URL uses", async () => {
+    const plan = makeIndexEntry({
+      type: "plans",
+      relPath: "meta/plans/2026-04-18-foo.md",
+      path: "/x/meta/plans/2026-04-18-foo.md",
+      id: null,
+      slug: "foo",
+      workItemId: null,
+      title: "Foo Plan",
+    });
+    await renderRouted(
+      <RelatedArtifacts related={{ ...empty, declaredOutbound: [plan] }} />,
+    );
+    expect(
+      within(screen.getByRole("link", { name: "Foo Plan" })).getByText(
+        "2026-04-18-foo",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("each row links to its document's library page", async () => {
+    await renderRouted(
       <RelatedArtifacts
         related={{
           declaredOutbound: [examplePlan],
@@ -169,17 +296,17 @@ describe("RelatedArtifacts", () => {
       screen
         .getByRole("link", { name: "Example decision" })
         .getAttribute("href"),
-    ).toBe("/library/decisions/ADR-0001-example");
+    ).toBe("/library/decisions/ADR-0001");
   });
 
-  it("routes a related RCA row to the RCA detail page with the RCA singular label", () => {
+  it("routes a related RCA row to the RCA detail page with the RCA singular label", async () => {
     const exampleRca = makeIndexEntry({
       type: "root-cause-analyses",
       relPath: "meta/research/issues/2026-06-10-example-rca.md",
       path: "/x/meta/research/issues/2026-06-10-example-rca.md",
       title: "Example RCA",
     });
-    render(
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, declaredInbound: [exampleRca] }}
       />,
@@ -195,8 +322,8 @@ describe("RelatedArtifacts", () => {
     );
   });
 
-  it("renders no legend", () => {
-    render(
+  it("renders no legend", async () => {
+    await renderRouted(
       <RelatedArtifacts
         related={{ ...empty, declaredOutbound: [examplePlan] }}
       />,
@@ -205,9 +332,9 @@ describe("RelatedArtifacts", () => {
     expect(screen.queryByText("Inferred")).toBeNull();
   });
 
-  it("shows Updating hint only when showUpdatingHint is true", () => {
+  it("shows Updating hint only when showUpdatingHint is true", async () => {
     const populated = { ...empty, declaredOutbound: [examplePlan] };
-    const { rerender } = render(
+    const { rerender } = await renderRouted(
       <RelatedArtifacts related={populated} showUpdatingHint />,
     );
     const hint = screen.getByText("Updating…");
@@ -218,8 +345,8 @@ describe("RelatedArtifacts", () => {
     expect(screen.queryByText("Updating…")).toBeNull();
   });
 
-  it("each row renders a decorative Glyph matching the row doc type", () => {
-    render(
+  it("each row renders a decorative Glyph matching the row doc type", async () => {
+    await renderRouted(
       <RelatedArtifacts
         related={{
           inferredCluster: [exampleAdr],

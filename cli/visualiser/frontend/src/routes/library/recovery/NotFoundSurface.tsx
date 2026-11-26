@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { libraryLink } from "../../../api/library-document-address";
 import { DOC_TYPE_LABELS_SINGULAR, type DocTypeKey } from "../../../api/types";
 import { Glyph } from "../../../components/Glyph/Glyph";
 import { DOC_TYPE_COLOR_VAR } from "../../../components/Glyph/Glyph.constants";
@@ -8,10 +9,10 @@ import { useDelayedFlag } from "./use-delayed-flag";
 import { useNearbySlugSuggestions } from "./use-nearby-slug-suggestions";
 
 interface NotFoundSurfaceProps {
-  /** The missing document slug, when one is present (unknown-slug 404).
-   *  Absent on the router-level catch-all. Drives the H1, the mono-quoted
+  /** The document id from an unresolved library URL. Absent on the
+   *  router-level catch-all. Drives the H1, the mono-quoted
    *  query, and suggestion generation. */
-  missingSlug?: string;
+  missingDocumentId?: string;
   /** The valid doc type from the URL's first /library/ segment, when it
    *  passes isDocTypeKey. Drives the eyebrow, the per-type hero hue, and the
    *  `Back to {type} list` link. Absent ⇒ catch-all (DefaultBigGlyph, no
@@ -20,18 +21,18 @@ interface NotFoundSurfaceProps {
 }
 
 export function NotFoundSurface({
-  missingSlug,
+  missingDocumentId,
   knownType,
 }: NotFoundSurfaceProps) {
   const { suggestions, isPending } = useNearbySlugSuggestions(
-    missingSlug ?? "",
+    missingDocumentId ?? "",
   );
   // Defer the working hint so the warm-cache path (fan-out settles near-
   // instantly under staleTime: Infinity) goes straight to the list with no
   // hint flash.
   const showHint = useDelayedFlag(isPending);
 
-  const title = missingSlug ? "Document not found" : "Page not found";
+  const title = missingDocumentId ? "Document not found" : "Page not found";
 
   // Concise status string announced to assistive tech only (the <h2> + links
   // are navigable content rendered outside the live region below).
@@ -48,10 +49,11 @@ export function NotFoundSurface({
   return (
     <RecoverySurface title={title} knownType={knownType}>
       <p className={styles.copy} data-testid="not-found-body">
-        {missingSlug ? (
+        {missingDocumentId ? (
           <>
             We couldn&rsquo;t find a document with the slug{" "}
-            <code className={styles.mono}>{missingSlug}</code> in this library.
+            <code className={styles.mono}>{missingDocumentId}</code> in this
+            library.
           </>
         ) : (
           <>That page doesn&rsquo;t exist in this workspace.</>
@@ -72,12 +74,8 @@ export function NotFoundSurface({
           <h2 className={styles.suggestHeading}>Did you mean…</h2>
           <ul className={styles.suggestList}>
             {suggestions.map((s) => (
-              <li key={`${s.type}/${s.slug}`}>
-                <Link
-                  to="/library/$type/$fileSlug"
-                  params={{ type: s.type, fileSlug: s.slug }}
-                  className={styles.suggestRowLink}
-                >
+              <li key={s.relPath}>
+                <Link {...libraryLink(s)} className={styles.suggestRowLink}>
                   <Glyph docType={s.type} size={24} />
                   <div className={styles.suggestRowBody}>
                     <div className={styles.suggestRowTitle}>{s.title}</div>

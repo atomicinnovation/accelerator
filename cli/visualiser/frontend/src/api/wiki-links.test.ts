@@ -209,12 +209,14 @@ describe("resolveWikiLink", () => {
   const adr = makeIndexEntry({
     type: "decisions",
     relPath: "meta/decisions/ADR-0017-foo.md",
+    id: "ADR-0017",
     title: "Configuration extension points",
     frontmatter: { adr_id: "ADR-0017" },
   });
   const workItem = makeIndexEntry({
     type: "work-items",
     relPath: "meta/work/0001-foo.md",
+    id: "0001",
     title: "Three-layer review system architecture",
     workItemId: "0001",
   });
@@ -228,7 +230,7 @@ describe("resolveWikiLink", () => {
   // ── Step 3.10 ────────────────────────────────────────────────────────
   it("returns href and title for known ADR", () => {
     expect(resolveWikiLink("ADR", "17", idx)).toEqual({
-      href: "/library/decisions/ADR-0017-foo",
+      href: "/library/decisions/ADR-0017",
       title: "Configuration extension points",
     });
   });
@@ -236,7 +238,7 @@ describe("resolveWikiLink", () => {
   // ── Step 3.11 ────────────────────────────────────────────────────────
   it("returns href and title for known work item", () => {
     expect(resolveWikiLink("WORK-ITEM", "0001", idx)).toEqual({
-      href: "/library/work-items/0001-foo",
+      href: "/library/work-items/0001",
       title: "Three-layer review system architecture",
     });
   });
@@ -252,10 +254,10 @@ describe("resolveWikiLink", () => {
     // ADR lookups parse the string to int internally, so '0017' and '17'
     // both hit the same entry keyed on 17.
     expect(resolveWikiLink("ADR", "0017", idx)?.href).toBe(
-      "/library/decisions/ADR-0017-foo",
+      "/library/decisions/ADR-0017",
     );
     expect(resolveWikiLink("ADR", "17", idx)?.href).toBe(
-      "/library/decisions/ADR-0017-foo",
+      "/library/decisions/ADR-0017",
     );
   });
 
@@ -263,14 +265,52 @@ describe("resolveWikiLink", () => {
     const projItem = makeIndexEntry({
       type: "work-items",
       relPath: "meta/work/PROJ-0042-foo.md",
+      id: "PROJ-0042",
       title: "Foo work item",
       workItemId: "PROJ-0042",
     });
     const projIdx = buildWikiLinkIndex([], [projItem]);
     expect(resolveWikiLink("WORK-ITEM", "PROJ-0042", projIdx)).toEqual({
-      href: "/library/work-items/PROJ-0042-foo",
+      href: "/library/work-items/PROJ-0042",
       title: "Foo work item",
     });
+  });
+
+  it("links a work item by its id", () => {
+    const item = makeIndexEntry({
+      type: "work-items",
+      relPath: "meta/work/0042-bar.md",
+      id: "0042",
+      workItemId: "0042",
+    });
+    expect(
+      resolveWikiLink("WORK-ITEM", "0042", buildWikiLinkIndex([], [item]))
+        ?.href,
+    ).toBe("/library/work-items/0042");
+  });
+
+  it("links a decision by its id", () => {
+    const decision = makeIndexEntry({
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0067-baz.md",
+      id: "ADR-0067",
+      frontmatter: { adr_id: "ADR-0067" },
+    });
+    expect(
+      resolveWikiLink("ADR", "0067", buildWikiLinkIndex([decision], []))?.href,
+    ).toBe("/library/decisions/ADR-0067");
+  });
+
+  it("links a decision with no id by its filename stem", () => {
+    const decision = makeIndexEntry({
+      type: "decisions",
+      relPath: "meta/decisions/ADR-0068-qux.md",
+      id: null,
+      frontmatter: { adr_id: "ADR-0068" },
+    });
+    expect(
+      resolveWikiLink("ADR", "0068", buildWikiLinkIndex([decision], []))?.href,
+    ).toBe("/library/decisions/ADR-0068-qux");
   });
 });
 

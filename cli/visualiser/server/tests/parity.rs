@@ -186,6 +186,8 @@ fn entry(
         path: PathBuf::from(path),
         rel_path: PathBuf::from(path),
         slug: Some(slug.to_string()),
+        id: None,
+        frontmatter_id: None,
         work_item_id: None,
         work_item_key: None,
         identity_key: None,

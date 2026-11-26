@@ -940,6 +940,7 @@ const KANBAN_ENTRY: IndexEntry = {
   path: "/x/meta/work/0086-kanban-drag-and-drop.md",
   relPath: "meta/work/0086-kanban-drag-and-drop.md",
   slug: "kanban-drag-and-drop",
+  id: null,
   workItemId: "0086",
   workItemKey: null,
   draft: false,

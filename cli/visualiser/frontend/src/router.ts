@@ -113,9 +113,9 @@ const libraryTypeRoute = withCrumb(({ params }) => params.type, {
   component: LibraryTypeView,
 });
 
-const libraryDocRoute = withCrumb(({ params }) => params.fileSlug, {
+const libraryDocRoute = withCrumb(({ params }) => params.documentId, {
   getParentRoute: () => libraryTypeRoute,
-  path: "/$fileSlug",
+  path: "/$documentId",
   component: LibraryDocView,
 });
 

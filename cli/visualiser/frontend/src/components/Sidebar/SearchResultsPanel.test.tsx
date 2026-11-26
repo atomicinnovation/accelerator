@@ -58,11 +58,16 @@ describe("SearchResultsPanel", () => {
 
   it("typing 2 chars issues one request after 200ms", async () => {
     const qc = makeClient();
-    const spy = vi
-      .spyOn(fetchModule, "fetchSearch")
-      .mockResolvedValue([
-        { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
-      ]);
+    const spy = vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
+    ]);
     render(
       <Wrap qc={qc}>
         <SearchResultsPanel query="ab" />
@@ -92,13 +97,37 @@ describe("SearchResultsPanel", () => {
   it("renders one row per result with the expected href in response order", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "First", slug: "first", mtimeMs: 1 },
-      { docType: "decisions", title: "Second", slug: "second", mtimeMs: 2 },
+      {
+        docType: "plans",
+        title: "First",
+        slug: "first",
+        id: "2026-01-01-PP-1-first",
+        relPath: "meta/plans/2026-01-01-first.md",
+        mtimeMs: 1,
+      },
+      {
+        docType: "decisions",
+        title: "Second",
+        slug: "second",
+        id: "ADR-0002",
+        relPath: "meta/decisions/ADR-0002-second.md",
+        mtimeMs: 2,
+      },
       {
         docType: "codebase-research",
         title: "Third",
         slug: "third",
+        id: null,
+        relPath: "meta/research/codebase/2026-01-03-third.md",
         mtimeMs: 3,
+      },
+      {
+        docType: "topic-research",
+        title: "Fourth",
+        slug: "fourth",
+        id: "b",
+        relPath: "meta/research/topics/b/manifest.md",
+        mtimeMs: 4,
       },
     ]);
     render(
@@ -114,24 +143,107 @@ describe("SearchResultsPanel", () => {
     // is still <a href> — native modifier-click / middle-click / Enter
     // semantics depend on that.
     const rows = screen.getAllByRole("option");
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
     expect(rows[0].tagName).toBe("A");
     expect(rows[0].hasAttribute("href")).toBe(true);
-    expect(rows[0].getAttribute("href")).toBe("/library/plans/first");
-    expect(rows[1].getAttribute("href")).toBe("/library/decisions/second");
-    expect(rows[2].getAttribute("href")).toBe(
-      "/library/codebase-research/third",
+    expect(rows[0].getAttribute("href")).toBe(
+      "/library/plans/2026-01-01-PP-1-first",
     );
+    expect(rows[1].getAttribute("href")).toBe("/library/decisions/ADR-0002");
+    expect(rows[2].getAttribute("href")).toBe(
+      "/library/codebase-research/2026-01-03-third",
+    );
+    expect(rows[3].getAttribute("href")).toBe("/library/topic-research/b");
+  });
+
+  it("renders rows that share a slug, each linking to its own id", async () => {
+    const qc = makeClient();
+    vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
+      {
+        docType: "plan-reviews",
+        title: "Foo review 1",
+        slug: "foo",
+        id: "2026-01-01-foo-review-1",
+        relPath: "meta/reviews/plans/2026-01-01-foo-review-1.md",
+        mtimeMs: 1,
+      },
+      {
+        docType: "plan-reviews",
+        title: "Foo review 2",
+        slug: "foo",
+        id: "2026-01-01-foo-review-2",
+        relPath: "meta/reviews/plans/2026-01-01-foo-review-2.md",
+        mtimeMs: 2,
+      },
+    ]);
+    render(
+      <Wrap qc={qc}>
+        <SearchResultsPanel query="foo" />
+      </Wrap>,
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    await flushMicrotasks();
+    const rows = screen.getAllByRole("option");
+    expect(rows.map((row) => row.getAttribute("href"))).toEqual([
+      "/library/plan-reviews/2026-01-01-foo-review-1",
+      "/library/plan-reviews/2026-01-01-foo-review-2",
+    ]);
+  });
+
+  it("renders rows from a server that predates ids, each linking by its slug", async () => {
+    const qc = makeClient();
+    const consoleError = vi.spyOn(console, "error");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: [
+            { docType: "plan-reviews", title: "One", slug: "foo", mtimeMs: 1 },
+            { docType: "plan-reviews", title: "Two", slug: "foo", mtimeMs: 2 },
+          ],
+        }),
+      }),
+    );
+    try {
+      render(
+        <Wrap qc={qc}>
+          <SearchResultsPanel query="foo" />
+        </Wrap>,
+      );
+      await act(async () => {
+        vi.advanceTimersByTime(200);
+      });
+      await flushMicrotasks();
+
+      expect(
+        screen.getAllByRole("option").map((row) => row.getAttribute("href")),
+      ).toEqual(["/library/plan-reviews/foo", "/library/plan-reviews/foo"]);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("each result row renders title and sentence-case label", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Pumpkin pie plan", slug: "pp", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Pumpkin pie plan",
+        slug: "pp",
+        id: null,
+        relPath: "meta/pp.md",
+        mtimeMs: 1,
+      },
       {
         docType: "work-items",
         title: "Pumpkin work item",
         slug: "pwi",
+        id: null,
+        relPath: "meta/pwi.md",
         mtimeMs: 2,
       },
     ]);
@@ -155,7 +267,14 @@ describe("SearchResultsPanel", () => {
   it("renders a Glyph per result (data-doc-type element)", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
     ]);
     const { container } = render(
       <Wrap qc={qc}>
@@ -178,6 +297,8 @@ describe("SearchResultsPanel", () => {
         docType: "root-cause-analyses",
         title: "Bash prefix RCA",
         slug: "bash-prefix",
+        id: "2026-06-10-bash-prefix",
+        relPath: "meta/research/issues/2026-06-10-bash-prefix.md",
         mtimeMs: 1,
       },
     ]);
@@ -192,7 +313,7 @@ describe("SearchResultsPanel", () => {
     await flushMicrotasks();
     const row = screen.getByRole("option");
     expect(row.getAttribute("href")).toBe(
-      "/library/root-cause-analyses/bash-prefix",
+      "/library/root-cause-analyses/2026-06-10-bash-prefix",
     );
     expect(screen.getByText("Root cause analysis")).toBeInTheDocument();
   });
@@ -204,6 +325,8 @@ describe("SearchResultsPanel", () => {
         docType: "plans",
         title: "Foo Bar Baz",
         slug: "foo-bar-baz",
+        id: null,
+        relPath: "meta/foo-bar-baz.md",
         mtimeMs: 1,
       },
     ]);
@@ -224,7 +347,14 @@ describe("SearchResultsPanel", () => {
   it("shows a result-type label colored via DOC_TYPE color var", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
     ]);
     const { container } = render(
       <Wrap qc={qc}>
@@ -243,8 +373,22 @@ describe("SearchResultsPanel", () => {
   it("meta row shows match count and the settled query", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
-      { docType: "plans", title: "Foo2", slug: "foo2", mtimeMs: 2 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
+      {
+        docType: "plans",
+        title: "Foo2",
+        slug: "foo2",
+        id: null,
+        relPath: "meta/foo2.md",
+        mtimeMs: 2,
+      },
     ]);
     const { container } = render(
       <Wrap qc={qc}>
@@ -267,7 +411,14 @@ describe("SearchResultsPanel", () => {
   it('singular "match" wording when one result', async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
     ]);
     const { container } = render(
       <Wrap qc={qc}>
@@ -285,7 +436,14 @@ describe("SearchResultsPanel", () => {
   it('result rows have role="option" inside listbox', async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
     ]);
     render(
       <Wrap qc={qc}>
@@ -346,7 +504,14 @@ describe("SearchResultsPanel", () => {
   it('results region has accessible name "Search results"', async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
     ]);
     render(
       <Wrap qc={qc}>
@@ -365,7 +530,14 @@ describe("SearchResultsPanel", () => {
   it("below threshold clears the panel", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
-      { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
+      {
+        docType: "plans",
+        title: "Foo",
+        slug: "foo",
+        id: null,
+        relPath: "meta/foo.md",
+        mtimeMs: 1,
+      },
     ]);
     const { rerender } = render(
       <Wrap qc={qc}>
@@ -395,8 +567,22 @@ describe("SearchResultsPanel", () => {
     vi.spyOn(fetchModule, "fetchSearch").mockImplementation((q: string) => {
       if (q === "ab") {
         return Promise.resolve([
-          { docType: "plans", title: "Foo", slug: "foo", mtimeMs: 1 },
-          { docType: "plans", title: "Bar", slug: "bar", mtimeMs: 2 },
+          {
+            docType: "plans",
+            title: "Foo",
+            slug: "foo",
+            id: null,
+            relPath: "meta/foo.md",
+            mtimeMs: 1,
+          },
+          {
+            docType: "plans",
+            title: "Bar",
+            slug: "bar",
+            id: null,
+            relPath: "meta/bar.md",
+            mtimeMs: 2,
+          },
         ] as fetchModule.SearchResult[]);
       }
       return new Promise<fetchModule.SearchResult[]>(() => {

@@ -219,7 +219,7 @@ describe("loader crumbs", () => {
     const router = renderAt("/library/decisions/some-slug");
     await waitForPath(router, "/library/decisions/some-slug");
     const matches = router.state.matches;
-    const docMatch = matches.find((m) => m.routeId.includes("$fileSlug"));
+    const docMatch = matches.find((m) => m.routeId.includes("$documentId"));
     const typeMatch = matches.find((m) => m.routeId.includes("$type"));
     const libraryMatch = matches.find((m) => m.routeId === "/library");
     expect((docMatch?.loaderData as any)?.crumb).toBe("some-slug");

@@ -5,7 +5,7 @@ title: "Library Links by Document ID Implementation Plan"
 date: "2026-11-24T08:22:04+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "done"
 work_item_id: "work-item:PP-996"
 parent: "work-item:PP-996"
 derived_from: ["codebase-research:2026-11-24-PP-996-library-links-to-sets-and-inventories-resolve-wrong"]
@@ -215,8 +215,11 @@ empty `id` on to `work_item_identity`, which `document_id` would filter, so
 folding it onto the helper would change work-item identity.
 
 Add `id: None` to every `IndexEntry` literal: `src/test_support.rs` (both
-factories), `src/clusters.rs:242`, the `indexer.rs` test literals
-(`:2794`, `:2838`, `:2862`) and `tests/parity.rs:184`.
+factories), the `indexer.rs` test literals in `sample_entry_with_work_item`
+and `sample_entry_without_work_item`, and `tests/parity.rs:184`.
+`src/clusters.rs:242` builds its entries through `entry_for_test`, and the
+third `indexer.rs` literal spreads `..sample_entry_with_work_item(…)`, so
+neither needs the field.
 
 #### 3. `SearchResultRow.id` and `relPath`
 
@@ -232,15 +235,18 @@ index entry.
 
 #### Automated Verification:
 
-- [ ] New and existing visualiser tests pass: `mise run test:unit:visualiser`
+- [x] New and existing visualiser tests pass: `mise run test:unit:visualiser`
       and `mise run test:integration:visualiser`
-- [ ] Server lint and format pass: `mise run server:check`
-- [ ] Full default task passes: `mise run`
+- [x] Server lint and format pass: `mise run server:check`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `curl localhost:<port>/api/docs?type=topic-research` against a repo
-      with sets shows each set's `id`.
+- [x] `curl localhost:<port>/api/docs?type=topic-research` against a repo
+      with sets shows each set's `id`. Checked against a scratch repo whose
+      two set manifests and one inventory carry a quoted `id`, because the
+      e2e fixtures gain their `id`s only in Phase 3: each set and the
+      inventory served its `id`, and a search row served `id` and `relPath`.
 
 ---
 
@@ -342,15 +348,29 @@ export function resolveLibraryDocument(
 
 #### Automated Verification:
 
-- [ ] Frontend unit tests pass: `mise run test:unit:frontend`
-- [ ] Frontend format, lint and types pass: `mise run frontend:check`
-- [ ] Full default task passes: `mise run`
+- [x] Frontend unit tests pass: `mise run test:unit:frontend`
+- [x] Frontend format, lint and types pass: `mise run frontend:check`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `/library/work-items/0007` in the e2e fixture server opens
+- [x] `/library/work-items/0007` in the e2e fixture server opens
       `0007-parent-epic`; `/library/work-items/parent-epic` and
-      `/library/work-items/0007-parent-epic` still open it.
+      `/library/work-items/0007-parent-epic` still open it. Checked with a
+      headless Chromium against `e2e/start-server.mjs`: all three URLs showed
+      "Parent Epic", and an unknown id showed "Document not found".
+
+#### Implementation Notes:
+
+- `path-utils.ts` is untouched, doc comment included; Phase 4 deletes it.
+- `wiki-links.ts` renamed its local `fileSlug` and its doc comment's
+  `:fileSlug` to `documentId`; the href it builds is unchanged until Phase 3.
+- The unreachable empty-parameter alert in `LibraryDocView` reads "Missing
+  document id." rather than "Missing file slug.".
+- `NotFoundSurface`'s body copy still reads "We couldn't find a document
+  with the slug …", although the value it quotes is now a document id.
+- `SearchResultsPanel.test.tsx` rows carry placeholder `id: null` and
+  `relPath: "meta/<slug>.md"` values; Phase 3 rewrites them.
 
 ---
 
@@ -504,21 +524,46 @@ and `.../design-inventories/*/inventory.md`
 
 #### Automated Verification:
 
-- [ ] Frontend unit tests pass: `mise run test:unit:frontend`
-- [ ] e2e passes: `mise run test:e2e:visualiser`
-- [ ] Server tests still pass with the new fixture ids:
+- [x] Frontend unit tests pass: `mise run test:unit:frontend`
+- [x] e2e passes: `mise run test:e2e:visualiser`
+- [x] Server tests still pass with the new fixture ids:
       `mise run test:unit:visualiser` and `mise run test:integration:visualiser`
-- [ ] Each edited fixture's `id` is quoted and equals its directory name,
+- [x] Each edited fixture's `id` is quoted and equals its directory name,
       which the `library-links.spec.ts` link assertions confirm
-- [ ] Full default task passes: `mise run`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] In a repo with two topic-research sets, a plan whose `relates_to` names
+- [x] In a repo with two topic-research sets, a plan whose `relates_to` names
       the second set links to it from its related items, and the link opens
-      that set.
-- [ ] A lifecycle cluster holding a design inventory links to that
-      inventory's own page.
+      that set. I checked this with headless Chromium against a scratch repo
+      holding sets `alpha` and `beta`, inventories `2026-11-01-alpha` and
+      `2026-11-02-beta`, a plan and a work item. The visualiser draws no
+      declared relation from `relates_to` (PP-1003), so the set reaches the
+      plan's related items as an inferred cluster sibling through its shared
+      slug `beta`. The row linked to `/library/topic-research/beta` and opened
+      the beta set. `/library/topic-research/manifest` still opened alpha.
+- [x] A lifecycle cluster holding a design inventory links to that
+      inventory's own page. In the same scratch repo, the `beta` cluster's
+      inventory card linked to `/library/design-inventories/2026-11-02-beta`
+      and opened the beta inventory, not the alpha one that sorts first.
+
+#### Implementation Notes:
+
+- The address module's test file is now `library-document-address.test.tsx`,
+  since the `libraryHref`/`<Link>` parity case renders a router link.
+- `RelatedArtifacts.test.tsx` renders through `MemoryRouter` with an async
+  local `render` helper that waits for the router's first render.
+- Linking the type listing by `id` or stem changed three existing e2e
+  expectations the plan did not name: `navigation.spec.ts` now expects
+  `/library/root-cause-analyses/2026-06-10-example-rca` and
+  `/library/plans/2026-01-01-first-plan`, and `kanban-click-vs-drag.spec.ts`
+  expects `/library/work-items/0001`.
+- The `.draft-subject.tmp` topic manifest fixture is not indexed and gained
+  no `id`.
+- `LibraryDocView.test.tsx`'s wiki-link case opens the href
+  `resolveWikiLink` produces for a decision with `id: "ADR-0067"`.
+- `ActivityFeed.tsx` is the only remaining importer of `path-utils.ts`.
 
 ---
 
@@ -695,20 +740,59 @@ cannot leave an edited manifest behind.
 
 #### Automated Verification:
 
-- [ ] Frontend unit tests, including the boundary test, pass:
+- [x] Frontend unit tests, including the boundary test, pass:
       `mise run test:unit:frontend`
-- [ ] e2e passes: `mise run test:e2e:visualiser`
-- [ ] No reference to `path-utils` remains:
+- [x] e2e passes: `mise run test:e2e:visualiser`
+- [x] No reference to `path-utils` remains:
       `rg -n "path-utils|fileSlug" --glob '!**/testing/**' cli/visualiser/frontend`
       prints nothing
-- [ ] Full default task passes: `mise run`
+- [x] Full default task passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] With the visualiser running against a repo with two sets, editing the
+- [x] With the visualiser running against a repo with two sets, editing the
       second set's manifest adds an activity row that opens the second set.
-- [ ] Deleting a plan leaves its activity row as plain text once the
-      listing refetches, with no hover or focus affordance.
+      Checked with headless Chromium against a scratch repo holding sets
+      `alpha` and `beta` and one plan: editing `beta`'s manifest added a row
+      linking to `/library/topic-research/beta`, which opened "Set beta".
+- [x] Deleting a plan leaves its activity row as plain text once the
+      listing refetches, with no hover or focus affordance. In the same
+      scratch repo, after the plan was deleted both its rows (edited and
+      deleted) rendered as a `div` with no link, no tab stop and no hover
+      background, while the linked set row still gained one on hover.
+
+#### Implementation Notes:
+
+- `RootLayout.test.tsx` mocks `useQuery` from `@tanstack/react-query` with
+  no `QueryClientProvider`, so it now also mocks `useQueries`; the feed's
+  listing lookup would otherwise throw for want of a query client.
+- The boundary rules module also exports `isLibraryDocumentAddressModule`,
+  which the production scan uses to assert that the glob found the address
+  module.
+- The e2e fixture snapshot is now keyed by path relative to the fixtures'
+  `meta/` directory rather than by bare work-item filename. A snapshot left
+  by an interrupted run from before this change would restore into the wrong
+  place; delete `.e2e-fixture-snapshot.json` if one exists.
+- The activity-row e2e specs each wait for the LIVE badge before editing, so
+  the SSE subscription is open when the watcher reports the edit.
+- All six Manual Testing Steps were walked through with headless Chromium
+  against the built dev-frontend server binary, rather than `mise run dev`,
+  in a scratch repo with sets `alpha` and `beta`, inventories
+  `2026-11-01-alpha` and `2026-11-02-beta`, a plan `2026-11-03-beta`
+  relating to `topic-research:beta`, and a scratch plan. Editing each set
+  and inventory gave four activity rows, each opening its own document. The
+  plan's related items linked to `/library/topic-research/beta` and opened
+  it. `/library/topic-research/beta`, `/alpha` and `/manifest` opened Set
+  beta, Set alpha and Set alpha. Deleting the scratch plan left both its
+  rows unlinked, with no tab stop and no hover background.
+- Step 4 needed the inventory tied to a work item. Without one, the plan,
+  the set and the inventory formed three separate `beta` clusters, and
+  `/lifecycle/beta` served the set's cluster, which has no inventory card.
+  With `work_item_id: "0001"` on the inventory and a work item `0001`, the
+  `beta` cluster's inventory card linked to
+  `/library/design-inventories/2026-11-02-beta` and opened that inventory.
+  This is how lifecycle clustering already behaves; this plan does not
+  change it.
 
 ---
 
@@ -742,7 +826,8 @@ cannot leave an edited manifest behind.
 2. Edit each set's `manifest.md`, and follow each activity row. Each opens
    its own set.
 3. Open a plan whose `relates_to` names a set, and follow its related-items
-   row.
+   row. Until PP-1003 lands, the set shows only when it shares the plan's
+   lifecycle cluster.
 4. Open a lifecycle cluster with an inventory, and follow its card.
 5. Open `/library/topic-research/<id>`, `/<slug>` and `/manifest`. The
    first two open the set; `/manifest` still opens the first set.
@@ -772,5 +857,6 @@ keep opening the first set until PP-998. No data migration is needed.
 - Research: `meta/research/codebase/2026-11-24-PP-996-library-links-to-sets-and-inventories-resolve-wrong.md`
 - Follow-on: `meta/work/PP-998-set-member-routes-and-view.md`
 - Related: `meta/work/PP-994-generic-set-model-indexing-and-api.md`
+- Related: `meta/work/PP-1003-related-items-ignore-relates-to.md`
 - Fan-out pattern: `cli/visualiser/frontend/src/routes/library/recovery/use-nearby-slug-suggestions.ts:28-34`
 - Fixture-editing e2e pattern: `cli/visualiser/frontend/e2e/kanban-conflict.spec.ts`

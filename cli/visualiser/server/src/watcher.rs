@@ -297,7 +297,12 @@ fn rescan_changes(
         });
         (!unchanged).then(|| RescanChange {
             path: entry.path.clone(),
-            payload: payload_for_entry(entry, rel_of(entry), pre, now),
+            payload: payload_for_entry(
+                entry,
+                entry.served_rel_path(),
+                pre,
+                now,
+            ),
         })
     });
     let deleted = before
@@ -308,16 +313,12 @@ fn rescan_changes(
             payload: SsePayload::DocChanged {
                 action: ActionKind::Deleted,
                 doc_type: entry.r#type,
-                path: rel_of(entry),
+                path: entry.served_rel_path(),
                 etag: None,
                 timestamp: now,
             },
         });
     edited_or_created.chain(deleted).collect()
-}
-
-fn rel_of(entry: &IndexEntry) -> String {
-    entry.rel_path.to_string_lossy().replace('\\', "/")
 }
 
 /// Single fan-out point for SSE events: pushes a derived `ActivityEvent`
