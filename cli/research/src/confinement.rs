@@ -1,16 +1,77 @@
-//! Confining the research subagents. The researcher may run only the
-//! research fetch, and write only findings and level notes; the composer may
-//! run nothing, and write only findings.
+//! Confining the research subagents to their listed commands and writes.
 //!
-//! The command rule follows Claude Code's own matching of a `Bash(… *)`
-//! allow rule, as measured release by release, and is stricter for the
-//! constructs in [`STRICTER_THAN_MEASURED`].
+//! The researcher may run the research fetch, the node query and its
+//! outputters' template commands, the composer nothing. The researcher may
+//! write only findings and level notes, the composer only findings.
+//!
+//! An exact command must match in full. A prefixed command's arguments
+//! follow Claude Code's own matching of a `Bash(… *)` allow rule, as
+//! measured release by release, and are stricter for the constructs in
+//! [`STRICTER_THAN_MEASURED`].
 
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-pub const PERMITTED_PREFIX: &str = "accelerator research fetch ";
+use crate::conduct::template::ConductTemplate;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PermittedCommand {
+    Exactly(&'static str),
+    Prefixed(&'static str),
+}
+
+impl PermittedCommand {
+    fn decide(self, command: &str) -> Option<Decision> {
+        match self {
+            Self::Exactly(permitted) => {
+                (command == permitted).then_some(Decision::Pass)
+            }
+            Self::Prefixed(prefix) => command
+                .strip_prefix(prefix)
+                .map(|arguments| Lexer::new(arguments).decision()),
+        }
+    }
+}
+
+impl Display for PermittedCommand {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Exactly(command) => write!(formatter, "'{command}'"),
+            Self::Prefixed(prefix) => write!(formatter, "'{prefix}…'"),
+        }
+    }
+}
+
+pub const FETCH: PermittedCommand =
+    PermittedCommand::Prefixed("accelerator research fetch ");
+
+pub const NODE_QUERY: PermittedCommand =
+    PermittedCommand::Prefixed("accelerator research topic node ");
+
+pub const FINDING_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
+    "accelerator config template topic-research --kind finding",
+);
+
+pub const LEVEL_NOTE_TEMPLATE: PermittedCommand = PermittedCommand::Exactly(
+    "accelerator config template topic-research --kind level-note",
+);
+
+const RESEARCHER_COMMAND_COUNT: usize = 2 + ConductTemplate::ALL.len();
+
+const RESEARCHER_COMMANDS: [PermittedCommand; RESEARCHER_COMMAND_COUNT] =
+    researcher_commands();
+
+const fn researcher_commands() -> [PermittedCommand; RESEARCHER_COMMAND_COUNT] {
+    let mut commands = [FETCH; RESEARCHER_COMMAND_COUNT];
+    commands[1] = NODE_QUERY;
+    let mut index = 0;
+    while index < ConductTemplate::ALL.len() {
+        commands[2 + index] = ConductTemplate::ALL[index].permitted_command();
+        index += 1;
+    }
+    commands
+}
 
 pub const DEFAULT_RESEARCHER: &str = "accelerator:researcher";
 
@@ -25,7 +86,7 @@ const SHELL_BLANKS: [char; 3] = [' ', '\t', '\n'];
 ///
 /// Together they let a researcher read an environment secret back through a
 /// usage error's echo, or send it to a remote host through bash's
-/// `/dev/tcp`. The fetch needs neither.
+/// `/dev/tcp`. No permitted command needs either.
 pub const STRICTER_THAN_MEASURED: [Construct; 2] =
     [Construct::Expansion, Construct::InputRedirection];
 
@@ -63,6 +124,13 @@ pub enum Role {
 }
 
 impl Role {
+    pub const fn permitted_commands(self) -> &'static [PermittedCommand] {
+        match self {
+            Self::Researcher => &RESEARCHER_COMMANDS,
+            Self::Composer => &[],
+        }
+    }
+
     pub const fn may_write(self, file: TopicFile) -> bool {
         match (self, file) {
             (Self::Researcher, TopicFile::Finding | TopicFile::LevelNote)
@@ -237,7 +305,7 @@ pub enum WriteRefusal {
 }
 
 /// A shell construct that could run, redirect, or expand something beyond
-/// the fetch.
+/// the permitted command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Construct {
     Separator,
@@ -281,12 +349,9 @@ pub fn decide(
     layout: &dyn TopicLayout,
 ) -> Decision {
     match action {
-        Action::Command(command) => match agent.role {
-            Role::Researcher => {
-                command_decision(command.trim_matches(SHELL_BLANKS))
-            }
-            Role::Composer => Decision::Block(Block::NoCommands),
-        },
+        Action::Command(command) => {
+            command_decision(agent.role, command.trim_matches(SHELL_BLANKS))
+        }
         Action::Write(Ok(target))
             if layout
                 .classify(target)
@@ -304,15 +369,17 @@ pub fn decide(
     }
 }
 
-pub fn command_decision(command: &str) -> Decision {
-    let Some(arguments) = command.strip_prefix(PERMITTED_PREFIX) else {
-        return Decision::Block(Block::WrongCommand);
-    };
-    Lexer::new(arguments)
-        .first_construct()
-        .map_or(Decision::Pass, |construct| {
-            Decision::Block(Block::Syntax(construct))
-        })
+/// No permitted command's text is a prefix of another's, so at most one
+/// recognises `command`, and the order of a role's list decides nothing.
+pub fn command_decision(role: Role, command: &str) -> Decision {
+    let permitted = role.permitted_commands();
+    if permitted.is_empty() {
+        return Decision::Block(Block::NoCommands);
+    }
+    permitted
+        .iter()
+        .find_map(|candidate| candidate.decide(command))
+        .unwrap_or(Decision::Block(Block::WrongCommand))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -323,8 +390,8 @@ enum Quoting {
     Comment,
 }
 
-/// Scans the fetch's arguments as bash and zsh would tokenise them, far
-/// enough to find the first construct that blocks.
+/// Scans a prefixed command's arguments as bash and zsh would tokenise
+/// them, far enough to find the first construct that blocks.
 struct Lexer {
     chars: Vec<char>,
     at: usize,
@@ -353,6 +420,12 @@ impl Lexer {
             (self.peek(1), self.peek(2)),
             (Some('\n'), _) | (Some('\r'), Some('\n'))
         )
+    }
+
+    fn decision(self) -> Decision {
+        self.first_construct().map_or(Decision::Pass, |construct| {
+            Decision::Block(Block::Syntax(construct))
+        })
     }
 
     fn first_construct(mut self) -> Option<Construct> {
@@ -502,11 +575,13 @@ impl Display for Refusal<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let agent = self.agent;
         match self.block {
-            Block::WrongCommand => write!(
-                formatter,
-                "E_RESEARCH_GUARD_COMMAND: {agent} may run only \
-                 '{PERMITTED_PREFIX}…'"
-            ),
+            Block::WrongCommand => {
+                write!(
+                    formatter,
+                    "E_RESEARCH_GUARD_COMMAND: {agent} may run only "
+                )?;
+                write_alternatives(agent.role.permitted_commands(), formatter)
+            }
             Block::NoCommands => write!(
                 formatter,
                 "E_RESEARCH_GUARD_COMMAND: {agent} may run no commands"
@@ -541,6 +616,22 @@ impl Display for Refusal<'_> {
             ),
         }
     }
+}
+
+fn write_alternatives(
+    commands: &[PermittedCommand],
+    formatter: &mut Formatter<'_>,
+) -> fmt::Result {
+    let last = commands.len().saturating_sub(1);
+    for (index, command) in commands.iter().enumerate() {
+        let separator = match index {
+            0 => "",
+            _ if index == last => " or ",
+            _ => ", ",
+        };
+        write!(formatter, "{separator}{command}")?;
+    }
+    Ok(())
 }
 
 impl Refusal<'_> {
@@ -579,6 +670,47 @@ impl Display for InternalFailure<'_> {
             "E_RESEARCH_GUARD_INTERNAL: {} tool call blocked — the guard \
              failed while judging it",
             self.0
+        )
+    }
+}
+
+/// Why the guard cannot tell whether a subagent is a confined research
+/// agent, which must block the call rather than let it through.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unjudgeable {
+    NoWorkingDirectory,
+    UnreadableConfiguration(String),
+}
+
+impl Display for Unjudgeable {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoWorkingDirectory => formatter
+                .write_str("there is no working directory to read it from"),
+            Self::UnreadableConfiguration(summary) => write!(
+                formatter,
+                "could not read the configuration: {summary}; fix it, then \
+                 retry"
+            ),
+        }
+    }
+}
+
+/// The reason given when a subagent's call is blocked because the guard
+/// cannot read which agents `agents.researcher` and `agents.composer` name.
+pub struct UnjudgedCall<'a> {
+    pub agent_type: &'a str,
+    pub cause: &'a Unjudgeable,
+}
+
+impl Display for UnjudgedCall<'_> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "E_RESEARCH_GUARD_UNJUDGED: {} tool call blocked — the guard \
+             cannot tell whether agents.researcher or agents.composer names \
+             it: {}",
+            self.agent_type, self.cause
         )
     }
 }

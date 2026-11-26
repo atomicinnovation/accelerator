@@ -2,14 +2,18 @@
 //! claimed, and what it remembers.
 
 use std::fmt;
+use std::num::NonZeroU32;
 
 use crate::conduct::memory::RunMemory;
 use crate::conduct::memory::Withheld;
 use crate::conduct::observed::Observed;
+use crate::conduct::offered_nodes::NodeContext;
+use crate::conduct::search_budget::node_search_budget;
 use crate::conduct::search_budget::SearchBudgets;
 use crate::conduct::spawn::SpawnRef;
 use crate::conduct::window::Window;
 use crate::topic::claims::ClaimedIndexes;
+use crate::topic::layout::note_ref::NoteRef;
 use crate::topic::layout::stem::Stem;
 use crate::topic::plan::RoundInputs;
 use crate::topic::plan::RoundPlan;
@@ -173,7 +177,7 @@ impl RunLedger {
     ) -> Self {
         self.claims.claim_all(&plan.claims);
         self.memory.seen.absorb(observed);
-        let displaced = self.memory.pending.replace(window.offered.clone());
+        let displaced = self.memory.pending.replace(window.offer());
         self.memory.attempted.extend(
             displaced
                 .into_iter()
@@ -217,6 +221,56 @@ impl RunLedger {
     pub const fn search_budgets(&self) -> Option<&SearchBudgets> {
         self.search_budgets.as_ref()
     }
+
+    #[must_use]
+    pub fn search_budget(
+        &self,
+        profile: &str,
+        level: u32,
+    ) -> Option<NonZeroU32> {
+        node_search_budget(self.search_budgets.as_ref(), profile, level)
+    }
+
+    /// The context the node at `at` was first offered with, while the run's
+    /// pending batch still offers it.
+    ///
+    /// # Errors
+    ///
+    /// [`NotOffered`] naming why the run holds no context for the node.
+    pub fn offered_context(
+        &self,
+        at: &NoteRef,
+    ) -> Result<&NodeContext, NotOffered> {
+        self.memory
+            .pending
+            .context(at)
+            .ok_or_else(|| self.why_not_offered(at))
+    }
+
+    fn why_not_offered(&self, at: &NoteRef) -> NotOffered {
+        let pending = &self.memory.pending;
+        let spawn = SpawnRef::Node(at.clone());
+        if pending.spawns().contains(&spawn) {
+            if pending.nodes().is_unreadable() {
+                NotOffered::SnapshotDiscarded
+            } else {
+                NotOffered::OfferedBeforeSnapshots
+            }
+        } else if self.memory.attempted.contains(&spawn) {
+            NotOffered::MovedPast
+        } else {
+            NotOffered::Never
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotOffered {
+    OfferedBeforeSnapshots,
+    SnapshotDiscarded,
+    /// Offered in a batch the run has since acknowledged or replaced.
+    MovedPast,
+    Never,
 }
 
 #[cfg(test)]
@@ -226,16 +280,30 @@ mod tests {
     use std::collections::BTreeSet;
     use std::num::NonZeroU32;
 
+    use super::NotOffered;
     use super::OwedQuarantine;
     use super::RunId;
     use super::RunLedger;
     use super::Superseded;
+    use crate::conduct::concurrency::test_support::concurrency;
     use crate::conduct::concurrency::test_support::unbounded;
+    use crate::conduct::concurrency::Concurrency;
+    use crate::conduct::memory::Offer;
+    use crate::conduct::memory::PendingBatch;
+    use crate::conduct::memory::RunMemory;
     use crate::conduct::memory::Withheld;
     use crate::conduct::observed::Observed;
+    use crate::conduct::offered_nodes::NodeContext;
+    use crate::conduct::offered_nodes::OfferedNodes;
     use crate::conduct::search_budget::SearchBudgets;
     use crate::conduct::search_budget::SearchCap;
+    use crate::conduct::search_budget::UNSIZED_NODE_BUDGET;
     use crate::conduct::spawn::SpawnRef;
+    use crate::conduct::window::test_support::missing;
+    use crate::conduct::window::test_support::of_profile;
+    use crate::conduct::window::test_support::outstanding;
+    use crate::conduct::window::test_support::research_nodes;
+    use crate::conduct::window::test_support::researching;
     use crate::conduct::window::window;
     use crate::conduct::window::Window;
     use crate::topic::claims::ClaimedIndexes;
@@ -608,6 +676,21 @@ mod tests {
         assert_eq!(ledger.search_budgets(), Some(&budgets()));
     }
 
+    #[test]
+    fn a_web_nodes_search_budget_is_its_levels_stored_budget() {
+        let ledger = started().budgeting_searches(budgets());
+        assert_eq!(ledger.search_budget("web", 2), NonZeroU32::new(2));
+        assert_eq!(ledger.search_budget("openalex", 2), None);
+    }
+
+    #[test]
+    fn a_ledger_without_budgets_leaves_a_web_node_unsized() {
+        assert_eq!(
+            started().search_budget("web", 3),
+            Some(UNSIZED_NODE_BUDGET)
+        );
+    }
+
     fn withheld(profiles: &[&str]) -> Withheld {
         Withheld::of(profiles.iter().map(|profile| (*profile).to_owned()))
     }
@@ -653,5 +736,244 @@ mod tests {
             recorded(started().withholding(&withheld(&["web"])), &["01-a"]);
         let ledger = recorded(continued(ledger, Some(0)), &["02-b"]);
         assert_eq!(ledger.memory().withheld, withheld(&["web"]));
+    }
+
+    fn offering_within(
+        ledger: RunLedger,
+        pairs: Vec<OutstandingPair>,
+        concurrency: Concurrency,
+    ) -> RunLedger {
+        let mut plan = empty_plan();
+        plan.pairs = pairs;
+        let offer = window(
+            &plan,
+            &Observed::default(),
+            concurrency,
+            Some(ledger.memory()),
+        );
+        ledger.record(&plan, &Observed::default(), &offer)
+    }
+
+    fn offering_nodes(
+        ledger: RunLedger,
+        pairs: Vec<OutstandingPair>,
+    ) -> RunLedger {
+        offering_within(ledger, pairs, unbounded())
+    }
+
+    fn context(
+        profile: &str,
+        question: &str,
+        known_questions: &[&str],
+    ) -> NodeContext {
+        NodeContext {
+            profile: profile.into(),
+            question: question.into(),
+            known_questions: known_questions
+                .iter()
+                .map(|known| (*known).to_owned())
+                .collect(),
+        }
+    }
+
+    fn snapshot(ledger: &RunLedger) -> Vec<String> {
+        ledger
+            .memory()
+            .pending
+            .nodes()
+            .iter()
+            .map(|(at, _)| at.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn an_offer_snapshots_each_nodes_profile_question_and_known_questions() {
+        let ledger = offering_nodes(
+            started(),
+            vec![of_profile(
+                "openalex",
+                researching("01-a", vec![missing("2-1", "A?", &["K?"])]),
+            )],
+        );
+        assert_eq!(
+            ledger.offered_context(&note_ref("01-a:2-1")),
+            Ok(&context("openalex", "A?", &["K?"]))
+        );
+    }
+
+    #[test]
+    fn a_repeated_offer_keeps_a_still_pending_nodes_first_context() {
+        let first = offering_nodes(
+            started(),
+            vec![researching("01-a", vec![missing("2-1", "A?", &["K?"])])],
+        );
+        let again = offering_nodes(
+            continued(first, None),
+            vec![researching(
+                "01-a",
+                vec![missing("2-1", "A?", &["K?", "L?"])],
+            )],
+        );
+        assert_eq!(
+            again.offered_context(&note_ref("01-a:2-1")),
+            Ok(&context("web", "A?", &["K?"]))
+        );
+    }
+
+    #[test]
+    fn a_node_the_offer_drops_leaves_the_snapshot() {
+        let first = offering_nodes(
+            started(),
+            vec![research_nodes("01-a", &["2-1", "2-2"])],
+        );
+        let later = offering_nodes(
+            continued(first, None),
+            vec![research_nodes("01-a", &["2-2"])],
+        );
+        assert_eq!(snapshot(&later), ["01-a:2-2"]);
+    }
+
+    #[test]
+    fn a_newly_offered_node_is_snapshotted_from_the_tree() {
+        let first =
+            offering_nodes(started(), vec![research_nodes("01-a", &["2-1"])]);
+        let later = offering_nodes(
+            continued(first, None),
+            vec![researching(
+                "01-a",
+                vec![
+                    missing("2-1", "2-1?", &[]),
+                    missing("2-2", "B?", &["K?"]),
+                ],
+            )],
+        );
+        assert_eq!(snapshot(&later), ["01-a:2-1", "01-a:2-2"]);
+        assert_eq!(
+            later.offered_context(&note_ref("01-a:2-2")),
+            Ok(&context("web", "B?", &["K?"]))
+        );
+    }
+
+    #[test]
+    fn an_acknowledged_batch_carries_nothing_over() {
+        let first =
+            offering_nodes(started(), vec![research_nodes("01-a", &["2-1"])]);
+        let acknowledged = continued(first, Some(0));
+        assert!(snapshot(&acknowledged).is_empty());
+        let later = offering_nodes(
+            acknowledged,
+            vec![research_nodes("01-a", &["2-1", "2-2"])],
+        );
+        assert_eq!(snapshot(&later), ["01-a:2-2"]);
+    }
+
+    #[test]
+    fn pair_spawns_are_never_snapshotted() {
+        let ledger = offering_nodes(
+            started(),
+            vec![
+                single_pass("01-a"),
+                outstanding("02-b", Stage::Compose(vec![Lineage::root()])),
+            ],
+        );
+        assert_eq!(ledger.memory().pending.spawns(), spawns(&["01-a", "02-b"]));
+        assert!(snapshot(&ledger).is_empty());
+    }
+
+    #[test]
+    fn withheld_spawns_are_never_snapshotted() {
+        let ledger = offering_nodes(
+            started().withholding(&withheld(&["web"])),
+            vec![
+                research_nodes("01-a", &["2-1"]),
+                of_profile("openalex", research_nodes("02-b", &["2-1"])),
+            ],
+        );
+        assert_eq!(snapshot(&ledger), ["02-b:2-1"]);
+    }
+
+    #[test]
+    fn only_the_offer_narrowed_by_concurrency_is_snapshotted() {
+        let ledger = offering_within(
+            started(),
+            vec![research_nodes("01-a", &["2-1", "2-2", "2-3"])],
+            concurrency(2),
+        );
+        assert_eq!(snapshot(&ledger), ["01-a:2-1", "01-a:2-2"]);
+    }
+
+    #[test]
+    fn a_pending_node_without_a_snapshot_is_snapshotted_from_the_tree() {
+        let unsnapshotted = RunLedger::from_parts(
+            run("r1"),
+            ClaimedIndexes::default(),
+            RunMemory {
+                pending: PendingBatch::restored(
+                    0,
+                    Offer::new(spawns(&["01-a:2-1"]), OfferedNodes::empty()),
+                ),
+                ..RunMemory::default()
+            },
+            None,
+        );
+        let ledger = offering_nodes(
+            unsnapshotted,
+            vec![researching("01-a", vec![missing("2-1", "A?", &[])])],
+        );
+        assert_eq!(
+            ledger.offered_context(&note_ref("01-a:2-1")),
+            Ok(&context("web", "A?", &[]))
+        );
+    }
+
+    fn pending_from_before_snapshots(nodes: OfferedNodes) -> RunLedger {
+        RunLedger::from_parts(
+            run("r1"),
+            ClaimedIndexes::default(),
+            RunMemory {
+                pending: PendingBatch::restored(
+                    0,
+                    Offer::new(spawns(&["01-a:2-1"]), nodes),
+                ),
+                ..RunMemory::default()
+            },
+            None,
+        )
+    }
+
+    #[test]
+    fn a_node_whose_batch_was_acknowledged_has_been_moved_past() {
+        let first =
+            offering_nodes(started(), vec![research_nodes("01-a", &["2-1"])]);
+        let acknowledged = continued(first, Some(0));
+        assert_eq!(
+            acknowledged.offered_context(&note_ref("01-a:2-1")),
+            Err(NotOffered::MovedPast)
+        );
+    }
+
+    #[test]
+    fn a_node_the_run_never_offered_is_told_apart() {
+        let ledger =
+            offering_nodes(started(), vec![research_nodes("01-a", &["2-1"])]);
+        assert_eq!(
+            ledger.offered_context(&note_ref("01-a:2-9")),
+            Err(NotOffered::Never)
+        );
+    }
+
+    #[test]
+    fn a_pending_node_without_a_context_says_why() {
+        let at = note_ref("01-a:2-1");
+        assert_eq!(
+            pending_from_before_snapshots(OfferedNodes::empty())
+                .offered_context(&at),
+            Err(NotOffered::OfferedBeforeSnapshots)
+        );
+        assert_eq!(
+            pending_from_before_snapshots(OfferedNodes::unreadable())
+                .offered_context(&at),
+            Err(NotOffered::SnapshotDiscarded)
+        );
     }
 }

@@ -304,11 +304,22 @@ def test_the_main_text_leaves_out_subagent_text() -> None:
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GRANT = (
-    "Bash(accelerator config *),"
+    "Bash(accelerator config agent *),"
+    "Bash(accelerator config agents *),"
+    "Bash(accelerator config context *),"
+    "Bash(accelerator config get *),"
+    "Bash(accelerator config instructions *),"
+    "Bash(accelerator config path *),"
+    "Bash(accelerator config template *),"
     "Bash(accelerator corpus resolve *),"
     "Bash(accelerator corpus metadata derive),"
     "Bash(accelerator corpus frontmatter validate *),"
-    "Bash(accelerator research topic *),"
+    "Bash(accelerator research topic consultable *),"
+    "Bash(accelerator research topic counts *),"
+    "Bash(accelerator research topic end-run *),"
+    "Bash(accelerator research topic node *),"
+    "Bash(accelerator research topic outstanding *),"
+    "Bash(accelerator research topic report-path *),"
     "Read(/<plugin_root>/skills/research/outputters/citing-once/**)"
 )
 

@@ -2,8 +2,9 @@
 //! to the fetch, findings and level notes, and the composer subagent to
 //! findings alone.
 //!
-//! Exit `2` blocks the call; every other outcome exits `0`, because a hook
-//! that fails in any other way must not block unrelated work.
+//! Exit `2` blocks the call, as it does a subagent's call the guard cannot
+//! tell is unconfined. Every other outcome exits `0`, because a hook that
+//! fails in any other way must not block unrelated work.
 
 use std::cell::OnceCell;
 use std::io::Read as _;
@@ -24,6 +25,8 @@ use research::confinement::Decision;
 use research::confinement::InternalFailure;
 use research::confinement::Refusal;
 use research::confinement::ToolCall;
+use research::confinement::Unjudgeable;
+use research::confinement::UnjudgedCall;
 use research::confinement::DEFAULT_COMPOSER;
 use research::confinement::DEFAULT_RESEARCHER;
 use serde::Deserialize;
@@ -70,12 +73,14 @@ pub fn run() -> ExitCode {
         .clone()
         .or_else(|| std::env::current_dir().ok())
     else {
-        return pass_with("no working directory to judge the call from");
+        return unjudged(&call, &Unjudgeable::NoWorkingDirectory);
     };
     let project = Project::at(cwd);
-    let Some(agent) =
-        confined_agent(&call, &project.confinement(call.agent_type()))
-    else {
+    let confinement = match project.confinement(call.agent_type()) {
+        Ok(confinement) => confinement,
+        Err(cause) => return unjudged(&call, &cause),
+    };
+    let Some(agent) = confined_agent(&call, &confinement) else {
         return ExitCode::SUCCESS;
     };
     block_on_panic(&agent);
@@ -139,6 +144,15 @@ fn block_on_panic(agent: &ConfinedAgent) {
     }));
 }
 
+fn unjudged(call: &ToolCall, cause: &Unjudgeable) -> ExitCode {
+    let refusal = UnjudgedCall {
+        agent_type: call.agent_type(),
+        cause,
+    };
+    eprintln!("{refusal}");
+    ExitCode::from(BLOCK)
+}
+
 fn pass_with(diagnostic: &str) -> ExitCode {
     eprintln!("accelerator research guard: {diagnostic}; not judging the call");
     ExitCode::SUCCESS
@@ -148,7 +162,7 @@ fn pass_with(diagnostic: &str) -> ExitCode {
 /// only when a judgement needs it.
 struct Project {
     cwd: PathBuf,
-    context: OnceCell<Option<ProjectContext>>,
+    context: OnceCell<Result<ProjectContext, String>>,
     topics: OnceCell<PathBuf>,
 }
 
@@ -161,40 +175,44 @@ impl Project {
         }
     }
 
-    fn context(&self) -> Option<&ProjectContext> {
+    fn context(&self) -> Result<&ProjectContext, String> {
         self.context
             .get_or_init(|| {
-                read_or_default(ProjectContext::enclosing(&self.cwd))
+                ProjectContext::enclosing(&self.cwd)
+                    .map_err(|error| summary(&error))
             })
             .as_ref()
+            .map_err(Clone::clone)
     }
 
-    fn confinement(&self, agent_type: &str) -> Confinement {
+    /// The plugin's own agent names are confined without reading the
+    /// configuration; any other name may be a configured one.
+    fn confinement(
+        &self,
+        agent_type: &str,
+    ) -> Result<Confinement, Unjudgeable> {
         let confinement = Confinement::default();
         if [DEFAULT_RESEARCHER, DEFAULT_COMPOSER].contains(&agent_type) {
-            return confinement;
+            return Ok(confinement);
         }
+        let context = self
+            .context()
+            .map_err(Unjudgeable::UnreadableConfiguration)?;
         let configured = |key| {
-            self.context().and_then(|context| {
-                read_or_default(catalogue::agent_name(
-                    context.config.as_ref(),
-                    key,
-                ))
-            })
+            catalogue::agent_name(context.config.as_ref(), key).map_err(
+                |error| Unjudgeable::UnreadableConfiguration(summary(&error)),
+            )
         };
-        let confinement = match configured("researcher") {
-            Some(name) => confinement.with_researcher(&name),
-            None => confinement,
-        };
-        match configured("composer") {
-            Some(name) => confinement.with_composer(&name),
-            None => confinement,
-        }
+        Ok(confinement
+            .with_researcher(&configured("researcher")?)
+            .with_composer(&configured("composer")?))
     }
 
     fn topics(&self) -> &Path {
         self.topics.get_or_init(|| {
-            let Some(context) = self.context() else {
+            let Ok(context) = self.context().inspect_err(|summary| {
+                warn_of_defaults(summary);
+            }) else {
                 return FileConfigStore::discover_root(&self.cwd)
                     .join(default_topics());
             };
@@ -206,17 +224,27 @@ impl Project {
 }
 
 /// Unreadable configuration never stops the guard confining a research
-/// agent: it falls back to the catalogue defaults and says so.
+/// agent it knows by name: it falls back to the catalogue defaults and says
+/// so.
 fn read_or_default<T>(read: Result<T, ConfigError>) -> Option<T> {
-    read.map_err(|error| {
-        let error = error.to_string();
-        let summary = error.lines().next().unwrap_or_default();
-        eprintln!(
-            "accelerator research guard: could not read the configuration, \
-             using the defaults: {summary}"
-        );
-    })
-    .ok()
+    read.map_err(|error| warn_of_defaults(&summary(&error)))
+        .ok()
+}
+
+fn warn_of_defaults(summary: &str) {
+    eprintln!(
+        "accelerator research guard: could not read the configuration, \
+         using the defaults: {summary}"
+    );
+}
+
+fn summary(error: &ConfigError) -> String {
+    error
+        .to_string()
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .to_owned()
 }
 
 fn configured_topics(context: &ProjectContext) -> Result<String, ConfigError> {

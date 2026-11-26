@@ -683,6 +683,14 @@
   consulted: its status, its freshness and whether every outline pair is
   answered, in that order. It prints the first gate that fails, or the findings
   and reports to read and the outline's highest round.
+- **`accelerator research topic node` answers an offered node's context.**
+  `accelerator research topic node SLUG --run RUN --node STEM:LINEAGE` prints
+  the question, lineage, level, follow-up cap, known questions, id and path a
+  `conduct` run offered one node with, plus its search budget for a `web`
+  node. It answers only for the run's current offered batch, from the
+  snapshot the run's ledger took at the offer, and writes nothing. The
+  research guard permits it to the researcher, and keeps every other
+  `research topic` subcommand blocked.
 - **`/accelerator:research-topic ask SLUG QUESTION`** answers a question from a
   synthesised, fresh, fully conducted set in conversation. It states its
   coverage as `answered`, `partial` or `unanswered`, naming the sources and
@@ -872,6 +880,58 @@
   `findings/<nn>-<name>.levels/<lineage>.md`. The composer
   (`accelerator:composer`, or the name `agents.composer` configures) may
   write findings only and run no commands, the fetch included.
+
+- **The research guard permits the researcher its template commands.** Beside
+  `accelerator research fetch …`, a researcher may run exactly
+  `accelerator config template topic-research --kind finding` and
+  `accelerator config template topic-research --kind level-note`, with
+  nothing before or after them. The composer still runs no command.
+
+- **`conduct`'s researchers fetch their own templates.** A researcher's
+  prompt carries no template: it runs the
+  `accelerator config template topic-research` command its outputter names,
+  `--kind finding` or `--kind level-note`. An `agents.researcher` override
+  must run that command; an `agents.composer` override still receives the
+  finding template inline. `conduct` runs the finding command, and above
+  depth 1 the level-note command, before its first plan, so a missing or
+  unreadable template it will fill, or a denied command, stops it before any
+  spawn. A configured template path that does not exist falls
+  back to the default, and `accelerator research topic outstanding --start`
+  names the template among its `warnings`, which `conduct` reports before
+  spawning. Composers fill the finding template `conduct` read before its
+  first plan; `conduct` reads it again before each batch holding a compose
+  pair, and its summary warns when it changed mid-run. `research-topic`'s
+  spawns inherit its
+  `Bash(accelerator config template *)` grant; a skill that spawns them
+  without such a grant needs `Bash(accelerator config template
+  topic-research --kind finding)` and `Bash(accelerator config template
+  topic-research --kind level-note)`.
+
+- **`research-topic` grants only the config reads it runs.** Its
+  `Bash(accelerator config *)` rule becomes one rule each for `config
+  agent`, `agents`, `context`, `get`, `instructions`, `path` and
+  `template`, so no spawn inherits a grant for `config set` or
+  `config init`, even when the research guard cannot run. Its
+  `Bash(accelerator research topic *)` rule likewise becomes one rule each
+  for `consultable`, `counts`, `end-run`, `node`, `outstanding` and
+  `report-path`, so a `research topic` subcommand added later reaches no
+  spawn unasked.
+
+- **`conduct`'s node researchers query their own context.**
+  `accelerator research topic outstanding`'s node entries no longer carry
+  `question` or `known_questions`. A node's researcher is given the set's
+  slug, the run id and its spawn ref, and reads its question, known
+  questions, id, path and search budget with
+  `accelerator research topic node`, so its prompt stays the same size at
+  every depth. The level-note outputter, which every node researcher is
+  handed, says how to run that query and how to report a denied or failed
+  one, so an `agents.researcher` override that follows it runs the query
+  when given a spawn ref. The web profile resolves `{search budget}` as the
+  query's `search_budget`, else an injected budget, else none, so an
+  override that follows its profile keeps to the run's search quota.
+  `research-topic`'s spawns inherit its
+  `Bash(accelerator research topic node *)` grant; a skill that spawns them
+  without it needs that rule.
 
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
@@ -1087,6 +1147,11 @@
 
 ### Fixed
 
+- **`accelerator config template` fences a template that holds a code block
+  safely.** The `markdown` fence it wraps a template in is now longer than
+  any run of backticks inside, so a fenced code block in a template override
+  no longer closes it early and truncates the template a reader takes from
+  between the fences.
 - **`/create-work-item` stops on a configuration error from `work resolve`.**
   Only `E_RESOLVE_INVALID` now reads as a topic; any other exit 1, such as
   `E_WORK_ID_PATTERN_INVALID`, is relayed and stops the skill rather than
@@ -1257,12 +1322,23 @@
   crawl rather than when the running daemon idles out.
 - **The `research-topic` researcher is confined.** A `PreToolUse` hook,
   `accelerator research guard`, limits every subagent of the configured
-  researcher type to running `accelerator research fetch` and writing finding
-  files under the research topics directory. Its command matching follows
+  researcher type to running `accelerator research fetch`, the node query
+  `accelerator research topic node` and its outputters' two
+  `accelerator config template topic-research` commands, and to writing
+  findings and level notes under the research topics directory. The
+  configured composer may write findings only, and run no command. Its command matching follows
   Claude Code's own `Bash(…)` rule matching, measured per release, and also
   blocks any `$` expansion and input redirection, which could otherwise read
   an environment secret back or send it to another host. Point
   `agents.researcher` only at a dedicated agent.
+- **The research guard blocks a subagent's call it cannot judge.** When the
+  configuration cannot be read, the guard cannot tell which agents
+  `agents.researcher` and `agents.composer` name, so it blocks every
+  subagent's `Bash` and write call with `E_RESEARCH_GUARD_UNJUDGED` rather
+  than let a configured researcher run unconfined. A call with no working
+  directory is blocked the same way. `accelerator:researcher` and
+  `accelerator:composer` are still confined by name without the
+  configuration.
 - **`catalogue.json` now records the name, display name and email of every
   member of a synced team, and the file is committed to the repository.**
   Anyone with read access to the repository can read them.

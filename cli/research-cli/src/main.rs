@@ -14,6 +14,8 @@ mod installed_profiles;
 mod ledger_wording;
 #[cfg(feature = "test-loopback")]
 mod loopback;
+mod node_address;
+mod node_command;
 mod plan_wording;
 mod render;
 mod report_path_command;
@@ -47,6 +49,7 @@ use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
 use research::sources::web::fetch::WebFailure;
+use research::topic::layout::note_ref::NoteRef;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
@@ -79,6 +82,7 @@ use crate::topic_command::PlanRequest;
 use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
 use crate::topic_set::Printed;
+use crate::topic_set::SetError;
 use crate::web_command::WebAdapters;
 
 // A release build that turns debug assertions back on slips past this guard, so
@@ -197,6 +201,9 @@ fn topic(action: TopicAction) -> ExitCode {
         TopicAction::EndRun { slug, run } => {
             topic_command::parse_run(&run).and_then(|run| end_run(&slug, &run))
         }
+        TopicAction::Node { slug, run, node } => topic_command::parse_run(&run)
+            .and_then(|run| Ok((run, node_command::parse_node(&node)?)))
+            .and_then(|(run, at)| offered_node(&slug, &run, &at)),
         TopicAction::ReportPath { slug, question } => {
             report_path_command::parse_question(&question)
                 .and_then(|question| report_path(&slug, &question))
@@ -246,6 +253,13 @@ fn outstanding(slug: &str, flags: OutstandingFlags) -> Result<Printed, String> {
         search_cap: search_cap::from_environment(|name| {
             std::env::var(name).ok()
         }),
+        template_fallbacks: match mode {
+            RunMode::Start(_) => topic_command::conduct_template_fallbacks(
+                project.config.as_ref(),
+                project.templates.as_ref(),
+            ),
+            RunMode::Query | RunMode::Continue { .. } => Vec::new(),
+        },
         mode,
     };
     topic_command::run_outstanding(
@@ -266,6 +280,25 @@ fn end_run(slug: &str, run: &RunId) -> Result<Printed, String> {
         &RealFs,
         &FileCorpusStore::new(&set_root),
     )
+}
+
+fn offered_node(
+    slug: &str,
+    run: &RunId,
+    at: &NoteRef,
+) -> Result<Printed, String> {
+    let (cwd, project) =
+        working_project().map_err(|error| node_command::unopened(&error))?;
+    let set_root =
+        topic_set::resolve_set(&project, &cwd, slug).map_err(|error| {
+            match error {
+                SetError::UnreadableConfig(message) => {
+                    node_command::unopened(&message)
+                }
+                SetError::Unresolved(message) => message,
+            }
+        })?;
+    node_command::run_node(&set_root, run, at, &RealFs)
 }
 
 fn report_path(slug: &str, question: &str) -> Result<Printed, String> {

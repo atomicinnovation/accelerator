@@ -312,6 +312,7 @@ mod tests {
     use config::Scalar;
     use config::Value;
     use config_adapters::credentials::CredentialPorts;
+    use config_adapters::FileConfigStore;
     use network::Host;
     use research::sources::classify::Reason;
     use research::sources::classify::Received;
@@ -697,6 +698,9 @@ mod tests {
                         project: ProjectContext {
                             root: PathBuf::from(ROOT),
                             config: Box::new(PersonalKeyCommand),
+                            templates: Box::new(FileConfigStore::at(
+                                PathBuf::from(ROOT),
+                            )),
                         },
                     },
                     OpenAlexAdapters {

@@ -4,184 +4,32 @@
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Output;
 
 use research::topic::layout::finding_path::is_finding_path;
 use research::topic::layout::finding_path::is_level_note_path;
 use serde_json::json;
 use serde_json::Value;
 
-type TestError = Box<dyn std::error::Error>;
+mod topic_project;
 
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
-const TOPICS: &str = "meta/research/topics";
-const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
-const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
-const SEARCH_CAP: &str = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION";
-const PLUGIN_ROOT: &str = "ACCELERATOR_PLUGIN_ROOT";
-
-struct Project {
-    _dir: tempfile::TempDir,
-    root: PathBuf,
-}
-
-impl Project {
-    fn new(tag: &str) -> Result<Self, TestError> {
-        let dir = tempfile::Builder::new()
-            .prefix(&format!("research-topic-{tag}-"))
-            .tempdir()?;
-        let root = dir.path().canonicalize()?;
-        fs::create_dir_all(root.join(".git"))?;
-        Ok(Self { _dir: dir, root })
-    }
-
-    fn with_fixture_set(self, fixture: &str) -> Result<Self, TestError> {
-        copy_tree(&fixtures().join(fixture), &self.set(fixture))?;
-        Ok(self)
-    }
-
-    fn set(&self, slug: &str) -> PathBuf {
-        self.root.join(TOPICS).join(slug)
-    }
-
-    fn write(&self, relative: &str, content: &str) -> Result<(), TestError> {
-        let path = self.root.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, content)?;
-        Ok(())
-    }
-
-    fn outstanding(
-        &self,
-        slug: &str,
-        plugin_root: &Path,
-    ) -> Result<Output, TestError> {
-        Ok(command_without_an_inherited_cap()
-            .current_dir(&self.root)
-            .env(PLUGIN_ROOT, plugin_root)
-            .args(["topic", "outstanding", slug])
-            .output()?)
-    }
-
-    fn run(&self, args: &[&str]) -> Result<Output, TestError> {
-        self.run_in(args, &[])
-    }
-
-    fn run_in(
-        &self,
-        args: &[&str],
-        cap: &[(&str, &str)],
-    ) -> Result<Output, TestError> {
-        Ok(command_without_an_inherited_cap()
-            .current_dir(&self.root)
-            .envs(cap.iter().copied())
-            .arg("topic")
-            .args(args)
-            .output()?)
-    }
-
-    fn outstanding_with(&self, args: &[&str]) -> Result<Output, TestError> {
-        self.outstanding_in(args, &[])
-    }
-
-    fn outstanding_in(
-        &self,
-        args: &[&str],
-        cap: &[(&str, &str)],
-    ) -> Result<Output, TestError> {
-        let mut all = vec!["outstanding", "s"];
-        all.extend_from_slice(args);
-        self.run_in(&all, cap)
-    }
-
-    fn plan_with(&self, args: &[&str]) -> Result<(Value, String), TestError> {
-        self.plan_in(args, &[])
-    }
-
-    fn plan_in(
-        &self,
-        args: &[&str],
-        cap: &[(&str, &str)],
-    ) -> Result<(Value, String), TestError> {
-        let output = self.outstanding_in(args, cap)?;
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        assert!(output.status.success(), "{stderr}");
-        Ok((serde_json::from_slice(&output.stdout)?, stderr))
-    }
-
-    fn write_note(
-        &self,
-        stem: &str,
-        lineage: &str,
-        question: &str,
-        follow_ups: &[&str],
-    ) -> Result<(), TestError> {
-        self.write(
-            &note_path(stem, lineage),
-            &level_note(stem, lineage, question, follow_ups),
-        )
-    }
-
-    fn ledger(&self) -> PathBuf {
-        self.set("s").join(".conduct-run.json")
-    }
-
-    fn plan(&self, slug: &str) -> Result<Value, TestError> {
-        self.plan_from(slug, &installed_plugin())
-    }
-
-    fn plan_from(
-        &self,
-        slug: &str,
-        plugin_root: &Path,
-    ) -> Result<Value, TestError> {
-        let output = self.outstanding(slug, plugin_root)?;
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        Ok(serde_json::from_slice(&output.stdout)?)
-    }
-}
-
-fn command_without_an_inherited_cap() -> Command {
-    let mut command = Command::new(BIN);
-    command
-        .env_remove(ACCELERATOR_CAP)
-        .env_remove(HARNESS_CAP)
-        .env_remove(SEARCH_CAP)
-        .env(PLUGIN_ROOT, installed_plugin());
-    command
-}
-
-/// The committed topic-research sets live beside the frontmatter goldens that
-/// hold them to the schema.
-fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../corpus-cli/tests/fixtures")
-}
-
-fn installed_plugin() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
+use topic_project::assert_exits_1;
+use topic_project::continued;
+use topic_project::copy_tree;
+use topic_project::installed_plugin;
+use topic_project::level_note;
+use topic_project::level_note_with;
+use topic_project::node_query_set;
+use topic_project::note_path;
+use topic_project::started;
+use topic_project::stored_ledger;
+use topic_project::Project;
+use topic_project::TestError;
+use topic_project::ACCELERATOR_CAP;
+use topic_project::HARNESS_CAP;
+use topic_project::PLUGIN_ROOT;
+use topic_project::SEARCH_CAP;
+use topic_project::TOPICS;
+use topic_project::WEB_STEM;
 
 fn path_in(set: &Path, name: &str) -> Result<String, TestError> {
     Ok(set
@@ -226,7 +74,7 @@ const LONG_CONTEXT: &str = "What limits long-context attention?";
 fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
 ) -> Result<(), TestError> {
     let slug = "topic-research-multiprofile-set";
-    let project = Project::new("multiprofile")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
     let set = project.set(slug);
 
     let plan = project.plan(slug)?;
@@ -271,7 +119,7 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
 fn a_quarantined_single_profile_pair_reuses_its_markers_index(
 ) -> Result<(), TestError> {
     let slug = "topic-research-quarantine-set";
-    let project = Project::new("quarantine")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
     let set = project.set(slug);
 
     let plan = project.plan(slug)?;
@@ -314,7 +162,7 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
 fn a_fully_researched_legacy_set_has_nothing_outstanding(
 ) -> Result<(), TestError> {
     for slug in ["topic-research-set", "topic-research-multiround-set"] {
-        let project = Project::new("legacy")?.with_fixture_set(slug)?;
+        let project = Project::with_fixture_set(slug)?;
 
         let plan = project.plan(slug)?;
 
@@ -442,13 +290,9 @@ fn an_unresolvable_set_exits_1() -> Result<(), TestError> {
 fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
 {
     let slug = "topic-research-multiprofile-set";
-    let project = Project::new("no-plugin-root")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
 
-    let output = command_without_an_inherited_cap()
-        .env_remove(PLUGIN_ROOT)
-        .current_dir(&project.root)
-        .args(["topic", "outstanding", slug])
-        .output()?;
+    let output = project.run_without_a_plugin_root("outstanding", &[slug])?;
 
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -465,7 +309,7 @@ fn outstanding_without_a_plugin_root_fails_naming_it() -> Result<(), TestError>
 fn every_allocated_path_is_a_finding_path_the_guard_admits(
 ) -> Result<(), TestError> {
     let slug = "topic-research-multiprofile-set";
-    let project = Project::new("guard-shape")?.with_fixture_set(slug)?;
+    let project = Project::with_fixture_set(slug)?;
     let fresh = small_set(
         "guard-shape-fresh",
         "- [ ] A? — profiles: web, openalex\n- [ ] 注意力？",
@@ -490,42 +334,6 @@ fn every_allocated_path_is_a_finding_path_the_guard_admits(
     }
     assert_eq!(checked, 4);
     Ok(())
-}
-
-fn note_path(stem: &str, lineage: &str) -> String {
-    format!("{TOPICS}/s/findings/{stem}.levels/{lineage}.md")
-}
-
-fn level_note_with(stem: &str, lineage: &str, fields: &str) -> String {
-    format!(
-        "---\ntype: \"topic-research\"\nid: \"s.{stem}.{lineage}\"\n\
-         title: \"A note\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
-         author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
-         status: \"complete\"\nkind: \"level-note\"\nround: 1\n\
-         source_profile: \"web\"\ndepth: 3\n{fields}\
-         tags: [\"research\"]\n\
-         last_updated: \"2026-09-27T00:00:00+00:00\"\n\
-         last_updated_by: \"Fixture Author\"\nschema_version: 1\n---\n\n\
-         # A note\n"
-    )
-}
-
-fn level_note(
-    stem: &str,
-    lineage: &str,
-    question: &str,
-    follow_ups: &[&str],
-) -> String {
-    let level = lineage.split('-').next().unwrap_or("1");
-    level_note_with(
-        stem,
-        lineage,
-        &format!(
-            "question: {}\nlevel: {level}\nfollow_ups: {}\n",
-            json!(question),
-            json!(follow_ups)
-        ),
-    )
 }
 
 fn finding(stem: &str, question: &str, depth: &str) -> String {
@@ -643,15 +451,46 @@ fn a_missing_level_two_note_holds_back_level_three() -> Result<(), TestError> {
             "nodes": [{
                 "lineage": "2-2",
                 "level": 2,
-                "question": "C?",
                 "cap": 2,
                 "id": "s.01-a-web.2-2",
                 "path": absolute(&project, &note_path("01-a-web", "2-2"))?,
-                "known_questions": ["A?", "B?", "C?"],
                 "spawn": "01-a-web:2-2",
             }],
         }])
     );
+    Ok(())
+}
+
+#[test]
+fn a_research_node_entry_carries_only_its_references() -> Result<(), TestError>
+{
+    const REFERENCES: [&str; 6] =
+        ["cap", "id", "level", "lineage", "path", "spawn"];
+    let project = node_query_set()?;
+    project.write(
+        &note_path(WEB_STEM, "2-1"),
+        &level_note_with(
+            WEB_STEM,
+            "2-1",
+            "question: \"A1?\"\nlevel: 1\nfollow_ups: []\n",
+        ),
+    )?;
+
+    let (plan, _) = started(&project, &["--depth", "3"])?;
+
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        for node in nodes_of(pair)? {
+            let mut expected = REFERENCES.to_vec();
+            if node["spawn"] == json!(format!("{WEB_STEM}:2-1")) {
+                expected.push("rejected");
+            }
+            if pair["profile"] == json!("web") {
+                expected.push("search_budget");
+            }
+            expected.sort_unstable();
+            assert_eq!(keys_of(&node)?, expected, "{node}");
+        }
+    }
     Ok(())
 }
 
@@ -847,17 +686,6 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
     Ok(())
 }
 
-fn assert_exits_1(output: &Output, stderr: &str) {
-    assert_eq!(
-        output.status.code(),
-        Some(1),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(String::from_utf8_lossy(&output.stderr).trim_end(), stderr);
-    assert!(output.stdout.is_empty());
-}
-
 #[test]
 fn an_invalid_depth_exits_1() -> Result<(), TestError> {
     let project = a_set()?;
@@ -943,27 +771,6 @@ fn a_concurrency_of_2_offers_the_first_spawns_and_counts_the_rest(
     Ok(())
 }
 
-fn started(
-    project: &Project,
-    args: &[&str],
-) -> Result<(Value, String), TestError> {
-    let mut all = vec!["--start"];
-    all.extend_from_slice(args);
-    let (plan, _) = project.plan_with(&all)?;
-    let run = plan["run"].as_str().ok_or("no run")?.to_owned();
-    Ok((plan, run))
-}
-
-fn continued(
-    project: &Project,
-    run: &str,
-    args: &[&str],
-) -> Result<Value, TestError> {
-    let mut all = vec!["--run", run];
-    all.extend_from_slice(args);
-    Ok(project.plan_with(&all)?.0)
-}
-
 #[test]
 fn an_attempted_node_left_invalid_is_reported_unfinished_on_the_next_plan_of_its_run(
 ) -> Result<(), TestError> {
@@ -1015,6 +822,27 @@ fn a_started_run_returns_its_minted_id_and_first_batch() -> Result<(), TestError
     assert_eq!(plan["unexpected"], json!([]));
     assert_eq!(spawns_of(&plan)?, ["01-a-web:1"]);
     assert!(project.ledger().exists());
+    Ok(())
+}
+
+#[test]
+fn a_started_run_records_its_offered_nodes() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?", "C?"])?;
+
+    started(&project, &["--depth", "2"])?;
+
+    let asked = |question: &str| {
+        json!({
+            "profile": "web",
+            "question": question,
+            "known_questions": ["A?", "B?", "C?"],
+        })
+    };
+    assert_eq!(
+        stored_ledger(&project)?["pending"]["offered_nodes"],
+        json!({"01-a-web:2-1": asked("B?"), "01-a-web:2-2": asked("C?")})
+    );
     Ok(())
 }
 
@@ -1596,7 +1424,10 @@ fn a_stale_ledger_with_an_empty_last_batch_still_names_its_run(
     let (_, first) = started(&project, &[])?;
     let stored: Value =
         serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
-    assert_eq!(stored["pending"], json!({"number": 0, "spawns": []}));
+    assert_eq!(
+        stored["pending"],
+        json!({"number": 0, "spawns": [], "offered_nodes": {}})
+    );
 
     let (plan, _) = started(&project, &[])?;
 
@@ -1678,7 +1509,7 @@ fn no_replaced_run_without_a_ledger_to_replace() -> Result<(), TestError> {
     let project = a_set()?;
 
     let (first, run) = started(&project, &[])?;
-    let ended = project.run(&["end-run", "s", "--run", &run])?;
+    let ended = project.run("end-run", &["s", "--run", &run])?;
     assert!(ended.status.success());
     let (after_end, _) = started(&project, &[])?;
 
@@ -1711,7 +1542,7 @@ fn outline_and_counts_match_disk_after_a_replaced_batch(
         &finding("01-a-web", "A?", "depth: 1\n"),
     )?;
     let (_, run) = started(&project, &[])?;
-    let ended = project.run(&["end-run", "s", "--run", &run])?;
+    let ended = project.run("end-run", &["s", "--run", &run])?;
     assert!(ended.status.success());
 
     let (plan, _) = project.plan_with(&[])?;
@@ -1938,13 +1769,13 @@ fn end_run_deletes_only_its_own_ledger_and_tolerates_absence(
     let (_, run) = started(&project, &[])?;
 
     assert_exits_1(
-        &project.run(&["end-run", "s", "--run", "other"])?,
+        &project.run("end-run", &["s", "--run", "other"])?,
         &superseded("other", &run),
     );
     assert!(project.ledger().exists());
 
     for _ in 0..2 {
-        let output = project.run(&["end-run", "s", "--run", &run])?;
+        let output = project.run("end-run", &["s", "--run", &run])?;
         assert!(
             output.status.success(),
             "{}",
@@ -1953,6 +1784,72 @@ fn end_run_deletes_only_its_own_ledger_and_tolerates_absence(
         assert!(output.stdout.is_empty());
         assert!(!project.ledger().exists());
     }
+    Ok(())
+}
+
+#[test]
+fn end_run_reports_an_unreadable_ledger_with_its_code() -> Result<(), TestError>
+{
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = a_set()?;
+    fs::write(project.ledger(), "{}")?;
+    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o000))?;
+
+    let output = project.run("end-run", &["s", "--run", "r1"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let expected = format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: ",
+        project.ledger().display()
+    );
+    assert!(stderr.starts_with(&expected), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn continuing_reports_an_unreadable_ledger_with_its_code(
+) -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = a_set()?;
+    fs::write(project.ledger(), "{}")?;
+    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o000))?;
+
+    let output = project.outstanding_with(&["--run", "r1"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let expected = format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: ",
+        project.ledger().display()
+    );
+    assert!(stderr.starts_with(&expected), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn starting_reports_an_unreadable_ledger_with_its_code() -> Result<(), TestError>
+{
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = a_set()?;
+    fs::write(project.ledger(), "{}")?;
+    fs::set_permissions(project.ledger(), fs::Permissions::from_mode(0o000))?;
+
+    let output = project.outstanding_with(&["--start"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let expected = format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: could not read {}: ",
+        project.ledger().display()
+    );
+    assert!(stderr.contains(&expected), "{stderr}");
     Ok(())
 }
 
@@ -2805,12 +2702,6 @@ fn budgeted_start(
     project.plan_in(&["--start", "--depth", depth], variables)
 }
 
-fn stored_ledger(project: &Project) -> Result<Value, TestError> {
-    Ok(serde_json::from_str(&fs::read_to_string(
-        project.ledger(),
-    )?)?)
-}
-
 #[test]
 fn a_started_run_sizes_search_budgets_over_every_web_pair(
 ) -> Result<(), TestError> {
@@ -3474,7 +3365,7 @@ fn the_tick_plan_lists_every_web_pair_left_unfinished() -> Result<(), TestError>
     assert_eq!(spawns_of(&first)?, ["03-c-web:1"]);
     continued(&project, &run, &[&deep[..], &["--spawned", "0"]].concat())?;
     assert!(project
-        .run(&["end-run", "s", "--run", &run])?
+        .run("end-run", &["s", "--run", &run])?
         .status
         .success());
 
@@ -3528,7 +3419,7 @@ fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
         &["--depth", "2", "--spawned", "0", WITHHOLD, "web"],
     )?;
     assert!(project
-        .run(&["end-run", "s", "--run", &run])?
+        .run("end-run", &["s", "--run", &run])?
         .status
         .success());
 
@@ -3538,4 +3429,153 @@ fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
     assert_eq!(plan["withheld"], json!([]));
     assert_eq!(spawns_of(&plan)?, ["01-a-web:1"]);
     Ok(())
+}
+
+fn plugin_root() -> Result<PathBuf, TestError> {
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?)
+}
+
+fn configured_templates(
+    project: &Project,
+    templates: &[(&str, &str)],
+) -> Result<(), TestError> {
+    let entries = templates
+        .iter()
+        .fold(String::new(), |entries, (name, path)| {
+            entries + &format!("  {name}: {path}\n")
+        });
+    project.write(
+        ".accelerator/config.md",
+        &format!("---\ntemplates:\n{entries}---\n"),
+    )
+}
+
+fn falling_back(project: &Project, name: &str, path: &str) -> String {
+    format!(
+        "{name}: configured template path '{}' not found, falling back to \
+         defaults",
+        project.root.join(path).display()
+    )
+}
+
+#[test]
+fn a_started_run_warns_of_each_conduct_template_falling_back(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[
+            ("topic-research-finding", "missing/finding.md"),
+            ("topic-research-level-note", "missing/level-note.md"),
+        ],
+    )?;
+    let root = plugin_root()?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, root.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    let warnings = [
+        falling_back(&project, "topic-research-finding", "missing/finding.md"),
+        falling_back(
+            &project,
+            "topic-research-level-note",
+            "missing/level-note.md",
+        ),
+    ];
+    assert_warned(&plan, &stderr, &warnings);
+    Ok(())
+}
+
+#[test]
+fn a_continued_plan_does_not_repeat_a_template_fallback(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-level-note", "missing/level-note.md")],
+    )?;
+    let root = plugin_root()?;
+    let env = [(PLUGIN_ROOT, root.to_str().ok_or("non-utf8")?)];
+    let (plan, _) = project.plan_in(&["--start"], &env)?;
+    let run = plan["run"].as_str().ok_or("no run")?;
+
+    let (plan, _) = project.plan_in(&["--run", run, "--spawned", "0"], &env)?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    Ok(())
+}
+
+#[test]
+fn a_fallback_of_a_template_conduct_does_not_use_goes_unreported(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(&project, &[("plan", "missing/plan.md")])?;
+    let root = plugin_root()?;
+
+    let (plan, _) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, root.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    Ok(())
+}
+
+fn a_plugin_with_templates(
+    project: &Project,
+    templates: &[&str],
+) -> Result<PathBuf, TestError> {
+    let plugin = project.root.join("plugin");
+    let profiles = "skills/research/profiles";
+    copy_tree(&installed_plugin().join(profiles), &plugin.join(profiles))?;
+    for name in templates {
+        fs::create_dir_all(plugin.join("templates"))?;
+        fs::write(plugin.join(format!("templates/{name}.md")), "# x\n")?;
+    }
+    Ok(plugin)
+}
+
+fn assert_starts_without_a_warning(
+    project: &Project,
+    plugin: &Path,
+) -> Result<(), TestError> {
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(PLUGIN_ROOT, plugin.to_str().ok_or("non-utf8")?)],
+    )?;
+
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(stderr.is_empty(), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_template_conduct_cannot_resolve_still_starts_without_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-finding", "missing/finding.md")],
+    )?;
+    let plugin_without_templates = a_plugin_with_templates(&project, &[])?;
+
+    assert_starts_without_a_warning(&project, &plugin_without_templates)
+}
+
+#[test]
+fn a_template_found_in_no_tier_still_starts_without_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    configured_templates(
+        &project,
+        &[("topic-research-finding", "missing/finding.md")],
+    )?;
+    let plugin_without_conduct_templates =
+        a_plugin_with_templates(&project, &["topic-brief"])?;
+
+    assert_starts_without_a_warning(&project, &plugin_without_conduct_templates)
 }

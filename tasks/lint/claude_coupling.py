@@ -45,11 +45,11 @@ _FILES = (
 _OPTIONAL_HARNESS_VARIABLES = {
     "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": (
         "cli/research-cli/src/subagent_cap.rs",
-        "cli/research-cli/tests/topic_outstanding.rs",
+        "cli/research-cli/tests/topic_project/mod.rs",
     ),
     "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION": (
         "cli/research-cli/src/search_cap.rs",
-        "cli/research-cli/tests/topic_outstanding.rs",
+        "cli/research-cli/tests/topic_project/mod.rs",
     ),
 }
 

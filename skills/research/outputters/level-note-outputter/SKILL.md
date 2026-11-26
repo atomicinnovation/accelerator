@@ -15,28 +15,60 @@ follow-up questions that deepen it. A note is a finding in every respect this
 document does not name. Read `finding-outputter` too: its Shape, Body and
 Sources rules, its Sources metadata block included, apply to the note
 unchanged, with "level note" and the `topic-research-level-note` template in
-place of "finding" and its template.
+place of "finding" and its template. Its **Template** step is the exception:
+a level note takes its template as **Template** below says.
+
+## Node Query
+
+Your task prompt names your node by the set's slug, the run id and a spawn
+ref, not by its question. Run `accelerator research topic node <slug> --run
+<run> --node <spawn ref>` with the slug, run and spawn ref your task prompt
+injects, before your **Template** step. From its JSON take the `question` as
+your focus question, `lineage`, `level`, `cap` as the follow-up cap,
+`known_questions` as the known questions, `id`, `path` as the note path, and
+`search_budget` when it prints one. When Claude Code's permissions deny the
+query, write no file, and say "node query denied by permissions" in your
+summary. When it exits non-zero, a research-guard refusal
+(`E_RESEARCH_GUARD_COMMAND`) included, write no file, and say "node query
+failed" in your summary, quoting its error line, as `finding-outputter`
+defines it.
 
 ## Sink
 
-Write the note to the **single note path injected into your task prompt**,
-and to no other path.
+Write the note to the **single note path the node query prints**, and to no
+other path.
 
 ## Injected Values
 
-Everything `finding-outputter` injects, with the level-note template in place
-of the finding template and the note path in place of the output path, plus:
+Your values come from the node query, from your profile and from your task
+prompt:
 
-- **level** — your node's level; `1` is the root.
-- **depth** — the resolved depth of the tree.
-- **lineage** — your node's position in the tree, such as `3-2-1`.
-- **id** — the note's `id`, verbatim.
-- **follow-up cap** — the most follow-up questions the note may record.
-- **known questions** — questions already asked in this tree.
-- **search budget** — injected for a web node only. Stamp it as
-  `search_budget`, the most `WebSearch` calls your node was allowed, not a
-  count of calls made. When no search budget is injected, delete the
-  `search_budget` line.
+- **From the node query**: the question, level, lineage, id, follow-up cap,
+  known questions and note path, with the note path in place of
+  `finding-outputter`'s output path, and the question in place of its
+  injected question, byte for byte.
+  - **level** — your node's level; `1` is the root.
+  - **lineage** — your node's position in the tree, such as `3-2-1`.
+  - **id** — the note's `id`, verbatim.
+  - **follow-up cap** — the most follow-up questions the note may record.
+  - **known questions** — questions already asked in this tree.
+- **Search budget**: {search budget}, as your profile resolves it; a
+  profile that defines none gives you none. Stamp it as `search_budget` on
+  a web note: the most `WebSearch` calls
+  your node was allowed, not a count of calls made. When you have none,
+  delete the `search_budget` line.
+- **Injected**: the **depth**, the resolved depth of the tree, plus
+  `finding-outputter`'s round, timestamp, author and source profile.
+
+## Template
+
+A level-note writer is always a researcher. Run
+`accelerator config template topic-research --kind level-note` exactly as
+written, without `--fail-safe`, and fill the fenced template it prints. When
+the command is denied by permissions, write no file, and say "template command
+denied by permissions" in your summary. When it exits non-zero, a
+research-guard refusal (`E_RESEARCH_GUARD_COMMAND`) included, write no file,
+and say "template unavailable" in your summary, quoting its error line.
 
 ## Shape
 

@@ -234,14 +234,19 @@ impl TemplateSource {
 /// A resolved template.
 ///
 /// Carries its source, its absolute and display-shortened paths, and its raw
-/// content; `warning` holds the tier-1 fallback note when a configured path was
-/// set but absent.
+/// content; `fallback` names the configured path when one was set but absent.
 pub struct ResolvedTemplate {
     pub source: TemplateSource,
     pub abs_path: String,
     pub display_path: String,
     pub content: String,
-    pub warning: Option<String>,
+    pub fallback: Option<TemplateFallback>,
+}
+
+/// A configured template path that was absent, so a lower tier answered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemplateFallback {
+    pub configured: PathBuf,
 }
 
 /// What ejecting one template did (or would do), for the exit code and message.
@@ -327,6 +332,9 @@ pub trait ReadTemplate {
         config_path: Option<&str>,
         templates_dir: &str,
     ) -> Result<Option<ResolvedTemplate>, ConfigError>;
+
+    /// The file a configured template path names.
+    fn configured_template_path(&self, configured: &str) -> PathBuf;
 
     /// The template names available from the plugin templates directory,
     /// sorted.

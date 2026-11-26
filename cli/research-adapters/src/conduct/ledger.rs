@@ -14,10 +14,13 @@ use corpus::FileRemove;
 use corpus::StoreError;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
+use research::conduct::memory::Offer;
 use research::conduct::memory::PendingBatch;
 use research::conduct::memory::RunMemory;
 use research::conduct::memory::Withheld;
 use research::conduct::observed::Observed;
+use research::conduct::offered_nodes::NodeContext;
+use research::conduct::offered_nodes::OfferedNodes;
 use research::conduct::search_budget::SearchBudgets;
 use research::conduct::search_budget::SearchCap;
 use research::conduct::spawn::SpawnRef;
@@ -125,6 +128,7 @@ fn ledger_to(ledger: &RunLedger) -> Value {
         "pending": {
             "number": memory.pending.number(),
             "spawns": spawns(&mut memory.pending.spawns().iter()),
+            "offered_nodes": offered_nodes_to(memory.pending.nodes()),
         },
         "claims": claims,
         "attempted": spawns(&mut memory.attempted.iter()),
@@ -151,6 +155,21 @@ fn ledger_to(ledger: &RunLedger) -> Value {
     stored
 }
 
+fn offered_nodes_to(nodes: &OfferedNodes) -> Value {
+    nodes
+        .iter()
+        .map(|(at, context)| {
+            let entry = json!({
+                "profile": context.profile,
+                "question": context.question,
+                "known_questions": context.known_questions,
+            });
+            (at.to_string(), entry)
+        })
+        .collect::<Map<String, Value>>()
+        .into()
+}
+
 fn search_budgets_to(budgets: &SearchBudgets) -> Value {
     let levels: Map<String, Value> = budgets
         .levels()
@@ -170,9 +189,16 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
         RunId::parse(value.get("run")?.as_str()?)?,
         claims_from(value.get("claims")?, unicode)?,
         RunMemory {
-            pending: PendingBatch::new(
+            pending: PendingBatch::restored(
                 number(pending.get("number")?)?,
-                spawn_list(pending.get("spawns")?)?,
+                Offer::new(
+                    spawn_list(pending.get("spawns")?)?,
+                    offered_nodes_from(
+                        pending
+                            .get("offered_nodes")
+                            .or_else(|| value.get("offered_nodes")),
+                    ),
+                ),
             ),
             attempted: spawn_list(value.get("attempted")?)?
                 .into_iter()
@@ -195,6 +221,53 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
             search_budgets_from(budgets).map(Some)
         })?,
     ))
+}
+
+/// Lenient where every other field is strict: the snapshot only answers
+/// node queries, so a malformed one is discarded as unreadable rather than
+/// discarding the run's claims, attempts and withheld profiles with the
+/// ledger. An absent one is an empty snapshot, as a ledger written before
+/// snapshots were kept has.
+fn offered_nodes_from(value: Option<&Value>) -> OfferedNodes {
+    let Some(value) = value else {
+        return OfferedNodes::empty();
+    };
+    value
+        .as_object()
+        .and_then(|entries| {
+            entries
+                .iter()
+                .map(|(key, entry)| {
+                    let SpawnRef::Node(at) = SpawnRef::parse(key)? else {
+                        return None;
+                    };
+                    Some((at, node_context_from(entry)?))
+                })
+                .collect::<Option<Vec<_>>>()
+        })
+        .map_or_else(OfferedNodes::unreadable, OfferedNodes::of)
+}
+
+/// A node always has a profile and a question, so an empty one is as
+/// malformed as a missing one.
+fn node_context_from(entry: &Value) -> Option<NodeContext> {
+    let profile = non_empty(entry.get("profile")?)?;
+    let question = non_empty(entry.get("question")?)?;
+    let known_questions = entry
+        .get("known_questions")?
+        .as_array()?
+        .iter()
+        .map(|known| known.as_str().map(str::to_owned))
+        .collect::<Option<Vec<_>>>()?;
+    Some(NodeContext {
+        profile: profile.to_owned(),
+        question: question.to_owned(),
+        known_questions,
+    })
+}
+
+fn non_empty(value: &Value) -> Option<&str> {
+    value.as_str().filter(|text| !text.is_empty())
 }
 
 fn search_budgets_from(value: &Value) -> Option<SearchBudgets> {
@@ -319,10 +392,13 @@ mod tests {
     use corpus::StoreError;
     use research::conduct::ledger::RunId;
     use research::conduct::ledger::RunLedger;
+    use research::conduct::memory::Offer;
     use research::conduct::memory::PendingBatch;
     use research::conduct::memory::RunMemory;
     use research::conduct::memory::Withheld;
     use research::conduct::observed::Observed;
+    use research::conduct::offered_nodes::NodeContext;
+    use research::conduct::offered_nodes::OfferedNodes;
     use research::conduct::search_budget::SearchBudgets;
     use research::conduct::search_budget::SearchCap;
     use research::conduct::spawn::SpawnRef;
@@ -406,9 +482,19 @@ mod tests {
             RunId::parse("2026-09-27_10-00-00-7").expect("run id"),
             claims,
             RunMemory {
-                pending: PendingBatch::new(
+                pending: PendingBatch::restored(
                     2,
-                    vec![spawn("03-a-web:2-1"), spawn("04-b-web")],
+                    Offer::new(
+                        vec![spawn("03-a-web:2-1"), spawn("04-b-web")],
+                        OfferedNodes::of([(
+                            note_ref("03-a-web", "2-1"),
+                            NodeContext {
+                                profile: "web".into(),
+                                question: "A?".into(),
+                                known_questions: vec!["K?".into()],
+                            },
+                        )]),
+                    ),
                 ),
                 attempted: BTreeSet::from([spawn("03-a-web:1")]),
                 just_acknowledged: BTreeSet::from([spawn("03-a-web:1")]),
@@ -519,6 +605,10 @@ mod tests {
             ]
         );
         assert_eq!(keys(&written["seen"]), ["answered", "notes"]);
+        assert_eq!(
+            keys(&written["pending"]),
+            ["number", "offered_nodes", "spawns"]
+        );
         assert_eq!(written["claims"], json!({"A ?": 3}));
         assert_eq!(
             written["search_budgets"],
@@ -529,6 +619,16 @@ mod tests {
             })
         );
         assert_eq!(written["withheld"], json!(["web"]));
+        assert_eq!(
+            written["pending"]["offered_nodes"],
+            json!({
+                "03-a-web:2-1": {
+                    "profile": "web",
+                    "question": "A?",
+                    "known_questions": ["K?"]
+                }
+            })
+        );
         Ok(())
     }
 
@@ -680,6 +780,150 @@ mod tests {
         delete_run_ledger(Path::new(SET), &store)?;
 
         assert_eq!(store.read(Path::new(LEDGER))?, None);
+        Ok(())
+    }
+
+    fn pending_nodes() -> serde_json::Value {
+        let mut ledger = well_formed();
+        ledger["pending"] =
+            json!({"number": 1, "spawns": ["03-a-web:2-1", "03-a-web:2-2"]});
+        ledger
+    }
+
+    fn asked(question: &str) -> serde_json::Value {
+        json!({"profile": "web", "question": question, "known_questions": []})
+    }
+
+    fn snapshotting(
+        snapshot: serde_json::Value,
+    ) -> Result<RunLedger, TestError> {
+        let mut ledger = pending_nodes();
+        ledger["pending"]["offered_nodes"] = snapshot;
+        Ok(read(&stored(&ledger))?.ok_or("no ledger")?)
+    }
+
+    #[test]
+    fn a_snapshot_stored_beside_pending_is_still_read() -> Result<(), TestError>
+    {
+        let snapshot = json!({"03-a-web:2-1": asked("A?")});
+        let mut beside = pending_nodes();
+        beside["offered_nodes"] = snapshot.clone();
+
+        let ledger = read(&stored(&beside))?.ok_or("no ledger")?;
+
+        assert_eq!(ledger, snapshotting(snapshot)?);
+        Ok(())
+    }
+
+    fn unsnapshotted() -> Result<RunLedger, TestError> {
+        Ok(read(&stored(&pending_nodes()))?.ok_or("no ledger")?)
+    }
+
+    #[test]
+    fn a_ledger_written_without_the_snapshot_decodes_with_an_empty_one(
+    ) -> Result<(), TestError> {
+        let mut claims = ClaimedIndexes::default();
+        claims.claim(NormalisedQuestion::of("A?", &UnicodeTables), 1);
+        let expected = RunLedger::from_parts(
+            RunId::parse("r1").ok_or("run id")?,
+            claims,
+            RunMemory {
+                pending: PendingBatch::restored(
+                    1,
+                    Offer::new(
+                        vec![spawn("03-a-web:2-1"), spawn("03-a-web:2-2")],
+                        OfferedNodes::empty(),
+                    ),
+                ),
+                ..RunMemory::default()
+            },
+            None,
+        );
+
+        let ledger = unsnapshotted()?;
+
+        assert_eq!(ledger, expected);
+        assert_eq!(ledger.memory().pending.nodes(), &OfferedNodes::empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_malformed_snapshot_decodes_as_unreadable_and_keeps_the_ledger(
+    ) -> Result<(), TestError> {
+        let malformed = [
+            json!("03-a-web:2-1"),
+            json!([asked("A?")]),
+            json!({"03-a-web:2-1": "A?"}),
+            json!({"03-a-web": asked("A?")}),
+            json!({"03-a-web:2-0": asked("A?")}),
+            json!({"03-a-web:2-1": {"question": "A?", "known_questions": []}}),
+            json!({"03-a-web:2-1": {
+                "profile": 1, "question": "A?", "known_questions": []
+            }}),
+            json!({"03-a-web:2-1": {
+                "profile": "", "question": "A?", "known_questions": []
+            }}),
+            json!({"03-a-web:2-1": {"profile": "web", "known_questions": []}}),
+            json!({"03-a-web:2-1": {
+                "profile": "web", "question": 1, "known_questions": []
+            }}),
+            json!({"03-a-web:2-1": {
+                "profile": "web", "question": "", "known_questions": []
+            }}),
+            json!({"03-a-web:2-1": {"profile": "web", "question": "A?"}}),
+            json!({"03-a-web:2-1": {
+                "profile": "web", "question": "A?", "known_questions": "K?"
+            }}),
+            json!({"03-a-web:2-1": {
+                "profile": "web", "question": "A?", "known_questions": [1]
+            }}),
+            json!({
+                "03-a-web:2-1": asked("A?"),
+                "03-a-web:2-2": {"profile": "web", "known_questions": []}
+            }),
+        ];
+        let mut claims = ClaimedIndexes::default();
+        claims.claim(NormalisedQuestion::of("A?", &UnicodeTables), 1);
+        let discarded = RunLedger::from_parts(
+            RunId::parse("r1").ok_or("run id")?,
+            claims,
+            RunMemory {
+                pending: PendingBatch::restored(
+                    1,
+                    Offer::new(
+                        vec![spawn("03-a-web:2-1"), spawn("03-a-web:2-2")],
+                        OfferedNodes::unreadable(),
+                    ),
+                ),
+                ..RunMemory::default()
+            },
+            None,
+        );
+        for snapshot in malformed {
+            assert_eq!(
+                snapshotting(snapshot.clone())?,
+                discarded,
+                "{snapshot}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_context_for_a_node_not_pending_is_dropped() -> Result<(), TestError> {
+        let ledger = snapshotting(json!({
+            "03-a-web:2-1": asked("A?"),
+            "03-a-web:2-9": asked("Z?")
+        }))?;
+
+        let held: Vec<String> = ledger
+            .memory()
+            .pending
+            .nodes()
+            .iter()
+            .map(|(at, _)| at.to_string())
+            .collect();
+        assert_eq!(held, ["03-a-web:2-1"]);
         Ok(())
     }
 }

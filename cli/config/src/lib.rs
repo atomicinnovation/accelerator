@@ -20,6 +20,7 @@ pub mod precedence;
 pub mod provenance;
 pub mod render;
 pub mod service;
+pub mod template;
 pub mod tracker_block;
 
 pub use crate::error::ConfigError;
@@ -53,6 +54,7 @@ pub use crate::service::Resolved;
 pub use crate::service::ResolvedTemplate;
 pub use crate::service::Scaffold;
 pub use crate::service::Source;
+pub use crate::service::TemplateFallback;
 pub use crate::service::TemplateOverride;
 pub use crate::service::TemplateSource;
 pub use crate::service::Value;

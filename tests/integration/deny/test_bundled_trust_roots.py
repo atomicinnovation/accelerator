@@ -1,18 +1,28 @@
-"""Regression: every reqwest client in cli/ trusts only the bundled roots.
+"""Regression: every HTTP client in cli/ trusts only the bundled roots.
 
 From 0.13 reqwest links rustls-platform-verifier whatever its features, so the
 host certificate store's crates are in the launcher's graph and the feature
-graph test can no longer keep them out. What keeps a client off the host store
-is building it with `tls_certs_only` over webpki-root-certs' roots; this scan
-fails any production client builder that does not.
+graph test can no longer keep them out. What keeps a reqwest client off the
+host store is building it with `tls_certs_only` over webpki-root-certs' roots;
+this scan fails any production client builder that does not.
+
+octocrab builds its own connector, which reads the host store unless its
+`rustls-webpki-tokio` feature selects the bundled webpki roots. Reading the
+macOS store goes through the trust-settings daemon, which times out under the
+test suite's process-per-test load and leaves the client unbuildable.
 """
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 _CLI = Path(__file__).resolve().parents[3] / "cli"
 _BUILDER = re.compile(r"\bClient::builder\(\)")
 _TRUST = re.compile(r"\A\s*\.tls_certs_only\(")
+_OCTOCRAB_BUNDLED_ROOTS = 'octocrab feature "rustls-webpki-tokio"'
 
 
 def _production_sources() -> list[Path]:
@@ -58,3 +68,20 @@ def test_the_scan_catches_a_client_without_the_bundled_roots() -> None:
     source = "let client = Client::builder()\n    .timeout(limit)\n"
 
     assert _builders_without_bundled_roots(source) == [1]
+
+
+def test_the_github_client_trusts_only_the_bundled_roots() -> None:
+    cargo = shutil.which("cargo")
+    if cargo is None:
+        pytest.skip("cargo not on PATH")
+    tree = subprocess.run(
+        [cargo, "tree", "-e", "features", "-p", "github", "-i", "octocrab"],
+        cwd=_CLI,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+
+    assert _OCTOCRAB_BUNDLED_ROOTS in tree, (
+        "octocrab builds its connector over the host certificate store"
+    )

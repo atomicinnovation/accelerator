@@ -1976,6 +1976,59 @@ fn template_with_an_empty_config_override_falls_through_to_the_plugin_default(
 }
 
 #[test]
+fn template_warns_when_a_kind_specific_path_falls_back_to_the_general_one(
+) -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\ntemplates:\n  demo-special: missing/special.md\n---\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "template", "demo", "--kind", "special"],
+    )?;
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!(
+            "Warning: configured template path '{}' not found, falling back \
+             to defaults\n",
+            fixture
+                .root
+                .canonicalize()?
+                .join("missing/special.md")
+                .display()
+        )
+    );
+    assert_eq!(
+        output.stdout,
+        b"```markdown\n# Demo Template\n\nBody line.\n```\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn template_warns_when_its_configured_path_falls_back() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\ntemplates:\n  demo: missing/demo.md\n---\n")?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!(
+            "Warning: configured template path '{}' not found, falling back \
+             to defaults\n",
+            fixture
+                .root
+                .canonicalize()?
+                .join("missing/demo.md")
+                .display()
+        )
+    );
+    assert_eq!(
+        output.stdout,
+        b"```markdown\n# Demo Template\n\nBody line.\n```\n"
+    );
+    Ok(())
+}
+
+#[test]
 fn template_not_found_fails_closed_even_with_fail_safe() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
     let output = run_with_plugin(
@@ -2045,6 +2098,23 @@ fn an_already_fenced_template_is_not_double_wrapped() -> TestResult {
     let output =
         run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
     assert_eq!(output.stdout, b"```markdown\nalready fenced\n```\n");
+    Ok(())
+}
+
+#[test]
+fn a_template_holding_a_code_block_gets_a_longer_fence() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator/templates"))?;
+    fs::write(
+        fixture.root.join(".accelerator/templates/demo.md"),
+        "# Demo\n\n```bash\nls\n```\n",
+    )?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "````markdown\n# Demo\n\n```bash\nls\n```\n````\n"
+    );
     Ok(())
 }
 

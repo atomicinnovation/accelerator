@@ -22,15 +22,6 @@ impl Project {
         Self::with_fixture_set(SET)
     }
 
-    fn write(&self, relative: &str, content: &str) -> Result<(), TestError> {
-        let path = self.root.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, content)?;
-        Ok(())
-    }
-
     fn edit(
         &self,
         document: &str,
@@ -57,10 +48,6 @@ impl Project {
 
     fn consultable(&self) -> Result<Value, TestError> {
         json_of(&self.consultable_output(SET)?)
-    }
-
-    fn plan(&self) -> Result<Value, TestError> {
-        json_of(&self.run("outstanding", &[SET])?)
     }
 
     fn counts(&self) -> Result<Value, TestError> {
@@ -185,7 +172,7 @@ fn consultable_holds_back_an_item_with_only_skipped_pairs(
         .append_to_outline(&format!("- [ ] {ARXIV_ITEM} — profiles: arxiv"))?;
 
     let verdict = project.consultable()?;
-    let plan = project.plan()?;
+    let plan = project.plan(SET)?;
 
     let skipped_reasons: Vec<Value> = plan["skipped"]
         .as_array()

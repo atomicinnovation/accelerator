@@ -404,8 +404,10 @@ mod tests {
     use super::ReplacedRun;
     use crate::conduct::ledger::RunId;
     use crate::conduct::ledger::RunLedger;
+    use crate::conduct::memory::Offer;
     use crate::conduct::memory::PendingBatch;
     use crate::conduct::memory::RunMemory;
+    use crate::conduct::offered_nodes::OfferedNodes;
     use crate::conduct::spawn::SpawnRef;
     use crate::topic::claims::ClaimedIndexes;
     use crate::topic::evidence::Digest;
@@ -498,7 +500,10 @@ mod tests {
             RunId::parse("earlier").expect("a run id"),
             claimed,
             RunMemory {
-                pending: PendingBatch::new(3, spawns),
+                pending: PendingBatch::restored(
+                    3,
+                    Offer::new(spawns, OfferedNodes::empty()),
+                ),
                 ..RunMemory::default()
             },
             None,
