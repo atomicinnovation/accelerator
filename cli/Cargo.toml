@@ -256,10 +256,12 @@ whoami = "2.1.2"
 # backend (ring, not aws-lc-rs — the JWT backend and the TLS backend are
 # independent choices) and keep native-tls/openssl out of the graph per
 # deny.toml; `timeout`, `tracing`, `default-client` are octocrab's own
-# remaining defaults.
+# remaining defaults. `rustls-webpki-tokio` confines the client to the bundled
+# Mozilla roots, as every reqwest client is, rather than the host store.
 octocrab = { version = "=0.54.1", default-features = false, features = [
     "rustls",
     "rustls-ring",
+    "rustls-webpki-tokio",
     "timeout",
     "tracing",
     "default-client",
