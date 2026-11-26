@@ -294,6 +294,7 @@ pub fn migrate::ports::MigrationContext::configured_path_override(&self, _key: &
 pub fn migrate::ports::MigrationContext::corpus_index(&self) -> core::result::Result<&dyn migrate::ports::CorpusIndex, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::dir_exists(&self, _path: &std::path::Path) -> bool
 pub fn migrate::ports::MigrationContext::doc_type_dirs(&self) -> core::result::Result<alloc::vec::Vec<migrate::ports::DocTypeDir>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::doc_types(&self) -> &corpus::doc_type::catalogue::DocTypeCatalogue
 pub fn migrate::ports::MigrationContext::frontmatter_text(&self, _content: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::list_all_under(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
