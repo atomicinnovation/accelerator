@@ -127,11 +127,12 @@ fn assert_covers_every_built_in<T>(table: &[(&str, T)]) {
 }
 
 fn cluster(entries: &[Entry]) -> corpus::cluster::Clustering {
-    let no_ids = HashMap::new();
+    let no_work_items = HashMap::new();
+    let no_addresses = HashMap::new();
     let context = ClusterContext::from_entries(
         entries,
-        &no_ids,
-        &no_ids,
+        &no_work_items,
+        &no_addresses,
         Path::new("/repo"),
         &FourDigitIds,
     );

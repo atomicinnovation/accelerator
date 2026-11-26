@@ -11,6 +11,7 @@ use crate::file_driver::{FileContent, FileDriver, FileDriverError};
 use crate::frontmatter::{self, FrontmatterState};
 use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
+use corpus::LinkageAddress;
 
 pub const FRONTMATTER_MALFORMED: &str = "malformed";
 
@@ -257,13 +258,12 @@ pub struct Indexer {
     /// the trust check reads instead of reading the files again.
     work_item_files: std::sync::Mutex<BTreeMap<PathBuf, Option<String>>>,
     entries: Arc<RwLock<HashMap<PathBuf, IndexEntry>>>,
-    adr_by_id: Arc<RwLock<HashMap<u32, PathBuf>>>,
     work_item_by_identity_key: Arc<RwLock<HashMap<String, PathBuf>>>,
-    /// Secondary index mapping plan `id:` (filename stem) to plan path.
-    /// Used to resolve `target: "plan:<id>"` typed-linkage references per
-    /// ADR-0034. Lock-ordering invariant: acquire after
-    /// `work_item_by_identity_key` and before `reviews_by_target`.
-    plans_by_id: Arc<RwLock<HashMap<String, PathBuf>>>,
+    /// Each document's path by the typed-linkage address it answers to.
+    /// Resolves `target: "plan:<id>"` references. Lock-ordering invariant:
+    /// acquire after `work_item_by_identity_key` and before
+    /// `reviews_by_target`.
+    documents_by_address: Arc<RwLock<HashMap<LinkageAddress, PathBuf>>>,
     /// Reverse declared-link index. Keys are lexically-clean absolute
     /// paths of target plans (or any future target type); values are
     /// sets of canonicalised paths of reviews referencing the target.
@@ -308,9 +308,8 @@ impl Indexer {
             configured: work_item_cfg,
             work_item_files: std::sync::Mutex::new(BTreeMap::new()),
             entries: Arc::new(RwLock::new(HashMap::new())),
-            adr_by_id: Arc::new(RwLock::new(HashMap::new())),
             work_item_by_identity_key: Arc::new(RwLock::new(HashMap::new())),
-            plans_by_id: Arc::new(RwLock::new(HashMap::new())),
+            documents_by_address: Arc::new(RwLock::new(HashMap::new())),
             reviews_by_target: Arc::new(RwLock::new(HashMap::new())),
             work_item_refs_by_target: Arc::new(RwLock::new(HashMap::new())),
             rescan_lock: Arc::new(Semaphore::new(1)),
@@ -333,10 +332,10 @@ impl Indexer {
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
-        let mut adr_by_id: HashMap<u32, PathBuf> = HashMap::new();
         let mut work_item_by_identity_key: HashMap<String, PathBuf> =
             HashMap::new();
-        let mut plans_by_id: HashMap<String, PathBuf> = HashMap::new();
+        let mut documents_by_address: HashMap<LinkageAddress, PathBuf> =
+            HashMap::new();
         let mut work_item_refs_by_target: HashMap<String, BTreeSet<PathBuf>> =
             HashMap::new();
 
@@ -397,7 +396,7 @@ impl Indexer {
         // Phase 3 Pass A: parse and fold serially, in original order.
         // Build entries and every primary-id map. Defer reviews_by_target
         // until Pass B because resolving `target: "plan:<id>"` requires
-        // the fully-populated `plans_by_id`.
+        // the fully-populated `documents_by_address`.
         for (kind, path, content) in read_results {
             let content = match content {
                 Ok(c) => c,
@@ -412,14 +411,13 @@ impl Indexer {
                 &reading,
             );
 
-            if let Some(id) = adr_id_from_entry(&entry) {
-                adr_by_id.insert(id, path.clone());
-            }
             if let Some(id) = identity_key_of_entry(&entry) {
                 hold_if_lower(&mut work_item_by_identity_key, id, &path);
             }
-            if let Some(id) = plan_id_from_entry(&entry) {
-                plans_by_id.insert(id, path.clone());
+            if let Some(address) =
+                linkage_address_of(&entry, reading.linkage_ids())
+            {
+                documents_by_address.insert(address, path.clone());
             }
             for id in identity_keys_of(entry.work_item_refs.clone(), &reading) {
                 // Skip self-references: a doc must not appear in its own index.
@@ -436,31 +434,30 @@ impl Indexer {
         }
 
         // Phase 3 Pass B: resolve reviews_by_target with the fully-
-        // populated `plans_by_id` so typed-linkage `target: "plan:<id>"`
+        // populated `documents_by_address` so typed-linkage `target: "plan:<id>"`
         // references resolve regardless of file-driver iteration order.
         let reviews_by_target = reviews_by_target_of(
             &entries,
-            &plans_by_id,
+            &documents_by_address,
             &work_item_by_identity_key,
             &reading,
             &self.project_root,
         );
 
-        // Hold all six write locks simultaneously and replace contents
+        // Hold all five write locks simultaneously and replace contents
         // so readers never observe a partial (entries, secondary)
-        // snapshot. Always acquire in the same order: entries → adr →
-        // work_item → plans → reviews_by_target → work_item_refs_by_target.
+        // snapshot. Always acquire in the same order: entries → work_item
+        // → documents_by_address → reviews_by_target →
+        // work_item_refs_by_target.
         publish_document_ids(&mut entries);
         let mut entries_w = self.entries.write().await;
-        let mut adr_w = self.adr_by_id.write().await;
         let mut work_item_w = self.work_item_by_identity_key.write().await;
-        let mut plans_w = self.plans_by_id.write().await;
+        let mut addresses_w = self.documents_by_address.write().await;
         let mut reviews_w = self.reviews_by_target.write().await;
         let mut refs_w = self.work_item_refs_by_target.write().await;
         *entries_w = entries;
-        *adr_w = adr_by_id;
         *work_item_w = work_item_by_identity_key;
-        *plans_w = plans_by_id;
+        *addresses_w = documents_by_address;
         *reviews_w = reviews_by_target;
         *refs_w = work_item_refs_by_target;
         self.hold_trust(trust);
@@ -553,8 +550,6 @@ impl Indexer {
                 let holders_before =
                     self.work_item_by_identity_key.read().await.clone();
 
-                update_adr_by_id(&self.adr_by_id, &entry, previous.as_ref())
-                    .await;
                 update_work_item_by_identity_key(
                     &self.work_item_by_identity_key,
                     &entry,
@@ -562,25 +557,27 @@ impl Indexer {
                     &entries,
                 )
                 .await;
-                update_plans_by_id(
-                    &self.plans_by_id,
+                update_documents_by_address(
+                    &self.documents_by_address,
+                    &reading,
                     &entry,
                     previous.as_ref(),
                 )
                 .await;
-                // Acquire a snapshot of plans_by_id AFTER the plans-by-id
+                // Acquire a snapshot of documents_by_address AFTER its
                 // helper has folded the new entry in, so the
                 // reviews_by_target update sees a consistent view.
-                let plans_snapshot = self.plans_by_id.read().await.clone();
+                let addresses_snapshot =
+                    self.documents_by_address.read().await.clone();
                 // Snapshot work_item_by_identity_key AFTER
                 // update_work_item_by_identity_key has folded the new entry
-                // in, mirroring plans_snapshot, so a typed `work-item:`
+                // in, mirroring addresses_snapshot, so a typed `work-item:`
                 // target resolves against a consistent view.
                 let work_item_snapshot =
                     self.work_item_by_identity_key.read().await.clone();
                 update_reviews_by_target(
                     &self.reviews_by_target,
-                    &plans_snapshot,
+                    &addresses_snapshot,
                     &work_item_snapshot,
                     &reading,
                     &self.project_root,
@@ -649,22 +646,26 @@ impl Indexer {
         self.remember_work_item(&previous.path, None);
         let holders_before =
             self.work_item_by_identity_key.read().await.clone();
-        remove_from_adr_by_id(&self.adr_by_id, previous).await;
         remove_from_work_item_by_identity_key(
             &self.work_item_by_identity_key,
             previous,
             entries,
         )
         .await;
-        remove_from_plans_by_id(&self.plans_by_id, previous).await;
+        remove_from_documents_by_address(
+            &self.documents_by_address,
+            &self.work_item_cfg(),
+            previous,
+        )
+        .await;
         // Snapshot both id indexes AFTER their removals so a typed
         // `work-item:` target resolves against a consistent view.
-        let plans_snapshot = self.plans_by_id.read().await.clone();
+        let addresses_snapshot = self.documents_by_address.read().await.clone();
         let work_item_snapshot =
             self.work_item_by_identity_key.read().await.clone();
         remove_from_reviews_by_target(
             &self.reviews_by_target,
-            &plans_snapshot,
+            &addresses_snapshot,
             &work_item_snapshot,
             &self.work_item_cfg(),
             &self.project_root,
@@ -693,10 +694,10 @@ impl Indexer {
         if holders == *holders_before {
             return;
         }
-        let plans = self.plans_by_id.read().await.clone();
+        let addresses = self.documents_by_address.read().await.clone();
         *self.reviews_by_target.write().await = reviews_by_target_of(
             entries,
-            &plans,
+            &addresses,
             &holders,
             &self.work_item_cfg(),
             &self.project_root,
@@ -815,10 +816,12 @@ impl Indexer {
         self.work_item_by_identity_key.read().await.clone()
     }
 
-    /// Returns a cloned snapshot of `plans_by_id` for callers
+    /// Returns a cloned snapshot of `documents_by_address` for callers
     /// constructing a `ClusterContext`.
-    pub async fn plans_by_id_snapshot(&self) -> HashMap<String, PathBuf> {
-        self.plans_by_id.read().await.clone()
+    pub async fn documents_by_address_snapshot(
+        &self,
+    ) -> HashMap<LinkageAddress, PathBuf> {
+        self.documents_by_address.read().await.clone()
     }
 
     /// The work-item config IDs are read through now. Cluster-key
@@ -974,8 +977,17 @@ impl Indexer {
         None
     }
 
-    pub async fn adr_by_id(&self, id: u32) -> Option<IndexEntry> {
-        let path = { self.adr_by_id.read().await.get(&id).cloned()? };
+    pub async fn document_at(
+        &self,
+        address: &LinkageAddress,
+    ) -> Option<IndexEntry> {
+        let path = {
+            self.documents_by_address
+                .read()
+                .await
+                .get(address)
+                .cloned()?
+        };
         self.get(&path).await
     }
 
@@ -1041,14 +1053,14 @@ impl Indexer {
     ) -> Vec<IndexEntry> {
         let entries = self.entries.read().await;
         let by_id = self.work_item_by_identity_key.read().await;
-        let plans = self.plans_by_id.read().await;
+        let addresses = self.documents_by_address.read().await;
         let mut result: Vec<IndexEntry> = Vec::new();
         let mut seen: HashSet<PathBuf> = HashSet::new();
 
         // Existing: plan-review `target:` field.
         if let Some(target_key) = target_path_from_entry(
             entry,
-            &plans,
+            &addresses,
             &by_id,
             &self.work_item_cfg(),
             &self.project_root,
@@ -1126,8 +1138,8 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 ///   - Path form: `target: "meta/plans/2026-...md"` — resolved via
 ///     `normalize_target_key` against `project_root`.
 ///   - Typed `plan:` form: `target: "plan:<plan-id>"` — resolved via
-///     the `plans_by_id` index (the plan's `id:` field; usually the
-///     filename stem).
+///     the `documents_by_address` index (the plan's `id:` field, or its
+///     filename stem when it has none).
 ///   - Typed `work-item:` form: `target: "work-item:NNNN"` — resolved via
 ///     the `work_item_by_identity_key` index under the raw id's identity key,
 ///     so any spelling of the item resolves, as clustering does. Resolving
@@ -1138,7 +1150,7 @@ fn normalize_absolute(path: &Path) -> PathBuf {
 /// targets (no corpus path).
 pub(crate) fn target_path_from_entry(
     entry: &IndexEntry,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1146,7 +1158,7 @@ pub(crate) fn target_path_from_entry(
     corpus::cluster::target_path_from_entry(
         entry.r#type,
         entry.frontmatter.get("target").and_then(|v| v.as_str()),
-        plans_by_id,
+        documents_by_address,
         work_item_by_identity_key,
         work_item_cfg.convention(),
         project_root,
@@ -1180,24 +1192,6 @@ fn find_entry_for_deleted(
 // The secondary-index helpers below are async only for the per-index
 // `RwLock::write().await`, and must be called while the caller holds
 // `entries.write()`, per the lock-ordering invariant on `Indexer`.
-
-async fn update_adr_by_id(
-    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
-    new_entry: &IndexEntry,
-    previous: Option<&IndexEntry>,
-) {
-    let prev_id = previous.and_then(adr_id_from_entry);
-    let next_id = adr_id_from_entry(new_entry);
-    let mut m = map.write().await;
-    if let Some(prev_id) = prev_id {
-        if Some(prev_id) != next_id {
-            m.remove(&prev_id);
-        }
-    }
-    if let Some(id) = next_id {
-        m.insert(id, new_entry.path.clone());
-    }
-}
 
 /// Gives `key` to `path` when nothing holds it or `path` sorts lower than
 /// its holder, so two files sharing an identity key resolve to the same
@@ -1258,27 +1252,30 @@ async fn update_work_item_by_identity_key(
     }
 }
 
-async fn update_plans_by_id(
-    map: &Arc<RwLock<HashMap<String, PathBuf>>>,
+async fn update_documents_by_address(
+    map: &Arc<RwLock<HashMap<LinkageAddress, PathBuf>>>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     new_entry: &IndexEntry,
     previous: Option<&IndexEntry>,
 ) {
-    let prev_id = previous.and_then(plan_id_from_entry);
-    let next_id = plan_id_from_entry(new_entry);
+    let ids = work_item_cfg.linkage_ids();
+    let previous_address =
+        previous.and_then(|previous| linkage_address_of(previous, ids));
+    let next_address = linkage_address_of(new_entry, ids);
     let mut m = map.write().await;
-    if let Some(ref prev_id) = prev_id {
-        if Some(prev_id.as_str()) != next_id.as_deref() {
-            m.remove(prev_id);
+    if let Some(previous_address) = previous_address {
+        if Some(&previous_address) != next_address.as_ref() {
+            m.remove(&previous_address);
         }
     }
-    if let Some(id) = next_id {
-        m.insert(id, new_entry.path.clone());
+    if let Some(address) = next_address {
+        m.insert(address, new_entry.path.clone());
     }
 }
 
 async fn update_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1296,7 +1293,7 @@ async fn update_reviews_by_target(
     let prev_target = previous.and_then(|p| {
         target_path_from_entry(
             p,
-            plans_by_id,
+            documents_by_address,
             work_item_by_identity_key,
             work_item_cfg,
             project_root,
@@ -1304,7 +1301,7 @@ async fn update_reviews_by_target(
     });
     let next_target = target_path_from_entry(
         new_entry,
-        plans_by_id,
+        documents_by_address,
         work_item_by_identity_key,
         work_item_cfg,
         project_root,
@@ -1323,15 +1320,6 @@ async fn update_reviews_by_target(
     }
 }
 
-async fn remove_from_adr_by_id(
-    map: &Arc<RwLock<HashMap<u32, PathBuf>>>,
-    previous: &IndexEntry,
-) {
-    if let Some(id) = adr_id_from_entry(previous) {
-        map.write().await.remove(&id);
-    }
-}
-
 async fn remove_from_work_item_by_identity_key(
     map: &Arc<RwLock<HashMap<String, PathBuf>>>,
     previous: &IndexEntry,
@@ -1342,19 +1330,21 @@ async fn remove_from_work_item_by_identity_key(
     }
 }
 
-async fn remove_from_plans_by_id(
-    map: &Arc<RwLock<HashMap<String, PathBuf>>>,
+async fn remove_from_documents_by_address(
+    map: &Arc<RwLock<HashMap<LinkageAddress, PathBuf>>>,
+    work_item_cfg: &crate::config::WorkItemConfig,
     previous: &IndexEntry,
 ) {
-    if let Some(id) = plan_id_from_entry(previous) {
-        map.write().await.remove(&id);
+    let address = linkage_address_of(previous, work_item_cfg.linkage_ids());
+    if let Some(address) = address {
+        map.write().await.remove(&address);
     }
 }
 
 /// Every review, by the path of the document it targets.
 fn reviews_by_target_of(
     entries: &HashMap<PathBuf, IndexEntry>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1363,7 +1353,7 @@ fn reviews_by_target_of(
     for entry in entries.values() {
         if let Some(target) = target_path_from_entry(
             entry,
-            plans_by_id,
+            documents_by_address,
             work_item_by_identity_key,
             work_item_cfg,
             project_root,
@@ -1379,7 +1369,7 @@ fn reviews_by_target_of(
 
 async fn remove_from_reviews_by_target(
     map: &Arc<RwLock<HashMap<PathBuf, BTreeSet<PathBuf>>>>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_identity_key: &HashMap<String, PathBuf>,
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
@@ -1387,7 +1377,7 @@ async fn remove_from_reviews_by_target(
 ) {
     if let Some(target_key) = target_path_from_entry(
         previous,
-        plans_by_id,
+        documents_by_address,
         work_item_by_identity_key,
         work_item_cfg,
         project_root,
@@ -1667,39 +1657,20 @@ fn document_id(state: &FrontmatterState) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn adr_id_from_entry(entry: &IndexEntry) -> Option<u32> {
-    if entry.r#type != DocTypeKey::DECISIONS {
-        return None;
-    }
-    let filename = entry.path.file_name()?.to_str()?;
-    parse_adr_id(&entry.frontmatter, filename)
-}
-
 fn identity_key_of_entry(entry: &IndexEntry) -> Option<String> {
     entry.identity_key.clone()
 }
 
-/// Extracts a plan's `id:` value (typically the filename stem). Used to
-/// populate `plans_by_id` for resolving `target: "plan:<id>"`
-/// typed-linkage references per ADR-0034.
-fn plan_id_from_entry(entry: &IndexEntry) -> Option<String> {
-    if entry.r#type != DocTypeKey::PLANS {
-        return None;
-    }
-    entry.frontmatter_id.clone()
-}
-
-fn parse_adr_id(fm: &serde_json::Value, filename: &str) -> Option<u32> {
-    if let Some(s) = fm.get("adr_id").and_then(|v| v.as_str()) {
-        if let Some(rest) = s.strip_prefix("ADR-") {
-            if let Ok(n) = rest.parse::<u32>() {
-                return Some(n);
-            }
-        }
-    }
-    let rest = filename.strip_prefix("ADR-")?;
-    let dash = rest.find('-')?;
-    rest[..dash].parse().ok()
+fn linkage_address_of(
+    entry: &IndexEntry,
+    ids: &dyn corpus::LinkageIds,
+) -> Option<LinkageAddress> {
+    LinkageAddress::of_document(
+        entry.r#type,
+        entry.frontmatter_id.as_deref(),
+        entry.path.to_str()?,
+        ids,
+    )
 }
 
 #[cfg(test)]
@@ -2208,7 +2179,7 @@ mod identity_join_tests {
     ) -> Vec<Option<String>> {
         let snapshot = idx.all().await;
         let by_id = idx.work_item_by_identity_key_snapshot().await;
-        let plans = idx.plans_by_id_snapshot().await;
+        let plans = idx.documents_by_address_snapshot().await;
         let work_item_cfg = idx.work_item_cfg();
         let ctx = ClusterContext::from_entries(
             &snapshot,
@@ -2770,6 +2741,10 @@ mod tests {
     use crate::file_driver::LocalFileDriver;
     use std::sync::Arc;
 
+    fn adr_0001() -> LinkageAddress {
+        LinkageAddress::new("adr", "ADR-0001")
+    }
+
     fn default_work_item_cfg() -> Arc<WorkItemConfig> {
         Arc::new(WorkItemConfig::default_numeric())
     }
@@ -2921,10 +2896,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn adr_by_id_is_populated_from_frontmatter() {
+    async fn a_decision_is_found_at_its_linkage_address() {
         let tmp = tempfile::tempdir().unwrap();
         let idx = build_indexer(tmp.path()).await;
-        let adr = idx.adr_by_id(1).await.unwrap();
+        let adr = idx.document_at(&adr_0001()).await.unwrap();
         assert_eq!(adr.r#type, DocTypeKey::DECISIONS);
     }
 
@@ -3448,6 +3423,10 @@ mod refresh_tests {
     use crate::file_driver::{etag_of, LocalFileDriver};
     use std::sync::Arc;
 
+    fn adr_0001() -> LinkageAddress {
+        LinkageAddress::new("adr", "ADR-0001")
+    }
+
     async fn build_refresh_indexer(tmp: &Path) -> (Indexer, PathBuf) {
         let work = tmp.join("meta/work");
         std::fs::create_dir_all(&work).unwrap();
@@ -3617,12 +3596,12 @@ mod refresh_tests {
             "work_item_by_identity_key(\"0001\") must still resolve after refresh_one"
         );
 
-        // Refresh ADR-0001 — adr_by_id must still work
+        // Refresh ADR-0001 — its address must still resolve
         let adr_path = tmp.path().join("meta/decisions/ADR-0001-foo.md");
         idx.refresh_one(&adr_path).await.unwrap();
         assert!(
-            idx.adr_by_id(1).await.is_some(),
-            "adr_by_id(1) must still resolve after refresh_one"
+            idx.document_at(&adr_0001()).await.is_some(),
+            "ADR-0001 must still resolve after refresh_one"
         );
     }
 
@@ -3680,6 +3659,55 @@ mod reverse_index_tests {
     use crate::config::WorkItemConfig;
     use crate::file_driver::LocalFileDriver;
     use std::sync::Arc;
+
+    fn plan_at(id: &str) -> LinkageAddress {
+        LinkageAddress::new("plan", id)
+    }
+
+    async fn index_plans(tmp: &Path, plans: &[(&str, &str)]) -> Indexer {
+        let directory = tmp.join("meta/plans");
+        std::fs::create_dir_all(&directory).unwrap();
+        for (filename, content) in plans {
+            std::fs::write(directory.join(filename), content).unwrap();
+        }
+        let mut map = HashMap::new();
+        map.insert("plans".into(), directory);
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        Indexer::build(
+            driver,
+            tmp.to_path_buf(),
+            Arc::new(WorkItemConfig::default_numeric()),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_plan_answers_to_its_frontmatter_id_and_not_its_stem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_plans(
+            tmp.path(),
+            &[(
+                "2026-04-18-foo.md",
+                "---\nid: \"the-foo-plan\"\ntitle: Foo\n---\nbody\n",
+            )],
+        )
+        .await;
+        assert!(idx.document_at(&plan_at("the-foo-plan")).await.is_some());
+        assert!(idx.document_at(&plan_at("2026-04-18-foo")).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_plan_without_a_frontmatter_id_answers_to_its_stem() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = index_plans(
+            tmp.path(),
+            &[("2026-04-18-foo.md", "---\ntitle: Foo\n---\nbody\n")],
+        )
+        .await;
+        assert!(idx.document_at(&plan_at("2026-04-18-foo")).await.is_some());
+    }
 
     /// Seed a tempdir with one plan and one review whose `target:`
     /// points at the plan. Returns (idx, `plan_path`, `review_path`), with
@@ -4345,15 +4373,15 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn rescan_clears_all_three_secondary_maps_before_repopulating() {
+    async fn rescan_clears_the_secondary_maps_before_repopulating() {
         let tmp = tempfile::tempdir().unwrap();
         let (idx, _plan_path, _review_path) =
             build_with_plan_and_review(tmp.path()).await;
-        // Inject stale data into each of the three secondary maps.
-        idx.adr_by_id
-            .write()
-            .await
-            .insert(99, PathBuf::from("/nonexistent/ADR-9999.md"));
+        // Inject stale data into three of the secondary maps.
+        idx.documents_by_address.write().await.insert(
+            LinkageAddress::new("adr", "ADR-9999"),
+            PathBuf::from("/nonexistent/ADR-9999.md"),
+        );
         idx.work_item_by_identity_key.write().await.insert(
             "99".to_string(),
             PathBuf::from("/nonexistent/9999-work-item.md"),
@@ -4365,10 +4393,13 @@ mod reverse_index_tests {
 
         idx.rescan().await.unwrap();
 
-        let adr_map = idx.adr_by_id.read().await;
+        let address_map = idx.documents_by_address.read().await;
         let work_item_map = idx.work_item_by_identity_key.read().await;
         let reviews_map = idx.reviews_by_target.read().await;
-        assert!(!adr_map.contains_key(&99u32), "stale ADR cleared on rescan");
+        assert!(
+            !address_map.contains_key(&LinkageAddress::new("adr", "ADR-9999")),
+            "stale address cleared on rescan"
+        );
         assert!(
             !work_item_map.contains_key("99"),
             "stale work item cleared on rescan"
@@ -4871,7 +4902,7 @@ mod reverse_index_tests {
         assert_eq!(
             inbound.len(),
             1,
-            "typed-linkage target should resolve via plans_by_id"
+            "typed-linkage target should resolve via documents_by_address"
         );
     }
 
@@ -4952,7 +4983,7 @@ mod reverse_index_tests {
     {
         // Validates the two-pass build approach: a plan-review whose
         // source plan happens to be enumerated after it must still
-        // resolve once Pass A has populated plans_by_id.
+        // resolve once Pass A has populated documents_by_address.
         let tmp = tempfile::tempdir().unwrap();
         let plans = tmp.path().join("meta/plans");
         let reviews = tmp.path().join("meta/reviews/plans");
@@ -4995,7 +5026,7 @@ mod reverse_index_tests {
     }
 
     #[tokio::test]
-    async fn plans_by_id_lifecycle_on_refresh_one() {
+    async fn a_plan_s_address_follows_it_through_refresh_one() {
         let tmp = tempfile::tempdir().unwrap();
         let plans = tmp.path().join("meta/plans");
         let reviews = tmp.path().join("meta/reviews/plans");
@@ -5020,10 +5051,13 @@ mod reverse_index_tests {
         .await
         .unwrap();
 
-        // After initial build, plans_by_id contains the plan.
+        // After initial build, documents_by_address contains the plan.
         {
-            let m = idx.plans_by_id.read().await;
-            assert!(m.contains_key("2026-04-18-foo"), "plan should be indexed");
+            let m = idx.documents_by_address.read().await;
+            assert!(
+                m.contains_key(&plan_at("2026-04-18-foo")),
+                "plan should be indexed"
+            );
         }
 
         // Mutate the plan's id and refresh.
@@ -5034,25 +5068,26 @@ mod reverse_index_tests {
         .unwrap();
         idx.refresh_one(&plan).await.unwrap();
         {
-            let m = idx.plans_by_id.read().await;
+            let m = idx.documents_by_address.read().await;
             assert!(
-                !m.contains_key("2026-04-18-foo"),
+                !m.contains_key(&plan_at("2026-04-18-foo")),
                 "old id should be removed after refresh"
             );
             assert!(
-                m.contains_key("2026-04-18-foo-renamed"),
+                m.contains_key(&plan_at("2026-04-18-foo-renamed")),
                 "new id should be inserted after refresh"
             );
         }
 
-        // Delete the plan and confirm plans_by_id no longer contains it.
+        // Delete the plan and confirm documents_by_address no longer
+        // contains it.
         std::fs::remove_file(&plan).unwrap();
         idx.refresh_one(&plan).await.unwrap();
         {
-            let m = idx.plans_by_id.read().await;
+            let m = idx.documents_by_address.read().await;
             assert!(
-                !m.contains_key("2026-04-18-foo-renamed"),
-                "deleted plan should be removed from plans_by_id"
+                !m.contains_key(&plan_at("2026-04-18-foo-renamed")),
+                "deleted plan should be removed from documents_by_address"
             );
         }
     }
@@ -5063,10 +5098,11 @@ mod target_path_resolution_tests {
     use super::*;
     use crate::test_support::entry_for_test;
 
-    fn plans_by_id_with(id: &str, path: PathBuf) -> HashMap<String, PathBuf> {
-        let mut m = HashMap::new();
-        m.insert(id.to_string(), path);
-        m
+    fn plans_by_id_with(
+        id: &str,
+        path: PathBuf,
+    ) -> HashMap<LinkageAddress, PathBuf> {
+        HashMap::from([(LinkageAddress::new("plan", id), path)])
     }
 
     #[test]
@@ -5114,7 +5150,7 @@ mod target_path_resolution_tests {
     }
 
     #[test]
-    fn plan_review_with_typed_plan_id_resolves_via_plans_by_id() {
+    fn plan_review_with_typed_plan_id_resolves_via_its_address() {
         let mut entry = entry_for_test(DocTypeKey::PLAN_REVIEWS, "x", 0, "R");
         entry.frontmatter = serde_json::json!({
             "target": "plan:2026-05-31-0040-pipeline"

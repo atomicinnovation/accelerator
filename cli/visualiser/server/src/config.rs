@@ -117,6 +117,16 @@ impl corpus::IdConvention for NoWorkItemIds {
     }
 }
 
+impl corpus::LinkageIds for NoWorkItemIds {
+    fn id_in_filename(&self, _filename: &str) -> Option<String> {
+        None
+    }
+
+    fn bare_ids_in(&self, _line: &str) -> Vec<String> {
+        Vec::new()
+    }
+}
+
 impl Default for WorkItemConfig {
     fn default() -> Self {
         Self::default_numeric()
@@ -162,6 +172,15 @@ impl WorkItemConfig {
     /// The convention files and references are read through.
     #[must_use]
     pub fn convention(&self) -> &dyn corpus::IdConvention {
+        match &self.scheme {
+            Some(scheme) => scheme,
+            None => &NoWorkItemIds,
+        }
+    }
+
+    /// The reading typed-linkage ids are taken through.
+    #[must_use]
+    pub fn linkage_ids(&self) -> &dyn corpus::LinkageIds {
         match &self.scheme {
             Some(scheme) => scheme,
             None => &NoWorkItemIds,

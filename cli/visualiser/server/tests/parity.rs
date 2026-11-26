@@ -242,12 +242,12 @@ fn clustering_typed_linkage_is_pinned() {
     )]
     .into_iter()
     .collect();
-    let plans_by_id = HashMap::new();
+    let documents_by_address = HashMap::new();
     let root = PathBuf::from("/repo");
     let ctx = ClusterContext::from_entries(
         &entries,
         &work_item_by_identity_key,
-        &plans_by_id,
+        &documents_by_address,
         &root,
         &cfg,
     );

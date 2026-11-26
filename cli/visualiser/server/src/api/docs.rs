@@ -275,12 +275,13 @@ pub(crate) async fn doc_patch_frontmatter(
         let snapshot = state.indexer.all().await;
         let work_item_by_identity_key =
             state.indexer.work_item_by_identity_key_snapshot().await;
-        let plans_by_id = state.indexer.plans_by_id_snapshot().await;
+        let documents_by_address =
+            state.indexer.documents_by_address_snapshot().await;
         let work_item_cfg = state.indexer.work_item_cfg();
         let cluster_ctx = crate::clusters::ClusterContext::from_entries(
             &snapshot,
             &work_item_by_identity_key,
-            &plans_by_id,
+            &documents_by_address,
             state.indexer.project_root(),
             &work_item_cfg,
         );

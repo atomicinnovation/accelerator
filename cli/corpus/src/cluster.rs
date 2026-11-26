@@ -19,6 +19,7 @@ use std::path::PathBuf;
 
 use crate::doc_type::DocTypeKey;
 use crate::id_convention::IdConvention;
+use crate::linkage_address::LinkageAddress;
 use crate::typed_ref::parse_typed_ref;
 use crate::typed_ref::TypedRef;
 
@@ -139,7 +140,7 @@ pub struct Clustering {
 pub struct ClusterContext<'a, E: ClusterEntry> {
     pub entries_by_path: HashMap<PathBuf, &'a E>,
     pub work_item_by_id: &'a HashMap<String, PathBuf>,
-    pub plans_by_id: &'a HashMap<String, PathBuf>,
+    pub documents_by_address: &'a HashMap<LinkageAddress, PathBuf>,
     pub project_root: &'a Path,
     pub identity: &'a dyn IdConvention,
 }
@@ -151,7 +152,7 @@ impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
     pub fn from_entries(
         entries: &'a [E],
         work_item_by_id: &'a HashMap<String, PathBuf>,
-        plans_by_id: &'a HashMap<String, PathBuf>,
+        documents_by_address: &'a HashMap<LinkageAddress, PathBuf>,
         project_root: &'a Path,
         identity: &'a dyn IdConvention,
     ) -> Self {
@@ -162,7 +163,7 @@ impl<'a, E: ClusterEntry> ClusterContext<'a, E> {
         Self {
             entries_by_path,
             work_item_by_id,
-            plans_by_id,
+            documents_by_address,
             project_root,
             identity,
         }
@@ -198,7 +199,7 @@ pub fn resolve_cluster_key<E: ClusterEntry>(
     entry: &E,
     entries_by_path: &HashMap<PathBuf, &E>,
     work_item_by_id: &HashMap<String, PathBuf>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     project_root: &Path,
     identity: &dyn IdConvention,
 ) -> Option<String> {
@@ -206,7 +207,7 @@ pub fn resolve_cluster_key<E: ClusterEntry>(
         entry,
         entries_by_path,
         work_item_by_id,
-        plans_by_id,
+        documents_by_address,
         project_root,
         identity,
         0,
@@ -218,7 +219,7 @@ fn walk<E: ClusterEntry>(
     entry: &E,
     entries_by_path: &HashMap<PathBuf, &E>,
     work_item_by_id: &HashMap<String, PathBuf>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     project_root: &Path,
     identity: &dyn IdConvention,
     depth: u8,
@@ -238,7 +239,7 @@ fn walk<E: ClusterEntry>(
             let target_path = target_path_from_entry(
                 entry.doc_type(),
                 entry.target(),
-                plans_by_id,
+                documents_by_address,
                 work_item_by_id,
                 identity,
                 project_root,
@@ -248,7 +249,7 @@ fn walk<E: ClusterEntry>(
                 target_entry,
                 entries_by_path,
                 work_item_by_id,
-                plans_by_id,
+                documents_by_address,
                 project_root,
                 identity,
                 depth + 1,
@@ -289,7 +290,7 @@ fn id_from_value(raw: &str, identity: &dyn IdConvention) -> Option<String> {
 pub fn target_path_from_entry(
     doc_type: DocTypeKey,
     target: Option<&str>,
-    plans_by_id: &HashMap<String, PathBuf>,
+    documents_by_address: &HashMap<LinkageAddress, PathBuf>,
     work_item_by_id: &HashMap<String, PathBuf>,
     identity: &dyn IdConvention,
     project_root: &Path,
@@ -299,7 +300,9 @@ pub fn target_path_from_entry(
     }
     let raw = target?;
     match parse_typed_ref(raw)? {
-        TypedRef::Plan(id) => plans_by_id.get(&id).cloned(),
+        reference @ TypedRef::Plan(_) => documents_by_address
+            .get(&reference.linkage_address()?)
+            .cloned(),
         TypedRef::WorkItem(id) => {
             let canon = identity.identity_key(&id)?;
             work_item_by_id.get(&canon).cloned()
@@ -383,7 +386,7 @@ pub fn compute<E: ClusterEntry>(
             e,
             &ctx.entries_by_path,
             ctx.work_item_by_id,
-            ctx.plans_by_id,
+            ctx.documents_by_address,
             ctx.project_root,
             ctx.identity,
         );
@@ -642,14 +645,14 @@ mod tests {
         entry: &TestEntry,
         entries: &HashMap<PathBuf, &TestEntry>,
         work_item_by_id: &HashMap<String, PathBuf>,
-        plans_by_id: &HashMap<String, PathBuf>,
+        documents_by_address: &HashMap<LinkageAddress, PathBuf>,
         identity: &dyn IdConvention,
     ) -> Option<String> {
         resolve_cluster_key(
             entry,
             entries,
             work_item_by_id,
-            plans_by_id,
+            documents_by_address,
             Path::new("/repo"),
             identity,
         )
@@ -657,6 +660,61 @@ mod tests {
 
     fn empty() -> HashMap<PathBuf, &'static TestEntry> {
         HashMap::new()
+    }
+
+    fn target_of(
+        kind: DocTypeKey,
+        target: &str,
+        documents_by_address: &HashMap<LinkageAddress, PathBuf>,
+    ) -> Option<PathBuf> {
+        target_path_from_entry(
+            kind,
+            Some(target),
+            documents_by_address,
+            &HashMap::new(),
+            &NUMERIC,
+            Path::new("/repo"),
+        )
+    }
+
+    #[test]
+    fn a_typed_plan_target_resolves_to_the_document_at_its_address() {
+        let documents_by_address = HashMap::from([(
+            LinkageAddress::new("plan", "the-plan"),
+            PathBuf::from("/repo/meta/plans/2026-01-02-the-plan.md"),
+        )]);
+        assert_eq!(
+            target_of(
+                DocTypeKey::PLAN_REVIEWS,
+                "plan:the-plan",
+                &documents_by_address
+            ),
+            Some(PathBuf::from("/repo/meta/plans/2026-01-02-the-plan.md"))
+        );
+        assert_eq!(
+            target_of(
+                DocTypeKey::PLAN_REVIEWS,
+                "plan:another-plan",
+                &documents_by_address
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn a_typed_adr_target_does_not_resolve_through_the_address_index() {
+        let documents_by_address = HashMap::from([(
+            LinkageAddress::new("adr", "ADR-0001"),
+            PathBuf::from("/repo/meta/decisions/ADR-0001-x.md"),
+        )]);
+        assert_eq!(
+            target_of(
+                DocTypeKey::PLAN_REVIEWS,
+                "adr:ADR-0001",
+                &documents_by_address
+            ),
+            None
+        );
     }
 
     #[test]
@@ -832,12 +890,12 @@ mod tests {
     fn ctx_for<'a>(
         entries: &'a [TestEntry],
         work_item_by_id: &'a HashMap<String, PathBuf>,
-        plans_by_id: &'a HashMap<String, PathBuf>,
+        documents_by_address: &'a HashMap<LinkageAddress, PathBuf>,
     ) -> ClusterContext<'a, TestEntry> {
         ClusterContext::from_entries(
             entries,
             work_item_by_id,
-            plans_by_id,
+            documents_by_address,
             Path::new("/repo"),
             &NUMERIC,
         )

@@ -92,7 +92,7 @@ pub struct LifecycleCluster {
 /// indexer caller into `corpus::cluster`.
 pub struct ClusterContext<'a> {
     pub work_item_by_identity_key: &'a HashMap<String, PathBuf>,
-    pub plans_by_id: &'a HashMap<String, PathBuf>,
+    pub documents_by_address: &'a HashMap<corpus::LinkageAddress, PathBuf>,
     pub project_root: &'a Path,
     pub work_item_cfg: &'a WorkItemConfig,
 }
@@ -101,13 +101,13 @@ impl<'a> ClusterContext<'a> {
     pub fn from_entries(
         _entries: &'a [IndexEntry],
         work_item_by_identity_key: &'a HashMap<String, PathBuf>,
-        plans_by_id: &'a HashMap<String, PathBuf>,
+        documents_by_address: &'a HashMap<corpus::LinkageAddress, PathBuf>,
         project_root: &'a Path,
         work_item_cfg: &'a WorkItemConfig,
     ) -> Self {
         Self {
             work_item_by_identity_key,
-            plans_by_id,
+            documents_by_address,
             project_root,
             work_item_cfg,
         }
@@ -120,7 +120,7 @@ impl<'a> ClusterContext<'a> {
 #[cfg(test)]
 pub struct EmptyClusterFixture {
     pub wi: HashMap<String, PathBuf>,
-    pub pl: HashMap<String, PathBuf>,
+    pub pl: HashMap<corpus::LinkageAddress, PathBuf>,
     pub root: PathBuf,
     pub cfg: WorkItemConfig,
 }
@@ -145,7 +145,7 @@ impl EmptyClusterFixture {
     pub fn ctx(&self) -> ClusterContext<'_> {
         ClusterContext {
             work_item_by_identity_key: &self.wi,
-            plans_by_id: &self.pl,
+            documents_by_address: &self.pl,
             project_root: &self.root,
             work_item_cfg: &self.cfg,
         }
@@ -184,7 +184,7 @@ pub fn compute_clusters_with_backfill(
     let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
         entries,
         ctx.work_item_by_identity_key,
-        ctx.plans_by_id,
+        ctx.documents_by_address,
         ctx.project_root,
         identity,
     );
@@ -260,7 +260,7 @@ mod tests {
     }
 
     /// Run clustering with snapshot maps derived from the entries
-    /// themselves — `work_item_by_identity_key` from `WorkItems` entries, `plans_by_id`
+    /// themselves — `work_item_by_identity_key` from `WorkItems` entries, `documents_by_address`
     /// from Plans entries (by file stem).
     fn run_clusters(
         entries: &[IndexEntry],
@@ -277,20 +277,26 @@ mod tests {
                 e.identity_key.clone().map(|id| (id, e.path.clone()))
             })
             .collect();
-        let plans_by_id: HashMap<String, PathBuf> = entries
-            .iter()
-            .filter(|e| e.r#type == DocTypeKey::PLANS)
-            .filter_map(|e| {
-                e.path.file_stem().and_then(|s| {
-                    s.to_str().map(|s| (s.to_string(), e.path.clone()))
+        let documents_by_address: HashMap<corpus::LinkageAddress, PathBuf> =
+            entries
+                .iter()
+                .filter(|e| e.r#type == DocTypeKey::PLANS)
+                .filter_map(|e| {
+                    e.path.file_stem().and_then(|s| {
+                        s.to_str().map(|s| {
+                            (
+                                corpus::LinkageAddress::new("plan", s),
+                                e.path.clone(),
+                            )
+                        })
+                    })
                 })
-            })
-            .collect();
+                .collect();
         let project_root = PathBuf::from("/repo");
         let ctx = ClusterContext::from_entries(
             entries,
             &work_item_by_identity_key,
-            &plans_by_id,
+            &documents_by_address,
             &project_root,
             cfg,
         );

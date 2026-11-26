@@ -7,6 +7,8 @@
 
 use std::path::PathBuf;
 
+use crate::linkage_address::LinkageAddress;
+
 /// A parsed typed-linkage reference.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypedRef {
@@ -15,6 +17,21 @@ pub enum TypedRef {
     Adr(String),
     Pr(String),
     Path(PathBuf),
+}
+
+impl TypedRef {
+    /// The address a prefixed reference names; `None` for a path.
+    #[must_use]
+    pub fn linkage_address(&self) -> Option<LinkageAddress> {
+        let (type_name, id) = match self {
+            Self::WorkItem(id) => ("work-item", id),
+            Self::Plan(id) => ("plan", id),
+            Self::Adr(id) => ("adr", id),
+            Self::Pr(id) => ("pr", id),
+            Self::Path(_) => return None,
+        };
+        Some(LinkageAddress::new(type_name, id.as_str()))
+    }
 }
 
 fn looks_like_path(value: &str) -> bool {
@@ -72,6 +89,35 @@ pub fn parse_typed_ref(raw: &str) -> Option<TypedRef> {
 #[cfg(test)]
 mod tests {
     use super::{parse_typed_ref, TypedRef};
+    use crate::linkage_address::LinkageAddress;
+
+    #[test]
+    fn a_prefixed_reference_names_the_address_it_writes() {
+        for (raw, address) in [
+            (
+                "plan:2026-01-02-x",
+                LinkageAddress::new("plan", "2026-01-02-x"),
+            ),
+            ("adr:ADR-0001", LinkageAddress::new("adr", "ADR-0001")),
+            ("work-item:0042", LinkageAddress::new("work-item", "0042")),
+            ("pr:12", LinkageAddress::new("pr", "12")),
+        ] {
+            assert_eq!(
+                parse_typed_ref(raw).and_then(|r| r.linkage_address()),
+                Some(address),
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_path_reference_names_no_address() {
+        assert_eq!(
+            parse_typed_ref("meta/plans/x.md")
+                .and_then(|r| r.linkage_address()),
+            None
+        );
+    }
 
     #[test]
     fn parses_work_item_prefix() {
