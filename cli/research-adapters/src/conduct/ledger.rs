@@ -244,11 +244,11 @@ fn offered_nodes_from(value: Option<&Value>) -> OfferedNodes {
         .map_or_else(OfferedNodes::empty, OfferedNodes::of)
 }
 
+/// A node always has a profile and a question, so an empty one is as
+/// malformed as a missing one.
 fn node_context_from(entry: &Value) -> Option<NodeContext> {
-    let profile = entry.get("profile")?.as_str()?;
-    if profile.is_empty() {
-        return None;
-    }
+    let profile = non_empty(entry.get("profile")?)?;
+    let question = non_empty(entry.get("question")?)?;
     let known_questions = entry
         .get("known_questions")?
         .as_array()?
@@ -257,9 +257,13 @@ fn node_context_from(entry: &Value) -> Option<NodeContext> {
         .collect::<Option<Vec<_>>>()?;
     Some(NodeContext {
         profile: profile.to_owned(),
-        question: entry.get("question")?.as_str()?.to_owned(),
+        question: question.to_owned(),
         known_questions,
     })
+}
+
+fn non_empty(value: &Value) -> Option<&str> {
+    value.as_str().filter(|text| !text.is_empty())
 }
 
 fn search_budgets_from(value: &Value) -> Option<SearchBudgets> {
@@ -855,6 +859,9 @@ mod tests {
             json!({"03-a-web:2-1": {"profile": "web", "known_questions": []}}),
             json!({"03-a-web:2-1": {
                 "profile": "web", "question": 1, "known_questions": []
+            }}),
+            json!({"03-a-web:2-1": {
+                "profile": "web", "question": "", "known_questions": []
             }}),
             json!({"03-a-web:2-1": {"profile": "web", "question": "A?"}}),
             json!({"03-a-web:2-1": {
