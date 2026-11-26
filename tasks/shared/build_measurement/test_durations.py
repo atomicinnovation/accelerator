@@ -209,8 +209,9 @@ class DurationFigures:
             raise MeasurementRefusedError(f"no pass line for {binary}")
         return MappingProxyType(
             {
-                test: RunFigure.over(
-                    self._charged(run, test) for run in self.runs
+                test: _figure_over(
+                    (self._charged(run, test) for run in self.runs),
+                    missing=self._never_charged(test),
                 )
                 for test in tests
             }
@@ -223,8 +224,9 @@ class DurationFigures:
 
     def binary_seconds(self, binary: str) -> RunFigure:
         self.per_test(binary)
-        return RunFigure.over(
-            self._binary_seconds_in(run, binary) for run in self.runs
+        return _figure_over(
+            (self._binary_seconds_in(run, binary) for run in self.runs),
+            missing=self._never_served(binary),
         )
 
     def slowest_test(self, binary: str) -> tuple[TestId, RunFigure]:
@@ -244,6 +246,15 @@ class DurationFigures:
             for family in Family
             if any(family in run.family_builds for run in self.runs)
         )
+
+    def _never_charged(self, test: TestId) -> str:
+        checkers = ", ".join(str(each) for each in self.charges_to(test))
+        return f"{test} and its checker {checkers} never pass in the same run"
+
+    def _never_served(self, binary: str) -> str:
+        family = self.served_by.get(binary)
+        built = "its family" if family is None else family.noun
+        return f"{binary} never passes in a run that built {built}"
 
     def _charged(self, run: TimedRun, test: TestId) -> float | None:
         seconds = [

@@ -230,6 +230,29 @@ class TestCombiningRuns:
                 charges=[Charge.parse("a absent=a target")],
             )
 
+    def test_a_target_never_passing_alongside_its_checker_is_refused(self):
+        figures = DurationFigures(
+            runs=self.runs({"target": 1.0}, {"checker": 1.0}),
+            charges=[Charge.parse("a checker=a target")],
+        )
+        with pytest.raises(
+            MeasurementRefusedError,
+            match="a target and its checker a checker never pass in the same",
+        ):
+            figures.per_test("a")
+
+    def test_a_served_binary_never_passing_beside_its_build_is_refused(self):
+        runs = [
+            _record_run("shared VCS fixtures: status-log set built in 1.0 s"),
+            _record_run(_pass(1.0, 1, "a", "x")),
+        ]
+        figures = DurationFigures(runs=runs, served_by={"a": Family.STATUS_LOG})
+        with pytest.raises(
+            MeasurementRefusedError,
+            match="a never passes in a run that built the status-log set",
+        ):
+            figures.binary_seconds("a")
+
     def test_a_charge_without_an_equals_sign_is_refused(self):
         with pytest.raises(MeasurementRefusedError, match="a checker"):
             Charge.parse("a checker")
