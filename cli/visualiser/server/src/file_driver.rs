@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 
 use corpus_adapters::{patch_status, FileCorpusStore, PatchError};
 
+use corpus::doc_type::{FilenameFilter, Listing};
 use corpus::{AtomicWrite, DocTypeCatalogue, DocTypeKey, StoreError};
 
 /// A frontmatter mutation applied through the file driver.
@@ -302,22 +303,28 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
-        let Some(nested_manifest) = kind.nested_root_filename() else {
-            return Box::pin(async move {
-                if kind != DocTypeKey::WORK_ITEMS {
-                    return markdown_files_in(&root, has_md_extension).await;
-                }
-                let mut entries =
-                    markdown_files_in(&root, is_work_item_file).await?;
-                entries.extend(
-                    markdown_files_in(
-                        &root.join(DRAFTS_DIR),
-                        is_work_item_file,
-                    )
-                    .await?,
-                );
-                Ok(entries)
-            });
+        let nested_manifest = match kind.listing() {
+            Listing::Flat {
+                drafts_subdirectory,
+                filename_filter,
+            } => {
+                let is_document = match filename_filter {
+                    FilenameFilter::Markdown => has_md_extension,
+                    FilenameFilter::WorkItem => is_work_item_file,
+                };
+                return Box::pin(async move {
+                    let mut entries =
+                        markdown_files_in(&root, is_document).await?;
+                    if let Some(drafts) = drafts_subdirectory {
+                        entries.extend(
+                            markdown_files_in(&root.join(drafts), is_document)
+                                .await?,
+                        );
+                    }
+                    Ok(entries)
+                });
+            }
+            Listing::Nested { root: manifest } => manifest,
         };
         Box::pin(async move {
             let read = match tokio::fs::read_dir(&root).await {
@@ -585,8 +592,6 @@ pub fn template_extra_roots(
 }
 
 /// Where a work item no tracker has confirmed yet waits, beside the rest.
-const DRAFTS_DIR: &str = "drafts";
-
 fn has_md_extension(path: &Path) -> bool {
     path.extension().and_then(|s| s.to_str()) == Some("md")
 }

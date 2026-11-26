@@ -60,14 +60,8 @@ impl LatestPreview {
 }
 
 /// Facet ids declared for a given doc type.
-pub fn facets_for(doc_type: DocTypeKey) -> &'static [&'static str] {
-    if doc_type == DocTypeKey::WORK_ITEMS {
-        &["status", "project", "clusterSlug"]
-    } else if doc_type == DocTypeKey::TEMPLATES {
-        &[]
-    } else {
-        &["status", "clusterSlug"]
-    }
+pub fn facets_for(doc_type: DocTypeKey) -> Vec<&'static str> {
+    doc_type.facets().iter().map(|facet| facet.id()).collect()
 }
 
 /// Extracts the value an entry contributes to the given facet, or `None` when
@@ -350,7 +344,7 @@ impl Indexer {
         // and per-type listing order so the dedup folds below stay deterministic.
         let mut targets: Vec<(DocTypeKey, PathBuf)> = Vec::new();
         for &kind in DocTypeCatalogue::built_in().doc_types() {
-            if kind == DocTypeKey::TEMPLATES {
+            if kind.is_virtual() {
                 continue;
             }
             match self.driver.list(kind).await {
@@ -387,7 +381,7 @@ impl Indexer {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = read_results
             .iter()
-            .filter(|(kind, _, _)| *kind == DocTypeKey::WORK_ITEMS)
+            .filter(|(kind, _, _)| kind.cluster_anchor())
             .filter_map(|(_, path, content)| {
                 content.as_ref().ok().map(|content| {
                     (
@@ -539,7 +533,7 @@ impl Indexer {
                     return Ok(None);
                 };
 
-                if kind == DocTypeKey::WORK_ITEMS {
+                if kind.cluster_anchor() {
                     self.remember_work_item(&canonical, Some(&content));
                 }
                 let reading = self.work_item_cfg();
@@ -1543,31 +1537,30 @@ fn build_entry(
         filename.to_string()
     };
 
-    let (slug_val, work_item_id, identity_key) =
-        if kind == DocTypeKey::WORK_ITEMS {
-            let id_slug = corpus::slug::derive_work_item(
-                filename,
-                work_item_cfg.convention(),
-            );
-            let slug = id_slug.or_else(|| {
-                corpus::slug::derive(kind, filename, work_item_cfg.convention())
+    let (slug_val, work_item_id, identity_key) = if kind.cluster_anchor() {
+        let id_slug = corpus::slug::derive_work_item(
+            filename,
+            work_item_cfg.convention(),
+        );
+        let slug = id_slug.or_else(|| {
+            corpus::slug::derive(kind, filename, work_item_cfg.convention())
+        });
+        let (shown, identity) = raw_frontmatter_id(&parsed.state)
+            .map_or((None, None), |raw| {
+                work_item_identity(raw, work_item_cfg, &path)
             });
-            let (shown, identity) = raw_frontmatter_id(&parsed.state)
-                .map_or((None, None), |raw| {
-                    work_item_identity(raw, work_item_cfg, &path)
-                });
-            (slug, shown, identity)
-        } else {
-            (
-                corpus::slug::derive(
-                    kind,
-                    &slug_filename,
-                    work_item_cfg.convention(),
-                ),
-                None,
-                None,
-            )
-        };
+        (slug, shown, identity)
+    } else {
+        (
+            corpus::slug::derive(
+                kind,
+                &slug_filename,
+                work_item_cfg.convention(),
+            ),
+            None,
+            None,
+        )
+    };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.
     let title_fallback_stem = markdown_stem(&slug_filename);
@@ -3078,28 +3071,28 @@ mod tests {
 
     #[test]
     fn every_built_in_doc_type_declares_its_facets() {
-        let declared: Vec<(&str, &[&str])> = DocTypeCatalogue::built_in()
+        let declared: Vec<(&str, Vec<&str>)> = DocTypeCatalogue::built_in()
             .doc_types()
             .iter()
             .map(|kind| (kind.wire_token(), facets_for(*kind)))
             .collect();
-        let status_and_cluster: &[&str] = &["status", "clusterSlug"];
-        let expected: Vec<(&str, &[&str])> = vec![
-            ("decisions", status_and_cluster),
-            ("work-items", &["status", "project", "clusterSlug"]),
-            ("plans", status_and_cluster),
-            ("codebase-research", status_and_cluster),
-            ("plan-reviews", status_and_cluster),
-            ("pr-reviews", status_and_cluster),
-            ("work-item-reviews", status_and_cluster),
-            ("validations", status_and_cluster),
-            ("notes", status_and_cluster),
-            ("pr-descriptions", status_and_cluster),
-            ("design-gaps", status_and_cluster),
-            ("design-inventories", status_and_cluster),
-            ("topic-research", status_and_cluster),
-            ("root-cause-analyses", status_and_cluster),
-            ("templates", &[]),
+        let status_and_cluster = vec!["status", "clusterSlug"];
+        let expected: Vec<(&str, Vec<&str>)> = vec![
+            ("decisions", status_and_cluster.clone()),
+            ("work-items", vec!["status", "project", "clusterSlug"]),
+            ("plans", status_and_cluster.clone()),
+            ("codebase-research", status_and_cluster.clone()),
+            ("plan-reviews", status_and_cluster.clone()),
+            ("pr-reviews", status_and_cluster.clone()),
+            ("work-item-reviews", status_and_cluster.clone()),
+            ("validations", status_and_cluster.clone()),
+            ("notes", status_and_cluster.clone()),
+            ("pr-descriptions", status_and_cluster.clone()),
+            ("design-gaps", status_and_cluster.clone()),
+            ("design-inventories", status_and_cluster.clone()),
+            ("topic-research", status_and_cluster.clone()),
+            ("root-cause-analyses", status_and_cluster.clone()),
+            ("templates", vec![]),
         ];
         assert_eq!(declared, expected);
     }

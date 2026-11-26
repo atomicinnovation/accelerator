@@ -14,7 +14,6 @@ use super::{api_from_fd, parse_kind, ApiError};
 use crate::file_driver::FileDriver;
 use crate::indexer::IndexEntry;
 use crate::server::AppState;
-use corpus::DocTypeKey;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct DocsListQuery {
@@ -33,7 +32,7 @@ pub(crate) async fn docs_list(
 ) -> Result<Response, ApiError> {
     let kind = parse_kind(&q.type_)
         .ok_or(ApiError::InvalidDocType(q.type_.clone()))?;
-    if kind == DocTypeKey::TEMPLATES {
+    if kind.is_virtual() {
         return Err(ApiError::InvalidDocType(q.type_.clone()));
     }
     let mut entries: Vec<IndexEntry> = state.indexer.all_by_type(kind).await;
@@ -185,8 +184,8 @@ pub(crate) async fn doc_patch_frontmatter(
         .await
         .ok_or_else(|| ApiError::NotFound(doc_rel.to_string()))?;
 
-    // Step 5 — work-item type guard.
-    if entry.r#type != corpus::DocTypeKey::WORK_ITEMS {
+    // Step 5 — kanban type guard.
+    if !entry.r#type.in_kanban() {
         return Err(ApiError::OnlyWorkItemsAreWritable);
     }
 

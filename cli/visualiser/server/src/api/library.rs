@@ -8,6 +8,7 @@ use crate::indexer::{
     facets_for, LatestPreview, LibraryAggregates, PerTypeAggregate, Selection,
 };
 use crate::server::AppState;
+use corpus::doc_type::LibraryPhase;
 use corpus::DocTypeCatalogue;
 use corpus::DocTypeKey;
 
@@ -16,7 +17,7 @@ use corpus::DocTypeKey;
 pub struct LibraryStructureResponse {
     pub phases: Vec<Phase>,
     /// Virtual templates entry, emitted at the top level (templates has no phase).
-    pub templates: LibraryDocType,
+    pub templates: Option<LibraryDocType>,
 }
 
 #[derive(Serialize, Debug)]
@@ -73,45 +74,13 @@ pub struct FacetOption {
     pub count: usize,
 }
 
-/// Static phase membership. Centralises what was previously the client-side
-/// `PHASE_DOC_TYPES` table. If phase configuration needs to be data-driven
-/// later, this is the seam to extend.
-const PHASES: &[(&str, &str, &[DocTypeKey])] = &[
-    (
-        "define",
-        "Define",
-        &[DocTypeKey::WORK_ITEMS, DocTypeKey::WORK_ITEM_REVIEWS],
-    ),
-    (
-        "discover",
-        "Discover",
-        &[
-            DocTypeKey::DESIGN_INVENTORIES,
-            DocTypeKey::DESIGN_GAPS,
-            DocTypeKey::TOPIC_RESEARCH,
-            DocTypeKey::RESEARCH,
-        ],
-    ),
-    (
-        "build",
-        "Build",
-        &[
-            DocTypeKey::PLANS,
-            DocTypeKey::PLAN_REVIEWS,
-            DocTypeKey::VALIDATIONS,
-        ],
-    ),
-    (
-        "ship",
-        "Ship",
-        &[DocTypeKey::PR_DESCRIPTIONS, DocTypeKey::PR_REVIEWS],
-    ),
-    ("operate", "Operate", &[DocTypeKey::ROOT_CAUSE_ANALYSES]),
-    (
-        "remember",
-        "Remember",
-        &[DocTypeKey::DECISIONS, DocTypeKey::NOTES],
-    ),
+const PHASES: &[(LibraryPhase, &str, &str)] = &[
+    (LibraryPhase::Define, "define", "Define"),
+    (LibraryPhase::Discover, "discover", "Discover"),
+    (LibraryPhase::Build, "build", "Build"),
+    (LibraryPhase::Ship, "ship", "Ship"),
+    (LibraryPhase::Operate, "operate", "Operate"),
+    (LibraryPhase::Remember, "remember", "Remember"),
 ];
 
 pub(crate) async fn library_structure(
@@ -165,22 +134,44 @@ fn build_structure(
     cfg: &crate::config::Config,
     agg: &LibraryAggregates,
 ) -> LibraryStructureResponse {
+    let catalogue = DocTypeCatalogue::built_in();
     let phases = PHASES
         .iter()
-        .map(|(id, label, doc_types)| Phase {
+        .map(|(phase, id, label)| Phase {
             id: (*id).to_string(),
             label: (*label).to_string(),
-            doc_types: doc_types
-                .iter()
-                .map(|dt| build_doc_type(cfg, agg, *dt))
+            doc_types: placed_in(&catalogue, *phase)
+                .into_iter()
+                .map(|dt| build_doc_type(cfg, agg, dt))
                 .collect(),
         })
         .collect();
 
     LibraryStructureResponse {
         phases,
-        templates: build_doc_type(cfg, agg, DocTypeKey::TEMPLATES),
+        templates: catalogue
+            .doc_types()
+            .iter()
+            .find(|kind| kind.is_virtual())
+            .map(|templates| build_doc_type(cfg, agg, *templates)),
     }
+}
+
+fn placed_in(
+    catalogue: &DocTypeCatalogue,
+    phase: LibraryPhase,
+) -> Vec<DocTypeKey> {
+    let mut placed: Vec<(u8, DocTypeKey)> = catalogue
+        .doc_types()
+        .iter()
+        .filter_map(|kind| {
+            kind.library_placement()
+                .filter(|placement| placement.phase == phase)
+                .map(|placement| (placement.position, *kind))
+        })
+        .collect();
+    placed.sort_by_key(|(position, _)| *position);
+    placed.into_iter().map(|(_, kind)| kind).collect()
 }
 
 fn build_doc_type(
