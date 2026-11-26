@@ -1882,6 +1882,25 @@ seeded case first proves the scanner skips a built-in name under
 - **Public API.** The `migrate` snapshot gains
   `MigrationContext::doc_types`; `research` re-exports the layout
   constants from `research-declarations`.
+- **The server's catalogue test.** It was written alongside the code, so
+  it was checked against a mutation: with `AppState::build` taking an
+  empty catalogue in place of `declarations::catalogue()` when the config
+  carries none, `a_config_carrying_no_catalogue_serves_the_assembled_one`
+  fails on the comparison, an empty list against the fifteen assembled
+  doc types. With the code restored it passes.
+- **Review, 2026-11-26.** The `xruxlvtk`..`typvrzxp` diff names its new
+  roles, crates and fields after ADR-0080's terms. Its comments are module
+  and item docs, the pup rules' rationale and the probe table's purpose.
+  One module doc over 80 columns is rewrapped (`sqzqlltx`); the command
+  runner rule's regex stays on one line, because a RON string cannot
+  split.
+- **Production check, 2026-11-26.** This checkout's launcher, with the
+  debug `corpus` and `migrate` binaries, was run in a scratch jj repo
+  holding an ADR, this plan, PP-994 and this repo's config and migration
+  ledger. `config paths --doc-types`, `corpus adr next-number`, `corpus
+  resolve --type plan`, `corpus frontmatter validate`, `corpus linkage
+  extract` and `migrate --list` answer exactly as the installed release
+  does, and `migrate --list` exits 0 with no pending transformations.
 
 ---
 
