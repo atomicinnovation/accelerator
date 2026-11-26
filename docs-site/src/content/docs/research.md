@@ -759,6 +759,9 @@ falls back to. `conduct` reads the finding template once, before its first
 plan, and passes that copy to each composer, while each researcher fetches
 its template when it starts. A template edited during a run therefore
 reaches the researchers spawned after the edit but not the composers.
+`conduct` checks the finding template again before each batch that holds a
+compose pair, and when it has changed, its summary warns which findings
+follow which template.
 
 A run sizes per-level search budgets once, on its `--start` plan, and stores
 them in its ledger with the cap they were sized against, so later plans keep

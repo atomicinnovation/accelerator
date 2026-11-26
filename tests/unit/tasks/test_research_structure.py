@@ -3426,3 +3426,24 @@ def test_a_failed_command_is_quoted_by_its_error_line() -> None:
         assert "the first line of its stderr," not in _prose(path)
         assert "the first line of its stderr." not in _prose(path)
         assert "first line of the query's stderr" not in _prose(path)
+
+
+TEMPLATE_DRIFT = (
+    "the finding template changed during this run: composed findings follow "
+    "the template read when the run started, and a `single_pass` finding "
+    "researched after the change follows the new one"
+)
+
+
+def test_conduct_warns_when_the_finding_template_changes_mid_run() -> None:
+    spawn = _spawn_step()
+    assert (
+        "Before spawning a batch that holds a `compose` pair, run the finding "
+        "template command again."
+    ) in spawn
+    assert (
+        "Composers are still given the block the template check kept, and a "
+        "run of the command that fails or is denied changes nothing."
+    ) in spawn
+    assert f'"{TEMPLATE_DRIFT}"' in spawn
+    assert "checks the finding template again" in _prose(DOCS_RESEARCH)

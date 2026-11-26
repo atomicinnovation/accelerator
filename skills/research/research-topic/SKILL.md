@@ -504,6 +504,15 @@ allocate a finding or note path yourself.
      - the `notes` paths, as the notes to read
      - the pair's `path`, verbatim, as the output path
 
+   **Template drift.** Before spawning a batch that holds a `compose` pair,
+   run the finding template command again. When its fenced block differs
+   from the one the template check kept, record once, for the summary's
+   warnings: "the finding template changed during this run: composed
+   findings follow the template read when the run started, and a
+   `single_pass` finding researched after the change follows the new one".
+   Composers are still given the block the template check kept, and a run
+   of the command that fails or is denied changes nothing.
+
    Each agent writes its one file and returns a **short summary**, not the
    document body. A researcher runs no CLI but the node query its spawn ref
    names, the `accelerator research fetch` calls its profile directs, and the

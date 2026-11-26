@@ -898,7 +898,10 @@
   spawn. A configured template path that does not exist falls
   back to the default, and `accelerator research topic outstanding --start`
   names the template among its `warnings`, which `conduct` reports before
-  spawning. `research-topic`'s spawns inherit its
+  spawning. Composers fill the finding template `conduct` read before its
+  first plan; `conduct` reads it again before each batch holding a compose
+  pair, and its summary warns when it changed mid-run. `research-topic`'s
+  spawns inherit its
   `Bash(accelerator config template *)` grant; a skill that spawns them
   without such a grant needs `Bash(accelerator config template
   topic-research --kind finding)` and `Bash(accelerator config template
