@@ -20,6 +20,7 @@ use std::process::ChildStdout;
 use std::process::Command;
 use std::process::Stdio;
 
+use super::text;
 use super::FileKind;
 use super::FileState;
 use super::Head;
@@ -425,7 +426,7 @@ impl ObjectStore {
             return Ok(content.clone());
         }
         let object = self.of_kind(id, "blob")?;
-        let content = String::from_utf8_lossy(&object.content).into_owned();
+        let content = text(object.content, || format!("blob {id}"))?;
         self.blobs.insert(id.to_owned(), content.clone());
         Ok(content)
     }
@@ -466,23 +467,26 @@ impl Iterator for TreeEntries<'_> {
         if self.rest.is_empty() {
             return None;
         }
-        let entry = (|| {
-            let space = self.rest.iter().position(|&byte| byte == b' ')?;
-            let nul = self.rest.iter().position(|&byte| byte == 0)?;
-            let id = self.rest.get(nul + 1..nul + 1 + self.id_length)?;
-            let entry = TreeEntry {
-                mode: String::from_utf8_lossy(self.rest.get(..space)?)
-                    .into_owned(),
-                name: String::from_utf8_lossy(self.rest.get(space + 1..nul)?)
-                    .into_owned(),
-                id: hex(id),
-            };
-            self.rest = self.rest.get(nul + 1 + self.id_length..)?;
-            Some(entry)
-        })();
+        let entry = self.take_entry();
         if entry.is_none() {
             self.rest = &[];
         }
+        Some(entry)
+    }
+}
+
+impl TreeEntries<'_> {
+    fn take_entry(&mut self) -> Option<TreeEntry> {
+        let space = self.rest.iter().position(|&byte| byte == b' ')?;
+        let nul = self.rest.iter().position(|&byte| byte == 0)?;
+        let id = self.rest.get(nul + 1..nul + 1 + self.id_length)?;
+        let entry = TreeEntry {
+            mode: String::from_utf8_lossy(self.rest.get(..space)?).into_owned(),
+            name: String::from_utf8_lossy(self.rest.get(space + 1..nul)?)
+                .into_owned(),
+            id: hex(id),
+        };
+        self.rest = self.rest.get(nul + 1 + self.id_length..)?;
         Some(entry)
     }
 }

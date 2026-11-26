@@ -1,5 +1,10 @@
 //! What a repository holds, projected so that two builds of the same script
 //! compare equal whatever IDs and times each build gave its commits.
+//!
+//! It leaves out commits' authors and committers and their times, jj's
+//! operation log, and whatever else `.git` and `.jj` hold beyond the commits,
+//! references, index and working copy it reads. Two states that differ only
+//! there compare equal.
 
 mod masking;
 mod order;
@@ -187,6 +192,9 @@ pub struct CommitState {
     pub files: BTreeMap<String, FileState>,
 }
 
+/// A commit's place in an order two builds of one script agree on: parents
+/// come before children, and commits that could take the same place are told
+/// apart by what they hold, never by their IDs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CommitPosition(pub usize);
 
@@ -242,6 +250,21 @@ struct RawGitSide {
     index: BTreeMap<String, FileState>,
 }
 
+/// `bytes` as text, refused rather than decoded lossily: two files that
+/// differ only in bytes a lossy decoding replaces would otherwise compare
+/// equal.
+fn text(
+    bytes: Vec<u8>,
+    naming: impl FnOnce() -> String,
+) -> Result<String, Error> {
+    String::from_utf8(bytes).map_err(|_| {
+        Error::message(format!(
+            "{} is not UTF-8, which the projection cannot compare",
+            naming()
+        ))
+    })
+}
+
 /// The bit git reads to record a file as executable.
 const OWNER_EXECUTE: u32 = 0o100;
 
@@ -274,8 +297,9 @@ fn working_copy(root: &Path) -> Result<BTreeMap<String, FileState>, Error> {
                 } else {
                     FileKind::Regular
                 },
-                content: String::from_utf8_lossy(&fs::read(entry.path())?)
-                    .into_owned(),
+                content: text(fs::read(entry.path())?, || {
+                    entry.path().display().to_string()
+                })?,
             }
         } else {
             continue;

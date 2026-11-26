@@ -456,6 +456,45 @@ fn a_submodule_entry_is_left_out_of_the_index_and_commits(
 }
 
 #[test]
+fn a_committed_file_that_is_not_utf8_is_refused() -> Result<(), TestError> {
+    let build = Build::of(git_history)?.then(|root, env| {
+        fs::write(root.join("binary.bin"), [0xff, 0xfe])?;
+        env.git(&["add", "-A"], root)?;
+        env.git(&["commit", "-q", "-m", "binary"], root)?;
+        Ok(())
+    })?;
+
+    let refused = build.state().err().map(|error| error.to_string());
+
+    assert!(
+        refused
+            .as_deref()
+            .is_some_and(|error| error.contains("not UTF-8")),
+        "{refused:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_working_copy_file_that_is_not_utf8_is_refused_naming_it(
+) -> Result<(), TestError> {
+    let build = Build::of(git_history)?.then(|root, _| {
+        fs::write(root.join("binary.bin"), [0xff, 0xfe])?;
+        Ok(())
+    })?;
+
+    let refused = build.state().err().map(|error| error.to_string());
+
+    assert!(
+        refused.as_deref().is_some_and(|error| {
+            error.contains("binary.bin") && error.contains("not UTF-8")
+        }),
+        "{refused:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_staged_change_differs_from_an_unstaged_one() -> Result<(), TestError> {
     let edit = |root: &Path, _: &Hermetic| write(root, "a.txt", "changed\n");
     let unstaged = Build::of(git_history)?.then(edit)?.state()?;

@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+use super::masking::IdMasking;
 use super::CommitPosition;
 use super::FileState;
 use super::RawCommit;
@@ -17,7 +18,7 @@ use crate::Error;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct TieBreak<'r> {
     description: &'r str,
-    files: &'r BTreeMap<String, FileState>,
+    files: BTreeMap<String, FileState>,
     parents: Vec<CommitPosition>,
     references: Vec<&'r str>,
     is_working_copy_parent: bool,
@@ -45,6 +46,7 @@ pub(super) fn ordered_positions(
         .collect();
     let mut positions: BTreeMap<String, CommitPosition> = BTreeMap::new();
     while positions.len() < repository.commits.len() {
+        let masking = IdMasking::of(&repository.commits, &positions);
         let mut candidates: Vec<(TieBreak<'_>, &RawCommit)> = repository
             .commits
             .iter()
@@ -57,7 +59,13 @@ pub(super) fn ordered_positions(
                     .collect::<Option<Vec<_>>>()?;
                 let tie_break = TieBreak {
                     description: &commit.description,
-                    files: &commit.files,
+                    files: commit
+                        .files
+                        .iter()
+                        .map(|(path, file)| {
+                            (path.clone(), file.masked(&masking))
+                        })
+                        .collect(),
                     parents,
                     references: references
                         .get(commit.id.as_str())
@@ -313,6 +321,29 @@ mod tests {
         ));
 
         assert_eq!(order, ["y", "x"]);
+    }
+
+    #[test]
+    fn files_naming_commits_order_by_the_positions_they_name_not_their_ids() {
+        let named_first = "ffffffffffffffffffffffffffffffffffffffff";
+        let named_second = "0000000000000000000000000000000000000001";
+        let order = ordered_either_way(repository(vec![
+            described("a", commit(named_first, &[])),
+            described("b", commit(named_second, &[])),
+            described(
+                "c",
+                holding(named_first, commit("x", &[named_first, named_second])),
+            ),
+            described(
+                "c",
+                holding(
+                    named_second,
+                    commit("y", &[named_first, named_second]),
+                ),
+            ),
+        ]));
+
+        assert_eq!(order, [named_first, named_second, "x", "y"]);
     }
 
     #[test]

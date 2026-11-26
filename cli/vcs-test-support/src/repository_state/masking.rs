@@ -18,6 +18,10 @@ use super::RawCommit;
 ///
 /// A `+`-joined list comes out ordered by position. Its writer orders it by
 /// hash, so two builds of one merge would otherwise list it differently.
+///
+/// An ID of a commit `positions` does not yet hold stands in as one with no
+/// position, so a masking made while positions are still being given out
+/// never lets an ID decide anything.
 #[derive(Debug)]
 pub(super) struct IdMasking {
     replacements: Vec<(String, String)>,
@@ -30,15 +34,15 @@ impl IdMasking {
     ) -> Self {
         let mut replacements = Vec::new();
         for commit in commits {
-            let Some(CommitPosition(position)) = positions.get(&commit.id)
-            else {
-                continue;
-            };
+            let position = positions
+                .get(&commit.id)
+                .map(|CommitPosition(position)| format!(" {position}"))
+                .unwrap_or_default();
             replacements
-                .push((commit.id.clone(), format!("<commit {position}>")));
+                .push((commit.id.clone(), format!("<commit{position}>")));
             if let Some(change) = &commit.change {
                 replacements
-                    .push((change.clone(), format!("<change {position}>")));
+                    .push((change.clone(), format!("<change{position}>")));
             }
         }
         Self { replacements }
