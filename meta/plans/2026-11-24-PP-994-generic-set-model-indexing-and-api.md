@@ -1564,7 +1564,7 @@ test can then declare a doc type of its own.
 
 #### Manual Verification:
 
-- [ ] None: production serves the built-in catalogue unchanged.
+- [x] None: production serves the built-in catalogue unchanged.
 
 ### Implementation notes
 
@@ -1588,8 +1588,26 @@ test can then declare a doc type of its own.
 - **Test helpers.** `catalogue_with` lives in the integration tests'
   `common` module, because `src/test_support.rs` is compiled for unit
   tests only; unit tests use `test_support::built_in_catalogue()`.
-- **`mise run`** exited 0, with `test:unit:cli` coverage at lines 94.33%,
-  functions 93.73%, regions 93.10%.
+- **`mise run`** exited 0 on the final code, with `test:unit:cli` coverage
+  at lines 94.49%, functions 93.90%, regions 93.27%.
+- **Production check, 2026-11-26.** Debug builds of `smvsspvt` (before)
+  and `onwpqluw` (after), each run twice with `serve` against this
+  repository's `meta/`, answered the same:
+  - `/api/types`: the 15 built-in types in catalogue order, with the same
+    counts;
+  - `/api/docs` for every type, `/api/search` for two queries,
+    `/api/library/structure` with and without a selection,
+    `/api/lifecycle` and `/api/templates`, compared ignoring list order
+    and `linkedCount`; an unknown type still answers 400.
+  - Two baseline runs already disagree with each other on list order and
+    on `linkedCount` for five documents whose slugs collide, such as
+    `ADR-0021-template-management-subcommands.md`. The after build gives
+    values drawn from the same sets, so the variation predates this phase.
+- **Review, 2026-11-26.** The `zstonnsk`..`onwpqluw` diff adds no line
+  past 80 columns. Its comments are the test-support feature's
+  dev-dependency constraint and `doc_type_serde`'s module doc, trimmed to
+  why it has no `deserialize`. The names follow the plan's: `doc_types`,
+  `catalogue_with`, `FLAT_DEFAULTS`.
 
 ---
 
