@@ -289,6 +289,8 @@ mod tests {
     use super::test_support::outstanding;
     use super::test_support::research_nodes;
     use super::window;
+    use super::Offer;
+    use super::OfferedNodes;
     use super::UnfinishedSpawn;
     use super::Window;
     use crate::conduct::concurrency::test_support::concurrency;
@@ -633,7 +635,13 @@ mod tests {
     #[test]
     fn writes_by_a_pending_unacknowledged_batch_are_not_unexpected() {
         let memory = RunMemory {
-            pending: PendingBatch::new(0, spawns(&["01-a:2-1", "02-b"])),
+            pending: PendingBatch::restored(
+                0,
+                Offer::new(
+                    spawns(&["01-a:2-1", "02-b"]),
+                    OfferedNodes::empty(),
+                ),
+            ),
             ..RunMemory::default()
         };
         let observed = showing(&[("01-a:2-1", SEEN)], &["02-b"]);

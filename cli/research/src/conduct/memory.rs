@@ -38,15 +38,6 @@ pub struct PendingBatch {
 }
 
 impl PendingBatch {
-    #[must_use]
-    pub const fn new(number: u32, spawns: Vec<SpawnRef>) -> Self {
-        Self {
-            number,
-            spawns,
-            nodes: OfferedNodes::empty(),
-        }
-    }
-
     /// A pending node may lack a context, as in a batch offered before
     /// contexts were kept.
     #[must_use]
@@ -212,6 +203,10 @@ mod tests {
         Offer::new(spawns(texts), OfferedNodes::empty())
     }
 
+    fn pending(number: u32, texts: &[&str]) -> PendingBatch {
+        PendingBatch::restored(number, offer(texts))
+    }
+
     #[test]
     fn retained_for_keeps_only_contexts_of_node_spawns_held() {
         let held = contexts(&[("01-a:2-1", "A?"), ("01-a:2-2", "B?")])
@@ -276,20 +271,20 @@ mod tests {
 
     #[test]
     fn a_stale_acknowledgement_moves_nothing() {
-        let mut batch = PendingBatch::new(1, spawns(&["01-a"]));
+        let mut batch = pending(1, &["01-a"]);
         assert!(batch.acknowledge(0).is_empty());
         assert!(batch.acknowledge(2).is_empty());
-        assert_eq!(batch, PendingBatch::new(1, spawns(&["01-a"])));
+        assert_eq!(batch, pending(1, &["01-a"]));
     }
 
     #[test]
     fn replacing_returns_only_spawns_absent_from_the_new_offer() {
-        let mut batch = PendingBatch::new(3, spawns(&["01-a", "02-b"]));
+        let mut batch = pending(3, &["01-a", "02-b"]);
         assert_eq!(batch.replace(offer(&["02-b", "03-c"])), spawns(&["01-a"]));
         assert_eq!(batch.number(), 4);
         assert!(batch.replace(offer(&["02-b", "03-c"])).is_empty());
         assert_eq!(batch.number(), 4);
-        let mut empty = PendingBatch::new(2, Vec::new());
+        let mut empty = pending(2, &[]);
         assert!(empty.replace(offer(&["01-a"])).is_empty());
         assert_eq!(empty.number(), 2);
     }
@@ -297,7 +292,7 @@ mod tests {
     #[test]
     fn a_pending_or_just_acknowledged_spawn_is_excused() {
         let memory = RunMemory {
-            pending: PendingBatch::new(0, spawns(&["01-a"])),
+            pending: pending(0, &["01-a"]),
             just_acknowledged: spawns(&["02-b"]).into_iter().collect(),
             ..RunMemory::default()
         };

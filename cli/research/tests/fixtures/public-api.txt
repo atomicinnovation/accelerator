@@ -195,7 +195,6 @@ pub struct research::conduct::memory::PendingBatch
 impl research::conduct::memory::PendingBatch
 pub fn research::conduct::memory::PendingBatch::acknowledge(&mut self, spawned: u32) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
 pub fn research::conduct::memory::PendingBatch::context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
-pub const fn research::conduct::memory::PendingBatch::new(number: u32, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> Self
 pub const fn research::conduct::memory::PendingBatch::nodes(&self) -> &research::conduct::offered_nodes::OfferedNodes
 pub const fn research::conduct::memory::PendingBatch::number(&self) -> u32
 pub fn research::conduct::memory::PendingBatch::replace(&mut self, offer: research::conduct::memory::Offer) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>

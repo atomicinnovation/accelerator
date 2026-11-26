@@ -908,7 +908,10 @@ mod tests {
             run("r1"),
             ClaimedIndexes::default(),
             RunMemory {
-                pending: PendingBatch::new(0, spawns(&["01-a:2-1"])),
+                pending: PendingBatch::restored(
+                    0,
+                    Offer::new(spawns(&["01-a:2-1"]), OfferedNodes::empty()),
+                ),
                 ..RunMemory::default()
             },
             None,

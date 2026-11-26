@@ -828,9 +828,12 @@ mod tests {
             RunId::parse("r1").ok_or("run id")?,
             claims,
             RunMemory {
-                pending: PendingBatch::new(
+                pending: PendingBatch::restored(
                     1,
-                    vec![spawn("03-a-web:2-1"), spawn("03-a-web:2-2")],
+                    Offer::new(
+                        vec![spawn("03-a-web:2-1"), spawn("03-a-web:2-2")],
+                        OfferedNodes::empty(),
+                    ),
                 ),
                 ..RunMemory::default()
             },
