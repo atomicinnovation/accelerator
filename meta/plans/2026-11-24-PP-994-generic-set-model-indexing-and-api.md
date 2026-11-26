@@ -13,7 +13,7 @@ relates_to: ["plan:2026-11-24-PP-996-library-links-by-document-id"]
 tags: ["visualiser", "server", "corpus", "config", "set-model", "topic-research", "design-inventories", "doc-types"]
 revision: "93dce5e9dea001b117632d41135f9f1bc88ea6c1"
 repository: "accelerator"
-last_updated: "2026-11-26T17:15:55+00:00"
+last_updated: "2026-11-26T17:19:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1483,6 +1483,23 @@ added to the existing `cli-test-support` crate
   or literal.
 - **`mise run`** exited 0, with `test:unit:cli` coverage at lines 94.49%,
   functions 93.90%, regions 93.27%.
+- **Review, 2026-11-26.** The `vnyyppzo`..`ulosrulp` diff changes no
+  behaviour beyond the two recorded steps.
+  - Each rewritten rule maps every type to its old outcome: slug, cluster
+    walk, canonical rank, completeness, linkage id, facets, listing and
+    phases.
+  - `resolve_path_target` still requires a linkage name before deriving an
+    id. A `plan:` target looks up the same id as before.
+  - Address keys are scoped by linkage name, so the new index holds no
+    collision the two old maps could not.
+  - The rule-type doc comments say what each variant means and do not
+    restate names.
+  - A test helper's doc comment restated the code and ran past 80 columns,
+    so it is deleted. Two other over-long lines are wrapped, and the
+    `plans_by_id_with` test helper is renamed `addresses_with_plan`
+    (`nyonrokl`).
+  - After the tidy-up, `mise run server:check`, `mise run cli:check`,
+    `mise run test:unit:visualiser` and the cli-test-support tests pass.
 
 ---
 
