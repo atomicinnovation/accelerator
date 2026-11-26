@@ -22,3 +22,6 @@ vcs = { path = "../vcs" }
 time = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+cli-test-support = { path = "../cli-test-support" }

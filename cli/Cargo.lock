@@ -925,6 +925,7 @@ dependencies = [
 name = "corpus-adapters"
 version = "1.24.0-pre.113"
 dependencies = [
+ "cli-test-support",
  "corpus",
  "document",
  "kernel",
