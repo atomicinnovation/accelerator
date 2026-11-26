@@ -12,7 +12,7 @@ kind: "task"
 priority: "high"
 parent: "work-item:PP-868"
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T00:06:25+00:00"
+last_updated: "2026-11-24T08:06:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 blocks: ["work-item:PP-1000"]
@@ -71,9 +71,13 @@ The research crate has `enum Tier` with `Display` only. The eval tooling's
   `None found.` line and no entry, and **present** otherwise.
 - Report the section's **line span** with the entries, whenever the
   section is not absent: the line of the `## Sources` heading and the line
-  after the section's last line, so a caller can drop the section from a
-  body without reading the grammar itself. Lines are numbered from 1, and
-  the span's end is exclusive.
+  after the section's last line. Lines are numbered from 1 within the text
+  the parser is given, which knows nothing of frontmatter, and the span's
+  end is exclusive.
+- Let the line span remove the section from the text it was read from,
+  returning that text without the span's lines and with every other line,
+  its line ending included, unchanged. A caller drops the section this way
+  and never counts lines itself.
 - Return a source listed twice as two entries.
 - Attach each metadata block line to the entry above it, under the
   adjacency condition the line rules below give; a block line that fails
@@ -110,11 +114,16 @@ The research crate has `enum Tier` with `Display` only. The eval tooling's
 
 ### Line rules
 
+A line is the text between `\n` characters. A final `\n` ends the last
+line and starts no further one, and a lone `\r` is not a line break. The
+Sources parser, the tier-text parser's callers, and the line span share
+this one rule.
+
 The Sources parser reads lines as follows. Matches are exact: a line that
-does not match a rule exactly is an unread line. One trailing carriage
-return is dropped from a line before matching, so a document with CRLF line
-endings reads as one with LF. Nothing else is trimmed: a trailing space
-breaks a match.
+does not match a rule exactly is an unread line. At most one trailing
+carriage return is dropped from a line before matching, so a document with
+CRLF line endings reads as one with LF. Nothing else is trimmed: a trailing
+space breaks a match.
 
 - The section opens at the first line reading exactly `## Sources` and
   closes at the next `## ` heading or the end of the document. A later
@@ -274,11 +283,17 @@ breaks a match.
 - [ ] Given a document of ten lines whose `## Sources` heading is line 4
       and whose next `## ` heading is line 8, then the span runs from line 4
       up to, not including, line 8; given the Sources section runs to the
-      end of the document, then the span's end is line 11; given a section
-      holding only `None found.`, then a span is reported for it; given no
-      Sources section, then no span is reported. Removing the lines of the
-      first span from the ten-line document leaves lines 1 to 3 and 8 to
-      10.
+      end of the document, then the span's end is line 11, whether or not
+      the document ends in a final newline; given a section holding only
+      `None found.`, then a span is reported for it; given no Sources
+      section, then no span is reported.
+- [ ] Given the ten-line document whose span runs from line 4 to line 8,
+      when the span removes the section from it, then the text returned is
+      lines 1 to 3 then 8 to 10, each as written; given the same document
+      with CRLF line endings, then the text returned keeps every remaining
+      line's `\r\n` ending.
+- [ ] Given a line of prose in a Sources section ending `\r\r\n`, then the
+      reported unread line ends in exactly one carriage return.
 - [ ] Given a `## Sources` heading with nothing under it, then the section
       is reported present, with no entries and no unread lines.
 - [ ] Given a Sources section holding `None found.` and a line of prose,
@@ -324,8 +339,10 @@ breaks a match.
 - Wire shape: PP-1000 has not settled how sources reach the frontend.
   These parsers return no serialisable types; the visualiser server maps
   the result. They do return the section's line span, which PP-1000's
-  server uses to drop the literal section from the body it serves, so no
-  second reading of the section boundary is written.
+  server uses to drop the literal section from the body it serves: it
+  passes that body to the parser and removes the section through the
+  span, so no second reading of the section boundary or of lines is
+  written.
 - Shared file: the derived set response (PP-1002) also changes the
   `research` crate's public-API snapshot; whichever lands second
   regenerates it.
@@ -343,7 +360,8 @@ breaks a match.
 - Three rules were the drafting agent's calls, confirmed by the author on 2026-11-23:
   blank lines are ignored, a link with no tier segment is an unread line,
   and a block line separated from its entry is unread.
-- Both parsers live in the `research` crate beside `Tier`. The visualiser
+- Both parsers live in the `research` crate's `topic` module, beside
+  `Outline`, and reuse `Tier` from `sources::record`. The visualiser
   server does not depend on `research` today; the dependency lint permits
   that edge, and the derived set response (PP-1002) adds it.
 - The Python eval parser stays as it is: eval tooling does not call Rust.
@@ -354,6 +372,28 @@ breaks a match.
 existing type, with examples already written in the skills and a reference
 implementation of both to compare against.
 
+- Module and types, in `research::topic::sources_section`:
+  - `SourcesSection::parse(body)` returns a `SourcesSection`, an enum of
+    `Absent`, `DeclaredEmpty { span, unread }`, and
+    `Present { span, entries, unread }`, so a span exists only with a
+    section.
+  - `CitedSource` is an entry: title, URL, optional venue, block lines,
+    and a `TierReading`, either `Parsed(TierText)` or `Rejected(String)`.
+  - `UnreadLine` holds a line number and the line as written.
+  - `LineSpan` holds `start` and an exclusive `end`, and
+    `LineSpan::remove_from(body)` removes the section.
+  - `tier_text::TierText::parse(text)` is the tier-text parser; its base
+    and `also` tiers are `sources::record::Tier`.
+  - A private `lines` module holds the line rule, shared by the parser
+    and `LineSpan`: split with `split_inclusive('\n')`, strip the `\n`,
+    then at most one `\r`. `str::lines()` would strip a second `\r` from
+    a line ending `\r\r\n`, and `split('\n')` yields an empty last line.
+  - Parsers are inherent `parse` methods, as elsewhere in the crate, not
+    `FromStr`.
+- `sources::tier` already holds the OpenAlex and arXiv classifiers, and
+  `research::sources` is about fetching works, hence the `topic` home.
+- Integration tests go in `cli/research/tests/sources_section.rs` and
+  `cli/research/tests/tier_text.rs`, as table loops, one file per module.
 - `enum Tier { One, Two, Three }` with `Display` is in
   `cli/research/src/sources/record.rs:10-24`; `Record` carries separate
   `retracted` and `withdrawn` booleans (`record.rs:56-58`).
@@ -368,7 +408,8 @@ implementation of both to compare against.
 - `research` may import only std, `kernel::Error`, `network`, and itself
   (`cli/pup.ron:99-114`), which a pure parser satisfies.
 - Exporting the parser changes the public-API snapshot at
-  `cli/research/tests/fixtures/public-api.txt`.
+  `cli/research/tests/fixtures/public-api.txt`, which PP-1002 also
+  changes; every derive on a new public type adds lines to it.
 
 ## Drafting Notes
 
@@ -412,6 +453,12 @@ implementation of both to compare against.
 - A review on 2026-11-23 enumerated the rule's examples in the criteria,
   narrowed the Summary to Rust consumers, and replaced "no other Rust code
   parses tier text", which was already true, with the export criterion.
+- Decided with the author on 2026-11-24, after codebase research
+  (`meta/research/codebase/2026-11-24-PP-995-sources-parser-in-the-research-crate.md`):
+  a line is the text between `\n` characters, losing at most one trailing
+  `\r`; the line span counts lines of the text given and removes the
+  section itself; and the parsers live in `research::topic::sources_section`,
+  with the section state modelled as an enum.
 
 ## References
 

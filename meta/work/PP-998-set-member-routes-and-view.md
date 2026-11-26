@@ -14,7 +14,7 @@ parent: "work-item:PP-868"
 blocks: ["work-item:PP-1001", "work-item:PP-1000"]
 blocked_by: ["work-item:PP-994", "work-item:PP-996"]
 tags: ["research", "visualiser"]
-last_updated: "2026-11-24T00:06:25+00:00"
+last_updated: "2026-11-24T08:08:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 relates_to: ["work-item:PP-134"]
@@ -53,32 +53,39 @@ lists first; PP-996 stops the visualiser producing such links, and this
 story stops the URL resolving.
 
 Terms follow the set model: a set's **root** is its entry document, a
-**member** is any other file in it, a member is a **document** (markdown) or
-an **asset**, and a doc type's **set declaration** marks it as a set.
+**member** is any other file that fits a slot in the set's **shape**, a
+member is a **document** or an **asset** as its slot says, and a doc type's
+**set declaration** marks it as a set and declares its shape. A file outside
+the shape is not a member. PP-996 makes a library URL name a document by its
+frontmatter `id`, so a set is named by its root's `id`.
 
 The view here is deliberately plain. Four things remain after the
 topic-research set page (PP-1001) lands: the route, the member lookup, the
 member links, and the plain view as the fallback for any other set doc
 type. For topic research the view itself is interim: PP-1001 replaces it
-with set navigation around the member. A design inventory holds no member document as its skill
-writes it today, though a markdown file placed in one would open in the
-plain view. Topic research is therefore the plain view's only production
-use in practice, so the view is kept to what the route and the links
-need.
+with set navigation around the member. A design inventory's shape has no
+document slot, so it has no member document, and a markdown file placed in
+one is ignored. Topic research is therefore the plain view's only
+production use, so the view is kept to what the route and the links need.
 
 ## Requirements
 
 - Give every member document of a set, of any set doc type, its own URL
   under one route shape, so a link to a member document survives a reload.
-- Resolve a set's URL, `/library/<type>/<slug>`, by the set's directory
-  slug alone; member URLs sit beneath it. A root's filename stops resolving:
-  `/library/topic-research/manifest`, which today opens whichever set lists
-  first, shows not-found. Add no redirects.
+- Resolve a set's URL, `/library/<type>/<id>`, by its root's frontmatter
+  `id` alone. For topic research the `id` is the set directory's slug, so
+  its URLs are unchanged; for a design inventory it is the full directory
+  name, such as `2026-05-06-135214-current-app`. A root's filename stops
+  resolving: `/library/topic-research/manifest`, which today opens
+  whichever set lists first, shows not-found. Add no redirects.
+- Address a member beneath its set's URL by its set-relative path, not by
+  its `id`: a member's `id`, such as `brief`, is unique only within its
+  set.
 - Render the root when it is addressed through the member route. The root
   is not a member, but its set-relative path is a valid path on the member
   route, and the page renders the root in place at that URL, with no
   redirect. The rule that a root's filename stops resolving concerns the
-  slug position alone.
+  set position alone.
 - Render a member document whose frontmatter is malformed or absent: its
   body, with the filename as its title.
 - Show not-found for a member path under a set that does not exist, and
@@ -99,12 +106,14 @@ need.
   search result and a related-items row. The activity feed and lifecycle
   views name only sets, and a wiki link names an ADR or a work item, never
   a member.
-- Build member links with the slug-based link builder PP-996 introduces
-  for sets, so a set link and a member link share one form.
+- Build member links by extending PP-996's link builder, `libraryLink`,
+  and resolve a member URL by extending PP-996's resolver, so a set link
+  and a member link share one form and one lookup. The route parameter is
+  `$documentId`, as PP-996 renames it.
 - Branch on a doc type's set declaration only, never on a named doc type,
-  in the router, the member view (`LibraryDocView`), the two member
-  lookups (the hook `useActiveDocRelPath` and the lookup inside
-  `LibraryDocView`), and the link builder.
+  in the router, the member view (`LibraryDocView`), the resolver, which
+  `LibraryDocView` and the hook `useActiveDocRelPath` share, and the link
+  builder.
 
 ## Acceptance Criteria
 
@@ -113,22 +122,24 @@ need.
       frontmatter, and body, with a breadcrumb that opens its set; given the
       URL of a member that does not exist, then the page shows the not-found
       state.
-- [ ] Given a topic-research set with slug `x`, and no set whose slug is
-      `manifest`, then `/library/topic-research/x` renders the
-      root's title, frontmatter, and body, and
+- [ ] Given a topic-research set whose root's `id` is `x`, and no set whose
+      root's `id` is `manifest`, then `/library/topic-research/x` renders
+      the root's title, frontmatter, and body, and
       `/library/topic-research/manifest` shows the not-found state; the same
-      holds for a design inventory, no inventory's slug being `inventory`,
-      and `/library/design-inventories/inventory`. Given a topic-research
-      set whose slug is `manifest`, then `/library/topic-research/manifest`
-      renders that set's root.
-- [ ] Given a plan at `meta/plans/foo.md`, then any deeper path beneath
-      `/library/plans/foo` shows the not-found state.
-- [ ] Given a document of a doc type that is not a set, then its existing
-      `/library/<type>/<slug>` URL renders its title, frontmatter, and
-      body.
-- [ ] Given a design inventory with a `screenshots/` directory, when one
-      image is loaded as a member URL, then the page shows the not-found
-      state.
+      holds for a design inventory whose root's `id` is
+      `2026-05-06-135214-current-app`, no inventory's `id` being
+      `inventory`, and `/library/design-inventories/inventory`. Given a
+      topic-research set whose root's `id` is `manifest`, then
+      `/library/topic-research/manifest` renders that set's root.
+- [ ] Given a plan at `meta/plans/foo.md` whose `id` is `foo`, then any
+      deeper path beneath `/library/plans/foo` shows the not-found state.
+- [ ] Given a document of a doc type that is not a set, then its
+      `/library/<type>/<id>` URL renders its title, frontmatter, and body.
+- [ ] Given a design inventory with `screenshots/a.png` and
+      `prototype-full/index.html`, when each is loaded through the member
+      route, then the page shows the not-found state: the first is an asset
+      member, which has no URL here, and the second is outside the set's
+      shape and is not a member.
 - [ ] Given a phrase that appears only in one member document, when it is
       searched for, then the result's link opens that member's own URL.
 - [ ] Given a member document whose `relates_to` names a plan, when the
@@ -146,13 +157,13 @@ need.
 - [ ] Given a member document whose body and frontmatter reference no other
       member, open at its URL, then the page shows a breadcrumb to its set
       and no link to any other member of the set.
-- [ ] Given a set at `x` with a member at `a/b/c/doc.md`: the root addressed
-      through the member route renders the root, and the address bar still
-      shows that URL; a member at
-      `a/b/c/doc.md` with unclosed frontmatter, and one with no frontmatter,
-      each render their body with the title `doc.md`; a member path
-      under a set slug that does not exist shows not-found; the path `a/b`
-      shows not-found.
+- [ ] Given a set whose root's `id` is `x`, of a test-only set doc type
+      whose shape admits `a/b/c/*.md`, with a member at `a/b/c/doc.md`: the
+      root addressed through the member route renders the root, and the
+      address bar still shows that URL; a member at `a/b/c/doc.md` with
+      unclosed frontmatter, and one with no frontmatter, each render their
+      body with the title `doc.md`; a member path under a set `id` that
+      does not exist shows not-found; the path `a/b` shows not-found.
 - [ ] Given a test-only doc type declared as a set, and no change outside
       that declaration, then its member documents render at member URLs
       with a breadcrumb to their set, its search results open member URLs,
@@ -167,7 +178,7 @@ need.
 
 - Route shape (planning-time): how is a member's set-relative path encoded
   beneath its set's URL? Settled already: member URLs sit beneath
-  `/library/<type>/<slug>`, reach any depth, and leave room for PP-134's
+  `/library/<type>/<id>`, reach any depth, and leave room for PP-134's
   asset route. Still open: the literal form, including whether a prefix
   segment separates documents from assets and whether `.md` shows. The
   set page (PP-1001) and PP-134 consume the answer, which is recorded as
@@ -178,10 +189,10 @@ need.
 
 - Blocked by: PP-994, the set model, for member index records, the
   member API, and change events carrying a member's path.
-- Blocked by: PP-996, the link fix, for the slug-based link builder this
-  story extends to members and for the corrected set links. Until PP-996
-  lands, the activity feed, related items, and lifecycle views still build
-  the filename URL this story makes not-found.
+- Blocked by: PP-996, the link fix, for the `id`-based link builder and
+  resolver this story extends to members, and for the corrected set
+  links. Until PP-996 lands, the activity feed, related items, and
+  lifecycle views still build the filename URL this story makes not-found.
 - Blocks: PP-1001, the topic-research set page, which builds on the
   member route and the lookup of the member being read; and PP-1000,
   Sources rendering, which needs member documents rendered at their own
@@ -192,7 +203,7 @@ need.
 - Needs from the set model, each now a criterion there: a member's body by
   path from the document endpoint; the set declaration exposed to the
   frontend; the member's set-relative path on the search row; and the set's
-  slug on every response naming a root or member, which covers the related
+  `id` on every response naming a root or member, which covers the related
   item naming a member.
 - PP-134 is not blocked by this story's landing, but its planning waits
   on the route shape settled here, as PP-1001's does. It adds the asset
@@ -225,13 +236,16 @@ places, and member links on two surfaces.
 - `LibraryDocView` (`frontend/src/routes/library/LibraryDocView.tsx:62-85`)
   and `useActiveDocRelPath`
   (`frontend/src/api/use-active-doc-relpath.ts:18-36`) resolve a document
-  from the type listing by `type` and `fileSlug` and need a member lookup.
+  from the type listing by `type` and `fileSlug` today; PP-996 moves both
+  onto one resolver keyed by `$documentId`, which this story extends with
+  a member lookup.
 - The toast fires when a change event's path equals the active document's
   (`frontend/src/api/use-external-edit-toast.ts:32-55`).
 - The link builder and the corrected call sites come from PP-996.
-- Search results link by `slug`
-  (`frontend/src/components/Sidebar/SearchResultsPanel.tsx:69-70`); the set
-  model adds a member locator to the search row.
+- Search results link by `slug` today
+  (`frontend/src/components/Sidebar/SearchResultsPanel.tsx:69-70`); PP-996
+  moves them onto the builder and the row's `id`, and the set model adds a
+  member locator to the search row.
 - Test helpers hardcode the route shape: `frontend/src/test/router-helpers.tsx:34`
   and `frontend/tests/lib/detail-route-slugs.ts`.
 
@@ -259,6 +273,13 @@ places, and member links on two surfaces.
 - A link to a member opens the member on every surface that names one,
   decided on 2026-11-23.
 - Set URLs are unchanged and no redirects are added, decided on 2026-11-23.
+- Decisions on 2026-11-24, at the author's direction: a library URL names a
+  document by its frontmatter `id`, so a set resolves by its root's `id`
+  and a design inventory's URL becomes its full directory name; members
+  are addressed by set-relative path beneath it; links and lookups extend
+  PP-996's `libraryLink` and resolver, with the route parameter
+  `$documentId`; a set's members are the files that fit its declared
+  shape, and other files in its directory are ignored.
 
 ## References
 
