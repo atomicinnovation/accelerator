@@ -21,6 +21,15 @@
   and migration 0006 used to walk two keys aliased to one directory once. A
   migration that writes such a configuration stops the run and is not
   recorded as applied.
+- **`accelerator corpus resolve` resolves a set only through its shape.** For
+  a set type, such as `topic-research` or `design-inventory`, a slug now
+  resolves only a directory whose name has no leading dot and which holds the
+  set's root file (`manifest.md`, `inventory.md`). A path resolves to its set
+  only when it is the set directory, its root, a member, or a directory that
+  may hold members, such as `findings/` or `screenshots/`. A rootless or
+  dot-prefixed directory, a file the set's shape does not name and a stray
+  file in the type directory now exit 3. The `accelerator research topic`
+  commands resolve sets the same way.
 - **Jira Markdown conversion covers more of Markdown, and escapes text that
   would read as syntax.** `jira show` and `jira search --render-adf` now render
   strike as `~~`, blockquotes, pipe tables, rules, nested lists and a list
