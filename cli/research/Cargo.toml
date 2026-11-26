@@ -16,3 +16,4 @@ workspace = true
 
 [dependencies]
 network = { path = "../network" }
+research-declarations = { path = "../research-declarations" }

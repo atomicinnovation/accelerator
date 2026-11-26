@@ -48,6 +48,9 @@ members = [
     "research",
     "research-adapters",
     "research-cli",
+    "research-declarations",
+    "design-declarations",
+    "declarations",
     "process",
     "lease"
 ]

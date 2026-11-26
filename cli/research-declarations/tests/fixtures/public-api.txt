@@ -1,0 +1,9 @@
+pub mod research_declarations
+pub mod research_declarations::topic
+pub const research_declarations::topic::BRIEF: &str
+pub const research_declarations::topic::FINDINGS: &str
+pub const research_declarations::topic::LEVELS_SUFFIX: &str
+pub const research_declarations::topic::MANIFEST: &str
+pub const research_declarations::topic::OUTLINE: &str
+pub const research_declarations::topic::REPORTS: &str
+pub const research_declarations::topic::SYNTHESIS: &str

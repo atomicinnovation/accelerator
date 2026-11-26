@@ -38,6 +38,7 @@ use research::topic::layout::slug::TakenNames;
 use research::topic::layout::stem::Stem;
 use research::topic::layout::BRIEF;
 use research::topic::layout::FINDINGS;
+use research::topic::layout::LEVELS_SUFFIX;
 use research::topic::layout::MANIFEST;
 use research::topic::layout::OUTLINE;
 use research::topic::layout::REPORTS;
@@ -55,7 +56,6 @@ use sha2::Sha256;
 
 const PROFILE_SUFFIX: &str = "-profile";
 const QUARANTINE_SUFFIX: &str = ".invalid";
-const LEVELS_SUFFIX: &str = ".levels";
 const NOTE_SUFFIX: &str = ".md";
 const ROOT_MARKER_PREFIX: &str = ".1.md";
 

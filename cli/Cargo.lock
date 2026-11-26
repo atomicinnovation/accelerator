@@ -1085,6 +1085,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
+name = "declarations"
+version = "1.24.0-pre.113"
+dependencies = [
+ "corpus",
+ "design-declarations",
+ "research-declarations",
+]
+
+[[package]]
 name = "defmt"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1178,6 +1187,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "design-declarations"
+version = "1.24.0-pre.113"
+dependencies = [
+ "corpus",
+ "kernel",
 ]
 
 [[package]]
@@ -4189,6 +4206,7 @@ name = "research"
 version = "1.24.0-pre.113"
 dependencies = [
  "network",
+ "research-declarations",
 ]
 
 [[package]]
@@ -4218,6 +4236,14 @@ dependencies = [
  "tokio",
  "url",
  "webpki-root-certs",
+]
+
+[[package]]
+name = "research-declarations"
+version = "1.24.0-pre.113"
+dependencies = [
+ "corpus",
+ "kernel",
 ]
 
 [[package]]

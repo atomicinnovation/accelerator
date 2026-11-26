@@ -2158,7 +2158,11 @@ def test_shortcut_client_io_rule_permits_a_filesystem_free_discovery(
 _DOMAIN_RULES = [
     ("corpus", "corpus_domain_imports_only_permitted", ()),
     ("vcs", "vcs_domain_imports_only_permitted", ()),
-    ("research", "research_domain_imports_only_permitted", ("network",)),
+    (
+        "research",
+        "research_domain_imports_only_permitted",
+        ("network", "research_declarations"),
+    ),
     ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
     ("migrate", "migrate_domain_imports_only_permitted", ("corpus",)),
     ("design", "design_domain_imports_only_permitted", ("network",)),
@@ -2170,7 +2174,13 @@ _DOMAIN_RULES = [
 # (cross-rejection) cases below can attempt an import that its own rule does
 # not permit and have cargo-pup reject it, rather than the import failing to
 # resolve for an unrelated reason.
-_ALL_EXTRA_CRATES = ("corpus", "document", "network", "tracker")
+_ALL_EXTRA_CRATES = (
+    "corpus",
+    "document",
+    "network",
+    "research_declarations",
+    "tracker",
+)
 
 
 def _extra_crate_manifest(name: str) -> str:
@@ -2347,6 +2357,83 @@ def test_real_domain_rule_rejects_kernel_infra(
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
     assert rule in output, output
+
+
+# Each declarations crate, and the assembly, is driven against a workspace
+# holding it and one stub crate it imports: a crate its rule refuses, then
+# one its rule permits.
+
+_DECLARATIONS_RULES = [
+    (
+        "research-declarations",
+        "research_declarations_imports_only_permitted",
+        "research",
+        "corpus",
+    ),
+    (
+        "design-declarations",
+        "design_declarations_imports_only_permitted",
+        "design",
+        "corpus",
+    ),
+    (
+        "declarations",
+        "declarations_imports_only_permitted",
+        "corpus-adapters",
+        "research-declarations",
+    ),
+]
+
+
+def _write_declarations_probe(root: Path, crate: str, imported: str) -> None:
+    (root / "Cargo.toml").write_text(
+        f"""\
+[workspace]
+resolver = "2"
+members = ["{crate}", "{imported}"]
+"""
+    )
+    crate_src = root / crate / "src"
+    crate_src.mkdir(parents=True, exist_ok=True)
+    (root / crate / "Cargo.toml").write_text(
+        _extra_crate_manifest(crate)
+        + f'\n[dependencies]\n{imported} = {{ path = "../{imported}" }}\n'
+    )
+    (crate_src / "lib.rs").write_text(
+        _extra_import_body(imported.replace("-", "_"))
+    )
+
+    imported_src = root / imported / "src"
+    imported_src.mkdir(parents=True, exist_ok=True)
+    (root / imported / "Cargo.toml").write_text(_extra_crate_manifest(imported))
+    (imported_src / "lib.rs").write_text(_EXTRA_CRATE_LIB)
+
+
+@pytest.mark.parametrize(
+    ("crate", "rule", "refused", "permitted"), _DECLARATIONS_RULES
+)
+def test_real_declarations_rule_rejects_a_crate_beyond_its_reach(
+    tmp_path: Path, crate: str, rule: str, refused: str, permitted: str
+) -> None:
+    _require_tools()
+    _write_declarations_probe(tmp_path, crate, refused)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert rule in output, output
+
+
+@pytest.mark.parametrize(
+    ("crate", "rule", "refused", "permitted"), _DECLARATIONS_RULES
+)
+def test_real_declarations_rule_permits_a_crate_it_declares_against(
+    tmp_path: Path, crate: str, rule: str, refused: str, permitted: str
+) -> None:
+    _require_tools()
+    _write_declarations_probe(tmp_path, crate, permitted)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
 _CONSENT_POLICY_CRATES = {"config", "config_adapters"}

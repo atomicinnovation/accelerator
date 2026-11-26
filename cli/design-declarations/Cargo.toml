@@ -1,0 +1,18 @@
+[package]
+name = "design-declarations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[package.metadata.accelerator]
+role = "declarations"
+context = "design"
+
+[lints]
+workspace = true
+
+[dependencies]
+corpus = { path = "../corpus" }
+kernel = { path = "../kernel" }
