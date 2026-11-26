@@ -897,6 +897,7 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt or unreadable | re-run `conduct` to start a fresh run |
 | `E_TOPIC_RESEARCH_UNRESOLVED` | no topic-research set has that slug | pass the slug of a set under the configured topics directory |
+| `E_TOPIC_RESEARCH_PROJECT` | the project or its configuration cannot be read | fix the fault the message names, then re-run `conduct` |
 
 ### `research topic report-path`
 

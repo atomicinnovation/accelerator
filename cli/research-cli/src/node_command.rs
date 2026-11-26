@@ -28,6 +28,12 @@ pub fn parse_node(text: &str) -> Result<NoteRef, String> {
     }
 }
 
+/// The query's refusal when the project or its configuration cannot be
+/// read, coded like every other refusal it gives.
+pub fn unopened(error: &str) -> String {
+    format!("E_TOPIC_RESEARCH_PROJECT: {error}")
+}
+
 /// Prints the context the node at `at` was offered with in `run`.
 ///
 /// # Errors

@@ -19,24 +19,42 @@ pub struct Printed {
     pub stderr: String,
 }
 
+/// Why no set root was resolved.
+#[derive(Debug)]
+pub enum SetError {
+    UnreadableConfig(String),
+    Unresolved(String),
+}
+
+impl From<SetError> for String {
+    fn from(error: SetError) -> Self {
+        match error {
+            SetError::UnreadableConfig(message)
+            | SetError::Unresolved(message) => message,
+        }
+    }
+}
+
 /// The canonical root of the set `slug` names.
 ///
 /// # Errors
 ///
-/// A message when the configured directory cannot be read, or when `slug`
-/// resolves to no set.
+/// [`SetError::UnreadableConfig`] when the configured directory cannot be
+/// read, and [`SetError::Unresolved`] when `slug` resolves to no set.
 pub fn resolve_set(
     project: &ProjectContext,
     cwd: &Path,
     slug: &str,
-) -> Result<PathBuf, String> {
-    let sets = project.type_dir(DocTypeKey::TopicResearch)?;
+) -> Result<PathBuf, SetError> {
+    let sets = project
+        .type_dir(DocTypeKey::TopicResearch)
+        .map_err(SetError::UnreadableConfig)?;
     let Resolution::Resolved(set_root) =
         resolve_document(cwd, DOC_TYPE, slug, |_| Ok(sets))
     else {
-        return Err(format!(
+        return Err(SetError::Unresolved(format!(
             "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"
-        ));
+        )));
     };
     Ok(set_root)
 }

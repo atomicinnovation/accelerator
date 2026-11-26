@@ -615,3 +615,17 @@ fn a_node_offered_before_snapshots_were_kept_is_refused_as_such(
     );
     Ok(())
 }
+
+#[test]
+fn an_unreadable_config_is_refused_with_its_code() -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let run = budgeted_run(&project)?;
+    project.write(".accelerator/config.md", "---\nresearch:\n")?;
+
+    let output = project.node(&run, AT)?;
+
+    assert_refused_with_prefix(&output, "E_TOPIC_RESEARCH_PROJECT: ");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("has malformed frontmatter"), "{stderr}");
+    Ok(())
+}

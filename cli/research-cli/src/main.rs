@@ -82,6 +82,7 @@ use crate::topic_command::PlanRequest;
 use crate::topic_command::RunFlag;
 use crate::topic_command::RunMode;
 use crate::topic_set::Printed;
+use crate::topic_set::SetError;
 use crate::web_command::WebAdapters;
 
 // A release build that turns debug assertions back on slips past this guard, so
@@ -286,8 +287,17 @@ fn offered_node(
     run: &RunId,
     at: &NoteRef,
 ) -> Result<Printed, String> {
-    let (cwd, project) = working_project()?;
-    let set_root = topic_set::resolve_set(&project, &cwd, slug)?;
+    let (cwd, project) =
+        working_project().map_err(|error| node_command::unopened(&error))?;
+    let set_root =
+        topic_set::resolve_set(&project, &cwd, slug).map_err(|error| {
+            match error {
+                SetError::UnreadableConfig(message) => {
+                    node_command::unopened(&message)
+                }
+                SetError::Unresolved(message) => message,
+            }
+        })?;
     node_command::run_node(&set_root, run, at, &RealFs)
 }
 
