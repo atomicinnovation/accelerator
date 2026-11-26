@@ -1,7 +1,13 @@
 {
   "handover": {
     "matrix": "ACCELERATOR_SHARED_MATRIX",
-    "status-log": "ACCELERATOR_SHARED_STATUS_LOG"
+    "status-log": "ACCELERATOR_SHARED_STATUS_LOG",
+    "stalled-migration": "ACCELERATOR_SHARED_STALLED_MIGRATION"
+  },
+  "executables": {
+    "stalled-migration": {
+      "ACCELERATOR_SHARED_FIXTURES_MIGRATE": "accelerator-migrate"
+    }
   },
   "workbenches": "ACCELERATOR_SHARED_WORKBENCHES",
   "log": "ACCELERATOR_FIXTURE_LOG"

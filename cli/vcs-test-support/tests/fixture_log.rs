@@ -10,6 +10,7 @@ use vcs_test_support::fixture_log::FixtureLog;
 use vcs_test_support::fixture_log::TestName;
 use vcs_test_support::fixture_log::FIXTURE_LOG_VARIABLE;
 use vcs_test_support::handover::SHARED_WORKBENCHES_VARIABLE;
+use vcs_test_support::stalled_migration::MIGRATE_VARIABLE;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -180,6 +181,7 @@ fn every_event_matches_the_shared_log_format() -> Result<(), TestError> {
             tree: Path::new("/tmp/accelerator-shared-fixtures-501/run/matrix"),
             git: "git version 2.50.1",
             jj: "jj 0.43.0",
+            seconds: 2.4,
         },
         Event::Adoption {
             family: Family::Matrix,
@@ -231,6 +233,12 @@ fn every_variable_matches_the_shared_names() -> Result<(), TestError> {
     assert_eq!(
         names["handover"].as_object().map(serde_json::Map::len),
         Some(Family::ALL.len())
+    );
+    assert_eq!(
+        names["executables"],
+        serde_json::json!({
+            "stalled-migration": { MIGRATE_VARIABLE: "accelerator-migrate" }
+        })
     );
     assert_eq!(names["workbenches"], SHARED_WORKBENCHES_VARIABLE);
     assert_eq!(names["log"], FIXTURE_LOG_VARIABLE);

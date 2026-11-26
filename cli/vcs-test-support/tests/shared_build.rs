@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::thread;
+use std::time::Duration;
 
 use serde_json::Value;
 use vcs_test_support::family::Family;
@@ -147,6 +149,26 @@ fn a_successful_build_records_one_shared_build() -> Result<(), TestError> {
     assert_eq!(recorded[0]["tree"], tree.display().to_string());
     assert_eq!(recorded[0]["git"], versions.git);
     assert_eq!(recorded[0]["jj"], versions.jj);
+    Ok(())
+}
+
+#[test]
+fn a_shared_build_records_how_long_its_family_took() -> Result<(), TestError> {
+    let directory = tempfile::tempdir()?;
+    let log = directory.path().join("run.jsonl");
+    let tree = directory.path().join("matrix");
+
+    let failures =
+        matrix_at(&tree).build_with(&FixtureLog::at(&log), |_, _| {
+            thread::sleep(Duration::from_millis(50));
+            Ok(())
+        });
+
+    assert!(failures.is_empty());
+    let seconds = events(&log)?[0]["seconds"]
+        .as_f64()
+        .ok_or("no seconds recorded")?;
+    assert!((0.05..10.0).contains(&seconds), "{seconds}");
     Ok(())
 }
 

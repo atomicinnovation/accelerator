@@ -38,6 +38,7 @@ struct ThePart;
 
 impl SharedFamily for Marked {
     const FAMILY: Family = Family::Matrix;
+    type Inputs = ();
 
     fn adopt(tree: &Path) -> Result<Self, Error> {
         if !tree.join(MARKER).is_file() {
@@ -56,6 +57,7 @@ impl SharedFamily for Marked {
     fn build_privately(
         directory: &Path,
         hermetic: &Hermetic,
+        _inputs: &(),
         _token: PrivateBuild,
     ) -> Result<Self, Error> {
         let home = hermetic.home().display().to_string();
@@ -79,6 +81,7 @@ impl CopyableFamily for Marked {
         _part: ThePart,
         directory: &Path,
         hermetic: &Hermetic,
+        _inputs: &(),
         _token: PrivateBuild,
     ) -> Result<Self, Error> {
         fs::create_dir_all(directory.join(PART))?;
@@ -104,6 +107,61 @@ impl CopyableFamily for Marked {
                 })
                 .map(|relative| onto.join(relative)),
         }
+    }
+}
+
+/// [`Marked`], but its part's file holds what the build is given.
+#[derive(Debug)]
+struct MarkedWith(Marked);
+
+/// What a private build of [`MarkedWith`] writes into its part's file.
+struct PartContents(&'static str);
+
+impl SharedFamily for MarkedWith {
+    const FAMILY: Family = Family::Matrix;
+    type Inputs = PartContents;
+
+    fn adopt(tree: &Path) -> Result<Self, Error> {
+        Marked::adopt(tree).map(Self)
+    }
+
+    fn build_privately(
+        directory: &Path,
+        hermetic: &Hermetic,
+        _inputs: &PartContents,
+        token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        Marked::build_privately(directory, hermetic, &(), token).map(Self)
+    }
+}
+
+impl CopyableFamily for MarkedWith {
+    type Part = ThePart;
+
+    fn entries(part: &ThePart, tree: &Path) -> Result<Vec<String>, Error> {
+        Marked::entries(part, tree)
+    }
+
+    fn build_part_privately(
+        part: ThePart,
+        directory: &Path,
+        hermetic: &Hermetic,
+        inputs: &PartContents,
+        token: PrivateBuild,
+    ) -> Result<Self, Error> {
+        let built = Marked::build_part_privately(
+            part,
+            directory,
+            hermetic,
+            &(),
+            token,
+        )?;
+        fs::write(directory.join(PART_FILE), inputs.0)?;
+        Ok(Self(built))
+    }
+
+    fn rebased(self, from: &Path, onto: &Path, entries: &[String]) -> Self {
+        Self(self.0.rebased(from, onto, entries))
     }
 }
 
@@ -668,5 +726,46 @@ fn a_workbench_holding_a_private_set_refuses_an_adoption(
          another workbench for the matrix"
     );
     assert_eq!(run.events()?.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_writable_part_needing_inputs_is_built_privately_with_them(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_nothing()?)?;
+
+    let marked = workbench
+        .writable_with::<MarkedWith>(ThePart, &PartContents("given"))?;
+
+    assert_eq!(marked.0.part, Some(workbench.path().join(PART)));
+    assert_eq!(
+        fs::read_to_string(workbench.path().join(PART_FILE))?,
+        "given"
+    );
+    let events = run.events()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["event"], "private-build");
+    assert_eq!(events[0]["fixtures"], "matrix");
+    Ok(())
+}
+
+#[test]
+fn a_writable_part_needing_inputs_is_copied_without_them(
+) -> Result<(), TestError> {
+    let run = Run::new()?;
+    let workbench = Workbench::with(run.handing_over(run.shared_tree()?)?)?;
+
+    let marked = workbench
+        .writable_with::<MarkedWith>(ThePart, &PartContents("given"))?;
+
+    assert_eq!(marked.0.part, Some(workbench.path().join(PART)));
+    assert_eq!(
+        fs::read_to_string(workbench.path().join(PART_FILE))?,
+        "shared"
+    );
+    let events = run.events()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["event"], "copy");
     Ok(())
 }

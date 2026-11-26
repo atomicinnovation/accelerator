@@ -180,6 +180,15 @@ class TestStages:
             "test",
         )
 
+    def test_a_task_mise_says_failed_without_an_exit_status_is_failing(self):
+        lines = _stamped(
+            (0.0, "[test:unit:cli] $ invoke test.unit.cli"),
+            (1.0, "[test:unit:cli] nextest: cli tests failed"),
+            (1.1, "[test:unit:cli] ERROR task failed"),
+        )
+
+        assert tasks_mise_reported_failing(lines) == ("test:unit:cli",)
+
 
 class TestOutcomesAndDurations:
     def test_duration_is_mises_finished_in_figure(self):

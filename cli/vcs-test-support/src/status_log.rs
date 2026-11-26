@@ -580,6 +580,7 @@ impl States {
 
 impl SharedFamily for States {
     const FAMILY: Family = Family::StatusLog;
+    type Inputs = ();
 
     fn adopt(tree: &Path) -> Result<Self, Error> {
         let base = tree.canonicalize().map_err(|error| {
@@ -592,6 +593,7 @@ impl SharedFamily for States {
     fn build_privately(
         directory: &Path,
         hermetic: &Hermetic,
+        _inputs: &(),
         _token: PrivateBuild,
     ) -> Result<Self, Error> {
         Self::build_with(directory, hermetic)
@@ -677,6 +679,7 @@ impl CopyableFamily for States {
         part: StatusLogPart,
         directory: &Path,
         hermetic: &Hermetic,
+        _inputs: &(),
         _token: PrivateBuild,
     ) -> Result<Self, Error> {
         part.build_privately(directory, hermetic)

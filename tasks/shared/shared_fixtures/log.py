@@ -40,6 +40,7 @@ class SharedBuild:
     tree: Path
     git: str
     jj: str
+    seconds: float
 
 
 @dataclasses.dataclass(frozen=True)
@@ -274,7 +275,11 @@ def _event(line: Mapping[str, Any]) -> Event:
     kind = line["event"]
     if kind == "shared-build":
         return SharedBuild(
-            Family(line["family"]), Path(line["tree"]), line["git"], line["jj"]
+            Family(line["family"]),
+            Path(line["tree"]),
+            line["git"],
+            line["jj"],
+            float(line["seconds"]),
         )
     if kind == "adoption":
         return Adoption(

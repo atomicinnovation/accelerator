@@ -1,4 +1,5 @@
 {
   "matrix": "--matrix",
-  "status-log": "--status-log"
+  "status-log": "--status-log",
+  "stalled-migration": "--stalled-migration"
 }

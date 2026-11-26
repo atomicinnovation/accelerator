@@ -6,3 +6,9 @@ default-filter = 'not binary(=contract)'
 
 [profile.contract]
 default-filter = 'binary(=contract)'
+
+# The longest tests sit late in the listing, so without a head start they set
+# the end of the phase.
+[[profile.default.overrides]]
+filter = 'binary(=matrix_private_build) | (binary(=rekey_run) & test(/a_run_killed_at_every_write_resumes/))'
+priority = 100

@@ -8,6 +8,7 @@ yield bogus problems.
 
 import contextlib
 import dataclasses
+import re
 import time
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from pathlib import Path
@@ -21,6 +22,7 @@ from tasks.shared.shared_fixtures.log import (
     FinishedRun,
     FixtureLog,
     FixtureLogs,
+    SharedBuild,
     TreeDigests,
 )
 from tasks.shared.shared_fixtures.runs import (
@@ -37,6 +39,19 @@ type Build = Callable[[Mapping[Family, Path], Path], None]
 
 
 class SharedBuildError(SharedFixturesError): ...
+
+
+_SAYING = "shared VCS fixtures: "
+
+FAMILY_BUILT = re.compile(
+    rf"{re.escape(_SAYING)}(?P<heading>.+) built in (?P<seconds>[\d.]+) s"
+)
+"""A line saying how long one family took to build, as the session says it."""
+
+
+def _listed(families: Collection[Family]) -> str:
+    *others, last = families
+    return f"{', '.join(others)} and {last}" if others else last
 
 
 @dataclasses.dataclass
@@ -131,7 +146,7 @@ class SharedFixtureSession:
         families: Collection[Family],
         build: Build,
     ) -> None:
-        self._say(f"building {' and '.join(families)}")
+        self._say(f"building {_listed(families)}")
         started = time.monotonic()
         trees = {family: progress.run.tree(family) for family in families}
         try:
@@ -150,6 +165,11 @@ class SharedFixtureSession:
             f"built in {built - started:.1f} s, "
             f"digested in {time.monotonic() - built:.1f} s"
         )
+        for event in log.read().events:
+            if isinstance(event, SharedBuild):
+                self._say(
+                    f"{event.family.heading} built in {event.seconds:.1f} s"
+                )
 
     def _finish(
         self,
@@ -266,7 +286,7 @@ class SharedFixtureSession:
         return []
 
     def _say(self, message: str) -> None:
-        print(f"shared VCS fixtures: {message}", file=self._out, flush=True)
+        print(f"{_SAYING}{message}", file=self._out, flush=True)
 
 
 def _problems_of(error: Exception) -> Sequence[str]:

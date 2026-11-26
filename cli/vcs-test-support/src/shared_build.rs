@@ -6,12 +6,15 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::thread;
+use std::time::Instant;
 
 use crate::family::Family;
 use crate::fixture_log::Event;
 use crate::fixture_log::FixtureLog;
 use crate::fixtures::Matrix;
 use crate::hermetic::tool_version;
+use crate::stalled_migration::MigrateBinary;
+use crate::stalled_migration::StalledMigrations;
 use crate::status_log::States;
 use crate::Error;
 
@@ -106,7 +109,11 @@ impl SharedBuildRequest {
                 running.push((
                     family,
                     tree,
-                    scope.spawn(move || builder(family, tree)),
+                    scope.spawn(move || {
+                        let started = Instant::now();
+                        builder(family, tree)
+                            .map(|()| started.elapsed().as_secs_f64())
+                    }),
                 ));
             }
             running
@@ -118,12 +125,13 @@ impl SharedBuildRequest {
             .into_iter()
             .filter_map(|(family, tree, outcome)| {
                 let cause = match outcome {
-                    Ok(Ok(())) => log
+                    Ok(Ok(seconds)) => log
                         .record(&Event::SharedBuild {
                             family,
                             tree,
                             git: &versions.git,
                             jj: &versions.jj,
+                            seconds,
                         })
                         .err()?
                         .to_string(),
@@ -150,6 +158,10 @@ fn build_for_sharing(family: Family, tree: &Path) -> Result<(), Error> {
     match family {
         Family::Matrix => Matrix::build_for_sharing(tree).map(drop),
         Family::StatusLog => States::build_for_sharing(tree).map(drop),
+        Family::StalledMigration => {
+            let migrate = MigrateBinary::from_environment()?;
+            StalledMigrations::build_for_sharing(tree, &migrate).map(drop)
+        }
     }
 }
 

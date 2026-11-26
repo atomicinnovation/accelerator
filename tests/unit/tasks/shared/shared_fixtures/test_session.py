@@ -29,6 +29,7 @@ from tasks.shared.shared_fixtures.runs import (
     remove_leftover,
 )
 from tasks.shared.shared_fixtures.session import (
+    FAMILY_BUILT,
     SharedBuildError,
     SharedFixtureSession,
 )
@@ -37,7 +38,7 @@ ABANDONED_RUN = "20261119T101500123456Z-0b6f9a0e-6c1d-4f0a-9d7e-2c1b3a4d5e6f"
 TIMEOUT = 5.0
 
 
-def _append(log: Path, event: Mapping[str, str]) -> None:
+def _append(log: Path, event: Mapping[str, object]) -> None:
     with log.open("a") as file:
         file.write(json.dumps(event) + "\n")
 
@@ -54,6 +55,7 @@ def build_that_logs(trees: Mapping[Family, Path], log: Path) -> None:
                 "tree": str(tree),
                 "git": "git version 2.50.1",
                 "jj": "jj 0.43.0",
+                "seconds": 2.4,
             },
         )
 
@@ -156,12 +158,16 @@ class TestACleanRun:
         assert set(handover) == {
             Family.MATRIX.handover_variable,
             Family.STATUS_LOG.handover_variable,
+            Family.STALLED_MIGRATION.handover_variable,
             WORKBENCHES_VARIABLE,
             FIXTURE_LOG_VARIABLE,
         }
         assert handover[Family.MATRIX.handover_variable].endswith("/matrix")
         assert handover[Family.STATUS_LOG.handover_variable].endswith(
             "/status-log"
+        )
+        assert handover[Family.STALLED_MIGRATION.handover_variable].endswith(
+            "/stalled-migration"
         )
 
     def test_digests_each_tree_after_the_build_and_before_removal(
@@ -172,8 +178,10 @@ class TestACleanRun:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
             ("matrix", "removed"),
             ("status-log", "removed"),
+            ("stalled-migration", "removed"),
         ]
         for family in Family:
             built, removed = (
@@ -188,7 +196,7 @@ class TestACleanRun:
         harness.run()
 
         assert list(harness.root.iterdir()) == []
-        assert "  matrix: 1 shared build, 4 adoptions" in harness.printed()
+        assert "  matrix: 1 shared build, 5 adoptions" in harness.printed()
 
     def test_prunes_old_logs(self, harness: Harness):
         logs = FixtureLogs(harness.logs)
@@ -224,13 +232,21 @@ class TestACleanRun:
         harness.run()
 
         lines = harness.printed().splitlines()
-        assert "shared VCS fixtures: building matrix and status-log" in lines
+        assert (
+            "shared VCS fixtures: building matrix, status-log and "
+            "stalled-migration"
+        ) in lines
         assert any(
             re.fullmatch(
                 r"shared VCS fixtures: built in [\d.]+ s, digested in [\d.]+ s",
                 line,
             )
             for line in lines
+        )
+        assert "shared VCS fixtures: matrix built in 2.4 s" in lines
+        assert "shared VCS fixtures: status-log set built in 2.4 s" in lines
+        assert (
+            "shared VCS fixtures: stalled-migration set built in 2.4 s" in lines
         )
         assert any(
             re.fullmatch(
@@ -241,8 +257,42 @@ class TestACleanRun:
             for line in lines
         )
         for line in lines:
-            assert not timeline._NEXTEST_SUMMARY.match(line)
+            assert not timeline.NEXTEST_SUMMARY.match(line)
             assert not timeline._FINISHED_IN.fullmatch(line)
+
+
+class TestNamingWhatItBuilds:
+    def _building_line(
+        self, harness: Harness, families: Collection[Family]
+    ) -> list[str]:
+        harness.run(lambda _handover: None, families=families, filtered=True)
+        return [
+            line
+            for line in harness.printed().splitlines()
+            if line.startswith("shared VCS fixtures: building ")
+        ]
+
+    def test_names_one_family_alone(self, harness: Harness):
+        assert self._building_line(harness, (Family.MATRIX,)) == [
+            "shared VCS fixtures: building matrix"
+        ]
+
+    def test_joins_two_families_with_and(self, harness: Harness):
+        assert self._building_line(
+            harness, (Family.MATRIX, Family.STATUS_LOG)
+        ) == ["shared VCS fixtures: building matrix and status-log"]
+
+    def test_each_family_s_build_line_reads_back_as_that_family(
+        self, harness: Harness
+    ):
+        harness.run()
+
+        read = {
+            (built["heading"], float(built["seconds"]))
+            for line in harness.printed().splitlines()
+            if (built := FAMILY_BUILT.fullmatch(line)) is not None
+        }
+        assert read == {(family.heading, 2.4) for family in SHARED_FAMILIES}
 
 
 class TestNothingToShare:
@@ -430,6 +480,7 @@ class TestAnInterruptAsInvokeReportsIt:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
         ]
 
     def test_the_tests_absorbed_still_ends_as_an_interrupt(
@@ -446,6 +497,7 @@ class TestAnInterruptAsInvokeReportsIt:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
         ]
 
 
@@ -536,8 +588,10 @@ class TestFailingTests:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
             ("matrix", "removed"),
             ("status-log", "removed"),
+            ("stalled-migration", "removed"),
         ]
 
     def test_fail_the_run_even_without_a_message(self, harness: Harness):
@@ -613,8 +667,10 @@ class TestAChangedTree:
         assert harness.digest_phases() == [
             ("matrix", "built"),
             ("status-log", "built"),
+            ("stalled-migration", "built"),
             ("matrix", "removed"),
             ("status-log", "removed"),
+            ("stalled-migration", "removed"),
         ]
         assert [c["added"] for c in harness.events("tree-changes")] == [
             ["poison.gitconfig"]

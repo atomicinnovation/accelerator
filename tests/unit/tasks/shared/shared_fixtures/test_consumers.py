@@ -26,12 +26,13 @@ def test_every_consumer_consumes_one_or_more_shared_families():
     )
 
 
-def test_the_matrix_consumers_are_the_four_binaries_that_adopt_it():
+def test_the_matrix_consumers_are_the_five_binaries_that_adopt_it():
     assert consumers_of(Family.MATRIX) == {
         "vcs-adapters::classify",
         "vcs-adapters::queries",
         "vcs-adapters::scrub",
         "vcs-test-support::matrix",
+        "vcs-test-support::matrix_private_build",
     }
 
 
@@ -42,6 +43,12 @@ def test_the_status_log_consumers_are_the_binaries_that_adopt_or_copy_it():
         "vcs-test-support::copy_fidelity",
         "vcs-test-support::status_log_parts",
         "vcs-test-support::status_log_states",
+    }
+
+
+def test_the_stalled_migration_consumer_is_the_guarded_resume_binary():
+    assert consumers_of(Family.STALLED_MIGRATION) == {
+        "accelerator-migrate::guarded_resume",
     }
 
 

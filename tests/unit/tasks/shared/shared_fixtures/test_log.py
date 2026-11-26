@@ -39,6 +39,7 @@ MATRIX_CONSUMERS = (
     "vcs-adapters::queries",
     "vcs-adapters::scrub",
     "vcs-test-support::matrix",
+    "vcs-test-support::matrix_private_build",
 )
 WORKBENCH_C = Path(
     "/tmp/accelerator-shared-fixtures-501/run/workbenches/vcs-workbench-c"
@@ -57,6 +58,7 @@ def _shared_build(tree: Path = TREE) -> dict:
         "tree": str(tree),
         "git": "git version 2.50.1",
         "jj": "jj 0.43.0",
+        "seconds": 2.4,
     }
 
 
@@ -139,7 +141,9 @@ class TestTheSharedFormat:
         events = FixtureLog(LOG_FORMAT).read().events
 
         assert events == (
-            SharedBuild(Family.MATRIX, TREE, "git version 2.50.1", "jj 0.43.0"),
+            SharedBuild(
+                Family.MATRIX, TREE, "git version 2.50.1", "jj 0.43.0", 2.4
+            ),
             Adoption(
                 Family.MATRIX,
                 "vcs-adapters::classify",
@@ -268,6 +272,11 @@ class TestTheSharedFormat:
         assert names["handover"] == {
             family.value: family.handover_variable for family in Family
         }
+        assert names["executables"] == {
+            family.value: dict(family.executables)
+            for family in Family
+            if family.executables
+        }
         assert names["workbenches"] == WORKBENCHES_VARIABLE
         assert names["log"] == FIXTURE_LOG_VARIABLE
 
@@ -299,6 +308,8 @@ class TestTheSummary:
             "0 private builds",
             "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
             "0 private builds",
+            "  stalled-migration set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
             "  private sets (never shared): 0 private builds",
         ]
 
@@ -315,6 +326,8 @@ class TestTheSummary:
         assert log.summary(Path("/root")).lines()[1:] == [
             "  matrix: 0 shared builds, 0 adoptions, 0 copies, 1 private build",
             "  status-log set: 0 shared builds, 0 adoptions, 0 copies, "
+            "0 private builds",
+            "  stalled-migration set: 0 shared builds, 0 adoptions, 0 copies, "
             "0 private builds",
             "  private sets (never shared): 2 private builds",
         ]
@@ -333,7 +346,7 @@ class TestTheSummary:
         log = _log(tmp_path, _a_clean_run())
 
         for line in log.summary(Path("/root")).lines():
-            assert not timeline._NEXTEST_SUMMARY.match(line)
+            assert not timeline.NEXTEST_SUMMARY.match(line)
             assert not timeline._FINISHED_IN.fullmatch(line)
 
 
@@ -413,12 +426,14 @@ class TestProblems:
     def test_a_line_that_does_not_parse_is_named_by_number(
         self, tmp_path: Path
     ):
-        log = _log(tmp_path, _a_clean_run())
+        clean = _a_clean_run()
+        log = _log(tmp_path, clean)
         with log.path.open("a") as file:
             file.write("{torn\n")
+        torn = len(clean) + 1
 
         assert log.problems(_finished()) == [
-            f"line 6 of the fixture log {log.path} does not parse"
+            f"line {torn} of the fixture log {log.path} does not parse"
         ]
 
     @pytest.mark.parametrize(

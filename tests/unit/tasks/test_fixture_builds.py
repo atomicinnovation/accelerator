@@ -22,6 +22,7 @@ GUARDED_CALLS = {
                 TESTS / "workbench.rs",
                 TESTS / "matrix_private_build.rs",
                 TESTS / "status_log_parts.rs",
+                TESTS / "stalled_migration_parts.rs",
             }
         ),
     ),
@@ -29,6 +30,17 @@ GUARDED_CALLS = {
         "copies a shared tree without logging the copy; use "
         "Workbench::writable_status_log_states()",
         frozenset({TESTS / "copies.rs", TESTS / "copy_fidelity.rs"}),
+    ),
+    "copy_private_tree(": (
+        "copies a tree without logging the copy; copy only a tree the test "
+        "built for itself, from a file this guard permits",
+        frozenset(
+            {
+                TESTS / "copies.rs",
+                Path("cli/migrate-cli/tests/guarded_resume.rs"),
+                Path("cli/work-adapters/tests/support/mod.rs"),
+            }
+        ),
     ),
     **{
         f"{builder}(": (
@@ -118,6 +130,21 @@ def test_a_direct_copy_elsewhere_is_named_by_file_and_line(
         "cli/vcs-cli/tests/status_log_goldens.rs:1: copy_part( copies a"
         " shared tree without logging the copy; use"
         " Workbench::writable_status_log_states()"
+    ]
+
+
+def test_a_private_tree_copy_elsewhere_is_named_by_file_and_line(
+    tmp_path: Path,
+) -> None:
+    _test_source(
+        tmp_path,
+        "cli/vcs-cli/tests/status_log_goldens.rs",
+        "let copy = copy_private_tree(&template, work)?;\n",
+    )
+    assert violations(tmp_path) == [
+        "cli/vcs-cli/tests/status_log_goldens.rs:1: copy_private_tree( copies"
+        " a tree without logging the copy; copy only a tree the test built"
+        " for itself, from a file this guard permits"
     ]
 
 

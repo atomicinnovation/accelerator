@@ -536,7 +536,7 @@ Points the planner must settle for this inventory:
 - `meta/plans/2026-11-11-PP-954-bootstrap-test-suites-fast-and-hermetic.md`
   is a pytest analogue. Two practices transfer: run each consumer alone,
   and record pass counts before and after.
-- `meta/work/PP-943-shorten-the-guarded-resume-migration-tests.md`
+- `meta/work/PP-943-shorten-the-slowest-tests-in-the-cli-unit-suite.md`
   - It lists "build once, give each test a private copy" as a candidate.
     Design the copy helper so it can be reused.
   - 0365's after-record must keep per-test `PASS [ Ns ]` lines usable.

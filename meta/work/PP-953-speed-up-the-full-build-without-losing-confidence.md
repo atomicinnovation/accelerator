@@ -84,7 +84,7 @@ Decomposition:
 - 0368: Build-performance measurement and host guidance (C1, C2)
 - 0370: Measure and cite the macOS host settings' effect on the build
   (C2, split from 0368)
-- 0391: Shorten the guarded-resume migration tests (split from 0365)
+- 0391: Shorten the slowest tests in the CLI unit suite (split from 0365)
 
 ## Acceptance Criteria
 

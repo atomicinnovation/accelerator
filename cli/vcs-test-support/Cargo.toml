@@ -25,6 +25,9 @@ serde_json = { workspace = true }
 walkdir = { workspace = true }
 filetime = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+rustix = { workspace = true }
+
 # The build step's builder, run once per `test:unit:cli` run before any test.
 # Lives under tests/fixtures/ for the same reason as vcs-adapters' fixture
 # binaries: it stays off the crate's normal build surface. `test = false`

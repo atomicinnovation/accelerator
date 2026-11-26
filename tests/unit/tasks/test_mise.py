@@ -329,6 +329,7 @@ def test_the_measure_module_is_reached_by_at_least_one_task(mise):
         "measure:teardown",
         "measure:build",
         "measure:compare-builds",
+        "measure:test-durations",
         "test:integration:measure",
     }
 

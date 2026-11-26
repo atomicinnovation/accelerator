@@ -26,6 +26,9 @@ use crate::handover::Handover;
 use crate::handover::SHARED_WORKBENCHES_VARIABLE;
 use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
+use crate::stalled_migration::MigrateBinary;
+use crate::stalled_migration::StallKey;
+use crate::stalled_migration::StalledMigrations;
 use crate::status_log::States;
 use crate::status_log::StatusLogPart;
 use crate::Error;
@@ -147,7 +150,9 @@ impl Workbench {
     ///
     /// When the workbench already holds a fixture, the handed tree is missing
     /// or cannot be adopted, or the private build fails.
-    pub fn shared<F: SharedFamily>(&self) -> Result<Held<'_, F>, Error> {
+    pub fn shared<F: SharedFamily<Inputs = ()>>(
+        &self,
+    ) -> Result<Held<'_, F>, Error> {
         let fixtures = BuiltFixtures::Shared(F::FAMILY);
         self.hand_out(fixtures, || {
             if let Some(tree) = self.handover.shared_tree(F::FAMILY) {
@@ -160,7 +165,12 @@ impl Workbench {
                 Ok((fixture, Acquisition::Adopted))
             } else {
                 self.build_privately(fixtures, |directory, hermetic| {
-                    F::build_privately(directory, hermetic, PrivateBuild(()))
+                    F::build_privately(
+                        directory,
+                        hermetic,
+                        &(),
+                        PrivateBuild(()),
+                    )
                 })
             }
         })
@@ -176,9 +186,23 @@ impl Workbench {
     /// When the workbench already holds a fixture, the handed tree is missing
     /// or cannot be adopted or copied, a copied file still names the shared
     /// tree, or the private build fails.
-    pub fn writable<F: CopyableFamily>(
+    pub fn writable<F: CopyableFamily + SharedFamily<Inputs = ()>>(
         &self,
         part: F::Part,
+    ) -> Result<Held<'_, F>, Error> {
+        self.writable_with::<F>(part, &())
+    }
+
+    /// As [`Self::writable`], for a family whose private build needs
+    /// `inputs`. A copy of the handed tree leaves them unused.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::writable`].
+    pub fn writable_with<F: CopyableFamily>(
+        &self,
+        part: F::Part,
+        inputs: &F::Inputs,
     ) -> Result<Held<'_, F>, Error> {
         let fixtures = BuiltFixtures::Shared(F::FAMILY);
         self.hand_out(fixtures, || {
@@ -190,6 +214,7 @@ impl Workbench {
                         part,
                         directory,
                         hermetic,
+                        inputs,
                         PrivateBuild(()),
                     )
                 })
@@ -244,6 +269,20 @@ impl Workbench {
         self.writable::<States>(part)
     }
 
+    /// A copy of the stall keyed `key` from the run's stalled-migration
+    /// set, the test's own to change.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::writable`].
+    pub fn writable_stalled_migrations(
+        &self,
+        key: StallKey,
+        migrate: &MigrateBinary,
+    ) -> Result<Held<'_, StalledMigrations>, Error> {
+        self.writable_with::<StalledMigrations>(key, migrate)
+    }
+
     fn hand_out<F>(
         &self,
         fixtures: BuiltFixtures,
@@ -291,19 +330,10 @@ impl Workbench {
             copy: &copy.root,
             named_by: &copy.named_by,
         })?;
-        if !copy.is_clean() {
-            return Err(Error::message(format!(
-                "the copy of {} in {} still names the shared tree {} in: {}",
-                F::FAMILY,
-                copy.root.display(),
-                tree.display(),
-                copy.named_by
-                    .iter()
-                    .map(|path| path.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )));
-        }
+        copy.require_clean(
+            format_args!("the copy of {}", F::FAMILY),
+            format_args!("the shared tree {}", tree.display()),
+        )?;
         Ok(shared.rebased(tree, self.path(), &entries))
     }
 

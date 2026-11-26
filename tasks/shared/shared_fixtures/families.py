@@ -1,10 +1,12 @@
 import dataclasses
+from collections.abc import Mapping
 from enum import StrEnum
 
 
 class Family(StrEnum):
     MATRIX = "matrix"
     STATUS_LOG = "status-log"
+    STALLED_MIGRATION = "stalled-migration"
 
     @property
     def handover_variable(self) -> str:
@@ -22,6 +24,11 @@ class Family(StrEnum):
     def noun(self) -> str:
         return _TRAITS[self].noun
 
+    @property
+    def executables(self) -> Mapping[str, str]:
+        """Each bin target the build runs, by the variable that names it."""
+        return _TRAITS[self].executables
+
 
 @dataclasses.dataclass(frozen=True)
 class _Traits:
@@ -29,6 +36,7 @@ class _Traits:
     flag: str
     heading: str
     noun: str
+    executables: Mapping[str, str] = dataclasses.field(default_factory=dict)
 
 
 _TRAITS = {
@@ -43,6 +51,15 @@ _TRAITS = {
         flag="--status-log",
         heading="status-log set",
         noun="the status-log set",
+    ),
+    Family.STALLED_MIGRATION: _Traits(
+        handover_variable="ACCELERATOR_SHARED_STALLED_MIGRATION",
+        flag="--stalled-migration",
+        heading="stalled-migration set",
+        noun="the stalled-migration set",
+        executables={
+            "ACCELERATOR_SHARED_FIXTURES_MIGRATE": "accelerator-migrate"
+        },
     ),
 }
 

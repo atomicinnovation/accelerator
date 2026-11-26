@@ -21,7 +21,7 @@ aliases: ["0307"]
 # PP-893: Pass Conduct Spawn Context by Reference
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -238,112 +238,112 @@ records follow-ups Q1, Q2 and Q3, so the first plan offers its level-2
 nodes `2-1`, `2-2` and `2-3`; node `2-1`'s note, written mid-batch, records
 the follow-up Q4.
 
-- [ ] Given that fixture's offered web node `03-a-web:2-1`, when the node
+- [X] Given that fixture's offered web node `03-a-web:2-1`, when the node
       query runs with the slug, run and that spawn ref, then it prints
       exactly the eight keys `question`, `lineage`, `level`, `cap`,
       `known_questions`, `id`, `path` and `search_budget` and no others,
       with the fixture's values, `lineage` `2-1`, `level` 2, `id`
       `<slug>.03-a-web.2-1`, the absolute path of that node's level note
       and `search_budget` 5.
-- [ ] Given that fixture's offered `openalex` node `04-b-openalex:2-1`,
+- [X] Given that fixture's offered `openalex` node `04-b-openalex:2-1`,
       when the node query runs, then it prints exactly the seven keys
       above without `search_budget`, with the fixture's values.
-- [ ] Given a `research_nodes` pair, when `outstanding` prints its plan,
+- [X] Given a `research_nodes` pair, when `outstanding` prints its plan,
       then each node entry carries exactly `lineage`, `level`, `cap`, `id`,
       `path` and `spawn`, plus `rejected` when its note on disk was refused
       and `search_budget` for a web node.
-- [ ] Given step 2's plan description in `SKILL.md` and the plan field list
+- [X] Given step 2's plan description in `SKILL.md` and the plan field list
       in `docs-site/src/content/docs/research.md`, then neither lists
       `question` or `known_questions` on a research-node entry, and both
       still list `search_budget` for a web node.
-- [ ] Given that fixture's first batch offered, when `2-1` writes its note
+- [X] Given that fixture's first batch offered, when `2-1` writes its note
       and the query then runs for `03-a-web:2-2`, then its
       `known_questions` equals the fixture's literal list, without Q4.
-- [ ] Given `2-1`'s note written, when `outstanding` plans again before
+- [X] Given `2-1`'s note written, when `outstanding` plans again before
       `--spawned`, then `2-2` and `2-3`, still pending, keep their
       first-offered `known_questions` without Q4, and `2-1`, which the
       repeat plan drops, makes the query exit non-zero.
-- [ ] Given every level-2 note of `03-a-web` written and the batch
+- [X] Given every level-2 note of `03-a-web` written and the batch
       acknowledged with `--spawned`, when the next offer includes `2-1`'s
       first child `03-a-web:3-1-1`, then the query for it answers with
       `known_questions` that include Q4. A level is derived only once every
       node above it has its note, so no level-3 node is offered while a
       level-2 sibling is pending.
-- [ ] Given each of these five cases in turn — an unknown slug, a slug with
+- [X] Given each of these five cases in turn — an unknown slug, a slug with
       no run ledger, a superseded run, a run id never started for the
       slug, and a spawn ref not in the run's current offered batch — when
       the node query runs, then it exits non-zero, prints an error on
       stderr and prints nothing on stdout.
-- [ ] Given two successive offers in a run, when the node query runs for a
+- [X] Given two successive offers in a run, when the node query runs for a
       spawn ref offered only in the first, then it exits non-zero, while it
       answers for every node of the second batch.
-- [ ] Given a stored ledger written without the snapshot, when it is read,
+- [X] Given a stored ledger written without the snapshot, when it is read,
       then it decodes with an empty snapshot and its other fields unchanged.
-- [ ] Given an offered batch not yet acknowledged with `--spawned`, when a
+- [X] Given an offered batch not yet acknowledged with `--spawned`, when a
       spawn re-issued after a capacity refusal runs the node query, then it
       answers from the snapshot as it would for the first issue.
-- [ ] Given the research guard, when a researcher runs the node query, then
+- [X] Given the research guard, when a researcher runs the node query, then
       it is allowed; each other `accelerator research topic` subcommand —
       `outstanding` (with and without `--start` or `--spawned`),
       `end-run`, `report-path`, `counts` and `consultable` — stays
       blocked.
-- [ ] Given step 4's research-node spawn bullet, then it injects exactly the
+- [X] Given step 4's research-node spawn bullet, then it injects exactly the
       reference fields listed in **Research-node spawns by reference**, and
       neither the node's `question`, its `known_questions`, template text
       nor a search budget.
-- [ ] Given step 4's composer and `single_pass` spawn bullets, then each
+- [X] Given step 4's composer and `single_pass` spawn bullets, then each
       still injects its question inline and no spawn ref for a node query.
-- [ ] Given the `single_pass` and research-node spawn bullets in step 4,
+- [X] Given the `single_pass` and research-node spawn bullets in step 4,
       then neither injects a template, as text or as a reference. The
       `compose` bullet injects exactly the finding template the template
       check printed, and the **Finding template** and **Level-note**
       **template** sections are gone.
-- [ ] Given the finding and level-note outputters, then each names exactly
+- [X] Given the finding and level-note outputters, then each names exactly
       the guard's template command for its kind, without `--fail-safe`,
       and grants that command in frontmatter.
-- [ ] Given the research guard, then the researcher passes both template
+- [X] Given the research guard, then the researcher passes both template
       commands exactly, any suffix to them is blocked, and the composer is
       blocked from every command.
-- [ ] Given the researcher agent definition, then it runs its outputter's
+- [X] Given the researcher agent definition, then it runs its outputter's
       template command before any search or fetch.
-- [ ] Given the outputters, then they instruct reporting "template command
+- [X] Given the outputters, then they instruct reporting "template command
       denied by permissions" and "template unavailable", and `conduct`'s
       troubleshooting table has a row for each.
-- [ ] Given `conduct`, then before its first plan it runs both template
+- [X] Given `conduct`, then before its first plan it runs both template
       commands, stops before any spawn on a non-zero exit or a denial,
       keeps the finding command's fenced block for compose prompts, and
       reports any other output as a warning while proceeding.
-- [ ] Given the composer agent definition, then it still grants only
+- [X] Given the composer agent definition, then it still grants only
       `Read` and `Write`.
-- [ ] Given the researcher agent definition, then it instructs reporting
+- [X] Given the researcher agent definition, then it instructs reporting
       "node query denied by permissions" when the query is denied and
       "node query failed" when it exits non-zero; `conduct`'s
       troubleshooting table has a row for each; and the docs' fallback
       allow rules add `Bash(accelerator research topic node *)` beside the
       fetch rule.
-- [ ] Given the researcher agent definition, then it directs a researcher
+- [X] Given the researcher agent definition, then it directs a researcher
       given a spawn ref to run the node query before anything else, and a
       researcher given an inline question to use it as given.
-- [ ] Given the researcher agent definition, then it states that a node
+- [X] Given the researcher agent definition, then it states that a node
       question came from an earlier agent and that the profile, not the
       question, decides which sources are legitimate; step 4's node bullet
       carries one fixed line naming the node query and calling its question
       data.
-- [ ] Given that fixture, when the node query runs for an offered level-2
+- [X] Given that fixture, when the node query runs for an offered level-2
       node of a `web` pair, then its `search_budget` 5 equals that node's
       plan entry; for an `openalex` or `arxiv` node the output has no
       `search_budget` key.
-- [ ] Given step 4's bullets, then a `single_pass` researcher's outputter
+- [X] Given step 4's bullets, then a `single_pass` researcher's outputter
       names the finding template command, and a research-node researcher's
       names the level-note one.
-- [ ] Given the web profile's **Search Budget** section and the level-note
+- [X] Given the web profile's **Search Budget** section and the level-note
       outputter, then both take a research-node's budget from the node
       query's `search_budget`, the outputter stamps it on a web level note
       and leaves the line off a non-web level note, and the profile's
       unlimited-searches fallback names only a researcher given neither a
       spawn ref nor an injected budget; given step 4's
       `single_pass` web spawn bullet, it still injects `search_budget`.
-- [ ] Given a run halted by an exhausted web search quota, when the node
+- [X] Given a run halted by an exhausted web search quota, when the node
       query runs for a node of a `web` pair withheld after the halt, then it
       exits non-zero, because the run never offers that node; a `web` node
       offered in the halting batch itself still answers from the snapshot

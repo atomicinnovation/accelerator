@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import re
 import shlex
@@ -141,7 +142,7 @@ def _run_plain(
     context: Context, selection: Selection, interruption: Interruption
 ) -> None:
     families = _families_to_share(context, selection, build_environment=None)
-    builder = _locate_builder(context, build_environment=None)
+    builder = _locate_builder(context, families, build_environment=None)
     with _session(interruption).open(
         families,
         _building_with(context, builder, {}),
@@ -160,7 +161,7 @@ def _run_instrumented(
     _clear_previous_profile_data(context)
     build_environment = _instrumented_environment(context)
     families = _families_to_share(context, selection, build_environment)
-    builder = _locate_builder(context, build_environment)
+    builder = _locate_builder(context, families, build_environment)
     with _session(interruption).open(
         families,
         _building_with(
@@ -286,9 +287,17 @@ def _session(interruption: Interruption) -> SharedFixtureSession:
     )
 
 
+@dataclasses.dataclass(frozen=True)
+class _Builder:
+    executable: Path
+    executables_needed: Mapping[str, str]
+
+
 def _locate_builder(
-    context: Context, build_environment: Mapping[str, str] | None
-) -> Path:
+    context: Context,
+    families: Collection[Family],
+    build_environment: Mapping[str, str] | None,
+) -> _Builder:
     listing = context.run(
         _UNIT_LISTING,
         warn=True,
@@ -298,14 +307,22 @@ def _locate_builder(
     )
     if listing.exited != 0:
         raise Exit("cargo: compiling the cli tests failed", code=1)
+    units = UnitListing.parse(listing.stdout)
     try:
-        return UnitListing.parse(listing.stdout).executable(_BUILDER)
+        return _Builder(
+            units.executable(_BUILDER),
+            {
+                variable: str(units.executable(target))
+                for family in families
+                for variable, target in family.executables.items()
+            },
+        )
     except LookupError as error:
         raise Exit(f"cargo: {error}", code=1) from error
 
 
 def _building_with(
-    context: Context, builder: Path, build_environment: Mapping[str, str]
+    context: Context, builder: _Builder, build_environment: Mapping[str, str]
 ) -> Callable[[Mapping[Family, Path], Path], None]:
     def build(trees: Mapping[Family, Path], log: Path) -> None:
         flags = [
@@ -314,12 +331,16 @@ def _building_with(
             for word in (family.flag, str(tree))
         ]
         result = context.run(
-            shlex.join([str(builder), *flags]),
+            shlex.join([str(builder.executable), *flags]),
             warn=True,
             hide=True,
             pty=False,
             env=_without_inherited_handover(
-                {**build_environment, FIXTURE_LOG_VARIABLE: str(log)}
+                {
+                    **build_environment,
+                    **builder.executables_needed,
+                    FIXTURE_LOG_VARIABLE: str(log),
+                }
             ),
             replace_env=True,
         )

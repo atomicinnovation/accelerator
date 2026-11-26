@@ -15,7 +15,7 @@ from typing import Self
 from tasks.shared.build_measurement.record_model import RecordModel
 from tasks.shared.build_measurement.task_graph import TaskGraph
 
-_ANSI_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+ANSI_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _TASK_PREFIX = re.compile(r"\[(?P<task>[^\]]+)\] ?(?P<rest>.*)", re.DOTALL)
 _FINISHED_IN = re.compile(r"Finished in (?P<amount>[\d.]+)(?P<unit>ms|s)")
 _EXITED = re.compile(r"exited with status (?P<status>\d+)")
@@ -23,7 +23,7 @@ _SKIPPING = "sources up-to-date, skipping"
 _TASK_FAILED = "ERROR task failed"
 _BLOCKING = "Blocking waiting for file lock"
 _UNIT = re.compile(r"(?:^|\s)(?P<kind>Compiling|Checking|Documenting) \S+ v")
-_NEXTEST_SUMMARY = re.compile(r"\s*Summary \[\s*(?P<seconds>[\d.]+)s\]")
+NEXTEST_SUMMARY = re.compile(r"\s*Summary \[\s*(?P<seconds>[\d.]+)s\]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,11 +207,18 @@ def _stamped(raw: str) -> StampedLine:
     return StampedLine(at=float(at), text=text)
 
 
+def unprefixed(text: str) -> str:
+    """`text` without its colour or the `[task]` prefix mise gives it."""
+    plain = ANSI_CSI.sub("", text)
+    prefixed = _TASK_PREFIX.fullmatch(plain)
+    return plain if prefixed is None else prefixed["rest"]
+
+
 def attributed_lines(
     lines: Iterable[StampedLine],
 ) -> Iterator[tuple[str, StampedLine]]:
     for line in lines:
-        prefixed = _TASK_PREFIX.fullmatch(_ANSI_CSI.sub("", line.text))
+        prefixed = _TASK_PREFIX.fullmatch(ANSI_CSI.sub("", line.text))
         if prefixed is not None:
             yield (
                 prefixed["task"],
@@ -239,6 +246,13 @@ def _finished_in(line: StampedLine) -> float | None:
 def _exit_status(line: StampedLine) -> int | None:
     exited = _EXITED.fullmatch(_last_segment(line.text))
     return None if exited is None else int(exited["status"])
+
+
+def _says_it_failed(line: StampedLine) -> bool:
+    return (
+        _exit_status(line) is not None
+        or _last_segment(line.text) == _TASK_FAILED
+    )
 
 
 def _is_skip(line: StampedLine) -> bool:
@@ -285,7 +299,7 @@ def tasks_mise_reported_failing(
         dict.fromkeys(
             task
             for task, line in attributed_lines(lines)
-            if _exit_status(line) is not None
+            if _says_it_failed(line)
         )
     )
 
@@ -322,7 +336,7 @@ def _nextest_phase(counted: Iterable[StampedLine]) -> float | None:
     phases = [
         float(summary["seconds"])
         for line in counted
-        if (summary := _NEXTEST_SUMMARY.match(_last_segment(line.text)))
+        if (summary := NEXTEST_SUMMARY.match(_last_segment(line.text)))
         is not None
     ]
     return sum(phases) if phases else None

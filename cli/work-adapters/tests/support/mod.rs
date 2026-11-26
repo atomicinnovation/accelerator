@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 pub mod repo;
+pub mod unsynced_store;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -35,6 +36,7 @@ use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::RecordingTracker;
+use unsynced_store::UnsyncedStore;
 use vcs::tracking::FileTracking;
 use vcs::tracking::RepositoryTracking;
 use vcs::tracking::RootsAnswer;
@@ -43,6 +45,7 @@ use vcs::RepositoryProbe;
 use vcs::VcsKind;
 use vcs::WorkingCopyState;
 use vcs::WorkingCopyStateProbe;
+use vcs_test_support::copies::copy_private_tree;
 use work::dirtiness::Dirtiness;
 use work::id_pattern::IdKey;
 use work::id_pattern::IdPattern;
@@ -166,6 +169,20 @@ impl Repo {
             },
         )?;
         Ok(repo)
+    }
+
+    pub fn seeded_with(
+        seed: impl FnOnce(&Self) -> Result<(), TestError>,
+    ) -> Result<Self, TestError> {
+        let repo = Self::new()?;
+        seed(&repo)?;
+        Ok(repo)
+    }
+
+    pub fn copy_of(template: &Self) -> Result<Self, TestError> {
+        let dir = tempfile::tempdir()?;
+        copy_private_tree(template.root(), dir.path())?;
+        Ok(Self { dir })
     }
 
     pub fn root(&self) -> &Path {
@@ -294,7 +311,7 @@ impl Mutations {
 }
 
 pub struct CountingStore<'m> {
-    inner: FileCorpusStore,
+    inner: UnsyncedStore,
     mutations: &'m Mutations,
 }
 
@@ -429,7 +446,7 @@ impl<'r> Ports<'r> {
         Self {
             repo,
             store: CountingStore {
-                inner: FileCorpusStore::new(repo.root()),
+                inner: UnsyncedStore::new(repo.root()),
                 mutations,
             },
             locks: LockdirLock::with_options(repo.work_dir(), FAST),

@@ -32,6 +32,7 @@ from tests.unit.tasks.shared_fixture_doubles import (
     builder_artefact,
     captured_listing,
     failed,
+    migrate_artefact,
     passed,
 )
 
@@ -142,6 +143,9 @@ UPLIFTED_BINARY = "accelerator-verify"
 BINARY_TWIN = "deps/accelerator_verify-bccc7b6827f71b41"
 SHARED_FIXTURES = "shared-fixtures"
 SHARED_FIXTURES_TWIN = "deps/shared_fixtures-5a1e2b3c4d5e6f70"
+MIGRATE = "accelerator-migrate"
+MIGRATE_TWIN = "deps/accelerator_migrate-6b2f3c4d5e6f7081"
+MIGRATE_VARIABLE = "ACCELERATOR_SHARED_FIXTURES_MIGRATE"
 LIVE_SESSION = "incremental/kernel-1newer"
 SUPERSEDED_SESSION = "incremental/kernel-0older"
 SUPERSEDED_ARTEFACT = "deps/libsmallvec-3d4b3aa50bf88d80.rlib"
@@ -199,6 +203,8 @@ class TestTestUnitCli:
             BINARY_TWIN,
             SHARED_FIXTURES,
             SHARED_FIXTURES_TWIN,
+            MIGRATE,
+            MIGRATE_TWIN,
         ):
             (build_dir / artefact).parent.mkdir(parents=True, exist_ok=True)
             (build_dir / artefact).write_bytes(b"x" * 1_500)
@@ -211,6 +217,8 @@ class TestTestUnitCli:
             UNIT_LISTING,
             UNITS.replace(CAPTURED_BUILD_DIR, str(build_dir))
             + builder_artefact(str(build_dir / SHARED_FIXTURES))
+            + "\n"
+            + migrate_artefact(str(build_dir / MIGRATE))
             + "\n",
         )
         return build_dir
@@ -271,8 +279,20 @@ class TestTestUnitCli:
         )
         [executable, *flags] = shlex.split(builder)
         assert executable == str(build_dir / SHARED_FIXTURES)
-        [matrix_flag, matrix, status_log_flag, status_log] = flags
-        assert (matrix_flag, status_log_flag) == ("--matrix", "--status-log")
+        [
+            matrix_flag,
+            matrix,
+            status_log_flag,
+            status_log,
+            stalled_migration_flag,
+            stalled_migration,
+        ] = flags
+        assert (matrix_flag, status_log_flag, stalled_migration_flag) == (
+            "--matrix",
+            "--status-log",
+            "--stalled-migration",
+        )
+        assert Path(stalled_migration).name == "stalled-migration"
         assert Path(matrix).parent == Path(status_log).parent
         assert Path(matrix).parent.parent == tmp_path / "shared-fixtures"
         assert Path(matrix).name == "matrix"
@@ -388,7 +408,7 @@ class TestTestUnitCli:
 
         out = capsys.readouterr().out
         assert (
-            "  matrix: 1 shared build, 4 adoptions, 0 copies, 0 private builds"
+            "  matrix: 1 shared build, 5 adoptions, 0 copies, 0 private builds"
         ) in out
         assert "  status-log set: 1 shared build" in out
 
@@ -555,6 +575,29 @@ class TestTestUnitCli:
             "shared VCS fixtures: the shared-fixtures builder exited 1 "
             "without saying why"
         ) in str(exc_info.value)
+
+    def test_the_builder_is_handed_the_migrate_executable(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        test_cli.run(lane)
+
+        environment = self._builder_call(lane, build_dir).kwargs["env"]
+        assert environment[MIGRATE_VARIABLE] == str(build_dir / MIGRATE)
+
+    def test_a_listing_without_the_migrate_executable_stops_before_the_tests(
+        self, lane: MagicMock, build_dir: Path
+    ):
+        lane.run.side_effect = _failing_at(
+            UNIT_LISTING,
+            passed(builder_artefact(str(build_dir / SHARED_FIXTURES))),
+        )
+
+        with pytest.raises(
+            Exit, match="cargo: the unit listing builds no accelerator-migrate"
+        ):
+            test_cli.run(lane)
+
+        assert not any("nextest" in c for c in self._commands(lane))
 
     def test_a_listing_without_the_builder_stops_before_the_tests(
         self, lane: MagicMock
@@ -753,6 +796,10 @@ class TestTestUnitCli:
         assert flag == "--matrix"
         assert (
             tests == f"cargo nextest run {test_cli._MANIFEST} -E '{CLASSIFY}'"
+        )
+        assert (
+            MIGRATE_VARIABLE
+            not in self._builder_call(lane, build_dir).kwargs["env"]
         )
 
     def test_a_filter_consuming_only_the_status_log_set_builds_only_it(

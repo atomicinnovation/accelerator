@@ -89,7 +89,13 @@ fn halt_at(repo: &Repo, at: usize) -> Result<(), TestError> {
 }
 
 fn mutations_of_a_whole_run() -> Result<usize, TestError> {
-    let repo = Repo::new()?;
+    mutations_of_a_whole_run_over(|_| Ok(()))
+}
+
+fn mutations_of_a_whole_run_over(
+    seed: impl FnOnce(&Repo) -> Result<(), TestError>,
+) -> Result<usize, TestError> {
+    let repo = Repo::seeded_with(seed)?;
     let mutations = Mutations::new(Fault::Never);
     Ports::new(&repo, &mutations).apply(&clean(&repo))?;
     Ok(mutations.count())
@@ -831,9 +837,11 @@ fn a_work_directory_the_run_cannot_lock_is_named() -> Result<(), TestError> {
 
 mod in_a_real_repository {
     use vcs_adapters::library::InProcessProbe;
+    use vcs_test_support::counted::each_of;
     use vcs_test_support::hermetic::assert_git_is_recent_enough;
     use vcs_test_support::hermetic::assert_jj_matches;
     use vcs_test_support::hermetic::Hermetic;
+    use vcs_test_support::repository_state::RepositoryState;
     use work::rekey::outcome::NotRekeyed;
     use work_adapters::rekey::run::Forcing;
     use work_adapters::rekey::run::RekeyAction;
@@ -841,6 +849,7 @@ mod in_a_real_repository {
 
     use super::halted_at;
     use super::mutations_of_a_whole_run;
+    use super::mutations_of_a_whole_run_over;
     use super::request;
     use super::Fault;
     use super::Mutations;
@@ -851,27 +860,86 @@ mod in_a_real_repository {
     use super::RUN_PLAN;
     use super::SYNCED;
 
+    const SYNCED_ONLY: &str = "meta/notes/synced-only.md";
+
     #[derive(Clone, Copy, Debug)]
     enum Vcs {
         Git,
         Jj,
     }
 
-    fn committed(vcs: Vcs) -> Result<(Repo, Hermetic), TestError> {
-        let repo = Repo::new()?;
-        let env = Hermetic::rooted_at(repo.root())?;
-        match vcs {
-            Vcs::Git => {
-                assert_git_is_recent_enough()?;
-                env.git(&["init", "--quiet"], repo.root())?;
+    impl Vcs {
+        const ALL: [Self; 2] = [Self::Git, Self::Jj];
+    }
+
+    fn seed_synced_only(repo: &Repo) -> Result<(), TestError> {
+        repo.write(SYNCED_ONLY, "See PP-760.\n")
+    }
+
+    /// The corpus committed under one VCS, kept as a template that each
+    /// pass of a test copies rather than rebuilds.
+    struct Committed {
+        template: Repo,
+        env: Hermetic,
+        vcs: Vcs,
+    }
+
+    impl Committed {
+        fn build(vcs: Vcs) -> Result<Self, TestError> {
+            let template = Repo::new()?;
+            let env = Hermetic::rooted_at(template.root())?;
+            match vcs {
+                Vcs::Git => {
+                    assert_git_is_recent_enough()?;
+                    env.git(
+                        &["init", "--quiet", "--template="],
+                        template.root(),
+                    )?;
+                }
+                Vcs::Jj => {
+                    assert_jj_matches("0.43.0")?;
+                    env.jj(&["git", "init", "--no-colocate"], template.root())?;
+                }
             }
-            Vcs::Jj => {
-                assert_jj_matches("0.43.0")?;
-                env.jj(&["git", "init", "--no-colocate"], repo.root())?;
-            }
+            commit_everything(vcs, &template, &env)?;
+            Ok(Self { template, env, vcs })
         }
-        commit_everything(vcs, &repo, &env)?;
-        Ok((repo, env))
+
+        fn then_committing(
+            self,
+            seed: impl FnOnce(&Repo) -> Result<(), TestError>,
+        ) -> Result<Self, TestError> {
+            seed(&self.template)?;
+            commit_everything(self.vcs, &self.template, &self.env)?;
+            Ok(self)
+        }
+
+        /// Packs the objects a copy would otherwise clone one by one.
+        fn packed(self) -> Result<Self, TestError> {
+            let git_dir = match self.vcs {
+                Vcs::Git => ".git",
+                Vcs::Jj => ".jj/repo/store/git",
+            };
+            self.env.git(
+                &["--git-dir", git_dir, "repack", "-a", "-d", "-q"],
+                self.template.root(),
+            )?;
+            Ok(self)
+        }
+
+        fn fresh_copy(&self) -> Result<(Repo, Hermetic), TestError> {
+            let copy = Repo::copy_of(&self.template)?;
+            let env = Hermetic::rooted_at(copy.root())?;
+            Ok((copy, env))
+        }
+
+        fn state(&self) -> Result<RepositoryState, TestError> {
+            Ok(RepositoryState::of(self.template.root(), &self.env)?)
+        }
+
+        fn into_repository(self) -> (Repo, Hermetic) {
+            (self.template, self.env)
+        }
     }
 
     fn commit_everything(
@@ -900,10 +968,83 @@ mod in_a_real_repository {
         }
     }
 
+    const FOUR_FILE_MUTATIONS: usize = 13;
+    const FIVE_FILE_MUTATIONS: usize = 14;
+
+    fn assert_counted_exactly(
+        count: usize,
+        template: &Committed,
+    ) -> Result<(), TestError> {
+        let (halting, _env) = template.fresh_copy()?;
+        halt_at(&halting, count - 1)?;
+        let (completing, _env) = template.fresh_copy()?;
+        let mutations = Mutations::new(Fault::HaltAt(count));
+        let ports = Ports::new(&completing, &mutations);
+
+        let outcome = halted_at(|| ports.apply(&InProcessProbe));
+
+        assert!(
+            matches!(outcome, Ok(Ok(RekeyReport::Rekeyed { resumed: false }))),
+            "halting at mutation {count}: {outcome:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_whole_run_makes_exactly_the_counted_mutations() -> Result<(), TestError>
+    {
+        let four_files = mutations_of_a_whole_run()?;
+        let five_files = mutations_of_a_whole_run_over(seed_synced_only)?;
+
+        assert_eq!(four_files, FOUR_FILE_MUTATIONS);
+        assert_eq!(five_files, FIVE_FILE_MUTATIONS);
+        each_of(2, Vcs::ALL, |vcs| {
+            assert_counted_exactly(four_files, &Committed::build(vcs)?)
+        })?;
+        assert_counted_exactly(
+            five_files,
+            &Committed::build(Vcs::Git)?.then_committing(seed_synced_only)?,
+        )
+    }
+
+    fn assert_a_copy_matches_its_template(
+        template: &Committed,
+    ) -> Result<RepositoryState, TestError> {
+        let (copy, env) = template.fresh_copy()?;
+        let copied = RepositoryState::of(copy.root(), &env)?;
+
+        assert_eq!(copied, template.state()?);
+        Ok(copied)
+    }
+
+    #[test]
+    fn the_kill_tests_copied_repository_matches_its_template(
+    ) -> Result<(), TestError> {
+        each_of(2, Vcs::ALL, |vcs| -> Result<(), TestError> {
+            assert_a_copy_matches_its_template(
+                &Committed::build(vcs)?.packed()?,
+            )?;
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn the_edit_refusal_tests_copied_repository_matches_its_template(
+    ) -> Result<(), TestError> {
+        let copied = assert_a_copy_matches_its_template(
+            &Committed::build(Vcs::Git)?
+                .then_committing(seed_synced_only)?
+                .packed()?,
+        )?;
+
+        assert_eq!(copied.commits.len(), 2);
+        Ok(())
+    }
+
     #[test]
     fn discard_refuses_a_committed_half_run() -> Result<(), TestError> {
         for vcs in [Vcs::Git, Vcs::Jj] {
-            let (repo, env) = committed(vcs)?;
+            let (repo, env) = Committed::build(vcs)?.into_repository();
             halt_at(&repo, 5)?;
             commit_everything(vcs, &repo, &env)?;
             let mutations = Mutations::new(Fault::Never);
@@ -924,41 +1065,54 @@ mod in_a_real_repository {
         Ok(())
     }
 
-    #[test]
-    fn a_run_killed_at_every_write_resumes_over_its_own_writes(
+    fn assert_a_run_killed_at_every_write_resumes(
+        vcs: Vcs,
     ) -> Result<(), TestError> {
-        for vcs in [Vcs::Git, Vcs::Jj] {
-            for at in 0..mutations_of_a_whole_run()? {
-                let (repo, _env) = committed(vcs)?;
-                halt_at(&repo, at)?;
-                let mutations = Mutations::new(Fault::Never);
-                let ports = Ports::new(&repo, &mutations);
+        let halts = 0..mutations_of_a_whole_run()?;
+        let template = Committed::build(vcs)?.packed()?;
+        each_of(FOUR_FILE_MUTATIONS, halts, |at| -> Result<(), TestError> {
+            let (repo, _env) = template.fresh_copy()?;
+            halt_at(&repo, at)?;
+            let mutations = Mutations::new(Fault::Never);
+            let ports = Ports::new(&repo, &mutations);
 
-                let report = ports.apply(&InProcessProbe);
+            let report = ports.apply(&InProcessProbe);
 
-                assert!(
-                    matches!(report, Ok(RekeyReport::Rekeyed { .. })),
-                    "{vcs:?} halted at mutation {at}: {report:?}"
-                );
-            }
-        }
-        Ok(())
+            assert!(
+                matches!(report, Ok(RekeyReport::Rekeyed { .. })),
+                "{vcs:?} halted at mutation {at}: {report:?}"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_run_killed_at_every_write_resumes_over_its_own_writes_in_git(
+    ) -> Result<(), TestError> {
+        assert_a_run_killed_at_every_write_resumes(Vcs::Git)
+    }
+
+    #[test]
+    fn a_run_killed_at_every_write_resumes_over_its_own_writes_in_jj(
+    ) -> Result<(), TestError> {
+        assert_a_run_killed_at_every_write_resumes(Vcs::Jj)
     }
 
     #[test]
     fn a_resume_refuses_an_edit_since_the_halt_to_a_path_not_yet_written(
     ) -> Result<(), TestError> {
-        const SYNCED_ONLY: &str = "meta/notes/synced-only.md";
+        let halts = 0..mutations_of_a_whole_run_over(seed_synced_only)?;
+        let template = Committed::build(Vcs::Git)?
+            .then_committing(seed_synced_only)?
+            .packed()?;
         let mut checked = 0;
-        for at in 0..mutations_of_a_whole_run()? {
-            let (repo, env) = committed(Vcs::Git)?;
-            repo.write(SYNCED_ONLY, "See PP-760.\n")?;
-            commit_everything(Vcs::Git, &repo, &env)?;
+        each_of(FIVE_FILE_MUTATIONS, halts, |at| -> Result<(), TestError> {
+            let (repo, _env) = template.fresh_copy()?;
             halt_at(&repo, at)?;
             let unreached = repo.read(SYNCED).is_some()
                 && repo.read(SYNCED_ONLY).as_deref() == Some("See PP-760.\n");
             if repo.read(RUN_PLAN).is_none() || !unreached {
-                continue;
+                return Ok(());
             }
             repo.write(SYNCED_ONLY, "See PP-760, edited since the halt.\n")?;
             let mutations = Mutations::new(Fault::Never);
@@ -972,8 +1126,9 @@ mod in_a_real_repository {
                 "halted at mutation {at}"
             );
             checked += 1;
-        }
-        assert!(checked > 0, "no halt left the synced entry unreached");
+            Ok(())
+        })?;
+        assert_eq!(checked, 6, "halts leaving the synced-only entry unreached");
         Ok(())
     }
 
@@ -982,7 +1137,7 @@ mod in_a_real_repository {
     ) -> Result<(), TestError> {
         let last = mutations_of_a_whole_run()? - 1;
         for vcs in [Vcs::Git, Vcs::Jj] {
-            let (repo, _env) = committed(vcs)?;
+            let (repo, _env) = Committed::build(vcs)?.into_repository();
             halt_at(&repo, last)?;
             let mutations = Mutations::new(Fault::Never);
             let ports = Ports::new(&repo, &mutations);
@@ -996,5 +1151,201 @@ mod in_a_real_repository {
             );
         }
         Ok(())
+    }
+}
+
+mod an_unsynced_store_writes_as_the_file_store_does {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt as _;
+    use std::path::Path;
+
+    use corpus::store::ExclusiveCreate;
+    use corpus::AtomicWrite;
+    use corpus::FileRemove;
+    use corpus::StoreError;
+    use corpus_adapters::FileCorpusStore;
+
+    use super::support::unsynced_store::UnsyncedStore;
+    use super::TestError;
+
+    trait Store: AtomicWrite + ExclusiveCreate + FileRemove {}
+    impl<S: AtomicWrite + ExclusiveCreate + FileRemove> Store for S {}
+
+    fn for_each_store(
+        case: impl Fn(&dyn Store, &Path) -> Result<(), TestError>,
+    ) -> Result<(), TestError> {
+        let synced = tempfile::tempdir()?;
+        case(&FileCorpusStore::new(synced.path()), synced.path())?;
+        let unsynced = tempfile::tempdir()?;
+        case(&UnsyncedStore::new(unsynced.path()), unsynced.path())
+    }
+
+    fn mode(path: &Path) -> Result<u32, TestError> {
+        Ok(fs::metadata(path)?.permissions().mode() & 0o777)
+    }
+
+    #[test]
+    fn a_write_replaces_the_whole_file_and_keeps_its_mode(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("item.md");
+            fs::write(&path, "old content that is longer")?;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o640))?;
+
+            store.write(&path, b"new")?;
+
+            assert_eq!(fs::read_to_string(&path)?, "new");
+            assert_eq!(mode(&path)?, 0o640);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_write_makes_missing_parents_and_a_file_at_the_umask_mode(
+    ) -> Result<(), TestError> {
+        let fresh = 0o666 & !store::current_umask();
+        for_each_store(|store, root| {
+            let path = root.join("a/b/item.md");
+
+            store.write(&path, b"new")?;
+
+            assert_eq!(fs::read_to_string(&path)?, "new");
+            assert_eq!(mode(&path)?, fresh);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn creating_an_existing_file_is_refused_and_leaves_it_untouched(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("lock");
+            fs::write(&path, "kept")?;
+
+            let refused = store.create_new(&path, b"replacement");
+
+            assert!(
+                matches!(refused, Err(StoreError::AlreadyExists { .. })),
+                "{refused:?}"
+            );
+            assert_eq!(fs::read_to_string(&path)?, "kept");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn creating_makes_missing_parents_and_a_file_at_the_umask_mode(
+    ) -> Result<(), TestError> {
+        let fresh = 0o666 & !store::current_umask();
+        for_each_store(|store, root| {
+            let path = root.join("a/b/lock");
+
+            store.create_new(&path, b"held")?;
+
+            assert_eq!(fs::read_to_string(&path)?, "held");
+            assert_eq!(mode(&path)?, fresh);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn creating_in_a_directory_that_cannot_be_written_is_not_writable(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let locked = root.join("locked");
+            fs::create_dir(&locked)?;
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o555))?;
+
+            let refused = store.create_new(&locked.join("lock"), b"held");
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o755))?;
+
+            assert!(
+                matches!(refused, Err(StoreError::NotWritable { .. })),
+                "{refused:?}"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_write_through_a_symlink_out_of_the_root_is_refused(
+    ) -> Result<(), TestError> {
+        let outside = tempfile::tempdir()?;
+        for_each_store(|store, root| {
+            std::os::unix::fs::symlink(outside.path(), root.join("escape"))?;
+
+            let write = store.write(&root.join("escape/item.md"), b"new");
+            let create = store.create_new(&root.join("escape/lock"), b"held");
+
+            assert!(
+                matches!(write, Err(StoreError::UnsafePath { .. })),
+                "{write:?}"
+            );
+            assert!(
+                matches!(create, Err(StoreError::UnsafePath { .. })),
+                "{create:?}"
+            );
+            Ok(())
+        })?;
+        assert_eq!(fs::read_dir(outside.path())?.count(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn a_target_that_is_a_symlink_out_of_the_root_is_refused(
+    ) -> Result<(), TestError> {
+        let outside = tempfile::tempdir()?;
+        let escaped = outside.path().join("item.md");
+        fs::write(&escaped, "outside")?;
+        for_each_store(|store, root| {
+            let path = root.join("item.md");
+            std::os::unix::fs::symlink(&escaped, &path)?;
+
+            let write = store.write(&path, b"new");
+            let create = store.create_new(&path, b"held");
+
+            assert!(
+                matches!(write, Err(StoreError::UnsafePath { .. })),
+                "{write:?}"
+            );
+            assert!(
+                matches!(create, Err(StoreError::UnsafePath { .. })),
+                "{create:?}"
+            );
+            Ok(())
+        })?;
+        assert_eq!(fs::read_to_string(&escaped)?, "outside");
+        Ok(())
+    }
+
+    #[test]
+    fn removing_deletes_a_file_and_accepts_an_absent_one(
+    ) -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("item.md");
+            fs::write(&path, "gone")?;
+
+            store.remove(&path)?;
+            store.remove(&path)?;
+
+            assert!(!path.exists());
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn a_failed_write_leaves_no_temporary_behind() -> Result<(), TestError> {
+        for_each_store(|store, root| {
+            let path = root.join("lock");
+            fs::write(&path, "kept")?;
+
+            let _refused = store.create_new(&path, b"replacement");
+
+            let entries: Vec<_> = fs::read_dir(root)?
+                .map(|entry| entry.map(|entry| entry.file_name()))
+                .collect::<Result<_, _>>()?;
+            assert_eq!(entries, vec![std::ffi::OsString::from("lock")]);
+            Ok(())
+        })
     }
 }

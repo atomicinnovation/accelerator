@@ -312,29 +312,34 @@ assurance beside it, and what proves it ran is the committed evidence file.
 
 ### Shared VCS fixtures
 
-`test:unit:cli` builds the VCS fixture matrix and the status-log set once per
-run and hands them to every test that needs them, rather than letting each
-test build its own. Before
-nextest's test phase it compiles the workspace tests with the same arguments
-nextest uses (so nextest compiles nothing afterwards, and the task fails if
-it does), finds the `shared-fixtures` bin in that build's unit listing and
-runs it once. Under coverage the bin runs in the instrumented environment, so
-the builder code it exercises still counts towards the floor.
+`test:unit:cli` builds three shared families once per run, the VCS fixture
+matrix, the status-log set and the stalled-migration set, and hands them to
+every test that needs them, rather than letting each test build its own.
+Before nextest's test phase it compiles the workspace tests with the same
+arguments nextest uses (so nextest compiles nothing afterwards, and the task
+fails if it does), finds the `shared-fixtures` bin in that build's unit
+listing and runs it once. The stalled-migration set runs migrate, so the task
+also finds the `accelerator-migrate` bin in the same listing and names it to
+the builder through `ACCELERATOR_SHARED_FIXTURES_MIGRATE`. Each family builds
+on its own thread, and the task prints one `built in` line per family as well
+as the combined one. Under coverage the bin runs in the instrumented
+environment, so the builder code it exercises still counts towards the floor.
 
 The trees live under one root per user,
 `<temp>/accelerator-shared-fixtures-<uid>/` with mode `0700`, where `<temp>`
 is the resolved system temp directory: `<run-id>.lock` beside
-`<run-id>/{matrix,status-log,workbenches}/`. A run holds an `flock` on its
-lock for its lifetime, and each run starts by sweeping the directories of
-runs whose lock nobody holds, so a killed run's leftovers go on the next run. The root is
-refused if it is a symlink, not a directory, owned by someone else, writable
-by group or world, or inside a checkout; move it aside and the next run
-recreates it.
+`<run-id>/{matrix,status-log,stalled-migration,workbenches}/`. A run holds an
+`flock` on its lock for its lifetime, and each run starts by sweeping the
+directories of runs whose lock nobody holds, so a killed run's leftovers go on
+the next run. The root is refused if it is a symlink, not a directory, owned
+by someone else, writable by group or world, or inside a checkout; move it
+aside and the next run recreates it.
 
-The task hands the trees over through `ACCELERATOR_SHARED_MATRIX` and
-`ACCELERATOR_SHARED_STATUS_LOG`, the directory tests open their workbenches
-under through `ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
-`ACCELERATOR_FIXTURE_LOG`. The task owns all four: never export them, and an
+The task hands the trees over through `ACCELERATOR_SHARED_MATRIX`,
+`ACCELERATOR_SHARED_STATUS_LOG` and `ACCELERATOR_SHARED_STALLED_MIGRATION`,
+the directory tests open their workbenches under through
+`ACCELERATOR_SHARED_WORKBENCHES`, and the fixture log through
+`ACCELERATOR_FIXTURE_LOG`. The task owns all five: never export them, and an
 exported value never reaches the run. Every build, adoption, copy and private
 build is logged to `cli/target/vcs-fixture-logs/<run-id>.jsonl`, which
 outlives the run (the newest 20 are kept). When the run ends, pass or fail,
@@ -379,7 +384,35 @@ copying, the workbench scans the copy for any file naming the shared tree
 (`path_scan::files_naming`); a hit is logged with the copy and fails the
 test, because the copy would read or write the shared tree through it. The
 matrix is never copied: it records absolute paths throughout, and every
-matrix consumer only reads it.
+matrix consumer only reads it. One consumer,
+`vcs-test-support::matrix_private_build`, adopts the matrix only to compare
+it with a private build, and builds a second one itself when nothing is
+handed over.
+
+The stalled-migration set holds four jj repositories on which migrate's 0007
+run has stalled, one per colocation (`Pure`, `Colocated`) and parent shape
+(`SingleParent`, `MergeWithSibling`). Its one consumer,
+`accelerator-migrate::guarded_resume`, copies the stall each test needs by its
+`StallKey`, passing the migrate binary a private build would run:
+
+```rust
+let stalls = workbench.writable_stalled_migrations(
+    key,
+    &MigrateBinary(PathBuf::from(env!("CARGO_BIN_EXE_accelerator-migrate"))),
+)?;
+let stall = stalls.stall(key)?;
+```
+
+A stall that does not stall fails the whole build step, naming its key,
+migrate's exit code and its stderr. That is deliberate: a private build would
+fail the same way, so falling back to one would turn one failure naming the
+cause into the same failure in every `guarded_resume` test.
+
+The build step runs before any test, so the recipe it follows cannot live in
+`migrate-cli`'s tests. `vcs-test-support`'s `stalled_migration` module holds
+all of migrate's test knowledge instead: the corpus the run stalls on, how a
+test invokes migrate, and the ordered ledger of every migration in
+`stalling_corpus::MIGRATIONS`. Adding a migration means appending it there.
 
 The private sets (the cap, bookmark and parity states) are never shared.
 Pass their builder to the workbench, which builds the set in its directory
@@ -394,7 +427,10 @@ let states = workbench.private_states(status_log::build_cap_states)?;
   run's log. A guard (`tests/unit/tasks/test_fixture_builds.py`) refuses it
   outside the files that test the workbench itself, refuses `copy_part`
   outside the copy's own tests, and refuses a direct call to a private-set
-  builder anywhere in a test.
+  builder anywhere in a test. It also permits `copy_private_tree`, which
+  copies without logging, only in the files listed beside it in
+  `GUARDED_CALLS`, each copying a template its own test built; list a new
+  caller there.
 - A test binary that uses a shared family for the first time goes in
   `CONSUMERS` in `tasks/shared/shared_fixtures/consumers.py`, with the
   families it consumes. Until it does, the run fails naming the binary and
@@ -424,7 +460,7 @@ hand. Neither is for CI.
 
 | Variable | Effect |
 |---|---|
-| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix` or `status-log`) without building it; any other value is refused. |
+| `ACCELERATOR_SHARED_FIXTURES_FAIL` | The builder fails the named family (`matrix`, `status-log` or `stalled-migration`) without building it; any other value is refused. |
 | `ACCELERATOR_SHARED_FIXTURES_HOLD` | A directory: after the build step the task writes `held` there and waits up to 30 minutes for `release`. Refused when `CI` is set. |
 
 ### The gix/jj-lib link-ratio guard
@@ -509,7 +545,7 @@ contain.
 
 **Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host,
 `measure:build` is operator-run on a macOS host, and `measure:compare-builds`
-is operator-run on any host.
+and `measure:test-durations` are operator-run on any host.
 `test:integration:measure` is the namespace's owner against rot — n = 2, floors
 only, no gating figure — and belongs to its own non-blocking CI job, because a
 module no automated path executes rots invisibly against volatile external
@@ -659,6 +695,23 @@ words, and a process tracked by different patterns is named but not compared.
 `--task <name>` adds that task's duration and nextest-phase changes. The cargo
 unit totals, with their total, are compared when every run in each record agrees
 on them; otherwise the report names the record whose runs vary.
+
+**Per-test durations.** `measure:test-durations` reads nextest's pass lines
+(`PASS`, `TRY n PASS` and `LEAK`, the final attempt winning) and prints, for
+each `--binary`, every test's duration in each run and its median, the binary's
+total test-seconds and its slowest test. `--record <run id>` reads a run
+directory's `run-*-test_unit_cli.log` files and adds each run's phase end and
+last three finishers; `--log <path or glob>` reads alone-run logs instead,
+taken with `mise run test:unit:cli --filter 'binary_id(<binary>)' 2>&1 | tee
+<log>`. A figure is combined within each run before its median is taken:
+`--charge '<binary> <checker>=<binary> <target>'` adds a state-equality test's
+duration to the test whose state it checks, and `--served-by
+<binary>=<family>` adds a shared fixture family's build time, read from the
+build step's per-family `built in` lines, to the binary's test-seconds. After
+the binaries it prints each built family's build time the same way. It reads
+from exactly one of `--record` and `--log`, needs at least one `--binary`, and
+refuses a figure no run can supply, such as a target and its checker that
+never pass in the same run.
 
 **Run directories.** The `build_*` run directories under
 `.accelerator-measure/build/` are never pruned. They hold the only raw logs
@@ -1407,6 +1460,35 @@ A config adapter that needs VCS asks the `vcs` domain's ports, injected at
 the composition root, and never depends on `vcs-adapters`.
 `cli/config-adapters`' dependents include the launcher and the visualiser
 server, so `gix` and `jj-lib` stay out of both.
+
+## Registering a shared fixture family
+
+A shared family is built once per `test:unit:cli` run by the
+`shared-fixtures` bin and adopted or copied by every test that uses it. Its
+Rust and Python halves agree through the files under
+`cli/vcs-test-support/contract/`, which tests on both sides read:
+
+1. Add the variant to `Family` and `Family::ALL` in
+   `cli/vcs-test-support/src/family.rs`, with its name, flag and handover
+   variable.
+2. Implement `SharedFamily` for the family's type, and `CopyableFamily` if
+   tests copy its parts. A shared build writes a manifest beside the tree, so
+   `adopt` builds nothing.
+3. Give the type an inherent `build_for_sharing` and an arm for it in
+   `build_for_sharing` in `src/shared_build.rs`. A family whose builder needs
+   inputs reads them there.
+4. Add the `Workbench` method tests reach it through, in `src/workbench.rs`.
+5. Add it to `contract/flags.json` and to `handover` in
+   `contract/variables.json`, and to `executables` there if its builder runs
+   one of the workspace's binaries.
+6. Add the member and its `_Traits` to
+   `tasks/shared/shared_fixtures/families.py`, matching the contract.
+7. List each test binary that uses it in `CONSUMERS` in
+   `tasks/shared/shared_fixtures/consumers.py`.
+8. Guard any route to its build or copy that bypasses the fixture log in
+   `tests/unit/tasks/test_fixture_builds.py`.
+9. Name it in "Shared VCS fixtures" above and in the
+   `ACCELERATOR_SHARED_FIXTURES_FAIL` row.
 
 ## CI job → local command
 

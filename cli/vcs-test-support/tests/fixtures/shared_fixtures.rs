@@ -1,6 +1,8 @@
 //! Builds the requested shared fixture families once, before a run's tests.
 //!
-//! Usage: `shared-fixtures [--matrix <tree>] [--status-log <tree>]`. Each
+//! Usage: `shared-fixtures [--matrix <tree>] [--status-log <tree>]
+//! [--stalled-migration <tree>]`; the stalled-migration set also needs
+//! `ACCELERATOR_SHARED_FIXTURES_MIGRATE` to name the migrate executable. Each
 //! family that fails is printed as `<family>: <cause>` on stderr.
 #![allow(clippy::print_stderr)]
 

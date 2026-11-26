@@ -125,7 +125,9 @@ pub(crate) fn io(path: &Path, error: &IoError) -> StoreError {
     }
 }
 
-pub(crate) fn to_store_error(error: WriteError) -> StoreError {
+/// The corpus's reading of a refusal from the `store` crate.
+#[must_use]
+pub fn to_store_error(error: WriteError) -> StoreError {
     match error {
         WriteError::NotWritable { path, detail } => {
             StoreError::NotWritable { path, detail }
