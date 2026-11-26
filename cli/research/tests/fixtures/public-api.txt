@@ -106,6 +106,20 @@ impl core::marker::Copy for research::conduct::concurrency::SubagentCap
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::SubagentCap
 pub const research::conduct::concurrency::BUILT_IN_CONCURRENCY: core::num::nonzero::NonZeroU32
 pub mod research::conduct::ledger
+pub enum research::conduct::ledger::NotOffered
+pub research::conduct::ledger::NotOffered::MovedPast
+pub research::conduct::ledger::NotOffered::Never
+pub research::conduct::ledger::NotOffered::OfferedBeforeSnapshots
+pub research::conduct::ledger::NotOffered::SnapshotDiscarded
+impl core::clone::Clone for research::conduct::ledger::NotOffered
+pub fn research::conduct::ledger::NotOffered::clone(&self) -> research::conduct::ledger::NotOffered
+impl core::cmp::Eq for research::conduct::ledger::NotOffered
+impl core::cmp::PartialEq for research::conduct::ledger::NotOffered
+pub fn research::conduct::ledger::NotOffered::eq(&self, other: &research::conduct::ledger::NotOffered) -> bool
+impl core::fmt::Debug for research::conduct::ledger::NotOffered
+pub fn research::conduct::ledger::NotOffered::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::conduct::ledger::NotOffered
+impl core::marker::StructuralPartialEq for research::conduct::ledger::NotOffered
 pub struct research::conduct::ledger::OwedQuarantine
 pub research::conduct::ledger::OwedQuarantine::stems: alloc::vec::Vec<research::topic::layout::stem::Stem>
 impl core::clone::Clone for research::conduct::ledger::OwedQuarantine
@@ -138,7 +152,7 @@ pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::t
 pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
 pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory, search_budgets: core::option::Option<research::conduct::search_budget::SearchBudgets>) -> Self
 pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
-pub fn research::conduct::ledger::RunLedger::offered_context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<&research::conduct::offered_nodes::NodeContext>
+pub fn research::conduct::ledger::RunLedger::offered_context(&self, at: &research::topic::layout::note_ref::NoteRef) -> core::result::Result<&research::conduct::offered_nodes::NodeContext, research::conduct::ledger::NotOffered>
 pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId

@@ -892,7 +892,7 @@ Each exit code below exits `1`:
 | Code | Cause | Recovery |
 |---|---|---|
 | `E_TOPIC_RESEARCH_NODE` | `--node` is not a node's spawn ref, `<stem>:<lineage>` | pass the node's `spawn` from the plan |
-| `E_TOPIC_RESEARCH_NODE_NOT_OFFERED` | the run's current offered batch holds no context for the node, as when its batch was acknowledged before the researcher ran the query | re-run `conduct`, whose fresh run offers the node again |
+| `E_TOPIC_RESEARCH_NODE_NOT_OFFERED` | the run's current offered batch holds no context for the node, and the message says why: `conduct` moved past its batch before the query ran, the run never offered it, the ledger discarded its context as malformed, or the node was offered before its ledger kept offered contexts | re-run `conduct`, whose fresh run offers the node again; for a node `conduct` moved past, first check that it waits for every spawn of a batch, and for one never offered, that the spawn ref is passed unchanged |
 | `E_TOPIC_RESEARCH_RUN` | a malformed `--run` | pass the run id `conduct` injected |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt or unreadable | re-run `conduct` to start a fresh run |

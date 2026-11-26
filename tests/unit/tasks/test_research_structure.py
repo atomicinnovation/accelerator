@@ -3214,22 +3214,28 @@ def test_the_researcher_reports_node_query_failures() -> None:
     )
 
 
-NODE_ACKNOWLEDGED_EARLY = (
-    "its batch was acknowledged before the researcher ran the query"
+NOT_OFFERED_CAUSES = (
+    "moved past its batch",
+    "never offered",
+    "discarded",
+    "before its ledger kept offered contexts",
 )
 
 
-def test_a_node_refused_as_not_offered_names_an_early_acknowledgement() -> None:
-    not_offered = _row_for(
-        "E_TOPIC_RESEARCH_NODE_NOT_OFFERED", "from the node query"
+def test_each_cause_of_a_node_not_offered_has_its_next_step() -> None:
+    node_command = _rust_text(
+        REPO_ROOT / "cli/research-cli/src/node_command.rs"
     )
-    assert NODE_ACKNOWLEDGED_EARLY in not_offered
-    not_offered = next(
+    row = _row_for("E_TOPIC_RESEARCH_NODE_NOT_OFFERED", "from the node query")
+    documented = next(
         line
         for line in _read(DOCS_RESEARCH).splitlines()
         if line.startswith("| `E_TOPIC_RESEARCH_NODE_NOT_OFFERED` |")
     )
-    assert NODE_ACKNOWLEDGED_EARLY in not_offered
+    for cause in NOT_OFFERED_CAUSES:
+        assert cause in node_command, f"the query no longer says {cause!r}"
+        assert f'"{cause}"' in row, f"no next step for {cause!r}"
+        assert cause in documented, f"the docs do not name {cause!r}"
 
 
 def test_every_skill_spawning_node_researchers_grants_the_node_query() -> None:

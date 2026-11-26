@@ -51,11 +51,18 @@ fn budgeted_run(project: &Project) -> Result<String, TestError> {
     Ok(run)
 }
 
-fn not_offered(at: &str, run: &str) -> String {
+fn moved_past(at: &str, run: &str) -> String {
     format!(
-        "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: node {at} is not in run {run}'s \
-         current offered batch, which conduct may have acknowledged before \
-         this query ran; re-run conduct"
+        "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: node {at} is no longer pending in \
+         run {run}: conduct moved past its batch before this query ran, so \
+         wait for every spawn of a batch before the next plan; re-run conduct"
+    )
+}
+
+fn never_offered(at: &str, run: &str) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: run {run} never offered node {at}; \
+         pass the spawn ref conduct injected, unchanged; re-run conduct"
     )
 }
 
@@ -238,7 +245,7 @@ fn a_repeat_plan_keeps_pending_nodes_first_context() -> Result<(), TestError> {
     }
     assert_exits_1(
         &project.node(&run, "03-a-web:2-1")?,
-        &not_offered("03-a-web:2-1", &run),
+        &moved_past("03-a-web:2-1", &run),
     );
     Ok(())
 }
@@ -291,7 +298,7 @@ fn a_node_offered_only_in_an_earlier_batch_is_refused() -> Result<(), TestError>
 
     assert_exits_1(
         &project.node(&run, "03-a-web:2-1")?,
-        &not_offered("03-a-web:2-1", &run),
+        &moved_past("03-a-web:2-1", &run),
     );
     let offered: Vec<&Value> = plan["pairs"]
         .as_array()
@@ -342,9 +349,14 @@ fn a_web_node_withheld_after_a_halt_is_refused() -> Result<(), TestError> {
         .concat(),
     )?;
 
-    for at in ["03-a-web:2-2", "03-a-web:2-1"] {
-        assert_exits_1(&project.node(&run, at)?, &not_offered(at, &run));
-    }
+    assert_exits_1(
+        &project.node(&run, "03-a-web:2-2")?,
+        &never_offered("03-a-web:2-2", &run),
+    );
+    assert_exits_1(
+        &project.node(&run, "03-a-web:2-1")?,
+        &moved_past("03-a-web:2-1", &run),
+    );
     Ok(())
 }
 
@@ -463,7 +475,7 @@ fn a_node_the_run_never_offered_is_refused() -> Result<(), TestError> {
 
     assert_exits_1(
         &project.node(&run, "03-a-web:2-9")?,
-        &not_offered("03-a-web:2-9", &run),
+        &never_offered("03-a-web:2-9", &run),
     );
     Ok(())
 }
@@ -539,6 +551,13 @@ fn the_plan_after_a_malformed_snapshot_says_it_was_discarded(
     let mut stored = stored_ledger(&project)?;
     stored["pending"]["offered_nodes"] = json!("malformed");
     fs::write(project.ledger(), stored.to_string())?;
+    assert_exits_1(
+        &project.node(&run, AT)?,
+        &format!(
+            "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: run {run}'s ledger discarded \
+             node {AT}'s context as malformed; re-run conduct"
+        ),
+    );
 
     let plan = continued(&project, &run, &DEPTH)?;
 
@@ -549,5 +568,27 @@ fn the_plan_after_a_malformed_snapshot_says_it_was_discarded(
     queried(&project, &run, AT)?;
     let next = continued(&project, &run, &DEPTH)?;
     assert!(!warnings(&next)?.contains(&json!(DISCARDED_SNAPSHOT)));
+    Ok(())
+}
+
+#[test]
+fn a_node_offered_before_snapshots_were_kept_is_refused_as_such(
+) -> Result<(), TestError> {
+    let project = node_query_set()?;
+    let run = budgeted_run(&project)?;
+    let mut stored = stored_ledger(&project)?;
+    stored["pending"]
+        .as_object_mut()
+        .ok_or("no pending batch")?
+        .remove("offered_nodes");
+    fs::write(project.ledger(), stored.to_string())?;
+
+    assert_exits_1(
+        &project.node(&run, AT)?,
+        &format!(
+            "E_TOPIC_RESEARCH_NODE_NOT_OFFERED: run {run} offered node {AT} \
+             before its ledger kept offered contexts; re-run conduct"
+        ),
+    );
     Ok(())
 }
