@@ -143,6 +143,17 @@ describe("fetchDocs", () => {
     expect(doc.id).toBeNull();
   });
 
+  it("reads an entry from a server that predates sets as outside any set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        docs: [{ type: "plans", path: "/p", relPath: "r" }],
+      }),
+    });
+    const [doc] = await fetchDocs("plans");
+    expect([doc.setId, doc.setRelativePath]).toEqual([null, null]);
+  });
+
   it("url-encodes the type parameter", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -647,14 +658,38 @@ describe("fetchSearch", () => {
     ).toBe("/library/plans/foo");
   });
 
+  it("reads a row from a server that predates sets as outside any set", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            docType: "plans",
+            title: "Foo",
+            slug: "foo",
+            id: null,
+            relPath: "meta/plans/2026-01-01-foo.md",
+            mtimeMs: 1,
+          },
+        ],
+      }),
+    });
+
+    const [row] = await fetchSearch("foo");
+
+    expect([row.setId, row.setRelativePath]).toEqual([null, null]);
+  });
+
   it("returns results on 2xx", async () => {
     const row = {
-      docType: "plans",
-      title: "Foo",
-      slug: "foo",
-      id: null,
-      relPath: "meta/plans/2026-01-01-foo.md",
+      docType: "topic-research",
+      title: "Cost model",
+      slug: "prompt-caching",
+      id: "prompt-caching",
+      relPath: "meta/research/topics/prompt-caching/findings/01-cost.md",
       mtimeMs: 1,
+      setId: "prompt-caching",
+      setRelativePath: "findings/01-cost.md",
     };
     mockFetch.mockResolvedValueOnce({
       ok: true,

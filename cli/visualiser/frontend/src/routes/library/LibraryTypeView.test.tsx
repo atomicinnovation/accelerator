@@ -70,6 +70,8 @@ const mockEntries: IndexEntry[] = [
     completeness: null,
     linkedCount: 0,
     clusterKey: null,
+    setId: null,
+    setRelativePath: null,
   },
   {
     type: "plans",
@@ -91,6 +93,8 @@ const mockEntries: IndexEntry[] = [
     completeness: null,
     linkedCount: 0,
     clusterKey: null,
+    setId: null,
+    setRelativePath: null,
   },
 ];
 

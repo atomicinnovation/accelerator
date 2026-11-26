@@ -122,13 +122,21 @@ type WireDocType = Omit<DocType, "set"> & { set?: DocType["set"] };
  *  the boundary. */
 type WireIndexEntry = Omit<
   IndexEntry,
-  "completeness" | "linkedCount" | "draft" | "workItemKey" | "id"
+  | "completeness"
+  | "linkedCount"
+  | "draft"
+  | "workItemKey"
+  | "id"
+  | "setId"
+  | "setRelativePath"
 > & {
   completeness?: IndexEntry["completeness"];
   linkedCount?: number;
   draft?: boolean;
   workItemKey?: string | null;
   id?: string | null;
+  setId?: string | null;
+  setRelativePath?: string | null;
 };
 
 /** Normalises an `IndexEntry` shape from the wire. Servers older than the
@@ -143,6 +151,8 @@ function normaliseEntry(raw: WireIndexEntry): IndexEntry {
     draft: raw.draft ?? false,
     workItemKey: raw.workItemKey ?? null,
     id: raw.id ?? null,
+    setId: raw.setId ?? null,
+    setRelativePath: raw.setRelativePath ?? null,
   };
 }
 
@@ -251,20 +261,31 @@ export interface SearchResult {
   id: string | null;
   relPath: string;
   mtimeMs: number;
+  setId: string | null;
+  setRelativePath: string | null;
 }
 
-type WireSearchResult = Omit<SearchResult, "id" | "relPath"> & {
+type WireSearchResult = Omit<
+  SearchResult,
+  "id" | "relPath" | "setId" | "setRelativePath"
+> & {
   id?: string | null;
   relPath?: string;
+  setId?: string | null;
+  setRelativePath?: string | null;
 };
 
 /** A server that predates ids sends neither `id` nor `relPath`, so its rows
  *  are addressed by their slug, which the library still resolves. */
 function normaliseSearchResult(raw: WireSearchResult): SearchResult {
+  const set = {
+    setId: raw.setId ?? null,
+    setRelativePath: raw.setRelativePath ?? null,
+  };
   if (raw.relPath === undefined) {
-    return { ...raw, id: raw.slug, relPath: "" };
+    return { ...raw, ...set, id: raw.slug, relPath: "" };
   }
-  return { ...raw, id: raw.id ?? null, relPath: raw.relPath };
+  return { ...raw, ...set, id: raw.id ?? null, relPath: raw.relPath };
 }
 
 export async function fetchSearch(

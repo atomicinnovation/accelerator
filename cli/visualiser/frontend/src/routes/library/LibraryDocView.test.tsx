@@ -34,6 +34,8 @@ const mockEntry: IndexEntry = {
   completeness: null,
   linkedCount: 0,
   clusterKey: null,
+  setId: null,
+  setRelativePath: null,
 };
 
 function Wrapper({ children }: { children: React.ReactNode }) {

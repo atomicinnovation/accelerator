@@ -66,6 +66,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     render(
@@ -94,6 +96,40 @@ describe("SearchResultsPanel", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it("renders a set's root and each of its members as rows of their own", async () => {
+    const qc = makeClient();
+    const setRow = (relativePath: string) => ({
+      docType: "topic-research" as const,
+      title: "Caching",
+      slug: "caching",
+      id: "caching",
+      relPath: `meta/research/topics/caching/${relativePath}`,
+      mtimeMs: 1,
+      setId: "caching",
+      setRelativePath: relativePath,
+    });
+    vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
+      setRow("manifest.md"),
+      setRow("brief.md"),
+      setRow("findings/01-cost.md"),
+    ]);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    render(
+      <Wrap qc={qc}>
+        <SearchResultsPanel query="caching" />
+      </Wrap>,
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    await flushMicrotasks();
+
+    expect(screen.getAllByRole("option")).toHaveLength(3);
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
   it("renders one row per result with the expected href in response order", async () => {
     const qc = makeClient();
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
@@ -104,6 +140,8 @@ describe("SearchResultsPanel", () => {
         id: "2026-01-01-PP-1-first",
         relPath: "meta/plans/2026-01-01-first.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
       {
         docType: "decisions",
@@ -112,6 +150,8 @@ describe("SearchResultsPanel", () => {
         id: "ADR-0002",
         relPath: "meta/decisions/ADR-0002-second.md",
         mtimeMs: 2,
+        setId: null,
+        setRelativePath: null,
       },
       {
         docType: "codebase-research",
@@ -120,6 +160,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/research/codebase/2026-01-03-third.md",
         mtimeMs: 3,
+        setId: null,
+        setRelativePath: null,
       },
       {
         docType: "topic-research",
@@ -128,6 +170,8 @@ describe("SearchResultsPanel", () => {
         id: "b",
         relPath: "meta/research/topics/b/manifest.md",
         mtimeMs: 4,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     render(
@@ -166,6 +210,8 @@ describe("SearchResultsPanel", () => {
         id: "2026-01-01-foo-review-1",
         relPath: "meta/reviews/plans/2026-01-01-foo-review-1.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
       {
         docType: "plan-reviews",
@@ -174,6 +220,8 @@ describe("SearchResultsPanel", () => {
         id: "2026-01-01-foo-review-2",
         relPath: "meta/reviews/plans/2026-01-01-foo-review-2.md",
         mtimeMs: 2,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     render(
@@ -237,6 +285,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/pp.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
       {
         docType: "work-items",
@@ -245,6 +295,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/pwi.md",
         mtimeMs: 2,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { container } = render(
@@ -274,6 +326,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { container } = render(
@@ -300,6 +354,8 @@ describe("SearchResultsPanel", () => {
         id: "2026-06-10-bash-prefix",
         relPath: "meta/research/issues/2026-06-10-bash-prefix.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     render(
@@ -328,6 +384,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo-bar-baz.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { container } = render(
@@ -354,6 +412,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { container } = render(
@@ -380,6 +440,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
       {
         docType: "plans",
@@ -388,6 +450,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo2.md",
         mtimeMs: 2,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { container } = render(
@@ -418,6 +482,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { container } = render(
@@ -443,6 +509,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     render(
@@ -511,6 +579,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     render(
@@ -537,6 +607,8 @@ describe("SearchResultsPanel", () => {
         id: null,
         relPath: "meta/foo.md",
         mtimeMs: 1,
+        setId: null,
+        setRelativePath: null,
       },
     ]);
     const { rerender } = render(
@@ -574,6 +646,8 @@ describe("SearchResultsPanel", () => {
             id: null,
             relPath: "meta/foo.md",
             mtimeMs: 1,
+            setId: null,
+            setRelativePath: null,
           },
           {
             docType: "plans",
@@ -582,6 +656,8 @@ describe("SearchResultsPanel", () => {
             id: null,
             relPath: "meta/bar.md",
             mtimeMs: 2,
+            setId: null,
+            setRelativePath: null,
           },
         ] as fetchModule.SearchResult[]);
       }
