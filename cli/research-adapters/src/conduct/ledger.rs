@@ -128,6 +128,7 @@ fn ledger_to(ledger: &RunLedger) -> Value {
         "pending": {
             "number": memory.pending.number(),
             "spawns": spawns(&mut memory.pending.spawns().iter()),
+            "offered_nodes": offered_nodes_to(memory.pending.nodes()),
         },
         "claims": claims,
         "attempted": spawns(&mut memory.attempted.iter()),
@@ -147,7 +148,6 @@ fn ledger_to(ledger: &RunLedger) -> Value {
             .map(ToString::to_string)
             .collect::<Vec<_>>(),
         "withheld": memory.withheld.profiles().collect::<Vec<_>>(),
-        "offered_nodes": offered_nodes_to(memory.pending.nodes()),
     });
     if let Some(budgets) = ledger.search_budgets() {
         stored["search_budgets"] = search_budgets_to(budgets);
@@ -193,7 +193,11 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
                 number(pending.get("number")?)?,
                 Offer::new(
                     spawn_list(pending.get("spawns")?)?,
-                    offered_nodes_from(value.get("offered_nodes")),
+                    offered_nodes_from(
+                        pending
+                            .get("offered_nodes")
+                            .or_else(|| value.get("offered_nodes")),
+                    ),
                 ),
             ),
             attempted: spawn_list(value.get("attempted")?)?
@@ -584,7 +588,6 @@ mod tests {
                 "attempted",
                 "claims",
                 "just_acknowledged",
-                "offered_nodes",
                 "owed_quarantine",
                 "pending",
                 "run",
@@ -594,6 +597,10 @@ mod tests {
             ]
         );
         assert_eq!(keys(&written["seen"]), ["answered", "notes"]);
+        assert_eq!(
+            keys(&written["pending"]),
+            ["number", "offered_nodes", "spawns"]
+        );
         assert_eq!(written["claims"], json!({"A ?": 3}));
         assert_eq!(
             written["search_budgets"],
@@ -605,7 +612,7 @@ mod tests {
         );
         assert_eq!(written["withheld"], json!(["web"]));
         assert_eq!(
-            written["offered_nodes"],
+            written["pending"]["offered_nodes"],
             json!({
                 "03-a-web:2-1": {
                     "profile": "web",
@@ -783,8 +790,21 @@ mod tests {
         snapshot: serde_json::Value,
     ) -> Result<RunLedger, TestError> {
         let mut ledger = pending_nodes();
-        ledger["offered_nodes"] = snapshot;
+        ledger["pending"]["offered_nodes"] = snapshot;
         Ok(read(&stored(&ledger))?.ok_or("no ledger")?)
+    }
+
+    #[test]
+    fn a_snapshot_stored_beside_pending_is_still_read() -> Result<(), TestError>
+    {
+        let snapshot = json!({"03-a-web:2-1": asked("A?")});
+        let mut beside = pending_nodes();
+        beside["offered_nodes"] = snapshot.clone();
+
+        let ledger = read(&stored(&beside))?.ok_or("no ledger")?;
+
+        assert_eq!(ledger, snapshotting(snapshot)?);
+        Ok(())
     }
 
     fn unsnapshotted() -> Result<RunLedger, TestError> {

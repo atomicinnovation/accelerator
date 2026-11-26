@@ -840,7 +840,7 @@ fn a_started_run_records_its_offered_nodes() -> Result<(), TestError> {
         })
     };
     assert_eq!(
-        stored_ledger(&project)?["offered_nodes"],
+        stored_ledger(&project)?["pending"]["offered_nodes"],
         json!({"01-a-web:2-1": asked("B?"), "01-a-web:2-2": asked("C?")})
     );
     Ok(())
@@ -1424,7 +1424,10 @@ fn a_stale_ledger_with_an_empty_last_batch_still_names_its_run(
     let (_, first) = started(&project, &[])?;
     let stored: Value =
         serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
-    assert_eq!(stored["pending"], json!({"number": 0, "spawns": []}));
+    assert_eq!(
+        stored["pending"],
+        json!({"number": 0, "spawns": [], "offered_nodes": {}})
+    );
 
     let (plan, _) = started(&project, &[])?;
 
