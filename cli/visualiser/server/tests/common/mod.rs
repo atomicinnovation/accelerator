@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use accelerator_visualiser::config::{Config, TemplateTiers};
-use corpus::doc_type::DocType;
+use corpus::doc_type::{built_in, DeclaredSet, DocType};
 use corpus::{DocTypeCatalogue, DocTypeKey};
 
 // Shared helper compiled into every integration test binary; only some use
@@ -28,15 +28,25 @@ pub fn set_mtime_ms(path: &Path, ms: i64) -> std::io::Result<()> {
 // Shared helper compiled into every integration test binary; only the suites
 // that declare a doc type of their own call it.
 #[allow(dead_code)]
-pub fn catalogue_with(extra: &[&'static DocType]) -> Arc<DocTypeCatalogue> {
-    let doc_types = declarations::catalogue()
-        .unwrap()
-        .doc_types()
+pub fn catalogue_with(
+    extra_types: &[&'static DocType],
+    extra_sets: &[DeclaredSet],
+) -> Arc<DocTypeCatalogue> {
+    let doc_types: Vec<DocTypeKey> = built_in::doc_types()
         .iter()
         .copied()
-        .chain(extra.iter().map(|declared| DocTypeKey::declared(declared)))
+        .chain(
+            extra_types
+                .iter()
+                .map(|declared| DocTypeKey::declared(declared)),
+        )
         .collect();
-    Arc::new(DocTypeCatalogue::new(doc_types).unwrap())
+    let set_declarations: Vec<DeclaredSet> = declarations::set_declarations()
+        .iter()
+        .chain(extra_sets)
+        .copied()
+        .collect();
+    Arc::new(DocTypeCatalogue::new(&doc_types, &set_declarations).unwrap())
 }
 
 pub fn seeded_cfg(tmp: &Path) -> Config {
@@ -131,7 +141,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
         owner_start_time: None,
         log_path: tmp.join("server.log"),
         doc_paths,
-        doc_types: Some(corpus::DocTypeCatalogue::built_in().into()),
+        doc_types: Some(declarations::catalogue().unwrap()),
         templates,
         work_item: accelerator_visualiser::config::WorkItemScheme::Default,
         kanban_columns: None,

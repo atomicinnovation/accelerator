@@ -1,7 +1,7 @@
 //! The document-type fact: declared doc types with their rules, the
 //! catalogue that holds them, and the pure path-inference matcher.
 
-mod built_in;
+pub mod built_in;
 mod catalogue;
 mod declaration;
 mod infer;
@@ -9,6 +9,7 @@ mod library;
 mod listing;
 
 pub use crate::doc_type::catalogue::CatalogueError;
+pub use crate::doc_type::catalogue::DeclaredSet;
 pub use crate::doc_type::catalogue::DocTypeCatalogue;
 pub use crate::doc_type::catalogue::Identity;
 pub use crate::doc_type::declaration::DocType;
@@ -22,12 +23,21 @@ pub use crate::doc_type::listing::Listing;
 
 #[cfg(test)]
 mod tests {
-    use super::{DocTypeCatalogue, DocTypeKey};
+    use super::{built_in, DocTypeCatalogue, DocTypeKey};
+    use crate::set::{Presentation, SetDeclaration, SetShape};
+
+    static STAND_IN_SET: SetDeclaration = SetDeclaration {
+        shape: SetShape {
+            root: "index.md",
+            member_slots: &[],
+        },
+        presentation: Presentation::SetPage,
+    };
 
     #[test]
     fn topic_research_mirrors_the_design_inventories_predicate_profile() {
-        // Both are nested-manifest Discover types; the only intended divergence
-        // is nested_root_filename. Pin the full boolean profile so the
+        // Both are Discover set types, whose layouts differ only in their
+        // owners' set declarations. Pin the full boolean profile so the
         // shared shape is asserted rather than inferred.
         let topic = DocTypeKey::TOPIC_RESEARCH;
         let inventory = DocTypeKey::DESIGN_INVENTORIES;
@@ -43,12 +53,19 @@ mod tests {
         assert_eq!(topic.in_kanban(), inventory.in_kanban());
         assert_eq!(topic.is_virtual(), inventory.is_virtual());
 
-        assert_eq!(topic.nested_root_filename(), Some("manifest.md"));
+        assert!(topic.is_set() && inventory.is_set());
     }
 
     #[test]
-    fn wire_token_round_trips_for_every_built_in_type() {
-        let catalogue = DocTypeCatalogue::built_in();
+    fn wire_token_round_trips_for_every_built_in_type(
+    ) -> Result<(), super::CatalogueError> {
+        let catalogue = DocTypeCatalogue::new(
+            built_in::doc_types(),
+            &[
+                (DocTypeKey::DESIGN_INVENTORIES, &STAND_IN_SET),
+                (DocTypeKey::TOPIC_RESEARCH, &STAND_IN_SET),
+            ],
+        )?;
         for kind in catalogue.doc_types() {
             assert_eq!(
                 catalogue.from_wire_token(kind.wire_token()),
@@ -56,6 +73,7 @@ mod tests {
             );
         }
         assert_eq!(catalogue.from_wire_token("bogus"), None);
+        Ok(())
     }
 
     #[test]
@@ -87,7 +105,7 @@ mod tests {
 
     #[test]
     fn work_items_is_the_only_kanban_type() {
-        for kind in DocTypeCatalogue::built_in().doc_types() {
+        for kind in built_in::doc_types() {
             assert_eq!(kind.in_kanban(), *kind == DocTypeKey::WORK_ITEMS);
         }
     }
@@ -100,7 +118,7 @@ mod tests {
             DocTypeKey::PR_REVIEWS,
             DocTypeKey::VALIDATIONS,
         ];
-        for kind in DocTypeCatalogue::built_in().doc_types() {
+        for kind in built_in::doc_types() {
             assert_eq!(
                 kind.carries_target_frontmatter(),
                 review_and_validation_types.contains(kind)

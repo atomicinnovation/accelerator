@@ -260,7 +260,7 @@ mod tests {
     use super::*;
 
     fn selection_of(raw: &str) -> Selection {
-        parse_selection_query(&DocTypeCatalogue::built_in(), raw)
+        parse_selection_query(&crate::test_support::assembled_catalogue(), raw)
     }
 
     #[test]

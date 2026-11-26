@@ -228,7 +228,7 @@ fn migrations_read_the_doc_types_the_context_is_composed_with(
 ) -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let composition = Composition::at(dir.path())?;
-    let catalogue = DocTypeCatalogue::new(Vec::new())?;
+    let catalogue = DocTypeCatalogue::default();
     let ctx = FileMigrationContext::new(
         dir.path(),
         Capabilities {

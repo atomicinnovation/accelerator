@@ -3,7 +3,6 @@
 use crate::cluster::ClusterKeyRule;
 use crate::cluster::CompletenessMark;
 use crate::doc_type::DocType;
-use crate::doc_type::DocTypeCatalogue;
 use crate::doc_type::DocTypeKey;
 use crate::doc_type::Facet;
 use crate::doc_type::FilenameFilter;
@@ -331,9 +330,7 @@ static DESIGN_INVENTORIES: DocType = DocType {
         position: 0,
     }),
     facets: &[Facet::Status, Facet::ClusterSlug],
-    listing: Listing::Nested {
-        root: "inventory.md",
-    },
+    listing: Listing::Set,
 };
 
 static TOPIC_RESEARCH: DocType = DocType {
@@ -357,9 +354,7 @@ static TOPIC_RESEARCH: DocType = DocType {
         position: 2,
     }),
     facets: &[Facet::Status, Facet::ClusterSlug],
-    listing: Listing::Nested {
-        root: "manifest.md",
-    },
+    listing: Listing::Set,
 };
 
 static ROOT_CAUSE_ANALYSES: DocType = DocType {
@@ -431,7 +426,7 @@ impl DocTypeKey {
     pub const TEMPLATES: Self = Self::declared(&TEMPLATES);
 }
 
-const IN_CATALOGUE_ORDER: [DocTypeKey; 15] = [
+static IN_CATALOGUE_ORDER: [DocTypeKey; 15] = [
     DocTypeKey::DECISIONS,
     DocTypeKey::WORK_ITEMS,
     DocTypeKey::PLANS,
@@ -449,9 +444,9 @@ const IN_CATALOGUE_ORDER: [DocTypeKey; 15] = [
     DocTypeKey::TEMPLATES,
 ];
 
-impl DocTypeCatalogue {
-    #[must_use]
-    pub fn built_in() -> Self {
-        Self::of_trusted_declarations(IN_CATALOGUE_ORDER.to_vec())
-    }
+/// The doc types the corpus declares, in catalogue order, for the
+/// declarations assembly and tests to build a catalogue from.
+#[must_use]
+pub fn doc_types() -> &'static [DocTypeKey] {
+    &IN_CATALOGUE_ORDER
 }

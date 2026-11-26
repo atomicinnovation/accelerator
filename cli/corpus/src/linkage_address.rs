@@ -59,12 +59,15 @@ impl fmt::Display for LinkageAddress {
 #[cfg(test)]
 mod tests {
     use super::LinkageAddress;
-    use crate::doc_type::DocTypeCatalogue;
+    use crate::doc_type::built_in;
     use crate::doc_type::DocTypeKey;
     use crate::linkage_ids::test_ids::KNOWN;
 
     fn kind(wire_token: &str) -> Option<DocTypeKey> {
-        DocTypeCatalogue::built_in().from_wire_token(wire_token)
+        built_in::doc_types()
+            .iter()
+            .copied()
+            .find(|kind| kind.wire_token() == wire_token)
     }
 
     #[test]

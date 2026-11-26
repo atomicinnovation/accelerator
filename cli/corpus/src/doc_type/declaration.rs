@@ -144,11 +144,8 @@ impl DocTypeKey {
     }
 
     #[must_use]
-    pub const fn nested_root_filename(self) -> Option<&'static str> {
-        match self.0.listing {
-            Listing::Nested { root } => Some(root),
-            Listing::Flat { .. } => None,
-        }
+    pub const fn is_set(self) -> bool {
+        matches!(self.0.listing, Listing::Set)
     }
 }
 

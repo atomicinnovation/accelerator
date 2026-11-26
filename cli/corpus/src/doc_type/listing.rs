@@ -7,8 +7,9 @@ pub enum Listing {
         drafts_subdirectory: Option<&'static str>,
         filename_filter: FilenameFilter,
     },
-    /// One subdirectory per document, each holding the document as `root`.
-    Nested { root: &'static str },
+    /// One subdirectory per document, laid out as the set declaration paired
+    /// with the type in its catalogue declares.
+    Set,
 }
 
 /// Which filenames in a flat listing are documents.

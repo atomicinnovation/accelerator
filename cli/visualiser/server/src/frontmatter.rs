@@ -347,7 +347,7 @@ mod tests {
         // tautology (production calls the same helper). It guards against a
         // future per-kind refactor regressing any kind back to an unhumanised
         // stem.
-        for kind in corpus::DocTypeCatalogue::built_in().doc_types() {
+        for kind in crate::test_support::assembled_catalogue().doc_types() {
             let t = title_from(&p.state, &p.body, stem);
             assert_ne!(t, stem, "kind={kind:?} must not render the raw stem");
         }

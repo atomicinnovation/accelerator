@@ -28,7 +28,7 @@ async fn served_with_notebooks() -> (tempfile::TempDir, Arc<AppState>) {
     .unwrap();
     let mut cfg = common::seeded_cfg(tmp.path());
     cfg.doc_paths.insert("notebooks".into(), notebooks);
-    cfg.doc_types = Some(common::catalogue_with(&[&NOTEBOOKS]));
+    cfg.doc_types = Some(common::catalogue_with(&[&NOTEBOOKS], &[]));
     let state = AppState::build(cfg, Arc::new(Activity::new()))
         .await
         .unwrap();

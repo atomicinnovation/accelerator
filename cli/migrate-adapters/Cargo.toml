@@ -24,6 +24,7 @@ corpus = { path = "../corpus" }
 tracing = { workspace = true }
 
 [dev-dependencies]
+declarations = { path = "../declarations" }
 tempfile = { workspace = true }
 config-adapters = { path = "../config-adapters" }
 corpus-adapters = { path = "../corpus-adapters" }

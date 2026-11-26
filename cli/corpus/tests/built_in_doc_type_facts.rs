@@ -1,4 +1,5 @@
-use corpus::{DocTypeCatalogue, DocTypeKey};
+use corpus::doc_type::built_in;
+use corpus::DocTypeKey;
 
 struct Facts {
     kind: DocTypeKey,
@@ -7,7 +8,7 @@ struct Facts {
     linkage_type_name: Option<&'static str>,
     label: &'static str,
     predicates: Predicates,
-    nested_root_filename: Option<&'static str>,
+    is_set: bool,
 }
 
 /// In order: in lifecycle, carries target frontmatter, participates in
@@ -25,7 +26,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("adr"),
         label: "Decisions",
         predicates: [T, F, F, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::WORK_ITEMS,
@@ -34,7 +35,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("work-item"),
         label: "Work items",
         predicates: [T, F, T, T, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::PLANS,
@@ -43,7 +44,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("plan"),
         label: "Plans",
         predicates: [T, F, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::RESEARCH,
@@ -52,7 +53,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("codebase-research"),
         label: "Codebase research",
         predicates: [T, F, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::PLAN_REVIEWS,
@@ -61,7 +62,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("plan-review"),
         label: "Plan reviews",
         predicates: [T, T, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::PR_REVIEWS,
@@ -70,7 +71,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("pr-review"),
         label: "PR reviews",
         predicates: [T, T, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::WORK_ITEM_REVIEWS,
@@ -79,7 +80,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("work-item-review"),
         label: "Work item reviews",
         predicates: [T, T, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::VALIDATIONS,
@@ -88,7 +89,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("plan-validation"),
         label: "Validations",
         predicates: [T, T, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::NOTES,
@@ -97,7 +98,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("note"),
         label: "Notes",
         predicates: [T, F, F, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::PR_DESCRIPTIONS,
@@ -106,7 +107,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("pr-description"),
         label: "PR descriptions",
         predicates: [T, F, T, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::DESIGN_GAPS,
@@ -115,7 +116,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("design-gap"),
         label: "Design gaps",
         predicates: [T, F, F, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::DESIGN_INVENTORIES,
@@ -124,7 +125,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("design-inventory"),
         label: "Design inventories",
         predicates: [T, F, F, F, F],
-        nested_root_filename: Some("inventory.md"),
+        is_set: true,
     },
     Facts {
         kind: DocTypeKey::TOPIC_RESEARCH,
@@ -133,7 +134,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("topic-research"),
         label: "Topic research",
         predicates: [T, F, F, F, F],
-        nested_root_filename: Some("manifest.md"),
+        is_set: true,
     },
     Facts {
         kind: DocTypeKey::ROOT_CAUSE_ANALYSES,
@@ -142,7 +143,7 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: Some("issue-research"),
         label: "Root cause analyses",
         predicates: [F, F, F, F, F],
-        nested_root_filename: None,
+        is_set: false,
     },
     Facts {
         kind: DocTypeKey::TEMPLATES,
@@ -151,14 +152,13 @@ const BUILT_IN_IN_CATALOGUE_ORDER: [Facts; 15] = [
         linkage_type_name: None,
         label: "Templates",
         predicates: [F, F, F, F, T],
-        nested_root_filename: None,
+        is_set: false,
     },
 ];
 
 #[test]
 fn the_built_in_doc_types_are_declared_in_catalogue_order() {
-    let declared: Vec<DocTypeKey> =
-        DocTypeCatalogue::built_in().doc_types().to_vec();
+    let declared: Vec<DocTypeKey> = built_in::doc_types().to_vec();
     let expected: Vec<DocTypeKey> = BUILT_IN_IN_CATALOGUE_ORDER
         .iter()
         .map(|row| row.kind)
@@ -190,10 +190,6 @@ fn each_built_in_doc_type_declares_its_facts() {
             row.predicates,
             "{context}"
         );
-        assert_eq!(
-            kind.nested_root_filename(),
-            row.nested_root_filename,
-            "{context}"
-        );
+        assert_eq!(kind.is_set(), row.is_set, "{context}");
     }
 }

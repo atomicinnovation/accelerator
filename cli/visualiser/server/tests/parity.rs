@@ -15,7 +15,7 @@ use accelerator_visualiser::clusters::{
 use accelerator_visualiser::config::WorkItemConfig;
 use accelerator_visualiser::frontmatter::{self, FrontmatterState};
 use accelerator_visualiser::indexer::IndexEntry;
-use corpus::{DocTypeCatalogue, DocTypeKey};
+use corpus::DocTypeKey;
 
 /// Slug derivation and work-item id admission now delegate to corpus; pin
 /// representative cases so the delegation stays behaviour-stable.
@@ -99,7 +99,7 @@ fn doc_type_wire_and_config_keys_are_pinned() {
         ),
         (DocTypeKey::TEMPLATES, "templates", None),
     ];
-    let catalogue = DocTypeCatalogue::built_in();
+    let catalogue = declarations::catalogue().unwrap();
     assert_eq!(rows.len(), catalogue.doc_types().len());
     for (kind, wire, config_key) in rows {
         assert_eq!(kind.wire_token(), *wire, "wire for {kind:?}");

@@ -371,7 +371,7 @@ mod tests {
 
     fn test_driver(dir: &std::path::Path) -> LocalFileDriver {
         LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &HashMap::new(),
             vec![dir.to_path_buf()],
             vec![],

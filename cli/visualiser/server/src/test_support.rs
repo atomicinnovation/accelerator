@@ -73,6 +73,6 @@ pub fn entry_for_test_with_filename(
     }
 }
 
-pub fn built_in_catalogue() -> std::sync::Arc<corpus::DocTypeCatalogue> {
-    std::sync::Arc::new(corpus::DocTypeCatalogue::built_in())
+pub fn assembled_catalogue() -> std::sync::Arc<corpus::DocTypeCatalogue> {
+    declarations::catalogue().unwrap_or_default()
 }

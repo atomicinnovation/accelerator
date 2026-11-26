@@ -6,8 +6,9 @@ use std::path::{Path, PathBuf};
 use corpus::cluster::{
     compute, resolve_cluster_key, ClusterContext, ClusterEntry,
 };
+use corpus::doc_type::built_in;
 use corpus::linkage::resolve_path_target;
-use corpus::{DocTypeCatalogue, DocTypeKey, IdConvention, LinkageIds};
+use corpus::{DocTypeKey, IdConvention, LinkageIds};
 
 struct FourDigitIds;
 
@@ -108,13 +109,15 @@ impl ClusterEntry for Entry {
 }
 
 fn kind(wire_token: &str) -> DocTypeKey {
-    DocTypeCatalogue::built_in()
-        .from_wire_token(wire_token)
+    built_in::doc_types()
+        .iter()
+        .copied()
+        .find(|kind| kind.wire_token() == wire_token)
         .expect("a built-in wire token")
 }
 
 fn every_built_in_doc_type() -> Vec<DocTypeKey> {
-    DocTypeCatalogue::built_in().doc_types().to_vec()
+    built_in::doc_types().to_vec()
 }
 
 fn assert_covers_every_built_in<T>(table: &[(&str, T)]) {

@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use config::ConfigError;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
@@ -55,17 +55,17 @@ impl WorkItemIdentity for WorkIdentity {
 /// realignment stubbed out.
 pub struct Composition {
     composed: Composed,
-    doc_types: DocTypeCatalogue,
+    doc_types: Arc<DocTypeCatalogue>,
 }
 
 impl Composition {
-    pub fn at(root: &Path) -> Result<Self, ConfigError> {
+    pub fn at(root: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             composed: Composed::over(
                 FileConfigStore::at(root)
                     .with_legacy_policy(LegacyPolicy::Allow),
             )?,
-            doc_types: DocTypeCatalogue::built_in(),
+            doc_types: declarations::catalogue()?,
         })
     }
 

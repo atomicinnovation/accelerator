@@ -45,7 +45,7 @@ pub fn resolve_document(
             "'{doc_type}' is not a registered document type"
         ));
     };
-    let shape = if key.nested_root_filename().is_some() {
+    let shape = if key.is_set() {
         TypeShape::NestedManifest
     } else {
         TypeShape::Flat

@@ -57,6 +57,10 @@ mod tests {
         ..DocType::FLAT_DEFAULTS
     };
 
+    fn assembled() -> std::sync::Arc<DocTypeCatalogue> {
+        declarations::catalogue().unwrap_or_default()
+    }
+
     fn paths() -> HashMap<String, PathBuf> {
         let mut paths = HashMap::new();
         paths.insert("plans".to_owned(), PathBuf::from("meta/plans"));
@@ -71,11 +75,7 @@ mod tests {
     #[test]
     fn infers_from_the_configured_directory() {
         assert_eq!(
-            infer(
-                Path::new("meta/work/0042-foo.md"),
-                &DocTypeCatalogue::built_in(),
-                &paths()
-            ),
+            infer(Path::new("meta/work/0042-foo.md"), &assembled(), &paths()),
             Some(DocTypeKey::WORK_ITEMS)
         );
     }
@@ -84,7 +84,7 @@ mod tests {
     fn prefers_the_longest_matching_directory() {
         let path = Path::new("meta/reviews/plans/2026-01-01-x-review-1.md");
         assert_eq!(
-            infer(path, &DocTypeCatalogue::built_in(), &paths()),
+            infer(path, &assembled(), &paths()),
             Some(DocTypeKey::PLAN_REVIEWS)
         );
     }
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn infers_a_doc_type_the_catalogue_declares() {
         let notebooks = DocTypeKey::declared(&NOTEBOOKS);
-        let catalogue = DocTypeCatalogue::new(vec![notebooks]);
+        let catalogue = DocTypeCatalogue::new(&[notebooks], &[]);
         let paths = HashMap::from([(
             "notebooks".to_owned(),
             PathBuf::from("meta/notebooks"),
@@ -111,11 +111,7 @@ mod tests {
     #[test]
     fn returns_none_for_an_unconfigured_path() {
         assert_eq!(
-            infer(
-                Path::new("meta/notes/x.md"),
-                &DocTypeCatalogue::built_in(),
-                &paths()
-            ),
+            infer(Path::new("meta/notes/x.md"), &assembled(), &paths()),
             None
         );
     }

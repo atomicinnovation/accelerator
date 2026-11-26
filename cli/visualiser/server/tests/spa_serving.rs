@@ -20,7 +20,7 @@ mod tests {
             owner_start_time: None,
             log_path: tmp.join("server.log"),
             doc_paths: HashMap::new(),
-            doc_types: Some(corpus::DocTypeCatalogue::built_in().into()),
+            doc_types: Some(declarations::catalogue().unwrap()),
             templates: HashMap::new(),
             work_item: accelerator_visualiser::config::WorkItemScheme::Default,
             kanban_columns: None,

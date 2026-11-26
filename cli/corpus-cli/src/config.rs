@@ -162,13 +162,17 @@ mod tests {
             .map(|(_, dir)| dir.clone())
     }
 
+    fn assembled() -> std::sync::Arc<DocTypeCatalogue> {
+        declarations::catalogue().unwrap_or_default()
+    }
+
     #[test]
     fn resolves_a_configured_doc_type_directory() -> Result<(), ConfigError> {
         let mut values = HashMap::new();
         values.insert("paths.work".to_owned(), "tickets".to_owned());
         let config = FakeConfig(values);
 
-        let table = table_from_config(&DocTypeCatalogue::built_in(), &config)?;
+        let table = table_from_config(&assembled(), &config)?;
 
         assert_eq!(
             dir_for(&table, DocTypeKey::WORK_ITEMS),
@@ -184,7 +188,7 @@ mod tests {
     ) -> Result<(), ConfigError> {
         let config = FakeConfig(HashMap::new());
 
-        let table = table_from_config(&DocTypeCatalogue::built_in(), &config)?;
+        let table = table_from_config(&assembled(), &config)?;
 
         assert_eq!(
             dir_for(&table, DocTypeKey::WORK_ITEMS),
@@ -204,10 +208,7 @@ mod tests {
 
     #[test]
     fn an_overlapping_configuration_is_refused() {
-        let refused = table_from_config(
-            &DocTypeCatalogue::built_in(),
-            &overlapping_config(),
-        );
+        let refused = table_from_config(&assembled(), &overlapping_config());
 
         assert!(
             matches!(refused, Err(ConfigError::OverlappingDocRoots { .. })),

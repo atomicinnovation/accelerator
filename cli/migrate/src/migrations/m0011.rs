@@ -252,9 +252,12 @@ mod tests {
 
     impl MigrationContext for Context {
         fn doc_types(&self) -> &corpus::DocTypeCatalogue {
-            static BUILT_IN: std::sync::LazyLock<corpus::DocTypeCatalogue> =
-                std::sync::LazyLock::new(corpus::DocTypeCatalogue::built_in);
-            &BUILT_IN
+            static ASSEMBLED: std::sync::LazyLock<
+                std::sync::Arc<corpus::DocTypeCatalogue>,
+            > = std::sync::LazyLock::new(|| {
+                declarations::catalogue().unwrap_or_default()
+            });
+            &ASSEMBLED
         }
         fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
             Ok(Vec::new())

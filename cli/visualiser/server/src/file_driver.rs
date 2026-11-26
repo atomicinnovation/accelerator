@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use corpus_adapters::{patch_status, FileCorpusStore, PatchError};
 
 use corpus::doc_type::{FilenameFilter, Listing};
+use corpus::set::SetMatcher;
 use corpus::{AtomicWrite, DocTypeCatalogue, DocTypeKey, StoreError};
 
 /// A frontmatter mutation applied through the file driver.
@@ -103,6 +104,7 @@ pub trait FileDriver: Send + Sync {
 }
 
 pub struct LocalFileDriver {
+    doc_types: Arc<DocTypeCatalogue>,
     roots: HashMap<DocTypeKey, PathBuf>,
     extra_roots: Vec<PathBuf>,
     writable_roots: Vec<PathBuf>,
@@ -162,7 +164,7 @@ pub fn refuse_overlapping_doc_roots(
 
 impl LocalFileDriver {
     pub fn new(
-        doc_types: &DocTypeCatalogue,
+        doc_types: &Arc<DocTypeCatalogue>,
         doc_paths: &HashMap<String, PathBuf>,
         extra_roots: Vec<PathBuf>,
         writable_roots: Vec<PathBuf>,
@@ -186,6 +188,7 @@ impl LocalFileDriver {
             .map(|p| std::fs::canonicalize(&p).unwrap_or(p))
             .collect();
         Self {
+            doc_types: Arc::clone(doc_types),
             roots,
             extra_roots,
             writable_roots,
@@ -305,7 +308,7 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
-        let nested_manifest = match kind.listing() {
+        let set_root = match kind.listing() {
             Listing::Flat {
                 drafts_subdirectory,
                 filename_filter,
@@ -326,7 +329,12 @@ impl FileDriver for LocalFileDriver {
                     Ok(entries)
                 });
             }
-            Listing::Nested { root: manifest } => manifest,
+            Listing::Set => {
+                self.doc_types.set_matcher(kind).map(SetMatcher::root)
+            }
+        };
+        let Some(set_root) = set_root else {
+            return Box::pin(std::future::ready(Ok(Vec::new())));
         };
         Box::pin(async move {
             let read = match tokio::fs::read_dir(&root).await {
@@ -359,8 +367,7 @@ impl FileDriver for LocalFileDriver {
                     }
                 };
 
-                // Nested-manifest doc type (e.g. design inventories):
-                // each artifact lives at `<root>/<slug-dir>/<manifest>.md`.
+                // Each set lives at `<root>/<set-dir>/<set root>`.
                 if !file_type.is_dir() {
                     continue;
                 }
@@ -373,7 +380,7 @@ impl FileDriver for LocalFileDriver {
                 {
                     continue;
                 }
-                let candidate = path.join(nested_manifest);
+                let candidate = path.join(set_root);
                 match tokio::fs::metadata(&candidate).await {
                     Ok(meta) if meta.is_file() => entries.push(candidate),
                     _ => {}
@@ -667,7 +674,7 @@ mod tests {
         map.insert("decisions".into(), dec.clone());
         map.insert("plans".into(), plans);
         LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![],
@@ -699,7 +706,7 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work);
         let d = LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![],
@@ -767,7 +774,7 @@ mod tests {
             ("topic-research", &["set/manifest.md"]),
             ("root-cause-analyses", &["0001-item.md", "a-note.md"]),
         ];
-        let catalogue = corpus::DocTypeCatalogue::built_in();
+        let catalogue = crate::test_support::assembled_catalogue();
         let listed: Vec<&str> =
             expected.iter().map(|(token, _)| *token).collect();
         let configured: Vec<&str> = catalogue
@@ -788,7 +795,7 @@ mod tests {
                 root.clone(),
             );
             let driver = LocalFileDriver::new(
-                &corpus::DocTypeCatalogue::built_in(),
+                &crate::test_support::assembled_catalogue(),
                 &map,
                 vec![],
                 vec![],
@@ -821,7 +828,7 @@ mod tests {
     #[tokio::test]
     async fn list_unconfigured_type_is_not_configured_error() {
         let d = LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &HashMap::new(),
             vec![],
             vec![],
@@ -917,7 +924,7 @@ mod write_tests {
         map.insert("work".into(), work.clone());
         map.insert("plans".into(), plans);
         LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![work],
@@ -1108,7 +1115,7 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         let d = LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![work.clone()],
@@ -1154,7 +1161,7 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         let d = LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![work.clone()],
@@ -1202,7 +1209,7 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         let d = StdArc::new(LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![work.clone()],
@@ -1297,7 +1304,7 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         let d = LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![work.clone()],
@@ -1381,7 +1388,7 @@ mod write_tests {
         let mut map = HashMap::new();
         map.insert("work".into(), work.clone());
         let d = LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &map,
             vec![],
             vec![work.clone()],

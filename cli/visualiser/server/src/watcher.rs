@@ -601,7 +601,7 @@ mod tests {
         doc_paths.insert("plans".into(), plans);
         let driver: Arc<dyn crate::file_driver::FileDriver> =
             Arc::new(LocalFileDriver::new(
-                &corpus::DocTypeCatalogue::built_in(),
+                &crate::test_support::assembled_catalogue(),
                 &doc_paths,
                 vec![],
                 vec![],
@@ -611,7 +611,7 @@ mod tests {
         let indexer = Arc::new(
             Indexer::build(
                 driver,
-                crate::test_support::built_in_catalogue(),
+                crate::test_support::assembled_catalogue(),
                 tmp.to_path_buf(),
                 work_item_cfg,
             )
@@ -1192,7 +1192,7 @@ mod template_change_handler_tests {
         Arc<SseHub>,
     ) {
         let driver: Arc<dyn FileDriver> = Arc::new(LocalFileDriver::new(
-            &corpus::DocTypeCatalogue::built_in(),
+            &crate::test_support::assembled_catalogue(),
             &HashMap::new(),
             vec![tmp.to_path_buf()],
             vec![],

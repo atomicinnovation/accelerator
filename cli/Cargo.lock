@@ -3412,6 +3412,7 @@ name = "migrate"
 version = "1.24.0-pre.113"
 dependencies = [
  "corpus",
+ "declarations",
  "kernel",
 ]
 
@@ -3423,6 +3424,7 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "declarations",
  "document",
  "kernel",
  "migrate",
