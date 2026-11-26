@@ -845,3 +845,80 @@ async fn a_related_work_item_reference_is_an_inbound_link() {
         vec!["meta/plans/2026-01-01-a.md"]
     );
 }
+
+fn write_slug_collisions(tmp: &std::path::Path) -> Config {
+    let meta = tmp.join("meta");
+    let files = [
+        ("decisions", "decisions/ADR-0021-shared.md"),
+        (
+            "research_codebase",
+            "research/codebase/2026-03-29-shared.md",
+        ),
+        ("plans", "plans/2026-03-29-shared.md"),
+        (
+            "research_design_gaps",
+            "research/design-gaps/2026-05-21-gap.md",
+        ),
+        (
+            "research_design_gaps",
+            "research/design-gaps/2026-09-10-gap.md",
+        ),
+    ];
+    let mut paths = HashMap::new();
+    for (key, file) in files {
+        let path = meta.join(file);
+        let dir = path.parent().unwrap().to_path_buf();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&path, "---\ntitle: T\n---\n").unwrap();
+        paths.insert(key.to_string(), dir);
+    }
+    cfg_with_only(tmp, paths)
+}
+
+async fn inferred_rel_paths(app: &axum::Router, rel_path: &str) -> Vec<String> {
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/related/{rel_path}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    json_body(res).await["inferredCluster"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["relPath"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[tokio::test]
+async fn an_entry_infers_only_the_cluster_it_is_in_when_slugs_collide() {
+    let tmp = tempfile::tempdir().unwrap();
+    for _ in 0..16 {
+        let (_state, app) = build_app(write_slug_collisions(tmp.path())).await;
+        assert_eq!(
+            inferred_rel_paths(&app, "meta/decisions/ADR-0021-shared.md").await,
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            inferred_rel_paths(
+                &app,
+                "meta/research/codebase/2026-03-29-shared.md"
+            )
+            .await,
+            vec!["meta/plans/2026-03-29-shared.md"]
+        );
+        assert_eq!(
+            inferred_rel_paths(
+                &app,
+                "meta/research/design-gaps/2026-05-21-gap.md"
+            )
+            .await,
+            Vec::<String>::new()
+        );
+    }
+}

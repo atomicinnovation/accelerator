@@ -88,6 +88,12 @@ pub struct LifecycleCluster {
     pub cluster_key: Option<String>,
 }
 
+impl LifecycleCluster {
+    pub fn holds(&self, path: &Path) -> bool {
+        self.entries.iter().any(|entry| entry.path == path)
+    }
+}
+
 /// Snapshots and conventions the cluster-key resolver needs, threaded from the
 /// indexer caller into `corpus::cluster`.
 pub struct ClusterContext<'a> {
