@@ -497,6 +497,7 @@ the two constructs above.
 | `E_RESEARCH_GUARD_WRITE`      | A write outside the role's scope, with its cause: an indexed finding for both roles, plus a level note for the researcher |
 | `E_RESEARCH_GUARD_UNREADABLE` | A confined agent's call with no readable command or path           |
 | `E_RESEARCH_GUARD_INTERNAL`   | The guard itself failed while judging a confined agent's call      |
+| `E_RESEARCH_GUARD_UNJUDGED`   | A subagent's call the guard cannot tell is unconfined: there is no working directory, or the configuration cannot be read and the agent is not `accelerator:researcher` or `accelerator:composer` |
 
 Each message names the matched agent type, adding `(agents.researcher)` or
 `(agents.composer)` when it matched a configured name. A confined agent reads
@@ -583,6 +584,13 @@ In both cases Claude Code's own permission rules still apply, and a confined
 agent's call can no longer write outside `findings/` to induce either failure. A
 guard panic on a crafted command blocks instead, with
 `E_RESEARCH_GUARD_INTERNAL`.
+
+Once the guard runs, it blocks a subagent's call it cannot judge rather than
+let it through. An unreadable configuration hides which agents
+`agents.researcher` and `agents.composer` name, so every subagent's `Bash`
+and write call is blocked with `E_RESEARCH_GUARD_UNJUDGED` until the
+configuration is fixed. The plugin's own two agent names are confined
+without it, and the main conversation is never judged.
 
 ## Academic profiles in `research-topic`
 

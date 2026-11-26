@@ -548,6 +548,19 @@ impl core::fmt::Debug for research::confinement::TopicFile
 pub fn research::confinement::TopicFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::confinement::TopicFile
 impl core::marker::StructuralPartialEq for research::confinement::TopicFile
+pub enum research::confinement::Unjudgeable
+pub research::confinement::Unjudgeable::NoWorkingDirectory
+pub research::confinement::Unjudgeable::UnreadableConfiguration(alloc::string::String)
+impl core::clone::Clone for research::confinement::Unjudgeable
+pub fn research::confinement::Unjudgeable::clone(&self) -> research::confinement::Unjudgeable
+impl core::cmp::Eq for research::confinement::Unjudgeable
+impl core::cmp::PartialEq for research::confinement::Unjudgeable
+pub fn research::confinement::Unjudgeable::eq(&self, other: &research::confinement::Unjudgeable) -> bool
+impl core::fmt::Debug for research::confinement::Unjudgeable
+pub fn research::confinement::Unjudgeable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::confinement::Unjudgeable
+pub fn research::confinement::Unjudgeable::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::Unjudgeable
 pub enum research::confinement::WriteRefusal
 pub research::confinement::WriteRefusal::OutsideScope(research::confinement::TopicsRelativePath)
 pub research::confinement::WriteRefusal::Rejected(research::confinement::PathRejection)
@@ -621,6 +634,11 @@ pub fn research::confinement::TopicsRelativePath::eq(&self, other: &research::co
 impl core::fmt::Debug for research::confinement::TopicsRelativePath
 pub fn research::confinement::TopicsRelativePath::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::confinement::TopicsRelativePath
+pub struct research::confinement::UnjudgedCall<'a>
+pub research::confinement::UnjudgedCall::agent_type: &'a str
+pub research::confinement::UnjudgedCall::cause: &'a research::confinement::Unjudgeable
+impl core::fmt::Display for research::confinement::UnjudgedCall<'_>
+pub fn research::confinement::UnjudgedCall<'_>::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub const research::confinement::DEFAULT_COMPOSER: &str
 pub const research::confinement::DEFAULT_RESEARCHER: &str
 pub const research::confinement::FETCH: research::confinement::PermittedCommand

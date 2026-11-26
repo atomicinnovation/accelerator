@@ -84,10 +84,15 @@ impl Verdict {
 }
 
 fn guard_with(cwd: &Path, args: &[&str], stdin: &str) -> Verdict {
-    let mut child = Command::new(BINARY)
+    let mut command = Command::new(BINARY);
+    command.current_dir(cwd);
+    run_guard(command, args, stdin)
+}
+
+fn run_guard(mut command: Command, args: &[&str], stdin: &str) -> Verdict {
+    let mut child = command
         .arg("guard")
         .args(args)
-        .current_dir(cwd)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -678,6 +683,46 @@ fn an_unparseable_config_falls_back_to_the_default_topics() {
         verdict.stderr.contains("could not read the configuration"),
         "{}",
         verdict.stderr
+    );
+}
+
+#[test]
+fn an_unparseable_config_blocks_a_subagent_it_cannot_tell_is_confined() {
+    let project = Project::new().unparseable_config();
+    bash(&project, Some("custom:researcher"), "ls").assert_blocks(
+        "E_RESEARCH_GUARD_UNJUDGED: custom:researcher tool call blocked",
+    );
+    write(
+        &project,
+        Some("accelerator:reviewer"),
+        &project.at("notes.md"),
+    )
+    .assert_blocks("could not read the configuration");
+}
+
+#[test]
+fn a_subagent_call_with_no_working_directory_is_blocked() {
+    let project = Project::new();
+    let gone = project.mkdir("gone");
+    std::env::set_current_dir(&gone).expect("enter the directory");
+    std::fs::remove_dir(&gone).expect("remove the working directory");
+    let mut payload = call(
+        &project.root,
+        Some("accelerator:reviewer"),
+        "Bash",
+        &json!({ "command": "ls" }),
+    );
+    payload
+        .as_object_mut()
+        .expect("the payload is an object")
+        .remove("cwd");
+    run_guard(
+        Command::new(BINARY),
+        &["--fail-safe", "--non-blocking"],
+        &payload.to_string(),
+    )
+    .assert_blocks(
+        "E_RESEARCH_GUARD_UNJUDGED: accelerator:reviewer tool call blocked",
     );
 }
 

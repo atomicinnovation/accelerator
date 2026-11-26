@@ -673,3 +673,44 @@ impl Display for InternalFailure<'_> {
         )
     }
 }
+
+/// Why the guard cannot tell whether a subagent is a confined research
+/// agent, which must block the call rather than let it through.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unjudgeable {
+    NoWorkingDirectory,
+    UnreadableConfiguration(String),
+}
+
+impl Display for Unjudgeable {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoWorkingDirectory => formatter
+                .write_str("there is no working directory to read it from"),
+            Self::UnreadableConfiguration(summary) => write!(
+                formatter,
+                "could not read the configuration: {summary}; fix it, then \
+                 retry"
+            ),
+        }
+    }
+}
+
+/// The reason given when a subagent's call is blocked because the guard
+/// cannot read which agents `agents.researcher` and `agents.composer` name.
+pub struct UnjudgedCall<'a> {
+    pub agent_type: &'a str,
+    pub cause: &'a Unjudgeable,
+}
+
+impl Display for UnjudgedCall<'_> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "E_RESEARCH_GUARD_UNJUDGED: {} tool call blocked — the guard \
+             cannot tell whether agents.researcher or agents.composer names \
+             it: {}",
+            self.agent_type, self.cause
+        )
+    }
+}

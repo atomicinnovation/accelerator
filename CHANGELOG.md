@@ -1313,6 +1313,14 @@
   blocks any `$` expansion and input redirection, which could otherwise read
   an environment secret back or send it to another host. Point
   `agents.researcher` only at a dedicated agent.
+- **The research guard blocks a subagent's call it cannot judge.** When the
+  configuration cannot be read, the guard cannot tell which agents
+  `agents.researcher` and `agents.composer` name, so it blocks every
+  subagent's `Bash` and write call with `E_RESEARCH_GUARD_UNJUDGED` rather
+  than let a configured researcher run unconfined. A call with no working
+  directory is blocked the same way. `accelerator:researcher` and
+  `accelerator:composer` are still confined by name without the
+  configuration.
 - **`catalogue.json` now records the name, display name and email of every
   member of a synced team, and the file is committed to the repository.**
   Anyone with read access to the repository can read them.
