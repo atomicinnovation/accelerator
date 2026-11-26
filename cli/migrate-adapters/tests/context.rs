@@ -10,6 +10,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use common::Composition;
+use corpus::DocTypeCatalogue;
 use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext as _;
 use migrate::ports::MigrationError;
@@ -219,5 +220,23 @@ fn the_doc_type_dirs_follow_a_config_rewritten_mid_run() -> Result<(), TestError
     )?;
 
     assert_eq!(notes_dir(&ctx)?, Some(dir.path().join("meta/jottings")));
+    Ok(())
+}
+
+#[test]
+fn migrations_read_the_doc_types_the_context_is_composed_with(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let composition = Composition::at(dir.path())?;
+    let catalogue = DocTypeCatalogue::new(Vec::new())?;
+    let ctx = FileMigrationContext::new(
+        dir.path(),
+        Capabilities {
+            doc_types: &catalogue,
+            ..composition.capabilities()
+        },
+    );
+
+    assert!(ctx.doc_types().doc_types().is_empty());
     Ok(())
 }

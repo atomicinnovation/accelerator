@@ -32,6 +32,7 @@ use crate::merge_move::merge_move;
 /// What a composition root lends every migration.
 pub struct Capabilities<'a> {
     pub config: &'a dyn config::ConfigAccess,
+    pub doc_types: &'a DocTypeCatalogue,
     pub walker: &'a dyn corpus::scan::CorpusWalker,
     pub reader: &'a dyn corpus::scan::FileReader,
     pub frontmatter: &'a dyn corpus::frontmatter::FrontmatterParser,
@@ -88,7 +89,8 @@ impl<'a> FileMigrationContext<'a> {
         Ok(MigrationContext::doc_type_dirs(self)?
             .into_iter()
             .filter_map(|dir| {
-                DocTypeCatalogue::built_in()
+                self.capabilities
+                    .doc_types
                     .from_linkage_type_name(&dir.doc_type)
                     .map(|key| (key, dir.dir))
             })
@@ -116,6 +118,10 @@ impl MigrationContext for FileMigrationContext<'_> {
                 dir: self.root.join(dir.dir),
             })
             .collect())
+    }
+
+    fn doc_types(&self) -> &DocTypeCatalogue {
+        self.capabilities.doc_types
     }
 
     fn corpus_index(&self) -> Result<&dyn CorpusIndex, MigrationError> {

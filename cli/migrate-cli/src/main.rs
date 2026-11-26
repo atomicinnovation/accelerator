@@ -11,12 +11,14 @@ use std::io::IsTerminal as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser as _;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use corpus::DocTypeCatalogue;
 use corpus_adapters::metadata::SystemClock;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
@@ -75,9 +77,19 @@ fn compose_config(root: &Path) -> Result<Composed, kernel::Error> {
     Ok(composed)
 }
 
-fn capabilities<'a>(composed: &'a Composed, root: &Path) -> Capabilities<'a> {
+fn doc_types() -> Result<Arc<DocTypeCatalogue>, kernel::Error> {
+    declarations::catalogue()
+        .map_err(|error| kernel::Error::Failed(error.to_string()))
+}
+
+fn capabilities<'a>(
+    composed: &'a Composed,
+    doc_types: &'a DocTypeCatalogue,
+    root: &Path,
+) -> Capabilities<'a> {
     Capabilities {
         config: &composed.service,
+        doc_types,
         walker: &RealFs,
         reader: &RealFs,
         frontmatter: &YamlFrontmatter,
@@ -203,7 +215,11 @@ fn run_list(
     ledger_store: &FileLedgerStore,
 ) -> Result<(), kernel::Error> {
     let composed = compose_config(root)?;
-    let ctx = FileMigrationContext::new(root, capabilities(&composed, root));
+    let doc_types = doc_types()?;
+    let ctx = FileMigrationContext::new(
+        root,
+        capabilities(&composed, &doc_types, root),
+    );
     migrate::lifecycle::ensure_doc_roots_resolve(&ctx)?;
     let records = FileCorpusStore::new(root);
     let clock = session_log_clock();
@@ -269,7 +285,11 @@ fn run_default(
 
     let composed = compose_config(root)?;
     composed.require_readable_personal_file()?;
-    let ctx = FileMigrationContext::new(root, capabilities(&composed, root));
+    let doc_types = doc_types()?;
+    let ctx = FileMigrationContext::new(
+        root,
+        capabilities(&composed, &doc_types, root),
+    );
     let manifest_store = FileManifestStore::new(root);
     let working_copy = VcsWorkingCopy::new(root, &InProcessProbe);
     let session_log_decisions = session_log_decision_count(root);

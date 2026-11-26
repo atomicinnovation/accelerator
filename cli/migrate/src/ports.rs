@@ -9,6 +9,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use corpus::DocTypeCatalogue;
+
 use crate::interactive::Decision;
 use crate::interactive::Transformation;
 use crate::run_base::RunBase;
@@ -101,6 +103,9 @@ pub trait MigrationContext {
     /// [`MigrationError`] when the configuration cannot be read, or resolves
     /// to an unsafe or overlapping set of doc roots.
     fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError>;
+
+    /// The doc types the running build declares.
+    fn doc_types(&self) -> &DocTypeCatalogue;
 
     /// # Errors
     /// [`MigrationError`] when the doc type directories it indexes cannot be

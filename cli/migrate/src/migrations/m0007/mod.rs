@@ -65,18 +65,16 @@ impl MigrationMeta for Migration0007 {
 /// `ctx.list_md_files` needs for real filesystem walking), so this strips
 /// that root back off before the dirs reach any text-matching call.
 fn linkage_table(
+    doc_types: &DocTypeCatalogue,
     dirs: &[DocTypeDir],
     root: &std::path::Path,
 ) -> Vec<(DocTypeKey, PathBuf)> {
     dirs.iter()
         .filter_map(|dir| {
-            DocTypeCatalogue::built_in()
-                .from_linkage_type_name(&dir.doc_type)
-                .map(|key| {
-                    let relative =
-                        dir.dir.strip_prefix(root).unwrap_or(&dir.dir);
-                    (key, relative.to_path_buf())
-                })
+            doc_types.from_linkage_type_name(&dir.doc_type).map(|key| {
+                let relative = dir.dir.strip_prefix(root).unwrap_or(&dir.dir);
+                (key, relative.to_path_buf())
+            })
         })
         .collect()
 }
@@ -128,7 +126,7 @@ fn run_mechanical(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<Transformation>, String> {
     let dirs = ctx.doc_type_dirs().map_err(|error| error.to_string())?;
-    let table = linkage_table(&dirs, ctx.root());
+    let table = linkage_table(ctx.doc_types(), &dirs, ctx.root());
     let ids = &crate::legacy_ids::LegacyNumericIds;
     let files = corpus_files(ctx, &table)?;
 

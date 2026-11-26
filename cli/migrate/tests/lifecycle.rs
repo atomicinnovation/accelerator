@@ -56,6 +56,11 @@ impl CorpusIndex for NoIndex {
 }
 
 impl MigrationContext for StubContext {
+    fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+        static BUILT_IN: std::sync::LazyLock<corpus::DocTypeCatalogue> =
+            std::sync::LazyLock::new(corpus::DocTypeCatalogue::built_in);
+        &BUILT_IN
+    }
     fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
         Ok(Vec::new())
     }
@@ -487,6 +492,11 @@ impl OverlapAfterWriteContext {
 }
 
 impl MigrationContext for OverlapAfterWriteContext {
+    fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+        static BUILT_IN: std::sync::LazyLock<corpus::DocTypeCatalogue> =
+            std::sync::LazyLock::new(corpus::DocTypeCatalogue::built_in);
+        &BUILT_IN
+    }
     fn doc_type_dirs(&self) -> Result<Vec<DocTypeDir>, MigrationError> {
         if self.overlapping.get() {
             Err(MigrationError::new(OVERLAP_REFUSAL))

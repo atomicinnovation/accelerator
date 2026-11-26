@@ -104,6 +104,7 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "declarations",
  "jira-client",
  "kernel",
  "migrate",

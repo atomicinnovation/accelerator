@@ -325,6 +325,11 @@ mod tests {
     }
 
     impl MigrationContext for FakeContext {
+        fn doc_types(&self) -> &corpus::DocTypeCatalogue {
+            static BUILT_IN: std::sync::LazyLock<corpus::DocTypeCatalogue> =
+                std::sync::LazyLock::new(corpus::DocTypeCatalogue::built_in);
+            &BUILT_IN
+        }
         fn doc_type_dirs(
             &self,
         ) -> Result<Vec<crate::ports::DocTypeDir>, crate::ports::MigrationError>

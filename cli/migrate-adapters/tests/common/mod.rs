@@ -5,6 +5,7 @@ use config::ConfigError;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use corpus::DocTypeCatalogue;
 use corpus_adapters::RealFs;
 use corpus_adapters::YamlFrontmatter;
 use migrate::ports::MigrationError;
@@ -54,6 +55,7 @@ impl WorkItemIdentity for WorkIdentity {
 /// realignment stubbed out.
 pub struct Composition {
     composed: Composed,
+    doc_types: DocTypeCatalogue,
 }
 
 impl Composition {
@@ -63,12 +65,14 @@ impl Composition {
                 FileConfigStore::at(root)
                     .with_legacy_policy(LegacyPolicy::Allow),
             )?,
+            doc_types: DocTypeCatalogue::built_in(),
         })
     }
 
     pub fn capabilities(&self) -> Capabilities<'_> {
         Capabilities {
             config: &self.composed.service,
+            doc_types: &self.doc_types,
             walker: &RealFs,
             reader: &RealFs,
             frontmatter: &YamlFrontmatter,
